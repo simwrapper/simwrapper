@@ -1,0 +1,40 @@
+---
+city: berlin
+readme: /masks/1/test-notes.md
+zip: /masks/1/summaries.zip
+info: /masks/1/_info.txt
+timestamp: 2020-04-22
+dayZero: 2020-02-20
+offset:
+  - -6
+  - -3
+  - 0
+  - 3
+  - 6
+optionGroups:
+  - day: 23
+    heading: Leisure activities limited
+    subheading: Percent still occurring (%)
+    measures:
+      - measure: remainingFractionLeisure1
+        title: Leisure activities
+  - day: 32
+    heading: Out-of-home activities limited
+    subheading: By type and percent (%)
+    measures:
+      - measure: remainingFractionWork
+        title: Work activities
+      - measure: remainingFractionLeisure2
+        title: Leisure activities
+      - measure: remainingFractionShoppingBusinessErrands
+        title: All other activities
+  - day: 60
+    heading: Re-opening of educational facilities
+    subheading: Students returning (%)
+    measures:
+      - measure: remainingFractionKiga
+        title: Going to kindergarten
+      - measure: remainingFractionPrima
+        title: Going to primary school
+      - measure: remainingFractionSecon
+        title: Going to secondary/univ.
