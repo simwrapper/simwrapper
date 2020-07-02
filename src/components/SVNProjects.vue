@@ -9,14 +9,14 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import svnConfig from 'yaml-loader!@/svn-config.yml'
+import globalStore from '@/store.ts'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   private sources: any[] = []
 
   private mounted() {
-    this.sources = svnConfig.projects
+    this.sources = globalStore.state.svnProjects
   }
 
   private openProjectPage(source: any) {

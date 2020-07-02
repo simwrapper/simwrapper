@@ -2,11 +2,14 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 import { ColorScheme } from '@/Globals'
 
+import svnConfig from 'yaml-loader!@/svn-config.yml'
+
 Vue.use(Vuex)
 
 export default new Vuex.Store({
   state: {
     statusMessage: 'loading',
+    svnProjects: svnConfig.projects,
     clock: '',
     isRunning: true,
     isFullScreen: false,

@@ -9,8 +9,6 @@ class SVNFileSystem {
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl
     if (!baseUrl.endsWith('/')) this.baseUrl += '/'
-
-    console.log(this.baseUrl)
   }
 
   async getDirectory(scaryPath: string): Promise<DirectoryEntry> {
@@ -21,7 +19,7 @@ class SVNFileSystem {
     if (!path.endsWith('/')) path += '/'
 
     // ok now we're safe
-    console.log('fetching dir:', path)
+    console.log('fetching dir:', scaryPath)
 
     return await fetch(path)
       .then(response => response.text())

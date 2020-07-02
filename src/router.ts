@@ -2,8 +2,9 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import ProjectPage from '@/views/ProjectPage.vue'
+import RunFolder from '@/views/RunFolder.vue'
 
-import svnConfig from 'yaml-loader!@/svn-config.yml'
+import globalStore from '@/store.ts'
 
 Vue.use(VueRouter)
 
@@ -22,14 +23,20 @@ const routes = [
 
 function projects(): any[] {
   const projectRoutes = []
-  for (const source of svnConfig.projects) {
-    const namedRoute = {
+  for (const source of globalStore.state.svnProjects) {
+    // project page
+    projectRoutes.push({
       path: '/' + source.url,
       name: source.url,
       component: ProjectPage,
-    }
+    })
 
-    projectRoutes.push(namedRoute)
+    // run folder pages
+    projectRoutes.push({
+      path: '/' + source.url + '/*',
+      name: source.url,
+      component: ProjectPage,
+    })
   }
 
   return projectRoutes
