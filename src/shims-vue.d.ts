@@ -11,6 +11,7 @@ declare module 'raw-loader!*' {
 }
 
 declare module 'convert-seconds'
+declare module 'read-blob'
 declare module 'vue-slide-bar'
 declare module 'vue-table-component'
 declare module '@statnett/vue-plotly'
