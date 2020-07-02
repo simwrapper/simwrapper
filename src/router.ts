@@ -17,11 +17,12 @@ const routes = [
   //   component: () => import(/* webpackChunkName: "V6" */ '@/runs/v6/V6.vue'),
   // },
 
-  {
-    path: '/*',
-    component: () =>
-      import(/* webpackChunkName: "runviewer" */ '@/views/battery-viewer/RunPage.vue'),
-  },
+  // {
+  //   path: '/*',
+  //   component: () =>
+  //     import(/* webpackChunkName: "runviewer" */ '@/views/battery-viewer/RunPage.vue'),
+  // },
+
   {
     // catch-all back to home page
     path: '*',
