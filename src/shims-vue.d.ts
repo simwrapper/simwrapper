@@ -10,6 +10,11 @@ declare module 'raw-loader!*' {
   export default content
 }
 
+declare module 'yaml-loader!*' {
+  const content: any
+  export default content
+}
+
 declare module 'convert-seconds'
 declare module 'read-blob'
 declare module 'vue-slide-bar'
