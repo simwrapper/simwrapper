@@ -1,0 +1,8 @@
+projects:
+  - name: SNZ-Open Berlin
+    url: https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/
+    need_password: true
+
+  - name: EpiSim batteries
+    url: https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/episim/battery/
+    need_password: false

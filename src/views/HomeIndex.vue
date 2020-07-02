@@ -8,19 +8,13 @@
     colophon.colophon
     .content
       .main
-        .top
-          p.headline AVÖV Projekt blabla bla Willkommen
+        p.headline AVÖV Projekt blabla bla Willkommen
 
-          p Hier finden Sie bla bla AVÖV, Verkehrsplanung und Verkehrstelematik (VSP), ILS, TU Berlin.
+        .readme(v-html="readme")
 
-          h2 Method: Mobility traces and the spreading of COVID-19
-          p The MATSim-Episim virus spreading dynamics model is described in this paper:
-            br
-            a(href="https://dx.doi.org/10.14279/depositonce-9835") https://dx.doi.org/10.14279/depositonce-9835 .
+        h2 Projekte
 
-          p The code is freely available and open source:
-            br
-            a(href="https://github.com/matsim-org/matsim-episim") https://github.com/matsim-org/matsim-episim .
+        svn-projects
 
         h2 Interactive Visualizations
 
@@ -31,14 +25,7 @@
             router-link(:to="viz.url")
               viz-card(:viz="viz")
 
-        h2 Simulations of COVID-19 spreading in Berlin
-
-        .readme(v-html="readme")
-
-        .viz-cards
-          .one-viz(v-for="viz in modelruns" :key="viz.url")
-            router-link(:to="viz.url")
-              viz-card(:viz="viz")
+        h2 Bottom Page Extra Info
 
         .readme(v-html="readmeBottom")
 
@@ -50,10 +37,11 @@ const bottom = require('@/assets/index-bottom.md')
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
+import SvnProjects from '@/components/SVNProjects.vue'
 
 export default {
   name: 'Home',
-  components: { Colophon, VizCard },
+  components: { Colophon, SvnProjects, VizCard },
   data: function() {
     return {
       readme,
