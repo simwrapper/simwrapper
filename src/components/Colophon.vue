@@ -14,7 +14,7 @@
 
   .team Contact
 
-  p.nonbreak: a(href="mailto:sekretariat@vsp.tu-berlin.de") Email us
+  p.nonbreak: a(href="mailto:sekretariat@vsp.tu-berlin.de") Email
 
   .team Partners
 

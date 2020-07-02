@@ -1,8 +1,12 @@
 projects:
-  - name: SNZ-Open Berlin
-    url: https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/
+  - name: SNZ Berlin
+    url: snz-berlin
+    svn: https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/
+    description: Berlin scenario runs based on Senozon model
     need_password: true
 
   - name: EpiSim batteries
-    url: https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/episim/battery/
+    url: episim
+    svn: https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/episim/battery/
+    description: MATSIM-Episim model runs for COVID-19
     need_password: false

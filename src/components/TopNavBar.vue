@@ -49,7 +49,6 @@ export default class VueComponent extends Vue {
   private mounted() {}
 
   @Watch('$route') private routeChanged(to: any, from: any) {
-    console.log(this.$route)
     this.isBurgerActive = false
     this.isDropdownActive = false
   }

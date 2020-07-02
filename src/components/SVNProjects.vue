@@ -1,7 +1,8 @@
 <template lang="pug">
 #vue-component
-  a.project(v-for="source in sources" :key="source.url")
-    p {{ source.name }}
+  .project(v-for="source in sources" :key="source.url" @click='openProjectPage(source)')
+    b {{ source.name }}
+    p {{ source.description }}
 
 </template>
 
@@ -12,12 +13,14 @@ import svnConfig from 'yaml-loader!@/svn-config.yml'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
-  // @Prop({ required: true })
-  // private viz!: Viz
   private sources: any[] = []
 
   private mounted() {
     this.sources = svnConfig.projects
+  }
+
+  private openProjectPage(source: any) {
+    this.$router.push({ name: source.url }) // , params: source })
   }
 }
 </script>
@@ -25,17 +28,16 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.project p {
-  padding: 1rem 1rem;
+.project {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
   background-color: white;
   margin: 0.25rem 0rem;
+  padding: 0.5rem 1rem;
 }
 
-.project a {
-  cursor: pointer;
-}
-
-.project :hover {
+.project:hover {
   background-color: #ffd;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
 }

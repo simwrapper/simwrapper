@@ -32,8 +32,8 @@
 </template>
 
 <script lang="ts">
-const readme = require('@/assets/index.md')
-const bottom = require('@/assets/index-bottom.md')
+const readme = require('@/assets/info-top.md')
+const bottom = require('@/assets/info-bottom.md')
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
@@ -134,7 +134,7 @@ export default {
 
 .content {
   flex: 1;
-  padding: 2rem 3rem 8rem 3rem;
+  padding: 2rem 3rem 5rem 3rem;
   display: flex;
   width: 100%;
 }
