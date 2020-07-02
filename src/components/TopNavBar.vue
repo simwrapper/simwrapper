@@ -20,8 +20,9 @@
       @click='clickedBurger')
       .navbar-start
 
-        router-link.navbar-item(to="/2020-06-19/") 2020.06.19
-        router-link.navbar-item(to="/2020-06-05/") 2020.06.05
+        router-link.navbar-item(to="/2020-06-19/") Project Site
+        router-link.navbar-item(to="/2020-06-05/") Subversion
+        router-link.navbar-item(to="/v3?day=5") Visualizations
 
         .navbar-item.has-dropdown.is-hoverable(:class="{'is-active': isDropdownActive}")
           a.navbar-link  Older Versions
@@ -29,15 +30,6 @@
             a.navbar-item(:href="'/v9/masks/berlin'") v9:Masks
             a.navbar-item(:href="'/v9/tracing2/berlin'") v9:Tracing
             a.navbar-item(:href="'/v8/masks'") v8 Masks
-            a.navbar-item(:href="'/v7'") v7
-            a.navbar-item(:href="'/norun'") v6
-            a.navbar-item(:href="'/v5'") v5
-            a.navbar-item(:href="'/v4'") v4
-            a.navbar-item(:href="'/norun'") v3
-            a.navbar-item(:href="'/v2'") v2
-            a.navbar-item(:href="'/v1'") v1
-
-        router-link.navbar-item(to="/v3?day=5") Visualizations
 
 </template>
 
@@ -68,7 +60,7 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 #nav {
-  background-color: $matsimBlue;
+  background-color: $tuRed;
 }
 
 #nav a.router-link-exact-active {

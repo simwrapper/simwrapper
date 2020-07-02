@@ -2,21 +2,16 @@
 #home
   .banner
     h2 VSP / Technische Universität Berlin
-    h3 COVID-19 Analysis Portal
+    h3 AVÖV Projekt Portal
 
   .page-area
     colophon.colophon
     .content
       .main
         .top
-          p.headline We build advanced human mobility models, and attach virus infection dynamics taken from recent literature and publications.
-            br
-            | This results in a virus spreading dynamics model.
+          p.headline AVÖV Projekt blabla bla Willkommen
 
-          p This site is the central hub for COVID-19 virus spreading research from the Transport Systems Planning and Transport Telematics group (VSP), Institute for Land and Sea Transport at TU Berlin. This research uses the&nbsp;
-            a(href="https://github.com/matsim-org/matsim-episim")
-              b MATSim-Episim
-            | &nbsp;virus spreading model.
+          p Hier finden Sie bla bla AVÖV, Verkehrsplanung und Verkehrstelematik (VSP), ILS, TU Berlin.
 
           h2 Method: Mobility traces and the spreading of COVID-19
           p The MATSim-Episim virus spreading dynamics model is described in this paper:
@@ -160,8 +155,8 @@ export default {
   display: flex;
   flex-direction: column;
   padding: 4rem 3rem 1rem 3rem;
-  background-color: #1e1f2c;
-  color: white;
+  background-color: #ffffff;
+  color: $tuRed;
   background: url(../assets/images/banner.jpg);
   background-repeat: no-repeat;
   background-size: cover;
@@ -170,9 +165,10 @@ export default {
 .banner h2 {
   margin-bottom: 0rem;
   font-size: 1.6rem;
-  background-color: #1e1f2c;
-  line-height: 1.6rem;
+  background-color: white;
+  line-height: 1.7rem;
   margin-right: auto;
+  padding: 0 0.5rem;
 }
 
 .banner h3 {
@@ -180,8 +176,8 @@ export default {
   font-weight: normal;
   margin-bottom: 0;
   line-height: 1.4rem;
-  padding-bottom: 0.25rem;
-  background-color: #1e1f2c;
+  padding: 0.25rem 0.5rem;
+  background-color: white;
   width: max-content;
 }
 

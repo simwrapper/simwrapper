@@ -1,43 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
-    />
+    <head>
+        <meta charset="utf-8"/>
+        <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
+        <meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport"/>
 
-    <meta name="site_name" content="{{ site.name }}" />
-    <meta name="author" content="{{ site.author }}" />
+        <meta name="site_name" content="{{ site.name }}"/>
+        <meta name="author" content="{{ site.author }}"/>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@billyinberlin" />
-    <meta name="twitter:creator" content="@billyinberlin" />
-    <meta
-      name="twitter:image"
-      content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png"
-    />
-    <meta name="twitter:title" content="Mobility traces and the spreading of COVID-19" />
-    <meta
-      name="twitter:description"
-      content="Simulations of COVID-19 spreading through the population. The outcomes examine consequences of starting various interventions a number of days after the simulation starts."
-    />
+        <meta content="summary_large_image" name="twitter:card"/>
+        <meta content="@billyinberlin" name="twitter:site"/>
+        <meta content="@billyinberlin" name="twitter:creator"/>
+        <meta content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png" name="twitter:image"/>
+        <meta content="Mobility traces and the spreading of COVID-19" name="twitter:title"/>
+        <meta content="Simulations of COVID-19 spreading through the population. The outcomes examine consequences of starting various interventions a number of days after the simulation starts." name="twitter:description"/>
 
-    <meta name="og:title" content="Mobility traces and the spreading of COVID-19" />
-    <meta name="og:url" content="https://covid-sim.info/v1/" />
-    <meta
-      name="og:image"
-      content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png"
-    />
-    <meta
-      name="og:description"
-      content="Simulations of COVID-19 spreading through the population. The outcomes examine consequences of starting various interventions a number of days after the simulation starts."
-    />
+        <meta content="Mobility traces and the spreading of COVID-19" name="og:title"/>
+        <meta content="https://covid-sim.info/v1/" name="og:url"/>
+        <meta content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png" name="og:image"/>
+        <meta content="Simulations of COVID-19 spreading through the population. The outcomes examine consequences of starting various interventions a number of days after the simulation starts." name="og:description"/>
 
-    <!-- github pages hack -->
-    <script>
+        <!-- github pages hack -->
+        <script>
       ;(function() {
         var redirect = sessionStorage.redirect
         delete sessionStorage.redirect
@@ -47,30 +32,19 @@
       })()
     </script>
 
-    <link
-      rel="stylesheet"
-      href="https://use.fontawesome.com/releases/v5.7.1/css/all.css"
-      integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr"
-      crossorigin="anonymous"
-    />
-    <link
-      href="https://fonts.googleapis.com/css?family=Roboto:300,700&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css?family=Roboto+Slab&display=swap"
-      rel="stylesheet"
-    />
-    <title>COVID-19 DataViewer</title>
-  </head>
-  <body>
-    <noscript>
-      <strong
-        >We're sorry but dataviewer-proto doesn't work properly without JavaScript enabled. Please
-        enable it to continue.</strong
-      >
-    </noscript>
-    <div id="app"></div>
-    <!-- built files will be auto injected -->
-  </body>
+        <link href="/favicon-32x32.png" rel="icon" sizes="32x32" type="image/png">
+
+        <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.7.1/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" rel="stylesheet"/>
+        <link href="https://fonts.googleapis.com/css?family=Roboto:300,700&display=swap" rel="stylesheet"/>
+        <link href="https://fonts.googleapis.com/css?family=Roboto+Slab&display=swap" rel="stylesheet"/>
+        <title>COVID-19 DataViewer</title>
+    </head>
+    <body>
+        <noscript>
+            <strong>We're sorry but dataviewer-proto doesn't work properly without JavaScript enabled. Please
+                        enable it to continue.</strong>
+        </noscript>
+        <div id="app"></div>
+        <!-- built files will be auto injected -->
+    </body>
 </html>

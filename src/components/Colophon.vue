@@ -5,26 +5,21 @@
       img(src="@/assets/images/tu-logo.png")
   .professor Kai Nagel, Professor
 
-  .team COVID-19 Team
+  .team AVÖV Team
 
-  p Billy Charlton
-  p Ricardo Ewert
   p Ihab Kaddoura
-  p Sebastian Müller
-  p Christian Rakow
-  p Tilmann Schlenther
+  p Gregor Leich
+  p Billy Charlton
 
-  .team MATSim-EpiSim
-
-  p: a(href="https://github.com/matsim-org/matsim-episim") Source code
 
   .team Contact
 
-  p.nonbreak: a(href="mailto:covid19@vsp.tu-berlin.de") covid19@vsp.tu-berlin.de
+  p.nonbreak: a(href="mailto:sekretariat@vsp.tu-berlin.de") Email us
 
   .team Partners
 
-  p: a(href='https://senozon.com' target="_blank") Senozon Deutschland GmbH
+  // p: a(href='https://senozon.com' target="_blank") Senozon Deutschland GmbH
+  p to be added
 
   .team Supported By
   a(href='https://bmbf.de' target="_blank")
