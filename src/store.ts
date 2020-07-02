@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import { ColorScheme } from '@/Globals'
+import { BreadCrumb, ColorScheme } from '@/Globals'
 
 import svnConfig from 'yaml-loader!@/svn-config.yml'
 

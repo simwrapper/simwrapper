@@ -3,6 +3,11 @@ export enum ColorScheme {
   DarkMode = 'dark',
 }
 
+export interface BreadCrumb {
+  label: string
+  url?: string
+}
+
 export interface ColorSet {
   text: string
   background: string

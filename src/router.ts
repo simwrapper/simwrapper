@@ -2,7 +2,6 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import ProjectPage from '@/views/ProjectPage.vue'
-import RunFolder from '@/views/RunFolder.vue'
 
 import globalStore from '@/store.ts'
 
@@ -30,7 +29,6 @@ function projects(): any[] {
       name: source.url,
       component: ProjectPage,
     })
-
     // run folder pages
     projectRoutes.push({
       path: '/' + source.url + '/*',

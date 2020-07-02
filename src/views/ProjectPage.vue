@@ -1,9 +1,15 @@
 <template lang="pug">
 #vue-component
-  h2 {{ $route.name }}
+  .project-bar(v-if="myState.svnProject")
+    h2 {{ myState.svnProject.name }}
+    p {{ myState.svnProject.description }}
 
   .details(v-if="myState.svnProject")
-    p() {{ myState.svnProject.description }}
+    nav.breadcrumb(aria-label="breadcrumbs")
+      ul
+        li(v-for="crumb in breadcrumbs" :key="crumb.label + crumb.url"
+           @click="clickedLink(crumb.url)")
+            p {{ crumb.label }}
 
     h3 Folders:
     .folder(v-for="folder in myState.folders" :key="folder.name"
@@ -21,6 +27,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
 import SVNFileSystem from '@/util/SVNFileSystem'
+import { BreadCrumb } from '../Globals'
 
 interface SVNP {
   name: string
@@ -43,7 +50,6 @@ export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
   private svnp?: SVNP
-
   private myState: IMyState = {
     folders: [],
     files: [],
@@ -52,20 +58,50 @@ export default class VueComponent extends Vue {
     subfolder: '',
   }
 
+  private get breadcrumbs() {
+    if (!this.myState.svnProject) return []
+
+    const crumbs = [
+      {
+        label: this.myState.svnProject.name,
+        url: '/' + this.myState.svnProject.url,
+      },
+    ]
+
+    const subfolders = this.myState.subfolder.split('/')
+    let buildFolder = '/'
+    for (const folder of subfolders) {
+      if (!folder) continue
+
+      buildFolder += folder + '/'
+      crumbs.push({
+        label: folder,
+        url: '/' + this.myState.svnProject.url + buildFolder,
+      })
+    }
+
+    // last link is not a link
+    crumbs[crumbs.length - 1].url = '#'
+
+    return crumbs
+  }
+
   private mounted() {
     this.updateRoute()
   }
 
-  private openOutputFolder(folder: string) {
-    console.log(folder)
-    if (!this.myState.svnProject) return
-
-    const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
+  private clickedLink(path: string) {
+    console.log(path)
     this.$router.push({ path })
   }
 
   @Watch('$route') async updateRoute() {
-    console.log('Project page!', this.$route.name)
+    console.log('Project page!', this.$route)
+
+    if (!this.$route.name) return
+
+    let prjUrl = this.$route.name
+    if (prjUrl.indexOf('@@+') === 0) prjUrl = this.$route.name.substring(3)
 
     const svnProject: any[] = this.globalState.svnProjects.filter(
       (a: any) => a.url === this.$route.name
@@ -106,6 +142,15 @@ export default class VueComponent extends Vue {
     this.myState.folders = folders
     this.myState.files = files
   }
+
+  private openOutputFolder(folder: string) {
+    console.log(folder)
+    if (!this.myState.svnProject) return
+
+    const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
+    console.log(path)
+    this.$router.push({ path })
+  }
 }
 </script>
 
@@ -113,12 +158,12 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 #vue-component {
-  padding: 3rem 3rem;
 }
 
 h3,
 h4 {
   margin-top: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .folder {
@@ -133,6 +178,33 @@ h4 {
 .folder:hover {
   background-color: #ffd;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+}
+
+.project-bar {
+  padding: 1rem 3rem 1.5rem 3rem;
+  background-color: white;
+}
+
+.project-bar p {
+  margin-top: -0.25rem;
+}
+
+.details {
+  padding: 1rem 3rem 3rem 3rem;
+}
+
+.breadcrumb {
+  font-size: 0.85rem;
+}
+
+.breadcrumb p {
+  color: $themeColorPale;
+  cursor: pointer;
+  margin: 0 0.5rem;
+}
+
+.breadcrumb p:hover {
+  color: #cca;
 }
 
 @media only screen and (max-width: 640px) {
