@@ -1,0 +1,35 @@
+const config: any = {
+  projects: [
+    {
+      name: 'EpiSim batteries',
+      url: 'episim',
+      description: 'MATSIM-Episim model runs for COVID-19',
+      svn:
+        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/episim/battery/',
+      need_password: false,
+    },
+    {
+      name: 'SNZ Berlin',
+      url: 'snz-berlin',
+      description: 'Berlin scenario runs based on Senozon model (runs-svn)',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/',
+      need_password: true,
+    },
+    {
+      name: 'Shared-SVN',
+      url: 'shared-svn',
+      description: 'Test svn access (shared-svn)',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/',
+      need_password: true,
+    },
+    {
+      name: 'Apache Localhost',
+      url: 'apache',
+      description: 'test CORS settings',
+      svn: 'http://localhost',
+      need_password: true,
+    },
+  ],
+}
+
+export default config
