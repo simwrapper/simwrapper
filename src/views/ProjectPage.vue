@@ -63,6 +63,10 @@ export default class VueComponent extends Vue {
 
     const crumbs = [
       {
+        label: 'Home',
+        url: '/',
+      },
+      {
         label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
       },
@@ -96,8 +100,6 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('$route') async updateRoute() {
-    console.log('Project page!', this.$route)
-
     if (!this.$route.name) return
 
     let prjUrl = this.$route.name
@@ -118,7 +120,7 @@ export default class VueComponent extends Vue {
     this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
 
     if (!this.myState.svnProject) return
-    this.myState.svnRoot = new SVNFileSystem(this.myState.svnProject.svn)
+    this.myState.svnRoot = new SVNFileSystem(this.myState.svnProject.svn, '', '')
 
     // this happens async
     this.fetchFolderContents()
@@ -195,6 +197,7 @@ h4 {
 
 .breadcrumb {
   font-size: 0.85rem;
+  margin-left: -0.5rem;
 }
 
 .breadcrumb p {

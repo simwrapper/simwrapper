@@ -5,10 +5,18 @@ interface DirectoryEntry {
 
 class SVNFileSystem {
   private baseUrl: string
+  private headers: any
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, username: string, password: string) {
     this.baseUrl = baseUrl
     if (!baseUrl.endsWith('/')) this.baseUrl += '/'
+
+    // base64 encode username:password for auth requests
+    if (username !== '' && password !== '') {
+      this.headers = { Authorization: 'Basic ' + btoa(username + ':' + password) }
+    } else {
+      this.headers = {}
+    }
   }
 
   async getDirectory(scaryPath: string): Promise<DirectoryEntry> {
@@ -21,12 +29,18 @@ class SVNFileSystem {
     // ok now we're safe
     console.log('fetching dir:', scaryPath)
 
-    return await fetch(path)
+    const myRequest = new Request(path, {
+      headers: this.headers,
+    })
+
+    return await fetch(myRequest)
       .then(response => response.text())
       .then(data => {
+        console.log('made it! no error!')
         return this.buildListFromHtml(data)
       })
       .catch(error => {
+        console.log({ SVNError: error })
         return { dirs: [], files: [] }
       })
   }
