@@ -159,9 +159,6 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#vue-component {
-}
-
 h3,
 h4 {
   margin-top: 2rem;
