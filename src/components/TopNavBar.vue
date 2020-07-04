@@ -1,5 +1,5 @@
 <template lang="pug">
-  nav.navbar.is-link(role="navigation" aria-label="main navigation")
+  nav.navbar.is-danger(role="navigation" aria-label="main navigation")
     .navbar-brand
       router-link.home-link.navbar-item(to="/") Home
         //- img(src="https://bulma.io/images/bulma-logo.png" width="112" height="28")
