@@ -26,7 +26,7 @@ const config: any = {
       name: 'Apache Localhost',
       url: 'apache',
       description: 'test CORS settings',
-      svn: 'http://localhost',
+      svn: 'http://localhost:8000',
       need_password: true,
     },
   ],
