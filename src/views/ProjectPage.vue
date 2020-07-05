@@ -26,7 +26,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
-import SVNFileSystem from '@/util/SVNFileSystem'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 import { BreadCrumb } from '../Globals'
 
 interface SVNP {
@@ -41,7 +41,7 @@ interface IMyState {
   folders: string[]
   files: string[]
   svnProject?: SVNP
-  svnRoot?: SVNFileSystem
+  svnRoot?: HTTPFileSystem
   subfolder: string
 }
 
@@ -120,7 +120,7 @@ export default class VueComponent extends Vue {
     this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
 
     if (!this.myState.svnProject) return
-    this.myState.svnRoot = new SVNFileSystem(this.myState.svnProject.svn, '', '')
+    this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject.svn, '', '')
 
     // this happens async
     this.fetchFolderContents()
