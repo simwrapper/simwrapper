@@ -8,6 +8,7 @@ Vue.use(Vuex)
 
 export default new Vuex.Store({
   state: {
+    debug: true,
     statusMessage: 'loading',
     svnProjects: svnConfig.projects,
     clock: '',

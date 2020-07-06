@@ -1,3 +1,14 @@
+export interface DirectoryEntry {
+  files: string[]
+  dirs: string[]
+}
+
+export interface FileSystem {
+  getDirectory(path: string): Promise<DirectoryEntry>
+  getFileText(path: string): Promise<string>
+  getFileJson(path: string): Promise<any>
+}
+
 export enum ColorScheme {
   LightMode = 'light',
   DarkMode = 'dark',

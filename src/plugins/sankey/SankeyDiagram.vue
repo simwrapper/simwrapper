@@ -1,6 +1,6 @@
 <template lang="pug">
 #container
-  project-summary-block.project-summary-block(:project="project" :projectId="projectId")
+  //- project-summary-block.project-summary-block(:project="project" :projectId="projectId")
 
   .main-area
     h1.center {{ project.name }}
@@ -15,27 +15,39 @@
 
 import colormap from 'colormap'
 import nprogress from 'nprogress'
+import yaml from 'yaml'
 import { sankey, sankeyDiagram } from 'd3-sankey-diagram'
 import { select } from 'd3-selection'
 import { scaleOrdinal } from 'd3-scale'
 import { schemeCategory10 } from 'd3-scale-chromatic'
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import ProjectSummaryBlock from '@/visualization/transit-supply/ProjectSummaryBlock.vue'
+import { FileSystem } from '../../Globals'
+import globalStore from '@/store.ts'
+// import ProjectSummaryBlock from '@/visualization/transit-supply/ProjectSummaryBlock.vue'
 
-const INPUTS = {
-  FLOWS: 'Flows (.csv)',
+interface SankeyYaml {
+  csv: string
+  title?: string
+  description?: string
 }
 
 @Component({
-  components: { ProjectSummaryBlock },
+  components: {}, //ProjectSummaryBlock },
 })
 class VueComponent extends Vue {
-  @Prop({ type: String, required: true })
-  private vizId!: string
+  @Prop({ required: true })
+  private fileApi!: FileSystem
+
+  @Prop({ required: true })
+  private subfolder!: string
 
   @Prop({ type: String, required: true })
-  private projectId!: string
+  private yamlConfig!: string
+
+  private globalState = globalStore.state
+
+  private vizDetails: SankeyYaml = { csv: '' }
 
   private loadingText: string = 'Flow Diagram'
   private project: any = {}
@@ -43,24 +55,31 @@ class VueComponent extends Vue {
 
   private totalTrips = 0
 
-  public created() {}
+  public mounted() {
+    this.getVizDetails()
+  }
 
-  public async mounted() {
-    this.projectId = (this as any).$route.params.projectId
-    this.vizId = (this as any).$route.params.vizId
+  // @Watch('fileApi') changedServer() {
+  //   this.getVizDetails()
+  // }
 
-    await this.getVizDetails()
-    this.setupDiagram()
+  @Watch('yamlConfig') changedYaml() {
+    this.getVizDetails()
+  }
+
+  @Watch('subfolder') changedSubfolder() {
+    this.getVizDetails()
   }
 
   private async getVizDetails() {
-    this.visualization = await this.fileApi.fetchVisualization(this.projectId, this.vizId)
-    this.project = await this.fileApi.fetchProject(this.projectId)
+    // this.project = await this.fileApi.fetchProject(this.projectId)
 
-    SharedStore.setBreadCrumbs([
-      { label: this.visualization.title, url: '/' },
-      { label: this.visualization.project.name, url: '/' },
-    ])
+    // SharedStore.setBreadCrumbs([
+    //   { label: this.visualization.title, url: '/' },
+    //   { label: this.visualization.project.name, url: '/' },
+    // ])
+
+    this.setupDiagram()
   }
 
   private async setupDiagram() {
@@ -76,11 +95,11 @@ class VueComponent extends Vue {
     try {
       this.loadingText = 'Loading files...'
 
-      if (SharedStore.debug) console.log(this.visualization.inputFiles)
+      const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
+      console.log(text)
+      this.vizDetails = yaml.parse(text)
 
-      const fileID = this.visualization.inputFiles[INPUTS.FLOWS].fileEntry.id
-      const blob = await this.fileApi.downloadFile(fileID, this.projectId)
-      const flows: string = await BlobUtil.blobToBinaryString(blob)
+      const flows = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
 
       return { flows }
     } catch (e) {
@@ -96,6 +115,7 @@ class VueComponent extends Vue {
     const fromNodes: any = []
     const toNodes: any = []
     const links: any = []
+    this.totalTrips = 0
 
     // build lookups
     const csv = networks.flows.split('\n')
@@ -168,14 +188,14 @@ class VueComponent extends Vue {
 }
 
 // register component with the SharedStore
-SharedStore.addVisualizationType({
-  component: SankeyDiagram,
-  typeName: 'sankey',
-  prettyName: 'Sankey Flow Diagram',
-  description: 'Depicts flows between choices',
-  requiredFileKeys: [INPUTS.FLOWS],
-  requiredParamKeys: [],
-})
+// SharedStore.addVisualizationType({
+//   component: VueComponent,
+//   typeName: 'sankey',
+//   prettyName: 'Sankey Flow Diagram',
+//   description: 'Depicts flows between choices',
+//   requiredFileKeys: [INPUTS.FLOWS],
+//   requiredParamKeys: [],
+// })
 
 export default VueComponent
 </script>

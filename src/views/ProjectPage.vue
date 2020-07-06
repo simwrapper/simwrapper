@@ -11,6 +11,15 @@
            @click="clickedLink(crumb.url)")
             p {{ crumb.label }}
 
+    h3 Viz:
+
+    sankey-diagram.sankey(
+      v-for="sankey in sankeyDiagrams" :key="sankey.yaml"
+      :fileApi="myState.svnRoot"
+      :subfolder="myState.subfolder"
+      :yamlConfig="sankey.yaml"
+    )
+
     h3 Folders:
     .folder(v-for="folder in myState.folders" :key="folder.name"
             @click="openOutputFolder(folder)")
@@ -27,6 +36,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
+import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import { BreadCrumb } from '../Globals'
 
 interface SVNP {
@@ -45,7 +55,7 @@ interface IMyState {
   subfolder: string
 }
 
-@Component({ components: {}, props: {} })
+@Component({ components: { SankeyDiagram }, props: {} })
 export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
@@ -56,6 +66,19 @@ export default class VueComponent extends Vue {
     svnProject: this.svnp,
     svnRoot: undefined,
     subfolder: '',
+  }
+
+  private sankeyDiagrams: any[] = [{ yaml: 'sankey.yaml' }]
+
+  private getFileSystem(name: string) {
+    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+
+    return svnProject[0]
   }
 
   private get breadcrumbs() {
@@ -103,18 +126,11 @@ export default class VueComponent extends Vue {
     if (!this.$route.name) return
 
     let prjUrl = this.$route.name
-    if (prjUrl.indexOf('@@+') === 0) prjUrl = this.$route.name.substring(3)
+    // if (prjUrl.indexOf('@@+') === 0) prjUrl = this.$route.name.substring(3)
 
-    const svnProject: any[] = this.globalState.svnProjects.filter(
-      (a: any) => a.url === this.$route.name
-    )
+    const svnProject = this.getFileSystem(this.$route.name)
 
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-
-    this.myState.svnProject = svnProject[0]
+    this.myState.svnProject = svnProject
     this.myState.folders = []
     this.myState.files = []
     this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''

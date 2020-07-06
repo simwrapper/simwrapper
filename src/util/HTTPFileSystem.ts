@@ -1,7 +1,4 @@
-interface DirectoryEntry {
-  files: string[]
-  dirs: string[]
-}
+import { DirectoryEntry } from '@/Globals'
 
 class SVNFileSystem {
   private baseUrl: string
@@ -17,6 +14,46 @@ class SVNFileSystem {
     } else {
       this.headers = {}
     }
+  }
+
+  async getFileText(scaryPath: string): Promise<String> {
+    // hostile user could put anything in the URL really...
+    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+
+    console.log('fetching text from file:', scaryPath)
+
+    const myRequest = new Request(path, {
+      headers: this.headers,
+    })
+
+    return await fetch(myRequest)
+      .then(response => {
+        if (response.status == 200) return response.text()
+        console.log({ Status: response.status })
+        return ''
+      })
+      .catch(error => {
+        console.log({ HTTPFileSystemError: error })
+        return ''
+      })
+  }
+
+  async getFileJson(scaryPath: string) {
+    // hostile user could put anything in the URL really...
+    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+
+    console.log('fetching text from file:', scaryPath)
+
+    const myRequest = new Request(path, {
+      headers: this.headers,
+    })
+
+    return await fetch(myRequest)
+      .then(response => response.json())
+      .catch(error => {
+        console.log({ HTTPFileSystemError: error })
+        return {}
+      })
   }
 
   async getDirectory(scaryPath: string): Promise<DirectoryEntry> {
