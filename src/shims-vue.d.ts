@@ -15,9 +15,11 @@ declare module 'yaml-loader!*' {
   export default content
 }
 
+declare module '@statnett/vue-plotly'
+declare module 'colormap'
 declare module 'convert-seconds'
+declare module 'd3-sankey-diagram'
 declare module 'read-blob'
 declare module 'vue-slide-bar'
 declare module 'vue-table-component'
-declare module '@statnett/vue-plotly'
 declare module 'zip-loader'

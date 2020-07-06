@@ -9,9 +9,9 @@ const config: any = {
       need_password: false,
     },
     {
-      name: 'SNZ Berlin',
+      name: ' Berlin SNZ',
       url: 'snz-berlin',
-      description: 'Berlin scenario runs based on Senozon model (runs-svn)',
+      description: 'Berlin Szenario (runs-svn)',
       svn: 'https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/',
       need_password: true,
     },
