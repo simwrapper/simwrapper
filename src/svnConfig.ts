@@ -17,7 +17,8 @@ const config: any = {
     {
       name: 'Localhost:8000',
       url: 'local',
-      description: "Use 'scripts/serve.py' to access local files without a server",
+      description:
+        "Verwenden Sie 'scripts/serve.py', um auf lokale Dateien ohne Server zuzugreifen.",
       svn: 'http://localhost:8000',
       need_password: true,
     },

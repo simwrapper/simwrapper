@@ -12,7 +12,7 @@
             p {{ crumb.label }}
 
     .folders(v-if="myState.folders.length")
-      h3 Folders
+      h3 Ordner
       .folder(v-for="folder in myState.folders" :key="folder.name"
               @click="openOutputFolder(folder)")
         p {{ folder }}
@@ -30,9 +30,10 @@
                   :thumbnail="true"
                   @title="updateTitle(viz-1, $event)")
 
-    h3 Files
-    .file(v-for="file in myState.files" :key="file.name")
-      p {{ file }}
+    .files(v-if="myState.files.length")
+      h3 Datein
+      .file(v-for="file in myState.files" :key="file")
+        a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -99,10 +100,10 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnProject) return []
 
     const crumbs = [
-      {
-        label: 'Home',
-        url: '/',
-      },
+      // {
+      //   label: 'Home',
+      //   url: '/',
+      // },
       {
         label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
@@ -261,7 +262,7 @@ h4 {
   flex-direction: column;
 
   p {
-    font-size: 1.1rem;
+    font-size: 1rem;
     padding: 0.25rem 0.5rem;
     color: white;
     background-color: #555;

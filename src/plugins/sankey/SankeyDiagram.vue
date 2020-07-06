@@ -1,8 +1,9 @@
 <template lang="pug">
 #container(v-if="myState.yamlConfig")
-  //- project-summary-block.project-summary-block(:project="project" :projectId="projectId")
-
   .main-area
+    .labels(v-show="myState.thumbnail")
+      h5.center {{ vizDetails.description }}
+
     .labels(v-show="!(myState.thumbnail)")
       h3.center {{ vizDetails.title }}
       h5.center {{ vizDetails.description }}
@@ -27,7 +28,6 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import globalStore from '@/store.ts'
 import { FileSystem, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-// import ProjectSummaryBlock from '@/visualization/transit-supply/ProjectSummaryBlock.vue'
 
 interface SankeyYaml {
   csv: string

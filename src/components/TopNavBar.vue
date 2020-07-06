@@ -20,16 +20,15 @@
       @click='clickedBurger')
       .navbar-start
 
-        router-link.navbar-item(to="/2020-06-19/") Project Site
-        router-link.navbar-item(to="/2020-06-05/") Subversion
-        router-link.navbar-item(to="/v3?day=5") Visualizations
+        router-link.navbar-item(to="/snz-berlin/") Berlin-SNZ
+        router-link.navbar-item(to="/local/") Localhost
 
         .navbar-item.has-dropdown.is-hoverable(:class="{'is-active': isDropdownActive}")
-          a.navbar-link  Older Versions
+          a.navbar-link  Etc
           .navbar-dropdown
-            a.navbar-item(:href="'/v9/masks/berlin'") v9:Masks
-            a.navbar-item(:href="'/v9/tracing2/berlin'") v9:Tracing
-            a.navbar-item(:href="'/v8/masks'") v8 Masks
+            a.navbar-item(:href="'/v9/masks/berlin'") Jelly Donuts
+            a.navbar-item(:href="'/v9/tracing2/berlin'") Pickles
+            a.navbar-item(:href="'/v8/masks'") Chicken Wings
 
 </template>
 

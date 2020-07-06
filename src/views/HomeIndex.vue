@@ -16,14 +16,14 @@
 
         svn-projects
 
-        h2 Interactive Visualizations
+        //- h2 Interactive Visualizations
 
-        p The following interactive visualizations help to illustrate the method and results which emerge from the model. These are produced directly from simulated model results. Note that due to the advanced nature of the visualizations, only modern versions of recent web browsers are supported.
+        //- p The following interactive visualizations help to illustrate the method and results which emerge from the model. These are produced directly from simulated model results. Note that due to the advanced nature of the visualizations, only modern versions of recent web browsers are supported.
 
-        .viz-cards
-          .one-viz(v-for="viz in visualizations" :key="viz.url")
-            router-link(:to="viz.url")
-              viz-card(:viz="viz")
+        //- .viz-cards
+        //-   .one-viz(v-for="viz in visualizations" :key="viz.url")
+        //-     router-link(:to="viz.url")
+        //-       viz-card(:viz="viz")
 
         h2 Bottom Page Extra Info
 
