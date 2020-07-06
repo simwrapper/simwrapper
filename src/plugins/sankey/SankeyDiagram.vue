@@ -1,10 +1,11 @@
 <template lang="pug">
-#container
+#container(v-if="myState.yamlConfig")
   //- project-summary-block.project-summary-block(:project="project" :projectId="projectId")
 
   .main-area
-    h1.center {{ project.name }}
-    h3.center Flow Diagram
+    h3.center {{ vizDetails.title }}
+    h5.center {{ vizDetails.description }}
+
     p.center {{ totalTrips.toLocaleString() }} total trips
 
     svg(:id="cleanConfigId")
@@ -24,6 +25,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
 import { FileSystem, VisualizationPlugin } from '../../Globals'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 // import ProjectSummaryBlock from '@/visualization/transit-supply/ProjectSummaryBlock.vue'
 
 interface SankeyYaml {
@@ -32,55 +34,88 @@ interface SankeyYaml {
   description?: string
 }
 
-@Component({
-  components: {}, //ProjectSummaryBlock },
-})
+@Component({ components: {} })
 class MyComponent extends Vue {
-  @Prop({ required: true })
+  @Prop({ required: false })
   private fileApi!: FileSystem
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   private subfolder!: string
 
-  @Prop({ type: String, required: true })
+  @Prop({ required: false })
   private yamlConfig!: string
 
   private globalState = globalStore.state
 
-  private vizDetails: SankeyYaml = { csv: '' }
+  private myState = {
+    fileApi: this.fileApi,
+    subfolder: this.subfolder,
+    yamlConfig: this.yamlConfig,
+  }
+
+  private vizDetails: SankeyYaml = { csv: '', title: 'Flow Diagram', description: '' }
 
   private loadingText: string = 'Flow Diagram'
-  private project: any = {}
   private jsonChart: any = {}
-
   private totalTrips = 0
 
   private get cleanConfigId() {
-    const clean = this.yamlConfig.replace(/[\W_]+/g, '')
-    console.log(clean)
+    const clean = this.myState.yamlConfig.replace(/[\W_]+/g, '')
     return clean
   }
 
   public mounted() {
+    if (!this.yamlConfig) {
+      this.buildRouteFromUrl()
+    }
+
     this.getVizDetails()
   }
 
-  // @Watch('fileApi') changedServer() {
-  //   this.getVizDetails()
-  // }
-
-  @Watch('yamlConfig') changedYaml() {
+  @Watch('myState.yamlConfig') changedYaml() {
     this.getVizDetails()
   }
 
-  @Watch('subfolder') changedSubfolder() {
+  @Watch('myState.subfolder') changedSubfolder() {
     this.getVizDetails()
+  }
+
+  private getFileSystem(name: string) {
+    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+    return svnProject[0]
+  }
+
+  // this happens if viz is the full page, not a thumbnail on a project page
+  private buildRouteFromUrl() {
+    const params = this.$route.params
+    if (!params.project || !params.pathMatch) {
+      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+      return
+    }
+
+    // project filesystem
+    const filesystem = this.getFileSystem(params.project)
+    this.myState.fileApi = new HTTPFileSystem(filesystem.svn, '', '')
+
+    // subfolder and config file
+    const sep = 1 + params.pathMatch.lastIndexOf('/')
+    const subfolder = params.pathMatch.substring(0, sep)
+    const config = params.pathMatch.substring(sep)
+    console.log({ subfolder, config })
+
+    this.myState.subfolder = subfolder
+    this.myState.yamlConfig = config
   }
 
   private async getVizDetails() {
-    const networks = await this.loadFiles()
-    if (networks) this.jsonChart = this.processInputs(networks)
+    const files = await this.loadFiles()
+    if (files) this.jsonChart = this.processInputs(files)
 
+    console.log({ files })
     this.loadingText = ''
     this.doD3()
     nprogress.done()
@@ -90,10 +125,14 @@ class MyComponent extends Vue {
     try {
       this.loadingText = 'Loading files...'
 
-      const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.myState.yamlConfig
+      )
       this.vizDetails = yaml.parse(text)
 
-      const flows = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
+      const flows = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.vizDetails.csv
+      )
 
       return { flows }
     } catch (e) {
@@ -187,6 +226,7 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Sankey Flow Diagram',
   description: 'Depicts flows between choices',
   filePatterns: ['*.y?(a)ml'],
+  component: MyComponent,
 } as VisualizationPlugin)
 
 export default MyComponent
@@ -264,13 +304,12 @@ p {
 }
 
 .main-area {
-  padding-top: 4rem;
+  padding-top: 1rem;
   grid-row: 1/3;
   grid-column: 1/3;
   width: 100%;
   display: flex;
   flex-direction: column;
-  margin-bottom: auto;
 }
 
 #chart {
