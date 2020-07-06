@@ -16,7 +16,7 @@ class SVNFileSystem {
     }
   }
 
-  async getFileText(scaryPath: string): Promise<String> {
+  async getFileText(scaryPath: string): Promise<string> {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 

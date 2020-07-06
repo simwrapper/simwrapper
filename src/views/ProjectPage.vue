@@ -16,9 +16,6 @@
             @click="openOutputFolder(folder)")
       p {{ folder }}
 
-
-    h3 Visualizations will appear here ({{ myState.vizes.length }})
-
     .vizes(v-for="viz in myState.vizes.length")
       component(:is="myState.vizes[viz-1][0]"
                 :yamlConfig="myState.vizes[viz-1][1]"
@@ -128,9 +125,6 @@ export default class VueComponent extends Vue {
 
   @Watch('$route') async updateRoute() {
     if (!this.$route.name) return
-
-    let prjUrl = this.$route.name
-    // if (prjUrl.indexOf('@@+') === 0) prjUrl = this.$route.name.substring(3)
 
     const svnProject = this.getFileSystem(this.$route.name)
 

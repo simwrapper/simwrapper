@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import VueRouter from 'vue-router'
+import VueRouter, { Route, RouteConfig } from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import ProjectPage from '@/views/ProjectPage.vue'
 
@@ -40,10 +40,32 @@ function projects(): any[] {
   return projectRoutes
 }
 
+// individual viz plugins all go into /v/* subpaths
+function vizPlugins(): any[] {
+  const plugins = []
+  for (const plugin of globalStore.state.visualizationTypes.values()) {
+    plugins.push({
+      path: '/v/' + plugin.kebabName + '/:project/*',
+      name: plugin.kebabName,
+      component: plugin.component,
+      props: (route: Route) => {
+        return {
+          project: route.params.project,
+        }
+      },
+    })
+  }
+
+  return plugins
+}
+
 const router = new VueRouter({
   mode: 'history',
   base: process.env.BASE_URL,
-  routes: projects().concat(routes), // native-like back/forward and top-of-page routing
+  routes: projects()
+    .concat(vizPlugins())
+    .concat(routes),
+  // native-like back/forward and top-of-page routing
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
       return savedPosition

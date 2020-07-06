@@ -1,4 +1,5 @@
 export interface VisualizationPlugin {
+  component: Vue.VueConstructor
   kebabName: string
   prettyName: string
   description?: string
