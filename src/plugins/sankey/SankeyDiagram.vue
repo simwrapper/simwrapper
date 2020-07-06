@@ -3,10 +3,11 @@
   //- project-summary-block.project-summary-block(:project="project" :projectId="projectId")
 
   .main-area
-    h3.center {{ vizDetails.title }}
-    h5.center {{ vizDetails.description }}
+    .labels(v-show="!(myState.thumbnail)")
+      h3.center {{ vizDetails.title }}
+      h5.center {{ vizDetails.description }}
 
-    p.center {{ totalTrips.toLocaleString() }} total trips
+      p.center {{ totalTrips.toLocaleString() }} total trips
 
     svg(:id="cleanConfigId")
 </template>
@@ -45,15 +46,19 @@ class MyComponent extends Vue {
   @Prop({ required: false })
   private yamlConfig!: string
 
+  @Prop({ required: false })
+  private thumbnail!: boolean
+
   private globalState = globalStore.state
 
   private myState = {
     fileApi: this.fileApi,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
+    thumbnail: this.thumbnail,
   }
 
-  private vizDetails: SankeyYaml = { csv: '', title: 'Flow Diagram', description: '' }
+  private vizDetails: SankeyYaml = { csv: '', title: '', description: '' }
 
   private loadingText: string = 'Flow Diagram'
   private jsonChart: any = {}
@@ -72,11 +77,13 @@ class MyComponent extends Vue {
     this.getVizDetails()
   }
 
-  @Watch('myState.yamlConfig') changedYaml() {
+  @Watch('yamlConfig') changedYaml() {
+    this.myState.yamlConfig = this.yamlConfig
     this.getVizDetails()
   }
 
-  @Watch('myState.subfolder') changedSubfolder() {
+  @Watch('subfolder') changedSubfolder() {
+    this.myState.subfolder = this.subfolder
     this.getVizDetails()
   }
 
@@ -105,7 +112,6 @@ class MyComponent extends Vue {
     const sep = 1 + params.pathMatch.lastIndexOf('/')
     const subfolder = params.pathMatch.substring(0, sep)
     const config = params.pathMatch.substring(sep)
-    console.log({ subfolder, config })
 
     this.myState.subfolder = subfolder
     this.myState.yamlConfig = config
@@ -115,7 +121,6 @@ class MyComponent extends Vue {
     const files = await this.loadFiles()
     if (files) this.jsonChart = this.processInputs(files)
 
-    console.log({ files })
     this.loadingText = ''
     this.doD3()
     nprogress.done()
@@ -129,6 +134,8 @@ class MyComponent extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = yaml.parse(text)
+
+      this.$emit('title', this.vizDetails.title)
 
       const flows = await this.myState.fileApi.getFileText(
         this.myState.subfolder + '/' + this.vizDetails.csv
@@ -223,7 +230,7 @@ class MyComponent extends Vue {
 // !register plugin!
 globalStore.commit('registerPlugin', {
   kebabName: 'sankey-diagram',
-  prettyName: 'Sankey Flow Diagram',
+  prettyName: 'Flow Diagram',
   description: 'Depicts flows between choices',
   filePatterns: ['*.y?(a)ml'],
   component: MyComponent,

@@ -20,7 +20,7 @@ class SVNFileSystem {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 
-    // console.log('fetching text from file:', scaryPath)
+    console.log('FETCHING text from:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,

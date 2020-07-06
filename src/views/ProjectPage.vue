@@ -11,17 +11,24 @@
            @click="clickedLink(crumb.url)")
             p {{ crumb.label }}
 
-    h3 Folders
-    .folder(v-for="folder in myState.folders" :key="folder.name"
-            @click="openOutputFolder(folder)")
-      p {{ folder }}
+    .folders(v-if="myState.folders.length")
+      h3 Folders
+      .folder(v-for="folder in myState.folders" :key="folder.name"
+              @click="openOutputFolder(folder)")
+        p {{ folder }}
 
-    .vizes(v-for="viz in myState.vizes.length")
-      component(:is="myState.vizes[viz-1][0]"
-                :yamlConfig="myState.vizes[viz-1][1]"
-                :fileApi="myState.svnRoot"
-                :subfolder="myState.subfolder"
-      )
+    .vizes(v-if="myState.vizes.length")
+      .viz-table
+        .viz-item(v-for="viz in myState.vizes.length" @click="clickedVisualization(viz-1)")
+          .viz-frame
+            p {{ myState.vizes[viz-1].title }}
+            component(style="pointer-events: none;"
+                  :is="myState.vizes[viz-1].component"
+                  :yamlConfig="myState.vizes[viz-1].config"
+                  :fileApi="myState.svnRoot"
+                  :subfolder="myState.subfolder"
+                  :thumbnail="true"
+                  @title="updateTitle(viz-1, $event)")
 
     h3 Files
     .file(v-for="file in myState.files" :key="file.name")
@@ -36,7 +43,13 @@ import micromatch from 'micromatch'
 import globalStore from '@/store.ts'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
-import { BreadCrumb } from '../Globals'
+import { BreadCrumb, VisualizationPlugin } from '../Globals'
+
+interface VizEntry {
+  component: string
+  config: string
+  title: string
+}
 
 interface SVNP {
   name: string
@@ -52,7 +65,7 @@ interface IMyState {
   svnProject?: SVNP
   svnRoot?: HTTPFileSystem
   subfolder: string
-  vizes: [string, string][] // [component-id, configfile]
+  vizes: VizEntry[]
 }
 
 @Component({ components: { SankeyDiagram }, props: {} })
@@ -119,8 +132,20 @@ export default class VueComponent extends Vue {
   }
 
   private clickedLink(path: string) {
-    console.log(path)
     this.$router.push({ path })
+  }
+
+  private clickedVisualization(vizNumber: number) {
+    const viz = this.myState.vizes[vizNumber]
+
+    if (!this.myState.svnProject) return
+
+    const path = `/v/${viz.component}/${this.myState.svnProject.url}/${this.myState.subfolder}/${viz.config}`
+    this.$router.push({ path })
+  }
+
+  private updateTitle(viz: number, title: string) {
+    this.myState.vizes[viz].title = title
   }
 
   @Watch('$route') async updateRoute() {
@@ -153,10 +178,9 @@ export default class VueComponent extends Vue {
 
       for (const file of matches) {
         // add thumbnail for each matching file
-        this.myState.vizes.push([viz.kebabName, file])
+        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '...' })
       }
     }
-    console.log('TOTAL VIZ:', this.myState.vizes.length)
   }
 
   private async fetchFolderContents() {
@@ -198,6 +222,53 @@ h4 {
   margin-bottom: 0.5rem;
 }
 
+.viz-table {
+  display: grid;
+  grid-gap: 1rem;
+  grid-template-columns: repeat(auto-fill, 30%);
+  list-style: none;
+  margin-top: 2rem;
+  margin-bottom: 0px;
+  padding: 3px 3px;
+  padding-left: 0px;
+  overflow-y: auto;
+}
+
+.viz-item {
+  display: table-cell;
+  cursor: pointer;
+  vertical-align: top;
+  background-color: #f8f8f8;
+  border-bottom: 1px solid #aaa;
+  border-left: 1px solid #aaa;
+  border-right: 1px solid #aaa;
+  border-radius: 6px;
+  box-shadow: 2px 2px 2px #ddd;
+
+  :hover {
+    background-color: white;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 2px 2px 2px #bbb;
+  }
+  :hover p {
+    background-color: #555;
+    border-radius: 5px 5px 0 0;
+  }
+}
+
+.viz-frame {
+  display: flex;
+  flex-direction: column;
+
+  p {
+    font-size: 1.1rem;
+    padding: 0.25rem 0.5rem;
+    color: white;
+    background-color: #555;
+    border-radius: 5px 5px 0 0;
+  }
+}
+
 .folder {
   cursor: pointer;
   display: flex;
@@ -226,7 +297,7 @@ h4 {
 }
 
 .breadcrumb {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   margin-left: -0.5rem;
 }
 
