@@ -20,7 +20,7 @@ class SVNFileSystem {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 
-    console.log('fetching text from file:', scaryPath)
+    // console.log('fetching text from file:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,
@@ -42,7 +42,7 @@ class SVNFileSystem {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 
-    console.log('fetching text from file:', scaryPath)
+    // console.log('fetching text from file:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,
@@ -64,7 +64,7 @@ class SVNFileSystem {
     if (!path.endsWith('/')) path += '/'
 
     // ok now we're safe
-    console.log('fetching dir:', scaryPath)
+    // console.log('fetching dir:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,
@@ -73,7 +73,7 @@ class SVNFileSystem {
     return await fetch(myRequest)
       .then(response => response.text())
       .then(data => {
-        console.log('made it! no error!')
+        // console.log('made it! no error!')
         return this.buildListFromHtml(data)
       })
       .catch(error => {

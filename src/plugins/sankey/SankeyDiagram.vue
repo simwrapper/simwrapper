@@ -7,7 +7,7 @@
     h3.center Flow Diagram
     p.center {{ totalTrips.toLocaleString() }} total trips
 
-    svg#chart
+    svg(:id="cleanConfigId")
 </template>
 
 <script lang="ts">
@@ -22,8 +22,8 @@ import { scaleOrdinal } from 'd3-scale'
 import { schemeCategory10 } from 'd3-scale-chromatic'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import { FileSystem } from '../../Globals'
 import globalStore from '@/store.ts'
+import { FileSystem, VisualizationPlugin } from '../../Globals'
 // import ProjectSummaryBlock from '@/visualization/transit-supply/ProjectSummaryBlock.vue'
 
 interface SankeyYaml {
@@ -35,7 +35,7 @@ interface SankeyYaml {
 @Component({
   components: {}, //ProjectSummaryBlock },
 })
-class VueComponent extends Vue {
+class MyComponent extends Vue {
   @Prop({ required: true })
   private fileApi!: FileSystem
 
@@ -55,6 +55,12 @@ class VueComponent extends Vue {
 
   private totalTrips = 0
 
+  private get cleanConfigId() {
+    const clean = this.yamlConfig.replace(/[\W_]+/g, '')
+    console.log(clean)
+    return clean
+  }
+
   public mounted() {
     this.getVizDetails()
   }
@@ -72,17 +78,6 @@ class VueComponent extends Vue {
   }
 
   private async getVizDetails() {
-    // this.project = await this.fileApi.fetchProject(this.projectId)
-
-    // SharedStore.setBreadCrumbs([
-    //   { label: this.visualization.title, url: '/' },
-    //   { label: this.visualization.project.name, url: '/' },
-    // ])
-
-    this.setupDiagram()
-  }
-
-  private async setupDiagram() {
     const networks = await this.loadFiles()
     if (networks) this.jsonChart = this.processInputs(networks)
 
@@ -96,7 +91,6 @@ class VueComponent extends Vue {
       this.loadingText = 'Loading files...'
 
       const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
-      console.log(text)
       this.vizDetails = yaml.parse(text)
 
       const flows = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
@@ -179,7 +173,7 @@ class VueComponent extends Vue {
       return c + 'bb' // + opacity
     })
 
-    select('#chart')
+    select('#' + this.cleanConfigId)
       .datum(layout(data))
       .call(diagram)
       .attr('preserveAspectRatio', 'xMinYMin meet')
@@ -187,17 +181,15 @@ class VueComponent extends Vue {
   }
 }
 
-// register component with the SharedStore
-// SharedStore.addVisualizationType({
-//   component: VueComponent,
-//   typeName: 'sankey',
-//   prettyName: 'Sankey Flow Diagram',
-//   description: 'Depicts flows between choices',
-//   requiredFileKeys: [INPUTS.FLOWS],
-//   requiredParamKeys: [],
-// })
+// !register plugin!
+globalStore.commit('registerPlugin', {
+  kebabName: 'sankey-diagram',
+  prettyName: 'Sankey Flow Diagram',
+  description: 'Depicts flows between choices',
+  filePatterns: ['*.y?(a)ml'],
+} as VisualizationPlugin)
 
-export default VueComponent
+export default MyComponent
 </script>
 
 <style scoped>

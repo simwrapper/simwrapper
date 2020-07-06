@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
-import { BreadCrumb, ColorScheme } from '@/Globals'
 
+import { BreadCrumb, ColorScheme, VisualizationPlugin } from '@/Globals'
 import svnConfig from '@/svnConfig.ts'
 
 Vue.use(Vuex)
@@ -15,6 +15,7 @@ export default new Vuex.Store({
     isRunning: true,
     isFullScreen: false,
     isShowingHelp: false,
+    visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
 
     colorScheme: localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -25,6 +26,10 @@ export default new Vuex.Store({
       : false,
   },
   mutations: {
+    registerPlugin(state, value: VisualizationPlugin) {
+      console.log('REGISTERING PLUGIN:', value.kebabName)
+      state.visualizationTypes.set(value.kebabName, value)
+    },
     setFullScreen(state, value: boolean) {
       state.isFullScreen = value
     },

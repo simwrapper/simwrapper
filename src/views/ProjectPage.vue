@@ -11,21 +11,22 @@
            @click="clickedLink(crumb.url)")
             p {{ crumb.label }}
 
-    h3 Viz:
-
-    sankey-diagram.sankey(
-      v-for="sankey in sankeyDiagrams" :key="sankey.yaml"
-      :fileApi="myState.svnRoot"
-      :subfolder="myState.subfolder"
-      :yamlConfig="sankey.yaml"
-    )
-
-    h3 Folders:
+    h3 Folders
     .folder(v-for="folder in myState.folders" :key="folder.name"
             @click="openOutputFolder(folder)")
       p {{ folder }}
 
-    h3 Files:
+
+    h3 Visualizations will appear here ({{ myState.vizes.length }})
+
+    .vizes(v-for="viz in myState.vizes.length")
+      component(:is="myState.vizes[viz-1][0]"
+                :yamlConfig="myState.vizes[viz-1][1]"
+                :fileApi="myState.svnRoot"
+                :subfolder="myState.subfolder"
+      )
+
+    h3 Files
     .file(v-for="file in myState.files" :key="file.name")
       p {{ file }}
 
@@ -33,6 +34,7 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import micromatch from 'micromatch'
 
 import globalStore from '@/store.ts'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
@@ -53,6 +55,7 @@ interface IMyState {
   svnProject?: SVNP
   svnRoot?: HTTPFileSystem
   subfolder: string
+  vizes: [string, string][] // [component-id, configfile]
 }
 
 @Component({ components: { SankeyDiagram }, props: {} })
@@ -66,6 +69,7 @@ export default class VueComponent extends Vue {
     svnProject: this.svnp,
     svnRoot: undefined,
     subfolder: '',
+    vizes: [],
   }
 
   private sankeyDiagrams: any[] = [{ yaml: 'sankey.yaml' }]
@@ -140,6 +144,25 @@ export default class VueComponent extends Vue {
 
     // this happens async
     this.fetchFolderContents()
+  }
+
+  @Watch('myState.files') async filesChanged() {
+    // clear visualizations
+    this.myState.vizes = []
+    if (this.myState.files.length === 0) return
+
+    // loop on each viz type
+    for (const viz of this.globalState.visualizationTypes.values()) {
+      // filter based on file matching
+      const matches = micromatch(this.myState.files, viz.filePatterns)
+      // console.log(matches)
+
+      for (const file of matches) {
+        // add thumbnail for each matching file
+        this.myState.vizes.push([viz.kebabName, file])
+      }
+    }
+    console.log('TOTAL VIZ:', this.myState.vizes.length)
   }
 
   private async fetchFolderContents() {

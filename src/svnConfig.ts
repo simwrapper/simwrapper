@@ -23,9 +23,9 @@ const config: any = {
       need_password: true,
     },
     {
-      name: 'Apache Localhost',
+      name: 'Apache Localhost:8000',
       url: 'apache',
-      description: 'test CORS settings',
+      description: 'For serving local files without any server',
       svn: 'http://localhost:8000',
       need_password: true,
     },

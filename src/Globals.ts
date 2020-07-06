@@ -1,3 +1,10 @@
+export interface VisualizationPlugin {
+  kebabName: string
+  prettyName: string
+  description?: string
+  filePatterns: string[]
+}
+
 export interface DirectoryEntry {
   files: string[]
   dirs: string[]
