@@ -236,6 +236,11 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+
+// #project-component {
+//   background-color: #8f8fa7;
+// }
+
 h3,
 h4 {
   margin-top: 2rem;
@@ -268,16 +273,16 @@ h2 {
   border-bottom: 1px solid #aaa;
   border-left: 1px solid #aaa;
   border-right: 1px solid #aaa;
-  border-radius: 6px;
+  border-radius: 3px;
   margin-bottom: auto;
 
   :hover {
     background-color: white;
-    border-radius: 5px 5px 5px 5px;
+    border-radius: 3px 3px;
   }
   :hover p {
     background-color: #555;
-    border-radius: 5px 5px 0 0;
+    border-radius: 3px 3px 0 0;
   }
 }
 
@@ -290,7 +295,7 @@ h2 {
     padding: 0.25rem 0.5rem;
     color: white;
     background-color: #555;
-    border-radius: 5px 5px 0 0;
+    border-radius: 3px 3px 0 0;
   }
 }
 

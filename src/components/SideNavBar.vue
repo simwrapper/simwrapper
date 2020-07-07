@@ -58,6 +58,7 @@ export default class VueComponent extends Vue {
   private fullheight = true
   private mobile = 'reduce'
   private reduce = false
+  private overlay = true
   private theme = 'is-light'
   private projects = this.globalState.svnProjects
   private subfolders = [{ name: 'hello' }]
