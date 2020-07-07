@@ -20,17 +20,19 @@
     .vizes(v-if="myState.vizes.length")
       h3 Vizes (Should be {{myState.vizes.length}})
       .viz-table
-        //- @click="clickedVisualization(viz-1)")
-        .viz-item(v-for="viz in myState.vizes.length" :key="myState.vizes[viz-1].config")
+        .viz-item(v-for="viz in myState.vizes.length"
+                  :key="myState.vizes[viz-1].config"
+                  @click="clickedVisualization(viz-1)"
+                  )
           .viz-frame
             p {{ myState.vizes[viz-1].title }}
-            // component(style="pointer-events: none;"
             component(
                   :is="myState.vizes[viz-1].component"
                   :yamlConfig="myState.vizes[viz-1].config"
                   :fileApi="myState.svnRoot"
                   :subfolder="myState.subfolder"
                   :thumbnail="true"
+                  :style="{'pointer-events': myState.vizes[viz-1].component==='image-view' ? 'auto' : 'none'}"
                   @title="updateTitle(viz-1, $event)")
 
     .files(v-if="myState.files.length")
@@ -143,6 +145,9 @@ export default class VueComponent extends Vue {
 
   private clickedVisualization(vizNumber: number) {
     const viz = this.myState.vizes[vizNumber]
+
+    // special case: images don't click thru
+    if (viz.component === 'image-view') return
 
     if (!this.myState.svnProject) return
 
