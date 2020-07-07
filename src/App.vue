@@ -14,10 +14,10 @@
 </template>
 
 <script lang="ts">
-import store from '@/store'
-import Buefy from 'buefy'
-import 'mapbox-gl/dist/mapbox-gl.css'
 import mapboxgl from 'mapbox-gl'
+import Buefy from 'buefy'
+
+import store from '@/store'
 
 import Colophon from '@/components/Colophon.vue'
 import SideNavBar from '@/components/SideNavBar.vue'
@@ -52,6 +52,7 @@ export default {
 <style lang="scss">
 @import '@/styles.scss';
 @import '~buefy/dist/buefy.css';
+@import '~mapbox-gl/dist/mapbox-gl.css';
 
 html {
   box-sizing: border-box;

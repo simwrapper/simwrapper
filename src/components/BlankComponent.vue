@@ -1,5 +1,6 @@
 <template lang="pug">
 #vue-component
+  h1 Blank
 
 </template>
 
