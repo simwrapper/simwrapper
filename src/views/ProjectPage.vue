@@ -1,15 +1,17 @@
 <template lang="pug">
 #project-component
   .project-bar(v-if="myState.svnProject")
-    h2 {{ myState.svnProject.name }}
-    p {{ myState.svnProject.description }}
-
-  .details(v-if="myState.svnProject")
     nav.breadcrumb(aria-label="breadcrumbs")
       ul
         li(v-for="crumb in breadcrumbs" :key="crumb.label + crumb.url"
            @click="clickedLink(crumb.url)")
             p {{ crumb.label }}
+
+    h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
+    p {{ myState.svnProject.name }}
+    p {{ myState.svnProject.description }}
+
+  .details(v-if="myState.svnProject")
 
     .folders(v-if="myState.folders.length")
       h3 Ordner
@@ -240,6 +242,11 @@ h4 {
   margin-bottom: 0.5rem;
 }
 
+h2 {
+  font-size: 1.8rem;
+  width: max-content;
+}
+
 .viz-table {
   display: grid;
   grid-gap: 1rem;
@@ -311,7 +318,7 @@ h4 {
 }
 
 .details {
-  padding: 1rem 3rem 3rem 3rem;
+  padding: 0rem 3rem 3rem 3rem;
 }
 
 .breadcrumb {
