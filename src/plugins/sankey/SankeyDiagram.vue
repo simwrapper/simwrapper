@@ -232,7 +232,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'sankey-diagram',
   prettyName: 'Flow Diagram',
   description: 'Depicts flows between choices',
-  filePatterns: ['*.y?(a)ml'],
+  filePatterns: ['sankey*.y?(a)ml'],
   component: MyComponent,
 } as VisualizationPlugin)
 

@@ -1,5 +1,5 @@
 <template lang="pug">
-  nav.navbar.is-danger(role="navigation" aria-label="main navigation")
+  nav.navbar.is-link(role="navigation" aria-label="main navigation")
     .navbar-brand
       router-link.home-link.navbar-item(to="/") Home
         //- img(src="https://bulma.io/images/bulma-logo.png" width="112" height="28")
@@ -26,8 +26,8 @@
         .navbar-item.has-dropdown.is-hoverable(:class="{'is-active': isDropdownActive}")
           a.navbar-link  Etc
           .navbar-dropdown
-            a.navbar-item(:href="'/v9/masks/berlin'") Jelly Donuts
-            a.navbar-item(:href="'/v9/tracing2/berlin'") Pickles
+            a.navbar-item(:href="'/v9/masks/berlin'") Squirrels
+            a.navbar-item(:href="'/v9/tracing2/berlin'") Pizza
             a.navbar-item(:href="'/v8/masks'") Chicken Wings
 
 </template>
@@ -57,7 +57,7 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 #nav {
-  background-color: $tuRed;
+  background-color: $colorBoldBackground;
 }
 
 #nav a.router-link-exact-active {

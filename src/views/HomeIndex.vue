@@ -5,7 +5,6 @@
     h3 AVÖV Projekt Portal
 
   .page-area
-    colophon.colophon
     .content
       .main
         p.headline AVÖV Projekt blabla bla Willkommen
@@ -29,6 +28,14 @@
 
         .readme(v-html="readmeBottom")
 
+        .footer(v-if="!state.isFullScreen")
+          //- colophon.colophon
+          a(href="https://vsp.tu-berlin.de")
+            img(alt="TU-Berlin logo" src="@/assets/images/vsp-logo.png" width=225)
+          a(href="https://matsim.org")
+            img(alt="MATSim logo" src="@/assets/images/matsim-logo-blue.png" width=250)
+
+
 </template>
 
 <script lang="ts">
@@ -39,11 +46,14 @@ import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
 import SvnProjects from '@/components/SVNProjects.vue'
 
+import globalStore from '@/store'
+
 export default {
   name: 'Home',
   components: { Colophon, SvnProjects, VizCard },
   data: function() {
     return {
+      state: globalStore.state,
       readme,
       readmeBottom: bottom,
       visualizations: [
@@ -230,6 +240,23 @@ a {
   line-height: 2.7rem;
   padding: 1rem 0;
   color: $themeColor;
+}
+
+#app .footer {
+  color: #222;
+  background-color: white;
+  text-align: center;
+  padding: 2rem 0.5rem 3rem 0.5rem;
+  // background-color: #648cb4;
+}
+
+.footer a {
+  color: $matsimBlue;
+}
+
+.footer img {
+  margin: 1rem auto;
+  padding: 0 1rem;
 }
 
 @media only screen and (max-width: 640px) {

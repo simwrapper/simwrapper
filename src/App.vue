@@ -2,28 +2,28 @@
 #app
   top-nav-bar#nav(:style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
 
-  .thing
-    router-view
+  .center-area.nav-padding
+    side-nav-bar.nav-sidebar(v-if="!state.isFullScreen")
+    router-view.main-content
 
   .footer(v-if="!state.isFullScreen")
-    a(href="https://vsp.tu-berlin.de")
-      img(alt="TU-Berlin logo" src="@/assets/images/vsp-logo.png" width=225)
-    a(href="https://matsim.org")
-      img(alt="MATSim logo" src="@/assets/images/matsim-logo-blue.png" width=250)
-
-    p AVÖV Projekt Webseite, &copy; 2020 VSP TU-Berlin
-    p Um mehr Info zu finden:
+    p AVÖV Projekt Webseite, &copy; 2020 VSP TU-Berlin.
+    p Mehr Info über VSP:
       a(href="https://www.vsp.tu-berlin.de") &nbsp;https://vsp.tu-berlin.de
-
+    p GDPR: keine persönlichen Informationen gesammelt oder übertragen.
 </template>
 
 <script lang="ts">
-import TopNavBar from '@/components/TopNavBar.vue'
 import store from '@/store'
+import Buefy from 'buefy'
+
+import Colophon from '@/components/Colophon.vue'
+import SideNavBar from '@/components/SideNavBar.vue'
+import TopNavBar from '@/components/TopNavBar.vue'
 
 export default {
   name: 'App',
-  components: { TopNavBar },
+  components: { TopNavBar, SideNavBar, Colophon },
   data: function() {
     return {
       state: store.state,
@@ -34,7 +34,7 @@ export default {
 
 <style lang="scss">
 @import '@/styles.scss';
-@import '~bulma/css/bulma.css';
+@import '~buefy/dist/buefy.css';
 
 html {
   box-sizing: border-box;
@@ -58,7 +58,7 @@ canvas {
 }
 
 html {
-  background-color: #ccc;
+  background-color: #505050;
 }
 
 .bury-me {
@@ -107,8 +107,12 @@ h3 {
   width: 100%;
 }
 
-.thing {
+.nav-padding {
   padding-top: $navHeight;
+}
+
+.main-content {
+  flex: 1;
 }
 
 #nav a.router-link-exact-active {
@@ -119,27 +123,31 @@ h3 {
   margin: 0 1rem;
 }
 
-#app .footer {
-  text-align: center;
-  padding: 2rem 0.5rem 3rem 0.5rem;
-  // background-color: #648cb4;
+.vue-slider-rail {
+  background-color: green;
 }
 
-.footer p {
-  color: white;
+.center-area {
+  display: flex;
+  flex-direction: row;
+}
+
+.nav-sidebar {
+  z-index: 0;
+}
+
+.footer {
+  z-index: 100;
+  text-align: center;
+  font-size: 0.8rem;
+  margin: 0 0;
+  padding: 1rem 0;
+  color: #ccc;
+  background-color: $colorBoldBackground;
 }
 
 .footer a {
-  color: #043b26;
-}
-
-.footer img {
-  margin: 1rem auto;
-  padding: 0 1rem;
-}
-
-.vue-slider-rail {
-  background-color: green;
+  color: $matsimBlue;
 }
 
 .medium-zoom-overlay {

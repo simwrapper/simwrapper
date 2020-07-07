@@ -18,7 +18,7 @@
         p {{ folder }}
 
     .vizes(v-if="myState.vizes.length")
-      h3 Vizes (Should be {{myState.vizes.length}})
+      //- h3 Vizes (Should be {{myState.vizes.length}})
       .viz-table
         .viz-item(v-for="viz in myState.vizes.length"
                   :key="myState.vizes[viz-1].config"
@@ -107,10 +107,10 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnProject) return []
 
     const crumbs = [
-      // {
-      //   label: 'Home',
-      //   url: '/',
-      // },
+      {
+        label: 'Home',
+        url: '/',
+      },
       {
         label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
@@ -231,7 +231,6 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
 h3,
 h4 {
   margin-top: 2rem;
