@@ -130,7 +130,10 @@ export default class VueComponent extends Vue {
     }
 
     // last link is not a link
-    crumbs[crumbs.length - 1].url = '#'
+    // crumbs[crumbs.length - 1].url = '#'
+
+    // save them!
+    globalStore.commit('setBreadCrumbs', crumbs)
 
     return crumbs
   }

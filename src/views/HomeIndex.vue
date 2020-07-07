@@ -63,6 +63,11 @@ export default {
           subtitle: 'Animation of infection spreading through the population.',
         },
       ],
+      methods: {
+        mounted: () => {
+          globalStore.commit('setBreadCrumbs', [])
+        },
+      },
       modelruns: [
         {
           url: '/2020-06-19',

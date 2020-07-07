@@ -17,6 +17,8 @@ export default new Vuex.Store({
     isShowingHelp: false,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
 
+    breadcrumbs: [] as BreadCrumb[],
+
     colorScheme: localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
       : ColorScheme.DarkMode,
@@ -30,6 +32,9 @@ export default new Vuex.Store({
     registerPlugin(state, value: VisualizationPlugin) {
       console.log('REGISTERING PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
+    },
+    setBreadCrumbs(state, value: BreadCrumb[]) {
+      state.breadcrumbs = value
     },
     setFullScreen(state, value: boolean) {
       state.isFullScreen = value

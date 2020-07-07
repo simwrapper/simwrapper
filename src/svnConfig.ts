@@ -16,7 +16,7 @@ const config: any = {
       need_password: true,
     },
     {
-      name: ' Berlin SNZ (Broken)',
+      name: 'Berlin SNZ (Broken)',
       url: 'snz-berlin',
       description: 'Berlin Szenario (runs-svn)',
       svn: 'https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/snz-berlin/',
