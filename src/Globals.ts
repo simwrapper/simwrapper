@@ -15,6 +15,7 @@ export interface FileSystem {
   getDirectory(path: string): Promise<DirectoryEntry>
   getFileText(path: string): Promise<string>
   getFileJson(path: string): Promise<any>
+  getFileBlob(path: string): Promise<Blob | null>
 }
 
 export enum ColorScheme {

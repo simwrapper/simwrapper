@@ -25,6 +25,7 @@ export default new Vuex.Store({
       ? localStorage.getItem('agentAnimHelp')
       : false,
   },
+  getters: {},
   mutations: {
     registerPlugin(state, value: VisualizationPlugin) {
       console.log('REGISTERING PLUGIN:', value.kebabName)

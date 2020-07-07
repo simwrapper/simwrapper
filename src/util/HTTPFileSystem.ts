@@ -20,7 +20,7 @@ class SVNFileSystem {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 
-    console.log('FETCHING text from:', scaryPath)
+    console.log('FETCHING text:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,
@@ -42,17 +42,43 @@ class SVNFileSystem {
     // hostile user could put anything in the URL really...
     let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
 
-    // console.log('fetching text from file:', scaryPath)
+    console.log('fetching JSON:', scaryPath)
 
     const myRequest = new Request(path, {
       headers: this.headers,
     })
 
     return await fetch(myRequest)
-      .then(response => response.json())
+      .then(response => {
+        if (response.status == 200) return response.json()
+        console.log({ Status: response.status })
+        return {}
+      })
       .catch(error => {
         console.log({ HTTPFileSystemError: error })
         return {}
+      })
+  }
+
+  async getFileBlob(scaryPath: string) {
+    // hostile user could put anything in the URL really...
+    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+
+    // console.log('fetching BLOB:', scaryPath)
+
+    const myRequest = new Request(path, {
+      headers: this.headers,
+    })
+
+    return await fetch(myRequest)
+      .then(response => {
+        if (response.status == 200) return response.blob()
+        console.log({ Status: response.status })
+        return null
+      })
+      .catch(error => {
+        console.log({ HTTPFileSystemError: error })
+        return null
       })
   }
 

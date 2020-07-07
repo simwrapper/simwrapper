@@ -3,7 +3,8 @@ import VueRouter, { Route, RouteConfig } from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import ProjectPage from '@/views/ProjectPage.vue'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
+// import allPlugins from '@/plugins/pluginRegistry'
 
 Vue.use(VueRouter)
 

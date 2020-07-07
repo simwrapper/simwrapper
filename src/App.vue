@@ -141,4 +141,12 @@ h3 {
 .vue-slider-rail {
   background-color: green;
 }
+
+.medium-zoom-overlay {
+  z-index: 100;
+}
+
+.medium-zoom-overlay ~ img {
+  z-index: 101;
+}
 </style>

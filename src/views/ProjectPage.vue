@@ -1,5 +1,5 @@
 <template lang="pug">
-#vue-component
+#project-component
   .project-bar(v-if="myState.svnProject")
     h2 {{ myState.svnProject.name }}
     p {{ myState.svnProject.description }}
@@ -18,11 +18,14 @@
         p {{ folder }}
 
     .vizes(v-if="myState.vizes.length")
+      h3 Vizes (Should be {{myState.vizes.length}})
       .viz-table
-        .viz-item(v-for="viz in myState.vizes.length" @click="clickedVisualization(viz-1)")
+        //- @click="clickedVisualization(viz-1)")
+        .viz-item(v-for="viz in myState.vizes.length" :key="myState.vizes[viz-1].config")
           .viz-frame
             p {{ myState.vizes[viz-1].title }}
-            component(style="pointer-events: none;"
+            // component(style="pointer-events: none;"
+            component(
                   :is="myState.vizes[viz-1].component"
                   :yamlConfig="myState.vizes[viz-1].config"
                   :fileApi="myState.svnRoot"
@@ -39,11 +42,12 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store.ts'
+import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import { BreadCrumb, VisualizationPlugin } from '../Globals'
 
 interface VizEntry {
@@ -69,7 +73,10 @@ interface IMyState {
   vizes: VizEntry[]
 }
 
-@Component({ components: { SankeyDiagram }, props: {} })
+@Component({
+  components: plugins,
+  props: {},
+})
 export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
@@ -82,8 +89,6 @@ export default class VueComponent extends Vue {
     subfolder: '',
     vizes: [],
   }
-
-  private sankeyDiagrams: any[] = [{ yaml: 'sankey.yaml' }]
 
   private getFileSystem(name: string) {
     const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
@@ -182,6 +187,11 @@ export default class VueComponent extends Vue {
         this.myState.vizes.push({ component: viz.kebabName, config: file, title: '...' })
       }
     }
+
+    await this.$nextTick()
+    mediumZoom('.medium-zoom', {
+      background: '#444450',
+    })
   }
 
   private async fetchFolderContents() {
@@ -230,26 +240,26 @@ h4 {
   list-style: none;
   margin-top: 2rem;
   margin-bottom: 0px;
-  padding: 3px 3px;
   padding-left: 0px;
   overflow-y: auto;
 }
 
 .viz-item {
+  margin: 0 0;
+  padding: 0 0;
   display: table-cell;
   cursor: pointer;
   vertical-align: top;
-  background-color: #f8f8f8;
+  background-color: #f6f6f6;
   border-bottom: 1px solid #aaa;
   border-left: 1px solid #aaa;
   border-right: 1px solid #aaa;
   border-radius: 6px;
-  box-shadow: 2px 2px 2px #ddd;
+  margin-bottom: auto;
 
   :hover {
     background-color: white;
     border-radius: 5px 5px 5px 5px;
-    box-shadow: 2px 2px 2px #bbb;
   }
   :hover p {
     background-color: #555;
@@ -262,7 +272,7 @@ h4 {
   flex-direction: column;
 
   p {
-    font-size: 1rem;
+    font-size: 0.85rem;
     padding: 0.25rem 0.5rem;
     color: white;
     background-color: #555;
