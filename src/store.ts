@@ -30,7 +30,8 @@ export default new Vuex.Store({
   getters: {},
   mutations: {
     registerPlugin(state, value: VisualizationPlugin) {
-      console.log('REGISTERING PLUGIN:', value.kebabName)
+      console.log('REGISTERING PLUGIN:')
+      console.log('---', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {

@@ -1,9 +1,9 @@
 <template lang="pug">
-#app
+#app(:class=" {'full-page-app' : state.isFullScreen}" )
   top-nav-bar#nav(:style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
 
   .center-area.nav-padding
-    side-nav-bar.nav-sidebar(v-if="!state.isFullScreen")
+    side-nav-bar.nav-sidebar(v-if="!(state.isFullScreen)")
     router-view.main-content
 
   .footer(v-if="!state.isFullScreen")
@@ -16,10 +16,19 @@
 <script lang="ts">
 import store from '@/store'
 import Buefy from 'buefy'
+import 'mapbox-gl/dist/mapbox-gl.css'
+import mapboxgl from 'mapbox-gl'
 
 import Colophon from '@/components/Colophon.vue'
 import SideNavBar from '@/components/SideNavBar.vue'
 import TopNavBar from '@/components/TopNavBar.vue'
+
+// MAPBOX TOKEN
+// this is a required workaround to get the mapbox token assigned in TypeScript
+// see https://stackoverflow.com/questions/44332290/mapbox-gl-typing-wont-allow-accesstoken-assignment
+const writableMapBox: any = mapboxgl
+writableMapBox.accessToken =
+  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
 export default {
   name: 'App',
@@ -28,6 +37,14 @@ export default {
     return {
       state: store.state,
     }
+  },
+  watch: {
+    'state.isFullScreen': function(isFullPage: boolean) {
+      console.log('~~SWITCHING FULL PAGE: ', isFullPage)
+
+      if (isFullPage) document.body.classList.add('full-screen-page')
+      else document.body.classList.remove('full-screen-page')
+    },
   },
 }
 </script>
@@ -51,6 +68,8 @@ html {
   margin: 0px 0px;
   padding: 0px 0px;
   overflow-y: auto;
+  height: 100%;
+  overscroll-behavior: contain;
 }
 
 canvas {
@@ -85,15 +104,34 @@ h3 {
 }
 
 #app {
-  color: #222;
-  display: flex;
-  flex-direction: column;
-  margin: 0rem 0rem;
-  padding: 0px 0px;
+  background-color: white;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0px 0px 0px 0px;
+  padding: 0px 0px 0px 0px;
   font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: $paleBackground;
+}
+
+// #app {
+//   color: #222;
+//   display: flex;
+//   flex-direction: column;
+//   margin: 0rem 0rem;
+//   padding: 0px 0px;
+//   font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
+//   -webkit-font-smoothing: antialiased;
+//   -moz-osx-font-smoothing: grayscale;
+//   background-color: $paleBackground;
+// }
+
+.full-page-app {
+  height: 100%;
 }
 
 .modebar-group {
@@ -102,6 +140,8 @@ h3 {
 }
 
 #nav {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
   position: absolute;
   top: 0;
   width: 100%;
@@ -128,6 +168,9 @@ h3 {
 }
 
 .center-area {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+  z-index: 1;
   display: flex;
   flex-direction: row;
 }
@@ -137,6 +180,8 @@ h3 {
 }
 
 .footer {
+  grid-column: 1 / 2;
+  grid-row: 3 / 4;
   z-index: 100;
   text-align: center;
   font-size: 0.8rem;
