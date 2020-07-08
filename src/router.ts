@@ -1,10 +1,10 @@
 import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
-import ProjectPage from '@/views/ProjectPage.vue'
+import FolderBrowser from '@/views/FolderBrowser.vue'
+import RunBrowser from '@/views/RunBrowser.vue'
 
 import globalStore from '@/store'
-// import allPlugins from '@/plugins/pluginRegistry'
 
 Vue.use(VueRouter)
 
@@ -28,13 +28,13 @@ function projects(): any[] {
     projectRoutes.push({
       path: '/' + source.url,
       name: source.url,
-      component: ProjectPage,
+      component: FolderBrowser,
     })
     // run folder pages
     projectRoutes.push({
       path: '/' + source.url + '/*',
       name: source.url,
-      component: ProjectPage,
+      component: FolderBrowser,
     })
   }
 

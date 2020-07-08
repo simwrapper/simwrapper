@@ -7,25 +7,14 @@
   .page-area
     .content
       .main
-        p.headline AVÖV Projekt blabla bla Willkommen
+        p.headline AVÖV Projekt
 
         .readme(v-html="readme")
 
         h2 Projekte
-
         svn-projects
 
-        //- h2 Interactive Visualizations
-
-        //- p The following interactive visualizations help to illustrate the method and results which emerge from the model. These are produced directly from simulated model results. Note that due to the advanced nature of the visualizations, only modern versions of recent web browsers are supported.
-
-        //- .viz-cards
-        //-   .one-viz(v-for="viz in visualizations" :key="viz.url")
-        //-     router-link(:to="viz.url")
-        //-       viz-card(:viz="viz")
-
         h2 Bottom Page Extra Info
-
         .readme(v-html="readmeBottom")
 
         .footer(v-if="!state.isFullScreen")

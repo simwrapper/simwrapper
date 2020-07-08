@@ -18,17 +18,14 @@
 
           b-menu.is-custom-mobile
 
-            b-menu-list(label="PROJEKTE")
+            b-menu-list.boop(label="Run Browser")
               b-menu-item(v-for="prj in projects" :key="prj.url"
               icon="folder-multiple" :label="prj.name" :active="isActive(prj)"
               @click="clickedProject(prj)")
 
-              // b-menu-item(v-for="folder in subfolders" icon="folder" :label="folder.name")
-
-            b-menu-list.boop(label="Information")
-              b-menu-item(icon="office-building" label="AVÖV Webseite")
-              b-menu-item(icon="office-building" label="VSP TU-Berlin")
-              b-menu-item(icon="polymer" label="Code")
+              //- b-menu-item(icon="office-building" label="AVÖV Webseite")
+              //- b-menu-item(icon="office-building" label="VSP TU-Berlin")
+              //- b-menu-item(icon="polymer" label="Code")
 
           //- b-menu.is-custom-mobile
           //-   b-menu-list(label="Menu")
@@ -64,7 +61,7 @@ export default class VueComponent extends Vue {
   private subfolders = [{ name: 'hello' }]
 
   @Watch('globalState.breadcrumbs') crumbsChanged() {
-    console.log('BOOP!')
+    // console.log('BOOP!')
   }
 
   private isActive(item: any) {

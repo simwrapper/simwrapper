@@ -1,5 +1,6 @@
-Hier finden Sie bla bla AVÖV, Verkehrsplanung und Verkehrstelematik (VSP), ILS, TU Berlin.
+Hier findet man das AVÖV Project bei Verkehrsplanung und Verkehrstelematik (VSP), ILS, TU Berlin.
 
-## Firefox users:
+#### Firefox users:
 
-Click here to enable SVN access --> https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/
+- Click here to enable SVN access --> https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/
+- Then come back here :-)

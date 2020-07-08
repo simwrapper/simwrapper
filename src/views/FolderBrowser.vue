@@ -13,7 +13,9 @@
 
   .details(v-if="myState.svnProject")
 
-    .folders(v-if="myState.folders.length")
+    .readme(v-if="myState.readme" v-html="myState.readme")
+
+    .folders(v-if="myState.folders.length && !(myState.summary)")
       h3 Ordner
       .folder(v-for="folder in myState.folders" :key="folder.name"
               @click="openOutputFolder(folder)")
@@ -37,6 +39,12 @@
                   :style="{'pointer-events': myState.vizes[viz-1].component==='image-view' ? 'auto' : 'none'}"
                   @title="updateTitle(viz-1, $event)")
 
+    .folders(v-if="myState.folders.length && myState.summary")
+      h3 Ordner
+      .folder(v-for="folder in myState.folders" :key="folder.name"
+              @click="openOutputFolder(folder)")
+        p {{ folder }}
+
     .files(v-if="myState.files.length")
       h3 Datein
       .file(v-for="file in myState.files" :key="file")
@@ -46,9 +54,10 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import markdown from 'markdown-it'
 import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
-
+import yaml from 'yaml'
 import globalStore from '@/store.ts'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
@@ -71,9 +80,11 @@ interface SVNP {
 interface IMyState {
   folders: string[]
   files: string[]
+  readme: string
   svnProject?: SVNP
   svnRoot?: HTTPFileSystem
   subfolder: string
+  summary: boolean
   vizes: VizEntry[]
 }
 
@@ -84,14 +95,18 @@ interface IMyState {
 export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
+  private mdRenderer = new markdown()
+
   private svnp?: SVNP
   private myState: IMyState = {
     folders: [],
     files: [],
+    readme: '',
     svnProject: this.svnp,
     svnRoot: undefined,
     subfolder: '',
     vizes: [],
+    summary: false,
   }
 
   private getFileSystem(name: string) {
@@ -186,22 +201,77 @@ export default class VueComponent extends Vue {
     this.myState.vizes = []
     if (this.myState.files.length === 0) return
 
-    // loop on each viz type
-    for (const viz of this.globalState.visualizationTypes.values()) {
-      // filter based on file matching
-      const matches = micromatch(this.myState.files, viz.filePatterns)
-      // console.log(matches)
+    this.showReadme()
 
-      for (const file of matches) {
-        // add thumbnail for each matching file
-        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '...' })
-      }
+    this.myState.summary = this.myState.files.indexOf(this.summaryYamlFilename) !== -1
+
+    if (this.myState.summary) {
+      await this.buildCuratedSummaryView()
+    } else {
+      this.buildShowEverythingView()
     }
 
     await this.$nextTick()
     mediumZoom('.medium-zoom', {
       background: '#444450',
     })
+  }
+
+  private async showReadme() {
+    const readme = 'readme.md'
+    if (this.myState.files.indexOf(readme) === -1) {
+      this.myState.readme = ''
+    } else {
+      if (!this.myState.svnRoot) return
+      const text = await this.myState.svnRoot.getFileText(this.myState.subfolder + '/' + readme)
+      this.myState.readme = this.mdRenderer.render(text)
+    }
+  }
+
+  private summaryYamlFilename = 'viz-summary.yml'
+
+  private buildShowEverythingView() {
+    // loop on each viz type
+    for (const viz of this.globalState.visualizationTypes.values()) {
+      // filter based on file matching
+      const matches = micromatch(this.myState.files, viz.filePatterns)
+
+      for (const file of matches) {
+        // add thumbnail for each matching file
+        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+      }
+    }
+  }
+
+  // Curate the view, if viz-summary.yml exists
+  private async buildCuratedSummaryView() {
+    if (!this.myState.svnRoot) return
+    const text = await this.myState.svnRoot.getFileText(
+      this.myState.subfolder + '/' + this.summaryYamlFilename
+    )
+    const summaryYaml = yaml.parse(text)
+
+    // loop on each curated viz type
+    for (const vizName of summaryYaml.plugins) {
+      // load plugin user asked for
+      const viz = this.globalState.visualizationTypes.get(vizName)
+      if (!viz) continue
+
+      // curate file list if provided
+      if (summaryYaml[viz.kebabName]) {
+        for (const file of summaryYaml[viz.kebabName]) {
+          // add thumbnail for each matching file
+          this.myState.vizes.push({ component: viz.kebabName, config: file, title: file })
+        }
+      } else {
+        // filter based on file matching
+        const matches = micromatch(this.myState.files, viz.filePatterns)
+        for (const file of matches) {
+          // add thumbnail for each matching file
+          this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+        }
+      }
+    }
   }
 
   private async fetchFolderContents() {
@@ -216,8 +286,9 @@ export default class VueComponent extends Vue {
       return []
     }
 
-    const folders = folderContents.dirs.sort()
-    const files = folderContents.files.sort()
+    // hide dot folders
+    const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
+    const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
 
     this.myState.folders = folders
     this.myState.files = files
@@ -339,6 +410,10 @@ h2 {
 
 .breadcrumb p:hover {
   color: #cca;
+}
+
+.readme {
+  padding: 1rem 0rem;
 }
 
 @media only screen and (max-width: 640px) {

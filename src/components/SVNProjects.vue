@@ -20,7 +20,7 @@ export default class VueComponent extends Vue {
   }
 
   private openProjectPage(source: any) {
-    this.$router.push({ name: source.url }) // , params: source })
+    this.$router.push({ name: source.url })
   }
 }
 </script>
