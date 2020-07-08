@@ -8,7 +8,7 @@ This viz shows aggregated flows between areas for areas defined by a shapefile. 
 
 A file named `viz-od*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate Aggregate O/D diagram.
 
-**sankey-example.yml**
+**viz-od-example.yml**
 
 ```yaml
 ---
