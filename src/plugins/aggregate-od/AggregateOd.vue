@@ -330,10 +330,16 @@ class MyComponent extends Vue {
         const mFac = this.isMobile ? 0 : 1
         const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
 
-        this.mymap.fitBounds(lnglat, {
-          padding: this.thumbnail ? undefined : padding,
-          animate: false,
-        })
+        if (this.thumbnail) {
+          this.mymap.fitBounds(lnglat, {
+            animate: false,
+          })
+        } else {
+          this.mymap.fitBounds(lnglat, {
+            padding,
+            animate: false,
+          })
+        }
       }
     } catch (e) {
       // no consequence if json was weird, just drop it
@@ -812,10 +818,14 @@ class MyComponent extends Vue {
 
   private setMapExtent() {
     localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-    this.mymap.fitBounds(this._mapExtentXYXY, {
-      padding: { top: 50, bottom: 100, right: 100, left: 300 },
-      animate: false,
-    })
+
+    const options = this.thumbnail
+      ? { animate: false }
+      : {
+          padding: { top: 50, bottom: 100, right: 100, left: 300 },
+          animate: false,
+        }
+    this.mymap.fitBounds(this._mapExtentXYXY, options)
   }
 
   private setupKeyListeners() {
