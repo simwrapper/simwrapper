@@ -1,0 +1,43 @@
+# Aggregate O/D Flow Visualization
+
+_("Spider Diagrams")_
+
+This viz shows aggregated flows between areas for areas defined by a shapefile. The default view shows everything all at once for every centroid/centroid piar. This can be overwhelming, so you can also click on an individual centroid to see just the flows to and from that zone.
+
+## Usage
+
+A file named `viz-od*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate Aggregate O/D diagram.
+
+**sankey-example.yml**
+
+```yaml
+---
+# all of the below are required except description.
+---
+title: 'My Aggregate Viz'
+description: 'this will be in the sidebar'
+shpFile: Bezirksregionen_zone_GK4_fixed.shp
+dbfFile: Bezirksregionen_zone_GK4_fixed.dbf
+csvFile: od-analysis-hourly-drt.csv
+projection: GK4
+scaleFactor: 100
+```
+
+**Shapefile:** The **first column** of the DBF data must contain the ID of the zones/regions. This ID will be used to identify the O/D flows in the CSV file
+
+**O/D CSV File format:**
+
+- Header line contain labels; first two column names will be used for from/to (e.g. origin/destination)
+- Column 1: 'From' category
+- Column 2: 'To' category.
+- All further columns list flows from/to. For example, there could be 24 columns, one for each hour of travel
+
+```
+origin;destination;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23;24
+88;88;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
+88;89;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
+88;110;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
+88;111;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
+88;112;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
+etc...
+```

@@ -331,7 +331,7 @@ class MyComponent extends Vue {
         const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
 
         this.mymap.fitBounds(lnglat, {
-          padding,
+          padding: this.thumbnail ? undefined : padding,
           animate: false,
         })
       }
