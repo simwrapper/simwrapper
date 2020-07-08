@@ -1,6 +1,6 @@
-Hier findet man das AVÖV Project bei Verkehrsplanung und Verkehrstelematik (VSP), ILS, TU Berlin.
+AVÖV - Räumlich und zeitlich hochauflösende Evaluation und Optimierung automatisierter und vernetzter Bedienkonzepte im öffentlichen Verkehr
 
 #### Firefox users:
 
-- Click here to enable SVN access --> https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/
-- Then come back here :-)
+- Click hier, um SVN-Zugriff zu erlauben --> https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/
+- Dann komm wieder zurück :-)

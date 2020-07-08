@@ -9,7 +9,6 @@
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 // import mediumZoom from 'medium-zoom'
 import readBlob from 'read-blob'
-import mediumZoom from 'medium-zoom'
 
 import globalStore from '@/store.ts'
 import { FileSystem, VisualizationPlugin } from '../../Globals'
@@ -50,10 +49,6 @@ class MyComponent extends Vue {
   }
 
   public mounted() {
-    // mediumZoom('.medium-zoom', {
-    //   background: '#444450',
-    // })
-
     if (!this.yamlConfig) {
       this.buildRouteFromUrl()
     }

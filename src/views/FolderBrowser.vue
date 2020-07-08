@@ -360,7 +360,6 @@ h2 {
   margin-top: 2rem;
   margin-bottom: 0px;
   padding-left: 0px;
-  overflow-y: auto;
 }
 
 .viz-item {

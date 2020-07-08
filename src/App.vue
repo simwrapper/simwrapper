@@ -42,8 +42,11 @@ export default {
     'state.isFullScreen': function(isFullPage: boolean) {
       console.log('~~SWITCHING FULL PAGE: ', isFullPage)
 
-      if (isFullPage) document.body.classList.add('full-screen-page')
-      else document.body.classList.remove('full-screen-page')
+      if (isFullPage) {
+        document.body.classList.add('full-screen-page')
+      } else {
+        document.body.classList.remove('full-screen-page')
+      }
     },
   },
 }
@@ -68,7 +71,7 @@ body,
 html {
   margin: 0px 0px;
   padding: 0px 0px;
-  overflow-y: auto;
+  // overflow-y: auto;
   height: 100%;
   overscroll-behavior: contain;
 }
@@ -143,14 +146,11 @@ h3 {
 #nav {
   grid-column: 1 / 2;
   grid-row: 1 / 2;
-  position: absolute;
-  top: 0;
   width: 100%;
 }
 
-.nav-padding {
-  padding-top: $navHeight;
-}
+// .nav-padding {
+// }
 
 .main-content {
   flex: 1;
