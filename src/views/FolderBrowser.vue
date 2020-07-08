@@ -246,10 +246,12 @@ export default class VueComponent extends Vue {
   // Curate the view, if viz-summary.yml exists
   private async buildCuratedSummaryView() {
     if (!this.myState.svnRoot) return
-    const text = await this.myState.svnRoot.getFileText(
-      this.myState.subfolder + '/' + this.summaryYamlFilename
+
+    const summaryYaml = yaml.parse(
+      await this.myState.svnRoot.getFileText(
+        this.myState.subfolder + '/' + this.summaryYamlFilename
+      )
     )
-    const summaryYaml = yaml.parse(text)
 
     // loop on each curated viz type
     for (const vizName of summaryYaml.plugins) {
@@ -257,11 +259,14 @@ export default class VueComponent extends Vue {
       const viz = this.globalState.visualizationTypes.get(vizName)
       if (!viz) continue
 
-      // curate file list if provided
+      // curate file list if provided for this plugin
       if (summaryYaml[viz.kebabName]) {
-        for (const file of summaryYaml[viz.kebabName]) {
+        for (const pattern of summaryYaml[viz.kebabName]) {
           // add thumbnail for each matching file
-          this.myState.vizes.push({ component: viz.kebabName, config: file, title: file })
+          const matches = await this.findMatchingFiles(pattern)
+          for (const file of matches) {
+            this.myState.vizes.push({ component: viz.kebabName, config: file, title: file })
+          }
         }
       } else {
         // filter based on file matching
@@ -272,6 +277,30 @@ export default class VueComponent extends Vue {
         }
       }
     }
+  }
+
+  private async findMatchingFiles(glob: string): Promise<string[]> {
+    // first see if file itself is in this folder
+    if (this.myState.files.indexOf(glob) > -1) return [glob]
+
+    // return globs in this folder
+    const matches = micromatch(this.myState.files, glob)
+    if (matches.length) return matches
+
+    // search subfolder for glob, for now just one subfolder down
+    if (!this.myState.svnRoot) return []
+    try {
+      const split = glob.split('/')
+      const subsubfolder = this.myState.subfolder + '/' + split[0]
+      console.log(subsubfolder)
+      const contents = await this.myState.svnRoot.getDirectory(subsubfolder)
+      const matches = micromatch(contents.files, split[1])
+      return matches.map(f => split[0] + '/' + f)
+    } catch (e) {
+      // oh well, we tried
+    }
+
+    return []
   }
 
   private async fetchFolderContents() {
