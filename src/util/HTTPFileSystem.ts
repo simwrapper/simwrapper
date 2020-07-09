@@ -26,7 +26,6 @@ class SVNFileSystem {
       headers['Authorization'] = `Basic ${credentials}`
     }
 
-    console.log({ headers })
     const myRequest = new Request(path, { headers })
     const response = await fetch(myRequest).then(response => {
       // Check HTTP Response code: 200 is OK, everything else is a problem
@@ -118,12 +117,11 @@ class SVNFileSystem {
     const lines = data.split('\n')
 
     for (const line of lines) {
-      let href = -1
+      // skip header
+      if (line.indexOf('<th "') > -1) continue
 
-      // match rows listing folders or files only
-      if (line.indexOf('alt="[DIR]') > -1 || line.indexOf('alt="[   ]') > -1) {
-        href = line.indexOf('<td><a href="')
-      }
+      // match rows listing href links only: should be all folders/files only
+      const href = line.indexOf('<td><a href="')
       if (href < 0) continue
 
       const entry = line.substring(href).match(regex)

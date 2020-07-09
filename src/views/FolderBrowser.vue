@@ -339,11 +339,9 @@ export default class VueComponent extends Vue {
   }
 
   private openOutputFolder(folder: string) {
-    console.log(folder)
     if (!this.myState.svnProject) return
 
     const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
-    console.log(path)
     this.$router.push({ path })
   }
 }
