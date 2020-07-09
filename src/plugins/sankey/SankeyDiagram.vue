@@ -26,7 +26,7 @@ import { schemeCategory10 } from 'd3-scale-chromatic'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
-import { FileSystem, VisualizationPlugin } from '../../Globals'
+import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 interface SankeyYaml {
@@ -53,6 +53,7 @@ class MyComponent extends Vue {
 
   private myState = {
     fileApi: this.fileApi,
+    fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -74,6 +75,11 @@ class MyComponent extends Vue {
       this.buildRouteFromUrl()
     }
 
+    this.getVizDetails()
+  }
+
+  @Watch('globalState.authAttempts') authenticationChanged() {
+    console.log('AUTH CHANGED - Reload')
     this.getVizDetails()
   }
 
@@ -107,6 +113,7 @@ class MyComponent extends Vue {
     // project filesystem
     const filesystem = this.getFileSystem(params.project)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
 
     // subfolder and config file
     const sep = 1 + params.pathMatch.lastIndexOf('/')
@@ -145,7 +152,11 @@ class MyComponent extends Vue {
     } catch (e) {
       console.error({ e })
       this.loadingText = '' + e
-      return null
+
+      // maybe it failed because password?
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      }
     }
   }
 

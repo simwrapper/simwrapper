@@ -83,7 +83,7 @@ import ScaleSlider from '@/components/ScaleSlider.vue'
 import SystemLeftBar from '@/components/SystemLeftBar.vue'
 import ModalVue from '@/components/Modal.vue'
 
-import { FileSystem, VisualizationPlugin } from '../../Globals'
+import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -132,8 +132,11 @@ class MyComponent extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
+  private globalState = globalStore.state
+
   private myState = {
     fileApi: this.fileApi,
+    fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -224,6 +227,13 @@ class MyComponent extends Vue {
     this.setupMap()
   }
 
+  @Watch('globalState.authAttempts') private async authenticationChanged() {
+    console.log('AUTH CHANGED - Reload')
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
+    this.setupMap()
+  }
+
   @Watch('showTimeRange')
   private clickedRange(useRange: boolean) {
     console.log(useRange)
@@ -259,6 +269,7 @@ class MyComponent extends Vue {
     // project filesystem
     const filesystem = this.getFileSystem(params.project)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
 
     // subfolder and config file
     const sep = 1 + params.pathMatch.lastIndexOf('/')
@@ -271,11 +282,18 @@ class MyComponent extends Vue {
 
   private async getVizDetails() {
     // first get config
-    const text = await this.myState.fileApi.getFileText(
-      this.myState.subfolder + '/' + this.myState.yamlConfig
-    )
+    try {
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.myState.yamlConfig
+      )
+      this.vizDetails = yaml.parse(text)
+    } catch (e) {
+      // maybe it failed because password?
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      }
+    }
 
-    this.vizDetails = yaml.parse(text)
     this.$emit('title', this.vizDetails.title)
 
     this.scaleFactor = this.vizDetails.scaleFactor

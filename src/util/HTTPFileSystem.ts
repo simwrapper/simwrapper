@@ -119,6 +119,7 @@ class SVNFileSystem {
     for (const line of lines) {
       // skip header
       if (line.indexOf('<th "') > -1) continue
+      if (line.indexOf('[PARENTDIR]') > -1) continue
 
       // match rows listing href links only: should be all folders/files only
       const href = line.indexOf('<td><a href="')
