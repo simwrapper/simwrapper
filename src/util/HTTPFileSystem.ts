@@ -1,114 +1,92 @@
-import { DirectoryEntry } from '@/Globals'
+import { DirectoryEntry, SVNProject } from '@/Globals'
+import globalStore from '@/store'
 
 class SVNFileSystem {
   private baseUrl: string
-  private headers: any
+  private urlId: string
+  private needsAuth: boolean
 
-  constructor(baseUrl: string, username: string, password: string) {
-    this.baseUrl = baseUrl
-    if (!baseUrl.endsWith('/')) this.baseUrl += '/'
+  constructor(project: SVNProject) {
+    this.urlId = project.url
+    this.needsAuth = project.need_password
 
-    // base64 encode username:password for auth requests
-    if (username !== '' && password !== '') {
-      this.headers = { Authorization: 'Basic ' + btoa(username + ':' + password) }
-    } else {
-      this.headers = {}
+    this.baseUrl = project.svn
+    if (!project.svn.endsWith('/')) this.baseUrl += '/'
+  }
+
+  private async _getFileResponse(scaryPath: string): Promise<Response> {
+    // hostile user could put anything in the URL really...
+    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    console.log('FETCHING:', scaryPath)
+
+    const headers: any = {}
+    const credentials = globalStore.state.credentials[this.urlId]
+
+    if (this.needsAuth) {
+      headers['Authorization'] = `Basic ${credentials}`
     }
+
+    console.log({ headers })
+    const myRequest = new Request(path, { headers })
+    const response = await fetch(myRequest).then(response => {
+      // Check HTTP Response code: 200 is OK, everything else is a problem
+      if (response.status != 200) {
+        console.log('Status:', response.status)
+        throw response
+      }
+      return response
+    })
+
+    return response
   }
 
   async getFileText(scaryPath: string): Promise<string> {
-    // hostile user could put anything in the URL really...
-    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
-
-    console.log('FETCHING text:', scaryPath)
-
-    const myRequest = new Request(path, {
-      headers: this.headers,
-    })
-
-    return await fetch(myRequest)
-      .then(response => {
-        if (response.status == 200) return response.text()
-        console.log({ Status: response.status })
-        return ''
-      })
-      .catch(error => {
-        console.log({ HTTPFileSystemError: error })
-        return ''
-      })
+    // This can throw lots of errors; we are not going to catch them
+    // here so the code further up can deal with errors properly.
+    // "Throw early, catch late."
+    const response = await this._getFileResponse(scaryPath)
+    return response.text()
   }
 
-  async getFileJson(scaryPath: string) {
-    // hostile user could put anything in the URL really...
-    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
-
-    console.log('fetching JSON:', scaryPath)
-
-    const myRequest = new Request(path, {
-      headers: this.headers,
-    })
-
-    return await fetch(myRequest)
-      .then(response => {
-        if (response.status == 200) return response.json()
-        console.log({ Status: response.status })
-        return {}
-      })
-      .catch(error => {
-        console.log({ HTTPFileSystemError: error })
-        return {}
-      })
+  async getFileJson(scaryPath: string): Promise<any> {
+    // This can throw lots of errors; we are not going to catch them
+    // here so the code further up can deal with errors properly.
+    // "Throw early, catch late."
+    const response = await this._getFileResponse(scaryPath)
+    return response.json()
   }
 
-  async getFileBlob(scaryPath: string) {
-    // hostile user could put anything in the URL really...
-    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
-
-    // console.log('fetching BLOB:', scaryPath)
-
-    const myRequest = new Request(path, {
-      headers: this.headers,
-    })
-
-    return await fetch(myRequest)
-      .then(response => {
-        if (response.status == 200) return response.blob()
-        console.log({ Status: response.status })
-        return null
-      })
-      .catch(error => {
-        console.log({ HTTPFileSystemError: error })
-        return null
-      })
+  async getFileBlob(scaryPath: string): Promise<Blob> {
+    // This can throw lots of errors; we are not going to catch them
+    // here so the code further up can deal with errors properly.
+    // "Throw early, catch late."
+    const response = await this._getFileResponse(scaryPath)
+    return response.blob()
   }
 
   async getDirectory(scaryPath: string): Promise<DirectoryEntry> {
-    // hostile user could put anything in the URL really...
-    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    // This can throw lots of errors; we are not going to catch them
+    // here so the code further up can deal with errors properly.
+    // "Throw early, catch late."
+    let stillScaryPath = scaryPath
 
     // don't download any files!
-    if (!path.endsWith('/')) path += '/'
+    if (!stillScaryPath.endsWith('/')) stillScaryPath += '/'
 
-    // ok now we're safe
-    // console.log('fetching dir:', scaryPath)
+    const response = await this._getFileResponse(stillScaryPath).then()
+    const htmlListing = await response.text()
 
-    const myRequest = new Request(path, {
-      headers: this.headers,
-    })
-
-    return await fetch(myRequest)
-      .then(response => response.text())
-      .then(data => {
-        // console.log('made it! no error!')
-        return this.buildListFromHtml(data)
-      })
-      .catch(error => {
-        console.log({ SVNError: error })
-        return { dirs: [], files: [] }
-      })
+    return this.buildListFromHtml(htmlListing)
   }
 
   private buildListFromHtml(data: string): DirectoryEntry {
+    if (data.indexOf('<ul>') > -1) return this.buildListFromSVN(data)
+    if (data.indexOf('<table>') > -1) return this.buildListFromApache24(data)
+
+    return { dirs: [], files: [] }
+  }
+
+  private buildListFromSVN(data: string): DirectoryEntry {
     const regex = /"(.*?)"/
     const dirs = []
     const files = []
@@ -129,7 +107,36 @@ class SVNFileSystem {
       if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
       else files.push(name)
     }
+    return { dirs, files }
+  }
 
+  private buildListFromApache24(data: string): DirectoryEntry {
+    const regex = /"(.*?)"/
+    const dirs = []
+    const files = []
+
+    const lines = data.split('\n')
+
+    for (const line of lines) {
+      let href = -1
+
+      // match rows listing folders or files only
+      if (line.indexOf('alt="[DIR]') > -1 || line.indexOf('alt="[   ]') > -1) {
+        href = line.indexOf('<td><a href="')
+      }
+      if (href < 0) continue
+
+      const entry = line.substring(href).match(regex)
+      if (!entry) continue
+
+      // got one!
+      const name = entry[1] // regex returns first match in [1]
+
+      if (name === '../') continue
+
+      if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
+      else files.push(name)
+    }
     return { dirs, files }
   }
 }

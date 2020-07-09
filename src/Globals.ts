@@ -1,3 +1,11 @@
+export interface SVNProject {
+  name: string
+  url: string
+  description: string
+  svn: string
+  need_password: boolean
+}
+
 export interface VisualizationPlugin {
   component: Vue.VueConstructor
   kebabName: string

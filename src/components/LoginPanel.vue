@@ -2,12 +2,12 @@
   .sidebar-page
     section.sidebar-layout
       b-sidebar(
-        position="static"
-        :mobile="mobile"
-        :expand-on-hover="expandOnHover"
-        :reduce="reduce"
-        :type="theme"
-        open)
+        type="is-light"
+        :fullheight="fullheight"
+        :fullwidth="fullwidth"
+        :overlay="overlay"
+        :right="right"
+        :open.sync="open")
 
         .all-stuff
           .block
@@ -16,30 +16,21 @@
                 src="@/assets/images/vsp-logo-left.png"
                 alt="TU Berlin VSP Department")
 
-          b-menu.is-custom-mobile
+          b-menu-list(label="Login Required")
 
-            b-menu-list(label="Run Browser")
-              b-menu-item(v-for="prj in projects" :key="prj.url"
-                            icon="folder" :label="prj.name" :active="isActive(prj)"
-                            @click="clickedProject(prj)")
+          p.my-label {{ whichLogin }}: access to this site requires a login.
 
-              //- b-menu-item(icon="office-building" label="AVÖV Webseite")
-              //- b-menu-item(icon="office-building" label="VSP TU-Berlin")
-              //- b-menu-item(icon="polymer" label="Code")
+          b-menu-list(label="Username")
+          b-input(v-model="username" placeholder="VSP username" maxlength=30)
 
-          //- b-menu.is-custom-mobile
-          //-   b-menu-list(label="Menu")
-          //-     b-menu-item(icon="information-outline" label="Info")
-          //-     b-menu-item(active expanded icon="settings" label="Administrator")
-          //-       b-menu-item(icon="account" label="Users")
-          //-       b-menu-item(icon="cash-multiple" label="Payments" disabled)
-          //-     b-menu-item(icon="account" label="My Account")
-          //-       b-menu-item(icon="account-box" label="Account data")
-          //-       b-menu-item(icon="home-account" label="Addresses")
-          //-   b-menu-list
-          //-     b-menu-item(label="Expo" icon="link")
-          //-   b-menu-list.boop(label="Actions")
-          //-     b-menu-item(icon="logout" label="Logout")
+          b-menu-list(label="Password")
+          b-input(type="password"
+            v-model="password"
+            password-reveal)
+
+          b-button.my-space.is-primary(
+            @click="clickedLogin"
+            :disabled="!username || !password") Login
 
 </template>
 
@@ -51,34 +42,52 @@ import globalStore from '@/store'
 export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
+  private username = ''
+  private password = ''
+
   private expandOnHover = true
   private fullheight = true
+  private fullwidth = false
   private mobile = 'reduce'
   private reduce = false
   private overlay = true
+  private right = false
   private theme = 'is-light'
   private projects = this.globalState.svnProjects
   private subfolders = [{ name: 'hello' }]
+  private open = false
 
-  @Watch('globalState.breadcrumbs') crumbsChanged() {
-    // console.log('BOOP!')
+  @Watch('globalState.needLoginForUrl') showLoginPanel() {
+    this.open = this.globalState.needLoginForUrl !== ''
   }
 
-  private isActive(item: any) {
-    const breadcrumbs = this.globalState.breadcrumbs
-    if (breadcrumbs.length < 2) return false
-
-    console.log(breadcrumbs[1])
-    console.log({ item })
-
-    if (breadcrumbs[1].label === item.name) return true
-
-    return false
+  @Watch('open') panelMayBeClosing() {
+    // clear the last login attempt on panel close
+    if (!this.open) globalStore.commit('requestLogin', '')
   }
 
-  private clickedProject(prj: any) {
-    const path = '/' + prj.url
-    this.$router.push({ path })
+  private get whichLogin() {
+    try {
+      const project = this.globalState.svnProjects.filter(
+        (p: any) => p.url === this.globalState.needLoginForUrl
+      )[0]
+      return project.name
+    } catch (e) {
+      // weird
+    }
+    return 'this site'
+  }
+
+  private clickedLogin() {
+    // username/pw must never be stored in cookies or local storage.
+    // Just in memory.
+    globalStore.commit('setCredentials', {
+      url: this.globalState.needLoginForUrl,
+      username: this.username,
+      pw: this.password,
+    })
+
+    this.globalState.needLoginForUrl = ''
   }
 }
 </script>
@@ -88,12 +97,19 @@ export default class VueComponent extends Vue {
 <style lang="scss">
 @import '@/styles.scss';
 
-.all-stuff {
-  padding: 1.5rem 1rem;
-}
-
 .boop {
   padding-top: 1rem;
+}
+
+.my-space {
+  width: 100%;
+  margin-top: 3rem;
+}
+
+.my-label {
+  font-size: 0.9rem;
+  color: #666;
+  padding-bottom: 2rem;
 }
 
 .sidebar-content {

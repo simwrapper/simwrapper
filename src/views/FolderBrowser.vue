@@ -13,6 +13,8 @@
 
   .details(v-if="myState.svnProject")
 
+    .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
+
     .readme(v-if="myState.readme" v-html="myState.readme")
 
     .folders(v-if="myState.folders.length && !(myState.summary)")
@@ -61,7 +63,7 @@ import yaml from 'yaml'
 import globalStore from '@/store.ts'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { BreadCrumb, VisualizationPlugin } from '../Globals'
+import { BreadCrumb, VisualizationPlugin, SVNProject } from '../Globals'
 
 interface VizEntry {
   component: string
@@ -69,19 +71,12 @@ interface VizEntry {
   title: string
 }
 
-interface SVNP {
-  name: string
-  url: string
-  description: string
-  svn: string
-  needs_password: boolean
-}
-
 interface IMyState {
+  errorStatus: string
   folders: string[]
   files: string[]
   readme: string
-  svnProject?: SVNP
+  svnProject?: SVNProject
   svnRoot?: HTTPFileSystem
   subfolder: string
   summary: boolean
@@ -97,8 +92,9 @@ export default class VueComponent extends Vue {
 
   private mdRenderer = new markdown()
 
-  private svnp?: SVNP
+  private svnp?: SVNProject
   private myState: IMyState = {
+    errorStatus: '',
     folders: [],
     files: [],
     readme: '',
@@ -190,10 +186,15 @@ export default class VueComponent extends Vue {
     this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
 
     if (!this.myState.svnProject) return
-    this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject.svn, '', '')
+    this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
 
     // this happens async
     this.fetchFolderContents()
+  }
+
+  @Watch('globalState.authAttempts') authenticationChanged() {
+    console.log('AUTH CHANGED - Reload')
+    this.updateRoute()
   }
 
   @Watch('myState.files') async filesChanged() {
@@ -306,21 +307,35 @@ export default class VueComponent extends Vue {
   private async fetchFolderContents() {
     if (!this.myState.svnRoot) return []
 
-    const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
+    try {
+      const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
-    if (folderContents.dirs.length === 0 && folderContents.files.length === 0) {
-      // User gave a bad URL; maybe tell them.
+      // hide dot folders
+      const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
+      const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+
+      this.myState.errorStatus = ''
+      this.myState.folders = folders
+      this.myState.files = files
+    } catch (e) {
+      // Bad things happened! Tell user
       console.log('BAD PAGE')
-      // this.setBadPage()
-      return []
+      console.log({ eeee: e })
+
+      this.myState.errorStatus = '<h3>'
+      if (e.status) this.myState.errorStatus += `${e.status} `
+      if (e.statusText) this.myState.errorStatus += `${e.statusText}`
+      if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
+      this.myState.errorStatus += `</h3>`
+      if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
+      if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
+      if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
+
+      // maybe it failed because password?
+      if (this.myState.svnProject && this.myState.svnProject.need_password) {
+        globalStore.commit('requestLogin', this.myState.svnProject.url)
+      }
     }
-
-    // hide dot folders
-    const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
-    const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
-
-    this.myState.folders = folders
-    this.myState.files = files
   }
 
   private openOutputFolder(folder: string) {
@@ -350,6 +365,13 @@ h4 {
 h2 {
   font-size: 1.8rem;
   width: max-content;
+}
+
+.badnews {
+  margin: 1rem 0rem;
+  padding: 0.5rem 1rem;
+  background-color: #ffc;
+  color: $matsimBlue;
 }
 
 .viz-table {

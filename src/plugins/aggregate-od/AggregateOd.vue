@@ -258,7 +258,7 @@ class MyComponent extends Vue {
 
     // project filesystem
     const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem.svn, '', '')
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
 
     // subfolder and config file
     const sep = 1 + params.pathMatch.lastIndexOf('/')

@@ -3,7 +3,8 @@
   top-nav-bar#nav(:style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
 
   .center-area.nav-padding
-    side-nav-bar.nav-sidebar(v-if="!(state.isFullScreen)")
+    //- side-nav-bar.nav-sidebar(v-if="!(state.isFullScreen)")
+    login-panel
     router-view.main-content
 
   .footer(v-if="!state.isFullScreen")
@@ -20,6 +21,7 @@ import Buefy from 'buefy'
 import store from '@/store'
 
 import Colophon from '@/components/Colophon.vue'
+import LoginPanel from '@/components/LoginPanel.vue'
 import SideNavBar from '@/components/SideNavBar.vue'
 import TopNavBar from '@/components/TopNavBar.vue'
 
@@ -32,7 +34,7 @@ writableMapBox.accessToken =
 
 export default {
   name: 'App',
-  components: { TopNavBar, SideNavBar, Colophon },
+  components: { TopNavBar, SideNavBar, LoginPanel, Colophon },
   data: function() {
     return {
       state: store.state,
@@ -183,7 +185,6 @@ h3 {
 .footer {
   grid-column: 1 / 2;
   grid-row: 3 / 4;
-  z-index: 100;
   text-align: center;
   font-size: 0.8rem;
   margin: 0 0;
