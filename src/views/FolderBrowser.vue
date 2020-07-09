@@ -1,30 +1,23 @@
 <template lang="pug">
 #project-component
   .project-bar(v-if="myState.svnProject")
-    nav.breadcrumb(aria-label="breadcrumbs")
-      ul
-        li(v-for="crumb in breadcrumbs" :key="crumb.label + crumb.url"
-           @click="clickedLink(crumb.url)")
-            p {{ crumb.label }}
-
     h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
+
     p {{ myState.svnProject.name }}
     p {{ myState.svnProject.description }}
 
   .details(v-if="myState.svnProject")
 
     .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
-
     .readme(v-if="myState.readme" v-html="myState.readme")
 
     .folders(v-if="myState.folders.length && !(myState.summary)")
       h3 Ordner
-      .folder(v-for="folder in myState.folders" :key="folder.name"
+      .folder(:class="{fade: myState.isLoading}" v-for="folder in myState.folders" :key="folder.name"
               @click="openOutputFolder(folder)")
         p {{ folder }}
 
     .vizes(v-if="myState.vizes.length")
-      //- h3 Vizes (Should be {{myState.vizes.length}})
       .viz-table
         .viz-item(v-for="viz in myState.vizes.length"
                   :key="myState.vizes[viz-1].config"
@@ -49,7 +42,7 @@
 
     .files(v-if="myState.files.length")
       h3 Datein
-      .file(v-for="file in myState.files" :key="file")
+      .file(:class="{fade: myState.isLoading}" v-for="file in myState.files" :key="file")
         a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
@@ -75,6 +68,7 @@ interface IMyState {
   errorStatus: string
   folders: string[]
   files: string[]
+  isLoading: boolean
   readme: string
   svnProject?: SVNProject
   svnRoot?: HTTPFileSystem
@@ -97,6 +91,7 @@ export default class VueComponent extends Vue {
     errorStatus: '',
     folders: [],
     files: [],
+    isLoading: false,
     readme: '',
     svnProject: this.svnp,
     svnRoot: undefined,
@@ -116,14 +111,10 @@ export default class VueComponent extends Vue {
     return svnProject[0]
   }
 
-  private get breadcrumbs() {
+  private generateBreadcrumbs() {
     if (!this.myState.svnProject) return []
 
     const crumbs = [
-      {
-        label: 'Home',
-        url: '/',
-      },
       {
         label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
@@ -142,9 +133,6 @@ export default class VueComponent extends Vue {
       })
     }
 
-    // last link is not a link
-    // crumbs[crumbs.length - 1].url = '#'
-
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
 
@@ -153,10 +141,6 @@ export default class VueComponent extends Vue {
 
   private mounted() {
     this.updateRoute()
-  }
-
-  private clickedLink(path: string) {
-    this.$router.push({ path })
   }
 
   private clickedVisualization(vizNumber: number) {
@@ -181,12 +165,12 @@ export default class VueComponent extends Vue {
     const svnProject = this.getFileSystem(this.$route.name)
 
     this.myState.svnProject = svnProject
-    this.myState.folders = []
-    this.myState.files = []
     this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
+
+    this.generateBreadcrumbs()
 
     // this happens async
     this.fetchFolderContents()
@@ -307,6 +291,8 @@ export default class VueComponent extends Vue {
   private async fetchFolderContents() {
     if (!this.myState.svnRoot) return []
 
+    this.myState.isLoading = true
+
     try {
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
@@ -322,6 +308,9 @@ export default class VueComponent extends Vue {
       console.log('BAD PAGE')
       console.log({ eeee: e })
 
+      this.myState.folders = []
+      this.myState.files = []
+
       this.myState.errorStatus = '<h3>'
       if (e.status) this.myState.errorStatus += `${e.status} `
       if (e.statusText) this.myState.errorStatus += `${e.statusText}`
@@ -335,6 +324,8 @@ export default class VueComponent extends Vue {
       if (this.myState.svnProject && this.myState.svnProject.need_password && e.status === 401) {
         globalStore.commit('requestLogin', this.myState.svnProject.url)
       }
+    } finally {
+      this.myState.isLoading = false
     }
   }
 
@@ -460,10 +451,27 @@ h2 {
   color: #cca;
 }
 
+.fade {
+  opacity: 0.6;
+}
+
 .readme {
   padding: 1rem 0rem;
 }
 
 @media only screen and (max-width: 640px) {
+  .project-bar {
+    padding: 1rem 1rem 1.5rem 1rem;
+  }
+
+  .details {
+    padding: 0rem 1rem 0rem 1rem;
+  }
+
+  .viz-table {
+    display: grid;
+    grid-gap: 2rem;
+    grid-template-columns: 1fr;
+  }
 }
 </style>

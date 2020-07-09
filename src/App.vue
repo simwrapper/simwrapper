@@ -1,9 +1,17 @@
 <template lang="pug">
 #app(:class=" {'full-page-app' : state.isFullScreen}" )
-  top-nav-bar#nav(:style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
+  #nav
+    top-nav-bar#nav(v-if="!state.isFullScreen" :style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
+
+    .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
+                     :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")
+      nav.breadcrumb(aria-label="breadcrumbs")
+        ul
+          li(v-for="crumb in state.breadcrumbs" :key="crumb.label + crumb.url"
+            @click="clickedLink(crumb.url)")
+              p {{ crumb.label }}
 
   .center-area.nav-padding
-    //- side-nav-bar.nav-sidebar(v-if="!(state.isFullScreen)")
     login-panel
     router-view.main-content
 
@@ -17,6 +25,7 @@
 <script lang="ts">
 import mapboxgl from 'mapbox-gl'
 import Buefy from 'buefy'
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import store from '@/store'
 
@@ -32,26 +41,25 @@ const writableMapBox: any = mapboxgl
 writableMapBox.accessToken =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
-export default {
-  name: 'App',
-  components: { TopNavBar, SideNavBar, LoginPanel, Colophon },
-  data: function() {
-    return {
-      state: store.state,
-    }
-  },
-  watch: {
-    'state.isFullScreen': function(isFullPage: boolean) {
-      console.log('~~SWITCHING FULL PAGE: ', isFullPage)
+@Component({ components: { TopNavBar, SideNavBar, LoginPanel, Colophon } })
+class App extends Vue {
+  private state = store.state
 
-      if (isFullPage) {
-        document.body.classList.add('full-screen-page')
-      } else {
-        document.body.classList.remove('full-screen-page')
-      }
-    },
-  },
+  private clickedLink(path: string) {
+    this.$router.push({ path })
+  }
+
+  @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
+    console.log('~~SWITCHING FULL PAGE: ', isFullPage)
+
+    if (isFullPage) {
+      document.body.classList.add('full-screen-page')
+    } else {
+      document.body.classList.remove('full-screen-page')
+    }
+  }
 }
+export default App
 </script>
 
 <style lang="scss">
@@ -84,6 +92,27 @@ canvas {
 
 html {
   background-color: #505050;
+}
+
+.breadcrumbs-bar {
+  background-color: #626577;
+  padding: 0.5rem 3rem;
+}
+
+.breadcrumb {
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-left: -0.5rem;
+}
+
+.breadcrumb p {
+  color: #e0e0e0;
+  cursor: pointer;
+  margin: 0 0.5rem;
+}
+
+.breadcrumb p:hover {
+  color: yellow;
 }
 
 .bury-me {
@@ -187,7 +216,7 @@ h3 {
   grid-row: 3 / 4;
   text-align: center;
   font-size: 0.8rem;
-  margin: 0 0;
+  margin: 2rem 0 0 0;
   padding: 1rem 0;
   color: #ccc;
   background-color: $colorBoldBackground;
@@ -203,5 +232,12 @@ h3 {
 
 .medium-zoom-overlay ~ img {
   z-index: 101;
+}
+
+@media only screen and (max-width: 640px) {
+  .breadcrumbs-bar {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 </style>

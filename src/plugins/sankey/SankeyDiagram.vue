@@ -71,9 +71,7 @@ class MyComponent extends Vue {
   }
 
   public mounted() {
-    if (!this.yamlConfig) {
-      this.buildRouteFromUrl()
-    }
+    if (!this.yamlConfig) this.buildRouteFromUrl()
 
     this.getVizDetails()
   }

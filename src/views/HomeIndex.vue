@@ -31,102 +31,25 @@
 const readme = require('@/assets/info-top.md')
 const bottom = require('@/assets/info-bottom.md')
 
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
 import SvnProjects from '@/components/SVNProjects.vue'
 
 import globalStore from '@/store'
 
-export default {
-  name: 'Home',
-  components: { Colophon, SvnProjects, VizCard },
-  data: function() {
-    return {
-      state: globalStore.state,
-      readme,
-      readmeBottom: bottom,
-      visualizations: [
-        {
-          url: '/v3?day=5',
-          title: 'Infection Traces',
-          subtitle: 'Animation of infection spreading through the population.',
-        },
-      ],
-      methods: {
-        mounted: () => {
-          globalStore.commit('setBreadCrumbs', [])
-        },
-      },
-      modelruns: [
-        {
-          url: '/2020-06-19',
-          date: 'Released: 19 June 2020',
-          title: 'Run 2020.06.19',
-          subtitle:
-            'Closing of educational facilities; reduced activities and public transport; masks; contact tracing.',
-        },
-        {
-          url: '/2020-06-05',
-          date: 'Released: 19 June 2020',
-          title: 'Run 2020.06.05',
-          subtitle: 'Contact tracing and school reopenings',
-        },
-        {
-          url: '/v9/masks/berlin',
-          date: 'Released: 11 May 2020',
-          title: 'v9: Masks',
-          subtitle: 'Impact of different types of masks and their usage levels',
-        },
-        {
-          url: '/v9/tracing2/berlin',
-          date: 'Released: 11 May 2020',
-          title: 'v9: Contact Tracing',
-          subtitle: 'Part 2: More contact tracing options',
-        },
-        {
-          url: '/v8/masks',
-          date: 'Released: 11 May 2020',
-          title: 'v8: Masks',
-          subtitle: 'Impact of different types of masks and their usage levels',
-        },
-        {
-          url: '/v7',
-          date: 'Released: 22 April 2020',
-          title: 'School Reopening Options (3)',
-          subtitle:
-            'Select adherence rates for stay-at-home and explore re-opening options for kindergarten/schools/universities.',
-        },
-        {
-          url: '/v5',
-          date: 'Updated: 6 April 2020',
-          title: 'School Reopening Options (2)',
-          subtitle:
-            'Select adherence rates for stay-at-home and explore re-opening options for kindergarten/schools/universities.',
-        },
-        {
-          url: '/v4',
-          date: 'Released: 1 April 2020',
-          title: 'School Reopening Options (1)',
-          subtitle:
-            'Explore re-opening of kindergarten, primary and secondary school, and universities.',
-        },
-        {
-          url: '/v2',
-          date: 'Updated: 28 March 2020',
-          title: 'Adherence Rates',
-          subtitle:
-            'How COVID-19 spreads under various levels of adherence for work, shopping, leisure restrictions.',
-        },
-        {
-          url: '/v1',
-          date: 'Updated: 25 March 2020',
-          title: 'Intervention Strategies',
-          subtitle: 'Exploring the effects of several stay-at-home interventions..',
-        },
-      ],
-    }
-  },
+@Component({ components: { Colophon, SvnProjects, VizCard } })
+class MyComponent extends Vue {
+  private mounted() {
+    globalStore.commit('setBreadCrumbs', [])
+  }
+
+  private state = globalStore.state
+  private readme = readme
+  private readmeBottom = bottom
 }
+export default MyComponent
 </script>
 
 <style scoped lang="scss">

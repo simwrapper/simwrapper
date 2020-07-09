@@ -20,8 +20,10 @@
       @click='clickedBurger')
       .navbar-start
 
-        router-link.navbar-item(to="/snz-berlin/") Berlin-SNZ
-        router-link.navbar-item(to="/local/") Localhost
+        router-link.navbar-item(to="/avoev/") AVÖV Project Files
+        router-link.navbar-item(to="/public-svn/") Public SVN
+        router-link.navbar-item(to="/serve/") Localhost
+        router-link.navbar-item(to="/serve/cluster/") TU Cluster
 
         .navbar-item.has-dropdown.is-hoverable(:class="{'is-active': isDropdownActive}")
           a.navbar-link  Etc
