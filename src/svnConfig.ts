@@ -11,7 +11,7 @@ const config: any = {
       name: 'Public SVN',
       url: 'public-svn',
       description: 'Test svn access (public-svn)',
-      svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/',
       need_password: false,
     },
     {

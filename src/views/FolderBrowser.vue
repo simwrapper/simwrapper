@@ -320,6 +320,10 @@ export default class VueComponent extends Vue {
       if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
       if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
 
+      if (this.myState.svnProject) {
+        this.myState.errorStatus += `<p><i>${this.myState.svnProject.svn}${this.myState.subfolder}</i></p>`
+      }
+
       // maybe it failed because password?
       if (this.myState.svnProject && this.myState.svnProject.need_password && e.status === 401) {
         globalStore.commit('requestLogin', this.myState.svnProject.url)
