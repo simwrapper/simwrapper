@@ -10,14 +10,14 @@ const config: any = {
     {
       name: 'Public SVN',
       url: 'public-svn',
-      description: 'Test svn access (public-svn)',
+      description: 'Public MATSim scenarios at VSP',
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/',
       need_password: false,
     },
     {
       name: 'Shared SVN: Projects',
       url: 'shared-svn',
-      description: 'test svn access',
+      description: 'Test shared-svn access with username/pw',
       svn: 'https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/',
       need_password: true,
     },
