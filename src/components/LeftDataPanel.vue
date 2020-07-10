@@ -146,6 +146,3 @@ export default class LeftDataPanel extends Vue {
   }
 }
 </style>
-
-
-

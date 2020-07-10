@@ -406,6 +406,12 @@ h2 {
     color: white;
     background-color: #555;
     border-radius: 3px 3px 0 0;
+
+    text-overflow: ellipsis;
+
+    /* Required for text-overflow to do anything */
+    white-space: nowrap;
+    overflow: hidden;
   }
 }
 

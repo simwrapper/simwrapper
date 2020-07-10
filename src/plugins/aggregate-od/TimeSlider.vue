@@ -28,7 +28,11 @@ export default class TimeSlider extends Vue {
     show: false,
     'enable-cross': false,
     minRange: 1,
-    marks: [this.stops[0], this.stops[Math.floor(this.stops.length / 2)], this.stops[this.stops.length - 1]],
+    marks: [
+      this.stops[0],
+      this.stops[Math.floor(this.stops.length / 2)],
+      this.stops[this.stops.length - 1],
+    ],
     contained: true,
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
     processStyle: {
