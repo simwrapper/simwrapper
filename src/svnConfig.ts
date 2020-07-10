@@ -3,9 +3,9 @@ const config: any = {
     {
       name: 'AVÖV',
       url: 'avoev',
-      description: 'AVÖV Project Files',
-      svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/',
-      need_password: false,
+      description: 'AVÖV Project Files (runs-svn)',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/',
+      need_password: true,
     },
     {
       name: 'Public SVN',
@@ -14,13 +14,13 @@ const config: any = {
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/',
       need_password: false,
     },
-    // {
-    //   name: 'TU Cluster',
-    //   url: 'cluster',
-    //   description: 'TU Mathe Cluster',
-    //   svn: 'http://localhost/cluster/',
-    //   need_password: true,
-    // },
+    {
+      name: 'Shared SVN: Projects',
+      url: 'shared-svn',
+      description: 'test svn access',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/',
+      need_password: true,
+    },
     {
       name: 'Localhost (Auth)',
       url: 'local',
