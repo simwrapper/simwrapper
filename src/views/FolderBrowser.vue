@@ -9,7 +9,8 @@
   .details(v-if="myState.svnProject")
 
     .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
-    .readme(v-if="myState.readme" v-html="myState.readme")
+
+    .markdown(v-if="myState.readme" v-html="myState.readme")
 
     .folders(v-if="myState.folders.length && !(myState.summary)")
       h3 Ordner
@@ -19,24 +20,24 @@
 
     .vizes(v-if="myState.vizes.length")
       .viz-table
-        .viz-item(v-for="viz in myState.vizes.length"
-                  :key="myState.vizes[viz-1].config"
-                  @click="clickedVisualization(viz-1)"
-                  )
+        .viz-item(v-for="viz,index in myState.vizes"
+                  :key="viz.config"
+                  @click="clickedVisualization(index)")
           .viz-frame
-            p {{ myState.vizes[viz-1].title }}
+            p {{ viz.title }}
             component(
-                  :is="myState.vizes[viz-1].component"
-                  :yamlConfig="myState.vizes[viz-1].config"
+                  :is="viz.component"
+                  :yamlConfig="viz.config"
                   :fileApi="myState.svnRoot"
                   :subfolder="myState.subfolder"
                   :thumbnail="true"
-                  :style="{'pointer-events': myState.vizes[viz-1].component==='image-view' ? 'auto' : 'none'}"
-                  @title="updateTitle(viz-1, $event)")
+                  :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
+                  @title="updateTitle(index, $event)")
 
     .folders(v-if="myState.folders.length && myState.summary")
       h3 Ordner
-      .folder(v-for="folder in myState.folders" :key="folder.name"
+      .folder(v-for="folder in myState.folders"
+              :key="folder.name"
               @click="openOutputFolder(folder)")
         p {{ folder }}
 
@@ -196,6 +197,7 @@ export default class VueComponent extends Vue {
       this.buildShowEverythingView()
     }
 
+    // make sure page is rendered before we attach zoom semantics
     await this.$nextTick()
     mediumZoom('.medium-zoom', {
       background: '#444450',
@@ -370,7 +372,7 @@ h2 {
 .viz-table {
   display: grid;
   grid-gap: 1rem;
-  grid-template-columns: repeat(auto-fill, 30%);
+  grid-template-columns: repeat(3, minmax(100px, 1fr));
   list-style: none;
   margin-top: 2rem;
   margin-bottom: 0px;
@@ -378,6 +380,7 @@ h2 {
 }
 
 .viz-item {
+  text-align: center;
   margin: 0 0;
   padding: 0 0;
   display: table-cell;
@@ -389,15 +392,11 @@ h2 {
   border-right: 1px solid #aaa;
   border-radius: 3px;
   margin-bottom: auto;
+}
 
-  :hover {
-    background-color: white;
-    border-radius: 3px 3px;
-  }
-  :hover p {
-    background-color: #555;
-    border-radius: 3px 3px 0 0;
-  }
+.viz-item:hover {
+  box-shadow: 0px 0px 5px 5px rgba(0, 0, 0, 0.08), 0 3px 5px 0 rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.1s ease-in-out;
 }
 
 .viz-frame {
@@ -431,6 +430,7 @@ h2 {
 .folder:hover {
   background-color: #ffd;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.1s ease-in-out;
 }
 
 .project-bar {
@@ -446,26 +446,11 @@ h2 {
   padding: 0rem 3rem 3rem 3rem;
 }
 
-.breadcrumb {
-  font-size: 0.9rem;
-  margin-left: -0.5rem;
-}
-
-.breadcrumb p {
-  color: $themeColorPale;
-  cursor: pointer;
-  margin: 0 0.5rem;
-}
-
-.breadcrumb p:hover {
-  color: #cca;
-}
-
 .fade {
   opacity: 0.6;
 }
 
-.readme {
+.markdown {
   padding: 1rem 0rem;
 }
 

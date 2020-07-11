@@ -6,6 +6,7 @@ import Buefy from 'buefy'
 
 Vue.use(Buefy, {
   defaultIconPack: 'mdi',
+  defaultInputHasCounter: false,
 })
 
 Vue.config.productionTip = false

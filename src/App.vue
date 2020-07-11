@@ -153,18 +153,6 @@ h3 {
   background-color: $paleBackground;
 }
 
-// #app {
-//   color: #222;
-//   display: flex;
-//   flex-direction: column;
-//   margin: 0rem 0rem;
-//   padding: 0px 0px;
-//   font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
-//   -webkit-font-smoothing: antialiased;
-//   -moz-osx-font-smoothing: grayscale;
-//   background-color: $paleBackground;
-// }
-
 .full-page-app {
   height: 100%;
 }
@@ -179,9 +167,6 @@ h3 {
   grid-row: 1 / 2;
   width: 100%;
 }
-
-// .nav-padding {
-// }
 
 .main-content {
   flex: 1;
@@ -232,6 +217,17 @@ h3 {
 
 .medium-zoom-overlay ~ img {
   z-index: 101;
+}
+
+.markdown {
+  p {
+    margin-top: 0.5rem;
+  }
+  ul {
+    list-style: disc;
+    margin-top: 0.5rem;
+    padding-left: 1.5rem;
+  }
 }
 
 @media only screen and (max-width: 640px) {
