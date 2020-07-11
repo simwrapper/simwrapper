@@ -202,8 +202,9 @@ h3 {
   text-align: center;
   font-size: 0.8rem;
   margin: 2rem 0 0 0;
-  padding: 1rem 0;
+  padding: 1rem 1rem;
   color: #ccc;
+
   background-color: $colorBoldBackground;
 }
 
@@ -223,6 +224,15 @@ h3 {
   p {
     margin-top: 0.5rem;
   }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: normal;
+  }
+
   ul {
     list-style: disc;
     margin-top: 0.5rem;
@@ -234,6 +244,10 @@ h3 {
   .breadcrumbs-bar {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .footer {
+    font-size: 0.7rem;
   }
 }
 </style>

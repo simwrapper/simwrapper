@@ -1,5 +1,6 @@
 <template lang="pug">
 #project-component
+
   .project-bar(v-if="myState.svnProject")
     h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
 
@@ -8,43 +9,50 @@
 
   .details(v-if="myState.svnProject")
 
+    //- show network errors
     .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
 
-    .markdown(v-if="myState.readme" v-html="myState.readme")
 
-    .folders(v-if="myState.folders.length && !(myState.summary)")
-      h3 Ordner
-      .folder(:class="{fade: myState.isLoading}" v-for="folder in myState.folders" :key="folder.name"
+    //- these are sections defined by viz-summary.yml etc
+    .curated-sections
+
+      //- this is the content of readme.md, if it exists
+      h3.curate-heading(v-if="myState.readme")  About
+      .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
+
+      //- file system folders
+      h3.curate-heading(v-if="myState.folders.length")  Ordner
+
+      .curate-content(v-if="myState.folders.length")
+        .folder(:class="{fade: myState.isLoading}"
+              v-for="folder in myState.folders" :key="folder.name"
               @click="openOutputFolder(folder)")
-        p {{ folder }}
+          p {{ folder }}
 
-    .vizes(v-if="myState.vizes.length")
-      .viz-table
-        .viz-item(v-for="viz,index in myState.vizes"
-                  :key="viz.config"
-                  @click="clickedVisualization(index)")
-          .viz-frame
-            p {{ viz.title }}
-            component(
-                  :is="viz.component"
-                  :yamlConfig="viz.config"
-                  :fileApi="myState.svnRoot"
-                  :subfolder="myState.subfolder"
-                  :thumbnail="true"
-                  :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
-                  @title="updateTitle(index, $event)")
+      //- thumbnails of each viz and image in this folder
+      h3.curate-heading(v-if="myState.vizes.length") Graphics
 
-    .folders(v-if="myState.folders.length && myState.summary")
-      h3 Ordner
-      .folder(v-for="folder in myState.folders"
-              :key="folder.name"
-              @click="openOutputFolder(folder)")
-        p {{ folder }}
+      .curate-content(v-if="myState.vizes.length")
+        .viz-table
+          .viz-item(v-for="viz,index in myState.vizes"
+                    :key="viz.config"
+                    @click="clickedVisualization(index)")
+            .viz-frame
+              p {{ viz.title }}
+              component(:is="viz.component" :yamlConfig="viz.config"
+                    :fileApi="myState.svnRoot"
+                    :subfolder="myState.subfolder"
+                    :thumbnail="true"
+                    :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
+                    @title="updateTitle(index, $event)")
 
-    .files(v-if="myState.files.length")
-      h3 Datein
-      .file(:class="{fade: myState.isLoading}" v-for="file in myState.files" :key="file")
-        a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
+      //- individual links to files in this folder
+      h3.curate-heading(v-if="myState.files.length") Datein
+
+      .curate-content(v-if="myState.files.length")
+        .file(:class="{fade: myState.isLoading}"
+              v-for="file in myState.files" :key="file")
+          a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -363,6 +371,7 @@ h2 {
 }
 
 .badnews {
+  border-left: 3rem solid #af232f;
   margin: 1rem 0rem;
   padding: 0.5rem 1rem;
   background-color: #ffc;
@@ -374,7 +383,6 @@ h2 {
   grid-gap: 1rem;
   grid-template-columns: repeat(3, minmax(100px, 1fr));
   list-style: none;
-  margin-top: 2rem;
   margin-bottom: 0px;
   padding-left: 0px;
 }
@@ -410,9 +418,8 @@ h2 {
     background-color: #555;
     border-radius: 3px 3px 0 0;
 
-    text-overflow: ellipsis;
-
     /* Required for text-overflow to do anything */
+    text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
   }
@@ -436,6 +443,7 @@ h2 {
 .project-bar {
   padding: 1rem 3rem 1.5rem 3rem;
   background-color: white;
+  border-bottom: 1px solid $themeColorPale;
 }
 
 .project-bar p {
@@ -454,6 +462,34 @@ h2 {
   padding: 1rem 0rem;
 }
 
+.curated-sections {
+  display: grid;
+  grid-template-columns: 10rem 1fr;
+  grid-template-areas: 'heading  content';
+}
+
+.curate-heading {
+  border-bottom: 1px solid $themeColorPaler;
+  padding: 0rem 0rem;
+  margin: 0rem 0rem;
+  grid-area: 'heading';
+}
+
+h3.curate-heading {
+  font-size: 1.3rem;
+  font-weight: normal;
+  color: $themeColorPale;
+  padding-top: 0.5rem;
+  margin-top: 0rem;
+}
+
+.curate-content {
+  grid-area: 'content';
+  padding: 1rem 0rem;
+  margin: 0rem 0rem;
+  border-bottom: 1px solid $themeColorPaler;
+}
+
 @media only screen and (max-width: 640px) {
   .project-bar {
     padding: 1rem 1rem 1.5rem 1rem;
@@ -467,6 +503,36 @@ h2 {
     display: grid;
     grid-gap: 2rem;
     grid-template-columns: 1fr;
+  }
+
+  .viz-frame {
+    p {
+      font-size: 0.6rem;
+    }
+  }
+
+  .curated-sections {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .curate-heading {
+    border-bottom: none;
+    padding: 1rem 0rem;
+  }
+
+  h3.curate-heading {
+    padding-top: 1rem;
+    font-weight: bold;
+  }
+
+  .curate-content {
+    border-bottom: none;
+    padding-top: 0rem;
+  }
+
+  .file {
+    font-size: 0.8rem;
   }
 }
 </style>
