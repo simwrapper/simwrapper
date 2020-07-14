@@ -1,6 +1,6 @@
 <template lang="pug">
 #container
-  .status-blob(v-if="loadingText"): p {{ loadingText }}
+  .status-blob(v-if="!thumbnail && loadingText"): p {{ loadingText }}
 
   left-data-panel.left-panel(v-if="routesOnLink.length > 0"
     title="Transit routes on selected link:")
@@ -117,8 +117,6 @@ class MyComponent extends Vue {
   private _transitHelper!: TransitSupplyHelper
 
   public created() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
-
     this._attachedRouteLayers = []
     this._departures = {}
     this._mapExtentXYXY = [180, 90, -180, -90]
@@ -147,6 +145,8 @@ class MyComponent extends Vue {
   }
 
   public async mounted() {
+    globalStore.commit('setFullScreen', !this.thumbnail)
+
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
 
@@ -154,6 +154,8 @@ class MyComponent extends Vue {
     //   { label: this.visualization.title, url: '/' },
     //   { label: this.visualization.project.name, url: '/' },
     // ])
+
+    if (this.thumbnail) return
 
     this.setupMap()
   }
@@ -203,7 +205,8 @@ class MyComponent extends Vue {
       }
     }
 
-    this.$emit('title', this.vizDetails.title)
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Transit Network'
+    this.$emit('title', t)
 
     this.projection = this.vizDetails.projection
 
@@ -776,11 +779,13 @@ p {
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
+  min-height: 150px;
 }
 
 #mymap {
   height: 100%;
   width: 100%;
+  flex: 1;
 }
 
 .status-blob {
