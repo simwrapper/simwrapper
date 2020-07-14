@@ -25,7 +25,7 @@ export default class LegendBox extends Vue {
   display: flex;
   flex-direction: column;
   color: white;
-  background-color: #ffffffcc;
+  background-color: #ffffffee;
   padding: 0.5rem 0.5rem;
   border: solid 1px #666;
   border-radius: 2px;

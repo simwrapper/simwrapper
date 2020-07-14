@@ -4,11 +4,12 @@
 
   left-data-panel.left-panel(v-if="routesOnLink.length > 0"
     title="Transit routes on selected link:")
+
     .dashboard-panel
 
       p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
 
-      .routeList
+      .route-list
         .route(v-for="route in routesOnLink"
             :key="route.uniqueRouteID"
             :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
@@ -242,6 +243,7 @@ class MyComponent extends Vue {
 
     try {
       const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+      console.log({ extent })
 
       if (extent) {
         const lnglat = JSON.parse(extent)
@@ -261,6 +263,7 @@ class MyComponent extends Vue {
         }
       }
     } catch (E) {
+      console.log({ E })
       // no worries
     }
 
@@ -809,17 +812,17 @@ p {
 }
 
 .route {
-  background-color: #eee;
+  background-color: #414347;
   margin: 0px 0px;
   padding: 5px 0px;
   text-align: left;
-  color: #444;
-  border-left: solid 5px #00000000;
-  border-right: solid 5px #00000000;
+  color: #fff;
+  border-left: solid 8px #00000000;
+  border-right: solid 8px #00000000;
 }
 
 .route:hover {
-  background-color: white;
+  background-color: #5b5e63;
   cursor: pointer;
 }
 
@@ -830,7 +833,7 @@ h3 {
 
 .mytitle {
   margin-left: 10px;
-  color: rgb(39, 117, 148);
+  color: #366ce0;
 }
 
 .details {
@@ -851,8 +854,13 @@ h3 {
 }
 
 .highlightedRoute {
-  background-color: white;
-  border-left: solid 5px #606aff;
+  background-color: #faffae;
+  border-left: solid 8px #606aff;
+  color: black;
+}
+
+.highlightedRoute:hover {
+  background-color: #faffae;
 }
 
 .bigtitle {

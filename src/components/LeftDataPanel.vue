@@ -7,7 +7,7 @@
       slot
 
   .restore-button(:class="{'add-margin': !isHidden}")
-    button.button.is-small.hide-button(@click="toggleHidePanel")
+    button.button.litle-toggle-button.is-small.hide-button(@click="toggleHidePanel")
       i.fa.fa-arrow-left(v-if="!isHidden")
       i.fa.fa-arrow-right(v-if="isHidden")
 
@@ -37,7 +37,7 @@ export default class LeftDataPanel extends Vue {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 #datapanel {
   display: flex;
   flex-direction: row;
@@ -67,7 +67,11 @@ export default class LeftDataPanel extends Vue {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  background-color: #eeeefff4;
+  // background-color: #eeeefff4;
+  background-color: #534e4d;
+  border-bottom-left-radius: 0.25rem;
+  border-bottom-right-radius: 0.25rem;
+  opacity: 0.97;
 }
 
 .lower-area {
@@ -103,7 +107,8 @@ export default class LeftDataPanel extends Vue {
 }
 
 .hide-button {
-  background-color: #eeeefff4;
+  background-color: #534e4d;
+  color: white;
 }
 
 @keyframes slideInFromLeft {
