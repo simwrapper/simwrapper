@@ -7,9 +7,9 @@
                      :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")
       nav.breadcrumb(aria-label="breadcrumbs")
         ul
-          li(v-for="crumb in state.breadcrumbs" :key="crumb.label + crumb.url"
+          li(v-for="crumb,i in state.breadcrumbs" :key="crumb.label + crumb.url"
             @click="clickedLink(crumb.url)")
-              p {{ crumb.label }}
+              p {{ i === 0 ? 'Home' : crumb.label }}
 
   .center-area.nav-padding
     login-panel.login-panel
@@ -96,11 +96,11 @@ html {
 
 .breadcrumbs-bar {
   background-color: #626577;
-  padding: 0.5rem 3rem;
+  padding: 0.75rem 3rem;
 }
 
 .breadcrumb {
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: bold;
   margin-left: -0.5rem;
 }

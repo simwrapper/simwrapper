@@ -2,9 +2,11 @@
 #project-component
 
   .project-bar(v-if="myState.svnProject")
-    h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
-
-    p {{ myState.svnProject.description }}
+    .details
+      h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
+      p {{ myState.svnProject.description }}
+    .logo
+        img(width="300" src="/logo-avoev.png")
 
   .details(v-if="myState.svnProject")
 
@@ -15,11 +17,11 @@
     .curated-sections
 
       //- this is the content of readme.md, if it exists
-      h3.curate-heading(v-if="myState.readme")  About
+      h3.curate-heading(v-if="myState.readme")  Info
       .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
 
       //- file system folders
-      h3.curate-heading(v-if="myState.folders.length")  Ordner
+      h3.curate-heading(v-if="myState.folders.length")  Runs
 
       .curate-content(v-if="myState.folders.length")
         .folder(:class="{fade: myState.isLoading}"
@@ -28,7 +30,7 @@
           p {{ folder }}
 
       //- thumbnails of each viz and image in this folder
-      h3.curate-heading(v-if="myState.vizes.length") Graphics
+      h3.curate-heading(v-if="myState.vizes.length") Analysen
 
       .curate-content(v-if="myState.vizes.length")
         .viz-table
@@ -123,7 +125,7 @@ export default class VueComponent extends Vue {
 
     const crumbs = [
       {
-        label: 'Home', // this.myState.svnProject.name,
+        label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
       },
     ]
@@ -424,6 +426,10 @@ h2 {
   }
 }
 
+.logo {
+  margin-left: auto;
+}
+
 .folder {
   cursor: pointer;
   display: flex;
@@ -440,8 +446,9 @@ h2 {
 }
 
 .project-bar {
+  display: flex;
   margin-bottom: 1rem;
-  padding: 1rem 3rem 1.5rem 3rem;
+  padding: 1rem 3rem 1.5rem 0rem;
   background-color: white;
   // border-bottom: 1px solid $themeColorPale;
   z-index: 10000;
