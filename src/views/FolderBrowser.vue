@@ -344,6 +344,7 @@ export default class VueComponent extends Vue {
   }
 
   private openOutputFolder(folder: string) {
+    if (this.myState.isLoading) return
     if (!this.myState.svnProject) return
 
     const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
@@ -441,9 +442,13 @@ h2 {
 }
 
 .project-bar {
+  margin-bottom: 1rem;
   padding: 1rem 3rem 1.5rem 3rem;
   background-color: white;
-  border-bottom: 1px solid $themeColorPale;
+  // border-bottom: 1px solid $themeColorPale;
+  z-index: 10000;
+  box-shadow: 0px 0px 8px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
 .project-bar p {

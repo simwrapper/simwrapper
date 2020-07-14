@@ -32,31 +32,24 @@
 
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
-import cookie from 'js-cookie'
-import mapboxgl, { LngLatBoundsLike } from 'mapbox-gl'
+import mapboxgl, { LngLatBoundsLike, LngLatLike } from 'mapbox-gl'
 import nprogress from 'nprogress'
 import pako from 'pako'
 import xml2js from 'xml2js'
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import yaml from 'yaml'
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import AuthenticationStore from '@/auth/AuthenticationStore'
-import EventBus from '@/EventBus.vue'
-import FileAPI from '@/communication/FileAPI'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
-import SharedStore from '@/SharedStore'
-import { Visualization } from '@/entities/Entities'
 
-import {
-  Network,
-  NetworkInputs,
-  NetworkNode,
-  TransitLine,
-  RouteDetails,
-} from '@/visualization/transit-supply/Interfaces'
-import XmlFetcher from '@/visualization/transit-supply/XmlFetcher'
-import TransitSupplyHelper from '@/visualization/transit-supply/TransitSupplyHelper'
-import TransitSupplyHelperWorker from '@/visualization/transit-supply/TransitSupplyHelper.worker'
-import LegendBox from '@/visualization/transit-supply/LegendBox.vue'
+import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
+import XmlFetcher from './XmlFetcher'
+import TransitSupplyHelper from './TransitSupplyHelper'
+import TransitSupplyHelperWorker from './TransitSupplyHelper.worker'
+import LegendBox from './LegendBox.vue'
+
+import { FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
+import globalStore from '@/store'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -69,20 +62,38 @@ class Departure {
 }
 
 @Component({ components: { LeftDataPanel, LegendBox } })
-class TransitSupply extends Vue {
-  @Prop({ type: String, required: true })
-  private vizId!: string
+class MyComponent extends Vue {
+  @Prop({ required: false })
+  private fileApi!: FileSystem
 
-  @Prop({ type: String, required: true })
-  private projectId!: string
+  @Prop({ required: false })
+  private subfolder!: string
 
-  @Prop({ type: FileAPI, required: true })
-  private fileApi!: FileAPI
+  @Prop({ required: false })
+  private yamlConfig!: string
 
-  @Prop({ type: AuthenticationStore, required: true })
-  private authStore!: AuthenticationStore
+  @Prop({ required: false })
+  private thumbnail!: boolean
+
+  private globalState = globalStore.state
 
   // -------------------------- //
+
+  private vizDetails = {
+    transitSchedule: '',
+    network: '',
+    projection: '',
+    title: '',
+    description: '',
+  }
+
+  private myState = {
+    fileApi: this.fileApi,
+    fileSystem: undefined as SVNProject | undefined,
+    subfolder: this.subfolder,
+    yamlConfig: this.yamlConfig,
+    thumbnail: this.thumbnail,
+  }
 
   private loadingText: string = 'MATSim Transit Inspector'
   private mymap!: mapboxgl.Map
@@ -90,7 +101,6 @@ class TransitSupply extends Vue {
   private projection: string = DEFAULT_PROJECTION
   private routesOnLink: any = []
   private selectedRoute: any = {}
-  private visualization!: Visualization
   private stopMarkers: any[] = []
 
   private _attachedRouteLayers!: string[]
@@ -107,7 +117,7 @@ class TransitSupply extends Vue {
   private _transitHelper!: TransitSupplyHelper
 
   public created() {
-    SharedStore.setFullPage(true)
+    globalStore.commit('setFullScreen', !this.thumbnail)
 
     this._attachedRouteLayers = []
     this._departures = {}
@@ -121,7 +131,13 @@ class TransitSupply extends Vue {
   }
 
   public destroyed() {
-    SharedStore.setFullPage(false)
+    globalStore.commit('setFullScreen', false)
+  }
+
+  @Watch('globalState.authAttempts') private async authenticationChanged() {
+    console.log('AUTH CHANGED - Reload')
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
   }
 
   public beforeDestroy() {
@@ -131,31 +147,85 @@ class TransitSupply extends Vue {
   }
 
   public async mounted() {
-    this.projectId = (this as any).$route.params.projectId
-    this.vizId = (this as any).$route.params.vizId
-
+    if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
 
-    SharedStore.setBreadCrumbs([
-      { label: this.visualization.title, url: '/' },
-      { label: this.visualization.project.name, url: '/' },
-    ])
+    // globalStore.setBreadCrumbs([
+    //   { label: this.visualization.title, url: '/' },
+    //   { label: this.visualization.project.name, url: '/' },
+    // ])
 
     this.setupMap()
   }
 
-  private async getVizDetails() {
-    this.visualization = await this.fileApi.fetchVisualization(this.projectId, this.vizId)
-    this.project = await this.fileApi.fetchProject(this.projectId)
-    if (SharedStore.debug) console.log(this.visualization)
-
-    if (this.visualization.parameters.Projection) {
-      this.projection = this.visualization.parameters.Projection.value
+  // this happens if viz is the full page, not a thumbnail on a project page
+  private buildRouteFromUrl() {
+    const params = this.$route.params
+    if (!params.project || !params.pathMatch) {
+      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+      return
     }
+
+    // project filesystem
+    const filesystem = this.getFileSystem(params.project)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+
+    // subfolder and config file
+    const sep = 1 + params.pathMatch.lastIndexOf('/')
+    const subfolder = params.pathMatch.substring(0, sep)
+    const config = params.pathMatch.substring(sep)
+
+    this.myState.subfolder = subfolder
+    this.myState.yamlConfig = config
+  }
+
+  private getFileSystem(name: string) {
+    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+    return svnProject[0]
+  }
+
+  private async getVizDetails() {
+    // first get config
+    try {
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.myState.yamlConfig
+      )
+      this.vizDetails = yaml.parse(text)
+    } catch (e) {
+      // maybe it failed because password?
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      }
+    }
+
+    this.$emit('title', this.vizDetails.title)
+
+    this.projection = this.vizDetails.projection
+
+    nprogress.done()
   }
 
   private get legendRows() {
-    return [['#a03919', 'Rail'], ['#448', 'Bus']]
+    return [
+      ['#a03919', 'Rail'],
+      ['#448', 'Bus'],
+    ]
+  }
+
+  private isMobile() {
+    const w = window
+    const d = document
+    const e = d.documentElement
+    const g = d.getElementsByTagName('body')[0]
+    const x = w.innerWidth || e.clientWidth || g.clientWidth
+    const y = w.innerHeight || e.clientHeight || g.clientHeight
+
+    return x < 640
   }
 
   private setupMap() {
@@ -168,17 +238,29 @@ class TransitSupply extends Vue {
     })
 
     try {
-      const extent = cookie.getJSON(this.vizId + '-bounds')
+      const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
       if (extent) {
-        this.mymap.fitBounds(extent, {
-          padding: { top: 2, bottom: 2, right: 2, left: 2 },
-          animate: false,
-        })
+        const lnglat = JSON.parse(extent)
+
+        const mFac = this.isMobile() ? 0 : 1
+        const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
+
+        if (this.thumbnail) {
+          this.mymap.fitBounds(lnglat, {
+            animate: false,
+          })
+        } else {
+          this.mymap.fitBounds(lnglat, {
+            padding,
+            animate: false,
+          })
+        }
       }
     } catch (E) {
       // no worries
     }
+
     // Start doing stuff AFTER the MapBox library has fully initialized
     this.mymap.on('load', this.mapIsReady)
 
@@ -240,24 +322,18 @@ class TransitSupply extends Vue {
 
   private async loadNetworks() {
     try {
-      if (SharedStore.debug) console.log(this.visualization.inputFiles)
-
-      const ROAD_NET = this.visualization.inputFiles.Network.fileEntry.id
-      const TRANSIT_NET = this.visualization.inputFiles['Transit Schedule'].fileEntry.id
-
-      if (SharedStore.debug) console.log({ ROAD_NET, TRANSIT_NET, PROJECT: this.projectId })
+      console.log(this.vizDetails)
+      if (!this.myState.fileSystem) return
 
       this.loadingText = 'Loading networks...'
 
       this._roadFetcher = await XmlFetcher.create({
-        accessToken: this.authStore.state.accessToken,
-        fileId: ROAD_NET,
-        projectId: this.projectId,
+        fileApi: this.myState.fileSystem.url,
+        filePath: this.myState.subfolder + '/' + this.vizDetails.network,
       })
       this._transitFetcher = await XmlFetcher.create({
-        accessToken: this.authStore.state.accessToken,
-        fileId: TRANSIT_NET,
-        projectId: this.projectId,
+        fileApi: this.myState.fileSystem.url,
+        filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
       })
 
       // launch the long-running processes; these return promises
@@ -281,7 +357,10 @@ class TransitSupply extends Vue {
   private async processInputs(networks: NetworkInputs) {
     this.loadingText = 'Preparing...'
     // spawn transit helper web worker
-    this._transitHelper = await TransitSupplyHelper.create({ xml: networks, projection: this.projection })
+    this._transitHelper = await TransitSupplyHelper.create({
+      xml: networks,
+      projection: this.projection,
+    })
 
     this.loadingText = 'Crunching road network...'
     await this._transitHelper.createNodesAndLinks()
@@ -307,7 +386,7 @@ class TransitSupply extends Vue {
 
     await this.addTransitToMap(geodata)
 
-    cookie.set(this.vizId + '-bounds', this._mapExtentXYXY, { expires: 365 })
+    localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
 
     this.mymap.fitBounds(this._mapExtentXYXY, {
       padding: { top: 2, bottom: 2, right: 2, left: 2 },
@@ -346,7 +425,8 @@ class TransitSupply extends Vue {
         const transitLine = this._transitLines[id]
         for (const route of transitLine.transitRoutes) {
           for (const linkID of route.route) {
-            if (!(linkID in this._departures)) this._departures[linkID] = { total: 0, routes: new Set() }
+            if (!(linkID in this._departures))
+              this._departures[linkID] = { total: 0, routes: new Set() }
 
             this._departures[linkID].total += route.departures
             this._departures[linkID].routes.add(route.id)
@@ -400,7 +480,10 @@ class TransitSupply extends Vue {
         const fromNode = this._network.nodes[link.from]
         const toNode = this._network.nodes[link.to]
 
-        const coordinates = [[fromNode.x, fromNode.y], [toNode.x, toNode.y]]
+        const coordinates = [
+          [fromNode.x, fromNode.y],
+          [toNode.x, toNode.y],
+        ]
 
         const featureJson = {
           type: 'Feature',
@@ -440,12 +523,12 @@ class TransitSupply extends Vue {
         const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
         const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
 
-        let isRail = false
+        let isRail = true
         for (const route of this._departures[linkID].routes) {
-          if (this._routeData[route].transportMode === 'rail') {
-            isRail = true
-            break
+          if (this._routeData[route].transportMode === 'bus') {
+            isRail = false
           }
+          // if (isRail) break
         }
         let line = {
           type: 'Feature',
@@ -506,7 +589,7 @@ class TransitSupply extends Vue {
       const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
       // recalc bearing for every node except the last
       if (i < route.routeProfile.length - 1) {
-        const point1 = turf.point(coord)
+        const point1 = turf.point([coord[0], coord[1]])
         const point2 = turf.point([
           this._stopFacilities[route.routeProfile[i + 1].refId].x,
           this._stopFacilities[route.routeProfile[i + 1].refId].y,
@@ -514,7 +597,7 @@ class TransitSupply extends Vue {
         bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
       }
 
-      const xy = this.mymap.project(coord)
+      const xy = this.mymap.project([coord[0], coord[1]])
 
       // every marker has a latlng coord and a bearing
       const marker = { i, bearing, xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) } }
@@ -637,17 +720,16 @@ class TransitSupply extends Vue {
   }
 }
 
-// register component with the SharedStore
-SharedStore.addVisualizationType({
-  component: TransitSupply,
-  typeName: 'transit-supply',
-  prettyName: 'Transit Supply',
-  description: 'Depicts the scheduled transit routes on a network.',
-  requiredFileKeys: ['Transit Schedule', 'Network'],
-  requiredParamKeys: ['Projection'],
-})
+// !register plugin!
+globalStore.commit('registerPlugin', {
+  kebabName: 'transit-supply',
+  prettyName: 'Transit Routes',
+  description: 'The scheduled transit routes on a network',
+  filePatterns: ['viz-transit*.y?(a)ml'],
+  component: MyComponent,
+} as VisualizationPlugin)
 
-export default TransitSupply
+export default MyComponent
 
 const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
 

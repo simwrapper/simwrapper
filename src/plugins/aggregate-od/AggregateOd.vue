@@ -345,7 +345,7 @@ class MyComponent extends Vue {
       if (extent) {
         const lnglat = JSON.parse(extent)
 
-        const mFac = this.isMobile ? 0 : 1
+        const mFac = this.isMobile() ? 0 : 1
         const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
 
         if (this.thumbnail) {

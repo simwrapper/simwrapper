@@ -1,7 +1,7 @@
-import AsyncWorkerConnector from '@/visualization/frame-animation/modell/background/AsyncWorkerConnector'
-import BackgroundWorker from '@/visualization/transit-supply/XmlFetcher.worker'
-import { InitParams, MethodNames } from '@/visualization/transit-supply/XmlFetcherContract'
-import { INITIALIZE } from '@/visualization/frame-animation/modell/background/AsyncBackgroundWorker'
+import AsyncWorkerConnector from './AsyncWorkerConnector'
+import BackgroundWorker from './XmlFetcher.worker'
+import { InitParams, MethodNames } from './XmlFetcherContract'
+import { INITIALIZE } from './AsyncBackgroundWorker'
 
 export default class XmlFetcher extends AsyncWorkerConnector {
   constructor() {

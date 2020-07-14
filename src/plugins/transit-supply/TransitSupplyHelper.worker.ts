@@ -1,9 +1,6 @@
-import AsyncBackgroundWorker, {
-  MethodCall,
-  MethodResult,
-} from '@/visualization/frame-animation/modell/background/AsyncBackgroundWorker'
-import { InitParams, MethodNames } from '@/visualization/transit-supply/TransitSupplyHelperContract'
-import { NetworkNode, TransitLine, RouteDetails } from '@/visualization/transit-supply/Interfaces'
+import AsyncBackgroundWorker, { MethodCall, MethodResult } from './AsyncBackgroundWorker'
+import { InitParams, MethodNames } from './TransitSupplyHelperContract'
+import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 
 import proj4 from 'proj4'
 
@@ -55,6 +52,11 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
         // cottbus
         'EPSG:25833',
         '+proj=utm +zone=33 +ellps=GRS80 +units=m +no_defs',
+      ],
+      [
+        // avoev
+        'EPSG:25832',
+        '+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
       ],
     ])
   }

@@ -1,14 +1,9 @@
-export interface InitParams {
-  accessToken: string
-  fileId: string
-  projectId: string
-}
+import { FileSystem } from '@/Globals'
 
-/*
-export interface PlanRequestParams {
-  idIndex: number
+export interface InitParams {
+  fileApi: string
+  filePath: string
 }
-*/
 
 export enum MethodNames {
   FetchXML = 'FetchXML',

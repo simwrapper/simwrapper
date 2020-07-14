@@ -8,4 +8,3 @@ import ImageView from '@/plugins/image/ImageView.vue'
 const plugins = { SankeyDiagram, AggregateOd, TransitSupply, ImageView }
 
 export default plugins
-

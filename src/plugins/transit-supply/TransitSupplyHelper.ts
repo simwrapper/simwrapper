@@ -1,7 +1,7 @@
-import AsyncWorkerConnector from '@/visualization/frame-animation/modell/background/AsyncWorkerConnector'
-import BackgroundWorker from '@/visualization/transit-supply/TransitSupplyHelper.worker'
-import { InitParams, MethodNames } from '@/visualization/transit-supply/TransitSupplyHelperContract'
-import { INITIALIZE } from '@/visualization/frame-animation/modell/background/AsyncBackgroundWorker'
+import AsyncWorkerConnector from './AsyncWorkerConnector'
+import BackgroundWorker from './TransitSupplyHelper.worker'
+import { InitParams, MethodNames } from './TransitSupplyHelperContract'
+import { INITIALIZE } from './AsyncBackgroundWorker'
 
 export default class TransitSupplyHelper extends AsyncWorkerConnector {
   constructor() {

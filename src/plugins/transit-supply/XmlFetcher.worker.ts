@@ -1,16 +1,17 @@
-import AsyncBackgroundWorker, {
-  MethodCall,
-  MethodResult,
-} from '@/visualization/frame-animation/modell/background/AsyncBackgroundWorker'
-import { InitParams, MethodNames } from '@/visualization/transit-supply/XmlFetcherContract'
+import AsyncBackgroundWorker, { MethodCall, MethodResult } from './AsyncBackgroundWorker'
+import { InitParams, MethodNames } from './XmlFetcherContract'
 
-import * as BlobUtil from 'blob-util'
+import readBlob from 'read-blob'
 import pako from 'pako'
 import xml2js from 'xml2js'
-import globalConfig from '@/config/Config'
+
+import globalStore from '@/store'
+import { FileSystem } from '@/Globals'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 class XmlFetcher extends AsyncBackgroundWorker {
   private params!: InitParams
+  private state = globalStore.state
 
   public handleInitialize(call: MethodCall) {
     this.params = call.parameters as InitParams
@@ -25,25 +26,47 @@ class XmlFetcher extends AsyncBackgroundWorker {
     }
   }
 
-  private async fetchWithAuth() {
-    const url = `${globalConfig.fileServer}/projects/${this.params.projectId}/files/${this.params.fileId}`
-    const headers = new Headers()
-    headers.append('Authorization', 'Bearer ' + this.params.accessToken)
-
-    const response = await fetch(url, { mode: 'cors', credentials: 'include', headers: headers })
-
-    return await response.blob()
+  private getFileSystem(name: string) {
+    const svnProject: any[] = this.state.svnProjects.filter((a: any) => a.url === name)
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+    return svnProject[0]
   }
 
   private async fetchXml() {
     console.log({ WORKER_STARTING_UP: this.params })
 
-    const blob = await this.fetchWithAuth()
+    const fileSystem = this.getFileSystem(this.params.fileApi)
+    const httpFileSystem = new HTTPFileSystem(fileSystem)
+
+    console.log({ fileSystem })
+
+    const blob = await httpFileSystem.getFileBlob(this.params.filePath)
+    if (!blob) throw Error('BLOB IS NULL')
+
     const data = await this.getDataFromBlob(blob)
     const xml = await this.parseXML(data)
 
     console.log({ WORKER_DONE: xml })
     return { data: xml, transferrables: [] }
+  }
+
+  private async newGetDataFromBlob(blob: Blob) {
+    const data: any = readBlob.arraybuffer(blob)
+
+    try {
+      // try single-gzipped
+      const gunzip1 = pako.inflate(data, { to: 'string' })
+      if (gunzip1.startsWith('<?xml')) return gunzip1
+    } catch (e) {
+      // it's ok if it failed because it might be text vvvv
+    }
+
+    // try text
+    const text: string = await readBlob.text(blob)
+    return text
   }
 
   private async getDataFromBlob(blob: Blob) {
@@ -59,7 +82,7 @@ class XmlFetcher extends AsyncBackgroundWorker {
 
     console.log('IS FIREFOX on WINDOWS: ' + isFirefox)
 
-    const data: any = await BlobUtil.blobToArrayBuffer(blob)
+    const data: any = await readBlob.arraybuffer(blob)
 
     try {
       // try single-gzipped
@@ -75,7 +98,7 @@ class XmlFetcher extends AsyncBackgroundWorker {
     }
 
     // try text
-    const text: string = await BlobUtil.blobToBinaryString(blob)
+    const text: string = await readBlob.text(blob)
     return text
   }
 
