@@ -1,41 +1,12 @@
 const config: any = {
   projects: [
     {
-      name: 'Public SVN Examples',
+      name: 'AVÖV Gladbeck',
       url: 'public-svn',
-      description: 'Public MATSim scenarios at VSP',
+      description: 'Gladback AVÖV',
       svn:
-        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/viz-examples/',
+        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gladbeck/avoev/',
       need_password: false,
-    },
-    {
-      name: 'AVÖV',
-      url: 'avoev',
-      description: 'AVÖV Project Files (runs-svn)',
-      svn: 'https://svn.vsp.tu-berlin.de/repos/runs-svn/avoev/',
-      need_password: true,
-    },
-    {
-      name: 'Shared SVN: Projects',
-      url: 'shared-svn',
-      description: 'Test shared-svn access with username/pw',
-      svn: 'https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/',
-      need_password: true,
-    },
-    {
-      name: 'Serve.py',
-      url: 'serve',
-      description: 'Local files served by python script serve.py',
-      svn: 'http://localhost:8000/',
-      need_password: false,
-    },
-    {
-      name: 'Localhost (Test Auth)',
-      url: 'local',
-      description:
-        "Verwenden Sie 'scripts/serve.py', um auf lokale Dateien ohne Server zuzugreifen.",
-      svn: 'http://localhost/',
-      need_password: true,
     },
   ],
 }
