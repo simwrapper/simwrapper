@@ -58,18 +58,19 @@ export default MyComponent
   background-color: $paleBackground;
 }
 
-.main {
-  text-align: center;
-}
-
 .gap {
   margin-top: 2rem;
 }
+
 .content {
   flex: 1;
   padding: 2rem 3rem 5rem 3rem;
   display: flex;
   width: 100%;
+}
+
+.main {
+  margin: 0 auto;
 }
 
 .banner {

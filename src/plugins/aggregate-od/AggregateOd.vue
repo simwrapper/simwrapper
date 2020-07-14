@@ -336,7 +336,7 @@ class MyComponent extends Vue {
   private setupMap() {
     this.mymap = new mapboxgl.Map({
       container: 'mymap',
-      logoPosition: 'top-left',
+      logoPosition: 'bottom-right',
       style: 'mapbox://styles/mapbox/outdoors-v9',
     })
 
@@ -381,6 +381,9 @@ class MyComponent extends Vue {
 
       baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
       for (const elem of baubles) elem.setAttribute('style', 'display: none')
+    } else {
+      let baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
+      for (const elem of baubles) elem.setAttribute('style', 'margin-bottom: 3rem;')
     }
   }
 
@@ -1275,7 +1278,7 @@ h4 {
   display: flex;
   grid-column: 1 / 3;
   grid-row: 2/3;
-  margin: auto 0.5rem 1.2rem auto;
+  margin: auto 0.5rem 1.5rem auto;
   z-index: 4;
 }
 
