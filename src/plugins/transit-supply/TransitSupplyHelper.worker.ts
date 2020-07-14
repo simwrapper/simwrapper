@@ -1,4 +1,4 @@
-import AsyncBackgroundWorker, { MethodCall, MethodResult } from './AsyncBackgroundWorker'
+import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/util/AsyncBackgroundWorker'
 import { InitParams, MethodNames } from './TransitSupplyHelperContract'
 import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 

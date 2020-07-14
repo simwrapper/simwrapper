@@ -1,4 +1,4 @@
-import AsyncBackgroundWorker, { MethodCall, MethodResult } from './AsyncBackgroundWorker'
+import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/util/AsyncBackgroundWorker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
 
 import readBlob from 'read-blob'
@@ -6,7 +6,6 @@ import pako from 'pako'
 import xml2js from 'xml2js'
 
 import globalStore from '@/store'
-import { FileSystem } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 class XmlFetcher extends AsyncBackgroundWorker {

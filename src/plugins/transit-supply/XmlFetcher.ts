@@ -1,7 +1,7 @@
-import AsyncWorkerConnector from './AsyncWorkerConnector'
+import AsyncWorkerConnector from '@/util/AsyncWorkerConnector'
+import { INITIALIZE } from '@/util/AsyncBackgroundWorker'
 import BackgroundWorker from './XmlFetcher.worker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
-import { INITIALIZE } from './AsyncBackgroundWorker'
 
 export default class XmlFetcher extends AsyncWorkerConnector {
   constructor() {

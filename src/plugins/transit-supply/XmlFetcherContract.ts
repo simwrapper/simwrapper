@@ -1,5 +1,3 @@
-import { FileSystem } from '@/Globals'
-
 export interface InitParams {
   fileApi: string
   filePath: string
