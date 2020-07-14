@@ -237,7 +237,7 @@ class MyComponent extends Vue {
       bearing: 0,
       container: 'mymap',
       logoPosition: 'bottom-right',
-      style: 'mapbox://styles/mapbox/light-v9',
+      style: 'mapbox://styles/mapbox/dark-v9',
       pitch: 0,
     })
 
@@ -257,7 +257,7 @@ class MyComponent extends Vue {
           })
         } else {
           this.mymap.fitBounds(lnglat, {
-            padding,
+            // padding,
             animate: false,
           })
         }
@@ -292,6 +292,8 @@ class MyComponent extends Vue {
 
   private showRouteDetails(routeID: string) {
     if (!routeID && !this.selectedRoute) return
+
+    console.log({ routeID })
 
     if (routeID) this.showTransitRoute(routeID)
     else this.showTransitRoute(this.selectedRoute.id)
@@ -665,6 +667,7 @@ class MyComponent extends Vue {
 
     // sort by highest departures first
     routes.sort(function(a, b) {
+      // return a.id < b.id ? -1 : 1
       return a.departures > b.departures ? -1 : 1
     })
 

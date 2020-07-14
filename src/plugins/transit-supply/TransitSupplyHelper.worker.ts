@@ -109,10 +109,12 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
       }
 
       for (const route of line.transitRoute) {
-        const details: RouteDetails = this.buildTransitRouteDetails(route)
+        const details: RouteDetails = this.buildTransitRouteDetails(line.$.id, route)
         details.uniqueRouteID = uniqueRouteID++
         attr.transitRoutes.push(details)
       }
+
+      // attr.transitRoutes.sort((a, b) => (a.id < b.id ? -1 : 1))
       this._transitLines[attr.id] = attr
     }
     return {
@@ -143,7 +145,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
     }
   }
 
-  private buildTransitRouteDetails(route: any) {
+  private buildTransitRouteDetails(lineId: string, route: any) {
     const allDepartures = route.departures[0].departure
     allDepartures.sort(function(a: any, b: any) {
       const timeA = a.$.departureTime
@@ -154,7 +156,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
     })
 
     const routeDetails: RouteDetails = {
-      id: route.$.id,
+      id: `${lineId} (${route.$.id})`,
       transportMode: route.transportMode[0],
       routeProfile: [],
       route: [],
