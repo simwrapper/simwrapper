@@ -2,7 +2,7 @@ const config: any = {
   projects: [
     {
       name: 'AVÖV Gladbeck',
-      url: 'public-svn',
+      url: 'glabeck',
       description: 'Gladback AVÖV',
       svn:
         'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gladbeck/avoev/',
