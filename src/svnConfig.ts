@@ -29,14 +29,14 @@ const config: any = {
       svn: 'http://localhost:8000/',
       need_password: false,
     },
-    // {
-    //   name: 'Localhost (Auth)',
-    //   url: 'local',
-    //   description:
-    //     "Verwenden Sie 'scripts/serve.py', um auf lokale Dateien ohne Server zuzugreifen.",
-    //   svn: 'http://localhost/',
-    //   need_password: true,
-    // },
+    {
+      name: 'Localhost (Test Auth)',
+      url: 'local',
+      description:
+        "Verwenden Sie 'scripts/serve.py', um auf lokale Dateien ohne Server zuzugreifen.",
+      svn: 'http://localhost/',
+      need_password: true,
+    },
   ],
 }
 
