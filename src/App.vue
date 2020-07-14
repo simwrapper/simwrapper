@@ -1,7 +1,7 @@
 <template lang="pug">
 #app(:class=" {'full-page-app' : state.isFullScreen}" )
   #nav
-    top-nav-bar#nav(v-if="!state.isFullScreen" :style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
+    //- top-nav-bar#nav(v-if="!state.isFullScreen" :style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
 
     .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
                      :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")

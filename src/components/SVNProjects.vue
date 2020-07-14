@@ -1,8 +1,10 @@
 <template lang="pug">
 #vue-component
   .project(v-for="source in sources" :key="source.url" @click='openProjectPage(source)')
-    b {{ source.name }}
-    p {{ source.description }}
+      img(:src="source.thumbnail")
+      .desc
+        h3 {{ source.name }}
+        p {{ source.description }}
 
 </template>
 
@@ -28,13 +30,22 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+#vue-component {
+  display: flex;
+  flex-direction: row;
+}
+
 .project {
+  flex: 1;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   background-color: white;
-  margin: 0.25rem 0rem;
-  padding: 0.5rem 1rem;
+  margin: 0.25rem 2rem 0.25rem 0rem;
+}
+
+.project .desc {
+  padding: 1rem 1rem;
 }
 
 .project:hover {

@@ -7,14 +7,13 @@
   .page-area
     .content
       .main
-        p.headline AVÖV Projekt
+        img(src="/logo-avoev.png")
+        h2.readme(v-html="readme")
 
-        .readme(v-html="readme")
+        h2 Wählen Sie Ihre Stadt aus:
+        svn-projects.gap
 
-        h2 Projekte
-        svn-projects
-
-        h2 Bottom Page Extra Info
+        h2 Mehr Info
         .readme(v-html="readmeBottom")
 
         .footer(v-if="!state.isFullScreen")
@@ -59,6 +58,13 @@ export default MyComponent
   background-color: $paleBackground;
 }
 
+.main {
+  text-align: center;
+}
+
+.gap {
+  margin-top: 2rem;
+}
 .content {
   flex: 1;
   padding: 2rem 3rem 5rem 3rem;

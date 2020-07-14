@@ -4,14 +4,12 @@
   .project-bar(v-if="myState.svnProject")
     h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
 
-    p {{ myState.svnProject.name }}
     p {{ myState.svnProject.description }}
 
   .details(v-if="myState.svnProject")
 
     //- show network errors
     .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
-
 
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
@@ -47,12 +45,12 @@
                     @title="updateTitle(index, $event)")
 
       //- individual links to files in this folder
-      h3.curate-heading(v-if="myState.files.length") Datein
+      //- h3.curate-heading(v-if="myState.files.length") Datein
 
-      .curate-content(v-if="myState.files.length")
-        .file(:class="{fade: myState.isLoading}"
-              v-for="file in myState.files" :key="file")
-          a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
+      //- .curate-content(v-if="myState.files.length")
+      //-   .file(:class="{fade: myState.isLoading}"
+      //-         v-for="file in myState.files" :key="file")
+      //-     a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -125,7 +123,7 @@ export default class VueComponent extends Vue {
 
     const crumbs = [
       {
-        label: this.myState.svnProject.name,
+        label: 'Home', // this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,
       },
     ]
