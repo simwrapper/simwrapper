@@ -2,7 +2,7 @@
 #datapanel
   .content-area(:class="{'is-hidden': isHidden, 'bye': isLeaving}")
     .info-header(v-if="title")
-      h3(style="padding: 0.5rem 3rem; font-weight: normal;color: white;") {{ title }}
+      h3(style="padding: 0.5rem 3rem; font-size: 1rem; font-weight: normal; color: white;") {{ title }}
     .top-area
       slot
 
@@ -49,7 +49,6 @@ export default class LeftDataPanel extends Vue {
 .content-area {
   display: flex;
   flex-direction: column;
-  height: 100%;
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
   animation: 0.3s ease 0s 1 slideInFromLeft;
   pointer-events: auto;

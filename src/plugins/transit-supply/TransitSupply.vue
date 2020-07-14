@@ -4,27 +4,27 @@
 
   left-data-panel.left-panel(v-if="routesOnLink.length > 0"
     title="Transit routes on selected link:")
-   .dashboard-panel
+    .dashboard-panel
 
-    p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
+      p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
 
-    .routeList
-      .route(v-for="route in routesOnLink"
-          :key="route.uniqueRouteID"
-          :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
-          @click="showRouteDetails(route.id)")
-        h3.mytitle {{route.id}}
-        p.details: b {{route.departures}} departures
-        p.details First: {{route.firstDeparture}}
-        p.details Last: {{route.lastDeparture}}
+      .routeList
+        .route(v-for="route in routesOnLink"
+            :key="route.uniqueRouteID"
+            :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
+            @click="showRouteDetails(route.id)")
+          h3.mytitle {{route.id}}
+          p.details: b {{route.departures}} departures
+          p.details First: {{route.firstDeparture}}
+          p.details Last: {{route.lastDeparture}}
 
-  .map-container
+  .map-container(:class="{'hide-thumbnail': !thumbnail}")
     #mymap
       .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
         v-bind:style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
-  legend-box.legend(:rows="legendRows")
+  legend-box.legend(v-if="!thumbnail" :rows="legendRows")
 </template>
 
 <script lang="ts">
@@ -235,7 +235,7 @@ class MyComponent extends Vue {
     this.mymap = new mapboxgl.Map({
       bearing: 0,
       container: 'mymap',
-      logoPosition: 'top-left',
+      logoPosition: 'bottom-right',
       style: 'mapbox://styles/mapbox/light-v9',
       pitch: 0,
     })
@@ -769,17 +769,23 @@ p {
 #container {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto;
   width: 100%;
 }
 
 .map-container {
+  background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
+  background-size: cover;
   grid-column: 1 / 3;
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
   min-height: 150px;
+}
+
+.map-container.hide-thumbnail {
+  background: none;
 }
 
 #mymap {
@@ -838,7 +844,7 @@ h3 {
 }
 
 .stop-marker-big {
-  background: url('../../assets/icon-stop-triangle.png') no-repeat;
+  background: url('assets/icon-stop-triangle.png') no-repeat;
   background-size: 100%;
   width: 16px;
   height: 16px;
@@ -899,7 +905,7 @@ h3 {
   position: absolute;
   width: 12px;
   height: 12px;
-  background: url('../../assets/icon-stop-triangle.png') no-repeat;
+  background: url('assets/icon-stop-triangle.png') no-repeat;
   transform: translate(-50%, -50%);
   background-size: 100%;
   cursor: pointer;
@@ -916,13 +922,17 @@ h3 {
 .legend {
   grid-column: 2 / 3;
   grid-row: 2 / 3;
-  margin: auto 0.5rem 2rem auto;
+  margin: auto 0.25rem 3.5rem auto;
   z-index: 10;
 }
 
 .left-panel {
+  position: absolute;
+  top: 2.4rem;
+  bottom: 0;
+  overflow-y: auto;
   grid-column: 1 / 2;
-  grid-row: 1 / 3;
+  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   width: 16rem;
