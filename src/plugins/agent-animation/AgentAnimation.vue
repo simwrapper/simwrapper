@@ -1,9 +1,11 @@
 <template lang="pug">
-#v3-app
-  animation-view.anim(@loaded="toggleLoaded" :vizState="myState" :speed="speed"
+#v3-app(:class="{'hide-thumbnail': !thumbnail}")
+
+  animation-view.anim(v-if="!thumbnail"
+    @loaded="toggleLoaded" :vizState="myState" :speed="speed"
     :fileApi="fileApi" :subfolder="subfolder" :yamlConfig="yamlConfig" :vizDetails="vizDetails")
 
-  modal-markdown-dialog#help-dialog(
+  modal-markdown-dialog#help-dialog(v-if="!thumbnail"
     title='DRT Vehicles'
     md='@/assets/animation-helptext.md'
     :buttons="[`OK`]"
@@ -11,13 +13,13 @@
     @click="clickedCloseHelp()"
   )
 
-  .nav
+  .nav(v-if="!thumbnail")
     //- p.big.time(v-if="!state.statusMessage") Berlin: Outbreak Day {{ newDay+1 }}
     //- p.big.day {{ state.statusMessage }}
     //- p.big.time {{ state.clock }}
-    p.big.time(v-if="!myState.statusMessage") DRT
-    p.big.day {{ myState.statusMessage }}
-    p.big.time {{ myState.clock }}
+    p.big.day {{ vizDetails.title }}
+    p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
+    p.big.time(v-else) {{ myState.clock }}
 
   .right-side
 
@@ -236,7 +238,7 @@ class MyComponent extends Vue {
     // this.$store.commit('setShowingHelp', this.showHelp)
 
     // start the sim right away if the dialog isn't showing
-    this.myState.isRunning = !this.showHelp
+    // this.myState.isRunning = !this.showHelp
 
     // make nice colors
     this.updateLegendColors()
@@ -293,11 +295,9 @@ export default MyComponent
 @import '@/styles.scss';
 
 #v3-app {
-  position: absolute;
-  top: $navHeight;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  min-height: 225px;
+  background: url('assets/thumbnail.jpg') no-repeat;
+  background-size: cover;
   pointer-events: none;
   display: grid;
   grid-template-columns: 1fr 6rem;
@@ -309,6 +309,15 @@ export default MyComponent
     'days  extrabuttons'
     'playback  playback'
     'legend      legend';
+}
+
+#v3-app.hide-thumbnail {
+  position: absolute;
+  top: $navHeight;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: none;
 }
 
 #help-dialog {

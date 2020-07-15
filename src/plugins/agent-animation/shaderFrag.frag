@@ -7,8 +7,11 @@ varying float atRest;
 
 vec4 getColor() {
 
-    return vec4(0.4, 1.0, 0.6, 1.0);
+    if (atRest == 1.0) {
+        return vec4(0.0, 0.5, 0.2, 1.0);
+    }
 
+    return vec4(1.0, 1.0, 0.5, 1.0);
 }
 
 

@@ -72,8 +72,8 @@ void main() {
 
     } else {
 
-        // figure out z-index based on infection status
-        float zIndex = 0.2;
+        // figure out z-index based on whether it is moving
+        float zIndex = atRest == 1.0 ? 0.2 : 0.3;
 
         // unpack coords from position buffers - x,y,time. Deal w/ z later
         vec3 point1 = vec3(position.xy, zIndex);

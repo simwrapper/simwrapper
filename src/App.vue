@@ -167,6 +167,8 @@ h3 {
 }
 
 #nav {
+  height: $navHeight;
+  background-color: #626577;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   width: 100%;

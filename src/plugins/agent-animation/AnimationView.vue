@@ -7,7 +7,6 @@
 import { Component, Vue, Watch, Prop } from 'vue-property-decorator'
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import yaml from 'yaml'
-import ZipLoader from 'zip-loader'
 import * as THREE from 'three'
 
 import globalStore from '@/store'
@@ -70,8 +69,6 @@ export default class AnimationView extends Vue {
   private vertexShader = require('./shaderVert.vert').default
   private fragmentShader = require('./shaderFrag.frag').default
 
-  private networkFilename = 'network.zip'
-
   private globalState = globalStore.state
 
   private colors = this.myState.colorScheme == ColorScheme.DarkMode ? DARK_MODE : LIGHT_MODE
@@ -107,7 +104,7 @@ export default class AnimationView extends Vue {
   private yRange = [1e25, -1e25]
 
   // berlin
-  private midpointX = 793000
+  private midpointX = 797000
   private midpointY = 5825000
 
   private tripList: { [id: string]: Agent } = {}
@@ -198,7 +195,7 @@ export default class AnimationView extends Vue {
 
   private handleVisibilityChange() {
     console.log('window visibility changed!! hidden:', document.hidden)
-    this.myState.isRunning = document.hidden ? false : true
+    //  this.myState.isRunning = document.hidden ? false : true
   }
 
   private wasSimulationRunning = true
@@ -274,8 +271,7 @@ export default class AnimationView extends Vue {
     this.finishedLoadingTrips()
 
     // this can happen in the background
-    this.addNetworkToScene()
-    // this.startSimulation()
+    await this.addNetworkToScene()
   }
 
   private startSimulation() {
@@ -320,7 +316,8 @@ export default class AnimationView extends Vue {
         links.push(segment)
       }
     }
-    console.log(countBad, 'BAD LINKS')
+
+    // console.log(countBad, 'BAD LINKS')
 
     const mergedLines = BufferGeometryUtils.mergeBufferGeometries(links)
     const networkMesh = new THREE.LineSegments(mergedLines, this.linkMaterial)
@@ -341,7 +338,6 @@ export default class AnimationView extends Vue {
   }
 
   private createNodesAndLinksFromXML(xml: any) {
-    console.log('CREATE NODES AND LINKS')
     const roadXML = xml
     const netNodes = roadXML.network.nodes[0].node
     const netLinks = roadXML.network.links[0].link
@@ -362,7 +358,6 @@ export default class AnimationView extends Vue {
   private _roadFetcher!: XmlFetcher
 
   private async addNetworkToScene() {
-    console.log('loading network', this.networkFilename)
     this.myState.statusMessage = 'loading network'
     this.networkLayers = []
 
@@ -381,18 +376,12 @@ export default class AnimationView extends Vue {
       // Extract nodes and links
       this.createNodesAndLinksFromXML(xml)
 
-      console.log('6666')
-
       // eslint-disable-next-line
       const nodes: any = {}
       for (const id in this.network.nodes) {
         const node = this.network.nodes[id]
         nodes[id] = { x: node.x - this.midpointX, y: node.y - this.midpointY }
       }
-
-      const nlist = Object.values(nodes)
-      const llist = Object.values(this.network.links)
-      console.log({ nlist, llist })
 
       this.networkLayerAdder(nodes, Object.values(this.network.links), 0)
     } catch (e) {
@@ -412,8 +401,6 @@ export default class AnimationView extends Vue {
   }
 
   private async loadTrips() {
-    console.log('loading agent trips')
-
     const zpath = '/drt-vehicles.json'
 
     const response = await fetch(zpath)
@@ -422,18 +409,12 @@ export default class AnimationView extends Vue {
     this.tripList = {}
     const body = await response.text()
 
-    let show = true
     for (const ndjson of body.split('\n')) {
       if (!!ndjson) {
         const agent: Agent = JSON.parse(ndjson)
-        if (show) {
-          console.log({ agent })
-          show = false
-        }
         this.tripList[agent.id] = agent
       }
     }
-    console.log('--Done reading trips.', Object.keys(this.tripList).length)
   }
 
   private tempStreamBuffer = ''
@@ -473,14 +454,9 @@ export default class AnimationView extends Vue {
 
     if (this.camera) this.renderer.render(this.scene, this.camera)
     this.myState.statusMessage = 'loading network'
-
-    console.log('added points')
-    console.log({ points })
   }
 
   private initScene() {
-    console.log('---- INIT SCENE')
-
     this.container = document.getElementById('anim-container')
     if (!this.container) return
 
@@ -506,12 +482,9 @@ export default class AnimationView extends Vue {
 
     this.camera.position.set(0, 0, 3000)
     this.camera.lookAt(0, 0, -1)
-
     this.cameraControls.update()
 
     this.renderer.render(this.scene, this.camera)
-
-    console.log('--init complete!')
   }
 
   private moveCameraWhilePaused() {

@@ -35,8 +35,6 @@ class XmlFetcher extends AsyncBackgroundWorker {
   }
 
   private async fetchXml() {
-    console.log({ WORKER_STARTING_UP: this.params })
-
     const fileSystem = this.getFileSystem(this.params.fileApi)
     const httpFileSystem = new HTTPFileSystem(fileSystem)
 
@@ -48,7 +46,6 @@ class XmlFetcher extends AsyncBackgroundWorker {
     const data = await this.getDataFromBlob(blob)
     const xml = await this.parseXML(data)
 
-    console.log({ WORKER_DONE: xml })
     return { data: xml, transferrables: [] }
   }
 

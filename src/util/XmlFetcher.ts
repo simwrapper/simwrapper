@@ -9,14 +9,14 @@ export default class XmlFetcher extends AsyncWorkerConnector {
   }
 
   public static async create(params: InitParams) {
-    console.log('<< WORKER __ Create called!')
     const fetcher = new XmlFetcher()
     await fetcher.initialize(params)
     return fetcher
   }
 
   public async fetchXML() {
-    return this.postAsyncWorkerMessage(MethodNames.FetchXML, {}) // no data, everything is in init
+    return this.postAsyncWorkerMessage(MethodNames.FetchXML, {})
+    // no data, everything is in init
   }
 
   private async initialize(params: InitParams) {
