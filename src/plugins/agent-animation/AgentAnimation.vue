@@ -1,7 +1,7 @@
 <template lang="pug">
 #v3-app(:class="{'hide-thumbnail': !thumbnail}")
 
-  animation-view.anim(v-if="!thumbnail"
+  animation-view.anim(v-if="!thumbnail && vizDetails.network"
     @loaded="toggleLoaded" :vizState="myState" :speed="speed"
     :fileApi="fileApi" :subfolder="subfolder" :yamlConfig="yamlConfig" :vizDetails="vizDetails")
 
@@ -14,9 +14,6 @@
   )
 
   .nav(v-if="!thumbnail")
-    //- p.big.time(v-if="!state.statusMessage") Berlin: Outbreak Day {{ newDay+1 }}
-    //- p.big.day {{ state.statusMessage }}
-    //- p.big.time {{ state.clock }}
     p.big.day {{ vizDetails.title }}
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
     p.big.time(v-else) {{ myState.clock }}
@@ -96,6 +93,7 @@ class MyComponent extends Vue {
 
   private vizDetails = {
     network: '',
+    drtTrips: '',
     projection: '',
     title: '',
     description: '',

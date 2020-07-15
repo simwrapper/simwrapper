@@ -57,8 +57,14 @@ export default class AnimationView extends Vue {
 
   @Prop({ required: true }) private vizState!: any
 
-  @Prop({ required: false })
-  private vizDetails!: { network: string; projection: string; title: string; description: string }
+  @Prop({ required: true })
+  private vizDetails!: {
+    network: string
+    projection: string
+    title: string
+    description: string
+    drtTrips: string
+  }
 
   private timeFactor = 600.0
 
@@ -104,8 +110,8 @@ export default class AnimationView extends Vue {
   private yRange = [1e25, -1e25]
 
   // berlin
-  private midpointX = 797000
-  private midpointY = 5825000
+  private midpointX = 360000
+  private midpointY = 5715000
 
   private tripList: { [id: string]: Agent } = {}
 
@@ -364,6 +370,8 @@ export default class AnimationView extends Vue {
     try {
       if (!this.myState.fileSystem) return
 
+      console.log({ vizDetails: this.vizDetails })
+
       // fetch XML
       this._roadFetcher = await XmlFetcher.create({
         fileApi: this.myState.fileSystem.url,
@@ -373,6 +381,7 @@ export default class AnimationView extends Vue {
       const xml = await this._roadFetcher.fetchXML()
       this._roadFetcher.destroy()
 
+      console.log({ xml })
       // Extract nodes and links
       this.createNodesAndLinksFromXML(xml)
 
@@ -401,18 +410,23 @@ export default class AnimationView extends Vue {
   }
 
   private async loadTrips() {
-    const zpath = '/drt-vehicles.json'
-
-    const response = await fetch(zpath)
-    if (!response.body) return
-
     this.tripList = {}
-    const body = await response.text()
 
-    for (const ndjson of body.split('\n')) {
-      if (!!ndjson) {
-        const agent: Agent = JSON.parse(ndjson)
-        this.tripList[agent.id] = agent
+    try {
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.vizDetails.drtTrips
+      )
+
+      for (const ndjson of text.split('\n')) {
+        if (!!ndjson) {
+          const agent: Agent = JSON.parse(ndjson)
+          this.tripList[agent.id] = agent
+        }
+      }
+    } catch (e) {
+      // maybe it failed because password?
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.url)
       }
     }
   }
@@ -480,7 +494,7 @@ export default class AnimationView extends Vue {
     this.cameraControls.enableZoom = true
     this.cameraControls.enableRotate = false
 
-    this.camera.position.set(0, 0, 3000)
+    this.camera.position.set(0, 0, 1500)
     this.camera.lookAt(0, 0, -1)
     this.cameraControls.update()
 
