@@ -1,36 +1,23 @@
 <template lang="pug">
 #v3-app
-  animation-view.anim(@loaded="toggleLoaded" :speed="speed" :day="newDay" :showSusceptible="showSusceptible")
+  animation-view.anim(@loaded="toggleLoaded" :vizState="myState" :speed="speed"
+    :fileApi="fileApi" :subfolder="subfolder" :yamlConfig="yamlConfig" :vizDetails="vizDetails")
 
   modal-markdown-dialog#help-dialog(
-    title='COVID-19 virus spreading'
+    title='DRT Vehicles'
     md='@/assets/animation-helptext.md'
-    :buttons="[`Let's go!`]"
+    :buttons="[`OK`]"
     :class="{'is-active': showHelp}"
     @click="clickedCloseHelp()"
   )
 
   .nav
-
-    p.big.time(v-if="!state.statusMessage") Berlin: Outbreak Day {{ newDay+1 }}
-    p.big.day {{ state.statusMessage }}
-    p.big.time {{ state.clock }}
-
-  .side-section
-
-    .day-switchers
-      .day-button.switchers(:class="{dark: isDarkMode}"
-                   @click="dayStep(-1)" title="Previous day")
-                   i.fa.fa-1x.fa-arrow-left
-      .day-button.switchers(:class="{dark: isDarkMode}"
-                   @click="dayStep(1)" title="Next day")
-                   i.fa.fa-1x.fa-arrow-right
-
-    .day-button-grid
-      .day-button(v-for="day of Array.from(Array(numDays+1).keys()).slice(1)"
-                  :style="{borderBottom: newDay == day-1 ? 'none' : '2px solid ' + colorLookup(day-1)}"
-                  :class="{currentday: newDay == day-1, dark: isDarkMode}"
-                  :key="day" @click="switchDay(day-1)" :title="'Day ' + day") {{ day }}
+    //- p.big.time(v-if="!state.statusMessage") Berlin: Outbreak Day {{ newDay+1 }}
+    //- p.big.day {{ state.statusMessage }}
+    //- p.big.time {{ state.clock }}
+    p.big.time(v-if="!myState.statusMessage") DRT
+    p.big.day {{ myState.statusMessage }}
+    p.big.time {{ myState.clock }}
 
   .right-side
 
@@ -46,16 +33,6 @@
       p.speed-label(
         :style="{'color': textColor.text}") {{ speed }}x speed
 
-      toggle-button(@change="toggleSusceptible"
-                    :value="showSusceptible"
-                    :sync="true"
-                    :labels="true"
-                    color="#4b7cc4"
-                    :speed="150")
-
-      p.speed-label(
-        :style="{color: textColor.text}") Show susceptible
-
 
   playback-controls.playback-stuff(v-if="isLoaded" @click='toggleSimulation')
 
@@ -64,10 +41,10 @@
       i.help-button-text.fa.fa-1x.fa-question
     img.theme-button(src="@/assets/images/darkmode.jpg" @click='rotateColors' title="dark/light theme")
 
-  .legend(:class="{dark: isDarkMode}")
-    p(:style="{color: isDarkMode ? '#fff' : '#000'}") Legend:
-    .legend-items
-      p.legend-item(v-for="status in legendBits" :key="status.label" :style="{color: status.color}") {{ status.label }}
+  //- .legend(:class="{dark: isDarkMode}")
+  //-   p(:style="{color: isDarkMode ? '#fff' : '#000'}") Legend:
+  //-   .legend-items
+  //-     p.legend-item(v-for="status in legendBits" :key="status.label" :style="{color: status.color}") {{ status.label }}
 
 </template>
 
@@ -76,13 +53,22 @@ import { Component, Vue, Prop, Watch } from 'vue-property-decorator'
 import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
+import yaml from 'yaml'
 
 import globalStore from '@/store'
 import AnimationView from './AnimationView.vue'
 import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
-import { ColorScheme, LIGHT_MODE, DARK_MODE } from '@/Globals'
+import {
+  FileSystem,
+  SVNProject,
+  VisualizationPlugin,
+  ColorScheme,
+  LIGHT_MODE,
+  DARK_MODE,
+} from '@/Globals'
 import { Route } from 'vue-router'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 @Component({
   components: {
@@ -93,33 +79,111 @@ import { Route } from 'vue-router'
     ToggleButton,
   },
 })
-export default class VueComponent extends Vue {
-  private numDays = 90
+class MyComponent extends Vue {
+  @Prop({ required: false })
+  private fileApi!: FileSystem
 
-  private newDay: number = 0
+  @Prop({ required: false })
+  private subfolder!: string
 
-  private state = store.state
-  private isDarkMode = this.state.colorScheme === ColorScheme.DarkMode
+  @Prop({ required: false })
+  private yamlConfig!: string
+
+  @Prop({ required: false })
+  private thumbnail!: boolean
+
+  private vizDetails = {
+    network: '',
+    projection: '',
+    title: '',
+    description: '',
+  }
+
+  public myState = {
+    statusMessage: '',
+    clock: '00:00',
+    colorScheme: ColorScheme.DarkMode,
+    isRunning: false,
+    isShowingHelp: false,
+    fileApi: this.fileApi,
+    fileSystem: undefined as SVNProject | undefined,
+    subfolder: this.subfolder,
+    yamlConfig: this.yamlConfig,
+    thumbnail: this.thumbnail,
+  }
+
+  private globalState = globalStore.state
+  private isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
-
   private showHelp = false
-  private showSusceptible = true
-
-  private totalInfections = require('./totalInfections.csv').default
 
   private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
   private speed = 1
 
   private legendBits: any[] = []
 
+  // this happens if viz is the full page, not a thumbnail on a project page
+  private buildRouteFromUrl() {
+    const params = this.$route.params
+    if (!params.project || !params.pathMatch) {
+      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+      return
+    }
+
+    // project filesystem
+    const filesystem = this.getFileSystem(params.project)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+
+    // subfolder and config file
+    const sep = 1 + params.pathMatch.lastIndexOf('/')
+    const subfolder = params.pathMatch.substring(0, sep)
+    const config = params.pathMatch.substring(sep)
+
+    this.myState.subfolder = subfolder
+    this.myState.yamlConfig = config
+  }
+
+  private getFileSystem(name: string) {
+    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+    return svnProject[0]
+  }
+
+  private async getVizDetails() {
+    // first get config
+    try {
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.myState.yamlConfig
+      )
+      this.vizDetails = yaml.parse(text)
+    } catch (e) {
+      // maybe it failed because password?
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      }
+    }
+
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
+    this.$emit('title', t)
+  }
+
+  @Watch('globalState.authAttempts') private async authenticationChanged() {
+    console.log('AUTH CHANGED - Reload')
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
+  }
+
   @Watch('state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.state.colorScheme === ColorScheme.DarkMode
+    this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
     this.updateLegendColors()
-    this.setCubeColors()
   }
 
   private updateLegendColors() {
-    const theme = this.state.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
+    const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
 
     this.legendBits = [
       { label: 'susceptible', color: theme.susceptible },
@@ -143,156 +207,60 @@ export default class VueComponent extends Vue {
       bg: '#181518aa',
     }
 
-    return this.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
-  }
-
-  private setInitialDay() {
-    // set specified day, if we got one
-    const param = '' + this.$route.query.day
-    if (param && parseInt(param) != NaN) {
-      const day = parseInt(param)
-      if (day >= 1 || day < this.numDays) {
-        this.newDay = day - 1 // stupid 0day
-        this.$nextTick()
-      }
-    }
+    return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
 
   private toggleSimulation() {
-    this.$store.commit('setSimulation', !this.state.isRunning)
+    this.myState.isRunning = !this.myState.isRunning
 
     // ok so, many times I mashed the play/pause wondering why things wouldn't
     // start moving. Turns out a 0x speed is not very helpful! Help the user
     // out and switch the speed up if they press play.
-    if (this.state.isRunning && this.speed === 0.0) this.speed = 1.0
+    if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
   }
 
-  private mounted() {
-    this.$store.commit('setFullScreen', true)
+  private async mounted() {
+    globalStore.commit('setFullScreen', !this.thumbnail)
 
-    this.showHelp = !this.state.sawAgentAnimationHelp
-    this.$store.commit('setShowingHelp', this.showHelp)
+    if (!this.yamlConfig) this.buildRouteFromUrl()
+    await this.getVizDetails()
+
+    // globalStore.setBreadCrumbs([
+    //   { label: this.visualization.title, url: '/' },
+    //   { label: this.visualization.project.name, url: '/' },
+    // ])
+
+    if (this.thumbnail) return
+
+    this.showHelp = false // !this.state.sawAgentAnimationHelp
+    // this.$store.commit('setShowingHelp', this.showHelp)
 
     // start the sim right away if the dialog isn't showing
-    this.$store.commit('setSimulation', !this.showHelp)
-
-    this.setInitialDay()
+    this.myState.isRunning = !this.showHelp
 
     // make nice colors
-    this.setCubeColors()
     this.updateLegendColors()
   }
 
   private beforeDestroy() {
+    globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
-    this.$store.commit('setSimulation', false)
-  }
-
-  private dayColors: { [day: number]: string } = {}
-
-  private async setCubeColors() {
-    const dailyTotals = Papaparse.parse(this.totalInfections, {
-      header: true,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-    }).data
-
-    const careAbout = [
-      'nInfectedButNotContagious',
-      'nContagious',
-      'nShowingSymptoms',
-      'nSeriouslySick',
-      'nCritical',
-      'nRecovered',
-    ]
-
-    const theme = this.state.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-
-    // loop for each row in infection summary data
-    // -- which doesn't have for day 0! But obviously no one is infected yet
-    this.dayColors[0] = theme.infectedButNotContagious
-
-    for (const row of dailyTotals) {
-      let count = 0
-      let largestCol = 'nix'
-
-      for (const col of careAbout) {
-        if (row[col] > count) {
-          count = row[col]
-          largestCol = col
-        }
-      }
-
-      const day = row.day
-
-      switch (largestCol) {
-        case 'nSusceptible':
-          this.dayColors[day] = theme.susceptible
-          break
-        case 'nInfectedButNotContagious':
-          this.dayColors[day] = theme.infectedButNotContagious
-          break
-        case 'nContagious':
-          this.dayColors[day] = theme.contagious
-          break
-        case 'nShowingSymptoms':
-          this.dayColors[day] = theme.symptomatic
-          break
-        case 'nSeriouslySick':
-          this.dayColors[day] = theme.seriouslyIll
-          break
-        case 'nCritical':
-          this.dayColors[day] = theme.critical
-          break
-        case 'nRecovered':
-          this.dayColors[day] = theme.recovered
-          break
-        default:
-          this.dayColors[day] = '#dddddd'
-          break
-      }
-    }
-  }
-
-  private colorLookup(day: number): string {
-    return this.dayColors[day]
+    this.myState.isRunning = false
   }
 
   private clickedHelp() {
     console.log('HEEELP!')
-    this.$store.commit('setSimulation', false)
+    this.myState.isRunning = false
     this.showHelp = true
-    this.$store.commit('setShowingHelp', this.showHelp)
+    this.myState.isShowingHelp = this.showHelp
   }
 
   private clickedCloseHelp() {
     this.showHelp = false
-    this.$store.commit('setShowingHelp', this.showHelp)
+    this.myState.isShowingHelp = this.showHelp
     // only show the help once
-    this.$store.commit('setSawAgentAnimationHelp', true)
-    this.$store.commit('setSimulation', true)
-  }
-
-  private toggleSusceptible() {
-    this.showSusceptible = !this.showSusceptible
-  }
-
-  private switchDay(day: number) {
-    const param = '' + (day + 1)
-    this.$router.replace({ query: { day: param } })
-    this.$nextTick()
-
-    this.newDay = day
-  }
-
-  private dayStep(step: number) {
-    let day = this.newDay + step
-
-    // don't be stupid
-    if (day < 0) return
-    if (day >= this.numDays) return
-
-    this.switchDay(day)
+    // this.$store.commit('setSawAgentAnimationHelp', true)
+    this.myState.isRunning = true
   }
 
   private toggleLoaded(loaded: boolean) {
@@ -300,9 +268,24 @@ export default class VueComponent extends Vue {
   }
 
   private rotateColors() {
-    this.$store.commit('rotateColors')
+    this.myState.colorScheme =
+      this.myState.colorScheme === ColorScheme.DarkMode
+        ? ColorScheme.LightMode
+        : ColorScheme.DarkMode
+    localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
   }
 }
+
+// !register plugin!
+globalStore.commit('registerPlugin', {
+  kebabName: 'agent-animation',
+  prettyName: 'Agent Animation',
+  description: 'birds',
+  filePatterns: ['viz-agent-anim*.y?(a)ml'],
+  component: MyComponent,
+} as VisualizationPlugin)
+
+export default MyComponent
 </script>
 
 <style scoped lang="scss">

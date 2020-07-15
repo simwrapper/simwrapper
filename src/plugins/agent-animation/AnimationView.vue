@@ -6,35 +6,75 @@
 <script lang="ts">
 import { Component, Vue, Watch, Prop } from 'vue-property-decorator'
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import yaml from 'yaml'
 import ZipLoader from 'zip-loader'
 import * as THREE from 'three'
 
-import store from '@/store'
-import { Agent, ColorScheme, ColorSet, Infection, Health, DARK_MODE, LIGHT_MODE } from '@/Globals'
+import globalStore from '@/store'
+import {
+  Agent,
+  ColorScheme,
+  ColorSet,
+  FileSystem,
+  Infection,
+  Health,
+  DARK_MODE,
+  LIGHT_MODE,
+} from '@/Globals'
 import AgentGeometry from './AgentGeometry'
 import EventBus from '@/EventBus.vue'
+import XmlFetcher from '@/util/XmlFetcher'
+
+export interface Network {
+  nodes: { [id: string]: NetworkNode }
+  links: { [id: string]: NetworkLink }
+}
+
+export interface NetworkNode {
+  x: number
+  y: number
+}
+
+export interface NetworkLink {
+  readonly from: string
+  readonly to: string
+}
 
 @Component
 export default class AnimationView extends Vue {
+  @Prop({ required: false })
+  private fileApi!: FileSystem
+
+  @Prop({ required: false })
+  private subfolder!: string
+
+  @Prop({ required: false })
+  private yamlConfig!: string
+
+  @Prop({ required: false })
+  private thumbnail!: boolean
+
   @Prop({ required: true }) private speed!: number
 
-  @Prop({ required: true }) private day!: number
+  @Prop({ required: true }) private vizState!: any
 
-  @Prop({ required: true }) private showSusceptible!: boolean
+  @Prop({ required: false })
+  private vizDetails!: { network: string; projection: string; title: string; description: string }
 
   private timeFactor = 600.0
+
+  private myState = this.vizState
 
   private timeDirection = 1
 
   private vertexShader = require('./shaderVert.vert').default
-
   private fragmentShader = require('./shaderFrag.frag').default
 
   private networkFilename = 'network.zip'
 
-  private state = store.state
+  private globalState = globalStore.state
 
-  private colors = this.state.colorScheme == ColorScheme.DarkMode ? DARK_MODE : LIGHT_MODE
+  private colors = this.myState.colorScheme == ColorScheme.DarkMode ? DARK_MODE : LIGHT_MODE
 
   // keep track of time - current time in the simulation itself
   private simulationTime = 0
@@ -51,6 +91,8 @@ export default class AnimationView extends Vue {
   private renderer = new THREE.WebGLRenderer({ antialias: true })
   private camera?: THREE.PerspectiveCamera
 
+  private network: Network = { nodes: {}, links: {} }
+
   private OrbitControl = require('@/util/OrbitControl')
 
   // eslint-disable-next-line
@@ -65,18 +107,13 @@ export default class AnimationView extends Vue {
   private yRange = [1e25, -1e25]
 
   // berlin
-  private midpointX = 4595000
-  private midpointY = 5820000
+  private midpointX = 793000
+  private midpointY = 5825000
 
   private tripList: { [id: string]: Agent } = {}
-  private infectionList: { [id: string]: Infection } = {}
-
-  private allTripsHaveBegun = false
-
-  private publicPath = '/'
 
   @Watch('speed') speedChanged() {
-    this.$store.commit('setSimulation', true)
+    this.myState.isRunning = true
 
     const newDirection = this.speed < 0 ? -1 : 1
     if (newDirection === this.timeDirection) return
@@ -93,9 +130,9 @@ export default class AnimationView extends Vue {
     console.log('done flip')
   }
 
-  @Watch('state.isRunning')
+  @Watch('myState.isRunning')
   private playPauseSim() {
-    if (this.state.isRunning) {
+    if (this.myState.isRunning) {
       // pressed play.
       this.clock.start()
       requestAnimationFrame(this.animate)
@@ -110,25 +147,12 @@ export default class AnimationView extends Vue {
     }
   }
 
-  @Watch('state.colorScheme')
+  @Watch('myState.colorScheme')
   private switchColorScheme(scheme: ColorScheme) {
     this.colors = scheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
 
     // background
     this.scene.background = new THREE.Color(this.colors.background)
-
-    // agents
-    if (this.agentMaterial) {
-      this.agentMaterial.uniforms['cSusceptible'].value = new THREE.Color(this.colors.susceptible)
-      this.agentMaterial.uniforms['cInfectedButNotContagious'].value = new THREE.Color(
-        this.colors.infectedButNotContagious
-      )
-      this.agentMaterial.uniforms['cContagious'].value = new THREE.Color(this.colors.contagious)
-      this.agentMaterial.uniforms['cSymptomatic'].value = new THREE.Color(this.colors.symptomatic)
-      this.agentMaterial.uniforms['cSeriouslyIll'].value = new THREE.Color(this.colors.seriouslyIll)
-      this.agentMaterial.uniforms['cCritical'].value = new THREE.Color(this.colors.critical)
-      this.agentMaterial.uniforms['cRecovered'].value = new THREE.Color(this.colors.recovered)
-    }
 
     // road network
     // rebuild the streets
@@ -149,24 +173,6 @@ export default class AnimationView extends Vue {
     }
   }
 
-  @Watch('day') async dayChanged() {
-    console.log('------------------ DAY', this.day)
-
-    // pause the clock
-    this.clock.stop()
-    this.animationTimeSinceUnpaused = 0
-    this.clock = new THREE.Clock(false)
-
-    this.updateAgentAttributesForDay(this.day)
-
-    // and let er go again
-    // this.clock.start()
-
-    // requestAnimationFrame(this.animate)
-    // ^^^^ this was a bug! added an extra animate() call per frame, every
-    // time user switched days.  Compounded misery!
-  }
-
   private mounted() {
     this.setInitialClockTime()
     this.setupSimulation()
@@ -181,7 +187,8 @@ export default class AnimationView extends Vue {
     const secondsParam = '' + this.$route.query.start
     if (secondsParam && parseInt(secondsParam) != NaN) {
       const seconds = parseInt(secondsParam)
-      if (seconds >= 0 || seconds < 86400) {
+      // if (seconds >= 0 || seconds < 86400) {
+      if (seconds >= 0) {
         this.simulationTime = seconds
         this.setVisibleClock()
         this.$nextTick()
@@ -189,18 +196,9 @@ export default class AnimationView extends Vue {
     }
   }
 
-  @Watch('showSusceptible') toggleSusceptible() {
-    if (!this.agentGeometry) return
-    if (!this.agentMaterial) return
-
-    const show = this.showSusceptible ? 1.0 : 0.0
-    this.agentMaterial.uniforms['showSusceptible'].value = show
-    this.agentMaterial.uniformsNeedUpdate = true
-  }
-
   private handleVisibilityChange() {
     console.log('window visibility changed!! hidden:', document.hidden)
-    this.$store.commit('setSimulation', document.hidden ? false : true)
+    this.myState.isRunning = document.hidden ? false : true
   }
 
   private wasSimulationRunning = true
@@ -210,11 +208,11 @@ export default class AnimationView extends Vue {
     EventBus.$on(EventBus.DRAG, function(seconds: number) {
       if (seconds === -1) {
         // start drag
-        parent.wasSimulationRunning = parent.state.isRunning
-        parent.$store.commit('setSimulation', false)
+        parent.wasSimulationRunning = parent.myState.isRunning
+        parent.myState.isRunning = false
       } else if (seconds === -2) {
         // end drag
-        parent.$store.commit('setSimulation', parent.wasSimulationRunning)
+        parent.myState.isRunning = parent.wasSimulationRunning
       } else {
         // dragging
         parent.simulationTime = parent.nextClockUpdateTime = seconds
@@ -270,32 +268,34 @@ export default class AnimationView extends Vue {
   private async setupSimulation() {
     this.initScene()
 
-    this.$store.commit('setStatusMessage', 'loading agents')
+    this.myState.statusMessage = 'loading agents'
 
     await this.loadTrips()
+    this.finishedLoadingTrips()
 
     // this can happen in the background
     this.addNetworkToScene()
+    // this.startSimulation()
   }
 
   private startSimulation() {
     // let UI know we're about to begin!
     this.$emit('loaded', true)
 
-    if (!this.state.isShowingHelp) {
+    if (!this.myState.isShowingHelp) {
       this.clock.start()
       this.animate()
-      this.$store.commit('setSimulation', true)
+      this.myState.isRunning = true
     }
   }
 
   private networkLayers: THREE.LineSegments[] = []
 
-  private async networkLayerAdder(nodes: any[], netlinks: any[], index: number) {
+  private async networkLayerAdder(nodes: any, netlinks: any[], index: number) {
     const batchSize = 20000
 
     if (index > netlinks.length) {
-      this.$store.commit('setStatusMessage', '')
+      this.myState.statusMessage = ''
       this.startSimulation()
       return
     }
@@ -304,14 +304,23 @@ export default class AnimationView extends Vue {
     const start = index
     const end = index + batchSize > netlinks.length ? netlinks.length : index + batchSize
 
+    let countBad = 0
     for (let i = start; i < end; i++) {
       const link = netlinks[i]
-      const from = new THREE.Vector3(nodes[link.from_node].x, nodes[link.from_node].y, 0)
-      const to = new THREE.Vector3(nodes[link.to_node].x, nodes[link.to_node].y, 0)
-      const segment = new THREE.BufferGeometry().setFromPoints([from, to])
+      const nodeFrom = nodes[link.from]
+      const nodeTo = nodes[link.to]
+      if (!nodeFrom || !nodeTo) {
+        countBad++
+        if (countBad < 20) console.log({ badlink: link })
+      } else {
+        const from = new THREE.Vector3(nodeFrom.x, nodeFrom.y, 0)
+        const to = new THREE.Vector3(nodeTo.x, nodeTo.y, 0)
+        const segment = new THREE.BufferGeometry().setFromPoints([from, to])
 
-      links.push(segment)
+        links.push(segment)
+      }
     }
+    console.log(countBad, 'BAD LINKS')
 
     const mergedLines = BufferGeometryUtils.mergeBufferGeometries(links)
     const networkMesh = new THREE.LineSegments(mergedLines, this.linkMaterial)
@@ -331,35 +340,81 @@ export default class AnimationView extends Vue {
     }, 1)
   }
 
-  private async addNetworkToScene() {
-    console.log('loading network', this.networkFilename)
-    this.networkLayers = []
+  private createNodesAndLinksFromXML(xml: any) {
+    console.log('CREATE NODES AND LINKS')
+    const roadXML = xml
+    const netNodes = roadXML.network.nodes[0].node
+    const netLinks = roadXML.network.links[0].link
 
-    // load zipfile
-    const zipLoader = new ZipLoader(this.publicPath + this.networkFilename)
-    await zipLoader.load()
-
-    // extract json
-    const network = zipLoader.extractAsJSON('network.json')
-
-    // eslint-disable-next-line
-    const nodes: any = {}
-    for (const node of network.nodes) {
-      nodes[node.node_id] = { x: node.x - this.midpointX, y: node.y - this.midpointY }
+    for (const node of netNodes) {
+      const attr = node.$
+      attr.x = parseFloat(attr.x)
+      attr.y = parseFloat(attr.y)
+      this.network.nodes[attr.id] = attr
     }
 
-    console.log('network has links:', network.links.length)
+    for (const link of netLinks) {
+      const attr = link.$
+      this.network.links[attr.id] = attr
+    }
+  }
 
-    this.networkLayerAdder(nodes, network.links, 0)
-    // this.startSimulation()
+  private _roadFetcher!: XmlFetcher
+
+  private async addNetworkToScene() {
+    console.log('loading network', this.networkFilename)
+    this.myState.statusMessage = 'loading network'
+    this.networkLayers = []
+
+    try {
+      if (!this.myState.fileSystem) return
+
+      // fetch XML
+      this._roadFetcher = await XmlFetcher.create({
+        fileApi: this.myState.fileSystem.url,
+        filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+      })
+
+      const xml = await this._roadFetcher.fetchXML()
+      this._roadFetcher.destroy()
+
+      // Extract nodes and links
+      this.createNodesAndLinksFromXML(xml)
+
+      console.log('6666')
+
+      // eslint-disable-next-line
+      const nodes: any = {}
+      for (const id in this.network.nodes) {
+        const node = this.network.nodes[id]
+        nodes[id] = { x: node.x - this.midpointX, y: node.y - this.midpointY }
+      }
+
+      const nlist = Object.values(nodes)
+      const llist = Object.values(this.network.links)
+      console.log({ nlist, llist })
+
+      this.networkLayerAdder(nodes, Object.values(this.network.links), 0)
+    } catch (e) {
+      console.error({ e })
+      this.myState.statusMessage = '' + e
+    }
+
+    // // eslint-disable-next-line
+    // const nodes: any = {}
+    // for (const node of network.nodes) {
+    //   nodes[node.node_id] = { x: node.x - this.midpointX, y: node.y - this.midpointY }
+    // }
+
+    // console.log('network has links:', network.links.length)
+
+    // this.networkLayerAdder(nodes, network.links, 0)
   }
 
   private async loadTrips() {
     console.log('loading agent trips')
 
-    const zpath = this.publicPath + 'v3-anim/trips.json'
-
-    console.log(zpath)
+    const zpath = '/drt-vehicles.json'
 
     const response = await fetch(zpath)
     if (!response.body) return
@@ -367,120 +422,39 @@ export default class AnimationView extends Vue {
     this.tripList = {}
     const body = await response.text()
 
+    let show = true
     for (const ndjson of body.split('\n')) {
       if (!!ndjson) {
         const agent: Agent = JSON.parse(ndjson)
+        if (show) {
+          console.log({ agent })
+          show = false
+        }
         this.tripList[agent.id] = agent
       }
     }
-    console.log('--Done reading trips.')
-    this.finishedLoadingTrips()
-  }
-
-  private async updateAgentAttributesForDay(day: number) {
-    console.log('loading infections for day', day)
-
-    const dayString = ('00' + this.day).slice(-3)
-    const zpath = this.publicPath + 'v3-anim/' + dayString + '-infections.json'
-
-    console.log(zpath)
-    // we're going to do this async and streamy!
-    const response = await fetch(zpath)
-    if (!response.body) return
-
-    this.tempStreamBuffer = ''
-    this.infectionList = {}
-
-    const decoder = new TextDecoder('utf-8')
-    const reader = response.body.getReader()
-
-    // no need to await - will run in background
-    this.loopInfectionReader(reader, decoder)
-  }
-
-  private loopInfectionReader(reader: ReadableStreamDefaultReader, decoder: TextDecoder) {
-    reader.read().then(({ value, done }) => {
-      if (done) {
-        if (this.tempStreamBuffer) this.processNewlyReadInfection(this.tempStreamBuffer)
-        console.log('--Done reading infections.')
-        this.finishedLoadingInfections()
-      } else {
-        this.processNDJSONInfectionChunk(value, decoder)
-
-        // go back for another chunk
-        this.loopInfectionReader(reader, decoder)
-      }
-    })
-  }
-
-  private processNewlyReadInfection(ndjson: string) {
-    const inf: Infection = JSON.parse(ndjson)
-    // I THINK we don't need this?
-    // if (inf.path.length === 0) return
-
-    this.infectionList[inf.id] = inf
+    console.log('--Done reading trips.', Object.keys(this.tripList).length)
   }
 
   private tempStreamBuffer = ''
 
-  private processNDJSONInfectionChunk(
-    value: Uint8Array,
-    decoder: TextDecoder,
-    splitOn: string = '\n'
-  ) {
-    const chunk = decoder.decode(value)
-    this.tempStreamBuffer += chunk
-    const parts = this.tempStreamBuffer.split(splitOn)
-
-    parts.slice(0, -1).forEach(ndjson => {
-      this.processNewlyReadInfection(ndjson)
-    })
-    this.tempStreamBuffer = parts[parts.length - 1]
-  }
-
   private agentMaterial?: THREE.ShaderMaterial
   private agentGeometry?: AgentGeometry
-
-  private finishedLoadingInfections() {
-    if (!this.agentGeometry) return
-
-    this.agentGeometry.updateInfections(this.infectionList)
-    this.clock.start()
-  }
 
   private finishedLoadingTrips() {
     if (this.agentGeometry) this.agentGeometry.dispose()
     this.agentGeometry = new AgentGeometry(this.tripList, this.midpointX, this.midpointY)
 
-    // maybe we already loaded a new day
-    if (Object.keys(this.infectionList).length > 0) {
-      this.agentGeometry.updateInfections(this.infectionList)
-    }
+    // // maybe we already loaded a new day
+    // if (Object.keys(this.infectionList).length > 0) {
+    //   this.agentGeometry.updateInfections(this.infectionList)
+    // }
 
     if (!this.agentMaterial)
       this.agentMaterial = new THREE.ShaderMaterial({
         uniforms: {
           simulationTime: { value: 0.0 },
-          showSusceptible: { value: this.showSusceptible },
           colorLinks: { value: new THREE.Color(this.colors.links) },
-
-          cSusceptible: { value: new THREE.Color(this.colors.susceptible) },
-          cContagious: { value: new THREE.Color(this.colors.contagious) },
-          cInfectedButNotContagious: {
-            value: new THREE.Color(this.colors.infectedButNotContagious),
-          },
-          cSymptomatic: {
-            value: new THREE.Color(this.colors.symptomatic),
-          },
-          cSeriouslyIll: {
-            value: new THREE.Color(this.colors.seriouslyIll),
-          },
-          cCritical: {
-            value: new THREE.Color(this.colors.critical),
-          },
-          cRecovered: {
-            value: new THREE.Color(this.colors.recovered),
-          },
         },
         vertexShader: this.vertexShader,
         fragmentShader: this.fragmentShader,
@@ -498,18 +472,18 @@ export default class AnimationView extends Vue {
     this.scene.add(points)
 
     if (this.camera) this.renderer.render(this.scene, this.camera)
-    this.$store.commit('setStatusMessage', 'loading network')
+    this.myState.statusMessage = 'loading network'
 
     console.log('added points')
+    console.log({ points })
   }
 
   private initScene() {
-    console.log('hereee 5-----')
+    console.log('---- INIT SCENE')
 
     this.container = document.getElementById('anim-container')
     if (!this.container) return
 
-    console.log('hereee 0-----')
     this.scene.background = new THREE.Color(this.colors.background)
 
     this.renderer.setSize(this.container.clientWidth, this.container.clientHeight)
@@ -530,7 +504,7 @@ export default class AnimationView extends Vue {
     this.cameraControls.enableZoom = true
     this.cameraControls.enableRotate = false
 
-    this.camera.position.set(0, 0, 1500)
+    this.camera.position.set(0, 0, 3000)
     this.camera.lookAt(0, 0, -1)
 
     this.cameraControls.update()
@@ -543,7 +517,7 @@ export default class AnimationView extends Vue {
   private moveCameraWhilePaused() {
     if (!this.camera) return
 
-    if (!this.state.isRunning) {
+    if (!this.myState.isRunning) {
       this.renderer.render(this.scene, this.camera)
       this.cameraControls.update()
       requestAnimationFrame(this.moveCameraWhilePaused) // endless animation loop
@@ -553,10 +527,7 @@ export default class AnimationView extends Vue {
   private setVisibleClock() {
     const hour = Math.floor(this.simulationTime / 3600)
     const minute = Math.floor(this.simulationTime / 60) % 60
-    this.$store.commit(
-      'setClock',
-      (hour < 10 ? '0' : '') + hour + (minute < 10 ? ':0' : ':') + minute
-    )
+    this.myState.clock = (hour < 10 ? '0' : '') + hour + (minute < 10 ? ':0' : ':') + minute
   }
 
   private animate() {
@@ -567,17 +538,17 @@ export default class AnimationView extends Vue {
       this.timeFactor * this.speed * (elapsedTicks - this.animationTimeSinceUnpaused)
 
     this.animationTimeSinceUnpaused = elapsedTicks
-
     this.simulationTime = this.simulationTime + timeDelta
 
     // are we done?
     if (this.simulationTime < 0.0) {
-      this.$store.commit('setSimulation', false)
+      this.myState.isRunning = false
       this.simulationTime = 0
-    } else if (this.simulationTime > 86400) {
-      this.$store.commit('setSimulation', false)
-      this.simulationTime = 86400 - 1
     }
+    // } else if (this.simulationTime > 86400) {
+    //   this.$store.commit('setSimulation', false)
+    //   this.simulationTime = 86400 - 1
+    // }
 
     // tell agents to move their butts
     if (this.agentMaterial)
@@ -593,7 +564,7 @@ export default class AnimationView extends Vue {
     if (this.camera) this.renderer.render(this.scene, this.camera)
     this.cameraControls.update()
 
-    if (this.state.isRunning) requestAnimationFrame(this.animate) // endless animation loop
+    if (this.myState.isRunning) requestAnimationFrame(this.animate) // endless animation loop
   }
 }
 </script>
