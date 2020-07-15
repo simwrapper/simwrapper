@@ -494,7 +494,7 @@ export default class AnimationView extends Vue {
     this.cameraControls.enableZoom = true
     this.cameraControls.enableRotate = false
 
-    this.camera.position.set(0, 0, 1500)
+    this.camera.position.set(0, 0, 750)
     this.camera.lookAt(0, 0, -1)
     this.cameraControls.update()
 
