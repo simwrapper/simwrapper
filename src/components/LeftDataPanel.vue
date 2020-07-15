@@ -68,7 +68,7 @@ export default class LeftDataPanel extends Vue {
   display: flex;
   flex-direction: column;
   // background-color: #eeeefff4;
-  background-color: #534e4d;
+  background-color: #d9ddec;
   border-bottom-left-radius: 0.25rem;
   border-bottom-right-radius: 0.25rem;
   opacity: 0.97;
