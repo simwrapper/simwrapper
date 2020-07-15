@@ -50,8 +50,6 @@ export default abstract class AsyncBackgroundWorker {
   public abstract async handleMethodCall(call: MethodCall): Promise<MethodResult>
 
   private async handleMessage(e: MessageEvent): Promise<void> {
-    console.log('boop!')
-    console.log({ e })
     const message = e.data as AsyncMethodCall
 
     if (!this.isValidMessage(message)) console.error('invalid message')

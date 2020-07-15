@@ -3,7 +3,6 @@ import Vuex from 'vuex'
 
 import { BreadCrumb, ColorScheme, VisualizationPlugin } from '@/Globals'
 import svnConfig from '@/svnConfig.ts'
-import { StaticReadUsage } from 'three'
 
 Vue.use(Vuex)
 
@@ -25,8 +24,7 @@ export default new Vuex.Store({
       state.needLoginForUrl = value
     },
     registerPlugin(state, value: VisualizationPlugin) {
-      console.log('REGISTERING PLUGIN:')
-      console.log('---', value.kebabName)
+      console.log('PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {
