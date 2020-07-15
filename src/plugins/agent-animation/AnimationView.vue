@@ -563,10 +563,7 @@ export default class AnimationView extends Vue {
 #anim-container {
   margin: 0 0;
   padding: 0 0;
-  position: absolute;
   width: 100%;
-  top: 0;
-  bottom: 0;
   z-index: -1;
 }
 </style>

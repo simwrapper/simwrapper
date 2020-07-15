@@ -1,6 +1,5 @@
 <template lang="pug">
 #v3-app(:class="{'hide-thumbnail': !thumbnail}")
-
   animation-view.anim(v-if="!thumbnail && vizDetails.network"
     @loaded="toggleLoaded" :vizState="myState" :speed="speed"
     :fileApi="fileApi" :subfolder="subfolder" :yamlConfig="yamlConfig" :vizDetails="vizDetails")
@@ -19,7 +18,6 @@
     p.big.time(v-else) {{ myState.clock }}
 
   .right-side
-
     .morestuff(v-if="isLoaded")
       vue-slider.speed-slider(v-model="speed"
         :data="speedStops"
@@ -31,7 +29,6 @@
       )
       p.speed-label(
         :style="{'color': textColor.text}") {{ speed }}x speed
-
 
   playback-controls.playback-stuff(v-if="isLoaded" @click='toggleSimulation')
 
@@ -293,28 +290,23 @@ export default MyComponent
 @import '@/styles.scss';
 
 #v3-app {
-  min-height: 225px;
+  display: grid;
+  min-height: 200px;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   pointer-events: none;
-  display: grid;
   grid-template-columns: 1fr 6rem;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto auto auto;
   grid-template-areas:
     'hd              hd'
-    'days     rightside'
-    'days             .'
-    'days  extrabuttons'
+    '.        rightside'
+    '.                .'
+    '.     extrabuttons'
     'playback  playback'
     'legend      legend';
 }
 
 #v3-app.hide-thumbnail {
-  position: absolute;
-  top: $navHeight;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: none;
 }
 
