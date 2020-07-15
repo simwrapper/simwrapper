@@ -96,6 +96,7 @@ interface AggOdYaml {
   scaleFactor: number
   title?: string
   description?: string
+  idColumn?: string
 }
 
 const TOTAL_MSG = 'All >>'
@@ -298,6 +299,7 @@ class MyComponent extends Vue {
 
     this.scaleFactor = this.vizDetails.scaleFactor
     this.projection = this.vizDetails.projection
+    this.idColumn = this.vizDetails.idColumn ? this.vizDetails.idColumn : 'id'
 
     nprogress.done()
   }
@@ -878,7 +880,7 @@ class MyComponent extends Vue {
 
     this.loadingText = 'Converting coordinates...'
     for (const feature of geojson.features) {
-      // Assumption: zone ID must be the first column of the DBF.
+      // 'id' column used for lookup, unless idColumn is set in YAML
       if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
 
       // Save id somewhere helpful
