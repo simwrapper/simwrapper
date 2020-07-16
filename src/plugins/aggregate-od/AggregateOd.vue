@@ -1216,7 +1216,7 @@ h4 {
 }
 
 .map-container {
-  min-height: 150px;
+  min-height: 225px;
   background-color: #eee;
   grid-column: 1 / 3;
   grid-row: 1 / 3;

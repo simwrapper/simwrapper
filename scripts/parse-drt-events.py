@@ -12,15 +12,17 @@
 #    }
 # ]
 
-import ndjson
-import sys
-import matsim
-from dfply import *
+try:
+    import ndjson
+    import sys
+    import matsim
+    from dfply import *
+except:
+    print("OOPS! Error importing required libraries.")
+    print('try "pip install matsim-tools ndjson dfply"')
 
 # outfile hard-coded for now
 outfile = "drt-vehicles.json"
-
-# sample_rate = 10
 
 print("reading network", sys.argv[1])
 network = matsim.read_network(sys.argv[1])
@@ -101,4 +103,4 @@ with open(outfile, "w") as f:
     for agent in agents.values():
         writer.writerow(agent)
 
-print(len(agents), "agents")
+print(len(agents), "agents written.")

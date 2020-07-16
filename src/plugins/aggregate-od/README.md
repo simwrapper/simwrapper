@@ -21,9 +21,13 @@ dbfFile: Bezirksregionen_zone_GK4_fixed.dbf
 csvFile: od-analysis-hourly-drt.csv
 projection: GK4
 scaleFactor: 100
+idColumn: 'id'
 ```
 
-**Shapefile:** The **first column** of the DBF data must contain the ID of the zones/regions. This ID will be used to identify the O/D flows in the CSV file
+**Shapefile:** The DBF data must contain a column with the ID of the zones/regions. This ID will be used to identify the O/D flows in the CSV file
+
+- if the `idColumn` is not specified in YAML then the default `id` will be used.
+- If no ID column can be found then the plot will attempt to use the first column in the DBF file, but that often will fail.
 
 **O/D CSV File format:**
 
