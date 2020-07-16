@@ -18,14 +18,14 @@ const config: any = {
       need_password: false,
       thumbnail: '/thumb-vulkaneifel.jpg',
     },
-    // {
-    //   name: 'LOCAL FILES',
-    //   url: 'local',
-    //   description: 'Use serve.py',
-    //   svn: 'http://localhost:8000/',
-    //   need_password: false,
-    //   thumbnail: '/thumb-vulkaneifel.jpg',
-    // },
+    {
+    name: 'TEST FILES',
+    url: 'local',
+    description: 'Use serve.py',
+    svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/',
+    need_password: false,
+    thumbnail: '/thumb-vulkaneifel.jpg',
+    },
   ],
 }
 
