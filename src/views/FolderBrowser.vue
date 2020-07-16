@@ -17,8 +17,8 @@
     .curated-sections
 
       //- this is the content of readme.md, if it exists
-      h3.curate-heading(v-if="myState.readme")  Info
-      .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
+      .readme-header
+        .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
 
       //- file system folders
       h3.curate-heading(v-if="myState.folders.length")  Runs
@@ -436,7 +436,7 @@ h2 {
   flex-direction: column;
   background-color: white;
   margin: 0.25rem 0rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
 }
 
 .folder:hover {
@@ -483,6 +483,12 @@ h2 {
   padding: 0rem 0rem;
   margin: 0rem 0rem;
   grid-area: 'heading';
+}
+
+.readme-header {
+  font-size: 1.1rem;
+  grid-column: 1 / 3;
+  padding-bottom: 1rem;
 }
 
 h3.curate-heading {

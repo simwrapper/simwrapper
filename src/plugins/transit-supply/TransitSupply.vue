@@ -151,13 +151,9 @@ class MyComponent extends Vue {
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
 
-    // globalStore.setBreadCrumbs([
-    //   { label: this.visualization.title, url: '/' },
-    //   { label: this.visualization.project.name, url: '/' },
-    // ])
-
     if (this.thumbnail) return
 
+    this.generateBreadcrumbs()
     this.setupMap()
   }
 
@@ -181,6 +177,34 @@ class MyComponent extends Vue {
 
     this.myState.subfolder = subfolder
     this.myState.yamlConfig = config
+  }
+
+  private generateBreadcrumbs() {
+    if (!this.myState.fileSystem) return []
+
+    const crumbs = [
+      {
+        label: this.myState.fileSystem.name,
+        url: '/' + this.myState.fileSystem.url,
+      },
+    ]
+
+    const subfolders = this.myState.subfolder.split('/')
+    let buildFolder = '/'
+    for (const folder of subfolders) {
+      if (!folder) continue
+
+      buildFolder += folder + '/'
+      crumbs.push({
+        label: folder,
+        url: '/' + this.myState.fileSystem.url + buildFolder,
+      })
+    }
+
+    // save them!
+    globalStore.commit('setBreadCrumbs', crumbs)
+
+    return crumbs
   }
 
   private getFileSystem(name: string) {

@@ -73,6 +73,8 @@ class MyComponent extends Vue {
   public mounted() {
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
+    if (!this.thumbnail) this.generateBreadcrumbs()
+
     this.getVizDetails()
   }
 
@@ -89,6 +91,34 @@ class MyComponent extends Vue {
   @Watch('subfolder') changedSubfolder() {
     this.myState.subfolder = this.subfolder
     this.getVizDetails()
+  }
+
+  private generateBreadcrumbs() {
+    if (!this.myState.fileSystem) return []
+
+    const crumbs = [
+      {
+        label: this.myState.fileSystem.name,
+        url: '/' + this.myState.fileSystem.url,
+      },
+    ]
+
+    const subfolders = this.myState.subfolder.split('/')
+    let buildFolder = '/'
+    for (const folder of subfolders) {
+      if (!folder) continue
+
+      buildFolder += folder + '/'
+      crumbs.push({
+        label: folder,
+        url: '/' + this.myState.fileSystem.url + buildFolder,
+      })
+    }
+
+    // save them!
+    globalStore.commit('setBreadCrumbs', crumbs)
+
+    return crumbs
   }
 
   private getFileSystem(name: string) {
