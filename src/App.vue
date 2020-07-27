@@ -95,7 +95,8 @@ html {
 }
 
 .breadcrumbs-bar {
-  background-color: #626577;
+  // background-color: #626577;
+  background-color: $tuRed;
   padding: 0.75rem 3rem;
 }
 
@@ -168,7 +169,8 @@ h3 {
 
 #nav {
   height: $navHeight;
-  background-color: #626577;
+  // background-color: #626577;
+  background-color: $tuRed;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   width: 100%;

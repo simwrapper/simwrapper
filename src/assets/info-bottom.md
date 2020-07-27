@@ -1,1 +1,2 @@
-Additional content from `/src/assets/info-bottom.md` shows up here.
+- Github repo: https://github.com/aftersim/aftersim
+- Plugin guide (to be written)

@@ -6,7 +6,7 @@
       h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
       p {{ myState.svnProject.description }}
     .logo
-        img(width="300" src="/logo-avoev.png")
+        img(width="150" src="/tu-logo.png")
 
   .details(v-if="myState.svnProject")
 
@@ -30,7 +30,7 @@
           p {{ folder }}
 
       //- thumbnails of each viz and image in this folder
-      h3.curate-heading(v-if="myState.vizes.length") Analysen
+      h3.curate-heading(v-if="myState.vizes.length") Analysis
 
       .curate-content(v-if="myState.vizes.length")
         .viz-table
@@ -46,13 +46,13 @@
                     :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
                     @title="updateTitle(index, $event)")
 
-      //- individual links to files in this folder
-      //- h3.curate-heading(v-if="myState.files.length") Datein
+      // individual links to files in this folder
+      h3.curate-heading(v-if="myState.files.length") Files
 
-      //- .curate-content(v-if="myState.files.length")
-      //-   .file(:class="{fade: myState.isLoading}"
-      //-         v-for="file in myState.files" :key="file")
-      //-     a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
+      .curate-content(v-if="myState.files.length")
+        .file(:class="{fade: myState.isLoading}"
+              v-for="file in myState.files" :key="file")
+          a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -124,6 +124,10 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnProject) return []
 
     const crumbs = [
+      {
+        label: 'Home',
+        url: '/',
+      },
       {
         label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.url,

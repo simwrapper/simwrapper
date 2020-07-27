@@ -1,6 +1,22 @@
 const config: any = {
   projects: [
     {
+      name: 'Public-SVN',
+      url: 'public-svn',
+      description: 'VSP public data files from Subversion server',
+      svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/',
+      need_password: false,
+      thumbnail: '/thumbnail.png',
+    },
+    {
+      name: 'Local Files',
+      url: 'local',
+      description: 'Use scripts/serve.py',
+      svn: 'http://localhost:8000/',
+      need_password: false,
+      thumbnail: '/thumbnail.png',
+    },
+    {
       name: 'Gladbeck',
       url: 'gladbeck',
       description: 'AVÖV Projekt: Gladbeck NRW',

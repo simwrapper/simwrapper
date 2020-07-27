@@ -1,19 +1,18 @@
 <template lang="pug">
 #home
   .banner
-    h2 VSP / Technische Universität Berlin
-    h3 AVÖV Projekt Portal
+    h2 aftersim
+    h3 VSP / Technische Universität Berlin
 
   .page-area
     .content
       .main
-        img(src="/logo-avoev.png")
         h2.readme(v-html="readme")
 
-        h2 Wählen Sie Ihre Stadt aus:
         svn-projects.gap
 
-        h2 Mehr Info
+        h2 For more information
+
         .readme(v-html="readmeBottom")
 
         .footer(v-if="!state.isFullScreen")
@@ -41,7 +40,15 @@ import globalStore from '@/store'
 @Component({ components: { Colophon, SvnProjects, VizCard } })
 class MyComponent extends Vue {
   private mounted() {
-    globalStore.commit('setBreadCrumbs', [])
+    const crumbs = [
+      {
+        label: 'Home',
+        url: '/',
+      },
+    ]
+
+    // save them!
+    globalStore.commit('setBreadCrumbs', crumbs)
   }
 
   private state = globalStore.state
