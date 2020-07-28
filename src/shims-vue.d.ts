@@ -22,6 +22,7 @@ declare module 'd3-sankey-diagram'
 declare module 'read-blob'
 declare module 'vue-slide-bar'
 declare module 'vue-table-component'
+declare module 'vue-video-player'
 declare module 'zip-loader'
 // temp i hope
 declare module '@turf/point-to-line-distance'
