@@ -1,6 +1,9 @@
 <template lang="pug">
-#vue-component
-  .project(v-for="source in sources" :key="source.url" @click='openProjectPage(source)')
+#source-cards
+  .project(v-for="source,i in sources" :key="source.url"
+      @click='openProjectPage(source)'
+      :style="{marginRight: i===3 ? '0' : '2rem'} ")
+
       img(:src="source.thumbnail")
       .desc
         h3 {{ source.name }}
@@ -30,7 +33,7 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#vue-component {
+#source-cards {
   display: flex;
   flex-direction: row;
 }
@@ -54,5 +57,8 @@ export default class VueComponent extends Vue {
 }
 
 @media only screen and (max-width: 640px) {
+  #source-cards {
+    flex-direction: column;
+  }
 }
 </style>

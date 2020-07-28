@@ -4,7 +4,7 @@
   .project-bar(v-if="myState.svnProject")
     .details
       h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
-      p {{ myState.svnProject.description }}
+      p {{ myState.svnProject.name }}
     .logo
         img(width="150" src="/tu-logo.png")
 
@@ -125,7 +125,7 @@ export default class VueComponent extends Vue {
 
     const crumbs = [
       {
-        label: 'Home',
+        label: 'aftersim',
         url: '/',
       },
       {
@@ -456,8 +456,8 @@ h2 {
   background-color: white;
   // border-bottom: 1px solid $themeColorPale;
   z-index: 10000;
-  box-shadow: 0px 0px 8px 8px rgba(0, 0, 0, 0.06);
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
+  // box-shadow: 0px 0px 8px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.05);
 }
 
 .project-bar p {

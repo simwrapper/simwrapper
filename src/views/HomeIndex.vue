@@ -4,9 +4,14 @@
     h2 aftersim
     h3 VSP / Technische Universität Berlin
 
+  .tu-logo(style="margin-top: -4rem; text-align: right; margin-right: 2rem;")
+    img(src="/tu-logo-circle.png" style="height: 8rem;")
+
   .page-area
     .content
       .main
+        .right(style="text-align: right;")
+
         h2.readme(v-html="readme")
 
         svn-projects.gap
@@ -14,14 +19,6 @@
         h2 For more information
 
         .readme(v-html="readmeBottom")
-
-        .footer(v-if="!state.isFullScreen")
-          //- colophon.colophon
-          a(href="https://vsp.tu-berlin.de")
-            img(alt="TU-Berlin logo" src="@/assets/images/vsp-logo.png" width=225)
-          a(href="https://matsim.org")
-            img(alt="MATSim logo" src="@/assets/images/matsim-logo-blue.png" width=250)
-
 
 </template>
 
@@ -42,7 +39,7 @@ class MyComponent extends Vue {
   private mounted() {
     const crumbs = [
       {
-        label: 'Home',
+        label: 'aftersim',
         url: '/',
       },
     ]
@@ -67,11 +64,12 @@ export default MyComponent
 
 .gap {
   margin-top: 2rem;
+  margin-bottom: 2rem;
 }
 
 .content {
   flex: 1;
-  padding: 2rem 3rem 5rem 3rem;
+  padding: 1rem 3rem 5rem 3rem;
   display: flex;
   width: 100%;
 }
@@ -83,7 +81,7 @@ export default MyComponent
 .banner {
   display: flex;
   flex-direction: column;
-  padding: 4rem 3rem 1rem 3rem;
+  padding: 6rem 3rem 1rem 3rem;
   background-color: #ffffff;
   color: $tuRed;
   background: url(../assets/images/banner.jpg);
@@ -122,7 +120,7 @@ a {
 }
 
 .main h2 {
-  margin-top: 3rem;
+  margin-top: 1rem;
   font-weight: normal;
   color: $bannerHighlight;
 }

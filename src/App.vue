@@ -9,17 +9,23 @@
         ul
           li(v-for="crumb,i in state.breadcrumbs" :key="crumb.label + crumb.url"
             @click="clickedLink(crumb.url)")
-              p {{ i === 0 ? 'Home' : crumb.label }}
+              p {{ i === 0 ? 'aftersim' : crumb.label }}
 
   .center-area.nav-padding
     login-panel.login-panel
     router-view.main-content
 
   .footer(v-if="!state.isFullScreen")
-    p AVÖV Projekt Webseite, &copy; 2020 VSP TU-Berlin.
-    p Mehr Info über VSP:
+    //- colophon.colophon
+    a(href="https://vsp.tu-berlin.de")
+      img(alt="TU-Berlin logo" src="@/assets/images/vsp-logo.png" width=225)
+    a(href="https://matsim.org")
+      img(alt="MATSim logo" src="@/assets/images/matsim-logo-blue.png" width=250)
+
+    p aftersim &copy; 2020 VSP TU-Berlin.
+    p More info about VSP:
       a(href="https://www.vsp.tu-berlin.de") &nbsp;https://vsp.tu-berlin.de
-    p GDPR: keine persönlichen Informationen gesammelt oder übertragen.
+    p EU GDPR: No personal information collected or transmitted.
 </template>
 
 <script lang="ts">
@@ -174,7 +180,7 @@ h3 {
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   width: 100%;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.05);
 }
 
 .main-content {
@@ -217,8 +223,21 @@ h3 {
   background-color: $colorBoldBackground;
 }
 
+#app .footer {
+  color: #222;
+  background-color: white;
+  text-align: center;
+  padding: 2rem 0.5rem 3rem 0.5rem;
+  // background-color: #648cb4;
+}
+
 .footer a {
   color: $matsimBlue;
+}
+
+.footer img {
+  margin: 1rem auto;
+  padding: 0 1rem;
 }
 
 .medium-zoom-overlay {
