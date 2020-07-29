@@ -1,11 +1,14 @@
 <template lang="pug">
-#container
+#container(:style="{padding: thumbnail ? '0 0' : '0 20px 20px 20px'}")
   h3(v-if="!thumbnail") {{ title }}
 
-  video-player.video-player-box.vjs-default-skin.vjs-big-play-centered(v-if="movieSource"
-    ref="videoPlayer"
-    :options="playerOptions"
-  )
+  .vid-container
+    video-player.vjs-default-skin.vjs-big-play-centered(
+      v-if="movieSource"
+      ref="videoPlayer"
+      :options="playerOptions"
+    )
+
 
 </template>
 
@@ -47,17 +50,12 @@ class MyComponent extends Vue {
   private playerOptions = {
     muted: false,
     language: 'en',
-    playbackRates: [0.75, 1.0, 1.5, 2.0, 5.0],
-    preload: 'auto',
+    playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
+    preload: 'metadata',
     responsive: true,
     fluid: true,
     playsinline: true,
     sources: [] as any[],
-  }
-
-  get player() {
-    const z: any = this.$refs.videoPlayer
-    return z.player
   }
 
   private myState = {
@@ -68,7 +66,15 @@ class MyComponent extends Vue {
     imageData: '',
   }
 
+  public destroyed() {
+    window.removeEventListener('resize', this.onResize)
+
+    if (!this.thumbnail) globalStore.commit('setFullScreen', false)
+  }
+
   public mounted() {
+    if (!this.thumbnail) globalStore.commit('setFullScreen', true)
+
     if (!this.yamlConfig) {
       this.buildRouteFromUrl()
     } else {
@@ -76,9 +82,10 @@ class MyComponent extends Vue {
       this.buildMovieSource(filesystem.svn, this.subfolder + '/', this.yamlConfig)
     }
 
-    if (!this.thumbnail) this.generateBreadcrumbs()
-
     this.getVizDetails()
+
+    if (!this.thumbnail) this.generateBreadcrumbs()
+    if (!this.thumbnail) window.addEventListener('resize', this.onResize)
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -130,6 +137,38 @@ class MyComponent extends Vue {
     this.myState.yamlConfig = config
 
     this.buildMovieSource(filesystem.svn, subfolder, config)
+  }
+
+  private aspect = 0
+
+  public onResize() {
+    const parent = document.getElementsByClassName('vid-container')[0] as HTMLElement
+    const video = document.getElementsByClassName('video-js')[0] as HTMLElement
+
+    if (!this.aspect) this.aspect = video.clientHeight / video.clientWidth
+
+    var parentWidth = parent.clientWidth
+    var windowHeight = window.innerHeight
+    var windowWidth = window.innerWidth
+
+    parent.style.width = '100%'
+    parent.style.margin = 'auto auto'
+
+    const maxHeight = windowHeight - 120
+    const newWidth = Math.floor(maxHeight / this.aspect)
+    video.style.width = `${newWidth}px`
+    video.style.height = `${newWidth * this.aspect}px`
+    parent.style.width = `${newWidth}px`
+    parent.style.height = `${newWidth * this.aspect}px`
+
+    const maxWidth = windowWidth - 60
+    if (video.clientWidth > maxWidth) {
+      const newWidth = maxWidth
+      video.style.width = `${newWidth}px`
+      video.style.height = `${newWidth * this.aspect}px`
+      parent.style.width = `${newWidth}px`
+      parent.style.height = `${newWidth * this.aspect}px`
+    }
   }
 
   private async generateBreadcrumbs() {
@@ -187,7 +226,11 @@ export default MyComponent
 @import '~video.js/dist/video-js.min.css';
 
 #container {
-  background-color: #334;
+  display: flex;
+  flex-direction: column;
+  // grid-template-columns: 1fr;
+  // grid-template-rows: auto auto;
+  background-color: #223;
 }
 
 h3 {
@@ -196,7 +239,7 @@ h3 {
   text-align: center;
 }
 
-.medium-zoom {
-  padding: 0.25rem 0.25rem;
+.video-js {
+  background-color: #223;
 }
 </style>
