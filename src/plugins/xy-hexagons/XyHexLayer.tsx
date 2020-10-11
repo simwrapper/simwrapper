@@ -68,7 +68,6 @@ function getTooltip({ object }: any) {
   }
 }
 
-/* eslint-disable react/no-deprecated */
 export default function App({
   data = [],
   mapStyle = 'mapbox://styles/mapbox/dark-v9', // 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', // 'mapbox://styles/mapbox/light-v9', //
