@@ -2,7 +2,7 @@
 
 _("Spider Diagrams")_
 
-This viz shows aggregated flows between areas defined by a shapefile. The default view shows everything all at once for every centroid-to-centroid pair. This can be overwhelming, so you can also click on an individual centroid to see just the flows to and from that zone.
+This viz shows aggregated flows between areas defined by a shapefile. The default view shows everything all at once for every centroid-to-centroid pair. This can be overwhelming, so you can also click on an individual centroid to see just the flows to and from that selected zone.
 
 ## Usage
 
@@ -12,7 +12,7 @@ A file named `viz-od*.yml` must be present in working folder. Each yml file matc
 
 ```yaml
 ---
-# all of the below are required except description.
+# all of the below are required except description and idColumn.
 ---
 title: 'My Aggregate Viz'
 description: 'this will be in the sidebar'
@@ -27,7 +27,7 @@ idColumn: 'id'
 **Shapefile:** The DBF data must contain a column with the ID of the zones/regions. This ID will be used to identify the O/D flows in the CSV file
 
 - if the `idColumn` is not specified in YAML then the default `id` will be used.
-- If no ID column can be found then the plot will attempt to use the first column in the DBF file, but that often will fail.
+- If no ID column can be found, then the plot will attempt to use the first column in the DBF file.
 
 **O/D CSV File format:**
 

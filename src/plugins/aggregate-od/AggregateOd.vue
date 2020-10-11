@@ -1,13 +1,14 @@
 <template lang="pug">
-#container
-  .status-blob(v-if="!thumbnail && loadingText"): p {{ loadingText }}
+.mycomponent(:id="containerId")
+  .status-blob(v-show="!thumbnail && loadingText")
+    p {{ loadingText }}
 
   .map-complications(v-if="!thumbnail && !isMobile()")
     legend-box.complication(:rows="legendRows")
     scale-box.complication(:rows="scaleRows")
 
   .map-container
-    #mymap
+    .mymap(:id="mapId")
 
   left-data-panel.left-panel(v-if="!thumbnail && !loadingText")
    .dashboard-panel
@@ -19,40 +20,40 @@
       p.description {{ this.vizDetails.description }}
 
     .widgets
-      h4.heading Time of day
+      h4.heading Uhrzeit
       time-slider.time-slider(v-if="headers.length > 0"
         :useRange='showTimeRange'
         :stops='headers'
         @change='bounceTimeSlider')
       label.checkbox
          input(type="checkbox" v-model="showTimeRange")
-         | &nbsp;Show range
+         | &nbsp;Zeitraum
 
-      h4.heading Bubbles
+      h4.heading Kreise
       .white-box
         label.checkbox
           input(type="checkbox" v-model="showCentroids")
-          | &nbsp;Show centroid bubbles
+          | &nbsp;Kreise anzeigen
         label.checkbox
           input(type="checkbox" v-model="showCentroidLabels")
-          | &nbsp;Show labels
+          | &nbsp;Nummern anzeigen
 
-      h4.heading Lines
+      h4.heading Strecken
       .white-box
-        .subheading Scale width:
+        .subheading Linienbreiten
         scale-slider.scale-slider(:stops='scaleValues' :initialTime='1' @change='bounceScaleSlider')
 
-        .subheading Hide lines below:
+        .subheading Ausblenden bis
         line-filter-slider.scale-slider(
           :initialValue="lineFilter"
           @change='bounceLineFilter')
 
-      h4.heading Show totals for
+      h4.heading Insgesamt für
       .buttons-bar
         // {{rowName}}
-        button.button(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') Origins
+        button.button(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') Quellen
         // {{colName}}
-        button.button(hint="hide" @click='clickedDestinations' :class='{"is-link": !isOrigin,"is-active": !isOrigin}') Destinations
+        button.button(hint="hide" @click='clickedDestinations' :class='{"is-link": !isOrigin,"is-active": !isOrigin}') Zielorte
 
 </template>
 
@@ -64,6 +65,7 @@ import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
+import { forEachAsync } from 'js-coroutines'
 import mapboxgl, { MapMouseEvent, PositionOptions } from 'mapbox-gl'
 import { multiPolygon } from '@turf/turf'
 import nprogress from 'nprogress'
@@ -99,7 +101,7 @@ interface AggOdYaml {
   idColumn?: string
 }
 
-const TOTAL_MSG = 'All >>'
+const TOTAL_MSG = 'Alle >>'
 const FADED = 0.0 // 0.15
 
 const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500]
@@ -153,6 +155,9 @@ class MyComponent extends Vue {
     description: '',
   }
 
+  private containerId = `c${Math.floor(Math.random() * Math.floor(1e10))}`
+  private mapId = 'map-' + this.containerId
+
   private centroids: any = {}
   private centroidSource: any = {}
   private linkData: any = {}
@@ -178,7 +183,7 @@ class MyComponent extends Vue {
   private selectedCentroid = 0
   private maxZonalTotal: number = 0
 
-  private loadingText: string = 'Aggregate Origin/Destination Flows'
+  private loadingText: string = 'Aggregierte Quell-Ziel Muster'
   private mymap!: mapboxgl.Map
   private project: any = {}
 
@@ -218,9 +223,9 @@ class MyComponent extends Vue {
       this.buildRouteFromUrl()
     }
 
-    if (!this.thumbnail) this.generateBreadcrumbs()
-
     await this.getVizDetails()
+
+    if (!this.thumbnail) this.generateBreadcrumbs()
 
     this.setupMap()
   }
@@ -247,7 +252,7 @@ class MyComponent extends Vue {
     this.updateCentroidLabels()
   }
 
-  private generateBreadcrumbs() {
+  private async generateBreadcrumbs() {
     if (!this.myState.fileSystem) return []
 
     const crumbs = [
@@ -268,6 +273,27 @@ class MyComponent extends Vue {
         url: '/' + this.myState.fileSystem.url + buildFolder,
       })
     }
+
+    // get run title in there
+    try {
+      const metadata = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/metadata.yml'
+      )
+      const details = yaml.parse(metadata)
+
+      if (details.title) {
+        const lastElement = crumbs.pop()
+        const url = lastElement ? lastElement.url : '/'
+        crumbs.push({ label: details.title, url })
+      }
+    } catch (e) {
+      // if something went wrong the UI will just show the folder name
+      // which is fine
+    }
+    crumbs.push({
+      label: this.vizDetails.title ? this.vizDetails.title : '',
+      url: '#',
+    })
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
@@ -331,7 +357,7 @@ class MyComponent extends Vue {
 
   private async loadFiles() {
     try {
-      this.loadingText = 'Loading files...'
+      this.loadingText = 'Dateien laden...'
 
       const odFlows = await this.myState.fileApi.getFileText(
         this.myState.subfolder + '/' + this.vizDetails.csvFile
@@ -362,7 +388,7 @@ class MyComponent extends Vue {
 
   private setupMap() {
     this.mymap = new mapboxgl.Map({
-      container: 'mymap',
+      container: this.mapId,
       logoPosition: 'bottom-right',
       style: 'mapbox://styles/mapbox/outdoors-v9',
     })
@@ -423,11 +449,10 @@ class MyComponent extends Vue {
 
   private async mapIsReady() {
     const files = await this.loadFiles()
-    console.log({ files })
     if (files) {
       this.geojson = await this.processShapefile(files)
-      this.processHourlyData(files.odFlows)
-      this.marginals = this.getDailyDataSummary()
+      await this.processHourlyData(files.odFlows)
+      this.marginals = await this.getDailyDataSummary()
       this.buildCentroids(this.geojson)
       this.convertRegionColors(this.geojson)
       this.addGeojsonToMap(this.geojson)
@@ -515,7 +540,7 @@ class MyComponent extends Vue {
 
   private buildSpiderLinks() {
     this.createSpiderLinks()
-    console.log({ spiders: this.spiderLinkFeatureCollection })
+    // console.log({ spiders: this.spiderLinkFeatureCollection })
 
     this.mymap.addSource('spider-source', {
       data: this.spiderLinkFeatureCollection,
@@ -618,15 +643,15 @@ class MyComponent extends Vue {
   }
 
   private clickedOnCentroid(e: any) {
-    console.log({ CLICK: e })
+    // console.log({ CLICK: e })
 
     e.originalEvent.stopPropagating = true
 
     const centroid = e.features[0].properties
-    console.log(centroid)
+    // console.log(centroid)
 
     const id = centroid.id
-    console.log('clicked on id', id)
+    // console.log('clicked on id', id)
     // a second click on a centroid UNselects it.
     if (id === this.selectedCentroid) {
       this.unselectAllCentroids()
@@ -635,9 +660,9 @@ class MyComponent extends Vue {
 
     this.selectedCentroid = id
 
-    console.log(this.marginals)
-    console.log(this.marginals.rowTotal[id])
-    console.log(this.marginals.colTotal[id])
+    // console.log(this.marginals)
+    // console.log(this.marginals.rowTotal[id])
+    // console.log(this.marginals.colTotal[id])
 
     this.fadeUnselectedLinks(id)
   }
@@ -657,10 +682,10 @@ class MyComponent extends Vue {
   private clickedOnSpiderLink(e: any) {
     if (e.originalEvent.stopPropagating) return
 
-    console.log({ CLICK: e })
+    // console.log({ CLICK: e })
 
     const props = e.features[0].properties
-    console.log(props)
+    // console.log(props)
 
     const trips = props.daily * this.scaleFactor
     let revTrips = 0
@@ -750,7 +775,7 @@ class MyComponent extends Vue {
     let to = 0
 
     // daily
-    if (timePeriod === 'All >>') {
+    if (timePeriod === 'Alle >>') {
       from = Math.round(this.marginals.rowTotal[feature.id])
       to = Math.round(this.marginals.colTotal[feature.id])
       return { from, to }
@@ -791,6 +816,8 @@ class MyComponent extends Vue {
       const centroid: any = turf.centerOfMass(feature as any)
       centroid.properties.id = feature.id
       centroid.id = feature.id
+
+      // console.log(centroid.id, centroid.geometry.coordinates[1], centroid.geometry.coordinates[0])
 
       let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
       let dailyTo = Math.round(this.marginals.colTotal[feature.id])
@@ -837,8 +864,8 @@ class MyComponent extends Vue {
 
     this.centroidSource = centroids
 
-    console.log({ CENTROIDS: this.centroids })
-    console.log({ CENTROIDSOURCE: this.centroidSource })
+    // console.log({ CENTROIDS: this.centroids })
+    // console.log({ CENTROIDSOURCE: this.centroidSource })
 
     this.mymap.addSource('centroids', {
       data: this.centroidSource,
@@ -897,14 +924,15 @@ class MyComponent extends Vue {
   }
 
   private async processShapefile(files: any) {
-    this.loadingText = 'Converting to GeoJSON...'
+    this.loadingText = 'Verkehrsnetz bauarbeiten...'
     const geojson = await shapefile.read(files.shpFile, files.dbfFile)
 
     // if we have lots of features, then we should filter the LINES for performance
     if (geojson.features.length > 150) this.lineFilter = 10
 
-    this.loadingText = 'Converting coordinates...'
-    for (const feature of geojson.features) {
+    this.loadingText = 'Koordinaten berechnen...'
+
+    await forEachAsync(geojson.features, (feature: any) => {
       // 'id' column used for lookup, unless idColumn is set in YAML
       if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
 
@@ -921,8 +949,7 @@ class MyComponent extends Vue {
         console.error('ERR with feature: ' + feature)
         console.error(e)
       }
-    }
-
+    })
     return geojson
   }
 
@@ -971,23 +998,17 @@ class MyComponent extends Vue {
     return newCoords
   }
 
-  private getDailyDataSummary() {
+  private async getDailyDataSummary() {
     const rowTotal: any = {}
     const colTotal: any = {}
     const fromCentroid: any = {}
     const toCentroid: any = {}
 
-    for (const row in this.zoneData) {
-      if (!this.zoneData.hasOwnProperty(row)) continue
-      if (!row) continue
-
+    await forEachAsync(Object.keys(this.zoneData), (row: any) => {
       // store number of time periods (no totals here)
       fromCentroid[row] = Array(this.headers.length - 1).fill(0)
 
-      for (const col in this.zoneData[row]) {
-        if (!this.zoneData[row].hasOwnProperty(col)) continue
-        if (!col) continue
-
+      for (const col of Object.keys(this.zoneData[row])) {
         // daily totals
         if (!rowTotal[row]) rowTotal[row] = 0
         if (!colTotal[col]) colTotal[col] = 0
@@ -1008,12 +1029,15 @@ class MyComponent extends Vue {
           }
         }
       }
+    })
+
+    for (const row in this.zoneData) {
     }
     return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
   }
 
-  private processHourlyData(csvData: string) {
-    this.loadingText = 'Processing hourly data...'
+  private async processHourlyData(csvData: string) {
+    this.loadingText = 'Uhrzeitdaten entwicklen...'
 
     const lines = csvData.split('\n')
     const separator = lines[0].indexOf(';') > 0 ? ';' : ','
@@ -1024,12 +1048,12 @@ class MyComponent extends Vue {
     this.colName = headers[1]
     this.headers = [TOTAL_MSG].concat(headers.slice(2))
 
-    console.log(this.headers)
+    // console.log(this.headers)
 
-    for (const row of lines.slice(1)) {
+    await forEachAsync(lines.slice(1), (row: any) => {
       // skip header row
       const columns = row.split(separator)
-      const values = columns.slice(2).map(a => parseFloat(a))
+      const values = columns.slice(2).map((a: any) => parseFloat(a))
 
       // build zone matrix
       const i = columns[0]
@@ -1039,7 +1063,7 @@ class MyComponent extends Vue {
       this.zoneData[i][j] = values
 
       // calculate daily/total values
-      const daily = values.reduce((a, b) => a + b, 0)
+      const daily = values.reduce((a: any, b: any) => a + b, 0)
 
       if (!this.dailyData[i]) this.dailyData[i] = {}
       this.dailyData[i][j] = daily
@@ -1049,8 +1073,9 @@ class MyComponent extends Vue {
         const rowName = String(columns[0]) + ':' + String(columns[1])
         this.linkData[rowName] = { orig: columns[0], dest: columns[1], daily, values }
       }
-    }
-    console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
+    })
+
+    // console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
   }
 
   private updateMapExtent(coordinates: any) {
@@ -1078,7 +1103,7 @@ class MyComponent extends Vue {
         type: 'fill',
         paint: {
           'fill-color': ['rgb', ['get', 'blue'], ['get', 'blue'], 255],
-          'fill-opacity': 0.7,
+          'fill-opacity': 0.5,
         },
       },
       'road-primary'
@@ -1184,14 +1209,13 @@ class MyComponent extends Vue {
   }
 
   private changedScale(value: any) {
-    console.log({ slider: value, timebin: this.currentTimeBin })
+    // console.log({ slider: value, timebin: this.currentTimeBin })
     this.currentScale = value
     this.changedTimeSlider(this.currentTimeBin)
   }
 
   private changedLineFilter(value: any) {
-    if (value === 'None') this.lineFilter = 0
-    else if (value === 'All') this.lineFilter = 1e25
+    if (value === 'Alle') this.lineFilter = Infinity
     else this.lineFilter = value
 
     this.updateSpiderLinks()
@@ -1210,7 +1234,7 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 h3 {
   margin: 0px 0px;
   font-size: 16px;
@@ -1220,7 +1244,7 @@ h4 {
   margin-left: 3px;
 }
 
-#container {
+.mycomponent {
   width: 100%;
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1232,7 +1256,7 @@ h4 {
   grid-row: 1 / 3;
   background-color: white;
   box-shadow: 0 0 8px #00000040;
-  margin: auto 0px auto 0px;
+  margin: auto 0px;
   padding: 3rem 0px;
   text-align: center;
   z-index: 99;
@@ -1241,7 +1265,7 @@ h4 {
 }
 
 .map-container {
-  min-height: 225px;
+  min-height: 200px;
   background-color: #eee;
   grid-column: 1 / 3;
   grid-row: 1 / 3;
@@ -1249,7 +1273,7 @@ h4 {
   flex-direction: column;
 }
 
-#mymap {
+.mymap {
   height: 100%;
   width: 100%;
   flex: 1;
@@ -1382,7 +1406,7 @@ h4 {
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
-  width: 17rem;
+  width: 18rem;
 }
 
 .dashboard-panel {

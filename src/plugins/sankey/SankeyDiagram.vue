@@ -1,5 +1,5 @@
 <template lang="pug">
-#container(v-if="myState.yamlConfig")
+#sankey-container(v-if="myState.yamlConfig")
   .main-area
     .labels(v-show="myState.thumbnail")
       h5.center {{ vizDetails.description }}
@@ -70,12 +70,12 @@ class MyComponent extends Vue {
     return clean
   }
 
-  public mounted() {
+  public async mounted() {
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
-    if (!this.thumbnail) this.generateBreadcrumbs()
+    await this.getVizDetails()
 
-    this.getVizDetails()
+    if (!this.thumbnail) this.generateBreadcrumbs()
   }
 
   @Watch('globalState.authAttempts') authenticationChanged() {
@@ -93,7 +93,7 @@ class MyComponent extends Vue {
     this.getVizDetails()
   }
 
-  private generateBreadcrumbs() {
+  private async generateBreadcrumbs() {
     if (!this.myState.fileSystem) return []
 
     const crumbs = [
@@ -114,6 +114,27 @@ class MyComponent extends Vue {
         url: '/' + this.myState.fileSystem.url + buildFolder,
       })
     }
+
+    // get run title in there
+    try {
+      const metadata = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/metadata.yml'
+      )
+      const details = yaml.parse(metadata)
+
+      if (details.title) {
+        const lastElement = crumbs.pop()
+        const url = lastElement ? lastElement.url : '/'
+        crumbs.push({ label: details.title, url })
+      }
+    } catch (e) {
+      // if something went wrong the UI will just show the folder name
+      // which is fine
+    }
+    crumbs.push({
+      label: this.vizDetails.title ? this.vizDetails.title : '',
+      url: '#',
+    })
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
@@ -279,9 +300,10 @@ export default MyComponent
 </script>
 
 <style scoped>
-#container {
+#sankey-container {
   width: 100%;
   display: grid;
+  background-color: white;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto;
 }

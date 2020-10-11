@@ -8,7 +8,15 @@
       h3.center {{ title }}
       h5.center {{ description }}
 
-    .vega-chart(:id="cleanConfigId" :style="{padding: thumbnail ? '0 0' : '1rem 1rem'}")
+
+    .chart-area.center-chart(v-if="hasFacets")
+      .vega-chart(:id="cleanConfigId"
+                  :style="{padding: thumbnail ? '0 0' : '1rem 1rem'}")
+
+    .vega-chart(v-if="!hasFacets"
+                :id="cleanConfigId"
+                :style="{padding: thumbnail ? '0 0' : '1rem 1rem'}"
+    )
 </template>
 
 <script lang="ts">
@@ -16,6 +24,7 @@
 
 import nprogress from 'nprogress'
 import vegaEmbed from 'vega-embed'
+import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store.ts'
@@ -59,12 +68,12 @@ class VegaComponent extends Vue {
     return this.myState.yamlConfig.replace(/[\W_]+/g, '')
   }
 
-  public mounted() {
+  public async mounted() {
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
-    if (!this.thumbnail) this.generateBreadcrumbs()
+    await this.getVizDetails()
 
-    this.getVizDetails()
+    if (!this.thumbnail) this.generateBreadcrumbs()
   }
 
   @Watch('globalState.authAttempts') authenticationChanged() {
@@ -82,7 +91,21 @@ class VegaComponent extends Vue {
     this.getVizDetails()
   }
 
-  private generateBreadcrumbs() {
+  private get hasFacets() {
+    if (!this.vizDetails) return false
+    if (!this.vizDetails.encoding) return false
+
+    if (
+      this.vizDetails.encoding.facet ||
+      this.vizDetails.encoding.row ||
+      this.vizDetails.encoding.column
+    )
+      return true
+
+    return false
+  }
+
+  private async generateBreadcrumbs() {
     if (!this.myState.fileSystem) return []
 
     const crumbs = [
@@ -103,6 +126,27 @@ class VegaComponent extends Vue {
         url: '/' + this.myState.fileSystem.url + buildFolder,
       })
     }
+
+    // get run title in there
+    try {
+      const metadata = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/metadata.yml'
+      )
+      const details = yaml.parse(metadata)
+
+      if (details.title) {
+        const lastElement = crumbs.pop()
+        const url = lastElement ? lastElement.url : '/'
+        crumbs.push({ label: details.title, url })
+      }
+    } catch (e) {
+      // if something went wrong the UI will just show the folder name
+      // which is fine
+    }
+    crumbs.push({
+      label: this.vizDetails.title ? this.vizDetails.title : '',
+      url: '#',
+    })
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
@@ -162,7 +206,9 @@ class VegaComponent extends Vue {
       this.description = json.description ? json.description : ''
       this.title = json.title
         ? json.title
-        : this.myState.yamlConfig.substring(0, this.myState.yamlConfig.length - 10)
+        : this.myState.yamlConfig
+            .substring(0, this.myState.yamlConfig.length - 10)
+            .replace(/_/g, ' ')
 
       this.$emit('title', this.title)
     } catch (e) {
@@ -176,12 +222,18 @@ class VegaComponent extends Vue {
       return
     }
 
-    // if there is a URL in the schema, try to download it locally first
+    // if there is a URL in the schema, try to load/download it locally first
     if (json.data.url) {
       try {
-        const localUrl = this.myState.subfolder + json.data.url
-        const data = await this.myState.fileApi.getFileJson(localUrl)
-        if (data) json.data = { values: data }
+        let data = ''
+        const localUrl = this.myState.subfolder + '/' + json.data.url
+        if (json.data.url.endsWith('.json')) {
+          data = await this.myState.fileApi.getFileJson(localUrl)
+          if (data) json.data = { values: data }
+        } else if (json.data.url.endsWith('.csv')) {
+          data = await this.myState.fileApi.getFileText(localUrl)
+          if (data) json.data = { values: data, format: { type: 'csv' } }
+        }
       } catch (e) {
         // didn't work -- let Vega try on its own.
         console.warn(e)
@@ -198,11 +250,12 @@ class VegaComponent extends Vue {
     const embedOptions = {
       actions: this.thumbnail ? false : exportActions,
       hover: true,
+      scaleFactor: 2.0, // make exported PNGs bigger
       padding: { top: 2, left: 8, right: 8, bottom: 8 },
     }
 
     // remove legends on thumbnails so chart fits better
-    if (this.thumbnail) {
+    if (this.thumbnail && this.vizDetails.encoding) {
       for (const layer of Object.keys(this.vizDetails.encoding)) {
         this.vizDetails.encoding[layer].legend = null
       }
@@ -272,6 +325,14 @@ p {
   width: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.labels {
+  margin-bottom: 1rem;
+}
+
+.center-chart {
+  margin: 0 auto;
 }
 
 .vega-chart {

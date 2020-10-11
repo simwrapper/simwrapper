@@ -1,8 +1,8 @@
 <template lang="pug">
 #scale-container
-  p.title Scale:
+  p.title Linienbreite:
     .scale-element {{ "|↔︎|" }}
-    .scale-scale {{ "~ " + this.rows[0] + " trips" }}
+    .scale-scale {{ "~ " + this.rows[0] + " Fahrten" }}
 
 </template>
 
@@ -15,7 +15,7 @@ export default class ScaleBox extends Vue {
   private rows!: any
 
   public created() {
-    console.log(this.rows)
+    // console.log(this.rows)
   }
 }
 </script>

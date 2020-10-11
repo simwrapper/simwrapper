@@ -35,7 +35,6 @@ import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import mapboxgl, { LngLatBoundsLike, LngLatLike } from 'mapbox-gl'
 import nprogress from 'nprogress'
-import pako from 'pako'
 import xml2js from 'xml2js'
 import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
@@ -179,7 +178,7 @@ class MyComponent extends Vue {
     this.myState.yamlConfig = config
   }
 
-  private generateBreadcrumbs() {
+  private async generateBreadcrumbs() {
     if (!this.myState.fileSystem) return []
 
     const crumbs = [
@@ -200,6 +199,27 @@ class MyComponent extends Vue {
         url: '/' + this.myState.fileSystem.url + buildFolder,
       })
     }
+
+    // get run title in there
+    try {
+      const metadata = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/metadata.yml'
+      )
+      const details = yaml.parse(metadata)
+
+      if (details.title) {
+        const lastElement = crumbs.pop()
+        const url = lastElement ? lastElement.url : '/'
+        crumbs.push({ label: details.title, url })
+      }
+    } catch (e) {
+      // if something went wrong the UI will just show the folder name
+      // which is fine
+    }
+    crumbs.push({
+      label: this.vizDetails.title ? this.vizDetails.title : '',
+      url: '#',
+    })
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)

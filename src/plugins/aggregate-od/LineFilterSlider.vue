@@ -28,7 +28,7 @@ export default class ScaleSlider extends Vue {
     'enable-cross': false,
     minRange: 0,
     data: [
-      'None',
+      0,
       1,
       2,
       5,
@@ -51,9 +51,9 @@ export default class ScaleSlider extends Vue {
       90,
       95,
       100,
-      'All',
+      'Alle',
     ],
-    marks: ['None', 25, 50, 75, 'All'],
+    marks: [0, 25, 50, 75, 'Alle'],
     contained: true,
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
     processStyle: {

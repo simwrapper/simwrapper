@@ -3,11 +3,12 @@
   .content-area(:class="{'is-hidden': isHidden, 'bye': isLeaving}")
     .info-header(v-if="title")
       h3(style="padding: 0.5rem 3rem; font-size: 1rem; font-weight: normal; color: white;") {{ title }}
+
     .top-area
       slot
 
   .restore-button(:class="{'add-margin': !isHidden}")
-    button.button.litle-toggle-button.is-small.hide-button(@click="toggleHidePanel")
+    button.button.is-small.hide-button(@click="toggleHidePanel")
       i.fa.fa-arrow-left(v-if="!isHidden")
       i.fa.fa-arrow-right(v-if="isHidden")
 
@@ -42,7 +43,7 @@ export default class LeftDataPanel extends Vue {
   display: flex;
   flex-direction: row;
   z-index: 7;
-  margin: 0.5rem 0rem 0.5rem 0.5rem;
+  // margin: 0.5rem 0rem 0.5rem 0.5rem;
   pointer-events: none;
 }
 
@@ -87,17 +88,17 @@ export default class LeftDataPanel extends Vue {
 }
 
 .restore-button {
-  margin: auto 0rem 0rem 0rem;
+  margin: auto 0rem 0.25rem 0.25rem;
   pointer-events: auto;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 3px 10px 0 rgba(0, 0, 0, 0.1);
 }
 
 .info-header {
   text-align: center;
-  background-color: #097c43;
+  background-color: #09357c;
   padding: 0.5rem 0rem;
-  border-top-left-radius: 0.25rem;
-  border-top-right-radius: 0.25rem;
+  // border-top-left-radius: 0.25rem;
+  // border-top-right-radius: 0.25rem;
   border-top: solid 1px #888;
   border-bottom: solid 1px #888;
 }
@@ -107,7 +108,7 @@ export default class LeftDataPanel extends Vue {
 }
 
 .hide-button {
-  background-color: #534e4d;
+  background-color: #4e6b3d;
   color: white;
 }
 

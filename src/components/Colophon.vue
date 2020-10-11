@@ -5,7 +5,7 @@
       img(src="@/assets/images/tu-logo.png")
   .professor Kai Nagel, Professor
 
-  .team AVÖV Team
+  .team TU AVÖV Team
 
   p Ihab Kaddoura
   p Gregor Leich
@@ -16,14 +16,15 @@
 
   p.nonbreak: a(href="mailto:sekretariat@vsp.tu-berlin.de") Email
 
-  .team Partners
+  .team Projektpartner
 
-  // p: a(href='https://senozon.com' target="_blank") Senozon Deutschland GmbH
-  p to be added
+  .partners
+    p: a(href='https://www.uni-due.de/' target="_blank") Universität<br/>Duisburg-Essen
+    p: a(href='https://www.bvg.de/' target="_blank") Berliner&nbsp;Verkehrsbetriebe&nbsp;(BVG)
+    p: a(href='https://senozon.com' target="_blank") Senozon Deutschland GmbH
 
-  .team Supported By
-  a(href='https://bmbf.de' target="_blank")
-    img(src="@/assets/images/bmbf-logo.png")
+  a(href='https://www.bmvi.de' target="_blank")
+    img(src="@/assets/images/logo-bmvi.png")
 
 </template>
 
@@ -39,7 +40,7 @@ export default {
 
 #colophon-content {
   padding-top: 2rem;
-  width: min-content;
+  width: 16rem;
 }
 
 .colophon .professor {
@@ -62,6 +63,15 @@ export default {
 
 .colophon a {
   font-size: 0.85rem;
+}
+
+.partners {
+  margin-bottom: 2rem;
+
+  p {
+    line-height: 1rem;
+    padding-top: 0.75rem;
+  }
 }
 
 .nonbreak {

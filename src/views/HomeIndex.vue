@@ -58,10 +58,6 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#home {
-  background-color: $paleBackground;
-}
-
 .gap {
   margin-top: 2rem;
   margin-bottom: 2rem;

@@ -127,7 +127,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'image-view',
   prettyName: 'Image',
   description: '',
-  filePatterns: ['*.(png|jpg)'],
+  filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!
   component: MyComponent,
 } as VisualizationPlugin)
 

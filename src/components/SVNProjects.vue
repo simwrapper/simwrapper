@@ -1,9 +1,11 @@
 <template lang="pug">
-#source-cards
-  .project(v-for="source,i in sources" :key="source.url"
+#vue-component
+  .project(v-for="source in sources" :key="source.url"
       @click='openProjectPage(source)'
-      :style="{marginRight: i===3 ? '0' : '2rem'} ")
-
+      @click.middle='openProjectTab(source)'
+      @click.meta='openProjectTab(source)'
+      @click.ctrl='openProjectTab(source)'
+      )
       img(:src="source.thumbnail")
       .desc
         h3 {{ source.name }}
@@ -27,13 +29,17 @@ export default class VueComponent extends Vue {
   private openProjectPage(source: any) {
     this.$router.push({ name: source.url })
   }
+
+  private openProjectTab(source: any) {
+    window.open(source, '_blank')
+  }
 }
 </script>
 
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#source-cards {
+#vue-component {
   display: flex;
   flex-direction: row;
 }
@@ -57,8 +63,5 @@ export default class VueComponent extends Vue {
 }
 
 @media only screen and (max-width: 640px) {
-  #source-cards {
-    flex-direction: column;
-  }
 }
 </style>

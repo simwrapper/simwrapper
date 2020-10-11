@@ -54,7 +54,8 @@ class MyComponent extends Vue {
     preload: 'metadata',
     responsive: true,
     fluid: true,
-    playsinline: true,
+    playsInline: true,
+    controls: true,
     sources: [] as any[],
   }
 
@@ -108,7 +109,10 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    let svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    if (svnProject.length === 0) {
+      svnProject = globalStore.state.svnProjects.filter((a: any) => a.url === name.substring(8))
+    }
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -215,7 +219,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'video-player',
   prettyName: 'Video',
   description: '',
-  filePatterns: ['*.(mp4|mov|avi)'],
+  filePatterns: ['*.mp4'],
   component: MyComponent,
 } as VisualizationPlugin)
 

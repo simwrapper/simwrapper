@@ -1,14 +1,16 @@
 <template lang="pug">
 #app(:class=" {'full-page-app' : state.isFullScreen}" )
   #nav
-    //- top-nav-bar#nav(v-if="!state.isFullScreen" :style="{paddingLeft: state.isFullScreen ? '0rem':''}" )
-
     .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
                      :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")
       nav.breadcrumb(aria-label="breadcrumbs")
         ul
           li(v-for="crumb,i in state.breadcrumbs" :key="crumb.label + crumb.url"
-            @click="clickedLink(crumb.url)")
+            @click="clickedLink(crumb.url)"
+            @click.middle="openNewTab(crumb.url)"
+            @click.ctrl="openNewTab(crumb.url)"
+            @click.meta="openNewTab(crumb.url)"
+            )
               p {{ i === 0 ? 'aftersim' : crumb.label }}
 
   .center-area.nav-padding
@@ -56,12 +58,12 @@ class App extends Vue {
   }
 
   @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
-    console.log('~~SWITCHING FULL PAGE: ', isFullPage)
-
     if (isFullPage) {
       document.body.classList.add('full-screen-page')
+      document.documentElement.style.overflowY = 'auto'
     } else {
       document.body.classList.remove('full-screen-page')
+      document.documentElement.style.overflowY = null as any
     }
   }
 }
@@ -87,27 +89,27 @@ body,
 html {
   margin: 0px 0px;
   padding: 0px 0px;
-  // overflow-y: auto;
   height: 100%;
   overscroll-behavior: contain;
+}
+
+html {
+  overflow-y: auto;
+  background-color: $steelGray;
 }
 
 canvas {
   display: block;
 }
 
-html {
-  background-color: #505050;
-}
-
 .breadcrumbs-bar {
-  // background-color: #626577;
-  background-color: $tuRed;
-  padding: 0.75rem 3rem;
+  background-color: $steelGray;
+  padding: 0.7rem 3rem;
+  transition: padding 0.2s ease-in-out;
 }
 
 .breadcrumb {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: bold;
   margin-left: -0.5rem;
 }
@@ -146,18 +148,17 @@ h3 {
 }
 
 #app {
-  background-color: white;
   display: grid;
+  background-color: $paleBackground;
+  font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   margin: 0px 0px 0px 0px;
   padding: 0px 0px 0px 0px;
-  font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: $paleBackground;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .full-page-app {
@@ -174,13 +175,11 @@ h3 {
 }
 
 #nav {
-  height: $navHeight;
-  // background-color: #626577;
-  background-color: $tuRed;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   width: 100%;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
+  z-index: 10000;
 }
 
 .main-content {
@@ -188,6 +187,7 @@ h3 {
 }
 
 #nav a.router-link-exact-active {
+  font-weight: bold;
   color: #ffffff;
 }
 
@@ -219,7 +219,6 @@ h3 {
   margin: 2rem 0 0 0;
   padding: 1rem 1rem;
   color: #ccc;
-
   background-color: $colorBoldBackground;
 }
 
@@ -266,6 +265,10 @@ h3 {
     margin-top: 0.5rem;
     padding-left: 1.5rem;
   }
+}
+
+.mapboxgl-popup-content {
+  width: min-content !important;
 }
 
 @media only screen and (max-width: 640px) {

@@ -26,13 +26,12 @@ const config: any = {
       thumbnail: '/thumbnail.png',
     },
     {
-      name: 'Vulkaneifel',
-      url: 'vulkaneifel',
-      description: 'AVÖV Projekt: Vulkaneifel RP',
-      svn:
-        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/vulkaneifel/avoev',
-      need_password: false,
-      thumbnail: '/thumb-vulkaneifel.jpg',
+      name: 'Apache w/Password',
+      url: 'apache',
+      description: 'Run Apache server ',
+      svn: 'http://localhost',
+      need_password: true,
+      thumbnail: '/thumbnail.png',
     },
   ],
 }

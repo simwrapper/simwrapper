@@ -10,17 +10,10 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 @Component({ components: { 'vue-slider': vueSlider } })
 export default class ScaleSlider extends Vue {
-  private TOTAL_MSG = 1
+  @Prop({ required: true })
+  private stops!: any[]
 
-  @Prop()
-  private initialTime!: number
-
-  @Prop()
-  private useRange!: false
-
-  @Prop()
-  private stops!: any
-  private sliderValue: any = this.TOTAL_MSG
+  private sliderValue: number = 1
 
   private scaleSlider = {
     height: 6,
@@ -28,7 +21,6 @@ export default class ScaleSlider extends Vue {
     show: false,
     'enable-cross': false,
     minRange: 1,
-    marks: [1, 10, 100, 300, 500],
     contained: true,
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
     processStyle: {
@@ -42,25 +34,14 @@ export default class ScaleSlider extends Vue {
 
   // VUE LIFECYCLE HOOKS
   public created() {}
-  public mounted() {}
-
-  @Watch('stops')
-  private setStops(newStops: any) {
-    console.log({ newStops })
-    this.stops = newStops
+  public mounted() {
+    this.scaleSlider.data = this.stops
   }
 
   @Watch('sliderValue')
   private sliderChangedEvent(result: any) {
-    console.log(result)
+    // console.log(result)
     this.$emit('change', result)
-  }
-
-  private dataFunction() {
-    return {
-      value: this.sliderValue,
-      data: this.stops,
-    }
   }
 }
 </script>

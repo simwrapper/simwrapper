@@ -8,9 +8,11 @@ See the Vega-Lite website for many examples of typical data visualizations that 
 
 A file named `*.vega.json` must be present in working folder. Each json file matching that pattern will produce a separate Vega-Lite diagram.
 
-**DATA** can either be an array of hard-coded values (see `example.vega.json`) or a URL pointing to a JSON file containing an array.
+**DATA** can either be an array of hard-coded values (see `example.vega.json`) or a URL pointing to a file containing an array of JSON or CSV data as in `movies.vega.json`. The file format is guessed based on the file extension.
 
-- If the URL is pointing to a file in the local filestorage, this plugin will load it directly and embed the data in the object automatically.
+See [Data in Vega](https://vega.github.io/vega-lite/docs/data.html) for the full story on what data types are supported by Vega.
+
+- If the URL is pointing to a file in the local filestorage, the plugin will load it directly and embed the data in the object automatically.
 - If the URL is a fully-qualified URL, the Vega library will load it on its own.
 
 **AUTOSIZE** must be set as in the example below for the charts to be responsive to window size changes.

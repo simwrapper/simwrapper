@@ -1,6 +1,6 @@
 # Video Player Plugin
 
-This viz allows viewing of MP4 video files.
+This viz allows playing of MP4 and MOV video files to be streamed.
 
 ## Usage
 

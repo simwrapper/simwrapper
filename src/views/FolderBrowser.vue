@@ -21,7 +21,7 @@
         .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
 
       //- file system folders
-      h3.curate-heading(v-if="myState.folders.length")  Runs
+      h3.curate-heading(v-if="myState.folders.length")  Folders
 
       .curate-content(v-if="myState.folders.length")
         .folder(:class="{fade: myState.isLoading}"
@@ -306,6 +306,9 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnRoot) return []
 
     this.myState.isLoading = true
+    this.myState.errorStatus = ''
+    this.myState.files = []
+    // this.myState.folders = []
 
     try {
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
@@ -413,6 +416,7 @@ h2 {
 }
 
 .viz-frame {
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 
@@ -432,6 +436,10 @@ h2 {
 
 .logo {
   margin-left: auto;
+}
+
+.maxheight {
+  max-height: 225px;
 }
 
 .folder {
