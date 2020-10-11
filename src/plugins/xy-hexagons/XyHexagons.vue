@@ -110,9 +110,9 @@ class XyHexagons extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
-  private radius = 100
-  private maxHeight = 500
-  private extrudeTowers = true
+  private radius = 250
+  private maxHeight = 200
+  private extrudeTowers = false
 
   private vizDetails = {
     title: '',

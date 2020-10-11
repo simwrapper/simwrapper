@@ -34,10 +34,10 @@ const material = {
 }
 
 const INITIAL_VIEW_STATE = {
-  zoom: 9,
+  zoom: 10,
   minZoom: 5,
   maxZoom: 15,
-  pitch: 40,
+  pitch: 30,
   bearing: 0,
 }
 
@@ -70,12 +70,12 @@ function getTooltip({ object }: any) {
 
 export default function App({
   data = [],
-  mapStyle = 'mapbox://styles/mapbox/dark-v9', // 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', // 'mapbox://styles/mapbox/light-v9', //
+  mapStyle = 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex', // 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9', // 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', //
   radius = 100,
   upperPercentile = 100,
   coverage = 0.8,
   extrude = true,
-  maxHeight = 500,
+  maxHeight = 200,
   center = [14.34, 52.3],
 }) {
   const [lon, lat] = center

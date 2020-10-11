@@ -39,7 +39,7 @@
                     @click="clickedVisualization(index)")
             .viz-frame
               p {{ viz.title }}
-              component(:is="viz.component" :yamlConfig="viz.config"
+              component.maxheight(:is="viz.component" :yamlConfig="viz.config"
                     :fileApi="myState.svnRoot"
                     :subfolder="myState.subfolder"
                     :thumbnail="true"
