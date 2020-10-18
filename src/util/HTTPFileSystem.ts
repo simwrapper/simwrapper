@@ -16,7 +16,7 @@ class SVNFileSystem {
 
   private async _getFileResponse(scaryPath: string): Promise<Response> {
     // hostile user could put anything in the URL really...
-    let path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    const path = this.baseUrl + scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
     console.log('FETCHING:', scaryPath)
 
     const headers: any = {}

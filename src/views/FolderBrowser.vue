@@ -79,7 +79,7 @@ interface IMyState {
   files: string[]
   isLoading: boolean
   readme: string
-  svnProject?: SVNProject
+  svnProject: SVNProject | null
   svnRoot?: HTTPFileSystem
   subfolder: string
   summary: boolean
@@ -95,14 +95,13 @@ export default class VueComponent extends Vue {
 
   private mdRenderer = new markdown()
 
-  private svnp?: SVNProject
   private myState: IMyState = {
     errorStatus: '',
     folders: [],
     files: [],
     isLoading: false,
     readme: '',
-    svnProject: this.svnp,
+    svnProject: null,
     svnRoot: undefined,
     subfolder: '',
     vizes: [],
