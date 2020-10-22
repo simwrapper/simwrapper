@@ -16,13 +16,24 @@
 
         svn-projects.gap
 
-        h2 For more information
+        h2 {{ $t('more-info') }}
 
         .readme(v-html="readmeBottom")
 
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      'more-info': 'For more information:',
+    },
+    de: {
+      'more-info': 'Für weitere Informationen:',
+    },
+  },
+}
+
 const readme = require('@/assets/info-top.md')
 const bottom = require('@/assets/info-bottom.md')
 
@@ -34,7 +45,7 @@ import SvnProjects from '@/components/SVNProjects.vue'
 
 import globalStore from '@/store'
 
-@Component({ components: { Colophon, SvnProjects, VizCard } })
+@Component({ i18n, components: { Colophon, SvnProjects, VizCard } })
 class MyComponent extends Vue {
   private mounted() {
     const crumbs = [

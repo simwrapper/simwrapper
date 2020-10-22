@@ -17,6 +17,18 @@ export default new Vuex.Store({
     statusMessage: 'loading',
     svnProjects: svnConfig.projects,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
+
+    colorScheme: localStorage.getItem('colorscheme')
+      ? localStorage.getItem('colorscheme')
+      : ColorScheme.DarkMode,
+
+    // locale: we only support EN and DE
+    locale: localStorage.getItem('locale')
+      ? localStorage.getItem('locale')
+      : // @ts-ignore
+      (navigator.language || navigator.userLanguage).startsWith('de')
+      ? 'de'
+      : 'en',
   },
   getters: {},
   mutations: {
@@ -40,6 +52,16 @@ export default new Vuex.Store({
     },
     setStatusMessage(state, value: string) {
       state.statusMessage = value
+    },
+    rotateColors(state) {
+      state.colorScheme =
+        state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
+      localStorage.setItem('colorscheme', state.colorScheme)
+    },
+    setLocale(state, value: string) {
+      state.locale = value.toLocaleLowerCase()
+      localStorage.setItem('locale', state.locale)
+      console.log('NEW LOCALE:', state.locale)
     },
   },
   actions: {},

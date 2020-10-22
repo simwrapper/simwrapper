@@ -12,6 +12,9 @@
             @click.meta="openNewTab(crumb.url)"
             )
               p {{ i === 0 ? 'aftersim' : crumb.label }}
+    .locale(@click="toggleLocale")
+      i.fa.fa-1x.fa-globe
+      | {{ state.locale.toUpperCase() }}
 
   .center-area.nav-padding
     login-panel.login-panel
@@ -55,6 +58,16 @@ class App extends Vue {
 
   private clickedLink(path: string) {
     this.$router.push({ path })
+  }
+
+  private mounted() {
+    if (this.state.locale) this.$i18n.locale = this.state.locale
+  }
+
+  private toggleLocale() {
+    const newLocale = this.state.locale === 'en' ? 'de' : 'en'
+    this.$store.commit('setLocale', newLocale)
+    this.$i18n.locale = newLocale
   }
 
   @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
@@ -103,7 +116,7 @@ canvas {
 }
 
 .breadcrumbs-bar {
-  background-color: $steelGray;
+  flex: 1;
   padding: 0.7rem 3rem;
   transition: padding 0.2s ease-in-out;
 }
@@ -175,11 +188,14 @@ h3 {
 }
 
 #nav {
+  background-color: $steelGray;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   width: 100%;
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.1);
   z-index: 10000;
+  display: flex;
+  flex-direction: row;
 }
 
 .main-content {
@@ -269,6 +285,23 @@ h3 {
 
 .mapboxgl-popup-content {
   width: min-content !important;
+}
+
+.locale {
+  font-size: 0.7rem;
+  background-color: $steelGray;
+  color: #ccc;
+  margin: auto 0;
+  padding: 2px 0px;
+  width: 1.5rem;
+  text-align: center;
+  margin-right: 0.75rem;
+}
+
+.locale:hover {
+  cursor: pointer;
+  background-color: #222255;
+  color: #ffe;
 }
 
 @media only screen and (max-width: 640px) {
