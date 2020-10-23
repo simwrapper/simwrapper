@@ -21,7 +21,7 @@
         .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
 
       //- file system folders
-      h3.curate-heading(v-if="myState.folders.length")  Folders
+      h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
       .curate-content(v-if="myState.folders.length")
         .folder(:class="{fade: myState.isLoading}"
@@ -30,7 +30,7 @@
           p {{ folder }}
 
       //- thumbnails of each viz and image in this folder
-      h3.curate-heading(v-if="myState.vizes.length") Analysis
+      h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
 
       .curate-content(v-if="myState.vizes.length")
         .viz-table
@@ -47,7 +47,7 @@
                     @title="updateTitle(index, $event)")
 
       // individual links to files in this folder
-      h3.curate-heading(v-if="myState.files.length") Files
+      h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
 
       .curate-content(v-if="myState.files.length")
         .file(:class="{fade: myState.isLoading}"
@@ -57,6 +57,21 @@
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      Analysis: 'Analysis',
+      Files: 'Files',
+      Folders: 'Folders',
+    },
+    de: {
+      Analysis: 'Ergebnisse',
+      Files: 'Dateien',
+      Folders: 'Ordner',
+    },
+  },
+}
+
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import markdown from 'markdown-it'
 import mediumZoom from 'medium-zoom'
@@ -89,6 +104,7 @@ interface IMyState {
 @Component({
   components: plugins,
   props: {},
+  i18n,
 })
 export default class VueComponent extends Vue {
   private globalState = globalStore.state
