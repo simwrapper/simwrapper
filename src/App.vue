@@ -161,7 +161,7 @@ canvas {
 }
 
 .breadcrumb p:hover {
-  color: var(--linkHover);
+  color: #a8ffc8;
 }
 
 .bury-me {
