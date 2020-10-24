@@ -6,7 +6,7 @@
       h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
       p {{ myState.svnProject.name }}
     .logo
-        img(width="150" src="/tu-logo.png")
+      img(width=150 src="/tu-logo.png")
 
   .details(v-if="myState.svnProject")
 
@@ -392,7 +392,6 @@ h4 {
 
 h2 {
   font-size: 1.8rem;
-  width: max-content;
 }
 
 .badnews {
@@ -493,6 +492,10 @@ h2 {
   opacity: 0.6;
 }
 
+.file {
+  word-break: break-all;
+}
+
 .markdown {
   padding: 1rem 0rem;
 }
@@ -533,7 +536,7 @@ h3.curate-heading {
 
 @media only screen and (max-width: 640px) {
   .project-bar {
-    padding: 1rem 1rem 1.5rem 1rem;
+    padding: 1rem 1rem 1.5rem 0rem;
   }
 
   .details {
@@ -574,6 +577,10 @@ h3.curate-heading {
 
   .file {
     font-size: 0.8rem;
+  }
+
+  .logo {
+    display: none;
   }
 }
 </style>
