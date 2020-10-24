@@ -17,20 +17,8 @@ export default new Vuex.Store({
     statusMessage: 'loading',
     svnProjects: svnConfig.projects,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
-
-    colorScheme: localStorage.getItem('colorscheme')
-      ? localStorage.getItem('colorscheme')
-      : (window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)')).matches
-      ? ColorScheme.DarkMode
-      : ColorScheme.LightMode,
-
-    // locale: we only support EN and DE
-    locale: localStorage.getItem('locale')
-      ? '' + localStorage.getItem('locale')
-      : // @ts-ignore
-      (navigator.language || navigator.userLanguage).startsWith('de')
-      ? 'de'
-      : 'en',
+    colorScheme: ColorScheme.DarkMode,
+    locale: 'en',
   },
   getters: {},
   mutations: {

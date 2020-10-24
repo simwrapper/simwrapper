@@ -78,6 +78,27 @@ class App extends Vue {
     this.$router.push({ path })
   }
 
+  private created() {
+    // theme
+    const theme = localStorage.getItem('colorscheme')
+      ? localStorage.getItem('colorscheme')
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)')).matches
+      ? ColorScheme.DarkMode
+      : ColorScheme.LightMode
+
+    if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
+
+    // locale: we only support EN and DE
+    const locale = localStorage.getItem('locale')
+      ? '' + localStorage.getItem('locale')
+      : // @ts-ignore
+      (navigator.language || navigator.userLanguage).startsWith('de')
+      ? 'de'
+      : 'en'
+
+    this.$store.commit('setLocale', locale)
+  }
+
   private mounted() {
     if (this.state.locale) this.$i18n.locale = this.state.locale
   }
