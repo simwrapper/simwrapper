@@ -4,8 +4,8 @@
     h2 aftersim
     h3 VSP / Technische Universität Berlin
 
-  .tu-logo(style="margin-top: -4rem; text-align: right; margin-right: 2rem;")
-    img(src="/tu-logo-circle.png" style="height: 8rem;")
+  .tu-logo
+    img.img-logo(src="/tu-logo-circle.png")
 
   .page-area
     .content
@@ -111,10 +111,11 @@ export default MyComponent
   font-size: 1.3rem;
   font-weight: normal;
   margin-bottom: 0;
+  margin-right: auto;
   line-height: 1.4rem;
   padding: 0.25rem 0.5rem;
   background-color: #181a1b;
-  width: max-content;
+  // width: max-content;
 }
 
 a {
@@ -205,6 +206,16 @@ a {
   padding: 0 1rem;
 }
 
+.tu-logo {
+  margin-top: -4rem;
+  text-align: right;
+  margin-right: 2rem;
+}
+
+.img-logo {
+  height: 8rem;
+}
+
 @media only screen and (max-width: 640px) {
   .banner {
     padding: 2rem 1rem;
@@ -223,6 +234,16 @@ a {
     padding: 0rem 0rem 1rem 0rem;
     font-size: 1.5rem;
     line-height: 1.8rem;
+  }
+
+  .tu-logo {
+    margin-top: -2rem;
+    text-align: right;
+    margin-right: 0.5rem;
+  }
+
+  .img-logo {
+    height: 4rem;
   }
 }
 </style>
