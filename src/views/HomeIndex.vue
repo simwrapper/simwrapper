@@ -12,7 +12,9 @@
       .main
         .right(style="text-align: right;")
 
-        h2.readme(v-html="readme")
+        h1 aftersim
+
+        h2.readme {{ $t('tagLine') }}
 
         svn-projects.gap
 
@@ -22,18 +24,16 @@
 
 </template>
 
-<script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      'more-info': 'For more information:',
-    },
-    de: {
-      'more-info': 'Für weitere Informationen:',
-    },
-  },
-}
+<i18n>
+en:
+  more-info: 'For more information:'
+  tagLine: 'the model output browser and data visualizer from TU Berlin.'
+de:
+  more-info: 'Für weitere Informationen:'
+  tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
+</i18n>
 
+<script lang="ts">
 const readme = require('@/assets/info-top.md')
 const bottom = require('@/assets/info-bottom.md')
 
@@ -45,7 +45,9 @@ import SvnProjects from '@/components/SVNProjects.vue'
 
 import globalStore from '@/store'
 
-@Component({ i18n, components: { Colophon, SvnProjects, VizCard } })
+@Component({
+  components: { Colophon, SvnProjects, VizCard },
+})
 class MyComponent extends Vue {
   private mounted() {
     const crumbs = [
@@ -89,8 +91,8 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   padding: 6rem 3rem 1rem 3rem;
-  background-color: #ffffff;
-  color: $tuRed;
+  background-color: #181a1b;
+  color: #f54f5f;
   background: url(../assets/images/banner.jpg);
   background-repeat: no-repeat;
   background-size: cover;
@@ -99,8 +101,8 @@ export default MyComponent
 .banner h2 {
   margin-bottom: 0rem;
   font-size: 1.6rem;
-  background-color: white;
   line-height: 1.7rem;
+  background-color: #181a1b;
   margin-right: auto;
   padding: 0 0.5rem;
 }
@@ -111,7 +113,7 @@ export default MyComponent
   margin-bottom: 0;
   line-height: 1.4rem;
   padding: 0.25rem 0.5rem;
-  background-color: white;
+  background-color: #181a1b;
   width: max-content;
 }
 
@@ -124,12 +126,20 @@ a {
   margin-top: 1rem;
   margin-bottom: 3rem;
   flex: 1;
+  color: var(--text);
+}
+
+.main h1 {
+  margin-top: 1rem;
+  font-weight: bold;
+  font-size: 3rem;
+  color: var(--text);
 }
 
 .main h2 {
   margin-top: 1rem;
   font-weight: normal;
-  color: $bannerHighlight;
+  color: var(--textFancy);
 }
 
 .viz-cards {

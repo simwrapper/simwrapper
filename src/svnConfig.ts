@@ -1,13 +1,13 @@
 const config: any = {
   projects: [
-    {
-      name: 'Public-SVN',
-      url: 'public-svn',
-      description: 'Simulation results from around the world (by country)',
-      svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
-      need_password: false,
-      thumbnail: '/thumbnail.png',
-    },
+    // {
+    //   name: 'Public-SVN',
+    //   url: 'public-svn',
+    //   description: 'Simulation results from around the world (by country)',
+    //   svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
+    //   need_password: false,
+    //   thumbnail: '/thumbnail.png',
+    // },
     {
       name: 'Gladbeck',
       url: 'gladbeck',
@@ -20,19 +20,19 @@ const config: any = {
     {
       name: 'Local Files',
       url: 'local',
-      description: 'Use scripts/serve.py to browse local files on your PC',
+      description: 'Run scripts/serve.py to browse local files on your PC',
       svn: 'http://localhost:8000/data',
       need_password: false,
       thumbnail: '/thumb-localfiles.png',
     },
-    {
-      name: 'ils4 Math Cluster',
-      url: 'ils4',
-      description: 'Mount cluster files using sshfs',
-      svn: 'http://localhost:8000/cluster',
-      need_password: false,
-      thumbnail: '/thumb-cluster.png',
-    },
+    // {
+    //   name: 'ils4 Math Cluster',
+    //   url: 'ils4',
+    //   description: 'Mount cluster files using sshfs',
+    //   svn: 'http://localhost:8000/cluster',
+    //   need_password: false,
+    //   thumbnail: '/thumb-cluster.png',
+    // },
     // {
     //   name: 'Apache (Local)',
     //   url: 'apache',

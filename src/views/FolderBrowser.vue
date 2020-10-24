@@ -39,7 +39,7 @@
                     @click="clickedVisualization(index)")
             .viz-frame
               p {{ viz.title }}
-              component.maxheight(:is="viz.component" :yamlConfig="viz.config"
+              component.thumbnail(:is="viz.component" :yamlConfig="viz.config"
                     :fileApi="myState.svnRoot"
                     :subfolder="myState.subfolder"
                     :thumbnail="true"
@@ -185,6 +185,12 @@ export default class VueComponent extends Vue {
 
   private updateTitle(viz: number, title: string) {
     this.myState.vizes[viz].title = title
+  }
+
+  @Watch('globalState.colorScheme') swapColors() {
+    // medium-zoom freaks out if color theme is swapped.
+    // so let's reload images just in case.
+    this.fetchFolderContents()
   }
 
   @Watch('$route') async updateRoute() {
@@ -378,10 +384,6 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-// #project-component {
-//   background-color: #8f8fa7;
-// }
-
 h3,
 h4 {
   margin-top: 2rem;
@@ -417,30 +419,27 @@ h2 {
   display: table-cell;
   cursor: pointer;
   vertical-align: top;
-  background-color: #f6f6f6;
-  border-bottom: 1px solid #aaa;
-  border-left: 1px solid #aaa;
-  border-right: 1px solid #aaa;
-  border-radius: 3px;
+  background-color: #555;
+  border: 2px solid var(--bg);
   margin-bottom: auto;
 }
 
 .viz-item:hover {
   box-shadow: 0px 0px 5px 5px rgba(0, 0, 0, 0.08), 0 3px 5px 0 rgba(0, 0, 0, 0.02);
-  transition: box-shadow 0.1s ease-in-out;
+  transition: box-shadow 0.1s ease-in-out, background-color 0.1s ease-in-out;
+  background-color: var(--link);
+  transform: translateY(1px);
 }
 
 .viz-frame {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-
   p {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     padding: 0.25rem 0.5rem;
     color: white;
-    background-color: #555;
-    border-radius: 3px 3px 0 0;
+    // background-color: #555;
 
     /* Required for text-overflow to do anything */
     text-overflow: ellipsis;
@@ -453,21 +452,22 @@ h2 {
   margin-left: auto;
 }
 
-.maxheight {
+.thumbnail {
   max-height: 225px;
+  background-color: var(--bgBold);
 }
 
 .folder {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: white;
+  background-color: var(--bgBold);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
 }
 
 .folder:hover {
-  background-color: #ffd;
+  background-color: var(--bgHover);
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.1s ease-in-out;
 }
@@ -476,10 +476,8 @@ h2 {
   display: flex;
   margin-bottom: 1rem;
   padding: 1rem 3rem 1.5rem 0rem;
-  background-color: white;
-  // border-bottom: 1px solid $themeColorPale;
+  background-color: var(--bgBold);
   z-index: 10000;
-  // box-shadow: 0px 0px 8px 8px rgba(0, 0, 0, 0.06);
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.05);
 }
 
@@ -506,7 +504,7 @@ h2 {
 }
 
 .curate-heading {
-  border-bottom: 1px solid $themeColorPaler;
+  border-bottom: 1px solid var(--bgBold);
   padding: 0rem 0rem;
   margin: 0rem 0rem;
   grid-area: 'heading';
@@ -521,7 +519,7 @@ h2 {
 h3.curate-heading {
   font-size: 1.3rem;
   font-weight: normal;
-  color: $themeColorPale;
+  color: var(--textFancy);
   padding-top: 0.5rem;
   margin-top: 0rem;
 }
@@ -530,7 +528,7 @@ h3.curate-heading {
   grid-area: 'content';
   padding: 1rem 0rem;
   margin: 0rem 0rem;
-  border-bottom: 1px solid $themeColorPaler;
+  border-bottom: 1px solid var(--bgBold);
 }
 
 @media only screen and (max-width: 640px) {

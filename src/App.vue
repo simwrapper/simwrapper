@@ -1,5 +1,6 @@
 <template lang="pug">
-#app(:class=" {'full-page-app' : state.isFullScreen}" )
+#app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
+
   #nav
     .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
                      :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")
@@ -12,9 +13,16 @@
             @click.meta="openNewTab(crumb.url)"
             )
               p {{ i === 0 ? 'aftersim' : crumb.label }}
+
+    .locale(@click="toggleTheme")
+      i.fa.fa-1x.fa-adjust
+      br
+      span {{ $t(state.colorScheme) }}
+
     .locale(@click="toggleLocale")
       i.fa.fa-1x.fa-globe
-      | {{ state.locale.toUpperCase() }}
+      br
+      span {{ state.locale }}
 
   .center-area.nav-padding
     login-panel.login-panel
@@ -33,6 +41,15 @@
     p EU GDPR: No personal information collected or transmitted.
 </template>
 
+<i18n>
+en:
+  light: 'light'
+  dark: 'dark'
+de:
+  light: 'hell'
+  dark: 'dark'
+</i18n>
+
 <script lang="ts">
 import mapboxgl from 'mapbox-gl'
 import Buefy from 'buefy'
@@ -40,6 +57,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import store from '@/store'
 
+import { ColorScheme } from '@/Globals'
 import Colophon from '@/components/Colophon.vue'
 import LoginPanel from '@/components/LoginPanel.vue'
 import SideNavBar from '@/components/SideNavBar.vue'
@@ -67,7 +85,15 @@ class App extends Vue {
   private toggleLocale() {
     const newLocale = this.state.locale === 'en' ? 'de' : 'en'
     this.$store.commit('setLocale', newLocale)
-    this.$i18n.locale = newLocale
+    this.$root.$i18n.locale = newLocale
+  }
+
+  private toggleTheme() {
+    this.$store.commit('rotateColors')
+  }
+
+  private get isDarkMode() {
+    return this.state.colorScheme == ColorScheme.DarkMode
   }
 
   @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
@@ -108,6 +134,7 @@ html {
 
 html {
   overflow-y: auto;
+  color: var(--text);
   background-color: $steelGray;
 }
 
@@ -162,7 +189,8 @@ h3 {
 
 #app {
   display: grid;
-  background-color: $paleBackground;
+  color: var(--text);
+  background-color: var(--bg);
   font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr auto;
@@ -172,6 +200,13 @@ h3 {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--link);
+}
+a:hover {
+  color: var(--linkHover);
 }
 
 .full-page-app {
@@ -235,12 +270,11 @@ h3 {
   margin: 2rem 0 0 0;
   padding: 1rem 1rem;
   color: #ccc;
-  background-color: $colorBoldBackground;
 }
 
 #app .footer {
-  color: #222;
-  background-color: white;
+  color: var(--text);
+  background-color: var(--bgBold);
   text-align: center;
   padding: 2rem 0.5rem 3rem 0.5rem;
   // background-color: #648cb4;
@@ -288,6 +322,8 @@ h3 {
 }
 
 .locale {
+  -moz-user-select: none;
+  -webkit-user-select: none;
   font-size: 0.7rem;
   background-color: $steelGray;
   color: #ccc;
@@ -302,6 +338,11 @@ h3 {
   cursor: pointer;
   background-color: #222255;
   color: #ffe;
+}
+
+.locale:active {
+  border: 1px solid #aaa;
+  transform: translateY(1px);
 }
 
 @media only screen and (max-width: 640px) {

@@ -8,9 +8,31 @@ $themeColorPaler: #b9c9df;
 $colorBoldBackground: $steelGray;
 $colorPurple: #7957d5;
 $paleBackground: #dbd9d7;
-$darkBackground: #181518;
+$darkBackground: #181a1b;
 
 $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
 $sizeMobile: 30em;
-/// $themeColor: #3498db;
+
+:root {
+  --bg: #dbd9d7;
+  --bgBold: #ffffff;
+  --bgHover: #ffd;
+  --text: #363636;
+  --textFancy: #1d3355;
+  --link: #1c5179;
+  --linkHover: #0b263b;
+
+  --beige: #ffeead;
+  --yellow: #ffcc5c;
+}
+
+.dark-mode {
+  --bg: #2d3133;
+  --bgBold: #181a1b;
+  --bgHover: #4d4c37;
+  --text: #c6c1b9;
+  --textFancy: #a5c4e2;
+  --link: #65d68f;
+  --linkHover: #a8ffc8;
+}

@@ -49,8 +49,12 @@ export default class VueComponent extends Vue {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: white;
+  background-color: var(--bgBold);
   margin: 0.25rem 2rem 0.25rem 0rem;
+}
+
+h3 {
+  color: var(--text);
 }
 
 .project .desc {
@@ -58,7 +62,7 @@ export default class VueComponent extends Vue {
 }
 
 .project:hover {
-  background-color: #ffd;
+  background-color: var(--bgHover);
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
 }
 

@@ -1,6 +1,8 @@
 <template lang="pug">
 #container(v-if="myState.yamlConfig")
-  img.medium-zoom(:src="myState.imageData")
+  img.medium-zoom(
+    :src="myState.imageData"
+    :class="{'invert-colors' : isDarkMode }")
 </template>
 
 <script lang="ts">
@@ -11,7 +13,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import readBlob from 'read-blob'
 
 import globalStore from '@/store.ts'
-import { FileSystem, VisualizationPlugin } from '../../Globals'
+import { ColorScheme, FileSystem, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 @Component({ components: {} })
@@ -46,6 +48,10 @@ class MyComponent extends Vue {
     'stopwatch.png': 'Stopwatch: computation time',
     'traveldistancestatslegs.png': 'Leg travel distance',
     'traveldistancestatstrips.png': 'Trip travel distance',
+  }
+
+  private get isDarkMode() {
+    return this.globalState.colorScheme == ColorScheme.DarkMode
   }
 
   public mounted() {
@@ -137,5 +143,9 @@ export default MyComponent
 <style scoped lang="scss">
 .medium-zoom {
   padding: 0.25rem 0.25rem;
+}
+
+.invert-colors {
+  filter: invert(100%);
 }
 </style>

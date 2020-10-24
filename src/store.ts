@@ -20,11 +20,13 @@ export default new Vuex.Store({
 
     colorScheme: localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
-      : ColorScheme.DarkMode,
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme:dark)')).matches
+      ? ColorScheme.DarkMode
+      : ColorScheme.LightMode,
 
     // locale: we only support EN and DE
     locale: localStorage.getItem('locale')
-      ? localStorage.getItem('locale')
+      ? '' + localStorage.getItem('locale')
       : // @ts-ignore
       (navigator.language || navigator.userLanguage).startsWith('de')
       ? 'de'
@@ -57,6 +59,7 @@ export default new Vuex.Store({
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
       localStorage.setItem('colorscheme', state.colorScheme)
+      console.log('NEW COLORS:', state.colorScheme)
     },
     setLocale(state, value: string) {
       state.locale = value.toLocaleLowerCase()
