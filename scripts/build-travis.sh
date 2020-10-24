@@ -9,4 +9,4 @@ set -euo pipefail
 IFS=$'\n\t'
 # -----------------------------------------------------
 
-yarn run build && yarn run test:unit
+npm run build && npm run test:unit
