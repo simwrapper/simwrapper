@@ -42,7 +42,7 @@ export default class VueComponent extends Vue {
 #vue-component {
   display: flex;
   flex-direction: row;
-  gap: 2rem;
+  margin: 0 -1rem 0 -1rem;
 }
 
 .project {
@@ -51,7 +51,7 @@ export default class VueComponent extends Vue {
   display: flex;
   flex-direction: column;
   background-color: var(--bgBold);
-  margin: 0.25rem 0rem 0.25rem 0rem;
+  margin: 0.25rem 1rem 0.25rem 1rem;
 }
 
 .desc h3 {
