@@ -10,6 +10,7 @@ module.exports = {
      */
     config.module.rule('js').exclude.add(/\.worker\.js$/)
     config.module.rule('ts').exclude.add(/\.worker\.ts$/)
+
     config.module
       .rule('i18n')
       .resourceQuery(/blockType=i18n/)

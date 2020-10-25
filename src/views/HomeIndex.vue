@@ -13,13 +13,11 @@
         .right(style="text-align: right;")
 
         h1 aftersim
-
         h2.readme {{ $t('tagLine') }}
 
         svn-projects.gap
 
         h2 {{ $t('more-info') }}
-
         .readme(v-html="readmeBottom")
 
 </template>
@@ -194,7 +192,6 @@ a {
   background-color: white;
   text-align: center;
   padding: 2rem 0.5rem 3rem 0.5rem;
-  // background-color: #648cb4;
 }
 
 .footer a {

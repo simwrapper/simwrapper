@@ -2,7 +2,6 @@ import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
-import RunBrowser from '@/views/RunBrowser.vue'
 
 import globalStore from '@/store'
 

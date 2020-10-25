@@ -1,5 +1,5 @@
 <template lang="pug">
-#app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
+#main-app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
 
   #nav
     .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
@@ -55,7 +55,7 @@ import mapboxgl from 'mapbox-gl'
 import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import store from '@/store'
+import globalStore from '@/store'
 
 import { ColorScheme } from '@/Globals'
 import Colophon from '@/components/Colophon.vue'
@@ -72,13 +72,13 @@ writableMapBox.accessToken =
 
 @Component({ components: { TopNavBar, SideNavBar, LoginPanel, Colophon } })
 class App extends Vue {
-  private state = store.state
+  private state = globalStore.state
 
   private clickedLink(path: string) {
     this.$router.push({ path })
   }
 
-  private created() {
+  private mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -97,10 +97,6 @@ class App extends Vue {
       : 'en'
 
     this.$store.commit('setLocale', locale)
-  }
-
-  private mounted() {
-    if (this.state.locale) this.$i18n.locale = this.state.locale
   }
 
   private toggleLocale() {
@@ -208,7 +204,7 @@ h3 {
   font-weight: bold;
 }
 
-#app {
+#main-app {
   display: grid;
   color: var(--text);
   background-color: var(--bg);
@@ -293,7 +289,7 @@ a:hover {
   color: #ccc;
 }
 
-#app .footer {
+#main-app .footer {
   color: var(--text);
   background-color: var(--bgBold);
   text-align: center;
