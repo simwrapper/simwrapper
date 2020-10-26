@@ -20,7 +20,7 @@ try:
     from pyproj import Transformer
 except:
     print("OOPS! Error importing required libraries.")
-    print('try "pip install matsim-tools ndjson dfply"')
+    print('try "pip3 install matsim-tools ndjson dfply pyproj"')
 
 if len(sys.argv) != 4:
     print(
@@ -173,7 +173,10 @@ for person in agents.values():
     person["path"] = latlon
 
 # some requests went unanswered?
-print(list(drt_requests.values()))
+unanswered = list(drt_requests.values())
+if len(unanswered) > 0:
+    print("Unanswered requests: ", len(unanswered))
+    print(unanswered)
 
 abandoned = map(lambda x: x + [-1], drt_requests.values())
 drt_request_list.extend(abandoned)
