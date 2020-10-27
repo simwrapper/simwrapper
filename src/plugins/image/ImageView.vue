@@ -146,6 +146,6 @@ export default MyComponent
 }
 
 .invert-colors {
-  filter: invert(100%);
+  // filter: invert(100%);
 }
 </style>

@@ -1,5 +1,14 @@
+<i18n>
+en:
+  vehicles: "VEHICLES"
+  services: "SERVICES"
+  shipments: "SHIPMENTS"
+  tours: "TOURS"
+de:
+</i18n>
+
 <template lang="pug">
-#v3-app(:class="{'hide-thumbnail': !thumbnail}"
+.carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
   .nav(v-if="!thumbnail")
@@ -14,55 +23,74 @@
                 :settingsShowLayers="SETTINGS"
                 :center="vizDetails.center"
                 :searchEnabled="searchEnabled"
-                :vehicleLookup = "vehicleLookup"
-                :onClick = "handleClick")
+                :vehicleLookup="vehicleLookup"
+                :onClick="handleClick")
 
-  .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="true" width="150" direction="right")
-      .big.clock
-        p {{ myState.clock }}
-
+  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
       .panel-items
-        legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
 
-        legend-colors.legend-block(v-if="legendItems.length"
-          title="Passagiere:" :items="legendItems")
+        h3(v-if="carriers.length") Carriers
 
-        .search-panel
-          p.speed-label(:style="{margin: '1rem 0 0 0', color: textColor.text}") Suche:
-          form(autocomplete="off")
-          .field
-            p.control.has-icons-left
-              input.input.is-small(type="email" placeholder="Search..." v-model="searchTerm")
-              span.icon.is-small.is-left
-                i.fas.fa-search
+        .carrier-list
+          .carrier(v-for="carrier in carriers"
+                  @click="handleSelectCarrier(carrier)"
+                  :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
+            .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
-        settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
+              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
+                .vehicle(v-for="veh in vehicles") {{ veh }}
 
-        .speed-block
-          p.speed-label(
-            :style="{color: textColor.text}") Geschwindigkeit:
-            br
-            | {{ speed }}x
+              .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
+                .vehicle(v-for="shipment in shipments") {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
 
-          vue-slider.speed-slider(v-model="speed"
-            :data="speedStops"
-            :duration="0"
-            :dotSize="20"
-            tooltip="active"
-            tooltip-placement="bottom"
-            :tooltip-formatter="val => val + 'x'"
-          )
+              .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
+                .vehicle(v-for="service in services") {{ `${service.id}` }}
 
-  .bottom-area
+              .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
+                .vehicle(v-for="tour in tours") {{ `${tour.id}` }}
 
-    playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
-      @click='toggleSimulation'
-      @time='setTime'
-      :timeStart = "timeStart"
-      :timeEnd = "timeEnd"
-      :isRunning = "myState.isRunning"
-      :currentTime = "simulationTime")
+        //- legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
+        //- legend-colors.legend-block(v-if="legendItems.length"
+        //-   title="Passagiere:" :items="legendItems")
+
+        //- .search-panel
+        //-   p.speed-label(:style="{margin: '1rem 0 0 0', color: textColor.text}") Suche:
+        //-   form(autocomplete="off")
+        //-   .field
+        //-     p.control.has-icons-left
+        //-       input.input.is-small(type="email" placeholder="Search..." v-model="searchTerm")
+        //-       span.icon.is-small.is-left
+        //-         i.fas.fa-search
+
+        //- settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
+
+      //-   .speed-block
+      //-     p.speed-label(
+      //-       :style="{color: textColor.text}") Geschwindigkeit:
+      //-       br
+      //-       | {{ speed }}x
+
+      //-     vue-slider.speed-slider(v-model="speed"
+      //-       :data="speedStops"
+      //-       :duration="0"
+      //-       :dotSize="20"
+      //-       tooltip="active"
+      //-       tooltip-placement="bottom"
+      //-       :tooltip-formatter="val => val + 'x'"
+      //-     )
+
+
+  playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
+    @click='toggleSimulation'
+    @time='setTime'
+    :timeStart = "timeStart"
+    :timeEnd = "timeEnd"
+    :isRunning = "myState.isRunning"
+    :currentTime = "simulationTime")
+
+  .clock.big
+    p {{ myState.clock }}
+
 
 </template>
 
@@ -75,6 +103,7 @@ import readBlob from 'read-blob'
 import { Route } from 'vue-router'
 import YAML from 'yaml'
 import vuera from 'vuera'
+import xml2js from 'xml2js'
 import crossfilter from 'crossfilter2'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
@@ -87,6 +116,9 @@ import LegendColors from '@/components/LegendColors'
 import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
+
+import XmlFetcher from '@/workers/XmlFetcher'
+import NetworkHelper from '@/workers/NetworkHelper'
 
 import {
   ColorScheme,
@@ -108,15 +140,15 @@ Vue.use(VuePlugin)
 @Component({
   components: {
     CollapsiblePanel,
-    SettingsPanel,
     LegendColors,
+    PlaybackControls,
+    SettingsPanel,
+    ToggleButton,
     TripViz,
     VueSlider,
-    PlaybackControls,
-    ToggleButton,
   } as any,
 })
-class VehicleAnimation extends Vue {
+class CarrierPlugin extends Vue {
   @Prop({ required: false })
   private fileApi!: FileSystem
 
@@ -163,12 +195,12 @@ class VehicleAnimation extends Vue {
 
   private vizDetails = {
     network: '',
-    drtTrips: '',
+    carriers: '',
     projection: '',
     title: '',
     description: '',
     thumbnail: '',
-    center: [6.5, 51.0],
+    center: [13.4, 52.5],
   }
 
   public myState = {
@@ -203,7 +235,7 @@ class VehicleAnimation extends Vue {
   private requestEnd!: crossfilter.Dimension<any, any>
   private requestVehicle!: crossfilter.Dimension<any, any>
 
-  private simulationTime = 6 * 3600 // 8 * 3600 + 10 * 60 + 10
+  private simulationTime = 0 // 6 * 3600 // 8 * 3600 + 10 * 60 + 10
 
   private timeElapsedSinceLastFrame = 0
 
@@ -219,6 +251,57 @@ class VehicleAnimation extends Vue {
   private speed = 1
 
   private legendBits: any[] = []
+
+  private roadNetwork: any = {}
+  private carriers: any[] = []
+  private vehicles: any[] = []
+  private shipments: any[] = []
+  private services: any[] = []
+  private tours: any[] = []
+
+  private selectedCarrier = ''
+
+  private handleSelectCarrier(carrier: any) {
+    console.log(carrier)
+    const id = carrier.$.id
+
+    this.vehicles = []
+    this.shipments = []
+    this.services = []
+    this.tours = []
+
+    if (id === this.selectedCarrier) {
+      // unselect
+      this.selectedCarrier = ''
+      return
+    }
+
+    this.selectedCarrier = carrier.$.id
+
+    if (carrier.capabilities[0]?.vehicles[0]?.vehicle)
+      this.vehicles = carrier.capabilities[0].vehicles[0].vehicle.map((v: any) => v.$.id)
+    console.log(this.vehicles)
+
+    if (carrier.shipments[0]?.shipment)
+      this.shipments = carrier.shipments[0].shipment.map((s: any) => s.$)
+    console.log(this.shipments)
+
+    if (carrier.services[0]?.service)
+      this.services = carrier.services[0].service.map((s: any) => s.$)
+    console.log(this.services)
+
+    if (carrier.plan[0]?.tour)
+      this.tours = carrier.plan[0].tour.map((t: any) => {
+        return {
+          id: t.$.vehicleId,
+          plan: t.$$.map((elem: any) => {
+            return Object.assign(elem.$, { $: elem['#name'] })
+          }),
+        }
+      })
+
+    console.log(this.tours)
+  }
 
   private async handleSettingChange(label: string) {
     console.log(label)
@@ -357,7 +440,7 @@ class VehicleAnimation extends Vue {
     await this.getVizDetails()
   }
 
-  @Watch('state.colorScheme') private swapTheme() {
+  @Watch('globalState.colorScheme') private swapTheme() {
     this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
     this.updateLegendColors()
   }
@@ -495,37 +578,45 @@ class VehicleAnimation extends Vue {
 
     this.myState.statusMessage = '/ Dateien laden...'
     console.log('loading files')
-    const { trips, drtRequests } = await this.loadFiles()
 
-    console.log('parsing vehicle motion')
-    this.myState.statusMessage = '/ Standorte berechnen...'
-    this.paths = await this.parseVehicles(trips)
-    this.pathStart = this.paths.dimension(d => d.t0)
-    this.pathEnd = this.paths.dimension(d => d.t1)
-    this.pathVehicle = this.paths.dimension(d => d.v)
+    const { network, carriers }: any = await this.loadFiles()
 
-    console.log('Routen verarbeiten...')
-    this.myState.statusMessage = '/ Routen verarbeiten...'
-    this.traces = await this.parseRouteTraces(trips)
-    this.traceStart = this.traces.dimension(d => d.t0)
-    this.traceEnd = this.traces.dimension(d => d.t1)
-    this.traceVehicle = this.traces.dimension(d => d.v)
+    // this.roadNetwork = await this.convertRoadNetwork(network)
 
-    console.log('Anfragen sortieren...')
-    this.myState.statusMessage = '/ Anfragen...'
-    this.requests = await this.parseDrtRequests(drtRequests)
-    this.requestStart = this.requests.dimension(d => d[0]) // time0
-    this.requestEnd = this.requests.dimension(d => d[6]) // arrival
-    this.requestVehicle = this.requests.dimension(d => d[5])
+    // crazy but correct
+    this.carriers = carriers.carriers.carrier.sort((a: any, b: any) => (a.$.id < b.$.id ? -1 : 1))
+
+    console.log({ carriers: this.carriers })
 
     console.log('GO!')
+
     this.myState.statusMessage = ''
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange, false)
 
-    this.myState.isRunning = true
-    this.timeElapsedSinceLastFrame = Date.now()
-    this.animate()
+    // this.myState.isRunning = true
+    // this.timeElapsedSinceLastFrame = Date.now()
+    // this.animate()
+  }
+
+  private _networkHelper?: NetworkHelper
+
+  private async convertRoadNetwork(network: string) {
+    this.vizDetails.projection = 'EPSG:31464'
+
+    this._networkHelper = await NetworkHelper.create({
+      xml: network,
+      projection: this.vizDetails.projection,
+    })
+
+    this.myState.statusMessage = 'Crunching road network...'
+    await this._networkHelper.createNodesAndLinks()
+
+    this.myState.statusMessage = 'Converting coordinates...'
+    const result: any = await this._networkHelper.convertCoordinates()
+
+    this.myState.statusMessage = 'Worker finished'
+    return result.network
   }
 
   private vehicleLookup: string[] = []
@@ -687,39 +778,89 @@ class VehicleAnimation extends Vue {
   }
 
   private beforeDestroy() {
+    this.myState.isRunning = false
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
+
+    if (this._networkHelper) this._networkHelper.destroy()
+
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
-    this.myState.isRunning = false
+  }
+
+  private parseXML(xml: string): Promise<string> {
+    // The '$' object contains a leaf's attributes
+    // The '$$' object contains an explicit array of the children
+    //
+    // Sometimes you can also refer to a child node by name, such as
+    // carrier.shipments
+    //
+    // SHIPMENTS
+    // to get the array of shipment objects, use
+    // carriers.carrier[x].shipments.$$ -> returns array of shipment objects
+    // -- each shipment object: has .$ attributes
+    //
+    // PLANS
+    // plan is at carriers.carrier[x].plan[0] -- are there ever multiple plans?
+    // tour is at plan.tour[x]
+    // -- $ has vehicleId
+    // -- $$ has array of:
+    //       #name --> act/leg
+    //           $ --> other params
+    //       route --> string of links "12345 6789 123"
+
+    // these options are all mandatory for reading the complex carriers
+    // file. The main weirdness is that matsim puts children of different
+    // types in an order that matters (act,leg,act,leg,act... etc)
+    const parser = new xml2js.Parser({
+      strict: true,
+      trim: true,
+      preserveChildrenOrder: true,
+      explicitChildren: true,
+      explicitArray: true,
+    })
+    return new Promise((resolve, reject) => {
+      parser.parseString(xml, function(err: Error, result: string) {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(result)
+        }
+      })
+    })
   }
 
   private async loadFiles() {
-    let trips: any[] = []
-    let drtRequests: any = []
+    // const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
+    const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
 
+    console.log('parse xml')
+    // const network = await this.parseXML(networkXML)
+    const carriers = await this.parseXML(carriersXML)
+
+    return { carriers }
+    // return { network, carriers }
+  }
+
+  private async loadFileOrGzippedFile(name: string) {
+    console.log('loading', name)
+
+    let content = ''
+
+    // network
     try {
-      if (this.vizDetails.drtTrips.endsWith('json')) {
-        const json = await this.myState.fileApi.getFileJson(
-          this.myState.subfolder + '/' + this.vizDetails.drtTrips
-        )
-        trips = json.trips
-        drtRequests = json.drtRequests
-      } else if (this.vizDetails.drtTrips.endsWith('gz')) {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + this.vizDetails.drtTrips
-        )
+      if (name.endsWith('xml')) {
+        content = await this.myState.fileApi.getFileText(this.myState.subfolder + '/' + name)
+      } else if (name.endsWith('gz')) {
+        const blob = await this.myState.fileApi.getFileBlob(this.myState.subfolder + '/' + name)
         const blobString = blob ? await blobToBinaryString(blob) : null
-        let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-        const json = JSON.parse(text)
-
-        trips = json.trips
-        drtRequests = json.drtRequests
+        content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
       }
     } catch (e) {
+      const error = name + ': ' + e
       console.error(e)
-      this.myState.statusMessage = '' + e
+      this.myState.statusMessage = error
     }
-    return { trips, drtRequests }
+    return content
   }
 
   private toggleLoaded(loaded: boolean) {
@@ -737,36 +878,54 @@ class VehicleAnimation extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'vehicle-animation',
-  prettyName: 'Trip Viewer',
-  description: 'Deck.gl based trip viewer',
-  filePatterns: ['viz-vehicles*.y?(a)ml'],
-  component: VehicleAnimation,
+  kebabName: 'carrier-viewer',
+  prettyName: 'Carrier Viewer',
+  description: 'For freight etc!',
+  filePatterns: ['viz-carrier*.y?(a)ml'],
+  component: CarrierPlugin,
 } as VisualizationPlugin)
 
-export default VehicleAnimation
+export default CarrierPlugin
 </script>
 
 <style scoped lang="scss">
 @import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
-#v3-app {
+/* SCROLLBARS
+   The emerging W3C standard is currently Firefox-only */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #454 $steelGray;
+}
+
+/* And this works on Chrome/Edge/Safari */
+*::-webkit-scrollbar {
+  width: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: $steelGray;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #454;
+  border-radius: 12px;
+}
+
+.carrier-viewer {
   display: grid;
   pointer-events: none;
   min-height: 200px;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  grid-template-columns: 1fr min-content;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    'title              .'
+    'title      rightside'
     '.          rightside'
-    '.                  .'
-    'playback    playback';
+    'playback   clock';
 }
 
-#v3-app.hide-thumbnail {
+.carrier-viewer.hide-thumbnail {
   background: none;
 }
 
@@ -818,26 +977,17 @@ export default VehicleAnimation
 }
 
 .right-side {
-  grid-area: rightside;
+  position: absolute;
+  top: 0rem;
+  bottom: 0rem;
+  right: 0;
+  margin: 5rem 0 10rem 0;
   background-color: $steelGray;
   box-shadow: 0px 2px 10px #111111ee;
   color: white;
   display: flex;
-  flex-direction: column;
-  font-size: 0.8rem;
-  pointer-events: auto;
-}
-
-.playback-stuff {
-  flex: 1;
-}
-
-.bottom-area {
-  display: flex;
   flex-direction: row;
-  margin-bottom: 2rem;
-  grid-area: playback;
-  padding: 0rem 1rem 1rem 2rem;
+  font-size: 0.8rem;
   pointer-events: auto;
 }
 
@@ -865,14 +1015,16 @@ export default VehicleAnimation
 }
 
 .clock {
-  width: 100%;
+  grid-area: clock;
+  width: 273px;
   background-color: #000000cc;
   border: 3px solid white;
+  margin-bottom: 1.2rem;
 }
 
 .clock p {
   text-align: center;
-  padding: 5px 10px;
+  padding: 1rem 1rem;
 }
 
 .tooltip {
@@ -881,13 +1033,72 @@ export default VehicleAnimation
 }
 
 .panel-items {
-  margin: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  margin: 0 0;
+  max-height: 100%;
+}
+
+.panel-items h3 {
+  padding: 0 0.5rem;
 }
 
 input {
   border: none;
   background-color: #235;
   color: #ccc;
+}
+
+.carrier {
+  padding: 0.25rem 0.5rem;
+  margin: 0 0rem;
+}
+
+.carrier-details {
+  font-weight: normal;
+  margin-left: 0.5rem;
+  animation: slide-up 0.25s ease;
+}
+
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.carrier-details .carrier:hover {
+  cursor: pointer;
+  background-color: $themeColorPale; // var(--bgBold);
+}
+
+.carrier.selected {
+  font-weight: bold;
+  background-color: $themeColorPale;
+  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
+}
+
+.carrier-list {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.carrier-section {
+  margin-bottom: 0.5rem;
+}
+
+.playback-stuff {
+  grid-area: playback;
+  padding: 0rem 2rem 2rem 2rem;
+  pointer-events: auto;
+}
+
+.vehicle {
+  margin-left: 1rem;
 }
 
 @media only screen and (max-width: 640px) {
@@ -917,9 +1128,6 @@ input {
 
   .extra-buttons {
     margin-right: 1rem;
-  }
-  .playback-stuff {
-    padding-right: 1rem;
   }
 }
 </style>

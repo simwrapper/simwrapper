@@ -2,10 +2,8 @@
 .outer
   .body(:style="{order: direction === 'left' ? 2 : 1, maxWidth: collapsed ? 0 : `${width}px`}"
   )
-    .content(:style="{width: `${width}px`}")
-      <slot></slot>
+    slot.content(:style="{width: `${width}px`}")
 
-  //- backgroundColor: darkMode ? '#223446' : '#eee',
   .xbutton(@click="handleClick"
     :style="{order: direction === 'left' ? 1 : 2, borderRadius: collapsed ? '4px' : '0px'}")
 

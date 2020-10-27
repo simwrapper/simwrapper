@@ -438,7 +438,6 @@ h2 {
     font-size: 0.8rem;
     padding: 0.25rem 0.5rem;
     color: white;
-    // background-color: #555;
 
     /* Required for text-overflow to do anything */
     text-overflow: ellipsis;
@@ -453,7 +452,7 @@ h2 {
 
 .thumbnail {
   max-height: 225px;
-  background-color: var(--bgBold);
+  background-color: white; // var(--bgBold);
 }
 
 .folder {

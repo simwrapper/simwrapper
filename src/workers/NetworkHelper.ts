@@ -1,7 +1,7 @@
-import AsyncWorkerConnector from '@/workers/AsyncWorkerConnector'
-import { INITIALIZE } from '@/workers/AsyncBackgroundWorker'
-import BackgroundWorker from './TransitSupplyHelper.worker'
-import { InitParams, MethodNames } from './TransitSupplyHelperContract'
+import AsyncWorkerConnector from './AsyncWorkerConnector'
+import { INITIALIZE } from './AsyncBackgroundWorker'
+import BackgroundWorker from './NetworkHelper.worker'
+import { InitParams, MethodNames } from './NetworkHelperContract'
 
 export default class TransitSupplyHelper extends AsyncWorkerConnector {
   constructor() {

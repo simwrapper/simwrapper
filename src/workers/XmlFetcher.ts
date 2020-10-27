@@ -1,5 +1,5 @@
-import AsyncWorkerConnector from '@/util/AsyncWorkerConnector'
-import { INITIALIZE } from '@/util/AsyncBackgroundWorker'
+import AsyncWorkerConnector from './AsyncWorkerConnector'
+import { INITIALIZE } from './AsyncBackgroundWorker'
 import BackgroundWorker from './XmlFetcher.worker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
 

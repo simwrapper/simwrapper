@@ -8,7 +8,7 @@
 
   .buttons
     .playpause(@click='toggleSimulation')
-      i.button-icon.fa.fa-1x.fa-pause(v-if="state.isRunning")
+      i.button-icon.fa.fa-1x.fa-pause(v-if="isRunning")
       i.button-icon.fa.fa-1x.fa-play(v-else)
 
 </template>
@@ -18,21 +18,27 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
 import * as timeConvert from 'convert-seconds'
 
-import store from '@/store'
-import EventBus from '@/EventBus.vue'
-
 @Component({ components: { VueSlider }, props: {} })
 export default class VueComponent extends Vue {
-  private state = store.state
+  @Prop({ required: true })
+  private isRunning!: boolean
+
+  @Prop({ required: true })
+  private timeStart!: number
+
+  @Prop({ required: true })
+  private timeEnd!: number
+
+  @Prop({ required: true })
+  private currentTime!: number
 
   private sliderValue = 0
-  private maxSliderVal = 100000.0
 
   private sliderOptions = {
     min: 0,
-    max: this.maxSliderVal - 1,
+    max: 1000000,
     clickable: false,
-    dotSize: 20,
+    dotSize: 30,
     duration: 0,
     lazy: true,
     tooltip: 'active',
@@ -58,42 +64,44 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private pauseWhileDragging = false
+
   private dragStart() {
-    console.log('start')
-    EventBus.$emit(EventBus.DRAG, -1)
+    if (this.isRunning) {
+      this.pauseWhileDragging = true
+      this.$emit('click')
+    }
   }
 
   private dragEnd() {
-    console.log('end')
-    EventBus.$emit(EventBus.DRAG, -2)
+    if (this.pauseWhileDragging) this.$emit('click')
+    this.pauseWhileDragging = false
   }
 
-  private dragging(value: any) {
-    EventBus.$emit(EventBus.DRAG, this.getSecondsFromSlider(value))
+  private dragging(value: number) {
+    this.$emit('time', this.getSecondsFromSlider(value))
   }
 
   private onKeyPressed(ev: KeyboardEvent) {
     if (ev.code === 'Space') this.toggleSimulation()
   }
 
-  private getSecondsFromSlider(oneToTenThousand: number) {
-    let seconds = (oneToTenThousand / this.maxSliderVal) * 86400
-    if (seconds === 86400) seconds = 86400 - 1
+  private getSecondsFromSlider(value: number) {
+    let seconds = ((this.timeEnd - this.timeStart) * value) / 1000000.0
+    if (seconds === this.timeEnd) seconds = this.timeEnd - 1
     return seconds
   }
 
-  mounted() {
-    const parent = this
+  @Watch('currentTime') handleTimeChanged() {
+    this.sliderValue =
+      (1000000.0 * (this.currentTime - this.timeStart)) / (this.timeEnd - this.timeStart)
+  }
 
-    EventBus.$on(EventBus.SIMULATION_PERCENT, function(time: number) {
-      parent.sliderValue = Math.floor(parent.maxSliderVal * time)
-    })
-
+  private mounted() {
     window.addEventListener('keyup', this.onKeyPressed)
   }
 
-  beforeDestroy() {
-    EventBus.$off(EventBus.SIMULATION_PERCENT)
+  private beforeDestroy() {
     window.removeEventListener('keyup', this.onKeyPressed)
   }
 }

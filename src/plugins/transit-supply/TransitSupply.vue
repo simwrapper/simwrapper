@@ -42,7 +42,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
 
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
-import XmlFetcher from '@/util/XmlFetcher'
+import XmlFetcher from '@/workers/XmlFetcher'
 import TransitSupplyHelper from './TransitSupplyHelper'
 import TransitSupplyHelperWorker from './TransitSupplyHelper.worker'
 import LegendBox from './LegendBox.vue'

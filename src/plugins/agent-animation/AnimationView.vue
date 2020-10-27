@@ -22,7 +22,7 @@ import {
 } from '@/Globals'
 import AgentGeometry from './AgentGeometry'
 import EventBus from '@/EventBus.vue'
-import XmlFetcher from '@/util/XmlFetcher'
+import XmlFetcher from '@/workers/XmlFetcher'
 
 export interface Network {
   nodes: { [id: string]: NetworkNode }

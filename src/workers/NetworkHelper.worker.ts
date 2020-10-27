@@ -1,6 +1,6 @@
 import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/workers/AsyncBackgroundWorker'
-import { InitParams, MethodNames } from './TransitSupplyHelperContract'
-import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
+import { InitParams, MethodNames } from './NetworkHelperContract'
+import { NetworkNode, TransitLine, RouteDetails } from './NetworkInterfaces'
 
 import proj4 from 'proj4'
 
@@ -49,6 +49,11 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
         '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs',
       ],
       [
+        // berlin
+        'EPSG:31464',
+        '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +towgs84=612.4,77,440.2,-0.054,0.057,-2.797,2.55 +units=m +no_defs',
+      ],
+      [
         // cottbus
         'EPSG:25833',
         '+proj=utm +zone=33 +ellps=GRS80 +units=m +no_defs',
@@ -63,7 +68,8 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
   // XML is sent in during worker initialization
   private createNodesAndLinksFromXML() {
-    const roadXML = this._xml.roadXML
+    // maybe passed in a thing, maybe a string
+    const roadXML = this._xml.roadXML ? this._xml.roadXML : this._xml
     const netNodes = roadXML.network.nodes[0].node
     const netLinks = roadXML.network.links[0].link
 
@@ -92,7 +98,12 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
         node.y = z.y
       }
     }
-    return { data: {}, transferrables: [] }
+    return {
+      data: {
+        network: this._network,
+      },
+      transferrables: [],
+    }
   }
 
   private async processTransit() {

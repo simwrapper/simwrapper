@@ -1,7 +1,7 @@
 const config: any = {
   projects: [
     {
-      name: 'Sample Visualizations',
+      name: 'Examples',
       url: 'example',
       description: 'A few visualizations of public datasets.',
       svn:

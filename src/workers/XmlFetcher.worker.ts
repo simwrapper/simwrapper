@@ -1,4 +1,4 @@
-import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/util/AsyncBackgroundWorker'
+import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/workers/AsyncBackgroundWorker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
 
 import readBlob from 'read-blob'
