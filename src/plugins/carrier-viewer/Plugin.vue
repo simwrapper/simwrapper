@@ -12,13 +12,14 @@ de:
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
   .nav(v-if="!thumbnail")
-    p.big.xtitle {{ vizDetails.title }}
+    //- p.big.xtitle {{ vizDetails.title }}
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-  trip-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
-                :paths="$options.paths"
-                :drtRequests="$options.drtRequests"
-                :traces="$options.traces"
+  tour-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
+                :shipments="shipments"
+                :paths="[]"
+                :drtRequests="[]"
+                :traces="[]"
                 :colors="COLOR_OCCUPANCY"
                 :settingsShowLayers="SETTINGS"
                 :center="vizDetails.center"
@@ -80,16 +81,16 @@ de:
       //-     )
 
 
-  playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
-    @click='toggleSimulation'
-    @time='setTime'
-    :timeStart = "timeStart"
-    :timeEnd = "timeEnd"
-    :isRunning = "myState.isRunning"
-    :currentTime = "simulationTime")
+  //- playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
+  //-   @click='toggleSimulation'
+  //-   @time='setTime'
+  //-   :timeStart = "timeStart"
+  //-   :timeEnd = "timeEnd"
+  //-   :isRunning = "myState.isRunning"
+  //-   :currentTime = "simulationTime")
 
-  .clock.big
-    p {{ myState.clock }}
+  //- .clock.big(v-if="isLoaded && !thumbnail")
+  //-   p {{ myState.clock }}
 
 
 </template>
@@ -102,6 +103,7 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import { Route } from 'vue-router'
 import YAML from 'yaml'
+import naturalSort from 'javascript-natural-sort'
 import vuera from 'vuera'
 import xml2js from 'xml2js'
 import crossfilter from 'crossfilter2'
@@ -131,11 +133,13 @@ import {
   DARK_MODE,
 } from '@/Globals'
 
-import TripViz from '@/plugins/vehicle-animation/TripViz'
+import TourViz from './TourViz'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
+
+naturalSort.insensitive = true
 
 @Component({
   components: {
@@ -144,7 +148,7 @@ Vue.use(VuePlugin)
     PlaybackControls,
     SettingsPanel,
     ToggleButton,
-    TripViz,
+    TourViz,
     VueSlider,
   } as any,
 })
@@ -180,7 +184,7 @@ class CarrierPlugin extends Vue {
   }
 
   SETTINGS: { [label: string]: boolean } = {
-    Fahrzeuge: true,
+    Fahrzeuge: false,
     Routen: false,
     'DRT Anfragen': false,
   }
@@ -252,7 +256,9 @@ class CarrierPlugin extends Vue {
 
   private legendBits: any[] = []
 
-  private roadNetwork: any = {}
+  private links: any = {}
+  private nodes: any = {}
+
   private carriers: any[] = []
   private vehicles: any[] = []
   private shipments: any[] = []
@@ -270,37 +276,61 @@ class CarrierPlugin extends Vue {
     this.services = []
     this.tours = []
 
-    if (id === this.selectedCarrier) {
-      // unselect
-      this.selectedCarrier = ''
-      return
-    }
-
     this.selectedCarrier = carrier.$.id
 
     if (carrier.capabilities[0]?.vehicles[0]?.vehicle)
-      this.vehicles = carrier.capabilities[0].vehicles[0].vehicle.map((v: any) => v.$.id)
+      this.vehicles = carrier.capabilities[0].vehicles[0].vehicle
+        .map((v: any) => v.$.id)
+        .sort((a: any, b: any) => naturalSort(a, b))
     console.log(this.vehicles)
 
-    if (carrier.shipments[0]?.shipment)
-      this.shipments = carrier.shipments[0].shipment.map((s: any) => s.$)
-    console.log(this.shipments)
+    this.shipments = this.processShipments(carrier)
 
     if (carrier.services[0]?.service)
-      this.services = carrier.services[0].service.map((s: any) => s.$)
+      this.services = carrier.services[0].service
+        .map((s: any) => s.$)
+        .sort((a: any, b: any) => naturalSort(a.$.id, b.$.id))
+
     console.log(this.services)
 
     if (carrier.plan[0]?.tour)
-      this.tours = carrier.plan[0].tour.map((t: any) => {
-        return {
-          id: t.$.vehicleId,
-          plan: t.$$.map((elem: any) => {
-            return Object.assign(elem.$, { $: elem['#name'] })
-          }),
-        }
-      })
+      this.tours = carrier.plan[0].tour
+        .map((t: any) => {
+          return {
+            id: t.$.vehicleId,
+            plan: t.$$.map((elem: any) => {
+              return Object.assign(elem.$, { $: elem['#name'] })
+            }),
+          }
+        })
+        .sort((a: any, b: any) => naturalSort(a.id, b.id))
 
     console.log(this.tours)
+  }
+
+  private processShipments(carrier: any) {
+    if (!carrier.shipments) return []
+
+    let shipments: any[] = []
+    if (carrier.shipments[0]?.shipment)
+      shipments = carrier.shipments[0].shipment
+        .map((s: any) => s.$)
+        .sort((a: any, b: any) => naturalSort(a.id, b.id))
+
+    try {
+      for (const shipment of shipments) {
+        // shipment has link id, so we go from link.from to link.to
+        shipment.fromX = this.nodes[this.links[shipment.from].from].x
+        shipment.fromY = this.nodes[this.links[shipment.from].from].y
+        shipment.toX = this.nodes[this.links[shipment.to].to].x
+        shipment.toY = this.nodes[this.links[shipment.to].to].y
+      }
+    } catch (e) {
+      // if xy are missing, skip this -- just means network isn't loaded yet.
+    }
+
+    console.log({ shipments })
+    return shipments
   }
 
   private async handleSettingChange(label: string) {
@@ -579,14 +609,16 @@ class CarrierPlugin extends Vue {
     this.myState.statusMessage = '/ Dateien laden...'
     console.log('loading files')
 
-    const { network, carriers }: any = await this.loadFiles()
+    this.carriers = await this.loadCarriers()
+    const network = await this.loadNetwork()
 
-    // this.roadNetwork = await this.convertRoadNetwork(network)
+    this.links = network.links
+    this.nodes = network.nodes
 
-    // crazy but correct
-    this.carriers = carriers.carriers.carrier.sort((a: any, b: any) => (a.$.id < b.$.id ? -1 : 1))
+    console.log({ network })
 
-    console.log({ carriers: this.carriers })
+    console.log({ link13421: this.links['13421'] })
+    console.log({ node101213421: this.nodes['101213421'] })
 
     console.log('GO!')
 
@@ -599,9 +631,37 @@ class CarrierPlugin extends Vue {
     // this.animate()
   }
 
+  private async loadCarriers() {
+    // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
+
+    const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
+    const carriers: any = await this.parseXML(carriersXML)
+
+    // crazy but correct - why is matsim so verbose?
+    const carrierList = carriers.carriers.carrier.sort((a: any, b: any) =>
+      naturalSort(a.$.id, b.$.id)
+    )
+    await this.$nextTick() // update UI update before network load begins
+
+    console.log({ carrierList })
+
+    return carrierList
+  }
+
+  private async loadNetwork() {
+    this.myState.statusMessage = 'Loading network'
+    const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
+    const network: any = await this.parseXML(networkXML)
+    const convertedNetwork = await this.convertRoadNetwork(network)
+
+    return convertedNetwork
+  }
+
   private _networkHelper?: NetworkHelper
 
   private async convertRoadNetwork(network: string) {
+    this.myState.statusMessage = 'Projecting network...'
+
     this.vizDetails.projection = 'EPSG:31464'
 
     this._networkHelper = await NetworkHelper.create({
@@ -614,6 +674,8 @@ class CarrierPlugin extends Vue {
 
     this.myState.statusMessage = 'Converting coordinates...'
     const result: any = await this._networkHelper.convertCoordinates()
+
+    this._networkHelper.destroy()
 
     this.myState.statusMessage = 'Worker finished'
     return result.network
@@ -787,7 +849,7 @@ class CarrierPlugin extends Vue {
     this.$store.commit('setFullScreen', false)
   }
 
-  private parseXML(xml: string): Promise<string> {
+  private parseXML(xml: string) {
     // The '$' object contains a leaf's attributes
     // The '$$' object contains an explicit array of the children
     //
@@ -827,18 +889,6 @@ class CarrierPlugin extends Vue {
         }
       })
     })
-  }
-
-  private async loadFiles() {
-    // const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
-    const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
-
-    console.log('parse xml')
-    // const network = await this.parseXML(networkXML)
-    const carriers = await this.parseXML(carriersXML)
-
-    return { carriers }
-    // return { network, carriers }
   }
 
   private async loadFileOrGzippedFile(name: string) {
@@ -981,7 +1031,7 @@ export default CarrierPlugin
   top: 0rem;
   bottom: 0rem;
   right: 0;
-  margin: 5rem 0 10rem 0;
+  margin: 6rem 0 5rem 0;
   background-color: $steelGray;
   box-shadow: 0px 2px 10px #111111ee;
   color: white;
@@ -1020,6 +1070,7 @@ export default CarrierPlugin
   background-color: #000000cc;
   border: 3px solid white;
   margin-bottom: 1.2rem;
+  color: white;
 }
 
 .clock p {
@@ -1052,12 +1103,46 @@ input {
 .carrier {
   padding: 0.25rem 0.5rem;
   margin: 0 0rem;
+  color: white;
+}
+
+.carrier:nth-of-type(odd) {
+  background: #324253;
 }
 
 .carrier-details {
   font-weight: normal;
   margin-left: 0.5rem;
   animation: slide-up 0.25s ease;
+  color: white;
+}
+
+.carrier-details .carrier:hover {
+  cursor: pointer;
+  background-color: $themeColorPale; // var(--bgBold);
+}
+
+.carrier:hover {
+  color: var(--yellow);
+}
+
+.carrier.selected {
+  font-weight: bold;
+  background-color: $themeColorPale;
+  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
+  color: var(--yellow);
+}
+
+.carrier-list {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: pointer;
+}
+
+.carrier-section {
+  margin-bottom: 0.5rem;
 }
 
 @keyframes slide-up {
@@ -1067,28 +1152,6 @@ input {
   100% {
     opacity: 1;
   }
-}
-
-.carrier-details .carrier:hover {
-  cursor: pointer;
-  background-color: $themeColorPale; // var(--bgBold);
-}
-
-.carrier.selected {
-  font-weight: bold;
-  background-color: $themeColorPale;
-  box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
-}
-
-.carrier-list {
-  position: relative;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.carrier-section {
-  margin-bottom: 0.5rem;
 }
 
 .playback-stuff {

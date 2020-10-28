@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import RequestLayer from './RequestLayer'
+import { ArcLayer } from '@deck.gl/layers'
+// import ShipmentLayer from './ShipmentLayer'
 
 import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
 import PathTraceLayer from '@/layers/path-trace/path-trace'
@@ -43,7 +44,7 @@ const INITIAL_VIEW_STATE = {
   latitude: 52.1,
   longitude: 14,
   zoom: 10,
-  pitch: 0,
+  pitch: 20,
   minZoom: 2,
   maxZoom: 22,
 }
@@ -59,6 +60,7 @@ const DRT_REQUEST = {
 }
 
 export default function Component(props: {
+  shipments: any[]
   simulationTime: number
   paths: any[]
   drtRequests: any[]
@@ -75,6 +77,7 @@ export default function Component(props: {
   // mapStyle = "mapbox://styles/mapbox/dark-v10",
 
   const {
+    shipments,
     simulationTime,
     paths,
     traces,
@@ -92,7 +95,6 @@ export default function Component(props: {
   initialView.latitude = center[1]
   initialView.longitude = center[0]
 
-  const arcWidth = 1
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
   const layers: any = []
@@ -194,22 +196,23 @@ export default function Component(props: {
       })
     )
 
-  if (settingsShowLayers['DRT Anfragen'])
+  if (true)
+    // settingsShowLayers['DRT Anfragen'])
     layers.push(
       //@ts-ignore:
-      new DrtRequestLayer({
-        id: 'DRT Requests',
-        data: drtRequests,
-        currentTime: simulationTime,
-        getSourcePosition: (d: any) => [d[DRT_REQUEST.fromX], d[DRT_REQUEST.fromY]],
-        getTargetPosition: (d: any) => [d[DRT_REQUEST.toX], d[DRT_REQUEST.toY]],
-        getTimeStart: (d: any) => d[DRT_REQUEST.time],
-        getTimeEnd: (d: any) => d[DRT_REQUEST.arrival],
+      new ArcLayer({
+        id: 'shipments',
+        data: shipments,
+        // currentTime: 1.0, // simulationTime,
+        getSourcePosition: (d: any) => [d.fromX, d.fromY],
+        getTargetPosition: (d: any) => [d.toX, d.toY],
+        // getTimeStart: (d: any) => 0,
+        // getTimeEnd: (d: any) => 86400,
         getSourceColor: [255, 0, 255],
         getTargetColor: [200, 255, 255],
-        getWidth: arcWidth,
-        opacity: 0.5,
-        searchFlag: searchEnabled ? 1.0 : 0.0,
+        getWidth: 2.0,
+        opacity: 0.75,
+        // searchFlag: searchEnabled ? 1.0 : 0.0,
       })
     )
 
