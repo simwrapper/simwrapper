@@ -5,6 +5,10 @@ en:
   shipments: "SHIPMENTS"
   tours: "TOURS"
 de:
+  vehicles: "FAHRZEUGE"
+  services: "BETRIEBE"
+  shipments: "LIEFERUNGEN"
+  tours: "TOUREN"
 </i18n>
 
 <template lang="pug">
@@ -257,7 +261,6 @@ class CarrierPlugin extends Vue {
   private legendBits: any[] = []
 
   private links: any = {}
-  private nodes: any = {}
 
   private carriers: any[] = []
   private vehicles: any[] = []
@@ -320,10 +323,10 @@ class CarrierPlugin extends Vue {
     try {
       for (const shipment of shipments) {
         // shipment has link id, so we go from link.from to link.to
-        shipment.fromX = this.nodes[this.links[shipment.from].from].x
-        shipment.fromY = this.nodes[this.links[shipment.from].from].y
-        shipment.toX = this.nodes[this.links[shipment.to].to].x
-        shipment.toY = this.nodes[this.links[shipment.to].to].y
+        shipment.fromX = this.links[shipment.from][0]
+        shipment.fromY = this.links[shipment.from][1]
+        shipment.toX = this.links[shipment.to][2]
+        shipment.toY = this.links[shipment.to][3]
       }
     } catch (e) {
       // if xy are missing, skip this -- just means network isn't loaded yet.
@@ -606,29 +609,17 @@ class CarrierPlugin extends Vue {
 
     this.setWallClock()
 
-    this.myState.statusMessage = '/ Dateien laden...'
+    this.myState.statusMessage = 'Loading carriers...'
     console.log('loading files')
 
     this.carriers = await this.loadCarriers()
-    const network = await this.loadNetwork()
-
-    this.links = network.links
-    this.nodes = network.nodes
-
-    console.log({ network })
-
-    console.log({ link13421: this.links['13421'] })
-    console.log({ node101213421: this.nodes['101213421'] })
+    this.links = await this.loadNetwork()
 
     console.log('GO!')
 
     this.myState.statusMessage = ''
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange, false)
-
-    // this.myState.isRunning = true
-    // this.timeElapsedSinceLastFrame = Date.now()
-    // this.animate()
   }
 
   private async loadCarriers() {
@@ -650,18 +641,28 @@ class CarrierPlugin extends Vue {
 
   private async loadNetwork() {
     this.myState.statusMessage = 'Loading network'
-    const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
-    const network: any = await this.parseXML(networkXML)
-    const convertedNetwork = await this.convertRoadNetwork(network)
-
-    return convertedNetwork
+    if (this.vizDetails.network.indexOf('.xml.') > -1) {
+      // matsim xml file
+      const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
+      const network: any = await this.parseXML(networkXML)
+      const convertedNetwork = await this.convertRoadNetwork(network)
+      return convertedNetwork
+    } else {
+      // pre-converted output from create_network.py
+      const blob = await this.myState.fileApi.getFileBlob(
+        this.myState.subfolder + this.vizDetails.network
+      )
+      const blobString = blob ? await blobToBinaryString(blob) : null
+      let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+      const convertedNetwork = JSON.parse(text)
+      return convertedNetwork
+    }
   }
 
   private _networkHelper?: NetworkHelper
 
   private async convertRoadNetwork(network: string) {
     this.myState.statusMessage = 'Projecting network...'
-
     this.vizDetails.projection = 'EPSG:31464'
 
     this._networkHelper = await NetworkHelper.create({
@@ -677,8 +678,16 @@ class CarrierPlugin extends Vue {
 
     this._networkHelper.destroy()
 
-    this.myState.statusMessage = 'Worker finished'
-    return result.network
+    // last step: build lookup of x/y directly in links
+    this.myState.statusMessage = 'Merging links and nodes'
+    const nodes = result.network.nodes
+    const links: any = {}
+
+    for (const id of Object.keys(result.network.links)) {
+      const link = result.network.links[id]
+      links[id] = [nodes[link.from].x, nodes[link.from].y, nodes[link.to].x, nodes[link.to].y]
+    }
+    return links
   }
 
   private vehicleLookup: string[] = []
