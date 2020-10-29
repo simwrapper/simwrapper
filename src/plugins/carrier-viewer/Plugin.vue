@@ -43,9 +43,6 @@ de:
                   :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
             .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
-              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
-                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
-
               .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
                 .vehicle.tour(v-for="tour,i in tours" :key="i"
                               @click="handleSelectTour(tour)"
@@ -59,6 +56,10 @@ de:
 
               .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
                 .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
+
+              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
+                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
+
 
         //- legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
         //- legend-colors.legend-block(v-if="legendItems.length"
@@ -301,12 +302,17 @@ class CarrierPlugin extends Vue {
     if (this.selectedTour === tour) {
       this.selectedTour = null
       this.shownRoutes = []
+      this.shownShipments = []
       this.shipmentIdsInTour = []
+      this.selectedShipment = null
       return
     }
 
     this.selectedTour = tour
     this.shownRoutes = []
+    this.shownShipments = []
+    this.selectedShipment = null
+    this.shipmentIdsInTour = []
 
     // find shipment components
     const inTour: any[] = []
@@ -325,6 +331,9 @@ class CarrierPlugin extends Vue {
     })
 
     let count = 0
+
+    const stopLocations: any[] = []
+
     for (const route of tour.routes) {
       // starting point from xy:[0,1]
       const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
@@ -333,8 +342,21 @@ class CarrierPlugin extends Vue {
         points.push([this.links[link][2], this.links[link][3]])
       }
 
-      this.shownRoutes.push({ points, color: colors[count++] })
+      // see if we're on top of other nodes
+      let label = ''
+      for (let i = 0; i < count; i++) {
+        if (stopLocations[i][0] === points[0][0] && stopLocations[i][0] === points[0][0]) {
+          label += `,${i}`
+          this.shownRoutes[i].label = ''
+        }
+      }
+      stopLocations[count] = points[0]
+      label = label + `,${count}`
+      label = label.slice(1)
+
+      this.shownRoutes.push({ label, count, points, color: colors[count++] })
     }
+
     console.log({ shownRoutes: this.shownRoutes })
   }
 
@@ -347,6 +369,9 @@ class CarrierPlugin extends Vue {
     this.services = []
     this.tours = []
     this.shownRoutes = []
+    this.shownShipments = []
+    this.selectedShipment = null
+    this.shipmentIdsInTour = []
 
     this.selectedCarrier = carrier.$.id
 
@@ -1021,7 +1046,7 @@ class CarrierPlugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'carriers-viewer',
+  kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
   filePatterns: ['viz-carrier*.y?(a)ml'],
@@ -1227,6 +1252,7 @@ input {
 }
 
 .carrier-list {
+  user-select: none;
   position: relative;
   flex: 1;
   overflow-y: auto;
@@ -1264,7 +1290,7 @@ input {
 }
 
 .shipment-in-tour {
-  background-color: #687da3;
+  background-color: #497c7e;
 }
 
 @media only screen and (max-width: 640px) {

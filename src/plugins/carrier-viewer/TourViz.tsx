@@ -2,17 +2,16 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, PathLayer } from '@deck.gl/layers'
+import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 // import ShipmentLayer from './ShipmentLayer'
 
-import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
 import PathTraceLayer from '@/layers/path-trace/path-trace'
 
 const ICON_MAPPING = {
-  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: false },
-  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+  circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
+  infoPin: { x: 128, y: 0, width: 128, height: 128, mask: true },
+  box: { x: 128, y: 128, width: 128, height: 128, mask: false },
+  vehicle: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
 
 // Set your mapbox token here
@@ -43,10 +42,10 @@ const DEFAULT_THEME = {
 const INITIAL_VIEW_STATE = {
   latitude: 52.5,
   longitude: 13.4,
-  zoom: 10,
-  pitch: 20,
-  minZoom: 2,
-  maxZoom: 22,
+  zoom: 9,
+  pitch: 15,
+  minZoom: 1,
+  maxZoom: 23,
 }
 
 const DRT_REQUEST = {
@@ -118,15 +117,12 @@ export default function Component(props: {
       return null
     }
 
-    const vehicleId = vehicleLookup[object.v]
-
     return (
       <div
         className="tooltip"
         style={{
-          fontSize: '0.8rem',
-          backgroundColor: '#ddddeedd',
-          borderLeft: '6px solid green',
+          fontSize: '0.7rem',
+          backgroundColor: '#f4f4ffdd',
           boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
           color: '#223',
           padding: '1rem 1rem',
@@ -136,9 +132,9 @@ export default function Component(props: {
         }}
       >
         <big>
-          <b>Taxi: {vehicleId}</b>
+          <b>SHIPMENTS</b>
         </big>
-        <div>Passagiere: {object.occ} </div>
+        <div>and other data will go here </div>
       </div>
     )
   }
@@ -152,6 +148,7 @@ export default function Component(props: {
       // currentTime: simulationTime,
       getPath: (d: any) => d.points,
       getColor: (d: any) => d.color,
+      getPixelOffset: 10,
       getWidth: 4.0,
       opacity: 1.0,
       widthMinPixels: 4,
@@ -160,7 +157,7 @@ export default function Component(props: {
       // searchFlag: searchEnabled ? 1.0 : 0.0,
       pickable: true,
       autoHighlight: true,
-      highlightColor: [200, 255, 255],
+      highlightColor: [64, 255, 64],
       // onHover: setHoverInfo,
       parameters: {
         depthTest: false,
@@ -168,35 +165,52 @@ export default function Component(props: {
     })
   )
 
-  if (settingsShowLayers['Fahrzeuge'])
-    layers.push(
-      //@ts-ignore
-      new MovingIconLayer({
-        id: 'Vehicles',
-        data: paths,
-        getPathStart: (d: any) => d.p0,
-        getPathEnd: (d: any) => d.p1,
-        getTimeStart: (d: any) => d.t0,
-        getTimeEnd: (d: any) => d.t1,
-        getIcon: (d: any) => 'vehicle',
-        getColor: (d: any) => props.colors[d.occ],
-        iconMoving: 'vehicle',
-        iconStill: 'diamond',
-        getSize: searchEnabled ? 56 : 44,
-        opacity: 1.0,
-        currentTime: simulationTime,
-        shadowEnabled: false,
-        noAlloc: true,
-        iconAtlas: '/icon-atlas.png',
-        iconMapping: ICON_MAPPING,
-        sizeScale: 1,
-        billboard: true,
-        pickable: true,
-        autoHighlight: true,
-        highlightColor: [255, 0, 255],
-        onHover: setHoverInfo,
-      })
-    )
+  // destination circles
+  layers.push(
+    //@ts-ignore
+    new IconLayer({
+      id: 'dest-circles',
+      data: shownRoutes,
+      getIcon: (d: any) => 'circle',
+      getColor: (d: any) => (d.count ? [255, 255, 255] : [255, 255, 0]), // [64, 255, 64]), // d.color,
+      getPosition: (d: any) => d.points[0],
+      getSize: (d: any) => (d.count ? 38 : 64),
+      opacity: 1,
+      shadowEnabled: true,
+      noAlloc: false,
+      iconAtlas: '/icon-atlas-3.png',
+      iconMapping: ICON_MAPPING,
+      sizeScale: 1,
+      billboard: true,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [255, 0, 255],
+      // getTooltip: (d: any) => `Shipment ID will go here\n\nand other stiff`,
+      onHover: setHoverInfo,
+    })
+  )
+
+  // destination labels
+  layers.push(
+    //@ts-ignore
+    new TextLayer({
+      id: 'dest-labels',
+      data: shownRoutes,
+      backgroundColor: [255, 255, 255],
+      getColor: [0, 0, 0],
+      getPosition: (d: any) => d.points[0],
+      getText: (d: any) => `${d.label}`,
+      getTextAnchor: 'middle',
+      getSize: 18,
+      opacity: 1.0,
+      noAlloc: false,
+      sizeScale: 1,
+      pickable: false,
+      autoHighlight: false,
+      // highlightColor: [255, 0, 255],
+      // onHover: setHoverInfo,
+    })
+  )
 
   // if (settingsShowLayers['DRT Anfragen']))
   layers.push(
