@@ -10,18 +10,18 @@ const config: any = {
       thumbnail: '/thumb-examples.jpg',
     },
     {
-      name: 'Gladbeck',
-      url: 'gladbeck',
-      description: 'AVÖV Projekt: Gladbeck NRW',
+      name: 'zeroCUTS',
+      url: 'zerocuts',
+      description: 'zeroCUTS Project',
       svn:
-        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gladbeck/avoev',
+        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/zerocuts',
       need_password: false,
-      thumbnail: '/thumb-gladbeck.jpg',
+      thumbnail: '/thumbnail.png',
     },
     {
       name: 'Public-SVN',
       url: 'public-svn',
-      description: 'Simulation results from around the world (by country)',
+      description: 'Simulation results from around the world',
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
       need_password: false,
       thumbnail: '/thumbnail.png',
@@ -29,7 +29,7 @@ const config: any = {
     {
       name: 'Local Files',
       url: 'local',
-      description: 'Run scripts/serve.py to browse local files on your PC',
+      description: 'Run scripts/serve.py to browse files on your PC',
       svn: 'http://localhost:8000/data',
       need_password: false,
       thumbnail: '/thumb-localfiles.png',
