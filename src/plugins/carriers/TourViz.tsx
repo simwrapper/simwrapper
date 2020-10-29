@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer } from '@deck.gl/layers'
+import { ArcLayer, PathLayer } from '@deck.gl/layers'
 // import ShipmentLayer from './ShipmentLayer'
+import randomcolor from 'randomcolor'
 
 import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
 import PathTraceLayer from '@/layers/path-trace/path-trace'
@@ -41,8 +42,8 @@ const DEFAULT_THEME = {
 }
 
 const INITIAL_VIEW_STATE = {
-  latitude: 52.1,
-  longitude: 14,
+  latitude: 52.5,
+  longitude: 13.4,
   zoom: 10,
   pitch: 20,
   minZoom: 2,
@@ -61,6 +62,7 @@ const DRT_REQUEST = {
 
 export default function Component(props: {
   shipments: any[]
+  shownRoutes: any[]
   simulationTime: number
   paths: any[]
   drtRequests: any[]
@@ -78,6 +80,7 @@ export default function Component(props: {
 
   const {
     shipments,
+    shownRoutes,
     simulationTime,
     paths,
     traces,
@@ -141,30 +144,30 @@ export default function Component(props: {
     )
   }
 
-  if (settingsShowLayers['Routen'])
-    layers.push(
-      //@ts-ignore:
-      new PathTraceLayer({
-        id: 'Routen',
-        data: traces,
-        currentTime: simulationTime,
-        getSourcePosition: (d: any) => d.p0,
-        getTargetPosition: (d: any) => d.p1,
-        getTimeStart: (d: any) => d.t0,
-        getTimeEnd: (d: any) => d.t1,
-        getColor: (d: any) => props.colors[d.occ],
-        getWidth: (d: any) => 3.0 * (d.occ + 1) - 1,
-        opacity: 0.9,
-        widthMinPixels: 2,
-        rounded: false,
-        shadowEnabled: false,
-        searchFlag: searchEnabled ? 1.0 : 0.0,
-        pickable: true,
-        autoHighlight: true,
-        highlightColor: [255, 0, 255],
-        onHover: setHoverInfo,
-      })
-    )
+  // if (settingsShowLayers['Routen'])
+  layers.push(
+    //@ts-ignore:
+    new PathLayer({
+      id: 'deliveryroutes',
+      data: shownRoutes,
+      // currentTime: simulationTime,
+      getPath: (d: any) => d.points,
+      getColor: (d: any) => randomcolor({ luminosity: 'bright', format: 'rgbArray' }),
+      getWidth: 4.0,
+      opacity: 1.0,
+      widthMinPixels: 4,
+      rounded: false,
+      shadowEnabled: false,
+      // searchFlag: searchEnabled ? 1.0 : 0.0,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [200, 255, 255],
+      // onHover: setHoverInfo,
+      parameters: {
+        depthTest: false,
+      },
+    })
+  )
 
   if (settingsShowLayers['Fahrzeuge'])
     layers.push(
@@ -196,25 +199,27 @@ export default function Component(props: {
       })
     )
 
-  if (true)
-    // settingsShowLayers['DRT Anfragen'])
-    layers.push(
-      //@ts-ignore:
-      new ArcLayer({
-        id: 'shipments',
-        data: shipments,
-        // currentTime: 1.0, // simulationTime,
-        getSourcePosition: (d: any) => [d.fromX, d.fromY],
-        getTargetPosition: (d: any) => [d.toX, d.toY],
-        // getTimeStart: (d: any) => 0,
-        // getTimeEnd: (d: any) => 86400,
-        getSourceColor: [255, 0, 255],
-        getTargetColor: [200, 255, 255],
-        getWidth: 2.0,
-        opacity: 0.75,
-        // searchFlag: searchEnabled ? 1.0 : 0.0,
-      })
-    )
+  // if (settingsShowLayers['DRT Anfragen']))
+  // layers.push(
+  //   //@ts-ignore:
+  //   new ArcLayer({
+  //     id: 'shipments',
+  //     data: shipments,
+  //     // currentTime: 1.0, // simulationTime,
+  //     getSourcePosition: (d: any) => [d.fromX, d.fromY],
+  //     getTargetPosition: (d: any) => [d.toX, d.toY],
+  //     // getTimeStart: (d: any) => 0,
+  //     // getTimeEnd: (d: any) => 86400,
+  //     getSourceColor: [255, 0, 255],
+  //     getTargetColor: [200, 255, 255],
+  //     getWidth: 2.0,
+  //     opacity: 0.75,
+  //     // searchFlag: searchEnabled ? 1.0 : 0.0,
+  // parameters: {
+  //   depthTest: false
+  // }
+  //   })
+  // )
 
   return (
     <DeckGL

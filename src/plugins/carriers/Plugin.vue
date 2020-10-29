@@ -21,6 +21,7 @@ de:
 
   tour-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
                 :shipments="shipments"
+                :shownRoutes="shownRoutes"
                 :paths="[]"
                 :drtRequests="[]"
                 :traces="[]"
@@ -37,22 +38,24 @@ de:
         h3(v-if="carriers.length") Carriers
 
         .carrier-list
-          .carrier(v-for="carrier in carriers"
-                  @click="handleSelectCarrier(carrier)"
+          .carrier(v-for="carrier in carriers" :key="carrier.$.id"
+                  @click.self="handleSelectCarrier(carrier)"
                   :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
             .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
               .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
-                .vehicle(v-for="veh in vehicles") {{ veh }}
+                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
 
               .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
-                .vehicle(v-for="shipment in shipments") {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
+                .vehicle(v-for="shipment in shipments" :key="shipment.id") {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
 
               .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
-                .vehicle(v-for="service in services") {{ `${service.id}` }}
+                .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
 
               .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
-                .vehicle(v-for="tour in tours") {{ `${tour.id}` }}
+                .vehicle.tour(v-for="tour,i in tours" :key="i"
+                              @click="handleSelectTour(tour)"
+                              :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
 
         //- legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
         //- legend-colors.legend-block(v-if="legendItems.length"
@@ -267,8 +270,36 @@ class CarrierPlugin extends Vue {
   private shipments: any[] = []
   private services: any[] = []
   private tours: any[] = []
+  private shownRoutes: any[] = []
 
   private selectedCarrier = ''
+  private selectedTour: any = null
+
+  private handleSelectTour(tour: any) {
+    console.log(tour)
+
+    if (this.selectedTour === tour) {
+      this.selectedTour = null
+      this.shownRoutes = []
+      return
+    }
+
+    this.selectedTour = tour
+    this.shownRoutes = []
+
+    let count = 0
+    for (const route of tour.routes) {
+      // starting point from xy:[0,1]
+      const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
+      for (const link of route) {
+        // loop on to-points xy:[2,3]
+        points.push([this.links[link][2], this.links[link][3]])
+      }
+
+      this.shownRoutes.push({ points })
+    }
+    console.log({ shownRoutes: this.shownRoutes })
+  }
 
   private handleSelectCarrier(carrier: any) {
     console.log(carrier)
@@ -278,6 +309,7 @@ class CarrierPlugin extends Vue {
     this.shipments = []
     this.services = []
     this.tours = []
+    this.shownRoutes = []
 
     this.selectedCarrier = carrier.$.id
 
@@ -296,19 +328,34 @@ class CarrierPlugin extends Vue {
 
     console.log(this.services)
 
-    if (carrier.plan[0]?.tour)
-      this.tours = carrier.plan[0].tour
-        .map((t: any) => {
-          return {
-            id: t.$.vehicleId,
-            plan: t.$$.map((elem: any) => {
-              return Object.assign(elem.$, { $: elem['#name'] })
-            }),
-          }
-        })
-        .sort((a: any, b: any) => naturalSort(a.id, b.id))
+    this.tours = this.processTours(carrier)
+  }
 
-    console.log(this.tours)
+  private processTours(carrier: any) {
+    if (!carrier.plan[0]?.tour) return []
+
+    console.log({ tour: carrier.plan[0].tour })
+
+    const tours = carrier.plan[0].tour.map((t: any) => {
+      const plan = t.$$.map((elem: any) => {
+        return Object.assign(elem.$, { $: elem['#name'], route: elem.route })
+      })
+
+      const routes = plan
+        .filter((p: any) => p.$ === 'leg' && p.route[0].length)
+        .map((p: any) => p.route[0].split(' '))
+
+      return {
+        id: t.$.vehicleId,
+        plan,
+        routes,
+      }
+    })
+
+    tours.sort((a: any, b: any) => naturalSort(a.id, b.id))
+
+    console.log(tours)
+    return tours
   }
 
   private processShipments(carrier: any) {
@@ -435,7 +482,7 @@ class CarrierPlugin extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = YAML.parse(text)
-      if (!this.vizDetails.center) this.vizDetails.center = [14, 52.1]
+      if (!this.vizDetails.center) this.vizDetails.center = [13.4, 52.5]
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
@@ -937,7 +984,7 @@ class CarrierPlugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'carrier-viewer',
+  kebabName: 'carrier',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
   filePatterns: ['viz-carrier*.y?(a)ml'],
@@ -1170,7 +1217,13 @@ input {
 }
 
 .vehicle {
-  margin-left: 1rem;
+  padding-left: 1rem;
+}
+
+.tour.selected {
+  background-color: white;
+  font-weight: bold;
+  color: $matsimBlue;
 }
 
 @media only screen and (max-width: 640px) {
