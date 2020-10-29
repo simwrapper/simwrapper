@@ -4,7 +4,6 @@ import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
 import { ArcLayer, PathLayer } from '@deck.gl/layers'
 // import ShipmentLayer from './ShipmentLayer'
-import randomcolor from 'randomcolor'
 
 import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
 import PathTraceLayer from '@/layers/path-trace/path-trace'
@@ -152,7 +151,7 @@ export default function Component(props: {
       data: shownRoutes,
       // currentTime: simulationTime,
       getPath: (d: any) => d.points,
-      getColor: (d: any) => randomcolor({ luminosity: 'bright', format: 'rgbArray' }),
+      getColor: (d: any) => d.color,
       getWidth: 4.0,
       opacity: 1.0,
       widthMinPixels: 4,
@@ -200,26 +199,26 @@ export default function Component(props: {
     )
 
   // if (settingsShowLayers['DRT Anfragen']))
-  // layers.push(
-  //   //@ts-ignore:
-  //   new ArcLayer({
-  //     id: 'shipments',
-  //     data: shipments,
-  //     // currentTime: 1.0, // simulationTime,
-  //     getSourcePosition: (d: any) => [d.fromX, d.fromY],
-  //     getTargetPosition: (d: any) => [d.toX, d.toY],
-  //     // getTimeStart: (d: any) => 0,
-  //     // getTimeEnd: (d: any) => 86400,
-  //     getSourceColor: [255, 0, 255],
-  //     getTargetColor: [200, 255, 255],
-  //     getWidth: 2.0,
-  //     opacity: 0.75,
-  //     // searchFlag: searchEnabled ? 1.0 : 0.0,
-  // parameters: {
-  //   depthTest: false
-  // }
-  //   })
-  // )
+  layers.push(
+    //@ts-ignore:
+    new ArcLayer({
+      id: 'shipments',
+      data: shipments,
+      // currentTime: 1.0, // simulationTime,
+      getSourcePosition: (d: any) => [d.fromX, d.fromY],
+      getTargetPosition: (d: any) => [d.toX, d.toY],
+      // getTimeStart: (d: any) => 0,
+      // getTimeEnd: (d: any) => 86400,
+      getSourceColor: [255, 0, 255],
+      getTargetColor: [200, 255, 255],
+      getWidth: 2.0,
+      opacity: 0.75,
+      // searchFlag: searchEnabled ? 1.0 : 0.0,
+      parameters: {
+        depthTest: false,
+      },
+    })
+  )
 
   return (
     <DeckGL

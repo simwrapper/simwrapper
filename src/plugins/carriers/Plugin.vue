@@ -20,7 +20,7 @@ de:
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
   tour-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
-                :shipments="shipments"
+                :shipments="shownShipments"
                 :shownRoutes="shownRoutes"
                 :paths="[]"
                 :drtRequests="[]"
@@ -46,16 +46,19 @@ de:
               .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
                 .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
 
-              .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
-                .vehicle(v-for="shipment in shipments" :key="shipment.id") {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
-
-              .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
-                .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
-
               .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
                 .vehicle.tour(v-for="tour,i in tours" :key="i"
                               @click="handleSelectTour(tour)"
                               :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
+
+              .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
+                .vehicle.tour(v-for="shipment in shipments" :key="shipment.id"
+                                @click="handleSelectShipment(shipment)"
+                                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.id)}"
+                ) {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
+
+              .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
+                .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
 
         //- legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
         //- legend-colors.legend-block(v-if="legendItems.length"
@@ -111,6 +114,7 @@ import readBlob from 'read-blob'
 import { Route } from 'vue-router'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
+import randomcolor from 'randomcolor'
 import vuera from 'vuera'
 import xml2js from 'xml2js'
 import crossfilter from 'crossfilter2'
@@ -271,9 +275,25 @@ class CarrierPlugin extends Vue {
   private services: any[] = []
   private tours: any[] = []
   private shownRoutes: any[] = []
+  private shownShipments: any[] = []
+  private shipmentIdsInTour: any[] = []
 
   private selectedCarrier = ''
   private selectedTour: any = null
+  private selectedShipment: any = null
+
+  private handleSelectShipment(shipment: any) {
+    console.log(shipment)
+
+    if (this.selectedShipment === shipment) {
+      this.selectedShipment = null
+      this.shownShipments = []
+      return
+    }
+
+    this.shownShipments = this.shipments.filter(s => s.id === shipment.id)
+    this.selectedShipment = shipment
+  }
 
   private handleSelectTour(tour: any) {
     console.log(tour)
@@ -281,11 +301,28 @@ class CarrierPlugin extends Vue {
     if (this.selectedTour === tour) {
       this.selectedTour = null
       this.shownRoutes = []
+      this.shipmentIdsInTour = []
       return
     }
 
     this.selectedTour = tour
     this.shownRoutes = []
+
+    // find shipment components
+    const inTour: any[] = []
+    for (const activity of tour.plan) {
+      if (activity.shipmentId) inTour.push(activity.shipmentId)
+    }
+    console.log({ inTour })
+    this.shipmentIdsInTour = inTour
+
+    // always pick the same "random" colors
+    const colors = randomcolor({
+      seed: 1,
+      count: tour.routes.length,
+      luminosity: 'bright',
+      format: 'rgbArray',
+    })
 
     let count = 0
     for (const route of tour.routes) {
@@ -296,7 +333,7 @@ class CarrierPlugin extends Vue {
         points.push([this.links[link][2], this.links[link][3]])
       }
 
-      this.shownRoutes.push({ points })
+      this.shownRoutes.push({ points, color: colors[count++] })
     }
     console.log({ shownRoutes: this.shownRoutes })
   }
@@ -492,7 +529,7 @@ class CarrierPlugin extends Vue {
     }
 
     // title
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Carrier Explorer'
     this.$emit('title', t)
 
     this.buildThumbnail()
@@ -984,7 +1021,7 @@ class CarrierPlugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'carrier',
+  kebabName: 'carriers-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
   filePatterns: ['viz-carrier*.y?(a)ml'],
@@ -1224,6 +1261,10 @@ input {
   background-color: white;
   font-weight: bold;
   color: $matsimBlue;
+}
+
+.shipment-in-tour {
+  background-color: #687da3;
 }
 
 @media only screen and (max-width: 640px) {
