@@ -296,8 +296,12 @@ class CarrierPlugin extends Vue {
     this.selectedShipment = shipment
   }
 
-  private handleSelectTour(tour: any) {
+  private currentlyAnimating: any = {}
+
+  private async handleSelectTour(tour: any) {
     console.log(tour)
+
+    this.currentlyAnimating = tour
 
     if (this.selectedTour === tour) {
       this.selectedTour = null
@@ -319,12 +323,11 @@ class CarrierPlugin extends Vue {
     for (const activity of tour.plan) {
       if (activity.shipmentId) inTour.push(activity.shipmentId)
     }
-    console.log({ inTour })
     this.shipmentIdsInTour = inTour
 
     // always pick the same "random" colors
     const colors = randomcolor({
-      seed: 1,
+      seed: 15,
       count: tour.routes.length,
       luminosity: 'bright',
       format: 'rgbArray',
@@ -334,34 +337,49 @@ class CarrierPlugin extends Vue {
 
     const stopLocations: any[] = []
 
+    const sleep = (milliseconds: number) => {
+      return new Promise(resolve => setTimeout(resolve, milliseconds))
+    }
+
+    const animationSpeed = tour.routes.length > 20 ? 25 : 50
     for (const route of tour.routes) {
-      // starting point from xy:[0,1]
-      const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
-      for (const link of route) {
-        // loop on to-points xy:[2,3]
-        points.push([this.links[link][2], this.links[link][3]])
-      }
-
-      // see if we're on top of other nodes
-      let label = ''
-      for (let i = 0; i < count; i++) {
-        if (stopLocations[i][0] === points[0][0] && stopLocations[i][0] === points[0][0]) {
-          label += `,${i}`
-          this.shownRoutes[i].label = ''
-        }
-      }
-      stopLocations[count] = points[0]
-      label = label + `,${count}`
-      label = label.slice(1)
-
-      this.shownRoutes.push({ label, count, points, color: colors[count++] })
+      this.addRouteToMap(tour, route, stopLocations, colors, count)
+      count++
+      await sleep(animationSpeed)
     }
 
     console.log({ shownRoutes: this.shownRoutes })
   }
 
+  private addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
+    if (this.currentlyAnimating !== tour) return
+
+    // starting point from xy:[0,1]
+    const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
+    for (const link of route) {
+      // loop on to-points xy:[2,3]
+      points.push([this.links[link][2], this.links[link][3]])
+    }
+
+    // see if we're on top of other nodes
+    let label = ''
+    for (let i = 0; i < count; i++) {
+      if (stopLocations[i][0] === points[0][0] && stopLocations[i][0] === points[0][0]) {
+        label += `,${i}`
+        this.shownRoutes[i].label = ''
+      }
+    }
+    stopLocations[count] = points[0]
+    label = label + `,${count}`
+    label = label.slice(1)
+
+    this.shownRoutes = this.shownRoutes.concat([{ label, count, points, color: colors[count] }])
+  }
+
   private handleSelectCarrier(carrier: any) {
     console.log(carrier)
+    this.currentlyAnimating = null
+
     const id = carrier.$.id
 
     this.vehicles = []
