@@ -287,11 +287,14 @@ class CarrierPlugin extends Vue {
           stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
         ) {
           label += `,${i}`
+          if (label === ',0') label = ',*'
           stopMidpoints[sCount].label = ''
         }
       }
       label = label + `,${sCount}`
       label = label.slice(1)
+      if (label === '0') label = '*'
+
       stopMidpoints[sCount].label = label
     }
 
@@ -341,7 +344,6 @@ class CarrierPlugin extends Vue {
     }
 
     this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
-    console.log(count)
     this.stopMidpoints = stopLocations.slice(0, count)
   }
 
