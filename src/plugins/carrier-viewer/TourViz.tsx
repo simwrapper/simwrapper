@@ -61,7 +61,7 @@ const DRT_REQUEST = {
 export default function Component(props: {
   shipments: any[]
   shownRoutes: any[]
-  simulationTime: number
+  stopMidpoints: any[]
   paths: any[]
   drtRequests: any[]
   traces: any[]
@@ -79,13 +79,9 @@ export default function Component(props: {
   const {
     shipments,
     shownRoutes,
-    simulationTime,
-    paths,
-    traces,
-    drtRequests,
+    stopMidpoints,
     settingsShowLayers,
     center,
-    vehicleLookup,
     searchEnabled,
     onClick,
   } = props
@@ -170,10 +166,10 @@ export default function Component(props: {
     //@ts-ignore
     new IconLayer({
       id: 'dest-circles',
-      data: shownRoutes,
+      data: stopMidpoints,
       getIcon: (d: any) => 'circle',
       getColor: (d: any) => (d.count ? [255, 255, 255] : [255, 255, 0]), // [64, 255, 64]), // d.color,
-      getPosition: (d: any) => d.points[0],
+      getPosition: (d: any) => d.midpoint,
       getSize: (d: any) => (d.count ? 38 : 64),
       opacity: 1,
       shadowEnabled: true,
@@ -195,10 +191,10 @@ export default function Component(props: {
     //@ts-ignore
     new TextLayer({
       id: 'dest-labels',
-      data: shownRoutes,
+      data: stopMidpoints,
       backgroundColor: [255, 255, 255],
       getColor: [0, 0, 0],
-      getPosition: (d: any) => d.points[0],
+      getPosition: (d: any) => d.midpoint,
       getText: (d: any) => `${d.label}`,
       getTextAnchor: 'middle',
       getSize: 18,

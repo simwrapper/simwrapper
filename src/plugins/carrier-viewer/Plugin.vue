@@ -19,9 +19,10 @@ de:
     //- p.big.xtitle {{ vizDetails.title }}
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-  tour-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
+  tour-viz.anim(v-if="!thumbnail"
                 :shipments="shownShipments"
                 :shownRoutes="shownRoutes"
+                :stopMidpoints="stopMidpoints"
                 :paths="[]"
                 :drtRequests="[]"
                 :traces="[]"
@@ -189,28 +190,6 @@ class CarrierPlugin extends Vue {
     data: [] as any[],
   }
 
-  private timeStart = 0
-  private timeEnd = 86400
-
-  private traces: crossfilter.Crossfilter<any> = crossfilter([])
-  private traceStart!: crossfilter.Dimension<any, any>
-  private traceEnd!: crossfilter.Dimension<any, any>
-  private traceVehicle!: crossfilter.Dimension<any, any>
-
-  private paths: crossfilter.Crossfilter<any> = crossfilter([])
-  private pathStart!: crossfilter.Dimension<any, any>
-  private pathEnd!: crossfilter.Dimension<any, any>
-  private pathVehicle!: crossfilter.Dimension<any, any>
-
-  private requests: crossfilter.Crossfilter<any> = crossfilter([])
-  private requestStart!: crossfilter.Dimension<any, any>
-  private requestEnd!: crossfilter.Dimension<any, any>
-  private requestVehicle!: crossfilter.Dimension<any, any>
-
-  private simulationTime = 0 // 6 * 3600 // 8 * 3600 + 10 * 60 + 10
-
-  private timeElapsedSinceLastFrame = 0
-
   private searchTerm: string = ''
   private searchEnabled = false
 
@@ -230,6 +209,7 @@ class CarrierPlugin extends Vue {
   private vehicles: any[] = []
   private shipments: any[] = []
   private services: any[] = []
+  private stopMidpoints: any[] = []
   private tours: any[] = []
   private shownRoutes: any[] = []
   private shownShipments: any[] = []
@@ -259,27 +239,64 @@ class CarrierPlugin extends Vue {
 
     this.currentlyAnimating = tour
 
-    if (this.selectedTour === tour) {
-      this.selectedTour = null
-      this.shownRoutes = []
-      this.shownShipments = []
-      this.shipmentIdsInTour = []
-      this.selectedShipment = null
-      return
-    }
-
-    this.selectedTour = tour
     this.shownRoutes = []
     this.shownShipments = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
+    this.stopMidpoints = []
+
+    if (this.selectedTour === tour) {
+      this.selectedTour = null
+      return
+    }
+
+    this.selectedTour = tour
 
     // find shipment components
     const inTour: any[] = []
+    const stopMidpoints: any[] = []
+
+    let stopCount = 0
+
     for (const activity of tour.plan) {
-      if (activity.shipmentId) inTour.push(activity.shipmentId)
+      if (activity.shipmentId) {
+        inTour.push(activity.shipmentId)
+
+        // build list of stop locations -- this is inefficient, should use a map not an array
+        const shipment = this.shipments.find(s => s.id === activity.shipmentId)
+        const link = activity.type === 'pickup' ? shipment.from : shipment.to
+        // skip duplicate pickups/dropoffs at this location
+        if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
+          continue
+        }
+
+        const midpoint = [
+          0.5 * (this.links[link][0] + this.links[link][2]),
+          0.5 * (this.links[link][1] + this.links[link][3]),
+        ]
+        stopMidpoints.push({ count: stopCount++, link, midpoint, label: 'X' })
+      }
     }
+
+    // set stop labels: use commas to separate stop numbers if they're identical
+    for (let sCount = 0; sCount < stopMidpoints.length; sCount++) {
+      let label = ''
+      for (let i = 0; i < sCount; i++) {
+        if (
+          stopMidpoints[sCount].midpoint[0] === stopMidpoints[i].midpoint[0] &&
+          stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
+        ) {
+          label += `,${i}`
+          stopMidpoints[sCount].label = ''
+        }
+      }
+      label = label + `,${sCount}`
+      label = label.slice(1)
+      stopMidpoints[sCount].label = label
+    }
+
     this.shipmentIdsInTour = inTour
+    // this.stopMidpoints = stopMidpoints
 
     // always pick the same "random" colors
     const colors = randomcolor({
@@ -291,20 +308,18 @@ class CarrierPlugin extends Vue {
 
     let count = 0
 
-    const stopLocations: any[] = []
-
     const sleep = (milliseconds: number) => {
       return new Promise(resolve => setTimeout(resolve, milliseconds))
     }
 
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
     for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopLocations, colors, count)
+      this.addRouteToMap(tour, route, stopMidpoints, colors, count)
       count++
       await sleep(animationSpeed)
     }
-
-    console.log({ shownRoutes: this.shownRoutes })
+    this.stopMidpoints = stopMidpoints
+    // console.log({ shownRoutes: this.shownRoutes })
   }
 
   private addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
@@ -313,27 +328,25 @@ class CarrierPlugin extends Vue {
     // starting point from xy:[0,1]
     const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
     for (const link of route) {
-      // loop on to-points xy:[2,3]
+      const fromXY = [this.links[link][0], this.links[link][1]]
+      // add from point if it isn't a duplicate
+      if (
+        fromXY[0] !== points[points.length - 1][0] ||
+        fromXY[1] !== points[points.length - 1][1]
+      ) {
+        points.push(fromXY)
+      }
+      // always push toXY: xy:[2,3]
       points.push([this.links[link][2], this.links[link][3]])
     }
 
-    // see if we're on top of other nodes
-    let label = ''
-    for (let i = 0; i < count; i++) {
-      if (stopLocations[i][0] === points[0][0] && stopLocations[i][0] === points[0][0]) {
-        label += `,${i}`
-        this.shownRoutes[i].label = ''
-      }
-    }
-    stopLocations[count] = points[0]
-    label = label + `,${count}`
-    label = label.slice(1)
-
-    this.shownRoutes = this.shownRoutes.concat([{ label, count, points, color: colors[count] }])
+    this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
+    console.log(count)
+    this.stopMidpoints = stopLocations.slice(0, count)
   }
 
   private handleSelectCarrier(carrier: any) {
-    console.log(carrier)
+    console.log('carrier', carrier)
     this.currentlyAnimating = null
 
     const id = carrier.$.id
@@ -359,7 +372,7 @@ class CarrierPlugin extends Vue {
       this.vehicles = carrier.capabilities[0].vehicles[0].vehicle
         .map((v: any) => v.$.id)
         .sort((a: any, b: any) => naturalSort(a, b))
-    console.log(this.vehicles)
+    // console.log(this.vehicles)
 
     this.shipments = this.processShipments(carrier)
 
@@ -368,7 +381,7 @@ class CarrierPlugin extends Vue {
         .map((s: any) => s.$)
         .sort((a: any, b: any) => naturalSort(a.$.id, b.$.id))
 
-    console.log(this.services)
+    // console.log(this.services)
 
     this.tours = this.processTours(carrier)
   }
@@ -376,7 +389,7 @@ class CarrierPlugin extends Vue {
   private processTours(carrier: any) {
     if (!carrier.plan[0]?.tour) return []
 
-    console.log({ tour: carrier.plan[0].tour })
+    // console.log({ tour: carrier.plan[0].tour })
 
     const tours = carrier.plan[0].tour.map((t: any) => {
       const plan = t.$$.map((elem: any) => {
@@ -396,7 +409,7 @@ class CarrierPlugin extends Vue {
 
     tours.sort((a: any, b: any) => naturalSort(a.id, b.id))
 
-    console.log(tours)
+    // console.log(tours)
     return tours
   }
 
@@ -412,24 +425,22 @@ class CarrierPlugin extends Vue {
     try {
       for (const shipment of shipments) {
         // shipment has link id, so we go from link.from to link.to
-        shipment.fromX = this.links[shipment.from][0]
-        shipment.fromY = this.links[shipment.from][1]
-        shipment.toX = this.links[shipment.to][2]
-        shipment.toY = this.links[shipment.to][3]
+        shipment.fromX = 0.5 * (this.links[shipment.from][0] + this.links[shipment.from][2])
+        shipment.fromY = 0.5 * (this.links[shipment.from][1] + this.links[shipment.from][3])
+        shipment.toX = 0.5 * (this.links[shipment.to][0] + this.links[shipment.to][2])
+        shipment.toY = 0.5 * (this.links[shipment.to][1] + this.links[shipment.to][3])
       }
     } catch (e) {
       // if xy are missing, skip this -- just means network isn't loaded yet.
     }
 
-    console.log({ shipments })
+    // console.log({ shipments })
     return shipments
   }
 
   private async handleSettingChange(label: string) {
     console.log(label)
     this.SETTINGS[label] = !this.SETTINGS[label]
-    this.updateDatasetFilters()
-    this.simulationTime += 1 // this will force a redraw
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
@@ -567,25 +578,25 @@ class CarrierPlugin extends Vue {
     this.updateLegendColors()
   }
 
-  @Watch('searchTerm') private handleSearch() {
-    const vehicleNumber = this.vehicleLookupString[this.searchTerm]
-    if (vehicleNumber > -1) {
-      console.log('vehicle', vehicleNumber)
-      this.pathVehicle?.filterExact(vehicleNumber)
-      this.traceVehicle?.filterExact(vehicleNumber)
-      this.requestVehicle?.filterExact(vehicleNumber)
-      this.requestStart.filterAll()
-      this.requestEnd.filterAll()
-      this.searchEnabled = true
-    } else {
-      console.log('nope')
-      this.pathVehicle?.filterAll()
-      this.traceVehicle?.filterAll()
-      this.requestVehicle?.filterAll()
-      this.searchEnabled = false
-    }
-    this.updateDatasetFilters()
-  }
+  // @Watch('searchTerm') private handleSearch() {
+  //   const vehicleNumber = this.vehicleLookupString[this.searchTerm]
+  //   if (vehicleNumber > -1) {
+  //     console.log('vehicle', vehicleNumber)
+  //     this.pathVehicle?.filterExact(vehicleNumber)
+  //     this.traceVehicle?.filterExact(vehicleNumber)
+  //     this.requestVehicle?.filterExact(vehicleNumber)
+  //     this.requestStart.filterAll()
+  //     this.requestEnd.filterAll()
+  //     this.searchEnabled = true
+  //   } else {
+  //     console.log('nope')
+  //     this.pathVehicle?.filterAll()
+  //     this.traceVehicle?.filterAll()
+  //     this.requestVehicle?.filterAll()
+  //     this.searchEnabled = false
+  //   }
+  //   this.updateDatasetFilters()
+  // }
 
   private handleClick(vehicleNumber: any) {
     // null means empty area clicked: clear map.
@@ -639,51 +650,6 @@ class CarrierPlugin extends Vue {
     return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
 
-  private setWallClock() {
-    const hour = Math.floor(this.simulationTime / 3600)
-    const minute = Math.floor(this.simulationTime / 60) % 60
-    this.myState.clock = `${hour < 10 ? '0' : ''}${hour}${minute < 10 ? ':0' : ':'}${minute}`
-  }
-
-  private setTime(seconds: number) {
-    this.simulationTime = seconds
-    this.setWallClock()
-
-    // only filter if search is disabled and we have data loaded already
-    if (this.traceStart && this.pathStart && this.requestStart) {
-      this.pathStart.filter([0, this.simulationTime])
-      this.pathEnd.filter([this.simulationTime, Infinity])
-
-      // scrub vehicles if search is disabled
-      if (!this.searchEnabled) {
-        this.traceStart.filter([0, this.simulationTime])
-        this.traceEnd.filter([this.simulationTime, Infinity])
-        this.requestStart.filter([0, this.simulationTime])
-        this.requestEnd.filter([this.simulationTime, Infinity])
-      }
-    }
-
-    //@ts-ignore
-    this.$options.paths = this.paths.allFiltered()
-    //@ts-ignore
-    this.$options.traces = this.traces.allFiltered()
-    //@ts-ignore
-    this.$options.drtRequests = this.requests.allFiltered()
-  }
-
-  private toggleSimulation() {
-    this.myState.isRunning = !this.myState.isRunning
-    this.timeElapsedSinceLastFrame = Date.now()
-
-    // ok so, many times I mashed the play/pause wondering why things wouldn't
-    // start moving. Turns out a 0x speed is not very helpful! Help the user
-    // out and switch the speed up if they press play.
-    if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
-
-    // and begin!
-    if (this.myState.isRunning) this.animate()
-  }
-
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
@@ -696,8 +662,6 @@ class CarrierPlugin extends Vue {
     this.generateBreadcrumbs()
     this.updateLegendColors()
 
-    this.setWallClock()
-
     this.myState.statusMessage = 'Loading carriers...'
     console.log('loading files')
 
@@ -707,8 +671,6 @@ class CarrierPlugin extends Vue {
     console.log('GO!')
 
     this.myState.statusMessage = ''
-
-    document.addEventListener('visibilitychange', this.handleVisibilityChange, false)
   }
 
   private async loadCarriers() {
@@ -782,164 +744,10 @@ class CarrierPlugin extends Vue {
   private vehicleLookup: string[] = []
   private vehicleLookupString: { [id: string]: number } = {}
 
-  private async parseDrtRequests(requests: any[]) {
-    if (this.vehicleLookup.length) {
-      for (const request of requests) {
-        try {
-          request[5] = this.vehicleLookupString[request[5]]
-        } catch (e) {}
-      }
-    }
-
-    return crossfilter(requests)
-  }
-
-  private async parseVehicles(trips: any[]) {
-    const allTrips: any[] = []
-    let vehNumber = -1
-
-    await coroutines.forEachAsync(trips, (trip: any) => {
-      const path = trip.path
-      const timestamps = trip.timestamps
-      const passengers = trip.passengers
-
-      // attach vehicle ID to each segment so we can click
-      vehNumber++
-      this.vehicleLookup[vehNumber] = trip.id
-      this.vehicleLookupString[trip.id] = vehNumber
-
-      for (let i = 0; i < trip.path.length - 1; i++) {
-        allTrips.push({
-          t0: timestamps[i],
-          t1: timestamps[i + 1],
-          p0: path[i],
-          p1: path[i + 1],
-          v: vehNumber,
-          occ: passengers[i],
-        })
-      }
-    })
-    return crossfilter(allTrips)
-  }
-
-  private updateDatasetFilters() {
-    // dont' filter if we haven't loaded yet
-    if (!this.traceStart || !this.pathStart || !this.requestStart) return
-
-    // filter out all traces that havent started or already finished
-    if (this.SETTINGS.Routen) {
-      if (this.searchEnabled) {
-        this.traceStart.filterAll()
-        this.traceEnd.filterAll()
-      } else {
-        this.traceStart.filter([0, this.simulationTime])
-        this.traceEnd.filter([this.simulationTime, Infinity])
-      }
-      //@ts-ignore
-      this.$options.traces = this.traces.allFiltered()
-    }
-
-    if (this.SETTINGS.Fahrzeuge) {
-      this.pathStart.filter([0, this.simulationTime])
-      this.pathEnd.filter([this.simulationTime, Infinity])
-      //@ts-ignore:
-      this.$options.paths = this.paths.allFiltered()
-    }
-
-    if (this.SETTINGS['DRT Anfragen']) {
-      if (this.searchEnabled) {
-        this.requestStart.filterAll()
-        this.requestEnd.filterAll()
-      } else {
-        this.requestStart.filter([0, this.simulationTime])
-        this.requestEnd.filter([this.simulationTime, Infinity])
-      }
-      //@ts-ignore
-      this.$options.drtRequests = this.requests.allFiltered()
-    }
-  }
-
-  private animate() {
-    if (this.myState.isRunning) {
-      const elapsed = Date.now() - this.timeElapsedSinceLastFrame
-      this.timeElapsedSinceLastFrame += elapsed
-      this.simulationTime += elapsed * this.speed * 0.06
-
-      this.updateDatasetFilters()
-      this.setWallClock()
-      window.requestAnimationFrame(this.animate)
-    }
-  }
-
   private isPausedDueToHiding = false
-
-  private handleVisibilityChange() {
-    if (this.isPausedDueToHiding && !document.hidden) {
-      console.log('unpausing')
-      this.isPausedDueToHiding = false
-      this.toggleSimulation()
-    } else if (this.myState.isRunning && document.hidden) {
-      console.log('pausing')
-      this.isPausedDueToHiding = true
-      this.toggleSimulation()
-    }
-  }
-
-  // convert path/timestamp info into path traces we can use
-  private async parseRouteTraces(trips: any[]) {
-    let countTraces = 0
-    let vehNumber = -1
-
-    const traces: any = []
-
-    await coroutines.forEachAsync(trips, (vehicle: any) => {
-      vehNumber++
-
-      let time = vehicle.timestamps[0]
-      let nextTime = vehicle.timestamps[0]
-
-      let segments: any[] = []
-
-      for (let i = 1; i < vehicle.path.length; i++) {
-        nextTime = vehicle.timestamps[i]
-
-        // same point? start of new path.
-        if (
-          vehicle.path[i][0] === vehicle.path[i - 1][0] &&
-          vehicle.path[i][1] === vehicle.path[i - 1][1]
-        ) {
-          segments.forEach(segment => {
-            segment.t1 = vehicle.timestamps[i - 1]
-          })
-
-          traces.push(...segments)
-
-          segments = []
-          time = nextTime
-        } else {
-          segments.push({
-            t0: time,
-            p0: vehicle.path[i - 1],
-            p1: vehicle.path[i],
-            v: vehNumber,
-            occ: vehicle.passengers[i - 1],
-          })
-        }
-      }
-
-      // save final segments
-      segments.forEach(segment => {
-        segment.t1 = nextTime
-      })
-      traces.push(...segments)
-    })
-
-    return crossfilter(traces)
-  }
 
   private beforeDestroy() {
     this.myState.isRunning = false
-    document.removeEventListener('visibilityChange', this.handleVisibilityChange)
 
     if (this._networkHelper) this._networkHelper.destroy()
 
