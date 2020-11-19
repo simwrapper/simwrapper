@@ -43,6 +43,9 @@ de:
                   :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
             .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
+              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
+                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
+
               .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
                 .vehicle.tour(v-for="tour,i in tours" :key="i"
                               @click="handleSelectTour(tour)"
@@ -56,53 +59,6 @@ de:
 
               .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
                 .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
-
-              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
-                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
-
-
-        //- legend-colors.legend-block(title="Anfragen:" :items="legendRequests")
-        //- legend-colors.legend-block(v-if="legendItems.length"
-        //-   title="Passagiere:" :items="legendItems")
-
-        //- .search-panel
-        //-   p.speed-label(:style="{margin: '1rem 0 0 0', color: textColor.text}") Suche:
-        //-   form(autocomplete="off")
-        //-   .field
-        //-     p.control.has-icons-left
-        //-       input.input.is-small(type="email" placeholder="Search..." v-model="searchTerm")
-        //-       span.icon.is-small.is-left
-        //-         i.fas.fa-search
-
-        //- settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
-
-      //-   .speed-block
-      //-     p.speed-label(
-      //-       :style="{color: textColor.text}") Geschwindigkeit:
-      //-       br
-      //-       | {{ speed }}x
-
-      //-     vue-slider.speed-slider(v-model="speed"
-      //-       :data="speedStops"
-      //-       :duration="0"
-      //-       :dotSize="20"
-      //-       tooltip="active"
-      //-       tooltip-placement="bottom"
-      //-       :tooltip-formatter="val => val + 'x'"
-      //-     )
-
-
-  //- playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
-  //-   @click='toggleSimulation'
-  //-   @time='setTime'
-  //-   :timeStart = "timeStart"
-  //-   :timeEnd = "timeEnd"
-  //-   :isRunning = "myState.isRunning"
-  //-   :currentTime = "simulationTime")
-
-  //- .clock.big(v-if="isLoaded && !thumbnail")
-  //-   p {{ myState.clock }}
-
 
 </template>
 
