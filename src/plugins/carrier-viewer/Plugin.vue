@@ -391,6 +391,12 @@ class CarrierPlugin extends Vue {
     this.selectedShipment = null
     this.shipmentIdsInTour = []
 
+    // unselect carrier
+    if (this.selectedCarrier === carrier.$.id) {
+      this.selectedCarrier = ''
+      return
+    }
+
     this.selectedCarrier = carrier.$.id
 
     if (carrier.capabilities[0]?.vehicles[0]?.vehicle)
