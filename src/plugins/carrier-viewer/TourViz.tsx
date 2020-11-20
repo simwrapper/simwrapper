@@ -131,6 +131,12 @@ export default function Component(props: {
       )
     }
 
+    const tipHeight = Object.keys(object).length * 24 + 72
+    let yPosition = y - 30
+    if (yPosition + tipHeight > window.innerHeight) {
+      yPosition = yPosition - tipHeight + 20
+    }
+
     return (
       <div
         className="tooltip"
@@ -142,7 +148,7 @@ export default function Component(props: {
           padding: '0.5rem 0.5rem',
           position: 'absolute',
           left: x + 20,
-          top: y - 30,
+          top: yPosition,
         }}
       >
         <table
@@ -189,9 +195,9 @@ export default function Component(props: {
       data: shownRoutes,
       getPath: (d: any) => d.points,
       getColor: (d: any) => d.color,
-      getOffset: 2,
+      getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
       opacity: 1,
-      widthMinPixels: 12,
+      widthMinPixels: 10,
       rounded: true,
       shadowEnabled: false,
       // searchFlag: searchEnabled ? 1.0 : 0.0,
