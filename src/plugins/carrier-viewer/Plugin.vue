@@ -270,6 +270,8 @@ class CarrierPlugin extends Vue {
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
           continue
         }
+        const ptFrom = [this.links[link][0], this.links[link][1]]
+        const ptTo = [this.links[link][2], this.links[link][3]]
 
         const midpoint = [
           0.5 * (this.links[link][0] + this.links[link][2]),
@@ -292,6 +294,8 @@ class CarrierPlugin extends Vue {
           midpoint,
           label: '',
           details,
+          ptFrom,
+          ptTo,
         })
       }
     }

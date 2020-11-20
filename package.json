@@ -13,6 +13,7 @@
     "@aftersim/pako": "^1.0.11-3",
     "@deck.gl/aggregation-layers": "^8.2.9",
     "@deck.gl/core": "^8.2.7",
+    "@deck.gl/extensions": "^8.3.8",
     "@deck.gl/geo-layers": "^8.2.7",
     "@deck.gl/layers": "^8.2.7",
     "@deck.gl/mesh-layers": "^8.2.7",

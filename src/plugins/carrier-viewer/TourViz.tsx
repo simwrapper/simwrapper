@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, IconLayer, TextLayer } from '@deck.gl/layers'
+import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
+import { PathStyleExtension } from '@deck.gl/extensions'
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -190,6 +191,33 @@ export default function Component(props: {
   // if (settingsShowLayers['Routen'])
   layers.push(
     //@ts-ignore:
+    new PathLayer({
+      id: 'shipmentLocationDashedLine',
+      data: stopMidpoints,
+      getPath: (d: any) => [d.ptFrom, d.ptTo],
+      getColor: [192, 192, 192],
+      getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+      opacity: 1,
+      widthMinPixels: 4,
+      rounded: true,
+      shadowEnabled: false,
+      // searchFlag: searchEnabled ? 1.0 : 0.0,
+      pickable: false,
+      autoHighlight: false,
+      highlightColor: [255, 255, 255], // [64, 255, 64],
+      // onHover: setHoverInfo,
+      parameters: {
+        depthTest: false,
+      },
+      getDashArray: [3, 2],
+      dashJustified: true,
+      extensions: [new PathStyleExtension({ dash: true })],
+    })
+  )
+
+  // if (settingsShowLayers['Routen'])
+  layers.push(
+    //@ts-ignore:
     new PathOffsetLayer({
       id: 'deliveryroutes',
       data: shownRoutes,
@@ -197,7 +225,7 @@ export default function Component(props: {
       getColor: (d: any) => d.color,
       getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
       opacity: 1,
-      widthMinPixels: 10,
+      widthMinPixels: 12,
       rounded: true,
       shadowEnabled: false,
       // searchFlag: searchEnabled ? 1.0 : 0.0,
