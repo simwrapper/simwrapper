@@ -42,15 +42,16 @@ de:
           .carrier(v-for="carrier in carriers" :key="carrier.$.id"
                   @click.self="handleSelectCarrier(carrier)"
                   :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
-            .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
-              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
-                .vehicle(v-for="veh in vehicles" :key="veh") {{ veh }}
+            .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
               .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
                 .vehicle.tour(v-for="tour,i in tours" :key="i"
                               @click="handleSelectTour(tour)"
                               :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
+
+              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
+                .vehicle.tour(v-for="veh in vehicles" :key="veh") {{ veh }}
 
               .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
                 .vehicle.tour(v-for="shipment in shipments" :key="shipment.id"
@@ -274,7 +275,24 @@ class CarrierPlugin extends Vue {
           0.5 * (this.links[link][0] + this.links[link][2]),
           0.5 * (this.links[link][1] + this.links[link][3]),
         ]
-        stopMidpoints.push({ count: stopCount++, link, midpoint, label: 'X' })
+
+        const details = Object.assign({}, shipment)
+        delete details.from
+        delete details.fromX
+        delete details.fromY
+        delete details.to
+        delete details.toX
+        delete details.toY
+        delete details.id
+
+        stopMidpoints.push({
+          id: shipment.id,
+          count: stopCount++,
+          link,
+          midpoint,
+          label: '',
+          details,
+        })
       }
     }
 
@@ -361,6 +379,7 @@ class CarrierPlugin extends Vue {
     this.shownShipments = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
+    this.stopMidpoints = []
 
     // unselect carrier
     if (this.selectedCarrier === carrier.$.id) {
@@ -1051,7 +1070,8 @@ input {
 }
 
 .carrier-section {
-  margin-bottom: 0.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 @keyframes slide-up {

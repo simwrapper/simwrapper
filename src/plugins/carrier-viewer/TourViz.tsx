@@ -2,10 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
-// import ShipmentLayer from './ShipmentLayer'
-
-import PathTraceLayer from '@/layers/path-trace/path-trace'
+import { ArcLayer, IconLayer, TextLayer } from '@deck.gl/layers'
+import PathOffsetLayer from '@/layers/PathOffsetLayer'
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -113,24 +111,72 @@ export default function Component(props: {
       return null
     }
 
+    if (object.color) {
+      return (
+        <div
+          className="tooltip"
+          style={{
+            fontSize: '0.7rem',
+            backgroundColor: '#334455ee',
+            boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+            color: '#eee',
+            padding: '0.5rem 0.5rem',
+            position: 'absolute',
+            left: x + 20,
+            top: y - 30,
+          }}
+        >
+          Leg {object.count + 1}
+        </div>
+      )
+    }
+
     return (
       <div
         className="tooltip"
         style={{
           fontSize: '0.7rem',
-          backgroundColor: '#f4f4ffdd',
+          backgroundColor: '#334455ee',
           boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
-          color: '#223',
-          padding: '1rem 1rem',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
           position: 'absolute',
-          left: x + 40,
+          left: x + 20,
           top: y - 30,
         }}
       >
-        <big>
-          <b>SHIPMENTS</b>
-        </big>
-        <div>and other data will go here </div>
+        <table
+          style={{
+            fontSize: '0.8rem',
+          }}
+        >
+          <tbody>
+            {' '}
+            <tr>
+              <td
+                style={{
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                  textAlign: 'right',
+                  paddingRight: '0.5rem',
+                }}
+              >
+                Shipment {object.count}:
+              </td>
+              <td style={{ fontSize: '1rem', fontWeight: 'bold' }}> {object.id}</td>
+            </tr>
+            {Object.keys(object.details).map((a: any) => {
+              return (
+                <tr key={a}>
+                  <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
+                    {a}:
+                  </td>
+                  <td style={{ paddingTop: '0.2rem' }}>{object.details[a]}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     )
   }
@@ -138,23 +184,21 @@ export default function Component(props: {
   // if (settingsShowLayers['Routen'])
   layers.push(
     //@ts-ignore:
-    new PathLayer({
+    new PathOffsetLayer({
       id: 'deliveryroutes',
       data: shownRoutes,
-      // currentTime: simulationTime,
       getPath: (d: any) => d.points,
       getColor: (d: any) => d.color,
-      getPixelOffset: 10,
-      getWidth: 4.0,
-      opacity: 1.0,
-      widthMinPixels: 4,
+      getOffset: 2,
+      opacity: 1,
+      widthMinPixels: 12,
       rounded: true,
       shadowEnabled: false,
       // searchFlag: searchEnabled ? 1.0 : 0.0,
       pickable: true,
       autoHighlight: true,
       highlightColor: [255, 255, 255], // [64, 255, 64],
-      // onHover: setHoverInfo,
+      onHover: setHoverInfo,
       parameters: {
         depthTest: false,
       },
@@ -181,7 +225,6 @@ export default function Component(props: {
       pickable: true,
       autoHighlight: true,
       highlightColor: [255, 0, 255],
-      // getTooltip: (d: any) => `Shipment ID will go here\n\nand other stiff`,
       onHover: setHoverInfo,
     })
   )
@@ -203,22 +246,16 @@ export default function Component(props: {
       sizeScale: 1,
       pickable: false,
       autoHighlight: false,
-      // highlightColor: [255, 0, 255],
-      // onHover: setHoverInfo,
     })
   )
 
-  // if (settingsShowLayers['DRT Anfragen']))
   layers.push(
     //@ts-ignore:
     new ArcLayer({
       id: 'shipments',
       data: shipments,
-      // currentTime: 1.0, // simulationTime,
       getSourcePosition: (d: any) => [d.fromX, d.fromY],
       getTargetPosition: (d: any) => [d.toX, d.toY],
-      // getTimeStart: (d: any) => 0,
-      // getTimeEnd: (d: any) => 86400,
       getSourceColor: [255, 0, 255],
       getTargetColor: [200, 255, 255],
       getWidth: 2.0,
