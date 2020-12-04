@@ -30,7 +30,7 @@ const config: any = {
       name: 'Local Files',
       url: 'local',
       description: 'Run scripts/serve.py to browse files on your PC',
-      svn: 'http://localhost:8000/data',
+      svn: 'http://localhost:8000',
       need_password: false,
       thumbnail: '/thumb-localfiles.png',
     },
