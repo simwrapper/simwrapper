@@ -13,14 +13,16 @@
 # ]
 
 try:
-    import ndjson
     import sys
+    import ndjson
     import matsim
     from dfply import *
     from pyproj import Transformer
 except:
     print("OOPS! Error importing required libraries.")
     print('try "pip3 install matsim-tools ndjson dfply pyproj"')
+    print('older ubuntu version may require "pip3 install pyproj==2.6.1"')
+    sys.exit(1)
 
 if len(sys.argv) != 4:
     print(
