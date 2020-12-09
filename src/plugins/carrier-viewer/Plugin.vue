@@ -93,7 +93,8 @@ import readBlob from 'read-blob'
 import { Route } from 'vue-router'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
-import randomcolor from 'randomcolor'
+import colorMap from 'colormap'
+// import randomcolor from 'randomcolor'
 import vuera from 'vuera'
 import xml2js from 'xml2js'
 import crossfilter from 'crossfilter2'
@@ -246,7 +247,7 @@ class CarrierPlugin extends Vue {
   private selectedShipment: any = null
 
   private handleSelectShipment(shipment: any) {
-    console.log(shipment)
+    console.log({ shipment })
 
     if (this.selectedShipment === shipment) {
       this.selectedShipment = null
@@ -261,7 +262,7 @@ class CarrierPlugin extends Vue {
   private currentlyAnimating: any = {}
 
   private async handleSelectTour(tour: any) {
-    console.log(tour)
+    console.log({ tour })
 
     this.currentlyAnimating = tour
 
@@ -349,12 +350,12 @@ class CarrierPlugin extends Vue {
     // this.stopMidpoints = stopMidpoints
 
     // always pick the same "random" colors
-    const colors = randomcolor({
-      seed: 15,
-      count: tour.routes.length,
-      luminosity: 'bright',
-      format: 'rgbArray',
-    })
+
+    const colors = colorMap({
+      colormap: 'summer',
+      nshades: Math.max(9, tour.routes.length),
+      format: 'rba',
+    }).map((a: any) => a.slice(0, 3))
 
     let count = 0
 
