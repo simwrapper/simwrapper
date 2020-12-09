@@ -1,10 +1,12 @@
 <i18n>
 en:
+  carriers: "Carriers"
   vehicles: "VEHICLES"
   services: "SERVICES"
   shipments: "SHIPMENTS"
   tours: "TOURS"
 de:
+  carriers: "Unternehmen"
   vehicles: "FAHRZEUGE"
   services: "BETRIEBE"
   shipments: "LIEFERUNGEN"
@@ -36,31 +38,49 @@ de:
   collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
       .panel-items
 
-        h3(v-if="carriers.length") Carriers
+        h3(v-if="carriers.length") {{ $t('carriers')}}
 
         .carrier-list
           .carrier(v-for="carrier in carriers" :key="carrier.$.id"
-                  @click.self="handleSelectCarrier(carrier)"
-                  :class="{selected: carrier.$.id==selectedCarrier}") {{ carrier.$.id }}
+                  :class="{selected: carrier.$.id==selectedCarrier}")
+            .carrier-title(@click="handleSelectCarrier(carrier)")
+              i.far(:class="carrier.$.id==selectedCarrier ? 'fa-minus-square' : 'fa-plus-square'")
+              span {{ carrier.$.id }}
 
             .carrier-details(v-if="carrier.$.id==selectedCarrier")
 
-              .carrier-section(v-if="tours.length") {{ $t('tours')}}: {{ tours.length}}
-                .vehicle.tour(v-for="tour,i in tours" :key="i"
-                              @click="handleSelectTour(tour)"
-                              :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
+              .carrier-section(v-if="tours.length")
+                .carrier-title(@click="toggleTours = !toggleTours")
+                  i.far(:class="toggleTours ? 'fa-minus-square' : 'fa-plus-square'")
+                  span {{ $t('tours')}}: {{ tours.length}}
 
-              .carrier-section(v-if="vehicles.length") {{ $t('vehicles')}}: {{ vehicles.length}}
-                .vehicle.tour(v-for="veh in vehicles" :key="veh") {{ veh }}
+                .leaf.tour(v-for="tour,i in toggleTours ? tours:[]" :key="i"
+                           @click="handleSelectTour(tour)"
+                           :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
 
-              .carrier-section(v-if="shipments.length") {{ $t('shipments')}}: {{ shipments.length}}
-                .vehicle.tour(v-for="shipment in shipments" :key="shipment.id"
+              .carrier-section(v-if="vehicles.length")
+                .carrier-title(@click="toggleVehicles = !toggleVehicles")
+                  i.far(:class="toggleVehicles ? 'fa-minus-square' : 'fa-plus-square'")
+                  span  {{ $t('vehicles')}}: {{ vehicles.length}}
+
+                .leaf.tour(v-for="veh in toggleVehicles ? vehicles:[]" :key="veh") {{ veh }}
+
+              .carrier-section(v-if="shipments.length")
+                .carrier-title(@click="toggleShipments = !toggleShipments")
+                  i.far(:class="toggleShipments ? 'fa-minus-square' : 'fa-plus-square'")
+                  span  {{ $t('shipments')}}: {{ shipments.length}}
+
+                .leaf.tour(v-for="shipment in toggleShipments ? shipments:[]" :key="shipment.id"
                                 @click="handleSelectShipment(shipment)"
                                 :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.id)}"
                 ) {{ `${shipment.id}: ${shipment.from}-${shipment.to}` }}
 
-              .carrier-section(v-if="services.length") {{ $t('services')}}: {{ services.length}}
-                .vehicle(v-for="service in services" :key="service.id") {{ `${service.id}` }}
+              .carrier-section(v-if="services.length")
+                .carrier-title(@click="toggleServices = !toggleServices")
+                  i.far(:class="toggleServices ? 'fa-minus-square' : 'fa-plus-square'")
+                  span  {{ $t('services')}}: {{ services.length}}
+
+                .leaf.tour(v-for="service in toggleServices ? services:[]" :key="service.id") {{ `${service.id}` }}
 
 </template>
 
@@ -205,6 +225,11 @@ class CarrierPlugin extends Vue {
   private legendBits: any[] = []
 
   private links: any = {}
+
+  private toggleTours = true
+  private toggleVehicles = true
+  private toggleShipments = true
+  private toggleServices = true
 
   private carriers: any[] = []
   private vehicles: any[] = []
@@ -1057,6 +1082,25 @@ input {
   color: var(--yellow);
 }
 
+.carrier-title {
+  margin-top: 0.1rem;
+  display: flex;
+  flex-direction: row;
+
+  i {
+    opacity: 0.3;
+    margin-top: 0.2rem;
+    margin-left: -0.2rem;
+    margin-right: 0.4rem;
+  }
+}
+
+.carrier-title:hover {
+  i {
+    opacity: 0.7;
+  }
+}
+
 .carrier.selected {
   font-weight: bold;
   background-color: $themeColorPale;
@@ -1093,8 +1137,12 @@ input {
   pointer-events: auto;
 }
 
-.vehicle {
+.leaf {
   padding-left: 1rem;
+}
+
+.leaf:hover {
+  color: yellowgreen;
 }
 
 .tour.selected {
