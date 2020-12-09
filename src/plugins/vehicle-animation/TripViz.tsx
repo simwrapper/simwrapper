@@ -5,7 +5,7 @@ import DeckGL from '@deck.gl/react'
 import DrtRequestLayer from './DrtRequestLayer'
 
 import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
-import PathTraceLayer from '@/layers/path-trace/path-trace'
+import PathTraceLayer from '@/layers/PathTraceLayer'
 
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
