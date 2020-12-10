@@ -14,35 +14,7 @@ de:
 </i18n>
 
 <template lang="pug">
-.carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
-
-  .nav(v-if="!thumbnail")
-    //- p.big.xtitle {{ vizDetails.title }}
-    p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
-
-  tour-viz.anim(v-if="!thumbnail"
-                :shipments="shownShipments"
-                :shownRoutes="shownRoutes"
-                :stopMidpoints="stopMidpoints"
-                :paths="[]"
-                :drtRequests="[]"
-                :traces="[]"
-                :colors="COLOR_OCCUPANCY"
-                :settingsShowLayers="SETTINGS"
-                :center="vizDetails.center"
-                :searchEnabled="searchEnabled"
-                :vehicleLookup="vehicleLookup"
-                :onClick="handleClick")
-
-  collapsible-panel.left-side(v-if="detailContent" :darkMode="true" direction="left" width="300")
-    h3 Details
-    .panel-items
-      .carrier-list
-        p(style="color: #ccc; padding-right: 2rem;") {{detailContent}}
-
-  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
-
+collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
     .panel-items
 
       h3(v-if="carriers.length") {{ $t('carriers')}}
@@ -63,7 +35,7 @@ de:
 
               .leaf.tour(v-for="tour,i in toggleTours ? tours:[]" :key="i"
                           @click="handleSelectTour(tour)"
-                          :class="{selected: tour==selectedTour}") {{ `${tour.vehicleId}` }}
+                          :class="{selected: tour==selectedTour}") {{ `${tour.id}` }}
 
             .carrier-section(v-if="vehicles.length")
               .carrier-title(@click="toggleVehicles = !toggleVehicles")
@@ -105,13 +77,12 @@ import colorMap from 'colormap'
 import vuera from 'vuera'
 import xml2js from 'xml2js'
 import crossfilter from 'crossfilter2'
-import pako from '@aftersim/pako'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
+import pako from '@aftersim/pako'
 import AnimationView from '@/plugins/agent-animation/AnimationView.vue'
-import DetailsPanel from './DetailsPanel.vue'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
 import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
@@ -132,71 +103,19 @@ import {
   DARK_MODE,
 } from '@/Globals'
 
-import TourViz from './TourViz'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
-
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
-
 naturalSort.insensitive = true
 
 @Component({
   components: {
     CollapsiblePanel,
-    DetailsPanel,
     LegendColors,
     PlaybackControls,
     SettingsPanel,
     ToggleButton,
-    TourViz,
     VueSlider,
   } as any,
 })
-class CarrierPlugin extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
-
-  @Prop({ required: false })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private thumbnail!: boolean
-
-  private COLOR_OCCUPANCY: any = {
-    0: [255, 255, 85],
-    1: [32, 96, 255],
-    2: [85, 255, 85],
-    3: [255, 85, 85],
-    4: [200, 0, 0],
-    // 5: [255, 150, 255],
-  }
-
-  COLOR_OCCUPANCY_MATSIM_UNUSED: any = {
-    0: [255, 85, 255],
-    1: [255, 255, 85],
-    2: [85, 255, 85],
-    3: [85, 85, 255],
-    4: [255, 85, 85],
-    5: [255, 85, 0],
-  }
-
-  SETTINGS: { [label: string]: boolean } = {
-    Fahrzeuge: false,
-    Routen: false,
-    'DRT Anfragen': false,
-  }
-
-  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map(key => {
-    return { type: LegendItemType.line, color: this.COLOR_OCCUPANCY[key], value: key, label: key }
-  })
-
-  private legendRequests = [
-    { type: LegendItemType.line, color: [255, 0, 255], value: 0, label: '' },
-  ]
-
+class DetailsPanel extends Vue {
   private vizDetails = {
     network: '',
     carriers: '',
@@ -207,25 +126,13 @@ class CarrierPlugin extends Vue {
     center: [13.4, 52.5],
   }
 
-  public myState = {
-    statusMessage: '',
-    clock: '00:00',
-    colorScheme: ColorScheme.DarkMode,
-    isRunning: false,
-    isShowingHelp: false,
-    fileApi: this.fileApi,
-    fileSystem: undefined as SVNProject | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
-    data: [] as any[],
-  }
+  private colorScheme = ColorScheme.DarkMode
 
   private searchTerm: string = ''
   private searchEnabled = false
 
   private globalState = globalStore.state
-  private isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.colorScheme === ColorScheme.DarkMode
   private isLoaded = true
   private showHelp = false
 
@@ -240,8 +147,6 @@ class CarrierPlugin extends Vue {
   private toggleVehicles = true
   private toggleShipments = true
   private toggleServices = true
-
-  private detailContent = ''
 
   private carriers: any[] = []
   private vehicles: any[] = []
@@ -285,13 +190,10 @@ class CarrierPlugin extends Vue {
 
     if (this.selectedTour === tour) {
       this.selectedTour = null
-      this.detailContent = ''
       return
     }
 
     this.selectedTour = tour
-
-    this.detailContent = JSON.stringify(tour)
 
     // find shipment components
     const inTour: any[] = []
@@ -466,14 +368,15 @@ class CarrierPlugin extends Vue {
         .map((p: any) => p.route[0].split(' '))
 
       return {
-        vehicleId: t.$.vehicleId,
+        id: t.$.vehicleId,
         plan,
         routes,
       }
     })
 
-    tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
+    tours.sort((a: any, b: any) => naturalSort(a.id, b.id))
 
+    // console.log(tours)
     return tours
   }
 
@@ -502,165 +405,9 @@ class CarrierPlugin extends Vue {
     return shipments
   }
 
-  private async handleSettingChange(label: string) {
-    console.log(label)
-    this.SETTINGS[label] = !this.SETTINGS[label]
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = YAML.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    // first get config
-    try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
-      this.vizDetails = YAML.parse(text)
-      if (!this.vizDetails.center) this.vizDetails.center = [13.4, 52.5]
-    } catch (e) {
-      console.log('failed')
-      // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
-      }
-    }
-
-    // title
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Carrier Explorer'
-    this.$emit('title', t)
-
-    this.buildThumbnail()
-  }
-
-  private async buildThumbnail() {
-    if (this.thumbnail && this.vizDetails.thumbnail) {
-      try {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.thumbnail
-        )
-        const buffer = await readBlob.arraybuffer(blob)
-        const base64 = this.arrayBufferToBase64(buffer)
-        if (base64)
-          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-      } catch (e) {
-        console.error(e)
-      }
-    }
-  }
-
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
-
   @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
-    this.updateLegendColors()
+    this.isDarkMode = this.colorScheme === ColorScheme.DarkMode
   }
-
-  // @Watch('searchTerm') private handleSearch() {
-  //   const vehicleNumber = this.vehicleLookupString[this.searchTerm]
-  //   if (vehicleNumber > -1) {
-  //     console.log('vehicle', vehicleNumber)
-  //     this.pathVehicle?.filterExact(vehicleNumber)
-  //     this.traceVehicle?.filterExact(vehicleNumber)
-  //     this.requestVehicle?.filterExact(vehicleNumber)
-  //     this.requestStart.filterAll()
-  //     this.requestEnd.filterAll()
-  //     this.searchEnabled = true
-  //   } else {
-  //     console.log('nope')
-  //     this.pathVehicle?.filterAll()
-  //     this.traceVehicle?.filterAll()
-  //     this.requestVehicle?.filterAll()
-  //     this.searchEnabled = false
-  //   }
-  //   this.updateDatasetFilters()
-  // }
 
   private handleClick(vehicleNumber: any) {
     // null means empty area clicked: clear map.
@@ -711,203 +458,16 @@ class CarrierPlugin extends Vue {
       bg: '#181518aa',
     }
 
-    return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    return this.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
 
-  private async mounted() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
-
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-
-    if (this.thumbnail) return
-
-    this.showHelp = false
-    this.generateBreadcrumbs()
-    this.updateLegendColors()
-
-    this.myState.statusMessage = 'Loading carriers...'
-    console.log('loading files')
-
-    this.carriers = await this.loadCarriers()
-    this.links = await this.loadNetwork()
-
-    console.log('GO!')
-
-    this.myState.statusMessage = ''
-  }
-
-  private async loadCarriers() {
-    // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
-
-    const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
-    const carriers: any = await this.parseXML(carriersXML)
-
-    // crazy but correct - why is matsim so verbose?
-    const carrierList = carriers.carriers.carrier.sort((a: any, b: any) =>
-      naturalSort(a.$.id, b.$.id)
-    )
-    await this.$nextTick() // update UI update before network load begins
-
-    console.log({ carrierList })
-
-    return carrierList
-  }
-
-  private async loadNetwork() {
-    this.myState.statusMessage = 'Loading network'
-    if (this.vizDetails.network.indexOf('.xml.') > -1) {
-      // matsim xml file
-      const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
-      const network: any = await this.parseXML(networkXML)
-      const convertedNetwork = await this.convertRoadNetwork(network)
-      return convertedNetwork
-    } else {
-      // pre-converted output from create_network.py
-      const blob = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + this.vizDetails.network
-      )
-      const blobString = blob ? await blobToBinaryString(blob) : null
-      let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-      const convertedNetwork = JSON.parse(text)
-      return convertedNetwork
-    }
-  }
-
-  private _networkHelper?: NetworkHelper
-
-  private async convertRoadNetwork(network: string) {
-    this.myState.statusMessage = 'Projecting network...'
-    this.vizDetails.projection = 'EPSG:31464'
-
-    this._networkHelper = await NetworkHelper.create({
-      xml: network,
-      projection: this.vizDetails.projection,
-    })
-
-    this.myState.statusMessage = 'Crunching road network...'
-    await this._networkHelper.createNodesAndLinks()
-
-    this.myState.statusMessage = 'Converting coordinates...'
-    const result: any = await this._networkHelper.convertCoordinates()
-
-    this._networkHelper.destroy()
-
-    // last step: build lookup of x/y directly in links
-    this.myState.statusMessage = 'Merging links and nodes'
-    const nodes = result.network.nodes
-    const links: any = {}
-
-    for (const id of Object.keys(result.network.links)) {
-      const link = result.network.links[id]
-      links[id] = [nodes[link.from].x, nodes[link.from].y, nodes[link.to].x, nodes[link.to].y]
-    }
-    return links
-  }
+  private async mounted() {}
 
   private vehicleLookup: string[] = []
   private vehicleLookupString: { [id: string]: number } = {}
-
-  private isPausedDueToHiding = false
-
-  private beforeDestroy() {
-    this.myState.isRunning = false
-
-    if (this._networkHelper) this._networkHelper.destroy()
-
-    globalStore.commit('setFullScreen', false)
-    this.$store.commit('setFullScreen', false)
-  }
-
-  private parseXML(xml: string) {
-    // The '$' object contains a leaf's attributes
-    // The '$$' object contains an explicit array of the children
-    //
-    // Sometimes you can also refer to a child node by name, such as
-    // carrier.shipments
-    //
-    // SHIPMENTS
-    // to get the array of shipment objects, use
-    // carriers.carrier[x].shipments.$$ -> returns array of shipment objects
-    // -- each shipment object: has .$ attributes
-    //
-    // PLANS
-    // plan is at carriers.carrier[x].plan[0] -- are there ever multiple plans?
-    // tour is at plan.tour[x]
-    // -- $ has vehicleId
-    // -- $$ has array of:
-    //       #name --> act/leg
-    //           $ --> other params
-    //       route --> string of links "12345 6789 123"
-
-    // these options are all mandatory for reading the complex carriers
-    // file. The main weirdness is that matsim puts children of different
-    // types in an order that matters (act,leg,act,leg,act... etc)
-
-    const parser = new xml2js.Parser({
-      strict: true,
-      trim: true,
-      preserveChildrenOrder: true,
-      explicitChildren: true,
-      explicitArray: true,
-    })
-
-    return new Promise((resolve, reject) => {
-      parser.parseString(xml, function(err: Error, result: string) {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(result)
-        }
-      })
-    })
-  }
-
-  private async loadFileOrGzippedFile(name: string) {
-    console.log('loading', name)
-
-    let content = ''
-
-    // network
-    try {
-      if (name.endsWith('xml')) {
-        content = await this.myState.fileApi.getFileText(this.myState.subfolder + '/' + name)
-      } else if (name.endsWith('gz')) {
-        const blob = await this.myState.fileApi.getFileBlob(this.myState.subfolder + '/' + name)
-        const blobString = blob ? await blobToBinaryString(blob) : null
-        content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-      }
-    } catch (e) {
-      const error = name + ': ' + e
-      console.error(e)
-      this.myState.statusMessage = error
-    }
-    return content
-  }
-
-  private toggleLoaded(loaded: boolean) {
-    this.isLoaded = loaded
-  }
-
-  private rotateColors() {
-    this.myState.colorScheme =
-      this.myState.colorScheme === ColorScheme.DarkMode
-        ? ColorScheme.LightMode
-        : ColorScheme.DarkMode
-    localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
-  }
 }
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'carrier-viewer',
-  prettyName: 'Carrier Viewer',
-  description: 'For freight etc!',
-  filePatterns: ['viz-carrier*.y?(a)ml'],
-  component: CarrierPlugin,
-} as VisualizationPlugin)
-
-export default CarrierPlugin
+export default DetailsPanel
 </script>
 
 <style scoped lang="scss">
@@ -943,7 +503,7 @@ export default CarrierPlugin
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
     'title      rightside'
-    'leftside   rightside'
+    '.          rightside'
     'playback   clock';
 }
 
@@ -996,22 +556,6 @@ export default CarrierPlugin
   font-size: 2rem;
   line-height: 3.75rem;
   font-weight: bold;
-}
-
-.left-side {
-  // white-space: pre-wrap;
-  position: absolute;
-  top: 40%;
-  bottom: 0rem;
-  left: 0;
-  margin: 6rem 0 5rem 0;
-  background-color: $steelGray;
-  box-shadow: 0px 2px 10px #111111ee;
-  color: white;
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  pointer-events: auto;
 }
 
 .right-side {
