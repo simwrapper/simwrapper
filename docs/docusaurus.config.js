@@ -1,8 +1,8 @@
 module.exports = {
   title: "aftersim",
   tagline: "the model output browser and data visualizer from TU Berlin.",
-  url: "https://your-docusaurus-test-site.com",
-  baseUrl: "/",
+  url: "https://aftersim.github.io",
+  baseUrl: "/docs/",
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
   favicon: "img/favicon-32x32.png",
