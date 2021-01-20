@@ -15,5 +15,5 @@ You need to make sure metadata is at the FRONT of the video file, not the back. 
 https://stackoverflow.com/questions/13705409/mp4-in-video-js-not-playing-until-fully-loaded
 
 - install `gpac`
-- run `MP4Box -add infile.mp4 fixedfile.mp4`
+- run `MP4Box -add origfile.mp4 fixedfile.mp4`
 - or perhaps `MP4Box -isma myfile.mp4`

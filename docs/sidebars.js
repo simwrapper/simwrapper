@@ -1,13 +1,13 @@
 module.exports = {
   someSidebar: {
     aftersim: ["aftersim-intro", "aftersim-installation"],
-    Plugins: [
+    plugins: [
       "aggregate-od",
       "carrier-viewer",
+      "drt-vehicles",
       "link-vols",
       "sankey",
       "vega-lite",
-      "drt-vehicles",
       "video",
       "xy-hexagons",
     ],

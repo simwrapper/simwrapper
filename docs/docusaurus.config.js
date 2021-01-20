@@ -22,10 +22,10 @@ module.exports = {
           label: "Docs",
           position: "left",
         },
-        { to: "blog", label: "Blog", position: "left" },
+        { to: "blog", label: "News", position: "left" },
         {
           href: "https://github.com/aftersim/aftersim.github.io",
-          label: "On GitHub",
+          label: "GitHub",
           position: "right",
         },
       ],
