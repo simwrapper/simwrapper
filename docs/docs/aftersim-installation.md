@@ -1,12 +1,11 @@
 ---
-id: intro
-title: aftersim documentation
-slug: "/"
+id: aftersim-installation
+title: Installation & Setup
 ---
 
-This repo contains documentation for the interactive visualization platform **aftersim**, available at [aftersim.github.io](https://avoev-vsp.github.io).
+This page details build instructions for setting up your own instance of an aftersim website.
 
-This README details build instructions for the website itself.
+- If you are only interested in using aftersim at aftersim.github.io (in other words, if you are at VSP Berlin and want to view model results), then you do not need to do this. (Follow [these instructions](/docs/docs/aftersim-usage) instead)
 
 ## Project pre-requisites
 

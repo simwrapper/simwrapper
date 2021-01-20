@@ -53,7 +53,3 @@ Note: All filename fields can refer to parent folders using `../`.
 - example: `geojsonfile: '../networks/base.json.gz'`
 
 This works as far up the hierarchy as the base of the public-svn specified in `svnConfig.js` but no further.
-
-```
-
-```

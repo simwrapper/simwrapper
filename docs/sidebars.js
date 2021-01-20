@@ -1,6 +1,6 @@
 module.exports = {
   someSidebar: {
-    aftersim: ["intro"],
+    aftersim: ["aftersim-intro", "aftersim-installation"],
     Plugins: [
       "aggregate-od",
       "carrier-viewer",
