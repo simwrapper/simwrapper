@@ -25,8 +25,10 @@ Header line can contain labels but is CURRENTLY IGNORED
 - Column 3: Value
 - All other columns ignored
 
+Example:
+
 ```
-from;to;number of trips (sample size); average change in trip travel time [sec]
+from;to;number of trips (sample size); average change [sec]
 
 car;car;748552;4.851276865
 walk;walk;236111;0.064274854

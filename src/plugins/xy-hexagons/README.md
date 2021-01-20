@@ -6,7 +6,7 @@ Count the number of things that occur inside hexagons of arbitrary size.
 
 A file named `viz-xy-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate XY Hexagon diagram.
 
-**xy-example.yml**
+**viz-xy-example.yml**
 
 ```yaml
 title: 'XY Example-1: DRT Vehicles'

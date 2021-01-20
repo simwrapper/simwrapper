@@ -26,9 +26,31 @@ shpFileIdProperty: 'ID'
 
 ## YAML fields explained
 
-**csvFile:** dataset, or "base" dataset for difference plots
+---
+
+**geojsonFile:** geojson-converted network file. Use the python script in `scripts/create-network.py` to create a geojson network from a matsim network.xml.gz file.
+
+- Command is `python3 create-network.py [mynetwork.xml.gz]`
+- and will create a file with the name `mynetwork.json.gz`.
+
+**shpFile,dbfFile:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
+
+**csvFile**: dataset, or "base" dataset for difference plots
+
 **csvFile2:** (optional) "project" dataset for difference plots
-**geojsonFile:** geojson-converted network file
-**shpFile,dbfFile:** (deprecated) alternative, slower network file in shapefile format
+
 **sampleRate:** MATSim simulation sample rate; i.e. a 1% sample should use `0.01` here so that volumes are scaled properly
+
 **shpFileIdProperty:** property name of field in Shapefile which contains area ID for linking shapefile regions to csvFile data.
+
+---
+
+Note: All filename fields can refer to parent folders using `../`.
+
+- example: `geojsonfile: '../networks/base.json.gz'`
+
+This works as far up the hierarchy as the base of the public-svn specified in `svnConfig.js` but no further.
+
+```
+
+```
