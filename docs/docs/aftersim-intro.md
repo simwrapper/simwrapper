@@ -28,7 +28,7 @@ Most MATSim outputs such as the `*.xml.gz` files are too large to open in a web 
 
 Here's how it works: For every visualization you want to create, you write a small _configuration file_ and store it in the same folder as the inputs for that visualization. (We use the YAML text format, which is a common configuration file format.) For each properly named YAML file, one visualization thumbnail will appear in that folder when you navigate to the folder in aftersim. Clicking on the thumbnail will open that visualization full-screen.
 
-Generally, a viz will require a specific set of inputs, and those inputs are usually the result of some _pre-processing_ of the raw MATSim outputs. It's up to you to do that pre-processing and commit the files to public-svn in the same folder as your config file.
+Generally, a viz will require a specific set of inputs, and those inputs are usually the result of some _post-processing_ of the raw MATSim outputs. It's up to you to do that post-processing and commit the files to public-svn in the same folder as your config file.
 
 ## 2. Creating visualizations for your model outputs
 
@@ -45,7 +45,7 @@ projection: "EPSG:25832"
 sampleRate: 0.10
 ```
 
-This config names two files, a CSV of link volumes and a zipped JSON file of the MATSim road network, and some parameters needed for the viz to work. Those files are outputs of some pre-processing scripts described in the plugin docs.
+This config names two files, a CSV of link volumes and a zipped JSON file of the MATSim road network, and some parameters needed for the viz to work. Those files are outputs of some post-processing scripts described in the plugin docs.
 
 If you wanted to look at several different link volume plots from the same model run, (e.g. for vehicle counts instead of passengers), you would make a copy of this file, give it a different name, and edit the `csvFile` parameter to point to the correct CSV.
 
@@ -57,7 +57,7 @@ Make sure that your files are allowed to be "world-readable" before you publish 
 
 ### Plugins
 
-Each visualization is described in the "Plugins" section of this documentation, including how to pre-process the outputs and how to define any configuration settings.
+Each visualization is described in the "Plugins" section of this documentation, including how to post-process the outputs and how to define any configuration settings.
 
 If you want to modify or create your own plugins, check out the [to be written](/)
 
