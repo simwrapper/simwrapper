@@ -5,12 +5,16 @@ en:
   services: "SERVICES"
   shipments: "SHIPMENTS"
   tours: "TOURS"
+  pickup: "Pickup"
+  delivery: "Delivery"
 de:
   carriers: "Unternehmen"
   vehicles: "FAHRZEUGE"
   services: "BETRIEBE"
   shipments: "LIEFERUNGEN"
   tours: "TOUREN"
+  pickup: "Abholung"
+  delivery: "Lieferung"
 </i18n>
 
 <template lang="pug">
@@ -329,6 +333,7 @@ class CarrierPlugin extends Vue {
 
         stopMidpoints.push({
           id: shipment.id,
+          type: activity.type === 'pickup' ? this.$t('pickup') : this.$t('delivery'),
           count: stopCount++,
           link,
           midpoint,

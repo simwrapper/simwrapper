@@ -132,10 +132,11 @@ export default function Component(props: {
       )
     }
 
-    const tipHeight = Object.keys(object).length * 24 + 72
+    // delivery stop has complicated position stuff
+    const tipHeight = Object.keys(object).length * 20 + 32 // good guess
     let yPosition = y - 30
     if (yPosition + tipHeight > window.innerHeight) {
-      yPosition = yPosition - tipHeight + 20
+      yPosition = y - tipHeight
     }
 
     return (
@@ -158,7 +159,6 @@ export default function Component(props: {
           }}
         >
           <tbody>
-            {' '}
             <tr>
               <td
                 style={{
@@ -168,7 +168,7 @@ export default function Component(props: {
                   paddingRight: '0.5rem',
                 }}
               >
-                Shipment {object.count}:
+                {object.type} {object.count}:
               </td>
               <td style={{ fontSize: '1rem', fontWeight: 'bold' }}> {object.id}</td>
             </tr>
