@@ -19,7 +19,7 @@ module.exports = {
         {
           to: "docs/",
           activeBasePath: "docs",
-          label: "Docs",
+          label: "Documentation",
           position: "left",
         },
         { to: "blog", label: "News", position: "left" },
@@ -90,7 +90,7 @@ module.exports = {
           editUrl: "https://github.com/aftersim/docs/edit/master/website/",
         },
         blog: {
-          showReadingTime: true,
+          showReadingTime: false,
           // Please change this to your repo.
           editUrl: "https://github.com/aftersim/docs/edit/master/website/blog/",
         },
