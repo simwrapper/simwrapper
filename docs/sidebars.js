@@ -1,6 +1,15 @@
 module.exports = {
   someSidebar: {
-    Docusaurus: ['doc1', 'doc2', 'doc3'],
-    Features: ['mdx'],
+    aftersim: ["intro"],
+    Plugins: [
+      "aggregate-od",
+      "carrier-viewer",
+      "link-vols",
+      "sankey",
+      "vega-lite",
+      "drt-vehicles",
+      "video",
+      "xy-hexagons",
+    ],
   },
 };
