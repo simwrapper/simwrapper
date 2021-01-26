@@ -14,9 +14,21 @@ This guide assumes you are either using the [main aftersim site](https://aftersi
 
 ## 1. How aftersim works
 
-aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your files subfolders. For VSP, our public subversion server is that file storage.
+aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your files subfolders. For VSP, our public subversion server is that file storage. You can also view files on your local computer by running a tiny file server locally.
 
-### File and folder browsing
+### Files on your local computer
+
+You can use aftersim to browse files on your local computer if you run a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will be able to access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
+
+- Java: download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/mini-file-server.jar) and run with the command
+  - `java -jar mini-file-server.jar \[rootfolder\]`
+  - If you don't provide a root folder it will use the .jar file's working folder, which is probably not what you want.
+- Python: download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
+  - `cd` to the root folder you wish to serve, and then run with the command
+  - `/path/to/serve.py` or `~/serve.py` if it's in your home directory
+  - Should work with Python 2 or 3.
+
+### Files on public-svn and other internet locations
 
 You can browse through any folders and files that have been stored on public-svn, and you can create your own project folders there for your simulations, too.
 
