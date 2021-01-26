@@ -5,7 +5,7 @@ title: Installation & Setup
 
 This page details build instructions for setting up your own instance of an aftersim website.
 
-- If you are only interested in using aftersim at aftersim.github.io (in other words, if you are at VSP Berlin and want to view model results), then you do not need to do this. (Read [these instructions](aftersim-intro.md) instead)
+- If you are only interested in using aftersim at aftersim.github.io (in other words, if you are at VSP Berlin and want to view model results), then **you do not need to read this page.** (Read [these instructions](aftersim-intro.md) instead or go to the [plugin guide](aggregate-od.md))
 
 ## Project pre-requisites
 

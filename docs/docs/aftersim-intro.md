@@ -22,27 +22,27 @@ You can use aftersim to browse files on your local computer if you run a small f
 
 We have local file servers written in Java and Python. Pick whichever one you are more comfortable with:
 
-- **Python:** - this should work with Python 2.7 or 3.x:
+**Python:** - this should work with Python 2.7 or 3.x:
 
-  1. Download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
-  2. `cd` to the root folder you wish to serve, and then run with the command
-  3. `/path/to/serve.py` or `~/serve.py` if it's in your home directory
+1. Download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
+2. `cd` to the root folder you wish to serve, and then run with the command
+3. `/path/to/serve.py` or `~/serve.py` if it's in your home directory
 
-- **Java:**
+**Java:**
 
-  Run the .jar file directly:
+Run the .jar file directly:
 
-  1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
-  2. `java -jar mini-file-server.jar \[rootfolder\]`
-     - or on Windows just double-click the .jar file to run it and serve the folder it is in.
-  3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
+1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
+2. `java -jar mini-file-server.jar \[rootfolder\]`
+3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
+4. On Windows you can double-click the .jar file to run it and serve the folder it is in.
 
-  Or on Mac, if you want to double-click the file to run:
+On Mac, if you want to double-click the file to run:
 
-  1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
-  2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command
-     - `chmod +x mini-file-server-mac` to make it executable on double-click
-  3. Move it to the folder you want to serve, and you can now double-click to start the server
+1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
+2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command
+   - `chmod +x mini-file-server-mac` to make it executable
+3. Move it to the folder you want to serve, and you can now double-click to start the server
 
 ### Files on public-svn and other internet locations
 
