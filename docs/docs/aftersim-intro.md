@@ -34,8 +34,8 @@ We have local file servers written in Java and Python. Pick whichever one you ar
   Or on Mac, if you want to double-click the file to run:
 
   1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
-  2. `Cmd-I` to open properties, and add execute permission to the file
-  3. Move to the folder you want to serve, and you can now double-click to start the serer
+  2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command `chmod +x mini-file-server-mac` to make it executable on double-click
+  3. Move it to the folder you want to serve, and you can now double-click to start the serer
 
 - **Python:** - this should work with Python 2.7 or 3.x:
 
