@@ -34,7 +34,7 @@ You will need to know this tech in order to hack on this website:
 One line fetches everything from the npm database:
 
 ```
-yarn install
+npm ci
 ```
 
 ## Development Commands
@@ -44,13 +44,13 @@ yarn install
 This command runs a local server with hot reload for testing, usually listens on http://localhost:8080
 
 ```
-yarn serve
+npm run serve
 ```
 
 ### Compiles and minifies for production
 
 ```
-yarn build
+npm run build
 ```
 
 ### Run your unit tests
@@ -58,7 +58,7 @@ yarn build
 Well... I have not written tests but the infrastructure is there to use `jest`.
 
 ```
-yarn test:unit
+npm run test:unit
 ```
 
 ### Pushing to the live site
@@ -73,12 +73,11 @@ Travis-CI is configured to automatically build the site with **every push to mas
 - `/src/assets`: images, .csvs, etc that get packaged by webpack
 - `/src/components`: shared Vue components go here
 - `/src/HomeIndex.vue`: the front page. Add new thumbnails for pages or other content here.
-- `/src/runs`: Each page has its own folder under the `/src/runs` folder.
-  - Connect up your new pages by adding a new folder here, and also adding a new URL to `/src/router.ts`. Anyone who knows the URL can then see the page. When you are ready for the public to also find it, add a link to `/src/components/TopBar.vue` and to the homepage.
-  - Each run should use a `readme.md` file under `/src/assets` so that researchers can add notes without having to learn the build system.
-- `/scripts`: Python scripts go here, which are used for preprocessing EpiSim results
-- `/public`: large .zip files, project notes, etc go in public. These files are pushed as-is by webpack; i.e. they are not packaged in any way
+- `/src/plugins`: Each visualization plugin has its own folder under the `/src/plugins` folder.
+  - Connect up your new vizes by adding a new folder here, and also adding the component to `pluginRegistry.ts`.
+- `/scripts`: Python scripts go here, which are often used for postprocessing results
+- `/public`: Files here are pushed as-is by webpack; i.e. they are not packaged in any way
 
-## Thank you!
+### Thanks for your interest!
 
 Good luck and thanks for the help! -- [Billy](https://github.com/billyc)
