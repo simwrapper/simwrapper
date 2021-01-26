@@ -1,6 +1,6 @@
-# AVÖV Projekt Webseite
+# aftersim project website
 
-This repo contains the interactive visualization website for AVÖV/AVOEV, available at https://avoev-vsp.github.io.
+This repo contains the interactive visualization website for **aftersim**, available at https://aftersim.github.io.
 
 This README details build instructions for the website itself.
 
