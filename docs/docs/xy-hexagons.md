@@ -3,6 +3,10 @@ id: xy-hexagons
 title: XY Hexagons
 ---
 
+![xy hexagon banner](../static/img/xy-hexagons.jpg)
+
+_Origin/Destination summary_
+
 Count the number of things that occur inside hexagons of arbitrary size.
 
 ## Usage

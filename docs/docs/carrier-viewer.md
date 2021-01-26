@@ -4,7 +4,6 @@ title: Carrier Viewer
 ---
 
 ![carriers-banner](../static/img/carriers.jpg)
-
 _MATSim carrier plans_
 
 ## Usage
