@@ -4,11 +4,15 @@ title: Introduction
 slug: "/"
 ---
 
-**aftersim** is a unique, web-based data visualization portal developed for use by researchers involved with disaggregate, agent-based transportation simulations such as [MATSim](https://matsim.org). It enables many interactive views such as agent movements through time, aggregate link and area volumes, scenario comparison, and a lot more.
+![aftersim banner](../static/img/banner.png)
+
+aftersim is a unique, web-based data visualization tool for researchers building disaggregate, agent-based transportation simulations with [MATSim](https://matsim.org).
+
+---
+
+aftersim provides many interactive views such as agent movements through time, aggregate link and area volumes, scenario comparison, and a lot more.
 
 The open-source code and plugin architecture of aftersim allows you to fork the project and create your own visualizations, too.
-
-This repo contains documentation for the interactive visualization platform **aftersim**, available at [aftersim.github.io](https://avoev-vsp.github.io).
 
 This guide assumes you are either using the [main aftersim site](https://aftersim.github.io), or have already set up your own instance of aftersim and have access to the file storage area that you configured.
 
@@ -16,7 +20,9 @@ This guide assumes you are either using the [main aftersim site](https://aftersi
 
 aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your files subfolders. For VSP, our public subversion server is that file storage. You can also view files on your local computer by running a tiny file server locally.
 
-### Files on your local computer
+For each folder, aftersim shows zoomable thumbnails of the any image files in that folder, including all of the standard MATSim summary charts with iteration statistics, mode shares, etc. It will also show thumbnails for any visualizations that you have set up for that folder (See #2 below).
+
+### Viewing local folders on your computer
 
 You can use aftersim to browse files on your local computer if you run a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will be able to access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
@@ -25,16 +31,16 @@ We have local file servers written in Java and Python. Pick whichever one you ar
 **Python:** - this should work with Python 2.7 or 3.x:
 
 1. Download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
-2. `cd` to the root folder you wish to serve, and then run with the command
+2. `cd` to the root folder you wish to serve, and then run the command
 3. `/path/to/serve.py` or `~/serve.py` if it's in your home directory
-4. Test that it's working by running the command and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
+4. Test that it's working by browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
 **Java:**
 
 Run the .jar file directly:
 
 1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
-2. `java -jar mini-file-server.jar \[rootfolder\]`
+2. `java -jar mini-file-server.jar [rootfolder]`
 3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
 4. On Windows you can double-click the .jar file to run it and serve the folder it is in.
 5. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
@@ -47,11 +53,11 @@ On Mac, if you want to double-click the file to run:
 3. Move it to the folder you want to serve, and you can now double-click to start the server
 4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
-### Files on public-svn and other internet locations
+### Viewing files stored on public-svn and other internet locations
 
-You can browse through any folders and files that have been stored on public-svn, and you can create your own project folders there for your simulations, too.
+The main aftersim site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
 
-For each folder, aftersim shows zoomable thumbnails of the any image files in that folder, including all of the standard MATSim summary charts with iteration statistics, mode shares, etc.
+To set up aftersim for other storage locations, you need to either fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
 
 ## 2. Visualizations and their YAML files
 
