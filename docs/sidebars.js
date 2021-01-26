@@ -1,8 +1,7 @@
 module.exports = {
   someSidebar: {
-    aftersim: [
+    "Using aftersim": [
       "aftersim-intro",
-      "aftersim-installation",
       "aggregate-od",
       "carrier-viewer",
       "drt-vehicles",
@@ -13,5 +12,6 @@ module.exports = {
       "video",
       "xy-hexagons",
     ],
+    "Developer Guide": ["aftersim-installation", "writing-plugins"],
   },
 };
