@@ -22,6 +22,12 @@ aftersim is essentially a very fancy file browser that works on the web. It reve
 
 For each folder, aftersim shows zoomable thumbnails of the any image files in that folder, including all of the standard MATSim summary charts with iteration statistics, mode shares, etc. It will also show thumbnails for any visualizations that you have set up for that folder (See #2 below).
 
+### Viewing files stored on public-svn and other internet locations
+
+The main aftersim site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
+
+To set up aftersim for other storage locations, you need to fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
+
 ### Viewing local folders on your computer
 
 You can use aftersim to browse files on your local computer if you run a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will be able to access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
@@ -52,12 +58,6 @@ On Mac, if you want to double-click the file to run:
    - `chmod +x mini-file-server-mac` to make it executable
 3. Move it to the folder you want to serve, and you can now double-click to start the server
 4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
-
-### Viewing files stored on public-svn and other internet locations
-
-The main aftersim site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
-
-To set up aftersim for other storage locations, you need to fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
 
 ## 2. Visualizations and their YAML files
 
