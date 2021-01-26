@@ -50,7 +50,7 @@ You can browse through any folders and files that have been stored on public-svn
 
 For each folder, aftersim shows zoomable thumbnails of the any image files in that folder, including all of the standard MATSim summary charts with iteration statistics, mode shares, etc.
 
-### Visualizations and their YAML files
+## 2. Visualizations and their YAML files
 
 Most MATSim outputs such as the `*.xml.gz` files are too large to open in a web browser, so there is also a set of _visualization plugins_ which can display something useful for you. Plugins exist for lots of things the the list is growing: link volumes, agent animations, aggregate area summaries, and more.
 
@@ -58,7 +58,7 @@ Here's how it works: For every visualization you want to create, you write a sma
 
 Generally, a viz will require a specific set of inputs, and those inputs are usually the result of some _post-processing_ of the raw MATSim outputs. It's up to you to do that post-processing and commit the files to public-svn in the same folder as your config file.
 
-## 2. Creating visualizations for your model outputs
+## 3. Creating visualizations for your model outputs
 
 Here is an example YAML config file for a link-volume summary:
 
