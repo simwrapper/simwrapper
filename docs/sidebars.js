@@ -12,6 +12,6 @@ module.exports = {
       "video",
       "xy-hexagons",
     ],
-    "Developer guide": ["aftersim-installation", "writing-plugins"],
+    "Developer Guide": ["aftersim-installation", "writing-plugins"],
   },
 };
