@@ -27,6 +27,7 @@ We have local file servers written in Java and Python. Pick whichever one you ar
 1. Download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
 2. `cd` to the root folder you wish to serve, and then run with the command
 3. `/path/to/serve.py` or `~/serve.py` if it's in your home directory
+4. Test that it's working by running the command and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
 **Java:**
 
@@ -36,6 +37,7 @@ Run the .jar file directly:
 2. `java -jar mini-file-server.jar \[rootfolder\]`
 3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
 4. On Windows you can double-click the .jar file to run it and serve the folder it is in.
+5. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
 On Mac, if you want to double-click the file to run:
 
@@ -43,6 +45,7 @@ On Mac, if you want to double-click the file to run:
 2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command
    - `chmod +x mini-file-server-mac` to make it executable
 3. Move it to the folder you want to serve, and you can now double-click to start the server
+4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
 ### Files on public-svn and other internet locations
 
