@@ -57,11 +57,11 @@ On Mac, if you want to double-click the file to run:
 
 The main aftersim site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
 
-To set up aftersim for other storage locations, you need to either fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
+To set up aftersim for other storage locations, you need to fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
 
 ## 2. Visualizations and their YAML files
 
-Most MATSim outputs such as the `*.xml.gz` files are too large to open in a web browser, so there is also a set of _visualization plugins_ which can display something useful for you. Plugins exist for lots of things the the list is growing: link volumes, agent animations, aggregate area summaries, and more.
+Most MATSim outputs such as the `*.xml.gz` files are too large to open in a web browser, so there is also a set of _visualization plugins_ which can display something useful for you. Plugins exist for lots of things and the list is growing: link volumes, agent animations, aggregate area summaries, and more.
 
 Here's how it works: For every visualization you want to create, you write a small _configuration file_ and store it in the same folder as the inputs for that visualization. (We use the YAML text format, which is a common configuration file format.) For each properly named YAML file, one visualization thumbnail will appear in that folder when you navigate to the folder in aftersim. Clicking on the thumbnail will open that visualization full-screen.
 
