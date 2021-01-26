@@ -20,13 +20,28 @@ aftersim is essentially a very fancy file browser that works on the web. It reve
 
 You can use aftersim to browse files on your local computer if you run a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will be able to access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
-- Java: download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/mini-file-server.jar) and run with the command
-  - `java -jar mini-file-server.jar \[rootfolder\]`
-  - If you don't provide a root folder it will use the .jar file's working folder, which is probably not what you want.
-- Python: download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
-  - `cd` to the root folder you wish to serve, and then run with the command
-  - `/path/to/serve.py` or `~/serve.py` if it's in your home directory
-  - Should work with Python 2 or 3.
+We have local file servers written in Java and Python. Pick whichever one you are more comfortable with:
+
+- **Java:**
+
+  Run the .jar file directly:
+
+  1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
+  2. `java -jar mini-file-server.jar \[rootfolder\]`
+     - or on Windows just double-click the .jar file to run it and serve the folder it is in.
+  3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
+
+  Or on Mac, if you want to double-click the file to run:
+
+  1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
+  2. `Cmd-I` to open properties, and add execute permission to the file
+  3. Move to the folder you want to serve, and you can now double-click to start the serer
+
+- **Python:** - this should work with Python 2.7 or 3.x:
+
+  1. Download [serve.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/serve.py) and save somewhere useful, like your home directory.
+  2. `cd` to the root folder you wish to serve, and then run with the command
+  3. `/path/to/serve.py` or `~/serve.py` if it's in your home directory
 
 ### Files on public-svn and other internet locations
 
