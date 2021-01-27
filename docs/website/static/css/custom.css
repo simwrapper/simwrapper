@@ -7,6 +7,31 @@
 
 /* your custom css */
 
+body {
+  font-family: "Nunito", "Arial", "Helvetica";
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Roboto Slab", "Roboto", "Arial", "Helvetica";
+}
+
+h1.postHeaderTitle {
+  margin-bottom: 0;
+}
+
+.docs-prevnext {
+  padding-bottom: 1rem;
+}
+
+.mainContainer {
+  padding: 40px 0 0 0;
+}
+
 .nav-footer .sitemap .nav-home {
   opacity: 1;
 }

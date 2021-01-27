@@ -189,8 +189,8 @@ class Index extends React.Component {
               >
                 {item.title}
               </a>{" "}
-              <br />
               <small style={{ fontSize: "15px" }}>
+                <br />
                 {new Date(item.date).toLocaleDateString("en-US", {
                   weekday: undefined,
                   year: "numeric",
@@ -250,8 +250,8 @@ class Index extends React.Component {
       <div>
         <HomeSplash siteConfig={siteConfig} language={language} />
         <div className="mainContainer">
-          <PrettyBanner />
           {/* <Features /> */}
+          <PrettyBanner />
           <LatestBlogEntries />
           {/* <LearnHow /> */}
           {/* <TryOut /> */}
