@@ -36,10 +36,15 @@ class HomeSplash extends React.Component {
     );
 
     const ProjectTitle = (props) => (
-      <h2 style={{ paddingTop: "1rem" }} className="projectTitle">
-        {props.title}
-        <small>{props.tagline}</small>
-      </h2>
+      <div style={{
+        display: 'flex',
+        flexDirection:'column',
+        margin: "2rem auto 1rem auto", }}>
+        <h2 style={{ padding: "0 1rem", border: "6px solid #ef2", margin: "0 auto", backgroundColor: '#ffffff', textAlign: 'center', paddingTop: "1rem" }} className="projectTitle">
+          {props.title}
+           <small>{props.tagline}</small>
+        </h2>
+      </div>
     );
 
     const PromoSection = (props) => (
@@ -52,7 +57,7 @@ class HomeSplash extends React.Component {
 
     const Button = (props) => (
       <div className="pluginWrapper buttonWrapper">
-        <a className="button" href={props.href} target={props.target}>
+        <a className="button billybutton" href={props.href} target={props.target}>
           {props.children}
         </a>
       </div>

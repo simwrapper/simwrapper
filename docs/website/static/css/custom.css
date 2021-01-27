@@ -28,12 +28,44 @@ h1.postHeaderTitle {
   padding-bottom: 1rem;
 }
 
+.blog-recent {
+  padding-bottom: 3rem;
+}
+
 .mainContainer {
-  padding: 40px 0 0 0;
+  padding: 0px 0 0 0;
+}
+
+.homeContainer {
+  background-image: url("/docs/img/berlin-dots.jpg");
+  margin: 0 0;
+  padding: 0 0;
+}
+
+.billybutton {
+  background-color: white;
+  font-weight: bold;
+}
+
+.billybutton:hover {
+  background-color: #f7ff9a;
+  color: #222;
+}
+
+h2.projectTitle {
+  color: #33bb77;
 }
 
 .nav-footer .sitemap .nav-home {
   opacity: 1;
+}
+
+.postHeader {
+  margin-top: 50px;
+}
+
+.navigationSlider .slidingNav ul li a:hover {
+  color: #ef2;
 }
 
 @media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
