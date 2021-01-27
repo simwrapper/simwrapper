@@ -43,8 +43,10 @@ h1.postHeaderTitle {
 }
 
 .billybutton {
+  color: #33bb77;
   background-color: white;
   font-weight: bold;
+  padding: 1rem 1rem;
 }
 
 .billybutton:hover {
