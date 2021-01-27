@@ -72,11 +72,14 @@ Travis-CI is configured to automatically build the site with **every push to mas
 - `/src`: all TypeScript and Vue files go here
 - `/src/assets`: images, .csvs, etc that get packaged by webpack
 - `/src/components`: shared Vue components go here
-- `/src/HomeIndex.vue`: the front page. Add new thumbnails for pages or other content here.
-- `/src/plugins`: Each visualization plugin has its own folder under the `/src/plugins` folder.
-  - Connect up your new vizes by adding a new folder here, and also adding the component to `pluginRegistry.ts`.
-- `/scripts`: Python scripts go here, which are often used for postprocessing results
-- `/public`: Files here are pushed as-is by webpack; i.e. they are not packaged in any way
+- `/src/layers`: shared deck.gl layer files go here
+- `/src/plugins`: Each plugin gets its own folder here. To create your own plugin, copy one of these, rename its folder and main .vue file, and register it in `pluginRegistry.ts`. Read the plugin developer guide for details.
+- `/src/util`: some typscript utility classes
+- `/src/views`: The Vue pages that render various site pages such as the home page. Vue pages are registered in `/src/router.ts`
+  - `HomeIndex.vue`: the front page. Add new thumbnails for pages or other content here.
+  - `FolderBrowser.vue`: Project pages are rendered by this page
+- `/public`: large .zip files, project notes, etc go in public. These files are pushed as-is by webpack; i.e. they are not packaged in any way
+- `/scripts`: Python scripts go here. Most of these are used for postprocessing model results
 
 ### Thanks for your interest!
 

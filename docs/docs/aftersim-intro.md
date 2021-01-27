@@ -4,9 +4,9 @@ title: Introduction
 slug: "/"
 ---
 
-![aftersim banner](../static/img/banner.png)
+**aftersim** is a unique, web-based data visualization tool for researchers building disaggregate, agent-based transportation simulations with [MATSim](https://matsim.org).
 
-aftersim is a unique, web-based data visualization tool for researchers building disaggregate, agent-based transportation simulations with [MATSim](https://matsim.org).
+![aftersim banner](../static/img/demo-thumbnails.jpg)
 
 ---
 
@@ -18,9 +18,9 @@ This guide assumes you are either using the [main aftersim site](https://aftersi
 
 ## 1. How aftersim works
 
-aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your files subfolders. For VSP, our public subversion server is that file storage. You can also view files on your local computer by running a tiny file server locally.
+aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your file storage. For VSP, our public subversion server is that file storage. You can also view files on your local computer by running a tiny file server locally.
 
-For each folder, aftersim shows zoomable thumbnails of the any image files in that folder, including all of the standard MATSim summary charts with iteration statistics, mode shares, etc. It will also show thumbnails for any visualizations that you have set up for that folder (See #2 below).
+For each folder, aftersim depicts zoomable thumbnails of any image files in that folder, including all of the standard MATSim summary charts (iteration statistics, mode shares, etc). It will also show thumbnails for any visualizations that you have set up for that folder (See #2 below). Clicking on any thumbnail will bring up a full screen visualization.
 
 ### Viewing files stored on public-svn and other internet locations
 
@@ -47,16 +47,16 @@ Run the .jar file directly:
 
 1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
 2. `java -jar mini-file-server.jar [rootfolder]`
-3. If you don't provide a root folder, mini-file-server will use the .jar file's working folder. That may or may not be what you want!
+3. If you don't provide a root folder, mini-file-server will serve the folder from which you run the command. That may or may not be what you want!
 4. On Windows you can double-click the .jar file to run it and serve the folder it is in.
 5. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
-On Mac, if you want to double-click the file to run:
+On Mac, if you want to double-click the file to run (instead of opening a terminal every time):
 
 1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
 2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command
    - `chmod +x mini-file-server-mac` to make it executable
-3. Move it to the folder you want to serve, and you can now double-click to start the server
+3. Move/copy it to the folder you want to serve, and you can now double-click to start the server
 4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
 
 ## 2. Visualizations and their YAML files
