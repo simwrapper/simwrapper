@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 
-print("Serving with CORS (open access):", os.getcwd())
+print("Mini-File-Server: serving with CORS (open access):", os.getcwd())
 
 try:
     # Python 3

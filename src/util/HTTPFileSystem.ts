@@ -79,10 +79,33 @@ class SVNFileSystem {
   }
 
   private buildListFromHtml(data: string): DirectoryEntry {
+    if (data.indexOf('SimpleWebServer') > -1) return this.buildListFromSimpleWebServer(data)
     if (data.indexOf('<ul>') > -1) return this.buildListFromSVN(data)
     if (data.indexOf('<table>') > -1) return this.buildListFromApache24(data)
 
     return { dirs: [], files: [] }
+  }
+
+  private buildListFromSimpleWebServer(data: string): DirectoryEntry {
+    const regex = /">(.*?)<\/a/
+    const dirs = []
+    const files = []
+
+    const lines = data.split('\n')
+    for (const line of lines) {
+      console.log(line)
+      const href = line.indexOf('<li><a href="')
+      if (href < 0) continue
+      const entry = line.match(regex)
+      if (!entry) continue
+
+      // got one!
+      const name = entry[1] // regex returns first match in [1]
+
+      if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
+      else files.push(name)
+    }
+    return { dirs, files }
   }
 
   private buildListFromSVN(data: string): DirectoryEntry {
