@@ -13,7 +13,6 @@ A file named `viz-vehicle-*.yml` must be present in working folder. Each yml fil
 **drt-example.yml**
 
 ```yaml
----
 title: "Dynamic Response Shared Taxis"
 description: Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)
 drtTrips: drt-vehicles.json.gz

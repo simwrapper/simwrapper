@@ -15,9 +15,7 @@ A file named `viz-od*.yml` must be present in working folder. Each yml file matc
 **viz-od-example.yml**
 
 ```yaml
----
 # all of the below are required except description and idColumn.
----
 title: "My Aggregate Viz"
 description: "this will be in the sidebar"
 shpFile: Bezirksregionen_zone_GK4_fixed.shp

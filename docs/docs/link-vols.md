@@ -15,7 +15,6 @@ A file named `viz-links-*.yml` must be present in working folder. Each yml file 
 **viz-links-example.yml**
 
 ```yaml
----
 title: "Passagieraufkommen in Sammeltaxis"
 description: "Stündliches Passagieraufkommen in Sammeltaxis"
 csvFile: "../base/hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv"

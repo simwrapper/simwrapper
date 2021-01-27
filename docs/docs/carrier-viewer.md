@@ -15,7 +15,6 @@ A file named `viz-carrier*.yaml` must be present in working folder. Each yml fil
 **viz-carrier-example.yml**
 
 ```yaml
----
 title: "Dynamic Response Shared Taxis"
 description: Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)
 drtTrips: drt-vehicles.json.gz

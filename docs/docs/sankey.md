@@ -15,7 +15,6 @@ A file named `sankey-*.yml` must be present in working folder. Each yml file mat
 **sankey-example.yml**
 
 ```yaml
----
 # only the csv line is required, but title and description sure help
 csv: modeshares.csv
 title: Sankey Demo
