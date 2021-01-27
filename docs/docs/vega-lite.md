@@ -3,7 +3,7 @@ id: vega-lite
 title: Vega-Lite Charts
 ---
 
-![vega banner](../static/img/vega-chart.jpg)
+![vega banner](assets/vega-chart.jpg)
 _Scatterplot and horizontal box plot_
 
 [Vega-Lite](https://vega.github.io/vega-lite/) is an interactive charting library that uses a well-known declarative syntax for defining charts known as "Grammar of Graphics".

@@ -3,7 +3,7 @@ id: carrier-viewer
 title: Carrier Viewer
 ---
 
-![carriers-banner](../static/img/carriers.jpg)
+![carriers-banner](assets/carriers.jpg)
 _MATSim carrier plans_
 
 ## Usage

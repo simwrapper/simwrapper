@@ -1,5 +1,5 @@
-module.exports = {
-  someSidebar: {
+{
+  "doc": {
     "Using aftersim": [
       "aftersim-intro",
       "aggregate-od",
@@ -10,8 +10,8 @@ module.exports = {
       "transit-supply",
       "vega-lite",
       "video",
-      "xy-hexagons",
+      "xy-hexagons"
     ],
-    "Developer Guide": ["aftersim-installation", "writing-plugins"],
-  },
-};
+    "Developer Guide": ["aftersim-installation", "writing-plugins"]
+  }
+}

@@ -3,7 +3,7 @@ id: aggregate-od
 title: Aggregate O/D Flows
 ---
 
-![banner screenshot](../static/img/aggregate-od.jpg)
+![banner screenshot](assets/aggregate-od.jpg)
 _("Spider Diagrams")_
 
 This viz shows aggregated flows between areas defined by a shapefile. The default view shows everything all at once for every centroid-to-centroid pair. This can be overwhelming, so you can also click on an individual centroid to see just the flows to and from that selected zone.

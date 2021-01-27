@@ -3,7 +3,7 @@ id: link-vols
 title: Link Volumes
 ---
 
-![bandwidth banner](../static/img/links.jpg)
+![bandwidth banner](assets/links.jpg)
 _Bandwidth plot_
 
 Link bandwidth plot plugin. Supports regular bandwidth plots as well as difference and sum plots when comparing two alternatives.

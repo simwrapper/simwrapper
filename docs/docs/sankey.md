@@ -3,7 +3,7 @@ id: sankey
 title: Sankey Diagrams
 ---
 
-![Sankey banner](../static/img/sankey.jpg)
+![Sankey banner](assets/sankey.jpg)
 _Mode shifts_
 
 Sankeys are great for showing the shift between two states; for example mode share shift from alt. A to alt. B. You see these a lot in politics after a parliamentary election, to show the change in the number of seats for each party.

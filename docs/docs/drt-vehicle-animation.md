@@ -3,7 +3,7 @@ id: drt-vehicles
 title: DRT Vehicle Animation
 ---
 
-![DRT banner](../static/img/drt.jpg)
+![DRT banner](assets/drt.jpg)
 _Animation of DRT vehicle, paths, and passenger requests_
 
 ## Usage
