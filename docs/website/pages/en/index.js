@@ -183,7 +183,10 @@ class Index extends React.Component {
         <ul style={{ listStyleType: "none" }}>
           {MetadataBlog.slice(0, 4).map((item, index) => (
             <li style={{ marginBottom: "1rem", fontSize: "22px" }} key={index}>
-              <a style={{ color: "#33bb77" }} href={`/blog/${item.path}`}>
+              <a
+                style={{ color: "#33bb77" }}
+                href={`${baseUrl}blog/${item.path}`}
+              >
                 {item.title}
               </a>{" "}
               <br />
