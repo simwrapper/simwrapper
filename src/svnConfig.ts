@@ -21,7 +21,7 @@ const config: any = {
     {
       name: 'Public-SVN',
       url: 'public-svn',
-      description: 'Simulation results from around the world',
+      description: 'Simulation results from VSP at TU-Berlin',
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
       need_password: false,
       thumbnail: '/thumbnail.png',
@@ -29,7 +29,7 @@ const config: any = {
     {
       name: 'Local Files',
       url: 'local',
-      description: 'Run scripts/serve.py to browse files on your PC',
+      description: 'Run mini-file-server to browse files on your PC',
       svn: 'http://localhost:8000',
       need_password: false,
       thumbnail: '/thumb-localfiles.png',

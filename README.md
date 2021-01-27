@@ -67,11 +67,12 @@ Travis-CI is configured to automatically build the site with **every push to mas
 ## Project Layout
 
 - `/src`: all TypeScript and Vue files go here
+- `/src/svnConfig.ts`: this file defines the file storage locations available on the front page. The `svn` parameter must be a valid URL pointing to an http fileserver, running either Apache, subversion, or SimpleFileServer. Other file storage could be written and placed in `/src/util`.
 - `/src/assets`: images, .csvs, etc that get packaged by webpack
 - `/src/components`: shared Vue components go here
 - `/src/layers`: shared deck.gl layer files go here
 - `/src/plugins`: Each plugin gets its own folder here. To create your own plugin, copy one of these, rename its folder and main .vue file, and register it in `pluginRegistry.ts`. Read the plugin developer guide for details.
-- `/src/util`: some typscript utility classes
+- `/src/util`: some typscript utility classes, notably including the HTTPFileServer
 - `/src/views`: The Vue pages that render various site pages such as the home page. Vue pages are registered in `/src/router.ts`
   - `HomeIndex.vue`: the front page. Add new thumbnails for pages or other content here.
   - `FolderBrowser.vue`: Project pages are rendered by this page
