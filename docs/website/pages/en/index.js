@@ -36,7 +36,7 @@ class HomeSplash extends React.Component {
     );
 
     const ProjectTitle = (props) => (
-      <h2 className="projectTitle">
+      <h2 style={{ paddingTop: "1rem" }} className="projectTitle">
         {props.title}
         <small>{props.tagline}</small>
       </h2>
