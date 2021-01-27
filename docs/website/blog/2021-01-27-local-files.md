@@ -17,4 +17,4 @@ Once it's running, you can browse to [aftersim.github.io/local](https://aftersim
 
 Now you can add and debug YAML files for visualizations you want to create for your model outputs!
 
-These [instructions on downloading and running the Mini File Server](https://aftersim.github.io/docs/docs/#viewing-local-folders-on-your-computer) should get you started! Let me know if you have trouble setting it up.
+Follow [these instructions on downloading and running the Mini File Server](https://aftersim.github.io/docs/docs/aftersim-intro#viewing-local-folders-on-your-computer) to get started! Let me know if you have trouble setting it up.

@@ -17,19 +17,21 @@ This guide assumes you are either using the [main aftersim site](https://aftersi
 
 ## 1. How aftersim works
 
-aftersim is essentially a very fancy file browser that works on the web. It reveals the file storage area that is the "root" of your file storage. For VSP, our public subversion server is that file storage. You can also view files on your local computer by running a tiny file server locally.
+aftersim is essentially a very fancy file browser that works on the web. It allows you to browse the files and subfolders in the file storage area is configured; for VSP, everything in our public subversion server is available. You can also view files on your local computer by running a tiny file server locally.
 
-For each folder, aftersim depicts zoomable thumbnails of any image files in that folder, including all of the standard MATSim summary charts (iteration statistics, mode shares, etc). It will also show thumbnails for any visualizations that you have set up for that folder (See #2 below). Clicking on any thumbnail will bring up a full screen visualization.
+For each folder, aftersim depicts zoomable thumbnails of all of the standard MATSim summary charts (iteration statistics, mode shares, etc). It will also show thumbnails for every visualization that you have set up for that folder (See #2 below). Clicking on any thumbnail will bring up a full screen visualization.
 
 ### Viewing files stored on public-svn and other internet locations
 
-The main aftersim site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
+The main aftersim site can be used to view local files on your computer and all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
 
 To set up aftersim for other storage locations, you need to fork aftersim and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
 
 ### Viewing local folders on your computer
 
-You can use aftersim to browse files on your local computer if you run a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will be able to access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
+You can use aftersim to browse files on your local computer by running a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim have access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
+
+> Nothing is sent over the network to aftersim.github.io: this is 100% a client-side app that runs in your browser.
 
 We have local file servers written in Java and Python. Pick whichever one you are more comfortable with:
 
@@ -87,15 +89,13 @@ If you wanted to look at several different link volume plots from the same model
 
 This is a very different paradigm than most "point and click" GIS tools, but we have found that the ability to script and cut/paste the config files has been a huge time saver and also reduces manual errors.
 
-:::warning
-Make sure that your files are allowed to be "world-readable" before you publish anything to public-svn! Once files are pushed to public-svn, they are not secured in any way; anyone on the internet can access them!
-:::
+> Make sure that your files are allowed to be "world-readable" before you publish anything to public-svn! Once files are pushed to public-svn, they are not secured in any way; anyone on the internet can access them!
 
 ### Plugins
 
 Each visualization is described in the "Plugins" section of this documentation, including how to post-process the outputs and how to define any configuration settings.
 
-If you want to modify or create your own plugins, check out the [to be written](/)
+If you want to modify or create your own plugins, check out the [plugin guide](writing-plugins).
 
 ---
 
