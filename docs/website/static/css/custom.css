@@ -39,7 +39,7 @@ h1.postHeaderTitle {
 .homeContainer {
   background-image: url("/docs/img/berlin-dots.jpg");
   margin: 0 0;
-  padding: 0 0;
+  padding: 5rem 0;
 }
 
 .billybutton {
@@ -56,6 +56,7 @@ h1.postHeaderTitle {
 
 h2.projectTitle {
   color: #33bb77;
+  font-size: 4rem;
 }
 
 .nav-footer .sitemap .nav-home {

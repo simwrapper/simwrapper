@@ -40,7 +40,7 @@ class HomeSplash extends React.Component {
         display: 'flex',
         flexDirection:'column',
         margin: "2rem auto 1rem auto", }}>
-        <h2 style={{ padding: "0 1rem", border: "6px solid #ef2", margin: "0 auto", backgroundColor: '#ffffff', textAlign: 'center', paddingTop: "1rem" }} className="projectTitle">
+        <h2 style={{ padding: "0 2rem", border: "6px solid #ef2", margin: "0 auto", backgroundColor: '#ffffff', textAlign: 'center', paddingTop: "1rem" }} className="projectTitle">
           {props.title}
            <small>{props.tagline}</small>
         </h2>
@@ -179,10 +179,10 @@ class Index extends React.Component {
           textAlign: "center",
           backgroundColor: "#222244ee",
           color: "#888",
-          paddingTop: "1rem",
+          padding: "5rem 0 7rem 0",
         }}
       >
-        <h2 style={{ color: "white" }}>Latest News</h2>
+        <h1 style={{ color: "white", fontSize:"3rem" }}>Latest News</h1>
         <ul style={{ listStyleType: "none" }}>
           {MetadataBlog.slice(0, 4).map((item, index) => (
             <li style={{ marginBottom: "1rem", fontSize: "22px" }} key={index}>
@@ -241,7 +241,7 @@ class Index extends React.Component {
       return (
         <div
           style={{
-            padding: "10rem 0",
+            padding: "15rem 0",
             backgroundImage: 'url("img/dark-background.jpg")',
           }}
           className="productShowcaseSection paddingBottom"
