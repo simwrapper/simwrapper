@@ -16,7 +16,7 @@ const siteConfig = {
   ],
 
   /* path to images for header/footer */
-  headerIcon: "img/vsp-logo-300dpi.png",
+  headerIcon: "img/aftersim-logo.png",
   footerIcon: "img/vsp-logo-300dpi.png",
   favicon: "img/aftersim-logo-64.png",
 
