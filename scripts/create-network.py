@@ -1,4 +1,4 @@
-# matsim network reader -- create a float 
+# matsim network converter
 try:
     import sys, json, gzip
     import matsim
@@ -36,7 +36,7 @@ links = (
 )
 
 # convert coords to lat/lon
-converted_links = {} 
+converted_links = {}
 for link in links.values:
     coords = []
 
@@ -44,7 +44,7 @@ for link in links.values:
     coords.extend([round(fromX, 5), round(fromY, 5)])
     toY, toX = coord_transformer.transform(link[3], link[4])
     coords.extend([round(toX, 5), round(toY, 5)])
- 
+
     converted_links[link[0]] = coords
 
 # write it out
