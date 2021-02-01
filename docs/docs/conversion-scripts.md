@@ -7,9 +7,11 @@ _Conversion scripts for MATSim outputs_
 
 ## create-network-csv.py
 
-Download script here: [create-network-csv.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-network-csv.py)
+- Download script here: **[create-network-csv.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-network-csv.py)**
 
-**Command:** `python3 create-network-csv.py`
+---
+
+**Command:** `python3 create-network-csv.py [my-network.xml.gz]`
 
 **Inputs:** MATSim network.xml.gz file
 
