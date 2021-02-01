@@ -15,9 +15,13 @@ The open-source code and plugin architecture of aftersim allows you to fork the 
 
 This guide assumes you are either using the [main aftersim site](https://aftersim.github.io), or have already set up your own instance of aftersim and have access to the file storage area that you configured.
 
-## 1. How aftersim works
+## 1. Where to store your files
 
-aftersim is essentially a very fancy file browser that works on the web. It allows you to browse the files and subfolders in the file storage area is configured; for VSP, everything in our public subversion server is available. You can also view files on your local computer by running a tiny file server locally.
+aftersim is essentially a very fancy file browser that works on the web. It allows you to browse the files and subfolders in the file storage areas you configure:
+
+- for VSP, everything in our public subversion server is available.
+- You can also view files on your local computer by running a tiny file server locally!
+- If you have mounted remote cluster file systems on your machine, then you can see those, too.
 
 For each folder, aftersim depicts zoomable thumbnails of all of the standard MATSim summary charts (iteration statistics, mode shares, etc). It will also show thumbnails for every visualization that you have set up for that folder (See #2 below). Clicking on any thumbnail will bring up a full screen visualization.
 
@@ -59,6 +63,12 @@ On Mac, if you want to double-click the file to run (instead of opening a termin
    - `chmod +x mini-file-server-mac` to make it executable
 3. Move/copy it to the folder you want to serve, and you can now double-click to start the server
 4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
+
+### Viewing files on the TU math cluster or other remote machines
+
+You can "virtually" mount remote filesystems using the tool `sshfs`. It creates an ssh tunnel to the remote machine using your username/login credentials, and mounts the files it finds there under a subfolder on your machine.
+
+Once the sshfs tunnel is established, you can browse the files there as if the files are local on your machine, as above.
 
 ## 2. Visualizations and their YAML files
 
