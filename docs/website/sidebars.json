@@ -2,6 +2,7 @@
   "doc": {
     "Using aftersim": [
       "aftersim-intro",
+      "scripts",
       "aggregate-od",
       "carrier-viewer",
       "drt-vehicles",
