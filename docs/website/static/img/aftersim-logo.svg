@@ -14,9 +14,9 @@
    id="svg8"
    inkscape:version="1.0.2 (e86c8708, 2021-01-15)"
    sodipodi:docname="aftersim-logo.svg"
-   inkscape:export-filename="/Users/billy/git/aftersim-docs/website/static/img/aftersim-logo-64.png"
-   inkscape:export-xdpi="11.6"
-   inkscape:export-ydpi="11.6">
+   inkscape:export-filename="/Users/billy/git/aftersim-docs/website/static/img/aftersim-logo.png"
+   inkscape:export-xdpi="92.709999"
+   inkscape:export-ydpi="92.709999">
   <defs
      id="defs2" />
   <sodipodi:namedview
@@ -26,17 +26,17 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.175"
-     inkscape:cx="444.13494"
+     inkscape:zoom="0.35"
+     inkscape:cx="169.13494"
      inkscape:cy="431.52887"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
-     inkscape:window-width="1801"
+     inkscape:window-width="1855"
      inkscape:window-height="1005"
-     inkscape:window-x="271"
-     inkscape:window-y="274"
+     inkscape:window-x="248"
+     inkscape:window-y="137"
      inkscape:window-maximized="0" />
   <metadata
      id="metadata5">
@@ -68,6 +68,13 @@
        height="116.15874"
        x="45.747902"
        y="60.255081" />
+    <rect
+       style="fill:#bec7e6;stroke-width:24;stroke-linejoin:bevel;fill-opacity:1"
+       id="rect21"
+       width="140.22917"
+       height="52.538689"
+       x="33.639881"
+       y="135.69345" />
     <path
        style="fill:none;stroke:#4236c9;stroke-width:16;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1"
        d="M 87.961605,64.948701 49.458077,170.77663"
