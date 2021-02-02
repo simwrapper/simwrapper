@@ -7,11 +7,13 @@ _Conversion scripts for MATSim outputs_
 
 ---
 
-## create-network-csv.py
+## create-csv-network.py
 
-- Download script here: **[create-network-csv.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-network-csv.py)**
+_Create a CSV network appropriate for loading into R with the `sfnetworks` package_
 
-**Command:** `python3 create-network-csv.py [my-network.xml.gz]`
+- Download script here: **[create-csv-network.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-csv-network.py)**
+
+**Command:** `python3 create-csv-network.py [my-network.xml.gz]`
 
 **Inputs:** MATSim network.xml.gz file
 
@@ -34,6 +36,20 @@ ggplot() +
 
 ---
 
+## create-json-network.py
+
+Create a JSON network appropriate for loading into aftersim visualizations
+
+- Download script here: **[create-json-network.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-json-network.py)**
+
+**Command:** `python create-json-network.py [network] [coord-system]"`
+
+**Inputs:** MATSim network.xml.gz file; coordinate system
+
+**Outputs:** `network.json.gz` which loads into aftersim much faster than an `.xml.gz` file
+
+---
+
 ## parse-drt-link-events.py
 
 Parse the event file containing DRT events.
@@ -45,3 +61,5 @@ Parse the event file containing DRT events.
 **Inputs:** network.xml.gz file; events.xml.gz file; a valid coordinate system
 
 **Outputs:** `drt-vehicles.json`
+
+Use gzip to compress that output so things load faster.
