@@ -3,7 +3,7 @@ id: scripts
 title: Conversion Scripts
 ---
 
-_Conversion scripts for MATSim outputs_
+_Conversion scripts for getting MATSim outputs into aftersim_
 
 ---
 
