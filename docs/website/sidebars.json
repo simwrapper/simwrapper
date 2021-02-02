@@ -12,6 +12,6 @@
       "video",
       "xy-hexagons"
     ],
-    "Developer Guide": ["aftersim-installation", "writing-plugins"]
+    "Developer Guide": ["aftersim-installation", "plugin-guide"]
   }
 }

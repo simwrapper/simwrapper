@@ -36,13 +36,27 @@ class HomeSplash extends React.Component {
     );
 
     const ProjectTitle = (props) => (
-      <div style={{
-        display: 'flex',
-        flexDirection:'column',
-        margin: "2rem auto 1rem auto", }}>
-        <h2 style={{ padding: "0 2rem", border: "6px solid #ef2", margin: "0 auto", backgroundColor: '#ffffff', textAlign: 'center', paddingTop: "1rem" }} className="projectTitle">
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          margin: "2rem auto 1rem auto",
+        }}
+      >
+        <h2
+          style={{
+            padding: "0 2rem",
+            border: "6px solid #ef2",
+            boxShadow: "0px 0px 10px 6px #00000011",
+            margin: "0 auto",
+            backgroundColor: "#ffffff",
+            textAlign: "center",
+            paddingTop: "1rem",
+          }}
+          className="projectTitle"
+        >
           {props.title}
-           <small>{props.tagline}</small>
+          <small>{props.tagline}</small>
         </h2>
       </div>
     );
@@ -57,7 +71,11 @@ class HomeSplash extends React.Component {
 
     const Button = (props) => (
       <div className="pluginWrapper buttonWrapper">
-        <a className="button billybutton" href={props.href} target={props.target}>
+        <a
+          className="button billybutton"
+          href={props.href}
+          target={props.target}
+        >
           {props.children}
         </a>
       </div>
@@ -182,7 +200,7 @@ class Index extends React.Component {
           padding: "5rem 0 7rem 0",
         }}
       >
-        <h1 style={{ color: "white", fontSize:"3rem" }}>Latest News</h1>
+        <h1 style={{ color: "white", fontSize: "3rem" }}>Latest News</h1>
         <ul style={{ listStyleType: "none" }}>
           {MetadataBlog.slice(0, 4).map((item, index) => (
             <li style={{ marginBottom: "1rem", fontSize: "22px" }} key={index}>

@@ -1,5 +1,5 @@
 ---
-id: writing-plugins
+id: plugin-guide
 title: Plugin Writing Guide
 ---
 
@@ -9,5 +9,5 @@ Short version:
 
 - copy one of the existing plugins
 - give it a new name
-- register it in src/plugins/pluginRegistry.ts
+- register it in `src/plugins/pluginRegistry.ts`
 - edit it to make it do stuff :-)
