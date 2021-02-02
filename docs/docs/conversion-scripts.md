@@ -34,6 +34,14 @@ ggplot() +
 
 ---
 
-## create-network.py
+## parse-drt-link-events.py
 
-_to be added_
+Parse the event file containing DRT events.
+
+- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/parse-drt-link-events.py)**
+
+**Command:** `python3 parse-drt-link-events.py [network] [events] [coord-system]`
+
+**Inputs:** network.xml.gz file; events.xml.gz file; a valid coordinate system
+
+**Outputs:** `drt-vehicles.json`

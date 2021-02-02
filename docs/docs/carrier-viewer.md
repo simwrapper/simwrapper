@@ -16,14 +16,13 @@ A file named `viz-carrier*.yaml` must be present in working folder. Each yml fil
 
 ```yaml
 title: "Dynamic Response Shared Taxis"
-description: Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)
-drtTrips: drt-vehicles.json.gz
-thumbnail: thumbnail-vehicles.jpg
+description: "Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)"
+network: output_network.json.gz # slower: output_network.json.gz
+carriers: output_carriers.xml.gz
 center: [13.391, 52.515]
 ```
 
 ## YAML fields explained
 
-**drtTrips:** the output from the ~/scripts/parse-drt-events.py script, gzipped for best performance
-
+**network:** both `.json.gz` and `xml.gz` network files are supported, but JSON-based files load _much_ faster.
 **center:** Use this to force the map center point. `[long,lat]`
