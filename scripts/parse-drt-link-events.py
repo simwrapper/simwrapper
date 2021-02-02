@@ -1,16 +1,6 @@
 # Parse the event file containing activity start/end times and infection events.
-# - Link events are not needed -- people float between activities.
+# - Link events are used so paths are correct
 # - Time between actend and actstart is travel time for the trip
-#
-# Produces 3js.json, format:
-# [
-#    { id: string,                   # person_id
-#      time: [number...],            # array of trip time points, in seconds
-#      points: [ (x,y)...],          # array of (x,y) coordinates for time points
-#      disease_time: [number...],    # array of disease event time points
-#      disease: [code...]            # array of disease status codes, see below
-#    }
-# ]
 
 try:
     import sys

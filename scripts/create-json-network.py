@@ -10,7 +10,7 @@ except:
 
 if len(sys.argv) != 3:
     print(
-        "USAGE:  python create-network.py  [network]  [coord-system]"
+        "USAGE:  python create-json-network.py  [network]  [coord-system]"
     )
     sys.exit(1)
 

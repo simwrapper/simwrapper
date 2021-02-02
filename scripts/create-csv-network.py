@@ -10,7 +10,7 @@ except:
 
 if len(sys.argv) != 2:
     print(
-        "USAGE:  python3 create-network-wkt.py  [network]"
+        "USAGE:  python3 create-csv-network.py  [network]"
     )
     sys.exit(1)
 
