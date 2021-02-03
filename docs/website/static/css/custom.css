@@ -59,6 +59,16 @@ h2.projectTitle {
   font-size: 4rem;
 }
 
+.toc .toggleNav .navGroup {
+  margin-bottom: 2rem;
+}
+
+.toc .toggleNav .navGroup .navGroupCategoryTitle {
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  color: #4a4b93;
+}
+
 .nav-footer .sitemap .nav-home {
   opacity: 1;
 }

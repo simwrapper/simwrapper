@@ -1,7 +1,8 @@
 {
   "doc": {
-    "Getting Started": ["aftersim-intro", "scripts"],
-    "Plugins": [
+    "Getting Started": ["aftersim-intro", "file-management", "scripts"],
+    "Tutorials": [],
+    "Plugin Reference": [
       "aggregate-od",
       "carrier-viewer",
       "drt-vehicles",

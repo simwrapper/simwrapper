@@ -33,7 +33,7 @@ To set up aftersim for other storage locations, you need to fork aftersim and se
 
 ### Viewing local folders on your computer
 
-You can use aftersim to browse files on your local computer by running a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim have access anything in that folder and subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
+You can access files on your local computer by running a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will have access to anything in that folder including subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
 > Nothing is sent over the network to aftersim.github.io: this is 100% a client-side app that runs in your browser.
 

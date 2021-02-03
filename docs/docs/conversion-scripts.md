@@ -3,7 +3,11 @@ id: scripts
 title: Conversion Scripts
 ---
 
-_Conversion scripts for getting MATSim outputs into aftersim_
+_For getting MATSim outputs into aftersim_
+
+In general, most MATSim outputs are too big and use unwieldy formats. The scripts below can help convert some MATSim outputs into smaller, more internet-friendly formats.
+
+If you develop your own scripts, please let us know and we can add them here!
 
 ---
 
