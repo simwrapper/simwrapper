@@ -5,11 +5,9 @@ title: Introduction
 
 **aftersim** is a unique, web-based data visualization tool for researchers building disaggregate, agent-based transportation simulations with [MATSim](https://matsim.org).
 
-![aftersim banner](assets/demo-thumbnails.jpg)
-
----
-
 aftersim provides many interactive views such as agent movements through time, aggregate link and area volumes, scenario comparison, and a lot more.
+
+![aftersim banner](assets/demo-thumbnails.jpg)
 
 The open-source code and plugin architecture of aftersim allows you to fork the project and create your own visualizations, too.
 
@@ -35,34 +33,7 @@ To set up aftersim for other storage locations, you need to fork aftersim and se
 
 You can access files on your local computer by running a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then aftersim will have access to anything in that folder including subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
-> Nothing is sent over the network to aftersim.github.io: this is 100% a client-side app that runs in your browser.
-
-We have local file servers written in Java and Python. Pick whichever one you are more comfortable with:
-
-**Python:** - this should work with Python 2.7 or 3.x:
-
-1. Download [mini-file-server.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/mini-file-server.py) and save somewhere useful, like your home directory.
-2. `cd` to the root folder you wish to serve, and then run the command
-3. `/path/to/mini-file-server.py` or `~/mini-file-server.py` if it's in your home directory
-4. Test that it's working by browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
-
-**Java:**
-
-Run the .jar file directly:
-
-1. Download [mini-file-server.jar](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server.jar) and run with the command
-2. `java -jar mini-file-server.jar [rootfolder]`
-3. If you don't provide a root folder, mini-file-server will serve the folder from which you run the command. That may or may not be what you want!
-4. On Windows you can double-click the .jar file to run it and serve the folder it is in.
-5. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
-
-On Mac, if you want to double-click the file to run (instead of opening a terminal every time):
-
-1. Download [mini-file-server-mac](https://github.com/aftersim/mini-file-server/raw/master/bin/mini-file-server-mac)
-2. Open a terminal and find the file _(probably Downloads folder)_ and issue the command
-   - `chmod +x mini-file-server-mac` to make it executable
-3. Move/copy it to the folder you want to serve, and you can now double-click to start the server
-4. Test that it's working by running the server and browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
+- See [File Management](file-management) for instructions on setting up a local file server.
 
 ### Viewing files on the TU math cluster or other remote machines
 

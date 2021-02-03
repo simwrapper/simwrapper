@@ -5,7 +5,7 @@ title: File Management
 
 **aftersim** is essentially a very fancy file browser that works on the web. It allows you to browse the files and subfolders in the file storage areas you configure:
 
-- for VSP, everything in our public subversion server is available.
+- for VSP, everything in our public subversion server is accessible. Check it out here: [aftersim.github.io/public-svn](https://aftersim.github.io/public-svn)
 - You can also view files on your local computer by running a tiny file server locally!
 - If you have mounted remote cluster file systems on your machine, then you can see those, too.
 

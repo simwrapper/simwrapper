@@ -29,7 +29,7 @@ const siteConfig = {
   },
 
   stylesheets: [
-    "https://fonts.googleapis.com/css?family=Nunito:400,400i,700|Roboto+Slab:400,400i,700",
+    "https://fonts.googleapis.com/css?family=Roboto:400,400i,700|Roboto+Slab:400,400i,700",
   ],
 
   highlight: { theme: "default" },
