@@ -40,7 +40,7 @@ de:
                 :onClick="handleClick")
 
   collapsible-panel.left-side(v-if="detailContent" :darkMode="true" direction="left" width="300")
-    h3 Details
+    h3 Raw Details
     .panel-items
       .detail-list
         pre(style="color: #ccc; padding-right: 2rem;") {{detailContent}}
