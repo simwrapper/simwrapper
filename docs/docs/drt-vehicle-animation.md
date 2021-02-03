@@ -22,6 +22,6 @@ center: [13.391, 52.515]
 
 ## YAML fields explained
 
-**drtTrips:** the output from the [parse-drt-link-events](https://github.com/aftersim/aftersim.github.io/raw/source/scripts/parse-drt-link-events.py) script, gzipped for best performance
+**drtTrips:** the output from the [parse-drt-link-events.py](https://github.com/aftersim/aftersim.github.io/raw/source/scripts/parse-drt-link-events.py) script, gzipped for best performance
 
 **center:** Use this to force the map center point. `[long,lat]`
