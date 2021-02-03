@@ -42,8 +42,8 @@ de:
   collapsible-panel.left-side(v-if="detailContent" :darkMode="true" direction="left" width="300")
     h3 Details
     .panel-items
-      .carrier-list
-        p(style="color: #ccc; padding-right: 2rem;") {{detailContent}}
+      .detail-list
+        pre(style="color: #ccc; padding-right: 2rem;") {{detailContent}}
 
   collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
 
@@ -295,7 +295,7 @@ class CarrierPlugin extends Vue {
 
     this.selectedTour = tour
 
-    this.detailContent = JSON.stringify(tour)
+    this.detailContent = JSON.stringify(tour, null, 4)
 
     // find shipment components
     const inTour: any[] = []
@@ -813,8 +813,6 @@ class CarrierPlugin extends Vue {
   private vehicleLookup: string[] = []
   private vehicleLookupString: { [id: string]: number } = {}
 
-  private isPausedDueToHiding = false
-
   private beforeDestroy() {
     this.myState.isRunning = false
 
@@ -1190,6 +1188,18 @@ input {
 
 .shipment-in-tour {
   background-color: #497c7e;
+}
+
+.detail-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.detail-list pre {
+  font-family: 'Arial';
+  padding: 0 0;
+  line-height: 0.8rem;
+  background-color: $steelGray;
 }
 
 @media only screen and (max-width: 640px) {
