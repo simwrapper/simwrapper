@@ -1,33 +1,45 @@
 <template lang="pug">
-#project-component
+.folder-browser
+  .stripe.white(v-if="myState.svnProject")
+    .vessel
+      .project-bar
+        .details
+          h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
+          p {{ myState.svnProject.name }}
+        .logo
+          img(width=150 src="/tu-logo.png")
 
-  .project-bar(v-if="myState.svnProject")
-    .details
-      h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
-      p {{ myState.svnProject.name }}
-    .logo
-      img(width=150 src="/tu-logo.png")
+  //- show network errors
+  .stripe.white.details(v-if="myState.errorStatus")
+   .vessel
+    .badnews(v-html="myState.errorStatus")
 
-  .details(v-if="myState.svnProject")
-
-    //- show network errors
-    .badnews(v-if="myState.errorStatus" v-html="myState.errorStatus")
+  //- main content
+  .stripe.cream.details(v-else)
+   .vessel
 
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
       //- this is the content of readme.md, if it exists
       .readme-header
-        .curate-content.markdown(v-if="myState.readme" v-html="myState.readme")
+        .curate-content.markdown(
+          v-if="myState.readme"
+          v-html="myState.readme"
+        )
 
       //- file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
       .curate-content(v-if="myState.folders.length")
-        .folder(:class="{fade: myState.isLoading}"
-              v-for="folder in myState.folders" :key="folder.name"
-              @click="openOutputFolder(folder)")
-          p {{ folder }}
+        .folder-table
+          .folder(:class="{fade: myState.isLoading}"
+                  :key="folder.name"
+                  v-for="folder in myState.folders"
+                  @click="openOutputFolder(folder)")
+            p
+              i.fa.fa-folder-open
+              | &nbsp;{{ folder }}
 
       //- thumbnails of each viz and image in this folder
       h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
@@ -37,22 +49,26 @@
           .viz-item(v-for="viz,index in myState.vizes"
                     :key="viz.config"
                     @click="clickedVisualization(index)")
+
             .viz-frame
-              p {{ viz.title }}
-              component.thumbnail(:is="viz.component" :yamlConfig="viz.config"
+              component.frame-component(
+                    :is="viz.component"
+                    :yamlConfig="viz.config"
                     :fileApi="myState.svnRoot"
                     :subfolder="myState.subfolder"
                     :thumbnail="true"
                     :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
                     @title="updateTitle(index, $event)")
+              p {{ viz.title }}
 
       // individual links to files in this folder
       h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
 
       .curate-content(v-if="myState.files.length")
-        .file(:class="{fade: myState.isLoading}"
-              v-for="file in myState.files" :key="file")
-          a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
+        .file-table
+          .file(:class="{fade: myState.isLoading}"
+                v-for="file in myState.files" :key="file")
+            a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -384,6 +400,24 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+.folder-browser {
+  background-color: var(--bgBold);
+}
+
+.vessel {
+  margin: 0 auto;
+  padding: 0rem 3rem 2rem 3rem;
+  max-width: $sizeVessel;
+}
+
+.white {
+  background-color: var(--bgBold);
+}
+
+.cream {
+  background-color: var(--bgCream);
+}
+
 h3,
 h4 {
   margin-top: 2rem;
@@ -396,16 +430,16 @@ h2 {
 
 .badnews {
   border-left: 3rem solid #af232f;
-  margin: 1rem 0rem;
-  padding: 0.5rem 1rem;
+  margin: 0rem 0rem;
+  padding: 0.5rem 0rem;
   background-color: #ffc;
   color: $matsimBlue;
 }
 
 .viz-table {
   display: grid;
-  grid-gap: 1rem;
-  grid-template-columns: repeat(3, minmax(100px, 1fr));
+  grid-gap: 2rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   list-style: none;
   margin-bottom: 0px;
   padding-left: 0px;
@@ -415,44 +449,60 @@ h2 {
   text-align: center;
   margin: 0 0;
   padding: 0 0;
-  display: table-cell;
+  display: flex;
+  flex-direction: column;
   cursor: pointer;
   vertical-align: top;
-  background-color: #555;
-  border: 2px solid var(--bg);
-  margin-bottom: auto;
+  background-color: var(--bgBold);
+  border-radius: 16px;
+  border: var(--borderThin);
 }
 
-.viz-item:hover {
-  box-shadow: 0px 0px 5px 5px rgba(0, 0, 0, 0.08), 0 3px 5px 0 rgba(0, 0, 0, 0.02);
-  transition: box-shadow 0.1s ease-in-out, background-color 0.1s ease-in-out;
-  background-color: var(--link);
-  transform: translateY(1px);
+.frame-component {
+  background-color: white;
 }
 
 .viz-frame {
+  flex: 1;
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  p {
-    font-size: 0.8rem;
-    padding: 0.25rem 0.5rem;
-    color: white;
+  // white-space: nowrap;
 
+  p {
+    margin: auto 0 auto 0;
+    background-color: var(--bgBold);
+    font-size: 1rem;
+    font-weight: bold;
+    line-height: 1.2rem;
+    padding: 1rem 0.5rem;
+    color: var(--text);
+    word-wrap: break-word;
     /* Required for text-overflow to do anything */
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
+    // text-overflow: ellipsis;
+    // white-space: nowrap;
+    // overflow: hidden;
   }
+}
+
+.viz-frame:hover {
+  box-shadow: var(--shadowMode);
+  transition: box-shadow 0.1s ease-in-out;
 }
 
 .logo {
   margin-left: auto;
 }
 
-.thumbnail {
-  max-height: 225px;
-  background-color: white; // var(--bgBold);
+.folder-table {
+  display: grid;
+  row-gap: 0rem;
+  column-gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin-bottom: 0px;
+  padding-left: 0px;
 }
 
 .folder {
@@ -462,37 +512,41 @@ h2 {
   background-color: var(--bgBold);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
+  border-radius: 8px;
 }
 
 .folder:hover {
   background-color: var(--bgHover);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.1s ease-in-out;
 }
 
 .project-bar {
   display: flex;
   margin-bottom: 1rem;
-  padding: 1rem 3rem 1.5rem 0rem;
-  background-color: var(--bgBold);
+  padding: 2rem 0 0 0;
   z-index: 10000;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1), 0 6px 20px 0 rgba(0, 0, 0, 0.05);
 }
 
 .project-bar p {
   margin-top: -0.25rem;
 }
 
-.details {
-  padding: 0rem 3rem 3rem 3rem;
-}
-
 .fade {
   opacity: 0.6;
 }
 
+.file-table {
+  display: grid;
+  row-gap: 0rem;
+  column-gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .file {
   word-break: break-all;
+  line-height: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .markdown {
@@ -500,46 +554,58 @@ h2 {
 }
 
 .curated-sections {
-  display: grid;
-  grid-template-columns: 10rem 1fr;
-  grid-template-areas: 'heading  content';
+  display: flex;
+  flex-direction: column;
 }
 
 .curate-heading {
-  border-bottom: 1px solid var(--bgBold);
   padding: 0rem 0rem;
   margin: 0rem 0rem;
-  grid-area: 'heading';
 }
 
 .readme-header {
   font-size: 1.1rem;
-  grid-column: 1 / 3;
   padding-bottom: 1rem;
 }
 
 h3.curate-heading {
-  font-size: 1.3rem;
-  font-weight: normal;
+  font-size: 1.8rem;
+  font-weight: bold;
   color: var(--textFancy);
   padding-top: 0.5rem;
   margin-top: 0rem;
 }
 
 .curate-content {
-  grid-area: 'content';
   padding: 1rem 0rem;
   margin: 0rem 0rem;
-  border-bottom: 1px solid var(--bgBold);
 }
 
-@media only screen and (max-width: 640px) {
-  .project-bar {
-    padding: 1rem 1rem 1.5rem 0rem;
+@media only screen and (max-width: 50em) {
+  .viz-table {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .details {
-    padding: 0rem 1rem 0rem 1rem;
+  .folder-table {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .file-table {
+    display: grid;
+    grid-gap: 0rem;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media only screen and (max-width: 40em) {
+  .vessel {
+    padding: 0 1rem 0 1rem;
+  }
+
+  .folder-table {
+    display: grid;
+    grid-gap: 0rem;
+    grid-template-columns: 1fr;
   }
 
   .viz-table {
@@ -550,13 +616,8 @@ h3.curate-heading {
 
   .viz-frame {
     p {
-      font-size: 0.6rem;
+      font-size: 1rem;
     }
-  }
-
-  .curated-sections {
-    display: flex;
-    flex-direction: column;
   }
 
   .curate-heading {

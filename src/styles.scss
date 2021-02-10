@@ -13,16 +13,19 @@ $darkBackground: #181a1b;
 $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
 $sizeMobile: 30em;
+$sizeVessel: 60rem;
 
 :root {
   --bg: #dbd9d7;
   --bgBold: #ffffff;
+  --bgCream: #edebe4;
   --bgHover: #ffd;
   --text: #363636;
   --textFancy: #1d3355;
   --link: #1c5179;
   --linkHover: #0b263b;
-
+  --shadowMode: 0px 0px 6px 6px rgba(0, 0, 0, 0.12);
+  --borderThin: 1px solid #cce;
   --beige: #ffeead;
   --yellow: #ffcc5c;
 }
@@ -30,9 +33,12 @@ $sizeMobile: 30em;
 .dark-mode {
   --bg: #2d3133;
   --bgBold: #181a1b;
+  --bgCream: #2d3133;
   --bgHover: #4d4c37;
   --text: #c6c1b9;
   --textFancy: #a5c4e2;
   --link: #65d68f;
   --linkHover: #a8ffc8;
+  --shadowMode: 0px 0px 5px 5px rgba(192, 192, 255, 0.12);
+  --borderThin: 1px solid #15151d;
 }

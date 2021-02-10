@@ -1,9 +1,9 @@
 const config: any = {
   projects: [
     {
-      name: 'Examples',
-      url: 'example',
-      description: 'A few visualizations of public datasets.',
+      name: 'Gallery',
+      url: 'gallery',
+      description: 'Example visualizations of public datasets.',
       svn:
         'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/viz-examples/examples',
       need_password: false,
@@ -16,7 +16,7 @@ const config: any = {
       svn:
         'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/zerocuts',
       need_password: false,
-      thumbnail: '/thumbnail.png',
+      thumbnail: '/thumb-chart.jpg',
     },
     {
       name: 'Public-SVN',
@@ -24,7 +24,7 @@ const config: any = {
       description: 'Simulation results from VSP at TU-Berlin',
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
       need_password: false,
-      thumbnail: '/thumbnail.png',
+      thumbnail: '/thumb-chart.jpg',
     },
     {
       name: 'Local Files',

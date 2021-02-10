@@ -1,5 +1,5 @@
 <template lang="pug">
-#vue-component
+.svn-projects
   .project(v-for="source in sources" :key="source.url"
       @click='openProjectPage(source)'
       @click.middle='openProjectTab(source)'
@@ -39,38 +39,48 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#vue-component {
-  display: flex;
-  flex-direction: row;
-  margin: 0 -1rem 0 -1rem;
+.svn-projects {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2rem;
 }
 
 .project {
   flex: 1;
   cursor: pointer;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background-color: var(--bgBold);
-  margin: 0.25rem 1rem 0.25rem 1rem;
+  border-radius: 16px;
 }
 
 .desc h3 {
   color: var(--text);
+  margin-bottom: 0.25rem;
 }
 
 .project .desc {
-  padding: 1rem 1rem;
+  padding: 0.5rem 1rem 1rem 1rem;
 }
 
 .project:hover {
-  background-color: var(--bgHover);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05), 0 3px 10px 0 rgba(0, 0, 0, 0.05);
+  // background-color: var(--bgHover);
+  box-shadow: var(--shadowMode);
 }
 
-@media only screen and (max-width: 640px) {
-  #vue-component {
+@media only screen and (max-width: 64em) {
+  .svn-projects {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media only screen and (max-width: 40em) {
+  .svn-projects {
+    display: flex;
     flex-direction: column;
   }
+
   .project {
     margin-bottom: 1rem;
   }

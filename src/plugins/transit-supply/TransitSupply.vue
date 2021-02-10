@@ -831,7 +831,7 @@ p {
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
-  min-height: 225px;
+  min-height: 200px;
 }
 
 .map-container.hide-thumbnail {
