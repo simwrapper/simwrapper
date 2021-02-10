@@ -32,7 +32,7 @@ const config: any = {
       description: 'Run mini-file-server to browse files on your PC',
       svn: 'http://localhost:8000',
       need_password: false,
-      thumbnail: '/thumb-localfiles.png',
+      thumbnail: '/thumb-localfiles.jpg',
     },
     // {
     //   name: 'ils4 Math Cluster',
