@@ -797,7 +797,9 @@ const nodeReadAsync = function(filename: string) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles.scss';
+
 .mapboxgl-popup-content {
   padding: 0px 20px 0px 0px;
   opacity: 0.95;
@@ -831,7 +833,7 @@ p {
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
-  min-height: 200px;
+  min-height: $thumbnailHeight;
 }
 
 .map-container.hide-thumbnail {

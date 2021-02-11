@@ -1,5 +1,5 @@
 <template lang="pug">
-#link-container(:style='{"background": urlThumbnail}')
+.link-container(:style='{"background": urlThumbnail}')
   .map-container(v-if="!thumbnail")
     .mymap(:id="mapId")
 
@@ -971,13 +971,15 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 </script>
 
-<style scoped>
-#link-container {
+<style scoped lang="scss">
+@import '@/styles.scss';
+
+.link-container {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr;
   width: 100%;
-  min-height: 200px;
+  min-height: $thumbnailHeight;
   background: url('./assets/thumbnail.jpg') no-repeat center;
   /* background-color: white; */
 }

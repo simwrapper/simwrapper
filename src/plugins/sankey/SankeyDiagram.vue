@@ -295,7 +295,9 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles.scss';
+
 .sankey-container {
   padding-top: 3rem;
   width: 100%;
@@ -307,7 +309,7 @@ export default MyComponent
 
 .show-thumbnail {
   padding-top: 0;
-  height: 200px;
+  height: $thumbnailHeight;
 }
 
 h1 {

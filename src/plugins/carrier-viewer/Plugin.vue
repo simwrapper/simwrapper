@@ -939,7 +939,7 @@ export default CarrierPlugin
 .carrier-viewer {
   display: grid;
   pointer-events: none;
-  min-height: 200px;
+  min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   grid-template-columns: 1fr auto;

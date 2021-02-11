@@ -46,12 +46,12 @@
 
       .curate-content(v-if="myState.vizes.length")
         .viz-table
-          .viz-item(v-for="viz,index in myState.vizes"
+          .viz-grid-item(v-for="viz,index in myState.vizes"
                     :key="viz.config"
                     @click="clickedVisualization(index)")
 
             .viz-frame
-              component.frame-component(
+              component.viz-frame-component(
                     :is="viz.component"
                     :yamlConfig="viz.config"
                     :fileApi="myState.svnRoot"
@@ -441,11 +441,10 @@ h2 {
   grid-gap: 2rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   list-style: none;
-  margin-bottom: 0px;
-  padding-left: 0px;
 }
 
-.viz-item {
+.viz-grid-item {
+  z-index: 1;
   text-align: center;
   margin: 0 0;
   padding: 0 0;
@@ -454,21 +453,17 @@ h2 {
   cursor: pointer;
   vertical-align: top;
   background-color: var(--bgBold);
-  border-radius: 16px;
   border: var(--borderThin);
-}
-
-.frame-component {
-  background-color: white;
+  border-radius: 16px;
 }
 
 .viz-frame {
+  z-index: 1;
   flex: 1;
   border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  // white-space: nowrap;
 
   p {
     margin: auto 0 auto 0;
@@ -489,6 +484,10 @@ h2 {
 .viz-frame:hover {
   box-shadow: var(--shadowMode);
   transition: box-shadow 0.1s ease-in-out;
+}
+
+.viz-frame-component {
+  background-color: white;
 }
 
 .logo {

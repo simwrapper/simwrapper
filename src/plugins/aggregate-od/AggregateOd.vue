@@ -1235,6 +1235,8 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
+@import '@/styles.scss';
+
 h3 {
   margin: 0px 0px;
   font-size: 16px;
@@ -1265,7 +1267,7 @@ h4 {
 }
 
 .map-container {
-  min-height: 200px;
+  min-height: $thumbnailHeight;
   background-color: #eee;
   grid-column: 1 / 3;
   grid-row: 1 / 3;

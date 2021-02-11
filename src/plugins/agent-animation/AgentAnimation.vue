@@ -373,7 +373,7 @@ export default MyComponent
 
 #v3-app {
   display: grid;
-  min-height: 200px;
+  min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   pointer-events: none;

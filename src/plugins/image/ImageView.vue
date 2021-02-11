@@ -1,5 +1,5 @@
 <template lang="pug">
-#container(v-if="myState.yamlConfig")
+.image-container(v-if="myState.yamlConfig" :class="{'zthumbnail' : thumbnail }")
   img.medium-zoom(
     :src="myState.imageData"
     :class="{'invert-colors' : isDarkMode }")
@@ -141,11 +141,18 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
+@import '@/styles.scss';
+
+.image-container.zthumbnail {
+  max-height: $thumbnailHeight;
+  overflow: hidden;
+}
+
 .medium-zoom {
   padding: 0.25rem 0.25rem;
 }
 
-.invert-colors {
-  // filter: invert(100%);
-}
+// .invert-colors {
+//   filter: invert(100%);
+// }
 </style>
