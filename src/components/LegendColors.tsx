@@ -24,7 +24,6 @@ export default function Component(props: {
     <div>
       <h4
         style={{
-          color: 'white',
           textAlign: 'left',
           fontWeight: 'bold',
           marginBottom: '0.5rem',

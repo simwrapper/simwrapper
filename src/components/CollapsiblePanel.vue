@@ -1,11 +1,13 @@
 <template lang="pug">
-.outer
-  .body(:style="{order: direction === 'left' ? 2 : 1, maxWidth: collapsed ? 0 : `${width}px`}"
-  )
+.outer(:class="{collapsed}")
+  .body(v-if="direction==='left'" :style="{order: 2, transform: collapsed ? `translateX(-${width}px` : `none`}")
     slot.content(:style="{width: `${width}px`}")
 
-  .xbutton(@click="handleClick"
-    :style="{order: direction === 'left' ? 1 : 2, borderRadius: collapsed ? '4px' : '0px'}")
+  .body(v-else :style="{order: 1, transform: collapsed ? `translateX(${width}px` : `none`}")
+    slot.content(:style="{width: `${width}px`}")
+
+  .xbutton(@click="handleClick" :class="{collapsed}"
+           :style="{order: direction === 'left' ? 1 : 2}")
 
       .rotate(:style="{transform: `rotate(${collapsed ? 180 : 360}deg)`}") {{ direction === 'left' ? "&lt;" : "&gt;" }}
 
@@ -43,28 +45,48 @@ export default class VueComponent extends Vue {
   display: flex;
   justify-items: center;
   flex-direction: row;
+  pointer-events: auto;
+  box-shadow: 0px 2px 10px #22222266;
+}
+
+.outer.collapsed {
+  box-shadow: none;
 }
 
 .body {
   overflow: hidden;
-  transition: max-width 0.15s ease-out;
+  transition: transform 0.15s ease-out;
+  background-color: var(--bgPanel);
+  font-size: 0.8rem;
 }
 
 .xbutton {
+  z-index: 2;
   display: flex;
   border: none;
   cursor: pointer;
   align-items: center;
   font-size: 22px;
-  background-color: #223446;
+  background-color: var(--bgCream3);
   outline: none;
-  color: #ccc;
-  transition: background-color 0.25s, border-radius 0.15s;
+  color: #aac;
+  transition: background-color 0.15s, color 0.15s, border-radius 0.15s;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.xbutton.collapsed {
+  border-radius: 4px;
+  box-shadow: 0px 2px 10px #22222266;
 }
 
 .xbutton:hover {
-  background-color: #1b2a3f;
-  color: yellow;
+  background-color: var(--bgCream4);
+  color: var(--link);
 }
 
 .rotate {
