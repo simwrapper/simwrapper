@@ -1,14 +1,7 @@
-export enum Status {
-  INFO,
-  WARNING,
-}
-
 export interface SVNProject {
   name: string
-  name_de: string
   url: string
   description: string
-  description_de: string
   svn: string
   need_password: boolean
 }
@@ -31,7 +24,6 @@ export interface FileSystem {
   getFileText(path: string): Promise<string>
   getFileJson(path: string): Promise<any>
   getFileBlob(path: string): Promise<Blob | null>
-  cleanURL(path: string): string
 }
 
 export enum ColorScheme {
@@ -148,14 +140,6 @@ export const DARK_MODE: ColorSet = {
   critical: '#fff',
   recovered: '#116622',
 }
-
-export const MAP_STYLES = {
-  light: 'mapbox://styles/mapbox/light-v10',
-  dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
-}
-// dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
-// light 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh' // but still has some color
-// 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9'
 
 export enum LegendItemType {
   line,

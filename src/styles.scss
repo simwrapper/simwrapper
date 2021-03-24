@@ -17,16 +17,11 @@ $sizeVessel: 60rem;
 $thumbnailHeight: 10rem;
 
 :root {
-  --bg: #edebe4;
+  --bg: #dbd9d7;
   --bgBold: #ffffff;
   --bgCream: #edebe4;
-  --bgCream2: #dddcd7;
-  --bgCream3: #dddce7;
-  --bgCream4: #e4e3f4;
   --bgHover: #ffd;
-  --bgPanel: #fff;
   --text: #363636;
-  --textBold: #1d3355;
   --textFancy: #1d3355;
   --link: #1c5179;
   --linkHover: #0b263b;
@@ -40,16 +35,11 @@ $thumbnailHeight: 10rem;
   --bg: #2d3133;
   --bgBold: #181a1b;
   --bgCream: #2d3133;
-  --bgCream2: #33373a;
-  --bgCream3: #344857;
-  --bgCream4: #304453;
-  --bgPanel: #2a3c4f;
   --bgHover: #4d4c37;
   --text: #c6c1b9;
-  --textBold: white;
   --textFancy: #a5c4e2;
   --link: #65d68f;
   --linkHover: #a8ffc8;
-  --shadowMode: 0px 0px 6px 6px rgba(192, 192, 255, 0.3);
+  --shadowMode: 0px 0px 5px 5px rgba(192, 192, 255, 0.12);
   --borderThin: 1px solid #15151d;
 }

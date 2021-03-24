@@ -1,43 +1,44 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
 
-  .app-nav
-    .top-bar.full-page-app
-      nav.top-link
-        router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
-          :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
-            p {{ link.name }}
-
-        .right-side
-          .locale(@click="toggleTheme")
-            i.fa.fa-1x.fa-adjust
-            br
-            span {{ $t(state.colorScheme) }}
-
-          .locale(@click="toggleLocale")
-            i.fa.fa-1x.fa-globe
-            br
-            span {{ state.locale }}
-
-    .breadcrumb-container(v-if="state.breadcrumbs.length")
-      .breadcrumb.has-bullet-separator.is-centered(aria-label="breadcrumbs")
+  #nav
+    .breadcrumbs-bar(v-if="state.breadcrumbs.length > 0"
+                     :style="{paddingLeft: state.isFullScreen ? '0.75rem':''}")
+      nav.breadcrumb(aria-label="breadcrumbs")
         ul
-          li(v-for="crumb,i in state.breadcrumbs"
-          )
-            router-link(v-if="i < state.breadcrumbs.length-1"
-                        :to="crumb.url") {{ crumb.label }}
-            a.no-breadcrumb-link(v-else) {{ crumb.label }}
+          li(v-for="crumb,i in state.breadcrumbs" :key="crumb.label + crumb.url"
+            @click="clickedLink(crumb.url)"
+            @click.middle="openNewTab(crumb.url)"
+            @click.ctrl="openNewTab(crumb.url)"
+            @click.meta="openNewTab(crumb.url)"
+            )
+              p {{ i === 0 ? 'aftersim' : crumb.label }}
+
+    .locale(@click="toggleTheme")
+      i.fa.fa-1x.fa-adjust
+      br
+      span {{ $t(state.colorScheme) }}
+
+    .locale(@click="toggleLocale")
+      i.fa.fa-1x.fa-globe
+      br
+      span {{ state.locale }}
 
   .center-area.nav-padding
     login-panel.login-panel
     router-view.main-content
 
-  .message-zone(v-if="state.statusErrors.length")
-    .message-error(v-for="err,i in state.statusErrors")
-      p: i.fa.fa-icon.fa-exclamation-triangle(style="color: orange;")
-      p(v-html="err")
-    button.button.is-small(@click="removeAllErrors()") CLEAR
+  .footer(v-if="!state.isFullScreen")
+    //- colophon.colophon
+    a(href="https://vsp.tu-berlin.de")
+      img(alt="TU-Berlin logo" src="@/assets/images/vsp-logo.png" width=225)
+    a(href="https://matsim.org")
+      img(alt="MATSim logo" src="@/assets/images/matsim-logo-blue.png" width=250)
 
+    p aftersim &copy; 2020 VSP TU-Berlin.
+    p More info about VSP:
+      a(href="https://www.vsp.tu-berlin.de") &nbsp;https://vsp.tu-berlin.de
+    p EU GDPR: No personal information collected or transmitted.
 </template>
 
 <i18n>
@@ -87,30 +88,15 @@ class App extends Vue {
 
     if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
 
-    document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
+    // locale: we only support EN and DE
+    const locale = localStorage.getItem('locale')
+      ? '' + localStorage.getItem('locale')
+      : // @ts-ignore
+      (navigator.language || navigator.userLanguage).startsWith('de')
+      ? 'de'
+      : 'en'
 
-    // // locale: we only support EN and DE
-    // const locale = localStorage.getItem('locale')
-    //   ? '' + localStorage.getItem('locale')
-    //   : // @ts-ignore
-    //   (navigator.language || navigator.userLanguage).startsWith('de')
-    //   ? 'de'
-    //   : 'en'
-
-    // this.$store.commit('setLocale', locale)
-  }
-
-  private get topNavLinks() {
-    // {name, description, need_password, svn, thumbnail, url }
-    // a '/' will be prepended
-    const home: any[] = [{ name: 'Home', url: '' }]
-    const topLinks = home.concat(this.state.svnProjects)
-
-    return topLinks
-  }
-
-  private removeAllErrors() {
-    this.$store.commit('clearAllErrors')
+    this.$store.commit('setLocale', locale)
   }
 
   private toggleLocale() {
@@ -167,87 +153,33 @@ html {
 html {
   overflow-y: auto;
   color: var(--text);
-}
-
-:root {
-  font-size: 14px;
+  background-color: $steelGray;
 }
 
 canvas {
   display: block;
 }
 
-.top-bar {
-  width: 100%;
-  padding: 0 3rem;
-  margin: 0 auto;
-  max-width: $sizeVessel;
-  transition: padding 0.2s ease-in-out, max-width 0.3s ease-in-out;
-  // box-shadow: 0px 6px 10px #00000048;
-  z-index: 0;
-}
-
-.top-bar.full-page-app {
-  padding: 0 1rem;
-  max-width: unset;
-}
-
-.breadcrumb-container {
-  background-color: #3e455c;
-  width: 100%;
-  padding: 0.25rem 0;
+.breadcrumbs-bar {
+  flex: 1;
+  padding: 0.7rem 3rem;
+  transition: padding 0.2s ease-in-out;
 }
 
 .breadcrumb {
   font-size: 0.9rem;
-  padding: 0 3rem;
-  margin: 0 auto;
-  max-width: $sizeVessel;
-  transition: padding 0.2s ease-in-out;
-
-  ul {
-    max-width: $sizeVessel;
-    display: flex;
-    flex-direction: row;
-  }
-
-  a {
-    color: #ccc;
-    padding: 0 1rem;
-  }
-
-  a:hover {
-    cursor: pointer;
-    color: white;
-  }
-
-  a.no-breadcrumb-link {
-    cursor: default;
-    color: #ccc;
-  }
-}
-
-.top-link {
-  font-size: 0.9rem;
   font-weight: bold;
-  margin-left: -0.75rem;
-  display: flex;
-  flex-direction: row;
+  margin-left: -0.5rem;
 }
 
-.top-link p {
+.breadcrumb p {
   color: #e0e0e0;
   cursor: pointer;
-  padding: 1rem 0.75rem;
+  margin: 0 0.5rem;
 }
 
-.top-link p:hover {
-  background-color: $matsimBlue;
-  color: white;
-}
-
-.selected p {
-  background-color: #3e455c;
+.breadcrumb p:hover {
+  color: #a8ffc8;
 }
 
 .bury-me {
@@ -260,7 +192,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Roboto', Avenir, Helvetica, Arial, sans-serif;
 }
 
 h2 {
@@ -276,12 +208,12 @@ h3 {
 #main-app {
   display: grid;
   color: var(--text);
-  background-color: var(--bgCream);
+  background-color: var(--bg);
   font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
   grid-template-columns: 1fr;
-  grid-template-rows: auto auto 1fr;
-  margin: 0 0;
-  padding: 0 0;
+  grid-template-rows: auto 1fr auto;
+  margin: 0px 0px 0px 0px;
+  padding: 0px 0px 0px 0px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
@@ -299,29 +231,32 @@ a:hover {
   height: 100%;
 }
 
+.modebar-group {
+  top: -1.2rem;
+  right: -1rem;
+}
+
 .login-panel {
   z-index: 12000;
 }
 
-.app-nav {
-  position: sticky;
-  top: 0;
+#nav {
   background-color: $steelGray;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
+  width: 100%;
   z-index: 10000;
   display: flex;
-  flex-direction: column;
-  box-shadow: 0px 6px 10px #00000033;
-}
-
-.app-nav a.router-link-exact-active {
-  font-weight: bold;
-  color: #00ffff;
+  flex-direction: row;
 }
 
 .main-content {
   flex: 1;
+}
+
+#nav a.router-link-exact-active {
+  font-weight: bold;
+  color: #ffffff;
 }
 
 .space {
@@ -334,7 +269,7 @@ a:hover {
 
 .center-area {
   grid-column: 1 / 2;
-  grid-row: 2 / 4;
+  grid-row: 2 / 3;
   z-index: 1;
   display: flex;
   flex-direction: row;
@@ -345,19 +280,21 @@ a:hover {
 }
 
 .footer {
-  margin-top: 2rem;
   grid-column: 1 / 2;
   grid-row: 3 / 4;
   text-align: center;
   font-size: 0.8rem;
+  margin: 0 0 0 0;
   padding: 5rem 1rem;
+  color: #ccc;
 }
 
 #main-app .footer {
   color: var(--text);
-  background-color: $steelGray; // #18181b;
+  background-color: var(--bgBold);
   text-align: center;
   padding: 2rem 0.5rem 3rem 0.5rem;
+  // background-color: #648cb4;
 }
 
 .footer a {
@@ -367,10 +304,6 @@ a:hover {
 .footer img {
   margin: 1rem auto;
   padding: 0 1rem;
-}
-
-.footer p {
-  color: #eee;
 }
 
 .medium-zoom-overlay {
@@ -405,23 +338,17 @@ a:hover {
   width: min-content !important;
 }
 
-.right-side {
-  display: flex;
-  flex-direction: row;
-  margin-left: auto;
-}
-
 .locale {
   -moz-user-select: none;
   -webkit-user-select: none;
-  user-select: none;
   font-size: 0.7rem;
   background-color: $steelGray;
   color: #ccc;
-  margin: auto 0 auto 0.5rem;
+  margin: auto 0;
   padding: 2px 0px;
   width: 1.5rem;
   text-align: center;
+  margin-right: 0.75rem;
 }
 
 .locale:hover {
@@ -435,46 +362,8 @@ a:hover {
   transform: translateY(1px);
 }
 
-.message-zone {
-  position: sticky;
-  bottom: 0px;
-  z-index: 5;
-  grid-column: 1 / 2;
-  grid-row: 1 / 4;
-  box-shadow: 0px 2px 10px #22222266;
-  display: flex;
-  flex-direction: column;
-  margin: auto auto 0 0;
-  background-color: var(--bgPanel);
-  border-top: 2px solid #ba2b00;
-  border-right: 2px solid #ba2b00;
-}
-
-.message-error {
-  padding: 0.5rem 0.5rem;
-  background-color: #fff6c3;
-  display: flex;
-  flex-direction: row;
-  line-height: 1.2rem;
-
-  p {
-    margin: auto 0.5rem auto 0;
-    font-weight: normal;
-    padding: 0 0;
-    color: black;
-  }
-  button {
-    margin: auto 0;
-  }
-}
-
 @media only screen and (max-width: 640px) {
-  .top-bar {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .breadcrumbs {
+  .breadcrumbs-bar {
     padding-left: 1rem;
     padding-right: 1rem;
   }
