@@ -2,6 +2,8 @@
 
 This repo contains the interactive visualization website for **aftersim**, available at https://aftersim.github.io.
 
+- DOCS available at: https://aftersim.github.io/docs/docs
+
 This README details build instructions for the website itself.
 
 ## Project pre-requisites
