@@ -103,7 +103,7 @@ class App extends Vue {
   private get topNavLinks() {
     // {name, description, need_password, svn, thumbnail, url }
     // a '/' will be prepended
-    const home: any[] = [{ name: 'aftersim', url: '' }]
+    const home: any[] = [{ name: 'PAVE', url: '' }]
     const topLinks = home.concat(this.state.svnProjects)
 
     return topLinks

@@ -4,27 +4,29 @@ import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import DeckGL from '@deck.gl/react'
 
+import { MAP_STYLES } from '@/Globals'
+
 const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
-const ambientLight = new AmbientLight({
-  color: [255, 255, 255],
-  intensity: 1.0,
-})
+// const ambientLight = new AmbientLight({
+//   color: [255, 255, 255],
+//   intensity: 1.0,
+// })
 
-const pointLight1 = new PointLight({
-  color: [255, 255, 255],
-  intensity: 0.8,
-  position: [-0.144528, 49.739968, 80000],
-})
+// const pointLight1 = new PointLight({
+//   color: [255, 255, 255],
+//   intensity: 0.8,
+//   position: [-0.144528, 49.739968, 80000],
+// })
 
-const pointLight2 = new PointLight({
-  color: [255, 255, 255],
-  intensity: 0.8,
-  position: [-3.807751, 54.104682, 8000],
-})
+// const pointLight2 = new PointLight({
+//   color: [255, 255, 255],
+//   intensity: 0.8,
+//   position: [-3.807751, 54.104682, 8000],
+// })
 
-const lightingEffect = new LightingEffect({ ambientLight, pointLight1, pointLight2 })
+// const lightingEffect = new LightingEffect({ ambientLight, pointLight1, pointLight2 })
 
 const material = {
   ambient: 0.64,
@@ -35,20 +37,30 @@ const material = {
 
 const INITIAL_VIEW_STATE = {
   zoom: 10,
-  minZoom: 5,
-  maxZoom: 15,
-  pitch: 30,
+  minZoom: 3,
+  maxZoom: 20,
+  pitch: 20,
   bearing: 0,
 }
 
-export const colorRange = [
-  [1, 152, 189],
-  [73, 227, 206],
-  [216, 254, 181],
-  [254, 237, 177],
-  [254, 173, 84],
-  [209, 55, 78],
-]
+export const colorRange = {
+  light: [
+    [250, 245, 120],
+    [255, 210, 90],
+    [180, 240, 150],
+    [70, 220, 150],
+    [40, 110, 250],
+    [140, 0, 40],
+  ],
+  dark: [
+    [1, 152, 189],
+    [73, 227, 206],
+    [216, 254, 181],
+    [254, 237, 177],
+    [254, 173, 84],
+    [209, 55, 78],
+  ],
+}
 
 function getTooltip({ object }: any) {
   if (!object || !object.position || !object.position.length) {
@@ -70,13 +82,14 @@ function getTooltip({ object }: any) {
 
 export default function App({
   data = [],
-  mapStyle = 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex', // 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9', // 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', //
+  dark = false,
+  mapStyle = 'mapbox://styles/mapbox/light-v9',
   radius = 100,
   upperPercentile = 100,
   coverage = 0.8,
   extrude = true,
   maxHeight = 200,
-  center = [14.34, 52.3],
+  center = [11.34, 48.3],
 }) {
   const [lon, lat] = center
   const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
@@ -84,7 +97,7 @@ export default function App({
   const layers = [
     new HexagonLayer({
       id: 'hexlayer',
-      colorRange,
+      colorRange: dark ? colorRange['dark'] : colorRange['light'],
       coverage,
       data,
       autoHighlight: true,
@@ -93,6 +106,7 @@ export default function App({
       extruded: extrude,
       getPosition: (d: any) => d,
       pickable: true,
+      opacity: 0.7,
       radius,
       upperPercentile,
       material,
@@ -107,7 +121,7 @@ export default function App({
     //@ts-ignore */
     <DeckGL
       layers={layers}
-      effects={[lightingEffect]}
+      // effects={[lightingEffect]}
       initialViewState={initialView}
       controller={true}
       getTooltip={getTooltip}
@@ -117,7 +131,7 @@ export default function App({
         // @ts-ignore */
         <InteractiveMap
           reuseMaps
-          mapStyle={mapStyle}
+          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
           preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />
