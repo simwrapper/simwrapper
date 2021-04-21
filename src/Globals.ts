@@ -31,7 +31,7 @@ export interface FileSystem {
   getFileText(path: string): Promise<string>
   getFileJson(path: string): Promise<any>
   getFileBlob(path: string): Promise<Blob | null>
-  // cleanURL(path: string): string
+  cleanURL(path: string): string
 }
 
 export enum ColorScheme {

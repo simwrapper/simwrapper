@@ -253,7 +253,7 @@ export default class AnimationView extends Vue {
     }
 
     this.linkMaterial.dispose()
-    this.scene.dispose()
+    // this.scene.dispose()
   }
 
   private onWindowResize() {
