@@ -159,7 +159,7 @@ class XyHexagons extends Vue {
     this.activeAggregation = item
     // get element offsets in data array
     const col = this.aggregations[item]
-    this.requests = this.rawRequests.map(r => [r[col[0]], r[col[1]]])
+    this.requests = this.rawRequests.map(r => [r[col[0]], r[col[1]]]).filter(z => z[0] && z[1])
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
