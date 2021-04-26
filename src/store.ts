@@ -6,14 +6,6 @@ import svnConfig from '@/svnConfig'
 
 Vue.use(Vuex)
 
-// locale: we only support EN and DE
-const locale = localStorage.getItem('locale')
-  ? '' + localStorage.getItem('locale')
-  : // @ts-ignore
-  (navigator.language || navigator.userLanguage).startsWith('de')
-  ? 'de'
-  : 'en'
-
 export default new Vuex.Store({
   state: {
     debug: true,
@@ -27,7 +19,7 @@ export default new Vuex.Store({
     svnProjects: svnConfig.projects,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.DarkMode,
-    locale,
+    locale: 'en',
   },
   getters: {},
   mutations: {
