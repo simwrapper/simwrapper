@@ -47,7 +47,7 @@ export default abstract class AsyncBackgroundWorker {
   }
 
   public abstract handleInitialize(call: MethodCall): void
-  public abstract async handleMethodCall(call: MethodCall): Promise<MethodResult>
+  public abstract handleMethodCall(call: MethodCall): Promise<MethodResult>
 
   private async handleMessage(e: MessageEvent): Promise<void> {
     const message = e.data as AsyncMethodCall

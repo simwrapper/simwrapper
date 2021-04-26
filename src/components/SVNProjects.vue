@@ -16,7 +16,7 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {

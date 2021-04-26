@@ -12,7 +12,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 // import mediumZoom from 'medium-zoom'
 import readBlob from 'read-blob'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
 import { ColorScheme, FileSystem, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 

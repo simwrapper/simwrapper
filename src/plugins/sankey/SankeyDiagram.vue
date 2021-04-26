@@ -21,7 +21,7 @@ import { scaleOrdinal } from 'd3-scale'
 import { schemeCategory10 } from 'd3-scale-chromatic'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
 import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 

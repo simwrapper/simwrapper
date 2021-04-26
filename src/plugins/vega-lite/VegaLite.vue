@@ -27,7 +27,7 @@ import vegaEmbed from 'vega-embed'
 import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
 import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 

@@ -19,7 +19,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import readBlob from 'read-blob'
 import { videoPlayer } from 'vue-video-player'
 
-import globalStore from '@/store.ts'
+import globalStore from '@/store'
 import { FileSystem, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
