@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { InteractiveMap } from 'react-map-gl'
-import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
+import { ArcLayer } from '@deck.gl/layers'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import DeckGL from '@deck.gl/react'
 
@@ -80,21 +80,38 @@ function getTooltip({ object }: any) {
   }
 }
 
-export default function App({
+export default function Layer({
   data = [],
+  highlights = [],
   dark = false,
-  mapStyle = 'mapbox://styles/mapbox/light-v9',
   radius = 100,
   upperPercentile = 100,
-  coverage = 0.8,
+  coverage = 0.6,
   extrude = true,
   maxHeight = 200,
   center = [11.34, 48.3],
+  onClick = {} as any,
 }) {
   const [lon, lat] = center
   const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
 
+  function handleClick(target: any) {
+    onClick(target)
+  }
+
   const layers = [
+    new ArcLayer({
+      id: 'arc-layer',
+      data: highlights,
+      pickable: false,
+      getWidth: 2,
+      opacity: 0.5,
+      getSourcePosition: (d: any) => d[0],
+      getTargetPosition: (d: any) => d[1],
+      getSourceColor: dark ? [255, 128, 228] : [255, 0, 0],
+      getTargetColor: dark ? [255, 160, 240] : [0, 128, 255],
+    }),
+    ,
     new HexagonLayer({
       id: 'hexlayer',
       colorRange: dark ? colorRange['dark'] : colorRange['light'],
@@ -106,12 +123,13 @@ export default function App({
       extruded: extrude,
       getPosition: (d: any) => d,
       pickable: true,
-      opacity: 0.7,
+      opacity: dark && highlights.length ? 0.6 : 0.8,
       radius,
       upperPercentile,
       material,
       transitions: {
         elevationScale: { type: 'interpolation', duration: 1000 },
+        opacity: { type: 'interpolation', duration: 200 },
       },
     }),
   ]
@@ -125,6 +143,7 @@ export default function App({
       initialViewState={initialView}
       controller={true}
       getTooltip={getTooltip}
+      onClick={handleClick}
     >
       {
         /*

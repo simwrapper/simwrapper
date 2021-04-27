@@ -2,9 +2,15 @@
 en:
   loading: 'Loading data...'
   sorting: 'Sorting into bins...'
+  threedee: 'Show in 3D'
+  aggregate: 'Summary'
+  maxHeight: 'Max Height'
 de:
   loading: 'Dateien laden...'
   sorting: 'Sortieren...'
+  threedee: 'In 3D anzeigen'
+  aggregate: 'Daten'
+  maxHeight: 'Max Höhe'
 </i18n>
 
 <template lang="pug">
@@ -14,10 +20,12 @@ de:
   xy-hex-layer.anim(v-if="!thumbnail && isLoaded"
                 :center="center"
                 :data="requests"
+                :highlights="highlightedTrips"
                 :dark="isDarkMode"
                 :extrude="extrudeTowers"
                 :radius="radius"
-                :maxHeight="maxHeight")
+                :maxHeight="maxHeight"
+                :onClick="handleClick")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(:darkMode="true" width="300" direction="left")
@@ -30,7 +38,7 @@ de:
       .panel-items
 
         .panel-item
-          p.speed-label Aggregate
+          p.speed-label {{ $t('aggregate') }}
           .buttons.has-addons
             button.button.is-small.is-dark(
               v-for="agg in Object.keys(aggregations)"
@@ -39,15 +47,15 @@ de:
               @click="handleOrigDest(agg)") {{ agg }}
 
         .panel-item
-          p.speed-label Show in 3D
+          p.speed-label {{ $t('threedee') }}
           toggle-button.toggle(:width="40" :value="extrudeTowers" :labels="false"
             :color="{checked: '#4b7cc4', unchecked: '#222'}"
             @change="extrudeTowers = !extrudeTowers")
 
         .panel-item
-          p.speed-label Max Height: {{ maxHeight }}
+          p.speed-label {{ $t('maxHeight') }}: {{ maxHeight }}
           vue-slider.speed-slider(v-model="maxHeight"
-            :min="100" :max="1000" :interval="50"
+            :min="50" :max="500" :interval="25"
             :duration="0" :dotSize="16"
             tooltip="none"
           )
@@ -145,6 +153,7 @@ class XyHexagons extends Vue {
   }
 
   private requests: any[] = []
+  private highlightedTrips: any[] = []
 
   private searchTerm: string = ''
   private searchEnabled = false
@@ -155,11 +164,42 @@ class XyHexagons extends Vue {
 
   private activeAggregation: string = ''
 
+  private isHighlightingZone = false
+
+  private handleClick(click: any) {
+    console.log('CLICK!', click)
+
+    // force highlight off if user clicked away
+    this.isHighlightingZone = !!click.object
+
+    if (!this.isHighlightingZone) {
+      this.highlightedTrips = []
+    } else {
+      const filteredRows: any = []
+      const colFrom = this.aggregations[Object.keys(this.aggregations)[0]]
+      const colTo = this.aggregations[Object.keys(this.aggregations)[1]]
+
+      for (const row of click.object.points) {
+        const points = this.rawRequests[row.index]
+        filteredRows.push([
+          [points[colFrom[0]], points[colFrom[1]]],
+          [points[colTo[0]], points[colTo[1]]],
+        ])
+      }
+
+      this.highlightedTrips = filteredRows
+    }
+  }
+
   private async handleOrigDest(item: string) {
+    this.highlightedTrips = []
     this.activeAggregation = item
+
     // get element offsets in data array
     const col = this.aggregations[item]
     this.requests = this.rawRequests.map(r => [r[col[0]], r[col[1]]]).filter(z => z[0] && z[1])
+
+    // todo - handle selection?
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
