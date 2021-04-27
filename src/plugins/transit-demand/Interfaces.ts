@@ -32,5 +32,5 @@ export interface NetworkLink {
 
 export interface TransitLine {
   id: string
-  transitRoutes: any[]
+  transitRoutes: RouteDetails[]
 }

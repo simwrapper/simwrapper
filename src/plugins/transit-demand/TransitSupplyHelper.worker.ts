@@ -145,7 +145,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
     }
   }
 
-  private buildTransitRouteDetails(lineId: string, route: any) {
+  private buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
     const allDepartures = route.departures[0].departure
     allDepartures.sort(function(a: any, b: any) {
       const timeA = a.$.departureTime
