@@ -6,6 +6,21 @@ import svnConfig from '@/svnConfig'
 
 Vue.use(Vuex)
 
+interface GlobalState {
+  debug: boolean
+  authAttempts: number
+  breadcrumbs: BreadCrumb[]
+  credentials: { [url: string]: string }
+  isFullScreen: boolean
+  needLoginForUrl: string
+  statusErrors: string[]
+  statusMessage: string
+  svnProjects: any
+  visualizationTypes: Map<string, VisualizationPlugin>
+  colorScheme: string
+  locale: string
+}
+
 export default new Vuex.Store({
   state: {
     debug: true,
@@ -20,28 +35,29 @@ export default new Vuex.Store({
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.DarkMode,
     locale: 'en',
-  },
+  } as GlobalState,
+
   getters: {},
   mutations: {
-    requestLogin(state, value: string) {
+    requestLogin(state: GlobalState, value: string) {
       state.needLoginForUrl = value
     },
-    registerPlugin(state, value: VisualizationPlugin) {
+    registerPlugin(state: GlobalState, value: VisualizationPlugin) {
       console.log('PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
     },
-    setBreadCrumbs(state, value: BreadCrumb[]) {
+    setBreadCrumbs(state: GlobalState, value: BreadCrumb[]) {
       state.breadcrumbs = value
     },
-    setCredentials(state, value: { url: string; username: string; pw: string }) {
+    setCredentials(state: GlobalState, value: { url: string; username: string; pw: string }) {
       const creds = btoa(`${value.username}:${value.pw}`)
       state.credentials[value.url] = creds
       state.authAttempts++
     },
-    setFullScreen(state, value: boolean) {
+    setFullScreen(state: GlobalState, value: boolean) {
       state.isFullScreen = value
     },
-    setStatus(state, value: { type: Status; msg: string }) {
+    setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {
         state.statusMessage = value.msg
       } else {
@@ -54,15 +70,15 @@ export default new Vuex.Store({
         }
       }
     },
-    clearError(state, value: number) {
+    clearError(state: { statusErrors: any[] }, value: number) {
       if (state.statusErrors.length >= value) {
         state.statusErrors.splice(value, 1) // remove one element
       }
     },
-    clearAllErrors(state) {
+    clearAllErrors(state: GlobalState) {
       state.statusErrors = []
     },
-    rotateColors(state) {
+    rotateColors(state: GlobalState) {
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
 
@@ -73,7 +89,7 @@ export default new Vuex.Store({
       document.body.style.backgroundColor =
         state.colorScheme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
     },
-    setLocale(state, value: string) {
+    setLocale(state: GlobalState, value: string) {
       state.locale = value.toLocaleLowerCase()
       localStorage.setItem('locale', state.locale)
       console.log('NEW LOCALE:', state.locale)
