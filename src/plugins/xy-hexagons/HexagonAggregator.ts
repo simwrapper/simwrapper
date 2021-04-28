@@ -1,3 +1,10 @@
+// @billyc 2021.04.28:
+// this file forked from
+// https://github.com/visgl/deck.gl/blob/master/modules/aggregation-layers/src/hexagon-layer/hexagon-aggregator.js
+// in order to modify the hexbin extents; this is needed so that the
+// click-to-highlight functionality doesn't shift the hexagon locations.
+// -------
+
 // Copyright (c) 2015 - 2017 Uber Technologies, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +37,7 @@ import { createIterable, log } from '@deck.gl/core'
 
  * @return {Object} - hexagons and countRange
  */
-export function pointToHexbin(props, aggregationParams) {
+export function pointToHexbin(props: any, aggregationParams: any) {
   const { data, radius } = props
   const { viewport, attributes } = aggregationParams
   // get hexagon radius in mercator world unit
@@ -38,7 +45,7 @@ export function pointToHexbin(props, aggregationParams) {
   const radiusCommon = getRadiusInCommon(radius, viewport, centerLngLat)
 
   // add world space coordinates to points
-  const screenPoints = []
+  const screenPoints = [] as any[]
   const { iterable, objectInfo } = createIterable(data)
   const positions = attributes.positions.value
   const { size } = attributes.positions.getAccessor()
@@ -60,8 +67,8 @@ export function pointToHexbin(props, aggregationParams) {
 
   const newHexbin = hexbin()
     .radius(radiusCommon)
-    .x(d => d.screenCoord[0])
-    .y(d => d.screenCoord[1])
+    .x((d: any) => d.screenCoord[0])
+    .y((d: any) => d.screenCoord[1])
 
   const hexagonBins = newHexbin(screenPoints)
 
@@ -78,7 +85,7 @@ export function pointToHexbin(props, aggregationParams) {
 /**
  * Get the bounding box of all data points
  */
-export function getPointsCenter(data, aggregationParams) {
+export function getPointsCenter(data: any, aggregationParams: any) {
   const { attributes } = aggregationParams
   const positions = attributes.positions.value
   const { size } = attributes.positions.getAccessor()
@@ -116,7 +123,7 @@ export function getPointsCenter(data, aggregationParams) {
 
  * @return {Number} radius in mercator world spcae coordinates
  */
-export function getRadiusInCommon(radius, viewport, center) {
+export function getRadiusInCommon(radius: number, viewport: any, center: any) {
   const { unitsPerMeter } = viewport.getDistanceScales(center)
   // x, y distance should be the same
   return radius * unitsPerMeter[0]

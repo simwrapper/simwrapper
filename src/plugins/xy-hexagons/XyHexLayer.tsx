@@ -3,8 +3,10 @@ import { InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import DeckGL from '@deck.gl/react'
+import d3Hexbin from 'd3-hexbin'
 
 import { MAP_STYLES } from '@/Globals'
+import { pointToHexbin } from './HexagonAggregator'
 
 const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
@@ -45,7 +47,7 @@ const INITIAL_VIEW_STATE = {
 
 export const colorRange = {
   light: [
-    [250, 245, 120],
+    [250, 240, 110],
     [255, 210, 90],
     [180, 240, 150],
     [70, 220, 150],
@@ -86,7 +88,7 @@ export default function Layer({
   dark = false,
   radius = 100,
   upperPercentile = 100,
-  coverage = 0.6,
+  coverage = 0.65,
   extrude = true,
   maxHeight = 200,
   center = [11.34, 48.3],
@@ -103,15 +105,15 @@ export default function Layer({
     new ArcLayer({
       id: 'arc-layer',
       data: highlights,
-      pickable: false,
-      getWidth: 3,
-      opacity: 0.4,
       getSourcePosition: (d: any) => d[0],
       getTargetPosition: (d: any) => d[1],
-      getSourceColor: dark ? [255, 192, 228] : [255, 0, 0],
-      getTargetColor: dark ? [255, 228, 240] : [0, 128, 255],
+      pickable: false,
+      opacity: 0.5,
+      getHeight: 0,
+      getWidth: 1,
+      getSourceColor: dark ? [144, 96, 128] : [192, 192, 240],
+      getTargetColor: dark ? [144, 96, 128] : [192, 192, 240],
     }),
-    ,
     new HexagonLayer({
       id: 'hexlayer',
       colorRange: dark ? colorRange['dark'] : colorRange['light'],
@@ -122,8 +124,9 @@ export default function Layer({
       elevationScale: data && data.length ? 50 : 0,
       extruded: extrude,
       getPosition: (d: any) => d,
+      hexagonAggregator: pointToHexbin,
       pickable: true,
-      opacity: dark && highlights.length ? 0.6 : 0.8,
+      opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
       upperPercentile,
       material,

@@ -40,7 +40,7 @@ de:
         .panel-item
           p.speed-label {{ $t('aggregate') }}
           .buttons.has-addons
-            button.button.is-small.is-dark(
+            button.button.is-small.is-dark.aggregation-button(
               v-for="agg in Object.keys(aggregations)"
               :key="agg"
               :class="{'is-danger': activeAggregation===agg}"
@@ -171,6 +171,22 @@ class XyHexagons extends Vue {
 
     // force highlight off if user clicked away
     this.isHighlightingZone = !!click.object
+
+    if (!this.isHighlightingZone) {
+      this.handleOrigDest(this.activeAggregation)
+    } else {
+      const filteredRows: any = []
+
+      const which = this.activeAggregation === Object.keys(this.aggregations)[0] ? 1 : 0
+      const col = this.aggregations[Object.keys(this.aggregations)[which]]
+
+      for (const row of click.object.points) {
+        const points = this.rawRequests[row.index]
+        filteredRows.push([points[col[0]], points[col[1]]])
+      }
+
+      this.requests = filteredRows
+    }
 
     if (!this.isHighlightingZone) {
       this.highlightedTrips = []
@@ -666,6 +682,10 @@ label {
 .toggle {
   margin-bottom: 0.25rem;
   margin-right: 0.5rem;
+}
+
+.aggregation-button {
+  width: 100%;
 }
 
 @media only screen and (max-width: 640px) {
