@@ -25,7 +25,7 @@ de:
                 :extrude="extrudeTowers"
                 :radius="radius"
                 :maxHeight="maxHeight"
-                :onClick="handleClick")
+                :onClick="handleHexClick")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(:darkMode="true" width="300" direction="left")
@@ -79,10 +79,7 @@ import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
-import { Route } from 'vue-router'
 import YAML from 'yaml'
-import vuera from 'vuera'
-import crossfilter from 'crossfilter2'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
 
@@ -166,11 +163,18 @@ class XyHexagons extends Vue {
 
   private isHighlightingZone = false
 
-  private handleClick(click: any) {
+  private handleHexClick(click: any) {
     console.log('CLICK!', click)
 
-    // force highlight off if user clicked away
-    this.isHighlightingZone = !!click.object
+    if (this.isHighlightingZone) {
+      // force highlight off if user clicked on a second hex
+      this.isHighlightingZone = false
+    } else if (!click.object) {
+      // force highlight off if user clicked away
+      this.isHighlightingZone = false
+    } else {
+      this.isHighlightingZone = true
+    }
 
     if (!this.isHighlightingZone) {
       this.handleOrigDest(this.activeAggregation)
@@ -406,7 +410,7 @@ class XyHexagons extends Vue {
 
     this.aggregations = this.parseAggregations()
 
-    await this.reproject()
+    await this.reprojectCoordinates()
 
     this.center = this.findCenter(this.rawRequests)
 
@@ -429,7 +433,7 @@ class XyHexagons extends Vue {
 
   private rawRequests: any[] = []
 
-  private async reproject() {
+  private async reprojectCoordinates() {
     if (!this.vizDetails.projection) return
     if (this.vizDetails.projection === 'EPSG:4326') return
     if (this.vizDetails.projection === '4326') return

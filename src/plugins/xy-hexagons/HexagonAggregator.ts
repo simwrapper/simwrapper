@@ -1,7 +1,7 @@
 // @billyc 2021.04.28:
 // this file forked from
 // https://github.com/visgl/deck.gl/blob/master/modules/aggregation-layers/src/hexagon-layer/hexagon-aggregator.js
-// in order to modify the hexbin extents; this is needed so that the
+// in order to modify the center calculation; this is needed so that the
 // click-to-highlight functionality doesn't shift the hexagon locations.
 // -------
 
@@ -38,10 +38,10 @@ import { createIterable, log } from '@deck.gl/core'
  * @return {Object} - hexagons and countRange
  */
 export function pointToHexbin(props: any, aggregationParams: any) {
-  const { data, radius } = props
+  const { data, radius, center } = props
   const { viewport, attributes } = aggregationParams
   // get hexagon radius in mercator world unit
-  const centerLngLat = data.length ? getPointsCenter(data, aggregationParams) : null
+  const centerLngLat = data.length ? getPointsCenter(data, aggregationParams, center) : null
   const radiusCommon = getRadiusInCommon(radius, viewport, centerLngLat)
 
   // add world space coordinates to points
@@ -49,6 +49,7 @@ export function pointToHexbin(props: any, aggregationParams: any) {
   const { iterable, objectInfo } = createIterable(data)
   const positions = attributes.positions.value
   const { size } = attributes.positions.getAccessor()
+
   for (const object of iterable) {
     objectInfo.index++
     const posIndex = objectInfo.index * size
@@ -85,7 +86,12 @@ export function pointToHexbin(props: any, aggregationParams: any) {
 /**
  * Get the bounding box of all data points
  */
-export function getPointsCenter(data: any, aggregationParams: any) {
+export function getPointsCenter(data: any, aggregationParams: any, center: number[]) {
+  // short-circuit and just use center if we already have it
+  if (center && center.length) {
+    return center
+  }
+
   const { attributes } = aggregationParams
   const positions = attributes.positions.value
   const { size } = attributes.positions.getAccessor()

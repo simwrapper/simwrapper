@@ -3,7 +3,6 @@ import { InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import DeckGL from '@deck.gl/react'
-import d3Hexbin from 'd3-hexbin'
 
 import { MAP_STYLES } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
@@ -63,6 +62,43 @@ export const colorRange = {
     [209, 55, 78],
   ],
 }
+
+// light: {
+//   a: [
+//     [250, 240, 110],
+//     [255, 210, 90],
+//     [180, 240, 150],
+//     [70, 220, 150],
+//     [40, 110, 250],
+//     [140, 0, 40],
+//   ],
+//   b: [
+//     [250, 240, 110],
+//     [255, 210, 90],
+//     [180, 240, 150],
+//     [70, 220, 150],
+//     [40, 110, 250],
+//     [140, 0, 40],
+//   ],
+// },
+// dark: {
+//   a: [
+//     [1, 152, 189],
+//     [73, 227, 206],
+//     [216, 254, 181],
+//     [254, 237, 177],
+//     [254, 173, 84],
+//     [209, 55, 78],
+//   ],
+//   b: [
+//     [1, 152, 189],
+//     [73, 227, 206],
+//     [216, 254, 181],
+//     [254, 237, 177],
+//     [254, 173, 84],
+//     [209, 55, 78],
+//   ],
+// },
 
 function getTooltip({ object }: any) {
   if (!object || !object.position || !object.position.length) {
@@ -125,6 +161,7 @@ export default function Layer({
       extruded: extrude,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
+      center,
       pickable: true,
       opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
