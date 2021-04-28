@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import DeckGL from '@deck.gl/react'
 import { InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
 import { HexagonLayer } from '@deck.gl/aggregation-layers'
-import DeckGL from '@deck.gl/react'
+import colormap from 'colormap'
 
 import { MAP_STYLES } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
@@ -129,9 +130,17 @@ export default function Layer({
   maxHeight = 200,
   center = [11.34, 48.3],
   onClick = {} as any,
+  colorRamp = 'chlorophyll',
 }) {
   const [lon, lat] = center
   const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
+
+  const colors = colormap({
+    colormap: colorRamp,
+    nshades: 10,
+    format: 'rba',
+    alpha: 1,
+  }).map((c: number[]) => [c[0], c[1], c[2]])
 
   function handleClick(target: any) {
     onClick(target)
@@ -152,7 +161,7 @@ export default function Layer({
     }),
     new HexagonLayer({
       id: 'hexlayer',
-      colorRange: dark ? colorRange['dark'] : colorRange['light'],
+      colorRange: dark ? colors.slice(2) : colors.reverse().slice(1), // : colors.reverse(), // dark ? colorRange['dark'] : colorRange['light'],
       coverage,
       data,
       autoHighlight: true,

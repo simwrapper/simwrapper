@@ -22,6 +22,7 @@ de:
                 :data="requests"
                 :highlights="highlightedTrips"
                 :dark="isDarkMode"
+                :colorRamp="colorRamp"
                 :extrude="extrudeTowers"
                 :radius="radius"
                 :maxHeight="maxHeight"
@@ -131,6 +132,9 @@ class XyHexagons extends Vue {
   private maxHeight = 200
   private extrudeTowers = false
 
+  private colorRamps = ['chlorophyll', 'par', 'magma', 'chlorophyll']
+  private colorRamp = this.colorRamps[0]
+
   private vizDetails = {
     title: '',
     description: '',
@@ -190,6 +194,7 @@ class XyHexagons extends Vue {
       }
 
       this.requests = filteredRows
+      this.colorRamp = this.colorRamps[1 - this.colorRamps.indexOf(this.colorRamp)]
     }
 
     if (!this.isHighlightingZone) {
@@ -218,8 +223,7 @@ class XyHexagons extends Vue {
     // get element offsets in data array
     const col = this.aggregations[item]
     this.requests = this.rawRequests.map(r => [r[col[0]], r[col[1]]]).filter(z => z[0] && z[1])
-
-    // todo - handle selection?
+    this.colorRamp = this.colorRamps[Object.keys(this.aggregations).indexOf(item)]
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
