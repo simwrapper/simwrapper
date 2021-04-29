@@ -45,80 +45,6 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 }
 
-export const colorRange = {
-  light: [
-    [250, 240, 110],
-    [255, 210, 90],
-    [180, 240, 150],
-    [70, 220, 150],
-    [40, 110, 250],
-    [140, 0, 40],
-  ],
-  dark: [
-    [1, 152, 189],
-    [73, 227, 206],
-    [216, 254, 181],
-    [254, 237, 177],
-    [254, 173, 84],
-    [209, 55, 78],
-  ],
-}
-
-// light: {
-//   a: [
-//     [250, 240, 110],
-//     [255, 210, 90],
-//     [180, 240, 150],
-//     [70, 220, 150],
-//     [40, 110, 250],
-//     [140, 0, 40],
-//   ],
-//   b: [
-//     [250, 240, 110],
-//     [255, 210, 90],
-//     [180, 240, 150],
-//     [70, 220, 150],
-//     [40, 110, 250],
-//     [140, 0, 40],
-//   ],
-// },
-// dark: {
-//   a: [
-//     [1, 152, 189],
-//     [73, 227, 206],
-//     [216, 254, 181],
-//     [254, 237, 177],
-//     [254, 173, 84],
-//     [209, 55, 78],
-//   ],
-//   b: [
-//     [1, 152, 189],
-//     [73, 227, 206],
-//     [216, 254, 181],
-//     [254, 237, 177],
-//     [254, 173, 84],
-//     [209, 55, 78],
-//   ],
-// },
-
-function getTooltip({ object }: any) {
-  if (!object || !object.position || !object.position.length) {
-    return null
-  }
-
-  const lat = object.position[1]
-  const lng = object.position[0]
-  const count = object.points.length
-
-  return {
-    text: `\
-    ${count} Pickups
-    latitude: ${Number.isFinite(lat) ? lat.toFixed(6) : ''}
-    longitude: ${Number.isFinite(lng) ? lng.toFixed(6) : ''}
-    `,
-  }
-}
-
 export default function Layer({
   data = [],
   highlights = [],
@@ -131,6 +57,7 @@ export default function Layer({
   center = [11.34, 48.3],
   onClick = {} as any,
   colorRamp = 'chlorophyll',
+  metric = 'Count',
 }) {
   const [lon, lat] = center
   const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
@@ -141,6 +68,25 @@ export default function Layer({
     format: 'rba',
     alpha: 1,
   }).map((c: number[]) => [c[0], c[1], c[2]])
+
+  function getTooltip({ object }: any) {
+    if (!object || !object.position || !object.position.length) {
+      return null
+    }
+
+    const lat = object.position[1]
+    const lng = object.position[0]
+    const count = object.points.length
+
+    return {
+      html: `\
+        <b>${highlights.length ? 'Count' : metric}: ${count} </b><br/>
+        ${Number.isFinite(lat) ? lat.toFixed(4) : ''} / ${
+        Number.isFinite(lng) ? lng.toFixed(4) : ''
+      }
+      `,
+    }
+  }
 
   function handleClick(target: any) {
     onClick(target)

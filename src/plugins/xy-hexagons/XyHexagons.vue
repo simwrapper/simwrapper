@@ -25,6 +25,8 @@ de:
                 :colorRamp="colorRamp"
                 :extrude="extrudeTowers"
                 :radius="radius"
+                :aggregations="aggregations"
+                :metric="activeAggregation"
                 :maxHeight="maxHeight"
                 :onClick="handleHexClick")
 
@@ -44,7 +46,7 @@ de:
             button.button.is-small.aggregation-button(
               v-for="agg,i in Object.keys(aggregations)"
               :key="i"
-              :style="{'color': activeAggregation===agg ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===agg ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===agg ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===agg ? buttonColors[i] : isDarkMode ? '#333':'white'}"
               @click="handleOrigDest(agg)") {{ agg }}
 
         .panel-item
