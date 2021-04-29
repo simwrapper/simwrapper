@@ -131,8 +131,8 @@ class XyHexagons extends Vue {
   private thumbnail!: boolean
 
   private radius = 250
-  private maxHeight = 200
-  private extrudeTowers = false
+  private maxHeight = 100
+  private extrudeTowers = true
 
   private colorRamps = ['bathymetry', 'par', 'magma', 'chlorophyll']
   private buttonColors = ['#5E8AAE', '#BF7230', '#9C439C', '#269367']
