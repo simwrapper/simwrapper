@@ -161,7 +161,7 @@ export default function Layer({
     }),
     new HexagonLayer({
       id: 'hexlayer',
-      colorRange: dark ? colors.slice(2) : colors.reverse().slice(1), // : colors.reverse(), // dark ? colorRange['dark'] : colorRange['light'],
+      colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
       coverage,
       data,
       autoHighlight: true,

@@ -41,10 +41,10 @@ de:
         .panel-item
           p.speed-label {{ $t('aggregate') }}
           .buttons.has-addons
-            button.button.is-small.is-dark.aggregation-button(
-              v-for="agg in Object.keys(aggregations)"
-              :key="agg"
-              :class="{'is-danger': activeAggregation===agg}"
+            button.button.is-small.aggregation-button(
+              v-for="agg,i in Object.keys(aggregations)"
+              :key="i"
+              :style="{'color': activeAggregation===agg ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===agg ? buttonColors[i] : isDarkMode ? '#333':'white'}"
               @click="handleOrigDest(agg)") {{ agg }}
 
         .panel-item
@@ -132,7 +132,9 @@ class XyHexagons extends Vue {
   private maxHeight = 200
   private extrudeTowers = false
 
-  private colorRamps = ['chlorophyll', 'par', 'magma', 'chlorophyll']
+  private colorRamps = ['bathymetry', 'par', 'magma', 'chlorophyll']
+  private buttonColors = ['#5E8AAE', '#BF7230', '#9C439C', '#269367']
+
   private colorRamp = this.colorRamps[0]
 
   private vizDetails = {
