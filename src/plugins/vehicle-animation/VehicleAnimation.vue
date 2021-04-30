@@ -81,10 +81,8 @@ import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
-import AnimationView from '@/plugins/agent-animation/AnimationView.vue'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
-import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 
@@ -99,7 +97,7 @@ import {
   DARK_MODE,
 } from '@/Globals'
 
-import TripViz from '@/plugins/vehicle-animation/TripViz'
+import TripViz from './TripViz'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import { VuePlugin } from 'vuera'

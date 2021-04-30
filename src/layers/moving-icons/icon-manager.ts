@@ -1,9 +1,11 @@
+// BC 2021-04-30: this file forked from https://github.com/visgl/deck.gl
+//
 /* global document */
 import GL from '@luma.gl/constants'
 import { Texture2D, copyToTexture, cloneTextureFrom } from '@luma.gl/core'
 import { ImageLoader } from '@loaders.gl/images'
 import { load } from '@loaders.gl/core'
-import { createIterable, log } from '@deck.gl/core'
+import { createIterable } from '@deck.gl/core'
 
 const DEFAULT_CANVAS_WIDTH = 1024
 const DEFAULT_BUFFER = 4
@@ -51,9 +53,7 @@ function resizeTexture(gl: any, texture: any, width: any, height: any) {
 
   const newTexture = cloneTextureFrom(texture, { width, height })
   copyToTexture(texture, newTexture, {
-    targetX: 0,
     targetY: 0,
-    targetZ: 0,
     width: oldWidth,
     height: oldHeight,
   })
@@ -68,10 +68,11 @@ function buildRowMapping(mapping: any, columns: any, yOffset: any) {
   for (let i = 0; i < columns.length; i++) {
     const { icon, xOffset } = columns[i]
     const id = getIconId(icon)
-    mapping[id] = Object.assign({}, icon, {
+    mapping[id] = {
+      ...icon,
       x: xOffset,
       y: yOffset,
-    })
+    }
   }
 }
 
@@ -152,7 +153,7 @@ export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
   }
 
   cachedIcons = cachedIcons || {}
-  const icons = {}
+  const icons = {} as any
   const { iterable, objectInfo } = createIterable(data)
   for (const object of iterable) {
     objectInfo.index++
@@ -167,8 +168,9 @@ export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
       throw new Error('Icon url is missing.')
     }
 
-    //@ts-ignore
-    if (!icons[id] && (!cachedIcons[id] || icon.url !== cachedIcons[id].url)) icons[id] = icon
+    if (!icons[id] && (!cachedIcons[id] || icon.url !== cachedIcons[id].url)) {
+      icons[id] = { ...icon, source: object, sourceIndex: objectInfo.index }
+    }
   }
   return icons
 }
@@ -176,6 +178,7 @@ export function getDiffIcons(data: any, getIcon: any, cachedIcons: any) {
 export default class IconManager {
   gl: any
   onUpdate: () => void
+  onError: (e: any) => any
   _loadOptions: any
   _getIcon: any
   _texture: any
@@ -190,14 +193,17 @@ export default class IconManager {
   _canvasWidth: number
   _canvasHeight: number
   _canvas: any
+
   constructor(
     gl: any,
     {
       onUpdate = noop, // notify IconLayer when icon texture update
+      onError = noop,
     }
   ) {
     this.gl = gl
     this.onUpdate = onUpdate
+    this.onError = onError
 
     // load options used for loading images
     this._loadOptions = null
@@ -224,10 +230,7 @@ export default class IconManager {
   }
 
   finalize() {
-    if (this._texture) {
-      //@ts-ignore
-      this._texture.delete()
-    }
+    this._texture?.delete()
   }
 
   getTexture() {
@@ -236,7 +239,6 @@ export default class IconManager {
 
   getIconMapping(icon: any) {
     const id = this._autoPacking ? getIconId(icon) : icon
-    //@ts-ignore
     return this._mapping[id] || {}
   }
 
@@ -273,23 +275,10 @@ export default class IconManager {
   }
 
   _updateIconAtlas(iconAtlas: any) {
-    if (this._texture) {
-      this._texture.delete()
-      this._texture = null
-    }
-    if (iconAtlas instanceof Texture2D) {
-      iconAtlas.setParameters(DEFAULT_TEXTURE_PARAMETERS)
-
-      this._externalTexture = iconAtlas
-      this.onUpdate()
-    } else if (iconAtlas) {
-      // Browser object: Image, ImageData, HTMLCanvasElement, ImageBitmap
-      this._texture = new Texture2D(this.gl, {
-        data: iconAtlas,
-        parameters: DEFAULT_TEXTURE_PARAMETERS,
-      })
-      this.onUpdate()
-    }
+    this._texture?.delete()
+    this._texture = null
+    this._externalTexture = iconAtlas
+    this.onUpdate()
   }
 
   _updateAutoPacking(data: any) {
@@ -359,7 +348,13 @@ export default class IconManager {
           this.onUpdate()
         })
         .catch(error => {
-          log.error(error)()
+          this.onError({
+            url: icon.url,
+            source: icon.source,
+            sourceIndex: icon.sourceIndex,
+            loadOptions: this._loadOptions,
+            error,
+          })
         })
         .finally(() => {
           this._pendingCount--

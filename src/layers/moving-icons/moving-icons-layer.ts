@@ -1,46 +1,45 @@
-import { Layer, project32, picking } from '@deck.gl/core'
+// BC 2021-04-30: this file forked from https://github.com/visgl/deck.gl
+//
+// Copyright (c) 2015 - 2017 Uber Technologies, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
+import { Layer, project32, picking, log } from '@deck.gl/core'
 import GL from '@luma.gl/constants'
 import { Model, Geometry } from '@luma.gl/core'
-
-import IconManager from './icon-manager'
 
 const vs = require('./icon-layer.glsl.vert').default
 const fs = require('./icon-layer.glsl.frag').default
 
+import IconManager from './icon-manager'
+
 const DEFAULT_COLOR = [0, 0, 0, 255]
-/*
- * @param {object} props
- * @param {Texture2D | string} props.iconAtlas - atlas image url or texture
- * @param {object} props.iconMapping - icon names mapped to icon definitions
- * @param {object} props.iconMapping[icon_name].x - x position of icon on the atlas image
- * @param {object} props.iconMapping[icon_name].y - y position of icon on the atlas image
- * @param {object} props.iconMapping[icon_name].width - width of icon on the atlas image
- * @param {object} props.iconMapping[icon_name].height - height of icon on the atlas image
- * @param {object} props.iconMapping[icon_name].anchorX - x anchor of icon on the atlas image,
- *   default to width / 2
- * @param {object} props.iconMapping[icon_name].anchorY - y anchor of icon on the atlas image,
- *   default to height / 2
- * @param {object} props.iconMapping[icon_name].mask - whether icon is treated as a transparency
- *   mask. If true, user defined color is applied. If false, original color from the image is
- *   applied. Default to false.
- * @param {number} props.size - icon size in pixels
- * @param {func} props.getPosition - returns anchor position of the icon, in [lng, lat, z]
- * @param {func} props.getIcon - returns icon name as a string
- * @param {func} props.getSize - returns icon size multiplier as a number
- * @param {func} props.getColor - returns color of the icon in [r, g, b, a]. Only works on icons
- *   with mask: true.
- * @param {func} props.getAngle - returns rotating angle (in degree) of the icon.
- */
+
 const defaultProps = {
-  iconAtlas: { type: 'object', value: null, async: true },
+  iconAtlas: { type: 'image', value: null, async: true },
   iconMapping: { type: 'object', value: {}, async: true },
   sizeScale: { type: 'number', value: 1, min: 0 },
-  billboard: true,
+  billboard: false,
   sizeUnits: 'pixels',
   sizeMinPixels: { type: 'number', min: 0, value: 0 }, //  min point radius in pixels
   sizeMaxPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER }, // max point radius in pixels
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
-  noAlloc: true,
   iconStill: { type: 'object', value: null },
 
   getIcon: { type: 'accessor', value: (x: any) => x.icon },
@@ -53,9 +52,10 @@ const defaultProps = {
   getPathEnd: { type: 'accessor', value: null },
   getTimeStart: { type: 'accessor', value: null },
   getTimeEnd: { type: 'accessor', value: null },
-
   currentTime: { type: 'number', value: 0 },
+
   pickable: { type: 'boolean', value: true },
+  onIconError: { type: 'function', value: null, compare: false, optional: true },
 }
 
 export default class IconLayer extends Layer {
@@ -65,7 +65,10 @@ export default class IconLayer extends Layer {
 
   initializeState() {
     this.state = {
-      iconManager: new IconManager(this.context.gl, { onUpdate: () => this._onUpdate() }),
+      iconManager: new IconManager(this.context.gl, {
+        onUpdate: this._onUpdate.bind(this),
+        onError: this._onError.bind(this) as any,
+      }),
     }
 
     const attributeManager = this.getAttributeManager()
@@ -96,12 +99,12 @@ export default class IconLayer extends Layer {
       },
       instanceOffsets: { size: 2, accessor: 'getIcon', transform: this.getInstanceOffset },
       instanceIconFrames: { size: 4, accessor: 'getIcon', transform: this.getInstanceIconFrame },
-      // instanceColorModes: {
-      //   size: 1,
-      //   type: GL.UNSIGNED_BYTE,
-      //   accessor: 'getIcon',
-      //   transform: this.getInstanceColorMode,
-      // },
+      instanceColorModes: {
+        size: 1,
+        type: GL.UNSIGNED_BYTE,
+        accessor: 'getIcon',
+        transform: this.getInstanceColorMode,
+      },
       instanceColors: {
         size: this.props.colorFormat.length,
         type: GL.UNSIGNED_BYTE,
@@ -110,14 +113,21 @@ export default class IconLayer extends Layer {
         accessor: 'getColor',
         defaultValue: DEFAULT_COLOR,
       },
+      instanceAngles: {
+        size: 1,
+        transition: true,
+        accessor: 'getAngle',
+      },
       instancePixelOffset: {
         size: 2,
         transition: true,
         accessor: 'getPixelOffset',
       },
     })
+    /* eslint-enable max-len */
   }
 
+  /* eslint-disable max-statements, complexity */
   updateState({ oldProps, props, changeFlags }: any) {
     super.updateState({ props, oldProps, changeFlags })
 
@@ -152,21 +162,18 @@ export default class IconLayer extends Layer {
         (changeFlags.updateTriggersChanged.all || changeFlags.updateTriggersChanged.getIcon))
     ) {
       iconManager.setProps({ data, getIcon })
-      iconMappingChanged = true
     }
 
     if (iconMappingChanged) {
       attributeManager.invalidate('instanceOffsets')
       attributeManager.invalidate('instanceIconFrames')
-      // attributeManager.invalidate('instanceColorModes')
+      attributeManager.invalidate('instanceColorModes')
     }
 
     if (changeFlags.extensionsChanged) {
       const { gl } = this.context
-      if (this.state.model) {
-        this.state.model.delete()
-      }
-      this.setState({ model: this._getModel(gl) })
+      this.state.model?.delete()
+      this.state.model = this._getModel(gl)
       attributeManager.invalidateAll()
     }
   }
@@ -199,24 +206,22 @@ export default class IconLayer extends Layer {
     const { viewport } = this.context
 
     const iconsTexture = iconManager.getTexture()
-    if (iconsTexture && iconsTexture.loaded) {
+    if (iconsTexture) {
       this.state.model
-        .setUniforms(
-          Object.assign({}, uniforms, {
-            iconsTexture,
-            iconsTextureDim: [iconsTexture.width, iconsTexture.height],
-            sizeScale: sizeScale * (sizeUnits === 'pixels' ? viewport.metersPerPixel : 1),
-            sizeMinPixels,
-            sizeMaxPixels,
-            billboard,
-            alphaCutoff,
-            currentTime,
-            pickable,
-            iconStillOffsets: this.getInstanceOffset(iconStill),
-            iconStillFrames: this.getInstanceIconFrame(iconStill),
-            // iconStillColorModes: this.getInstanceColorMode(iconStill),
-          })
-        )
+        .setUniforms(uniforms)
+        .setUniforms({
+          iconsTexture,
+          iconsTextureDim: [iconsTexture.width, iconsTexture.height],
+          sizeScale: sizeScale * (sizeUnits === 'pixels' ? viewport.metersPerPixel : 1),
+          sizeMinPixels,
+          sizeMaxPixels,
+          billboard,
+          alphaCutoff,
+          currentTime,
+          pickable,
+          iconStillOffsets: this.getInstanceOffset(iconStill),
+          iconStillFrames: this.getInstanceIconFrame(iconStill),
+        })
         .draw()
     }
   }
@@ -226,28 +231,35 @@ export default class IconLayer extends Layer {
     // specifed via: attribute vec2 positions;
     const positions = [-1, -1, -1, 1, 1, 1, 1, -1]
 
-    return new Model(
-      gl,
-      Object.assign({}, this.getShaders(), {
-        id: this.props.id,
-        geometry: new Geometry({
-          drawMode: GL.TRIANGLE_FAN,
-          attributes: {
-            // The size must be explicitly passed here otherwise luma.gl
-            // will default to assuming that positions are 3D (x,y,z)
-            positions: {
-              size: 2,
-              value: new Float32Array(positions),
-            },
+    return new Model(gl, {
+      ...this.getShaders(),
+      id: this.props.id,
+      geometry: new Geometry({
+        drawMode: GL.TRIANGLE_FAN,
+        attributes: {
+          // The size must be explicitly passed here otherwise luma.gl
+          // will default to assuming that positions are 3D (x,y,z)
+          positions: {
+            size: 2,
+            value: new Float32Array(positions),
           },
-        }),
-        isInstanced: true,
-      })
-    )
+        },
+      }),
+      isInstanced: true,
+    })
   }
 
   _onUpdate() {
     this.setNeedsRedraw()
+  }
+
+  _onError(evt: any) {
+    const { onIconError } = this.getCurrentLayer().props
+    if (onIconError) {
+      onIconError(evt)
+    } else {
+      log.error(evt.error)()
+    }
   }
 
   getInstanceOffset(icon: any) {
@@ -255,10 +267,10 @@ export default class IconLayer extends Layer {
     return [rect.width / 2 - rect.anchorX || 0, rect.height / 2 - rect.anchorY || 0]
   }
 
-  // getInstanceColorMode(icon: any) {
-  //   const mapping = this.state.iconManager.getIconMapping(icon)
-  //   return mapping.mask ? 1 : 0
-  // }
+  getInstanceColorMode(icon: any) {
+    const mapping = this.state.iconManager.getIconMapping(icon)
+    return mapping.mask ? 1 : 0
+  }
 
   getInstanceIconFrame(icon: any) {
     const rect = this.state.iconManager.getIconMapping(icon)
@@ -266,5 +278,5 @@ export default class IconLayer extends Layer {
   }
 }
 
-IconLayer.layerName = 'MovingIconLayer'
+IconLayer.layerName = 'FlatIconLayer'
 IconLayer.defaultProps = defaultProps

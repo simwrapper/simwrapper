@@ -4,13 +4,13 @@ import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
 import DrtRequestLayer from './DrtRequestLayer'
 
-import MovingIconLayer from '@/layers/moving-icons/moving-icon-layer'
 import PathTraceLayer from '@/layers/PathTraceLayer'
+import MovingIconsLayer from '@/layers/moving-icons/moving-icons-layer'
 
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
   info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: false },
+  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
   diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
 
@@ -167,7 +167,7 @@ export default function Component(props: {
   if (settingsShowLayers['Fahrzeuge'])
     layers.push(
       //@ts-ignore
-      new MovingIconLayer({
+      new MovingIconsLayer({
         id: 'Vehicles',
         data: paths,
         getPathStart: (d: any) => d.p0,
@@ -186,7 +186,7 @@ export default function Component(props: {
         iconAtlas: '/icon-atlas.png',
         iconMapping: ICON_MAPPING,
         sizeScale: 1,
-        billboard: true,
+        billboard: false,
         pickable: true,
         autoHighlight: true,
         highlightColor: [255, 0, 255],

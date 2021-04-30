@@ -1,3 +1,25 @@
+// BC 2021-04-30: this file forked from https://github.com/visgl/deck.gl
+//
+// Copyright (c) 2015 - 2017 Uber Technologies, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+
 #define SHADER_NAME icon-layer-vertex-shader
 
 attribute vec2 positions;
@@ -6,7 +28,7 @@ attribute float instanceSizes;
 attribute vec4 instanceColors;
 attribute vec3 instancePickingColors;
 attribute vec4 instanceIconFrames;
-// attribute float instanceColorModes;
+attribute float instanceColorModes;
 attribute vec2 instanceOffsets;
 attribute vec2 instancePixelOffset;
 
@@ -19,7 +41,6 @@ uniform bool billboard;
 uniform float currentTime;
 
 uniform vec2 iconStillOffsets;
-// uniform float iconStillColorModes;
 uniform vec4 iconStillFrames;
 
 attribute float instanceTimestamps;
@@ -33,8 +54,9 @@ varying vec2 vTextureCoords;
 varying vec2 uv;
 varying float vPercentComplete;
 
+// ------------------------------------------------------------------
+
 vec2 rotate_by_angle(vec2 vertex, float angle_radian) {
-  // float angle_radian = angle * PI / 180.0;
   float cos_angle = cos(angle_radian);
   float sin_angle = sin(angle_radian);
   mat2 rotationMatrix = mat2(cos_angle, -sin_angle, sin_angle, cos_angle);
@@ -54,17 +76,14 @@ vec3 interpolate(in vec3 point1, in vec3 point2, in float timestepFraction) {
 
 void main(void) {
 
-  // Calculate progress
-  // (skip everything else if this vertex is outside the time window)
-
+  // Calculate progress:
+  // Skip everything else if this vertex is outside the time window
   if (currentTime < instanceTimestamps) {
     vPercentComplete = -1.0;
     return;
-
   } else if (currentTime > instanceTimestampsNext) {
     vPercentComplete = -1.0;
     return;
-
   } else {
     vPercentComplete = (currentTime - instanceTimestamps) /
                        (instanceTimestampsNext - instanceTimestamps);
@@ -78,6 +97,10 @@ void main(void) {
   // are we stationary/still
   bool still = (instanceStartPositions == instanceEndPositions);
 
+  // geometry.uv = positions;
+  // uv = positions;
+
+  // this could be the problem right here;
   vec2 iconSize = still ? iconStillFrames.zw : instanceIconFrames.zw;
   // convert size in meters to pixels, then scaled and clamp
   // project meters to pixels and clamp to limits
@@ -89,12 +112,10 @@ void main(void) {
   // scale icon height to match instanceSize
   float instanceScale = iconSize.y == 0.0 ? 0.0 : sizePixels / iconSize.y;
 
-  // figure out angle
+  // // figure out angle based on motion direction
   float angle = 0.0;
   if (!still) {
-    vec3 point1 = project_position_to_clipspace(startPosition, vec3(0.0), vec3(0.0)).xyz;
-    vec3 point2 = project_position_to_clipspace(endPosition, vec3(0.0), vec3(0.0)).xyz;
-    vec3 direction = normalize(point2 - point1);
+    vec3 direction = normalize(endPosition - startPosition);
     angle = atan( direction.y / direction.x);
     if (direction.x < 0.0) angle = angle - PI;
   }
@@ -105,13 +126,10 @@ void main(void) {
   pixelOffset += instancePixelOffset;
   pixelOffset.y *= -1.0;
 
-  vec3 newPosition = interpolate(
-    startPosition,
-    endPosition,
-    vPercentComplete);
+  vec3 newPosition = interpolate(startPosition, endPosition, vPercentComplete);
 
   if (billboard)  {
-    gl_Position = project_position_to_clipspace(newPosition, vec3(0.0), vec3(0.0));
+    gl_Position = project_position_to_clipspace(newPosition, vec3(0.0), vec3(0.0), geometry.position);
     vec3 offset = vec3(pixelOffset, 0.0);
     DECKGL_FILTER_SIZE(offset, geometry);
     gl_Position.xy += project_pixel_size_to_clipspace(offset.xy);
@@ -119,9 +137,8 @@ void main(void) {
   } else {
     vec3 offset_common = vec3(project_pixel_size(pixelOffset), 0.0);
     DECKGL_FILTER_SIZE(offset_common, geometry);
-    gl_Position = project_position_to_clipspace(newPosition, offset_common, vec3(0.0));
+    gl_Position = project_position_to_clipspace(newPosition, vec3(0.0), offset_common, geometry.position);
   }
-
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 
   vec2 upperleft = (still ? iconStillFrames.xy : instanceIconFrames.xy);
@@ -135,5 +152,5 @@ void main(void) {
   vColor = instanceColors;
   DECKGL_FILTER_COLOR(vColor, geometry);
 
-  vColorMode = still ?  0.0 : 1.0;
+  vColorMode = instanceColorModes;
 }
