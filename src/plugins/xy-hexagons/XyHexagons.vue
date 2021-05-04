@@ -26,7 +26,7 @@ de:
                 :extrude="extrudeTowers"
                 :radius="radius"
                 :aggregations="aggregations"
-                :metric="activeAggregation"
+                :metric="buttonLabel"
                 :maxHeight="maxHeight"
                 :onClick="handleHexClick")
 
@@ -40,14 +40,14 @@ de:
     collapsible-panel(:darkMode="true" width="150" direction="right")
       .panel-items
 
-        .panel-item
-          p.speed-label {{ $t('aggregate') }}
+        .panel-item(v-for="group in Object.keys(aggregations)" :key="group")
+          p.speed-label {{ group }}
           .buttons.has-addons
             button.button.is-small.aggregation-button(
-              v-for="agg,i in Object.keys(aggregations)"
+              v-for="element,i in aggregations[group]"
               :key="i"
-              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===agg ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===agg ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-              @click="handleOrigDest(agg)") {{ agg }}
+              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              @click="handleOrigDest(group,i)") {{ element.title }}
 
         .panel-item
           p.speed-label {{ $t('threedee') }}
@@ -109,6 +109,24 @@ import { VuePlugin } from 'vuera'
 import Coords from '@/util/Coords'
 Vue.use(VuePlugin)
 
+interface Aggregations {
+  [heading: string]: {
+    title: string
+    x: string
+    y: string
+  }[]
+}
+
+interface VizDetail {
+  title: string
+  description?: string
+  file: string
+  projection: any
+  thumbnail?: string
+  elements?: string
+  aggregations: Aggregations
+}
+
 @Component({
   components: {
     CollapsiblePanel,
@@ -134,18 +152,23 @@ class XyHexagons extends Vue {
   private maxHeight = 100
   private extrudeTowers = true
 
-  private colorRamps = ['bathymetry', 'par', 'magma', 'chlorophyll']
-  private buttonColors = ['#5E8AAE', '#BF7230', '#9C439C', '#269367']
+  private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
+  private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
+
+  private get buttonLabel() {
+    const [group, offset] = this.activeAggregation.split('ğ') as any[]
+    return this.aggregations[group][offset].title
+  }
 
   private colorRamp = this.colorRamps[0]
 
-  private vizDetails = {
+  private vizDetails: VizDetail = {
     title: '',
     description: '',
     file: '',
     projection: '',
     thumbnail: '',
-    data: {} as any,
+    aggregations: {},
   }
 
   public myState = {
@@ -172,8 +195,6 @@ class XyHexagons extends Vue {
   private isHighlightingZone = false
 
   private handleHexClick(click: any) {
-    console.log('CLICK!', click)
-
     if (this.isHighlightingZone) {
       // force highlight off if user clicked on a second hex
       this.isHighlightingZone = false
@@ -184,50 +205,60 @@ class XyHexagons extends Vue {
       this.isHighlightingZone = true
     }
 
+    const parts = this.activeAggregation.split('ğ') // an unlikely unicode
+    let whichButton = 0
+    let offset = 0
+
+    // set up the hexagons
     if (!this.isHighlightingZone) {
-      this.handleOrigDest(this.activeAggregation)
+      // reset the view
+      this.handleOrigDest(parts[0], parseInt(parts[1]))
     } else {
+      // select the anti-view
+      offset = parseInt(parts[1])
+      whichButton = offset % 2 ? offset - 1 : offset + 1
+
+      const element = this.aggregations[parts[0]][whichButton]
+
       const filteredRows: any = []
-
-      const which = this.activeAggregation === Object.keys(this.aggregations)[0] ? 1 : 0
-      const col = this.aggregations[Object.keys(this.aggregations)[which]]
-
       for (const row of click.object.points) {
         const points = this.rawRequests[row.index]
-        filteredRows.push([points[col[0]], points[col[1]]])
+        filteredRows.push([points[element.x], points[element.y]])
       }
 
       this.requests = filteredRows
-      this.colorRamp = this.colorRamps[1 - this.colorRamps.indexOf(this.colorRamp)]
+      this.colorRamp = this.colorRamps[whichButton]
     }
 
+    // set up the connecting arc-lines
     if (!this.isHighlightingZone) {
       this.highlightedTrips = []
     } else {
-      const filteredRows: any = []
-      const colFrom = this.aggregations[Object.keys(this.aggregations)[0]]
-      const colTo = this.aggregations[Object.keys(this.aggregations)[1]]
+      const arcFilteredRows: any = []
+      const colFrom = this.aggregations[parts[0]][offset]
+      const colTo = this.aggregations[parts[0]][whichButton]
 
       for (const row of click.object.points) {
         const points = this.rawRequests[row.index]
-        filteredRows.push([
-          [points[colFrom[0]], points[colFrom[1]]],
-          [points[colTo[0]], points[colTo[1]]],
+        arcFilteredRows.push([
+          [points[colFrom.x], points[colFrom.y]],
+          [points[colTo.x], points[colTo.y]],
         ])
       }
-
-      this.highlightedTrips = filteredRows
+      this.highlightedTrips = arcFilteredRows
     }
   }
 
-  private async handleOrigDest(item: string) {
+  private async handleOrigDest(groupName: string, number: number) {
+    const xy = this.aggregations[groupName][number]
+
     this.highlightedTrips = []
-    this.activeAggregation = item
+    this.activeAggregation = `${groupName}ğ${number}`
 
     // get element offsets in data array
-    const col = this.aggregations[item]
-    this.requests = this.rawRequests.map(r => [r[col[0]], r[col[1]]]).filter(z => z[0] && z[1])
-    this.colorRamp = this.colorRamps[Object.keys(this.aggregations).indexOf(item)]
+    // const col = this.aggregations[item]
+    this.requests = this.rawRequests.map(r => [r[xy.x], r[xy.y]]).filter(z => z[0] && z[1])
+    this.colorRamp = this.colorRamps[number]
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
@@ -378,8 +409,8 @@ class XyHexagons extends Vue {
     let prop = '' // get first property only
     for (prop in this.aggregations) break
 
-    const xcol = this.aggregations[prop][0]
-    const ycol = this.aggregations[prop][1]
+    const xcol = this.aggregations[prop][0].x
+    const ycol = this.aggregations[prop][0].y
 
     let x = 0
     let y = 0
@@ -416,7 +447,7 @@ class XyHexagons extends Vue {
     const { dataArray } = await this.loadFiles()
     this.rawRequests = dataArray
 
-    this.aggregations = this.parseAggregations()
+    this.aggregations = this.vizDetails.aggregations // this.parseAggregations()
 
     await this.reprojectCoordinates()
 
@@ -426,16 +457,19 @@ class XyHexagons extends Vue {
     this.buildThumbnail()
 
     this.myState.statusMessage = `${this.$i18n.t('sorting')}`
-    this.handleOrigDest(Object.keys(this.aggregations)[0]) // origins
+    this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // origins
 
     this.myState.statusMessage = ''
   }
 
   private parseAggregations(): { [id: string]: [any, any] } {
     const aggs = {} as any
-    for (let agg of this.vizDetails.data.aggregations) {
-      aggs[agg.title] = [agg.x, agg.y]
+    for (const heading of Object.keys(this.vizDetails.aggregations)) {
+      const agg = this.vizDetails.aggregations[heading]
+      console.log(agg)
+      for (const xy of agg) aggs[xy.title] = [xy.x, xy.y]
     }
+    console.log({ aggs })
     return aggs
   }
 
@@ -446,16 +480,26 @@ class XyHexagons extends Vue {
     if (this.vizDetails.projection === 'EPSG:4326') return
     if (this.vizDetails.projection === '4326') return
 
+    const projectedAlready = new Set()
+
     this.myState.statusMessage = 'Reprojecting...'
     for (const aggregation of Object.keys(this.aggregations)) {
-      const x = this.aggregations[aggregation][0]
-      const y = this.aggregations[aggregation][1]
+      for (const element of this.aggregations[aggregation]) {
+        const xCol = element.x
+        const yCol = element.y
 
-      await coroutines.forEachAsync(this.rawRequests, (row: any) => {
-        const wgs84 = Coords.toLngLat(this.vizDetails.projection, { x: row[x], y: row[y] })
-        row[x] = wgs84.x
-        row[y] = wgs84.y
-      })
+        // don't reproject previously reprojected columns
+        if (projectedAlready.has(xCol) || projectedAlready.has(yCol)) continue
+
+        await coroutines.forEachAsync(this.rawRequests, (row: any) => {
+          const wgs84 = Coords.toLngLat(this.vizDetails.projection, { x: row[xCol], y: row[yCol] })
+          row[xCol] = wgs84.x
+          row[yCol] = wgs84.y
+        })
+
+        projectedAlready.add(xCol)
+        projectedAlready.add(yCol)
+      }
     }
 
     this.myState.statusMessage = ''
@@ -466,7 +510,7 @@ class XyHexagons extends Vue {
     this.$store.commit('setFullScreen', false)
   }
 
-  private aggregations: { [id: string]: [number, number] } = {}
+  private aggregations: Aggregations = {}
 
   private async loadFiles() {
     let dataArray: any = []
@@ -484,9 +528,9 @@ class XyHexagons extends Vue {
         text = await this.myState.fileApi.getFileText(filename)
       }
 
-      if (this.vizDetails.file.indexOf('.json') > -1) {
+      if (this.vizDetails.file.indexOf('.json') > -1 && this.vizDetails.elements) {
         const json = await coroutines.parseAsync(text)
-        dataArray = json[this.vizDetails.data.elements]
+        dataArray = json[this.vizDetails.elements]
       } else {
         // 'papa-parsing'
         // if it's not JSON, let's assume it's csv/tsv/xsv and let papaparse figure it out
@@ -505,7 +549,6 @@ class XyHexagons extends Vue {
         msg: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
       })
     }
-    console.log({ dataArray })
     return { dataArray }
   }
 }
