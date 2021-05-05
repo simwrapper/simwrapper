@@ -5,12 +5,20 @@ en:
   threedee: 'Show in 3D'
   aggregate: 'Summary'
   maxHeight: 'Max Height'
+  showDetails: 'Show Details'
+  selection: 'Selection'
+  areas: 'Areas'
+  count: 'Count'
 de:
   loading: 'Dateien laden...'
   sorting: 'Sortieren...'
   threedee: 'In 3D anzeigen'
   aggregate: 'Daten'
   maxHeight: 'Max Höhe'
+  showDetails: 'Details anzeigen'
+  selection: 'Ausgewählt'
+  areas: 'Orte'
+  count: 'Anzahl'
 </i18n>
 
 <template lang="pug">
@@ -39,9 +47,9 @@ de:
         p {{ vizDetails.description }}
 
       .panel-items(v-if="hexStats" style="color: #c0f;")
-        p.big(style="margin-top: 2rem;") Selection:
-        h3(style="margin-top: -1rem;") Areas: {{ hexStats.hexagons }}, Count: {{ hexStats.rows }}
-        button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") Show Details
+        p.big(style="margin-top: 2rem;") {{ $t('selection') }}:
+        h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
+        button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") {{ $t('showDetails') }}
 
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(:darkMode="true" width="150" direction="right")
@@ -243,6 +251,7 @@ class XyHexagons extends Vue {
     // set up the hexagons
     if (!this.isHighlightingZone) {
       // reset the view
+      this.hexStats = null
       this.multiSelectedHexagons = {}
       this.handleOrigDest(parts[0], parseInt(parts[1]))
     } else {
@@ -257,8 +266,11 @@ class XyHexagons extends Vue {
         const points = this.rawRequests[row.index]
         filteredRows.push([points[element.x], points[element.y]])
       }
+      this.hexStats!.selectedHexagonIds = []
+      this.multiSelectedHexagons = {}
 
       this.requests = filteredRows
+
       this.colorRamp = this.colorRamps[whichButton]
     }
 
