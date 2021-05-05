@@ -46,7 +46,7 @@ export default class VueComponent extends Vue {
   justify-items: center;
   flex-direction: row;
   pointer-events: auto;
-  box-shadow: 0px 2px 10px #22222266;
+  filter: drop-shadow(0px 2px 5px #44444466);
 }
 
 .outer.collapsed {
@@ -81,7 +81,6 @@ export default class VueComponent extends Vue {
 
 .xbutton.collapsed {
   border-radius: 4px;
-  box-shadow: 0px 2px 10px #22222266;
 }
 
 .xbutton:hover {
