@@ -15,7 +15,8 @@ de:
 
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+        :style='{"background": urlThumbnail}' oncontextmenu="return false"
+        )
 
   xy-hex-layer.anim(v-if="!thumbnail && isLoaded"
                 :center="center"
@@ -28,13 +29,19 @@ de:
                 :aggregations="aggregations"
                 :metric="buttonLabel"
                 :maxHeight="maxHeight"
-                :onClick="handleHexClick")
+                :onClick="handleHexClick"
+                :selectedHexStats="hexStats")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(:darkMode="true" width="300" direction="left")
       .panel-items
         p.big.xtitle {{ vizDetails.title }}
         p {{ vizDetails.description }}
+
+      .panel-items(v-if="hexStats" style="color: #c0f;")
+        p.big(style="margin-top: 2rem;") Selection:
+        h3(style="margin-top: -1rem;") Areas: {{ hexStats.hexagons }}, Count: {{ hexStats.rows }}
+        button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") Show Details
 
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(:darkMode="true" width="150" direction="right")
@@ -46,7 +53,7 @@ de:
             button.button.is-small.aggregation-button(
               v-for="element,i in aggregations[group]"
               :key="i"
-              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : isDarkMode ? '#333':'white'}"
               @click="handleOrigDest(group,i)") {{ element.title }}
 
         .panel-item
@@ -194,11 +201,35 @@ class XyHexagons extends Vue {
 
   private isHighlightingZone = false
 
-  private handleHexClick(click: any) {
+  // index of each selected hexagon, maps to the array of points that were aggregated into it
+  // we only care about this during multi-select.
+  private multiSelectedHexagons: { [index: string]: any[] } = {}
+
+  private handleHexClick(pickedObject: any, event: any) {
+    if (!event.srcEvent.shiftKey) {
+      this.multiSelectedHexagons = {}
+      this.hexStats = null
+      this.flipViewToShowInversedData(pickedObject)
+      return
+    }
+
+    // console.log('SHIFT!! OMG')
+    const index = pickedObject?.object?.index
+    if (index !== undefined) {
+      if (index in this.multiSelectedHexagons) {
+        delete this.multiSelectedHexagons[index]
+      } else {
+        this.multiSelectedHexagons[index] = pickedObject.object.points
+      }
+      this.hexStats = this.selectedHexagonStatistics()
+    }
+  }
+
+  private flipViewToShowInversedData(pickedObject: any) {
     if (this.isHighlightingZone) {
       // force highlight off if user clicked on a second hex
       this.isHighlightingZone = false
-    } else if (!click.object) {
+    } else if (!pickedObject.object) {
       // force highlight off if user clicked away
       this.isHighlightingZone = false
     } else {
@@ -212,6 +243,7 @@ class XyHexagons extends Vue {
     // set up the hexagons
     if (!this.isHighlightingZone) {
       // reset the view
+      this.multiSelectedHexagons = {}
       this.handleOrigDest(parts[0], parseInt(parts[1]))
     } else {
       // select the anti-view
@@ -221,7 +253,7 @@ class XyHexagons extends Vue {
       const element = this.aggregations[parts[0]][whichButton]
 
       const filteredRows: any = []
-      for (const row of click.object.points) {
+      for (const row of pickedObject.object.points) {
         const points = this.rawRequests[row.index]
         filteredRows.push([points[element.x], points[element.y]])
       }
@@ -238,7 +270,7 @@ class XyHexagons extends Vue {
       const colFrom = this.aggregations[parts[0]][offset]
       const colTo = this.aggregations[parts[0]][whichButton]
 
-      for (const row of click.object.points) {
+      for (const row of pickedObject.object.points) {
         const points = this.rawRequests[row.index]
         arcFilteredRows.push([
           [points[colFrom.x], points[colFrom.y]],
@@ -250,6 +282,9 @@ class XyHexagons extends Vue {
   }
 
   private async handleOrigDest(groupName: string, number: number) {
+    this.hexStats = null
+    this.multiSelectedHexagons = {}
+
     const xy = this.aggregations[groupName][number]
 
     this.highlightedTrips = []
@@ -404,6 +439,35 @@ class XyHexagons extends Vue {
   }
 
   private center = [0, 0]
+
+  private handleShowSelectionButton() {
+    const arrays = Object.values(this.multiSelectedHexagons)
+    let points: any[] = []
+    arrays.map(a => (points = points.concat(a)))
+
+    const pickedObject = { object: { points } }
+    this.flipViewToShowInversedData(pickedObject)
+  }
+
+  private hexStats: {
+    rows: number
+    numHexagons: number
+    selectedHexagonIds: any[]
+  } | null = null
+
+  private selectedHexagonStatistics(): {
+    rows: number
+    numHexagons: number
+    selectedHexagonIds: any[]
+  } | null {
+    const selectedHexes = Object.keys(this.multiSelectedHexagons).map(a => parseInt(a))
+    if (!selectedHexes.length) return null
+
+    const arrays = Object.values(this.multiSelectedHexagons)
+    const ll = arrays.reduce((a: number, v: any) => a + v.length, 0)
+
+    return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
+  }
 
   private findCenter(data: any[]): [number, number] {
     let prop = '' // get first property only

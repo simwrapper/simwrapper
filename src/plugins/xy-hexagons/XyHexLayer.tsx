@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
 import { InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
-import { HexagonLayer } from '@deck.gl/aggregation-layers'
+import HexagonLayer from './SelectableHexLayer'
 import colormap from 'colormap'
 
 import { MAP_STYLES } from '@/Globals'
@@ -58,6 +58,7 @@ export default function Layer({
   onClick = {} as any,
   colorRamp = 'chlorophyll',
   metric = 'Count',
+  selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
 }) {
   const [lon, lat] = center
   const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
@@ -88,8 +89,8 @@ export default function Layer({
     }
   }
 
-  function handleClick(target: any) {
-    onClick(target)
+  function handleClick(target: any, event: any) {
+    onClick(target, event)
   }
 
   const layers = [
@@ -99,7 +100,7 @@ export default function Layer({
       getSourcePosition: (d: any) => d[0],
       getTargetPosition: (d: any) => d[1],
       pickable: false,
-      opacity: 0.5,
+      opacity: 0.6,
       getHeight: 0,
       getWidth: 1,
       getSourceColor: dark ? [144, 96, 128] : [192, 192, 240],
@@ -114,6 +115,7 @@ export default function Layer({
       elevationRange: [0, maxHeight],
       elevationScale: data && data.length ? 50 : 0,
       extruded: extrude,
+      selectedHexStats,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
       center,
