@@ -11,25 +11,6 @@ import { pointToHexbin } from './HexagonAggregator'
 const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
-// const ambientLight = new AmbientLight({
-//   color: [255, 255, 255],
-//   intensity: 1.0,
-// })
-
-// const pointLight1 = new PointLight({
-//   color: [255, 255, 255],
-//   intensity: 0.8,
-//   position: [-0.144528, 49.739968, 80000],
-// })
-
-// const pointLight2 = new PointLight({
-//   color: [255, 255, 255],
-//   intensity: 0.8,
-//   position: [-3.807751, 54.104682, 8000],
-// })
-
-// const lightingEffect = new LightingEffect({ ambientLight, pointLight1, pointLight2 })
-
 const material = {
   ambient: 0.64,
   diffuse: 0.6,
@@ -100,7 +81,7 @@ export default function Layer({
       getSourcePosition: (d: any) => d[0],
       getTargetPosition: (d: any) => d[1],
       pickable: false,
-      opacity: 0.6,
+      opacity: 0.4,
       getHeight: 0,
       getWidth: 1,
       getSourceColor: dark ? [144, 96, 128] : [192, 192, 240],
