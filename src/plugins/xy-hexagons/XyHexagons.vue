@@ -266,7 +266,7 @@ class XyHexagons extends Vue {
         const points = this.rawRequests[row.index]
         filteredRows.push([points[element.x], points[element.y]])
       }
-      this.hexStats!.selectedHexagonIds = []
+      if (this.hexStats) this.hexStats.selectedHexagonIds = []
       this.multiSelectedHexagons = {}
 
       this.requests = filteredRows
