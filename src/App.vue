@@ -1,32 +1,30 @@
 <template lang="pug">
-#main-app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
+#main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
   .app-nav
     .top-bar.full-page-app
       nav.top-link
-        router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
-          :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
-            p {{ link.name }}
+        router-link(to="/"): p aftersim
+
+        //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
+        //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
+        //-     p {{ link.name }}
 
         .right-side
-          .locale(@click="toggleTheme")
-            i.fa.fa-1x.fa-adjust
-            br
-            span {{ $t(state.colorScheme) }}
+          //- .top-action-button()
+          //-   i.fa.fa-1x.fa-share
+          //-   br
+          //-   span {{ $t('share') }}
 
-          .locale(@click="toggleLocale")
+          .top-action-button(@click="toggleLocale")
             i.fa.fa-1x.fa-globe
             br
             span {{ state.locale }}
 
-    .breadcrumb-container(v-if="state.breadcrumbs.length")
-      .breadcrumb.has-bullet-separator.is-centered(aria-label="breadcrumbs")
-        ul
-          li(v-for="crumb,i in state.breadcrumbs"
-          )
-            router-link(v-if="i < state.breadcrumbs.length-1"
-                        :to="crumb.url") {{ crumb.label }}
-            a.no-breadcrumb-link(v-else) {{ crumb.label }}
+          .top-action-button(@click="toggleTheme")
+            i.fa.fa-1x.fa-adjust
+            br
+            span {{ $t(state.colorScheme) }}
 
   .center-area.nav-padding
     login-panel.login-panel
@@ -44,9 +42,11 @@
 en:
   light: 'light'
   dark: 'dark'
+  share: 'share'
 de:
   light: 'hell'
   dark: 'dark'
+  share: 'freigeben'
 </i18n>
 
 <script lang="ts">
@@ -89,15 +89,7 @@ class App extends Vue {
 
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
-    // // locale: we only support EN and DE
-    // const locale = localStorage.getItem('locale')
-    //   ? '' + localStorage.getItem('locale')
-    //   : // @ts-ignore
-    //   (navigator.language || navigator.userLanguage).startsWith('de')
-    //   ? 'de'
-    //   : 'en'
-
-    // this.$store.commit('setLocale', locale)
+    this.toggleFullScreen(true)
   }
 
   private get topNavLinks() {
@@ -157,11 +149,20 @@ html {
 
 body,
 html {
-  // font-size: 16px;
+  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
   margin: 0px 0px;
   padding: 0px 0px;
   height: 100%;
   overscroll-behavior: contain;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
 }
 
 html {
@@ -236,14 +237,8 @@ canvas {
 }
 
 .top-link p {
-  color: #e0e0e0;
   cursor: pointer;
   padding: 1rem 0.75rem;
-}
-
-.top-link p:hover {
-  background-color: $matsimBlue;
-  color: white;
 }
 
 .selected p {
@@ -277,7 +272,6 @@ h3 {
   display: grid;
   color: var(--text);
   background-color: var(--bgCream);
-  font-family: $mainFont;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
@@ -304,15 +298,15 @@ a:hover {
 }
 
 .app-nav {
+  padding: 0 1rem;
   position: sticky;
   top: 0;
-  background-color: $steelGray;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   z-index: 10000;
   display: flex;
   flex-direction: column;
-  box-shadow: 0px 6px 10px #00000033;
+  border-bottom: 1px solid var(--bgCream3);
 }
 
 .app-nav a.router-link-exact-active {
@@ -411,26 +405,25 @@ a:hover {
   margin-left: auto;
 }
 
-.locale {
+.top-action-button {
   -moz-user-select: none;
   -webkit-user-select: none;
   user-select: none;
-  font-size: 0.7rem;
-  background-color: $steelGray;
-  color: #ccc;
-  margin: auto 0 auto 0.5rem;
+  font-size: 0.65rem;
+  margin: auto 0 auto 1.5rem;
   padding: 2px 0px;
   width: 1.5rem;
   text-align: center;
+  color: var(--bgLink);
 }
 
-.locale:hover {
+.top-action-button:hover {
   cursor: pointer;
-  background-color: #222255;
-  color: #ffe;
+  // background-color: #222255;
+  color: var(--linkHover);
 }
 
-.locale:active {
+.top-action-button:active {
   border: 1px solid #aaa;
   transform: translateY(1px);
 }

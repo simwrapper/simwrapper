@@ -1,8 +1,6 @@
 import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
-import HomeIndex from '@/views/HomeIndex.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
-import SqlThing from '@/views/SqlThing.vue'
 
 import globalStore from '@/store'
 
@@ -11,13 +9,15 @@ Vue.use(VueRouter)
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: HomeIndex,
+    component: () => import(/* webpackChunkName: "splash" */ '@/views/SplashPage.vue'),
+  },
+  {
+    path: '/dash',
+    component: () => import(/* webpackChunkName: "dashboard" */ '@/views/DashboardHome.vue'),
   },
   {
     path: '/sql',
-    name: 'sql',
-    component: SqlThing,
+    component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
   },
   {
     // catch-all back to home page

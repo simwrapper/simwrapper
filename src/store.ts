@@ -15,10 +15,12 @@ interface GlobalState {
   needLoginForUrl: string
   statusErrors: string[]
   statusMessage: string
-  svnProjects: any
+  svnProjects: any[]
   visualizationTypes: Map<string, VisualizationPlugin>
   colorScheme: string
   locale: string
+  runFolders: { [root: string]: { folder: string }[] }
+  runFolderCount: number
 }
 
 export default new Vuex.Store({
@@ -35,10 +37,19 @@ export default new Vuex.Store({
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.DarkMode,
     locale: 'en',
+    runFolders: {},
+    runFolderCount: 0,
   } as GlobalState,
 
   getters: {},
   mutations: {
+    updateRunFolders(
+      state: GlobalState,
+      value: { number: number; folders: { [root: string]: { folder: string }[] } }
+    ) {
+      state.runFolderCount = value.number
+      state.runFolders = value.folders
+    },
     requestLogin(state: GlobalState, value: string) {
       state.needLoginForUrl = value
     },

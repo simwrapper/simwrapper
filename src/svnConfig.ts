@@ -10,13 +10,12 @@ const config: any = {
       thumbnail: '/thumb-examples.jpg',
     },
     {
-      name: 'zeroCUTS',
-      url: 'zerocuts',
-      description: 'zeroCUTS Project',
-      svn:
-        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/zerocuts',
+      name: 'Local Files',
+      url: 'local',
+      description: 'Run mini-file-server to browse files on your PC',
+      svn: 'http://localhost:8000',
       need_password: false,
-      thumbnail: '/thumb-chart.jpg',
+      thumbnail: '/thumb-localfiles.jpg',
     },
     {
       name: 'Public-SVN',
@@ -25,14 +24,6 @@ const config: any = {
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
       need_password: false,
       thumbnail: '/thumb-chart.jpg',
-    },
-    {
-      name: 'Local Files',
-      url: 'local',
-      description: 'Run mini-file-server to browse files on your PC',
-      svn: 'http://localhost:8000',
-      need_password: false,
-      thumbnail: '/thumb-localfiles.jpg',
     },
     // {
     //   name: 'ils4 Math Cluster',

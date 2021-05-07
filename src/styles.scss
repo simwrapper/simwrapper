@@ -20,7 +20,7 @@ $thumbnailHeight: 10rem;
 :root {
   --bg: #edebe4;
   --bgBold: #ffffff;
-  --bgCream: #edebe4;
+  --bgCream: #eaece8;
   --bgCream2: #dddcd7;
   --bgCream3: #dddce7;
   --bgCream4: #e4e3f4;
@@ -29,8 +29,9 @@ $thumbnailHeight: 10rem;
   --text: #363636;
   --textBold: #1d3355;
   --textFancy: #1d3355;
-  --link: #1c5179;
-  --linkHover: #0b263b;
+  --link: #196096;
+  --linkHover: #079f6f;
+  --linkActive: #bbf1ca;
   --shadowMode: 0px 0px 6px 6px rgba(0, 0, 0, 0.12);
   --borderThin: 1px solid #cce;
   --beige: #ffeead;
@@ -51,6 +52,7 @@ $thumbnailHeight: 10rem;
   --textFancy: #a5c4e2;
   --link: #65d68f;
   --linkHover: #a8ffc8;
+  --linkActive: #145240;
   --shadowMode: 0px 0px 6px 6px rgba(192, 192, 255, 0.3);
   --borderThin: 1px solid #15151d;
 }
