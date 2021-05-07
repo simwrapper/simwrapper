@@ -2,6 +2,7 @@ import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
 import HomeIndex from '@/views/HomeIndex.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
+import SqlThing from '@/views/SqlThing.vue'
 
 import globalStore from '@/store'
 
@@ -12,6 +13,11 @@ const routes = [
     path: '/',
     name: 'Home',
     component: HomeIndex,
+  },
+  {
+    path: '/sql',
+    name: 'sql',
+    component: SqlThing,
   },
   {
     // catch-all back to home page
