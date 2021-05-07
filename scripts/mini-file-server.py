@@ -11,7 +11,7 @@ print("Folder: " + os.getcwd())
 try:
     # Python3
     import http.server as SimpleHTTPServer
-    from http.server import SimpleHTTPRequestHandler, test as test_orig
+    from http.server import SimpleHTTPRequestHandler, test
 
 except ImportError:
     # Python 2
@@ -86,7 +86,6 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         self.send_response(206)
         self.send_header('Content-type', ctype)
-        # self.send_header('Accept-Ranges', 'bytes')  # moved to CORSandRangeRequestHandler
 
         if last is None or last >= file_len:
             last = file_len - 1
@@ -108,15 +107,16 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         start, stop = self.range  # set in send_head()
         copy_byte_range(source, outputfile, start, stop)
 
-
-class CORSandRangeRequestHandler(RangeRequestHandler):
     def end_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header(
+            "Access-Control-Allow-Origin", "*")
+        self.send_header(
+            'Accept-Ranges', 'bytes')
         self.send_header(
             "Cache-Control", "no-cache, max-age=0, must-revalidate, no-store"
         )
         SimpleHTTPRequestHandler.end_headers(self)
 
 
-test(HandlerClass=CORSandRangeRequestHandler) # , port=args.port)
+test(HandlerClass=RangeRequestHandler) # , port=args.port)
+
