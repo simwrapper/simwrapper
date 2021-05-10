@@ -5,78 +5,38 @@ const ctx: Worker = self as any
 export default null as any
 // -----------------------------------------------------------
 
-// import readBlob from 'read-blob'
-// import pako from 'pako'
+import readBlob from 'read-blob'
+import pako from 'pako'
 
-// import globalStore from '@/store'
-// import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 
-onmessage = ({ data: { filename } }: MessageEvent) => {
-  console.log('got ', filename)
-
-  ctx.postMessage({ answer: 42 })
+onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
+  fetchGzip(filePath, fileSystem).then(r => {
+    ctx.postMessage({ answer: r })
+  })
 }
 
-// const fetchXml = (E:any) => {
-//     const fileSystem = this.getFileSystem(this.params.fileApi)
-//     const httpFileSystem = new HTTPFileSystem(fileSystem)
+async function fetchGzip(filePath: string, fileSystem: any) {
+  const httpFileSystem = new HTTPFileSystem(fileSystem)
 
-//     console.log({ fileSystem })
+  const blob = await httpFileSystem.getFileBlob(filePath)
+  if (!blob) throw Error('BLOB IS NULL')
+  const buffer = await readBlob.arraybuffer(blob)
 
-//     const blob = await httpFileSystem.getFileBlob(this.params.filePath)
-//     if (!blob) throw Error('BLOB IS NULL')
+  const data = gUnzip(buffer)
 
-//     const data = await this.getDataFromBlob(blob)
-//     const xml = await this.parseXML(data)
+  return { data, transferrables: [] }
+}
 
-//     return { data: xml, transferrables: [] }
-//   }
+function gUnzip(buffer: any): any {
+  const decoder = new TextDecoder('utf-8')
 
-//   private async newGetDataFromBlob(blob: Blob) {
-//     const data: any = readBlob.arraybuffer(blob)
+  // GZIP always starts with a magic number, hex 1f8b
+  const header = new Uint8Array(buffer.slice(0, 2))
+  if (header[0] === 31 && header[1] === 139) {
+    console.log('Need to gUnzip!')
+    return gUnzip(pako.inflate(buffer))
+  }
 
-//     try {
-//       // try single-gzipped
-//       const gunzip1 = pako.inflate(data, { to: 'string' })
-//       if (gunzip1.startsWith('<?xml')) return gunzip1
-//     } catch (e) {
-//       // it's ok if it failed because it might be text vvvv
-//     }
-
-//     // try text
-//     const text: string = await readBlob.text(blob)
-//     return text
-//   }
-
-//   private async getDataFromBlob(blob: Blob) {
-//     // TEMP HACK. Need user agent to determine whether GZIP is regular (Chrome)
-//     // or double (firefox).  Can add others later.
-//     console.log(navigator.userAgent)
-
-//     let isFirefox = true
-//     // are we on windows
-//     if (navigator.appVersion.indexOf('Win') > -1) {
-//       isFirefox = navigator.userAgent.indexOf('like Gecko') === -1
-//     }
-
-//     console.log('IS FIREFOX on WINDOWS: ' + isFirefox)
-
-//     const data: any = await readBlob.arraybuffer(blob)
-
-//     try {
-//       // try single-gzipped
-//       const gunzip1 = pako.inflate(data, { to: 'string' })
-//       if (gunzip1.startsWith('<?xml')) return gunzip1
-
-//       // try double-gzipped
-//       const dgunzip1 = pako.inflate(data)
-//       const gunzip2 = pako.inflate(dgunzip1, { to: 'string' })
-//       if (gunzip2.startsWith('<?xml')) return gunzip2
-//     } catch (e) {
-//       // it's ok if it failed because it might be text vvvv
-//     }
-
-//     // try text
-//     const text: string = await readBlob.text(blob)
-//     return text
-//   }
+  return buffer
+}

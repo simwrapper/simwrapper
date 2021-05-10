@@ -407,13 +407,17 @@ class MyComponent extends Vue {
   private loadDemandData(filename: string) {
     if (!filename) return []
 
-    console.log('LOAD DEMAND DATA')
-    const zworker = new GzipWorker()
+    this.loadingText = 'Loading demand...'
+    const worker = new GzipWorker() as Worker
 
-    zworker.onmessage = ({ data: { answer } }: any) => {
+    worker.onmessage = ({ data: { answer } }: any) => {
       console.log(answer)
+      this.loadingText = ''
     }
-    zworker.postMessage({ filename })
+    worker.postMessage({
+      filePath: this.myState.subfolder + '/' + filename,
+      fileSystem: this.myState.fileSystem,
+    })
   }
 
   private async processInputs(networks: NetworkInputs) {
