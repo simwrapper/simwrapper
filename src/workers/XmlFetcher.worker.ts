@@ -38,8 +38,6 @@ class XmlFetcher extends AsyncBackgroundWorker {
     const fileSystem = this.getFileSystem(this.params.fileApi)
     const httpFileSystem = new HTTPFileSystem(fileSystem)
 
-    console.log({ fileSystem })
-
     const blob = await httpFileSystem.getFileBlob(this.params.filePath)
     if (!blob) throw Error('BLOB IS NULL')
 

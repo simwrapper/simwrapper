@@ -1,6 +1,6 @@
 <template lang="pug">
 #container
-  .status-blob(v-if="!thumbnail && loadingText"): p {{ loadingText }}
+  //- .status-blob(v-if="!thumbnail && loadingText"): p {{ loadingText }}
 
   left-data-panel.left-panel(v-if="routesOnLink.length > 0"
     title="Transit routes on selected link:")
@@ -26,6 +26,10 @@
       )
 
   legend-box.legend(v-if="!thumbnail" :rows="legendRows")
+
+  .status-corner(v-if="!thumbnail && loadingText")
+    p {{ loadingText }}
+
 </template>
 
 <script lang="ts">
@@ -50,6 +54,8 @@ import LegendBox from './LegendBox.vue'
 import { FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import globalStore from '@/store'
+
+import GzipWorker from '@/workers/GzipFetcher.worker'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -82,6 +88,7 @@ class MyComponent extends Vue {
   private vizDetails = {
     transitSchedule: '',
     network: '',
+    demand: '',
     projection: '',
     title: '',
     description: '',
@@ -287,7 +294,6 @@ class MyComponent extends Vue {
       })
 
       const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
-      console.log({ extent })
 
       if (extent) {
         const lnglat = JSON.parse(extent)
@@ -366,7 +372,6 @@ class MyComponent extends Vue {
 
   private async loadNetworks() {
     try {
-      console.log(this.vizDetails)
       if (!this.myState.fileSystem) return
 
       this.loadingText = 'Loading networks...'
@@ -390,12 +395,25 @@ class MyComponent extends Vue {
       this._roadFetcher.destroy()
       this._transitFetcher.destroy()
 
-      return { roadXML: results[0], transitXML: results[1] }
+      const ridership = this.loadDemandData(this.vizDetails.demand)
+      return { roadXML: results[0], transitXML: results[1], ridership }
     } catch (e) {
       console.error({ e })
       this.loadingText = '' + e
       return null
     }
+  }
+
+  private loadDemandData(filename: string) {
+    if (!filename) return []
+
+    console.log('LOAD DEMAND DATA')
+    const zworker = new GzipWorker()
+
+    zworker.onmessage = ({ data: { answer } }: any) => {
+      console.log(answer)
+    }
+    zworker.postMessage({ filename })
   }
 
   private async processInputs(networks: NetworkInputs) {
@@ -462,7 +480,7 @@ class MyComponent extends Vue {
   }
 
   private async processDepartures() {
-    this.loadingText = 'Processing departures'
+    this.loadingText = 'Processing departures...'
 
     for (const id in this._transitLines) {
       if (this._transitLines.hasOwnProperty(id)) {
@@ -550,7 +568,7 @@ class MyComponent extends Vue {
   }
 
   private async constructDepartureFrequencyGeoJson() {
-    this.loadingText = 'Construct departure frequencies'
+    this.loadingText = 'Constructing departure frequencies...'
     const geojson = []
 
     for (const linkID in this._departures) {
@@ -990,5 +1008,35 @@ h3 {
 .dashboard-panel {
   display: flex;
   flex-direction: column;
+}
+
+.status-corner {
+  z-index: 5;
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  box-shadow: 0px 2px 10px #22222266;
+  display: flex;
+  flex-direction: row;
+  margin: auto auto 0 0;
+  background-color: var(--bgPanel);
+  padding: 0rem 3rem;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &.router-link-exact-active {
+      color: white;
+    }
+  }
+
+  p {
+    color: var(--textFancy);
+    font-weight: normal;
+    font-size: 1.5rem;
+    line-height: 3.25rem;
+    margin: auto 0.5rem auto 0;
+    padding: 0 0;
+  }
 }
 </style>

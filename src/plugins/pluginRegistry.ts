@@ -10,7 +10,6 @@ import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 import TransitDemand from '@/plugins/transit-demand/TransitDemand.vue'
-import TransitSupply from '@/plugins/transit-supply/TransitSupply.vue'
 import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 
@@ -27,7 +26,6 @@ const plugins = {
   VegaLite,
   AggregateOd,
   TransitDemand,
-  TransitSupply,
   VideoPlayer,
   ImageView,
 }

@@ -19,7 +19,7 @@ export default class AsyncWorkerConnector {
   constructor(worker: Worker) {
     this.worker = worker
 
-    this.handleMessageDelegate = e => this.handleWorkerMessage(e as MessageEvent)
+    this.handleMessageDelegate = (e: any) => this.handleWorkerMessage(e as MessageEvent)
     this.worker.addEventListener('message', this.handleMessageDelegate)
   }
 

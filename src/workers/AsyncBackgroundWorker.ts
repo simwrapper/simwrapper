@@ -42,7 +42,7 @@ export default abstract class AsyncBackgroundWorker {
   private isInitialized = false
 
   constructor() {
-    this.handleMessageDelegate = e => this.handleMessage(e as MessageEvent)
+    this.handleMessageDelegate = (e: any) => this.handleMessage(e as MessageEvent)
     addEventListener('message', this.handleMessageDelegate)
   }
 
