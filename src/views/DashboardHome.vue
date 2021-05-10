@@ -13,10 +13,8 @@
   .content-panel
     .stuff-in-main-panel
       .more-stuff
-        h1 aftersim
+        h1 scout
         h2.readme {{ $t('tagLine') }}
-
-        h3(v-if="globalState.runFolderCount") Folders scanned: {{ globalState.runFolderCount }}
 
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
@@ -28,7 +26,7 @@
         .readme(v-html="readmeBottom")
 
   .bottom-panel
-    p Status: Ready
+    p {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : 'Ready' }}
 
 </template>
 
@@ -70,7 +68,7 @@ class MyComponent extends Vue {
   private mounted() {
     if (!this.globalState.runFolderCount) {
       console.log('need it!')
-      RunFinder.populate()
+      RunFinder.findRuns()
     }
   }
 
@@ -141,6 +139,7 @@ export default MyComponent
 
   p:hover {
     background-color: var(--linkActive);
+    cursor: pointer;
   }
 
   p + h3 {

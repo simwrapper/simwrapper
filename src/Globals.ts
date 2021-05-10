@@ -11,6 +11,7 @@ export interface SVNProject {
   description_de: string
   svn: string
   need_password: boolean
+  skipList?: string[]
 }
 
 export interface VisualizationPlugin {

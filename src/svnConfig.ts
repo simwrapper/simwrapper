@@ -24,6 +24,7 @@ const config: any = {
       svn: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
       need_password: false,
       thumbnail: '/thumb-chart.jpg',
+      skipList: ['episim/battery'],
     },
     // {
     //   name: 'ils4 Math Cluster',
