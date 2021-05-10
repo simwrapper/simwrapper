@@ -1,10 +1,14 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
+  .center-area.nav-padding
+    login-panel.login-panel
+    router-view.main-content
+
   .app-nav
     .top-bar.full-page-app
       nav.top-link
-        router-link(to="/"): p aftersim
+        router-link(to="/"): p scout
 
         //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
         //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
@@ -25,10 +29,6 @@
             i.fa.fa-1x.fa-adjust
             br
             span {{ $t(state.colorScheme) }}
-
-  .center-area.nav-padding
-    login-panel.login-panel
-    router-view.main-content
 
   .message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
@@ -95,7 +95,7 @@ class App extends Vue {
   private get topNavLinks() {
     // {name, description, need_password, svn, thumbnail, url }
     // a '/' will be prepended
-    const home: any[] = [{ name: 'aftersim', url: '' }]
+    const home: any[] = [{ name: 'scout', url: '' }]
     const topLinks = home.concat(this.state.svnProjects)
 
     return topLinks
@@ -311,7 +311,7 @@ a:hover {
 
 .app-nav a.router-link-exact-active {
   font-weight: bold;
-  color: #00ffff;
+  // color: #00ffff;
 }
 
 .main-content {
@@ -414,7 +414,7 @@ a:hover {
   padding: 2px 0px;
   width: 1.5rem;
   text-align: center;
-  color: var(--bgLink);
+  // color: var(--bgLink);
 }
 
 .top-action-button:hover {

@@ -1,6 +1,6 @@
 {
-  "name": "aftersim",
-  "version": "1.0.0",
+  "name": "viz-scout",
+  "version": "3.0.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",

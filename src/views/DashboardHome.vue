@@ -10,6 +10,8 @@
     p thing 2
     p thing 2
 
+    button.button(@click="handleScanFolders") Scan Folders
+
   .content-panel
     .stuff-in-main-panel
       .more-stuff
@@ -33,7 +35,7 @@
 <i18n>
 en:
   more-info: 'For more information:'
-  tagLine: 'the model output browser and data visualizer from TU Berlin.'
+  tagLine: 'the simulation output viewer from TU Berlin'
 de:
   more-info: 'Für weitere Informationen:'
   tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
@@ -50,7 +52,7 @@ import VizCard from '@/components/VizCard.vue'
 
 import globalStore from '@/store'
 import { SVNProject } from '@/Globals'
-import RunFinder from '@/util/RunFinder'
+import runFinder from '@/util/RunFinder'
 
 interface Run {
   root: SVNProject
@@ -66,10 +68,11 @@ class MyComponent extends Vue {
   private numberOfScannedFolders = 0
 
   private mounted() {
-    if (!this.globalState.runFolderCount) {
-      console.log('need it!')
-      RunFinder.findRuns()
-    }
+    runFinder.findRuns()
+  }
+
+  private handleScanFolders() {
+    runFinder.populate()
   }
 
   private globalState = globalStore.state
