@@ -1,7 +1,6 @@
 import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/workers/AsyncBackgroundWorker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
 
-import readBlob from 'read-blob'
 import pako from 'pako'
 import xml2js from 'xml2js'
 
@@ -47,53 +46,27 @@ class XmlFetcher extends AsyncBackgroundWorker {
     return { data: xml, transferrables: [] }
   }
 
-  private async newGetDataFromBlob(blob: Blob) {
-    const data: any = readBlob.arraybuffer(blob)
+  private async getDataFromBlob(blob: Blob) {
+    const data = await blob.arrayBuffer()
+    const cargo = this.gUnzip(data)
 
-    try {
-      // try single-gzipped
-      const gunzip1 = pako.inflate(data, { to: 'string' })
-      if (gunzip1.startsWith('<?xml')) return gunzip1
-    } catch (e) {
-      // it's ok if it failed because it might be text vvvv
-    }
-
-    // try text
-    const text: string = await readBlob.text(blob)
+    const text = new TextDecoder('utf-8').decode(cargo)
     return text
   }
 
-  private async getDataFromBlob(blob: Blob) {
-    // TEMP HACK. Need user agent to determine whether GZIP is regular (Chrome)
-    // or double (firefox).  Can add others later.
-    console.log(navigator.userAgent)
-
-    let isFirefox = true
-    // are we on windows
-    if (navigator.appVersion.indexOf('Win') > -1) {
-      isFirefox = navigator.userAgent.indexOf('like Gecko') === -1
+  /**
+   * This recursive function gunzips the buffer. It is recursive because
+   * some combinations of subversion, nginx, and various user browsers
+   * can single- or double-gzip .gz files on the wire. It's insane but true.
+   */
+  private gUnzip(buffer: any): any {
+    // GZIP always starts with a magic number, hex 1f8b
+    const header = new Uint8Array(buffer.slice(0, 2))
+    if (header[0] === 31 && header[1] === 139) {
+      return this.gUnzip(pako.inflate(buffer))
     }
 
-    console.log('IS FIREFOX on WINDOWS: ' + isFirefox)
-
-    const data: any = await readBlob.arraybuffer(blob)
-
-    try {
-      // try single-gzipped
-      const gunzip1 = pako.inflate(data, { to: 'string' })
-      if (gunzip1.startsWith('<?xml')) return gunzip1
-
-      // try double-gzipped
-      const dgunzip1 = pako.inflate(data)
-      const gunzip2 = pako.inflate(dgunzip1, { to: 'string' })
-      if (gunzip2.startsWith('<?xml')) return gunzip2
-    } catch (e) {
-      // it's ok if it failed because it might be text vvvv
-    }
-
-    // try text
-    const text: string = await readBlob.text(blob)
-    return text
+    return buffer
   }
 
   private parseXML(xml: string): Promise<string> {
