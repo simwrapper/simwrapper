@@ -1,8 +1,8 @@
 <template lang="pug">
-.transit-viz
+.transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
   collapsible-panel.right-side(v-if="!thumbnail && routesOnLink.length > 0"
-                               :darkMode="true" width="800" direction="right")
+                               :darkMode="isDarkMode" width="800" direction="right")
     .panel-items
       .panel-item
         h3 {{ vizDetails.title }}
@@ -20,10 +20,10 @@
           p.details First: {{route.firstDeparture}}
           p.details Last: {{route.lastDeparture}}
 
-  .map-container(:class="{'hide-thumbnail': !thumbnail}")
+  .map-container(:class="{'hide-thumbnail': !thumbnail }")
     #mymap
       .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
-        v-bind:style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
+        :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
   legend-box.legend(v-if="!thumbnail" :rows="legendRows")
@@ -53,7 +53,7 @@ import XmlFetcher from '@/workers/XmlFetcher'
 import TransitSupplyHelper from './TransitSupplyHelper'
 import LegendBox from './LegendBox.vue'
 
-import { FileSystem, SVNProject, ColorScheme, VisualizationPlugin } from '@/Globals'
+import { FileSystem, SVNProject, ColorScheme, VisualizationPlugin, MAP_STYLES } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import globalStore from '@/store'
 
@@ -148,6 +148,22 @@ class MyComponent extends Vue {
     console.log('AUTH CHANGED - Reload')
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
+  }
+
+  @Watch('globalState.colorScheme') private swapTheme() {
+    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+    if (!this.mymap) return
+
+    // this.removeSelectedRoute()
+    this.removeAttachedRoutes()
+
+    this.mymap.setStyle(this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light)
+
+    this.mymap.on('style.load', () => {
+      if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
+      this.highlightAllAttachedRoutes()
+      if (this.selectedRoute) this.showTransitRoute(this.selectedRoute.id)
+    })
   }
 
   public beforeDestroy() {
@@ -294,7 +310,8 @@ class MyComponent extends Vue {
         bearing: 0,
         container: 'mymap',
         logoPosition: 'bottom-left',
-        style: 'mapbox://styles/mapbox/dark-v9',
+        // style: { version: 8, sources: {}, layers: [] },
+        style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
         pitch: 0,
       })
 
@@ -356,21 +373,19 @@ class MyComponent extends Vue {
   }
 
   private setupKeyListeners() {
-    const parent = this
-    window.addEventListener('keyup', function(event) {
+    // const parent = this
+    window.addEventListener('keyup', event => {
       if (event.keyCode === 27) {
         // ESC
-        parent.pressedEscape()
+        this.pressedEscape()
       }
     })
-    window.addEventListener('keydown', function(event) {
+    window.addEventListener('keydown', event => {
       if (event.keyCode === 38) {
-        // UP
-        parent.pressedArrowKey(-1)
+        this.pressedArrowKey(-1) // UP
       }
       if (event.keyCode === 40) {
-        // DOWN
-        parent.pressedArrowKey(+1)
+        this.pressedArrowKey(+1) // DOWN
       }
     })
   }
@@ -563,7 +578,11 @@ class MyComponent extends Vue {
     }
   }
 
+  private _geoTransitLinks: any
+
   private addTransitToMap(geodata: any) {
+    this._geoTransitLinks = geodata
+
     this.mymap.addSource('transit-source', {
       data: geodata,
       type: 'geojson',
@@ -814,8 +833,12 @@ class MyComponent extends Vue {
 
   private removeAttachedRoutes() {
     for (const layerID of this._attachedRouteLayers) {
-      this.mymap.removeLayer('route-' + layerID)
-      this.mymap.removeSource('source-route-' + layerID)
+      try {
+        this.mymap.removeLayer('route-' + layerID)
+        this.mymap.removeSource('source-route-' + layerID)
+      } catch (e) {
+        //meh
+      }
     }
     this._attachedRouteLayers = []
   }
@@ -934,7 +957,7 @@ p {
   min-height: $thumbnailHeight;
 }
 
-.map-container.hide-thumbnail {
+.hide-thumbnail {
   background: none;
 }
 
@@ -944,32 +967,18 @@ p {
   flex: 1;
 }
 
-.status-blob {
-  background-color: #fff;
-  box-shadow: 0 0 8px #00000040;
-  opacity: 0.97;
-  margin: auto 0px auto -10px;
-  padding: 3rem 0px;
-  text-align: center;
-  grid-column: 1 / 3;
-  grid-row: 1 / 3;
-  z-index: 2;
-  border-top: solid 1px #479ccc;
-  border-bottom: solid 1px #479ccc;
-}
-
 .route {
-  background-color: #414347;
+  background-color: var(--bgBold);
   margin: 0px 0px;
   padding: 5px 0px;
   text-align: left;
-  color: #fff;
+  color: var(--text);
   border-left: solid 8px #00000000;
   border-right: solid 8px #00000000;
 }
 
 .route:hover {
-  background-color: #5b5e63;
+  background-color: var(--bgHover);
   cursor: pointer;
 }
 
@@ -980,7 +989,7 @@ h3 {
 
 .mytitle {
   margin-left: 10px;
-  color: #65d68f;
+  color: var(--link);
 }
 
 .details {
@@ -1056,10 +1065,6 @@ h3 {
   color: #ccc;
 }
 
-.status-blob p {
-  color: #224;
-}
-
 .legend {
   grid-column: 2 / 3;
   grid-row: 2 / 3;
@@ -1094,6 +1099,7 @@ h3 {
 }
 
 .panel-items {
+  color: var(--text);
   display: flex;
   flex-direction: column;
   margin: 0 0;
@@ -1110,6 +1116,8 @@ h3 {
   overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
+  scrollbar-color: #888 var(--bgCream);
+  -webkit-scrollbar-color: #888 var(--bgCream);
 }
 
 .dashboard-panel {
@@ -1140,8 +1148,8 @@ h3 {
   p {
     color: var(--textFancy);
     font-weight: normal;
-    font-size: 1.5rem;
-    line-height: 3.25rem;
+    font-size: 1.3rem;
+    line-height: 2.5rem;
     margin: auto 0.5rem auto 0;
     padding: 0 0;
   }
