@@ -37,9 +37,10 @@
 
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
-import mapboxgl, { LngLatBoundsLike, LngLatLike } from 'mapbox-gl'
+import crossfilter from 'crossfilter2'
+import mapboxgl, { GeoJSONSource, LngLatBoundsLike, LngLatLike } from 'mapbox-gl'
 import nprogress from 'nprogress'
-import xml2js from 'xml2js'
+import Papaparse from 'papaparse'
 import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
@@ -56,6 +57,7 @@ import HTTPFileSystem from '@/util/HTTPFileSystem'
 import globalStore from '@/store'
 
 import GzipWorker from '@/workers/GzipFetcher.worker'
+import { ParseResult } from 'markdown-it/lib/helpers/parse_link_destination'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -410,14 +412,66 @@ class MyComponent extends Vue {
     this.loadingText = 'Loading demand...'
     const worker = new GzipWorker() as Worker
 
-    worker.onmessage = ({ data: { answer } }: any) => {
-      console.log(answer)
-      this.loadingText = ''
+    worker.onmessage = (event: MessageEvent) => {
+      this.loadingText = 'Processing demand...'
+      const buf = event.data
+      const decoder = new TextDecoder('utf-8')
+      const csvData = decoder.decode(buf)
+
+      Papaparse.parse(csvData, {
+        // preview: 10000,
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+        worker: true,
+        complete: results => {
+          this.processDemand(results)
+        },
+      })
     }
+
     worker.postMessage({
       filePath: this.myState.subfolder + '/' + filename,
       fileSystem: this.myState.fileSystem,
     })
+  }
+
+  private cfDemand: crossfilter.Crossfilter<any> | null = null
+  private cfDemandLink: crossfilter.Dimension<any, any> | null = null
+
+  private async processDemand(results: Papaparse.ParseResult<unknown>) {
+    // todo: make sure meta contains fields we need!
+    this.loadingText = 'Processing demand data...'
+
+    // build crossfilter
+    console.log('BUILD crossfilter')
+    this.cfDemand = crossfilter(results.data)
+    this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
+    console.log('COUNTING RIDERSHIP')
+
+    // build link-level passenger ridership
+    const linkPassengersById = {} as any
+
+    this.cfDemandLink
+      .group()
+      .reduceSum((d: any) => d.passengersAtArrival)
+      .all()
+      .map(link => {
+        linkPassengersById[link.key as any] = link.value
+      })
+
+    // update passenger value in the transit-link geojson.
+    for (const transitLink of this._transitLinks.features) {
+      transitLink.properties['passengers'] = Math.max(
+        2,
+        0.002 * linkPassengersById[transitLink.properties.id]
+      )
+    }
+
+    const source = this.mymap.getSource('transit-source') as GeoJSONSource
+    source.setData(this._transitLinks)
+
+    this.loadingText = ''
   }
 
   private async processInputs(networks: NetworkInputs) {
@@ -448,9 +502,9 @@ class MyComponent extends Vue {
     this.loadingText = 'Summarizing departures...'
     await this.processDepartures()
 
-    const geodata = await this.constructDepartureFrequencyGeoJson()
-
-    await this.addTransitToMap(geodata)
+    // Build the links layer and add it
+    this._transitLinks = await this.constructDepartureFrequencyGeoJson()
+    this.addTransitToMap(this._transitLinks)
 
     localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
 
@@ -459,9 +513,11 @@ class MyComponent extends Vue {
       animate: false,
     })
 
-    this.loadingText = ''
+    if (!this.vizDetails.demand) this.loadingText = ''
     nprogress.done()
   }
+
+  private _transitLinks: any
 
   private async addLinksToMap() {
     const linksAsGeojson = this.constructGeoJsonFromLinkData()
@@ -477,7 +533,7 @@ class MyComponent extends Vue {
       type: 'line',
       paint: {
         'line-opacity': 1.0,
-        'line-width': 3, // ['get', 'width'],
+        'line-width': 1, // ['get', 'width'],
         'line-color': '#ccf', // ['get', 'color'],
       },
     })
@@ -504,7 +560,7 @@ class MyComponent extends Vue {
     }
   }
 
-  private async addTransitToMap(geodata: any) {
+  private addTransitToMap(geodata: any) {
     this.mymap.addSource('transit-source', {
       data: geodata,
       type: 'geojson',
@@ -516,7 +572,7 @@ class MyComponent extends Vue {
       type: 'line',
       paint: {
         'line-opacity': 1.0,
-        'line-width': ['get', 'width'],
+        'line-width': ['get', 'passengers'],
         'line-color': ['get', 'color'],
       },
     })
@@ -572,7 +628,6 @@ class MyComponent extends Vue {
   }
 
   private async constructDepartureFrequencyGeoJson() {
-    this.loadingText = 'Constructing departure frequencies...'
     const geojson = []
 
     for (const linkID in this._departures) {
@@ -594,8 +649,8 @@ class MyComponent extends Vue {
           if (this._routeData[route].transportMode === 'bus') {
             isRail = false
           }
-          // if (isRail) break
         }
+
         let line = {
           type: 'Feature',
           geometry: {
@@ -607,6 +662,7 @@ class MyComponent extends Vue {
             color: isRail ? '#a03919' : _colorScale[colorBin],
             colorBin: colorBin,
             departures: departures,
+            passengers: 2,
             id: linkID,
             isRail: isRail,
             from: link.from, // _stopFacilities[fromNode].name || fromNode,
@@ -614,7 +670,7 @@ class MyComponent extends Vue {
           },
         }
 
-        line = this.offsetLineByMeters(line, -10)
+        line = this.offsetLineByMeters(line, 15)
         geojson.push(line)
       }
     }
@@ -675,11 +731,11 @@ class MyComponent extends Vue {
     if (!routeID) return
 
     const route = this._routeData[routeID]
-    console.log({ SELECTED_ROUTE: route })
+    console.log({ selectedRoute: route })
 
     this.selectedRoute = route
 
-    const source = this.mymap.getSource('selected-route-data') as any
+    const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
     if (source) {
       source.setData(route.geojson)
     } else {
@@ -718,6 +774,8 @@ class MyComponent extends Vue {
     const props = e.features[0].properties
     const routeIDs = this._departures[props.id].routes
 
+    this.calculateLinkVolumes(props.id)
+
     const routes = []
     for (const id of routeIDs) {
       routes.push(this._routeData[id])
@@ -734,6 +792,21 @@ class MyComponent extends Vue {
 
     // highlight the first route, if there is one
     if (routes.length > 0) this.showRouteDetails(routes[0].id)
+  }
+
+  private calculateLinkVolumes(id: string) {
+    if (!this.cfDemandLink || !this.cfDemand) return
+
+    this.cfDemandLink.filter(id)
+
+    const allLinks = this.cfDemand.allFiltered()
+    let sum = 0
+
+    allLinks.map(d => {
+      sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
+    })
+
+    console.log({ sum, allLinks })
   }
 
   private removeAttachedRoutes() {
@@ -999,7 +1072,7 @@ h3 {
 
 .left-panel {
   position: absolute;
-  top: 2.4rem;
+  top: 5rem;
   bottom: 0;
   overflow-y: auto;
   grid-column: 1 / 2;
