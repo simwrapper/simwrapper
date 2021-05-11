@@ -1,13 +1,14 @@
 <template lang="pug">
-#container
-  //- .status-blob(v-if="!thumbnail && loadingText"): p {{ loadingText }}
+.transit-viz
 
-  left-data-panel.left-panel(v-if="routesOnLink.length > 0"
-    title="Transit routes on selected link:")
+  collapsible-panel.right-side(v-if="!thumbnail && routesOnLink.length > 0"
+                               :darkMode="true" width="800" direction="right")
+    .panel-items
+      .panel-item
+        h3 {{ vizDetails.title }}
+        p {{ vizDetails.description }}
 
-    .dashboard-panel
-
-      p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
+        p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
 
       .route-list
         .route(v-for="route in routesOnLink"
@@ -44,15 +45,15 @@ import Papaparse from 'papaparse'
 import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
+import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
 
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import XmlFetcher from '@/workers/XmlFetcher'
 import TransitSupplyHelper from './TransitSupplyHelper'
-import TransitSupplyHelperWorker from './TransitSupplyHelper.worker'
 import LegendBox from './LegendBox.vue'
 
-import { FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
+import { FileSystem, SVNProject, ColorScheme, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import globalStore from '@/store'
 
@@ -69,7 +70,7 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({ components: { LeftDataPanel, LegendBox } })
+@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox } })
 class MyComponent extends Vue {
   @Prop({ required: false })
   private fileApi!: FileSystem
@@ -103,6 +104,8 @@ class MyComponent extends Vue {
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
   }
+
+  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
 
   private loadingText: string = 'MATSim Transit Inspector'
   private mymap!: mapboxgl.Map
@@ -290,7 +293,7 @@ class MyComponent extends Vue {
       this.mymap = new mapboxgl.Map({
         bearing: 0,
         container: 'mymap',
-        logoPosition: 'bottom-right',
+        logoPosition: 'bottom-left',
         style: 'mapbox://styles/mapbox/dark-v9',
         pitch: 0,
       })
@@ -320,7 +323,7 @@ class MyComponent extends Vue {
 
     this.mymap.keyboard.disable() // so arrow keys don't pan
 
-    this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    this.mymap.addControl(new mapboxgl.NavigationControl(), 'bottom-left')
   }
 
   private handleMapMotion() {
@@ -439,7 +442,7 @@ class MyComponent extends Vue {
   private cfDemand: crossfilter.Crossfilter<any> | null = null
   private cfDemandLink: crossfilter.Dimension<any, any> | null = null
 
-  private async processDemand(results: Papaparse.ParseResult<unknown>) {
+  private processDemand(results: Papaparse.ParseResult<unknown>) {
     // todo: make sure meta contains fields we need!
     this.loadingText = 'Processing demand data...'
 
@@ -905,18 +908,26 @@ p {
   border-width: 0px 0px 0px 20px;
 }
 
-#container {
+.transit-viz {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  width: 100%;
+  pointer-events: none;
+  min-height: $thumbnailHeight;
+  background: url('assets/thumbnail.jpg') no-repeat;
+  background-size: cover;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    'title      rightside'
+    'leftside   rightside'
+    'playback   clock';
 }
 
 .map-container {
+  pointer-events: auto;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
   background-size: cover;
-  grid-column: 1 / 3;
+  grid-column: 1 / 5;
   grid-row: 1 / 3;
   display: flex;
   flex-direction: column;
@@ -969,7 +980,7 @@ h3 {
 
 .mytitle {
   margin-left: 10px;
-  color: #366ce0;
+  color: #65d68f;
 }
 
 .details {
@@ -1022,20 +1033,6 @@ h3 {
   z-index: 10;
 }
 
-.info-blob {
-  display: flex;
-  flex-direction: column;
-  width: 16rem;
-  height: 100%;
-  background-color: #363a45;
-  margin: 0px 0px;
-  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-  text-align: center;
-  opacity: 0.95;
-  z-index: 5;
-  animation: 0.3s ease 0s 1 slideInFromLeft;
-}
-
 @keyframes slideInFromLeft {
   from {
     transform: translateX(-100%);
@@ -1066,8 +1063,22 @@ h3 {
 .legend {
   grid-column: 2 / 3;
   grid-row: 2 / 3;
-  margin: auto 0.25rem 3.5rem auto;
+  margin: auto 0.25rem 2rem auto;
   z-index: 10;
+}
+
+.right-side {
+  z-index: 1;
+  position: absolute;
+  top: 0rem;
+  bottom: 0rem;
+  right: 0;
+  margin: 6rem 0 9rem 0;
+  color: white;
+  display: flex;
+  flex-direction: row;
+  font-size: 0.8rem;
+  pointer-events: auto;
 }
 
 .left-panel {
@@ -1080,6 +1091,25 @@ h3 {
   display: flex;
   flex-direction: column;
   width: 16rem;
+}
+
+.panel-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0;
+  max-height: 100%;
+  h3 {
+    padding: 0 0.5rem;
+  }
+}
+
+.route-list {
+  user-select: none;
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: pointer;
 }
 
 .dashboard-panel {
