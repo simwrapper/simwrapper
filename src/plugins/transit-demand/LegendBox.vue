@@ -1,6 +1,6 @@
 <template lang="pug">
 #legend-container
-  p.title Legend
+  h3 Legend
   .legend-item(v-for="item in rows" :key="item[0]")
     .legend-col-1(:style="{'background-color': item[0]}")
     span.legend-col-2 {{ item[1] }}
@@ -20,13 +20,19 @@ export default class LegendBox extends Vue {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles.scss';
+
 #legend-container {
   display: flex;
   flex-direction: column;
-  color: white;
-  background-color: #ffffffee;
   padding: 0.5rem 0.5rem;
+  color: var(--text);
+
+  h3 {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+  }
 }
 
 .legend-item {
@@ -34,7 +40,6 @@ export default class LegendBox extends Vue {
   flex-direction: row;
   margin-bottom: 0.25rem;
   font-size: 0.8rem;
-  color: black;
 }
 
 .legend-col-1 {
@@ -46,7 +51,6 @@ export default class LegendBox extends Vue {
 }
 
 p.title {
-  color: #444;
   font-size: 0.9rem;
   text-transform: uppercase;
   margin-bottom: 1rem;

@@ -1,8 +1,20 @@
+<i18n>
+en:
+  metrics: 'Metrics'
+de:
+  metrics: 'Metrics'
+</i18n>
+
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
-  collapsible-panel.left-side(v-if="!thumbnail && routesOnLink.length > 0"
-                               :darkMode="isDarkMode" width="500" direction="left")
+  .map-container(:class="{'hide-thumbnail': !thumbnail }")
+    #mymap
+      .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
+        :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
+      )
+
+  collapsible-panel.left-side(v-if="!thumbnail && routesOnLink.length > 0" :darkMode="isDarkMode" :width="500" direction="left")
     .panel-items
       .panel-item
         h3 {{ vizDetails.title }}
@@ -16,17 +28,24 @@
             :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
             @click="showRouteDetails(route.id)")
           h3.mytitle {{route.id}}
-          p.details: b {{route.departures}} departures
-          p.details First: {{route.firstDeparture}}
-          p.details Last: {{route.lastDeparture}}
+          .detailed-route-data
+            .col
+              p: b {{route.departures}} departures
+              p First: {{route.firstDeparture}}
+              p Last: {{route.lastDeparture}}
+            .col(v-if="route.passengersAtArrival")
+              p: b {{ route.passengersAtArrival }} passengers
+              p {{ route.totalVehicleCapacity }} capacity
 
-  .map-container(:class="{'hide-thumbnail': !thumbnail }")
-    #mymap
-      .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
-        :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
-      )
+  collapsible-panel.right-side(v-if="!thumbnail" :darkMode="isDarkMode" :width="300" direction="right")
+    .panel-item
+      h3 {{  $t('metrics') }}:
+      .metric-buttons
+        button.button.is-small.metric-button(
+          v-for="metric,i in metrics" :key="metric.field"
+          :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+          @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
 
-  collapsible-panel.right-side(v-if="!thumbnail" :darkMode="isDarkMode" width="500" direction="right")
     legend-box(:rows="legendRows")
 
   .status-corner(v-if="!thumbnail && loadingText")
@@ -87,7 +106,9 @@ class MyComponent extends Vue {
 
   private globalState = globalStore.state
 
-  // -------------------------- //
+  private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
+  private metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
+  private activeMetric: any = this.metrics[0].field
 
   private vizDetails = {
     transitSchedule: '',
@@ -321,7 +342,7 @@ class MyComponent extends Vue {
         const lnglat = JSON.parse(extent)
 
         const mFac = this.isMobile() ? 0 : 1
-        const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
+        const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
 
         this.mymap.fitBounds(lnglat, {
           animate: false,
@@ -341,6 +362,30 @@ class MyComponent extends Vue {
     this.mymap.keyboard.disable() // so arrow keys don't pan
 
     this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
+  }
+
+  private handleClickedMetric(metric: { field: string }) {
+    console.log(metric.field)
+
+    this.activeMetric = metric.field
+
+    let widthExpression: any = 3
+
+    switch (metric.field) {
+      case 'departures':
+        widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
+        break
+
+      case 'pax':
+        widthExpression = ['max', 2, ['*', 0.003, ['get', 'pax']]]
+        break
+
+      case 'loadfac':
+        widthExpression = ['max', 2, ['*', 200, ['get', 'loadfac']]]
+        break
+    }
+
+    this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
   }
 
   private handleMapMotion() {
@@ -489,14 +534,16 @@ class MyComponent extends Vue {
 
     // update passenger value in the transit-link geojson.
     for (const transitLink of this._transitLinks.features) {
+      transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
       transitLink.properties['cap'] = capacity[transitLink.properties.id]
       transitLink.properties['loadfac'] =
-        (100 * linkPassengersById[transitLink.properties.id]) / capacity[transitLink.properties.id]
-      transitLink.properties['pax'] = Math.max(
-        2,
-        0.002 * linkPassengersById[transitLink.properties.id]
-      )
+        linkPassengersById[transitLink.properties.id] / capacity[transitLink.properties.id]
     }
+
+    this.metrics = this.metrics.concat([
+      { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
+      { field: 'loadfac', name_en: 'Load Factors', name_de: 'Auslastung' },
+    ])
 
     const source = this.mymap.getSource('transit-source') as GeoJSONSource
     source.setData(this._transitLinks)
@@ -543,10 +590,10 @@ class MyComponent extends Vue {
     this._transitLinks = await this.constructDepartureFrequencyGeoJson()
     this.addTransitToMap(this._transitLinks)
 
-    localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
+    this.handleClickedMetric({ field: 'departures' })
 
+    localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
     this.mymap.fitBounds(this._mapExtentXYXY, {
-      padding: { top: 2, bottom: 2, right: 2, left: 2 },
       animate: false,
     })
 
@@ -555,26 +602,6 @@ class MyComponent extends Vue {
   }
 
   private _transitLinks: any
-
-  private async addLinksToMap() {
-    const linksAsGeojson = this.constructGeoJsonFromLinkData()
-
-    this.mymap.addSource('link-data', {
-      data: linksAsGeojson,
-      type: 'geojson',
-    } as any)
-
-    this.mymap.addLayer({
-      id: 'link-layer',
-      source: 'link-data',
-      type: 'line',
-      paint: {
-        'line-opacity': 1.0,
-        'line-width': 1, // ['get', 'width'],
-        'line-color': '#ccf', // ['get', 'color'],
-      },
-    })
-  }
 
   private async processDepartures() {
     this.loadingText = 'Processing departures...'
@@ -613,59 +640,24 @@ class MyComponent extends Vue {
       type: 'line',
       paint: {
         'line-opacity': 1.0,
-        'line-width': ['get', 'loadfac'],
+        'line-width': 1,
         'line-color': ['get', 'color'],
       },
     })
 
-    const parent = this
-    this.mymap.on('click', 'transit-link', function(e: mapboxgl.MapMouseEvent) {
-      parent.clickedOnTransitLink(e)
+    this.mymap.on('click', 'transit-link', (e: mapboxgl.MapMouseEvent) => {
+      this.clickedOnTransitLink(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'transit-link', function(e: mapboxgl.MapMouseEvent) {
-      parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+    this.mymap.on('mousemove', 'transit-link', (e: mapboxgl.MapMouseEvent) => {
+      this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
     })
 
     // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'transit-link', function() {
-      parent.mymap.getCanvas().style.cursor = 'grab'
+    this.mymap.on('mouseleave', 'transit-link', () => {
+      this.mymap.getCanvas().style.cursor = 'grab'
     })
-  }
-
-  private constructGeoJsonFromLinkData() {
-    const geojsonLinks = []
-
-    for (const id in this._network.links) {
-      if (this._network.links.hasOwnProperty(id)) {
-        const link = this._network.links[id]
-        const fromNode = this._network.nodes[link.from]
-        const toNode = this._network.nodes[link.to]
-
-        const coordinates = [
-          [fromNode.x, fromNode.y],
-          [toNode.x, toNode.y],
-        ]
-
-        const featureJson = {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: coordinates,
-          },
-          properties: { id: id, color: '#aaa' },
-        }
-
-        geojsonLinks.push(featureJson)
-      }
-    }
-
-    this._linkData = {
-      type: 'FeatureCollection',
-      features: geojsonLinks,
-    }
-    return this._linkData
   }
 
   private async constructDepartureFrequencyGeoJson() {
@@ -699,11 +691,12 @@ class MyComponent extends Vue {
             coordinates: coordinates,
           },
           properties: {
-            width: Math.max(3, 0.01 * this._departures[linkID].total),
             color: isRail ? '#a03919' : _colorScale[colorBin],
             colorBin: colorBin,
             departures: departures,
-            pax: 2,
+            // pax: 0,
+            // loadfac: 0,
+            // cap: 0,
             id: linkID,
             isRail: isRail,
             from: link.from, // _stopFacilities[fromNode].name || fromNode,
@@ -815,7 +808,7 @@ class MyComponent extends Vue {
     const props = e.features[0].properties
     const routeIDs = this._departures[props.id].routes
 
-    this.calculateLinkVolumes(props.id)
+    this.calculatePassengerVolumes(props.id)
 
     const routes = []
     for (const id of routeIDs) {
@@ -824,7 +817,6 @@ class MyComponent extends Vue {
 
     // sort by highest departures first
     routes.sort(function(a, b) {
-      // return a.id < b.id ? -1 : 1
       return a.departures > b.departures ? -1 : 1
     })
 
@@ -835,7 +827,7 @@ class MyComponent extends Vue {
     if (routes.length > 0) this.showRouteDetails(routes[0].id)
   }
 
-  private calculateLinkVolumes(id: string) {
+  private calculatePassengerVolumes(id: string) {
     if (!this.cfDemandLink || !this.cfDemand) return
 
     this.cfDemandLink.filter(id)
@@ -1001,16 +993,12 @@ p {
 
 h3 {
   margin: 0px 0px;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .mytitle {
   margin-left: 10px;
   color: var(--link);
-}
-
-.details {
-  font-size: 12px;
 }
 
 .stopmarker {
@@ -1118,6 +1106,17 @@ h3 {
   }
 }
 
+.panel-item {
+  color: var(--text);
+  padding: 0 0.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+
+  h1 {
+    font-size: 2rem;
+  }
+}
+
 .route-list {
   user-select: none;
   position: relative;
@@ -1127,6 +1126,10 @@ h3 {
   cursor: pointer;
   scrollbar-color: #888 var(--bgCream);
   -webkit-scrollbar-color: #888 var(--bgCream);
+
+  h3 {
+    font-size: 1.2rem;
+  }
 }
 
 .dashboard-panel {
@@ -1134,6 +1137,24 @@ h3 {
   flex-direction: column;
 }
 
+.metric-buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-button {
+  margin-bottom: 0.25rem;
+}
+
+.detailed-route-data {
+  display: flex;
+  flex-direction: row;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
 .status-corner {
   z-index: 5;
   grid-column: 1 / 3;
