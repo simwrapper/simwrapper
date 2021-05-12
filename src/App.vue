@@ -477,24 +477,24 @@ a.mapboxgl-ctrl-logo {
 }
 
 .mapboxgl-popup-content {
-  background-color: var(--bgCream2);
+  background-color: var(--bgCream4);
 }
 
 .mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
-  border-bottom-color: var(--bgCream2);
+  border-bottom-color: var(--bgCream4);
 }
 .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
 .mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
-  border-top-color: var(--bgCream2);
+  border-top-color: var(--bgCream4);
 }
 .mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-  border-right-color: var(--bgCream2);
+  border-right-color: var(--bgCream4);
 }
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-  border-left-color: var(--bgCream2);
+  border-left-color: var(--bgCream4);
 }
 
 @media only screen and (max-width: 640px) {
