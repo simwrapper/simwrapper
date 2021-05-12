@@ -675,20 +675,24 @@ class MyComponent extends Vue {
   private hoveredOnElement(event: any) {
     const props = event.features[0].properties
 
-    let description = '<div class="map-popup">'
+    let content = '<div class="map-popup">'
 
     for (const metric of this.metrics) {
       let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
       label = label.replaceAll(' ', '&nbsp;')
 
       if (!isNaN(props[metric.field]))
-        description = description + `<p>${label}:&nbsp;${props[metric.field]}</p>`
+        content += `
+          <div style="display: flex">
+            <div>${label}:&nbsp;&nbsp;</div>
+            <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
+          </div>`
     }
 
-    description += '<div>'
+    content += '<div>'
     this.mapPopup
       .setLngLat(event.lngLat)
-      .setHTML(description)
+      .setHTML(content)
       .addTo(this.mymap)
   }
 
@@ -1215,7 +1219,7 @@ h3 {
     color: var(--textFancy);
     font-weight: normal;
     font-size: 1.3rem;
-    line-height: 2.5rem;
+    line-height: 2.6rem;
     margin: auto 0.5rem auto 0;
     padding: 0 0;
   }
