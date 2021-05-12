@@ -59,7 +59,7 @@ de:
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
-import mapboxgl, { GeoJSONSource, LngLatBoundsLike, LngLatLike } from 'mapbox-gl'
+import mapboxgl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'mapbox-gl'
 import nprogress from 'nprogress'
 import Papaparse from 'papaparse'
 import yaml from 'yaml'
@@ -105,6 +105,11 @@ class MyComponent extends Vue {
   private thumbnail!: boolean
 
   private globalState = globalStore.state
+
+  private mapPopup = new Popup({
+    closeButton: false,
+    closeOnClick: false,
+  })
 
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
   private metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
@@ -537,12 +542,15 @@ class MyComponent extends Vue {
       transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
       transitLink.properties['cap'] = capacity[transitLink.properties.id]
       transitLink.properties['loadfac'] =
-        linkPassengersById[transitLink.properties.id] / capacity[transitLink.properties.id]
+        Math.round(
+          (1000 * linkPassengersById[transitLink.properties.id]) /
+            capacity[transitLink.properties.id]
+        ) / 1000
     }
 
     this.metrics = this.metrics.concat([
       { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
-      { field: 'loadfac', name_en: 'Load Factors', name_de: 'Auslastung' },
+      { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
     ])
 
     const source = this.mymap.getSource('transit-source') as GeoJSONSource
@@ -650,14 +658,38 @@ class MyComponent extends Vue {
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'transit-link', (e: mapboxgl.MapMouseEvent) => {
+    this.mymap.on('mousemove', 'transit-link', (e: mapboxgl.MapLayerMouseEvent) => {
       this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+      this.hoveredOnElement(e)
     })
 
     // and back to normal when they mouse away
     this.mymap.on('mouseleave', 'transit-link', () => {
       this.mymap.getCanvas().style.cursor = 'grab'
+      this.mapPopup.remove()
     })
+  }
+
+  private hoverWait = false
+
+  private hoveredOnElement(event: any) {
+    const props = event.features[0].properties
+
+    let description = '<div class="map-popup">'
+
+    for (const metric of this.metrics) {
+      let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
+      label = label.replaceAll(' ', '&nbsp;')
+
+      if (!isNaN(props[metric.field]))
+        description = description + `<p>${label}:&nbsp;${props[metric.field]}</p>`
+    }
+
+    description += '<div>'
+    this.mapPopup
+      .setLngLat(event.lngLat)
+      .setHTML(description)
+      .addTo(this.mymap)
   }
 
   private async constructDepartureFrequencyGeoJson() {
@@ -1155,6 +1187,10 @@ h3 {
   display: flex;
   flex-direction: column;
 }
+
+.map-popup {
+}
+
 .status-corner {
   z-index: 5;
   grid-column: 1 / 3;
