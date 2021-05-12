@@ -260,7 +260,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
+  font-family: $mainFont;
 }
 
 h2 {
@@ -277,7 +277,7 @@ h3 {
   display: grid;
   color: var(--text);
   background-color: var(--bgCream);
-  font-family: Roboto, Avenir, Helvetica, Arial, sans-serif;
+  font-family: $mainFont;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
@@ -469,12 +469,32 @@ a:hover {
 }
 
 a.mapboxgl-ctrl-logo {
-  filter: opacity(50%);
+  filter: opacity(70%);
 }
 
 .mapboxgl-ctrl-bottom-right {
-  // background-color: black;
-  filter: opacity(50%);
+  filter: opacity(70%);
+}
+
+.mapboxgl-popup-content {
+  background-color: var(--bgCream2);
+}
+
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
+  border-bottom-color: var(--bgCream2);
+}
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-top-color: var(--bgCream2);
+}
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: var(--bgCream2);
+}
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: var(--bgCream2);
 }
 
 @media only screen and (max-width: 640px) {
