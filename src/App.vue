@@ -468,6 +468,15 @@ a:hover {
   }
 }
 
+a.mapboxgl-ctrl-logo {
+  filter: opacity(50%);
+}
+
+.mapboxgl-ctrl-bottom-right {
+  // background-color: black;
+  filter: opacity(50%);
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;

@@ -1,8 +1,8 @@
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
-  collapsible-panel.right-side(v-if="!thumbnail && routesOnLink.length > 0"
-                               :darkMode="isDarkMode" width="800" direction="right")
+  collapsible-panel.left-side(v-if="!thumbnail && routesOnLink.length > 0"
+                               :darkMode="isDarkMode" width="500" direction="left")
     .panel-items
       .panel-item
         h3 {{ vizDetails.title }}
@@ -26,7 +26,8 @@
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
-  legend-box.legend(v-if="!thumbnail" :rows="legendRows")
+  collapsible-panel.right-side(v-if="!thumbnail" :darkMode="isDarkMode" width="500" direction="right")
+    legend-box(:rows="legendRows")
 
   .status-corner(v-if="!thumbnail && loadingText")
     p {{ loadingText }}
@@ -62,7 +63,7 @@ import { ParseResult } from 'markdown-it/lib/helpers/parse_link_destination'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
-const COLOR_CATEGORIES = 16
+const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 class Departure {
@@ -154,7 +155,6 @@ class MyComponent extends Vue {
     this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
     if (!this.mymap) return
 
-    // this.removeSelectedRoute()
     this.removeAttachedRoutes()
 
     this.mymap.setStyle(this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light)
@@ -340,7 +340,7 @@ class MyComponent extends Vue {
 
     this.mymap.keyboard.disable() // so arrow keys don't pan
 
-    this.mymap.addControl(new mapboxgl.NavigationControl(), 'bottom-left')
+    this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
   }
 
   private handleMapMotion() {
@@ -465,22 +465,34 @@ class MyComponent extends Vue {
     console.log('BUILD crossfilter')
     this.cfDemand = crossfilter(results.data)
     this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
-    console.log('COUNTING RIDERSHIP')
 
     // build link-level passenger ridership
-    const linkPassengersById = {} as any
+    console.log('COUNTING RIDERSHIP')
 
-    this.cfDemandLink
-      .group()
+    const linkPassengersById = {} as any
+    const group = this.cfDemandLink.group()
+    group
       .reduceSum((d: any) => d.passengersAtArrival)
       .all()
       .map(link => {
         linkPassengersById[link.key as any] = link.value
       })
 
+    // and pax load-factors
+    const capacity = {} as any
+    group
+      .reduceSum((d: any) => d.totalVehicleCapacity)
+      .all()
+      .map(link => {
+        capacity[link.key as any] = link.value
+      })
+
     // update passenger value in the transit-link geojson.
     for (const transitLink of this._transitLinks.features) {
-      transitLink.properties['passengers'] = Math.max(
+      transitLink.properties['cap'] = capacity[transitLink.properties.id]
+      transitLink.properties['loadfac'] =
+        (100 * linkPassengersById[transitLink.properties.id]) / capacity[transitLink.properties.id]
+      transitLink.properties['pax'] = Math.max(
         2,
         0.002 * linkPassengersById[transitLink.properties.id]
       )
@@ -508,12 +520,19 @@ class MyComponent extends Vue {
 
     this.loadingText = 'Crunching transit network...'
 
-    const result: any = await this._transitHelper.processTransit()
-    this._network = result.network
-    this._routeData = result.routeData
-    this._stopFacilities = result.stopFacilities
-    this._transitLines = result.transitLines
-    this._mapExtentXYXY = result.mapExtent
+    const {
+      network,
+      routeData,
+      stopFacilities,
+      transitLines,
+      mapExtent,
+    }: any = await this._transitHelper.processTransit()
+
+    this._network = network
+    this._routeData = routeData
+    this._stopFacilities = stopFacilities
+    this._transitLines = transitLines
+    this._mapExtentXYXY = mapExtent
 
     // await this.addLinksToMap() // --no links for now
 
@@ -594,7 +613,7 @@ class MyComponent extends Vue {
       type: 'line',
       paint: {
         'line-opacity': 1.0,
-        'line-width': ['get', 'passengers'],
+        'line-width': ['get', 'loadfac'],
         'line-color': ['get', 'color'],
       },
     })
@@ -684,7 +703,7 @@ class MyComponent extends Vue {
             color: isRail ? '#a03919' : _colorScale[colorBin],
             colorBin: colorBin,
             departures: departures,
-            passengers: 2,
+            pax: 2,
             id: linkID,
             isRail: isRail,
             from: link.from, // _stopFacilities[fromNode].name || fromNode,
@@ -968,8 +987,6 @@ p {
 }
 
 .route {
-  background-color: var(--bgBold);
-  margin: 0px 0px;
   padding: 5px 0px;
   text-align: left;
   color: var(--text);
@@ -978,7 +995,7 @@ p {
 }
 
 .route:hover {
-  background-color: var(--bgHover);
+  background-color: var(--bgCream3);
   cursor: pointer;
 }
 
@@ -1065,37 +1082,29 @@ h3 {
   color: #ccc;
 }
 
-.legend {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-  margin: auto 0.25rem 2rem auto;
-  z-index: 10;
+.left-side {
+  z-index: 1;
+  position: absolute;
+  top: 0rem;
+  left: 0;
+  margin: 7rem 0 0 0;
+  color: white;
+  display: flex;
+  flex-direction: row;
+  pointer-events: auto;
+  max-height: calc(100% - 10rem);
 }
 
 .right-side {
   z-index: 1;
   position: absolute;
-  top: 0rem;
-  bottom: 0rem;
+  bottom: 0;
   right: 0;
-  margin: 6rem 0 9rem 0;
+  margin: 0 0 3rem 0;
   color: white;
   display: flex;
   flex-direction: row;
-  font-size: 0.8rem;
   pointer-events: auto;
-}
-
-.left-panel {
-  position: absolute;
-  top: 5rem;
-  bottom: 0;
-  overflow-y: auto;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  display: flex;
-  flex-direction: column;
-  width: 16rem;
 }
 
 .panel-items {

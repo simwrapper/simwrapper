@@ -27,8 +27,6 @@ export default class LegendBox extends Vue {
   color: white;
   background-color: #ffffffee;
   padding: 0.5rem 0.5rem;
-  border: solid 1px #666;
-  border-radius: 2px;
 }
 
 .legend-item {
