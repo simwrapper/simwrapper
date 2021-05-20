@@ -1,34 +1,27 @@
 <template lang="pug">
 .dashboard-home
-  .left-panel
-    h3 Welcome
-    p thing 1
-    p thing 1
-    p thing 1
-    h3 Data
-    p thing 2
-    p thing 2
-    p thing 2
 
-    button.button(@click="handleScanFolders") Scan Folders
-
-  .content-panel
+  .top-panel
+    h3.logo {{globalState.app }}
     .stuff-in-main-panel
       .more-stuff
-        h1 scout
-        h2.readme {{ $t('tagLine') }}
 
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
 
           p(v-for="run in globalState.runFolders[zroot]" :key="`${run.root.url}/${run.path}`")
-            router-link(:to="`${run.root.url}${run.path}`") {{ run.path }}
-
-        h2 {{ $t('more-info') }}
-        .readme(v-html="readmeBottom")
+            a(@click="onNavigate(run)") {{ run.path }}
+            //- router-link(:to="`${run.root.url}${run.path}`") {{ run.path }}
 
   .bottom-panel
-    p {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : 'Ready' }}
+    h3 Search
+    input.input.is-link(placeholder="Search text (TBA)")
+
+    .commands
+      button.button(style="margin-right: 0.5rem; margin-top: 0.5rem;" @click="handleScanFolders") Scan folders
+      button.button(style="margin-top: 0.5rem;" @click="onSplit") Split view
+
+    p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
 
 </template>
 
@@ -56,7 +49,7 @@ import runFinder from '@/util/RunFinder'
 
 interface Run {
   root: SVNProject
-  firstFolder: string
+  // firstFolder: string
   path: string
 }
 
@@ -69,6 +62,18 @@ class MyComponent extends Vue {
 
   private mounted() {
     runFinder.findRuns()
+  }
+
+  private onNavigate(target: any) {
+    this.$emit('navigate', {
+      component: 'FolderBrowser',
+      props: { root: target.root.url, xsubfolder: target.path },
+    })
+    console.log(target)
+  }
+
+  private onSplit() {
+    this.$emit('split')
   }
 
   private handleScanFolders() {
@@ -86,75 +91,52 @@ export default MyComponent
 @import '@/styles.scss';
 
 .dashboard-home {
-  display: grid;
-  grid-template-columns: 14rem 1fr;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-.content-panel {
-  grid-row: 1 / 2;
-  grid-column: 2 / 3;
+.top-panel {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  flex: 1;
+  margin-bottom: 0.5rem;
 }
 
 .stuff-in-main-panel {
-  width: 100%;
-  padding: 2rem 3rem;
-  overflow-y: auto;
+  padding: 0rem 0rem;
   margin: 0 auto;
 }
 
 .more-stuff {
-  max-width: 80rem;
-  margin: 0 auto;
-
+  // margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  inline-size: 13rem;
+  text-align: left;
+  h1 {
+    letter-spacing: -1px;
+  }
   h3 {
     margin-top: 2rem;
   }
-}
 
-.left-panel {
-  grid-row: 1 / 2;
-  grid-column: 1 / 2;
-  padding: 3rem 2rem;
-  border-right: 1px solid var(--bgCream3);
-  overflow-y: auto;
-
-  h3 {
-    padding: 0rem 0 0.5rem 0;
-    text-transform: uppercase;
+  p,
+  a {
+    line-height: 1.1rem;
+    margin-top: 0.5rem;
     font-size: 1rem;
-    color: #aab;
-  }
-
-  p {
-    font-size: 1.1rem;
-    border-radius: 5px;
-    padding: 0.25rem 0 0.25rem 0.5rem;
-    margin-bottom: 0.25rem;
-  }
-
-  // p:hover {
-  //   color: var(--linkHover);
-  // }
-
-  p:hover {
-    background-color: var(--linkActive);
-    cursor: pointer;
-  }
-
-  p + h3 {
-    margin-top: 2rem;
+    max-width: 100%;
+    overflow-wrap: break-word;
   }
 }
 
 .bottom-panel {
   grid-row: 2 / 3;
   grid-column: 1 / 3;
-  border-top: 1px solid var(--bgCream3);
-  padding: 0 1rem;
+  // border-top: 1px solid var(--bgCream3);
+  padding: 0 1rem 0.5rem 1rem;
 }
 
 .gap {
@@ -268,6 +250,22 @@ a {
 
 .img-logo {
   height: 8rem;
+}
+
+.commands {
+  display: flex;
+  flex-direction: row;
+}
+
+.commands .button {
+  flex: 1;
+}
+
+.logo {
+  background-color: #60588f;
+  color: white;
+  padding: 0.5rem 1rem;
+  margin-right: auto;
 }
 
 @media only screen and (max-width: 640px) {

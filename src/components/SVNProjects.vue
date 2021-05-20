@@ -27,7 +27,12 @@ export default class VueComponent extends Vue {
   }
 
   private openProjectPage(source: any) {
-    this.$router.push({ name: source.url })
+    source.component = 'FolderBrowser'
+    source.props = {
+      root: source.url,
+      xsubfolder: '',
+    }
+    this.$emit('navigate', source)
   }
 
   private openProjectTab(source: any) {

@@ -1,34 +1,34 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
-  .center-area.nav-padding
+  //- .app-nav
+  //-   .top-bar.full-page-app
+  //-     nav.top-link
+  //-       router-link(to="/"): p {{ state.app }}
+
+  //-       //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
+  //-       //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
+  //-       //-     p {{ link.name }}
+
+  //-       .right-side
+  //-         //- .top-action-button()
+  //-         //-   i.fa.fa-1x.fa-share
+  //-         //-   br
+  //-         //-   span {{ $t('share') }}
+
+  //-         .top-action-button(@click="toggleLocale")
+  //-           i.fa.fa-1x.fa-globe
+  //-           br
+  //-           span {{ state.locale }}
+
+  //-         .top-action-button(@click="toggleTheme")
+  //-           i.fa.fa-1x.fa-adjust
+  //-           br
+  //-           span {{ $t(state.colorScheme) }}
+
+  .center-area
     login-panel.login-panel
     router-view.main-content
-
-  .app-nav
-    .top-bar.full-page-app
-      nav.top-link
-        router-link(to="/"): p scout
-
-        //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
-        //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
-        //-     p {{ link.name }}
-
-        .right-side
-          //- .top-action-button()
-          //-   i.fa.fa-1x.fa-share
-          //-   br
-          //-   span {{ $t('share') }}
-
-          .top-action-button(@click="toggleLocale")
-            i.fa.fa-1x.fa-globe
-            br
-            span {{ state.locale }}
-
-          .top-action-button(@click="toggleTheme")
-            i.fa.fa-1x.fa-adjust
-            br
-            span {{ $t(state.colorScheme) }}
 
   .message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
@@ -149,7 +149,7 @@ html {
 
 body,
 html {
-  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
+  font-family: $mainFont;
   margin: 0px 0px;
   padding: 0px 0px;
   height: 100%;
@@ -162,7 +162,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'Open Sans', Avenir, Helvetica, Arial, sans-serif;
+  font-family: $mainFont;
 }
 
 html {
@@ -185,7 +185,7 @@ canvas {
   max-width: $sizeVessel;
   transition: padding 0.2s ease-in-out, max-width 0.3s ease-in-out;
   // box-shadow: 0px 6px 10px #00000048;
-  z-index: 0;
+  z-index: 5;
 }
 
 .top-bar.full-page-app {
@@ -249,15 +249,6 @@ canvas {
   z-index: -5;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: $mainFont;
-}
-
 h2 {
   font-size: 2.5rem;
   font-weight: bold;
@@ -294,19 +285,17 @@ a:hover {
 }
 
 .login-panel {
-  z-index: 12000;
+  z-index: 500;
 }
 
 .app-nav {
   padding: 0 1rem;
-  position: sticky;
-  top: 0;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
-  z-index: 10000;
+  z-index: 5;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--bgCream3);
+  // border-bottom: 1px solid var(--bgCream3);
 }
 
 .app-nav a.router-link-exact-active {
@@ -329,9 +318,10 @@ a:hover {
 .center-area {
   grid-column: 1 / 2;
   grid-row: 2 / 4;
-  z-index: 1;
+  z-index: 0;
   display: flex;
   flex-direction: row;
+  position: relative;
 }
 
 .nav-sidebar {
@@ -488,6 +478,27 @@ a.mapboxgl-ctrl-logo {
 }
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
   border-left-color: var(--bgCream4);
+}
+
+// SCROLLBARS
+/* width */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #00000000;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #88888844;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #88888888;
 }
 
 @media only screen and (max-width: 640px) {

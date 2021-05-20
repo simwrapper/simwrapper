@@ -9,7 +9,7 @@ de:
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
   .map-container(:class="{'hide-thumbnail': !thumbnail }")
-    #mymap
+    div(:id="mapID" style="height: 100%; width: 100%; flex: 1")
       .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
@@ -79,6 +79,7 @@ import globalStore from '@/store'
 
 import GzipWorker from '@/workers/GzipFetcher.worker'
 import { ParseResult } from 'markdown-it/lib/helpers/parse_link_destination'
+import { options } from 'marked'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -92,6 +93,9 @@ class Departure {
 
 @Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox } })
 class MyComponent extends Vue {
+  @Prop({ required: true })
+  private root!: string
+
   @Prop({ required: false })
   private fileApi!: FileSystem
 
@@ -136,6 +140,7 @@ class MyComponent extends Vue {
 
   private loadingText: string = 'MATSim Transit Inspector'
   private mymap!: mapboxgl.Map
+  private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
   private project: any = {}
   private projection: string = DEFAULT_PROJECTION
   private routesOnLink: any = []
@@ -171,6 +176,30 @@ class MyComponent extends Vue {
     globalStore.commit('setFullScreen', false)
   }
 
+  private isMapMoving = false
+
+  @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
+    // ignore my own farts; they smell like roses
+    if (!this.mymap || this.isMapMoving) {
+      this.isMapMoving = false
+      return
+    }
+
+    // don't want an infinite loop ¨)
+    this.mymap.off('move', this.handleMapMotion)
+
+    this.mymap.jumpTo({
+      bearing,
+      zoom,
+      center,
+      pitch,
+    })
+
+    this.mymap.on('move', this.handleMapMotion)
+
+    if (this.stopMarkers.length > 0) this.showTransitStops()
+  }
+
   @Watch('globalState.authAttempts') private async authenticationChanged() {
     console.log('AUTH CHANGED - Reload')
     if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -198,10 +227,18 @@ class MyComponent extends Vue {
     if (this._transitHelper) this._transitHelper.destroy()
   }
 
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+  }
+
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
+    if (!this.fileApi) this.buildFileApi()
     if (!this.yamlConfig) this.buildRouteFromUrl()
+
     await this.getVizDetails()
 
     if (this.thumbnail) return
@@ -334,9 +371,8 @@ class MyComponent extends Vue {
     try {
       this.mymap = new mapboxgl.Map({
         bearing: 0,
-        container: 'mymap',
+        container: this.mapID,
         logoPosition: 'bottom-left',
-        // style: { version: 8, sources: {}, layers: [] },
         style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
         pitch: 0,
       })
@@ -351,6 +387,7 @@ class MyComponent extends Vue {
 
         this.mymap.fitBounds(lnglat, {
           animate: false,
+          padding,
         })
       }
     } catch (E) {
@@ -361,7 +398,6 @@ class MyComponent extends Vue {
     // Start doing stuff AFTER the MapBox library has fully initialized
     this.mymap.on('load', this.mapIsReady)
     this.mymap.on('move', this.handleMapMotion)
-    this.mymap.on('zoom', this.handleMapMotion)
     this.mymap.on('click', this.handleEmptyClick)
 
     this.mymap.keyboard.disable() // so arrow keys don't pan
@@ -370,7 +406,7 @@ class MyComponent extends Vue {
   }
 
   private handleClickedMetric(metric: { field: string }) {
-    console.log(metric.field)
+    console.log('transit metric:', metric.field)
 
     this.activeMetric = metric.field
 
@@ -394,6 +430,18 @@ class MyComponent extends Vue {
   }
 
   private handleMapMotion() {
+    const mapCamera = {
+      center: [this.mymap.getCenter().lng, this.mymap.getCenter().lat],
+      bearing: this.mymap.getBearing(),
+      zoom: this.mymap.getZoom(),
+      pitch: this.mymap.getPitch(),
+    }
+
+    if (!this.isMapMoving) {
+      this.isMapMoving = true
+      this.$store.commit('setMapCamera', mapCamera)
+    }
+
     if (this.stopMarkers.length > 0) this.showTransitStops()
   }
 
@@ -1006,12 +1054,7 @@ p {
 
 .hide-thumbnail {
   background: none;
-}
-
-#mymap {
-  height: 100%;
-  width: 100%;
-  flex: 1;
+  background-color: var(--bgBold);
 }
 
 .route {
@@ -1029,7 +1072,7 @@ p {
 
 h3 {
   margin: 0px 0px;
-  font-size: 1rem;
+  font-size: 1.5rem;
 }
 
 .mytitle {
@@ -1111,12 +1154,11 @@ h3 {
   position: absolute;
   top: 0rem;
   left: 0;
-  margin: 7rem 0 0 0;
-  color: white;
   display: flex;
   flex-direction: row;
   pointer-events: auto;
-  max-height: calc(100% - 10rem);
+  max-height: 50%;
+  max-width: 50%;
 }
 
 .right-side {
@@ -1124,7 +1166,7 @@ h3 {
   position: absolute;
   bottom: 0;
   right: 0;
-  margin: 0 0 3rem 0;
+  margin: 0 0 0 0;
   color: white;
   display: flex;
   flex-direction: row;
@@ -1199,7 +1241,7 @@ h3 {
   z-index: 5;
   grid-column: 1 / 3;
   grid-row: 1 / 3;
-  box-shadow: 0px 2px 10px #22222266;
+  // box-shadow: 0px 2px 10px #22222266;
   display: flex;
   flex-direction: row;
   margin: auto auto 0 0;

@@ -27,20 +27,21 @@ de:
                 :maxValue="maxValueForScaling"
   )
 
-  .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="isDarkMode" width="250" direction="right")
+  .left-side(v-if="isLoaded && !thumbnail")
+    collapsible-panel(direction="left")
       .panel-items
+        p.big {{ vizDetails.title }}
+        p {{ vizDetails.description }}
 
-        .panel-item
-          h3 {{ vizDetails.title }}
-          p {{ vizDetails.description }}
-
+  .right-side(v-if="isLoaded && !thumbnail")
+    collapsible-panel.selector-panel(direction="right")
+      .panel-items
         //- button/dropdown for selecting column
         .panel-item
           p: b {{ $t('selectColumn') }}
-          .dropdown.full-width.is-hoverable
+          .dropdown.full-width.is-hoverable.is-right
             .dropdown-trigger
-              button.full-width.is-warning.button(:class="{'is-loading': activeHeader===''}"
+              button.button.full-width.is-warning(:class="{'is-loading': activeHeader===''}"
                 aria-haspopup="true" aria-controls="dropdown-menu-column-selector")
 
                 b {{ buttonTitle }}
@@ -95,14 +96,14 @@ Vue.use(VuePlugin)
   } as any,
 })
 class MyPlugin extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
-  private yamlConfig!: string // note for shapefiles, yamlConfig is the .shp filename, not YAML
+  private yamlConfig!: string
 
   @Prop({ required: false })
   private thumbnail!: boolean
@@ -146,7 +147,7 @@ class MyPlugin extends Vue {
 
   public myState = {
     statusMessage: '',
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -157,59 +158,10 @@ class MyPlugin extends Vue {
   private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
     this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    crumbs.push({
-      label: this.vizDetails.title,
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
   }
 
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
@@ -241,6 +193,10 @@ class MyPlugin extends Vue {
     //   }
     // }
     // const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
+
+    this.vizDetails.title = 'Shapefile'
+    this.vizDetails.description = this.myState.yamlConfig.replaceAll('_', ' ').replace('.shp', '')
+
     this.$emit(
       'title',
       `Shapefile: ${this.myState.yamlConfig.slice(0, this.myState.yamlConfig.length - 4)}`
@@ -248,6 +204,8 @@ class MyPlugin extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
+
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -261,12 +219,6 @@ class MyPlugin extends Vue {
         console.error(e)
       }
     }
-  }
-
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
   }
 
   @Watch('globalState.colorScheme') private swapTheme() {
@@ -317,11 +269,12 @@ class MyPlugin extends Vue {
 
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-    if (this.thumbnail) return
 
-    this.generateBreadcrumbs()
+    this.buildFileApi()
+
+    await this.getVizDetails()
+    this.buildThumbnail()
+    if (this.thumbnail) return
 
     this.myState.statusMessage = 'Dateien laden...'
 
@@ -331,7 +284,6 @@ class MyPlugin extends Vue {
     this.center = this.findCenter([])
 
     this.isLoaded = true
-    this.buildThumbnail()
 
     this.myState.statusMessage = ''
   }
@@ -347,6 +299,8 @@ class MyPlugin extends Vue {
   // }
 
   private async loadShapefile() {
+    if (!this.myState.fileApi) return
+
     console.log('loading shapefile')
 
     const url = `${this.myState.subfolder}/${this.myState.yamlConfig}`
@@ -412,6 +366,7 @@ export default MyPlugin
 @import '@/styles.scss';
 
 .gl-viz {
+  background-color: red;
   display: grid;
   pointer-events: none;
   min-height: $thumbnailHeight;
@@ -419,7 +374,6 @@ export default MyPlugin
   background-size: cover;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr;
-  grid-template-areas: 'leftside    rightside';
 }
 
 .gl-viz.hide-thumbnail {
@@ -428,16 +382,16 @@ export default MyPlugin
 
 .nav {
   z-index: 5;
-  grid-column: 1 / 3;
-  grid-row: 1 / 2;
+  grid-column: 1 / 4;
+  grid-row: 1 / 4;
+  box-shadow: 0px 2px 10px #22222266;
   display: flex;
   flex-direction: row;
-  margin: auto auto;
-  background-color: #00000080;
-  padding: 0.25rem 3rem;
+  margin: auto auto 0 0;
+  background-color: var(--bgPanel);
+  padding: 0rem 3rem;
 
   a {
-    font-weight: bold;
     color: white;
     text-decoration: none;
 
@@ -448,8 +402,9 @@ export default MyPlugin
 
   p {
     margin: auto 0.5rem auto 0;
+    font-weight: normal;
     padding: 0 0;
-    color: white;
+    color: var(--textFancy);
   }
 }
 
@@ -466,25 +421,24 @@ export default MyPlugin
 
 .big {
   padding: 0rem 0;
-  // margin-top: 1rem;
-  font-size: 2rem;
-  line-height: 3.75rem;
+  font-size: 1.5rem;
+  line-height: 1.7rem;
   font-weight: bold;
 }
 
 .left-side {
+  grid-row: 1 / 2;
+  grid-column: 1 / 3;
   display: flex;
   flex-direction: column;
-  grid-area: leftside;
-  background-color: var(--bgPanel);
-  box-shadow: 0px 2px 10px #22222266;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: 2rem 0 3rem 0;
+  margin: 0 0 0 0;
 }
 
 .right-side {
-  grid-area: rightside;
+  grid-row: 1 / 2;
+  grid-column: 1 / 3;
   display: flex;
   flex-direction: row;
   margin: 5rem 0 auto auto;
@@ -496,7 +450,6 @@ export default MyPlugin
 }
 
 .anim {
-  z-index: -1;
   grid-column: 1 / 3;
   grid-row: 1 / 2;
   pointer-events: auto;
@@ -504,7 +457,7 @@ export default MyPlugin
 
 .panel-items {
   margin: 0.5rem 0.5rem;
-  margin-bottom: 3rem;
+  margin-bottom: 1rem;
 }
 
 .panel-item {
@@ -550,23 +503,10 @@ label {
   position: absolute;
   overflow: visible;
   display: inline-block;
-  width: 8rem;
+  width: 7rem;
 }
 
-@media only screen and (max-width: 640px) {
-  .nav {
-    padding: 0.5rem 0.5rem;
-  }
-
-  .right-side {
-    font-size: 0.7rem;
-  }
-
-  .big {
-    padding: 0 0rem;
-    margin-top: 0.5rem;
-    font-size: 1.3rem;
-    line-height: 2rem;
-  }
+.selector-panel {
+  padding-bottom: 5rem;
 }
 </style>

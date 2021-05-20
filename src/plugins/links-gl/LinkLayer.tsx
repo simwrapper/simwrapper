@@ -6,6 +6,7 @@ import { StaticMap } from 'react-map-gl'
 import colormap from 'colormap'
 
 import { MAP_STYLES } from '@/Globals'
+import globalStore from '@/store'
 
 const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
@@ -45,17 +46,9 @@ const WIDTH_SCALE = scaleLinear()
   .domain([0, 200])
   .range([10, 2000])
 
-const INITIAL_VIEW_STATE = {
-  latitude: 38,
-  longitude: -100,
-  zoom: 10,
-  // minZoom: 2,
-  // maxZoom: 8,
-}
-
 export default function Component({
   geojson = [] as any[],
-  center = [],
+  mapState = { center: [11.34, 48.3], zoom: 5, bearing: 0, pitch: 20 },
   colors = 'viridis',
   dark = false,
   scaleWidth = 250,
@@ -75,19 +68,28 @@ export default function Component({
   baseData = new Float32Array(),
   showDiffs = false,
 }) {
+  const INITIAL_VIEW_STATE = {
+    zoom: 5,
+    pitch: 20,
+    bearing: 0,
+  }
+  // draw frame begins here
+  console.log('linklayer draw frame')
+
   const { header, headerMax, activeColumn } = build
   const rows = buildData
-  // const baseData = showDiffs ? base.rows : []
 
-  const [lon, lat] = center
+  const [lon, lat] = mapState.center
 
-  const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
+  const initialView = Object.assign(INITIAL_VIEW_STATE, {
+    zoom: mapState.zoom,
+    pitch: mapState.pitch,
+    bearing: mapState.bearing,
+    longitude: lon,
+    latitude: lat,
+  })
+
   const [hoverInfo, setHoverInfo] = useState({})
-
-  // console.log('hello')
-  // console.log(headerMax[activeColumn])
-
-  // const [colorInfo, setColorInfo] = useState(() => createColorRamp(colors))
 
   const builtColors = colormap({
     colormap: colors,
@@ -149,6 +151,11 @@ export default function Component({
     console.log('click!')
   }
 
+  function handleViewState(view: any) {
+    // view.center = [view.longitude, view.latitude]
+    // globalStore.commit('setMapCamera', view)
+  }
+
   function renderTooltip({ hoverInfo }: any) {
     const { object, x, y } = hoverInfo
     if (!object) return null
@@ -199,7 +206,6 @@ export default function Component({
       pickable: true,
       opacity: 0.8,
       autoHighlight: true,
-      // highlightColor: [255, 128, 255, 255], // [64, 255, 64],
       parameters: {
         depthTest: false,
       },
@@ -209,8 +215,6 @@ export default function Component({
 
       getColor: getLineColor,
       getWidth: getLineWidth,
-      // widthScale: scaleWidth,
-
       onHover: setHoverInfo,
 
       updateTriggers: {
@@ -235,6 +239,7 @@ export default function Component({
       pickingRadius={5}
       getCursor={() => 'pointer'}
       onClick={handleClick}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
         /*

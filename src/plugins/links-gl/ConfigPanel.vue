@@ -48,7 +48,7 @@
       .dropdown.full-width(:class="{'is-active': isColorButtonActive}")
         .dropdown-trigger
           img.color-button(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                          :src="`/pave/colors/scale-${selectedColorRamp}.png`"
+                          :src="`/colors/scale-${selectedColorRamp}.png`"
                           @click="() => this.isColorButtonActive = !this.isColorButtonActive"
           )
 
@@ -58,7 +58,7 @@
                             @click="handleColorRamp(colorRamp)"
                             :style="{'padding': '0.25rem 0.25rem'}")
               img.swapColor(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                            :src="`/pave/colors/scale-${colorRamp}.png`")
+                            :src="`/colors/scale-${colorRamp}.png`")
               p(:style="{'lineHeight': '1rem', 'marginBottom':'0.25rem'}") {{ colorRamp }}
 
 </template>

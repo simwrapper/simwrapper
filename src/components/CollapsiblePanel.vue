@@ -1,14 +1,13 @@
 <template lang="pug">
 .outer(:class="{collapsed}")
-  .body(v-if="direction==='left'" :style="{order: 2, transform: collapsed ? `translateX(-${width}px` : `none`}")
-    slot.content(:style="{width: `${width}px`}")
+  .body(v-if="direction==='left'" :style="{order: 2, transform: collapsed ? `translateX(-50%) scale(0,1)` : `none`}")
+    slot.content()
 
-  .body(v-else :style="{order: 1, transform: collapsed ? `translateX(${width}px` : `none`}")
-    slot.content(:style="{width: `${width}px`}")
+  .body(v-else :style="{order: 1, transform: collapsed ? `translateX(50%) scale(0,1)` : `none`}")
+    slot.content()
 
   .xbutton(@click="handleClick" :class="{collapsed}"
            :style="{order: direction === 'left' ? 1 : 2}")
-
       .rotate(:style="{transform: `rotate(${collapsed ? 180 : 360}deg)`}") {{ direction === 'left' ? "&lt;" : "&gt;" }}
 
 </template>
@@ -18,17 +17,11 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 @Component
 export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private width!: number
-
   @Prop({ required: false })
   private initialCollapsed!: boolean
 
   @Prop({ required: true })
   private direction!: string
-
-  @Prop({ required: true })
-  private darkMode!: boolean
 
   private collapsed = this.initialCollapsed === undefined ? false : this.initialCollapsed
 
@@ -42,11 +35,13 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .outer {
+  z-index: 0;
   display: flex;
   justify-items: center;
   flex-direction: row;
   pointer-events: auto;
-  filter: drop-shadow(0px 2px 5px #44444466);
+  // filter: drop-shadow(0px 2px 5px #44444466);
+  // box-shadow: var(--shadowMode);
 }
 
 .outer.collapsed {
@@ -61,13 +56,13 @@ export default class VueComponent extends Vue {
 }
 
 .xbutton {
-  z-index: 2;
+  z-index: 1;
   display: flex;
   border: none;
   cursor: pointer;
   align-items: center;
-  font-size: 22px;
-  background-color: var(--bgCream3);
+  font-size: 1.2rem;
+  background-color: var(--bgPanel);
   outline: none;
   color: #aac;
   transition: background-color 0.15s, color 0.15s, border-radius 0.15s;
@@ -84,7 +79,7 @@ export default class VueComponent extends Vue {
 }
 
 .xbutton:hover {
-  background-color: var(--bgCream4);
+  background-color: var(--bgCream);
   color: var(--link);
 }
 

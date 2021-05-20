@@ -18,7 +18,7 @@
                 :onClick = "handleClick")
 
   .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="true" width="150" direction="right")
+    collapsible-panel(direction="right")
       .big.clock
         p {{ myState.clock }}
 
@@ -115,10 +115,10 @@ Vue.use(VuePlugin)
   } as any,
 })
 class VehicleAnimation extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -175,7 +175,7 @@ class VehicleAnimation extends Vue {
     colorScheme: ColorScheme.DarkMode,
     isRunning: false,
     isShowingHelp: false,
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -218,6 +218,13 @@ class VehicleAnimation extends Vue {
 
   private legendBits: any[] = []
 
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+    // console.log('built it', this.myState.fileApi)
+  }
+
   private async handleSettingChange(label: string) {
     console.log(label)
     this.SETTINGS[label] = !this.SETTINGS[label]
@@ -247,55 +254,6 @@ class VehicleAnimation extends Vue {
     this.myState.yamlConfig = config
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = YAML.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
   private get urlThumbnail() {
     return this.thumbnailUrl
@@ -311,6 +269,8 @@ class VehicleAnimation extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
+
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -334,6 +294,7 @@ class VehicleAnimation extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -480,13 +441,13 @@ class VehicleAnimation extends Vue {
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
+    this.buildFileApi()
+
     await this.getVizDetails()
 
     if (this.thumbnail) return
 
     this.showHelp = false
-    this.generateBreadcrumbs()
     this.updateLegendColors()
 
     this.setWallClock()
@@ -692,6 +653,8 @@ class VehicleAnimation extends Vue {
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return { trips: [], drtRequests: {} }
+
     let trips: any[] = []
     let drtRequests: any = []
 
@@ -704,7 +667,7 @@ class VehicleAnimation extends Vue {
         drtRequests = json.drtRequests
       } else if (this.vizDetails.drtTrips.endsWith('gz')) {
         const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + this.vizDetails.drtTrips
+          this.myState.subfolder + '/' + this.vizDetails.drtTrips
         )
         const blobString = blob ? await blobToBinaryString(blob) : null
         let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
@@ -817,7 +780,7 @@ export default VehicleAnimation
 
 .right-side {
   grid-area: rightside;
-  background-color: $steelGray;
+  // background-color: $steelGray;
   box-shadow: 0px 2px 10px #111111ee;
   color: white;
   display: flex;
@@ -851,7 +814,6 @@ export default VehicleAnimation
 
 .anim {
   background-color: #181919;
-  z-index: -1;
   grid-column: 1 / 3;
   grid-row: 1 / 7;
   pointer-events: auto;

@@ -35,7 +35,7 @@ async function fetchGzip(filePath: string, fileSystem: any) {
 function gUnzip(buffer: any): any {
   // GZIP always starts with a magic number, hex 1f8b
   const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 31 && header[1] === 139) {
+  if (header[0] === 0x1f && header[1] === 0x8b) {
     return gUnzip(pako.inflate(buffer))
   }
 

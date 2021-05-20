@@ -10,7 +10,7 @@ const config: any = {
       thumbnail: '/thumb-examples.jpg',
     },
     {
-      name: 'Local Files',
+      name: 'Localhost',
       url: 'local',
       description: 'Run mini-file-server to browse files on your PC',
       svn: 'http://localhost:8000',

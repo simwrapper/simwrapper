@@ -1,21 +1,20 @@
 <template lang="pug">
-#home
-  .banner
-    h2 aftersim
-    h3 VSP / Technische Universität Berlin
-
-  .tu-logo
-    img.img-logo(src="/tu-logo-circle.png")
+.splash-page
 
   .page-area
+
     .content
       .main
         .right(style="text-align: right;")
 
-        h1 aftersim
-        h2.readme {{ $t('tagLine') }}
+        .tu-logo
+          img.img-logo(src="@/assets/images/vsp-logo-300dpi.png")
+          img.img-logo(src="@/assets/images/tu-logo.png")
 
-        svn-projects.gap
+        h1 {{ state.app }}
+        h2.readme(v-html="$t('tagLine')")
+
+        svn-projects.gap(@navigate="onNavigate")
 
         h2 {{ $t('more-info') }}
         .readme(v-html="readmeBottom")
@@ -25,7 +24,7 @@
 <i18n>
 en:
   more-info: 'For more information:'
-  tagLine: 'the model output browser and data visualizer from TU Berlin.'
+  tagLine: 'the model output browser and data visualizer from TU&nbsp;Berlin.'
 de:
   more-info: 'Für weitere Informationen:'
   tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
@@ -59,6 +58,11 @@ class MyComponent extends Vue {
     globalStore.commit('setBreadCrumbs', crumbs)
   }
 
+  private onNavigate(event: any) {
+    // pass it on up
+    this.$emit('navigate', event)
+  }
+
   private state = globalStore.state
   private readme = readme
   private readmeBottom = bottom
@@ -69,8 +73,17 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+.splash-page {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
 .gap {
-  margin-top: 2rem;
+  margin-top: 3rem;
   margin-bottom: 2rem;
 }
 
@@ -129,7 +142,7 @@ a {
 }
 
 .main h1 {
-  margin-top: 1rem;
+  margin-top: 2rem;
   font-weight: bold;
   font-size: 3rem;
   color: var(--text);
@@ -169,6 +182,10 @@ a {
 
 .main {
   max-width: 64rem;
+
+  h1 {
+    letter-spacing: -1px;
+  }
 }
 
 .main .top a {
@@ -204,13 +221,14 @@ a {
 }
 
 .tu-logo {
-  margin-top: -4rem;
-  text-align: right;
+  margin-top: 2rem;
+  text-align: left;
   margin-right: 2rem;
 }
 
 .img-logo {
-  height: 8rem;
+  margin-right: 4rem;
+  height: 6rem;
 }
 
 @media only screen and (max-width: 640px) {

@@ -123,10 +123,10 @@ const INPUTS = {
   },
 })
 class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -138,7 +138,7 @@ class MyComponent extends Vue {
   private globalState = globalStore.state
 
   private myState = {
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -208,6 +208,12 @@ class MyComponent extends Vue {
   private bounceScaleSlider = debounce(this.changedScale, 50)
   private bounceLineFilter = debounce(this.changedLineFilter, 250)
 
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+  }
+
   public async created() {
     this._mapExtentXYXY = [180, 90, -180, -90]
     this._maximum = 0
@@ -219,21 +225,10 @@ class MyComponent extends Vue {
 
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
-    if (!this.yamlConfig) {
-      this.buildRouteFromUrl()
-    }
 
+    this.buildFileApi()
     await this.getVizDetails()
 
-    if (!this.thumbnail) this.generateBreadcrumbs()
-
-    this.setupMap()
-  }
-
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
     this.setupMap()
   }
 
@@ -252,55 +247,6 @@ class MyComponent extends Vue {
     this.updateCentroidLabels()
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private getFileSystem(name: string) {
     const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
@@ -310,29 +256,8 @@ class MyComponent extends Vue {
     return svnProject[0]
   }
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -356,6 +281,8 @@ class MyComponent extends Vue {
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return
+
     try {
       this.loadingText = 'Dateien laden...'
 

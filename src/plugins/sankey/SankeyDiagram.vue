@@ -1,13 +1,16 @@
 <template lang="pug">
-.sankey-container(v-if="myState.yamlConfig" :class="{'show-thumbnail': myState.thumbnail}")
-  .main-area
-    .labels(v-show="!(myState.thumbnail)")
+.sankey-container(
+  :class="{'show-thumbnail': myState.thumbnail}"
+  :style="{'overflow-y': myState.thumbnail ? 'hidden':'auto'}")
+
+  .main-area(:class="{'center-area': !myState.thumbnail}")
+    .labels(v-if="!myState.thumbnail")
       h3.center {{ vizDetails.title }}
       h5.center {{ vizDetails.description }}
-
       p.center {{ totalTrips.toLocaleString() }} total trips
 
-    svg(:id="cleanConfigId")
+    svg.chart-area(:id="cleanConfigId")
+
 </template>
 
 <script lang="ts">
@@ -22,7 +25,7 @@ import { schemeCategory10 } from 'd3-scale-chromatic'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
+import { FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 interface SankeyYaml {
@@ -33,10 +36,10 @@ interface SankeyYaml {
 
 @Component({ components: {} })
 class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -48,7 +51,7 @@ class MyComponent extends Vue {
   private globalState = globalStore.state
 
   private myState = {
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -57,7 +60,7 @@ class MyComponent extends Vue {
 
   private vizDetails: SankeyYaml = { csv: '', title: '', description: '' }
 
-  private loadingText: string = 'Flow Diagram'
+  private loadingText: string = ''
   private jsonChart: any = {}
   private totalTrips = 0
 
@@ -67,16 +70,8 @@ class MyComponent extends Vue {
   }
 
   public async mounted() {
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-
+    this.buildFileApi()
     await this.getVizDetails()
-
-    if (!this.thumbnail) this.generateBreadcrumbs()
-  }
-
-  @Watch('globalState.authAttempts') authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    this.getVizDetails()
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -89,53 +84,10 @@ class MyComponent extends Vue {
     this.getVizDetails()
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
   }
 
   private getFileSystem(name: string) {
@@ -145,28 +97,6 @@ class MyComponent extends Vue {
       throw Error
     }
     return svnProject[0]
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
   }
 
   private async getVizDetails() {
@@ -179,6 +109,8 @@ class MyComponent extends Vue {
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return
+
     try {
       this.loadingText = 'Loading files...'
 
@@ -300,11 +232,11 @@ export default MyComponent
 
 .sankey-container {
   padding-top: 3rem;
-  width: 100%;
   display: grid;
-  background-color: white;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   grid-template-rows: auto auto;
+  // max-width: 60rem;
+  // margin: 0 auto;
 }
 
 .show-thumbnail {
@@ -344,15 +276,6 @@ p {
   border-bottom: solid 1px #888;
 }
 
-#project-summary-block {
-  background-color: #999;
-  width: 16rem;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  margin: 0px auto auto 0px;
-  z-index: 10;
-}
-
 /* from sankey example */
 .node rect {
   cursor: move;
@@ -376,23 +299,23 @@ p {
 }
 
 .main-area {
-  max-width: 60rem;
-  margin: 0 auto;
-  grid-row: 1/3;
-  grid-column: 1/3;
-  width: 100%;
+  grid-column: 1 / 3;
+  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
 }
 
-#chart {
-  width: 100%;
-  max-width: 55rem;
-  height: auto;
-  margin: 0px auto;
+.center-area {
+  max-width: 60rem;
+  margin: 0 auto;
 }
 
 .center {
   text-align: center;
+}
+
+.chart-area {
+  max-width: 55rem;
+  margin: 0 auto;
 }
 </style>

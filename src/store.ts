@@ -7,6 +7,7 @@ import svnConfig from '@/svnConfig'
 Vue.use(Vuex)
 
 interface GlobalState {
+  app: string
   debug: boolean
   authAttempts: number
   breadcrumbs: BreadCrumb[]
@@ -21,10 +22,12 @@ interface GlobalState {
   locale: string
   runFolders: { [root: string]: { folder: string }[] }
   runFolderCount: number
+  mapCamera: { bearing: number; center: number[]; pitch: number; zoom: number }
 }
 
 export default new Vuex.Store({
   state: {
+    app: 'SIMdex', // RUNFinder / afterSim / Scout', // 'S • C • O • U • T',
     debug: true,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
@@ -39,6 +42,7 @@ export default new Vuex.Store({
     locale: 'en',
     runFolders: {},
     runFolderCount: 0,
+    mapCamera: { center: [0, 0], pitch: 0, zoom: 5 },
   } as GlobalState,
 
   getters: {},
@@ -67,6 +71,9 @@ export default new Vuex.Store({
     },
     setFullScreen(state: GlobalState, value: boolean) {
       state.isFullScreen = value
+    },
+    setMapCamera(state: GlobalState, { bearing, center, zoom, pitch }) {
+      state.mapCamera = { bearing, center, zoom, pitch }
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {

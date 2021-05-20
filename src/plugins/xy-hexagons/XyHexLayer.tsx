@@ -7,6 +7,7 @@ import colormap from 'colormap'
 
 import { MAP_STYLES } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
+import globalStore from '@/store'
 
 const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
@@ -18,14 +19,6 @@ const material = {
   specularColor: [51, 51, 51],
 }
 
-const INITIAL_VIEW_STATE = {
-  zoom: 10,
-  minZoom: 3,
-  maxZoom: 20,
-  pitch: 20,
-  bearing: 0,
-}
-
 export default function Layer({
   data = [],
   highlights = [],
@@ -35,14 +28,31 @@ export default function Layer({
   coverage = 0.65,
   extrude = true,
   maxHeight = 200,
-  center = [11.34, 48.3],
+  mapState = { center: [11.34, 48.3], zoom: 5, bearing: 0, pitch: 20 },
   onClick = {} as any,
   colorRamp = 'chlorophyll',
   metric = 'Count',
   selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
 }) {
-  const [lon, lat] = center
-  const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
+  // draw begins here
+
+  const INITIAL_VIEW_STATE = {
+    zoom: 5,
+    minZoom: 3,
+    maxZoom: 20,
+    pitch: 20,
+    bearing: 0,
+  }
+
+  const [lon, lat] = mapState.center
+
+  const initialView = Object.assign(INITIAL_VIEW_STATE, {
+    zoom: mapState.zoom,
+    pitch: mapState.pitch,
+    bearing: mapState.bearing,
+    longitude: lon,
+    latitude: lat,
+  })
 
   const colors = colormap({
     colormap: colorRamp,
@@ -74,6 +84,11 @@ export default function Layer({
     onClick(target, event)
   }
 
+  function handleViewState(view: any) {
+    view.center = [view.longitude, view.latitude]
+    globalStore.commit('setMapCamera', view)
+  }
+
   const layers = [
     new ArcLayer({
       id: 'arc-layer',
@@ -99,7 +114,7 @@ export default function Layer({
       selectedHexStats,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
-      center,
+      center: mapState.center,
       pickable: true,
       opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
@@ -122,6 +137,7 @@ export default function Layer({
       controller={true}
       getTooltip={getTooltip}
       onClick={handleClick}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
         /*

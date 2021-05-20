@@ -8,12 +8,8 @@ Vue.use(VueRouter)
 
 const routes = [
   {
-    path: '/',
-    component: () => import(/* webpackChunkName: "splash" */ '@/views/SplashPage.vue'),
-  },
-  {
-    path: '/dash',
-    component: () => import(/* webpackChunkName: "dashboard" */ '@/views/DashboardHome.vue'),
+    path: '/*',
+    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
   },
   {
     path: '/sql',
@@ -26,20 +22,24 @@ const routes = [
   },
 ]
 
-function projects(): any[] {
+function projects(): RouteConfig[] {
   const projectRoutes = []
   for (const source of globalStore.state.svnProjects) {
-    // project page
-    projectRoutes.push({
-      path: '/' + source.url,
-      name: source.url,
-      component: FolderBrowser,
-    })
+    // // project page
+    // projectRoutes.push({
+    //   path: '/' + source.url,
+    //   name: source.url,
+    //   component: FolderBrowser,
+    // })
     // run folder pages
     projectRoutes.push({
-      path: '/' + source.url + '/*',
+      path: '/' + source.url + '*',
       name: source.url,
       component: FolderBrowser,
+      props: (route: Route) => ({
+        root: source.url,
+        xsubfolder: route.path.substring(source.url.length + 2),
+      }),
     })
   }
 
@@ -57,6 +57,7 @@ function vizPlugins(): any[] {
       props: (route: Route) => {
         return {
           project: route.params.project,
+          root: route.params.project,
         }
       },
     })

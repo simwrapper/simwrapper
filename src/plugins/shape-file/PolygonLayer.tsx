@@ -104,6 +104,17 @@ export default function Component({
     const { object, x, y } = hoverInfo
     if (!object) return
 
+    if (object.properties.centerX) delete object.properties.centerX
+    if (object.properties.centerY) delete object.properties.centerY
+
+    // round fractions
+    for (const key of Object.keys(object.properties)) {
+      const value = object.properties[key]
+      if (!isNaN(value)) {
+        object.properties[key] = Math.round(1000 * value) / 1000
+      }
+    }
+
     // try to figure out how tall it is? So tooltip doesn't go below the screen bottom
     let tooltipHeight = 24 + 22 * Object.keys(object.properties).length
     if (y + tooltipHeight < window.innerHeight) tooltipHeight = 0
@@ -126,7 +137,8 @@ export default function Component({
           {Object.keys(object.properties).map((prop, i) => {
             return (
               <div key={i}>
-                <b>{prop}: </b> {object.properties[prop]}
+                <b>{prop}:&nbsp;</b>
+                {object.properties[prop]}
               </div>
             )
           })}

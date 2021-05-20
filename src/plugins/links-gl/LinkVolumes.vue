@@ -31,11 +31,11 @@ de:
                 :colors="selectedColorRamp"
                 :scaleWidth="scaleWidth"
                 :dark="isDarkMode"
-                :center="center"
+                :mapState="mapState"
   )
 
-  .right-side(v-if="!thumbnail")
-    collapsible-panel(:darkMode="isDarkMode" width="256" direction="right")
+  .left-side(v-if="!thumbnail")
+    collapsible-panel(:darkMode="isDarkMode" direction="left")
       .panel-items
 
         //- heading
@@ -100,8 +100,8 @@ import {
 
 import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
+// import { VuePlugin } from 'vuera'
+// Vue.use(VuePlugin)
 
 interface CSV {
   header: string[]
@@ -120,10 +120,10 @@ interface CSV {
   } as any,
 })
 class MyPlugin extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -136,7 +136,7 @@ class MyPlugin extends Vue {
   private buildColumnValues: Float32Array[] = []
   private baseColumnValues: Float32Array[] = []
 
-  private center = [13.45, 52.53]
+  private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
 
   private isButtonActiveColumn = false
 
@@ -168,7 +168,7 @@ class MyPlugin extends Vue {
 
   public myState = {
     statusMessage: '',
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -187,6 +187,12 @@ class MyPlugin extends Vue {
   private globalState = globalStore.state
   private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
+
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+  }
 
   // this happens if viz is the full page, not a thumbnail on a project page
   private buildRouteFromUrl() {
@@ -258,6 +264,8 @@ class MyPlugin extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
+
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -276,6 +284,8 @@ class MyPlugin extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
+
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -289,6 +299,10 @@ class MyPlugin extends Vue {
         console.error(e)
       }
     }
+  }
+
+  @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
+    // this.mapState = { center, zoom, bearing, pitch }
   }
 
   @Watch('globalState.authAttempts') private async authenticationChanged() {
@@ -331,7 +345,6 @@ class MyPlugin extends Vue {
     const column = this.csvData.header.indexOf(title)
     if (column === -1) return
 
-    console.log('got it')
     // // find max value for scaling
     if (!this.csvData.headerMax[column]) {
       let max = 0
@@ -339,13 +352,11 @@ class MyPlugin extends Vue {
       if (max) this.csvData.headerMax[column] = max
     }
 
-    console.log('setting it')
     this.buildData = this.buildColumnValues[column]
     this.baseData = this.baseColumnValues[column]
 
     this.csvData.activeColumn = column
     this.isButtonActiveColumn = false
-    console.log('dit it')
   }
 
   private findCenter(data: any[]): [number, number] {
@@ -354,6 +365,8 @@ class MyPlugin extends Vue {
 
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
+
+    this.buildFileApi()
 
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
@@ -367,12 +380,11 @@ class MyPlugin extends Vue {
     const allLinks = await this.loadGeojsonFeatures()
     if (!allLinks) return
 
-    console.log('5: ok')
     this.geojsonData = allLinks
     this.isLoaded = true
 
     // runs in background
-    this.center = this.findCenter([])
+    this.mapState.center = this.findCenter([])
 
     this.buildThumbnail()
 
@@ -384,20 +396,18 @@ class MyPlugin extends Vue {
   }
 
   private async loadGeojsonFeatures() {
+    if (!this.myState.fileApi) return
+
     try {
       this.linkOffsetLookup = {}
       this.numLinks = 0
 
-      console.log('1: load network')
       this.myState.statusMessage = 'Loading network...'
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
       const text = await this.myState.fileApi.getFileText(network)
 
-      console.log('2: json network')
       const json = JSON.parse(text)
-      console.log({ json })
-      console.log('3: build index')
       this.numLinks = json.features.length
 
       // super-efficient format is [ offset, coordsFrom[], coordsTo[] ]
@@ -411,8 +421,6 @@ class MyPlugin extends Vue {
         this.linkOffsetLookup[feature.properties.id] = i
       }
 
-      console.log('4: done!')
-      console.log({ linkElements })
       return linkElements
     } catch (e) {
       this.myState.statusMessage = '' + e
@@ -533,6 +541,8 @@ class MyPlugin extends Vue {
   }
 
   private loadCSVFile(filename: string) {
+    if (!this.myState.fileApi) return
+
     console.log('7a: loading CSV:', filename)
 
     const csvFilename = this.myState.fileApi.cleanURL(`${this.myState.subfolder}/${filename}`)
@@ -652,10 +662,8 @@ export default MyPlugin
   flex-direction: column;
   grid-area: leftside;
   background-color: var(--bgPanel);
-  box-shadow: 0px 2px 10px #22222266;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: 2rem 0 3rem 0;
 }
 
 .right-side {
@@ -663,7 +671,7 @@ export default MyPlugin
   display: flex;
   flex-direction: row;
   grid-area: rightside;
-  margin: 5rem 0 auto 0;
+  margin: 0 0 auto 0;
 }
 
 .anim {
@@ -679,7 +687,7 @@ export default MyPlugin
 .panel-item {
   h3 {
     line-height: 1.7rem;
-    margin-bottom: 0.5rem;
+    // margin-bottom: 0.5rem;
   }
 
   p {

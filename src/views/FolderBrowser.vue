@@ -1,25 +1,21 @@
 <template lang="pug">
 .folder-browser
-  .stripe.white(v-if="myState.svnProject")
-    .vessel
-      .project-bar
-        .details
-          h2 {{ globalState.breadcrumbs[globalState.breadcrumbs.length -1].label }}
-          p {{ myState.svnProject.name }}
-        .logo
-          img(width=150 src="/tu-logo.png")
 
   //- show network errors
-  .stripe.white.details(v-if="myState.errorStatus")
+  .stripe.details(v-if="myState.errorStatus")
    .vessel
     .badnews(v-html="myState.errorStatus")
 
   //- main content
-  .stripe.cream.details(v-else)
+  .stripe.details(v-else)
    .vessel
 
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
+
+      h2(v-if="myState.svnProject") {{ myState.svnProject.name}}: {{ xsubfolder || '/' }}
+      a(v-if="xsubfolder" @click="openOutputFolder('..')") ^ UP
+
 
       //- this is the content of readme.md, if it exists
       .readme-header
@@ -53,10 +49,11 @@
             .viz-frame
               component.viz-frame-component(
                     :is="viz.component"
-                    :yamlConfig="viz.config"
-                    :fileApi="myState.svnRoot"
+                    :root="myState.svnProject.url"
                     :subfolder="myState.subfolder"
+                    :yamlConfig="viz.config"
                     :thumbnail="true"
+                    :fileApi="myState.svnRoot"
                     :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
                     @title="updateTitle(index, $event)")
               p {{ viz.title }}
@@ -96,7 +93,7 @@ import yaml from 'yaml'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { BreadCrumb, VisualizationPlugin, SVNProject } from '../Globals'
+import { BreadCrumb, VisualizationPlugin, SVNProject } from '@/Globals'
 
 interface VizEntry {
   component: string
@@ -123,6 +120,12 @@ interface IMyState {
   i18n,
 })
 export default class VueComponent extends Vue {
+  @Prop({ required: false })
+  private xsubfolder!: string
+
+  @Prop({ required: true })
+  private root!: string
+
   private globalState = globalStore.state
 
   private mdRenderer = new markdown()
@@ -195,8 +198,14 @@ export default class VueComponent extends Vue {
 
     if (!this.myState.svnProject) return
 
-    const path = `/v/${viz.component}/${this.myState.svnProject.url}/${this.myState.subfolder}/${viz.config}`
-    this.$router.push({ path })
+    const props = {
+      root: this.myState.svnProject.url,
+      subfolder: this.myState.subfolder,
+      yamlConfig: viz.config,
+      thumbnail: false,
+    }
+
+    this.$emit('navigate', { component: viz.component, props })
   }
 
   private updateTitle(viz: number, title: string) {
@@ -209,13 +218,17 @@ export default class VueComponent extends Vue {
     this.fetchFolderContents()
   }
 
-  @Watch('$route') async updateRoute() {
-    if (!this.$route.name) return
+  @Watch('xsubfolder')
+  private updateRoute() {
+    // console.log({ xsubfolder: this.xsubfolder, xproject: this.root })
 
-    const svnProject = this.getFileSystem(this.$route.name)
+    // why would this be here, don't remember
+    // if (!this.$route.name) return
+
+    const svnProject = this.getFileSystem(this.root)
 
     this.myState.svnProject = svnProject
-    this.myState.subfolder = this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
+    this.myState.subfolder = this.xsubfolder || '' // this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -391,8 +404,19 @@ export default class VueComponent extends Vue {
     if (this.myState.isLoading) return
     if (!this.myState.svnProject) return
 
-    const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
-    this.$router.push({ path })
+    const target =
+      folder === '..'
+        ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
+        : this.myState.subfolder + '/' + folder
+
+    // const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
+    // this.$router.push({ path })
+
+    const props = {
+      root: this.myState.svnProject.url,
+      xsubfolder: target,
+    }
+    this.$emit('navigate', { component: 'FolderBrowser', props })
   }
 }
 </script>
@@ -401,7 +425,11 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .folder-browser {
-  background-color: var(--bgBold);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
 }
 
 .vessel {
@@ -418,14 +446,14 @@ export default class VueComponent extends Vue {
   background-color: var(--bgCream);
 }
 
+h2 {
+  font-size: 1.8rem;
+}
+
 h3,
 h4 {
   margin-top: 2rem;
   margin-bottom: 0.5rem;
-}
-
-h2 {
-  font-size: 1.8rem;
 }
 
 .badnews {
@@ -439,7 +467,7 @@ h2 {
 .viz-table {
   display: grid;
   grid-gap: 2rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
 }
 
@@ -498,7 +526,7 @@ h2 {
   display: grid;
   row-gap: 0rem;
   column-gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
   margin-bottom: 0px;
   padding-left: 0px;
@@ -508,7 +536,7 @@ h2 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgBold);
+  background-color: var(--bgCream);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -539,7 +567,7 @@ h2 {
   display: grid;
   row-gap: 0rem;
   column-gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .file {
@@ -553,6 +581,7 @@ h2 {
 }
 
 .curated-sections {
+  margin-top: 2rem;
   display: flex;
   flex-direction: column;
 }
@@ -580,66 +609,66 @@ h3.curate-heading {
   margin: 0rem 0rem;
 }
 
-@media only screen and (max-width: 50em) {
-  .viz-table {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+// @media only screen and (max-width: 50em) {
+//   .viz-table {
+//     grid-template-columns: repeat(2, minmax(0, 1fr));
+//   }
 
-  .folder-table {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+//   .folder-table {
+//     grid-template-columns: repeat(2, minmax(0, 1fr));
+//   }
 
-  .file-table {
-    display: grid;
-    grid-gap: 0rem;
-    grid-template-columns: 1fr;
-  }
-}
+//   .file-table {
+//     display: grid;
+//     grid-gap: 0rem;
+//     grid-template-columns: 1fr;
+//   }
+// }
 
-@media only screen and (max-width: 40em) {
-  .vessel {
-    padding: 0 1rem 0 1rem;
-  }
+// @media only screen and (max-width: 40em) {
+//   .vessel {
+//     padding: 0 1rem 0 1rem;
+//   }
 
-  .folder-table {
-    display: grid;
-    grid-gap: 0rem;
-    grid-template-columns: 1fr;
-  }
+//   .folder-table {
+//     display: grid;
+//     grid-gap: 0rem;
+//     grid-template-columns: 1fr;
+//   }
 
-  .viz-table {
-    display: grid;
-    grid-gap: 2rem;
-    grid-template-columns: 1fr;
-  }
+//   .viz-table {
+//     display: grid;
+//     grid-gap: 2rem;
+//     grid-template-columns: 1fr;
+//   }
 
-  .viz-frame {
-    p {
-      font-size: 1rem;
-    }
-  }
+//   .viz-frame {
+//     p {
+//       font-size: 1rem;
+//     }
+//   }
 
-  .curate-heading {
-    border-bottom: none;
-    padding: 1rem 0rem;
-  }
+//   .curate-heading {
+//     border-bottom: none;
+//     padding: 1rem 0rem;
+//   }
 
-  h3.curate-heading {
-    padding-top: 1rem;
-    font-weight: bold;
-  }
+//   h3.curate-heading {
+//     padding-top: 1rem;
+//     font-weight: bold;
+//   }
 
-  .curate-content {
-    border-bottom: none;
-    padding-top: 0rem;
-  }
+//   .curate-content {
+//     border-bottom: none;
+//     padding-top: 0rem;
+//   }
 
-  .file {
-    font-size: 0.8rem;
-  }
+//   .file {
+//     font-size: 0.8rem;
+//   }
 
-  .logo {
-    display: none;
-  }
-}
+//   .logo {
+//     display: none;
+//   }
+// }
 </style>

@@ -61,8 +61,9 @@ const fetchFolders = async function(root: SVNProject, fileSystem: HTTPFileSystem
 
     foundFolders.number++
 
-    if (files.filter(f => f.endsWith('xml.gz')).length) {
-      foundFolders.folders[root.name].push({ root, firstFolder: 'hi', path: folder })
+    // if (files.filter(f => f.endsWith('xml.gz')).length) {
+    if (files.length) {
+      foundFolders.folders[root.name].push({ root, path: folder })
     }
     foundFolders.folders[root.name].sort((a: any, b: any) => (a.path < b.path ? -1 : 1))
 
