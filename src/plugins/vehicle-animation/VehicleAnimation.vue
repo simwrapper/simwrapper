@@ -871,7 +871,7 @@ export default VehicleAnimation
 
 .clock p {
   text-align: center;
-  padding: 5px 10px;
+  padding: 5px 1.5rem;
 }
 
 .tooltip {
