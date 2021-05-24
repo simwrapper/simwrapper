@@ -151,7 +151,6 @@ export default MyComponent
   width: 16rem;
   flex: unset;
   border-right: none;
-  background-color: #e8e8e8;
 }
 
 .control-buttons {

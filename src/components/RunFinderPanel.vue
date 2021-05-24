@@ -1,8 +1,21 @@
+<i18n>
+en:
+  sync: 'Sync folders'
+  theme: 'Light/Dark'
+  lang: 'EN/DE'
+  split: 'Split view'
+de:
+  sync: 'Sync'
+  theme: 'Hell/Dunkel'
+  lang: 'DE/EN'
+  split: 'Aufteilen'
+</i18n>
+
 <template lang="pug">
 .dashboard-home
 
   .top-panel
-    h3.logo {{globalState.app }}
+    h3.logo: a(href="/") {{globalState.app }}
     .stuff-in-main-panel
       .more-stuff
 
@@ -15,11 +28,13 @@
 
   .bottom-panel
     h3 Search
-    input.input.is-link(placeholder="Search text (TBA)")
+    input.input(placeholder="Search text (TBA)")
 
     .commands
-      button.button(style="margin-right: 0.5rem; margin-top: 0.5rem;" @click="handleScanFolders") Scan folders
-      button.button(style="margin-top: 0.5rem;" @click="onSplit") Split view
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" title="Sync folders"): i.fa.fa-sync
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" title="Light/Dark"): i.fa.fa-adjust
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" title="EN/DE"): i.fa.fa-globe
+      button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" title="Split view"): i.fa.fa-columns
 
     p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
 
@@ -59,6 +74,7 @@ interface Run {
 class MyComponent extends Vue {
   private allRuns: Run[] = []
   private numberOfScannedFolders = 0
+  private state = globalStore.state
 
   private mounted() {
     runFinder.findRuns()
@@ -76,8 +92,18 @@ class MyComponent extends Vue {
     this.$emit('split')
   }
 
-  private handleScanFolders() {
+  private onScan() {
     runFinder.populate()
+  }
+
+  private onDarkLight() {
+    globalStore.commit('rotateColors')
+  }
+
+  private onLanguage() {
+    const newLocale = globalStore.state.locale === 'en' ? 'de' : 'en'
+    this.$store.commit('setLocale', newLocale)
+    this.$root.$i18n.locale = newLocale
   }
 
   private globalState = globalStore.state
@@ -255,10 +281,17 @@ a {
 .commands {
   display: flex;
   flex-direction: row;
+  margin-top: 0.5rem;
 }
 
 .commands .button {
   flex: 1;
+  color: #a19ebb;
+  margin-right: 0.25rem;
+}
+
+.commands .button:hover {
+  color: var(--link);
 }
 
 .logo {
@@ -266,6 +299,15 @@ a {
   color: white;
   padding: 0.5rem 1rem;
   margin-right: auto;
+
+  a {
+    font-size: 2rem;
+    color: white;
+  }
+
+  a:hover {
+    color: #ff8;
+  }
 }
 
 @media only screen and (max-width: 640px) {

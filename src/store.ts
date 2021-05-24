@@ -13,6 +13,7 @@ interface GlobalState {
   breadcrumbs: BreadCrumb[]
   credentials: { [url: string]: string }
   isFullScreen: boolean
+  isDarkMode: boolean
   needLoginForUrl: string
   statusErrors: string[]
   statusMessage: string
@@ -33,12 +34,13 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
+    isDarkMode: false,
     needLoginForUrl: '',
     statusErrors: [] as string[],
     statusMessage: 'Loading',
     svnProjects: svnConfig.projects,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
-    colorScheme: ColorScheme.DarkMode,
+    colorScheme: ColorScheme.LightMode,
     locale: 'en',
     runFolders: {},
     runFolderCount: 0,
@@ -99,6 +101,8 @@ export default new Vuex.Store({
     rotateColors(state: GlobalState) {
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
+
+      state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
       console.log('NEW COLORS:', state.colorScheme)
 
