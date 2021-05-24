@@ -10,6 +10,7 @@
                 :paths="$options.paths"
                 :drtRequests="$options.drtRequests"
                 :traces="$options.traces"
+                :dark="isDarkMode"
                 :colors="COLOR_OCCUPANCY"
                 :settingsShowLayers="SETTINGS"
                 :center="vizDetails.center"
@@ -29,7 +30,7 @@
           title="Passagiere:" :items="legendItems")
 
         .search-panel
-          p.speed-label(:style="{margin: '1rem 0 0 0', color: textColor.text}") Suche:
+          p.speed-label(:style="{margin: '1rem 0 0 0'}") Suche:
           form(autocomplete="off")
           .field
             p.control.has-icons-left
@@ -40,8 +41,7 @@
         settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
 
         .speed-block
-          p.speed-label(
-            :style="{color: textColor.text}") Geschwindigkeit:
+          p.speed-label Geschwindigkeit:
             br
             | {{ speed }}x
 
@@ -209,7 +209,7 @@ class VehicleAnimation extends Vue {
   private searchEnabled = false
 
   private globalState = globalStore.state
-  private isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
   private isLoaded = true
   private showHelp = false
 
@@ -355,8 +355,8 @@ class VehicleAnimation extends Vue {
     await this.getVizDetails()
   }
 
-  @Watch('state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
+  @Watch('globalState.colorScheme') private swapTheme() {
+    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
     this.updateLegendColors()
   }
 
@@ -750,6 +750,12 @@ export default VehicleAnimation
 @import '@/styles.scss';
 
 #v3-app {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+  right: 0;
   display: grid;
   pointer-events: none;
   min-height: $thumbnailHeight;
@@ -760,8 +766,7 @@ export default VehicleAnimation
   grid-template-areas:
     'title              .'
     '.          rightside'
-    '.                  .'
-    'playback    playback';
+    'playback   rightside';
 }
 
 #v3-app.hide-thumbnail {
@@ -809,7 +814,6 @@ export default VehicleAnimation
 
 .big {
   padding: 0rem 0;
-  // margin-top: 1rem;
   font-size: 2rem;
   line-height: 3.75rem;
   font-weight: bold;
@@ -817,13 +821,12 @@ export default VehicleAnimation
 
 .right-side {
   grid-area: rightside;
-  background-color: $steelGray;
-  box-shadow: 0px 2px 10px #111111ee;
-  color: white;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
+  margin-top: auto;
+  margin-bottom: 4rem;
 }
 
 .playback-stuff {
@@ -833,6 +836,7 @@ export default VehicleAnimation
 .bottom-area {
   display: flex;
   flex-direction: row;
+  margin-top: auto;
   margin-bottom: 2rem;
   grid-area: playback;
   padding: 0rem 1rem 1rem 2rem;
@@ -842,16 +846,12 @@ export default VehicleAnimation
 .settings-area {
   z-index: 20;
   pointer-events: auto;
-  background-color: $steelGray;
-  color: white;
   font-size: 0.8rem;
   padding: 0.25rem 0;
   margin: 1.5rem 0rem 0 0;
 }
 
 .anim {
-  background-color: #181919;
-  z-index: -1;
   grid-column: 1 / 3;
   grid-row: 1 / 7;
   pointer-events: auto;
@@ -866,6 +866,7 @@ export default VehicleAnimation
   width: 100%;
   background-color: #000000cc;
   border: 3px solid white;
+  color: white;
 }
 
 .clock p {

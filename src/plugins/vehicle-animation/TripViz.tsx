@@ -6,6 +6,7 @@ import DrtRequestLayer from './DrtRequestLayer'
 
 import PathTraceLayer from '@/layers/PathTraceLayer'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-layer'
+import { MAP_STYLES } from '@/Globals'
 
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -64,16 +65,13 @@ export default function Component(props: {
   drtRequests: any[]
   traces: any[]
   colors: any
+  dark: boolean
   center: [number, number]
   settingsShowLayers: { [label: string]: boolean }
   vehicleLookup: string[]
   searchEnabled: boolean
   onClick: any
 }) {
-  const mapStyle = 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex'
-  // const mapStyle = 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh'
-  // mapStyle = "mapbox://styles/mapbox/dark-v10",
-
   const {
     simulationTime,
     paths,
@@ -81,6 +79,7 @@ export default function Component(props: {
     drtRequests,
     settingsShowLayers,
     center,
+    dark,
     vehicleLookup,
     searchEnabled,
     onClick,
@@ -185,10 +184,11 @@ export default function Component(props: {
         noAlloc: true,
         iconAtlas: '/icon-atlas.png',
         iconMapping: ICON_MAPPING,
-        sizeScale: 1,
+        sizeScale: 0.5,
         billboard: false,
         pickable: true,
-        autoHighlight: true,
+        depthTest: true,
+        autoHighlight: false,
         highlightColor: [255, 0, 255],
         onHover: setHoverInfo,
       })
@@ -228,7 +228,7 @@ export default function Component(props: {
         // @ts-ignore */
         <StaticMap
           reuseMaps
-          mapStyle={mapStyle}
+          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
           preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />

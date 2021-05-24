@@ -458,6 +458,7 @@ h2 {
 }
 
 .viz-frame {
+  position: relative;
   z-index: 1;
   flex: 1;
   border-radius: 16px;
@@ -466,7 +467,7 @@ h2 {
   flex-direction: column;
 
   p {
-    margin: auto 0 auto 0;
+    margin: auto 0 0 0;
     background-color: var(--bgBold);
     font-size: 1rem;
     font-weight: bold;

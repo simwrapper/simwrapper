@@ -34,11 +34,10 @@ export default class VueComponent extends Vue {
 }
 
 h4 {
-  text-align: 'right';
-  font-weight: 'bold';
+  text-align: right;
+  font-weight: bold;
   font-size: 0.8rem;
   margin-bottom: 0.5rem;
-  color: white;
 }
 
 .row {
