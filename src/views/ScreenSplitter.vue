@@ -8,7 +8,7 @@ de:
 </i18n>
 
 <template lang="pug">
-#split-screen
+#split-screen(:style="{'margin-right': panels.length > 1 ? '0' : 'unset' }")
 
   run-finder-panel.split-panel.narrow(@navigate="onNavigate(0,$event)" @split="onSplit")
 
@@ -27,6 +27,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import plugins from '@/plugins/pluginRegistry'
 
+import globalStore from '@/store'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import SplashPage from '@/views/SplashPage.vue'
@@ -36,6 +37,14 @@ import SplashPage from '@/views/SplashPage.vue'
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
+
+  private panels = [
+    {
+      component: 'SplashPage',
+      key: Math.random(),
+      props: {} as any,
+    },
+  ]
 
   private mounted() {
     this.buildLayoutFromURL()
@@ -67,14 +76,15 @@ class MyComponent extends Vue {
     }
 
     // all other cases
-    const leftProps = this.panels[0].props
+    const leftPanel = this.panels[0]
     const newPanel = {
-      component: 'FolderBrowser',
-      props: Object.assign({ xsubfolder: leftProps.subfolder || leftProps.xsubfolder }, leftProps),
+      component: leftPanel.component,
+      props: Object.assign({}, leftPanel.props),
       key: Math.random(),
     }
 
     this.panels.unshift(newPanel)
+    globalStore.commit('resize')
   }
 
   private onNavigate(panelNumber: number, newPanel: { component: string; props: any }) {
@@ -86,6 +96,7 @@ class MyComponent extends Vue {
   private onClose(panel: number) {
     this.panels.splice(panel, 1) // at i:panel remove 1 item
     this.updateURL()
+    globalStore.commit('resize')
   }
 
   private onBack(panel: number) {
@@ -99,14 +110,6 @@ class MyComponent extends Vue {
     const base64 = btoa(JSON.stringify(this.panels))
     this.$router.replace(`/${base64}`)
   }
-
-  private panels = [
-    {
-      component: 'SplashPage',
-      key: Math.random(),
-      props: {} as any,
-    },
-  ]
 }
 
 export default MyComponent
@@ -116,6 +119,7 @@ export default MyComponent
 @import '@/styles.scss';
 
 #split-screen {
+  margin: 0.75rem 0.75rem;
   display: flex;
   flex-direction: row;
   position: absolute;
@@ -127,12 +131,13 @@ export default MyComponent
 
 .split-panel {
   background-color: var(--bgBold);
-  border-right: 1.5px solid var(--bgCream3);
+  border: 1.5px solid var(--bgCream3);
   position: relative;
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
+  margin-right: 0.75rem;
 }
 
 .fill-panel {
