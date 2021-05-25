@@ -453,12 +453,14 @@ a:hover {
 
 a.mapboxgl-ctrl-logo {
   filter: opacity(70%);
-  margin-bottom: 0.75rem;
   margin-left: -0.5rem;
 }
 
 .mapboxgl-ctrl-bottom-right {
   filter: opacity(70%);
+  right: unset;
+  left: 7rem;
+  bottom: 0.5rem;
 }
 
 .mapboxgl-popup-content {
@@ -480,11 +482,6 @@ a.mapboxgl-ctrl-logo {
 }
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
   border-left-color: var(--bgCream4);
-}
-
-.mapboxgl-ctrl-bottom-right {
-  right: unset;
-  left: 0.25rem;
 }
 
 // SCROLLBARS

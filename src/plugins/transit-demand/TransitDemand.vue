@@ -178,6 +178,10 @@ class MyComponent extends Vue {
 
   private isMapMoving = false
 
+  @Watch('globalState.resizeEvents') handleResize() {
+    if (this.mymap) this.mymap.resize()
+  }
+
   @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
     // ignore my own farts; they smell like roses
     if (!this.mymap || this.isMapMoving) {

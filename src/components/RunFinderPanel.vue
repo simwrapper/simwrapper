@@ -13,9 +13,9 @@ de:
 
 <template lang="pug">
 .dashboard-home
+  h3.logo: a(href="/") {{globalState.app }}
 
   .top-panel
-    h3.logo: a(href="/") {{globalState.app }}
     .stuff-in-main-panel
       .more-stuff
 
@@ -159,26 +159,7 @@ export default MyComponent
 }
 
 .bottom-panel {
-  grid-row: 2 / 3;
-  grid-column: 1 / 3;
-  // border-top: 1px solid var(--bgCream3);
   padding: 0 1rem 0.5rem 1rem;
-}
-
-.gap {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-}
-
-.banner {
-  display: flex;
-  flex-direction: column;
-  padding: 6rem 3rem 1rem 3rem;
-  background-color: #181a1b;
-  color: #f54f5f;
-  background: url(../assets/images/banner.jpg);
-  background-repeat: no-repeat;
-  background-size: cover;
 }
 
 a {
@@ -186,50 +167,8 @@ a {
   // color: #00499c;
 }
 
-.readme {
-  margin-top: 1rem;
-  margin-bottom: 3rem;
-  flex: 1;
-  color: var(--text);
-}
-
-.more-stuff h1 {
-  font-weight: bold;
-  font-size: 3rem;
-  color: var(--text);
-}
-
-.more-stuff h2 {
-  margin-top: 1rem;
-  font-weight: normal;
-  line-height: 2.8rem;
-  color: var(--textFancy);
-}
-
-.viz-cards {
-  padding-bottom: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 2rem;
-}
-
-.one-viz {
-  margin-bottom: 1rem;
-}
-
-.preamble {
-  display: flex;
-}
-
 .top {
   margin-top: 1rem;
-}
-
-.colophon {
-  padding: 2rem 2rem 1rem 5rem;
-  text-align: right;
-  font-size: 0.85rem;
-  background-color: white;
 }
 
 .main {
@@ -238,44 +177,6 @@ a {
 
 .main .top a {
   font-size: 0.9rem;
-}
-
-.page-area {
-  display: flex;
-  flex-direction: row-reverse;
-}
-
-.headline {
-  font-size: 2rem;
-  line-height: 2.7rem;
-  padding: 1rem 0;
-  color: $themeColor;
-}
-
-#app .footer {
-  color: #222;
-  background-color: white;
-  text-align: center;
-  padding: 2rem 0.5rem 3rem 0.5rem;
-}
-
-.footer a {
-  color: $matsimBlue;
-}
-
-.footer img {
-  margin: 1rem auto;
-  padding: 0 1rem;
-}
-
-.tu-logo {
-  margin-top: -4rem;
-  text-align: right;
-  margin-right: 2rem;
-}
-
-.img-logo {
-  height: 8rem;
 }
 
 .commands {
@@ -301,7 +202,8 @@ a {
   margin-right: auto;
 
   a {
-    font-size: 2rem;
+    font-size: 1.5rem;
+    line-height: 1.4rem;
     color: white;
   }
 
@@ -311,33 +213,15 @@ a {
 }
 
 @media only screen and (max-width: 640px) {
-  .banner {
-    padding: 2rem 1rem;
-  }
-
   .content {
     padding: 2rem 1rem 8rem 1rem;
     flex-direction: column-reverse;
-  }
-
-  .colophon {
-    display: none;
   }
 
   .headline {
     padding: 0rem 0rem 1rem 0rem;
     font-size: 1.5rem;
     line-height: 1.8rem;
-  }
-
-  .tu-logo {
-    margin-top: -2rem;
-    text-align: right;
-    margin-right: 0.5rem;
-  }
-
-  .img-logo {
-    height: 4rem;
   }
 }
 </style>

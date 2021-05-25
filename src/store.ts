@@ -23,12 +23,13 @@ interface GlobalState {
   locale: string
   runFolders: { [root: string]: { folder: string }[] }
   runFolderCount: number
+  resizeEvents: number
   mapCamera: { bearing: number; center: number[]; pitch: number; zoom: number }
 }
 
 export default new Vuex.Store({
   state: {
-    app: 'SIMdex', // RUNFinder / afterSim / Scout', // 'S • C • O • U • T',
+    app: 'SIMdex / RunFinder', //  / afterSim / Scout', // 'S • C • O • U • T',
     debug: true,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
@@ -44,6 +45,7 @@ export default new Vuex.Store({
     locale: 'en',
     runFolders: {},
     runFolderCount: 0,
+    resizeEvents: 0,
     mapCamera: { center: [0, 0], pitch: 0, zoom: 5 },
   } as GlobalState,
 
@@ -97,6 +99,9 @@ export default new Vuex.Store({
     },
     clearAllErrors(state: GlobalState) {
       state.statusErrors = []
+    },
+    resize(state: GlobalState) {
+      state.resizeEvents += 1
     },
     rotateColors(state: GlobalState) {
       state.colorScheme =
