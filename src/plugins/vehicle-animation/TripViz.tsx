@@ -191,6 +191,9 @@ export default function Component(props: {
         autoHighlight: false,
         highlightColor: [255, 0, 255],
         onHover: setHoverInfo,
+        parameters: {
+          depthTest: false,
+        },
       })
     )
 
