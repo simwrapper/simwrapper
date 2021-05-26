@@ -85,7 +85,7 @@ class App extends Vue {
       ? ColorScheme.DarkMode
       : ColorScheme.LightMode
 
-    if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
+    if (theme === ColorScheme.DarkMode) this.$store.commit('rotateColors')
 
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
@@ -452,7 +452,7 @@ a:hover {
 }
 
 a.mapboxgl-ctrl-logo {
-  filter: opacity(70%);
+  filter: opacity(50%);
   margin-left: -0.5rem;
 }
 
@@ -482,6 +482,12 @@ a.mapboxgl-ctrl-logo {
 }
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
   border-left-color: var(--bgCream4);
+}
+.mapboxgl-ctrl.mapboxgl-ctrl-attrib {
+  background-color: var(--bgCream);
+  a {
+    color: var(--textPale);
+  }
 }
 
 // SCROLLBARS

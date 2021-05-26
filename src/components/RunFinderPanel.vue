@@ -31,10 +31,10 @@ de:
     input.input(placeholder="Search text (TBA)")
 
     .commands
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" title="Sync folders"): i.fa.fa-sync
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" title="Light/Dark"): i.fa.fa-adjust
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" title="EN/DE"): i.fa.fa-globe
-      button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" title="Split view"): i.fa.fa-columns
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" :title="$t('theme')"): i.fa.fa-adjust
+      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" :title="$t('lang')"): i.fa.fa-globe
+      button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" :title="$t('split')"): i.fa.fa-columns
 
     p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
 
@@ -200,6 +200,7 @@ a {
   color: white;
   padding: 0.5rem 1rem;
   margin-right: auto;
+  margin-bottom: auto;
 
   a {
     font-size: 1.5rem;

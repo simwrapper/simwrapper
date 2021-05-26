@@ -26,9 +26,12 @@ $thumbnailHeight: 10rem;
   --bgCream4: #e4e3f4;
   --bgHover: #ffd;
   --bgPanel: #fff;
+  --bgTag: #fdffa3;
+  --bgBrowser: #f5f5f5;
   --text: #363636;
   --textBold: #1d3355;
   --textFancy: #1d3355;
+  --textPale: #777777;
   --link: #196096;
   --linkHover: #079f6f;
   --linkActive: #bbf1ca;
@@ -36,6 +39,7 @@ $thumbnailHeight: 10rem;
   --borderThin: 1px solid #cce;
   --beige: #ffeead;
   --yellow: #ffcc5c;
+  --splitPanel: #d4dbdd;
 }
 
 .dark-mode {
@@ -46,13 +50,17 @@ $thumbnailHeight: 10rem;
   --bgCream3: #344857;
   --bgCream4: #304453;
   --bgPanel: #2a3c4f;
+  --bgTag: #2a3c4f;
+  --bgBrowser: #1c242e;
   --bgHover: #4d4c37;
   --text: #c6c1b9;
   --textBold: white;
   --textFancy: #a5c4e2;
+  --textPale: #aaa;
   --link: #65d68f;
   --linkHover: #a8ffc8;
   --linkActive: #145240;
   --shadowMode: 0px 0px 6px 6px rgba(192, 192, 255, 0.3);
   --borderThin: 1px solid #447;
+  --splitPanel: #2e343f;
 }

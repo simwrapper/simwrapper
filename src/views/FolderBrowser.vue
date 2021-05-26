@@ -430,6 +430,7 @@ export default class VueComponent extends Vue {
   bottom: 0;
   left: 0;
   overflow-y: auto;
+  background-color: var(--bgBrowser);
 }
 
 .vessel {
@@ -536,7 +537,7 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgCream);
+  background-color: var(--bgCream2);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;

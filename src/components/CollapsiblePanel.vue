@@ -1,9 +1,14 @@
 <template lang="pug">
 .outer(:class="{collapsed}")
-  .body(v-if="direction==='left'" :style="{order: 2, transform: collapsed ? `translateX(-50%) scale(0,1)` : `none`}")
+
+  .body.left(v-if="direction==='left'"
+    :style="{transform: collapsed ? `translateX(-50%) scale(0,1)` : `none`}")
+
     slot.content()
 
-  .body(v-else :style="{order: 1, transform: collapsed ? `translateX(50%) scale(0,1)` : `none`}")
+  .body(v-else
+    :style="{order: 1, transform: collapsed ? `translateX(50%) scale(0,1)` : `none`}")
+
     slot.content()
 
   .xbutton(@click="handleClick" :class="{collapsed}"
@@ -40,12 +45,14 @@ export default class VueComponent extends Vue {
   justify-items: center;
   flex-direction: row;
   pointer-events: auto;
+  // border: 1px solid var(--bgCream3);
   // filter: drop-shadow(0px 2px 5px #44444466);
   // box-shadow: var(--shadowMode);
 }
 
 .outer.collapsed {
   box-shadow: none;
+  border: none;
 }
 
 .body {
@@ -88,6 +95,11 @@ export default class VueComponent extends Vue {
   margin: auto 0.35rem;
   transform-origin: center;
   transition: transform 0.15s ease-out;
+}
+
+.left {
+  order: 2;
+  // background-color: var(--bgTag);
 }
 
 @media only screen and (max-width: 640px) {

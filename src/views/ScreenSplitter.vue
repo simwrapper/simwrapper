@@ -8,7 +8,7 @@ de:
 </i18n>
 
 <template lang="pug">
-#split-screen(:style="{'margin-right': panels.length > 1 ? '0' : 'unset' }")
+#split-screen(:style="{'padding-right': panels.length > 1 ? '0' : 'unset' }")
 
   run-finder-panel.split-panel.narrow(@navigate="onNavigate(0,$event)" @split="onSplit")
 
@@ -119,7 +119,7 @@ export default MyComponent
 @import '@/styles.scss';
 
 #split-screen {
-  margin: 0.75rem 0.75rem;
+  padding: 0.75rem 0.75rem;
   display: flex;
   flex-direction: row;
   position: absolute;
@@ -127,11 +127,12 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
+  background-color: var(--splitPanel);
 }
 
 .split-panel {
   background-color: var(--bgBold);
-  border: 1.5px solid var(--bgCream3);
+  // border: 1.5px solid var(--bgCream3);
   position: relative;
   flex: 1;
   display: grid;
@@ -156,6 +157,7 @@ export default MyComponent
   width: 16rem;
   flex: unset;
   border-right: none;
+  background-color: var(--bgBrowser);
 }
 
 .control-buttons {
