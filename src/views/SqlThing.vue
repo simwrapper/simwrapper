@@ -1,19 +1,64 @@
 <template lang="pug">
 #home
-  h2 SQL Test page
+  h2 SQL Example — select a Run ID:
+
+  button.button.is-large(v-for="run in runs" :key="run" @click="onClick(run)"
+    :class="{'is-link': currentRun===run}"
+  ) {{ run }}
+
+  hr
+  h6 Rows: {{ rows.length }}
+
+  vue-pivottable-ui(
+      :data="rows"
+      aggregatorName='Sum'
+  )
+  //- rendererName='Table Heatmap'
+  //- :rows="['Payer Gender']"
+  //- :cols="['Party Size']"
+  //- :vals="['Total Bill']"
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
+import { VuePivottable, VuePivottableUi } from 'vue-pivottable'
+import 'vue-pivottable/dist/vue-pivottable.css'
+
 import globalStore from '@/store'
 
 @Component({
-  components: {},
+  components: { VuePivottable, VuePivottableUi },
 })
 class MyComponent extends Vue {
-  private mounted() {}
+  private api = 'http://localhost:3000'
+  private runs: string[] = []
+  private db: any
+  private currentRun = ''
+  private rows: any[] = []
+
+  private mounted() {
+    this.loadRuns()
+  }
+
+  private async loadRuns() {
+    fetch(`${this.api}/runs`)
+      .then(response => response.json())
+      .then(json => (this.runs = json.map((row: any) => row.run_id)))
+  }
+
+  private onClick(run: string) {
+    this.generateDashboard(run)
+  }
+
+  private generateDashboard(run: string) {
+    this.currentRun = run
+
+    fetch(`${this.api}/output_trips?run_id=eq.${run}`)
+      .then(resp => resp.json())
+      .then(json => (this.rows = json))
+  }
 }
 
 export default MyComponent

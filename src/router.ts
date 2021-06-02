@@ -8,12 +8,12 @@ Vue.use(VueRouter)
 
 const routes = [
   {
-    path: '/*',
-    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
-  },
-  {
     path: '/sql',
     component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
+  },
+  {
+    path: '/*',
+    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page

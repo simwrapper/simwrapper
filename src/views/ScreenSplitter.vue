@@ -31,9 +31,10 @@ import globalStore from '@/store'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import SplashPage from '@/views/SplashPage.vue'
+import SqlThing from '@/views/SqlThing.vue'
 
 @Component({
-  components: Object.assign({ SplashPage, RunFinderPanel, FolderBrowser }, plugins),
+  components: Object.assign({ SplashPage, RunFinderPanel, FolderBrowser, SqlThing }, plugins),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
@@ -53,6 +54,10 @@ class MyComponent extends Vue {
   private buildLayoutFromURL() {
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
+
+    if (pathMatch === 'sql') {
+      this.onNavigate(0, { component: 'SqlThing', props: {} })
+    }
 
     try {
       const content = atob(pathMatch)
