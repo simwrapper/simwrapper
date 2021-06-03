@@ -58,6 +58,7 @@
     "read-blob": "^1.1.0",
     "reproject": "^1.2.6",
     "shapefile": "^0.6.6",
+    "sql.js-httpvfs": "^0.8.9",
     "three": "^0.127.0",
     "vega": "^5.14.0",
     "vega-embed": "^6.11.1",

@@ -19,6 +19,9 @@ de:
     .stuff-in-main-panel
       .more-stuff
 
+        a(href="/sql") SQL Test 1 - Postgres
+        a(href="/sqlite") SQL Test 2 - SQLite
+
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
 

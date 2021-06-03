@@ -1,64 +1,72 @@
 <template lang="pug">
 #home
-  h2 SQL Example — PostgREST + PostGIS
-  h3 Select a Run ID:
+  h3 Starting trip locations by time of day: {{ clockTime }}
 
-  button.button.is-large(v-for="run in runs" :key="run" @click="onClick(run)"
-    :class="{'is-link': currentRun===run}"
-  ) {{ run }}
+  .labels
+    p(style="flex: 1") SQL Example Two — SQLite
+    p Trips: {{ rows.length ? rows[0].values.length : 0 }}
+
+  vue-slider(v-model="minute" :max="1439" @change="update" tooltip="none")
 
   hr
-  h6 Rows: {{ rows.length }}
 
-  vue-pivottable-ui(
-      :data="rows"
-      aggregatorName='Sum'
-  )
-  //- rendererName='Table Heatmap'
-  //- :rows="['Payer Gender']"
-  //- :cols="['Party Size']"
-  //- :vals="['Total Bill']"
+  .results
+    scatter-plot.plot(:data="rows.length ? rows[0].values : []" :initialView="{ zoom: 6, longitude: 14, latitude: 52}")
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { createDbWorker, WorkerHttpvfs } from 'sql.js-httpvfs'
+import VueSlider from 'vue-slider-component'
+import 'vue-slider-component/theme/default.css'
+import { VuePlugin } from 'vuera'
 
-import { VuePivottable, VuePivottableUi } from 'vue-pivottable'
-import 'vue-pivottable/dist/vue-pivottable.css'
+import ScatterPlot from '@/layers/ScatterPlotLayer'
 
-import globalStore from '@/store'
+Vue.use(VuePlugin)
 
-@Component({
-  components: { VuePivottable, VuePivottableUi },
-})
+@Component({ components: { ScatterPlot, VueSlider } as any })
 class MyComponent extends Vue {
-  private api = 'http://localhost:3000'
-  private runs: string[] = []
-  private db: any
-  private currentRun = ''
   private rows: any[] = []
+  private minute = 0
+  private worker!: WorkerHttpvfs
+
+  private config = {
+    from: 'inline',
+    config: {
+      serverMode: 'full', // file is just a plain old full sqlite database
+      requestChunkSize: 1024, // the page size of the  sqlite database (by default 4096)
+      url: 'http://localhost:8000/berlin/outputs.sqlite', // url to the database (relative or full)
+    },
+  } as any
 
   private mounted() {
-    this.loadRuns()
+    this.loadSql()
   }
 
-  private async loadRuns() {
-    fetch(`${this.api}/runs`)
-      .then(response => response.json())
-      .then(json => (this.runs = json.map((row: any) => row.run_id)))
+  private async loadSql() {
+    const workerUrl = '/sqlite.worker.js'
+    const wasmUrl = '/sql-wasm.wasm'
+
+    this.worker = await createDbWorker([this.config], workerUrl.toString(), wasmUrl.toString())
+    this.update()
   }
 
-  private onClick(run: string) {
-    this.generateDashboard(run)
+  private get clockTime() {
+    const hour = Math.floor(this.minute / 60)
+    const minute = this.minute - hour * 60
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   }
 
-  private generateDashboard(run: string) {
-    this.currentRun = run
+  private async update() {
+    const result = await this.worker.db.exec(
+      `select main_mode, start_x, start_y from trips where seconds >= ? and seconds < ?`,
+      [this.minute * 60, this.minute * 60 + 60]
+    )
 
-    fetch(`${this.api}/output_trips?run_id=eq.${run}`)
-      .then(resp => resp.json())
-      .then(json => (this.rows = json))
+    this.rows = result
+    // console.log(result)
   }
 }
 
@@ -69,7 +77,12 @@ export default MyComponent
 @import '@/styles.scss';
 
 #home {
-  padding: 3rem 3rem;
+  padding: 1rem 1rem;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .gap {
@@ -86,6 +99,11 @@ export default MyComponent
 
 .main {
   margin: 0 auto;
+}
+
+.results {
+  border: 1px solid #ccc;
+  position: relative;
 }
 
 .banner {
@@ -214,6 +232,19 @@ a {
 
 .img-logo {
   height: 8rem;
+}
+
+.plot {
+  width: 100%;
+  height: 650px;
+  background-color: var(--bgBold);
+}
+
+.labels {
+  font-size: 1.4rem;
+  color: green;
+  font-weight: bold;
+  display: flex;
 }
 
 @media only screen and (max-width: 640px) {

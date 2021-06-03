@@ -11,6 +11,10 @@ const routes = [
     path: '/sql',
     component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
   },
+  // {
+  //   path: '/sqlite',
+  //   component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThingTwo.vue'),
+  // },
   {
     path: '/*',
     component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),

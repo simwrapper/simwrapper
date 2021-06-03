@@ -32,9 +32,13 @@ import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import SplashPage from '@/views/SplashPage.vue'
 import SqlThing from '@/views/SqlThing.vue'
+import SqlThingTwo from '@/views/SqlThingTwo.vue'
 
 @Component({
-  components: Object.assign({ SplashPage, RunFinderPanel, FolderBrowser, SqlThing }, plugins),
+  components: Object.assign(
+    { SplashPage, RunFinderPanel, FolderBrowser, SqlThing, SqlThingTwo },
+    plugins
+  ),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
@@ -57,6 +61,10 @@ class MyComponent extends Vue {
 
     if (pathMatch === 'sql') {
       this.onNavigate(0, { component: 'SqlThing', props: {} })
+    }
+
+    if (pathMatch === 'sqlite') {
+      this.onNavigate(0, { component: 'SqlThingTwo', props: {} })
     }
 
     try {
