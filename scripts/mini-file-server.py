@@ -4,9 +4,10 @@ import os
 import re
 import sys
 
+print("\n-----------------------------------------------------------")
 print("Mini-File-Server: serving with RANGE and CORS (open access)")
-print("-----------------------------------------------------------")
-print("Folder: " + os.getcwd())
+print("Serving: " + os.getcwd())
+print("-----------------------------------------------------------\n")
 
 try:
     # Python3
@@ -59,6 +60,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     """
     def send_head(self):
         if 'Range' not in self.headers:
+            print('here')
             self.range = None
             return SimpleHTTPRequestHandler.send_head(self)
         try:
@@ -91,8 +93,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             last = file_len - 1
         response_length = last - first + 1
 
-        self.send_header('Content-Range',
-                         'bytes %s-%s/%s' % (first, last, file_len))
+        self.send_header('Content-Range', 'bytes %s-%s/%s' % (first, last, file_len))
         self.send_header('Content-Length', str(response_length))
         self.send_header('Last-Modified', self.date_time_string(fs.st_mtime))
         self.end_headers()
@@ -108,14 +109,19 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         copy_byte_range(source, outputfile, start, stop)
 
     def end_headers(self):
-        self.send_header(
-            "Access-Control-Allow-Origin", "*")
-        self.send_header(
-            'Accept-Ranges', 'bytes')
-        self.send_header(
-            "Cache-Control", "no-cache, max-age=0, must-revalidate, no-store"
-        )
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Accept-Ranges,Range,*")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
+        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
+        self.send_header('Accept-Ranges', 'bytes')
+
         SimpleHTTPRequestHandler.end_headers(self)
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.end_headers()
+        return None
 
 
 test(HandlerClass=RangeRequestHandler) # , port=args.port)
