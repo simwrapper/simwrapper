@@ -32,7 +32,7 @@ import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import SplashPage from '@/views/SplashPage.vue'
 import SqlThing from '@/views/SqlThing.vue'
-import SqlThingTwo from '@/views/SqlThingTwo.vue'
+import SqlThingTwo from '@/views/SqliteThing.vue'
 
 @Component({
   components: Object.assign(
@@ -97,6 +97,7 @@ class MyComponent extends Vue {
     }
 
     this.panels.unshift(newPanel)
+    this.updateURL()
     globalStore.commit('resize')
   }
 

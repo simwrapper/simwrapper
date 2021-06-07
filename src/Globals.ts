@@ -1,3 +1,16 @@
+export const MAP_STYLES = {
+  light: 'mapbox://styles/mapbox/light-v10',
+  dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+  // light: { version: 8, layers: [], sources: {} },
+  // dark: { version: 8, layers: [], sources: {} },
+}
+// dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+// 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9'
+// light: 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', // but still has some color
+
+export const MAPBOX_TOKEN =
+  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
+
 export enum Status {
   INFO,
   WARNING,
@@ -149,16 +162,6 @@ export const DARK_MODE: ColorSet = {
   critical: '#fff',
   recovered: '#116622',
 }
-
-export const MAP_STYLES = {
-  light: 'mapbox://styles/mapbox/light-v10',
-  dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
-  // light: { version: 8, layers: [], sources: {} },
-  // dark: { version: 8, layers: [], sources: {} },
-}
-// dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
-// 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9'
-// light: 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', // but still has some color
 
 export enum LegendItemType {
   line,

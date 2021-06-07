@@ -28,7 +28,7 @@ export default function Layer({
   coverage = 0.65,
   extrude = true,
   maxHeight = 200,
-  mapState = { center: [11.34, 48.3], zoom: 5, bearing: 0, pitch: 20 },
+  viewState = { longitude: 14, latitude: 54, zoom: 5, bearing: 0, pitch: 20 },
   onClick = {} as any,
   colorRamp = 'chlorophyll',
   metric = 'Count',
@@ -36,24 +36,7 @@ export default function Layer({
 }) {
   // draw begins here
 
-  const INITIAL_VIEW_STATE = {
-    zoom: 5,
-    minZoom: 3,
-    maxZoom: 20,
-    pitch: 20,
-    bearing: 0,
-  }
-
-  const [lon, lat] = mapState.center
-
-  const initialView = Object.assign(INITIAL_VIEW_STATE, {
-    zoom: mapState.zoom,
-    pitch: mapState.pitch,
-    bearing: mapState.bearing,
-    longitude: lon,
-    latitude: lat,
-  })
-
+  console.log('i am here redrawing')
   const colors = colormap({
     colormap: colorRamp,
     nshades: 10,
@@ -85,7 +68,6 @@ export default function Layer({
   }
 
   function handleViewState(view: any) {
-    view.center = [view.longitude, view.latitude]
     globalStore.commit('setMapCamera', view)
   }
 
@@ -114,7 +96,7 @@ export default function Layer({
       selectedHexStats,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
-      center: mapState.center,
+      center: [viewState.longitude, viewState.latitude],
       pickable: true,
       opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
@@ -132,8 +114,7 @@ export default function Layer({
     //@ts-ignore */
     <DeckGL
       layers={layers}
-      // effects={[lightingEffect]}
-      initialViewState={initialView}
+      viewState={viewState}
       controller={true}
       getTooltip={getTooltip}
       onClick={handleClick}

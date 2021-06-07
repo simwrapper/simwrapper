@@ -25,8 +25,8 @@ de:
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
   xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
-                :mapState="mapState"
                 :data="requests"
+                :viewState="{longitude: viewState.longitude, latitude: viewState.latitude, bearing: viewState.bearing, pitch: viewState.pitch}"
                 :highlights="highlightedTrips"
                 :dark="isDarkMode"
                 :colorRamp="colorRamp"
@@ -91,6 +91,7 @@ de:
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { mapState, mapGetters } from 'vuex'
 import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -117,8 +118,8 @@ import {
 import XyHexLayer from './XyHexLayer'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
-import { VuePlugin } from 'vuera'
 import Coords from '@/util/Coords'
+import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
 interface Aggregations {
@@ -146,6 +147,7 @@ interface VizDetail {
     VueSlider,
     ToggleButton,
   } as any,
+  computed: { ...mapState(['viewState', 'mapLoaded']) },
 })
 class XyHexagons extends Vue {
   @Prop({ required: true })
@@ -198,8 +200,7 @@ class XyHexagons extends Vue {
   private searchTerm: string = ''
   private searchEnabled = false
 
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
 
   private activeAggregation: string = ''
@@ -340,7 +341,7 @@ class XyHexagons extends Vue {
     })
 
     // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
+    this.$store.commit('setBreadCrumbs', crumbs)
 
     return crumbs
   }
@@ -351,7 +352,7 @@ class XyHexagons extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -372,7 +373,7 @@ class XyHexagons extends Vue {
       console.log('failed')
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+        this.$store.commit('requestLogin', this.myState.fileSystem.url)
       } else {
         this.$store.commit('setStatus', {
           type: Status.WARNING,
@@ -406,7 +407,7 @@ class XyHexagons extends Vue {
   }
 
   @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -430,7 +431,7 @@ class XyHexagons extends Vue {
       bg: '#181518aa',
     }
 
-    return this.globalState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
 
   private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
@@ -492,7 +493,7 @@ class XyHexagons extends Vue {
 
   private async mounted() {
     // console.log('XY MOUNTED')
-    globalStore.commit('setFullScreen', !this.thumbnail)
+    this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.buildFileApi()
     await this.getVizDetails()
@@ -567,7 +568,6 @@ class XyHexagons extends Vue {
   }
 
   private beforeDestroy() {
-    globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }
 

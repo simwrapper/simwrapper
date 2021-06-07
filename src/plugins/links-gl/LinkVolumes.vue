@@ -21,18 +21,7 @@ de:
 .gl-viz(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  link-gl-layer.anim(v-if="!thumbnail && isLoaded"
-                :geojson="geojsonData"
-                :build="csvData"
-                :base="csvBase"
-                :buildData="buildData"
-                :baseData="baseData"
-                :showDiffs="showDiffs",
-                :colors="selectedColorRamp"
-                :scaleWidth="scaleWidth"
-                :dark="isDarkMode"
-                :mapState="mapState"
-  )
+  link-deck-map.anim(v-if="!thumbnail" :props="mapProps")
 
   .left-side(v-if="!thumbnail")
     collapsible-panel(:darkMode="isDarkMode" direction="left")
@@ -77,14 +66,14 @@ import { debounce } from 'debounce'
 import Papaparse from 'papaparse'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
-// import * as coroutines from 'js-coroutines'
-// import workerpool from 'workerpool'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 import ConfigPanel from './ConfigPanel.vue'
+import LinkDeckMap from './LinkDeckMap.vue'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import {
   ColorScheme,
@@ -98,11 +87,6 @@ import {
   Status,
 } from '@/Globals'
 
-import LinkGlLayer from './LinkLayer'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
-// import { VuePlugin } from 'vuera'
-// Vue.use(VuePlugin)
-
 interface CSV {
   header: string[]
   headerMax: number[]
@@ -114,7 +98,7 @@ interface CSV {
   components: {
     CollapsiblePanel,
     ConfigPanel,
-    LinkGlLayer,
+    LinkDeckMap,
     TimeSlider,
     ToggleButton,
   } as any,
@@ -184,69 +168,26 @@ class MyPlugin extends Vue {
   private linkOffsetLookup: { [id: string]: number } = {}
   private numLinks = 0
 
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
+
+  private get mapProps() {
+    return {
+      geojson: this.geojsonData,
+      buildData: this.buildData,
+      baseData: this.baseData,
+      showDiffs: this.showDiffs,
+      colors: this.selectedColorRamp,
+      scaleWidth: this.scaleWidth,
+      dark: this.isDarkMode,
+      build: this.csvData,
+    }
+  }
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
     this.myState.fileSystem = filesystem
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    crumbs.push({
-      label: this.vizDetails.title,
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
   }
 
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
@@ -255,7 +196,7 @@ class MyPlugin extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -276,7 +217,7 @@ class MyPlugin extends Vue {
       console.log('failed')
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+        this.$store.commit('requestLogin', this.myState.fileSystem.url)
       }
     }
     const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
@@ -301,19 +242,9 @@ class MyPlugin extends Vue {
     }
   }
 
-  @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
-    // this.mapState = { center, zoom, bearing, pitch }
-  }
-
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
-
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-  }
+  // @Watch('globalState.colorScheme') private swapTheme() {
+  //   this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+  // }
 
   private arrayBufferToBase64(buffer: any) {
     var binary = ''
@@ -332,16 +263,14 @@ class MyPlugin extends Vue {
 
   private clickedColorRamp(color: string) {
     this.selectedColorRamp = color
-    console.log(this.selectedColorRamp)
   }
 
   private handleScaleWidthChanged(value: number) {
-    console.log(value)
     this.scaleWidth = value
   }
 
   private handleNewDataColumn(title: string) {
-    console.log('handling it:', title)
+    console.log('handling column:', title)
     const column = this.csvData.header.indexOf(title)
     if (column === -1) return
 
@@ -364,15 +293,12 @@ class MyPlugin extends Vue {
   }
 
   private async mounted() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
+    this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.buildFileApi()
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
     if (this.thumbnail) return
-
-    this.generateBreadcrumbs()
 
     this.myState.statusMessage = 'Dateien laden...'
 
@@ -389,7 +315,6 @@ class MyPlugin extends Vue {
     this.buildThumbnail()
 
     this.myState.statusMessage = ''
-    console.log('999: ok')
 
     // then load CSVs in background
     this.loadCSVFiles()
@@ -435,7 +360,6 @@ class MyPlugin extends Vue {
   }
 
   private beforeDestroy() {
-    globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }
 
@@ -502,7 +426,7 @@ class MyPlugin extends Vue {
 
     if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
 
-    // some people insist on labeling "8 AM" as "08:00:00" which is annoying
+    //  "8 AM" is a lot narrower than "08:00:00"
     const cleanHeaders = header.map(h => h.replace(':00:00', ''))
 
     const details = {
@@ -543,8 +467,6 @@ class MyPlugin extends Vue {
   private loadCSVFile(filename: string) {
     if (!this.myState.fileApi) return
 
-    console.log('7a: loading CSV:', filename)
-
     const csvFilename = this.myState.fileApi.cleanURL(`${this.myState.subfolder}/${filename}`)
 
     try {
@@ -570,7 +492,6 @@ class MyPlugin extends Vue {
   }
 
   private changedTimeSlider(value: any) {
-    console.log('new slider!', value)
     if (value.length && value.length === 1) value = value[0]
 
     this.handleNewDataColumn(value)

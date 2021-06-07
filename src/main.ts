@@ -14,6 +14,9 @@ store.commit('setLocale', locale)
 
 Vue.use(VueI18n)
 
+import { VuePlugin } from 'vuera'
+Vue.use(VuePlugin)
+
 Vue.use(Buefy, {
   defaultIconPack: 'mdi',
   defaultInputHasCounter: false,

@@ -1,35 +1,58 @@
 import Vue from 'vue'
-import Vuex from 'vuex'
-
-import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
-import svnConfig from '@/svnConfig'
+import Vuex, { Store } from 'vuex'
 
 Vue.use(Vuex)
 
+import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
+import svnConfig from '@/svnConfig'
+import { debounce } from '@/util/debounce'
+
+// ----------------------------------------
+
+const initialViewState = () => ({
+  longitude: 14.45,
+  latitude: 52.5,
+  zoom: 5,
+  pitch: 0,
+  bearing: 0,
+})
+
+const setDelayedViewState = debounce((state: any, v: any) => {
+  state.viewState = v
+}, 50) // 20 fps
+
 interface GlobalState {
   app: string
-  debug: boolean
   authAttempts: number
   breadcrumbs: BreadCrumb[]
   credentials: { [url: string]: string }
+  colorScheme: string
+  debug: boolean
   isFullScreen: boolean
   isDarkMode: boolean
+  locale: string
   needLoginForUrl: string
+  resizeEvents: number
+  runFolders: { [root: string]: { folder: string }[] }
+  runFolderCount: number
   statusErrors: string[]
   statusMessage: string
   svnProjects: any[]
   visualizationTypes: Map<string, VisualizationPlugin>
-  colorScheme: string
-  locale: string
-  runFolders: { [root: string]: { folder: string }[] }
-  runFolderCount: number
-  resizeEvents: number
-  mapCamera: { bearing: number; center: number[]; pitch: number; zoom: number }
+
+  mapLoaded: boolean
+  viewState: {
+    longitude: number
+    latitude: number
+    zoom: number
+    pitch: number
+    bearing: number
+  }
 }
 
 export default new Vuex.Store({
   state: {
-    app: 'SIMdex / RunFinder', //  / afterSim / Scout', // 'S • C • O • U • T',
+    app: 'SIMdex', //  / afterSim / Scout', // 'S • C • O • U • T',
     debug: true,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
@@ -46,10 +69,9 @@ export default new Vuex.Store({
     runFolders: {},
     runFolderCount: 0,
     resizeEvents: 0,
-    mapCamera: { center: [0, 0], pitch: 0, zoom: 5 },
+    viewState: initialViewState(),
   } as GlobalState,
 
-  getters: {},
   mutations: {
     updateRunFolders(
       state: GlobalState,
@@ -76,8 +98,18 @@ export default new Vuex.Store({
     setFullScreen(state: GlobalState, value: boolean) {
       state.isFullScreen = value
     },
-    setMapCamera(state: GlobalState, { bearing, center, zoom, pitch }) {
-      state.mapCamera = { bearing, center, zoom, pitch }
+    setMapCamera(
+      state: GlobalState,
+      value: {
+        longitude: number
+        latitude: number
+        bearing: number
+        pitch: number
+        zoom: number
+      }
+    ) {
+      // setDelayedViewState(state, ...)
+      state.viewState = value
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {
@@ -122,6 +154,8 @@ export default new Vuex.Store({
       console.log('NEW LOCALE:', state.locale)
     },
   },
+
   actions: {},
   modules: {},
+  getters: {},
 })
