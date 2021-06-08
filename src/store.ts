@@ -52,8 +52,8 @@ interface GlobalState {
 
 export default new Vuex.Store({
   state: {
-    app: 'SIMdex', //  / afterSim / Scout', // 'S • C • O • U • T',
-    debug: true,
+    app: 'aftersim', //  / SIMdex / afterSim / Scout', // 'S • C • O • U • T',
+    debug: false,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
@@ -106,9 +106,15 @@ export default new Vuex.Store({
         bearing: number
         pitch: number
         zoom: number
+        center?: number[]
       }
     ) {
-      // setDelayedViewState(state, ...)
+      // // setDelayedViewState(state, ...)
+      // const updatedMap = Object.assign({}, value)
+      // if (value.center) {
+      //   updatedMap.longitude = value.center[0]
+      //   updatedMap.latitude = value.center[1]
+      // }
       state.viewState = value
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {

@@ -1,6 +1,8 @@
 export const MAP_STYLES = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+
+  // use these if there is no network (blank):
   // light: { version: 8, layers: [], sources: {} },
   // dark: { version: 8, layers: [], sources: {} },
 }

@@ -1,5 +1,4 @@
 import DeckMap from './DeckMap'
-
 import { MAPBOX_TOKEN } from '@/Globals'
 
 export default class LayerManager {

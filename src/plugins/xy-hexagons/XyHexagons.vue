@@ -24,19 +24,7 @@ de:
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
-                :data="requests"
-                :viewState="{longitude: viewState.longitude, latitude: viewState.latitude, bearing: viewState.bearing, pitch: viewState.pitch}"
-                :highlights="highlightedTrips"
-                :dark="isDarkMode"
-                :colorRamp="colorRamp"
-                :extrude="extrudeTowers"
-                :radius="radius"
-                :aggregations="aggregations"
-                :metric="buttonLabel"
-                :maxHeight="maxHeight"
-                :onClick="handleHexClick"
-                :selectedHexStats="hexStats")
+  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded" :props="mapProps")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left")
@@ -115,7 +103,7 @@ import {
   Status,
 } from '@/Globals'
 
-import XyHexLayer from './XyHexLayer'
+import XyHexLayer from './XyHexDeckMap.vue'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import Coords from '@/util/Coords'
@@ -210,6 +198,23 @@ class XyHexagons extends Vue {
   // index of each selected hexagon, maps to the array of points that were aggregated into it
   // we only care about this during multi-select.
   private multiSelectedHexagons: { [index: string]: any[] } = {}
+
+  private get mapProps() {
+    return {
+      colorRamp: this.colorRamp,
+      coverage: 0.65,
+      dark: this.isDarkMode,
+      data: this.requests,
+      extrude: this.extrudeTowers,
+      highlights: this.highlightedTrips,
+      maxHeight: this.maxHeight,
+      metric: this.buttonLabel,
+      radius: this.radius,
+      upperPercentile: 100,
+      selectedHexStats: this.hexStats,
+      // onClick: handleHexClick
+    }
+  }
 
   private handleHexClick(pickedObject: any, event: any) {
     if (!event.srcEvent.shiftKey) {
@@ -402,11 +407,11 @@ class XyHexagons extends Vue {
     }
   }
 
-  @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
-    this.mapState = { center, zoom, bearing, pitch }
-  }
+  // @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
+  //   this.mapState = { center, zoom, bearing, pitch }
+  // }
 
-  @Watch('globalState.colorScheme') private swapTheme() {
+  @Watch('$store.state.colorScheme') private swapTheme() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   }
 
@@ -633,7 +638,6 @@ export default XyHexagons
 
 .xy-hexagons {
   display: grid;
-  // pointer-events: none;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') center / cover no-repeat;
   grid-template-columns: auto 1fr min-content;

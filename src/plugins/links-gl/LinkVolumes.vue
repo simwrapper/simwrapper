@@ -242,9 +242,9 @@ class MyPlugin extends Vue {
     }
   }
 
-  // @Watch('globalState.colorScheme') private swapTheme() {
-  //   this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-  // }
+  @Watch('$store.state.colorScheme') private swapTheme() {
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+  }
 
   private arrayBufferToBase64(buffer: any) {
     var binary = ''

@@ -108,8 +108,6 @@ class MyComponent extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
-  private globalState = globalStore.state
-
   private mapPopup = new Popup({
     closeButton: false,
     closeOnClick: false,
@@ -136,7 +134,7 @@ class MyComponent extends Vue {
     thumbnail: this.thumbnail,
   }
 
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
 
   private loadingText: string = 'MATSim Transit Inspector'
   private mymap!: mapboxgl.Map
@@ -173,45 +171,42 @@ class MyComponent extends Vue {
   }
 
   public destroyed() {
-    globalStore.commit('setFullScreen', false)
+    this.$store.commit('setFullScreen', false)
   }
 
   private isMapMoving = false
 
-  @Watch('globalState.resizeEvents') handleResize() {
+  @Watch('$store.state.resizeEvents') handleResize() {
     if (this.mymap) this.mymap.resize()
   }
 
-  @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
+  @Watch('$store.state.viewState') private mapMoved({
+    bearing,
+    longitude,
+    latitude,
+    zoom,
+    pitch,
+  }: any) {
     // ignore my own farts; they smell like roses
     if (!this.mymap || this.isMapMoving) {
       this.isMapMoving = false
       return
     }
 
-    // don't want an infinite loop ¨)
-    this.mymap.off('move', this.handleMapMotion)
-
     this.mymap.jumpTo({
       bearing,
       zoom,
-      center,
+      center: [longitude, latitude],
       pitch,
     })
 
-    this.mymap.on('move', this.handleMapMotion)
+    // this.mymap.on('move', this.handleMapMotion)
 
     if (this.stopMarkers.length > 0) this.showTransitStops()
   }
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
-
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  @Watch('$store.colorScheme') private swapTheme() {
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
     if (!this.mymap) return
 
     this.removeAttachedRoutes()
@@ -238,7 +233,7 @@ class MyComponent extends Vue {
   }
 
   public async mounted() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
+    this.$store.commit('setFullScreen', !this.thumbnail)
 
     if (!this.fileApi) this.buildFileApi()
     if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -317,13 +312,13 @@ class MyComponent extends Vue {
     })
 
     // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
+    this.$store.commit('setBreadCrumbs', crumbs)
 
     return crumbs
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -341,7 +336,7 @@ class MyComponent extends Vue {
     } catch (e) {
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+        this.$store.commit('requestLogin', this.myState.fileSystem.url)
       }
     }
 
@@ -435,15 +430,17 @@ class MyComponent extends Vue {
 
   private handleMapMotion() {
     const mapCamera = {
-      center: [this.mymap.getCenter().lng, this.mymap.getCenter().lat],
+      longitude: this.mymap.getCenter().lng,
+      latitude: this.mymap.getCenter().lat,
       bearing: this.mymap.getBearing(),
       zoom: this.mymap.getZoom(),
       pitch: this.mymap.getPitch(),
     }
 
+    this.$store.commit('setMapCamera', mapCamera)
+
     if (!this.isMapMoving) {
       this.isMapMoving = true
-      this.$store.commit('setMapCamera', mapCamera)
     }
 
     if (this.stopMarkers.length > 0) this.showTransitStops()

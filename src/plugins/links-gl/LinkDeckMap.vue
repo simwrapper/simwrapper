@@ -8,7 +8,6 @@ import { LineLayer } from '@deck.gl/layers'
 import { scaleLinear, ScaleThreshold, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
-import globalStore from '@/store'
 import LayerManager from '@/util/LayerManager'
 
 enum COLUMNS {
@@ -33,7 +32,7 @@ export default class VueComponent extends Vue {
 
   private layerManager!: LayerManager
 
-  private mapID = `map-${Math.floor(100000000000 * Math.random())}`
+  private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
 
   private colorPaleGrey = this.props.dark ? [80, 80, 80, 80] : [212, 212, 212, 80]
   private colorInvisible = [0, 0, 0, 0]
@@ -135,9 +134,47 @@ export default class VueComponent extends Vue {
     }
   }
 
+  // private renderTooltip({ hoverInfo }: any) {
+  //   const { object, x, y } = hoverInfo
+  //   if (!object) return null
+
+  //   const value = this.props.buildData[object[COLUMNS.offset]]
+
+  //   let baseValue = 0
+  //   let diff = undefined
+
+  //   if (this.props.showDiffs) {
+  //     baseValue = this.props.baseData[object[COLUMNS.offset]]
+  //     diff = value - baseValue
+  //   } else {
+  //     if (value === undefined) return null
+  //   }
+
+  //   const baseElement = baseValue ? `<p>+/- Base: ${diff}</p>` : ''
+
+  //   return { html: '<p>tooltip</p>' }
+  // return (
+  //   <div
+  //     className="tooltip"
+  //     style={{
+  //       backgroundColor: dark ? '#445' : 'white',
+  //       color: dark ? 'white' : '#222',
+  //       padding: '1rem 1rem',
+  //       position: 'absolute',
+  //       left: x + 4,
+  //       top: y - 80,
+  //       boxShadow: '0px 2px 10px #22222266',
+  //     }}
+  //   >
+  //     <big>
+  //       <b>{header[activeColumn]}</b>
+  //     </big>
+  //     <p>{value}</p>
+  //     {baseElement}
+  //   </div>
+  // }
+
   private updateLayers() {
-    console.log('add layers')
-    console.log({ props: this.props })
     const colorRamp = this.calculateColorRamp()
 
     this.layerManager.removeLayer('link-bandwidths')
@@ -148,8 +185,8 @@ export default class VueComponent extends Vue {
         widthUnits: 'pixels',
         widthMinPixels: 0,
         widthMaxPixels: 200,
-        pickable: false,
-        autoHighlight: false,
+        pickable: true,
+        autoHighlight: true,
         opacity: 1.0,
         parameters: {
           depthTest: false,
@@ -160,22 +197,22 @@ export default class VueComponent extends Vue {
 
         getColor: (d: any) => this.getLineColor(d, colorRamp),
         getWidth: this.getLineWidth,
-        // onHover: setHoverInfo,
+        onHover: this.renderTooltip,
 
-        // updateTriggers: {
-        //   getColor: {
-        //     data: this.buildData,
-        //     showDiffs: this.showDiffs,
-        //     dark: this.dark,
-        //     colors: this.colors,
-        //     activeColumn: this.build.activeColumn,
-        //   },
-        //   getWidth: {
-        //     showDiffs: this.showDiffs,
-        //     scaleWidth: this.scaleWidth,
-        //     activeColumn: this.build.activeColumn,
-        //   },
-        // },
+        updateTriggers: {
+          getColor: {
+            data: this.props.buildData,
+            showDiffs: this.props.showDiffs,
+            dark: this.props.dark,
+            colors: this.props.colors,
+            activeColumn: this.props.build.activeColumn,
+          },
+          getWidth: {
+            showDiffs: this.props.showDiffs,
+            scaleWidth: this.props.scaleWidth,
+            activeColumn: this.props.build.activeColumn,
+          },
+        },
 
         transitions: {
           getColor: 350,
@@ -185,8 +222,22 @@ export default class VueComponent extends Vue {
     )
   }
 
-  private renderTooltip({ hoverInfo }: any) {
-    return { html: '<p>tooltip</p>', style: '' }
+  private renderTooltip(hoverItem: any) {
+    const { object, x, y } = hoverItem
+    return {
+      text: 'ye',
+      html: 'hello',
+      style: {
+        backgroundColor: this.props.dark ? '#445' : 'white',
+        color: this.props.dark ? 'white' : '#222',
+        padding: '1rem 1rem',
+        position: 'absolute',
+        left: x + 4,
+        top: y - 80,
+        zIndex: 100,
+        boxShadow: '0px 2px 10px #22222266',
+      },
+    }
   }
 }
 </script>
