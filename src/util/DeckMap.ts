@@ -16,7 +16,8 @@ const DEFAULT_MAP_PROPS = {
   //   zoom: 5,
   // },
   controller: true,
-  useDevicePixels: 2,
+  useDevicePixels: false, // don't need 4X retina pixels!
+  // getTooltip,
   getCursor: ({ isDragging, isHovering }: any) =>
     isDragging ? 'grabbing' : isHovering ? 'pointer' : '',
 }
