@@ -8,6 +8,7 @@ import { LineLayer } from '@deck.gl/layers'
 import { scaleLinear, ScaleThreshold, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
+import { MAP_STYLES } from '@/Globals'
 import LayerManager from '@/util/LayerManager'
 
 enum COLUMNS {
@@ -47,6 +48,10 @@ export default class VueComponent extends Vue {
     this.layerManager.deckInstance.setProps({ viewState: this.viewState })
   }
 
+  @Watch('props.dark') swapTheme() {
+    this.layerManager.updateStyle()
+  }
+
   @Watch('props')
   private handlePropsChanged() {
     if (this.layerManager) this.updateLayers()
@@ -69,10 +74,48 @@ export default class VueComponent extends Vue {
       container: `#${this.mapID}`,
       viewState: this.$store.state.viewState,
       pickingRadius: 3,
+      mapStyle: this.props.dark ? MAP_STYLES.dark : MAP_STYLES.light,
+      getTooltip: this.getTooltip,
       onViewStateChange: ({ viewState }: any) => {
         this.$store.commit('setMapCamera', viewState)
       },
     })
+  }
+
+  private getTooltip(hoverInfo: any) {
+    const { object, x, y } = hoverInfo
+    if (!object) return null
+
+    const value = this.props.buildData[object[COLUMNS.offset]]
+
+    let baseValue = 0
+    let diff = undefined
+
+    if (this.props.showDiffs) {
+      baseValue = this.props.baseData[object[COLUMNS.offset]]
+      diff = value - baseValue
+    } else {
+      if (value === undefined) return null
+    }
+
+    const baseElement = baseValue ? `<p>+/- Base: ${diff}</p>` : ''
+
+    return {
+      html: `<div className="tooltip">
+              <big><b>${this.props.build.header[this.props.build.activeColumn]}</b></big>
+              <p>${value}</p>
+              ${baseElement}
+             </div>`,
+      style: {
+        backgroundColor: this.props.dark ? '#445' : 'white',
+        color: this.props.dark ? 'white' : '#222',
+        padding: '1rem 1rem',
+        position: 'absolute',
+        left: x + 4,
+        top: y - 80,
+        boxShadow: '0px 2px 10px #22222266',
+      },
+    }
   }
 
   private calculateColorRamp(): ScaleThreshold<number, number> {
@@ -134,46 +177,6 @@ export default class VueComponent extends Vue {
     }
   }
 
-  // private renderTooltip({ hoverInfo }: any) {
-  //   const { object, x, y } = hoverInfo
-  //   if (!object) return null
-
-  //   const value = this.props.buildData[object[COLUMNS.offset]]
-
-  //   let baseValue = 0
-  //   let diff = undefined
-
-  //   if (this.props.showDiffs) {
-  //     baseValue = this.props.baseData[object[COLUMNS.offset]]
-  //     diff = value - baseValue
-  //   } else {
-  //     if (value === undefined) return null
-  //   }
-
-  //   const baseElement = baseValue ? `<p>+/- Base: ${diff}</p>` : ''
-
-  //   return { html: '<p>tooltip</p>' }
-  // return (
-  //   <div
-  //     className="tooltip"
-  //     style={{
-  //       backgroundColor: dark ? '#445' : 'white',
-  //       color: dark ? 'white' : '#222',
-  //       padding: '1rem 1rem',
-  //       position: 'absolute',
-  //       left: x + 4,
-  //       top: y - 80,
-  //       boxShadow: '0px 2px 10px #22222266',
-  //     }}
-  //   >
-  //     <big>
-  //       <b>{header[activeColumn]}</b>
-  //     </big>
-  //     <p>{value}</p>
-  //     {baseElement}
-  //   </div>
-  // }
-
   private updateLayers() {
     const colorRamp = this.calculateColorRamp()
 
@@ -197,7 +200,6 @@ export default class VueComponent extends Vue {
 
         getColor: (d: any) => this.getLineColor(d, colorRamp),
         getWidth: this.getLineWidth,
-        onHover: this.renderTooltip,
 
         updateTriggers: {
           getColor: {
@@ -222,8 +224,9 @@ export default class VueComponent extends Vue {
     )
   }
 
-  private renderTooltip(hoverItem: any) {
-    const { object, x, y } = hoverItem
+  private renderTooltip({ hoverInfo }: any) {
+    console.log('heloo')
+    const { object, x, y } = hoverInfo
     return {
       text: 'ye',
       html: 'hello',

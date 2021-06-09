@@ -5,7 +5,7 @@ import { Deck } from '@deck.gl/core'
 import mapboxgl from 'mapbox-gl'
 
 import globalStore from '@/store'
-import { MAP_STYLES } from '@/Globals'
+import { MAP_STYLES, ColorScheme } from '@/Globals'
 
 const DEFAULT_MAP_PROPS = {
   layers: [],
@@ -37,17 +37,21 @@ const TOOLTIP_STYLE = {
   textTransform: 'capitalize',
   //   fontFamily: 'Montserrat, "Open Sans", sans-serif',
   fontSize: '0.7rem',
+  backgroundColor: globalStore.state.colorScheme === ColorScheme.DarkMode ? 'black' : 'white',
 }
 
 function getTooltip(pickingInfo: any) {
-  if (pickingInfo.object) {
-    let html = `<div style="font-size: 0.9rem;"><strong>${pickingInfo.layer.id}</strong></div>`
+  // console.log(pickingInfo)
+  if (!pickingInfo.object) return
 
-    for (const [name, value] of Object.entries(pickingInfo.object.properties)) {
-      if (name !== 'layerName' && name !== 'cartodb_id') {
-        html += `<div><strong>${name}: </strong>${value}</div>`
-      }
-    }
+  if (pickingInfo.object) {
+    const html = `<div style="font-size: 0.9rem;"><strong>${pickingInfo.layer.id}</strong></div>`
+
+    // for (const [name, value] of Object.entries(pickingInfo.object.properties)) {
+    //   if (name !== 'layerName' && name !== 'cartodb_id') {
+    //     html += `<div><strong>${name}: </strong>${value}</div>`
+    //   }
+    // }
 
     return {
       html,
@@ -155,6 +159,10 @@ export default class DeckMap extends Deck {
       // the order is important - render() may schedule another update
       map._render()
     }
+  }
+
+  setMapStyle(style: string) {
+    if (this._map) this._map.setStyle(style)
   }
 
   getMapboxMap() {

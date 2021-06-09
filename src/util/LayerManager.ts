@@ -1,5 +1,6 @@
 import DeckMap from './DeckMap'
-import { MAPBOX_TOKEN } from '@/Globals'
+import { MAP_STYLES, MAPBOX_TOKEN } from '@/Globals'
+import globalStore from '@/store'
 
 export default class LayerManager {
   layers: any
@@ -38,6 +39,13 @@ export default class LayerManager {
 
     const layers = [...Object.values(this.layers)]
     this.deckInstance.setProps({ layers })
+  }
+
+  updateStyle() {
+    if (!this.deckInstance) return
+
+    const style = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
+    this.deckInstance.setMapStyle(style)
   }
 
   addLayer(layer: { id: string }) {

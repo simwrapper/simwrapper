@@ -19,8 +19,8 @@ de:
     .stuff-in-main-panel
       .more-stuff
 
-        a(href="/sql") SQL Test 1 - Postgres
-        a(href="/sqlite") SQL Test 2 - SQLite
+        //- a(href="/sql") SQL Test 1 - Postgres
+        //- a(href="/sqlite") SQL Test 2 - SQLite
 
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
@@ -30,8 +30,8 @@ de:
             //- router-link(:to="`${run.root.url}${run.path}`") {{ run.path }}
 
   .bottom-panel
-    h3 Search
-    input.input(placeholder="Search text (TBA)")
+    //- h3 Search
+    //- input.input(placeholder="Search text (TBA)")
 
     .commands
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
@@ -135,7 +135,7 @@ export default MyComponent
 
 .stuff-in-main-panel {
   padding: 0rem 0rem;
-  margin: 0 auto;
+  margin: 0 auto 0 0.5rem;
 }
 
 .more-stuff {
@@ -162,7 +162,7 @@ export default MyComponent
 }
 
 .bottom-panel {
-  padding: 0 1rem 0.5rem 1rem;
+  padding: 0 1rem 0.25rem 0.5rem;
 }
 
 a {

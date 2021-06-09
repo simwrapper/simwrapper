@@ -1,14 +1,14 @@
 const config: any = {
   projects: [
-    {
-      name: 'Gallery',
-      url: 'gallery',
-      description: 'Example visualizations of public datasets.',
-      svn:
-        'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/viz-examples/examples',
-      need_password: false,
-      thumbnail: '/thumb-examples.jpg',
-    },
+    // {
+    //   name: 'Gallery',
+    //   url: 'gallery',
+    //   description: 'Example visualizations of public datasets.',
+    //   svn:
+    //     'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/viz-examples/examples',
+    //   need_password: false,
+    //   thumbnail: '/thumb-examples.jpg',
+    // },
     {
       name: 'Localhost',
       url: 'local',

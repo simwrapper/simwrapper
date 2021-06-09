@@ -80,6 +80,7 @@ export default MyComponent
   left: 0;
   height: 100%;
   overflow-y: auto;
+  background-color: var(--bgBrowser);
 }
 
 .gap {

@@ -10,9 +10,10 @@ import { debounce } from '@/util/debounce'
 // ----------------------------------------
 
 const initialViewState = () => ({
-  longitude: 14.45,
+  // start with berlin for now
+  longitude: 13.4,
   latitude: 52.5,
-  zoom: 5,
+  zoom: 10,
   pitch: 0,
   bearing: 0,
 })

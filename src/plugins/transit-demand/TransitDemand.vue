@@ -14,15 +14,17 @@ de:
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
-  collapsible-panel.left-side(v-if="!thumbnail && routesOnLink.length > 0" :darkMode="isDarkMode" :width="500" direction="left")
+  collapsible-panel.left-side(v-if="!thumbnail"
+    :darkMode="isDarkMode"
+    :width="500"
+    direction="left")
+
     .panel-items
       .panel-item
         h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
-        p.details.help-text(style="margin-top:20px" v-if="routesOnLink.length === 0") Select a link to see the routes traversing it.
-
-      .route-list
+      .route-list(v-if="routesOnLink.length > 0")
         .route(v-for="route in routesOnLink"
             :key="route.uniqueRouteID"
             :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
@@ -193,6 +195,11 @@ class MyComponent extends Vue {
       return
     }
 
+    // sometimes closing a view returns a null map, ignore it!
+    if (!zoom) return
+
+    this.mymap.off('move', this.handleMapMotion)
+
     this.mymap.jumpTo({
       bearing,
       zoom,
@@ -200,12 +207,12 @@ class MyComponent extends Vue {
       pitch,
     })
 
-    // this.mymap.on('move', this.handleMapMotion)
+    this.mymap.on('move', this.handleMapMotion)
 
     if (this.stopMarkers.length > 0) this.showTransitStops()
   }
 
-  @Watch('$store.colorScheme') private swapTheme() {
+  @Watch('$store.state.colorScheme') private swapTheme() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
     if (!this.mymap) return
 
@@ -437,11 +444,8 @@ class MyComponent extends Vue {
       pitch: this.mymap.getPitch(),
     }
 
-    this.$store.commit('setMapCamera', mapCamera)
-
-    if (!this.isMapMoving) {
-      this.isMapMoving = true
-    }
+    if (!this.isMapMoving) this.$store.commit('setMapCamera', mapCamera)
+    this.isMapMoving = true
 
     if (this.stopMarkers.length > 0) this.showTransitStops()
   }

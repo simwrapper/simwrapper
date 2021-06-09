@@ -14,19 +14,16 @@ import { Vue, Component, Prop } from 'vue-property-decorator'
 export default class LegendBox extends Vue {
   @Prop({ type: Array, required: true })
   private rows!: any
-
-  public created() {
-    // console.log(this.rows)
-  }
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/styles.scss';
 #legend-container {
   display: flex;
   flex-direction: row;
-  color: white;
-  background-color: rgba(255, 255, 255, 0.781);
+  color: var(--text);
+  background-color: var(--bgPanel);
   padding: 0rem 0.5rem;
   border: solid 1px rgba(161, 160, 160, 0.781);
   border-radius: 2px;
@@ -45,7 +42,7 @@ export default class LegendBox extends Vue {
 }
 
 p.title {
-  color: rgba(51, 51, 51, 0.877);
+  color: var(--text);
   font-size: 0.9rem;
   text-transform: uppercase;
   margin-bottom: 1rem;
@@ -54,9 +51,7 @@ p.title {
   font-weight: normal;
 }
 .legend-element1 {
-  color: black;
   font-size: 1.2rem;
-  stroke: black;
   font-weight: bold;
   margin-right: 0.8rem;
   margin-left: -1.75rem;
@@ -64,9 +59,7 @@ p.title {
 }
 
 .legend-element2 {
-  color: whitesmoke;
   font-size: 1.2rem;
-  stroke: white;
   font-weight: bold;
   margin-right: 0.8rem;
   margin-left: -0.8rem;

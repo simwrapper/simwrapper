@@ -133,7 +133,7 @@ export default MyComponent
 @import '@/styles.scss';
 
 #split-screen {
-  padding: 0.75rem 0.75rem;
+  padding: 0.5rem 0.5rem;
   display: flex;
   flex-direction: row;
   position: absolute;
@@ -152,7 +152,7 @@ export default MyComponent
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
-  margin-right: 0.75rem;
+  margin-right: 0.5rem;
 }
 
 .fill-panel {

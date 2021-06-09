@@ -18,14 +18,7 @@ de:
 .gl-viz(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  polygon-layer.anim(v-if="!thumbnail && isLoaded && shapefile.data.length"
-                :center="center"
-                :shapefile="shapefile"
-                :activeColumn="this.activeHeader"
-                :dark="isDarkMode"
-                :colors="selectedColorRamp"
-                :maxValue="maxValueForScaling"
-  )
+  polygon-layer.anim(v-if="!thumbnail && isLoaded" :props="mapProps")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left")
@@ -81,7 +74,7 @@ import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import Coords from '@/util/Coords'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import PolygonLayer from './PolygonLayer'
+import PolygonLayer from './PolygonLayerDeck.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 
 import { VuePlugin } from 'vuera'
@@ -169,6 +162,16 @@ class MyPlugin extends Vue {
     return this.thumbnailUrl
   }
 
+  private get mapProps() {
+    return {
+      shapefile: this.shapefile,
+      dark: this.isDarkMode,
+      colors: this.selectedColorRamp,
+      activeColumn: this.activeHeader,
+      maxValue: this.maxValueForScaling,
+    }
+  }
+
   private getFileSystem(name: string) {
     const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
@@ -221,7 +224,7 @@ class MyPlugin extends Vue {
     }
   }
 
-  @Watch('globalState.colorScheme') private swapTheme() {
+  @Watch('$store.state.colorScheme') private swapTheme() {
     this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
   }
 

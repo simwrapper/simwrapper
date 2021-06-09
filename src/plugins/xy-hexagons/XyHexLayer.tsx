@@ -1,16 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import { InteractiveMap } from 'react-map-gl'
+import { StaticMap, InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
 import HexagonLayer from './SelectableHexLayer'
 import colormap from 'colormap'
 
-import { MAP_STYLES } from '@/Globals'
+import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
 import globalStore from '@/store'
-
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
 const material = {
   ambient: 0.64,
@@ -28,7 +25,6 @@ export default function Layer({
   coverage = 0.65,
   extrude = true,
   maxHeight = 200,
-  viewState = { longitude: 14, latitude: 54, zoom: 5, bearing: 0, pitch: 20 },
   onClick = {} as any,
   colorRamp = 'chlorophyll',
   metric = 'Count',
@@ -36,7 +32,8 @@ export default function Layer({
 }) {
   // draw begins here
 
-  console.log('i am here redrawing')
+  const viewState = globalStore.state.viewState
+
   const colors = colormap({
     colormap: colorRamp,
     nshades: 10,
@@ -60,15 +57,14 @@ export default function Layer({
         Number.isFinite(lng) ? lng.toFixed(4) : ''
       }
       `,
+      style: dark
+        ? { color: '#ccc', backgroundColor: '#2a3c4f' }
+        : { color: '#223', backgroundColor: 'white' },
     }
   }
 
   function handleClick(target: any, event: any) {
     onClick(target, event)
-  }
-
-  function handleViewState(view: any) {
-    globalStore.commit('setMapCamera', view)
   }
 
   const layers = [
@@ -110,20 +106,20 @@ export default function Layer({
   ]
 
   return (
-    /*
-    //@ts-ignore */
     <DeckGL
       layers={layers}
       viewState={viewState}
       controller={true}
       getTooltip={getTooltip}
       onClick={handleClick}
-      onViewStateChange={(e: any) => handleViewState(e.viewState)}
+      onViewStateChange={(e: any) => {
+        globalStore.commit('setMapCamera', e.viewState)
+      }}
     >
       {
         /*
         // @ts-ignore */
-        <InteractiveMap
+        <StaticMap
           reuseMaps
           mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
           preventStyleDiffing={true}

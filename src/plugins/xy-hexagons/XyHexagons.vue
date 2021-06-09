@@ -24,7 +24,18 @@ de:
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded" :props="mapProps")
+  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
+      :colorRamp="colorRamp"
+      :dark="globalState.isDarkMode"
+      :data="requests"
+      :extrude="extrudeTowers"
+      :highlights="highlightedTrips"
+      :maxHeight="maxHeight"
+      :metric="buttonLabel"
+      :radius="radius"
+      :selectedHexStats="hexStats"
+      :onClick="handleHexClick"
+  )
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left")
@@ -103,7 +114,7 @@ import {
   Status,
 } from '@/Globals'
 
-import XyHexLayer from './XyHexDeckMap.vue'
+import XyHexLayer from './XyHexLayer'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import Coords from '@/util/Coords'
@@ -135,7 +146,6 @@ interface VizDetail {
     VueSlider,
     ToggleButton,
   } as any,
-  computed: { ...mapState(['viewState', 'mapLoaded']) },
 })
 class XyHexagons extends Vue {
   @Prop({ required: true })
@@ -163,6 +173,7 @@ class XyHexagons extends Vue {
   }
 
   private colorRamp = this.colorRamps[0]
+  private globalState = globalStore.state
 
   private vizDetails: VizDetail = {
     title: '',
@@ -407,9 +418,10 @@ class XyHexagons extends Vue {
     }
   }
 
-  // @Watch('globalState.mapCamera') private async mapMoved({ bearing, center, zoom, pitch }: any) {
-  //   this.mapState = { center, zoom, bearing, pitch }
-  // }
+  // this is required to force Deck.gl to redraw when camera moves.
+  @Watch('$store.state.viewState') private updateMapView() {
+    this.$forceUpdate()
+  }
 
   @Watch('$store.state.colorScheme') private swapTheme() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
