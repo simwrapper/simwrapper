@@ -1,21 +1,20 @@
 <template lang="pug">
-#home
-  .banner
-    h2 aftersim
-    h3 VSP / Technische Universität Berlin
-
-  .tu-logo
-    img.img-logo(src="/tu-logo-circle.png")
+.splash-page
 
   .page-area
+
     .content
       .main
         .right(style="text-align: right;")
 
-        h1 aftersim
-        h2.readme {{ $t('tagLine') }}
+        .tu-logo
+          img.img-logo(src="@/assets/images/vsp-logo-300dpi.png")
+          img.img-logo(src="@/assets/images/tu-logo.png")
 
-        svn-projects.gap
+        h1 {{ state.app }}
+        h2.readme(v-html="$t('tagLine')")
+
+        svn-projects.gap(@navigate="onNavigate")
 
         h2 {{ $t('more-info') }}
         .readme(v-html="readmeBottom")
@@ -25,7 +24,7 @@
 <i18n>
 en:
   more-info: 'For more information:'
-  tagLine: 'the model output browser and data visualizer from TU Berlin.'
+  tagLine: 'the model output browser and data visualizer from TU&nbsp;Berlin.'
 de:
   more-info: 'Für weitere Informationen:'
   tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
@@ -59,6 +58,11 @@ class MyComponent extends Vue {
     globalStore.commit('setBreadCrumbs', crumbs)
   }
 
+  private onNavigate(event: any) {
+    // pass it on up
+    this.$emit('navigate', event)
+  }
+
   private state = globalStore.state
   private readme = readme
   private readmeBottom = bottom
@@ -69,8 +73,18 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+.splash-page {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--bgBrowser);
+}
+
 .gap {
-  margin-top: 2rem;
+  margin-top: 3rem;
   margin-bottom: 2rem;
 }
 
@@ -83,37 +97,6 @@ export default MyComponent
 
 .main {
   margin: 0 auto;
-}
-
-.banner {
-  display: flex;
-  flex-direction: column;
-  padding: 6rem 3rem 1rem 3rem;
-  background-color: #181a1b;
-  color: #f54f5f;
-  background: url(../assets/images/banner.jpg);
-  background-repeat: no-repeat;
-  background-size: cover;
-}
-
-.banner h2 {
-  margin-bottom: 0rem;
-  font-size: 1.6rem;
-  line-height: 1.7rem;
-  background-color: #181a1b;
-  margin-right: auto;
-  padding: 0 0.5rem;
-}
-
-.banner h3 {
-  font-size: 1.3rem;
-  font-weight: normal;
-  margin-bottom: 0;
-  margin-right: auto;
-  line-height: 1.4rem;
-  padding: 0.25rem 0.5rem;
-  background-color: #181a1b;
-  // width: max-content;
 }
 
 a {
@@ -129,7 +112,7 @@ a {
 }
 
 .main h1 {
-  margin-top: 1rem;
+  margin-top: 2rem;
   font-weight: bold;
   font-size: 3rem;
   color: var(--text);
@@ -169,6 +152,10 @@ a {
 
 .main {
   max-width: 64rem;
+
+  h1 {
+    letter-spacing: -1px;
+  }
 }
 
 .main .top a {
@@ -204,20 +191,17 @@ a {
 }
 
 .tu-logo {
-  margin-top: -4rem;
-  text-align: right;
+  margin-top: 2rem;
+  text-align: left;
   margin-right: 2rem;
 }
 
 .img-logo {
-  height: 8rem;
+  margin-right: 4rem;
+  height: 6rem;
 }
 
 @media only screen and (max-width: 640px) {
-  .banner {
-    padding: 2rem 1rem;
-  }
-
   .content {
     padding: 2rem 1rem 8rem 1rem;
     flex-direction: column-reverse;

@@ -21,21 +21,10 @@ de:
 .gl-viz(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  link-gl-layer.anim(v-if="!thumbnail && isLoaded"
-                :geojson="geojsonData"
-                :build="csvData"
-                :base="csvBase"
-                :buildData="buildData"
-                :baseData="baseData"
-                :showDiffs="showDiffs",
-                :colors="selectedColorRamp"
-                :scaleWidth="scaleWidth"
-                :dark="isDarkMode"
-                :center="center"
-  )
+  link-deck-map.anim(v-if="!thumbnail" :props="mapProps")
 
-  .right-side(v-if="!thumbnail")
-    collapsible-panel(:darkMode="isDarkMode" width="256" direction="right")
+  .left-side(v-if="!thumbnail")
+    collapsible-panel(:darkMode="isDarkMode" direction="left")
       .panel-items
 
         //- heading
@@ -77,14 +66,14 @@ import { debounce } from 'debounce'
 import Papaparse from 'papaparse'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
-// import * as coroutines from 'js-coroutines'
-// import workerpool from 'workerpool'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 import ConfigPanel from './ConfigPanel.vue'
+import LinkDeckMap from './LinkDeckMap.vue'
+import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import {
   ColorScheme,
@@ -98,11 +87,6 @@ import {
   Status,
 } from '@/Globals'
 
-import LinkGlLayer from './LinkLayer'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
-
 interface CSV {
   header: string[]
   headerMax: number[]
@@ -114,16 +98,16 @@ interface CSV {
   components: {
     CollapsiblePanel,
     ConfigPanel,
-    LinkGlLayer,
+    LinkDeckMap,
     TimeSlider,
     ToggleButton,
   } as any,
 })
 class MyPlugin extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -136,7 +120,7 @@ class MyPlugin extends Vue {
   private buildColumnValues: Float32Array[] = []
   private baseColumnValues: Float32Array[] = []
 
-  private center = [13.45, 52.53]
+  private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
 
   private isButtonActiveColumn = false
 
@@ -168,7 +152,7 @@ class MyPlugin extends Vue {
 
   public myState = {
     statusMessage: '',
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -184,63 +168,26 @@ class MyPlugin extends Vue {
   private linkOffsetLookup: { [id: string]: number } = {}
   private numLinks = 0
 
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
+  private get mapProps() {
+    return {
+      geojson: this.geojsonData,
+      buildData: this.buildData,
+      baseData: this.baseData,
+      showDiffs: this.showDiffs,
+      colors: this.selectedColorRamp,
+      scaleWidth: this.scaleWidth,
+      dark: this.isDarkMode,
+      build: this.csvData,
     }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
   }
 
-  private generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    crumbs.push({
-      label: this.vizDetails.title,
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
   }
 
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
@@ -249,7 +196,7 @@ class MyPlugin extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -258,6 +205,8 @@ class MyPlugin extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
+
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -268,7 +217,7 @@ class MyPlugin extends Vue {
       console.log('failed')
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+        this.$store.commit('requestLogin', this.myState.fileSystem.url)
       }
     }
     const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
@@ -276,6 +225,8 @@ class MyPlugin extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
+
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -291,14 +242,8 @@ class MyPlugin extends Vue {
     }
   }
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
-
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  @Watch('$store.state.colorScheme') private swapTheme() {
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -318,20 +263,17 @@ class MyPlugin extends Vue {
 
   private clickedColorRamp(color: string) {
     this.selectedColorRamp = color
-    console.log(this.selectedColorRamp)
   }
 
   private handleScaleWidthChanged(value: number) {
-    console.log(value)
     this.scaleWidth = value
   }
 
   private handleNewDataColumn(title: string) {
-    console.log('handling it:', title)
+    console.log('handling column:', title)
     const column = this.csvData.header.indexOf(title)
     if (column === -1) return
 
-    console.log('got it')
     // // find max value for scaling
     if (!this.csvData.headerMax[column]) {
       let max = 0
@@ -339,13 +281,11 @@ class MyPlugin extends Vue {
       if (max) this.csvData.headerMax[column] = max
     }
 
-    console.log('setting it')
     this.buildData = this.buildColumnValues[column]
     this.baseData = this.baseColumnValues[column]
 
     this.csvData.activeColumn = column
     this.isButtonActiveColumn = false
-    console.log('dit it')
   }
 
   private findCenter(data: any[]): [number, number] {
@@ -353,13 +293,12 @@ class MyPlugin extends Vue {
   }
 
   private async mounted() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
+    this.$store.commit('setFullScreen', !this.thumbnail)
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
+    this.buildFileApi()
+
     await this.getVizDetails()
     if (this.thumbnail) return
-
-    this.generateBreadcrumbs()
 
     this.myState.statusMessage = 'Dateien laden...'
 
@@ -367,37 +306,33 @@ class MyPlugin extends Vue {
     const allLinks = await this.loadGeojsonFeatures()
     if (!allLinks) return
 
-    console.log('5: ok')
     this.geojsonData = allLinks
     this.isLoaded = true
 
     // runs in background
-    this.center = this.findCenter([])
+    this.mapState.center = this.findCenter([])
 
     this.buildThumbnail()
 
     this.myState.statusMessage = ''
-    console.log('999: ok')
 
     // then load CSVs in background
     this.loadCSVFiles()
   }
 
   private async loadGeojsonFeatures() {
+    if (!this.myState.fileApi) return
+
     try {
       this.linkOffsetLookup = {}
       this.numLinks = 0
 
-      console.log('1: load network')
       this.myState.statusMessage = 'Loading network...'
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
       const text = await this.myState.fileApi.getFileText(network)
 
-      console.log('2: json network')
       const json = JSON.parse(text)
-      console.log({ json })
-      console.log('3: build index')
       this.numLinks = json.features.length
 
       // super-efficient format is [ offset, coordsFrom[], coordsTo[] ]
@@ -411,8 +346,6 @@ class MyPlugin extends Vue {
         this.linkOffsetLookup[feature.properties.id] = i
       }
 
-      console.log('4: done!')
-      console.log({ linkElements })
       return linkElements
     } catch (e) {
       this.myState.statusMessage = '' + e
@@ -427,7 +360,6 @@ class MyPlugin extends Vue {
   }
 
   private beforeDestroy() {
-    globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }
 
@@ -494,7 +426,7 @@ class MyPlugin extends Vue {
 
     if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
 
-    // some people insist on labeling "8 AM" as "08:00:00" which is annoying
+    //  "8 AM" is a lot narrower than "08:00:00"
     const cleanHeaders = header.map(h => h.replace(':00:00', ''))
 
     const details = {
@@ -533,7 +465,7 @@ class MyPlugin extends Vue {
   }
 
   private loadCSVFile(filename: string) {
-    console.log('7a: loading CSV:', filename)
+    if (!this.myState.fileApi) return
 
     const csvFilename = this.myState.fileApi.cleanURL(`${this.myState.subfolder}/${filename}`)
 
@@ -560,7 +492,6 @@ class MyPlugin extends Vue {
   }
 
   private changedTimeSlider(value: any) {
-    console.log('new slider!', value)
     if (value.length && value.length === 1) value = value[0]
 
     this.handleNewDataColumn(value)
@@ -652,10 +583,8 @@ export default MyPlugin
   flex-direction: column;
   grid-area: leftside;
   background-color: var(--bgPanel);
-  box-shadow: 0px 2px 10px #22222266;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: 2rem 0 3rem 0;
 }
 
 .right-side {
@@ -663,7 +592,7 @@ export default MyPlugin
   display: flex;
   flex-direction: row;
   grid-area: rightside;
-  margin: 5rem 0 auto 0;
+  margin: 0 0 auto 0;
 }
 
 .anim {
@@ -679,7 +608,7 @@ export default MyPlugin
 .panel-item {
   h3 {
     line-height: 1.7rem;
-    margin-bottom: 0.5rem;
+    // margin-bottom: 0.5rem;
   }
 
   p {

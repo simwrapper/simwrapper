@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import DrtRequestLayer from './DrtRequestLayer'
 
-import PathTraceLayer from '@/layers/PathTraceLayer'
+import DrtRequestLayer from './DrtRequestLayer'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-layer'
-import { MAP_STYLES } from '@/Globals'
+import PathTraceLayer from '@/layers/PathTraceLayer'
+import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
+
+import globalStore from '@/store'
 
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -14,11 +16,6 @@ const ICON_MAPPING = {
   vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
   diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
-
-// Set your mapbox token here
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
-// process.env.MapboxAccessToken // eslint-disable-line
 
 const ambientLight = new AmbientLight({
   color: [255, 255, 255],
@@ -40,15 +37,6 @@ const DEFAULT_THEME = {
   effects: [lightingEffect],
 }
 
-const INITIAL_VIEW_STATE = {
-  latitude: 52.1,
-  longitude: 14,
-  zoom: 10,
-  pitch: 0,
-  minZoom: 2,
-  maxZoom: 22,
-}
-
 const DRT_REQUEST = {
   time: 0,
   fromX: 1,
@@ -60,12 +48,12 @@ const DRT_REQUEST = {
 }
 
 export default function Component(props: {
+  dark: boolean
   simulationTime: number
   paths: any[]
   drtRequests: any[]
   traces: any[]
   colors: any
-  dark: boolean
   center: [number, number]
   settingsShowLayers: { [label: string]: boolean }
   vehicleLookup: string[]
@@ -87,9 +75,11 @@ export default function Component(props: {
 
   const theme = DEFAULT_THEME
 
-  const initialView = Object.assign({}, INITIAL_VIEW_STATE)
-  initialView.latitude = center[1]
-  initialView.longitude = center[0]
+  const viewState = globalStore.state.viewState
+
+  // const initialView = Object.assign({}, INITIAL_VIEW_STATE)
+  // initialView.latitude = center[1]
+  // initialView.longitude = center[0]
 
   const arcWidth = 1
   const [hoverInfo, setHoverInfo] = useState({} as any)
@@ -221,10 +211,13 @@ export default function Component(props: {
       layers={layers}
       effects={theme.effects}
       pickingRadius={5}
-      initialViewState={initialView}
+      viewState={viewState}
       controller={true}
       getCursor={() => 'pointer'}
       onClick={handleClick}
+      onViewStateChange={(e: any) => {
+        globalStore.commit('setMapCamera', e.viewState)
+      }}
     >
       {
         /*

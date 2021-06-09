@@ -1,25 +1,27 @@
 <template lang="pug">
-#v3-app(:class="{'hide-thumbnail': !thumbnail}"
+.gl-app(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .nav(v-if="!thumbnail")
-    p.big.xtitle {{ vizDetails.title }}
-    p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
+  .left-side(v-if="!thumbnail")
+    CollapsiblePanel(direction="left")
+      p.big.xtitle {{ vizDetails.title }}
+      p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-  trip-viz.anim(v-if="!thumbnail" :simulationTime="simulationTime"
-                :paths="$options.paths"
-                :drtRequests="$options.drtRequests"
-                :traces="$options.traces"
-                :dark="isDarkMode"
-                :colors="COLOR_OCCUPANCY"
-                :settingsShowLayers="SETTINGS"
+  trip-viz.anim(v-if="!thumbnail"
                 :center="vizDetails.center"
+                :colors="COLOR_OCCUPANCY"
+                :drtRequests="$options.drtRequests"
+                :dark="globalState.isDarkMode"
+                :paths="$options.paths"
+                :settingsShowLayers="SETTINGS"
                 :searchEnabled="searchEnabled"
+                :simulationTime="simulationTime"
+                :traces="$options.traces"
                 :vehicleLookup = "vehicleLookup"
                 :onClick = "handleClick")
 
   .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="true" width="150" direction="right")
+    collapsible-panel(direction="right")
       .big.clock
         p {{ myState.clock }}
 
@@ -54,9 +56,7 @@
             :tooltip-formatter="val => val + 'x'"
           )
 
-  .bottom-area
-
-    playback-controls.playback-stuff(v-if="!thumbnail && isLoaded"
+  playback-controls.bottom-area(v-if="!thumbnail && isLoaded"
       @click='toggleSimulation'
       @time='setTime'
       :timeStart = "timeStart"
@@ -115,10 +115,10 @@ Vue.use(VuePlugin)
   } as any,
 })
 class VehicleAnimation extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -175,7 +175,7 @@ class VehicleAnimation extends Vue {
     colorScheme: ColorScheme.DarkMode,
     isRunning: false,
     isShowingHelp: false,
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -218,6 +218,13 @@ class VehicleAnimation extends Vue {
 
   private legendBits: any[] = []
 
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+    // console.log('built it', this.myState.fileApi)
+  }
+
   private async handleSettingChange(label: string) {
     console.log(label)
     this.SETTINGS[label] = !this.SETTINGS[label]
@@ -247,55 +254,6 @@ class VehicleAnimation extends Vue {
     this.myState.yamlConfig = config
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = YAML.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
   private get urlThumbnail() {
     return this.thumbnailUrl
@@ -311,6 +269,8 @@ class VehicleAnimation extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
+
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -334,6 +294,7 @@ class VehicleAnimation extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -480,13 +441,13 @@ class VehicleAnimation extends Vue {
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
+    this.buildFileApi()
+
     await this.getVizDetails()
 
     if (this.thumbnail) return
 
     this.showHelp = false
-    this.generateBreadcrumbs()
     this.updateLegendColors()
 
     this.setWallClock()
@@ -692,6 +653,8 @@ class VehicleAnimation extends Vue {
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return { trips: [], drtRequests: {} }
+
     let trips: any[] = []
     let drtRequests: any = []
 
@@ -704,7 +667,7 @@ class VehicleAnimation extends Vue {
         drtRequests = json.drtRequests
       } else if (this.vizDetails.drtTrips.endsWith('gz')) {
         const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + this.vizDetails.drtTrips
+          this.myState.subfolder + '/' + this.vizDetails.drtTrips
         )
         const blobString = blob ? await blobToBinaryString(blob) : null
         let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
@@ -749,13 +712,7 @@ export default VehicleAnimation
 @import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
-#v3-app {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: -1;
-  right: 0;
+.gl-app {
   display: grid;
   pointer-events: none;
   min-height: $thumbnailHeight;
@@ -764,24 +721,27 @@ export default VehicleAnimation
   grid-template-columns: 1fr min-content;
   grid-template-rows: auto auto 1fr auto;
   grid-template-areas:
-    'title              .'
-    '.          rightside'
-    'playback   rightside';
+    'title         clock'
+    '.           rightside'
+    'playback    rightside';
 }
 
-#v3-app.hide-thumbnail {
+.gl-app.hide-thumbnail {
   background: none;
 }
 
 .nav {
-  grid-area: title;
+  z-index: 5;
+  grid-column: 1 / 4;
+  grid-row: 1 / 4;
+  box-shadow: 0px 2px 10px #22222266;
   display: flex;
   flex-direction: row;
-  margin: 0 0;
-  padding: 0 0.5rem 0 1rem;
+  margin: auto auto 0 0;
+  background-color: var(--bgPanel);
+  padding: 0rem 3rem;
 
   a {
-    font-weight: bold;
     color: white;
     text-decoration: none;
 
@@ -792,8 +752,9 @@ export default VehicleAnimation
 
   p {
     margin: auto 0.5rem auto 0;
+    font-weight: normal;
     padding: 0 0;
-    color: white;
+    color: var(--textFancy);
   }
 }
 
@@ -820,27 +781,24 @@ export default VehicleAnimation
 }
 
 .right-side {
+  width: 10rem;
   grid-area: rightside;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
   margin-top: auto;
-  margin-bottom: 4rem;
-}
-
-.playback-stuff {
-  flex: 1;
 }
 
 .bottom-area {
+  grid-area: playback;
   display: flex;
   flex-direction: row;
   margin-top: auto;
   margin-bottom: 2rem;
-  grid-area: playback;
-  padding: 0rem 1rem 1rem 2rem;
+  padding: 0rem 0rem 1rem 2rem;
   pointer-events: auto;
+  width: 100%;
 }
 
 .settings-area {
@@ -863,6 +821,7 @@ export default VehicleAnimation
 }
 
 .clock {
+  color: white;
   width: 100%;
   background-color: #000000cc;
   border: 3px solid white;
@@ -885,8 +844,18 @@ export default VehicleAnimation
 
 input {
   border: none;
-  background-color: #235;
+  background-color: var(--bgBold);
   color: #ccc;
+}
+
+.left-side {
+  grid-column: 1/4;
+  grid-row: 1/4;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  margin: 0 0 0 0;
 }
 
 @media only screen and (max-width: 640px) {

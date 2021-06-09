@@ -10,13 +10,13 @@
   .map-container
     .mymap(:id="mapId")
 
-  left-data-panel.left-panel(v-if="!thumbnail && !loadingText")
-   .dashboard-panel
-    .info-header
-      h3(style="text-align: center; padding: 0.5rem 3rem; font-weight: normal;color: white;")
-        | {{this.vizDetails.title ? this.vizDetails.title : 'O/D Flows'}}
+  collapsible-panel.left-panel(v-if="!thumbnail && !loadingText"
+    :darkMode="isDarkMode" direction="left")
 
-    .info-description(style="padding: 0px 0.5rem;" v-if="this.vizDetails.description")
+    .info-header(style="padding: 0 0.5rem;")
+      h3 {{this.vizDetails.title ? this.vizDetails.title : 'O/D Flows'}}
+
+    .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
       p.description {{ this.vizDetails.description }}
 
     .widgets
@@ -76,16 +76,14 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import yaml from 'yaml'
 
 import Coords from '@/util/Coords'
-import LeftDataPanel from '@/components/LeftDataPanel.vue'
+import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendBox from './LegendBoxOD.vue'
 import LineFilterSlider from './LineFilterSlider.vue'
 import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
-import SystemLeftBar from '@/components/SystemLeftBar.vue'
-import ModalVue from '@/components/Modal.vue'
 
-import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
+import { MAP_STYLES, ColorScheme, FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -114,7 +112,7 @@ const INPUTS = {
 
 @Component({
   components: {
-    LeftDataPanel,
+    CollapsiblePanel,
     LegendBox,
     LineFilterSlider,
     ScaleBox,
@@ -123,10 +121,10 @@ const INPUTS = {
   },
 })
 class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -138,7 +136,7 @@ class MyComponent extends Vue {
   private globalState = globalStore.state
 
   private myState = {
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -155,7 +153,7 @@ class MyComponent extends Vue {
     description: '',
   }
 
-  private containerId = `c${Math.floor(Math.random() * Math.floor(1e10))}`
+  private containerId = `c${Math.floor(1e12 * Math.random())}`
   private mapId = 'map-' + this.containerId
 
   private centroids: any = {}
@@ -208,6 +206,12 @@ class MyComponent extends Vue {
   private bounceScaleSlider = debounce(this.changedScale, 50)
   private bounceLineFilter = debounce(this.changedLineFilter, 250)
 
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+  }
+
   public async created() {
     this._mapExtentXYXY = [180, 90, -180, -90]
     this._maximum = 0
@@ -219,22 +223,61 @@ class MyComponent extends Vue {
 
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
-    if (!this.yamlConfig) {
-      this.buildRouteFromUrl()
-    }
 
+    this.buildFileApi()
     await this.getVizDetails()
-
-    if (!this.thumbnail) this.generateBreadcrumbs()
 
     this.setupMap()
   }
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-    this.setupMap()
+  private isMapMoving = false
+
+  @Watch('$store.state.viewState') private mapMoved({
+    bearing,
+    longitude,
+    latitude,
+    zoom,
+    pitch,
+  }: any) {
+    // ignore my own farts; they smell like roses
+    if (!this.mymap || this.isMapMoving) {
+      this.isMapMoving = false
+      return
+    }
+
+    // sometimes closing a view returns a null map, ignore it!
+    if (!zoom) return
+
+    this.mymap.off('move', this.handleMapMotion)
+
+    this.mymap.jumpTo({
+      bearing,
+      zoom,
+      center: [longitude, latitude],
+      pitch,
+    })
+
+    this.mymap.on('move', this.handleMapMotion)
+  }
+
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+
+  @Watch('$store.state.colorScheme') private swapTheme() {
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+    if (!this.mymap) return
+
+    this.mymap.setStyle(this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light)
+
+    this.mymap.on('style.load', () => {
+      this.buildCentroids(this.geojson)
+      this.buildSpiderLinks()
+      this.addGeojsonToMap(this.geojson)
+      // this.setupKeyListeners()
+    })
+  }
+
+  @Watch('$store.state.resizeEvents') handleResize() {
+    if (this.mymap) this.mymap.resize()
   }
 
   @Watch('showTimeRange')
@@ -252,53 +295,18 @@ class MyComponent extends Vue {
     this.updateCentroidLabels()
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
+  private handleMapMotion() {
+    const mapCamera = {
+      longitude: this.mymap.getCenter().lng,
+      latitude: this.mymap.getCenter().lat,
+      bearing: this.mymap.getBearing(),
+      zoom: this.mymap.getZoom(),
+      pitch: this.mymap.getPitch(),
     }
 
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
+    this.$store.commit('setMapCamera', mapCamera)
 
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
+    if (!this.isMapMoving) this.isMapMoving = true
   }
 
   private getFileSystem(name: string) {
@@ -310,29 +318,8 @@ class MyComponent extends Vue {
     return svnProject[0]
   }
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -356,6 +343,8 @@ class MyComponent extends Vue {
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return
+
     try {
       this.loadingText = 'Dateien laden...'
 
@@ -390,7 +379,7 @@ class MyComponent extends Vue {
     this.mymap = new mapboxgl.Map({
       container: this.mapId,
       logoPosition: 'bottom-right',
-      style: 'mapbox://styles/mapbox/outdoors-v9',
+      style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
     })
 
     try {
@@ -421,6 +410,8 @@ class MyComponent extends Vue {
     this.mymap.on('load', this.mapIsReady)
     // this.mymap.addControl(new mapboxgl.ScaleControl(), 'bottom-right')
     this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
+
+    this.mymap.on('move', this.handleMapMotion)
 
     // clean up display just when we're in thumbnail mode
     if (this.thumbnail) {
@@ -539,14 +530,16 @@ class MyComponent extends Vue {
   }
 
   private buildSpiderLinks() {
-    this.createSpiderLinks()
-    // console.log({ spiders: this.spiderLinkFeatureCollection })
+    if (!this.mymap.getSource('spider-source')) {
+      this.createSpiderLinks()
+      // console.log({ spiders: this.spiderLinkFeatureCollection })
+      this.mymap.addSource('spider-source', {
+        data: this.spiderLinkFeatureCollection,
+        type: 'geojson',
+      } as any)
+    }
 
-    this.mymap.addSource('spider-source', {
-      data: this.spiderLinkFeatureCollection,
-      type: 'geojson',
-    } as any)
-
+    if (this.mymap.getLayer('spider-layer')) this.mymap.removeLayer('spider-layer')
     this.mymap.addLayer(
       {
         id: 'spider-layer',
@@ -867,11 +860,12 @@ class MyComponent extends Vue {
     // console.log({ CENTROIDS: this.centroids })
     // console.log({ CENTROIDSOURCE: this.centroidSource })
 
-    this.mymap.addSource('centroids', {
-      data: this.centroidSource,
-      type: 'geojson',
-    } as any)
-
+    if (!this.mymap.getSource('centroids')) {
+      this.mymap.addSource('centroids', {
+        data: this.centroidSource,
+        type: 'geojson',
+      } as any)
+    }
     this.updateCentroidLabels()
 
     const parent = this
@@ -1091,11 +1085,14 @@ class MyComponent extends Vue {
   }
 
   private addGeojsonLayers(geojson: any) {
-    this.mymap.addSource('shpsource', {
-      data: geojson,
-      type: 'geojson',
-    } as any)
+    if (!this.mymap.getSource('shpsource')) {
+      this.mymap.addSource('shpsource', {
+        data: geojson,
+        type: 'geojson',
+      } as any)
+    }
 
+    if (this.mymap.getLayer('shplayer-fill')) this.mymap.removeLayer('shplayer-fill')
     this.mymap.addLayer(
       {
         id: 'shplayer-fill',
@@ -1106,9 +1103,10 @@ class MyComponent extends Vue {
           'fill-opacity': 0.5,
         },
       },
-      'road-primary'
+      'water'
     )
 
+    if (this.mymap.getLayer('shplayer-border')) this.mymap.removeLayer('shplayer-border')
     this.mymap.addLayer(
       {
         id: 'shplayer-border',
@@ -1239,7 +1237,6 @@ export default MyComponent
 
 h3 {
   margin: 0px 0px;
-  font-size: 16px;
 }
 
 h4 {
@@ -1251,6 +1248,7 @@ h4 {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
+  position: relative;
 }
 
 .status-blob {
@@ -1283,7 +1281,7 @@ h4 {
 
 .mytitle {
   margin-left: 10px;
-  color: white;
+  color: var(--text);
 }
 
 .details {
@@ -1292,30 +1290,12 @@ h4 {
   margin-top: auto;
 }
 
-.bigtitle {
-  font-weight: bold;
-  font-style: italic;
-  font-size: 20px;
-  margin: 20px 0px;
-}
-
 .info-header {
-  background-color: #097c43;
   padding: 0.5rem 0rem;
-  border-top: solid 1px #888;
-  border-bottom: solid 1px #888;
-  margin-bottom: 1rem;
-}
-
-.project-summary-block {
-  width: 16rem;
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  margin: 0px auto 0px 0px;
-  z-index: 10;
 }
 
 .widgets {
+  color: var(--text);
   display: flex;
   flex-direction: column;
   padding: 0px 0.5rem;
@@ -1352,44 +1332,34 @@ h4 {
 }
 
 .time-slider {
-  background-color: white;
-  border: solid 1px;
-  border-color: #ccc;
-  border-radius: 4px;
   margin: 0rem 0px auto 0px;
 }
 
 .scale-slider {
-  background-color: white;
   margin: 0rem 0px auto 0px;
 }
 
 .heading {
+  font-weight: bold;
   text-align: left;
-  color: black;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 .subheading {
-  font-size: 0.8rem;
   text-align: left;
-  color: black;
-  margin: 0.75rem 0 0rem 0.5rem;
+  margin: 0 0 0rem 0.5rem;
 }
 
 .checkbox {
   font-size: 0.8rem;
   margin-top: 0.25rem;
-  margin-left: auto;
   margin-right: 0.5rem;
+  margin-left: 1rem;
 }
 
 .description {
-  text-align: center;
   margin-top: 0rem;
   padding: 0rem 0.25rem;
-  font-size: 0.8rem;
-  color: #555;
 }
 
 .hide-button {
@@ -1404,17 +1374,16 @@ h4 {
 }
 
 .left-panel {
-  grid-column: 1 / 3;
-  grid-row: 1 / 3;
+  z-index: 1;
+  position: absolute;
+  top: 0rem;
+  left: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  pointer-events: auto;
+  max-height: 50%;
+  max-width: 50%;
   width: 18rem;
-}
-
-.dashboard-panel {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
 }
 
 .mapboxgl-popup-content {
@@ -1425,10 +1394,6 @@ h4 {
 
 .white-box {
   padding: 0.5rem 0.25rem 0.5rem 0.25rem;
-  background-color: white;
-  border: solid 1px;
-  border-color: #ccc;
-  border-radius: 4px;
 }
 
 @media only screen and (max-width: 640px) {

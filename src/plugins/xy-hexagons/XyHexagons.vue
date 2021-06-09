@@ -22,28 +22,25 @@ de:
 </i18n>
 
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false"
-        )
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-hex-layer.anim(v-if="!thumbnail && isLoaded"
-                :center="center"
-                :data="requests"
-                :highlights="highlightedTrips"
-                :dark="isDarkMode"
-                :colorRamp="colorRamp"
-                :extrude="extrudeTowers"
-                :radius="radius"
-                :aggregations="aggregations"
-                :metric="buttonLabel"
-                :maxHeight="maxHeight"
-                :onClick="handleHexClick"
-                :selectedHexStats="hexStats")
+  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
+      :colorRamp="colorRamp"
+      :dark="globalState.isDarkMode"
+      :data="requests"
+      :extrude="extrudeTowers"
+      :highlights="highlightedTrips"
+      :maxHeight="maxHeight"
+      :metric="buttonLabel"
+      :radius="radius"
+      :selectedHexStats="hexStats"
+      :onClick="handleHexClick"
+  )
 
   .left-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="true" width="300" direction="left")
+    collapsible-panel(direction="left")
       .panel-items
-        p.big.xtitle {{ vizDetails.title }}
+        p.big {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
       .panel-items(v-if="hexStats" style="color: #c0f;")
@@ -52,7 +49,7 @@ de:
         button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") {{ $t('showDetails') }}
 
   .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(:darkMode="true" width="150" direction="right")
+    collapsible-panel(direction="right")
       .panel-items
 
         .panel-item(v-for="group in Object.keys(aggregations)" :key="group")
@@ -93,10 +90,10 @@ de:
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { mapState, mapGetters } from 'vuex'
 import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
-import readBlob from 'read-blob'
 import YAML from 'yaml'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
@@ -120,8 +117,8 @@ import {
 import XyHexLayer from './XyHexLayer'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
-import { VuePlugin } from 'vuera'
 import Coords from '@/util/Coords'
+import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
 interface Aggregations {
@@ -151,10 +148,10 @@ interface VizDetail {
   } as any,
 })
 class XyHexagons extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -176,6 +173,7 @@ class XyHexagons extends Vue {
   }
 
   private colorRamp = this.colorRamps[0]
+  private globalState = globalStore.state
 
   private vizDetails: VizDetail = {
     title: '',
@@ -188,7 +186,7 @@ class XyHexagons extends Vue {
 
   public myState = {
     statusMessage: '',
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as SVNProject | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -201,8 +199,7 @@ class XyHexagons extends Vue {
   private searchTerm: string = ''
   private searchEnabled = false
 
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
 
   private activeAggregation: string = ''
@@ -212,6 +209,23 @@ class XyHexagons extends Vue {
   // index of each selected hexagon, maps to the array of points that were aggregated into it
   // we only care about this during multi-select.
   private multiSelectedHexagons: { [index: string]: any[] } = {}
+
+  private get mapProps() {
+    return {
+      colorRamp: this.colorRamp,
+      coverage: 0.65,
+      dark: this.isDarkMode,
+      data: this.requests,
+      extrude: this.extrudeTowers,
+      highlights: this.highlightedTrips,
+      maxHeight: this.maxHeight,
+      metric: this.buttonLabel,
+      radius: this.radius,
+      upperPercentile: 100,
+      selectedHexStats: this.hexStats,
+      // onClick: handleHexClick
+    }
+  }
 
   private handleHexClick(pickedObject: any, event: any) {
     if (!event.srcEvent.shiftKey) {
@@ -308,26 +322,11 @@ class XyHexagons extends Vue {
     this.colorRamp = this.colorRamps[number]
   }
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
     this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
+    // console.log('built it', this.myState.fileApi)
   }
 
   private generateBreadcrumbs() {
@@ -358,7 +357,7 @@ class XyHexagons extends Vue {
     })
 
     // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
+    this.$store.commit('setBreadCrumbs', crumbs)
 
     return crumbs
   }
@@ -369,7 +368,7 @@ class XyHexagons extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -378,6 +377,8 @@ class XyHexagons extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
+
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -388,7 +389,7 @@ class XyHexagons extends Vue {
       console.log('failed')
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+        this.$store.commit('requestLogin', this.myState.fileSystem.url)
       } else {
         this.$store.commit('setStatus', {
           type: Status.WARNING,
@@ -401,12 +402,13 @@ class XyHexagons extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
           this.myState.subfolder + '/' + this.vizDetails.thumbnail
         )
-        const buffer = await readBlob.arraybuffer(blob)
+        const buffer = await blob.arrayBuffer()
         const base64 = this.arrayBufferToBase64(buffer)
         if (base64)
           this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
@@ -416,14 +418,13 @@ class XyHexagons extends Vue {
     }
   }
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
+  // this is required to force Deck.gl to redraw when camera moves.
+  @Watch('$store.state.viewState') private updateMapView() {
+    this.$forceUpdate()
   }
 
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  @Watch('$store.state.colorScheme') private swapTheme() {
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -447,10 +448,10 @@ class XyHexagons extends Vue {
       bg: '#181518aa',
     }
 
-    return this.globalState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
 
-  private center = [0, 0]
+  private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
 
   private handleShowSelectionButton() {
     const arrays = Object.values(this.multiSelectedHexagons)
@@ -508,9 +509,10 @@ class XyHexagons extends Vue {
   }
 
   private async mounted() {
-    globalStore.commit('setFullScreen', !this.thumbnail)
+    // console.log('XY MOUNTED')
+    this.$store.commit('setFullScreen', !this.thumbnail)
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
+    this.buildFileApi()
     await this.getVizDetails()
 
     if (this.thumbnail) return
@@ -519,7 +521,7 @@ class XyHexagons extends Vue {
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    console.log('loading files')
+    // console.log('loading files')
     const { dataArray } = await this.loadFiles()
     this.rawRequests = dataArray
 
@@ -527,10 +529,11 @@ class XyHexagons extends Vue {
 
     await this.reprojectCoordinates()
 
-    this.center = this.findCenter(this.rawRequests)
+    this.mapState.center = this.findCenter(this.rawRequests)
+
+    this.buildThumbnail()
 
     this.isLoaded = true
-    this.buildThumbnail()
 
     this.myState.statusMessage = `${this.$i18n.t('sorting')}`
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // origins
@@ -542,10 +545,10 @@ class XyHexagons extends Vue {
     const aggs = {} as any
     for (const heading of Object.keys(this.vizDetails.aggregations)) {
       const agg = this.vizDetails.aggregations[heading]
-      console.log(agg)
+      // console.log(agg)
       for (const xy of agg) aggs[xy.title] = [xy.x, xy.y]
     }
-    console.log({ aggs })
+    // console.log({ aggs })
     return aggs
   }
 
@@ -582,7 +585,6 @@ class XyHexagons extends Vue {
   }
 
   private beforeDestroy() {
-    globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }
 
@@ -590,6 +592,7 @@ class XyHexagons extends Vue {
 
   private async loadFiles() {
     let dataArray: any = []
+    if (!this.myState.fileApi) return { dataArray }
 
     try {
       let text = ''
@@ -647,15 +650,13 @@ export default XyHexagons
 
 .xy-hexagons {
   display: grid;
-  pointer-events: none;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
+  background: url('assets/thumbnail.jpg') center / cover no-repeat;
   grid-template-columns: auto 1fr min-content;
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    'leftside    .        .'
-    '.     .        .'
+    'leftside    .  rightside'
+    '.     .        rightside'
     '.           .  rightside';
 }
 
@@ -667,15 +668,14 @@ export default XyHexagons
   z-index: 5;
   grid-column: 1 / 4;
   grid-row: 1 / 4;
+  box-shadow: 0px 2px 10px #22222266;
   display: flex;
   flex-direction: row;
-  margin: auto auto;
-  background-color: #00000080;
-  // border: 1px solid $matsimBlue;
-  padding: 0.25rem 3rem;
+  margin: auto auto 0 0;
+  background-color: var(--bgPanel);
+  padding: 0rem 3rem;
 
   a {
-    font-weight: bold;
     color: white;
     text-decoration: none;
 
@@ -686,8 +686,9 @@ export default XyHexagons
 
   p {
     margin: auto 0.5rem auto 0;
+    font-weight: normal;
     padding: 0 0;
-    color: white;
+    color: var(--textFancy);
   }
 }
 
@@ -716,20 +717,18 @@ export default XyHexagons
 .big {
   padding: 0rem 0;
   // margin-top: 1rem;
-  font-size: 2rem;
-  line-height: 3.75rem;
+  font-size: 1.5rem;
+  line-height: 1.7rem;
   font-weight: bold;
 }
 
 .left-side {
   grid-area: leftside;
-  // background-color: var(--bgPanel);
-  // box-shadow: 0px 2px 10px #22222266;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: 2rem 0 3rem 0;
+  margin: 0 0 0 0;
 }
 
 .right-side {
@@ -738,7 +737,8 @@ export default XyHexagons
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin-bottom: 3rem;
+  margin-top: auto;
+  // margin-bottom: 3rem;
 }
 
 .playback-stuff {
@@ -764,11 +764,9 @@ export default XyHexagons
   margin: 1.5rem 0rem 0 0;
 }
 
-.anim {
-  background-color: #181919;
-  z-index: -1;
-  grid-column: 1 / 3;
-  grid-row: 1 / 7;
+.hex-layer {
+  grid-column: 1 / 4;
+  grid-row: 1 / 4;
   pointer-events: auto;
 }
 

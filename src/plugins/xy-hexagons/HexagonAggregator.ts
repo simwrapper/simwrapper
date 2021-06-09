@@ -41,7 +41,11 @@ export function pointToHexbin(props: any, aggregationParams: any) {
   const { data, radius, center } = props
   const { viewport, attributes } = aggregationParams
   // get hexagon radius in mercator world unit
-  const centerLngLat = data.length ? getPointsCenter(data, aggregationParams, center) : null
+  // HACK BILLY: don't bother with calculating the center! It messes everything
+  // up when we move the map.
+  // The hexagons should stay static regardless of the camera position.
+  // // const centerLngLat = data.length ? getPointsCenter(data, aggregationParams, center) : null
+  const centerLngLat = data.length ? [14, 52] : null
   const radiusCommon = getRadiusInCommon(radius, viewport, centerLngLat)
 
   // add world space coordinates to points

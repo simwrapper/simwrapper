@@ -1,34 +1,32 @@
 <template lang="pug">
-#main-app(:class="{'full-page-app' : state.isFullScreen, 'dark-mode': isDarkMode}" )
+#main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
-  .app-nav
-    .top-bar.full-page-app
-      nav.top-link
-        router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
-          :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
-            p {{ link.name }}
+  //- .app-nav
+  //-   .top-bar.full-page-app
+  //-     nav.top-link
+  //-       router-link(to="/"): p {{ state.app }}
 
-        .right-side
-          .locale(@click="toggleTheme")
-            i.fa.fa-1x.fa-adjust
-            br
-            span {{ $t(state.colorScheme) }}
+  //-       //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
+  //-       //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
+  //-       //-     p {{ link.name }}
 
-          .locale(@click="toggleLocale")
-            i.fa.fa-1x.fa-globe
-            br
-            span {{ state.locale }}
+  //-       .right-side
+  //-         //- .top-action-button()
+  //-         //-   i.fa.fa-1x.fa-share
+  //-         //-   br
+  //-         //-   span {{ $t('share') }}
 
-    .breadcrumb-container(v-if="state.breadcrumbs.length")
-      .breadcrumb.has-bullet-separator.is-centered(aria-label="breadcrumbs")
-        ul
-          li(v-for="crumb,i in state.breadcrumbs"
-          )
-            router-link(v-if="i < state.breadcrumbs.length-1"
-                        :to="crumb.url") {{ crumb.label }}
-            a.no-breadcrumb-link(v-else) {{ crumb.label }}
+  //-         .top-action-button(@click="toggleLocale")
+  //-           i.fa.fa-1x.fa-globe
+  //-           br
+  //-           span {{ state.locale }}
 
-  .center-area.nav-padding
+  //-         .top-action-button(@click="toggleTheme")
+  //-           i.fa.fa-1x.fa-adjust
+  //-           br
+  //-           span {{ $t(state.colorScheme) }}
+
+  .center-area
     login-panel.login-panel
     router-view.main-content
 
@@ -44,9 +42,11 @@
 en:
   light: 'light'
   dark: 'dark'
+  share: 'share'
 de:
   light: 'hell'
   dark: 'dark'
+  share: 'freigeben'
 </i18n>
 
 <script lang="ts">
@@ -85,25 +85,17 @@ class App extends Vue {
       ? ColorScheme.DarkMode
       : ColorScheme.LightMode
 
-    if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
+    if (theme === ColorScheme.DarkMode) this.$store.commit('rotateColors')
 
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
-    // // locale: we only support EN and DE
-    // const locale = localStorage.getItem('locale')
-    //   ? '' + localStorage.getItem('locale')
-    //   : // @ts-ignore
-    //   (navigator.language || navigator.userLanguage).startsWith('de')
-    //   ? 'de'
-    //   : 'en'
-
-    // this.$store.commit('setLocale', locale)
+    this.toggleFullScreen(true)
   }
 
   private get topNavLinks() {
     // {name, description, need_password, svn, thumbnail, url }
     // a '/' will be prepended
-    const home: any[] = [{ name: 'aftersim', url: '' }]
+    const home: any[] = [{ name: 'scout', url: '' }]
     const topLinks = home.concat(this.state.svnProjects)
 
     return topLinks
@@ -157,11 +149,20 @@ html {
 
 body,
 html {
-  // font-size: 16px;
+  font-family: $mainFont;
   margin: 0px 0px;
   padding: 0px 0px;
   height: 100%;
   overscroll-behavior: contain;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: $mainFont;
 }
 
 html {
@@ -184,7 +185,7 @@ canvas {
   max-width: $sizeVessel;
   transition: padding 0.2s ease-in-out, max-width 0.3s ease-in-out;
   // box-shadow: 0px 6px 10px #00000048;
-  z-index: 0;
+  z-index: 5;
 }
 
 .top-bar.full-page-app {
@@ -236,14 +237,8 @@ canvas {
 }
 
 .top-link p {
-  color: #e0e0e0;
   cursor: pointer;
   padding: 1rem 0.75rem;
-}
-
-.top-link p:hover {
-  background-color: $matsimBlue;
-  color: white;
 }
 
 .selected p {
@@ -252,15 +247,6 @@ canvas {
 
 .bury-me {
   z-index: -5;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: $mainFont;
 }
 
 h2 {
@@ -277,7 +263,6 @@ h3 {
   display: grid;
   color: var(--text);
   background-color: var(--bgCream);
-  font-family: $mainFont;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
@@ -300,24 +285,22 @@ a:hover {
 }
 
 .login-panel {
-  z-index: 12000;
+  z-index: 500;
 }
 
 .app-nav {
-  position: sticky;
-  top: 0;
-  background-color: $steelGray;
+  padding: 0 1rem;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
-  z-index: 10000;
+  z-index: 5;
   display: flex;
   flex-direction: column;
-  box-shadow: 0px 6px 10px #00000033;
+  // border-bottom: 1px solid var(--bgCream3);
 }
 
 .app-nav a.router-link-exact-active {
   font-weight: bold;
-  color: #00ffff;
+  // color: #00ffff;
 }
 
 .main-content {
@@ -335,9 +318,10 @@ a:hover {
 .center-area {
   grid-column: 1 / 2;
   grid-row: 2 / 4;
-  z-index: 1;
+  z-index: 0;
   display: flex;
   flex-direction: row;
+  position: relative;
 }
 
 .nav-sidebar {
@@ -411,26 +395,25 @@ a:hover {
   margin-left: auto;
 }
 
-.locale {
+.top-action-button {
   -moz-user-select: none;
   -webkit-user-select: none;
   user-select: none;
-  font-size: 0.7rem;
-  background-color: $steelGray;
-  color: #ccc;
-  margin: auto 0 auto 0.5rem;
+  font-size: 0.65rem;
+  margin: auto 0 auto 1.5rem;
   padding: 2px 0px;
   width: 1.5rem;
   text-align: center;
+  // color: var(--bgLink);
 }
 
-.locale:hover {
+.top-action-button:hover {
   cursor: pointer;
-  background-color: #222255;
-  color: #ffe;
+  // background-color: #222255;
+  color: var(--linkHover);
 }
 
-.locale:active {
+.top-action-button:active {
   border: 1px solid #aaa;
   transform: translateY(1px);
 }
@@ -469,11 +452,15 @@ a:hover {
 }
 
 a.mapboxgl-ctrl-logo {
-  filter: opacity(70%);
+  filter: opacity(50%);
+  margin-left: -0.5rem;
 }
 
 .mapboxgl-ctrl-bottom-right {
   filter: opacity(70%);
+  right: unset;
+  left: 7rem;
+  bottom: 0.5rem;
 }
 
 .mapboxgl-popup-content {
@@ -495,6 +482,33 @@ a.mapboxgl-ctrl-logo {
 }
 .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
   border-left-color: var(--bgCream4);
+}
+.mapboxgl-ctrl.mapboxgl-ctrl-attrib {
+  background-color: var(--bgCream);
+  a {
+    color: var(--textPale);
+  }
+}
+
+// SCROLLBARS
+/* width */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #00000000;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #88888844;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #88888888;
 }
 
 @media only screen and (max-width: 640px) {

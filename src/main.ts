@@ -7,11 +7,15 @@ import Buefy from 'buefy'
 import locale from '@/localeSettings'
 import store from '@/store'
 import router from '@/router'
+
 import App from '@/App.vue'
 
 store.commit('setLocale', locale)
 
 Vue.use(VueI18n)
+
+import { VuePlugin } from 'vuera'
+Vue.use(VuePlugin)
 
 Vue.use(Buefy, {
   defaultIconPack: 'mdi',

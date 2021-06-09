@@ -1,6 +1,5 @@
 import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
-import HomeIndex from '@/views/HomeIndex.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 
 import globalStore from '@/store'
@@ -9,9 +8,16 @@ Vue.use(VueRouter)
 
 const routes = [
   {
-    path: '/',
-    name: 'Home',
-    component: HomeIndex,
+    path: '/sql',
+    component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
+  },
+  // {
+  //   path: '/sqlite',
+  //   component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThingTwo.vue'),
+  // },
+  {
+    path: '/*',
+    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page
@@ -20,20 +26,24 @@ const routes = [
   },
 ]
 
-function projects(): any[] {
+function projects(): RouteConfig[] {
   const projectRoutes = []
   for (const source of globalStore.state.svnProjects) {
-    // project page
-    projectRoutes.push({
-      path: '/' + source.url,
-      name: source.url,
-      component: FolderBrowser,
-    })
+    // // project page
+    // projectRoutes.push({
+    //   path: '/' + source.url,
+    //   name: source.url,
+    //   component: FolderBrowser,
+    // })
     // run folder pages
     projectRoutes.push({
-      path: '/' + source.url + '/*',
+      path: '/' + source.url + '*',
       name: source.url,
       component: FolderBrowser,
+      props: (route: Route) => ({
+        root: source.url,
+        xsubfolder: route.path.substring(source.url.length + 2),
+      }),
     })
   }
 
@@ -51,6 +61,7 @@ function vizPlugins(): any[] {
       props: (route: Route) => {
         return {
           project: route.params.project,
+          root: route.params.project,
         }
       },
     })

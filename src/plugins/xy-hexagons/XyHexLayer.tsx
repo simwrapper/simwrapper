@@ -1,29 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import { InteractiveMap } from 'react-map-gl'
+import { StaticMap, InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
 import HexagonLayer from './SelectableHexLayer'
 import colormap from 'colormap'
 
-import { MAP_STYLES } from '@/Globals'
+import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
-
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
+import globalStore from '@/store'
 
 const material = {
   ambient: 0.64,
   diffuse: 0.6,
   shininess: 32,
   specularColor: [51, 51, 51],
-}
-
-const INITIAL_VIEW_STATE = {
-  zoom: 10,
-  minZoom: 3,
-  maxZoom: 20,
-  pitch: 20,
-  bearing: 0,
 }
 
 export default function Layer({
@@ -35,14 +25,14 @@ export default function Layer({
   coverage = 0.65,
   extrude = true,
   maxHeight = 200,
-  center = [11.34, 48.3],
   onClick = {} as any,
   colorRamp = 'chlorophyll',
   metric = 'Count',
   selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
 }) {
-  const [lon, lat] = center
-  const initialView = Object.assign(INITIAL_VIEW_STATE, { longitude: lon, latitude: lat })
+  // draw begins here
+
+  const viewState = globalStore.state.viewState
 
   const colors = colormap({
     colormap: colorRamp,
@@ -67,6 +57,9 @@ export default function Layer({
         Number.isFinite(lng) ? lng.toFixed(4) : ''
       }
       `,
+      style: dark
+        ? { color: '#ccc', backgroundColor: '#2a3c4f' }
+        : { color: '#223', backgroundColor: 'white' },
     }
   }
 
@@ -99,7 +92,7 @@ export default function Layer({
       selectedHexStats,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
-      center,
+      center: [viewState.longitude, viewState.latitude],
       pickable: true,
       opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
@@ -113,20 +106,20 @@ export default function Layer({
   ]
 
   return (
-    /*
-    //@ts-ignore */
     <DeckGL
       layers={layers}
-      // effects={[lightingEffect]}
-      initialViewState={initialView}
+      viewState={viewState}
       controller={true}
       getTooltip={getTooltip}
       onClick={handleClick}
+      onViewStateChange={(e: any) => {
+        globalStore.commit('setMapCamera', e.viewState)
+      }}
     >
       {
         /*
         // @ts-ignore */
-        <InteractiveMap
+        <StaticMap
           reuseMaps
           mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
           preventStyleDiffing={true}

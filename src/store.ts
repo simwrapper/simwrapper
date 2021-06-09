@@ -1,44 +1,86 @@
 import Vue from 'vue'
-import Vuex from 'vuex'
-
-import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
-import svnConfig from '@/svnConfig'
+import Vuex, { Store } from 'vuex'
 
 Vue.use(Vuex)
 
+import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
+import svnConfig from '@/svnConfig'
+import { debounce } from '@/util/debounce'
+
+// ----------------------------------------
+
+const initialViewState = () => ({
+  // start with berlin for now
+  longitude: 13.4,
+  latitude: 52.5,
+  zoom: 10,
+  pitch: 0,
+  bearing: 0,
+})
+
+const setDelayedViewState = debounce((state: any, v: any) => {
+  state.viewState = v
+}, 50) // 20 fps
+
 interface GlobalState {
-  debug: boolean
+  app: string
   authAttempts: number
   breadcrumbs: BreadCrumb[]
   credentials: { [url: string]: string }
+  colorScheme: string
+  debug: boolean
   isFullScreen: boolean
+  isDarkMode: boolean
+  locale: string
   needLoginForUrl: string
+  resizeEvents: number
+  runFolders: { [root: string]: { folder: string }[] }
+  runFolderCount: number
   statusErrors: string[]
   statusMessage: string
-  svnProjects: any
+  svnProjects: any[]
   visualizationTypes: Map<string, VisualizationPlugin>
-  colorScheme: string
-  locale: string
+
+  mapLoaded: boolean
+  viewState: {
+    longitude: number
+    latitude: number
+    zoom: number
+    pitch: number
+    bearing: number
+  }
 }
 
 export default new Vuex.Store({
   state: {
-    debug: true,
+    app: 'aftersim', //  / SIMdex / afterSim / Scout', // 'S • C • O • U • T',
+    debug: false,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
+    isDarkMode: false,
     needLoginForUrl: '',
     statusErrors: [] as string[],
     statusMessage: 'Loading',
     svnProjects: svnConfig.projects,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
-    colorScheme: ColorScheme.DarkMode,
+    colorScheme: ColorScheme.LightMode,
     locale: 'en',
+    runFolders: {},
+    runFolderCount: 0,
+    resizeEvents: 0,
+    viewState: initialViewState(),
   } as GlobalState,
 
-  getters: {},
   mutations: {
+    updateRunFolders(
+      state: GlobalState,
+      value: { number: number; folders: { [root: string]: { folder: string }[] } }
+    ) {
+      state.runFolderCount = value.number
+      state.runFolders = value.folders
+    },
     requestLogin(state: GlobalState, value: string) {
       state.needLoginForUrl = value
     },
@@ -56,6 +98,25 @@ export default new Vuex.Store({
     },
     setFullScreen(state: GlobalState, value: boolean) {
       state.isFullScreen = value
+    },
+    setMapCamera(
+      state: GlobalState,
+      value: {
+        longitude: number
+        latitude: number
+        bearing: number
+        pitch: number
+        zoom: number
+        center?: number[]
+      }
+    ) {
+      // // setDelayedViewState(state, ...)
+      // const updatedMap = Object.assign({}, value)
+      // if (value.center) {
+      //   updatedMap.longitude = value.center[0]
+      //   updatedMap.latitude = value.center[1]
+      // }
+      state.viewState = value
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {
@@ -78,9 +139,14 @@ export default new Vuex.Store({
     clearAllErrors(state: GlobalState) {
       state.statusErrors = []
     },
+    resize(state: GlobalState) {
+      state.resizeEvents += 1
+    },
     rotateColors(state: GlobalState) {
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
+
+      state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
       console.log('NEW COLORS:', state.colorScheme)
 
@@ -95,6 +161,8 @@ export default new Vuex.Store({
       console.log('NEW LOCALE:', state.locale)
     },
   },
+
   actions: {},
   modules: {},
+  getters: {},
 })
