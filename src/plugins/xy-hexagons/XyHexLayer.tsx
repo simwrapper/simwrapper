@@ -16,6 +16,14 @@ const material = {
   specularColor: [51, 51, 51],
 }
 
+const INITIAL_VIEW = {
+  zoom: 10,
+  longitude: 13.45,
+  latitude: 52.5,
+  pitch: 0,
+  bearing: 0,
+}
+
 export default function Layer({
   data = [],
   highlights = [],
@@ -32,7 +40,7 @@ export default function Layer({
 }) {
   // draw begins here
 
-  const viewState = globalStore.state.viewState
+  const initialViewState = Object.assign({}, INITIAL_VIEW)
 
   const colors = colormap({
     colormap: colorRamp,
@@ -92,7 +100,7 @@ export default function Layer({
       selectedHexStats,
       getPosition: (d: any) => d,
       hexagonAggregator: pointToHexbin,
-      center: [viewState.longitude, viewState.latitude],
+      center: [initialViewState.longitude, initialViewState.latitude],
       pickable: true,
       opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
       radius,
@@ -108,7 +116,7 @@ export default function Layer({
   return (
     <DeckGL
       layers={layers}
-      viewState={viewState}
+      initialViewState={initialViewState}
       controller={true}
       getTooltip={getTooltip}
       onClick={handleClick}

@@ -24,18 +24,21 @@ de:
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
-      :colorRamp="colorRamp"
-      :dark="globalState.isDarkMode"
-      :data="requests"
-      :extrude="extrudeTowers"
-      :highlights="highlightedTrips"
-      :maxHeight="maxHeight"
-      :metric="buttonLabel"
-      :radius="radius"
-      :selectedHexStats="hexStats"
-      :onClick="handleHexClick"
-  )
+
+  xy-hex-deck-map.hex-layer(v-if="!thumbnail && isLoaded" :props="mapProps")
+
+  //- xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
+  //-     :colorRamp="colorRamp"
+  //-     :dark="globalState.isDarkMode"
+  //-     :data="requests"
+  //-     :extrude="extrudeTowers"
+  //-     :highlights="highlightedTrips"
+  //-     :maxHeight="maxHeight"
+  //-     :metric="buttonLabel"
+  //-     :radius="radius"
+  //-     :selectedHexStats="hexStats"
+  //-     :onClick="handleHexClick"
+  //- )
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left")
@@ -97,6 +100,7 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
+import _ from 'underscore'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
@@ -114,7 +118,8 @@ import {
   Status,
 } from '@/Globals'
 
-import XyHexLayer from './XyHexLayer'
+// import XyHexLayer from './XyHexLayer'
+import XyHexDeckMap from './XyHexDeckMap.vue'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import Coords from '@/util/Coords'
@@ -142,7 +147,8 @@ interface VizDetail {
 @Component({
   components: {
     CollapsiblePanel,
-    XyHexLayer,
+    // XyHexLayer,
+    XyHexDeckMap,
     VueSlider,
     ToggleButton,
   } as any,
@@ -311,14 +317,16 @@ class XyHexagons extends Vue {
     this.hexStats = null
     this.multiSelectedHexagons = {}
 
-    const xy = this.aggregations[groupName][number]
+    const xytitle = this.aggregations[groupName][number]
+    const x = this.columnLookup.indexOf(xytitle.x)
+    const y = this.columnLookup.indexOf(xytitle.y)
 
     this.highlightedTrips = []
     this.activeAggregation = `${groupName}ğ${number}`
 
     // get element offsets in data array
     // const col = this.aggregations[item]
-    this.requests = this.rawRequests.map(r => [r[xy.x], r[xy.y]]).filter(z => z[0] && z[1])
+    this.requests = this.rawRequests.map(r => [r[x], r[y]]).filter(z => z[0] && z[1])
     this.colorRamp = this.colorRamps[number]
   }
 
@@ -419,9 +427,9 @@ class XyHexagons extends Vue {
   }
 
   // this is required to force Deck.gl to redraw when camera moves.
-  @Watch('$store.state.viewState') private updateMapView() {
-    this.$forceUpdate()
-  }
+  // @Watch('$store.state.viewState') private updateMapView() {
+  //   this.$forceUpdate()
+  // }
 
   @Watch('$store.state.colorScheme') private swapTheme() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
@@ -486,8 +494,9 @@ class XyHexagons extends Vue {
     let prop = '' // get first property only
     for (prop in this.aggregations) break
 
-    const xcol = this.aggregations[prop][0].x
-    const ycol = this.aggregations[prop][0].y
+    const xytitle = this.aggregations[prop][0]
+    const xcol = this.columnLookup.indexOf(xytitle.x)
+    const ycol = this.columnLookup.indexOf(xytitle.y)
 
     let x = 0
     let y = 0
@@ -509,7 +518,6 @@ class XyHexagons extends Vue {
   }
 
   private async mounted() {
-    // console.log('XY MOUNTED')
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.buildFileApi()
@@ -564,8 +572,8 @@ class XyHexagons extends Vue {
     this.myState.statusMessage = 'Reprojecting...'
     for (const aggregation of Object.keys(this.aggregations)) {
       for (const element of this.aggregations[aggregation]) {
-        const xCol = element.x
-        const yCol = element.y
+        const xCol = this.columnLookup.indexOf(element.x)
+        const yCol = this.columnLookup.indexOf(element.y)
 
         // don't reproject previously reprojected columns
         if (projectedAlready.has(xCol) || projectedAlready.has(yCol)) continue
@@ -589,6 +597,7 @@ class XyHexagons extends Vue {
   }
 
   private aggregations: Aggregations = {}
+  private columnLookup: string[] = []
 
   private async loadFiles() {
     let dataArray: any = []
@@ -600,6 +609,7 @@ class XyHexagons extends Vue {
 
       // first, ungzip if we need to
       if (this.vizDetails.file.endsWith('gz')) {
+        console.log('XyHexagons: gunzip')
         const blob = await this.myState.fileApi.getFileBlob(filename)
         const blobString = blob ? await blobToBinaryString(blob) : null
         text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
@@ -607,18 +617,37 @@ class XyHexagons extends Vue {
         text = await this.myState.fileApi.getFileText(filename)
       }
 
+      console.log('XyHexagons: finished gunzip')
+
+      // only save the relevant columns to save memory and not die
+      const relevantColumns: string[] = []
+      for (const group of Object.keys(this.vizDetails.aggregations)) {
+        const aggregations = this.vizDetails.aggregations[group]
+        for (const agg of aggregations) {
+          relevantColumns.push(...[agg.x, agg.y])
+        }
+      }
+      console.log('XyHexagons: ', relevantColumns)
+      this.columnLookup = relevantColumns
+
       if (this.vizDetails.file.indexOf('.json') > -1 && this.vizDetails.elements) {
         const json = await coroutines.parseAsync(text)
         dataArray = json[this.vizDetails.elements]
       } else {
         // 'papa-parsing'
         // if it's not JSON, let's assume it's csv/tsv/xsv and let papaparse figure it out
+        console.log('XyHexagons: starting papaparse')
         const csv = Papaparse.parse(text, {
           header: true,
+          delimiter: ';',
           skipEmptyLines: true,
           dynamicTyping: true,
+          step: (results, parser) => {
+            const z = _.pick(results.data, ...relevantColumns)
+            dataArray.push(Object.values(z))
+            return results
+          },
         })
-        dataArray = csv.data
       }
     } catch (e) {
       console.error(e)
@@ -628,6 +657,7 @@ class XyHexagons extends Vue {
         msg: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
       })
     }
+    console.log('XyHexagons:', dataArray.length, 'records')
     return { dataArray }
   }
 }
