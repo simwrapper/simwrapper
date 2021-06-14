@@ -1,4 +1,5 @@
 const path = require('path')
+const ThreadsPlugin = require('threads-plugin')
 
 module.exports = {
   publicPath: '/',
@@ -23,6 +24,7 @@ module.exports = {
       .end()
   },
   configureWebpack: {
+    plugins: [new ThreadsPlugin()],
     module: {
       rules: [
         {
@@ -62,6 +64,11 @@ module.exports = {
           include: path.resolve(__dirname, 'src'),
           use: [{ loader: 'worker-loader' }, { loader: 'ts-loader' }],
         },
+        // {
+        //   test: /\.werker\.ts$/,
+        //   include: path.resolve(__dirname, 'src'),
+        //   use: [{ loader: 'thread-loader' }, { loader: 'ts-loader' }],
+        // },
       ],
     },
   },

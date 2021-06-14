@@ -25,7 +25,11 @@ de:
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
 
-  xy-hex-deck-map.hex-layer(v-if="!thumbnail && isLoaded" :props="mapProps")
+  xy-hex-deck-map.hex-layer(
+    v-if="!thumbnail && isLoaded"
+    :props="mapProps"
+    @hexClick="handleHexClick"
+  )
 
   //- xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
   //-     :colorRamp="colorRamp"
@@ -61,7 +65,7 @@ de:
             button.button.is-small.aggregation-button(
               v-for="element,i in aggregations[group]"
               :key="i"
-              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : $store.state.isDarkMode ? '#333':'white'}"
               @click="handleOrigDest(group,i)") {{ element.title }}
 
         .panel-item
@@ -93,18 +97,15 @@ de:
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import { mapState, mapGetters } from 'vuex'
-import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
-import * as coroutines from 'js-coroutines'
-import _ from 'underscore'
+import { spawn, Worker, Thread, ModuleThread } from 'threads'
 
+import util from '@/util/util'
 import globalStore from '@/store'
-import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+import { CSVParser } from './CsvGzipParser.werker'
 
 import {
   ColorScheme,
@@ -113,18 +114,12 @@ import {
   LegendItemType,
   SVNProject,
   VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
   Status,
 } from '@/Globals'
 
 // import XyHexLayer from './XyHexLayer'
 import XyHexDeckMap from './XyHexDeckMap.vue'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-
-import Coords from '@/util/Coords'
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
 
 interface Aggregations {
   [heading: string]: {
@@ -199,13 +194,20 @@ class XyHexagons extends Vue {
     thumbnail: this.thumbnail,
   }
 
-  private requests: any[] = []
+  private rowCache: {
+    [id: string]: { raw: Float32Array; length: number; coordColumns: string[] }
+  } = {}
+
+  private requests: { raw: Float32Array; length: number } = {
+    raw: new Float32Array(0),
+    length: 0,
+  }
+
   private highlightedTrips: any[] = []
 
   private searchTerm: string = ''
   private searchEnabled = false
 
-  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isLoaded = false
 
   private activeAggregation: string = ''
@@ -220,7 +222,7 @@ class XyHexagons extends Vue {
     return {
       colorRamp: this.colorRamp,
       coverage: 0.65,
-      dark: this.isDarkMode,
+      dark: this.$store.state.isDarkMode,
       data: this.requests,
       extrude: this.extrudeTowers,
       highlights: this.highlightedTrips,
@@ -229,11 +231,12 @@ class XyHexagons extends Vue {
       radius: this.radius,
       upperPercentile: 100,
       selectedHexStats: this.hexStats,
-      // onClick: handleHexClick
     }
   }
 
   private handleHexClick(pickedObject: any, event: any) {
+    console.log({ pickedObject, event })
+
     if (!event.srcEvent.shiftKey) {
       this.multiSelectedHexagons = {}
       this.hexStats = null
@@ -254,6 +257,9 @@ class XyHexagons extends Vue {
   }
 
   private flipViewToShowInversedData(pickedObject: any) {
+    console.log({ pickedObject })
+    const pickedCoordinate = pickedObject.coordinate
+
     if (this.isHighlightingZone) {
       // force highlight off if user clicked on a second hex
       this.isHighlightingZone = false
@@ -267,6 +273,7 @@ class XyHexagons extends Vue {
     const parts = this.activeAggregation.split('ğ') // an unlikely unicode
     let whichButton = 0
     let offset = 0
+    const filteredRows: any = []
 
     // set up the hexagons
     if (!this.isHighlightingZone) {
@@ -281,15 +288,18 @@ class XyHexagons extends Vue {
 
       const element = this.aggregations[parts[0]][whichButton]
 
-      const filteredRows: any = []
       for (const row of pickedObject.object.points) {
-        const points = this.rawRequests[row.index]
-        filteredRows.push([points[element.x], points[element.y]])
+        const zoffset = row.index * 2
+        const coords = [this.requests.raw[zoffset], this.requests.raw[zoffset + 1]]
+        // const arc = [coords, pickedCoordinate]
+        // console.log(arc)
+        filteredRows.push(coords)
       }
+
       if (this.hexStats) this.hexStats.selectedHexagonIds = []
       this.multiSelectedHexagons = {}
 
-      this.requests = filteredRows
+      // this.requests = filteredRows
 
       this.colorRamp = this.colorRamps[whichButton]
     }
@@ -303,30 +313,37 @@ class XyHexagons extends Vue {
       const colTo = this.aggregations[parts[0]][whichButton]
 
       for (const row of pickedObject.object.points) {
-        const points = this.rawRequests[row.index]
-        arcFilteredRows.push([
-          [points[colFrom.x], points[colFrom.y]],
-          [points[colTo.x], points[colTo.y]],
-        ])
+        const points = this.requests.raw[row.index]
+        // arcFilteredRows.push([
+        //   [points[colFrom.x], points[colFrom.y]],
+        //   [points[colTo.x], points[colTo.y]],
+        // ])
       }
       this.highlightedTrips = arcFilteredRows
     }
+    this.requests = filteredRows
   }
 
   private async handleOrigDest(groupName: string, number: number) {
+    const cacheKey = groupName + number
+
     this.hexStats = null
     this.multiSelectedHexagons = {}
 
-    const xytitle = this.aggregations[groupName][number]
-    const x = this.columnLookup.indexOf(xytitle.x)
-    const y = this.columnLookup.indexOf(xytitle.y)
+    // const xytitle = this.aggregations[groupName][number]
+    // const x = this.columnLookup.indexOf(xytitle.x)
+    // const y = this.columnLookup.indexOf(xytitle.y)
 
     this.highlightedTrips = []
     this.activeAggregation = `${groupName}ğ${number}`
 
     // get element offsets in data array
     // const col = this.aggregations[item]
-    this.requests = this.rawRequests.map(r => [r[x], r[y]]).filter(z => z[0] && z[1])
+    // this.whichCoords = { x, y }
+
+    // this.requests = this.rawRequests.map(r => [r[x], r[y]]).filter(z => z[0] && z[1])
+    // this.requests = this.rawRequests
+    this.requests = this.rowCache[cacheKey]
     this.colorRamp = this.colorRamps[number]
   }
 
@@ -417,7 +434,7 @@ class XyHexagons extends Vue {
           this.myState.subfolder + '/' + this.vizDetails.thumbnail
         )
         const buffer = await blob.arrayBuffer()
-        const base64 = this.arrayBufferToBase64(buffer)
+        const base64 = util.arrayBufferToBase64(buffer)
         if (base64)
           this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
       } catch (e) {
@@ -426,24 +443,9 @@ class XyHexagons extends Vue {
     }
   }
 
-  // this is required to force Deck.gl to redraw when camera moves.
-  // @Watch('$store.state.viewState') private updateMapView() {
-  //   this.$forceUpdate()
+  // @Watch('$store.state.colorScheme') private swapTheme() {
+  //   this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   // }
-
-  @Watch('$store.state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-  }
-
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
 
   private get textColor() {
     const lightmode = {
@@ -458,8 +460,6 @@ class XyHexagons extends Vue {
 
     return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
   }
-
-  private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
 
   private handleShowSelectionButton() {
     const arrays = Object.values(this.multiSelectedHexagons)
@@ -529,75 +529,67 @@ class XyHexagons extends Vue {
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
+    this.aggregations = this.vizDetails.aggregations
+
     // console.log('loading files')
-    const { dataArray } = await this.loadFiles()
-    this.rawRequests = dataArray
+    await this.loadFiles()
 
-    this.aggregations = this.vizDetails.aggregations // this.parseAggregations()
-
-    await this.reprojectCoordinates()
-
-    this.mapState.center = this.findCenter(this.rawRequests)
+    // this.mapState.center = this.findCenter(this.rawRequests)
 
     this.buildThumbnail()
 
     this.isLoaded = true
-
-    this.myState.statusMessage = `${this.$i18n.t('sorting')}`
-    this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // origins
-
-    this.myState.statusMessage = ''
-  }
-
-  private parseAggregations(): { [id: string]: [any, any] } {
-    const aggs = {} as any
-    for (const heading of Object.keys(this.vizDetails.aggregations)) {
-      const agg = this.vizDetails.aggregations[heading]
-      // console.log(agg)
-      for (const xy of agg) aggs[xy.title] = [xy.x, xy.y]
-    }
-    // console.log({ aggs })
-    return aggs
-  }
-
-  private rawRequests: any[] = []
-
-  private async reprojectCoordinates() {
-    if (!this.vizDetails.projection) return
-    if (this.vizDetails.projection === 'EPSG:4326') return
-    if (this.vizDetails.projection === '4326') return
-
-    const projectedAlready = new Set()
-
-    this.myState.statusMessage = 'Reprojecting...'
-    for (const aggregation of Object.keys(this.aggregations)) {
-      for (const element of this.aggregations[aggregation]) {
-        const xCol = this.columnLookup.indexOf(element.x)
-        const yCol = this.columnLookup.indexOf(element.y)
-
-        // don't reproject previously reprojected columns
-        if (projectedAlready.has(xCol) || projectedAlready.has(yCol)) continue
-
-        await coroutines.forEachAsync(this.rawRequests, (row: any) => {
-          const wgs84 = Coords.toLngLat(this.vizDetails.projection, { x: row[xCol], y: row[yCol] })
-          row[xCol] = wgs84.x
-          row[yCol] = wgs84.y
-        })
-
-        projectedAlready.add(xCol)
-        projectedAlready.add(yCol)
-      }
-    }
-
-    this.myState.statusMessage = ''
+    this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
   }
 
   private beforeDestroy() {
+    try {
+      if (this.gzipParser) {
+        Thread.terminate(this.gzipParser)
+      }
+    } catch (e) {
+      console.warn(e)
+    }
+
     this.$store.commit('setFullScreen', false)
   }
 
   private aggregations: Aggregations = {}
   private columnLookup: string[] = []
+
+  private gzipParser!: ModuleThread
+
+  private async parseFromGzip(filename: string) {
+    if (!this.myState.fileSystem) return
+    this.myState.statusMessage = 'Loading file...'
+
+    // get the raw unzipped arraybuffer
+    this.gzipParser = await spawn<CSVParser>(new Worker('./CsvGzipParser.werker'))
+
+    const parent = this
+    await this.gzipParser
+      .startLoading(
+        filename,
+        this.myState.fileSystem,
+        this.vizDetails.aggregations,
+        this.vizDetails.projection
+      )
+      .subscribe({
+        next(msg) {
+          parent.myState.statusMessage = msg
+        },
+        async complete() {
+          const { rowCache, columnLookup } = await parent.gzipParser.results()
+          Thread.terminate(parent.gzipParser)
+
+          parent.columnLookup = columnLookup
+          parent.rowCache = rowCache
+          parent.requests = rowCache[parent.activeAggregation.replaceAll('ğ', '')]
+
+          parent.myState.statusMessage = ''
+        },
+      })
+  }
 
   private async loadFiles() {
     let dataArray: any = []
@@ -607,48 +599,13 @@ class XyHexagons extends Vue {
       let text = ''
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
 
-      // first, ungzip if we need to
       if (this.vizDetails.file.endsWith('gz')) {
-        console.log('XyHexagons: gunzip')
-        const blob = await this.myState.fileApi.getFileBlob(filename)
-        const blobString = blob ? await blobToBinaryString(blob) : null
-        text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+        // first, ungzip if we need to
+        await this.parseFromGzip(filename)
       } else {
         text = await this.myState.fileApi.getFileText(filename)
       }
-
       console.log('XyHexagons: finished gunzip')
-
-      // only save the relevant columns to save memory and not die
-      const relevantColumns: string[] = []
-      for (const group of Object.keys(this.vizDetails.aggregations)) {
-        const aggregations = this.vizDetails.aggregations[group]
-        for (const agg of aggregations) {
-          relevantColumns.push(...[agg.x, agg.y])
-        }
-      }
-      console.log('XyHexagons: ', relevantColumns)
-      this.columnLookup = relevantColumns
-
-      if (this.vizDetails.file.indexOf('.json') > -1 && this.vizDetails.elements) {
-        const json = await coroutines.parseAsync(text)
-        dataArray = json[this.vizDetails.elements]
-      } else {
-        // 'papa-parsing'
-        // if it's not JSON, let's assume it's csv/tsv/xsv and let papaparse figure it out
-        console.log('XyHexagons: starting papaparse')
-        const csv = Papaparse.parse(text, {
-          header: true,
-          delimiter: ';',
-          skipEmptyLines: true,
-          dynamicTyping: true,
-          step: (results, parser) => {
-            const z = _.pick(results.data, ...relevantColumns)
-            dataArray.push(Object.values(z))
-            return results
-          },
-        })
-      }
     } catch (e) {
       console.error(e)
       this.myState.statusMessage = '' + e
@@ -657,8 +614,6 @@ class XyHexagons extends Vue {
         msg: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
       })
     }
-    console.log('XyHexagons:', dataArray.length, 'records')
-    return { dataArray }
   }
 }
 

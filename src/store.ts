@@ -5,7 +5,7 @@ Vue.use(Vuex)
 
 import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
 import svnConfig from '@/svnConfig'
-import { debounce } from '@/util/debounce'
+import { debounce } from '@/util/util'
 
 // ----------------------------------------
 
