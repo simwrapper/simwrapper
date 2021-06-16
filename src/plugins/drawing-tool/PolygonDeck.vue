@@ -32,7 +32,6 @@ import ShapeWrite from 'shp-write'
 
 import LayerManager from '@/util/LayerManager'
 import { MAP_STYLES } from '@/Globals'
-import { Shape } from 'three'
 
 @Component({ components: {} })
 export default class VueComponent extends Vue {
@@ -146,11 +145,15 @@ export default class VueComponent extends Vue {
     this.updateLayers()
   }
 
-  private handleMapClick(object: any) {
-    console.log(object)
+  private handleMapClick(object: any, event: any) {
     if (object.coordinate) {
-      this.points.push(object.coordinate)
-      this.hint = this.$t('close-shape')
+      if (event.rightButton) {
+        this.points.pop()
+      } else {
+        this.points.push(object.coordinate)
+        this.hint = this.$t('close-shape')
+      }
+
       this.updateLayers()
     }
   }
@@ -220,8 +223,8 @@ export default class VueComponent extends Vue {
         opacity: 1.0,
         stroked: true,
         filled: true,
-        radiusMinPixels: 7,
-        radiusMaxPixels: 7,
+        radiusMinPixels: 6,
+        radiusMaxPixels: 6,
         lineWidthMinPixels: 2,
         getFillColor: [255, 0, 200],
         getLineColor: [255, 255, 255],

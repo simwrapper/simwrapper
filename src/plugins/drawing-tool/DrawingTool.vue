@@ -13,17 +13,6 @@ de:
     :props="mapProps"
   )
 
-  .left-side(v-if="!thumbnail")
-    collapsible-panel(direction="left")
-      .panel-items
-
-  .right-side(v-if="!thumbnail")
-    collapsible-panel(direction="right")
-      .panel-items
-
-  .message(v-if="!thumbnail && myState.statusMessage")
-    p.status-message {{ myState.statusMessage }}
-
 </template>
 
 <script lang="ts">
