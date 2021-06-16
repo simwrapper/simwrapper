@@ -2,10 +2,11 @@ export const MAP_STYLES = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
 
-  // use these if there is no network (blank):
+  // NO NETWoRK:
   // light: { version: 8, layers: [], sources: {} },
   // dark: { version: 8, layers: [], sources: {} },
 }
+
 // dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
 // 'mapbox://styles/mapbox/light-v9', // 'mapbox://styles/mapbox/dark-v9'
 // light: 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh', // but still has some color

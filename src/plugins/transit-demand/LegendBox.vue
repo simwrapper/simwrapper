@@ -15,7 +15,7 @@ export default class LegendBox extends Vue {
   private rows!: any
 
   public created() {
-    console.log(this.rows)
+    // console.log(this.rows)
   }
 }
 </script>

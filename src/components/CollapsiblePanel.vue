@@ -60,6 +60,7 @@ export default class VueComponent extends Vue {
   transition: transform 0.15s ease-out;
   background-color: var(--bgPanel);
   font-size: 0.8rem;
+  box-shadow: 0px 2px 10px #22222222;
 }
 
 .xbutton {
@@ -70,6 +71,7 @@ export default class VueComponent extends Vue {
   align-items: center;
   font-size: 1.2rem;
   background-color: var(--bgPanel);
+  // bgPanel2
   outline: none;
   color: #aac;
   transition: background-color 0.15s, color 0.15s, border-radius 0.15s;
@@ -86,7 +88,7 @@ export default class VueComponent extends Vue {
 }
 
 .xbutton:hover {
-  background-color: var(--bgCream);
+  background-color: var(--bgPanel3);
   color: var(--link);
 }
 

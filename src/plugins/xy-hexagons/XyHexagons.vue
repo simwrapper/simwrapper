@@ -461,32 +461,50 @@ class XyHexagons extends Vue {
     return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
   }
 
-  // private findCenter(data: any[]): [number, number] {
-  //   let prop = '' // get first property only
-  //   for (prop in this.aggregations) break
+  private jumpToCenter() {
+    // Only jump in camera is not yet set
+    if (!this.$store.state.viewState.initial) return
 
-  //   const xytitle = this.aggregations[prop][0]
-  //   const xcol = this.columnLookup.indexOf(xytitle.x)
-  //   const ycol = this.columnLookup.indexOf(xytitle.y)
+    let x = 0
+    let y = 0
 
-  //   let x = 0
-  //   let y = 0
+    try {
+      const data = Object.values(this.rowCache)[0].raw
 
-  //   let count = 0
-  //   for (let i = 0; i < data.length; i += 256) {
-  //     const tx = data[i][xcol]
-  //     const ty = data[i][ycol]
-  //     if (tx && ty) {
-  //       count++
-  //       x += tx
-  //       y += ty
-  //     }
-  //   }
-  //   x = x / count
-  //   y = y / count
+      let count = 0
+      for (let i = 0; i < data.length; i += 1024) {
+        const tx = data[i]
+        const ty = data[i + 1]
+        if (tx && ty) {
+          count++
+          x += tx
+          y += ty
+        }
+      }
+      x = x / count
+      y = y / count
+    } catch (e) {
+      // that's ok
+      console.warn(e)
+    }
 
-  //   return [x, y]
-  // }
+    // don't move for reasons
+    if (!x || !y) return
+
+    // jump!
+    const currentView = this.$store.state.viewState
+    const jumpView = {
+      jump: true,
+      longitude: x,
+      latitude: y,
+      bearing: currentView.bearing,
+      pitch: currentView.pitch,
+      zoom: currentView.zoom,
+    }
+
+    console.log({ jumpView })
+    this.$store.commit('setMapCamera', jumpView)
+  }
 
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
@@ -551,16 +569,21 @@ class XyHexagons extends Vue {
           const { rowCache, columnLookup } = await parent.gzipParser.results()
           Thread.terminate(parent.gzipParser)
 
-          parent.columnLookup = columnLookup
-          parent.rowCache = rowCache
-          parent.requests = rowCache[parent.activeAggregation.replaceAll('~', '')]
-
-          parent.myState.statusMessage = ''
+          parent.dataIsLoaded({ rowCache, columnLookup })
         },
         error() {
           console.log('GOT YOU!')
         },
       })
+  }
+
+  private dataIsLoaded({ rowCache, columnLookup }: any) {
+    this.columnLookup = columnLookup
+    this.rowCache = rowCache
+    this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
+    this.jumpToCenter()
+
+    this.myState.statusMessage = ''
   }
 
   private async loadFiles() {
@@ -571,7 +594,6 @@ class XyHexagons extends Vue {
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
 
       await this.parseCSVFile(filename)
-      console.log('XyHexagons: finished loading')
     } catch (e) {
       console.error(e)
       this.myState.statusMessage = '' + e

@@ -11,16 +11,13 @@ import { debounce } from '@/util/util'
 
 const initialViewState = () => ({
   // start with berlin for now
+  initial: true,
   longitude: 13.4,
   latitude: 52.5,
   zoom: 10,
   pitch: 0,
   bearing: 0,
 })
-
-const setDelayedViewState = debounce((state: any, v: any) => {
-  state.viewState = v
-}, 50) // 20 fps
 
 interface GlobalState {
   app: string
@@ -43,6 +40,8 @@ interface GlobalState {
 
   mapLoaded: boolean
   viewState: {
+    initial?: boolean
+    jump?: boolean
     longitude: number
     latitude: number
     zoom: number
@@ -108,15 +107,12 @@ export default new Vuex.Store({
         pitch: number
         zoom: number
         center?: number[]
+        jump?: boolean
       }
     ) {
-      // // setDelayedViewState(state, ...)
-      // const updatedMap = Object.assign({}, value)
-      // if (value.center) {
-      //   updatedMap.longitude = value.center[0]
-      //   updatedMap.latitude = value.center[1]
-      // }
-      state.viewState = value
+      /** Only jump camera if there is no view yet to avoid jarring */
+      if (!value.jump) state.viewState = value
+      else if (state.viewState.initial) state.viewState = value
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {
