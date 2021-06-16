@@ -24,25 +24,12 @@ de:
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-
   xy-hex-deck-map.hex-layer(
     v-if="!thumbnail && isLoaded"
     :props="mapProps"
     @hexClick="handleHexClick"
+    @emptyClick="handleEmptyClick"
   )
-
-  //- xy-hex-layer.hex-layer(v-if="!thumbnail && isLoaded"
-  //-     :colorRamp="colorRamp"
-  //-     :dark="globalState.isDarkMode"
-  //-     :data="requests"
-  //-     :extrude="extrudeTowers"
-  //-     :highlights="highlightedTrips"
-  //-     :maxHeight="maxHeight"
-  //-     :metric="buttonLabel"
-  //-     :radius="radius"
-  //-     :selectedHexStats="hexStats"
-  //-     :onClick="handleHexClick"
-  //- )
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left")
@@ -65,7 +52,7 @@ de:
             button.button.is-small.aggregation-button(
               v-for="element,i in aggregations[group]"
               :key="i"
-              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}ğ${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}ğ${i}` ? buttonColors[i] : $store.state.isDarkMode ? '#333':'white'}"
+              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}~${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}~${i}` ? buttonColors[i] : $store.state.isDarkMode ? '#333':'white'}"
               @click="handleOrigDest(group,i)") {{ element.title }}
 
         .panel-item
@@ -90,7 +77,7 @@ de:
             tooltip="none"
           )
 
-  .nav(v-if="!thumbnail && myState.statusMessage")
+  .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
 </template>
@@ -169,7 +156,7 @@ class XyHexagons extends Vue {
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
 
   private get buttonLabel() {
-    const [group, offset] = this.activeAggregation.split('ğ') as any[]
+    const [group, offset] = this.activeAggregation.split('~') as any[]
     return this.aggregations[group][offset].title
   }
 
@@ -195,7 +182,7 @@ class XyHexagons extends Vue {
   }
 
   private rowCache: {
-    [id: string]: { raw: Float32Array; length: number; coordColumns: string[] }
+    [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
   } = {}
 
   private requests: { raw: Float32Array; length: number } = {
@@ -234,17 +221,19 @@ class XyHexagons extends Vue {
     }
   }
 
-  private handleHexClick(pickedObject: any, event: any) {
-    console.log({ pickedObject, event })
+  private handleEmptyClick() {
+    this.flipViewToShowInvertedData({})
+  }
 
+  private handleHexClick(pickedObject: any, event: any) {
     if (!event.srcEvent.shiftKey) {
       this.multiSelectedHexagons = {}
       this.hexStats = null
-      this.flipViewToShowInversedData(pickedObject)
+      this.flipViewToShowInvertedData(pickedObject)
       return
     }
 
-    // console.log('SHIFT!! OMG')
+    // SHIFT!!
     const index = pickedObject?.object?.index
     if (index !== undefined) {
       if (index in this.multiSelectedHexagons) {
@@ -256,10 +245,7 @@ class XyHexagons extends Vue {
     }
   }
 
-  private flipViewToShowInversedData(pickedObject: any) {
-    console.log({ pickedObject })
-    const pickedCoordinate = pickedObject.coordinate
-
+  private flipViewToShowInvertedData(pickedObject: any) {
     if (this.isHighlightingZone) {
       // force highlight off if user clicked on a second hex
       this.isHighlightingZone = false
@@ -270,10 +256,10 @@ class XyHexagons extends Vue {
       this.isHighlightingZone = true
     }
 
-    const parts = this.activeAggregation.split('ğ') // an unlikely unicode
-    let whichButton = 0
-    let offset = 0
-    const filteredRows: any = []
+    const parts = this.activeAggregation.split('~') // an unlikely unicode
+
+    let suffix = 0
+    let revSuffix = 0
 
     // set up the hexagons
     if (!this.isHighlightingZone) {
@@ -283,45 +269,42 @@ class XyHexagons extends Vue {
       this.handleOrigDest(parts[0], parseInt(parts[1]))
     } else {
       // select the anti-view
-      offset = parseInt(parts[1])
-      whichButton = offset % 2 ? offset - 1 : offset + 1
+      suffix = parseInt(parts[1])
+      revSuffix = suffix % 2 ? suffix - 1 : suffix + 1
 
-      const element = this.aggregations[parts[0]][whichButton]
+      const origKey = `${parts[0]}${suffix}`
+      const origArray = this.rowCache[origKey]
+
+      const key = `${parts[0]}${revSuffix}`
+      const inverseArray = this.rowCache[key]
+
+      const arcFilteredRows: any = []
 
       for (const row of pickedObject.object.points) {
         const zoffset = row.index * 2
-        const coords = [this.requests.raw[zoffset], this.requests.raw[zoffset + 1]]
-        // const arc = [coords, pickedCoordinate]
-        // console.log(arc)
-        filteredRows.push(coords)
+        const coords = [inverseArray.raw[zoffset], inverseArray.raw[zoffset + 1]]
+
+        arcFilteredRows.push([
+          // from
+          [origArray.raw[zoffset], origArray.raw[zoffset + 1]],
+          // to
+          coords,
+        ])
+        this.highlightedTrips = arcFilteredRows
       }
 
       if (this.hexStats) this.hexStats.selectedHexagonIds = []
       this.multiSelectedHexagons = {}
 
-      // this.requests = filteredRows
-
-      this.colorRamp = this.colorRamps[whichButton]
+      this.colorRamp = this.colorRamps[revSuffix]
     }
 
     // set up the connecting arc-lines
     if (!this.isHighlightingZone) {
       this.highlightedTrips = []
     } else {
-      const arcFilteredRows: any = []
-      const colFrom = this.aggregations[parts[0]][offset]
-      const colTo = this.aggregations[parts[0]][whichButton]
-
-      for (const row of pickedObject.object.points) {
-        const points = this.requests.raw[row.index]
-        // arcFilteredRows.push([
-        //   [points[colFrom.x], points[colFrom.y]],
-        //   [points[colTo.x], points[colTo.y]],
-        // ])
-      }
-      this.highlightedTrips = arcFilteredRows
+      // this.highlightedTrips = arcFilteredRows
     }
-    this.requests = filteredRows
   }
 
   private async handleOrigDest(groupName: string, number: number) {
@@ -335,7 +318,7 @@ class XyHexagons extends Vue {
     // const y = this.columnLookup.indexOf(xytitle.y)
 
     this.highlightedTrips = []
-    this.activeAggregation = `${groupName}ğ${number}`
+    this.activeAggregation = `${groupName}~${number}`
 
     // get element offsets in data array
     // const col = this.aggregations[item]
@@ -354,39 +337,6 @@ class XyHexagons extends Vue {
     // console.log('built it', this.myState.fileApi)
   }
 
-  private generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    crumbs.push({
-      label: this.vizDetails.title,
-      url: '#',
-    })
-
-    // save them!
-    this.$store.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
   private get urlThumbnail() {
     return this.thumbnailUrl
@@ -403,6 +353,27 @@ class XyHexagons extends Vue {
 
   private async getVizDetails() {
     if (!this.myState.fileApi) return
+
+    console.log(this.myState.yamlConfig)
+    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+
+    if (!hasYaml) {
+      // output_trips:
+      this.vizDetails = {
+        title: 'Output Trips',
+        description: this.myState.yamlConfig,
+        file: this.myState.yamlConfig,
+        projection: 'EPSG:31468', // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+        aggregations: {
+          'Trip Summary': [
+            { title: 'Origins', x: 'start_x', y: 'start_y' },
+            { title: 'Destinations', x: 'end_x', y: 'end_y' },
+          ],
+        },
+      }
+      this.$emit('title', this.vizDetails.title)
+      return
+    }
 
     // first get config
     try {
@@ -467,7 +438,7 @@ class XyHexagons extends Vue {
     arrays.map(a => (points = points.concat(a)))
 
     const pickedObject = { object: { points } }
-    this.flipViewToShowInversedData(pickedObject)
+    this.flipViewToShowInvertedData(pickedObject)
   }
 
   private hexStats: {
@@ -490,32 +461,32 @@ class XyHexagons extends Vue {
     return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
   }
 
-  private findCenter(data: any[]): [number, number] {
-    let prop = '' // get first property only
-    for (prop in this.aggregations) break
+  // private findCenter(data: any[]): [number, number] {
+  //   let prop = '' // get first property only
+  //   for (prop in this.aggregations) break
 
-    const xytitle = this.aggregations[prop][0]
-    const xcol = this.columnLookup.indexOf(xytitle.x)
-    const ycol = this.columnLookup.indexOf(xytitle.y)
+  //   const xytitle = this.aggregations[prop][0]
+  //   const xcol = this.columnLookup.indexOf(xytitle.x)
+  //   const ycol = this.columnLookup.indexOf(xytitle.y)
 
-    let x = 0
-    let y = 0
+  //   let x = 0
+  //   let y = 0
 
-    let count = 0
-    for (let i = 0; i < data.length; i += 256) {
-      const tx = data[i][xcol]
-      const ty = data[i][ycol]
-      if (tx && ty) {
-        count++
-        x += tx
-        y += ty
-      }
-    }
-    x = x / count
-    y = y / count
+  //   let count = 0
+  //   for (let i = 0; i < data.length; i += 256) {
+  //     const tx = data[i][xcol]
+  //     const ty = data[i][ycol]
+  //     if (tx && ty) {
+  //       count++
+  //       x += tx
+  //       y += ty
+  //     }
+  //   }
+  //   x = x / count
+  //   y = y / count
 
-    return [x, y]
-  }
+  //   return [x, y]
+  // }
 
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
@@ -524,8 +495,6 @@ class XyHexagons extends Vue {
     await this.getVizDetails()
 
     if (this.thumbnail) return
-
-    this.generateBreadcrumbs()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
@@ -555,11 +524,11 @@ class XyHexagons extends Vue {
   }
 
   private aggregations: Aggregations = {}
-  private columnLookup: string[] = []
+  private columnLookup: number[] = []
 
   private gzipParser!: ModuleThread
 
-  private async parseFromGzip(filename: string) {
+  private async parseCSVFile(filename: string) {
     if (!this.myState.fileSystem) return
     this.myState.statusMessage = 'Loading file...'
 
@@ -584,9 +553,12 @@ class XyHexagons extends Vue {
 
           parent.columnLookup = columnLookup
           parent.rowCache = rowCache
-          parent.requests = rowCache[parent.activeAggregation.replaceAll('ğ', '')]
+          parent.requests = rowCache[parent.activeAggregation.replaceAll('~', '')]
 
           parent.myState.statusMessage = ''
+        },
+        error() {
+          console.log('GOT YOU!')
         },
       })
   }
@@ -596,16 +568,10 @@ class XyHexagons extends Vue {
     if (!this.myState.fileApi) return { dataArray }
 
     try {
-      let text = ''
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
 
-      if (this.vizDetails.file.endsWith('gz')) {
-        // first, ungzip if we need to
-        await this.parseFromGzip(filename)
-      } else {
-        text = await this.myState.fileApi.getFileText(filename)
-      }
-      console.log('XyHexagons: finished gunzip')
+      await this.parseCSVFile(filename)
+      console.log('XyHexagons: finished loading')
     } catch (e) {
       console.error(e)
       this.myState.statusMessage = '' + e
@@ -622,7 +588,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'xy-hexagons',
   prettyName: 'XY Aggregator',
   description: 'Collects XY data into geographic hexagons',
-  filePatterns: ['viz-xy*.y?(a)ml'],
+  filePatterns: ['viz-xy*.y?(a)ml', '*output_trips.csv?(.gz)'],
   component: XyHexagons,
 } as VisualizationPlugin)
 
@@ -649,16 +615,16 @@ export default XyHexagons
   background: none;
 }
 
-.nav {
+.message {
   z-index: 5;
   grid-column: 1 / 4;
   grid-row: 1 / 4;
-  box-shadow: 0px 2px 10px #22222266;
+  box-shadow: 0px 2px 10px #22222222;
   display: flex;
   flex-direction: row;
   margin: auto auto 0 0;
   background-color: var(--bgPanel);
-  padding: 0rem 3rem;
+  padding: 0.5rem 1.5rem;
 
   a {
     color: white;
@@ -693,15 +659,13 @@ export default XyHexagons
 }
 
 .status-message {
-  padding: 0rem 0;
   font-size: 1.5rem;
-  line-height: 3.25rem;
+  line-height: 1.75rem;
   font-weight: bold;
 }
 
 .big {
-  padding: 0rem 0;
-  // margin-top: 1rem;
+  padding: 0.5rem 0;
   font-size: 1.5rem;
   line-height: 1.7rem;
   font-weight: bold;
@@ -803,7 +767,7 @@ label {
 }
 
 @media only screen and (max-width: 640px) {
-  .nav {
+  .message {
     padding: 0.5rem 0.5rem;
   }
 

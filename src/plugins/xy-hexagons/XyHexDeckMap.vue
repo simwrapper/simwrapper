@@ -1,5 +1,5 @@
 <template lang="pug">
-.map(:id="mapID")
+.map(:id="mapID" @click="handleEmptyClick")
 </template>
 
 <script lang="ts">
@@ -68,6 +68,12 @@ export default class VueComponent extends Vue {
     this.layerManager.destroy()
   }
 
+  private handleEmptyClick(e: any) {
+    if (this.props.highlights.length) {
+      this.$emit('emptyClick')
+    }
+  }
+
   private setupLayerManager() {
     this.layerManager = new LayerManager()
 
@@ -116,7 +122,6 @@ export default class VueComponent extends Vue {
   }
 
   private handleClick(target: any, event: any) {
-    console.log('layerClick')
     this.$emit('hexClick', target, event)
   }
 
@@ -132,8 +137,20 @@ export default class VueComponent extends Vue {
       alpha: 1,
     }).map((c: number[]) => [c[0], c[1], c[2]])
 
-    // this.layerManager.removeLayer('arc-layer')
-    // this.layerManager.removeLayer('hex-layer')
+    // is data filtered or not?
+    let data = null
+    if (this.props.highlights.length) {
+      data = this.props.highlights.map(row => row[1])
+    } else if (!this.props.data) {
+      data = null
+    } else {
+      data = {
+        length: this.props.data ? this.props.data.length : 0,
+        attributes: {
+          getPosition: { value: this.props.data.raw, size: 2 },
+        },
+      }
+    }
 
     this.layerManager.addLayer(
       new ArcLayer({
@@ -145,22 +162,16 @@ export default class VueComponent extends Vue {
         opacity: 0.4,
         getHeight: 0,
         getWidth: 1,
-        getSourceColor: this.props.dark ? [144, 96, 128] : [192, 192, 240],
-        getTargetColor: this.props.dark ? [144, 96, 128] : [192, 192, 240],
+        getSourceColor: this.props.dark ? [144, 96, 128, 192] : [192, 192, 240],
+        getTargetColor: this.props.dark ? [144, 96, 128, 192] : [192, 192, 240],
       })
     )
 
     this.layerManager.addLayer(
       new SelectableHexagonLayer({
         id: 'hex-layer',
-        data: this.props.data
-          ? {
-              length: this.props.data ? this.props.data.length : 0,
-              attributes: {
-                getPosition: { value: this.props.data.raw, size: 2 },
-              },
-            }
-          : undefined,
+        data: data,
+        getPosition: this.props.highlights.length ? (d: any) => d : null,
         colorRange: this.props.dark ? colors.slice(1) : colors.reverse().slice(1),
         coverage: this.props.coverage,
         autoHighlight: true,
@@ -176,10 +187,10 @@ export default class VueComponent extends Vue {
         upperPercentile: this.props.upperPercentile,
         material,
         transitions: {
-          elevationScale: { type: 'interpolation', duration: 1000 },
-          opacity: { type: 'interpolation', duration: 200 },
+          elevationScale: { type: 'interpolation', duration: 250 },
+          opacity: { type: 'interpolation', duration: 250 },
         },
-        // onClick: this.handleClick,
+        onClick: this.handleClick,
       }) as any // honestly no idea why typescript is mad at me :-(
     )
   }
