@@ -109,6 +109,7 @@ export default class VueComponent extends Vue {
     // only export closed polygons
     this.polygons = this.polygons.filter(p => p.finished)
     this.points = []
+
     this.updateLayers()
 
     const geojson = {
@@ -124,6 +125,8 @@ export default class VueComponent extends Vue {
         line: 'lines',
       },
     })
+
+    this.startNewPolygon()
   }
 
   private cancel() {
@@ -152,6 +155,18 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private startNewPolygon() {
+    this.points = []
+    this.polygons.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [this.points],
+      },
+      finished: false,
+    })
+  }
+
   private handlePointClick(object: any) {
     if (object.index === 0) {
       console.log('gotyou!', object.coordinate)
@@ -161,15 +176,7 @@ export default class VueComponent extends Vue {
       this.polygons[this.polygons.length - 1].finished = true
 
       // start new polygon!
-      this.points = []
-      this.polygons.push({
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [this.points],
-        },
-        finished: false,
-      })
+      this.startNewPolygon()
 
       // enable export
       this.canExport = true
