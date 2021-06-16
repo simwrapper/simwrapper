@@ -3,6 +3,7 @@ import CarrierViewer from '@/plugins/carrier-viewer/Plugin.vue'
 import VehicleAnimation from '@/plugins/vehicle-animation/VehicleAnimation.vue'
 import XyHexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 import AgentAnimation from '@/plugins/agent-animation/AgentAnimation.vue'
+import DrawingTool from '@/plugins/drawing-tool/DrawingTool.vue'
 import LinksGl from '@/plugins/links-gl/LinkVolumes.vue'
 import LinkVolumes from '@/plugins/link-vols/LinkVolumes.vue'
 import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
@@ -28,6 +29,7 @@ const plugins = {
   TransitDemand,
   VideoPlayer,
   ImageView,
+  DrawingTool,
 }
 
 export default plugins
