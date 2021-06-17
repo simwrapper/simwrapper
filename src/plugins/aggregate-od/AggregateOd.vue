@@ -66,7 +66,7 @@ import colormap from 'colormap'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
 import { forEachAsync } from 'js-coroutines'
-import mapboxgl, { MapMouseEvent, PositionOptions } from 'mapbox-gl'
+import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import { multiPolygon } from '@turf/turf'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
@@ -182,7 +182,7 @@ class MyComponent extends Vue {
   private maxZonalTotal: number = 0
 
   private loadingText: string = 'Aggregierte Quell-Ziel Muster'
-  private mymap!: mapboxgl.Map
+  private mymap!: maplibregl.Map
   private project: any = {}
 
   private scaleFactor: any = 1
@@ -376,7 +376,7 @@ class MyComponent extends Vue {
   }
 
   private setupMap() {
-    this.mymap = new mapboxgl.Map({
+    this.mymap = new maplibregl.Map({
       container: this.mapId,
       logoPosition: 'bottom-right',
       style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
@@ -408,8 +408,7 @@ class MyComponent extends Vue {
     this.mymap.on('click', this.handleEmptyClick)
     // Start doing stuff AFTER the MapBox library has fully initialized
     this.mymap.on('load', this.mapIsReady)
-    // this.mymap.addControl(new mapboxgl.ScaleControl(), 'bottom-right')
-    this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    this.mymap.addControl(new maplibregl.NavigationControl(), 'top-right')
 
     this.mymap.on('move', this.handleMapMotion)
 
@@ -558,12 +557,12 @@ class MyComponent extends Vue {
     this.changedScale(this.currentScale)
 
     const parent = this
-    this.mymap.on('click', 'spider-layer', function(e: mapboxgl.MapMouseEvent) {
+    this.mymap.on('click', 'spider-layer', function(e: maplibregl.MapMouseEvent) {
       parent.clickedOnSpiderLink(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'spider-layer', function(e: mapboxgl.MapMouseEvent) {
+    this.mymap.on('mousemove', 'spider-layer', function(e: maplibregl.MapMouseEvent) {
       parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
     })
 
@@ -692,7 +691,7 @@ class MyComponent extends Vue {
     html += `<p> -----------------------------</p>`
     html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
 
-    new mapboxgl.Popup({ closeOnClick: true })
+    new maplibregl.Popup({ closeOnClick: true })
       .setLngLat(e.lngLat)
       .setHTML(html)
       .addTo(this.mymap)
@@ -870,12 +869,12 @@ class MyComponent extends Vue {
 
     const parent = this
 
-    this.mymap.on('click', 'centroid-layer', function(e: mapboxgl.MapMouseEvent) {
+    this.mymap.on('click', 'centroid-layer', function(e: maplibregl.MapMouseEvent) {
       parent.clickedOnCentroid(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'centroid-layer', function(e: mapboxgl.MapMouseEvent) {
+    this.mymap.on('mousemove', 'centroid-layer', function(e: maplibregl.MapMouseEvent) {
       parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
     })
 

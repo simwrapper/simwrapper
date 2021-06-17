@@ -46,7 +46,7 @@ import * as shapefile from 'shapefile'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
 import * as coroutines from 'js-coroutines'
-import mapboxgl, { LngLat, MapMouseEvent, MapLayerMouseEvent } from 'mapbox-gl'
+import maplibregl, { LngLat, MapMouseEvent, MapLayerMouseEvent } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import Papaparse from 'papaparse'
 import proj4 from 'proj4'
@@ -281,7 +281,7 @@ class MyComponent extends Vue {
 
   private setupMap() {
     try {
-      this.map = new mapboxgl.Map({
+      this.map = new maplibregl.Map({
         bearing: 0,
         container: this.mapId,
         logoPosition: 'bottom-right',
@@ -292,7 +292,7 @@ class MyComponent extends Vue {
       this.findCenter()
 
       this.map.on('style.load', this.mapIsReady)
-      this.map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+      this.map.addControl(new maplibregl.NavigationControl(), 'top-right')
     } catch (e) {
       console.log(e)
     }
@@ -379,7 +379,7 @@ class MyComponent extends Vue {
   }
 
   private sampleRate = 1.0
-  private map!: mapboxgl.Map
+  private map!: maplibregl.Map
 
   private async loadFiles() {
     try {
@@ -928,7 +928,7 @@ class MyComponent extends Vue {
 
     // create the popup!
     if (this._popup) this._popup.remove()
-    this._popup = new mapboxgl.Popup({ closeOnClick: true }).setLngLat(e.lngLat).setHTML(html)
+    this._popup = new maplibregl.Popup({ closeOnClick: true }).setLngLat(e.lngLat).setHTML(html)
     this._popup.addTo(this.map)
 
     console.log({ data })

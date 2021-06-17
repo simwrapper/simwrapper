@@ -2,7 +2,7 @@
 // There is no license file on that project!
 
 import { Deck } from '@deck.gl/core'
-import mapboxgl from 'mapbox-gl'
+import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
 import { MAP_STYLES, ColorScheme } from '@/Globals'
@@ -10,11 +10,6 @@ import { MAP_STYLES, ColorScheme } from '@/Globals'
 const DEFAULT_MAP_PROPS = {
   layers: [],
   mapStyle: globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
-  // initialViewState: {
-  //   longitude: 13.5,
-  //   latitude: 52.5,
-  //   zoom: 5,
-  // },
   controller: true,
   useDevicePixels: false, // don't need 4X retina pixels!
   // getTooltip,
@@ -115,7 +110,7 @@ export default class DeckMap extends Deck {
     if (basemap) {
       this._map = basemap
     } else {
-      this._map = new mapboxgl.Map({
+      this._map = new maplibregl.Map({
         container: mapboxCanvas,
         style: props.mapStyle,
         interactive: false,

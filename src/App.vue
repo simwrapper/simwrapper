@@ -1,31 +1,6 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
-  //- .app-nav
-  //-   .top-bar.full-page-app
-  //-     nav.top-link
-  //-       router-link(to="/"): p {{ state.app }}
-
-  //-       //- router-link(:to="`/${link.url}`" v-for="link in topNavLinks" :key="`/${link.url}`"
-  //-       //-   :class="{'selected': ($route.path==='/' && link.url==='/') || $route.path.indexOf(link.url) > 0 }" )
-  //-       //-     p {{ link.name }}
-
-  //-       .right-side
-  //-         //- .top-action-button()
-  //-         //-   i.fa.fa-1x.fa-share
-  //-         //-   br
-  //-         //-   span {{ $t('share') }}
-
-  //-         .top-action-button(@click="toggleLocale")
-  //-           i.fa.fa-1x.fa-globe
-  //-           br
-  //-           span {{ state.locale }}
-
-  //-         .top-action-button(@click="toggleTheme")
-  //-           i.fa.fa-1x.fa-adjust
-  //-           br
-  //-           span {{ $t(state.colorScheme) }}
-
   .center-area
     login-panel.login-panel
     router-view.main-content
@@ -50,26 +25,22 @@ de:
 </i18n>
 
 <script lang="ts">
-import mapboxgl from 'mapbox-gl'
+import maplibregl from 'maplibre-gl'
 import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
 
-import { ColorScheme } from '@/Globals'
-import Colophon from '@/components/Colophon.vue'
+import { ColorScheme, MAPBOX_TOKEN } from '@/Globals'
 import LoginPanel from '@/components/LoginPanel.vue'
-import SideNavBar from '@/components/SideNavBar.vue'
-import TopNavBar from '@/components/TopNavBar.vue'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript
 // see https://stackoverflow.com/questions/44332290/mapbox-gl-typing-wont-allow-accesstoken-assignment
-const writableMapBox: any = mapboxgl
-writableMapBox.accessToken =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
+const writableMapBox: any = maplibregl
+writableMapBox.accessToken = MAPBOX_TOKEN
 
-@Component({ components: { TopNavBar, SideNavBar, LoginPanel, Colophon } })
+@Component({ components: { LoginPanel } })
 class App extends Vue {
   private state = globalStore.state
 
@@ -135,7 +106,7 @@ export default App
 <style lang="scss">
 @import '@/styles.scss';
 @import '~buefy/dist/buefy.css';
-@import '~mapbox-gl/dist/mapbox-gl.css';
+@import '~maplibre-gl/dist/maplibre-gl.css';
 
 html {
   box-sizing: border-box;

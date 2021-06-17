@@ -13,15 +13,14 @@ de:
 .map(:id="mapID")
   .controls
     h3 {{ $t('title')}}
-
     p {{ hint }}
-    .buttons
 
-      p: button.button.is-warning(@click="exportIt"
+    .buttons
+      button.button.is-warning(@click="exportIt"
         :disabled="!canExport" :style="{'is-outlined': !canExport}"
       ) {{ $t('shapefile') }}
 
-      p: button.button.is-warning.is-outlined(@click="cancel") {{ $t('cancel') }}
+      button.button.is-warning.is-outlined(@click="cancel") {{ $t('cancel') }}
 
 </template>
 
@@ -95,10 +94,12 @@ export default class VueComponent extends Vue {
       viewState: this.$store.state.viewState,
       pickingRadius: 3,
       mapStyle: this.props.dark ? MAP_STYLES.dark : MAP_STYLES.light,
-      onClick: this.handleMapClick,
+      getCursor: ({ isDragging, isHovering }: any) =>
+        isDragging ? 'grabbing' : isHovering ? 'pointer' : 'crosshair',
       onViewStateChange: ({ viewState }: any) => {
         this.$store.commit('setMapCamera', viewState)
       },
+      onClick: this.handleMapClick,
     })
   }
 
@@ -108,7 +109,6 @@ export default class VueComponent extends Vue {
     // only export closed polygons
     this.polygons = this.polygons.filter(p => p.finished)
     this.points = []
-
     this.updateLayers()
 
     const geojson = {
@@ -172,8 +172,6 @@ export default class VueComponent extends Vue {
 
   private handlePointClick(object: any) {
     if (object.index === 0) {
-      console.log('gotyou!', object.coordinate)
-
       // close this polygon
       this.points.push(this.points[0])
       this.polygons[this.polygons.length - 1].finished = true
@@ -194,7 +192,6 @@ export default class VueComponent extends Vue {
   }
 
   private updateLayers() {
-    this.layerManager.removeLayer('scatterplot-layer')
     this.layerManager.removeLayer('draw-polygon-layer')
     this.layerManager.addLayer(
       new GeoJsonLayer({
@@ -214,20 +211,22 @@ export default class VueComponent extends Vue {
       })
     )
 
+    this.layerManager.removeLayer('scatterplot-layer')
     this.layerManager.addLayer(
       new ScatterplotLayer({
         id: 'scatterplot-layer',
         data: this.points,
         getPosition: (d: any) => d,
         pickable: true,
-        opacity: 1.0,
         stroked: true,
         filled: true,
+        // autoHighlight: true,
         radiusMinPixels: 6,
         radiusMaxPixels: 6,
         lineWidthMinPixels: 2,
         getFillColor: [255, 0, 200],
         getLineColor: [255, 255, 255],
+        opacity: 1.0,
         onClick: this.handlePointClick,
       })
     )

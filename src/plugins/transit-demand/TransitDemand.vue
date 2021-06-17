@@ -61,7 +61,7 @@ de:
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
-import mapboxgl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'mapbox-gl'
+import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import Papaparse from 'papaparse'
 import yaml from 'yaml'
@@ -139,7 +139,7 @@ class MyComponent extends Vue {
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
 
   private loadingText: string = 'MATSim Transit Inspector'
-  private mymap!: mapboxgl.Map
+  private mymap!: maplibregl.Map
   private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
   private project: any = {}
   private projection: string = DEFAULT_PROJECTION
@@ -375,7 +375,7 @@ class MyComponent extends Vue {
 
   private setupMap() {
     try {
-      this.mymap = new mapboxgl.Map({
+      this.mymap = new maplibregl.Map({
         bearing: 0,
         container: this.mapID,
         logoPosition: 'bottom-left',
@@ -408,7 +408,7 @@ class MyComponent extends Vue {
 
     this.mymap.keyboard.disable() // so arrow keys don't pan
 
-    this.mymap.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    this.mymap.addControl(new maplibregl.NavigationControl(), 'top-right')
   }
 
   private handleClickedMetric(metric: { field: string }) {
@@ -706,12 +706,12 @@ class MyComponent extends Vue {
       },
     })
 
-    this.mymap.on('click', 'transit-link', (e: mapboxgl.MapMouseEvent) => {
+    this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
       this.clickedOnTransitLink(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'transit-link', (e: mapboxgl.MapLayerMouseEvent) => {
+    this.mymap.on('mousemove', 'transit-link', (e: maplibregl.MapLayerMouseEvent) => {
       this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
       this.hoveredOnElement(e)
     })
