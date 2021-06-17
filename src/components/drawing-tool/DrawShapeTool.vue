@@ -57,7 +57,6 @@ export default class VueComponent extends Vue {
   }
 
   private toggleShapeDrawer() {
-    console.log('boop')
     this.clearShapes()
     this.updateLayers()
     this.showShapeDrawer = !this.showShapeDrawer
@@ -150,7 +149,7 @@ export default class VueComponent extends Vue {
     }
 
     ShapeWrite.download(geojson, {
-      folder: 'shapes',
+      folder: 'shapefile',
       types: {
         point: 'points',
         polygon: 'polygons',

@@ -176,7 +176,7 @@ export default MyComponent
 
 .control-buttons {
   padding: 0.5rem 0.5rem;
-  z-index: 2;
+  z-index: 5;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   display: flex;
