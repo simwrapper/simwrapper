@@ -18,7 +18,7 @@ de:
 
   collapsible-panel.left-side(v-if="!thumbnail"
     :darkMode="isDarkMode"
-    :width="500"
+    locked="true"
     direction="left")
 
     .panel-items

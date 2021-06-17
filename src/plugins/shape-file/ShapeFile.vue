@@ -21,7 +21,7 @@ de:
   polygon-layer.anim(v-if="!thumbnail && isLoaded" :props="mapProps")
 
   .left-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(direction="left")
+    collapsible-panel(direction="left" :locked="true")
       .panel-items
         p.big {{ vizDetails.title }}
         p {{ vizDetails.description }}

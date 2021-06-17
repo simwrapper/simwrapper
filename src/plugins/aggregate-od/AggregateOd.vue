@@ -11,7 +11,7 @@
     .mymap(:id="mapId")
 
   collapsible-panel.left-panel(v-if="!thumbnail && !loadingText"
-    :darkMode="isDarkMode" direction="left")
+    :darkMode="isDarkMode" direction="left" :locked="true")
 
     .info-header(style="padding: 0 0.5rem;")
       h3 {{this.vizDetails.title ? this.vizDetails.title : 'O/D Flows'}}

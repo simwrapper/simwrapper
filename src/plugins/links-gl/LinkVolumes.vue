@@ -23,8 +23,10 @@ de:
 
   link-deck-map.anim(v-if="!thumbnail" :props="mapProps")
 
+  draw-shape-tool(v-if="!thumbnail")
+
   .left-side(v-if="!thumbnail")
-    collapsible-panel(:darkMode="isDarkMode" direction="left")
+    collapsible-panel(:darkMode="isDarkMode" :locked="true" direction="left")
       .panel-items
 
         //- heading
@@ -74,6 +76,7 @@ import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 import ConfigPanel from './ConfigPanel.vue'
 import LinkDeckMap from './LinkDeckMap.vue'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
+import DrawShapeTool from '@/components/drawing-tool/DrawShapeTool.vue'
 
 import {
   ColorScheme,
@@ -98,6 +101,7 @@ interface CSV {
   components: {
     CollapsiblePanel,
     ConfigPanel,
+    DrawShapeTool,
     LinkDeckMap,
     TimeSlider,
     ToggleButton,

@@ -2,10 +2,11 @@
 .gl-app(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .left-side(v-if="!thumbnail")
-    CollapsiblePanel(direction="left")
-      p.big.xtitle {{ vizDetails.title }}
-      p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
+  .left-side
+    collapsible-panel(v-if="!thumbnail" direction="left" :locked="true")
+      .panel-items
+        h3 {{ vizDetails.title }}
+        p  {{ vizDetails.description }}
 
   trip-viz.anim(v-if="!thumbnail"
                 :center="vizDetails.center"
@@ -839,7 +840,8 @@ export default VehicleAnimation
 }
 
 .panel-items {
-  margin: 0 0.5rem;
+  margin: 0.5rem 0.5rem;
+  margin-bottom: 1rem;
 }
 
 input {
@@ -855,7 +857,8 @@ input {
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: 0 0 0 0;
+  margin: 0 auto 0 0;
+  z-index: 1;
 }
 
 @media only screen and (max-width: 640px) {

@@ -185,8 +185,8 @@ export default MyComponent
 
   a {
     color: #88888880;
-    font-size: 0.8rem;
-    margin: 0.3rem 0rem 0.3rem -3px;
+    font-size: 0.9rem;
+    margin: 0.3rem 0rem 0.1rem -3px;
   }
 
   a:hover {
@@ -194,9 +194,9 @@ export default MyComponent
   }
 }
 
-.control-buttons:hover {
-  background-color: #88888822;
-}
+// .control-buttons:hover {
+//   background-color: #88888822;
+// }
 
 @media only screen and (max-width: 640px) {
   // #split-screen {

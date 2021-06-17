@@ -1,6 +1,8 @@
 <template lang="pug">
 .outer(:class="{collapsed}")
 
+  //- main content:
+
   .body.left(v-if="direction==='left'"
     :style="{transform: collapsed ? `translateX(-50%) scale(0,1)` : `none`}")
 
@@ -11,9 +13,14 @@
 
     slot.content()
 
-  .xbutton(@click="handleClick" :class="{collapsed}"
+  //- show/hide swipey panel:
+
+  .xbutton(v-if="locked" :style="{order: direction === 'left' ? 1 : 2}")
+    .rotate(style="width: 0.8rem")
+
+  .xbutton(v-else @click="handleClick" :class="{collapsed}"
            :style="{order: direction === 'left' ? 1 : 2}")
-      .rotate(:style="{transform: `rotate(${collapsed ? 180 : 360}deg)`}") {{ direction === 'left' ? "&lt;" : "&gt;" }}
+    .rotate(:style="{transform: `rotate(${collapsed ? 180 : 360}deg)`}") {{ direction === 'left' ? "&lt;" : "&gt;" }}
 
 </template>
 
@@ -27,6 +34,9 @@ export default class VueComponent extends Vue {
 
   @Prop({ required: true })
   private direction!: string
+
+  @Prop({ required: false })
+  private locked!: boolean
 
   private collapsed = this.initialCollapsed === undefined ? false : this.initialCollapsed
 
@@ -45,9 +55,7 @@ export default class VueComponent extends Vue {
   justify-items: center;
   flex-direction: row;
   pointer-events: auto;
-  // border: 1px solid var(--bgCream3);
-  // filter: drop-shadow(0px 2px 5px #44444466);
-  // box-shadow: var(--shadowMode);
+  filter: drop-shadow(0px 2px 4px #22222233);
 }
 
 .outer.collapsed {
@@ -60,7 +68,6 @@ export default class VueComponent extends Vue {
   transition: transform 0.15s ease-out;
   background-color: var(--bgPanel);
   font-size: 0.8rem;
-  box-shadow: 0px 2px 10px #22222222;
 }
 
 .xbutton {
@@ -70,8 +77,7 @@ export default class VueComponent extends Vue {
   cursor: pointer;
   align-items: center;
   font-size: 1.2rem;
-  background-color: var(--bgPanel);
-  // bgPanel2
+  background-color: var(--bgPanel2);
   outline: none;
   color: #aac;
   transition: background-color 0.15s, color 0.15s, border-radius 0.15s;
