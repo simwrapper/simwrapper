@@ -14,6 +14,8 @@ de:
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
+  draw-shape-tool(v-if="!thumbnail")
+
   collapsible-panel.left-side(v-if="!thumbnail"
     :darkMode="isDarkMode"
     :width="500"
@@ -74,6 +76,7 @@ import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from '
 import XmlFetcher from '@/workers/XmlFetcher'
 import TransitSupplyHelper from './TransitSupplyHelper'
 import LegendBox from './LegendBox.vue'
+import DrawShapeTool from '@/components/drawing-tool/DrawShapeTool.vue'
 
 import { FileSystem, SVNProject, ColorScheme, VisualizationPlugin, MAP_STYLES } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
@@ -93,7 +96,7 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox } })
+@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawShapeTool } })
 class MyComponent extends Vue {
   @Prop({ required: true })
   private root!: string
@@ -1050,8 +1053,8 @@ p {
   background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
   background-size: cover;
-  grid-column: 1 / 5;
-  grid-row: 1 / 3;
+  grid-column: 1 / 3;
+  grid-row: 1 / 4;
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
@@ -1155,7 +1158,7 @@ h3 {
 }
 
 .left-side {
-  z-index: 1;
+  z-index: 5;
   position: absolute;
   top: 0rem;
   left: 0;
@@ -1167,7 +1170,7 @@ h3 {
 }
 
 .right-side {
-  z-index: 1;
+  z-index: 5;
   position: absolute;
   bottom: 0;
   right: 0;
@@ -1237,9 +1240,6 @@ h3 {
 .col {
   display: flex;
   flex-direction: column;
-}
-
-.map-popup {
 }
 
 .status-corner {

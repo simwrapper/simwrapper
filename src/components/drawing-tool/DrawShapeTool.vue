@@ -2,7 +2,7 @@
 en:
   title: 'Draw Shapes'
   hint: 'Click on map to draw shapes.'
-  cancel: 'Clear'
+  clear: 'Clear'
   shapefile: 'Export'
   close-shape: 'Add more points to close shape.'
   more-shapes: 'Export now or start new shape.'
@@ -10,17 +10,26 @@ de:
 </i18n>
 
 <template lang="pug">
-.map(:id="mapID")
-  .controls
+.draw-thing
+  .map(:id="mapID" v-show="showShapeDrawer")
+
+  .map-actions
+    button.button.draw-button.is-tiny(title="Draw" @click="toggleShapeDrawer"
+      :class="{'is-drawing': showShapeDrawer}"
+      :style="{'border-color': isDark ? '#111111': '#e0e0e0'}"
+    )
+      img(src="./images/draw-icon.png" width=16)
+
+  .control-panel(v-if="showShapeDrawer")
     h3 {{ $t('title')}}
     p {{ hint }}
 
     .buttons
-      button.button.is-warning(@click="exportIt"
+      button.button.is-small.export-button(@click="exportIt"
         :disabled="!canExport" :style="{'is-outlined': !canExport}"
       ) {{ $t('shapefile') }}
 
-      button.button.is-warning.is-outlined(@click="cancel") {{ $t('cancel') }}
+      button.button.is-small.is-outlined(@click="cancel") {{ $t('clear') }}
 
 </template>
 
@@ -31,19 +40,28 @@ import ShapeWrite from 'shp-write'
 
 import LayerManager from '@/util/LayerManager'
 import { MAP_STYLES } from '@/Globals'
+import globalStore from '@/store'
 
 @Component({ components: {} })
 export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private props!: {
-    dark: boolean
-    data: any[]
-  }
-
   private canExport = false
   private points: any[] = []
 
   private hint = this.$t('hint')
+  private isDark = globalStore.state.isDarkMode
+
+  private showShapeDrawer = false
+
+  @Watch('$store.state.isDarkMode') flipDarkMode() {
+    this.isDark = this.$store.state.isDarkMode
+  }
+
+  private toggleShapeDrawer() {
+    console.log('boop')
+    this.clearShapes()
+    this.updateLayers()
+    this.showShapeDrawer = !this.showShapeDrawer
+  }
 
   private polygons = [
     {
@@ -56,6 +74,21 @@ export default class VueComponent extends Vue {
     },
   ]
 
+  private clearShapes() {
+    this.canExport = false
+    this.points = []
+    this.polygons = [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'Polygon',
+          coordinates: [this.points],
+        },
+        finished: false,
+      },
+    ]
+  }
+
   private layerManager!: LayerManager
   private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
 
@@ -67,14 +100,14 @@ export default class VueComponent extends Vue {
     this.layerManager.deckInstance.setProps({ viewState: this.viewState })
   }
 
-  @Watch('props.dark') swapTheme() {
+  @Watch('globalStore.state.isDarkMode') swapTheme() {
     this.layerManager.updateStyle()
   }
 
-  @Watch('props')
-  private handlePropsChanged() {
-    if (this.layerManager) this.updateLayers()
-  }
+  // @Watch('props')
+  // private handlePropsChanged() {
+  //   if (this.layerManager) this.updateLayers()
+  // }
 
   private mounted() {
     console.log(this.mapID)
@@ -93,7 +126,7 @@ export default class VueComponent extends Vue {
       container: `#${this.mapID}`,
       viewState: this.$store.state.viewState,
       pickingRadius: 3,
-      mapStyle: this.props.dark ? MAP_STYLES.dark : MAP_STYLES.light,
+      mapStyle: null, // globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
       getCursor: ({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'crosshair',
       onViewStateChange: ({ viewState }: any) => {
@@ -130,19 +163,9 @@ export default class VueComponent extends Vue {
 
   private cancel() {
     this.hint = this.$t('hint')
-    this.canExport = false
-    this.points = []
-    this.polygons = [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [this.points],
-        },
-        finished: false,
-      },
-    ]
+    this.clearShapes()
     this.updateLayers()
+    this.showShapeDrawer = false
   }
 
   private handleMapClick(object: any, event: any) {
@@ -238,18 +261,69 @@ export default class VueComponent extends Vue {
 @import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
-.controls {
+.draw-thing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+}
+
+.map {
+  pointer-events: all;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.control-panel {
   background-color: var(--bgPanel);
+  pointer-events: all;
   padding: 0.5rem 1rem;
   z-index: 10;
   position: absolute;
-  bottom: 0;
-  left: 0;
+  top: 10px;
+  right: 4rem;
 }
 
-.button {
+.drawing-tool {
+  z-index: 10;
+  grid-column: 1 / 3;
+  grid-row: 1 / 4;
+}
+
+.draw-button {
+  padding: 0 6.5px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.draw-button.is-drawing {
+  background-color: rgb(255, 0, 200);
+  border-color: rgb(255, 0, 200);
+}
+
+.map-actions {
+  pointer-events: all;
+  cursor: pointer;
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  top: 8rem;
+  right: 8px;
+  z-index: 15;
+}
+
+.buttons {
   font-size: 0.9rem;
   margin-top: 0.25rem;
   margin-right: 0.5rem;
+}
+
+.export-button {
+  background-color: rgb(255, 0, 200);
 }
 </style>

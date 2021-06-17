@@ -90,7 +90,8 @@ class App extends Vue {
     return this.state.colorScheme == ColorScheme.DarkMode
   }
 
-  @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
+  // @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
+  private toggleFullScreen(isFullPage: boolean) {
     if (isFullPage) {
       document.body.classList.add('full-screen-page')
       document.documentElement.style.overflowY = 'auto'
