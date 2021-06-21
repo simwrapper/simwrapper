@@ -28,7 +28,7 @@ import yaml from 'yaml'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import { FileSystem, SVNProject, VisualizationPlugin } from '../../Globals'
+import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 @Component({ components: {} })
@@ -49,7 +49,7 @@ class VegaComponent extends Vue {
 
   private myState = {
     fileApi: this.fileApi,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -72,8 +72,6 @@ class VegaComponent extends Vue {
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
-
-    if (!this.thumbnail) this.generateBreadcrumbs()
   }
 
   @Watch('globalState.authAttempts') authenticationChanged() {
@@ -105,57 +103,10 @@ class VegaComponent extends Vue {
     return false
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -216,8 +167,8 @@ class VegaComponent extends Vue {
       this.loadingText = '' + e
 
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
       return
     }

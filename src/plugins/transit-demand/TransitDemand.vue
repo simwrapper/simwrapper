@@ -78,13 +78,17 @@ import TransitSupplyHelper from './TransitSupplyHelper'
 import LegendBox from './LegendBox.vue'
 import DrawShapeTool from '@/components/drawing-tool/DrawShapeTool.vue'
 
-import { FileSystem, SVNProject, ColorScheme, VisualizationPlugin, MAP_STYLES } from '@/Globals'
+import {
+  FileSystem,
+  FileSystemConfig,
+  ColorScheme,
+  VisualizationPlugin,
+  MAP_STYLES,
+} from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import globalStore from '@/store'
 
 import GzipWorker from '@/workers/GzipFetcher.worker'
-import { ParseResult } from 'markdown-it/lib/helpers/parse_link_destination'
-import { options } from 'marked'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -133,7 +137,7 @@ class MyComponent extends Vue {
 
   private myState = {
     fileApi: this.fileApi,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -246,89 +250,22 @@ class MyComponent extends Vue {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     if (!this.fileApi) this.buildFileApi()
-    if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
 
     if (this.thumbnail) return
 
-    this.generateBreadcrumbs()
     this.setupMap()
   }
 
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    this.$store.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private getFileSystem(name: string) {
-    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
+    console.log(this.$store.state.svnProjects)
+    console.log(name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
+    console.log(svnProject.length)
+
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -345,8 +282,8 @@ class MyComponent extends Vue {
       this.vizDetails = yaml.parse(text)
     } catch (e) {
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
 
@@ -503,11 +440,11 @@ class MyComponent extends Vue {
       this.loadingText = 'Loading networks...'
 
       this._roadFetcher = await XmlFetcher.create({
-        fileApi: this.myState.fileSystem.url,
+        fileApi: this.myState.fileSystem.slug,
         filePath: this.myState.subfolder + '/' + this.vizDetails.network,
       })
       this._transitFetcher = await XmlFetcher.create({
-        fileApi: this.myState.fileSystem.url,
+        fileApi: this.myState.fileSystem.slug,
         filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
       })
 

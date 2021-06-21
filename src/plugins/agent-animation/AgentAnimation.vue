@@ -59,7 +59,7 @@ import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import {
   FileSystem,
-  SVNProject,
+  FileSystemConfig,
   VisualizationPlugin,
   ColorScheme,
   LIGHT_MODE,
@@ -106,7 +106,7 @@ class MyComponent extends Vue {
     isRunning: false,
     isShowingHelp: false,
     fileApi: this.fileApi,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -150,7 +150,7 @@ class MyComponent extends Vue {
     const crumbs = [
       {
         label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
+        url: '/' + this.myState.fileSystem.slug,
       },
     ]
 
@@ -162,7 +162,7 @@ class MyComponent extends Vue {
       buildFolder += folder + '/'
       crumbs.push({
         label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
+        url: '/' + this.myState.fileSystem.slug + buildFolder,
       })
     }
 
@@ -199,7 +199,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -217,8 +219,8 @@ class MyComponent extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
 

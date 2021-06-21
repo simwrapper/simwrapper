@@ -6,6 +6,7 @@ import xml2js from 'xml2js'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
+import { FileSystemConfig } from '@/Globals'
 
 class XmlFetcher extends AsyncBackgroundWorker {
   private params!: InitParams
@@ -25,7 +26,9 @@ class XmlFetcher extends AsyncBackgroundWorker {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = this.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error

@@ -62,11 +62,11 @@ import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
 
 import globalStore from '@/store'
-import { SVNProject } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 import runFinder from '@/util/RunFinder'
 
 interface Run {
-  root: SVNProject
+  root: FileSystemConfig
   // firstFolder: string
   path: string
 }
@@ -86,7 +86,7 @@ class MyComponent extends Vue {
   private onNavigate(target: any) {
     this.$emit('navigate', {
       component: 'FolderBrowser',
-      props: { root: target.root.url, xsubfolder: target.path },
+      props: { root: target.root.slug, xsubfolder: target.path },
     })
     console.log(target)
   }

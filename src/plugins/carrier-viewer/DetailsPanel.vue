@@ -74,34 +74,15 @@ import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
 // import randomcolor from 'randomcolor'
-import vuera from 'vuera'
-import xml2js from 'xml2js'
-import crossfilter from 'crossfilter2'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
-import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
-import AnimationView from '@/plugins/agent-animation/AnimationView.vue'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
-import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 
-import XmlFetcher from '@/workers/XmlFetcher'
-import NetworkHelper from '@/workers/NetworkHelper'
-
-import {
-  ColorScheme,
-  FileSystem,
-  LegendItem,
-  LegendItemType,
-  SVNProject,
-  VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
-} from '@/Globals'
+import { ColorScheme, LIGHT_MODE, DARK_MODE } from '@/Globals'
 
 naturalSort.insensitive = true
 
@@ -116,16 +97,6 @@ naturalSort.insensitive = true
   } as any,
 })
 class DetailsPanel extends Vue {
-  private vizDetails = {
-    network: '',
-    carriers: '',
-    projection: '',
-    title: '',
-    description: '',
-    thumbnail: '',
-    center: [13.4, 52.5],
-  }
-
   private colorScheme = ColorScheme.DarkMode
 
   private searchTerm: string = ''
@@ -136,7 +107,6 @@ class DetailsPanel extends Vue {
   private isLoaded = true
   private showHelp = false
 
-  private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
   private speed = 1
 
   private legendBits: any[] = []

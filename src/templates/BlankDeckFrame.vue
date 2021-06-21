@@ -37,7 +37,7 @@ import util from '@/util/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 
-import { ColorScheme, SVNProject, VisualizationPlugin, Status } from '@/Globals'
+import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status } from '@/Globals'
 
 import BlankDeckMap from './BlankDeckMap2.vue'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
@@ -78,7 +78,7 @@ class DeckFrame extends Vue {
   public myState = {
     statusMessage: '',
     fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -104,7 +104,9 @@ class DeckFrame extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -126,7 +128,7 @@ class DeckFrame extends Vue {
       console.log('failed')
       // // maybe it failed because password?
       // if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-      //   this.$store.commit('requestLogin', this.myState.fileSystem.url)
+      //   this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       // } else {
       //   this.$store.commit('setStatus', {
       //     type: Status.WARNING,

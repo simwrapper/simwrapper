@@ -17,22 +17,25 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import globalStore from '@/store'
+import { FileSystemConfig } from '@/Globals'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
-  private sources: any[] = []
+  private sources: FileSystemConfig[] = []
 
   private mounted() {
     this.sources = globalStore.state.svnProjects
   }
 
-  private openProjectPage(source: any) {
-    source.component = 'FolderBrowser'
-    source.props = {
-      root: source.url,
+  private openProjectPage(source: FileSystemConfig) {
+    const destination: any = Object.assign({}, source)
+
+    destination.component = 'FolderBrowser'
+    destination.props = {
+      root: source.slug,
       xsubfolder: '',
     }
-    this.$emit('navigate', source)
+    this.$emit('navigate', destination)
   }
 
   private openProjectTab(source: any) {

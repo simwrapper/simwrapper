@@ -1,7 +1,7 @@
 // This fetches all folders from all root filesystems, and returns
 import store from '@/store'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { SVNProject } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 
 let foundFolders = { number: 0, folders: {} as any }
 
@@ -39,11 +39,11 @@ const populate = () => {
   store.commit('updateRunFolders', foundFolders)
 
   store.state.svnProjects.forEach(root => {
-    if (root.url !== 'gallery') drillIntoRootProject(root)
+    if (root.slug !== 'gallery') drillIntoRootProject(root)
   })
 }
 
-const drillIntoRootProject = function(root: SVNProject) {
+const drillIntoRootProject = function(root: FileSystemConfig) {
   console.log('Drilling into:', root.name)
   const fileSystem = new HTTPFileSystem(root)
 
@@ -52,7 +52,11 @@ const drillIntoRootProject = function(root: SVNProject) {
   fetchFolders(root, fileSystem, '')
 }
 
-const fetchFolders = async function(root: SVNProject, fileSystem: HTTPFileSystem, folder: string) {
+const fetchFolders = async function(
+  root: FileSystemConfig,
+  fileSystem: HTTPFileSystem,
+  folder: string
+) {
   try {
     // skip some big folders we know we don't care about
     if (root.skipList && root.skipList.filter(f => folder.endsWith(f)).length) return

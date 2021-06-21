@@ -1,4 +1,4 @@
-import { DirectoryEntry, SVNProject } from '@/Globals'
+import { DirectoryEntry, FileSystemConfig } from '@/Globals'
 import globalStore from '@/store'
 
 class SVNFileSystem {
@@ -6,12 +6,12 @@ class SVNFileSystem {
   private urlId: string
   private needsAuth: boolean
 
-  constructor(project: SVNProject) {
-    this.urlId = project.url
-    this.needsAuth = project.need_password
+  constructor(project: FileSystemConfig) {
+    this.urlId = project.slug
+    this.needsAuth = !!project.needPassword
 
-    this.baseUrl = project.svn
-    if (!project.svn.endsWith('/')) this.baseUrl += '/'
+    this.baseUrl = project.baseURL
+    if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
   }
 
   public cleanURL(scaryPath: string) {

@@ -19,14 +19,23 @@ export enum Status {
   WARNING,
 }
 
-export interface SVNProject {
+export interface FileSystem {
+  getDirectory(path: string): Promise<DirectoryEntry>
+  getFileText(path: string): Promise<string>
+  getFileJson(path: string): Promise<any>
+  getFileBlob(path: string): Promise<Blob | null>
+  cleanURL(path: string): string
+}
+
+export interface FileSystemConfig {
   name: string
-  name_de: string
-  url: string
+  name_de?: string
   description: string
-  description_de: string
-  svn: string
-  need_password: boolean
+  description_de?: string
+  baseURL: string
+  slug: string
+  thumbnail?: string
+  needPassword?: boolean
   skipList?: string[]
 }
 
@@ -41,14 +50,6 @@ export interface VisualizationPlugin {
 export interface DirectoryEntry {
   files: string[]
   dirs: string[]
-}
-
-export interface FileSystem {
-  getDirectory(path: string): Promise<DirectoryEntry>
-  getFileText(path: string): Promise<string>
-  getFileJson(path: string): Promise<any>
-  getFileBlob(path: string): Promise<Blob | null>
-  cleanURL(path: string): string
 }
 
 export enum ColorScheme {

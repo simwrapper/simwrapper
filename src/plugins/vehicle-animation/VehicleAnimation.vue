@@ -92,7 +92,7 @@ import {
   FileSystem,
   LegendItem,
   LegendItemType,
-  SVNProject,
+  FileSystemConfig,
   VisualizationPlugin,
   LIGHT_MODE,
   DARK_MODE,
@@ -177,7 +177,7 @@ class VehicleAnimation extends Vue {
     isRunning: false,
     isShowingHelp: false,
     fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -261,7 +261,9 @@ class VehicleAnimation extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -282,8 +284,8 @@ class VehicleAnimation extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
 

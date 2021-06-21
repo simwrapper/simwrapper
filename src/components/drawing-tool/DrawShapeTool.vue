@@ -300,6 +300,10 @@ export default class VueComponent extends Vue {
   border-radius: 6px;
 }
 
+.draw-button:hover {
+  background-color: #f0f0f0;
+}
+
 .draw-button.is-drawing {
   background-color: rgb(255, 0, 200);
   border-color: rgb(255, 0, 200);

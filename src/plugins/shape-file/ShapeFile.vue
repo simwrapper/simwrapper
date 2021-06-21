@@ -66,7 +66,7 @@ import {
   FileSystem,
   LegendItem,
   LegendItemType,
-  SVNProject,
+  FileSystemConfig,
   VisualizationPlugin,
 } from '@/Globals'
 
@@ -141,7 +141,7 @@ class MyPlugin extends Vue {
   public myState = {
     statusMessage: '',
     fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -173,7 +173,9 @@ class MyPlugin extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error

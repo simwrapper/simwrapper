@@ -49,7 +49,7 @@
             .viz-frame
               component.viz-frame-component(
                     :is="viz.component"
-                    :root="myState.svnProject.url"
+                    :root="myState.svnProject.slug"
                     :subfolder="myState.subfolder"
                     :yamlConfig="viz.config"
                     :thumbnail="true"
@@ -65,7 +65,7 @@
         .file-table
           .file(:class="{fade: myState.isLoading}"
                 v-for="file in myState.files" :key="file")
-            a(:href="`${myState.svnProject.svn}/${myState.subfolder}/${file}`") {{ file }}
+            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ file }}
 
 </template>
 
@@ -93,7 +93,7 @@ import yaml from 'yaml'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { BreadCrumb, VisualizationPlugin, SVNProject } from '@/Globals'
+import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
 
 interface VizEntry {
   component: string
@@ -107,7 +107,7 @@ interface IMyState {
   files: string[]
   isLoading: boolean
   readme: string
-  svnProject: SVNProject | null
+  svnProject: FileSystemConfig | null
   svnRoot?: HTTPFileSystem
   subfolder: string
   summary: boolean
@@ -144,7 +144,9 @@ export default class VueComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
 
     if (svnProject.length === 0) {
       console.log('no such project')
@@ -164,7 +166,7 @@ export default class VueComponent extends Vue {
       },
       {
         label: this.myState.svnProject.name,
-        url: '/' + this.myState.svnProject.url,
+        url: '/' + this.myState.svnProject.slug,
       },
     ]
 
@@ -176,7 +178,7 @@ export default class VueComponent extends Vue {
       buildFolder += folder + '/'
       crumbs.push({
         label: folder,
-        url: '/' + this.myState.svnProject.url + buildFolder,
+        url: '/' + this.myState.svnProject.slug + buildFolder,
       })
     }
 
@@ -199,7 +201,7 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnProject) return
 
     const props = {
-      root: this.myState.svnProject.url,
+      root: this.myState.svnProject.slug,
       subfolder: this.myState.subfolder,
       yamlConfig: viz.config,
       thumbnail: false,
@@ -388,12 +390,12 @@ export default class VueComponent extends Vue {
       if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
 
       if (this.myState.svnProject) {
-        this.myState.errorStatus += `<p><i>${this.myState.svnProject.svn}${this.myState.subfolder}</i></p>`
+        this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
       }
 
       // maybe it failed because password?
-      if (this.myState.svnProject && this.myState.svnProject.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.svnProject.url)
+      if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.svnProject.slug)
       }
     } finally {
       this.myState.isLoading = false
@@ -409,11 +411,8 @@ export default class VueComponent extends Vue {
         ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
         : this.myState.subfolder + '/' + folder
 
-    // const path = '/' + this.myState.svnProject.url + '/' + this.myState.subfolder + '/' + folder
-    // this.$router.push({ path })
-
     const props = {
-      root: this.myState.svnProject.url,
+      root: this.myState.svnProject.slug,
       xsubfolder: target,
     }
     this.$emit('navigate', { component: 'FolderBrowser', props })

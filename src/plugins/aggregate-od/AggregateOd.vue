@@ -83,7 +83,13 @@ import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 
-import { MAP_STYLES, ColorScheme, FileSystem, SVNProject, VisualizationPlugin } from '@/Globals'
+import {
+  MAP_STYLES,
+  ColorScheme,
+  FileSystem,
+  FileSystemConfig,
+  VisualizationPlugin,
+} from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -137,7 +143,7 @@ class MyComponent extends Vue {
 
   private myState = {
     fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -310,7 +316,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -328,8 +336,8 @@ class MyComponent extends Vue {
       this.vizDetails = yaml.parse(text)
     } catch (e) {
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
 

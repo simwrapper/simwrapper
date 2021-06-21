@@ -13,7 +13,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import readBlob from 'read-blob'
 
 import globalStore from '@/store'
-import { ColorScheme, FileSystem, VisualizationPlugin } from '../../Globals'
+import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 @Component({ components: {} })
@@ -73,7 +73,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error

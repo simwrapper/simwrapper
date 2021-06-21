@@ -7,7 +7,7 @@ import { Observable } from 'observable-fns'
 import pako from 'pako'
 import Papaparse from 'papaparse'
 
-import { SVNProject } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import Coords from '@/util/Coords'
 
@@ -43,7 +43,7 @@ const csvParser = {
    */
   startLoading(
     filepath: string,
-    fileSystem: SVNProject,
+    fileSystem: FileSystemConfig,
     aggregations: Aggregations,
     projection: string
   ) {
@@ -75,7 +75,7 @@ expose(csvParser)
 
 // --- helper functions ------------------------------------------------
 
-async function step1fetchFile(observer: any, filepath: string, fileSystem: SVNProject) {
+async function step1fetchFile(observer: any, filepath: string, fileSystem: FileSystemConfig) {
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
     const blob = await httpFileSystem.getFileBlob(filepath)

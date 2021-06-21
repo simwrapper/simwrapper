@@ -3,9 +3,10 @@ import Vuex, { Store } from 'vuex'
 
 Vue.use(Vuex)
 
-import { BreadCrumb, ColorScheme, Status, VisualizationPlugin } from '@/Globals'
-import svnConfig from '@/svnConfig'
+import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
+import fileSystems from '@/fileSystemConfig'
 import { debounce } from '@/util/util'
+import SVNFileSystem from './util/HTTPFileSystem'
 
 // ----------------------------------------
 
@@ -35,7 +36,7 @@ interface GlobalState {
   runFolderCount: number
   statusErrors: string[]
   statusMessage: string
-  svnProjects: any[]
+  svnProjects: FileSystemConfig[]
   visualizationTypes: Map<string, VisualizationPlugin>
 
   mapLoaded: boolean
@@ -62,7 +63,7 @@ export default new Vuex.Store({
     needLoginForUrl: '',
     statusErrors: [] as string[],
     statusMessage: 'Loading',
-    svnProjects: svnConfig.projects,
+    svnProjects: fileSystems,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.LightMode,
     locale: 'en',

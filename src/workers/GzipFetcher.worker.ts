@@ -8,6 +8,7 @@ export default null as any
 import pako from 'pako'
 
 import HTTPFileSystem from '@/util/HTTPFileSystem'
+import { FileSystemConfig } from '@/Globals'
 
 onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
   fetchGzip(filePath, fileSystem).then(result => {
@@ -15,9 +16,9 @@ onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
   })
 }
 
-async function fetchGzip(filePath: string, fileSystem: any) {
+async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
   const httpFileSystem = new HTTPFileSystem(fileSystem)
-
+  console.log(httpFileSystem)
   const blob = await httpFileSystem.getFileBlob(filePath)
   if (!blob) throw Error('BLOB IS NULL')
 

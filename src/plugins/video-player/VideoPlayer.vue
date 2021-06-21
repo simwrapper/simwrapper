@@ -20,7 +20,7 @@ import readBlob from 'read-blob'
 import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
-import { FileSystem, VisualizationPlugin } from '../../Globals'
+import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 
 @Component({
@@ -80,7 +80,7 @@ class MyComponent extends Vue {
       this.buildRouteFromUrl()
     } else {
       const filesystem = this.getFileSystem(this.$route.name as string)
-      this.buildMovieSource(filesystem.svn, this.subfolder + '/', this.yamlConfig)
+      this.buildMovieSource(filesystem.slug, this.subfolder + '/', this.yamlConfig)
     }
 
     this.getVizDetails()
@@ -109,7 +109,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    let svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    let svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       svnProject = globalStore.state.svnProjects.filter((a: any) => a.url === name.substring(8))
     }
@@ -140,7 +142,7 @@ class MyComponent extends Vue {
     this.myState.subfolder = subfolder
     this.myState.yamlConfig = config
 
-    this.buildMovieSource(filesystem.svn, subfolder, config)
+    this.buildMovieSource(filesystem.slug, subfolder, config)
   }
 
   private aspect = 0
@@ -182,7 +184,7 @@ class MyComponent extends Vue {
     const crumbs = [
       {
         label: filesystem.name,
-        url: '/' + filesystem.url,
+        url: '/' + filesystem.slug,
       },
     ]
 
@@ -194,7 +196,7 @@ class MyComponent extends Vue {
       buildFolder += folder + '/'
       crumbs.push({
         label: folder,
-        url: '/' + filesystem.url + buildFolder,
+        url: '/' + filesystem.slug + buildFolder,
       })
     }
 

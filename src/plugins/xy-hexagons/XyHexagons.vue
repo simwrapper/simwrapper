@@ -99,7 +99,7 @@ import {
   FileSystem,
   LegendItem,
   LegendItemType,
-  SVNProject,
+  FileSystemConfig,
   VisualizationPlugin,
   Status,
 } from '@/Globals'
@@ -175,7 +175,7 @@ class XyHexagons extends Vue {
   public myState = {
     statusMessage: '',
     fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -343,7 +343,9 @@ class XyHexagons extends Vue {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = this.$store.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -354,7 +356,6 @@ class XyHexagons extends Vue {
   private async getVizDetails() {
     if (!this.myState.fileApi) return
 
-    console.log(this.myState.yamlConfig)
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     if (!hasYaml) {
@@ -384,8 +385,8 @@ class XyHexagons extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       } else {
         this.$store.commit('setStatus', {
           type: Status.WARNING,
@@ -502,7 +503,6 @@ class XyHexagons extends Vue {
       zoom: currentView.zoom,
     }
 
-    console.log({ jumpView })
     this.$store.commit('setMapCamera', jumpView)
   }
 

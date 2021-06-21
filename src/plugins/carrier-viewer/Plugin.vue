@@ -130,7 +130,7 @@ import {
   FileSystem,
   LegendItem,
   LegendItemType,
-  SVNProject,
+  FileSystemConfig,
   VisualizationPlugin,
   LIGHT_MODE,
   DARK_MODE,
@@ -218,7 +218,7 @@ class CarrierPlugin extends Vue {
     isRunning: false,
     isShowingHelp: false,
     fileApi: this.fileApi,
-    fileSystem: undefined as SVNProject | undefined,
+    fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
@@ -534,62 +534,15 @@ class CarrierPlugin extends Vue {
     this.myState.yamlConfig = config
   }
 
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.url,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.url + buildFolder,
-      })
-    }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = YAML.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
-      }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
   private get urlThumbnail() {
     return this.thumbnailUrl
   }
 
   private getFileSystem(name: string) {
-    const svnProject: any[] = globalStore.state.svnProjects.filter((a: any) => a.url === name)
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -608,8 +561,8 @@ class CarrierPlugin extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.url)
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
 
@@ -728,7 +681,6 @@ class CarrierPlugin extends Vue {
     if (this.thumbnail) return
 
     this.showHelp = false
-    this.generateBreadcrumbs()
     this.updateLegendColors()
 
     this.myState.statusMessage = 'Loading carriers...'

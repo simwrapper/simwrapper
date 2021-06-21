@@ -38,7 +38,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
-import SvnProjects from '@/components/SVNProjects.vue'
+import SvnProjects from '@/components/FileSystemProjects.vue'
 
 import globalStore from '@/store'
 

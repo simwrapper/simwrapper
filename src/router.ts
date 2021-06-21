@@ -37,12 +37,12 @@ function projects(): RouteConfig[] {
     // })
     // run folder pages
     projectRoutes.push({
-      path: '/' + source.url + '*',
-      name: source.url,
+      path: '/' + source.slug + '*',
+      name: source.slug,
       component: FolderBrowser,
       props: (route: Route) => ({
-        root: source.url,
-        xsubfolder: route.path.substring(source.url.length + 2),
+        root: source.slug,
+        xsubfolder: route.path.substring(source.slug.length + 2),
       }),
     })
   }
