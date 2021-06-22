@@ -14,7 +14,7 @@ de:
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
-  draw-shape-tool(v-if="!thumbnail")
+  drawing-tool(v-if="!thumbnail")
 
   collapsible-panel.left-side(v-if="!thumbnail"
     :darkMode="isDarkMode"
@@ -76,7 +76,7 @@ import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from '
 import XmlFetcher from '@/workers/XmlFetcher'
 import TransitSupplyHelper from './TransitSupplyHelper'
 import LegendBox from './LegendBox.vue'
-import DrawShapeTool from '@/components/drawing-tool/DrawShapeTool.vue'
+import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
 import {
   FileSystem,
@@ -100,7 +100,7 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawShapeTool } })
+@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool } })
 class MyComponent extends Vue {
   @Prop({ required: true })
   private root!: string
