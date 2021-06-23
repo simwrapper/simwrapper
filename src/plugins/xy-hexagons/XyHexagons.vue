@@ -92,7 +92,7 @@ import { spawn, Worker, Thread, ModuleThread } from 'threads'
 import util from '@/util/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import { CSVParser } from './CsvGzipParser.werker'
+import { CSVParser } from './CsvGzipParser.thread'
 
 import {
   ColorScheme,
@@ -551,7 +551,7 @@ class XyHexagons extends Vue {
     this.myState.statusMessage = 'Loading file...'
 
     // get the raw unzipped arraybuffer
-    this.gzipParser = await spawn<CSVParser>(new Worker('./CsvGzipParser.werker'))
+    this.gzipParser = await spawn<CSVParser>(new Worker('./CsvGzipParser.thread'))
 
     const parent = this
     await this.gzipParser
