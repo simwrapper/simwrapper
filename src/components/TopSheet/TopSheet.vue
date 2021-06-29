@@ -104,7 +104,9 @@ export default class VueComponent extends Vue {
       this.entries = boxes
     } catch (e) {
       const message = '' + e
-      this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
+      console.log(message)
+      this.table = []
+      // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
     }
   }
 
