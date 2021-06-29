@@ -37,6 +37,7 @@ export interface FileSystemConfig {
   thumbnail?: string
   needPassword?: boolean
   skipList?: string[]
+  dashboardFolder?: string
 }
 
 export interface VisualizationPlugin {

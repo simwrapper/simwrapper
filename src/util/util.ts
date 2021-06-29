@@ -1,3 +1,6 @@
+import micromatch from 'micromatch'
+import xml2js from 'xml2js'
+
 /**
  * Useful for converting loaded PNG images to CSS
  * @param buffer input (e.g. PNG content)
@@ -31,4 +34,67 @@ export function debounce(fn: any, ms: number) {
   }
 }
 
-export default { arrayBufferToBase64, debounce }
+export function findMatchingGlobInFiles(filenames: string[], glob: string): string[] {
+  // first see if file itself is in this folder
+  if (filenames.indexOf(glob) > -1) return [glob]
+
+  // return globs in this folder
+  const matches = micromatch(filenames, glob)
+  if (matches.length) return matches
+
+  // nothing!
+  return []
+}
+
+export async function parseXML(xml: string, settings: any) {
+  // The '$' object contains a leaf's attributes
+  // The '$$' object contains an explicit array of the children
+  //
+  // Sometimes you can also refer to a child node by name, such as
+  // carrier.shipments
+
+  // Some examples:
+
+  // PLANS
+  // plan is at carriers.carrier[x].plan[0] -- are there ever multiple plans?
+  // tour is at plan.tour[x]
+  // -- $ has vehicleId
+  // -- $$ has array of:
+  //       #name --> act/leg
+  //           $ --> other params
+  //       route --> string of links "12345 6789 123"
+
+  // SHIPMENTS
+  // to get the array of shipment objects, use
+  // carriers.carrier[x].shipments.$$ -> returns array of shipment objects
+  // -- each shipment object: has .$ attributes
+
+  // these options are all mandatory for reading the complex carriers
+  // file. The main weirdness is that matsim puts children of different
+  // types in an order that matters (act,leg,act,leg,act... etc)
+  const defaultConfig = () => {
+    return {
+      strict: true,
+      trim: true,
+      preserveChildrenOrder: true,
+      explicitChildren: true,
+      explicitArray: true,
+    }
+  }
+
+  const options = Object.assign(defaultConfig, settings)
+
+  const parser = new xml2js.Parser(options)
+
+  return new Promise((resolve, reject) => {
+    parser.parseString(xml, function(err: Error, result: string) {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(result)
+      }
+    })
+  })
+}
+
+export default { arrayBufferToBase64, debounce, findMatchingGlobInFiles, parseXML }

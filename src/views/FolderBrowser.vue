@@ -37,6 +37,8 @@
               i.fa.fa-folder-open
               | &nbsp;{{ folder }}
 
+      top-sheet(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
+
       //- thumbnails of each viz and image in this folder
       h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
 
@@ -76,11 +78,13 @@ const i18n = {
       Analysis: 'Analysis',
       Files: 'Files',
       Folders: 'Folders',
+      Topsheet: 'Topsheet',
     },
     de: {
       Analysis: 'Ergebnisse',
       Files: 'Dateien',
       Folders: 'Ordner',
+      Topsheet: 'Topsheet',
     },
   },
 }
@@ -90,10 +94,12 @@ import markdown from 'markdown-it'
 import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 import yaml from 'yaml'
+
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
+import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
 interface VizEntry {
   component: string
@@ -115,7 +121,7 @@ interface IMyState {
 }
 
 @Component({
-  components: plugins,
+  components: Object.assign({ TopSheet }, plugins),
   props: {},
   i18n,
 })

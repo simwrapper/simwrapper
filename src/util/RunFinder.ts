@@ -76,6 +76,7 @@ const fetchFolders = async function(
     localStorage.setItem('RunFinder.foundFolders', JSON.stringify(foundFolders.folders))
 
     for (const dir of dirs) {
+      if (dir.startsWith('.')) continue
       fetchFolders(root, fileSystem, `${folder}/${dir}`)
     }
   } catch (e) {

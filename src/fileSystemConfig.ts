@@ -8,6 +8,7 @@ const fileSystems: FileSystemConfig[] = [
     baseURL: 'http://localhost:8000',
     needPassword: false,
     thumbnail: '/thumb-localfiles.jpg',
+    dashboardFolder: '.dashboards',
   },
   {
     name: 'Public-SVN',
