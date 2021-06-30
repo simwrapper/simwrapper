@@ -184,23 +184,10 @@ class MyPlugin extends Vue {
   }
 
   private async getVizDetails() {
-    // // first get config
-    // try {
-    //   const text = await this.myState.fileApi.getFileText(
-    //     this.myState.subfolder + '/' + this.myState.yamlConfig
-    //   )
-    //   this.vizDetails = YAML.parse(text)
-    // } catch (e) {
-    //   console.log('failed')
-    //   // maybe it failed because password?
-    //   if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
-    //     globalStore.commit('requestLogin', this.myState.fileSystem.url)
-    //   }
-    // }
-    // const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
-
     this.vizDetails.title = 'Shapefile'
-    this.vizDetails.description = this.myState.yamlConfig.replaceAll('_', ' ').replace('.shp', '')
+
+    let description = decodeURI(this.myState.yamlConfig.replaceAll('_', ' ').replace('.shp', ''))
+    this.vizDetails.description = description
 
     this.$emit(
       'title',
@@ -342,13 +329,18 @@ class MyPlugin extends Vue {
 
     console.log({ geojson })
     const bbox: any = geojson.bbox
-    const boxMin = Coords.toLngLat(projection, { x: bbox[0], y: bbox[1] })
-    const boxMax = Coords.toLngLat(projection, { x: bbox[2], y: bbox[3] })
-    const newBox = { minX: boxMin.x, minY: boxMin.y, maxX: boxMax.x, maxY: boxMax.y }
 
+    console.log({ bbox })
     const header = Object.keys(geojson.features[0].properties)
-    this.shapefile = { data: geojson.features, prj: projection, header, bbox: newBox }
+    this.shapefile = { data: geojson.features, prj: projection, header, bbox }
 
+    this.$store.commit('setMapCamera', {
+      longitude: 0.5 * (bbox[2] + bbox[0]),
+      latitude: 0.5 * (bbox[3] + bbox[1]),
+      bearing: 0,
+      pitch: 0,
+      zoom: 8,
+    })
     // done! show the first column
     this.handleNewDataColumn(this.shapefile.header[0])
   }
