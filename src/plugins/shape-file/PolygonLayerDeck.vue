@@ -104,9 +104,8 @@ export default class VueComponent extends Vue {
     if (y + tooltipHeight < window.innerHeight) tooltipHeight = 0
 
     let html = `<div id="shape-tooltip" class="tooltip">`
-    for (const key of Object.keys(object.properties)) {
-      const prop = object.properties[key]
-      html = html + `<div>${key}:&nbsp;<b>${prop}</b></div>`
+    for (const [key, value] of Object.entries(object.properties)) {
+      html = html + `<div>${key}:&nbsp;<b>${value}</b></div>`
     }
 
     return {
@@ -117,7 +116,7 @@ export default class VueComponent extends Vue {
         fontSize: '0.9rem',
         padding: '1rem 1rem',
         position: 'absolute',
-        left: x + 15,
+        left: x + 10,
         top: y - tooltipHeight,
         boxShadow: '0px 2px 10px #22222266',
       },
@@ -125,16 +124,6 @@ export default class VueComponent extends Vue {
   }
 
   private updateLayers() {
-    // const builtColors = colormap({
-    //   colormap: this.props.colors,
-    //   nshades: 20,
-    //   format: 'rba',
-    // }).map((a: number[]) => [a.slice(0, 3)])
-
-    // const fetchColor = scaleThreshold()
-    //   .domain(new Array(20).fill(0).map((v, i) => 0.05 * i))
-    //   .range(builtColors)
-
     this.layerManager.removeLayer('shapefile')
     this.layerManager.addLayer(
       new GeoJsonLayer({

@@ -30,9 +30,12 @@ const TOOLTIP_STYLE = {
   opacity: '0.9',
   borderRadius: '0.25rem',
   textTransform: 'capitalize',
-  //   fontFamily: 'Montserrat, "Open Sans", sans-serif',
   fontSize: '0.7rem',
+  position: 'absolute',
+  top: 50,
+  left: 50,
   backgroundColor: globalStore.state.colorScheme === ColorScheme.DarkMode ? 'black' : 'white',
+  //   fontFamily: 'Montserrat, "Open Sans", sans-serif',
 }
 
 function getTooltip(pickingInfo: any) {
@@ -40,13 +43,13 @@ function getTooltip(pickingInfo: any) {
   if (!pickingInfo.object) return
 
   if (pickingInfo.object) {
-    const html = `<div style="font-size: 0.9rem;"><strong>${pickingInfo.layer.id}</strong></div>`
+    let html = `<div style="font-size: 0.9rem;"><strong>${pickingInfo.layer.id}</strong></div>`
 
-    // for (const [name, value] of Object.entries(pickingInfo.object.properties)) {
-    //   if (name !== 'layerName' && name !== 'cartodb_id') {
-    //     html += `<div><strong>${name}: </strong>${value}</div>`
-    //   }
-    // }
+    for (const [name, value] of Object.entries(pickingInfo.object.properties)) {
+      if (name !== 'layerName' && name !== 'cartodb_id') {
+        html += `<div><strong>${name}: </strong>${value}</div>`
+      }
+    }
 
     return {
       html,
