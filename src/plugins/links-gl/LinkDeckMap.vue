@@ -101,7 +101,7 @@ export default class VueComponent extends Vue {
     const baseElement = baseValue ? `<p>+/- Base: ${diff}</p>` : ''
 
     return {
-      html: `<div className="tooltip">
+      html: `<div class="tooltip">
               <big><b>${this.props.build.header[this.props.build.activeColumn]}</b></big>
               <p>${value}</p>
               ${baseElement}

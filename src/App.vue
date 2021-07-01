@@ -294,6 +294,7 @@ a:hover {
   display: flex;
   flex-direction: row;
   position: relative;
+  overflow: hidden;
 }
 
 .nav-sidebar {
@@ -481,6 +482,10 @@ a.mapboxgl-ctrl-logo {
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
   background: #88888888;
+}
+
+.deck-tooltip {
+  position: 'static';
 }
 
 @media only screen and (max-width: 640px) {

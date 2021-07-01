@@ -246,7 +246,7 @@ class MyComponent extends Vue {
     pitch,
   }: any) {
     // ignore my own farts; they smell like roses
-    if (!this.mymap || this.isMapMoving) {
+    if (!this.mymap || this.isMapMoving || this.thumbnail) {
       this.isMapMoving = false
       return
     }
@@ -398,16 +398,24 @@ class MyComponent extends Vue {
         const mFac = this.isMobile() ? 0 : 1
         const padding = { top: 50 * mFac, bottom: 100 * mFac, right: 100 * mFac, left: 300 * mFac }
 
-        if (this.thumbnail) {
-          this.mymap.fitBounds(lnglat, {
-            animate: false,
-          })
-        } else {
-          this.mymap.fitBounds(lnglat, {
-            padding,
-            animate: false,
-          })
-        }
+        this.$store.commit('setMapCamera', {
+          longitude: 0.5 * (lnglat[0] + lnglat[2]),
+          latitude: 0.5 * (lnglat[1] + lnglat[3]),
+          zoom: 8,
+          pitch: 0,
+          bearing: 0,
+          jump: true, // initial map
+        })
+        // if (this.thumbnail) {
+        //   this.mymap.fitBounds(lnglat, {
+        //     animate: false,
+        //   })
+        // } else {
+        //   this.mymap.fitBounds(lnglat, {
+        //     padding,
+        //     animate: false,
+        //   })
+        // }
       }
     } catch (e) {
       // no consequence if json was weird, just drop it
