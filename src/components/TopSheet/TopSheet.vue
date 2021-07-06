@@ -26,8 +26,6 @@ import { FileSystemConfig } from '@/Globals'
 import { Worker, spawn, Thread } from 'threads'
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-// import globalStore from '@/store'
-
 export type TableRow = {
   title: string
   value: any
@@ -44,6 +42,9 @@ export default class VueComponent extends Vue {
 
   @Prop({ required: true })
   private files!: string[]
+
+  @Prop({ required: true })
+  private yaml!: string
 
   private solverThread!: any
 
@@ -97,6 +98,7 @@ export default class VueComponent extends Vue {
         fileSystemConfig: this.fileSystemConfig,
         subfolder: this.subfolder,
         files: this.files,
+        yaml: this.yaml,
       })
 
       const boxes = await this.solverThread.getTextEntryFields()

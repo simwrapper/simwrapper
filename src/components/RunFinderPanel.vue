@@ -25,7 +25,7 @@ de:
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
 
-          p(v-for="run in globalState.runFolders[zroot]" :key="`${run.root.url}/${run.path}`")
+          p(v-for="run in filteredRunFolders(zroot)" :key="`${run.root.url}/${run.path}`")
             a(@click="onNavigate(run)") {{ run.path }}
             //- router-link(:to="`${run.root.url}${run.path}`") {{ run.path }}
 
@@ -81,6 +81,16 @@ class MyComponent extends Vue {
 
   private mounted() {
     runFinder.findRuns()
+  }
+
+  private filteredRunFolders(zroot: string) {
+    const allRuns: any[] = this.globalState.runFolders[zroot]
+    const filtered = allRuns.filter(f => {
+      const segments = f.path.split('/')
+      if (segments.length && segments[segments.length - 1].startsWith('.')) return false
+      return true
+    })
+    return filtered
   }
 
   private onNavigate(target: any) {

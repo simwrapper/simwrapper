@@ -38,6 +38,8 @@ let _files: string[] = []
 let _boxValues: any = {}
 let _yaml: TopsheetYaml = { files: {}, calculations: {}, outputs: [] }
 let _calculations: any = {}
+let _yamlFile: string = ''
+
 const _fileData: any = {}
 
 const testRows: TableRow[] = [
@@ -85,12 +87,14 @@ expose({
     fileSystemConfig: FileSystemConfig
     subfolder: string
     files: string[]
+    yaml: string
   }) {
     console.log('TopSheet thread worker starting')
 
     _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
     _subfolder = props.subfolder
     _files = props.files
+    _yamlFile = props.yaml
 
     // read the table definitions from yaml
     _yaml = await getYaml()
@@ -210,9 +214,7 @@ function getFileVariableReplacements(expr: string) {
 }
 
 async function getYaml() {
-  const filename = 'topsheet.yaml'
-
-  const text = await _fileSystem.getFileText(`${_subfolder}/${filename}`)
+  const text = await _fileSystem.getFileText(_yamlFile)
   const yaml = YAML.parse(text) as TopsheetYaml
   console.log({ yaml })
   return yaml

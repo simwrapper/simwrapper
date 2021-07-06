@@ -37,7 +37,7 @@
               i.fa.fa-folder-open
               | &nbsp;{{ folder }}
 
-      top-sheet(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
+      topsheets-finder(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
 
       //- thumbnails of each viz and image in this folder
       h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
@@ -99,7 +99,7 @@ import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
-import TopSheet from '@/components/TopSheet/TopSheet.vue'
+import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 interface VizEntry {
   component: string
@@ -121,7 +121,7 @@ interface IMyState {
 }
 
 @Component({
-  components: Object.assign({ TopSheet }, plugins),
+  components: Object.assign({ TopsheetsFinder }, plugins),
   props: {},
   i18n,
 })
