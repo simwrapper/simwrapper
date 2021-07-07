@@ -51,11 +51,6 @@ export default class VueComponent extends Vue {
   private table: TableRow[] = []
   private entries: { key: string; title: string; value: any }[] = []
 
-  @Watch('files') filesUpdated() {
-    this.table = []
-    this.runTopSheet()
-  }
-
   private formattedValue(value: any) {
     if (!isNaN(value)) return value.toLocaleString([this.$store.state.locale, 'en'])
     return value
@@ -92,7 +87,6 @@ export default class VueComponent extends Vue {
       this.solverThread = await spawn(new Worker('./TopSheetWorker.thread'))
     }
 
-    const parent = this
     try {
       this.table = await this.solverThread.runTopSheet({
         fileSystemConfig: this.fileSystemConfig,
@@ -101,20 +95,14 @@ export default class VueComponent extends Vue {
         yaml: this.yaml,
       })
 
-      const boxes = await this.solverThread.getTextEntryFields()
-      console.log({ boxes })
-      this.entries = boxes
+      const outputRows = await this.solverThread.getTextEntryFields()
+      this.entries = outputRows
     } catch (e) {
       const message = '' + e
       console.log(message)
       this.table = []
       // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
     }
-  }
-
-  private dataIsLoaded(results: TableRow[]) {
-    console.log({ results })
-    this.table = results
   }
 }
 </script>

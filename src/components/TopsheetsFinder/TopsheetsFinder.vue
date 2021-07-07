@@ -39,10 +39,16 @@ export default class VueComponent extends Vue {
 
   private fileSystem!: HTTPFileSystem
 
+  @Watch('subfolder') folderUpdated() {
+    this.topsheets = []
+  }
+
   @Watch('files') async filesUpdated() {
-    this.fileSystem = new HTTPFileSystem(this.fileSystemConfig)
-    this.topsheets = await this.findTopsheetsForThisFolder()
-    console.log('TOPSHEETS:', this.topsheets)
+    if (this.files.length) {
+      this.fileSystem = new HTTPFileSystem(this.fileSystemConfig)
+      this.topsheets = await this.findTopsheetsForThisFolder()
+      console.log('TOPSHEETS', this.topsheets)
+    }
   }
 
   private async mounted() {}

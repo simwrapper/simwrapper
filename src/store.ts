@@ -85,7 +85,7 @@ export default new Vuex.Store({
       state.needLoginForUrl = value
     },
     registerPlugin(state: GlobalState, value: VisualizationPlugin) {
-      console.log('PLUGIN:', value.kebabName)
+      // console.log('PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
     },
     setBreadCrumbs(state: GlobalState, value: BreadCrumb[]) {

@@ -89,7 +89,7 @@ expose({
     files: string[]
     yaml: string
   }) {
-    console.log('TopSheet thread worker starting')
+    // console.log('TopSheet thread worker starting')
 
     _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
     _subfolder = props.subfolder
@@ -200,21 +200,39 @@ function getFilterReplacements(calc: string): any[] {
   // this regex matches @filter(file.column==value)
   const re = /(?<=\@filter\().*?(?=\))/g
   const patterns = expr.match(re)
-  if (patterns) console.log({ patterns })
-  if (!patterns) return []
 
+  if (!patterns) return []
   if (patterns.length > 1) throw Error('Only one filter allowed per calculation')
 
-  // for first @filter(blah), do a lookup and replace
-  const p = patterns[0]
+  // analyze first @filter only
+  const innerPattern = patterns[0]
 
-  const [left, value] = p.split('==').map((a: string) => a.trim())
+  const filters = {
+    '==': (row: any) => row[column] == value,
+    '<=': (row: any) => row[column] <= value,
+    '>=': (row: any) => row[column] >= value,
+    '!=': (row: any) => row[column] != value,
+    '<': (row: any) => row[column] < value,
+    '>': (row: any) => row[column] > value,
+  } as any
+
+  const supportedFilters = Object.keys(filters)
+  let whichFilter = ''
+  for (const f of supportedFilters) {
+    if (innerPattern.indexOf(f) > -1) {
+      whichFilter = f
+      break
+    }
+  }
+  if (!whichFilter) throw Error(`${calc}: filter needs ==,<=,>=,!=,<,>`)
+
+  const [left, value] = innerPattern.split(whichFilter).map((a: string) => a.trim())
   const [file, column] = left.split('.').map((a: string) => a.trim())
+  console.log(file, column, value)
 
   // ok now do the filtering
   const table = _fileData[file] as any[]
-
-  const filtered = table.filter(row => row[column] == value)
+  const filtered = table.filter(filters[whichFilter])
 
   // save it as if it were a file
   _fileData[calc] = filtered
@@ -253,7 +271,6 @@ function getFileVariableReplacements(expr: string) {
 async function getYaml() {
   const text = await _fileSystem.getFileText(_yamlFile)
   const yaml = YAML.parse(text) as TopsheetYaml
-  console.log({ yaml })
   return yaml
 }
 
@@ -269,7 +286,6 @@ async function loadFiles() {
         throw Error(`More than one file matched pattern ${pattern}: ${matchingFiles}`)
 
       const filename = matchingFiles[0]
-      console.log('Reading', filename)
 
       // load the file
       const text = await loadFileOrGzipFile(filename)
