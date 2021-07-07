@@ -164,6 +164,14 @@ function doAllCalculations() {
   // Now loop thru each calc and try to solve it
   for (const calc of Object.keys(_yaml.calculations)) {
     try {
+      // try filter first
+      const filter = getFilterReplacements(calc)
+      if (filter.length) {
+        calculations[calc] = filter
+        continue
+      }
+
+      // calc expression
       expr = '' + _yaml.calculations[calc]
 
       // look up any file-based variables
@@ -186,15 +194,44 @@ function doAllCalculations() {
   return calculations
 }
 
+function getFilterReplacements(calc: string): any[] {
+  const expr = '' + _yaml.calculations[calc]
+
+  // this regex matches @filter(file.column==value)
+  const re = /(?<=\@filter\().*?(?=\))/g
+  const patterns = expr.match(re)
+  if (patterns) console.log({ patterns })
+  if (!patterns) return []
+
+  if (patterns.length > 1) throw Error('Only one filter allowed per calculation')
+
+  // for first @filter(blah), do a lookup and replace
+  const p = patterns[0]
+
+  const [left, value] = p.split('==').map((a: string) => a.trim())
+  const [file, column] = left.split('.').map((a: string) => a.trim())
+
+  // ok now do the filtering
+  const table = _fileData[file] as any[]
+
+  const filtered = table.filter(row => row[column] == value)
+
+  // save it as if it were a file
+  _fileData[calc] = filtered
+
+  // and pass it back as a calculation too
+  return filtered
+}
+
 function getFileVariableReplacements(expr: string) {
-  // this regex matches any ${variables}
-  const re = /{.*?}/g
+  // this regex matches {variables}
+  const re = /(?<={).*?(?=})/g
   const patterns = expr.match(re)
   if (!patterns) return expr
 
-  // for each ${variable}, do a lookup and replace
+  // for each {variable}, do a lookup and replace
   for (const p of patterns) {
-    const pattern = p.substring(1, p.length - 1).split('.') // ${file.variable} --> ['file','variable']
+    const pattern = p.split('.') // ${file.variable} --> ['file','variable']
 
     const element = _fileData[pattern[0]]
 
@@ -208,7 +245,7 @@ function getFileVariableReplacements(expr: string) {
       lookup = element[pattern[1]]
     }
 
-    expr = expr.replaceAll('${' + pattern[0] + '.' + pattern[1] + '}', '' + lookup)
+    expr = expr.replaceAll('{' + pattern[0] + '.' + pattern[1] + '}', '' + lookup)
   }
   return expr
 }
@@ -276,6 +313,7 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
   // if it isn't XML, then let's hope assume Papaparse can handle it
   const csv = Papaparse.parse(text, {
     // preview: 10000,
+    delimitersToGuess: ['\t', ';', ','],
     comments: '#',
     dynamicTyping: true,
     header: true,
