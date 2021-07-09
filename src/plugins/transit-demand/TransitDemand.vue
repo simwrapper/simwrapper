@@ -1,8 +1,10 @@
 <i18n>
 en:
   metrics: 'Metrics'
+  viewer: 'Transit Network'
 de:
   metrics: 'Metrics'
+  viewer: 'ÖPNV Netzwerk'
 </i18n>
 
 <template lang="pug">
@@ -274,6 +276,34 @@ class MyComponent extends Vue {
   }
 
   private async getVizDetails() {
+    if (this.myState.yamlConfig.endsWith('yaml') || this.myState.yamlConfig.endsWith('yml')) {
+      this.loadYamlConfig()
+      return
+    }
+
+    // no yaml: build it ourselves!
+
+    const network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+
+    // need to find the departures if they exist
+    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
+    const demand = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+    const title = '' + this.$i18n.t('viewer')
+    this.vizDetails = {
+      transitSchedule: this.myState.yamlConfig,
+      network,
+      title,
+      description: '',
+      demand: demand.length ? demand[0] : '',
+      projection: 'EPSG:31468',
+    }
+
+    this.$emit('title', title)
+
+    this.projection = this.vizDetails.projection
+  }
+
+  private async loadYamlConfig() {
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -931,7 +961,8 @@ globalStore.commit('registerPlugin', {
   kebabName: 'transit-demand',
   prettyName: 'Transit Demand',
   description: 'Transit passengers and ridership',
-  filePatterns: ['viz-pt-demand*.y?(a)ml'],
+  // filePatterns: ['viz-pt-demand*.y?(a)ml', '*output_transitSchedule.xml?(.gz)'],
+  filePatterns: ['*output_transitSchedule.xml?(.gz)'],
   component: MyComponent,
 } as VisualizationPlugin)
 
