@@ -4,7 +4,7 @@ en:
   viewer: 'Transit Network'
 de:
   metrics: 'Metrics'
-  viewer: 'ÖPNV Netzwerk'
+  viewer: 'ÖV Netzwerk'
 </i18n>
 
 <template lang="pug">
