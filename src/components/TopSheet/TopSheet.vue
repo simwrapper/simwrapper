@@ -1,13 +1,6 @@
-<i18n>
-en:
-  title: 'Key Performance Indicators'
-de:
-  title: 'Key Performance Indicators'
-</i18n>
-
 <template lang="pug">
 .topsheet.curate-content(v-if="table.length")
-  h3.curate-heading  {{ $t('title') }}
+  h3.curate-heading  {{ title }}
 
   .output-table
     .row(v-for="row,i in entries" :key="'entry'+i")
@@ -50,6 +43,7 @@ export default class VueComponent extends Vue {
 
   private table: TableRow[] = []
   private entries: { key: string; title: string; value: any }[] = []
+  private title = 'Topsheet'
 
   private formattedValue(value: any) {
     if (!isNaN(value)) return value.toLocaleString([this.$store.state.locale, 'en'])
@@ -94,6 +88,8 @@ export default class VueComponent extends Vue {
         files: this.files,
         yaml: this.yaml,
       })
+
+      this.title = await this.solverThread.getTitle(this.$store.state.locale)
 
       const outputRows = await this.solverThread.getTextEntryFields()
       this.entries = outputRows

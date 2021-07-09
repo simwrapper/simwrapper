@@ -21,6 +21,9 @@ type TableRow = {
 }
 
 type TopsheetYaml = {
+  title?: string
+  title_en?: string
+  title_de?: string
   files: {
     [id: string]: { file: string; useLastRow?: boolean; xmlElements: string }
   }
@@ -62,6 +65,16 @@ expose({
     _calculations = doAllCalculations()
     const outputs = buildOutputs()
     return outputs
+  },
+
+  getTitle(locale: string) {
+    console.log('getTitle locale', locale)
+    let title = 'Topsheet'
+
+    if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || 'Topsheet'
+    else title = _yaml.title_de || _yaml.title || _yaml.title_en || 'Topsheet'
+
+    return title
   },
 
   getTextEntryFields() {
