@@ -9,7 +9,7 @@ const siteConfig = {
     { doc: "aftersim-intro", label: "Documentation" },
     { blog: true, label: "Blog", left: true },
     {
-      href: "https://github.com/aftersim/aftersim.github.io",
+      href: "https://github.com/aftersim/aftersim",
       label: "Github",
       external: true,
     },
