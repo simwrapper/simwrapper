@@ -33,6 +33,7 @@ import FolderBrowser from '@/views/FolderBrowser.vue'
 import SplashPage from '@/views/SplashPage.vue'
 import SqlThing from '@/views/SqlThing.vue'
 import SqlThingTwo from '@/views/SqliteThing.vue'
+import { Route } from 'vue-router'
 
 @Component({
   components: Object.assign(
@@ -53,6 +54,24 @@ class MyComponent extends Vue {
 
   private mounted() {
     this.buildLayoutFromURL()
+  }
+
+  @Watch('$route') routeChanged(to: Route, from: Route) {
+    console.log({ to, from })
+    if (to.path === '/') {
+      // root node is not a normal splitpane, so we instead replace
+      // the full monty with a brand new clean startpage.
+      this.panels = [
+        {
+          component: 'SplashPage',
+          key: Math.random(),
+          props: {} as any,
+        },
+      ]
+    } else {
+      this.buildLayoutFromURL()
+      globalStore.commit('resize')
+    }
   }
 
   private buildLayoutFromURL() {
@@ -122,7 +141,7 @@ class MyComponent extends Vue {
 
   private updateURL() {
     const base64 = btoa(JSON.stringify(this.panels))
-    this.$router.replace(`/${base64}`)
+    this.$router.push(`/${base64}`)
   }
 }
 
