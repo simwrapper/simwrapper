@@ -31,6 +31,8 @@ de:
     @emptyClick="handleEmptyClick"
   )
 
+  drawing-tool.drawing-tool(v-if="!thumbnail")
+
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left" :locked="true")
       .panel-items
@@ -92,6 +94,7 @@ import { spawn, Worker, Thread, ModuleThread } from 'threads'
 import util from '@/util/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import { CSVParser } from './CsvGzipParser.thread'
 
 import {
@@ -129,6 +132,7 @@ interface VizDetail {
 @Component({
   components: {
     CollapsiblePanel,
+    DrawingTool,
     // XyHexLayer,
     XyHexDeckMap,
     VueSlider,
@@ -786,6 +790,12 @@ label {
 
 .aggregation-button {
   width: 100%;
+}
+
+.drawing-tool {
+  pointer-events: none;
+  grid-column: 1 / 4;
+  grid-row: 1 / 4;
 }
 
 @media only screen and (max-width: 640px) {
