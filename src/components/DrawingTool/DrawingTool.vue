@@ -144,16 +144,13 @@ export default class VueComponent extends Vue {
     this.points = []
     this.updateLayers()
 
-    // TEMP: convert to EPSG:31468 for VW demo
-    const convertPolygons = this.convertPolygons('EPSG:31468')
-
     const geojson = {
       type: 'FeatureCollection',
-      features: convertPolygons,
+      features: this.polygons,
     }
 
     ShapeWrite.download(geojson, {
-      folder: 'shapefile',
+      folder: 'shapefile-wgs84',
       types: {
         point: 'points',
         polygon: 'polygons',
@@ -162,31 +159,6 @@ export default class VueComponent extends Vue {
     })
 
     this.startNewPolygon()
-  }
-
-  private convertPolygons(crs: string) {
-    const convertedPolygons: any[] = []
-
-    console.log('CONVERTING')
-    console.log(this.polygons)
-    for (const p of this.polygons) {
-      const convertedPolygon = {
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: [[]] as any[],
-        },
-      }
-      for (const point of p.geometry.coordinates[0]) {
-        console.log(point)
-        const pointConverted = proj4('WGS84', crs, point)
-        convertedPolygon.geometry.coordinates[0].push(pointConverted)
-      }
-      convertedPolygons.push(convertedPolygon)
-    }
-
-    console.log({ convertedPolygons })
-    return convertedPolygons
   }
 
   private cancel() {
