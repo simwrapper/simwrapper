@@ -34,6 +34,7 @@ export default class VueComponent extends Vue {
     colors: string
     activeColumn: string
     maxValue: number
+    opacity: number
   }
 
   private layerManager!: LayerManager
@@ -134,7 +135,7 @@ export default class VueComponent extends Vue {
         lineWidthMinPixels: 1,
         pickable: true,
         stroked: true,
-        opacity: 0.7,
+        opacity: 0.01 * this.props.opacity,
         autoHighlight: true,
         // highlightColor: [255, 128, 255, 255], // [64, 255, 64],
         parameters: {

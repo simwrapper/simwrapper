@@ -16,6 +16,7 @@ declare module 'yaml-loader!*' {
 }
 
 declare module '@statnett/vue-plotly'
+declare module 'bulma-slider'
 declare module 'colormap'
 declare module 'convert-seconds'
 declare module 'd3-sankey-diagram'

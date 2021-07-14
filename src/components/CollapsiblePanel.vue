@@ -77,7 +77,7 @@ export default class VueComponent extends Vue {
   cursor: pointer;
   align-items: center;
   font-size: 1.2rem;
-  background-color: var(--bgPanel2);
+  background-color: var(--bgHideButton);
   outline: none;
   color: #aac;
   transition: background-color 0.15s, color 0.15s, border-radius 0.15s;

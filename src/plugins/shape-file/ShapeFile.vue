@@ -46,6 +46,8 @@ de:
                 a.dropdown-item(v-for="column in shapefile.header"
                                 @click="handleNewDataColumn(column)") {{ column }}
 
+      polygon-configurator(@opacity="handleOpacity")
+
   .nav(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
@@ -74,6 +76,7 @@ import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import Coords from '@/util/Coords'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
+import PolygonConfigurator from './PolygonConfigurator.vue'
 import PolygonLayer from './PolygonLayerDeck.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 
@@ -83,6 +86,7 @@ Vue.use(VuePlugin)
 @Component({
   components: {
     CollapsiblePanel,
+    PolygonConfigurator,
     PolygonLayer,
     TimeSlider,
     ToggleButton,
@@ -112,6 +116,7 @@ class MyPlugin extends Vue {
   private isButtonActiveColumn = false
   private center = [13.45, 52.53]
   private maxValueForScaling = 1000
+  private opacity = 70
 
   private selectedColorRamp = 'viridis'
 
@@ -169,6 +174,7 @@ class MyPlugin extends Vue {
       colors: this.selectedColorRamp,
       activeColumn: this.activeHeader,
       maxValue: this.maxValueForScaling,
+      opacity: this.opacity,
     }
   }
 
@@ -344,6 +350,10 @@ class MyPlugin extends Vue {
     // done! show the first column
     this.handleNewDataColumn(this.shapefile.header[0])
   }
+
+  private handleOpacity(opacity: number) {
+    this.opacity = opacity
+  }
 }
 
 // !register plugin!
@@ -434,11 +444,11 @@ export default MyPlugin
 }
 
 .right-side {
-  grid-row: 1 / 2;
-  grid-column: 1 / 3;
+  position: absolute;
+  top: 5rem;
+  right: 0;
   display: flex;
   flex-direction: row;
-  margin: 5rem 0 auto auto;
   pointer-events: auto;
 }
 
