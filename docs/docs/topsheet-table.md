@@ -55,8 +55,8 @@ userEntries:
     value: 0.10
 
 # Calculations --------------------------------------------
-# These are calculated as if in a script, in order from top
-# down. The language is very simple, you generally can only
+# These are calculated as if in a script, from top to bottom.
+# The language is very simple, you generally can only
 # do one operation per line. Thus you will probably need
 # to calculate a few intermediate variables which can
 # be referenced in later lines. Then output the final
@@ -73,6 +73,9 @@ calculations:
   # values found in that CSV
   rides: '{customers.rides}'
 
+  # In general, if a calculation inside {brackets} refers to an array, the calculation will
+  # return the SUM of whatever values that expression refers to.
+
   # opHours: the drtVehicles file is an array of elements that each have t_1 and t_0.
   # This eqn takes the SUM of all t_1 values, subtracts the SUM of all t_0 values,
   # and divides this by 3600
@@ -83,14 +86,12 @@ calculations:
   operatingHours: 'opHours * sampleSize ^ (-0.662)'
 
   # drtFares: This uses the @filter function to select a subset of the rows in the CSV.
-  # So drtFares will be an array of rows from personMoneyEvents data where
+  # drtFares will be an array of rows from personMoneyEvents data where
   # the purpose field equals the string "drtFare"
   drtFares: '@filter(personMoneyEvents.purpose == drtFare)'
 
-  # userFare: drtFares above is an array, so set this to the SUM of the values in the
-  # sumAmount column.
-  # In general, if a calculation inside {brackets} refers to an array, the calculation will
-  # return the SUM of whatever values that expression refers to.
+  # userFare: drtFares above is an array, so this will be the SUM of the values in the
+  # sumAmount column of that filtered dataset.
   userFare: '{drtFares.sumAmount}'
 
   # the round() function does just that.
@@ -183,19 +184,19 @@ where equation components can be constants, values retrieved from the UI form, v
 
 will return an array of rows for which the value in the specified file's column matches the logical expression.
 
-- The test value must always a numeric or string constant. Do not use quotes around strings!
+- The test value must always be a numeric or string constant. Do not use quotes around strings!
 - Valid comparisons are `== != >= <= < >`
 - You cannot filter on multiple comparisons: no ANDs and no ORs. Sorry
 - The output is stored as a new array with the name you specify, and can then be referenced in later calculations
 
 **Data lookups:** Any elements enclosed in {curly brackets} will trigger a lookup from the loaded data files.
 
-`myVar: {filename.field}`
+`myVar: {file.field}`
 
-sets myVar to the value of the referenced **file** for the specified **column** or **field**.
+sets myVar to the value of the referenced **file** for the specified **field**.
 
-- If `filename` is just one row of data, such as from `useLastRow`, the value of the `field` column or property will be directly used.
-- If `filename` is an array of rows, such as a CSV file, then the values from all rows will be **SUMMED TOGETHER**. In the future we may add other capabilities but for now, you get a summation every time.
+- If `file` is just one row of data, such as from `useLastRow`, the value of the `field` column or property will be directly used.
+- If `file` is an array of rows, such as a CSV file, then the values from all rows will be **SUMMED TOGETHER**. In the future we may add other capabilities but for now, you get a summation every time.
 
 See the example above for more hints on how this works.
 
