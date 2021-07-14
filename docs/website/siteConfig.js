@@ -5,6 +5,10 @@ const siteConfig = {
   baseUrl: "/docs/", // Base URL for your project */
   projectName: "simwrapper.github.io",
   organizationName: "simwrapper",
+  headerIcon: "img/simwrapper-logo.png",
+  footerIcon: "img/vsp-logo-300dpi.png",
+  favicon: "img/simwrapper-logo-64.png",
+
   headerLinks: [
     { doc: "simwrapper-intro", label: "Documentation" },
     { blog: true, label: "Blog", left: true },
@@ -14,11 +18,6 @@ const siteConfig = {
       external: true,
     },
   ],
-
-  /* path to images for header/footer */
-  headerIcon: "img/simwrapper-logo.png",
-  footerIcon: "img/vsp-logo-300dpi.png",
-  favicon: "img/simwrapper-logo-64.png",
 
   /* Colors for website */
   colors: {
