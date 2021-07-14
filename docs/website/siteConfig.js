@@ -1,15 +1,15 @@
 const siteConfig = {
-  title: "aftersim", // Title for your website.
-  tagline: "The transport simulation visualizer from TU Berlin",
-  url: "https://aftersim.github.io", // Your website URL
+  title: "SimWrapper", // Title for your website.
+  tagline: "The simulation visualizer from TU Berlin",
+  url: "https://simwrapper.github.io", // Your website URL
   baseUrl: "/docs/", // Base URL for your project */
-  projectName: "aftersim.github.io",
-  organizationName: "aftersim",
+  projectName: "simwrapper.github.io",
+  organizationName: "simwrapper",
   headerLinks: [
-    { doc: "aftersim-intro", label: "Documentation" },
+    { doc: "simwrapper-intro", label: "Documentation" },
     { blog: true, label: "Blog", left: true },
     {
-      href: "https://github.com/aftersim/aftersim",
+      href: "https://github.com/simwrapper/simwrapper",
       label: "Github",
       external: true,
     },
