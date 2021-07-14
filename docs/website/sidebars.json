@@ -4,6 +4,7 @@
     "Tutorials": [],
     "Plugin Reference": [
       "aggregate-od",
+      "calculation-tables",
       "carrier-viewer",
       "drt-vehicles",
       "link-vols",
