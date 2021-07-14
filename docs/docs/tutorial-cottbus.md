@@ -1,4 +1,4 @@
 ---
 id: tutorial-cottbus
-title: "Tutorial: Using aftersim to analyze MATSim outputs"
+title: "Tutorial: Using SimWrapper to analyze MATSim outputs"
 ---

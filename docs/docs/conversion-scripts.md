@@ -3,7 +3,7 @@ id: scripts
 title: Conversion Scripts
 ---
 
-_For getting MATSim outputs into aftersim_
+_For getting MATSim outputs into SimWrapper_
 
 In general, most MATSim outputs are too big and use unwieldy formats. The scripts below can help convert some MATSim outputs into smaller, more internet-friendly formats.
 
@@ -13,7 +13,7 @@ If you develop your own scripts, please let us know and we can add them here!
 
 ## create-csv-network.py
 
-- Download script here: **[create-csv-network.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-csv-network.py)**
+- Download script here: **[create-csv-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper.github.io/source/scripts/create-csv-network.py)**
 
 _Create a CSV network appropriate for loading into R with the `sfnetworks` package_
 
@@ -44,9 +44,9 @@ ggplot() +
 
 ## create-json-network.py
 
-Create a JSON network appropriate for loading into aftersim visualizations
+Create a JSON network appropriate for loading into SimWrapper visualizations
 
-- Download script here: **[create-json-network.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/create-json-network.py)**
+- Download script here: **[create-json-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper.github.io/source/scripts/create-json-network.py)**
 
 **Command:**
 
@@ -54,7 +54,7 @@ Create a JSON network appropriate for loading into aftersim visualizations
 
 **Inputs:** MATSim network.xml.gz file; coordinate system
 
-**Outputs:** `network.json.gz` which loads into aftersim much faster than an `.xml.gz` file
+**Outputs:** `network.json.gz` which loads into SimWrapper much faster than an `.xml.gz` file
 
 ---
 
@@ -62,7 +62,7 @@ Create a JSON network appropriate for loading into aftersim visualizations
 
 Parse the event file containing DRT events.
 
-- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/aftersim/aftersim.github.io/source/scripts/parse-drt-link-events.py)**
+- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/simwrapper/simwrapper.github.io/source/scripts/parse-drt-link-events.py)**
 
 **Command:** `python3 parse-drt-link-events.py [network] [events] [coord-system]`
 

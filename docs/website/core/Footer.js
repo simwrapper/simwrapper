@@ -30,7 +30,7 @@ class Footer extends React.Component {
           <div>
             <h5>Docs</h5>
             <a href={this.docUrl("simwrapper-intro")}>Getting Started</a>
-            <a href={this.docUrl("aftersim-installation")}>Developer Guide</a>
+            <a href={this.docUrl("simwrapper-installation")}>Developer Guide</a>
             <a href={`${this.props.config.baseUrl}blog`}>Latest Updates</a>
           </div>
           {/* <div>
@@ -56,7 +56,7 @@ class Footer extends React.Component {
             <h5>More</h5>
             <a href="https://www.vsp.tu-berlin.de">VSP Home</a>
             <a href="https://matsim.org">MATSim.org</a>
-            <a href="https://github.com/aftersim/aftersim.github.io">
+            <a href="https://github.com/simwrapper/simwrapper.github.io">
               ⭐ us on GitHub!
             </a>
           </div>

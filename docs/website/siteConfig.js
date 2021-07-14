@@ -16,9 +16,9 @@ const siteConfig = {
   ],
 
   /* path to images for header/footer */
-  headerIcon: "img/aftersim-logo.png",
+  headerIcon: "img/simwrapper-logo.png",
   footerIcon: "img/vsp-logo-300dpi.png",
-  favicon: "img/aftersim-logo-64.png",
+  favicon: "img/simwrapper-logo-64.png",
 
   /* Colors for website */
   colors: {
