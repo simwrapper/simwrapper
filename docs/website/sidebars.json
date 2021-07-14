@@ -1,6 +1,6 @@
 {
   "doc": {
-    "Getting Started": ["aftersim-intro", "file-management", "scripts"],
+    "Getting Started": ["simwrapper-intro", "file-management", "scripts"],
     "Tutorials": [],
     "Plugin Reference": [
       "aggregate-od",

@@ -1,5 +1,5 @@
 ---
-id: aftersim-intro
+id: simwrapper-intro
 title: Introduction
 ---
 

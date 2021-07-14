@@ -19,7 +19,7 @@ Here's how to set it up.
 
 ### Install the "Mini File Server"
 
-Follow [these instructions on downloading and running the Mini File Server](https://aftersim.github.io/docs/docs/aftersim-intro#viewing-local-folders-on-your-computer) to get started.
+Follow [these instructions on downloading and running the Mini File Server](https://simwrapper.github.io/docs/docs/simwrapper-intro#viewing-local-folders-on-your-computer) to get started.
 
 Once you've installed it, run it in the folder that you want aftersim to have access to.
 

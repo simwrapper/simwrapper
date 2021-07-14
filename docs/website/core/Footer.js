@@ -29,7 +29,7 @@ class Footer extends React.Component {
           </a>
           <div>
             <h5>Docs</h5>
-            <a href={this.docUrl("aftersim-intro")}>Getting Started</a>
+            <a href={this.docUrl("simwrapper-intro")}>Getting Started</a>
             <a href={this.docUrl("aftersim-installation")}>Developer Guide</a>
             <a href={`${this.props.config.baseUrl}blog`}>Latest Updates</a>
           </div>
