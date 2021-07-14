@@ -1,2 +1,2 @@
-- aftersim **[documentation and users guide](https://aftersim.github.io/docs/docs/aftersim-intro)**
-- Source code available [on Github](https://github.com/aftersim/aftersim.github.io)
+- SimWrapper **[documentation and users guide](https://simwrapper.github.io/docs/docs/simwrapper-intro)**
+- Source code available [on Github](https://github.com/simwrapper/simwrapper.github.io)

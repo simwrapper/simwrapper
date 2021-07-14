@@ -167,7 +167,7 @@ export default class VueComponent extends Vue {
 
     const crumbs = [
       {
-        label: 'aftersim',
+        label: 'SimWrapper',
         url: '/',
       },
       {

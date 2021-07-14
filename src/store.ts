@@ -53,7 +53,7 @@ interface GlobalState {
 
 export default new Vuex.Store({
   state: {
-    app: 'aftersim', //  / SIMdex / afterSim / Scout', // 'S • C • O • U • T',
+    app: 'SimWrapper', //  / SIMdex / SimWrapper / Scout', // 'S • C • O • U • T',
     debug: false,
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],

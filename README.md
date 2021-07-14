@@ -1,8 +1,8 @@
-# aftersim project website
+# SimWrapper project website
 
-This repo contains the interactive visualization website for **aftersim**, available at https://aftersim.github.io.
+This repo contains the interactive visualization website for **SimWrapper**, available at https://simwrapper.github.io.
 
-- DOCS available at: https://aftersim.github.io/docs
+- DOCS available at: https://simwrapper.github.io/docs
 
 This README details build instructions for the website itself.
 

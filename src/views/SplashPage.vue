@@ -49,7 +49,7 @@ class MyComponent extends Vue {
   private mounted() {
     const crumbs = [
       {
-        label: 'aftersim',
+        label: 'SimWrapper',
         url: '/',
       },
     ]

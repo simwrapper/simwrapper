@@ -1,5 +1,5 @@
 {
-  "name": "aftersim",
+  "name": "SimWrapper",
   "version": "3.0.0",
   "private": true,
   "scripts": {
