@@ -63,6 +63,7 @@
     "reproject": "^1.2.6",
     "shapefile": "^0.6.6",
     "shp-write": "^0.3.2",
+    "spin.js": "^4.1.0",
     "sql.js-httpvfs": "^0.8.9",
     "threads": "^1.6.5",
     "three": "^0.127.0",
