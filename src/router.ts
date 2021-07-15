@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
 import FolderBrowser from '@/views/FolderBrowser.vue'
+import DashBoard from '@/views/DashBoard.vue'
 
 import globalStore from '@/store'
 
@@ -28,14 +29,17 @@ const routes = [
 
 function projects(): RouteConfig[] {
   const projectRoutes = []
+  // run folder pages
   for (const source of globalStore.state.svnProjects) {
-    // // project page
-    // projectRoutes.push({
-    //   path: '/' + source.url,
-    //   name: source.url,
-    //   component: FolderBrowser,
-    // })
-    // run folder pages
+    projectRoutes.push({
+      path: '/dash/' + source.slug + '*',
+      name: 'dash:' + source.slug,
+      component: DashBoard,
+      props: (route: Route) => ({
+        root: source.slug,
+        xsubfolder: route.path.substring(source.slug.length + 6),
+      }),
+    })
     projectRoutes.push({
       path: '/' + source.slug + '*',
       name: source.slug,
