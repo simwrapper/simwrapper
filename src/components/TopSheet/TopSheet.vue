@@ -1,13 +1,13 @@
 <template lang="pug">
-.topsheet.curate-content(v-if="table.length")
-  h3.curate-heading  {{ title }}
+.topsheet.curate-content
+  h3.curate-heading(v-if="title")  {{ title }}
 
-  .output-table
+  .output-table(v-if="entries.length")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
       input.input.is-small.cell.top-value(:style="row.style" v-model="row.value" @change="boxChanged")
 
-  .output-table(style="margin-top: 1rem")
+  .output-table(v-if="table.length" style="margin-top: 1rem")
     .row(v-for="row,i in table" :key="'row'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
       .cell.top-value(:style="row.style") {{ formattedValue(row.value) }}
@@ -43,7 +43,7 @@ export default class VueComponent extends Vue {
 
   private table: TableRow[] = []
   private entries: { key: string; title: string; value: any }[] = []
-  private title = 'Topsheet'
+  private title = ''
 
   private formattedValue(value: any) {
     if (!isNaN(value)) return value.toLocaleString([this.$store.state.locale, 'en'])
@@ -51,6 +51,7 @@ export default class VueComponent extends Vue {
   }
 
   private mounted() {
+    console.log('TOPSHEET YAML IS', this.yaml)
     if (this.files.length) this.runTopSheet()
   }
 
@@ -99,6 +100,7 @@ export default class VueComponent extends Vue {
       this.table = []
       // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
     }
+    this.$emit('isLoaded')
   }
 }
 </script>

@@ -65,7 +65,7 @@ export default class VueComponent extends Vue {
 
     // use local files in this folder instead of any we just found
     const matches = micromatch(this.files, ['topsheet*.y?(a)ml'])
-    for (const match of matches) topsheets[match] = `${this.subfolder}/${match}`
+    for (const match of matches) topsheets[match] = `${match}`
 
     return Object.values(topsheets)
   }

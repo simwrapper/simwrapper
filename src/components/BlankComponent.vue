@@ -9,8 +9,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
-  // @Prop({ required: true })
-  // private viz!: Viz
+  // @Prop({ required: true }) viz!: Viz
 }
 </script>
 

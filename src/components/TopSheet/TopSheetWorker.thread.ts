@@ -69,10 +69,10 @@ expose({
 
   getTitle(locale: string) {
     console.log('getTitle locale', locale)
-    let title = 'Topsheet'
+    let title = ''
 
-    if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || 'Topsheet'
-    else title = _yaml.title_de || _yaml.title || _yaml.title_en || 'Topsheet'
+    if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || ''
+    else title = _yaml.title_de || _yaml.title || _yaml.title_en || ''
 
     return title
   },
@@ -282,7 +282,7 @@ function getFileVariableReplacements(expr: string) {
 }
 
 async function getYaml() {
-  const text = await _fileSystem.getFileText(_yamlFile)
+  const text = await _fileSystem.getFileText(_subfolder + '/' + _yamlFile)
   const yaml = YAML.parse(text) as TopsheetYaml
   return yaml
 }
