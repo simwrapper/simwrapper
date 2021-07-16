@@ -5,10 +5,10 @@ vue-plotly(:data="data" :layout="layout" :options="options")
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig } from '@/Globals'
-import truncate from '@turf/truncate'
 
 const mockData = {
   car: 34,
@@ -24,8 +24,44 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
-  private mounted() {
+  private solverThread!: any
+  private dataRows: any = {}
+
+  private async mounted() {
+    await this.loadData()
     this.$emit('isLoaded')
+  }
+
+  private async loadData() {
+    if (!this.files.length) return
+
+    if (!this.solverThread) {
+      this.solverThread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    }
+
+    try {
+      const data = await this.solverThread.fetchData({
+        fileSystemConfig: this.fileSystemConfig,
+        subfolder: this.subfolder,
+        files: this.files,
+        config: this.config,
+      })
+
+      this.dataRows = data
+      this.updateChart()
+    } catch (e) {
+      const message = '' + e
+      console.log(message)
+      this.dataRows = {}
+    } finally {
+      Thread.terminate(this.solverThread)
+      this.$emit('isLoaded')
+    }
+  }
+
+  private updateChart() {
+    this.data[0].labels = Object.keys(this.dataRows)
+    this.data[0].values = Object.values(this.dataRows)
   }
 
   private layout = {
@@ -36,9 +72,8 @@ export default class VueComponent extends Vue {
 
   private data = [
     {
-      // title: 'hello',
-      labels: Object.keys(mockData),
-      values: Object.values(mockData),
+      labels: [] as any[],
+      values: [] as any[],
       type: 'pie',
       hole: 0.3,
       textinfo: 'label+percent',
