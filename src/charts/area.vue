@@ -6,17 +6,10 @@ vue-plotly(:data="data" :layout="layout" :options="options")
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Worker, spawn, Thread } from 'threads'
+import { isNumeric } from 'vega-lite'
 import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig } from '@/Globals'
-import { isNumeric } from 'vega-lite'
-
-const mockData = {
-  car: 34,
-  bike: 18,
-  pt: 30,
-  walk: 8,
-}
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -103,7 +96,7 @@ export default class VueComponent extends Vue {
       automargin: true,
     },
     yaxis: { automargin: true },
-    legend: { orientation: 'h', yanchor: 'bottom', y: -0.38 },
+    legend: { orientation: 'h', yanchor: 'bottom', y: -0.4 },
   }
 
   private data: any[] = []

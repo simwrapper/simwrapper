@@ -75,7 +75,7 @@ export default class VueComponent extends Vue {
       labels: [] as any[],
       values: [] as any[],
       type: 'pie',
-      hole: 0.3,
+      hole: 0.2,
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,

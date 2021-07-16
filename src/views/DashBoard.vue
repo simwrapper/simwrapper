@@ -26,17 +26,28 @@
 </template>
 
 <script lang="ts">
+// Add any new charts here!
+// --> Name the import whatever you want the chart "type" to be in YAML
+import area from '@/charts/area.vue'
+import pie from '@/charts/pie.vue'
+const charts = { area, pie }
+
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Spinner } from 'spin.js'
 import YAML from 'yaml'
 
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import { FileSystem, FileSystemConfig } from '@/Globals'
-import PieChart from '@/cards/pie.vue'
-import AreaChart from '@/cards/area.vue'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-@Component({ components: { TopSheet, PieChart, AreaChart }, props: {} })
+// append a prefix so the html template is legal
+const namedCharts = {} as any
+Object.keys(charts).forEach((key: any) => {
+  //@ts-ignore
+  namedCharts[`card-${key}`] = charts[key] as any
+})
+
+@Component({ components: Object.assign({ TopSheet }, namedCharts), props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
@@ -69,16 +80,14 @@ export default class VueComponent extends Vue {
   }
 
   private getCardComponent(card: any) {
-    switch (card.type) {
-      case 'topsheet':
-        return 'TopSheet'
-      case 'pie':
-        return 'PieChart'
-      case 'area':
-        return 'AreaChart'
-      default:
-        return undefined
-    }
+    if (card.type === 'topsheet') return 'TopSheet'
+
+    // might be a chart
+    const keys = Object.keys(charts)
+    if (keys.indexOf(card.type) > -1) return 'card-' + card.type
+
+    // or might be a vue component?
+    return undefined // card.type
   }
 
   private getCardStyle(card: any) {
