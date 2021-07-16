@@ -33,9 +33,10 @@ import YAML from 'yaml'
 import HTTPFileSystem from '@/util/HTTPFileSystem'
 import { FileSystem, FileSystemConfig } from '@/Globals'
 import PieChart from '@/cards/pie.vue'
+import AreaChart from '@/cards/area.vue'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-@Component({ components: { TopSheet, PieChart }, props: {} })
+@Component({ components: { TopSheet, PieChart, AreaChart }, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
@@ -68,11 +69,13 @@ export default class VueComponent extends Vue {
   }
 
   private getCardComponent(card: any) {
-    switch (card.card) {
+    switch (card.type) {
       case 'topsheet':
         return 'TopSheet'
       case 'pie':
         return 'PieChart'
+      case 'area':
+        return 'AreaChart'
       default:
         return undefined
     }
@@ -178,6 +181,7 @@ export default class VueComponent extends Vue {
 .dashboard {
   padding: 1rem 0rem 1rem 2rem;
   background-color: var(--bgBold);
+  overflow-y: auto;
 }
 
 .header {
