@@ -15,7 +15,9 @@
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
           .header-buttons
-            button.button.is-small.is-white(@click="expand(card)" title="Enlarge")
+            button.button.is-small.is-white(
+              @click="expand(card)"
+              :title="fullScreenCardId ? 'Restore':'Enlarge'")
               i.fa.fa-expand
 
 
@@ -118,9 +120,16 @@ export default class VueComponent extends Vue {
     // full screen ?
     if (this.fullScreenCardId) {
       if (this.fullScreenCardId !== card.id) {
-        style.visibility = 'hidden'
+        style.display = 'none'
       } else {
-        style = { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, margin: '1rem 1rem' }
+        style = {
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          margin: '1rem 1rem 1rem 1rem',
+        }
       }
     }
 
@@ -247,6 +256,7 @@ export default class VueComponent extends Vue {
     button {
       color: var(--link);
       opacity: 0.5;
+      padding-right: 2px;
     }
     button:hover {
       opacity: 1;
