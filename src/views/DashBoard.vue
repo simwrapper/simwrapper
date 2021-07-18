@@ -1,27 +1,29 @@
 <template lang="pug">
 .dashboard
-  .header
-    h2 {{ title }}
-    p {{ description }}
+  .dashboard-content
+    .header
+      h2 {{ title }}
+      p {{ description }}
 
-  .dash-row(v-for="row,i in rows" :key="i")
+    .dash-row(v-for="row,i in rows" :key="i")
 
-    .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
-      :style="getCardStyle(card)")
+      .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
+        :style="getCardStyle(card)")
 
-      h3 {{ card.title }}
+        h3 {{ card.title }}
+        p(v-if="card.description") {{ card.description }}
 
-      .spinner-box(:id="card.id" v-if="getCardComponent(card)")
-        component.dash-card(
-          :is="getCardComponent(card)"
-          :fileSystemConfig="fileSystemConfig"
-          :subfolder="xsubfolder"
-          :files="fileList"
-          :yaml="card.props.configFile"
-          :config="card.props"
-          :style="{opacity: opacity[card.id]}"
-          @isLoaded="handleCardIsLoaded(card.id)"
-        )
+        .spinner-box(:id="card.id" v-if="getCardComponent(card)")
+          component.dash-card(
+            :is="getCardComponent(card)"
+            :fileSystemConfig="fileSystemConfig"
+            :subfolder="xsubfolder"
+            :files="fileList"
+            :yaml="card.props.configFile"
+            :config="card.props"
+            :style="{opacity: opacity[card.id]}"
+            @isLoaded="handleCardIsLoaded(card.id)"
+          )
 
 </template>
 
@@ -29,8 +31,9 @@
 // Add any new charts here!
 // --> Name the import whatever you want the chart "type" to be in YAML
 import area from '@/charts/area.vue'
+import map from '@/charts/choropleth-map.vue'
 import pie from '@/charts/pie.vue'
-const charts = { area, pie }
+const charts = { area, pie, map }
 
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Spinner } from 'spin.js'
@@ -91,18 +94,15 @@ export default class VueComponent extends Vue {
   }
 
   private getCardStyle(card: any) {
-    const hue = Math.floor(360 * Math.random())
     const flex = card.width || 1
     const height = card.height ? card.height * 60 : undefined
 
     const style: any = {
-      // backgroundColor: 'white', // `hsl'(${hue}, 80%, 80%)`,
-      margin: '2rem 2rem 0 0',
-      position: 'relative',
+      margin: '2rem 2rem 2rem 0',
       flex,
     }
 
-    if (height) style.height = `${height}px`
+    if (height) style.minHeight = `${height}px`
 
     return style
   }
@@ -127,7 +127,7 @@ export default class VueComponent extends Vue {
     this.description = this.yaml.header.description || ''
 
     // build rows
-    let numCard = 0
+    let numCard = 1
 
     for (const rowId of Object.keys(this.yaml.layout)) {
       const cards: any[] = this.yaml.layout[rowId]
@@ -170,7 +170,6 @@ export default class VueComponent extends Vue {
   }
 
   private async handleCardIsLoaded(id: string) {
-    console.log('unspin', id)
     await this.$nextTick()
 
     this.opacity[id] = 1.0
@@ -191,6 +190,11 @@ export default class VueComponent extends Vue {
   padding: 1rem 0rem 1rem 2rem;
   background-color: var(--bgBold);
   overflow-y: auto;
+
+  .dashboard-content {
+    max-width: 90rem;
+    margin: 0 auto 0 auto;
+  }
 }
 
 .header {
@@ -206,10 +210,12 @@ export default class VueComponent extends Vue {
 }
 
 .dash-card-frame {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-rows: auto auto 1fr;
 
   h3 {
+    grid-row: 1 / 2;
     border-top: 3px solid var(--splitPanel);
     font-size: 1.3rem;
     line-height: 1.5rem;
@@ -217,9 +223,28 @@ export default class VueComponent extends Vue {
     margin-bottom: 0.5rem;
     color: var(--link);
   }
+
+  // if there is a description, fix the margins
+  p {
+    grid-row: 2 / 3;
+    margin-top: -0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .spinner-box {
+    grid-row: 3 / 4;
+    position: relative;
+  }
 }
 
 .dash-card {
   transition: opacity 0.5s;
+}
+
+@media only screen and (max-width: 50em) {
+  .dash-row {
+    flex-direction: column;
+    // flex: 1;
+  }
 }
 </style>
