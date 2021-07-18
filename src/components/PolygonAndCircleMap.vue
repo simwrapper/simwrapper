@@ -9,6 +9,7 @@ import { scaleLinear, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
 import LayerManager from '@/util/LayerManager'
+import { ScatterplotLayer } from '@deck.gl/layers'
 
 const SCALED_COLORS = scaleThreshold()
   .domain([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
@@ -29,12 +30,13 @@ const SCALED_COLORS = scaleThreshold()
 export default class VueComponent extends Vue {
   @Prop({ required: true })
   private props!: {
-    shapefile: { data: any[]; header: any; prj: string }
+    data: any[]
     dark: boolean
     colors: string
     activeColumn: string
     maxValue: number
     opacity: number
+    useCircles: boolean
   }
 
   private layerManager!: LayerManager
@@ -58,7 +60,6 @@ export default class VueComponent extends Vue {
   }
 
   private mounted() {
-    console.log(this.mapID)
     this.setupLayerManager()
     this.updateLayers()
   }
@@ -132,56 +133,79 @@ export default class VueComponent extends Vue {
       format: 'rba',
     }).map((a: number[]) => [a.slice(0, 3)])
 
-    console.log({ builtColors })
-
     const fetchColor = scaleThreshold()
       .domain(new Array(20).fill(0).map((v, i) => 0.05 * i))
       .range(builtColors)
 
-    console.log({ fetchColor })
-    console.log('fetch', fetchColor(0.8))
-
     this.layerManager.removeLayer('shapefileLayer')
+    this.layerManager.removeLayer('scatterplot-layer')
     this.layerManager.addLayer(
-      new GeoJsonLayer({
-        id: 'shapefileLayer',
-        data: this.props.shapefile.data,
-        filled: true,
-        lineWidthUnits: 'pixels',
-        lineWidthMinPixels: 1,
-        pickable: true,
-        stroked: false,
-        opacity: 0.01 * this.props.opacity,
-        autoHighlight: true,
-        highlightColor: [255, 0, 200], // [64, 255, 64],
-        parameters: {
-          depthTest: true,
-        },
+      this.props.useCircles
+        ? new ScatterplotLayer({
+            id: 'scatterplot-layer',
+            data: this.props.data,
+            pickable: true,
+            opacity: 0.01 * this.props.opacity,
+            stroked: true,
+            filled: true,
+            radiusScale: 2,
+            radiusMinPixels: 3,
+            radiusMaxPixels: 250,
+            radiusUnits: 'pixels',
+            lineWidthMinPixels: 1,
+            getPosition: (d: any) => d.geometry.coordinates,
+            getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
+            getFillColor: (d: any) => {
+              const v = d.properties[this.props.activeColumn]
+              if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [200, 200, 200]
+              const c = fetchColor(v / this.props.maxValue) as any
+              if (c) return c[0]
+              return undefined
+            },
+            getLineColor: (d: any) => [255, 255, 255],
+            parameters: {
+              depthTest: false,
+            },
+          })
+        : new GeoJsonLayer({
+            id: 'shapefileLayer',
+            data: this.props.data,
+            filled: true,
+            lineWidthUnits: 'pixels',
+            lineWidthMinPixels: 1,
+            pickable: true,
+            stroked: false,
+            opacity: 0.01 * this.props.opacity,
+            autoHighlight: true,
+            highlightColor: [255, 0, 200], // [64, 255, 64],
+            parameters: {
+              depthTest: true,
+            },
 
-        getLineColor: [255, 255, 255, 64],
-        getFillColor: (d: any) => {
-          const v = d.properties[this.props.activeColumn]
-          if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [200, 200, 200]
-          const c = fetchColor(v / this.props.maxValue) as any
-          if (c) return c[0]
-          return undefined
-        },
-        // SCALED_COLORS(f.properties[this.props.activeColumn] / this.props.maxValue),
-        getLineWidth: 1,
-        getTooltip: this.getTooltip,
-        updateTriggers: {
-          getFillColor: {
-            dark: this.props.dark,
-            colors: this.props.colors,
-            activeColumn: this.props.activeColumn,
-            maxValue: this.props.maxValue,
-          },
-        },
+            getLineColor: [255, 255, 255, 64],
+            getFillColor: (d: any) => {
+              const v = d.properties[this.props.activeColumn]
+              if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [224, 224, 224, 128]
+              const c = fetchColor(v / this.props.maxValue) as any
+              if (c) return c[0]
+              return undefined
+            },
+            // SCALED_COLORS(f.properties[this.props.activeColumn] / this.props.maxValue),
+            getLineWidth: 1,
+            getTooltip: this.getTooltip,
+            updateTriggers: {
+              getFillColor: {
+                dark: this.props.dark,
+                colors: this.props.colors,
+                activeColumn: this.props.activeColumn,
+                maxValue: this.props.maxValue,
+              },
+            },
 
-        transitions: {
-          getFillColor: 250,
-        },
-      })
+            transitions: {
+              getFillColor: 250,
+            },
+          })
     )
   }
 }

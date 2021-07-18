@@ -73,9 +73,7 @@ export default class VueComponent extends Vue {
   }
 
   private async getFiles() {
-    console.log(1)
     const folderContents = await this.fileApi.getDirectory(this.xsubfolder)
-    console.log(2)
 
     // hide dot folders
     const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
@@ -116,8 +114,6 @@ export default class VueComponent extends Vue {
   }
 
   private async setupDashboard() {
-    console.log(this.root, this.xsubfolder)
-
     // get dashboard layout from yaml
     const yaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
     this.yaml = YAML.parse(yaml)

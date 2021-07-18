@@ -1,11 +1,24 @@
 <template lang="pug">
-polygon-and-circle-map.choro-map(:props="mapProps")
+.map-layout
+  polygon-and-circle-map.choro-map(:props="mapProps")
+
+  .config-bar
+    button.button(@click="useCircles=false" title="Shapes")
+      img(src="../assets/btn-polygons.jpg" width=32)
+    button.button(@click="useCircles=true" title="Circles")
+      img(src="../assets/btn-circles.jpg" width=32)
+
+    input.slider.has-output.is-small.is-fullwidth.is-danger(
+      id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
+
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Worker, spawn, Thread } from 'threads'
+import bulmaSlider from 'bulma-slider'
+import * as turf from '@turf/turf'
 
 import { FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
@@ -19,25 +32,27 @@ export default class VueComponent extends Vue {
 
   private thread!: any
   private boundaries: any[] = []
+  private centroids: any[] = []
+
   private dataRows: any[] = []
   private activeColumn = ''
-
-  @Watch('$store.state.isDarkMode') handleThemeChanged() {
-    this.activeColumn = 'x' + this.activeColumn
-  }
+  private useCircles = false
+  private sliderOpacity = 80
 
   private get mapProps() {
     return {
-      shapefile: { data: this.boundaries, prj: 'EPSG:4326' },
+      useCircles: this.useCircles,
+      data: this.useCircles ? this.centroids : this.boundaries,
       dark: this.$store.state.isDarkMode,
       colors: 'viridis',
       activeColumn: this.activeColumn,
       maxValue: 1000,
-      opacity: 100,
+      opacity: this.sliderOpacity,
     }
   }
 
   private async mounted() {
+    bulmaSlider.attach()
     // load the boundaries and the dataset, use promises so we can clear
     // the spinner when things are finished
     await Promise.all([this.loadBoundaries(), this.loadDataset()])
@@ -46,13 +61,26 @@ export default class VueComponent extends Vue {
   }
 
   private async loadBoundaries() {
-    if (!this.config.boundariesUrl) return
+    if (!this.config.boundaries) return
 
     try {
-      const boundaries = await fetch(this.config.boundariesUrl).then(async r => await r.json())
+      const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
       this.boundaries = boundaries.features
+      this.calculateCentroids()
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  private calculateCentroids() {
+    for (const feature of this.boundaries) {
+      const centroid: any = turf.centerOfMass(feature as any)
+      if (feature.properties[this.config.boundariesLabel]) {
+        centroid.properties.label = feature.properties[this.config.boundariesLabel]
+      }
+      centroid.properties.id = feature.properties[this.config.boundariesJoinCol]
+
+      this.centroids.push(centroid)
     }
   }
 
@@ -106,6 +134,17 @@ export default class VueComponent extends Vue {
       else boundary.properties.value = 'N/A'
     })
 
+    // 3. insert values into centroids
+    this.centroids.forEach(centroid => {
+      const lookupValue = centroid.properties!.id
+      if (!lookupValue) return
+
+      const answer = lookup[lookupValue]
+      if (answer) centroid.properties!.value = answer[this.config.datasetValue]
+      else centroid.properties!.value = 'N/A'
+    })
+    // sort them so big bubbles are below small bubbles
+    this.centroids.sort((a: any, b: any) => (a.properties.value > b.properties.value ? -1 : 1))
     this.activeColumn = 'value'
   }
 }
@@ -113,13 +152,36 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+@import '~vue-slider-component/theme/default.css';
 
-.choro-map {
+.map-layout {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.choro-map {
+  flex: 1;
+}
+
+.config-bar {
+  display: flex;
+  flex-direction: row;
+  padding-top: 0.25rem;
+
+  input.slider {
+    margin-left: auto;
+    width: 8rem;
+  }
+
+  button {
+    margin-right: 0.15rem;
+    padding: 0 0;
+  }
 }
 @media only screen and (max-width: 640px) {
 }
