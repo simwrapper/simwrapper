@@ -49,7 +49,6 @@ export default class VueComponent extends Vue {
       this.dataRows = []
     } finally {
       Thread.terminate(this.solverThread)
-      this.$emit('isLoaded')
     }
   }
 
@@ -89,14 +88,17 @@ export default class VueComponent extends Vue {
     margin: { t: 25, b: 0, l: 0, r: 0 },
     // auto
     xaxis: {
-      title: {
-        text: this.config.x,
-        standoff: 0,
-      },
+      // title: {
+      //   text: this.config.x,
+      //   // standoff: 0,
+      // },
       automargin: true,
     },
     yaxis: { automargin: true },
-    legend: { orientation: 'h', yanchor: 'bottom', y: -0.4 },
+    legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
+    font: {
+      family: "'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif",
+    },
   }
 
   private data: any[] = []
