@@ -1,7 +1,7 @@
 <template lang="pug">
 .dashboard
   .dashboard-content
-    .header
+    .header(v-if="!fullScreenCardId")
       h2 {{ title }}
       p {{ description }}
 
@@ -10,8 +10,14 @@
       .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
         :style="getCardStyle(card)")
 
-        h3 {{ card.title }}
-        p(v-if="card.description") {{ card.description }}
+        .dash-card-headers
+          .header-labels
+            h3 {{ card.title }}
+            p(v-if="card.description") {{ card.description }}
+          .header-buttons
+            button.button.is-small.is-white(@click="expand(card)" title="Enlarge")
+              i.fa.fa-expand
+
 
         .spinner-box(:id="card.id" v-if="getCardComponent(card)")
           component.dash-card(
@@ -91,16 +97,32 @@ export default class VueComponent extends Vue {
     return undefined // card.type
   }
 
+  private fullScreenCardId = ''
+
+  private expand(card: any) {
+    if (this.fullScreenCardId) this.fullScreenCardId = ''
+    else this.fullScreenCardId = card.id
+  }
+
   private getCardStyle(card: any) {
     const flex = card.width || 1
     const height = card.height ? card.height * 60 : undefined
 
-    const style: any = {
+    let style: any = {
       margin: '2rem 2rem 2rem 0',
       flex,
     }
 
     if (height) style.minHeight = `${height}px`
+
+    // full screen ?
+    if (this.fullScreenCardId) {
+      if (this.fullScreenCardId !== card.id) {
+        style.visibility = 'hidden'
+      } else {
+        style = { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, margin: '1rem 1rem' }
+      }
+    }
 
     return style
   }
@@ -210,12 +232,31 @@ export default class VueComponent extends Vue {
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
 
+  .dash-card-headers {
+    display: flex;
+    flex-direction: row;
+    border-top: 3px solid var(--splitPanel);
+    padding-top: 0.1rem;
+  }
+
+  .header-buttons {
+    display: flex;
+    flex-direction: row;
+    margin-left: auto;
+
+    button {
+      color: var(--link);
+      opacity: 0.5;
+    }
+    button:hover {
+      opacity: 1;
+    }
+  }
+
   h3 {
     grid-row: 1 / 2;
-    border-top: 3px solid var(--splitPanel);
     font-size: 1.3rem;
     line-height: 1.5rem;
-    padding-top: 0.1rem;
     margin-bottom: 0.5rem;
     color: var(--link);
   }
