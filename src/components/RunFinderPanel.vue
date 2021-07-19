@@ -63,7 +63,7 @@ import VizCard from '@/components/VizCard.vue'
 
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
-import runFinder from '@/util/RunFinder'
+import runFinder from '@/js/RunFinder'
 
 interface Run {
   root: FileSystemConfig

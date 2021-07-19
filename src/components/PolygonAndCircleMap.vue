@@ -8,7 +8,7 @@ import { GeoJsonLayer } from '@deck.gl/layers'
 import { scaleLinear, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 import { ScatterplotLayer } from '@deck.gl/layers'
 
 const SCALED_COLORS = scaleThreshold()

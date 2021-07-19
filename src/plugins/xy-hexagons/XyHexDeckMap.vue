@@ -10,7 +10,7 @@ import colormap from 'colormap'
 import SelectableHexagonLayer from './SelectableHexLayer'
 import { pointToHexbin } from './HexagonAggregator'
 
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 import { MAP_STYLES } from '@/Globals'
 
 const material = {

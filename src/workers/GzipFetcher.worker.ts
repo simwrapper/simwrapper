@@ -7,7 +7,7 @@ export default null as any
 
 import pako from 'pako'
 
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {

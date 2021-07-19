@@ -5,8 +5,8 @@ Vue.use(Vuex)
 
 import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import fileSystems from '@/fileSystemConfig'
-import { debounce } from '@/util/util'
-import SVNFileSystem from './util/HTTPFileSystem'
+import { debounce } from '@/js/util'
+import SVNFileSystem from './js/HTTPFileSystem'
 
 // ----------------------------------------
 

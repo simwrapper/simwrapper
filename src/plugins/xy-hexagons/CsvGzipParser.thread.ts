@@ -8,8 +8,8 @@ import pako from 'pako'
 import Papaparse from 'papaparse'
 
 import { FileSystemConfig } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
-import Coords from '@/util/Coords'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import Coords from '@/js/Coords'
 
 interface RowCache {
   [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }

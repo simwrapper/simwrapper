@@ -96,7 +96,7 @@ export default class AnimationView extends Vue {
 
   private network: Network = { nodes: {}, links: {} }
 
-  private OrbitControl = require('@/util/OrbitControl')
+  private OrbitControl = require('@/js/OrbitControl')
 
   // eslint-disable-next-line
   private container: any

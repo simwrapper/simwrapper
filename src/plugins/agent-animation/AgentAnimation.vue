@@ -66,7 +66,7 @@ import {
   DARK_MODE,
 } from '@/Globals'
 import { Route } from 'vue-router'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({
   components: {

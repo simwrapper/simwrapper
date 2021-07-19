@@ -1,6 +1,6 @@
 // This fetches all folders from all root filesystems, and returns
 import store from '@/store'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 let foundFolders = { number: 0, folders: {} as any }

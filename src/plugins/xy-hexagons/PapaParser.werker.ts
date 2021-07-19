@@ -6,7 +6,7 @@ import { expose, Transfer } from 'threads/worker'
 import { Observable } from 'observable-fns'
 import Papaparse from 'papaparse'
 
-import Coords from '@/util/Coords'
+import Coords from '@/js/Coords'
 
 let proj = 'EPSG:4326'
 

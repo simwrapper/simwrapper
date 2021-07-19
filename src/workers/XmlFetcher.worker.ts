@@ -5,7 +5,7 @@ import pako from 'pako'
 import xml2js from 'xml2js'
 
 import globalStore from '@/store'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 class XmlFetcher extends AsyncBackgroundWorker {

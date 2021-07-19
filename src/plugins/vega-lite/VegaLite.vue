@@ -29,7 +29,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: {} })
 class VegaComponent extends Vue {

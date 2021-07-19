@@ -14,7 +14,7 @@ import readBlob from 'read-blob'
 
 import globalStore from '@/store'
 import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: {} })
 class MyComponent extends Vue {

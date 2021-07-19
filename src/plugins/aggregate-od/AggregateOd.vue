@@ -75,7 +75,7 @@ import VueSlider from 'vue-slider-component'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import yaml from 'yaml'
 
-import Coords from '@/util/Coords'
+import Coords from '@/js/Coords'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendBox from './LegendBoxOD.vue'
 import LineFilterSlider from './LineFilterSlider.vue'
@@ -90,7 +90,7 @@ import {
   FileSystemConfig,
   VisualizationPlugin,
 } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
 

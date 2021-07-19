@@ -47,7 +47,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Spinner } from 'spin.js'
 import YAML from 'yaml'
 
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystem, FileSystemConfig } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 

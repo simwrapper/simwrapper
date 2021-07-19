@@ -21,7 +21,7 @@ import micromatch from 'micromatch'
 
 import { FileSystemConfig } from '@/Globals'
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
 @Component({ components: { TopSheet } })

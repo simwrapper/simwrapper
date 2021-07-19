@@ -21,7 +21,7 @@ import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({
   components: {

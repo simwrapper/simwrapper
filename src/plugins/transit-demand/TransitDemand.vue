@@ -87,7 +87,7 @@ import {
   VisualizationPlugin,
   MAP_STYLES,
 } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 
 import GzipWorker from '@/workers/GzipFetcher.worker'

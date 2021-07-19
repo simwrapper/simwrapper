@@ -9,7 +9,7 @@ import { scaleLinear, ScaleThreshold, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
 import { MAP_STYLES } from '@/Globals'
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 
 enum COLUMNS {
   offset = 0,

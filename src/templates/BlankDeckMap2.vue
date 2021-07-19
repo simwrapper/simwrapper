@@ -6,7 +6,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 // import { ArcLayer } from '@deck.gl/layers'
 
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 import { MAP_STYLES } from '@/Globals'
 
 @Component({ components: {} })

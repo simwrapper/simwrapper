@@ -58,13 +58,13 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import yaml from 'yaml'
 
 import pako from '@aftersim/pako'
-import Coords from '@/util/Coords'
+import Coords from '@/js/Coords'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import TimeSlider from './TimeSlider.vue'
 
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
 

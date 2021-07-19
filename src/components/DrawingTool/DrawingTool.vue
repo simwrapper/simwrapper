@@ -39,7 +39,7 @@ import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import proj4 from 'proj4'
 import ShapeWrite from 'shp-write'
 
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 import { MAP_STYLES } from '@/Globals'
 import globalStore from '@/store'
 

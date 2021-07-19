@@ -91,7 +91,7 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import { spawn, Worker, Thread, ModuleThread } from 'threads'
 
-import util from '@/util/util'
+import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -109,7 +109,7 @@ import {
 
 // import XyHexLayer from './XyHexLayer'
 import XyHexDeckMap from './XyHexDeckMap.vue'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 interface Aggregations {
   [heading: string]: {

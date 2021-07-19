@@ -75,7 +75,7 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 import ConfigPanel from './ConfigPanel.vue'
 import LinkDeckMap from './LinkDeckMap.vue'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
 import {

@@ -74,8 +74,8 @@ import {
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import Coords from '@/util/Coords'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import Coords from '@/js/Coords'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import PolygonConfigurator from './PolygonConfigurator.vue'
 import PolygonLayer from './PolygonLayerDeck.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'

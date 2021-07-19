@@ -97,7 +97,7 @@ import yaml from 'yaml'
 
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 

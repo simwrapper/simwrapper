@@ -8,7 +8,7 @@ import { GeoJsonLayer } from '@deck.gl/layers'
 import { scaleLinear, scaleThreshold } from 'd3-scale'
 import colormap from 'colormap'
 
-import LayerManager from '@/util/LayerManager'
+import LayerManager from '@/js/LayerManager'
 
 const SCALED_COLORS = scaleThreshold()
   .domain([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])

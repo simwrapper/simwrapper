@@ -10,8 +10,8 @@ import YAML from 'yaml'
 import { parseNumbers } from 'xml2js/lib/processors'
 
 import { FileSystemConfig } from '@/Globals'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
-import { findMatchingGlobInFiles, parseXML } from '@/util/util'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { findMatchingGlobInFiles, parseXML } from '@/js/util'
 import globalStore from '@/store'
 
 type TableRow = {

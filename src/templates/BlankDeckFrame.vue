@@ -33,14 +33,14 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import YAML from 'yaml'
 import { spawn, Worker, Thread, ModuleThread } from 'threads'
 
-import util from '@/util/util'
+import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 
 import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status } from '@/Globals'
 
 import BlankDeckMap from './BlankDeckMap2.vue'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 interface VizDetail {
   title: string

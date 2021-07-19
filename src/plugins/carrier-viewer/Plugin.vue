@@ -137,7 +137,7 @@ import {
 } from '@/Globals'
 
 import TourViz from './TourViz'
-import HTTPFileSystem from '@/util/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
