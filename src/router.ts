@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import VueRouter, { Route, RouteConfig } from 'vue-router'
-import FolderBrowser from '@/views/FolderBrowser.vue'
+import FolderBrowser from '@/views/MainFrame.vue'
 import DashBoard from '@/views/DashBoard.vue'
 
 import globalStore from '@/store'
@@ -13,19 +13,24 @@ const routes = [
     component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
   },
   {
+    path: '/tabbed',
+    component: () => import(/* webpackChunkName: "sql" */ '@/views/TabbedDashboardView.vue'),
+  },
+  {
     path: '/gist/:id',
     component: () => import(/* webpackChunkName: "gist" */ '@/views/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
-  // {
-  //   path: '/sqlite',
-  //   component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThingTwo.vue'),
-  // },
   {
-    path: '/*',
-    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
+    path: '/sqlite',
+    component: () => import(/* webpackChunkName: "sql" */ '@/views/SqliteThing.vue'),
+  },
+  {
+    path: '/',
+    component: () => import(/* webpackChunkName: "split" */ '@/views/MainFrame.vue'),
+    props: { root: '', xsubfolder: '' },
   },
   {
     // catch-all back to home page
@@ -66,13 +71,18 @@ function vizPlugins(): any[] {
   const plugins = []
   for (const plugin of globalStore.state.visualizationTypes.values()) {
     plugins.push({
-      path: '/v/' + plugin.kebabName + '/:project/*',
+      path: '/v/' + plugin.kebabName + '/:slug/*',
       name: plugin.kebabName,
       component: plugin.component,
       props: (route: Route) => {
+        const match = route.params.pathMatch
+        const subfolder = match.substring(0, match.lastIndexOf('/'))
+        const yamlConfig = match.substring(match.lastIndexOf('/') + 1)
         return {
-          project: route.params.project,
-          root: route.params.project,
+          root: route.params.slug,
+          subfolder,
+          yamlConfig,
+          thumbnail: false,
         }
       },
     })

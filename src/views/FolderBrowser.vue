@@ -13,9 +13,7 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
-      h2(v-if="myState.svnProject") {{ myState.svnProject.name}}: {{ xsubfolder || '/' }}
-      a(v-if="xsubfolder" @click="openOutputFolder('..')") ^ UP
-
+      b: a(v-if="xsubfolder" @click="openOutputFolder('..')") ^ UP
 
       //- this is the content of readme.md, if it exists
       .readme-header
@@ -430,12 +428,12 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .folder-browser {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  overflow-y: auto;
-  background-color: var(--bgBrowser);
+  // position: absolute;
+  // top: 0;
+  // bottom: 0;
+  // left: 0;
+  // overflow-y: auto;
+  // background-color: var(--bgBrowser);
 }
 
 .vessel {
@@ -543,7 +541,7 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgCream2);
+  background-color: var(--bgCream3);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -615,67 +613,4 @@ h3.curate-heading {
   padding: 1rem 0rem;
   margin: 0rem 0rem;
 }
-
-// @media only screen and (max-width: 50em) {
-//   .viz-table {
-//     grid-template-columns: repeat(2, minmax(0, 1fr));
-//   }
-
-//   .folder-table {
-//     grid-template-columns: repeat(2, minmax(0, 1fr));
-//   }
-
-//   .file-table {
-//     display: grid;
-//     grid-gap: 0rem;
-//     grid-template-columns: 1fr;
-//   }
-// }
-
-// @media only screen and (max-width: 40em) {
-//   .vessel {
-//     padding: 0 1rem 0 1rem;
-//   }
-
-//   .folder-table {
-//     display: grid;
-//     grid-gap: 0rem;
-//     grid-template-columns: 1fr;
-//   }
-
-//   .viz-table {
-//     display: grid;
-//     grid-gap: 2rem;
-//     grid-template-columns: 1fr;
-//   }
-
-//   .viz-frame {
-//     p {
-//       font-size: 1rem;
-//     }
-//   }
-
-//   .curate-heading {
-//     border-bottom: none;
-//     padding: 1rem 0rem;
-//   }
-
-//   h3.curate-heading {
-//     padding-top: 1rem;
-//     font-weight: bold;
-//   }
-
-//   .curate-content {
-//     border-bottom: none;
-//     padding-top: 0rem;
-//   }
-
-//   .file {
-//     font-size: 0.8rem;
-//   }
-
-//   .logo {
-//     display: none;
-//   }
-// }
 </style>

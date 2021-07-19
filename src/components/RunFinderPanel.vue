@@ -12,8 +12,8 @@ de:
 </i18n>
 
 <template lang="pug">
-.dashboard-home
-  h3.logo: a(href="/") {{globalState.app }}
+.run-finder-panel
+  h3.logo: router-link(:to="'/'") {{globalState.app }}
 
   .top-panel
     .stuff-in-main-panel
@@ -98,7 +98,6 @@ class MyComponent extends Vue {
       component: 'FolderBrowser',
       props: { root: target.root.slug, xsubfolder: target.path },
     })
-    console.log(target)
   }
 
   private onSplit() {
@@ -129,7 +128,7 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.dashboard-home {
+.run-finder-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -140,6 +139,7 @@ export default MyComponent
   flex-direction: column;
   overflow-y: auto;
   flex: 1;
+  margin-left: 0.25rem;
   margin-bottom: 0.5rem;
 }
 
@@ -195,7 +195,7 @@ a {
 .commands {
   display: flex;
   flex-direction: row;
-  margin-top: 0.5rem;
+  margin-right: -0.5rem;
 }
 
 .commands .button {
@@ -211,13 +211,13 @@ a {
 .logo {
   background-color: #60588f;
   color: white;
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 1rem;
   margin-right: auto;
-  margin-bottom: auto;
+  margin-bottom: 0.5rem;
+  margin-top: -0.2rem;
 
   a {
-    font-size: 1.5rem;
-    line-height: 1.4rem;
+    font-size: 1.3rem;
     color: white;
   }
 

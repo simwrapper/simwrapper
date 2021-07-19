@@ -10,7 +10,7 @@
       .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
         :style="getCardStyle(card)")
 
-        .dash-card-headers
+        .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
           .header-labels
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
@@ -36,17 +36,14 @@
 </template>
 
 <script lang="ts">
-// Add any new charts here!
-// --> Name the import whatever you want the chart "type" to be in YAML
-import charts from '@/charts/allCharts'
-
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Spinner } from 'spin.js'
 import YAML from 'yaml'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystem, FileSystemConfig } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
+import charts from '@/charts/allCharts'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
@@ -60,6 +57,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
   @Prop({ required: false }) private gist!: any
+  @Prop({ required: false }) private config!: any
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -110,8 +108,13 @@ export default class VueComponent extends Vue {
   private fullScreenCardId = ''
 
   private expand(card: any) {
-    if (this.fullScreenCardId) this.fullScreenCardId = ''
-    else this.fullScreenCardId = card.id
+    if (this.fullScreenCardId) {
+      this.fullScreenCardId = ''
+    } else {
+      this.fullScreenCardId = card.id
+    }
+
+    this.$emit('zoom', this.fullScreenCardId)
   }
 
   private getCardStyle(card: any) {
@@ -119,7 +122,7 @@ export default class VueComponent extends Vue {
     const height = card.height ? card.height * 60 : undefined
 
     let style: any = {
-      margin: '2rem 2rem 2rem 0',
+      margin: '2rem 3rem 2rem 0',
       flex,
     }
 
@@ -153,9 +156,13 @@ export default class VueComponent extends Vue {
   }
 
   private async setupDashboard() {
-    // get dashboard layout from yaml
-    const yaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
-    this.yaml = YAML.parse(yaml)
+    // Do we have config already or do we need to fetch it from the yaml file?
+    if (this.config) {
+      this.yaml = this.config
+    } else {
+      const yaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
+      this.yaml = YAML.parse(yaml)
+    }
 
     // set header
     this.title = this.yaml.header.title || 'Dashboard'
@@ -205,10 +212,11 @@ export default class VueComponent extends Vue {
   }
 
   private async handleCardIsLoaded(id: string) {
+    // must wait for vue to update DOM layout
     await this.$nextTick()
 
     this.opacity[id] = 1.0
-    const target = document.getElementById(id) as any
+
     if (this.spinners[id]) {
       this.spinners[id].stop()
       delete this.spinners[id]
@@ -222,9 +230,8 @@ export default class VueComponent extends Vue {
 @import '../../node_modules/spin.js/spin.css';
 
 .dashboard {
-  padding: 1rem 0rem 1rem 2rem;
-  background-color: var(--bgDashboard);
-  overflow-y: auto;
+  margin: 0 0;
+  padding: 1rem 0rem 1rem 3rem;
 
   .dashboard-content {
     max-width: 90rem;
@@ -256,6 +263,10 @@ export default class VueComponent extends Vue {
     padding-top: 0.1rem;
   }
 
+  .dash-card-headers.fullscreen {
+    padding-top: 0;
+  }
+
   .header-buttons {
     display: flex;
     flex-direction: row;
@@ -276,6 +287,7 @@ export default class VueComponent extends Vue {
     grid-row: 1 / 2;
     font-size: 1.3rem;
     line-height: 1.5rem;
+    margin-top: 0.1rem;
     margin-bottom: 0.5rem;
     color: var(--link);
   }

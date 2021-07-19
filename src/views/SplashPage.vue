@@ -74,13 +74,14 @@ export default MyComponent
 @import '@/styles.scss';
 
 .splash-page {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
+  // position: absolute;
+  // top: 0;
+  // bottom: 0;
+  // left: 0;
   height: 100%;
   overflow-y: auto;
-  background-color: var(--bgBrowser);
+  background-color: var(--bgDashboard);
+  width: 100%;
 }
 
 .gap {

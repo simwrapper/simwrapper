@@ -1126,11 +1126,12 @@ h3 {
 }
 
 .left-side {
-  z-index: 5;
-  position: absolute;
-  top: 0rem;
-  left: 0;
+  grid-column: 1 / 3;
+  grid-row: 1 / 4;
+  margin-bottom: auto;
+  margin-right: auto;
   display: flex;
+  z-index: 5;
   flex-direction: row;
   pointer-events: auto;
   max-height: 50%;
