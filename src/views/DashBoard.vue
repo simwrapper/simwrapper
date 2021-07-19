@@ -38,10 +38,7 @@
 <script lang="ts">
 // Add any new charts here!
 // --> Name the import whatever you want the chart "type" to be in YAML
-import area from '@/charts/area.vue'
-import map from '@/charts/choropleth-map.vue'
-import pie from '@/charts/pie.vue'
-const charts = { area, pie, map }
+import charts from '@/charts/allCharts'
 
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Spinner } from 'spin.js'
