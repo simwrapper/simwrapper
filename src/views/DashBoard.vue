@@ -62,6 +62,7 @@ Object.keys(charts).forEach((key: any) => {
 export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
+  @Prop({ required: false }) private gist!: any
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -74,7 +75,17 @@ export default class VueComponent extends Vue {
   private fileList: string[] = []
 
   private async mounted() {
-    this.fileSystemConfig = this.getFileSystem(this.root)
+    if (this.gist) {
+      this.fileSystemConfig = {
+        name: 'gist',
+        slug: 'gist',
+        description: 'From GitHub',
+        baseURL: this.gist.config.baseUrl,
+      }
+    } else {
+      this.fileSystemConfig = this.getFileSystem(this.root)
+    }
+
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     this.fileList = await this.getFiles()
     this.setupDashboard()

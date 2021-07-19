@@ -12,6 +12,13 @@ const routes = [
     path: '/sql',
     component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
   },
+  {
+    path: '/gist/:id',
+    component: () => import(/* webpackChunkName: "gist" */ '@/views/GistView.vue'),
+    props: (route: Route) => ({
+      id: route.params.id,
+    }),
+  },
   // {
   //   path: '/sqlite',
   //   component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThingTwo.vue'),
