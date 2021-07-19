@@ -26,7 +26,6 @@ de:
   drawing-tool(v-if="!thumbnail")
 
   .left-side(v-if="!thumbnail")
-    collapsible-panel(:darkMode="isDarkMode" :locked="true" direction="left")
       .panel-items
 
         //- heading
@@ -116,6 +115,9 @@ class MyPlugin extends Vue {
 
   @Prop({ required: false })
   private yamlConfig!: string
+
+  @Prop({ required: false })
+  private config!: any
 
   @Prop({ required: false })
   private thumbnail!: boolean
@@ -212,6 +214,11 @@ class MyPlugin extends Vue {
 
   private async getVizDetails() {
     if (!this.myState.fileApi) return
+
+    if (this.config) {
+      this.vizDetails = Object.assign({}, this.config)
+      return
+    }
 
     // first get config
     try {
@@ -337,7 +344,6 @@ class MyPlugin extends Vue {
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
       const text = await this.myState.fileApi.getFileText(network)
-
       const json = JSON.parse(text)
       this.numLinks = json.features.length
 
@@ -358,7 +364,7 @@ class MyPlugin extends Vue {
 
       this.$store.commit('setStatus', {
         type: Status.WARNING,
-        msg: `Could not find: ${this.myState.subfolder}/${this.vizDetails.geojsonFile}`,
+        msg: `Error loading geojson: ${this.myState.subfolder}/${this.vizDetails.geojsonFile}`,
       })
 
       return null
@@ -490,7 +496,7 @@ class MyPlugin extends Vue {
 
       this.$store.commit('setStatus', {
         type: Status.WARNING,
-        msg: `Could not find: ${this.myState.subfolder}/${filename}`,
+        msg: `Error loading CSV: ${this.myState.subfolder}/${filename}`,
       })
 
       return { allColumns: [], header: [], headerMax: [] }
@@ -528,9 +534,7 @@ export default MyPlugin
   background-size: cover;
   grid-template-columns: auto 1fr auto;
   grid-template-rows: auto 1fr;
-  grid-template-areas:
-    'leftside    .  rightside'
-    '.           .  rightside';
+  overflow: hidden;
 }
 
 .gl-viz.hide-thumbnail {
@@ -585,9 +589,10 @@ export default MyPlugin
 }
 
 .left-side {
+  grid-column: 1 / 4;
+  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
-  grid-area: leftside;
   background-color: var(--bgPanel);
   font-size: 0.8rem;
   pointer-events: auto;
@@ -597,13 +602,11 @@ export default MyPlugin
   z-index: 1;
   display: flex;
   flex-direction: row;
-  grid-area: rightside;
   margin: 0 0 auto 0;
 }
 
 .anim {
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
+  height: 100%;
   pointer-events: auto;
 }
 

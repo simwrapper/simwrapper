@@ -18,7 +18,7 @@
   .panel-item(v-if="!useSlider")
     p: b {{ $t('selectColumn') }}
 
-    .dropdown.full-width(:class="{'is-active': isButtonActive}")
+    .dropdown.is-up.full-width(:class="{'is-active': isButtonActive}")
       .dropdown-trigger
         button.full-width.is-warning.button(
           :class="{'is-loading': activeColumn < 0}"
@@ -45,7 +45,7 @@
   //- COLOR PICKER
   .panel-item.color-picker(v-if="activeColumn > -1")
     p: b {{ $t('colors') }}
-      .dropdown.full-width(:class="{'is-active': isColorButtonActive}")
+      .dropdown.is-up.full-width(:class="{'is-active': isColorButtonActive}")
         .dropdown-trigger
           img.color-button(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
                           :src="`/colors/scale-${selectedColorRamp}.png`"
@@ -228,7 +228,7 @@ export default class VueComponent extends Vue {
 
 .config-panel {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .full-width {
@@ -237,7 +237,7 @@ export default class VueComponent extends Vue {
 }
 
 .panel-item {
-  margin-top: 1rem;
+  padding: 0 1rem;
 }
 
 p {
@@ -245,9 +245,9 @@ p {
 }
 
 .color-picker {
-  margin-top: 1.5rem;
-  height: 4rem;
-  display: inline-block;
+  // margin-top: 1.5rem;
+  // height: 4rem;
+  // display: inline-block;
 }
 
 .color-button:hover {
@@ -280,7 +280,7 @@ input {
 }
 
 .vert-space {
-  margin-top: 4rem;
+  // margin-top: 4rem;
 }
 
 @media only screen and (max-width: 640px) {

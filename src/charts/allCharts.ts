@@ -2,7 +2,8 @@
 // the name of the import will be the chart "type" in YAML.
 
 import area from '@/charts/area.vue'
+import links from '@/charts/links.vue'
 import map from '@/charts/choropleth-map.vue'
 import pie from '@/charts/pie.vue'
 
-export default { area, map, pie }
+export default { area, links, map, pie }
