@@ -21,7 +21,7 @@ import {
   LIGHT_MODE,
 } from '@/Globals'
 import AgentGeometry from './AgentGeometry'
-import EventBus from '@/EventBus.vue'
+import EventBus from '@/plugins/agent-animation/EventBus.vue'
 import XmlFetcher from '@/workers/XmlFetcher'
 
 export interface Network {
