@@ -19,6 +19,9 @@ export enum Status {
   WARNING,
 }
 
+export const UI_FONT =
+  "'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif"
+
 export interface FileSystem {
   getDirectory(path: string): Promise<DirectoryEntry>
   getFileText(path: string): Promise<string>

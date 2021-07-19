@@ -9,7 +9,7 @@ import { Worker, spawn, Thread } from 'threads'
 import { isNumeric } from 'vega-lite'
 import VuePlotly from '@statnett/vue-plotly'
 
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, UI_FONT } from '@/Globals'
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -70,7 +70,13 @@ export default class VueComponent extends Vue {
     const convertedData: any = {}
 
     for (const col of areaColumns.sort((a: string, b: string) => (a > b ? -1 : 1))) {
-      convertedData[col] = { name: col, x: x, y: [], stackgroup: 'one' }
+      convertedData[col] = {
+        name: col,
+        x: x,
+        y: [],
+        stackgroup: 'one', // so they stack
+        mode: 'none', // no background lines
+      }
     }
 
     for (const row of rows) {
@@ -93,11 +99,12 @@ export default class VueComponent extends Vue {
       //   // standoff: 0,
       // },
       automargin: true,
+      showgrid: false,
     },
-    yaxis: { automargin: true },
+    yaxis: { automargin: true, showgrid: false },
     legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
-      family: "'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif",
+      family: UI_FONT,
     },
   }
 

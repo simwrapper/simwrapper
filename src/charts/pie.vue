@@ -8,7 +8,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
 
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, UI_FONT } from '@/Globals'
 
 const mockData = {
   car: 34,
@@ -69,7 +69,7 @@ export default class VueComponent extends Vue {
     margin: { t: 30, b: 5, l: 0, r: 0 },
     legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
-      family: "'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif",
+      family: UI_FONT,
     },
   }
 
