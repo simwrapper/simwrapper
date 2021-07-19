@@ -164,7 +164,7 @@ export default class VueComponent extends Vue {
 
         // Vue is weird about new properties: use Vue.set() instead
         // this.opacity[card.id] = 0.5
-        Vue.set(this.opacity, card.id, 0.2)
+        Vue.set(this.opacity, card.id, 0.1)
 
         numCard++
       })
@@ -256,7 +256,6 @@ export default class VueComponent extends Vue {
     button {
       color: var(--link);
       opacity: 0.5;
-      padding-right: 2px;
     }
     button:hover {
       opacity: 1;

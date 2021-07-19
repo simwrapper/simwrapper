@@ -3,14 +3,16 @@
   polygon-and-circle-map.choro-map(:props="mapProps")
 
   .config-bar
-    button.button(@click="useCircles=false" title="Shapes")
-      img(src="../assets/btn-polygons.jpg" width=32)
-    button.button(@click="useCircles=true" title="Circles")
-      img(src="../assets/btn-circles.jpg" width=32)
+    img.img-button(@click="useCircles=false"
+                   src="../assets/btn-polygons.jpg"
+                   title="Shapes")
 
-    input.slider.has-output.is-small.is-fullwidth.is-danger(
+    img.img-button(@click="useCircles=true"
+                   src="../assets/btn-circles.jpg"
+                   title="Circles")
+
+    input.slider.is-small.is-fullwidth.is-danger(
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
-
 
 </template>
 
@@ -52,7 +54,7 @@ export default class VueComponent extends Vue {
   }
 
   private async mounted() {
-    bulmaSlider.attach()
+    // bulmaSlider.attach()
     // load the boundaries and the dataset, use promises so we can clear
     // the spinner when things are finished
     await Promise.all([this.loadBoundaries(), this.loadDataset()])
@@ -152,7 +154,7 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-@import '~vue-slider-component/theme/default.css';
+@import '../../node_modules/vue-slider-component/theme/default.css';
 
 .map-layout {
   position: absolute;
@@ -178,11 +180,18 @@ export default class VueComponent extends Vue {
     width: 8rem;
   }
 
-  button {
+  .img-button {
     margin-right: 0.15rem;
-    padding: 0 0;
+    height: 2.5rem;
+    width: 2.5rem;
+    border: var(--borderThin);
+    border-radius: 4px;
+  }
+  .img-button:hover {
+    border: 2px solid var(--linkHover);
   }
 }
+
 @media only screen and (max-width: 640px) {
 }
 </style>
