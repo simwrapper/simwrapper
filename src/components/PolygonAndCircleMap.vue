@@ -157,12 +157,12 @@ export default class VueComponent extends Vue {
             getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
             getFillColor: (d: any) => {
               const v = d.properties[this.props.activeColumn]
-              if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [200, 200, 200]
+              if (isNaN(v)) return this.props.dark ? [100, 100, 100] : [200, 200, 200]
               const c = fetchColor(v / this.props.maxValue) as any
               if (c) return c[0]
               return undefined
             },
-            getLineColor: (d: any) => [255, 255, 255],
+            getLineColor: this.props.dark ? [100, 100, 100] : [255, 255, 255],
             parameters: {
               depthTest: false,
             },

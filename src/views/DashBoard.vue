@@ -223,7 +223,7 @@ export default class VueComponent extends Vue {
 
 .dashboard {
   padding: 1rem 0rem 1rem 2rem;
-  background-color: var(--bgBold);
+  background-color: var(--bgDashboard);
   overflow-y: auto;
 
   .dashboard-content {
@@ -252,7 +252,7 @@ export default class VueComponent extends Vue {
   .dash-card-headers {
     display: flex;
     flex-direction: row;
-    border-top: 3px solid var(--splitPanel);
+    border-top: var(--borderDashboard);
     padding-top: 0.1rem;
   }
 
@@ -262,10 +262,12 @@ export default class VueComponent extends Vue {
     margin-left: auto;
 
     button {
+      background-color: #00000000;
       color: var(--link);
       opacity: 0.5;
     }
     button:hover {
+      background-color: #ffffff20;
       opacity: 1;
     }
   }
