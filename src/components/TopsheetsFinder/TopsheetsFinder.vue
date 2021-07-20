@@ -47,7 +47,7 @@ export default class VueComponent extends Vue {
     if (this.files.length) {
       this.fileSystem = new HTTPFileSystem(this.fileSystemConfig)
       this.topsheets = await this.findTopsheetsForThisFolder()
-      console.log('TOPSHEETS', this.topsheets)
+      // console.log('TOPSHEETS', this.topsheets)
     }
   }
 

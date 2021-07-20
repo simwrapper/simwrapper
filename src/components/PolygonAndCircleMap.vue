@@ -174,15 +174,15 @@ export default class VueComponent extends Vue {
             lineWidthUnits: 'pixels',
             lineWidthMinPixels: 1,
             pickable: true,
-            stroked: false,
+            stroked: true,
             opacity: 0.01 * this.props.opacity,
             autoHighlight: true,
-            highlightColor: [255, 0, 200], // [64, 255, 64],
+            highlightColor: [255, 0, 200],
             parameters: {
-              depthTest: true,
+              depthTest: false,
             },
 
-            getLineColor: [255, 255, 255, 64],
+            getLineColor: this.props.dark ? [96, 96, 96, 96] : [192, 192, 192, 64],
             getFillColor: (d: any) => {
               const v = d.properties[this.props.activeColumn]
               if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [224, 224, 224, 128]

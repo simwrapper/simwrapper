@@ -7,7 +7,8 @@ $themeColor: $matsimBlue;
 $themeColorPale: #3264afcc;
 $themeColorPaler: #b9c9df;
 $colorBoldBackground: $steelGray;
-$colorPurple: #7957d5;
+$colorPurple: #6a1b9a;
+$colorYellow: #ffdf80;
 $paleBackground: #dbd9d7;
 $darkBackground: #181a1b;
 
@@ -43,7 +44,7 @@ $thumbnailHeight: 10rem;
   --borderThin: 1px solid #cce;
   --borderDashboard: 3px solid #d4dbdd;
   --beige: #ffeead;
-  --yellow: #ffcc5c;
+  --yellow: $colorYellow;
   --splitPanel: #d4dbdd;
 }
 

@@ -44,10 +44,6 @@ writableMapBox.accessToken = MAPBOX_TOKEN
 class App extends Vue {
   private state = globalStore.state
 
-  private clickedLink(path: string) {
-    this.$router.push({ path })
-  }
-
   private mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
