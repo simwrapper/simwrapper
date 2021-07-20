@@ -24,6 +24,7 @@ import * as turf from '@turf/turf'
 
 import { FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: { PolygonAndCircleMap } })
 export default class VueComponent extends Vue {
@@ -32,6 +33,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
+  private fileApi!: HTTPFileSystem
   private thread!: any
   private boundaries: any[] = []
   private centroids: any[] = []
@@ -54,6 +56,7 @@ export default class VueComponent extends Vue {
   }
 
   private async mounted() {
+    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     // bulmaSlider.attach()
     // load the boundaries and the dataset, use promises so we can clear
     // the spinner when things are finished
@@ -66,12 +69,18 @@ export default class VueComponent extends Vue {
     if (!this.config.boundaries) return
 
     try {
-      const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
-      this.boundaries = boundaries.features
-      this.calculateCentroids()
+      if (this.config.boundaries.startsWith('http')) {
+        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
+        this.boundaries = boundaries.features
+      } else {
+        const boundaries = await this.fileApi.getFileJson(this.config.boundaries)
+        this.boundaries = boundaries.features
+      }
     } catch (e) {
       console.error(e)
+      return
     }
+    this.calculateCentroids()
   }
 
   private calculateCentroids() {
