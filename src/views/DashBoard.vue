@@ -234,7 +234,7 @@ export default class VueComponent extends Vue {
   padding: 1rem 0rem 1rem 3rem;
 
   .dashboard-content {
-    max-width: 90rem;
+    max-width: 110rem;
     margin: 0 auto 0 auto;
   }
 }
