@@ -154,7 +154,6 @@ export default class VueComponent extends Vue {
 }
 
 .tabholder {
-  max-width: 93rem;
   margin: 0 auto;
   background-color: var(--bgDashboard);
   z-index: 10;
@@ -170,13 +169,12 @@ li.is-not-active b a {
   padding: 0.25rem 0 0 0;
   color: var(--linkFancy);
   font-size: 1.5rem;
-  // font-weight: bold;
+  font-weight: bold;
   text-align: center;
   margin-top: 0.5rem;
   margin-left: 1rem;
 
   p {
-    max-width: 90rem;
     margin: 0 2rem;
   }
 }
