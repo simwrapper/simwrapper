@@ -3,7 +3,7 @@
 
   .tabholder(v-show="!isZoomed")
     .breadcrumbs
-      p /{{ root }}{{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+      p {{ root }} • {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
     .tabs.is-centered
       ul
@@ -56,6 +56,7 @@ export default class VueComponent extends Vue {
     this.updateRoute()
   }
 
+  @Watch('root')
   @Watch('xsubfolder')
   private updateRoute() {
     this.fileSystemConfig = this.getFileSystem(this.root)
@@ -66,6 +67,7 @@ export default class VueComponent extends Vue {
     // this.generateBreadcrumbs()
 
     // this happens async
+    this.dashboards = []
     this.findDashboards()
   }
 

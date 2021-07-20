@@ -45,7 +45,6 @@ export default class VueComponent extends Vue {
 
   private mounted() {
     this.updateRoute()
-    console.log(this.myRoot)
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
@@ -53,11 +52,12 @@ export default class VueComponent extends Vue {
   }
 
   private updateRoute() {
-    console.log(this.$route)
-    console.log(this.root)
-    console.log(this.xsubfolder)
+    // console.log(this.$route)
+    // console.log(this.root)
+    // console.log(this.xsubfolder)
 
     this.myRoot = this.root
+    this.mySubfolder = this.xsubfolder
   }
 
   private async onNavigate(panelNumber: number, options: { component: string; props: any }) {
