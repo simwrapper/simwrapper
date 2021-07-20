@@ -7,7 +7,7 @@ const fileSystems: FileSystemConfig[] = [
     description: 'Run mini-file-server to browse files on your PC',
     baseURL: 'http://localhost:8000',
     needPassword: false,
-    thumbnail: '/thumb-localfiles.jpg',
+    thumbnail: '/images/thumb-localfiles.jpg',
     dashboardFolder: '.dashboards',
   },
   {
@@ -16,7 +16,7 @@ const fileSystems: FileSystemConfig[] = [
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
     needPassword: false,
-    thumbnail: '/thumb-chart.jpg',
+    thumbnail: '/images/thumb-chart.jpg',
     skipList: ['episim/battery'],
   },
   // {
@@ -34,7 +34,7 @@ const fileSystems: FileSystemConfig[] = [
   //   description: 'Mount cluster files using sshfs',
   //   baseURL: 'http://localhost:8000/cluster',
   //   needPassword: false,
-  //   thumbnail: '/thumb-cluster.png',
+  //   thumbnail: '/images/thumb-cluster.png',
   // },
   // {
   //   name: 'Apache (Local)',
@@ -42,7 +42,7 @@ const fileSystems: FileSystemConfig[] = [
   //   description: 'Run Apache locally',
   //   baseURL: 'http://localhost',
   //   needPassword: true,
-  //   thumbnail: '/thumbnail.png',
+  //   thumbnail: '/images/thumbnail.png',
   // },
 ]
 

@@ -252,7 +252,7 @@ export default function Component(props: {
       opacity: 1,
       shadowEnabled: true,
       noAlloc: false,
-      iconAtlas: '/icon-atlas-3.png',
+      iconAtlas: '/images/icon-atlas-3.png',
       iconMapping: ICON_MAPPING,
       sizeScale: 1,
       billboard: true,
