@@ -35,7 +35,7 @@ interface GlobalState {
   locale: string
   needLoginForUrl: string
   resizeEvents: number
-  runFolders: { [root: string]: { folder: string }[] }
+  runFolders: { [root: string]: { path: string }[] }
   runFolderCount: number
   statusErrors: string[]
   statusMessage: string
@@ -79,7 +79,7 @@ export default new Vuex.Store({
   mutations: {
     updateRunFolders(
       state: GlobalState,
-      value: { number: number; folders: { [root: string]: { folder: string }[] } }
+      value: { number: number; folders: { [root: string]: { path: string }[] } }
     ) {
       state.runFolderCount = value.number
       state.runFolders = value.folders

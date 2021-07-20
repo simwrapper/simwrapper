@@ -1,12 +1,7 @@
-<template>
-  <ul id="demo">
-    <tree-item
-      class="item"
-      :item="treeData"
-      @make-folder="makeFolder"
-      @add-item="addItem"
-    ></tree-item>
-  </ul>
+<template lang="pug">
+  ul
+    tree-item.item(:item="treeData" :root="true" @navigate="onNavigate")
+
 </template>
 
 <script lang="ts">
@@ -26,6 +21,14 @@ export default Vue.component('tree-view', {
     }
   },
   methods: {
+    onNavigate: function(event: any) {
+      const newPath = `/${event.props.root}/${event.props.xsubfolder}`
+      try {
+        this.$router.push(newPath)
+      } catch (e) {
+        // duplicate nav is ignored
+      }
+    },
     makeFolder: function(item: any) {
       Vue.set(item, 'children', [])
       this.addItem(item)
@@ -38,3 +41,8 @@ export default Vue.component('tree-view', {
   },
 })
 </script>
+<style scoped>
+ul {
+  margin-left: 0.3rem;
+}
+</style>

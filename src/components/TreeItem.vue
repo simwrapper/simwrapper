@@ -1,70 +1,83 @@
-<template>
-  <li>
-    <!-- <div :class="{ bold: isFolder }" @click="toggle" @dblclick="makeFolder"> -->
-    <div :root="item.root.url" :xsubfolder="item.path" @click="toggle">
-      {{ item.name }}
-      <!-- <span v-if="isFolder">[{{ isOpen ? '-' : '+' }}]</span> -->
-    </div>
-    <ul v-show="isOpen" v-if="isFolder">
-      <tree-item
-        class="item"
-        v-for="(child, index) in item.children"
-        :key="index"
-        :item="child"
-        @make-folder="$emit('make-folder', $event)"
-        @add-item="$emit('add-item', $event)"
-      ></tree-item>
-      <!-- <li class="add" @click="$emit('add-item', item)">+</li> -->
-    </ul>
-  </li>
+<template lang="pug">
+li
+  .leaf-node()
+    i.toggle.fa(v-if="item.children.length" :class="{'fa-plus': !isOpen, 'fa-minus': isOpen}"
+      @click="toggle"
+      style="font-size: 0.7rem; margin: 4px 0 auto -8px;"
+    )
+    .leaf-label(:root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
+
+  ul.children(v-show="isOpen" v-if="isFolder")
+    tree-item.item(
+      v-for="(child, index) in item.children"
+      :key="index"
+      :item="child"
+      @navigate="$emit('navigate', $event)"
+    )
+
 </template>
 
-<script>
+<script lang="ts">
 import Vue from 'vue'
 
 export default Vue.component('tree-item', {
   props: {
-    item: Object,
+    item: {} as any,
   },
   data: function() {
     return {
-      isOpen: true, // default to all-open
+      isOpen: true, // default to all-closed
     }
   },
   computed: {
     isFolder: function() {
-      return this.item.children && this.item.children.length
+      const item = this.item as any
+      return item.children && item.children.length
     },
   },
   methods: {
-    toggle: function(target) {
-      const { root, xsubfolder } = target.target.attributes
-      console.log({ root: root.value, xsubfolder: xsubfolder.value })
+    activate: function(element: any) {
+      const { root, xsubfolder } = element.target.attributes
       this.$emit('navigate', {
         component: 'FolderBrowser',
-        props: { root, xsubfolder },
+        props: { root: root.value, xsubfolder: xsubfolder.value },
       })
     },
-
-    // if (this.isFolder) {
-    //   this.isOpen = !this.isOpen
-    // }
-    // },
-    makeFolder: function() {
-      if (!this.isFolder) {
-        this.$emit('make-folder', this.item)
-        this.isOpen = true
-      }
+    toggle: function(element: any) {
+      this.isOpen = !this.isOpen
     },
   },
 })
 </script>
-<style scoped>
+
+<style scoped lang="scss">
+@import '@/styles.scss';
+
 ul {
   list-style: none outside none;
 }
+
 li {
   margin-left: 0.6rem;
   line-height: 1.15rem;
+}
+
+.item {
+  margin-right: auto;
+  cursor: pointer;
+}
+
+.leaf-node {
+  display: flex;
+  flex-direction: row;
+  margin-right: auto;
+}
+
+.leaf-label:hover {
+  background-color: var(--bgHover);
+}
+
+.leaf-label {
+  margin-left: 0.15rem;
 }
 </style>

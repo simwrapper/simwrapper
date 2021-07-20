@@ -132,9 +132,10 @@ class SVNFileSystem {
       if (!entry) continue
 
       // got one!
-      const name = entry[1] // regex returns first match in [1]
+      let name = entry[1] // regex returns first match in [1]
 
       if (name === '../') continue
+      if (name.startsWith('./')) name = name.substring(2)
 
       if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
       else files.push(name)

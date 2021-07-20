@@ -19,15 +19,10 @@ de:
     .stuff-in-main-panel
       .more-stuff
 
-        //- a(href="/sql") SQL Test 1 - Postgres
-        //- a(href="/sqlite") SQL Test 2 - SQLite
-
         .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
           h3 {{ zroot }}
 
-          p(v-for="run in filteredRunFolders(zroot)" :key="`${run.root.url}/${run.path}`")
-            a(@click="onNavigate(run)") {{ run.path }}
-            //- router-link(:to="`${run.root.url}${run.path}`") {{ run.path }}
+          tree-view.things(:initialData="runTree[zroot]")
 
   .bottom-panel
     //- h3 Search
@@ -60,37 +55,72 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
+import TreeView from '@/components/TreeView.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig } from '@/Globals'
 import runFinder from '@/js/RunFinder'
 
-interface Run {
-  root: FileSystemConfig
-  // firstFolder: string
+interface Folder {
+  root: string
   path: string
+  name: string
+  children: Folder[]
 }
 
 @Component({
-  components: { Colophon, VizCard },
+  components: { Colophon, VizCard, TreeView },
 })
 class MyComponent extends Vue {
-  private allRuns: Run[] = []
+  private runTree: { [root: string]: Folder } = {}
+  private runLookupByPath: { [path: string]: Folder } = {}
+
   private numberOfScannedFolders = 0
   private state = globalStore.state
+  private rootNodes: { [path: string]: Folder[] } = {}
 
   private mounted() {
     runFinder.findRuns()
+
+    for (const root of Object.keys(this.$store.state.runFolders)) {
+      this.generateTreeFromFolders(root)
+    }
   }
 
-  private filteredRunFolders(zroot: string) {
-    const allRuns: any[] = this.globalState.runFolders[zroot]
-    const filtered = allRuns.filter(f => {
-      const segments = f.path.split('/')
-      if (segments.length && segments[segments.length - 1].startsWith('.')) return false
-      return true
-    })
-    return filtered
+  private async generateTreeFromFolders(root: string) {
+    const allRuns: { path: string }[] = this.globalState.runFolders[root]
+
+    const prefix = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0].slug
+    const rootNode = { root: prefix, path: '/', name: '', children: [] as Folder[] }
+    this.runTree[root] = rootNode
+
+    for (const run of allRuns) {
+      // don't analyze root node itself
+      if (!run.path) continue
+
+      // console.log('RUN:', run.path)
+      const lastSlash = run.path.lastIndexOf('/')
+      const folderName = run.path.substring(lastSlash + 1)
+
+      // skip .dot folders
+      if (folderName.startsWith('.')) {
+        // console.log('skipping', folderName)
+        continue
+      }
+
+      // create node
+      const folder = { root: prefix, path: run.path, name: folderName, children: [] as Folder[] }
+      // console.log(run.path)
+      if (!this.runLookupByPath[root + run.path]) this.runLookupByPath[root + run.path] = folder
+
+      // add to parent
+      const parentPath = run.path.substring(0, lastSlash)
+      // console.log({ parentPath })
+      const parent = this.runLookupByPath[root + parentPath] || rootNode
+      // console.log(run.path, 'has parent', parent)
+
+      parent.children.push(folder)
+    }
+    return rootNode
   }
 
   private onNavigate(target: any) {
@@ -226,6 +256,9 @@ a {
   }
 }
 
+.things {
+  margin-left: -1rem;
+}
 @media only screen and (max-width: 640px) {
   .content {
     padding: 2rem 1rem 8rem 1rem;
