@@ -96,9 +96,9 @@ export default class VueComponent extends Vue {
   }
 
   private async loadDataset() {
-    if (!this.thread) {
-      this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
-    }
+    // cancel any loose threads first
+    if (this.thread) Thread.terminate(this.thread)
+    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
 
     try {
       const data = await this.thread.fetchData({

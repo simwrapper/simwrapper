@@ -24,7 +24,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
-  private solverThread!: any
+  private thread!: any
   private dataRows: any = {}
 
   private async mounted() {
@@ -35,12 +35,11 @@ export default class VueComponent extends Vue {
   private async loadData() {
     if (!this.files.length) return
 
-    if (!this.solverThread) {
-      this.solverThread = await spawn(new Worker('../workers/DataFetcher.thread'))
-    }
+    if (this.thread) Thread.terminate(this.thread)
+    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
 
     try {
-      const data = await this.solverThread.fetchData({
+      const data = await this.thread.fetchData({
         fileSystemConfig: this.fileSystemConfig,
         subfolder: this.subfolder,
         files: this.files,
@@ -54,7 +53,7 @@ export default class VueComponent extends Vue {
       console.log(message)
       this.dataRows = {}
     } finally {
-      Thread.terminate(this.solverThread)
+      Thread.terminate(this.thread)
     }
   }
 
