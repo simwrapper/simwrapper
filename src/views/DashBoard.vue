@@ -159,6 +159,8 @@ export default class VueComponent extends Vue {
     // Do we have config already or do we need to fetch it from the yaml file?
     if (this.config) {
       this.yaml = this.config
+    } else if (this.gist) {
+      this.yaml = this.gist
     } else {
       const yaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
       this.yaml = YAML.parse(yaml)
