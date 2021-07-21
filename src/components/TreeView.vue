@@ -22,12 +22,10 @@ export default Vue.component('tree-view', {
   },
   methods: {
     onNavigate: function(event: any) {
-      const newPath = `/${event.props.root}/${event.props.xsubfolder}`
-      try {
-        this.$router.push(newPath)
-      } catch (e) {
-        // duplicate nav is ignored
-      }
+      this.$emit('navigate', {
+        component: 'TabbedDashboardView',
+        props: { root: event.props.root, xsubfolder: event.props.xsubfolder },
+      })
     },
     makeFolder: function(item: any) {
       Vue.set(item, 'children', [])

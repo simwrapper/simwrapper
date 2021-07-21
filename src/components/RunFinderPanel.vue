@@ -19,10 +19,10 @@ de:
     .stuff-in-main-panel
       .more-stuff
 
-        .root-files(v-for="zroot in Object.keys(globalState.runFolders)" :key="zroot")
-          h3 {{ zroot }}
+        .root-files(v-for="node,i in rootNodes" :key="i")
+          h3 {{ node.name }}
 
-          tree-view.things(:initialData="runTree[zroot]")
+          tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
 
   .bottom-panel
     //- h3 Search
@@ -52,6 +52,7 @@ const readme = require('@/assets/info-top.md')
 const bottom = require('@/assets/info-bottom.md')
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { debounce } from 'debounce'
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
@@ -76,22 +77,52 @@ class MyComponent extends Vue {
 
   private numberOfScannedFolders = 0
   private state = globalStore.state
-  private rootNodes: { [path: string]: Folder[] } = {}
+  // private rootNodes: { [path: string]: Folder[] } = {}
+
+  private rootNodes: any[] = []
 
   private mounted() {
+    // start the run finder process
     runFinder.findRuns()
-
-    for (const root of Object.keys(this.$store.state.runFolders)) {
-      this.generateTreeFromFolders(root)
-    }
+    // react to found folders
+    this.onRunFoldersChanged()
   }
 
+  @Watch('$store.state.runFolderCount') updatedCount() {
+    this.debounceRunFoldersChanged()
+  }
+
+  private async onRunFoldersChanged() {
+    const newTree = {} as any
+    this.rootNodes = []
+
+    for (const root of Object.keys(this.$store.state.runFolders)) {
+      const treeNode = await this.generateTreeFromFolders(root)
+      console.log({ treeNode })
+      newTree[root] = treeNode
+      this.rootNodes.push(treeNode)
+    }
+
+    this.runTree = newTree
+  }
+  private debounceRunFoldersChanged = debounce(this.onRunFoldersChanged, 100)
+
   private async generateTreeFromFolders(root: string) {
+    this.runLookupByPath = {}
     const allRuns: { path: string }[] = this.globalState.runFolders[root]
 
-    const prefix = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0].slug
-    const rootNode = { root: prefix, isRoot: true, path: '/', name: '', children: [] as Folder[] }
-    this.runTree[root] = rootNode
+    const project = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0]
+    const prefix = project.slug
+    const rootNode = {
+      root: prefix,
+      isRoot: true,
+      path: '/',
+      name: project.name,
+      children: [] as Folder[],
+    }
+    this.runLookupByPath[root + '/'] = rootNode
+
+    // this.runTree[root] = rootNode
 
     for (const run of allRuns) {
       // don't analyze root node itself
@@ -127,13 +158,6 @@ class MyComponent extends Vue {
       parent.children.push(folder)
     }
     return rootNode
-  }
-
-  private onNavigate(target: any) {
-    this.$emit('navigate', {
-      component: 'FolderBrowser',
-      props: { root: target.root.slug, xsubfolder: target.path },
-    })
   }
 
   private onSplit() {

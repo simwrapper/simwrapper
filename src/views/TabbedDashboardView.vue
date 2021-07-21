@@ -159,7 +159,7 @@ export default class VueComponent extends Vue {
   max-width: 113rem;
   margin: 0 auto;
   background-color: var(--bgDashboard);
-  z-index: 10;
+  z-index: 5;
   top: 0px;
   position: sticky;
 }

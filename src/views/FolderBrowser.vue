@@ -97,6 +97,7 @@ import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
+import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 interface VizEntry {
@@ -119,7 +120,7 @@ interface IMyState {
 }
 
 @Component({
-  components: Object.assign({ TopsheetsFinder }, plugins),
+  components: Object.assign({ TabbedDashboardView, TopsheetsFinder }, plugins),
   props: {},
   i18n,
 })
@@ -206,6 +207,7 @@ export default class VueComponent extends Vue {
 
     const props = {
       root: this.myState.svnProject.slug,
+      xsubfolder: this.myState.subfolder,
       subfolder: this.myState.subfolder,
       yamlConfig: viz.config,
       thumbnail: false,
@@ -419,7 +421,7 @@ export default class VueComponent extends Vue {
       root: this.myState.svnProject.slug,
       xsubfolder: target,
     }
-    this.$emit('navigate', { component: 'FolderBrowser', props })
+    this.$emit('navigate', { component: 'TabbedDashboardView', props })
   }
 }
 </script>

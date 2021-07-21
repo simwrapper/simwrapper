@@ -14,10 +14,12 @@ de:
 
   .split-panel(v-for="panel,i in panels" :key="panel.key")
     component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)")
-    .control-buttons()
-      a(@click="onBack(i)" :title="$t('back')" v-if="panel.component !== 'FolderBrowser' && panel.component !== 'SplashPage'")
+    .control-buttons
+      a(@click="onBack(i)" :title="$t('back')"
+        v-if="panel.component !== 'SplashPage'")
         i.fa.fa-icon.fa-arrow-left
-      a(@click="onClose(i)" v-if="panels.length > 1" :title="$t('close')")
+      a(@click="onClose(i)"
+        v-if="panels.length > 1" :title="$t('close')")
         i.fa.fa-icon.fa-times-circle
 
 </template>
@@ -29,7 +31,7 @@ import plugins from '@/plugins/pluginRegistry'
 
 import globalStore from '@/store'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
-import FolderBrowser from '@/views/FolderBrowser.vue'
+import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
 import SqlThing from '@/views/SqlThing.vue'
 import SqlThingTwo from '@/views/SqliteThing.vue'
@@ -37,7 +39,7 @@ import { Route } from 'vue-router'
 
 @Component({
   components: Object.assign(
-    { SplashPage, RunFinderPanel, FolderBrowser, SqlThing, SqlThingTwo },
+    { SplashPage, RunFinderPanel, SqlThing, SqlThingTwo, TabbedDashboardView },
     plugins
   ),
 })
@@ -60,7 +62,7 @@ class MyComponent extends Vue {
     console.log({ to, from })
     if (to.path === '/') {
       // root node is not a normal splitpane, so we instead replace
-      // the full monty with a brand new clean startpage.
+      // with a brand new clean startpage.
       this.panels = [
         {
           component: 'SplashPage',
@@ -75,6 +77,7 @@ class MyComponent extends Vue {
   }
 
   private buildLayoutFromURL() {
+    console.log(this.$route)
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
 
@@ -86,14 +89,37 @@ class MyComponent extends Vue {
       this.onNavigate(0, { component: 'SqlThingTwo', props: {} })
     }
 
-    try {
-      const content = atob(pathMatch)
-      // console.log(content)
-      const json = JSON.parse(content)
-      this.panels = json
-    } catch (e) {
-      // couldn't do
-      this.$router.replace('/')
+    // split panel
+    if (pathMatch.startsWith('split/')) {
+      const payload = pathMatch.substring(6)
+      try {
+        const content = atob(payload)
+        const json = JSON.parse(content)
+        this.panels = json
+      } catch (e) {
+        // couldn't do
+        this.$router.replace('/')
+      }
+    } else {
+      let root = ''
+      let xsubfolder = ''
+      // regular file path
+      const slash = pathMatch.indexOf('/')
+      if (slash === -1) {
+        root = pathMatch
+        xsubfolder = ''
+      } else {
+        root = pathMatch.substring(0, slash)
+        xsubfolder = pathMatch.substring(slash + 1)
+      }
+
+      this.panels = [
+        {
+          component: 'TabbedDashboardView',
+          key: Math.random(),
+          props: { root, xsubfolder } as any,
+        },
+      ]
     }
   }
 
@@ -133,15 +159,22 @@ class MyComponent extends Vue {
   }
 
   private onBack(panel: number) {
-    this.panels[panel].component = 'FolderBrowser'
+    this.panels[panel].component = 'TabbedDashboardView'
     this.panels[panel].props.xsubfolder = this.panels[panel].props.subfolder
     this.updateURL()
     this.$forceUpdate()
   }
 
   private updateURL() {
-    const base64 = btoa(JSON.stringify(this.panels))
-    this.$router.push(`/${base64}`)
+    console.log(this.panels)
+    if (this.panels.length === 1) {
+      const root = this.panels[0].props.root || ''
+      const xsubfolder = this.panels[0].props.xsubfolder || ''
+      this.$router.push(`/${root}/${xsubfolder}`)
+    } else {
+      const base64 = btoa(JSON.stringify(this.panels))
+      this.$router.push(`/split/${base64}`)
+    }
   }
 }
 
@@ -213,13 +246,6 @@ export default MyComponent
   }
 }
 
-// .control-buttons:hover {
-//   background-color: #88888822;
-// }
-
 @media only screen and (max-width: 640px) {
-  // #split-screen {
-  //   flex-direction: column;
-  // }
 }
 </style>

@@ -1,5 +1,5 @@
 <template lang="pug">
-.dashboard
+#dashboard.dashboard
   .dashboard-content
     .header(v-if="!fullScreenCardId")
       h2 {{ title }}
@@ -139,7 +139,7 @@ export default class VueComponent extends Vue {
           bottom: 0,
           left: 0,
           right: 0,
-          margin: '1rem 1rem 1rem 1rem',
+          margin: '18px 1rem 1rem 1.5rem',
         }
       }
     }
@@ -312,7 +312,6 @@ export default class VueComponent extends Vue {
 @media only screen and (max-width: 50em) {
   .dash-row {
     flex-direction: column;
-    // flex: 1;
   }
 }
 </style>
