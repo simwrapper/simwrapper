@@ -273,7 +273,7 @@ a {
   color: white;
   padding: 0.25rem 1rem;
   margin-right: auto;
-  margin-bottom: 0.5rem;
+  margin-bottom: auto;
   margin-top: -0.2rem;
 
   a {
