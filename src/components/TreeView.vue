@@ -1,6 +1,6 @@
 <template lang="pug">
-  ul
-    tree-item.item(:item="treeData" :root="true" @navigate="onNavigate")
+ul
+  tree-item.item(:item="treeData" @navigate="onNavigate")
 
 </template>
 
@@ -41,8 +41,5 @@ export default Vue.component('tree-view', {
   },
 })
 </script>
-<style scoped>
-ul {
-  margin-left: 0.3rem;
-}
-</style>
+
+<style scoped></style>

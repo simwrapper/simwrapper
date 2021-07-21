@@ -1,9 +1,11 @@
 <template lang="pug">
 li
-  .leaf-node()
-    i.toggle.fa(v-if="item.children.length" :class="{'fa-plus': !isOpen, 'fa-minus': isOpen}"
+  .leaf-node(v-if="!item.isRoot")
+    i.toggle.fa(
+      v-if="item.children.length"
+      :class="{'fa-plus-square': !isOpen, 'fa-minus-square': isOpen}"
       @click="toggle"
-      style="font-size: 0.7rem; margin: 4px 0 auto -8px;"
+      style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
     )
     .leaf-label(:root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
 
@@ -12,6 +14,7 @@ li
       v-for="(child, index) in item.children"
       :key="index"
       :item="child"
+      :root="false"
       @navigate="$emit('navigate', $event)"
     )
 
@@ -26,7 +29,8 @@ export default Vue.component('tree-item', {
   },
   data: function() {
     return {
-      isOpen: true, // default to all-closed
+      isOpen: true, // default to all-open
+      isRoot: true,
     }
   },
   computed: {
@@ -55,6 +59,7 @@ export default Vue.component('tree-item', {
 
 ul {
   list-style: none outside none;
+  margin-bottom: 0.25rem;
 }
 
 li {
@@ -78,6 +83,14 @@ li {
 }
 
 .leaf-label {
-  margin-left: 0.15rem;
+  margin-left: 0.2rem;
+}
+
+.toggle {
+  color: var(--textVeryPale);
+}
+
+.toggle:hover {
+  color: var(--textPale);
 }
 </style>

@@ -90,7 +90,7 @@ class MyComponent extends Vue {
     const allRuns: { path: string }[] = this.globalState.runFolders[root]
 
     const prefix = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0].slug
-    const rootNode = { root: prefix, path: '/', name: '', children: [] as Folder[] }
+    const rootNode = { root: prefix, isRoot: true, path: '/', name: '', children: [] as Folder[] }
     this.runTree[root] = rootNode
 
     for (const run of allRuns) {
@@ -108,7 +108,13 @@ class MyComponent extends Vue {
       }
 
       // create node
-      const folder = { root: prefix, path: run.path, name: folderName, children: [] as Folder[] }
+      const folder = {
+        root: prefix,
+        isRoot: false,
+        path: run.path,
+        name: folderName,
+        children: [] as Folder[],
+      }
       // console.log(run.path)
       if (!this.runLookupByPath[root + run.path]) this.runLookupByPath[root + run.path] = folder
 
