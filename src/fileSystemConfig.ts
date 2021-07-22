@@ -7,7 +7,7 @@ const fileSystems: FileSystemConfig[] = [
     description: 'Run mini-file-server to browse files on your PC',
     baseURL: 'http://localhost:8000',
     needPassword: false,
-    thumbnail: '/images/thumb-localfiles.jpg',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
     name: 'Public-SVN',
@@ -15,7 +15,7 @@ const fileSystems: FileSystemConfig[] = [
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
     needPassword: false,
-    thumbnail: '/images/thumb-chart.jpg',
+    thumbnail: '/simwrapper/images/thumb-chart.jpg',
     skipList: ['episim/battery'],
   },
   // {

@@ -2,7 +2,7 @@ const path = require('path')
 const ThreadsPlugin = require('threads-plugin')
 
 module.exports = {
-  publicPath: '/',
+  publicPath: '/simwrapper',
   productionSourceMap: false,
   chainWebpack: config => {
     /*
