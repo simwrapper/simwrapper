@@ -13,14 +13,16 @@ de:
 
 <template lang="pug">
 .run-finder-panel
-  h3.logo: router-link(:to="'/'") {{globalState.app }}
+  router-link.logo(:to="'/'")
+    img(src="@/assets/simwrapper-logo/SW_logo_icon_white.png")
+    h3 {{globalState.app }}
 
   .top-panel
     .stuff-in-main-panel
       .more-stuff
 
         .root-files(v-for="node,i in rootNodes" :key="i")
-          h3 {{ node.name }}
+          h3: b {{ node.name }}
 
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
 
@@ -269,12 +271,24 @@ a {
 }
 
 .logo {
+  display: flex;
+  flex-direction: row;
   background-color: #60588f;
   color: white;
-  padding: 0.25rem 1rem;
+  padding: 0.4rem 1rem 0.2rem 1rem;
   margin-right: auto;
   margin-bottom: auto;
-  margin-top: -0.2rem;
+  margin-top: 0rem;
+
+  img {
+    height: 1.6rem;
+  }
+
+  h3 {
+    margin-top: -0.1rem;
+    margin-left: 0.5rem;
+    font-size: 1.3rem;
+  }
 
   a {
     font-size: 1.3rem;
@@ -287,8 +301,10 @@ a {
 }
 
 .things {
+  font-size: 0.85rem;
   margin-left: -1rem;
 }
+
 @media only screen and (max-width: 640px) {
   .content {
     padding: 2rem 1rem 8rem 1rem;

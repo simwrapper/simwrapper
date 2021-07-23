@@ -1,23 +1,27 @@
 <template lang="pug">
 .splash-page
 
-  .page-area
-
     .content
       .main
-        .right(style="text-align: right;")
+
+        img(src="@/assets/simwrapper-logo/SW_logo_purple.png" :width="400")
+
+        h2.readme(v-html="$t('tagLine')")
+
+        hr
+        h3 Explore model results:
+        file-system-projects.gap(@navigate="onNavigate")
+        hr
+
+        h2 {{ $t('more-info') }}
+        .readme(v-html="readmeBottom")
 
         .tu-logo
           img.img-logo(src="@/assets/images/vsp-logo-300dpi.png")
           img.img-logo(src="@/assets/images/tu-logo.png")
 
-        h1 {{ state.app }}
-        h2.readme(v-html="$t('tagLine')")
+      .right
 
-        svn-projects.gap(@navigate="onNavigate")
-
-        h2 {{ $t('more-info') }}
-        .readme(v-html="readmeBottom")
 
 </template>
 
@@ -38,12 +42,12 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import Colophon from '@/components/Colophon.vue'
 import VizCard from '@/components/VizCard.vue'
-import SvnProjects from '@/components/FileSystemProjects.vue'
+import FileSystemProjects from '@/components/FileSystemProjects.vue'
 
 import globalStore from '@/store'
 
 @Component({
-  components: { Colophon, SvnProjects, VizCard },
+  components: { Colophon, FileSystemProjects, VizCard },
 })
 class MyComponent extends Vue {
   private mounted() {
@@ -81,7 +85,7 @@ export default MyComponent
   height: 100%;
   overflow-y: auto;
   background-color: var(--bgDashboard);
-  width: 100%;
+  // width: 100%;
 }
 
 .gap {
@@ -91,12 +95,9 @@ export default MyComponent
 
 .content {
   flex: 1;
-  padding: 1rem 3rem 5rem 3rem;
+  padding: 1rem 1rem 5rem 3rem;
   display: flex;
-  width: 100%;
-}
-
-.main {
+  max-width: 64rem;
   margin: 0 auto;
 }
 
@@ -112,19 +113,23 @@ a {
   color: var(--text);
 }
 
-.main h1 {
+.main {
   margin-top: 2rem;
-  font-weight: bold;
-  font-size: 3rem;
-  color: var(--text);
-}
+  max-width: 64rem;
 
-.main h2 {
-  margin-top: 1rem;
-  font-weight: normal;
-  color: var(--textFancy);
-}
+  h1 {
+    margin-top: 2rem;
+    font-weight: bold;
+    font-size: 3rem;
+    color: var(--text);
+  }
 
+  h2 {
+    margin-top: 1rem;
+    font-weight: normal;
+    color: var(--textFancy);
+  }
+}
 .viz-cards {
   padding-bottom: 1rem;
   display: grid;
@@ -152,8 +157,7 @@ a {
 }
 
 .main {
-  max-width: 64rem;
-
+  margin-right: 2rem;
   h1 {
     letter-spacing: -1px;
   }
@@ -165,7 +169,7 @@ a {
 
 .page-area {
   display: flex;
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 .headline {
@@ -192,20 +196,23 @@ a {
 }
 
 .tu-logo {
-  margin-top: 2rem;
-  text-align: left;
-  margin-right: 2rem;
+  margin-top: 0rem;
 }
 
 .img-logo {
   margin-right: 4rem;
-  height: 6rem;
+  width: 8rem;
+  margin-bottom: 4rem;
+}
+
+.right {
+  margin-top: 1rem;
 }
 
 @media only screen and (max-width: 640px) {
   .content {
     padding: 2rem 1rem 8rem 1rem;
-    flex-direction: column-reverse;
+    flex-direction: column;
   }
 
   .colophon {

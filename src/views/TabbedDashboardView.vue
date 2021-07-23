@@ -3,7 +3,7 @@
 
   .tabholder(v-show="!isZoomed")
     .breadcrumbs
-      p {{ root }} • {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+      h3: b {{ root }} • {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
     .tabs.is-centered
       ul
@@ -172,7 +172,7 @@ li.is-not-active b a {
   padding: 0.25rem 0 0 0;
   color: var(--linkFancy);
   font-size: 1.5rem;
-  // font-weight: bold;
+  font-weight: bold;
   text-align: center;
   margin-top: 0.5rem;
   margin-left: 1rem;

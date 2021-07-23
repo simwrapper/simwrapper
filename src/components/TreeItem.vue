@@ -82,6 +82,7 @@ li {
 }
 
 .leaf-label {
+  margin-top: 0.05rem;
   margin-left: 0.2rem;
 }
 

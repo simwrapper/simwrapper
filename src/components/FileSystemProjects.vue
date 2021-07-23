@@ -6,7 +6,6 @@
       @click.meta='openProjectTab(source)'
       @click.ctrl='openProjectTab(source)'
       )
-      img(:src="source.thumbnail")
       .desc
         h3 {{ source.name }}
         p {{ source.description }}
@@ -61,6 +60,7 @@ export default class VueComponent extends Vue {
   flex-direction: column;
   background-color: var(--bgBold);
   border-radius: 16px;
+  border: 1px solid var(--bgPanel3);
 }
 
 .desc h3 {
@@ -68,8 +68,12 @@ export default class VueComponent extends Vue {
   margin-bottom: 0.25rem;
 }
 
+.desc p {
+  font-size: 0.9rem;
+}
+
 .project .desc {
-  padding: 0.5rem 1rem 1rem 1rem;
+  padding: 1rem 1rem;
 }
 
 .project:hover {

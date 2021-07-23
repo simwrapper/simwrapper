@@ -20,8 +20,7 @@
               :title="fullScreenCardId ? 'Restore':'Enlarge'")
               i.fa.fa-expand
 
-
-        .spinner-box(:id="card.id" v-if="getCardComponent(card)")
+        .spinner-box(:id="card.id" v-if="getCardComponent(card)" :class="{'is-loaded': card.isLoaded}")
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
@@ -30,14 +29,13 @@
             :yaml="card.props.configFile"
             :config="card.props"
             :style="{opacity: opacity[card.id]}"
-            @isLoaded="handleCardIsLoaded(card.id)"
+            @isLoaded="handleCardIsLoaded(card)"
           )
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Spinner } from 'spin.js'
 import YAML from 'yaml'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -178,58 +176,29 @@ export default class VueComponent extends Vue {
 
       cards.forEach(card => {
         card.id = `card-id-${numCard}`
+        card.isLoaded = false
 
         // Vue is weird about new properties: use Vue.set() instead
-        // this.opacity[card.id] = 0.5
         Vue.set(this.opacity, card.id, 0.1)
 
         numCard++
       })
 
       this.rows.push(cards)
-
-      // initialize each card
-      await this.$nextTick()
-      cards.forEach(card => {
-        this.initializeCard(card)
-      })
     }
   }
 
-  private spinners: any = {}
   private opacity: any = {}
 
-  private initializeCard(card: any) {
-    this.spinners[card.id] = new Spinner({
-      color: this.$store.state.isDarkMode ? '#6677ee' : '#551188', // 551188
-      lines: 10,
-      rotate: 18,
-      length: 4,
-      width: 3,
-      radius: 8,
-    })
-
-    const target = document.getElementById(card.id) as any
-    this.spinners[card.id].spin(target)
-  }
-
-  private async handleCardIsLoaded(id: string) {
-    // must wait for vue to update DOM layout
-    await this.$nextTick()
-
-    this.opacity[id] = 1.0
-
-    if (this.spinners[id]) {
-      this.spinners[id].stop()
-      delete this.spinners[id]
-    }
+  private async handleCardIsLoaded(card: any) {
+    card.isLoaded = true
+    this.opacity[card.id] = 1.0
   }
 }
 </script>
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-@import '../../node_modules/spin.js/spin.css';
 
 .dashboard {
   margin: 0 0;
@@ -304,6 +273,14 @@ export default class VueComponent extends Vue {
   .spinner-box {
     grid-row: 3 / 4;
     position: relative;
+    background: url('../assets/simwrapper-logo/SW_logo_icon_anim.gif');
+    background-size: 8rem;
+    background-repeat: no-repeat;
+    background-position: center center;
+  }
+
+  .spinner-box.is-loaded {
+    background: none;
   }
 }
 
