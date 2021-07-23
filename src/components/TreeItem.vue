@@ -1,12 +1,12 @@
 <template lang="pug">
 li
   .leaf-node(v-if="item && !item.isRoot")
-    i.toggle.fa(
-      v-if="item.children.length"
-      :class="{'fa-plus-square': !isOpen, 'fa-minus-square': isOpen}"
-      @click="toggle"
-      style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
-    )
+    .toggle(v-if="item.children.length")
+      i.fa(
+        :class="{'fa-plus-square': !isOpen, 'fa-minus-square': isOpen}"
+        @click="toggle"
+        style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
+      )
     .leaf-label(:root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
 
   ul.children(v-show="isOpen" v-if="isFolder")
@@ -63,7 +63,7 @@ ul {
 
 li {
   margin-left: 0.6rem;
-  line-height: 1.15rem;
+  line-height: 1.1rem;
 }
 
 .item {
@@ -87,6 +87,7 @@ li {
 }
 
 .toggle {
+  margin-top: -0.1rem;
   color: var(--textVeryPale);
 }
 

@@ -201,6 +201,7 @@ export default MyComponent
   flex-direction: column;
   overflow-y: auto;
   flex: 1;
+  margin-top: 0.25rem;
   margin-left: 0.25rem;
   margin-bottom: 0.5rem;
 }
@@ -239,7 +240,6 @@ export default MyComponent
 
 a {
   font-size: 1.1rem;
-  // color: #00499c;
 }
 
 .top {
@@ -273,9 +273,9 @@ a {
 .logo {
   display: flex;
   flex-direction: row;
-  background-color: #60588f;
+  background-color: #5c2f79;
   color: white;
-  padding: 0.4rem 1rem 0.2rem 1rem;
+  padding: 0.4rem 0.75rem 0.2rem 0.5rem;
   margin-right: auto;
   margin-bottom: auto;
   margin-top: 0rem;
@@ -286,7 +286,7 @@ a {
 
   h3 {
     margin-top: -0.1rem;
-    margin-left: 0.5rem;
+    margin-left: 0.4rem;
     font-size: 1.3rem;
   }
 

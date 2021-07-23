@@ -9,7 +9,7 @@
       ul
         li(v-for="tab in Object.keys(dashboards)" :key="tab"
           :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
-          :style="{opacity: tab===activeTab ? 1.0 : 0.6}"
+          :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
         )
           b: a(@click="switchTab(tab)") {{ dashboards[tab].header.tab }}
 
@@ -169,13 +169,13 @@ li.is-not-active b a {
 }
 
 .breadcrumbs {
-  padding: 0.25rem 0 0 0;
+  padding: 0.5rem 0 0 0;
   color: var(--linkFancy);
   font-size: 1.5rem;
   font-weight: bold;
   text-align: center;
-  margin-top: 0.5rem;
   margin-left: 1rem;
+  // line-height: 2rem;
 
   p {
     max-width: 110rem;

@@ -1,7 +1,7 @@
 <template lang="pug">
 #dashboard.dashboard
   .dashboard-content
-    .header(v-if="!fullScreenCardId")
+    .dashboard-header(v-if="!fullScreenCardId")
       h2 {{ title }}
       p {{ description }}
 
@@ -210,7 +210,7 @@ export default class VueComponent extends Vue {
   }
 }
 
-.header {
+.dashboard-header {
   margin-bottom: 1rem;
   h2 {
     line-height: 3rem;
@@ -256,7 +256,7 @@ export default class VueComponent extends Vue {
 
   h3 {
     grid-row: 1 / 2;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     line-height: 1.5rem;
     margin-top: 0.1rem;
     margin-bottom: 0.5rem;
