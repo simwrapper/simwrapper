@@ -5,9 +5,9 @@ const siteConfig = {
   baseUrl: "/docs/", // Base URL for your project */
   projectName: "simwrapper.github.io",
   organizationName: "simwrapper",
-  headerIcon: "img/simwrapper-logo.png",
+  headerIcon: "img/SW_favicon.png",
   footerIcon: "img/vsp-logo-300dpi.png",
-  favicon: "img/simwrapper-logo-64.png",
+  favicon: "img/SW_favicon.png",
 
   headerLinks: [
     { doc: "simwrapper-intro", label: "Documentation" },
@@ -28,7 +28,7 @@ const siteConfig = {
   },
 
   stylesheets: [
-    "https://fonts.googleapis.com/css?family=Roboto:400,400i,700|Roboto+Slab:400,400i,700",
+    "https://fonts.googleapis.com/css?family=Roboto:400,400i,700|Space+Grotesk:400,400i,700",
   ],
 
   highlight: { theme: "default" },

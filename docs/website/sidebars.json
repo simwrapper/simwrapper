@@ -2,7 +2,7 @@
   "doc": {
     "Getting Started": ["simwrapper-intro", "file-management", "scripts"],
     "Tutorials": [],
-    "Plugin Reference": [
+    "Charts and Plots": [
       "aggregate-od",
       "calculation-tables",
       "carrier-viewer",
