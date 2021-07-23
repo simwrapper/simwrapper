@@ -51,7 +51,7 @@ class HomeSplash extends React.Component {
             margin: "0 auto",
             backgroundColor: "#ffffff",
             textAlign: "center",
-            paddingTop: "1rem",
+            paddingTop: "1.5rem",
           }}
           className="projectTitle"
         >
