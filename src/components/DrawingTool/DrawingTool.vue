@@ -110,7 +110,6 @@ export default class VueComponent extends Vue {
   // }
 
   private mounted() {
-    console.log(this.mapID)
     this.setupLayerManager()
     this.updateLayers()
   }

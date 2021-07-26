@@ -261,12 +261,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    console.log(this.$store.state.svnProjects)
-    console.log(name)
     const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
       (a: FileSystemConfig) => a.slug === name
     )
-    console.log(svnProject.length)
 
     if (svnProject.length === 0) {
       console.log('no such project')
@@ -276,26 +273,49 @@ class MyComponent extends Vue {
   }
 
   private async getVizDetails() {
+    // if a YAML file was passed in, just use it
     if (this.myState.yamlConfig.endsWith('yaml') || this.myState.yamlConfig.endsWith('yml')) {
       this.loadYamlConfig()
       return
     }
 
-    // no yaml: build it ourselves!
+    // Build the config based on folder contents
+    const title = this.myState.yamlConfig.substring(
+      0,
+      15 + this.myState.yamlConfig.indexOf('transitSchedule')
+    )
 
-    const network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
-
-    // need to find the departures if they exist
     const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
-    const demand = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
-    const title = '' + this.$i18n.t('viewer')
+
+    // Road network: first try the most obvious network filename:
+    let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+
+    // if the obvious network file doesn't exist, just grab... the first network file:
+    if (files.indexOf(network) == -1) {
+      const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
+      if (allNetworks.length) network = allNetworks[0]
+      else {
+        this.loadingText = 'No road network found.'
+        network = ''
+      }
+    }
+
+    // Departures: use them if we are in an output folder (and they exist)
+    let demandFiles = [] as string[]
+    if (this.myState.yamlConfig.indexOf('output_network.xml') > -1) {
+      demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+    }
+
+    // Coordinates:  oy
+    const projection = 'EPSG:31468'
+
     this.vizDetails = {
       transitSchedule: this.myState.yamlConfig,
       network,
       title,
       description: '',
-      demand: demand.length ? demand[0] : '',
-      projection: 'EPSG:31468',
+      demand: demandFiles.length ? demandFiles[0] : '',
+      projection,
     }
 
     this.$emit('title', title)
@@ -465,7 +485,8 @@ class MyComponent extends Vue {
 
   private async loadNetworks() {
     try {
-      if (!this.myState.fileSystem) return
+      if (!this.myState.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule)
+        return
 
       this.loadingText = 'Loading networks...'
 
@@ -491,8 +512,8 @@ class MyComponent extends Vue {
       const ridership = this.loadDemandData(this.vizDetails.demand)
       return { roadXML: results[0], transitXML: results[1], ridership }
     } catch (e) {
-      console.error({ e })
-      this.loadingText = '' + e
+      console.error('TRANSIT:', e)
+      // this.loadingText = '' + e
       return null
     }
   }
@@ -962,7 +983,7 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Transit Demand',
   description: 'Transit passengers and ridership',
   // filePatterns: ['viz-pt-demand*.y?(a)ml', '*output_transitSchedule.xml?(.gz)'],
-  filePatterns: ['*output_transitSchedule.xml?(.gz)'],
+  filePatterns: ['*transitSchedule.xml?(.gz)'],
   component: MyComponent,
 } as VisualizationPlugin)
 
@@ -1049,6 +1070,7 @@ p {
 h3 {
   margin: 0px 0px;
   font-size: 1.5rem;
+  line-height: 1.7rem;
 }
 
 .mytitle {
