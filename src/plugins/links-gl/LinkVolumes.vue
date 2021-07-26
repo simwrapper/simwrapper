@@ -18,20 +18,25 @@ de:
 </i18n>
 
 <template lang="pug">
-.gl-viz(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+.link-volume-plot(:class="{'hide-thumbnail': !thumbnail}"
+        :style='{"background": urlThumbnail}'
+        oncontextmenu="return false")
 
-  link-deck-map.anim(v-if="!thumbnail" :props="mapProps")
+  .plot-container(v-if="!thumbnail")
+    link-deck-map.map-area(:props="mapProps")
+    drawing-tool
 
-  drawing-tool(v-if="!thumbnail")
+    .top-panel(v-if="vizDetails.title")
+      //- heading
+      .panel-item
+        h3 {{ vizDetails.title }}
+        p {{ vizDetails.description }}
 
-  .left-side(v-if="!thumbnail")
+    .message-pane(v-if="!thumbnail && myState.statusMessage")
+      p.status-message {{ myState.statusMessage }}
+
+    .bottom-panel(v-if="!thumbnail")
       .panel-items
-
-        //- heading
-        .panel-item
-          h3 {{ vizDetails.title }}
-          p {{ vizDetails.description }}
 
         //- button/dropdown for selecting column
         .panel-item
@@ -54,9 +59,6 @@ de:
           toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
             :color="{checked: '#4b7cc4', unchecked: '#222'}"
             @change="showDiffs = !showDiffs")
-
-  .nav(v-if="!thumbnail && myState.statusMessage")
-    p.status-message {{ myState.statusMessage }}
 
 </template>
 
@@ -526,73 +528,64 @@ export default MyPlugin
 @import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
-.gl-viz {
-  display: grid;
-  pointer-events: none;
-  min-height: $thumbnailHeight;
+.link-volume-plot {
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto 1fr;
-  overflow: hidden;
+  min-height: $thumbnailHeight;
 }
 
-.gl-viz.hide-thumbnail {
+.link-volume-plot.hide-thumbnail {
   background: none;
 }
 
-.nav {
-  z-index: 5;
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
-  box-shadow: 0px 2px 10px #22222266;
-  display: flex;
-  flex-direction: row;
-  margin: auto auto 0 0;
+.plot-container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr auto auto;
+  height: 100%;
+  pointer-events: none;
+}
+
+.map-area {
+  grid-column: 1 / 3;
+  grid-row: 1 / 3;
+  height: 100%;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.message-pane {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+  // box-shadow: 0px 2px 10px #22222266;
+  margin: 0 auto 0 0;
   background-color: var(--bgPanel);
   padding: 0rem 3rem;
-
-  a {
-    color: white;
-    text-decoration: none;
-
-    &.router-link-exact-active {
-      color: white;
-    }
-  }
+  z-index: 2;
 
   p {
-    margin: auto 0.5rem auto 0;
-    font-weight: normal;
-    padding: 0 0;
     color: var(--textFancy);
+    padding: 0rem 0;
+    font-size: 1.5rem;
+    line-height: 3.25rem;
   }
 }
 
-.legend-block {
-  margin-top: 2rem;
-}
-
-.status-message {
-  padding: 0rem 0;
-  font-size: 1.5rem;
-  line-height: 3.25rem;
-  font-weight: bold;
-}
-
-.big {
-  padding: 0rem 0;
-  // margin-top: 1rem;
-  font-size: 2rem;
-  line-height: 3.75rem;
-  font-weight: bold;
-}
-
-.left-side {
-  grid-column: 1 / 4;
+.top-panel {
+  grid-column: 1 / 2;
   grid-row: 1 / 2;
+  background-color: var(--bgPanel);
+  margin: 0 auto auto 0;
+  padding: 0.25rem 1.5rem;
+  z-index: 5;
+  box-shadow: 0px 2px 10px #22222244;
+}
+
+.bottom-panel {
+  grid-column: 1 / 3;
+  grid-row: 3 / 4;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   background-color: var(--bgPanel);
   font-size: 0.8rem;
   pointer-events: auto;
@@ -605,19 +598,13 @@ export default MyPlugin
   margin: 0 0 auto 0;
 }
 
-.anim {
-  height: 100%;
-  pointer-events: auto;
-}
-
 .panel-items {
-  margin: 0.5rem 0.5rem;
+  margin: 0rem 0.5rem;
 }
 
 .panel-item {
   h3 {
     line-height: 1.7rem;
-    // margin-bottom: 0.5rem;
   }
 
   p {
@@ -629,16 +616,6 @@ input {
   border: none;
   background-color: var(--bgCream2);
   color: var(--bgDark);
-}
-
-.row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
-}
-
-label {
-  margin: auto 0 auto 0rem;
-  text-align: 'left';
 }
 
 .toggle {
@@ -663,19 +640,8 @@ label {
 }
 
 @media only screen and (max-width: 640px) {
-  .nav {
+  .message-pane {
     padding: 0.5rem 0.5rem;
-  }
-
-  .right-side {
-    font-size: 0.7rem;
-  }
-
-  .big {
-    padding: 0 0rem;
-    margin-top: 0.5rem;
-    font-size: 1.3rem;
-    line-height: 2rem;
   }
 }
 </style>

@@ -227,6 +227,7 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .config-panel {
+  margin-top: 0.5rem;
   display: flex;
   flex-direction: row;
 }
@@ -237,17 +238,15 @@ export default class VueComponent extends Vue {
 }
 
 .panel-item {
-  padding: 0 1rem;
+  padding-right: 1rem;
 }
 
 p {
   font-size: 0.9rem;
 }
 
-.color-picker {
-  // margin-top: 1.5rem;
-  // height: 4rem;
-  // display: inline-block;
+.color-button {
+  height: 32px;
 }
 
 .color-button:hover {
@@ -266,7 +265,6 @@ input {
 }
 
 .dropdown {
-  position: absolute;
   overflow: visible;
   width: 175px;
 }
