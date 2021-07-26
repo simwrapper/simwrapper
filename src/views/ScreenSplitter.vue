@@ -77,7 +77,6 @@ class MyComponent extends Vue {
   }
 
   private buildLayoutFromURL() {
-    console.log(this.$route)
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
 
@@ -170,7 +169,15 @@ class MyComponent extends Vue {
     if (this.panels.length === 1) {
       const root = this.panels[0].props.root || ''
       const xsubfolder = this.panels[0].props.xsubfolder || ''
-      this.$router.push(`/${root}/${xsubfolder}`)
+      const yaml = this.panels[0].props.yamlConfig || ''
+
+      if (yaml) {
+        const base64 = btoa(JSON.stringify(this.panels))
+        this.$router.push(`/split/${base64}`)
+      } else {
+        console.log('boop')
+        this.$router.push(`/${root}/${xsubfolder}`)
+      }
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
       this.$router.push(`/split/${base64}`)
