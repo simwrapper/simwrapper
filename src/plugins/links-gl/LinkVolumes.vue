@@ -576,7 +576,7 @@ export default MyPlugin
   grid-row: 1 / 2;
   background-color: var(--bgPanel);
   margin: 0 auto auto 0;
-  padding: 0.25rem 1.5rem;
+  padding: 0.5rem 1.5rem 1rem 1.5rem;
   z-index: 5;
   box-shadow: 0px 2px 10px #22222244;
 }

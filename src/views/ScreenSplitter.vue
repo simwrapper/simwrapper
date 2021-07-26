@@ -8,11 +8,16 @@ de:
 </i18n>
 
 <template lang="pug">
-#split-screen(:style="{'padding-right': panels.length > 1 ? '0' : 'unset' }")
+#split-screen
 
-  run-finder-panel.split-panel.narrow(@navigate="onNavigate(0,$event)" @split="onSplit")
+  run-finder-panel.split-panel.narrow(
+    @navigate="onNavigate(0,$event)"
+    @split="onSplit"
+  )
 
-  .split-panel(v-for="panel,i in panels" :key="panel.key")
+  .split-panel(v-for="panel,i in panels" :key="panel.key"
+    :class="{'is-multipanel' : panels.length > 1}"
+  )
     component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)")
     .control-buttons
       a(@click="onBack(i)" :title="$t('back')"
@@ -192,7 +197,6 @@ export default MyComponent
 @import '@/styles.scss';
 
 #split-screen {
-  padding: 0.5rem 0.5rem;
   display: flex;
   flex-direction: row;
   position: absolute;
@@ -203,6 +207,10 @@ export default MyComponent
   background-color: var(--splitPanel);
 }
 
+.is-multipanel {
+  margin-right: 0.5rem;
+}
+
 .split-panel {
   background-color: var(--bgBold);
   // border: 1.5px solid var(--bgCream3);
@@ -211,7 +219,6 @@ export default MyComponent
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
-  margin-right: 0.5rem;
 }
 
 .fill-panel {
@@ -229,6 +236,7 @@ export default MyComponent
   z-index: 1;
   width: 16rem;
   flex: unset;
+  margin-right: 0.5rem;
   border-right: none;
   background-color: var(--bgBrowser);
 }

@@ -23,7 +23,7 @@ de:
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left" :locked="true")
       .panel-items
-        p.big {{ vizDetails.title }}
+        h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
   .right-side(v-if="isLoaded && !thumbnail")
@@ -457,6 +457,11 @@ export default MyPlugin
 .panel-items {
   margin: 0.5rem 0.5rem;
   margin-bottom: 1rem;
+
+  h3 {
+    line-height: 1.7rem;
+    margin-bottom: 0rem;
+  }
 }
 
 .panel-item {

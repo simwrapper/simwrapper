@@ -69,7 +69,11 @@ function guessProjection(definition: string) {
     }
   }
 
-  // all else fails: return nothing
+  // maybe a DHDN GK4 is there
+  if (definition.indexOf('DHDN_3_degree_Gauss_Kruger_zone_4') > -1) {
+    return 'EPSG:31468'
+  }
+  // all else fails: return EPSG:31468
   return ''
 }
 
