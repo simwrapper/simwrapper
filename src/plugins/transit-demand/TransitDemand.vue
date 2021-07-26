@@ -302,7 +302,7 @@ class MyComponent extends Vue {
 
     // Departures: use them if we are in an output folder (and they exist)
     let demandFiles = [] as string[]
-    if (this.myState.yamlConfig.indexOf('output_network.xml') > -1) {
+    if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
       demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
     }
 
