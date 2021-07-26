@@ -13,8 +13,10 @@ export default class LayerManager {
 
   init(deckProps: any) {
     this.deckInstance = new DeckMap({ ...deckProps, map: MAPBOX_TOKEN })
-    const style = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
-    this.deckInstance.setMapStyle(style)
+    if (deckProps.mapStyle !== null) {
+      const style = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
+      this.deckInstance.setMapStyle(style)
+    }
   }
 
   destroy() {
