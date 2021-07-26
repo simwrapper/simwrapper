@@ -95,7 +95,7 @@ export default class VueComponent extends Vue {
         this.data.push({x: x,
         y: value,
         name: legendName,
-        type: 'line',
+        type: 'bar',
         textinfo: 'label+percent',
         textposition: 'inside',
         automargin: true})
@@ -131,7 +131,7 @@ export default class VueComponent extends Vue {
       x: [] as any[],
       y: [] as any[],
       name: '',
-      type: 'line',
+      type: 'bar',
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,

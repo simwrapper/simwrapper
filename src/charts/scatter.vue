@@ -30,7 +30,6 @@ export default class VueComponent extends Vue {
   private markerSize: any
 
   private async mounted() {
-    console.log(this.config.markerSize)
     if (this.config.markerSize === undefined) {
       this.markerSize  = 3
     } else {
@@ -65,8 +64,20 @@ export default class VueComponent extends Vue {
     }
   }
 
+  // size circle
+  // color is data
   private updateChart() {
     const x = [];
+
+    var useOwnNames = false
+
+
+
+    if (this.config.legendName !==  undefined) {
+      if (this.config.legendName.length == this.config.usedCol.length) {
+        useOwnNames = true
+      }
+    }
 
     for (var i = 0; i < this.dataRows.length; i++) {
       if(i == 0 && this.config.skipFirstRow) {
@@ -77,7 +88,13 @@ export default class VueComponent extends Vue {
 
     for(var i = 0; i < this.config.usedCol.length; i++) {
       var name =  this.config.usedCol[i]
+      var legendName = ''
       if (this.config.usedCol[i] !== "undefined") {
+        if (useOwnNames) {
+          legendName = this.config.legendName[i]
+        } else {
+          legendName = name
+        }
         const value = []
         for (var j = 0; j < this.dataRows.length; j++) {
           if(j == 0 && this.config.skipFirstRow) {
@@ -87,12 +104,14 @@ export default class VueComponent extends Vue {
         }
         this.data.push({x: x,
         y: value,
-        name: name,
+        name: legendName,
         mode: 'markers',
         type: 'scatter',
         textinfo: 'label+percent',
         textposition: 'inside',
-        automargin: true,marker: { size: this.markerSize }})
+        automargin: true,
+        showlegend: true,
+        marker: { size: this.markerSize }})
       }
     }
   }
@@ -130,7 +149,8 @@ export default class VueComponent extends Vue {
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,
-      marker: { size: 3 }
+      showlegend: true,
+      marker: { size: [] as any[] }
     },
   ]
 

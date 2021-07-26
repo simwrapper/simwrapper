@@ -58,49 +58,50 @@ export default class VueComponent extends Vue {
     }
   }
 
+  // size circle
+  // color is data
   private updateChart() {
     const x = [];
+    const bubble = [];
+    const y = [];
 
-    var useOwnNames = false
+    var legendname = this.config.bubble
 
     if (this.config.legendName !==  undefined) {
-      if (this.config.legendName.length == this.config.usedCol.length) {
-        useOwnNames = true
+      legendname = this.config.legendName
+    }
+
+    for (var i = 0; i < this.dataRows.length; i++) {
+      if(i == 0 && this.config.skipFirstRow) {
+      } else  {
+        x.push(this.dataRows[i][this.config.x])
       }
     }
 
     for (var i = 0; i < this.dataRows.length; i++) {
       if(i == 0 && this.config.skipFirstRow) {
-      } else {
-        x.push(this.dataRows[i].iteration)
+      } else  {
+        bubble.push(this.dataRows[i][this.config.bubble]/this.config.factor)
       }
     }
 
-    for(var i = 0; i < this.config.usedCol.length; i++) {
-      var name =  this.config.usedCol[i]
-      var legendName = ''
-      if (this.config.usedCol[i] !== "undefined") {
-        if (useOwnNames) {
-          legendName = this.config.legendName[i]
-        } else {
-          legendName = name
-        }
-        const value = []
-        for (var j = 0; j < this.dataRows.length; j++) {
-          if(j == 0 && this.config.skipFirstRow) {
-          } else {
-            value.push(this.dataRows[j][name])
-          }
-        }
-        this.data.push({x: x,
-        y: value,
-        name: legendName,
-        type: 'line',
-        textinfo: 'label+percent',
-        textposition: 'inside',
-        automargin: true})
+    for (var i = 0; i < this.dataRows.length; i++) {
+      if(i == 0 && this.config.skipFirstRow) {
+      } else  {
+        y.push(this.dataRows[i][this.config.y])
       }
     }
+
+    this.data.push({x: x,
+        y: y,
+        name: legendname,
+        mode: 'markers',
+        type: 'scatter',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        showlegend: true,
+        marker: { size: bubble }})
   }
 
   private layout = {
@@ -131,10 +132,13 @@ export default class VueComponent extends Vue {
       x: [] as any[],
       y: [] as any[],
       name: '',
-      type: 'line',
+      mode: 'markers',
+      type: 'scatter',
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,
+      showlegend: true,
+      marker: { size: [] as any[] }
     },
   ]
 

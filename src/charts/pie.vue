@@ -72,6 +72,7 @@ export default class VueComponent extends Vue {
     },
   }
 
+  // format hover ?
   private data = [
     {
       labels: [] as any[],
