@@ -1,6 +1,6 @@
 <template lang="pug">
 li
-  .leaf-node(v-if="item && !item.isRoot")
+  .leaf-node(v-if="item && item.level > 0")
     .toggle(v-if="item.children.length")
       i.fa(
         :class="{'fa-plus-square': !isOpen, 'fa-minus-square': isOpen}"
@@ -29,7 +29,7 @@ export default Vue.component('tree-item', {
   },
   data: function() {
     return {
-      isOpen: true, // default to all-open
+      isOpen: true, // this.item.level < 2, // default to all-open
     }
   },
   computed: {

@@ -68,6 +68,7 @@ interface Folder {
   path: string
   name: string
   children: Folder[]
+  level: number
 }
 
 @Component({
@@ -79,7 +80,6 @@ class MyComponent extends Vue {
 
   private numberOfScannedFolders = 0
   private state = globalStore.state
-  // private rootNodes: { [path: string]: Folder[] } = {}
 
   private rootNodes: any[] = []
 
@@ -100,7 +100,6 @@ class MyComponent extends Vue {
 
     for (const root of Object.keys(this.$store.state.runFolders)) {
       const treeNode = await this.generateTreeFromFolders(root)
-      console.log({ treeNode })
       newTree[root] = treeNode
       this.rootNodes.push(treeNode)
     }
@@ -118,6 +117,7 @@ class MyComponent extends Vue {
     const rootNode = {
       root: prefix,
       isRoot: true,
+      level: 0,
       path: '/',
       name: project.name,
       children: [] as Folder[],
@@ -147,15 +147,15 @@ class MyComponent extends Vue {
         path: run.path,
         name: folderName,
         children: [] as Folder[],
+        level: 0,
       }
       // console.log(run.path)
       if (!this.runLookupByPath[root + run.path]) this.runLookupByPath[root + run.path] = folder
 
       // add to parent
       const parentPath = run.path.substring(0, lastSlash)
-      // console.log({ parentPath })
       const parent = this.runLookupByPath[root + parentPath] || rootNode
-      // console.log(run.path, 'has parent', parent)
+      folder.level = parent.level + 1
 
       parent.children.push(folder)
     }
@@ -235,6 +235,7 @@ export default MyComponent
 }
 
 .bottom-panel {
+  margin-top: auto;
   padding: 0 1rem 0.25rem 0.5rem;
 }
 
