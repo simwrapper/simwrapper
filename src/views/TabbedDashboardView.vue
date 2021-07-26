@@ -3,7 +3,7 @@
 
   .tabholder(v-show="!isZoomed")
     .breadcrumbs
-      h3: b {{ root }} • {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+      h3 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
     .tabs.is-centered
       ul

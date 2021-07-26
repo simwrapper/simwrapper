@@ -10,8 +10,8 @@ const fileSystems: FileSystemConfig[] = [
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
-    name: 'Public-SVN',
-    slug: 'public-svn',
+    name: 'Public Scenarios',
+    slug: 'public',
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
     needPassword: false,
