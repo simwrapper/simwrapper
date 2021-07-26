@@ -42,4 +42,35 @@ function toLngLat(projection: string, p: any) {
   return proj4(projection, 'WGS84', p) as any
 }
 
-export default { toLngLat }
+/**
+ *
+ * @param def Whatever random string you have for your projection
+ * @returns EPSG code in "EPSG:1234" format
+ */
+function guessProjection(definition: string) {
+  const favoriteEPSG = ['31468', '25832', '2048', '4326']
+
+  // Simple EPSG:xxxx code? Just return it
+  const epsg = /^EPSG:\d+$/
+  if (epsg.test(definition)) return definition
+
+  // Authority mentioned? Use it
+  const authority = /AUTHORITY\["EPSG","\d+"\]/g
+  let matches = ''
+  definition
+    .match(authority)
+    ?.reverse()
+    .map(m => (matches += m))
+
+  console.log(matches)
+  if (matches) {
+    for (const fave of favoriteEPSG) {
+      if (matches.indexOf(`"${fave}"`) > -1) return `EPSG:${fave}`
+    }
+  }
+
+  // all else fails: return nothing
+  return ''
+}
+
+export default { toLngLat, guessProjection }

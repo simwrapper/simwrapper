@@ -58,7 +58,6 @@ export default class VueComponent extends Vue {
   }
 
   private mounted() {
-    console.log(this.mapID)
     this.setupLayerManager()
     this.updateLayers()
   }
@@ -125,6 +124,8 @@ export default class VueComponent extends Vue {
   }
 
   private updateLayers() {
+    const lineColor = this.props.dark ? [32, 128, 208] : [0, 128, 255]
+
     this.layerManager.removeLayer('shapefile')
     this.layerManager.addLayer(
       new GeoJsonLayer({
@@ -139,10 +140,11 @@ export default class VueComponent extends Vue {
         autoHighlight: true,
         // highlightColor: [255, 128, 255, 255], // [64, 255, 64],
         parameters: {
-          depthTest: true,
+          depthTest: false,
         },
 
-        getLineColor: [255, 255, 255, 128],
+        getLineColor: (f: any) =>
+          f.geometry.type === 'LineString' ? lineColor : [255, 255, 255, 128],
         getFillColor: (f: any) =>
           SCALED_COLORS(f.properties[this.props.activeColumn] / this.props.maxValue),
         getLineWidth: 2,

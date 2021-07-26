@@ -56,21 +56,11 @@ de:
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
-import YAML from 'yaml'
-import * as coroutines from 'js-coroutines'
 
-import {
-  ColorScheme,
-  FileSystem,
-  LegendItem,
-  LegendItemType,
-  FileSystemConfig,
-  VisualizationPlugin,
-} from '@/Globals'
+import { ColorScheme, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -330,8 +320,10 @@ class MyPlugin extends Vue {
       // we can live without a projection
     }
 
+    const guessCRS = Coords.guessProjection(projection)
+
     // then, reproject if we have a .prj file
-    if (projection) geojson = reproject.toWgs84(geojson, projection)
+    if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS)
 
     console.log({ geojson })
     const bbox: any = geojson.bbox
