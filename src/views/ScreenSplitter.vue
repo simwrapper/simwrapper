@@ -179,7 +179,6 @@ class MyComponent extends Vue {
         const base64 = btoa(JSON.stringify(this.panels))
         this.$router.push(`/split/${base64}`)
       } else {
-        console.log('boop')
         this.$router.push(`/${root}/${xsubfolder}`)
       }
     } else {
