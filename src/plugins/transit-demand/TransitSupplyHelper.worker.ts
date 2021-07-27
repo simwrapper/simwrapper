@@ -3,6 +3,7 @@ import { InitParams, MethodNames } from './TransitSupplyHelperContract'
 import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 
 import proj4 from 'proj4'
+import EPSGdefinitions from 'epsg'
 
 class TransitSupplyHelper extends AsyncBackgroundWorker {
   private params!: InitParams
@@ -37,6 +38,10 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
   /** Add various projections that we use here */
   private addProj4Definitions() {
+    for (const [key, epsg] of Object.entries(EPSGdefinitions) as any[]) {
+      if (epsg) proj4.defs(key, epsg)
+    }
+
     proj4.defs([
       [
         // south africa
@@ -82,8 +87,6 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
   }
 
   private convertCoords() {
-    console.log('projection is: ' + this.projection)
-
     for (const id in this._network.nodes) {
       if (this._network.nodes.hasOwnProperty(id)) {
         const node: NetworkNode = this._network.nodes[id]
@@ -108,6 +111,8 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
         transitRoutes: [],
       }
 
+      if (!line.transitRoute) continue
+
       for (const route of line.transitRoute) {
         const details: RouteDetails = this.buildTransitRouteDetails(line.$.id, route)
         details.uniqueRouteID = uniqueRouteID++
@@ -117,6 +122,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
       // attr.transitRoutes.sort((a, b) => (a.id < b.id ? -1 : 1))
       this._transitLines[attr.id] = attr
     }
+
     return {
       data: {
         network: this._network,

@@ -285,42 +285,101 @@ class MyComponent extends Vue {
       15 + this.myState.yamlConfig.indexOf('transitSchedule')
     )
 
-    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
-
-    // Road network: first try the most obvious network filename:
-    let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
-
-    // if the obvious network file doesn't exist, just grab... the first network file:
-    if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
-      if (allNetworks.length) network = allNetworks[0]
-      else {
-        this.loadingText = 'No road network found.'
-        network = ''
-      }
-    }
-
-    // Departures: use them if we are in an output folder (and they exist)
-    let demandFiles = [] as string[]
-    if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-      demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
-    }
-
-    // Coordinates:  oy
-    const projection = 'EPSG:31468'
-
     this.vizDetails = {
       transitSchedule: this.myState.yamlConfig,
-      network,
+      network: '',
       title,
       description: '',
-      demand: demandFiles.length ? demandFiles[0] : '',
-      projection,
+      demand: '',
+      projection: '',
     }
 
     this.$emit('title', title)
 
-    this.projection = this.vizDetails.projection
+    // go deeper if we are in full-screen
+    if (!this.thumbnail) {
+      const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
+
+      // Road network: first try the most obvious network filename:
+      let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+
+      // if the obvious network file doesn't exist, just grab... the first network file:
+      if (files.indexOf(network) == -1) {
+        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
+        if (allNetworks.length) network = allNetworks[0]
+        else {
+          this.loadingText = 'No road network found.'
+          network = ''
+        }
+      }
+
+      // Departures: use them if we are in an output folder (and they exist)
+      let demandFiles = [] as string[]
+      if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
+        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+      }
+
+      // Coordinates:
+      const projection = await this.guessProjection(files)
+      console.log(projection)
+
+      // Save everything
+      this.vizDetails.network = network
+      this.vizDetails.projection = projection
+      this.projection = this.vizDetails.projection
+      if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
+    }
+  }
+
+  private async guessProjection(files: string[]) {
+    // 1. if we have it in storage already, use it
+    let savedConfig = localStorage.getItem(this.myState.yamlConfig) as any
+
+    if (savedConfig) {
+      try {
+        const { projection } = JSON.parse(savedConfig)
+        if (projection) return projection
+        else savedConfig = {}
+      } catch (e) {
+        console.error('bad saved config in storage', savedConfig)
+        savedConfig = {}
+        // fail! ok try something else
+      }
+    }
+
+    // 2. try to get it from config
+    const outputConfigs = files.filter(f => f.indexOf('output_config.xml') > -1)
+    if (outputConfigs.length && this.myState.fileSystem) {
+      console.log('trying to find CRS in', outputConfigs[0])
+      const fetcher = await XmlFetcher.create({
+        fileApi: this.myState.fileSystem.slug,
+        filePath: this.myState.subfolder + '/' + outputConfigs[0],
+      })
+      const results = (await fetcher.fetchXML()) as any
+      fetcher.destroy()
+
+      try {
+        const global = results.config.module.filter((f: any) => f.$.name === 'global')[0]
+        const crs = global.param.filter((p: any) => p.$.name === 'coordinateSystem')[0]
+        const crsValue = crs.$.value
+
+        // save it
+        savedConfig = savedConfig || {}
+        savedConfig.projection = crsValue
+        const outputSettings = JSON.stringify(savedConfig)
+        localStorage.setItem(this.myState.yamlConfig, outputSettings)
+        return crsValue
+      } catch (e) {
+        console.error('Failed parsing output config XML')
+      }
+    }
+
+    // 3. ask the user
+    const entry = prompt('Need EPSG number:', '')
+    const projection = `EPSG:${entry}`
+    const outputSettings = JSON.stringify({ projection })
+    localStorage.setItem(this.myState.yamlConfig, outputSettings)
+    return projection
   }
 
   private async loadYamlConfig() {
