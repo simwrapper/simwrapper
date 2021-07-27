@@ -1,18 +1,26 @@
 {
   "doc": {
-    "Getting Started": ["simwrapper-intro", "file-management", "scripts"],
+    "Getting Started": [
+      "simwrapper-intro",
+      "file-management",
+      "dashboards",
+      "scripts"
+    ],
     "Tutorials": [],
     "Charts and Plots": [
       "aggregate-od",
+      "bar-area-line",
       "calculation-tables",
       "carrier-viewer",
       "drt-vehicles",
       "link-vols",
+      "pie-charts",
       "sankey",
       "transit-supply",
       "vega-lite",
       "video",
-      "xy-hexagons"
+      "xy-hexagons",
+      "xy-scatter-plots"
     ],
     "Developer Guide": ["simwrapper-installation", "plugin-guide"]
   }

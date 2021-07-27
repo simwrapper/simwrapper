@@ -39,25 +39,34 @@ class HomeSplash extends React.Component {
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
+          width: "60rem",
           margin: "2rem auto 1rem auto",
+          border: "6px solid #ef2",
+          boxShadow: "0px 0px 10px 6px #00000011",
+          backgroundColor: "#ffffff",
         }}
       >
-        <h2
+        <img src="/docs/img/logo-animated.gif" width="200" />
+        <div
           style={{
-            padding: "0 2rem",
-            border: "6px solid #ef2",
-            boxShadow: "0px 0px 10px 6px #00000011",
-            margin: "0 auto",
-            backgroundColor: "#ffffff",
-            textAlign: "center",
-            paddingTop: "1.5rem",
+            display: "flex",
+            flexDirection: "row",
+            margin: "auto 1rem",
           }}
-          className="projectTitle"
         >
-          {props.title}
-          <small>{props.tagline}</small>
-        </h2>
+          <h2
+            style={{
+              padding: "0 2rem",
+              margin: "0 auto",
+              textAlign: "left",
+            }}
+            className="projectTitle"
+          >
+            {props.title}
+            <small>{props.tagline}</small>
+          </h2>
+        </div>
       </div>
     );
 
