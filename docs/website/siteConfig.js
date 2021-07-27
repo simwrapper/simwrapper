@@ -11,7 +11,7 @@ const siteConfig = {
 
   headerLinks: [
     { doc: "simwrapper-intro", label: "Documentation" },
-    { blog: true, label: "Blog", left: true },
+    { blog: true, label: "News", left: true },
     {
       href: "https://github.com/simwrapper/simwrapper",
       label: "Github",
