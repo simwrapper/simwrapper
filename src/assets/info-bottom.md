@@ -1,2 +1,2 @@
 - SimWrapper **[documentation and users guide](https://simwrapper.github.io/docs/docs/simwrapper-intro)**
-- Source code available [on Github](https://github.com/simwrapper/simwrapper.github.io)
+- Source code available [on Github](https://github.com/simwrapper/simwrapper)

@@ -28,7 +28,7 @@
 <i18n>
 en:
   more-info: 'For more information:'
-  tagLine: 'the model output browser and data visualizer from TU&nbsp;Berlin.'
+  tagLine: 'the simulation output browser and data visualizer from TU&nbsp;Berlin.'
 de:
   more-info: 'Für weitere Informationen:'
   tagLine: 'Der Modellergebnis-Browser der TU Berlin.'

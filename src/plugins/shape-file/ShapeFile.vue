@@ -56,6 +56,7 @@ de:
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
+import EPSGdefinitions from 'epsg'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
@@ -323,12 +324,10 @@ class MyPlugin extends Vue {
     const guessCRS = Coords.guessProjection(projection)
 
     // then, reproject if we have a .prj file
-    if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS)
+    if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
 
-    console.log({ geojson })
     const bbox: any = geojson.bbox
 
-    console.log({ bbox })
     const header = Object.keys(geojson.features[0].properties)
     this.shapefile = { data: geojson.features, prj: projection, header, bbox }
 

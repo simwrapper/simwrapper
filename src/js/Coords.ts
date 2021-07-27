@@ -48,8 +48,14 @@ function toLngLat(projection: string, p: any) {
  * @returns EPSG code in "EPSG:1234" format
  */
 function guessProjection(definition: string) {
-  const favoriteEPSG = ['31468', '25832', '2048', '4326']
+  const favoriteEPSG = ['31468', '25832', '25833', '2048', '4326', '26910']
 
+  const lookups = {
+    DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
+    NAD_1983_UTM_Zone_10N: 'EPSG:26910',
+  }
+
+  console.log(definition)
   // Simple EPSG:xxxx code? Just return it
   const epsg = /^EPSG:\d+$/
   if (epsg.test(definition)) return definition
@@ -62,7 +68,6 @@ function guessProjection(definition: string) {
     ?.reverse()
     .map(m => (matches += m))
 
-  console.log(matches)
   if (matches) {
     for (const fave of favoriteEPSG) {
       if (matches.indexOf(`"${fave}"`) > -1) return `EPSG:${fave}`
@@ -70,9 +75,12 @@ function guessProjection(definition: string) {
   }
 
   // maybe a DHDN GK4 is there
-  if (definition.indexOf('DHDN_3_degree_Gauss_Kruger_zone_4') > -1) {
-    return 'EPSG:31468'
+  for (const [key, epsg] of Object.entries(lookups)) {
+    console.log(key, epsg)
+    console.log(definition.indexOf(key))
+    if (definition.indexOf(key) > -1) return epsg
   }
+
   // all else fails: return EPSG:31468
   return ''
 }

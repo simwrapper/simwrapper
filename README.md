@@ -1,6 +1,6 @@
 # SimWrapper project website
 
-This repo contains the interactive visualization website for **SimWrapper**, available at https://simwrapper.github.io.
+This repo contains the interactive visualization website for **SimWrapper**, available at https://vsp.berlin/simwrapper
 
 - DOCS available at: https://simwrapper.github.io/docs
 
