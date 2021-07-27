@@ -1,4 +1,4 @@
-// named *werker* because *worker* gets processed by webpack already
+// named *thread* because *worker* gets processed by webpack already
 
 /*eslint prefer-rest-params: "off"*/
 

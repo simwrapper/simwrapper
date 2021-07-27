@@ -64,7 +64,6 @@ class MyComponent extends Vue {
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
-    console.log({ to, from })
     if (to.path === '/') {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
@@ -170,7 +169,7 @@ class MyComponent extends Vue {
   }
 
   private updateURL() {
-    console.log(this.panels)
+    // console.log(this.panels)
     if (this.panels.length === 1) {
       const root = this.panels[0].props.root || ''
       const xsubfolder = this.panels[0].props.xsubfolder || ''
