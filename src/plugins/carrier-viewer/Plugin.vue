@@ -39,13 +39,14 @@ de:
                 :vehicleLookup="vehicleLookup"
                 :onClick="handleClick")
 
-  collapsible-panel.left-side(v-if="detailContent" :darkMode="true" direction="left" width="300")
-    h3 Raw Details
-    .panel-items
-      .detail-list
-        pre(style="color: #ccc; padding-right: 2rem;") {{detailContent}}
+  .left-side(v-if="detailContent")
+    collapsible-panel(direction="left" :locked="true")
+      h3 Raw Details
+      .panel-items
+        .detail-list
+          pre {{detailContent}}
 
-  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
+  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
 
     .panel-items
 
@@ -157,10 +158,10 @@ naturalSort.insensitive = true
   } as any,
 })
 class CarrierPlugin extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private subfolder!: string
 
   @Prop({ required: false })
@@ -217,7 +218,7 @@ class CarrierPlugin extends Vue {
     colorScheme: ColorScheme.DarkMode,
     isRunning: false,
     isShowingHelp: false,
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
@@ -260,6 +261,12 @@ class CarrierPlugin extends Vue {
   private selectedCarrier = ''
   private selectedTour: any = null
   private selectedShipment: any = null
+
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
+  }
 
   private handleSelectShipment(shipment: any) {
     console.log({ shipment })
@@ -551,6 +558,7 @@ class CarrierPlugin extends Vue {
   }
 
   private async getVizDetails() {
+    if (!this.myState.fileApi) return
     // first get config
     try {
       const text = await this.myState.fileApi.getFileText(
@@ -574,6 +582,7 @@ class CarrierPlugin extends Vue {
   }
 
   private async buildThumbnail() {
+    if (!this.myState.fileApi) return
     if (this.thumbnail && this.vizDetails.thumbnail) {
       try {
         const blob = await this.myState.fileApi.getFileBlob(
@@ -675,6 +684,8 @@ class CarrierPlugin extends Vue {
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
+    this.buildFileApi()
+
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
 
@@ -698,6 +709,8 @@ class CarrierPlugin extends Vue {
     // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
 
     const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
+    if (!carriersXML) return
+
     const carriers: any = await this.parseXML(carriersXML)
 
     // crazy but correct - why is matsim so verbose?
@@ -712,17 +725,21 @@ class CarrierPlugin extends Vue {
   }
 
   private async loadNetwork() {
+    if (!this.myState.fileApi) return
+
     this.myState.statusMessage = 'Loading network'
     if (this.vizDetails.network.indexOf('.xml.') > -1) {
       // matsim xml file
       const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
+      if (!networkXML) return
+
       const network: any = await this.parseXML(networkXML)
       const convertedNetwork = await this.convertRoadNetwork(network)
       return convertedNetwork
     } else {
       // pre-converted output from create_network.py
       const blob = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + this.vizDetails.network
+        this.myState.subfolder + '/' + this.vizDetails.network
       )
       const blobString = blob ? await blobToBinaryString(blob) : null
       let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
@@ -819,6 +836,7 @@ class CarrierPlugin extends Vue {
   }
 
   private async loadFileOrGzippedFile(name: string) {
+    if (!this.myState.fileApi) return
     console.log('loading', name)
 
     let content = ''
@@ -955,14 +973,15 @@ export default CarrierPlugin
 
 .left-side {
   // white-space: pre-wrap;
+  // margin: 6rem auto 5rem 0;
   position: absolute;
-  top: 40%;
-  bottom: 0rem;
+  top: 70%;
+  bottom: 3rem;
   left: 0;
-  margin: 6rem 0 5rem 0;
-  background-color: $steelGray;
+  width: 100px;
+  background-color: var(--bgPanel);
   box-shadow: 0px 2px 10px #111111ee;
-  color: white;
+  color: var(--text);
   display: flex;
   flex-direction: row;
   font-size: 0.8rem;
@@ -975,28 +994,16 @@ export default CarrierPlugin
   bottom: 0rem;
   right: 0;
   margin: 6rem 0 5rem 0;
-  background-color: $steelGray;
-  box-shadow: 0px 2px 10px #111111ee;
-  color: white;
+  color: var(--text);
   display: flex;
   flex-direction: row;
   font-size: 0.8rem;
   pointer-events: auto;
 }
 
-.settings-area {
-  z-index: 20;
-  pointer-events: auto;
-  background-color: $steelGray;
-  color: white;
-  font-size: 0.8rem;
-  padding: 0.25rem 0;
-  margin: 1.5rem 0rem 0 0;
-}
-
 .anim {
   background-color: #181919;
-  z-index: -1;
+  z-index: 0;
   grid-column: 1 / 3;
   grid-row: 1 / 7;
   pointer-events: auto;
@@ -1046,11 +1053,11 @@ input {
 .carrier {
   padding: 0.25rem 0.5rem;
   margin: 0 0rem;
-  color: white;
+  color: var(--text);
 }
 
 .carrier:nth-of-type(odd) {
-  background: #324253;
+  background: var(--bgPanel2);
 }
 
 .carrier-details {
@@ -1066,7 +1073,7 @@ input {
 }
 
 .carrier:hover {
-  color: var(--yellow);
+  color: var(--link);
 }
 
 .carrier-title {
@@ -1092,7 +1099,7 @@ input {
   font-weight: bold;
   background-color: $themeColorPale;
   box-shadow: 0 0 3px 0 rgba(0, 0, 0, 0.3) inset;
-  color: var(--yellow);
+  color: white;
 }
 
 .carrier-list {
@@ -1143,6 +1150,8 @@ input {
 }
 
 .detail-list {
+  // margin-left: 0.5rem;
+  width: 250px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -1151,7 +1160,8 @@ input {
   font-family: 'Arial';
   padding: 0 0;
   line-height: 0.8rem;
-  background-color: $steelGray;
+  background-color: var(--bgPanel);
+  color: var(--text);
 }
 
 @media only screen and (max-width: 640px) {

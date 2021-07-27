@@ -6,6 +6,9 @@ import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
+import globalStore from '@/store'
+import { MAP_STYLES } from '@/Globals'
+
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
   infoPin: { x: 128, y: 0, width: 128, height: 128, mask: true },
@@ -71,9 +74,7 @@ export default function Component(props: {
   searchEnabled: boolean
   onClick: any
 }) {
-  const mapStyle = 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex'
-  // const mapStyle = 'mapbox://styles/vsp-tu-berlin/ckeetelh218ef19ob5nzw5vbh'
-  // mapStyle = "mapbox://styles/mapbox/dark-v10",
+  const mapStyle = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
 
   const {
     shipments,
