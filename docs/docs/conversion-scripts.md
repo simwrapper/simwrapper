@@ -62,9 +62,9 @@ ggplot() +
 
 Parse the event file containing DRT events.
 
-- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/simwrapper/simwrapper.github.io/source/scripts/parse-drt-link-events.py)**
+- Download script here: **[parse-drt-link-events.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/parse-drt-link-events.py)**
 
-**Command:** `python3 parse-drt-link-events.py [network] [events] [coord-system]`
+**Command:** `python parse-drt-link-events.py [network] [events] [coord-system]`
 
 **Inputs:** network.xml.gz file; events.xml.gz file; a valid coordinate system
 
