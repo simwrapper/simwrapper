@@ -78,6 +78,7 @@ import ConfigPanel from './ConfigPanel.vue'
 import LinkDeckMap from './LinkDeckMap.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import GzipFetcher from '@/workers/GzipFetcher.worker'
 
 import {
   ColorScheme,
@@ -304,7 +305,7 @@ class MyPlugin extends Vue {
   }
 
   private findCenter(data: any[]): [number, number] {
-    return [13.45, 52.53]
+    return [9, 53.53]
   }
 
   private async mounted() {
@@ -317,10 +318,11 @@ class MyPlugin extends Vue {
 
     this.myState.statusMessage = 'Dateien laden...'
 
-    // load network fully, first
-    const allLinks = await this.loadGeojsonFeatures()
-    if (!allLinks) return
+    // load network fully, first. Callback will then load CSVs later.
+    this.loadGeojsonFeatures()
+  }
 
+  private geoJsonNetworkIsLoaded(allLinks: any[]) {
     this.geojsonData = allLinks
     this.isLoaded = true
 
@@ -345,22 +347,33 @@ class MyPlugin extends Vue {
       this.myState.statusMessage = 'Loading network...'
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
-      const text = await this.myState.fileApi.getFileText(network)
-      const json = JSON.parse(text)
-      this.numLinks = json.features.length
 
-      // super-efficient format is [ offset, coordsFrom[], coordsTo[] ]
-      const linkElements: any[] = []
+      const worker = new GzipFetcher() as Worker
 
-      for (let i = 0; i < this.numLinks; i++) {
-        const feature = json.features[i]
-        const link = [i, feature.geometry.coordinates[0], feature.geometry.coordinates[1]]
-        linkElements.push(link)
+      worker.onmessage = (buffer: MessageEvent) => {
+        const buf = buffer.data
+        const decoder = new TextDecoder('utf-8')
+        const jsonData = decoder.decode(buf)
+        const json = JSON.parse(jsonData)
+        this.numLinks = json.features.length
 
-        this.linkOffsetLookup[feature.properties.id] = i
+        // super-efficient format is [ offset, coordsFrom[], coordsTo[] ]
+        const linkElements: any[] = []
+
+        for (let i = 0; i < this.numLinks; i++) {
+          const feature = json.features[i]
+          const link = [i, feature.geometry.coordinates[0], feature.geometry.coordinates[1]]
+          linkElements.push(link)
+
+          this.linkOffsetLookup[feature.properties.id] = i
+        }
+        this.geoJsonNetworkIsLoaded(linkElements)
       }
 
-      return linkElements
+      worker.postMessage({
+        filePath: network,
+        fileSystem: this.myState.fileSystem,
+      })
     } catch (e) {
       this.myState.statusMessage = '' + e
 
@@ -481,17 +494,28 @@ class MyPlugin extends Vue {
   private loadCSVFile(filename: string) {
     if (!this.myState.fileApi) return
 
-    const csvFilename = this.myState.fileApi.cleanURL(`${this.myState.subfolder}/${filename}`)
+    const csvFilename = `${this.myState.subfolder}/${filename}`
 
+    const worker = new GzipFetcher() as Worker
     try {
-      Papaparse.parse(csvFilename, {
-        // preview: 10000,
-        download: true,
-        header: false,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-        worker: true,
-        complete: this.finishedLoadingCSV,
+      worker.onmessage = (buffer: MessageEvent) => {
+        const buf = buffer.data
+        const decoder = new TextDecoder('utf-8')
+        const text = decoder.decode(buf)
+
+        Papaparse.parse(text, {
+          // preview: 10000,
+          header: false,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          worker: true,
+          complete: this.finishedLoadingCSV,
+        })
+      }
+
+      worker.postMessage({
+        filePath: csvFilename,
+        fileSystem: this.myState.fileSystem,
       })
     } catch (e) {
       console.error(e)
