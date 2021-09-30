@@ -11,14 +11,15 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
-  fetchGzip(filePath, fileSystem).then(result => {
-    ctx.postMessage(result, [result.buffer]) // transferable zero-copy!
+  fetchGzip(filePath, fileSystem).then((result: any) => {
+    // transferable zero-copy!
+    if (result.buffer) ctx.postMessage(result, [result.buffer])
+    else ctx.postMessage(result, [result])
   })
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
   const httpFileSystem = new HTTPFileSystem(fileSystem)
-  console.log(httpFileSystem)
   const blob = await httpFileSystem.getFileBlob(filePath)
   if (!blob) throw Error('BLOB IS NULL')
 
