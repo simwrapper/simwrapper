@@ -129,8 +129,6 @@ class MyPlugin extends Vue {
   private buildColumnValues: Float32Array[] = []
   private baseColumnValues: Float32Array[] = []
 
-  private mapState = { center: [0, 0], zoom: 10, bearing: 0, pitch: 20 }
-
   private isButtonActiveColumn = false
 
   private scaleWidth = 250
@@ -304,8 +302,29 @@ class MyPlugin extends Vue {
     this.isButtonActiveColumn = false
   }
 
-  private findCenter(data: any[]): [number, number] {
-    return [9, 53.53]
+  private async setMapCenter(data: any[]) {
+    let samples = 0
+    let longitude = 0
+    let latitude = 0
+    let gap = Math.floor(data.length / 512)
+
+    for (let i = 0; i < data.length; i += gap) {
+      longitude += data[i][1][0]
+      latitude += data[i][1][1]
+      samples++
+    }
+
+    longitude = longitude / samples
+    latitude = latitude / samples
+
+    this.$store.commit('setMapCamera', {
+      longitude,
+      latitude,
+      bearing: 0,
+      pitch: 0,
+      zoom: 7,
+      jump: true,
+    })
   }
 
   private async mounted() {
@@ -327,8 +346,7 @@ class MyPlugin extends Vue {
     this.isLoaded = true
 
     // runs in background
-    this.mapState.center = this.findCenter([])
-
+    this.setMapCenter(allLinks)
     this.buildThumbnail()
 
     this.myState.statusMessage = ''
@@ -419,7 +437,6 @@ class MyPlugin extends Vue {
     const allLinks: Float32Array[] = []
     const numColumns = parsed.data[0].length - (this.vizDetails.useSlider ? 0 : 1)
 
-    console.log('number of columns', numColumns)
     for (let i = 0; i < numColumns; i++) {
       allLinks.push(new Float32Array(this.numLinks))
     }

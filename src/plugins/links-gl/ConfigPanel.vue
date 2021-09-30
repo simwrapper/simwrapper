@@ -229,6 +229,7 @@ export default class VueComponent extends Vue {
 
 .config-panel {
   margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
   display: flex;
   flex-direction: row;
 }

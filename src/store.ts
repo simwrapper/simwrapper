@@ -11,15 +11,15 @@ import SVNFileSystem from './js/HTTPFileSystem'
 // ----------------------------------------
 
 const initialViewState = () => ({
-  // start with berlin for now
+  // start with western europe for now
   initial: true,
   // longitude: 3.4,
   // latitude: 45.5,
   // zoom: 4,
   pitch: 0,
-  longitude: 13.4,
-  latitude: 52.5,
-  zoom: 9,
+  longitude: 10,
+  latitude: 50,
+  zoom: 5,
   bearing: 0,
 })
 
