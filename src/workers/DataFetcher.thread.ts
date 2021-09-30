@@ -19,6 +19,7 @@ let _fileSystem: HTTPFileSystem
 let _subfolder = ''
 let _files: string[] = []
 let _config: any = {}
+let _dataset = ''
 
 const _fileData: any = {}
 
@@ -33,18 +34,30 @@ expose({
     _subfolder = props.subfolder
     _files = props.files
     _config = props.config
+    _dataset = _config.dataset
+
+    // if dataset has a path in it, we need to fetch the correct subfolder contents
+    if (_config.dataset.startsWith('.') || _config.dataset.startsWith('/')) {
+      const mergedFolder = `${_subfolder}/${_config.dataset}`
+      _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
+      _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+
+      // need to fetch new list of files
+      const { files } = await _fileSystem.getDirectory(_subfolder)
+      _files = files
+    }
 
     // load all files
     await loadFiles()
 
-    return _fileData[_config.dataset]
+    return _fileData[_dataset]
   },
 })
 
 // ----- helper functions ------------------------------------------------
 
 async function loadFiles() {
-  const datasetPattern = _config.dataset
+  const datasetPattern = _dataset
 
   try {
     // figure out which file to load
@@ -69,7 +82,7 @@ async function loadFiles() {
 }
 
 function cleanData() {
-  const data = _fileData[_config.dataset]
+  const data = _fileData[_dataset]
 
   // remove extra columns
   if (_config.ignoreColumns) {
@@ -84,6 +97,11 @@ function cleanData() {
 }
 
 async function parseVariousFileTypes(fileKey: string, filename: string, text: string) {
+  function drillIntoXML(parent: any, tag: any): any {
+    if (Array.isArray(tag) && tag.length > 0) return drillIntoXML(parent[tag[0]], tag.slice(1))
+    return parent
+  }
+
   // XML
   if (filename.indexOf('.xml') > -1) {
     const xml = (await parseXML(text, {
@@ -103,11 +121,6 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     }
 
     return
-
-    function drillIntoXML(parent: any, tag: any): any {
-      if (Array.isArray(tag) && tag.length > 0) return drillIntoXML(parent[tag[0]], tag.slice(1))
-      return parent
-    }
   }
 
   // if it isn't XML, then let's hope assume Papaparse can handle it
@@ -130,6 +143,20 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
 }
 
 async function loadFileOrGzipFile(filename: string) {
+  /**
+   * This recursive function gunzips the buffer. It is recursive because
+   * some combinations of subversion, nginx, and various web browsers
+   * can single- or double-gzip .gz files on the wire. It's insane but true.
+   */
+  function gUnzip(buffer: any): Uint8Array {
+    // GZIP always starts with a magic number, hex $1f8b
+    const header = new Uint8Array(buffer.slice(0, 2))
+    if (header[0] === 0x1f && header[1] === 0x8b) {
+      return gUnzip(pako.inflate(buffer))
+    }
+    return buffer
+  }
+
   const filepath = `${_subfolder}/${filename}`
 
   // fetch the file
@@ -144,18 +171,4 @@ async function loadFileOrGzipFile(filename: string) {
   const text = new TextDecoder().decode(unzipped)
 
   return text
-
-  /**
-   * This recursive function gunzips the buffer. It is recursive because
-   * some combinations of subversion, nginx, and various web browsers
-   * can single- or double-gzip .gz files on the wire. It's insane but true.
-   */
-  function gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $1f8b
-    const header = new Uint8Array(buffer.slice(0, 2))
-    if (header[0] === 0x1f && header[1] === 0x8b) {
-      return gUnzip(pako.inflate(buffer))
-    }
-    return buffer
-  }
 }
