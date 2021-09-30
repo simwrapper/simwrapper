@@ -10,7 +10,7 @@ Link bandwidth plot plugin. Supports regular bandwidth plots as well as differen
 
 ## Usage
 
-A file named `viz-links-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate link volume diagram.
+A file named `viz-gl-links-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate link volume diagram.
 
 **viz-links-example.yml**
 
@@ -20,12 +20,12 @@ description: "Stündliches Passagieraufkommen in Sammeltaxis"
 csvFile: "../base/hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv"
 csvFile2: "Vu-DRT-1.link_hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv"
 geojsonFile: ../vulkaneifel-network.geo.json.gz
-shpFile: "vulkaneifel-network/vulkaneifel-network.shp"
-dbfFile: "vulkaneifel-network/vulkaneifel-network.dbf"
-projection: "EPSG:25832"
 widthFactor: 0.01
 sampleRate: 0.25
 thumbnail: thumbnail-roads.jpg
+# deprecated:
+shpFile: "vulkaneifel-network/vulkaneifel-network.shp"
+dbfFile: "vulkaneifel-network/vulkaneifel-network.dbf"
 shpFileIdProperty: "ID"
 ```
 
@@ -35,10 +35,9 @@ shpFileIdProperty: "ID"
 
 **geojsonFile:** geojson-converted network file. Use the python script in `scripts/create-network.py` to create a geojson network from a matsim network.xml.gz file.
 
-- Command is `python3 create-network.py [mynetwork.xml.gz]`
-- and will create a file with the name `mynetwork.json.gz`.
-
-**shpFile,dbfFile:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
+- Command is `python create-geojson-network.py [mynetwork.xml.gz] [Projection]`
+- and will create a file with the name `mynetwork.geo.json.gz`.
+- Note projection must be given! Format `EPSG:25832` etc.
 
 **csvFile**: dataset, or "base" dataset for difference plots
 
@@ -46,11 +45,13 @@ shpFileIdProperty: "ID"
 
 **sampleRate:** MATSim simulation sample rate; i.e. a 1% sample should use `0.01` here so that volumes are scaled properly
 
+**shpFile,dbfFile:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
+
 **shpFileIdProperty:** property name of field in Shapefile which contains area ID for linking shapefile regions to csvFile data.
 
 Note: All filename fields can refer to parent folders using `../`.
 
-- example: `geojsonfile: '../networks/base.json.gz'`
+- example: `geojsonFile: '../networks/base.json.gz'`
 
 This works as far up the hierarchy as the base of the public-svn specified in `svnConfig.js` but no further.
 
@@ -58,7 +59,7 @@ This works as far up the hierarchy as the base of the public-svn specified in `s
 
 ## Required model output post-processing
 
-**geoJsonFile** - The standard MATSim network.xml.gz file is very inefficient and slow to load. Create the `geoJsonFile` network file using the following Python script:
+**geojsonFile** - The standard MATSim network.xml.gz file is very inefficient and slow to load. Create the `geoJsonFile` network file using the following Python script:
 
 - [create-network.py](https://simwrapper.github.io/docs/scripts/create-network.py)
 - You will need to install Python 3 to use this script.
