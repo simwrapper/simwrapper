@@ -48,7 +48,7 @@
       .dropdown.is-up.full-width(:class="{'is-active': isColorButtonActive}")
         .dropdown-trigger
           img.color-button(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                          :src="`/colors/scale-${selectedColorRamp}.png`"
+                          :src="`${pathColorScale}scale-${selectedColorRamp}.png`"
                           @click="() => this.isColorButtonActive = !this.isColorButtonActive"
           )
 
@@ -58,7 +58,7 @@
                             @click="handleColorRamp(colorRamp)"
                             :style="{'padding': '0.25rem 0.25rem'}")
               img.swapColor(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                            :src="`/colors/scale-${colorRamp}.png`")
+                            :src="`${pathColorScale}scale-${colorRamp}.png`")
               p(:style="{'lineHeight': '1rem', 'marginBottom':'0.25rem'}") {{ colorRamp }}
 
 </template>
@@ -110,6 +110,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true })
   private selectedColorRamp!: string
 
+  private pathColorScale = '/simwrapper/colors/'
   private isButtonActive = false
   private isColorButtonActive = false
 
