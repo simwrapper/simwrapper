@@ -471,10 +471,10 @@ class MyPlugin extends Vue {
     if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
 
     //  "8 AM" is a lot narrower than "08:00:00"
-    const cleanHeaders = header.map(h => h.replace(':00:00', ''))
+    // const cleanHeaders = header.map(h => h.replace(':00:00', ''))
 
     const details = {
-      header: cleanHeaders,
+      header, // : cleanHeaders,
       headerMax: this.vizDetails.useSlider
         ? new Array(this.csvData.header.length).fill(globalMax)
         : [],
