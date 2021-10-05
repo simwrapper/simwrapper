@@ -283,6 +283,10 @@ input {
   // margin-top: 4rem;
 }
 
+.time-slider {
+  width: 14rem;
+}
+
 @media only screen and (max-width: 640px) {
 }
 </style>
