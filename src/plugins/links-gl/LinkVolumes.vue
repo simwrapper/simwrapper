@@ -333,7 +333,10 @@ class MyPlugin extends Vue {
     this.buildFileApi()
 
     await this.getVizDetails()
-    if (this.thumbnail) return
+    if (this.thumbnail) {
+      this.buildThumbnail()
+      return
+    }
 
     this.myState.statusMessage = 'Dateien laden...'
 
@@ -347,7 +350,6 @@ class MyPlugin extends Vue {
 
     // runs in background
     this.setMapCenter(allLinks)
-    this.buildThumbnail()
 
     this.myState.statusMessage = ''
 
