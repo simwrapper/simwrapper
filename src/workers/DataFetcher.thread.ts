@@ -37,8 +37,9 @@ expose({
     _dataset = _config.dataset
 
     // if dataset has a path in it, we need to fetch the correct subfolder contents
-    if (_config.dataset.startsWith('.') || _config.dataset.startsWith('/')) {
-      const mergedFolder = `${_subfolder}/${_config.dataset}`
+    const slash = _config.dataset.indexOf('/')
+    if (slash > -1) {
+      const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
       _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
       _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
 
