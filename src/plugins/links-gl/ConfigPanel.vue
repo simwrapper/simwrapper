@@ -2,9 +2,8 @@
 .config-panel
 
   //- time-of-day slider
-  .panel-item.expand(v-if="useSlider")
-    p: b {{ $t('timeOfDay') }}:
-       | &nbsp; {{ header[activeColumn] }}
+  .panel-item(v-if="useSlider")
+    p: b {{ $t('timeOfDay') }}
 
     button.button.full-width.is-warning.is-loading(v-if="activeColumn < 0"
           aria-haspopup="true" aria-controls="dropdown-menu-column-selector")
@@ -280,16 +279,12 @@ input {
   }
 }
 
-.expand {
-  flex: 1;
-}
-
 .vert-space {
   // margin-top: 4rem;
 }
 
 .time-slider {
-  width: 100%;
+  width: 14rem;
 }
 
 @media only screen and (max-width: 640px) {

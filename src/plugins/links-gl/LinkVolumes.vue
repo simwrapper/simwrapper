@@ -39,7 +39,7 @@ de:
       .panel-items
 
         //- button/dropdown for selecting column
-        .panel-item.config-section
+        .panel-item
           config-panel(
             :header="csvData.header"
             :activeColumn="csvData.activeColumn"
@@ -642,9 +642,6 @@ export default MyPlugin
 }
 
 .panel-items {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
   margin: 0rem 0.5rem;
 }
 
@@ -665,7 +662,8 @@ input {
 }
 
 .toggle {
-  margin: 0.25rem 0.5rem 0.25rem 0;
+  margin-bottom: 0.25rem;
+  margin-right: 0.5rem;
 }
 
 #dropdown-menu-color-selector {
@@ -680,12 +678,8 @@ input {
   margin-top: 0rem;
 }
 
-.config-section {
-  flex: 1;
-}
-
 .diff-section {
-  margin-top: 0.7rem;
+  margin-top: 1rem;
 }
 
 @media only screen and (max-width: 640px) {
