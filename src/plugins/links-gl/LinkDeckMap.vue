@@ -150,8 +150,8 @@ export default class VueComponent extends Vue {
       const baseValue = this.props.baseData[feature[COLUMNS.offset]]
       const diff = value - baseValue
 
-      if (diff === 0) return 0 // fetchColor(0.5)
-      return baseValue < value ? this.color1 : this.color0
+      if (diff === 0) return [128, 128, 128, 64] // fetchColor(0.5)
+      return baseValue < value ? [255, 0, 0, 255] : [0, 0, 255, 255] // this.color1 : this.color0
     } else {
       const scaledValue =
         Math.log(value) / Math.log(this.props.build.headerMax[this.props.build.activeColumn])

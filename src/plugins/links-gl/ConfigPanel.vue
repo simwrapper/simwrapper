@@ -44,7 +44,9 @@
 
 
   //- COLOR PICKER
-  .panel-item.color-picker(v-if="activeColumn > -1")
+  .panel-item.color-picker(v-if="activeColumn > -1"
+    :style="{pointerEvents: showDiffs ? 'none': 'auto', opacity: showDiffs ? 0.4 : 1.0}"
+  )
     p: b {{ $t('colors') }}
       .dropdown.is-up.full-width(:class="{'is-active': isColorButtonActive}")
         .dropdown-trigger
@@ -103,6 +105,9 @@ export default class VueComponent extends Vue {
   private scaleWidth!: number
 
   @Prop({ required: true })
+  private showDiffs!: boolean
+
+  @Prop({ required: true })
   private csvData!: { header: string[] }
 
   @Prop({ required: true })
@@ -115,13 +120,17 @@ export default class VueComponent extends Vue {
   private isButtonActive = false
   private isColorButtonActive = false
 
-  private scaleWidthValue = '250'
+  private scaleWidthValue = '' + this.scaleWidth
 
   private colorRamps: { [title: string]: { png: string; diff?: boolean } } = {
     viridis: { png: 'scale-viridis.png' },
     inferno: { png: 'scale-inferno.png' },
     bluered: { png: 'scale-salinity.png', diff: true },
     picnic: { png: 'scale-picnic.png' },
+  }
+
+  @Watch('scaleWidth') handleScaleWidth() {
+    this.scaleWidthValue = '' + this.scaleWidth
   }
 
   private globalState = globalStore.state

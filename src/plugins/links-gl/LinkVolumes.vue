@@ -47,6 +47,7 @@ de:
             :selectedColorRamp="selectedColorRamp"
             :csvData="csvData"
             :useSlider="vizDetails.useSlider"
+            :showDiffs="showDiffs"
             @colors="clickedColorRamp"
             @column="handleNewDataColumn"
             @slider="handleNewDataColumn"
@@ -131,7 +132,7 @@ class MyPlugin extends Vue {
 
   private isButtonActiveColumn = false
 
-  private scaleWidth = 250
+  private scaleWidth = 0
 
   private showDiffs = false
   private showTimeRange = false
@@ -152,7 +153,7 @@ class MyPlugin extends Vue {
     dbfFile: '',
     geojsonFile: '',
     projection: '',
-    scaleFactor: 1,
+    widthFactor: null as any,
     thumbnail: '',
     sum: false,
   }
@@ -236,6 +237,7 @@ class MyPlugin extends Vue {
     }
     const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
     this.$emit('title', t)
+    console.log(this.vizDetails)
   }
 
   private async buildThumbnail() {
@@ -333,6 +335,10 @@ class MyPlugin extends Vue {
     this.buildFileApi()
 
     await this.getVizDetails()
+
+    // default width is 250, why not
+    this.scaleWidth = this.vizDetails.widthFactor === undefined ? 250 : this.vizDetails.widthFactor
+
     if (this.thumbnail) {
       this.buildThumbnail()
       return
