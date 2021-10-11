@@ -298,6 +298,7 @@ input {
 }
 
 .time-slider {
+  padding-bottom: 1.25rem;
   width: 100%;
 }
 

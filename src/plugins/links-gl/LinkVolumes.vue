@@ -23,7 +23,20 @@ de:
         oncontextmenu="return false")
 
   .plot-container(v-if="!thumbnail")
-    link-deck-map.map-area(:props="mapProps")
+    link-gl-layer.map-area(
+        :base="csvBase"
+        :baseData="baseData"
+        :build="csvData"
+        :buildData="buildData"
+        :colors="selectedColorRamp"
+        :dark="isDarkMode"
+        :geojson="geojsonData"
+        :scaleWidth="scaleWidth"
+        :showDiffs="showDiffs"
+        :viewId="linkLayerId"
+    )
+    //- :vState="$store.state.viewState"
+
     drawing-tool
 
     .top-panel(v-if="vizDetails.title")
@@ -35,8 +48,8 @@ de:
     .message-pane(v-if="!thumbnail && myState.statusMessage")
       p.status-message {{ myState.statusMessage }}
 
-    .bottom-panel(v-if="!thumbnail")
-      .panel-items
+  .bottom-panel(v-if="!thumbnail")
+    .panel-items
 
         //- button/dropdown for selecting column
         .panel-item.config-section
@@ -66,17 +79,15 @@ de:
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
-import { debounce } from 'debounce'
 import Papaparse from 'papaparse'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
 import ConfigPanel from './ConfigPanel.vue'
-import LinkDeckMap from './LinkDeckMap.vue'
+import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import GzipFetcher from '@/workers/GzipFetcher.worker'
@@ -91,6 +102,7 @@ import {
   LIGHT_MODE,
   DARK_MODE,
   Status,
+  REACT_VIEW_HANDLES,
 } from '@/Globals'
 
 interface CSV {
@@ -105,7 +117,7 @@ interface CSV {
     CollapsiblePanel,
     ConfigPanel,
     DrawingTool,
-    LinkDeckMap,
+    LinkGlLayer,
     TimeSlider,
     ToggleButton,
   } as any,
@@ -132,12 +144,12 @@ class MyPlugin extends Vue {
 
   private isButtonActiveColumn = false
 
+  private linkLayerId = Math.random()
+
   private scaleWidth = 0
 
   private showDiffs = false
   private showTimeRange = false
-  // private debounceTimeSlider = debounce(this.changedTimeSlider, 200)
-  // private debounceScaleWidth = debounce(this.handleMaxWidthChanged, 500)
 
   private geojsonData: any[] = []
 
@@ -237,7 +249,6 @@ class MyPlugin extends Vue {
     }
     const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
     this.$emit('title', t)
-    console.log(this.vizDetails)
   }
 
   private async buildThumbnail() {
@@ -256,6 +267,11 @@ class MyPlugin extends Vue {
         console.error(e)
       }
     }
+  }
+
+  @Watch('$store.state.viewState') viewMoved() {
+    if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+    REACT_VIEW_HANDLES[this.linkLayerId]()
   }
 
   @Watch('$store.state.colorScheme') private swapTheme() {
@@ -413,6 +429,9 @@ class MyPlugin extends Vue {
   }
 
   private beforeDestroy() {
+    // MUST delete the React view handle to prevent gigantic memory leak!
+    delete REACT_VIEW_HANDLES[this.linkLayerId]
+
     this.$store.commit('setFullScreen', false)
   }
 
@@ -581,6 +600,9 @@ export default MyPlugin
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   min-height: $thumbnailHeight;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .link-volume-plot.hide-thumbnail {
@@ -591,16 +613,15 @@ export default MyPlugin
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto auto;
-  height: 100%;
   pointer-events: none;
+  flex: 1;
+  position: relative;
 }
 
 .map-area {
   grid-column: 1 / 3;
-  grid-row: 1 / 3;
-  height: 100%;
+  grid-row: 1 / 2;
   pointer-events: auto;
-  overflow: hidden;
 }
 
 .message-pane {
@@ -631,8 +652,6 @@ export default MyPlugin
 }
 
 .bottom-panel {
-  grid-column: 1 / 3;
-  grid-row: 3 / 4;
   display: flex;
   flex-direction: row;
   background-color: var(--bgPanel);
