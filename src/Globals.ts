@@ -182,3 +182,19 @@ export interface LegendItem {
   value: any
   label?: string
 }
+
+/**
+ * This holds handles to React view component callbacks, so we can
+ * notify them when the global map view state changes.
+ *
+ * This is needed because Deck.gl components can either handle their own
+ * state internally, or use React to manage state externally.
+ * Since we are a Vue app, this one weird trick allows us to update the
+ * map state from the outside without rebuilding the whole component,
+ * which would cause huge performance problems.
+ *
+ * NOTE --> Your Vue app needs to manage these handles and REMOVE them
+ * in beforeDestroy() or else you will have some major memory leaks!
+ * You have been warned.
+ */
+export const REACT_VIEW_HANDLES: { [id: number]: any } = {}
