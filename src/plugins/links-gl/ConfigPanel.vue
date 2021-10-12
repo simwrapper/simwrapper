@@ -40,7 +40,7 @@
     p: b {{ $t('bandwidths') }}
 
     .options(style="display: flex; flex-direction:column;")
-      input.input(v-model.number="scaleWidthValue")
+      input.input(size="8" v-model.number="scaleWidthValue")
 
 
   //- COLOR PICKER
@@ -55,12 +55,12 @@
                           @click="() => this.isColorButtonActive = !this.isColorButtonActive"
           )
 
-        #dropdown-menu-color-selector.dropdown-menu(role="menu")
-          .dropdown-content(:style="{'padding':'0 0'}")
+        #dropdown-menu-color-selector.dropdown-menu(role="menu" :style="{'backgroundColor': '#00000000'}")
+          .dropdown-content(:style="{'padding':'0 0', 'width':'8.25rem'}")
             a.dropdown-item(v-for="colorRamp in Object.keys(colorRamps)"
                             @click="handleColorRamp(colorRamp)"
                             :style="{'padding': '0.25rem 0.25rem'}")
-              img.swapColor(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
+              img.swap-color(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
                             :src="`${pathColorScale}scale-${colorRamp}.png`")
               p(:style="{'lineHeight': '1rem', 'marginBottom':'0.25rem'}") {{ colorRamp }}
 
@@ -257,7 +257,9 @@ p {
   font-size: 0.9rem;
 }
 
-.color-button {
+.color-button,
+.swap-color {
+  width: 8rem;
   height: 32px;
 }
 
@@ -278,7 +280,7 @@ input {
 
 .dropdown {
   overflow: visible;
-  width: 175px;
+  // width: 175px;
 }
 
 #dropdown-menu-color-selector {
@@ -302,6 +304,9 @@ input {
   width: 100%;
 }
 
-@media only screen and (max-width: 640px) {
+@media only screen and (max-width: 1024px) {
+  .config-panel {
+    flex-direction: column;
+  }
 }
 </style>

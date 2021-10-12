@@ -19,22 +19,19 @@ export default class TimeSlider extends Vue {
   private sliderValue: any = this.stops[0] || '...'
 
   private timeSlider = {
+    adsorb: true,
+    contained: true,
+    data: this.stops,
+    'enable-cross': false,
     height: 6,
     piecewise: true,
     show: false,
-    'enable-cross': false,
+    marks: this.stops.filter((stop, i) => i % 3 === 0),
     minRange: 1,
-    adsorb: true,
-    marks: this.stops.filter((stop, i) => i % 6 === 0),
-    contained: true,
+    processStyle: { backgroundColor: '#00bb5588', borderColor: '#f05b72' },
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    processStyle: {
-      backgroundColor: '#00bb5588',
-      borderColor: '#f05b72',
-    },
     // tooltip: 'always',
-    'tooltip-placement': 'bottom',
-    data: this.stops,
+    'tooltip-placement': 'top',
   }
 
   @Watch('useRange')

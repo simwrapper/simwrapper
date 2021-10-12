@@ -60,9 +60,6 @@ export default function Component({
   const colorPaleGrey = dark ? [80, 80, 80, 40] : [212, 212, 212, 40]
   const colorInvisible = [0, 0, 0, 0]
 
-  const color0 = fetchColor(0)
-  const color1 = fetchColor(1)
-
   // register setViewState in global view updater
   // so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
@@ -81,7 +78,7 @@ export default function Component({
       const diff = value - baseValue
 
       if (diff === 0) return 0 // fetchColor(0.5)
-      return baseValue < value ? color1 : color0
+      return baseValue < value ? [255, 0, 0, 255] : [0, 0, 255, 255] // red vs. blue
     } else {
       // const scaledValue = value / headerMax[activeColumn]
       const scaledValue = Math.log(value) / Math.log(headerMax[activeColumn])
