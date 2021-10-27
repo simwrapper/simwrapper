@@ -2,11 +2,20 @@ import { FileSystemConfig } from '@/Globals'
 
 const fileSystems: FileSystemConfig[] = [
   {
+    name: 'KoMoDnext',
+    slug: 'komodnext',
+    description: 'Automated driving in the digital test field, Düsseldorf',
+    description_de: 'Automatisiertes Fahren im digitalen Testfeld Düsseldorf',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/duesseldorf/projects/komodnext/website',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    hidden: true,
+  },
+  {
     name: 'Localhost',
     slug: 'local',
     description: 'Run mini-file-server to browse files on your PC',
     baseURL: 'http://localhost:8000',
-    needPassword: false,
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
@@ -14,10 +23,10 @@ const fileSystems: FileSystemConfig[] = [
     slug: 'public',
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
-    needPassword: false,
     thumbnail: '/simwrapper/images/thumb-chart.jpg',
     skipList: ['episim/battery'],
   },
+
   // {
   //   name: 'Gallery',
   //   url: 'gallery',
