@@ -23,7 +23,7 @@ export default class VueComponent extends Vue {
   private sources: FileSystemConfig[] = []
 
   private mounted() {
-    this.sources = globalStore.state.svnProjects
+    this.sources = globalStore.state.svnProjects.filter(source => !source.hidden)
   }
 
   private openProjectPage(source: FileSystemConfig) {

@@ -112,7 +112,9 @@ class MyComponent extends Vue {
     this.runLookupByPath = {}
     const allRuns: { path: string }[] = this.globalState.runFolders[root]
 
-    const project = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0]
+    const project = this.$store.state.svnProjects.filter(
+      (p: any) => !p.hidden && p.name === root
+    )[0]
     const prefix = project.slug
     const rootNode = {
       root: prefix,
