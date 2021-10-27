@@ -39,7 +39,7 @@ const populate = () => {
   store.commit('updateRunFolders', foundFolders)
 
   store.state.svnProjects.forEach(root => {
-    if (root.slug !== 'gallery') drillIntoRootProject(root)
+    if (!root.hidden && root.slug !== 'gallery') drillIntoRootProject(root)
   })
 }
 

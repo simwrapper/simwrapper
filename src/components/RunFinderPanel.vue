@@ -101,6 +101,7 @@ class MyComponent extends Vue {
     for (const root of Object.keys(this.$store.state.runFolders)) {
       const treeNode = await this.generateTreeFromFolders(root)
       newTree[root] = treeNode
+
       this.rootNodes.push(treeNode)
     }
 
@@ -112,9 +113,8 @@ class MyComponent extends Vue {
     this.runLookupByPath = {}
     const allRuns: { path: string }[] = this.globalState.runFolders[root]
 
-    const project = this.$store.state.svnProjects.filter(
-      (p: any) => !p.hidden && p.name === root
-    )[0]
+    const project = this.$store.state.svnProjects.filter((p: any) => p.name === root)[0]
+
     const prefix = project.slug
     const rootNode = {
       root: prefix,
@@ -125,8 +125,6 @@ class MyComponent extends Vue {
       children: [] as Folder[],
     }
     this.runLookupByPath[root + '/'] = rootNode
-
-    // this.runTree[root] = rootNode
 
     for (const run of allRuns) {
       // don't analyze root node itself
