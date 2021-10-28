@@ -37,6 +37,7 @@ export default class VueComponent extends Vue {
     maxValue: number
     opacity: number
     useCircles: boolean
+    expColors: boolean
   }
 
   private layerManager!: LayerManager
@@ -155,11 +156,17 @@ export default class VueComponent extends Vue {
             lineWidthMinPixels: 1,
             getPosition: (d: any) => d.geometry.coordinates,
             getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
+
             getFillColor: (d: any) => {
               const v = d.properties[this.props.activeColumn]
               if (isNaN(v)) return this.props.dark ? [100, 100, 100] : [200, 200, 200]
-              const c = fetchColor(v / this.props.maxValue) as any
+
+              let ratio = v / this.props.maxValue
+              if (this.props.expColors) ratio = Math.sqrt(ratio)
+
+              const c = fetchColor(ratio) as any
               if (c) return c[0]
+
               return undefined
             },
             getLineColor: this.props.dark ? [100, 100, 100] : [255, 255, 255],
@@ -186,8 +193,13 @@ export default class VueComponent extends Vue {
             getFillColor: (d: any) => {
               const v = d.properties[this.props.activeColumn]
               if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [224, 224, 224, 128]
-              const c = fetchColor(v / this.props.maxValue) as any
+
+              let ratio = v / this.props.maxValue
+              if (this.props.expColors) ratio = Math.sqrt(ratio)
+
+              const c = fetchColor(ratio) as any
               if (c) return c[0]
+
               return undefined
             },
             // SCALED_COLORS(f.properties[this.props.activeColumn] / this.props.maxValue),

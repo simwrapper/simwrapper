@@ -43,6 +43,9 @@ export default class VueComponent extends Vue {
   private useCircles = false
   private sliderOpacity = 80
 
+  private maxValue = 1000
+  private expColors = this.config.exponentColors
+
   private get mapProps() {
     return {
       useCircles: this.useCircles,
@@ -50,17 +53,20 @@ export default class VueComponent extends Vue {
       dark: this.$store.state.isDarkMode,
       colors: 'viridis',
       activeColumn: this.activeColumn,
-      maxValue: 1000,
+      maxValue: this.maxValue,
       opacity: this.sliderOpacity,
+      expColors: this.expColors,
     }
   }
 
   private async mounted() {
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     // bulmaSlider.attach()
+
     // load the boundaries and the dataset, use promises so we can clear
     // the spinner when things are finished
     await Promise.all([this.loadBoundaries(), this.loadDataset()])
+    this.updateChart()
 
     this.$emit('isLoaded')
   }
@@ -73,7 +79,9 @@ export default class VueComponent extends Vue {
         const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
         this.boundaries = boundaries.features
       } else {
-        const boundaries = await this.fileApi.getFileJson(this.config.boundaries)
+        const boundaries = await this.fileApi.getFileJson(
+          `${this.subfolder}/${this.config.boundaries}`
+        )
         this.boundaries = boundaries.features
       }
     } catch (e) {
@@ -109,7 +117,6 @@ export default class VueComponent extends Vue {
       })
 
       this.dataRows = data
-      this.updateChart()
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -138,12 +145,15 @@ export default class VueComponent extends Vue {
 
     // 2. insert values into geojson
     const idColumn = this.config.boundariesJoinCol
+    let vMax = -1
     this.boundaries.forEach(boundary => {
       const lookupValue = boundary.properties[idColumn]
-      const answer = lookup[lookupValue]
-      if (answer) boundary.properties.value = answer[this.config.datasetValue]
-      else boundary.properties.value = 'N/A'
+      const row = lookup[lookupValue]
+      boundary.properties.value = row ? row[this.config.datasetValue] : 'N/A'
+      if (row) vMax = Math.max(vMax, row[this.config.datasetValue])
     })
+
+    if (vMax) this.maxValue = vMax
 
     // 3. insert values into centroids
     this.centroids.forEach(centroid => {
@@ -155,7 +165,9 @@ export default class VueComponent extends Vue {
       else centroid.properties!.value = 'N/A'
     })
     // sort them so big bubbles are below small bubbles
-    this.centroids.sort((a: any, b: any) => (a.properties.value > b.properties.value ? -1 : 1))
+    this.centroids = this.centroids.sort((a: any, b: any) =>
+      a.properties.value > b.properties.value ? -1 : 1
+    )
     this.activeColumn = 'value'
   }
 }
@@ -163,7 +175,6 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-@import '../../node_modules/vue-slider-component/theme/default.css';
 
 .map-layout {
   position: absolute;
