@@ -11,6 +11,6 @@ git init .
 git add . && git commit -m "gh-pages"
 
 echo --- PUSHING TO GITHUB ---
-git remote add origin git@github.com:matsim-vsp/simwrapper.git
+git remote add origin git@github.com:$1.git
 git push --force origin master:gh-pages
 

@@ -8,7 +8,8 @@
     "release": "standard-version",
     "test:unit": "vue-cli-service test:unit",
     "lint": "vue-cli-service lint",
-    "deploy": "bash scripts/deploy-ghpages.sh"
+    "deploy": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper",
+    "deploy-asim": "bash scripts/deploy-ghpages.sh simwrapper/activitysim"
   },
   "dependencies": {
     "@aftersim/pako": "^1.0.11-3",
