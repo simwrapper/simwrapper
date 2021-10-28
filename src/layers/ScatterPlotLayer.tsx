@@ -4,10 +4,7 @@ import { ScatterplotLayer } from '@deck.gl/layers'
 import { StaticMap } from 'react-map-gl'
 
 import { COORDINATE_SYSTEM } from '@deck.gl/core'
-import { MAP_STYLES } from '@/Globals'
-
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
+import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
 
 function App({ data = [], initialView = {} as any }) {
   const layer = new ScatterplotLayer({
