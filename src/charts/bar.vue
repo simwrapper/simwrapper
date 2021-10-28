@@ -1,5 +1,5 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options")
+vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}")
 
 </template>
 
@@ -25,12 +25,21 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
+  private globalState = this.$store.state
+
   private thread!: any
   private dataRows: any = {}
 
   private async mounted() {
+    this.updateTheme()
     await this.loadData()
     this.$emit('isLoaded')
+  }
+
+  @Watch('globalState.isDarkMode') updateTheme() {
+    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
+    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
+    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
   private async loadData() {
@@ -59,71 +68,78 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    const x = [];
+    const x = []
 
     var useOwnNames = false
 
-    if (this.config.legendName !==  undefined) {
-      if (this.config.legendName.length == this.config.usedCol.length) {
+    if (this.config.legendTitles !== undefined) {
+      if (this.config.legendTitles.length === this.config.columns.length) {
         useOwnNames = true
       }
     }
 
+    if (this.config.stacked) this.layout.barmode = 'stack'
+
     for (var i = 0; i < this.dataRows.length; i++) {
-      if(i == 0 && this.config.skipFirstRow) {
+      if (i == 0 && this.config.skipFirstRow) {
       } else {
-        x.push(this.dataRows[i].iteration)
+        x.push(this.dataRows[i][this.config.x])
       }
     }
 
-    for(var i = 0; i < this.config.usedCol.length; i++) {
-      var name =  this.config.usedCol[i]
-      var legendName = ''
-      if (this.config.usedCol[i] !== "undefined") {
+    for (let i = 0; i < this.config.columns.length; i++) {
+      const name = this.config.columns[i]
+      let legendName = ''
+      if (this.config.columns[i] !== 'undefined') {
         if (useOwnNames) {
-          legendName = this.config.legendName[i]
+          legendName = this.config.legendTitles[i]
         } else {
           legendName = name
         }
         const value = []
         for (var j = 0; j < this.dataRows.length; j++) {
-          if(j == 0 && this.config.skipFirstRow) {
+          if (j == 0 && this.config.skipFirstRow) {
           } else {
             value.push(this.dataRows[j][name])
           }
         }
-        this.data.push({x: x,
-        y: value,
-        name: legendName,
-        type: 'bar',
-        textinfo: 'label+percent',
-        textposition: 'inside',
-        automargin: true})
+        this.data.push({
+          x: x,
+          y: value,
+          name: legendName,
+          type: 'bar',
+          textinfo: 'label+percent',
+          textposition: 'inside',
+          automargin: true,
+        })
       }
     }
   }
 
-  private layout = {
-    height: 300,
+  private layout: any = {
+    height: 350,
     // width: 500,
     margin: { t: 30, b: 50, l: 60, r: 20 },
     //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
+      color: '#444444',
       family: UI_FONT,
     },
+    barmode: '',
+    bargap: 0.08,
     xaxis: {
       autorange: true,
-      title: this.config.xAxisName,
+      title: this.config.xAxisTitle,
     },
     yaxis: {
       autorange: true,
-      title: this.config.yAxisName,
+      title: this.config.yAxisTitle,
     },
     legend: {
       x: 1,
       xanchor: 'right',
-      y: 1
-    }
+      y: 1,
+    },
   }
 
   private data = [
@@ -156,9 +172,9 @@ export default class VueComponent extends Vue {
       'resetViewMapbox',
     ],
     toImageButtonOptions: {
-      format: 'svg', // one of png, svg, jpeg, webp
-      filename: 'incidenceByAgeGroupOverTime',
-      width: 800,
+      format: 'png', // one of png, svg, jpeg, webp
+      filename: 'plot',
+      width: 1200,
       height: 800,
       scale: 1.0, // Multiply title/legend/axis/canvas sizes by this factor
     },
