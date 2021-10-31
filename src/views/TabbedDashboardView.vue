@@ -14,7 +14,7 @@
           b: a(@click="switchTab(tab)") {{ dashboards[tab].header.tab }}
 
 
-  dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER'"
+  dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER' && dashboards[activeTab].header.tab !== '...'"
     :root="root"
     :xsubfolder="xsubfolder"
     :config="dashboards[activeTab]"
