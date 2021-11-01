@@ -292,11 +292,15 @@ async function loadFiles() {
     try {
       // figure out which file to load
       const pattern = _yaml.files[inputFile].file
-      const matchingFiles = findMatchingGlobInFiles(_files, pattern)
+      let matchingFiles = findMatchingGlobInFiles(_files, pattern)
 
-      if (matchingFiles.length == 0) throw Error(`No files matched pattern ${pattern}`)
-      if (matchingFiles.length > 1)
+      if (matchingFiles.length == 0) {
+        console.warn(`No files in THIS FOLDER matched pattern ${pattern}`)
+        console.warn('Assuming filename is hardcoded.')
+        matchingFiles = [pattern]
+      } else if (matchingFiles.length > 1) {
         throw Error(`More than one file matched pattern ${pattern}: ${matchingFiles}`)
+      }
 
       const filename = matchingFiles[0]
 
