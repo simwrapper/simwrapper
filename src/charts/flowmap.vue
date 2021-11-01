@@ -1,21 +1,9 @@
 <template lang="pug">
 .map-layout
-  flow-map-layer.choro-map(v-if="centroids.length"
+  flow-map-layer.map-layer(v-if="centroids.length"
     :viewId="viewId"
     :props="mapProps"
   )
-
-  //- .config-bar
-  //-   img.img-button(@click="useCircles=false"
-  //-                  src="../assets/btn-polygons.jpg"
-  //-                  title="Shapes")
-
-  //-   img.img-button(@click="useCircles=true"
-  //-                  src="../assets/btn-circles.jpg"
-  //-                  title="Circles")
-
-  //-   input.slider.is-small.is-fullwidth.is-danger(
-  //-     id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
 
 </template>
 
@@ -45,10 +33,6 @@ export default class VueComponent extends Vue {
 
   private centroids: { id: any; name?: any; lat: number; lon: number }[] = []
   private flows: any[] = []
-
-  private sliderOpacity = 80
-
-  // private globalState = globalStore.state
 
   private viewId = Math.random()
 
@@ -170,13 +154,7 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    // Data comes back as an array of objects with elements.
-    // We need to make a lookup of the values by ID and then
-    // insert those values into the boundaries geojson.
-    // if (!this.config.datasetJoinCol || !this.config.boundariesJoinCol) {
-    //   console.error('Cannot make map without datasetJoinCol and boundariesJoinCol')
-    //   return
-    // }
+    // nothing, for now
   }
 }
 </script>
@@ -194,30 +172,8 @@ export default class VueComponent extends Vue {
   flex-direction: column;
 }
 
-.choro-map {
+.map-layer {
   flex: 1;
-}
-
-.config-bar {
-  display: flex;
-  flex-direction: row;
-  padding-top: 0.25rem;
-
-  input.slider {
-    margin-left: auto;
-    width: 8rem;
-  }
-
-  .img-button {
-    margin-right: 0.15rem;
-    height: 2.5rem;
-    width: 2.5rem;
-    border: var(--borderThin);
-    border-radius: 4px;
-  }
-  .img-button:hover {
-    border: 2px solid var(--linkHover);
-  }
 }
 
 @media only screen and (max-width: 640px) {

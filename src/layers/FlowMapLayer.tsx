@@ -8,15 +8,14 @@ import globalStore from '@/store'
 
 export default function Layer({
   props = {} as any,
-  viewId = 0,
-  initialView = { latitude: 37.76, longitude: -122.45, zoom: 11, pitch: 0 } as any,
+  viewId = 0, // viewId: this must be unique;
 }) {
   const { locations, flows, dark, elapsed } = props
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({})
 
-  // // register setViewState in global view updater so we can respond to map motion
+  // register setViewState in global view updater so we can respond to map motion
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
@@ -25,8 +24,9 @@ export default function Layer({
     console.log('click!')
   }
 
-  function handleHover(event: any) {
-    console.log(event)
+  function handleHover(hover: any) {
+    console.log(hover)
+    // setHoverInfo(hover)
   }
 
   function handleViewState(view: any) {
@@ -44,7 +44,7 @@ export default function Layer({
     getFlowMagnitude: flow => flow.v || null,
     getLocationId: (location: any) => location.id,
     getLocationCentroid: (location: any) => [location.lon, location.lat],
-    onHover: setHoverInfo,
+    onHover: handleHover,
     // animate: true,
     // animationCurrentTime: elapsed,
     // showTotals: true,
