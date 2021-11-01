@@ -46,9 +46,15 @@ Each flowmap can have the following properties in the `props` section:
 _THIS API IS CHANGING RAPIDLY, SORRY FOR ANY INCONSISTENCIES!_
 
 **boundaries:** Geojson file with feature element boundaries.
+
 **boundariesJoinCol:** The property in the boundary file containing the feature ID
+
 **boundariesLabels:** The human readable name for the boundary ID column
+
 **dataset:** CSV file containing at least three columns: origin, destination, and flow.
+
 **origin:** The column name containing origin IDs
+
 **destination:** The column name containing destination IDs
+
 **flow:** The column name containing flow values
