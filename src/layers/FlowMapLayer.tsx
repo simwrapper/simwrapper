@@ -1,43 +1,80 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import { StaticMap } from 'react-map-gl'
+import React, { useState } from 'react'
 import DeckGL from '@deck.gl/react'
+import { StaticMap } from 'react-map-gl'
 import FlowMapLayer from '@flowmap.gl/core'
-import * as ReactDOM from 'react-dom'
 
-import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
+import { MAPBOX_TOKEN, MAP_STYLES, REACT_VIEW_HANDLES } from '@/Globals'
+import globalStore from '@/store'
 
-function ZLayer({
+export default function Layer({
   props = {} as any,
+  viewId = 0,
   initialView = { latitude: 37.76, longitude: -122.45, zoom: 11, pitch: 0 } as any,
 }) {
   const { locations, flows, dark, elapsed } = props
+
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [hoverInfo, setHoverInfo] = useState({})
+
+  // // register setViewState in global view updater so we can respond to map motion
+  REACT_VIEW_HANDLES[viewId] = () => {
+    setViewState(globalStore.state.viewState)
+  }
+
+  function handleClick() {
+    console.log('click!')
+  }
+
+  function handleHover(event: any) {
+    console.log(event)
+  }
+
+  function handleViewState(view: any) {
+    setViewState(view)
+    view.center = [view.longitude, view.latitude]
+    globalStore.commit('setMapCamera', view)
+  }
 
   const layer = new FlowMapLayer({
     id: 'my-flowmap-layer',
     locations,
     flows,
-    getFlowMagnitude: flow => flow.count || null,
-    getFlowOriginId: flow => flow.origin,
-    getFlowDestId: flow => flow.destination,
+    getFlowOriginId: flow => flow.o,
+    getFlowDestId: flow => flow.d,
+    getFlowMagnitude: flow => flow.v || null,
     getLocationId: (location: any) => location.id,
     getLocationCentroid: (location: any) => [location.lon, location.lat],
+    onHover: setHoverInfo,
+    // animate: true,
+    // animationCurrentTime: elapsed,
+    // showTotals: true,
+    // selectedLocationIds: ['10'], //  '5', '10', '20'],
     pickable: true,
-    animate: true,
-    animationCurrentTime: elapsed,
-    showTotals: true,
-    showOnlyTopFlows: 3000,
+    maxFlowThickness: 15,
+    maxLocationCircleSize: 20,
+    // opacity: 0.5,
+    outlineThickness: -1,
+    showOnlyTopFlows: 2000,
   })
 
   return (
     /*
     //@ts-ignore */
-    <DeckGL controller={true} initialViewState={initialView} layers={[layer]}>
+    <DeckGL
+      layers={[layer]}
+      controller={true}
+      viewState={viewState}
+      pickingRadius={5}
+      getCursor={() => 'pointer'}
+      onClick={handleClick}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
+    >
       {
         /*
       // @ts-ignore */
         <StaticMap
           reuseMaps
-          mapStyle={MAP_STYLES.light}
+          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
           preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />
@@ -45,4 +82,3 @@ function ZLayer({
     </DeckGL>
   )
 }
-export default ZLayer

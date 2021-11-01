@@ -1,6 +1,9 @@
 <template lang="pug">
 .map-layout
-  flow-map-layer.choro-map(v-if="centroids.length" :props="mapProps")
+  flow-map-layer.choro-map(v-if="centroids.length"
+    :viewId="viewId"
+    :props="mapProps"
+  )
 
   //- .config-bar
   //-   img.img-button(@click="useCircles=false"
@@ -21,9 +24,10 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Worker, spawn, Thread } from 'threads'
 import * as turf from '@turf/turf'
 
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, REACT_VIEW_HANDLES } from '@/Globals'
 import FlowMapLayer from '@/layers/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+// import globalStore from '@/store'
 
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
@@ -44,6 +48,10 @@ export default class VueComponent extends Vue {
 
   private sliderOpacity = 80
 
+  // private globalState = globalStore.state
+
+  private viewId = Math.random()
+
   private get mapProps() {
     return {
       locations: this.centroids,
@@ -51,6 +59,11 @@ export default class VueComponent extends Vue {
       dark: this.$store.state.isDarkMode,
       elapsed: this.elapsed,
     }
+  }
+
+  @Watch('$store.state.viewState') viewMoved() {
+    if (!REACT_VIEW_HANDLES[this.viewId]) return
+    REACT_VIEW_HANDLES[this.viewId]()
   }
 
   private async mounted() {
@@ -69,6 +82,13 @@ export default class VueComponent extends Vue {
     this.animate()
   }
 
+  private beforeDestroy() {
+    if (this.animator) window.cancelAnimationFrame(this.animator)
+
+    // MUST delete the React view handle to prevent gigantic memory leak!
+    delete REACT_VIEW_HANDLES[this.viewId]
+  }
+
   private startTime = Date.now()
   private elapsed = 0
   private animator: any = null
@@ -78,10 +98,6 @@ export default class VueComponent extends Vue {
       this.elapsed = (Date.now() - this.startTime) * 0.05
       this.animator = window.requestAnimationFrame(this.animate)
     }, 33)
-  }
-
-  private beforeDestroy() {
-    if (this.animator) window.cancelAnimationFrame(this.animator)
   }
 
   private async loadBoundaries() {
@@ -113,7 +129,7 @@ export default class VueComponent extends Vue {
       centroid.properties.id = feature.properties[this.config.boundariesJoinCol]
 
       this.centroids.push({
-        id: centroid.properties.id,
+        id: `${centroid.properties.id}`,
         lon: centroid.geometry.coordinates[0],
         lat: centroid.geometry.coordinates[1],
       })
@@ -128,15 +144,21 @@ export default class VueComponent extends Vue {
     this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
 
     try {
-      const data = await this.thread.fetchData({
+      const data = (await this.thread.fetchData({
         fileSystemConfig: this.fileSystemConfig,
         subfolder: this.subfolder,
         files: this.files,
         config: this.config,
-      })
+      })) as any[]
 
-      // assumes flow data has "origin,destination,trips" columns
-      this.flows = data
+      // assumes flow data has "origin,destination,count" columns
+      this.flows = data.map((row: any) => {
+        return {
+          o: `${row.origin}`,
+          d: `${row.destination}`,
+          v: row.count,
+        }
+      })
     } catch (e) {
       const message = '' + e
       console.log(message)
