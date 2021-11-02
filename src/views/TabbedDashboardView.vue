@@ -2,16 +2,17 @@
 .tabbed-folder-view
 
   .tabholder(v-show="!isZoomed")
-    .breadcrumbs
-      h3 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+    .tabholdercontainer
+      .breadcrumbs
+        h3 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
-    .tabs.is-centered
-      ul
-        li(v-for="tab in Object.keys(dashboards)" :key="tab"
-          :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
-          :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
-        )
-          b: a(@click="switchTab(tab)") {{ dashboards[tab].header.tab }}
+      .tabs.is-centered
+        ul
+          li(v-for="tab in Object.keys(dashboards)" :key="tab"
+            :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
+            :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
+          )
+            b: a(@click="switchTab(tab)") {{ dashboards[tab].header.tab }}
 
 
   dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER' && dashboards[activeTab].header.tab !== '...'"
@@ -152,20 +153,36 @@ export default class VueComponent extends Vue {
 }
 
 .tabs {
-  margin: 0 3rem;
+  margin: 0 0rem;
+}
+
+.tabs ul {
+  border-bottom-color: var(--bg);
+  border-bottom-width: 1px;
 }
 
 .tabholder {
   max-width: 113rem;
   margin: 0 auto;
-  background-color: var(--bgDashboard);
   z-index: 5;
   top: 0px;
   position: sticky;
 }
 
+.tabholdercontainer {
+  background-image: var(--bgTabBanner);
+  margin: 0 3rem;
+}
+
+li.is-active b a {
+  color: #ebff67;
+  text-transform: uppercase;
+}
+
 li.is-not-active b a {
-  color: var(--text);
+  color: white; // var(--text);
+  text-transform: uppercase;
+  border-bottom-color: var(--bg);
 }
 
 .breadcrumbs {
@@ -176,6 +193,10 @@ li.is-not-active b a {
   text-align: center;
   margin-left: 1rem;
   // line-height: 2rem;
+
+  h3 {
+    color: white;
+  }
 
   p {
     max-width: 110rem;

@@ -244,6 +244,11 @@ h3 {
 a {
   color: var(--link);
 }
+
+.splash-readme a {
+  color: #2f71ff;
+}
+
 a:hover {
   color: var(--linkHover);
 }
@@ -472,12 +477,12 @@ a.mapboxgl-ctrl-logo {
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: #88888844;
+  background: #88888888;
 }
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #88888888;
+  background: #888888aa;
 }
 
 .deck-tooltip {

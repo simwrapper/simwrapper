@@ -78,7 +78,7 @@ li {
 }
 
 .leaf-label:hover {
-  background-color: var(--bgHover);
+  background-color: #1292ce; // var(--bgHover);
 }
 
 .leaf-label {
@@ -88,10 +88,10 @@ li {
 
 .toggle {
   margin-top: -0.1rem;
-  color: var(--textVeryPale);
+  color: #b3b3b3; // var(--textVeryPale);
 }
 
 .toggle:hover {
-  color: var(--textPale);
+  color: white; // var(--textPale);
 }
 </style>

@@ -1,38 +1,42 @@
+<i18n>
+en:
+  more-info: 'Documentation:'
+  tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.'
+de:
+  more-info: 'Für weitere Informationen:'
+  tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
+</i18n>
+
 <template lang="pug">
 .splash-page
 
     .content
       .main
 
-        img(src="@/assets/simwrapper-logo/SW_logo_purple.png" :width="400")
+        .simwrapper-logo
+          img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
+          img(v-else src="@/assets/simwrapper-logo/SW_logo_yellow.png")
 
-        h2.readme(v-html="$t('tagLine')")
+        h2.splash-readme(style="text-align: center; margin: -0.5rem auto 0 auto" v-html="$t('tagLine')")
 
         hr
-        h3 Explore model results:
+        h2: b Explore model results:
         file-system-projects.gap(@navigate="onNavigate")
         hr
 
-        h2 {{ $t('more-info') }}
-        .readme(v-html="readmeBottom")
+        h2: b {{ $t('more-info') }}
+        .splash-readme(v-html="readmeBottom")
 
         .tu-logo
-          img.img-logo(src="@/assets/images/vsp-logo-300dpi.png")
-          img.img-logo(src="@/assets/images/tu-logo.png")
+          a(href="https://vsp.berlin/en/")
+            img.img-logo(src="@/assets/images/vsp-logo-300dpi.png")
+          a(href="https://tu.berlin")
+            img.img-logo(src="@/assets/images/tu-logo.png")
 
       .right
 
 
 </template>
-
-<i18n>
-en:
-  more-info: 'For more information:'
-  tagLine: 'the simulation output browser and data visualizer from TU&nbsp;Berlin.'
-de:
-  more-info: 'Für weitere Informationen:'
-  tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
-</i18n>
 
 <script lang="ts">
 const readme = require('@/assets/info-top.md')
@@ -78,14 +82,14 @@ export default MyComponent
 @import '@/styles.scss';
 
 .splash-page {
-  // position: absolute;
-  // top: 0;
-  // bottom: 0;
-  // left: 0;
   height: 100%;
   overflow-y: auto;
-  background-color: var(--bgDashboard);
-  // width: 100%;
+  // background-color: var(--bgDashboard);
+  background-image: linear-gradient(#443c84, #33638d, #238a8d);
+  background-image: linear-gradient(#238a8d, #33638d, #443c84);
+  background-image: linear-gradient(150deg, #440d54, #238a8d); //  #33638d, #443c84);
+  background-image: linear-gradient(150deg, #23072c, #144e50); //  #33638d, #443c84);
+  background-image: var(--bgSplash);
 }
 
 .gap {
@@ -106,11 +110,18 @@ a {
   color: #00499c;
 }
 
-.readme {
+.splash-readme {
   margin-top: 1rem;
   margin-bottom: 3rem;
   flex: 1;
-  color: var(--text);
+  color: white;
+
+  // color: var(--text);
+}
+
+.simwrapper-logo {
+  width: 400px;
+  margin: 0 auto 1rem auto;
 }
 
 .main {
@@ -127,7 +138,11 @@ a {
   h2 {
     margin-top: 1rem;
     font-weight: normal;
-    color: var(--textFancy);
+  }
+
+  h2,
+  h3 {
+    color: white;
   }
 }
 .viz-cards {
@@ -196,12 +211,13 @@ a {
 }
 
 .tu-logo {
+  text-align: right;
   margin-top: 0rem;
 }
 
 .img-logo {
-  margin-right: 4rem;
-  width: 8rem;
+  margin-left: 4rem;
+  width: 7rem;
   margin-bottom: 4rem;
 }
 
@@ -209,6 +225,11 @@ a {
   margin-top: 1rem;
 }
 
+hr {
+  height: 1px;
+  background-color: #53ade1; // 8d4eeb
+  margin: 4rem 0 -0.5rem 0;
+}
 @media only screen and (max-width: 640px) {
   .content {
     padding: 2rem 1rem 8rem 1rem;

@@ -206,7 +206,7 @@ export default MyComponent
 }
 
 .is-multipanel {
-  margin-right: 0.5rem;
+  margin-right: 0.25rem;
 }
 
 .split-panel {
@@ -234,9 +234,10 @@ export default MyComponent
   z-index: 1;
   width: 16rem;
   flex: unset;
-  margin-right: 0.5rem;
-  border-right: none;
+  margin-right: 0rem;
+  border-right: 1px solid #333;
   background-color: var(--bgBrowser);
+  color: white;
 }
 
 .control-buttons {
@@ -249,13 +250,16 @@ export default MyComponent
   margin: 0 auto auto 0;
 
   a {
-    color: #88888880;
+    color: var(--textVeryPale);
     font-size: 0.9rem;
-    margin: 0.3rem 0rem 0.1rem -3px;
+    margin: 2px 0rem 0.1rem -4px;
+    padding: 2px 4px 1px 4px;
+    border-radius: 10px;
   }
 
   a:hover {
-    color: var(--link);
+    color: white;
+    background-color: rgb(204, 204, 204);
   }
 }
 

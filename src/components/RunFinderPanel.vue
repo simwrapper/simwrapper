@@ -202,7 +202,7 @@ export default MyComponent
   overflow-y: auto;
   flex: 1;
   margin-top: 0.25rem;
-  margin-left: 0.25rem;
+  margin-left: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
@@ -212,16 +212,18 @@ export default MyComponent
 }
 
 .more-stuff {
-  // margin: 0 auto;
   display: flex;
   flex-direction: column;
   inline-size: 13rem;
   text-align: left;
+
   h1 {
     letter-spacing: -1px;
   }
   h3 {
+    border-top: 1px solid #ccc;
     margin-top: 2rem;
+    margin-left: -0.5rem;
   }
 
   p,
@@ -274,7 +276,7 @@ a {
 .logo {
   display: flex;
   flex-direction: row;
-  background-color: #5c2f79;
+  background-color: #29d09a; // #5c2f79;
   color: white;
   padding: 0.4rem 0.75rem 0.2rem 0.5rem;
   margin-right: auto;
