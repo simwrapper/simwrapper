@@ -24,12 +24,21 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
+  private globalState = this.$store.state
+
   private thread!: any
   private dataRows: any = {}
 
   private async mounted() {
+    this.updateTheme()
     await this.loadData()
     this.$emit('isLoaded')
+  }
+
+  @Watch('globalState.isDarkMode') updateTheme() {
+    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
+    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
+    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
   private async loadData() {
@@ -62,13 +71,13 @@ export default class VueComponent extends Vue {
     this.data[0].values = Object.values(this.dataRows)
   }
 
-  private layout = {
+  private layout: any = {
     height: 300,
-    // width: 500,
     margin: { t: 30, b: 5, l: 0, r: 0 },
     legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
       family: UI_FONT,
+      color: '#444444',
     },
   }
 

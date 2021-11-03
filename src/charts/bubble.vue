@@ -9,7 +9,6 @@ import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
-import { config } from 'vue/types/umd'
 
 const mockData = {
   car: 34,
@@ -25,12 +24,21 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
+  private globalState = this.$store.state
+
   private thread!: any
   private dataRows: any = {}
 
   private async mounted() {
+    this.updateTheme()
     await this.loadData()
     this.$emit('isLoaded')
+  }
+
+  @Watch('globalState.isDarkMode') updateTheme() {
+    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
+    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
+    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
   private async loadData() {
@@ -61,56 +69,59 @@ export default class VueComponent extends Vue {
   // size circle
   // color is data
   private updateChart() {
-    const x = [];
-    const bubble = [];
-    const y = [];
+    const x = []
+    const bubble = []
+    const y = []
 
     var legendname = this.config.bubble
 
-    if (this.config.legendName !==  undefined) {
+    if (this.config.legendName !== undefined) {
       legendname = this.config.legendName
     }
 
     for (var i = 0; i < this.dataRows.length; i++) {
-      if(i == 0 && this.config.skipFirstRow) {
-      } else  {
+      if (i == 0 && this.config.skipFirstRow) {
+      } else {
         x.push(this.dataRows[i][this.config.x])
       }
     }
 
     for (var i = 0; i < this.dataRows.length; i++) {
-      if(i == 0 && this.config.skipFirstRow) {
-      } else  {
-        bubble.push(this.dataRows[i][this.config.bubble]/this.config.factor)
+      if (i == 0 && this.config.skipFirstRow) {
+      } else {
+        bubble.push(this.dataRows[i][this.config.bubble] / this.config.factor)
       }
     }
 
     for (var i = 0; i < this.dataRows.length; i++) {
-      if(i == 0 && this.config.skipFirstRow) {
-      } else  {
+      if (i == 0 && this.config.skipFirstRow) {
+      } else {
         y.push(this.dataRows[i][this.config.y])
       }
     }
 
-    this.data.push({x: x,
-        y: y,
-        name: legendname,
-        mode: 'markers',
-        type: 'scatter',
-        textinfo: 'label+percent',
-        textposition: 'inside',
-        automargin: true,
-        showlegend: true,
-        marker: { size: bubble }})
+    this.data.push({
+      x: x,
+      y: y,
+      name: legendname,
+      mode: 'markers',
+      type: 'scatter',
+      textinfo: 'label+percent',
+      textposition: 'inside',
+      automargin: true,
+      showlegend: true,
+      marker: { size: bubble },
+    })
   }
 
-  private layout = {
+  private layout: any = {
     height: 300,
     // width: 500,
     margin: { t: 30, b: 50, l: 60, r: 20 },
     //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
       family: UI_FONT,
+      color: '#444444',
     },
     xaxis: {
       autorange: true,
@@ -123,8 +134,8 @@ export default class VueComponent extends Vue {
     legend: {
       x: 1,
       xanchor: 'right',
-      y: 1
-    }
+      y: 1,
+    },
   }
 
   private data = [
@@ -138,7 +149,7 @@ export default class VueComponent extends Vue {
       textposition: 'inside',
       automargin: true,
       showlegend: true,
-      marker: { size: [] as any[] }
+      marker: { size: [] as any[] },
     },
   ]
 

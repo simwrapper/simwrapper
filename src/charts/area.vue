@@ -18,12 +18,21 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
+  private globalState = this.$store.state
+
   private thread!: any
   private dataRows: any[] = []
 
   private async mounted() {
+    this.updateTheme()
     await this.loadData()
     this.$emit('isLoaded')
+  }
+
+  @Watch('globalState.isDarkMode') updateTheme() {
+    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
+    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
+    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
   private async loadData() {
@@ -88,11 +97,9 @@ export default class VueComponent extends Vue {
     this.data = Object.values(convertedData)
   }
 
-  private layout = {
+  private layout: any = {
     height: 300,
-    // // width: 500,
     margin: { t: 25, b: 0, l: 0, r: 0 },
-    // auto
     xaxis: {
       // title: {
       //   text: this.config.x,
@@ -105,6 +112,7 @@ export default class VueComponent extends Vue {
     legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
       family: UI_FONT,
+      color: '#444444',
     },
   }
 
@@ -129,8 +137,8 @@ export default class VueComponent extends Vue {
       'resetViewMapbox',
     ],
     toImageButtonOptions: {
-      format: 'svg', // one of png, svg, jpeg, webp
-      filename: 'incidenceByAgeGroupOverTime',
+      format: 'png', // one of png, svg, jpeg, webp
+      filename: 'plot',
       width: 1200,
       height: 800,
       scale: 1.0, // Multiply title/legend/axis/canvas sizes by this factor

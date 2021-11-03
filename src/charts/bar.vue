@@ -9,7 +9,6 @@ import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
-import { config } from 'vue/types/umd'
 
 const mockData = {
   car: 34,
@@ -117,8 +116,7 @@ export default class VueComponent extends Vue {
   }
 
   private layout: any = {
-    height: 350,
-    // width: 500,
+    height: 300,
     margin: { t: 30, b: 50, l: 60, r: 20 },
     //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
