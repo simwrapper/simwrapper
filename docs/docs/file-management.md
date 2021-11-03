@@ -33,7 +33,7 @@ We have local file servers written in Java and Python. Pick whichever one you ar
 
 **Python:** - this should work with Python 2.7 or 3.x:
 
-1. Download [mini-file-server.py](https://raw.githubusercontent.com/simwrapper/simwrapper.github.io/source/scripts/mini-file-server.py) and save somewhere useful, like your home directory.
+1. Download [mini-file-server.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/mini-file-server.py) and save it somewhere useful, like your home directory.
 2. `cd` to the root folder you wish to serve, and then run the command
 3. `/path/to/mini-file-server.py` or `~/mini-file-server.py` if it's in your home directory
 4. Test that it's working by browsing to <http://localhost:8000>. If you see a file listing, then it is working! 🎉 🎉
