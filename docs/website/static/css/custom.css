@@ -8,7 +8,7 @@
 /* your custom css */
 
 body {
-  font-family: "Roboto", "Arial", "Helvetica";
+  font-family: "Titillium Web", "Arial", "Helvetica";
 }
 
 h1,
@@ -17,7 +17,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Space Grotesk", "Roboto", "Arial", "Helvetica";
+  font-family: "Titillium Web", "Roboto", "Arial", "Helvetica";
 }
 
 h1.postHeaderTitle {
@@ -38,7 +38,8 @@ h2.headerTitleWithLogo:hover {
 }
 
 .post a {
-  font-weight: bold;
+  /* font-weight: bold; */
+  color: #7541b1;
 }
 
 .docs-prevnext {

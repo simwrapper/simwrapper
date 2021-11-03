@@ -9,11 +9,19 @@ title: File Management
 - You can also view files on your local computer by running a tiny file server locally!
 - If you have mounted remote cluster file systems on your machine, then you can see those, too.
 
-## Public-svn and other internet locations
+## TU-Berlin: Public-SVN file server
 
 The main SimWrapper site can be used to view all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your own simulations, too.
 
-To set up SimWrapper for other internet storage, you need to fork SimWrapper and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can help you get this set up.
+## Internet/cloud storage
+
+SimWrapper can be configured to use any Internet storage that can serve up file and folder listings similar to Apache or NGINX. Currently, this means public storage only; no authenticated storage. _[to be enhanced in the future!]_
+
+- To set up SimWrapper for internet storage, you need to fork SimWrapper and set up your own instance, then define your storage endpoint in the file `src/fileSystemConfig.js` following the examples there.
+
+- If you do not yet have your own instance of SimWrapper set up, follow the instructions [here](aftersim-installation.md).
+
+**Amazon AWS** You can set up access to Amazon EC2/EFS file storage by following this guide: <https://docs.aws.amazon.com/efs/latest/ug/wt2-apache-web-server.html>
 
 ## Local folders on your computer
 

@@ -5,7 +5,7 @@ title: Flow Maps
 
 ![flow map example](assets/flow-map.jpg)
 
-<center>_A flow map of San Francisco_</center>
+_A flow map of San Francisco_
 
 Flowmaps depict _aggregate movements_ between origins and destinations.
 

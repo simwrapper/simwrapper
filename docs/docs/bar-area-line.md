@@ -4,8 +4,7 @@ title: Bar, Area, and Line Charts
 ---
 
 ![bar area example](assets/bar-line.png)
-
-<center>_Some typical bar, area, and line charts_</center>
+_Some typical bar, area, and line charts_
 
 These simple charts are the core of many dashboards.
 

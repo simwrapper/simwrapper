@@ -4,8 +4,7 @@ title: Pie Charts
 ---
 
 ![pie chart example](assets/pie.png)
-
-<center>_It's a pie chart_</center>
+_It's a pie chart_
 
 Sometimes a pie chart is all you need. Please remember to use them sparingly; there are often better ways to depict aggregate data.
 

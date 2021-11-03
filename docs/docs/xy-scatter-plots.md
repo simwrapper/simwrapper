@@ -4,8 +4,7 @@ title: XY Scatter Plots
 ---
 
 ![Scatterplot example](assets/bubbles.png)
-
-<center>_A "bubble" plot, a type of scatterplot where the circle sizes are variable_</center>
+_A "bubble" plot, a type of scatterplot where the circle sizes are variable_
 
 Scatterplots and bubble plots allow you to plot data on two independent axes.
 

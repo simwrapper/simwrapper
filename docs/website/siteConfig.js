@@ -21,14 +21,13 @@ const siteConfig = {
 
   /* Colors for website */
   colors: {
-    // primaryColor: "#298653",
-    // secondaryColor: "#285555",
     primaryColor: "#43407E",
     secondaryColor: "#514E9A",
   },
 
   stylesheets: [
-    "https://fonts.googleapis.com/css?family=Roboto:400,400i,700|Space+Grotesk:400,400i,700",
+    // "https://fonts.googleapis.com/css?family=Space+Grotesk:400,400i,700|Titillium+Web:400,400i,700",
+    "https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700",
   ],
 
   highlight: { theme: "default" },
