@@ -134,12 +134,6 @@ class MyComponent extends Vue {
       const lastSlash = run.path.lastIndexOf('/')
       const folderName = run.path.substring(lastSlash + 1)
 
-      // skip .dot folders
-      if (folderName.startsWith('.')) {
-        // console.log('skipping', folderName)
-        continue
-      }
-
       // create node
       const folder = {
         root: prefix,

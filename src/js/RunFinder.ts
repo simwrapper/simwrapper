@@ -61,10 +61,20 @@ const fetchFolders = async function(
     // skip some big folders we know we don't care about
     if (root.skipList && root.skipList.filter(f => folder.endsWith(f)).length) return
 
-    const { dirs, files } = await fileSystem.getDirectory(folder)
+    // skip .dot and __MACOSX folders
+    if (folder.endsWith('__MACOSX')) return
+    if (
+      folder
+        .split('/')
+        .pop()
+        ?.startsWith('.')
+    ) {
+      return
+    }
+
+    const { dirs } = await fileSystem.getDirectory(folder)
 
     foundFolders.number++
-
     foundFolders.folders[root.name].push({ root, path: folder })
     foundFolders.folders[root.name].sort((a: any, b: any) => (a.path < b.path ? -1 : 1))
 
