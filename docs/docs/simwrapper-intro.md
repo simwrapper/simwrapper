@@ -3,11 +3,11 @@ id: simwrapper-intro
 title: Introduction
 ---
 
-**SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate, agent-based transportation simulations with [MATSim](https://matsim.org).
+**SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate, transportation simulations with software such as [MATSim](https://matsim.org) and [ActivitySim](https://activitysim.github.io).
+
+![SimWrapper banner](assets/simwrapper-scrnshot-collage.jpg)
 
 SimWrapper provides many interactive views such as agent movements through time, aggregate link and area volumes, scenario comparison, and a lot more.
-
-![SimWrapper banner](assets/demo-thumbnails.jpg)
 
 The open-source code and plugin architecture of SimWrapper allows you to fork the project and create your own visualizations, too.
 
@@ -25,7 +25,7 @@ For each folder, SimWrapper depicts zoomable thumbnails of all of the standard M
 
 ### Viewing files stored on public-svn and other internet locations
 
-The main SimWrapper site can be used to view local files on your computer and all project folders on the VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
+The main SimWrapper site can be used to view local files on your computer and all project folders on the TU VSP public-svn server. If you have write access to public-svn, you can create your own project folders there for your simulations, too.
 
 To set up SimWrapper for other storage locations, you need to fork SimWrapper and set up your own instance, pointing to a storage location somewhere. This is what we did for the AVÖV project, for example. Billy can probably help you get this set up.
 
@@ -33,7 +33,7 @@ To set up SimWrapper for other storage locations, you need to fork SimWrapper an
 
 You can access files on your local computer by running a small file server app on "localhost:8000". You can set any folder on your computer as the root folder, and then SimWrapper will have access to anything in that folder including subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
-- See [File Management](file-management) for instructions on setting up a local file server.
+- See [Mini File Server](mini-file-server) for instructions on setting up a local file server.
 
 ### Viewing files on the TU math cluster or other remote machines
 
