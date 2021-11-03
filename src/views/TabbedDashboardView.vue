@@ -4,7 +4,8 @@
   .tabholder(v-show="!isZoomed")
     .tabholdercontainer
       .breadcrumbs
-        h3 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+        h3 {{ xsubfolder.substring(1+xsubfolder.lastIndexOf('/')) }}
+        h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       .tabs.is-centered
         ul
@@ -162,44 +163,52 @@ export default class VueComponent extends Vue {
 }
 
 .tabholder {
-  max-width: 113rem;
+  max-width: $dashboardWidth + 3;
   margin: 0 auto;
   z-index: 5;
   top: 0px;
   position: sticky;
+  background-color: var(--bgDashboard);
 }
 
 .tabholdercontainer {
-  background-image: var(--bgTabBanner);
+  background-image: var(--bgDashboard);
+  // background-image: var(--bgTabBanner);
   margin: 0 3rem;
 }
 
-li.is-active b a {
-  color: #ebff67;
-  text-transform: uppercase;
-}
+// li.is-active b a {
+//   // color: #ebff67;
+//   text-transform: uppercase;
+// }
 
 li.is-not-active b a {
-  color: white; // var(--text);
-  text-transform: uppercase;
-  border-bottom-color: var(--bg);
+  color: var(--text);
+  // text-transform: uppercase;
+  // border-bottom-color: var(--bg);
 }
 
 .breadcrumbs {
-  padding: 0.5rem 0 0 0;
+  background-image: var(--bgTabBanner);
+  padding: 0.25rem 0 1rem 1rem;
   color: var(--linkFancy);
   font-size: 1.5rem;
-  font-weight: bold;
   text-align: center;
-  margin-left: 1rem;
-  // line-height: 2rem;
 
   h3 {
     color: white;
+    font-weight: bold;
+  }
+
+  h4 {
+    line-height: 1rem;
+    margin: 0;
+    color: #e4e4e4;
+    font-size: 1.1rem;
   }
 
   p {
-    max-width: 110rem;
+    max-width: $dashboardWidth;
     margin: 0 2rem;
   }
 }
