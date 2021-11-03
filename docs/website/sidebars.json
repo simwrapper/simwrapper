@@ -1,6 +1,11 @@
 {
   "doc": {
-    "Getting Started": ["simwrapper-intro", "file-management", "scripts"],
+    "Getting Started": [
+      "simwrapper-intro",
+      "mini-file-server",
+      "file-management",
+      "scripts"
+    ],
     "Dashboards": [
       "dashboards",
       "bar-area-line",
