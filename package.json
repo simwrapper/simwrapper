@@ -8,6 +8,7 @@
     "release": "standard-version",
     "test:unit": "vue-cli-service test:unit",
     "lint": "vue-cli-service lint",
+    "bumpversion": "standard-version",
     "deploy": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper",
     "deploy-asim": "bash scripts/deploy-ghpages.sh simwrapper/activitysim"
   },
