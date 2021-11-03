@@ -1,6 +1,6 @@
 ---
 id: simwrapper-intro
-title: Introduction
+title: What is SimWrapper?
 ---
 
 **SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate, transportation simulations with software such as [MATSim](https://matsim.org) and [ActivitySim](https://activitysim.github.io).

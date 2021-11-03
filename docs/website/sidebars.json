@@ -26,6 +26,6 @@
       "video",
       "xy-hexagons"
     ],
-    "Developer Guide": ["simwrapper-installation", "plugin-guide"]
+    "Developer Guide": ["dev-guide", "plugin-guide"]
   }
 }
