@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## 1.0.0 (2021-11-03)
 
+We are starting to use "semantic versioning" now, so we can track builds since our number of users is increasing.
+
+Version numbers are MAJOR.MINOR.POINT where
+
+- MAJOR: major new releases; breaking changes, etc
+- MINOR: feature releases, new functionality
+- POINT: bugfixes and internal improvements
+
+This seems as good a time as any to stamp a "1.0.0" release. Woot!
 
 ### Features
 
