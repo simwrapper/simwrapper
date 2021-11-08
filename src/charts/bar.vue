@@ -84,8 +84,19 @@ export default class VueComponent extends Vue {
     for (var i = 0; i < plotElement.length; i++) {
       var childElement = plotElement[i].firstChild?.lastChild?.firstChild as Element
       var name = childElement.className
-      if (name.includes(this.plotID)) this.resizePlot()
+      if (name.includes(this.plotID)) {
+        this.layout.width = plotElement[i].clientWidth - this.rem2px(3)
+      }
     }
+  }
+
+  private rem2px(rem: int) {
+    var el = document.createElement('div')
+    document.body.appendChild(el)
+    el.style.width = '1000rem'
+    var factor = el.clientWidth / 1000
+    document.body.removeChild(el)
+    return rem * factor
   }
 
   private updateChart() {
