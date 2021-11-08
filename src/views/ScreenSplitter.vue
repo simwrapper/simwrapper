@@ -166,7 +166,6 @@ class MyComponent extends Vue {
     this.panels[panel].props.xsubfolder = this.panels[panel].props.subfolder
     this.updateURL()
     this.$forceUpdate()
-    console.log('Test')
   }
 
   private updateURL() {
