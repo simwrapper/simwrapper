@@ -9,7 +9,6 @@ import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
-import { int } from 'nerdamer'
 
 const mockData = {
   car: 34,
@@ -75,7 +74,7 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private getRandomInt(max: int) {
+  private getRandomInt(max: number) {
     return Math.floor(Math.random() * max).toString()
   }
 
@@ -95,7 +94,7 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private rem2px(rem: int) {
+  private rem2px(rem: number) {
     var el = document.createElement('div')
     document.body.appendChild(el)
     el.style.width = '1000rem'
