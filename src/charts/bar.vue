@@ -35,9 +35,13 @@ export default class VueComponent extends Vue {
   private async mounted() {
     this.updateTheme()
     await this.loadData()
-    this.$emit('isLoaded')
     this.resizePlot()
     window.addEventListener('resize', this.myEventHandler)
+    this.$emit('isLoaded')
+  }
+
+  private async beforeDestroy() {
+    window.removeEventListener('resize', this.myEventHandler)
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
@@ -75,6 +79,7 @@ export default class VueComponent extends Vue {
     return Math.floor(Math.random() * max).toString()
   }
 
+  // The myEventHandler was added because Plottly has a bug with resizing.
   private myEventHandler() {
     this.resizePlot()
   }
