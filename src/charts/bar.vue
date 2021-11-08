@@ -1,5 +1,5 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}")
+vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}" :class="className")
 
 </template>
 
@@ -29,10 +29,18 @@ export default class VueComponent extends Vue {
   private thread!: any
   private dataRows: any = {}
 
+  private plotID = this.getRandomInt(100000)
+
   private async mounted() {
     this.updateTheme()
     await this.loadData()
+    this.resizePlot()
+    window.addEventListener('resize', this.myEventHandler)
     this.$emit('isLoaded')
+  }
+
+  private async beforeDestroy() {
+    window.removeEventListener('resize', this.myEventHandler)
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
@@ -66,6 +74,35 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private getRandomInt(max: number) {
+    return Math.floor(Math.random() * max).toString()
+  }
+
+  // The myEventHandler was added because Plottly has a bug with resizing.
+  private myEventHandler() {
+    this.resizePlot()
+  }
+
+  private resizePlot() {
+    var plotElement = document.getElementsByClassName('dash-row')
+    for (var i = 0; i < plotElement.length; i++) {
+      var childElement = plotElement[i].firstChild?.lastChild?.firstChild as Element
+      var name = childElement.className
+      if (name.includes(this.plotID)) {
+        this.layout.width = plotElement[i].clientWidth - this.rem2px(3)
+      }
+    }
+  }
+
+  private rem2px(rem: number) {
+    var el = document.createElement('div')
+    document.body.appendChild(el)
+    el.style.width = '1000rem'
+    var factor = el.clientWidth / 1000
+    document.body.removeChild(el)
+    return rem * factor
+  }
+
   private updateChart() {
     const x = []
 
@@ -78,6 +115,7 @@ export default class VueComponent extends Vue {
     }
 
     if (this.config.stacked) this.layout.barmode = 'stack'
+    if (this.config.stacked) this.className = this.plotID
 
     for (var i = 0; i < this.dataRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
@@ -115,8 +153,11 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private className = ''
+
   private layout: any = {
     height: 300,
+    width: 0,
     margin: { t: 30, b: 50, l: 60, r: 20 },
     //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
