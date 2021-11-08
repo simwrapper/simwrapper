@@ -19,7 +19,13 @@ de:
     :class="{'is-multipanel' : panels.length > 1}"
   )
     component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)")
-
+    .control-buttons
+      a(@click="onBack(i)" :title="$t('back')"
+        v-if="panel.component !== 'SplashPage'")
+        i.fa.fa-icon.fa-arrow-left
+      a(@click="onClose(i)"
+        v-if="panels.length > 1" :title="$t('close')")
+        i.fa.fa-icon.fa-times-circle
 
 </template>
 
