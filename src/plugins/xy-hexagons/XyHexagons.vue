@@ -357,6 +357,22 @@ class XyHexagons extends Vue {
     return svnProject[0]
   }
 
+  private async solveProjection() {
+    if (!this.myState.fileApi) return
+    if (this.thumbnail) return
+
+    console.log('WHAT PROJECTION:')
+
+    try {
+      const text = await this.myState.fileApi.getFileText(
+        this.myState.subfolder + '/' + this.myState.yamlConfig
+      )
+      this.vizDetails = YAML.parse(text)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   private async getVizDetails() {
     if (!this.myState.fileApi) return
 
@@ -377,6 +393,7 @@ class XyHexagons extends Vue {
         },
       }
       this.$emit('title', this.vizDetails.title)
+      // this.solveProjection()
       return
     }
 
