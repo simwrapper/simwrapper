@@ -28,6 +28,7 @@
             :files="fileList"
             :yaml="card.props.configFile"
             :config="card.props"
+            :datamanager="datamanager"
             :style="{opacity: opacity[card.id]}"
             @isLoaded="handleCardIsLoaded(card)"
           )
@@ -42,6 +43,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 import charts from '@/charts/allCharts'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
@@ -54,6 +56,7 @@ Object.keys(charts).forEach((key: any) => {
 export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
+  @Prop({ required: true }) private datamanager!: DashboardDataManager
   @Prop({ required: false }) private gist!: any
   @Prop({ required: false }) private config!: any
 

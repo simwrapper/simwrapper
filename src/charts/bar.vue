@@ -1,5 +1,14 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}" :class="className")
+vue-plotly#vue-bar-chart(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :config="{responsive: true}"
+  :id="id"
+  ref="plotly-element"
+  @click="handlePlotlyClick"
+)
+  //- :class="className"
 
 </template>
 
@@ -7,8 +16,9 @@ vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
-
+import { rollup } from 'd3-array'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 const mockData = {
   car: 34,
@@ -23,10 +33,13 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop({ required: true }) datamanager!: DashboardDataManager
+
+  private id = 'bar-' + Math.random()
 
   private globalState = this.$store.state
 
-  private thread!: any
+  // private thread!: any
   private dataRows: any = {}
 
   private plotID = this.getRandomInt(100000)
@@ -36,6 +49,7 @@ export default class VueComponent extends Vue {
     await this.loadData()
     this.resizePlot()
     window.addEventListener('resize', this.myEventHandler)
+
     this.$emit('isLoaded')
   }
 
@@ -49,28 +63,34 @@ export default class VueComponent extends Vue {
     this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
+  private handlePlotlyClick(click: any) {
+    try {
+      const { x, y, data } = click.points[0]
+      const fullData = Object.assign({}, data)
+
+      fullData.x = [x]
+      fullData.y = [y]
+      this.data.push(fullData)
+      this.data[0].opacity = 0.25
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   private async loadData() {
     if (!this.files.length) return
 
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
-
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
+      const { fullData, filteredData } = await this.datamanager.getDataset(this.config)
 
-      this.dataRows = data
+      // console.log({ fullData })
+
+      this.dataRows = fullData
       this.updateChart()
     } catch (e) {
       const message = '' + e
       console.log(message)
       this.dataRows = {}
-    } finally {
-      Thread.terminate(this.thread)
     }
   }
 
@@ -104,6 +124,67 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    this.className = this.plotID // stacked bug-fix hack
+
+    const { x, y } = this.dataRows
+
+    this.data = [
+      {
+        x,
+        y,
+        name: this.config.groupBy,
+        type: 'bar',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        opacity: 1.0,
+      },
+    ]
+
+    // var useOwnNames = false
+
+    // for (var i = 0; i < this.dataRows.length; i++) {
+    //   if (i == 0 && this.config.skipFirstRow) {
+    //   } else {
+    //     x.push(this.dataRows[i][this.config.x])
+    //   }
+    // }
+
+    // for (let i = 0; i < this.config.columns.length; i++) {
+    //   const name = this.config.columns[i]
+    //   let legendName = ''
+    //   if (this.config.columns[i] !== 'undefined') {
+    //     if (useOwnNames) {
+    //       legendName = this.config.legendTitles[i]
+    //     } else {
+    //       legendName = name
+    //     }
+    //     const value = []
+    //     for (var j = 0; j < this.dataRows.length; j++) {
+    //       if (j == 0 && this.config.skipFirstRow) {
+    //       } else {
+    //         value.push(this.dataRows[j][name])
+    //       }
+    //     }
+    //     this.data.push({
+    //       x: x,
+    //       y: value,
+    //       name: legendName,
+    //       type: 'bar',
+    //       textinfo: 'label+percent',
+    //       textposition: 'inside',
+    //       automargin: true,
+    //     })
+    //   }
+    // }
+  }
+
+  private updateChartSimple() {
     const x = []
 
     var useOwnNames = false
@@ -148,6 +229,7 @@ export default class VueComponent extends Vue {
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: true,
+          opacity: 1.0,
         })
       }
     }
@@ -164,7 +246,7 @@ export default class VueComponent extends Vue {
       color: '#444444',
       family: UI_FONT,
     },
-    barmode: '',
+    barmode: 'overlay',
     bargap: 0.08,
     xaxis: {
       autorange: true,
@@ -190,6 +272,7 @@ export default class VueComponent extends Vue {
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,
+      opacity: 1.0,
     },
   ]
 
