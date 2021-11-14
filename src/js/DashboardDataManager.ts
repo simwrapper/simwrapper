@@ -26,17 +26,9 @@ export default class DashboardDataManager {
     this.fileApi = this.getFileSystem(this.root)
   }
 
-  public async getDataset(config: { dataset: string; groupBy?: string; value?: string }) {
-    console.log('getDataset', config)
-
-    let dataframe: any[] = []
-
-    // first, get the dataset
-    if (!this.dataCache[config.dataset]) {
-      console.log('fetch:', config.dataset)
-      this.dataCache[config.dataset] = this.fetchDataset(config)
-    }
-    dataframe = await this.dataCache[config.dataset]
+  public async getFilteredDataset(config: { dataset: string; groupBy?: string; value?: string }) {
+    const rows = this.datasets[config.dataset].filteredRows
+    if (!rows) return { filteredRows: null }
 
     // group the rows as needed
     let bars: any = {}
@@ -45,7 +37,7 @@ export default class DashboardDataManager {
       const columnValues = config.value
       const columnGroups = config.groupBy
       bars = rollup(
-        dataframe,
+        rows,
         v => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
@@ -55,20 +47,108 @@ export default class DashboardDataManager {
     const x = Array.from(bars.keys())
     const y = Array.from(bars.values())
 
-    return { fullData: { x, y }, filteredData: {} }
+    // filter the rows, too
+
+    return { filteredRows: { x, y } }
   }
 
-  public setFilter(filter: string) {}
+  public async getDataset(config: { dataset: string; groupBy?: string; value?: string }) {
+    // first, get the dataset
+    if (!this.datasets[config.dataset]) {
+      console.log('load:', config.dataset)
+
+      // allRows immediately returns a Promise<any[], which we wait on so that
+      // multiple charts don't all try to fetch the dataset individually
+      this.datasets[config.dataset] = {
+        rows: this.fetchDataset(config),
+        filteredRows: null,
+        activeFilters: {},
+        filterListeners: new Set(),
+      }
+    }
+    const allRows = await this.datasets[config.dataset].rows
+
+    // group the rows as needed
+    let bars: any = {}
+
+    if (config.value && config.groupBy) {
+      const columnValues = config.value
+      const columnGroups = config.groupBy
+      bars = rollup(
+        allRows,
+        v => v.reduce((a, b) => a + b[columnValues], 0),
+        (d: any) => d[columnGroups] // group-by
+      )
+    } else {
+      // TODO need to handle non-value, non-group here
+    }
+    const x = Array.from(bars.keys())
+    const y = Array.from(bars.values())
+
+    return { allRows: { x, y } }
+  }
+
+  public setFilter(dataset: string, column: string, value: any) {
+    console.log('FILTERING:', dataset)
+
+    const allFilters = this.datasets[dataset].activeFilters
+    if (allFilters[column] !== undefined && allFilters[column] === value) {
+      delete allFilters[column]
+    } else {
+      allFilters[column] = value
+    }
+    this.datasets[dataset].activeFilters = allFilters
+
+    console.log('about to update filters')
+    console.log(this.datasets)
+    this.updateFilters(dataset) // this is async
+  }
+
+  public addFilterListener(config: { dataset: string }, listener: any) {
+    this.datasets[config.dataset].filterListeners.add(listener)
+  }
+
+  public removeFilterListener(config: { dataset: string }, listener: any) {
+    this.datasets[config.dataset].filterListeners.delete(listener)
+  }
 
   public clearCache() {
-    this.dataCache = {}
+    this.datasets = {}
   }
 
   // ---- PRIVATE STUFFS -----------------------
+
+  private async updateFilters(datasetId: string) {
+    const dataset = this.datasets[datasetId]
+    console.log({ dataset })
+
+    if (!Object.keys(dataset.activeFilters).length) {
+      dataset.filteredRows = null
+    } else {
+      const allRows = await dataset.rows
+
+      let filteredRows = allRows
+      for (const [column, value] of Object.entries(dataset.activeFilters)) {
+        console.log('filtering:', column, value)
+        filteredRows = filteredRows.filter(row => row[column] === value)
+      }
+      dataset.filteredRows = filteredRows
+    }
+    console.log(dataset.filteredRows)
+    this.notifyListeners(datasetId)
+  }
+
+  private notifyListeners(datasetId: string) {
+    const dataset = this.datasets[datasetId]
+    for (const notifyListener of dataset.filterListeners) {
+      notifyListener()
+    }
+  }
+
   private thread!: any
   private files: any[] = []
 
-  private async fetchDataset(config: { dataset: string; groupBy?: string; value?: string }) {
+  private async fetchDataset(config: { dataset: string }) {
     if (!this.files.length) {
       const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
       this.files = files
@@ -106,10 +186,16 @@ export default class DashboardDataManager {
     return svnProject[0]
   }
 
-  private dataCache: { [dataset: string]: Promise<any> | any[] } = {}
-
-  private filteredDataCache: { [id: string]: any[] } = {}
   private subfolder = ''
   private root = ''
   private fileApi: FileSystemConfig
+
+  private datasets: {
+    [id: string]: {
+      rows: Promise<any[]>
+      filteredRows: any[] | null
+      activeFilters: { [column: string]: any }
+      filterListeners: Set<any>
+    }
+  } = {}
 }

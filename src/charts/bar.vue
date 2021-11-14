@@ -14,9 +14,7 @@ vue-plotly#vue-bar-chart(
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
 import VuePlotly from '@statnett/vue-plotly'
-import { rollup } from 'd3-array'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
@@ -39,8 +37,8 @@ export default class VueComponent extends Vue {
 
   private globalState = this.$store.state
 
-  // private thread!: any
   private dataRows: any = {}
+  private filteredRows: any = {}
 
   private plotID = this.getRandomInt(100000)
 
@@ -48,13 +46,14 @@ export default class VueComponent extends Vue {
     this.updateTheme()
     await this.loadData()
     this.resizePlot()
-    window.addEventListener('resize', this.myEventHandler)
+    window.addEventListener('resize', this.handleResizeEvent)
 
     this.$emit('isLoaded')
   }
 
-  private async beforeDestroy() {
-    window.removeEventListener('resize', this.myEventHandler)
+  private beforeDestroy() {
+    window.removeEventListener('resize', this.handleResizeEvent)
+    this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
@@ -63,17 +62,47 @@ export default class VueComponent extends Vue {
     this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
-  private handlePlotlyClick(click: any) {
+  private async handlePlotlyClick(click: any) {
     try {
       const { x, y, data } = click.points[0]
-      const fullData = Object.assign({}, data)
 
-      fullData.x = [x]
-      fullData.y = [y]
-      this.data.push(fullData)
-      this.data[0].opacity = 0.25
+      const filter = this.config.groupBy
+      const value = x
+
+      this.datamanager.setFilter(this.config.dataset, filter, value)
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  private async handleFilterChanged() {
+    console.log('CHANGED FILTER')
+    try {
+      const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
+
+      // is filter UN-selected?
+      if (!filteredRows) {
+        this.data = [this.data[0]]
+        this.data[0].opacity = 1.0
+        return
+      }
+
+      const fullDataCopy = Object.assign({}, this.data[0])
+
+      fullDataCopy.x = filteredRows.x
+      fullDataCopy.y = filteredRows.y
+      fullDataCopy.opacity = 1.0
+      fullDataCopy.name = 'Filtered'
+      //@ts-ignore - let plotly manage bar colors EXCEPT the filter
+      fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+
+      this.data = [this.data[0], fullDataCopy]
+      this.data[0].opacity = 0.3
+      this.data[0].name = 'All'
+    } catch (e) {
+      const message = '' + e
+      console.log(message)
+      this.dataRows = {}
     }
   }
 
@@ -81,11 +110,12 @@ export default class VueComponent extends Vue {
     if (!this.files.length) return
 
     try {
-      const { fullData, filteredData } = await this.datamanager.getDataset(this.config)
+      const { allRows } = await this.datamanager.getDataset(this.config)
+      this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
       // console.log({ fullData })
 
-      this.dataRows = fullData
+      this.dataRows = allRows
       this.updateChart()
     } catch (e) {
       const message = '' + e
@@ -98,8 +128,8 @@ export default class VueComponent extends Vue {
     return Math.floor(Math.random() * max).toString()
   }
 
-  // The myEventHandler was added because Plottly has a bug with resizing.
-  private myEventHandler() {
+  // The handleResizeEvent was added because Plotly has a bug with resizing (in stacked mode)
+  private handleResizeEvent() {
     this.resizePlot()
   }
 
