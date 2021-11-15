@@ -20,10 +20,10 @@ de:
   )
     component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)" @zoom="showBackArrow(i, $event)" )
     .control-buttons
-      a(@zoom="showBackArrow(state)" @click="onBack(i)" :title="$t('back')"
+      a(@click="onBack(i)" :title="$t('back')"
         v-if="panel.component !== 'SplashPage' && !zoomed")
         i.fa.fa-icon.fa-arrow-left
-      a(@zoom="showBackArrow(state)" @click="onClose(i)"
+      a(@click="onClose(i)"
         v-if="panels.length > 1" :title="$t('close') && !zoomed")
         i.fa.fa-icon.fa-times-circle
 
