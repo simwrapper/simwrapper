@@ -125,6 +125,7 @@ export default class VueComponent extends Vue {
 
   private handleZoom(isZoomed: any) {
     this.isZoomed = !!isZoomed
+    this.$emit('zoom', this.isZoomed)
   }
 
   private getFileSystem(name: string) {

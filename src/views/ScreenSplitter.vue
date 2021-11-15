@@ -18,13 +18,13 @@ de:
   .split-panel(v-for="panel,i in panels" :key="panel.key"
     :class="{'is-multipanel' : panels.length > 1}"
   )
-    component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)")
+    component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)" @zoom="showBackArrow(i, $event)" )
     .control-buttons
-      a(@click="onBack(i)" :title="$t('back')"
-        v-if="panel.component !== 'SplashPage'")
+      a(@zoom="showBackArrow(state)" @click="onBack(i)" :title="$t('back')"
+        v-if="panel.component !== 'SplashPage' && !zoomed")
         i.fa.fa-icon.fa-arrow-left
-      a(@click="onClose(i)"
-        v-if="panels.length > 1" :title="$t('close')")
+      a(@zoom="showBackArrow(state)" @click="onClose(i)"
+        v-if="panels.length > 1" :title="$t('close') && !zoomed")
         i.fa.fa-icon.fa-times-circle
 
 </template>
@@ -58,6 +58,12 @@ class MyComponent extends Vue {
       props: {} as any,
     },
   ]
+
+  private zoomed = false
+
+  private showBackArrow(isZoomed: number, state: boolean) {
+    this.zoomed = state
+  }
 
   private mounted() {
     this.buildLayoutFromURL()
