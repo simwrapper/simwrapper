@@ -18,13 +18,6 @@ import VuePlotly from '@statnett/vue-plotly'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
-const mockData = {
-  car: 34,
-  bike: 18,
-  pt: 30,
-  walk: 8,
-}
-
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
@@ -38,7 +31,6 @@ export default class VueComponent extends Vue {
   private globalState = this.$store.state
 
   private dataRows: any = {}
-  private filteredRows: any = {}
 
   private plotID = this.getRandomInt(100000)
 
@@ -175,43 +167,6 @@ export default class VueComponent extends Vue {
         opacity: 1.0,
       },
     ]
-
-    // var useOwnNames = false
-
-    // for (var i = 0; i < this.dataRows.length; i++) {
-    //   if (i == 0 && this.config.skipFirstRow) {
-    //   } else {
-    //     x.push(this.dataRows[i][this.config.x])
-    //   }
-    // }
-
-    // for (let i = 0; i < this.config.columns.length; i++) {
-    //   const name = this.config.columns[i]
-    //   let legendName = ''
-    //   if (this.config.columns[i] !== 'undefined') {
-    //     if (useOwnNames) {
-    //       legendName = this.config.legendTitles[i]
-    //     } else {
-    //       legendName = name
-    //     }
-    //     const value = []
-    //     for (var j = 0; j < this.dataRows.length; j++) {
-    //       if (j == 0 && this.config.skipFirstRow) {
-    //       } else {
-    //         value.push(this.dataRows[j][name])
-    //       }
-    //     }
-    //     this.data.push({
-    //       x: x,
-    //       y: value,
-    //       name: legendName,
-    //       type: 'bar',
-    //       textinfo: 'label+percent',
-    //       textposition: 'inside',
-    //       automargin: true,
-    //     })
-    //   }
-    // }
   }
 
   private updateChartSimple() {
