@@ -219,7 +219,8 @@ class MyComponent extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+      const err = e as any
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }

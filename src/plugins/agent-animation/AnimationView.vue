@@ -6,7 +6,6 @@
 <script lang="ts">
 import { Component, Vue, Watch, Prop } from 'vue-property-decorator'
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import yaml from 'yaml'
 import * as THREE from 'three'
 
 import globalStore from '@/store'
@@ -20,9 +19,14 @@ import {
   DARK_MODE,
   LIGHT_MODE,
 } from '@/Globals'
+
 import AgentGeometry from './AgentGeometry'
 import EventBus from '@/plugins/agent-animation/EventBus.vue'
 import XmlFetcher from '@/workers/XmlFetcher'
+
+import vertexShader from './shaderVert.vert'
+import fragmentShader from './shaderFrag.frag'
+import { MapControls } from '@/js/OrbitControl'
 
 export interface Network {
   nodes: { [id: string]: NetworkNode }
@@ -72,9 +76,6 @@ export default class AnimationView extends Vue {
 
   private timeDirection = 1
 
-  private vertexShader = require('./shaderVert.vert').default
-  private fragmentShader = require('./shaderFrag.frag').default
-
   private globalState = globalStore.state
 
   private colors = this.myState.colorScheme == ColorScheme.DarkMode ? DARK_MODE : LIGHT_MODE
@@ -95,8 +96,6 @@ export default class AnimationView extends Vue {
   private camera?: THREE.PerspectiveCamera
 
   private network: Network = { nodes: {}, links: {} }
-
-  private OrbitControl = require('@/js/OrbitControl')
 
   // eslint-disable-next-line
   private container: any
@@ -425,13 +424,12 @@ export default class AnimationView extends Vue {
       }
     } catch (e) {
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.need_password && e.status === 401) {
+      const err = e as any
+      if (this.myState.fileSystem && this.myState.fileSystem.need_password && err.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.url)
       }
     }
   }
-
-  private tempStreamBuffer = ''
 
   private agentMaterial?: THREE.ShaderMaterial
   private agentGeometry?: AgentGeometry
@@ -440,19 +438,14 @@ export default class AnimationView extends Vue {
     if (this.agentGeometry) this.agentGeometry.dispose()
     this.agentGeometry = new AgentGeometry(this.tripList, this.midpointX, this.midpointY)
 
-    // // maybe we already loaded a new day
-    // if (Object.keys(this.infectionList).length > 0) {
-    //   this.agentGeometry.updateInfections(this.infectionList)
-    // }
-
     if (!this.agentMaterial)
       this.agentMaterial = new THREE.ShaderMaterial({
         uniforms: {
           simulationTime: { value: 0.0 },
           colorLinks: { value: new THREE.Color(this.colors.links) },
         },
-        vertexShader: this.vertexShader,
-        fragmentShader: this.fragmentShader,
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
         blending: THREE.NoBlending,
         depthTest: true,
         transparent: true,
@@ -488,7 +481,7 @@ export default class AnimationView extends Vue {
       near,
       far
     )
-    this.cameraControls = new this.OrbitControl.MapControls(this.camera, this.renderer.domElement)
+    this.cameraControls = MapControls(this.camera, this.renderer.domElement)
     this.cameraControls.enablePan = true
     this.cameraControls.screenSpacePanning = true
     this.cameraControls.enableZoom = true

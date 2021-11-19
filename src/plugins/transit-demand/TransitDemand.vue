@@ -391,7 +391,8 @@ class MyComponent extends Vue {
       this.vizDetails = yaml.parse(text)
     } catch (e) {
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+      const err = e as any
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
@@ -1049,16 +1050,6 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 
 const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
-
-const nodeReadAsync = function(filename: string) {
-  const fs = require('fs')
-  return new Promise((resolve, reject) => {
-    fs.readFile(filename, 'utf8', (err: Error, data: string) => {
-      if (err) reject(err)
-      else resolve(data)
-    })
-  })
-}
 </script>
 
 <style scoped lang="scss">
