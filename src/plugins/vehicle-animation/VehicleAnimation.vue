@@ -712,7 +712,7 @@ export default VehicleAnimation
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
+@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .gl-app {

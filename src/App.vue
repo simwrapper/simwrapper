@@ -2,8 +2,9 @@
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
   .center-area
-    login-panel.login-panel
+    //- login-panel.login-panel
     router-view.main-content
+    h3 Loading Simwrapper...
 
   .message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
@@ -13,18 +14,21 @@
 
 </template>
 
-<i18n>
-en:
-  light: 'light'
-  dark: 'dark'
-  share: 'share'
-de:
-  light: 'hell'
-  dark: 'dark'
-  share: 'freigeben'
-</i18n>
-
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      light: 'light',
+      dark: 'dark',
+      share: 'share',
+    },
+    de: {
+      light: 'hell',
+      dark: 'dark',
+      share: 'freigeben',
+    },
+  },
+}
 import maplibregl from 'maplibre-gl'
 import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
@@ -40,7 +44,7 @@ import LoginPanel from '@/components/LoginPanel.vue'
 const writableMapBox: any = maplibregl
 writableMapBox.accessToken = MAPBOX_TOKEN
 
-@Component({ components: { LoginPanel } })
+@Component({ i18n, components: { LoginPanel } })
 class App extends Vue {
   private state = globalStore.state
 
@@ -53,7 +57,6 @@ class App extends Vue {
       : ColorScheme.LightMode
 
     if (theme === ColorScheme.DarkMode) this.$store.commit('rotateColors')
-
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
     this.toggleFullScreen(true)
@@ -102,8 +105,8 @@ export default App
 
 <style lang="scss">
 @import '@/styles.scss';
-@import '~buefy/dist/buefy.css';
-@import '~maplibre-gl/dist/maplibre-gl.css';
+@import '~/buefy/dist/buefy.css';
+@import '~/maplibre-gl/dist/maplibre-gl.css';
 
 html {
   box-sizing: border-box;

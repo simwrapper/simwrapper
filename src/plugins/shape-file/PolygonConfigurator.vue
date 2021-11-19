@@ -143,7 +143,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .configurator {

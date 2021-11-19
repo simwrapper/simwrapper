@@ -17,16 +17,14 @@
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import readBlob from 'read-blob'
-import { videoPlayer } from 'vue-video-player'
+import { VideoPlayer } from 'vue-videojs7'
 
 import globalStore from '@/store'
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({
-  components: {
-    'video-player': videoPlayer,
-  },
+  components: { VideoPlayer },
 })
 class MyComponent extends Vue {
   @Prop({ required: false })
@@ -229,7 +227,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~video.js/dist/video-js.min.css';
+@import '~/video.js/dist/video-js.min.css';
 
 #container {
   display: flex;

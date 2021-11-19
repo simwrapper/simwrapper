@@ -1,12 +1,3 @@
-<i18n>
-en:
-  close: 'Close panel'
-  back: 'Go back'
-de:
-  close: 'Schließen'
-  back: 'Zurück'
-</i18n>
-
 <template lang="pug">
 #split-screen
 
@@ -30,7 +21,15 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { close: 'Close panel', back: 'Go back' },
+    de: { close: 'Schließen', back: 'Zurück' },
+  },
+}
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { Route } from 'vue-router'
 
 import plugins from '@/plugins/pluginRegistry'
 
@@ -38,15 +37,10 @@ import globalStore from '@/store'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
-import SqlThing from '@/views/SqlThing.vue'
-import SqlThingTwo from '@/views/SqliteThing.vue'
-import { Route } from 'vue-router'
 
 @Component({
-  components: Object.assign(
-    { SplashPage, RunFinderPanel, SqlThing, SqlThingTwo, TabbedDashboardView },
-    plugins
-  ),
+  i18n,
+  components: Object.assign({ SplashPage, RunFinderPanel, TabbedDashboardView }, plugins),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
@@ -89,14 +83,6 @@ class MyComponent extends Vue {
   private buildLayoutFromURL() {
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
-
-    if (pathMatch === 'sql') {
-      this.onNavigate(0, { component: 'SqlThing', props: {} })
-    }
-
-    if (pathMatch === 'sqlite') {
-      this.onNavigate(0, { component: 'SqlThingTwo', props: {} })
-    }
 
     // split panel
     if (pathMatch.startsWith('split/')) {

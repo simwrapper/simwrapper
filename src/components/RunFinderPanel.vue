@@ -1,16 +1,3 @@
-<i18n>
-en:
-  sync: 'Sync folders'
-  theme: 'Light/Dark'
-  lang: 'EN/DE'
-  split: 'Split view'
-de:
-  sync: 'Sync'
-  theme: 'Hell/Dunkel'
-  lang: 'DE/EN'
-  split: 'Aufteilen'
-</i18n>
-
 <template lang="pug">
 .run-finder-panel
   router-link.logo(:to="'/'")
@@ -40,24 +27,17 @@ de:
 
 </template>
 
-<i18n>
-en:
-  more-info: 'For more information:'
-  tagLine: 'the simulation output viewer from TU Berlin'
-de:
-  more-info: 'Für weitere Informationen:'
-  tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
-</i18n>
-
 <script lang="ts">
-const readme = require('@/assets/info-top.md')
-const bottom = require('@/assets/info-bottom.md')
+const i18n = {
+  messages: {
+    en: { sync: 'Sync folders', theme: 'Light/Dark', lang: 'EN/DE', split: 'Split view' },
+    de: { sync: 'Sync', theme: 'Hell/Dunkel', lang: 'DE/EN', split: 'Aufteilen' },
+  },
+}
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { debounce } from 'debounce'
 
-import Colophon from '@/components/Colophon.vue'
-import VizCard from '@/components/VizCard.vue'
 import TreeView from '@/components/TreeView.vue'
 
 import globalStore from '@/store'
@@ -72,7 +52,8 @@ interface Folder {
 }
 
 @Component({
-  components: { Colophon, VizCard, TreeView },
+  i18n,
+  components: { TreeView },
 })
 class MyComponent extends Vue {
   private runTree: { [root: string]: Folder } = {}
@@ -175,8 +156,6 @@ class MyComponent extends Vue {
   }
 
   private globalState = globalStore.state
-  private readme = readme
-  private readmeBottom = bottom
 }
 export default MyComponent
 </script>

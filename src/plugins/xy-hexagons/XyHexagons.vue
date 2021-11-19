@@ -639,7 +639,7 @@ export default XyHexagons
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
+@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .xy-hexagons {

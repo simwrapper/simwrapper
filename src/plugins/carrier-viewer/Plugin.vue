@@ -119,7 +119,6 @@ import AnimationView from '@/plugins/agent-animation/AnimationView.vue'
 import DetailsPanel from './DetailsPanel.vue'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
-import ModalMarkdownDialog from '@/components/ModalMarkdownDialog.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 
@@ -569,7 +568,8 @@ class CarrierPlugin extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+      const err = e as any
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
@@ -884,7 +884,6 @@ export default CarrierPlugin
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 /* SCROLLBARS

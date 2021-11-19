@@ -1,22 +1,3 @@
-<i18n>
-en:
-  all: "All"
-  colors: "Colors"
-  loading: "Loading"
-  selectColumn: "Select data column"
-  timeOfDay: "Time of day"
-  bandwidths: "Widths: 1 pixel ="
-  showDiffs: "Show Differences"
-de:
-  all: "Alle"
-  colors: "Farben"
-  loading: "Wird geladen"
-  selectColumn: "Datenspalte wählen"
-  timeOfDay: "Uhrzeit"
-  bandwidths: "Linienbreiten: 1 pixel ="
-  showDiffs: "Differenzen"
-</i18n>
-
 <template lang="pug">
 .link-volume-plot(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}'
@@ -77,6 +58,28 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      all: 'All',
+      colors: 'Colors',
+      loading: 'Loading',
+      selectColumn: 'Select data column',
+      timeOfDay: 'Time of day',
+      bandwidths: 'Widths: 1 pixel =',
+      showDiffs: 'Show Differences',
+    },
+    de: {
+      all: 'Alle',
+      colors: 'Farben',
+      loading: 'Wird geladen',
+      selectColumn: 'Datenspalte wählen',
+      timeOfDay: 'Uhrzeit',
+      bandwidths: 'Linienbreiten: 1 pixel =',
+      showDiffs: 'Differenzen',
+    },
+  },
+}
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
 import Papaparse from 'papaparse'
@@ -113,6 +116,7 @@ interface CSV {
 }
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     ConfigPanel,
@@ -593,7 +597,6 @@ export default MyPlugin
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .link-volume-plot {

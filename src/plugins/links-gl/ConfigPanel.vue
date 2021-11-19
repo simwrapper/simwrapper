@@ -66,23 +66,26 @@
 
 </template>
 
-<i18n>
-en:
-  selectColumn: "Select data column"
-  loading: "Loading..."
-  bandwidths: "Widths: 1 pixel ="
-  timeOfDay: "Time of day"
-  colors: "Colors"
-
-de:
-  selectColumn: "Datenspalte wählen"
-  loading: "Laden..."
-  bandwidths: "Linienbreiten: 1 pixel ="
-  timeOfDay: "Uhrzeit"
-  colors: "Farben"
-</i18n>
-
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      selectColumn: 'Select data column',
+      loading: 'Loading...',
+      bandwidths: 'Widths: 1 pixel =',
+      timeOfDay: 'Time of day',
+      colors: 'Colors',
+    },
+    de: {
+      selectColumn: 'Datenspalte wählen',
+      loading: 'Laden...',
+      bandwidths: 'Linienbreiten: 1 pixel =',
+      timeOfDay: 'Uhrzeit',
+      colors: 'Farben',
+    },
+  },
+}
+
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { debounce } from 'debounce'
 
@@ -90,7 +93,7 @@ import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
 import { ColorScheme } from '@/Globals'
 
-@Component({ components: { TimeSlider } })
+@Component({ i18n, components: { TimeSlider } })
 export default class VueComponent extends Vue {
   //@Prop({ required: true })
   //private darkMode!: boolean
