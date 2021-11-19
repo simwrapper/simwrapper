@@ -15,7 +15,7 @@ export default defineConfig({
     alias: {
       '@': '/src',
       '~': '/node_modules',
-      'vue-plotly': 'vue-plotly/dist/vue-plotly.umd.js',
+      // 'vue-plotly': 'vue-plotly/dist/vue-plotly.umd.js',
     },
   },
   define: {

@@ -2,9 +2,9 @@
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
   .center-area
-    //- login-panel.login-panel
+    login-panel.login-panel
     router-view.main-content
-    h3 Loading Simwrapper...
+    p(style="text-justify: center; margin: auto auto; font-size: 2rem;"): i Loading Simwrapper...
 
   .message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")

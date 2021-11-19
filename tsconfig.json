@@ -11,13 +11,13 @@
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"],
     "module": "esnext",
     "moduleResolution": "node",
-    "paths": { "@/*": ["src/*"] },
+    "paths": { "@/*": ["src/*"], "~/*": ["node_modules/*"] },
     "resolveJsonModule": true,
     "sourceMap": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "types": ["webpack-env", "jest"]
+    "types": ["vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["node_modules"]

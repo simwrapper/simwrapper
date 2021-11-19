@@ -1,12 +1,11 @@
 <template lang="pug">
-vue-plotly#vue-bar-chart(
+Plotly#vue-bar-chart(
   :data="data"
   :layout="layout"
   :options="options"
-  :config="{responsive: true}"
   :id="id"
   ref="plotly-element"
-  @click="handlePlotlyClick"
+@click="handlePlotlyClick"
 )
   //- :class="className"
 
@@ -14,44 +13,57 @@ vue-plotly#vue-bar-chart(
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import VuePlotly from '@statnett/vue-plotly'
+
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import Plotly from '@/components/VuePlotly.vue'
 
-@Component({ components: { VuePlotly } })
+import globalStore from '@/store'
+
+@Component({ components: { Plotly } })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-  @Prop({ required: true }) datamanager!: DashboardDataManager
+  @Prop() fileSystemConfig!: FileSystemConfig
+  @Prop() subfolder!: string
+  @Prop() files!: string[]
+  @Prop() datamanager!: DashboardDataManager
+  @Prop() config!: any
 
   private id = 'bar-' + Math.random()
 
-  private globalState = this.$store.state
+  private globalState = globalStore.state
 
   private dataRows: any = {}
 
   private plotID = this.getRandomInt(100000)
 
   private async mounted() {
+    this.updateLayout()
     this.updateTheme()
+
     await this.loadData()
-    this.resizePlot()
+
+    // this.resizePlot()
     window.addEventListener('resize', this.handleResizeEvent)
 
     this.$emit('isLoaded')
   }
 
   private beforeDestroy() {
-    window.removeEventListener('resize', this.handleResizeEvent)
-    this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+    try {
+      window.removeEventListener('resize', this.handleResizeEvent)
+      this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+    } catch (e) {}
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
     this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
     this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
     this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
+  }
+
+  private updateLayout() {
+    this.layout.xaxis.title = this.config.xAxisTitle || ''
+    this.layout.yaxis.title = this.config.yAxisTitle || ''
   }
 
   private async handlePlotlyClick(click: any) {
@@ -68,7 +80,6 @@ export default class VueComponent extends Vue {
   }
 
   private async handleFilterChanged() {
-    console.log('CHANGED FILTER')
     try {
       const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
 
@@ -104,8 +115,6 @@ export default class VueComponent extends Vue {
     try {
       const { allRows } = await this.datamanager.getDataset(this.config)
       this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-
-      // console.log({ fullData })
 
       this.dataRows = allRows
       this.updateChart()
@@ -235,11 +244,11 @@ export default class VueComponent extends Vue {
     bargap: 0.08,
     xaxis: {
       autorange: true,
-      title: this.config.xAxisTitle,
+      title: '',
     },
     yaxis: {
       autorange: true,
-      title: this.config.yAxisTitle,
+      title: '',
     },
     legend: {
       x: 1,

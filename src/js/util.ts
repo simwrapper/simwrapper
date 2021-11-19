@@ -1,5 +1,5 @@
 import micromatch from 'micromatch'
-import xml2js from 'xml2js'
+import { XMLParser } from 'fast-xml-parser'
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -76,7 +76,7 @@ export async function parseXML(xml: string, settings: any) {
     return {
       strict: true,
       trim: true,
-      preserveChildrenOrder: true,
+      preserveOrder: true,
       explicitChildren: true,
       explicitArray: true,
     }
@@ -84,16 +84,15 @@ export async function parseXML(xml: string, settings: any) {
 
   const options = Object.assign(defaultConfig, settings)
 
-  const parser = new xml2js.Parser(options)
+  const parser = new XMLParser(options)
 
   return new Promise((resolve, reject) => {
-    parser.parseString(xml, function(err: Error, result: string) {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(result)
-      }
-    })
+    try {
+      const result = parser.parse(xml)
+      resolve(result)
+    } catch (err) {
+      reject(err)
+    }
   })
 }
 

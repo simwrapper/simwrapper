@@ -12,11 +12,12 @@
  */
 
 import { rollup } from 'd3-array'
-import { Worker, spawn, Thread } from 'threads'
 
 import { FileSystemConfig } from '@/Globals'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
+
+import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
 export default class DashboardDataManager {
   constructor(...args: string[]) {
@@ -38,7 +39,7 @@ export default class DashboardDataManager {
       const columnGroups = config.groupBy
       bars = rollup(
         rows,
-        v => v.reduce((a, b) => a + b[columnValues], 0),
+        (v) => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
     } else {
@@ -76,7 +77,7 @@ export default class DashboardDataManager {
       const columnGroups = config.groupBy
       bars = rollup(
         allRows,
-        v => v.reduce((a, b) => a + b[columnValues], 0),
+        (v) => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
     } else {
@@ -89,7 +90,7 @@ export default class DashboardDataManager {
   }
 
   public setFilter(dataset: string, column: string, value: any) {
-    console.log('FILTERING:', dataset)
+    console.log('Filtering dataset:', dataset)
 
     const allFilters = this.datasets[dataset].activeFilters
     if (allFilters[column] !== undefined && allFilters[column] === value) {
@@ -99,8 +100,6 @@ export default class DashboardDataManager {
     }
     this.datasets[dataset].activeFilters = allFilters
 
-    console.log('about to update filters')
-    console.log(this.datasets)
     this.updateFilters(dataset) // this is async
   }
 
@@ -120,7 +119,6 @@ export default class DashboardDataManager {
 
   private async updateFilters(datasetId: string) {
     const dataset = this.datasets[datasetId]
-    console.log({ dataset })
 
     if (!Object.keys(dataset.activeFilters).length) {
       dataset.filteredRows = null
@@ -130,11 +128,10 @@ export default class DashboardDataManager {
       let filteredRows = allRows
       for (const [column, value] of Object.entries(dataset.activeFilters)) {
         console.log('filtering:', column, value)
-        filteredRows = filteredRows.filter(row => row[column] === value)
+        filteredRows = filteredRows.filter((row) => row[column] === value)
       }
       dataset.filteredRows = filteredRows
     }
-    console.log(dataset.filteredRows)
     this.notifyListeners(datasetId)
   }
 
@@ -145,7 +142,7 @@ export default class DashboardDataManager {
     }
   }
 
-  private thread!: any
+  // private thread!: any
   private files: any[] = []
 
   private async fetchDataset(config: { dataset: string }) {
@@ -154,25 +151,23 @@ export default class DashboardDataManager {
       this.files = files
     }
 
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    return new Promise<any[]>((resolve, reject) => {
+      try {
+        const thread = new DataFetcherWorker()
+        thread.postMessage({
+          fileSystemConfig: this.fileApi,
+          subfolder: this.subfolder,
+          files: this.files,
+          config: config,
+        })
 
-    try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileApi,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: config,
-      })
-
-      return data
-    } catch (e) {
-      const message = '' + e
-      console.log(message)
-    } finally {
-      Thread.terminate(this.thread)
-    }
-    return []
+        thread.onmessage = (e) => {
+          resolve(e.data)
+        }
+      } catch (err) {
+        reject(err)
+      }
+    })
   }
 
   private getFileSystem(name: string) {

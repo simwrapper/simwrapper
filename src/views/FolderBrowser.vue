@@ -87,19 +87,6 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import markdown from 'markdown-it'
-import mediumZoom from 'medium-zoom'
-import micromatch from 'micromatch'
-import yaml from 'yaml'
-
-import globalStore from '@/store'
-import plugins from '@/plugins/pluginRegistry'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
-import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
-import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
-
 interface VizEntry {
   component: string
   config: string
@@ -119,10 +106,22 @@ interface IMyState {
   vizes: VizEntry[]
 }
 
+import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import markdown from 'markdown-it'
+import mediumZoom from 'medium-zoom'
+import micromatch from 'micromatch'
+import yaml from 'yaml'
+
+import globalStore from '@/store'
+import plugins from '@/plugins/pluginRegistry'
+import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
+import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+
 @Component({
-  components: Object.assign({ TabbedDashboardView, TopsheetsFinder }, plugins),
-  props: {},
   i18n,
+  components: { TopsheetsFinder },
 })
 export default class VueComponent extends Vue {
   @Prop({ required: false })
