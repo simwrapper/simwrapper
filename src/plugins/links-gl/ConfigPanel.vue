@@ -51,7 +51,7 @@
       .dropdown.is-up.full-width(:class="{'is-active': isColorButtonActive}")
         .dropdown-trigger
           img.color-button(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                          :src="`${pathColorScale}scale-${selectedColorRamp}.png`"
+                          :src="getColorRampUrl(selectedColorRamp)"
                           @click="() => this.isColorButtonActive = !this.isColorButtonActive"
           )
 
@@ -61,7 +61,7 @@
                             @click="handleColorRamp(colorRamp)"
                             :style="{'padding': '0.25rem 0.25rem'}")
               img.swap-color(v-bind:style="[isDarkMode ? {'transform' : 'scaleX(1)'} : {'transform' : 'scaleX(-1)'}]"
-                            :src="`${pathColorScale}scale-${colorRamp}.png`")
+                            :src="getColorRampUrl(colorRamp)")
               p(:style="{'lineHeight': '1rem', 'marginBottom':'0.25rem'}") {{ colorRamp }}
 
 </template>
@@ -119,11 +119,13 @@ export default class VueComponent extends Vue {
   @Prop({ required: true })
   private selectedColorRamp!: string
 
-  private pathColorScale = '/simwrapper/colors/'
   private isButtonActive = false
   private isColorButtonActive = false
 
   private scaleWidthValue = '' + this.scaleWidth
+
+  private globalState = globalStore.state
+  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
 
   private colorRamps: { [title: string]: { png: string; diff?: boolean } } = {
     viridis: { png: 'scale-viridis.png' },
@@ -136,11 +138,12 @@ export default class VueComponent extends Vue {
     this.scaleWidthValue = '' + this.scaleWidth
   }
 
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-
   private mounted() {
     this.scaleWidthValue = '' + this.scaleWidth
+  }
+
+  private getColorRampUrl(ramp: string) {
+    return new URL(`/colors/scale-${ramp}.png`, import.meta.url).href
   }
 
   @Watch('scaleWidthValue') handleScaleChanged() {
@@ -154,13 +157,13 @@ export default class VueComponent extends Vue {
 
   private changeColorForDarkMode() {
     if (this.isDarkMode) {
-      ;(document.getElementsByClassName('color-button') as HTMLCollectionOf<
-        HTMLElement
-      >)[0].style.transform = 'scaleX(1)'
+      ;(
+        document.getElementsByClassName('color-button') as HTMLCollectionOf<HTMLElement>
+      )[0].style.transform = 'scaleX(1)'
     } else {
-      ;(document.getElementsByClassName('color-button') as HTMLCollectionOf<
-        HTMLElement
-      >)[0].style.transform = 'scaleX(-1)'
+      ;(
+        document.getElementsByClassName('color-button') as HTMLCollectionOf<HTMLElement>
+      )[0].style.transform = 'scaleX(-1)'
     }
 
     var i

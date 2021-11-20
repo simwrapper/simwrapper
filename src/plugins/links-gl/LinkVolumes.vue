@@ -93,7 +93,7 @@ import ConfigPanel from './ConfigPanel.vue'
 import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
-import GzipFetcher from '@/workers/GzipFetcher.worker'
+import GzipFetcher from '@/workers/GzipFetcher.worker.ts?worker'
 
 import {
   ColorScheme,
@@ -244,8 +244,9 @@ class MyPlugin extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = YAML.parse(text)
-    } catch (e) {
-      console.log('failed')
+    } catch (err) {
+      console.error('failed')
+      const e = err as any
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
@@ -313,7 +314,7 @@ class MyPlugin extends Vue {
     // // find max value for scaling
     if (!this.csvData.headerMax[column]) {
       let max = 0
-      this.buildColumnValues[column].forEach(value => (max = Math.max(max, value)))
+      this.buildColumnValues[column].forEach((value) => (max = Math.max(max, value)))
       if (max) this.csvData.headerMax[column] = max
     }
 
@@ -387,10 +388,9 @@ class MyPlugin extends Vue {
     if (!this.myState.fileApi) return
 
     try {
+      this.myState.statusMessage = 'Loading network...'
       this.linkOffsetLookup = {}
       this.numLinks = 0
-
-      this.myState.statusMessage = 'Loading network...'
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
 
