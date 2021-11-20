@@ -11,23 +11,23 @@
 // import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 // import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 // import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
-// import ImageView from '@/plugins/image/ImageView.vue'
+import ImageView from '@/plugins/image/ImageView.vue'
 
 // // EVERY plugin must be registered here:
-// const plugins = {
-//   VehicleAnimation,
-//   CarrierViewer,
-//   XyHexagons,
-//   AgentAnimation,
-//   LinksGl,
-//   LinkVolumes,
-//   ShapeFile,
-//   SankeyDiagram,
-//   VegaLite,
-//   AggregateOd,
-//   TransitDemand,
-//   VideoPlayer,
-//   ImageView,
-// }
+const plugins = {
+  //   VehicleAnimation,
+  //   CarrierViewer,
+  //   XyHexagons,
+  //   AgentAnimation,
+  // LinksGl,
+  //   LinkVolumes,
+  //   ShapeFile,
+  //   SankeyDiagram,
+  //   VegaLite,
+  //   AggregateOd,
+  //   TransitDemand,
+  //   VideoPlayer,
+  ImageView,
+}
 
-export default {}
+export default plugins

@@ -10,6 +10,7 @@ export default defineConfig({
     createVuePlugin({ include: [/\.vue$/, /\.md$/] }),
     markdownPlugin(),
   ],
+  build: { sourcemap: true },
   resolve: {
     alias: {
       '@': '/src',
@@ -24,5 +25,4 @@ export default defineConfig({
     // requireFromFile: null,
     // requireFromString: null,
   },
-  // optimizeDeps: { exclude: ['@deck.gl/layers'] },
 })

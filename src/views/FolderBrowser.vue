@@ -119,9 +119,10 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
+const allComponents = Object.assign({ TopsheetsFinder }, plugins)
 @Component({
   i18n,
-  components: { TopsheetsFinder },
+  components: allComponents,
 })
 export default class VueComponent extends Vue {
   @Prop({ required: false })
@@ -351,7 +352,7 @@ export default class VueComponent extends Vue {
       console.log(subsubfolder)
       const contents = await this.myState.svnRoot.getDirectory(subsubfolder)
       const matches = micromatch(contents.files, split[1])
-      return matches.map(f => split[0] + '/' + f)
+      return matches.map((f) => split[0] + '/' + f)
     } catch (e) {
       // oh well, we tried
     }
@@ -371,14 +372,15 @@ export default class VueComponent extends Vue {
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
       // hide dot folders
-      const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
-      const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+      const folders = folderContents.dirs.filter((f) => !f.startsWith('.')).sort()
+      const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
 
       this.myState.errorStatus = ''
       this.myState.folders = folders
       this.myState.files = files
-    } catch (e) {
+    } catch (err) {
       // Bad things happened! Tell user
+      const e = err as any
       console.log('BAD PAGE')
       console.log({ eeee: e })
 
