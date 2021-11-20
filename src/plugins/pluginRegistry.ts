@@ -1,6 +1,6 @@
 // import plugins in the order you want them to appear on project pages
 import CarrierViewer from '@/plugins/carrier-viewer/Plugin.vue'
-// import VehicleAnimation from '@/plugins/vehicle-animation/VehicleAnimation.vue'
+import VehicleAnimation from '@/plugins/vehicle-animation/VehicleAnimation.vue'
 // import XyHexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 // import AgentAnimation from '@/plugins/agent-animation/AgentAnimation.vue'
 import LinksGl from '@/plugins/links-gl/LinkVolumes.vue'
@@ -15,8 +15,8 @@ import ImageView from '@/plugins/image/ImageView.vue'
 
 // // EVERY plugin must be registered here:
 const plugins = {
-  // VehicleAnimation,
   CarrierViewer,
+  VehicleAnimation,
   //   XyHexagons,
   //   AgentAnimation,
   LinksGl,
