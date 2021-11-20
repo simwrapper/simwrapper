@@ -1,18 +1,3 @@
-<i18n>
-en:
-  carriers: "Carriers"
-  vehicles: "VEHICLES"
-  services: "SERVICES"
-  shipments: "SHIPMENTS"
-  tours: "TOURS"
-de:
-  carriers: "Unternehmen"
-  vehicles: "FAHRZEUGE"
-  services: "BETRIEBE"
-  shipments: "LIEFERUNGEN"
-  tours: "TOUREN"
-</i18n>
-
 <template lang="pug">
 collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" width="250" direction="right")
     .panel-items
@@ -64,19 +49,32 @@ collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" widt
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      carriers: 'Carriers',
+      vehicles: 'VEHICLES',
+      services: 'SERVICES',
+      shipments: 'SHIPMENTS',
+      tours: 'TOURS',
+    },
+    de: {
+      carriers: 'Unternehmen',
+      vehicles: 'FAHRZEUGE',
+      services: 'BETRIEBE',
+      shipments: 'LIEFERUNGEN',
+      tours: 'TOUREN',
+    },
+  },
+}
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
-import readBlob from 'read-blob'
-import { Route } from 'vue-router'
-import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
-// import randomcolor from 'randomcolor'
 
 import globalStore from '@/store'
-import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
@@ -87,6 +85,7 @@ import { ColorScheme, LIGHT_MODE, DARK_MODE } from '@/Globals'
 naturalSort.insensitive = true
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     LegendColors,
@@ -96,7 +95,7 @@ naturalSort.insensitive = true
     VueSlider,
   } as any,
 })
-class DetailsPanel extends Vue {
+export default class DetailsPanel extends Vue {
   private colorScheme = ColorScheme.DarkMode
 
   private searchTerm: string = ''
@@ -141,7 +140,7 @@ class DetailsPanel extends Vue {
       return
     }
 
-    this.shownShipments = this.shipments.filter(s => s.id === shipment.id)
+    this.shownShipments = this.shipments.filter((s) => s.id === shipment.id)
     this.selectedShipment = shipment
   }
 
@@ -176,7 +175,7 @@ class DetailsPanel extends Vue {
         inTour.push(activity.shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find(s => s.id === activity.shipmentId)
+        const shipment = this.shipments.find((s) => s.id === activity.shipmentId)
         const link = activity.type === 'pickup' ? shipment.from : shipment.to
         // skip duplicate pickups/dropoffs at this location
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
@@ -246,7 +245,7 @@ class DetailsPanel extends Vue {
     let count = 0
 
     const sleep = (milliseconds: number) => {
-      return new Promise(resolve => setTimeout(resolve, milliseconds))
+      return new Promise((resolve) => setTimeout(resolve, milliseconds))
     }
 
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
@@ -436,8 +435,6 @@ class DetailsPanel extends Vue {
   private vehicleLookup: string[] = []
   private vehicleLookupString: { [id: string]: number } = {}
 }
-
-export default DetailsPanel
 </script>
 
 <style scoped lang="scss">

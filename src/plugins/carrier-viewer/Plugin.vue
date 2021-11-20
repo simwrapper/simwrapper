@@ -1,22 +1,3 @@
-<i18n>
-en:
-  carriers: "Carriers"
-  vehicles: "VEHICLES"
-  services: "SERVICES"
-  shipments: "SHIPMENTS"
-  tours: "TOURS"
-  pickup: "Pickup"
-  delivery: "Delivery"
-de:
-  carriers: "Unternehmen"
-  vehicles: "FAHRZEUGE"
-  services: "BETRIEBE"
-  shipments: "LIEFERUNGEN"
-  tours: "TOUREN"
-  pickup: "Abholung"
-  delivery: "Lieferung"
-</i18n>
-
 <template lang="pug">
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
@@ -97,6 +78,29 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      carriers: 'Carriers',
+      vehicles: 'VEHICLES',
+      services: 'SERVICES',
+      shipments: 'SHIPMENTS',
+      tours: 'TOURS',
+      pickup: 'Pickup',
+      delivery: 'Delivery',
+    },
+    de: {
+      carriers: 'Unternehmen',
+      vehicles: 'FAHRZEUGE',
+      services: 'BETRIEBE',
+      shipments: 'LIEFERUNGEN',
+      tours: 'TOUREN',
+      pickup: 'Abholung',
+      delivery: 'Lieferung',
+    },
+  },
+}
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
@@ -106,16 +110,11 @@ import { Route } from 'vue-router'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
-// import randomcolor from 'randomcolor'
-import vuera from 'vuera'
-import xml2js from 'xml2js'
-import crossfilter from 'crossfilter2'
 import pako from '@aftersim/pako'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
-import AnimationView from '@/plugins/agent-animation/AnimationView.vue'
 import DetailsPanel from './DetailsPanel.vue'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
@@ -124,6 +123,9 @@ import SettingsPanel from '@/components/SettingsPanel.vue'
 
 import XmlFetcher from '@/workers/XmlFetcher'
 import NetworkHelper from '@/workers/NetworkHelper'
+
+// import TourViz from './TourViz'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import {
   ColorScheme,
@@ -136,15 +138,13 @@ import {
   DARK_MODE,
 } from '@/Globals'
 
-import TourViz from './TourViz'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
 naturalSort.insensitive = true
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     DetailsPanel,
@@ -152,7 +152,7 @@ naturalSort.insensitive = true
     PlaybackControls,
     SettingsPanel,
     ToggleButton,
-    TourViz,
+    // TourViz,
     VueSlider,
   } as any,
 })
@@ -193,7 +193,7 @@ class CarrierPlugin extends Vue {
     'DRT Anfragen': false,
   }
 
-  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map(key => {
+  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map((key) => {
     return { type: LegendItemType.line, color: this.COLOR_OCCUPANCY[key], value: key, label: key }
   })
 
@@ -276,7 +276,7 @@ class CarrierPlugin extends Vue {
       return
     }
 
-    this.shownShipments = this.shipments.filter(s => s.id === shipment.id)
+    this.shownShipments = this.shipments.filter((s) => s.id === shipment.id)
     this.selectedShipment = shipment
   }
 
@@ -314,7 +314,7 @@ class CarrierPlugin extends Vue {
         inTour.push(activity.shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find(s => s.id === activity.shipmentId)
+        const shipment = this.shipments.find((s) => s.id === activity.shipmentId)
         const link = activity.type === 'pickup' ? shipment.from : shipment.to
         // skip duplicate pickups/dropoffs at this location
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
@@ -385,7 +385,7 @@ class CarrierPlugin extends Vue {
     let count = 0
 
     const sleep = (milliseconds: number) => {
-      return new Promise(resolve => setTimeout(resolve, milliseconds))
+      return new Promise((resolve) => setTimeout(resolve, milliseconds))
     }
 
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
@@ -816,23 +816,27 @@ class CarrierPlugin extends Vue {
     // file. The main weirdness is that matsim puts children of different
     // types in an order that matters (act,leg,act,leg,act... etc)
 
-    const parser = new xml2js.Parser({
-      strict: true,
-      trim: true,
-      preserveChildrenOrder: true,
-      explicitChildren: true,
-      explicitArray: true,
+    return new Promise((resolve, reject) => {
+      reject('carriers viz disabled, for now')
     })
 
-    return new Promise((resolve, reject) => {
-      parser.parseString(xml, function(err: Error, result: string) {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(result)
-        }
-      })
-    })
+    // const parser = new xml2js.Parser({
+    //   strict: true,
+    //   trim: true,
+    //   preserveChildrenOrder: true,
+    //   explicitChildren: true,
+    //   explicitArray: true,
+    // })
+
+    // return new Promise((resolve, reject) => {
+    //   parser.parseString(xml, function (err: Error, result: string) {
+    //     if (err) {
+    //       reject(err)
+    //     } else {
+    //       resolve(result)
+    //     }
+    //   })
+    // })
   }
 
   private async loadFileOrGzippedFile(name: string) {
