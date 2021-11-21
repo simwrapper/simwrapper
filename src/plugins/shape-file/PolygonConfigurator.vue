@@ -1,23 +1,3 @@
-<i18n>
-en:
-  all: "All"
-  opacity: "Opacity"
-  colors: "Colors"
-  scale: "Scale"
-  loading: "Loading"
-  selectColumn: "Select data column"
-  timeOfDay: "Time of Day"
-
-de:
-  all: "Alle"
-  opacity: "Transparenz"
-  colors: "Farben"
-  loading: "Wird geladen"
-  selectColumn: "Datenspalte wählen"
-  timeOfDay: "Uhrzeit"
-  scale: "Scale"
-</i18n>
-
 <template lang="pug">
 .configurator
 
@@ -55,6 +35,29 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      all: 'All',
+      opacity: 'Opacity',
+      colors: 'Colors',
+      scale: 'Scale',
+      loading: 'Loading',
+      selectColumn: 'Select data column',
+      timeOfDay: 'Time of Day',
+    },
+    de: {
+      all: 'Alle',
+      opacity: 'Transparenz',
+      colors: 'Farben',
+      loading: 'Wird geladen',
+      selectColumn: 'Datenspalte wählen',
+      timeOfDay: 'Uhrzeit',
+      scale: 'Scale',
+    },
+  },
+}
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
 import bulmaSlider from 'bulma-slider'
@@ -74,6 +77,7 @@ import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
 @Component({
+  i18n,
   components: {
     TimeSlider,
     ToggleButton,
