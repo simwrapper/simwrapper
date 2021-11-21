@@ -107,6 +107,7 @@ export default App
 @import '@/styles.scss';
 @import '~/buefy/dist/buefy.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
+@import '~/vue-slider-component/theme/default.css';
 
 html {
   box-sizing: border-box;

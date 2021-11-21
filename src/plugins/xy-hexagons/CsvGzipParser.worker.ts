@@ -1,15 +1,18 @@
-// named *thread* because *worker* gets processed by webpack already
-
-/*eslint prefer-rest-params: "off"*/
-
-import { expose, Transfer } from 'threads/worker'
-import { Observable } from 'observable-fns'
+/**
+ * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
+ */
 import pako from 'pako'
 import Papaparse from 'papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
+
+// -----------------------------------------------------------
+onmessage = function (e) {
+  startLoading(e.data)
+}
+// -----------------------------------------------------------
 
 interface RowCache {
   [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
@@ -31,51 +34,43 @@ const rowCache: RowCache = {}
 const columnLookup: number[] = []
 
 /**
- * Load a gzip file, parse its contents and
- * return a set of ArrayBuffers for display.
+ * Begin loading the file, and return status updates
+ * as observables. When observable is complete, the
+ * processing is finished and results can be obtained
+ * by calling results().
  */
-const csvParser = {
-  /**
-   * Begin loading the file, and return status updates
-   * as observables. When observable is complete, the
-   * processing is finished and results can be obtained
-   * by calling results().
-   */
-  startLoading(
-    filepath: string,
-    fileSystem: FileSystemConfig,
-    aggregations: Aggregations,
-    projection: string
-  ) {
-    console.log('csvGzipParser worker starting')
-    allAggregations = aggregations
-    proj = projection
+function startLoading(props: {
+  filepath: string
+  fileSystem: FileSystemConfig
+  aggregations: Aggregations
+  projection: string
+}) {
+  console.log('csvGzipParser worker starting')
+  allAggregations = props.aggregations
+  proj = props.projection
 
-    return new Observable<string>((observer: any) => {
-      observer.next(`Loading ${filepath}...`)
-      step1fetchFile(observer, filepath, fileSystem)
-    })
-  },
-
-  /**
-   * Return the results after processing is complete.
-   * @returns RowCache
-   */
-  results() {
-    return Transfer(
-      { rowCache, columnLookup },
-      Object.values(rowCache).map(cache => cache.raw.buffer)
-    )
-  },
+  postMessage({ status: `Loading ${props.filepath}...` })
+  step1fetchFile(props.filepath, props.fileSystem)
 }
 
-export type CSVParser = typeof csvParser
-
-expose(csvParser)
+// export type CSVParser = typeof csvParser
 
 // --- helper functions ------------------------------------------------
 
-async function step1fetchFile(observer: any, filepath: string, fileSystem: FileSystemConfig) {
+/**
+ * Return the results after processing is complete.
+ * @returns RowCache, ColumnLookup
+ */
+function postResults() {
+  console.log('WORKER RESULTS')
+  console.log({ rowCache, columnLookup })
+  postMessage(
+    { rowCache, columnLookup },
+    Object.values(rowCache).map((cache) => cache.raw.buffer)
+  )
+}
+
+async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
     const blob = await httpFileSystem.getFileBlob(filepath)
@@ -85,42 +80,14 @@ async function step1fetchFile(observer: any, filepath: string, fileSystem: FileS
     // this will recursively gunzip until it can gunzip no more:
     const unzipped = gUnzip(buffer)
 
-    step2examineUnzippedData(observer, unzipped)
+    step2examineUnzippedData(unzipped)
   } catch (e) {
     throw Error('LOAD FAIL !')
   }
 }
 
-function oldstep2examineUnzippedData(observer: any, unzipped: Uint8Array) {
-  observer.next('Decoding CSV...')
-
-  // convert to string
-  const text = new TextDecoder('windows-1251').decode(unzipped)
-
-  const lines = (text.match(/\n/g) || '').length
-  console.log(lines, 'lines')
-  totalLines = lines
-
-  // only save the relevant columns to save memory and not die
-
-  for (const group of Object.keys(allAggregations)) {
-    const aggregations = allAggregations[group]
-    let i = 0
-    for (const agg of aggregations) {
-      // columnLookup.push(...[agg.x, agg.y])
-      // rowCache[`${group}${i}`] = {
-      //   raw: new Float32Array(lines * 2),
-      //   coordColumns: [agg.x, agg.y],
-      //   length: lines,
-      // }
-      i++
-    }
-  }
-  console.log(8)
-}
-
-function step2examineUnzippedData(observer: any, unzipped: Uint8Array) {
-  observer.next('Decoding CSV...')
+function step2examineUnzippedData(unzipped: Uint8Array) {
+  postMessage({ status: 'Decoding CSV...' })
 
   // Figure out which columns to save
   const decoder = new TextDecoder()
@@ -171,10 +138,10 @@ function step2examineUnzippedData(observer: any, unzipped: Uint8Array) {
     }
   }
 
-  step3parseCSVdata(observer, sections)
+  step3parseCSVdata(sections)
 }
 
-function step3parseCSVdata(observer: any, sections: Uint8Array[]) {
+function step3parseCSVdata(sections: Uint8Array[]) {
   let offset = 0
 
   const decoder = new TextDecoder()
@@ -187,10 +154,10 @@ function step3parseCSVdata(observer: any, sections: Uint8Array[]) {
       // preview: 100,
       skipEmptyLines: true,
       dynamicTyping: true,
-      step: (results, parser) => {
+      step: (results: any, parser) => {
         if (offset % 65536 === 0) {
           console.log(offset)
-          observer.next(`Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%`)
+          postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
         }
         for (const key of Object.keys(rowCache)) {
           const wgs84 = Coords.toLngLat(proj, [
@@ -205,7 +172,7 @@ function step3parseCSVdata(observer: any, sections: Uint8Array[]) {
     })
   }
 
-  observer.next('Trimming results...')
+  postMessage({ status: 'Trimming results...' })
   // now filter zero-cells out: some rows don't have coordinates, and they
   // will mess up the total calculations
   for (const key of Object.keys(rowCache)) {
@@ -215,7 +182,8 @@ function step3parseCSVdata(observer: any, sections: Uint8Array[]) {
     // rowCache[key].raw = rowCache[key].raw.filter(elem => elem !== 0) // filter zeroes
     rowCache[key].length = rowCache[key].raw.length / 2
   }
-  observer.complete()
+
+  postResults()
 }
 
 /**
