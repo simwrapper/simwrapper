@@ -8,8 +8,8 @@ import LinksGl from '@/plugins/links-gl/LinkVolumes.vue'
 // import TransitDemand from '@/plugins/transit-demand/TransitDemand.vue'
 import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
 // import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
-// import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
-// import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
+import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
+import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 // import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 
@@ -22,8 +22,8 @@ const plugins = {
   LinksGl,
   //   LinkVolumes,
   ShapeFile,
-  //   SankeyDiagram,
-  //   VegaLite,
+  SankeyDiagram,
+  VegaLite,
   //   AggregateOd,
   //   TransitDemand,
   //   VideoPlayer,
