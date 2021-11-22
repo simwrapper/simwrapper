@@ -10,7 +10,7 @@ import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
 // import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
-// import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
+import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 
 // // EVERY plugin must be registered here:
@@ -18,15 +18,15 @@ const plugins = {
   CarrierViewer,
   VehicleAnimation,
   XyHexagons,
-  //   AgentAnimation,
+  // AgentAnimation,
   LinksGl,
   //   LinkVolumes,
   ShapeFile,
   SankeyDiagram,
   VegaLite,
   //   AggregateOd,
-  //   TransitDemand,
-  //   VideoPlayer,
+  // TransitDemand,
+  VideoPlayer,
   ImageView,
 }
 
