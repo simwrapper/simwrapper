@@ -7,13 +7,13 @@ import LinksGl from '@/plugins/links-gl/LinkVolumes.vue'
 // import LinkVolumes from '@/plugins/link-vols/LinkVolumes.vue'
 // import TransitDemand from '@/plugins/transit-demand/TransitDemand.vue'
 import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
-// import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
+import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 
-// // EVERY plugin must be registered here:
+// // EVERY plugin must also be exported here:
 const plugins = {
   CarrierViewer,
   VehicleAnimation,
@@ -24,7 +24,7 @@ const plugins = {
   ShapeFile,
   SankeyDiagram,
   VegaLite,
-  //   AggregateOd,
+  AggregateOd,
   // TransitDemand,
   VideoPlayer,
   ImageView,
