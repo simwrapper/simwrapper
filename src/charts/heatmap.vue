@@ -168,7 +168,4 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-@media only screen and (max-width: 640px) {
-}
 </style>
