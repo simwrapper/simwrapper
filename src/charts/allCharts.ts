@@ -10,5 +10,6 @@ import links from './links.vue'
 import map from './map-polygons.vue'
 import pie from './pie.vue'
 import scatter from './scatter.vue'
+import heatmap from './heatmap.vue'
 
-export default { area, flowmap, links, map, pie, scatter, line, bar, bubble }
+export default { area, flowmap, links, map, pie, scatter, line, bar, bubble, heatmap }
