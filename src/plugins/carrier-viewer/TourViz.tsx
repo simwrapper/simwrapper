@@ -7,7 +7,7 @@ import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
-import { MAP_STYLES } from '@/Globals'
+import { MAP_STYLES, MAPBOX_TOKEN } from '@/Globals'
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -15,11 +15,6 @@ const ICON_MAPPING = {
   box: { x: 128, y: 128, width: 128, height: 128, mask: false },
   vehicle: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
-
-// Set your mapbox token here
-const MAPBOX_TOKEN =
-  'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
-// process.env.MapboxAccessToken // eslint-disable-line
 
 const ambientLight = new AmbientLight({
   color: [255, 255, 255],
@@ -69,22 +64,13 @@ export default function Component(props: {
   traces: any[]
   colors: any
   center: [number, number]
-  settingsShowLayers: { [label: string]: boolean }
   vehicleLookup: string[]
   searchEnabled: boolean
   onClick: any
 }) {
   const mapStyle = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
 
-  const {
-    shipments,
-    shownRoutes,
-    stopMidpoints,
-    settingsShowLayers,
-    center,
-    searchEnabled,
-    onClick,
-  } = props
+  const { shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
 
   const theme = DEFAULT_THEME
 
@@ -189,7 +175,6 @@ export default function Component(props: {
     )
   }
 
-  // if (settingsShowLayers['Routen'])
   layers.push(
     //@ts-ignore:
     new PathLayer({
@@ -216,7 +201,6 @@ export default function Component(props: {
     })
   )
 
-  // if (settingsShowLayers['Routen'])
   layers.push(
     //@ts-ignore:
     new PathOffsetLayer({
