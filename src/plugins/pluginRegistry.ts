@@ -5,7 +5,7 @@ import XyHexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 // import AgentAnimation from '@/plugins/agent-animation/AgentAnimation.vue'
 import LinksGl from '@/plugins/links-gl/LinkVolumes.vue'
 // import LinkVolumes from '@/plugins/link-vols/LinkVolumes.vue'
-// import TransitDemand from '@/plugins/transit-demand/TransitDemand.vue'
+import TransitDemand from '@/plugins/transit-demand/TransitDemand.vue'
 import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
 import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
@@ -25,7 +25,7 @@ const plugins = {
   SankeyDiagram,
   VegaLite,
   AggregateOd,
-  // TransitDemand,
+  TransitDemand,
   VideoPlayer,
   ImageView,
 }

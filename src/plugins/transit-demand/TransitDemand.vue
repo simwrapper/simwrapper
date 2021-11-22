@@ -1,12 +1,3 @@
-<i18n>
-en:
-  metrics: 'Metrics'
-  viewer: 'Transit Network'
-de:
-  metrics: 'Metrics'
-  viewer: 'ÖV Netzwerk'
-</i18n>
-
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
@@ -60,8 +51,14 @@ de:
 </template>
 
 <script lang="ts">
-'use strict'
+const i18n = {
+  messages: {
+    en: { metrics: 'Metrics', viewer: 'Transit Network' },
+    de: { metrics: 'Metrics', viewer: 'ÖV Netzwerk' },
+  },
+}
 
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
@@ -69,13 +66,13 @@ import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from '
 import nprogress from 'nprogress'
 import Papaparse from 'papaparse'
 import yaml from 'yaml'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
+import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
-
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
-import XmlFetcher from '@/workers/XmlFetcher'
+import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyHelper from './TransitSupplyHelper'
 import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -87,10 +84,8 @@ import {
   VisualizationPlugin,
   MAP_STYLES,
 } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import globalStore from '@/store'
 
-import GzipWorker from '@/workers/GzipFetcher.worker'
+import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
@@ -102,7 +97,7 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({ components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool } })
+@Component({ i18n, components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool } })
 class MyComponent extends Vue {
   @Prop({ required: true })
   private root!: string
@@ -165,8 +160,8 @@ class MyComponent extends Vue {
   private _routeData!: { [index: string]: RouteDetails }
   private _stopFacilities!: { [index: string]: NetworkNode }
   private _transitLines!: { [index: string]: TransitLine }
-  private _roadFetcher!: XmlFetcher
-  private _transitFetcher!: XmlFetcher
+  private _roadFetcher!: any
+  private _transitFetcher!: any
   private _transitHelper!: TransitSupplyHelper
 
   public created() {
@@ -237,6 +232,7 @@ class MyComponent extends Vue {
   }
 
   public beforeDestroy() {
+    if (this.xmlWorker) this.xmlWorker.terminate()
     if (this._roadFetcher) this._roadFetcher.destroy()
     if (this._transitFetcher) this._transitFetcher.destroy()
     if (this._transitHelper) this._transitHelper.destroy()
@@ -305,7 +301,7 @@ class MyComponent extends Vue {
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
-        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
+        const allNetworks = files.filter((f) => f.endsWith('network.xml.gz'))
         if (allNetworks.length) network = allNetworks[0]
         else {
           this.loadingText = 'No road network found.'
@@ -316,7 +312,7 @@ class MyComponent extends Vue {
       // Departures: use them if we are in an output folder (and they exist)
       let demandFiles = [] as string[]
       if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+        demandFiles = files.filter((f) => f.endsWith('pt_stop2stop_departures.csv.gz'))
       }
 
       // Coordinates:
@@ -348,18 +344,17 @@ class MyComponent extends Vue {
     }
 
     // 2. try to get it from config
-    const outputConfigs = files.filter(f => f.indexOf('output_config.xml') > -1)
+    const outputConfigs = files.filter((f) => f.indexOf('output_config.xml') > -1)
     if (outputConfigs.length && this.myState.fileSystem) {
       console.log('trying to find CRS in', outputConfigs[0])
-      const fetcher = await XmlFetcher.create({
-        fileApi: this.myState.fileSystem.slug,
-        filePath: this.myState.subfolder + '/' + outputConfigs[0],
-      })
-      const results = (await fetcher.fetchXML()) as any
-      fetcher.destroy()
 
       try {
-        const global = results.config.module.filter((f: any) => f.$.name === 'global')[0]
+        const configXML: any = await this.fetchXML({
+          fileApi: this.myState.fileSystem.slug,
+          filePath: this.myState.subfolder + '/' + outputConfigs[0],
+        })
+
+        const global = configXML.config.module.filter((f: any) => f.$.name === 'global')[0]
         const crs = global.param.filter((p: any) => p.$.name === 'coordinateSystem')[0]
         const crsValue = crs.$.value
 
@@ -520,6 +515,7 @@ class MyComponent extends Vue {
 
   private async mapIsReady() {
     const networks = await this.loadNetworks()
+    console.log({ networks })
     if (networks) this.processInputs(networks)
 
     this.setupKeyListeners()
@@ -527,13 +523,13 @@ class MyComponent extends Vue {
 
   private setupKeyListeners() {
     // const parent = this
-    window.addEventListener('keyup', event => {
+    window.addEventListener('keyup', (event) => {
       if (event.keyCode === 27) {
         // ESC
         this.pressedEscape()
       }
     })
-    window.addEventListener('keydown', event => {
+    window.addEventListener('keydown', (event) => {
       if (event.keyCode === 38) {
         this.pressedArrowKey(-1) // UP
       }
@@ -543,6 +539,32 @@ class MyComponent extends Vue {
     })
   }
 
+  private resolvers: { [id: number]: any } = {}
+  private resolverId = 0
+  private xmlWorker?: Worker
+
+  private fetchXML(props: { fileApi: string; filePath: string; options?: any }) {
+    if (!this.xmlWorker) {
+      this.xmlWorker = new NewXmlFetcher()
+      this.xmlWorker.onmessage = (message: MessageEvent) => {
+        // message.data will have .id and either .error or .xml
+        const { resolve, reject } = this.resolvers[message.data.id]
+        if (message.data.error) reject(message.data.error)
+        resolve(message.data.xml)
+      }
+    }
+
+    // save the promise by id so we can look it up when we get messages
+    const id = this.resolverId++
+
+    this.xmlWorker.postMessage(Object.assign({ id }, props))
+
+    const promise = new Promise((resolve, reject) => {
+      this.resolvers[id] = { resolve, reject }
+    })
+    return promise
+  }
+
   private async loadNetworks() {
     try {
       if (!this.myState.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule)
@@ -550,24 +572,27 @@ class MyComponent extends Vue {
 
       this.loadingText = 'Loading networks...'
 
-      this._roadFetcher = await XmlFetcher.create({
+      // this._xmlWorkers.push(worker) // save it so we can terminate if we have to
+
+      const roads = this.fetchXML({
         fileApi: this.myState.fileSystem.slug,
         filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+        options: { attributeNamePrefix: '' },
       })
-      this._transitFetcher = await XmlFetcher.create({
+      const transit = this.fetchXML({
         fileApi: this.myState.fileSystem.slug,
         filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
+        options: {
+          attributeNamePrefix: '',
+          alwaysArray: [
+            'transitSchedule.transitLine.transitRoute',
+            'transitSchedule.transitLine.transitRoute.departures.departure',
+          ],
+        },
       })
 
-      // launch the long-running processes; these return promises
-      const roadXMLPromise = this._roadFetcher.fetchXML()
-      const transitXMLPromise = this._transitFetcher.fetchXML()
-
       // and wait for them to both complete
-      const results = await Promise.all([roadXMLPromise, transitXMLPromise])
-
-      this._roadFetcher.destroy()
-      this._transitFetcher.destroy()
+      const results = await Promise.all([roads, transit])
 
       const ridership = this.loadDemandData(this.vizDetails.demand)
       return { roadXML: results[0], transitXML: results[1], ridership }
@@ -596,7 +621,7 @@ class MyComponent extends Vue {
         skipEmptyLines: true,
         dynamicTyping: true,
         worker: true,
-        complete: results => {
+        complete: (results) => {
           this.processDemand(results)
         },
       })
@@ -628,7 +653,7 @@ class MyComponent extends Vue {
     group
       .reduceSum((d: any) => d.passengersAtArrival)
       .all()
-      .map(link => {
+      .map((link) => {
         linkPassengersById[link.key as any] = link.value
       })
 
@@ -637,7 +662,7 @@ class MyComponent extends Vue {
     group
       .reduceSum((d: any) => d.totalVehicleCapacity)
       .all()
-      .map(link => {
+      .map((link) => {
         capacity[link.key as any] = link.value
       })
 
@@ -679,13 +704,8 @@ class MyComponent extends Vue {
 
     this.loadingText = 'Crunching transit network...'
 
-    const {
-      network,
-      routeData,
-      stopFacilities,
-      transitLines,
-      mapExtent,
-    }: any = await this._transitHelper.processTransit()
+    const { network, routeData, stopFacilities, transitLines, mapExtent }: any =
+      await this._transitHelper.processTransit()
 
     this._network = network
     this._routeData = routeData
@@ -794,10 +814,7 @@ class MyComponent extends Vue {
     }
 
     content += '<div>'
-    this.mapPopup
-      .setLngLat(event.lngLat)
-      .setHTML(content)
-      .addTo(this.mymap)
+    this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
   }
 
   private async constructDepartureFrequencyGeoJson() {
@@ -849,7 +866,7 @@ class MyComponent extends Vue {
       }
     }
 
-    geojson.sort(function(a: any, b: any) {
+    geojson.sort(function (a: any, b: any) {
       if (a.isRail && !b.isRail) return -1
       if (b.isRail && !a.isRail) return 1
       return 0
@@ -956,7 +973,7 @@ class MyComponent extends Vue {
     }
 
     // sort by highest departures first
-    routes.sort(function(a, b) {
+    routes.sort(function (a, b) {
       return a.departures > b.departures ? -1 : 1
     })
 
@@ -975,7 +992,7 @@ class MyComponent extends Vue {
     const allLinks = this.cfDemand.allFiltered()
     let sum = 0
 
-    allLinks.map(d => {
+    allLinks.map((d) => {
       sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
     })
 
