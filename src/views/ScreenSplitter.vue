@@ -45,6 +45,8 @@ import SplashPage from '@/views/SplashPage.vue'
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
 
+  private baseURL = import.meta.env.BASE_URL
+
   private panels = [
     {
       component: 'SplashPage',
@@ -64,7 +66,7 @@ class MyComponent extends Vue {
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
-    if (to.path === '/') {
+    if (to.path === this.baseURL) {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
       this.panels = [
@@ -162,6 +164,8 @@ class MyComponent extends Vue {
 
   private updateURL() {
     // console.log(this.panels)
+    const BASE = import.meta.env.BASE_URL
+
     if (this.panels.length === 1) {
       const root = this.panels[0].props.root || ''
       const xsubfolder = this.panels[0].props.xsubfolder || ''
@@ -169,13 +173,13 @@ class MyComponent extends Vue {
 
       if (yaml) {
         const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`/split/${base64}`)
+        this.$router.push(`${BASE}split/${base64}`)
       } else {
-        this.$router.push(`/${root}/${xsubfolder}`)
+        this.$router.push(`${BASE}${root}/${xsubfolder}`)
       }
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
-      this.$router.push(`/split/${base64}`)
+      this.$router.push(`${BASE}split/${base64}`)
     }
   }
 }

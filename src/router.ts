@@ -5,22 +5,24 @@ import globalStore from '@/store'
 
 Vue.use(VueRouter)
 
+const BASE = import.meta.env.BASE_URL
+
 const routes = [
   {
-    path: '/gist/:id',
+    path: BASE + 'gist/:id',
     component: () => import(/* webpackChunkName: "gist" */ '@/views/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
   {
-    path: '/*',
+    path: BASE + '*',
     component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page
     path: '*',
-    redirect: '/',
+    redirect: BASE,
   },
 ]
 
@@ -29,7 +31,7 @@ function vizPlugins(): any[] {
   const plugins = []
   for (const plugin of globalStore.state.visualizationTypes.values()) {
     plugins.push({
-      path: '/v/' + plugin.kebabName + '/:slug/*',
+      path: BASE + 'v/' + plugin.kebabName + '/:slug/*',
       name: plugin.kebabName,
       component: plugin.component,
       props: (route: Route) => {
@@ -51,7 +53,7 @@ function vizPlugins(): any[] {
 
 const router = new VueRouter({
   mode: 'history',
-  base: process.env.BASE_URL,
+  base: '/',
   routes: vizPlugins().concat(routes),
   // native-like back/forward and top-of-page routing
   scrollBehavior(to, from, savedPosition) {
@@ -62,5 +64,10 @@ const router = new VueRouter({
     }
   },
 })
+
+// router.beforeEach((to, from, next) => {
+//   console.log(to.path)
+//   next()
+// })
 
 export default router

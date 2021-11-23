@@ -2,6 +2,12 @@
   "name": "simwrapper",
   "version": "1.1.0",
   "private": true,
+  "license": "GPL-3.0-or-later",
+  "author": "Billy Charlton <charlton@tu-berlin.de>",
+  "contributors": [
+    "Friedrich Voelkers <friedrich.k.voelkers@tu-berlin.de>",
+    "Janek Laudan <laudan@vsp.tu-berlin.de>"
+  ],
   "scripts": {
     "serve": "vite",
     "build": "vite build",

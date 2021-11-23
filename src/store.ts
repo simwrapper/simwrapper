@@ -158,7 +158,6 @@ export default new Vuex.Store({
     setLocale(state: GlobalState, value: string) {
       state.locale = value.toLocaleLowerCase()
       localStorage.setItem('locale', state.locale)
-      console.log('NEW LOCALE:', state.locale)
     },
   },
 

@@ -108,7 +108,13 @@ export default class DashboardDataManager {
   }
 
   public removeFilterListener(config: { dataset: string }, listener: any) {
-    this.datasets[config.dataset].filterListeners.delete(listener)
+    try {
+      if (this.datasets[config.dataset].filterListeners) {
+        this.datasets[config.dataset].filterListeners.delete(listener)
+      }
+    } catch (e) {
+      // doesn't matter
+    }
   }
 
   public clearCache() {

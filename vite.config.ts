@@ -3,14 +3,13 @@ import { createVuePlugin } from 'vite-plugin-vue2'
 import markdownPlugin from 'vite-plugin-md'
 
 export default defineConfig({
-  // base: '/',
-  // publicDir: '/simwrapper/',
+  base: '/simwrapper/',
+  build: { sourcemap: true },
   plugins: [
     // vue
     createVuePlugin({ include: [/\.vue$/, /\.md$/] }),
     markdownPlugin(),
   ],
-  build: { sourcemap: true },
   resolve: {
     alias: {
       '@': '/src',
@@ -25,4 +24,5 @@ export default defineConfig({
     // requireFromFile: null,
     // requireFromString: null,
   },
+  // optimizeDeps: { exclude: ['@deck.gl/layers'] },
 })

@@ -1,6 +1,6 @@
 <template lang="pug">
 .run-finder-panel
-  router-link.logo(:to="'/'")
+  router-link.logo(:to="baseURL")
     img(src="@/assets/simwrapper-logo/SW_logo_icon_white.png")
     h3 {{globalState.app }}
 
@@ -63,6 +63,8 @@ class MyComponent extends Vue {
   private state = globalStore.state
 
   private rootNodes: any[] = []
+
+  private baseURL = import.meta.env.BASE_URL
 
   private mounted() {
     // start the run finder process
