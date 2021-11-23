@@ -1,13 +1,13 @@
 <template lang="pug">
-#container(:style="{padding: thumbnail ? '0 0' : '0 20px 20px 20px'}")
+.video-plugin-container(:class="{thumbnail}")
   h3(v-if="!thumbnail") {{ title }}
 
   .vid-container
     video-player.vjs-default-skin.vjs-big-play-centered(
-      v-if="movieSource"
       ref="videoPlayer"
       :options="playerOptions"
     )
+    //- v-if="movieSource"
 
 
 </template>
@@ -16,11 +16,11 @@
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { videoPlayer } from 'vue-video-player'
 
-import '~/video.js/dist/video-js.min.css'
-
 import globalStore from '@/store'
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+
+import '~/video.js/dist/video-js.min.css'
 
 @Component({ components: { videoPlayer } })
 class MyComponent extends Vue {
@@ -41,7 +41,7 @@ class MyComponent extends Vue {
     playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
     preload: 'metadata',
     responsive: true,
-    fluid: true,
+    fluid: !!this.thumbnail,
     playsInline: true,
     controls: true,
     sources: [] as any[],
@@ -55,7 +55,6 @@ class MyComponent extends Vue {
   }
 
   public beforeDestroy() {
-    window.removeEventListener('resize', this.onResize)
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
   }
 
@@ -73,9 +72,6 @@ class MyComponent extends Vue {
     }
 
     this.getVizDetails()
-
-    // if (!this.thumbnail) this.generateBreadcrumbs()
-    if (!this.thumbnail) window.addEventListener('resize', this.onResize)
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -130,38 +126,6 @@ class MyComponent extends Vue {
     this.buildMovieSource()
   }
 
-  private aspect = 0
-
-  public onResize() {
-    const parent = document.getElementsByClassName('vid-container')[0] as HTMLElement
-    const video = document.getElementsByClassName('video-js')[0] as HTMLElement
-
-    if (!this.aspect) this.aspect = video.clientHeight / video.clientWidth
-
-    var parentWidth = parent.clientWidth
-    var windowHeight = window.innerHeight
-    var windowWidth = window.innerWidth
-
-    parent.style.width = '100%'
-    parent.style.margin = 'auto auto'
-
-    const maxHeight = windowHeight - 120
-    const newWidth = Math.floor(maxHeight / this.aspect)
-    video.style.width = `${newWidth}px`
-    video.style.height = `${newWidth * this.aspect}px`
-    parent.style.width = `${newWidth}px`
-    parent.style.height = `${newWidth * this.aspect}px`
-
-    const maxWidth = windowWidth - 60
-    if (video.clientWidth > maxWidth) {
-      const newWidth = maxWidth
-      video.style.width = `${newWidth}px`
-      video.style.height = `${newWidth * this.aspect}px`
-      parent.style.width = `${newWidth}px`
-      parent.style.height = `${newWidth * this.aspect}px`
-    }
-  }
-
   private async generateBreadcrumbs() {
     const filesystem = this.getFileSystem(this.$route.params.project)
     if (!filesystem) return []
@@ -213,22 +177,52 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 </script>
 
+<style>
+.video-js {
+  position: absolute;
+  width: 100%;
+  height: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto 0;
+  background-color: #223;
+}
+</style>
+
 <style scoped lang="scss">
-#container {
+.video-plugin-container {
   display: flex;
   flex-direction: column;
-  // grid-template-columns: 1fr;
-  // grid-template-rows: auto auto;
   background-color: #223;
+  padding: 0 20px 20px 20px;
+  position: relative;
+}
+
+.thumbnail {
+  height: 11rem;
+  // z-index: -1;
+  padding: 0 0;
+}
+
+.vid-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.thumbnail .vid-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
 }
 
 h3 {
   color: #ccc;
   padding: 0.5rem 0;
   text-align: center;
-}
-
-.video-js {
-  background-color: #223;
 }
 </style>
