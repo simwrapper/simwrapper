@@ -25,6 +25,7 @@ export default class VueComponent extends Vue {
   private async mounted() {
     this.updateTheme()
     await this.loadData()
+    this.$emit('isLoaded')
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
