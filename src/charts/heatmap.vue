@@ -1,5 +1,5 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}" :class="className")
+vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}")
 
 </template>
 
@@ -73,7 +73,6 @@ export default class VueComponent extends Vue {
 
     // Reads all the data of the x-axis.
     for (const [key, value] of Object.entries(this.dataRows[0])) {
-      console.log(this.dataRows[0])
       if (this.config.columns.includes(key)) {
         xaxis.push(key)
       }
