@@ -61,7 +61,7 @@ This works as far up the hierarchy as the base of the public-svn specified in `s
 
 **geojsonFile** - The standard MATSim network.xml.gz file is very inefficient and slow to load. Create the `geoJsonFile` network file using the following Python script:
 
-- [create-network.py](https://simwrapper.github.io/docs/scripts/create-network.py)
+- [create-network.py](https://simwrapper.github.io/docs/docs/scripts/create-network.py)
 - You will need to install Python 3 to use this script.
 
 **csvFile** - Use whatever method you like to produce a CSV for your data. The first line of the file should contain labels of the column names, e.g. the hour of the day, etc.

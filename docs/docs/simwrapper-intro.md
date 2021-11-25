@@ -3,7 +3,7 @@ id: simwrapper-intro
 title: What is SimWrapper?
 ---
 
-**SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate, transportation simulations with software such as [MATSim](https://matsim.org) and [ActivitySim](https://activitysim.github.io).
+**SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate transportation simulations with software such as [MATSim](https://matsim.org) and [ActivitySim](https://activitysim.github.io).
 
 ![SimWrapper banner](assets/simwrapper-scrnshot-collage.jpg)
 
@@ -11,7 +11,7 @@ SimWrapper provides many interactive views such as agent movements through time,
 
 The open-source code and plugin architecture of SimWrapper allows you to fork the project and create your own visualizations, too.
 
-This guide assumes you are either using the [main SimWrapper site](https://simwrapper.github.io), or have already set up your own instance of SimWrapper and have access to the file storage area that you configured.
+This guide assumes you are either using the [main SimWrapper site](https://vsp.berlin/simwrapper), or have already set up your own instance of SimWrapper and have access to the file storage area that you configured.
 
 ## 1. Where to store your files
 
