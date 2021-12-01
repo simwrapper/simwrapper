@@ -4,11 +4,6 @@ import os
 import re
 import sys
 
-print("\n-----------------------------------------------------------------")
-print("Serving: " + os.getcwd())
-print("Simwrapper-File-Server: serving with RANGE and CORS (open access)")
-print("-----------------------------------------------------------------\n")
-
 try:
     # Python3
     import http.server as SimpleHTTPServer
@@ -122,6 +117,13 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         return None
 
+def run_mini_file_server(port):
+    print("\n-----------------------------------------------------------------")
+    print("SimWrapper-File-Server: " + os.getcwd())
+    print("-----------------------------------------------------------------\n")
+    test(HandlerClass=RangeRequestHandler, port=port)
 
-test(HandlerClass=RangeRequestHandler) # , port=args.port)
+
+if __name__ == '__main__':
+    run_mini_file_server(8000)
 

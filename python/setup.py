@@ -32,7 +32,7 @@ setup(
     tests_require=["assertpy", "pytest"],
     entry_points={
         'console_scripts': [
-            'simwrapper = simwrapper.simwrapper:cli'
+            'simwrapper = simwrapper.cli:cli'
         ]
     },
     long_description=README,
