@@ -14,7 +14,6 @@ def cli():
 @cli.command(help="Start a local file server in this folder")
 @click.argument('port', default=8000)
 def serve(port):
-  click.echo("SERVE! " + str(port))
   MiniFileServer.run_mini_file_server(port)
 
 # @cli.command(help="Open your browser and view files in this folder")

@@ -3,6 +3,7 @@ import argparse
 import os
 import re
 import sys
+import socket
 
 try:
     # Python3
@@ -117,11 +118,29 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         return None
 
+def find_free_port(port):
+    for i in range(port,port+256):
+        s = socket.socket()
+
+        try:
+            s.bind(('', i))
+            s.close()
+            print("Found free port:",i)
+            return i
+
+        except:
+            pass
+        finally:
+            s.close()
+
 def run_mini_file_server(port):
     print("\n-----------------------------------------------------------------")
-    print("SimWrapper-File-Server: " + os.getcwd())
+    print("SimWrapper file server:", os.getcwd())
+
+    free_port = find_free_port(port)
+
     print("-----------------------------------------------------------------\n")
-    test(HandlerClass=RangeRequestHandler, port=port)
+    test(HandlerClass=RangeRequestHandler, port=free_port)
 
 
 if __name__ == '__main__':
