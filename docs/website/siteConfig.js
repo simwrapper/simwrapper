@@ -2,7 +2,7 @@ const siteConfig = {
   title: "SimWrapper", // Title for your website.
   tagline: "The simulation visualizer from TU Berlin",
   url: "https://simwrapper.github.io", // Your website URL
-  baseUrl: "/docs/", // Base URL for your project */
+  baseUrl: "/", // Base URL for your project */
   projectName: "simwrapper.github.io",
   organizationName: "simwrapper",
   headerIcon: "img/SW_favicon.png",

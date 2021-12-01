@@ -55,7 +55,7 @@ h2.headerTitleWithLogo:hover {
 }
 
 .homeContainer {
-  background-image: url("/docs/img/berlin-dots.jpg");
+  background-image: url("/img/berlin-dots.jpg");
   margin: 0 0;
   padding: 5rem 0;
 }

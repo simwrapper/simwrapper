@@ -47,7 +47,7 @@ class HomeSplash extends React.Component {
           backgroundColor: "#ffffff",
         }}
       >
-        <img src="/docs/img/logo-animated.gif" width="200" />
+        <img src="/img/logo-animated.gif" width="200" />
         <div
           style={{
             display: "flex",
