@@ -8,6 +8,7 @@ HERE = pathlib.Path(__file__).parent
 # The text of the README file
 README = (HERE / "README.md").read_text()
 VERSION = (HERE / "VERSION").read_text()
+CHANGELOG = (HERE / "CHANGELOG.md").read_text()
 
 # This call to setup() does all the work
 setup(
@@ -35,5 +36,5 @@ setup(
             'simwrapper = simwrapper.cli:cli'
         ]
     },
-    long_description=README,
+    long_description=README + "\n---\n" + CHANGELOG,
 )
