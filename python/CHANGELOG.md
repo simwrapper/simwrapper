@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.1.0...v1.2.0) (2021-12-01)
+
+
+### Features
+
+* Learned new command "simwrapper open [vsp/asim]" ([80551ae](https://github.com/simwrapper/simwrapper-python-tools/commit/80551ae95d6d68166ef064b405c080220824d6b7))
+
+
+### Bug Fixes
+
+* use next open port, starting at 8000 ([3501c21](https://github.com/simwrapper/simwrapper-python-tools/commit/3501c21b249121d951a10e03b05da77613846645))
+
 ## 1.1.0 (2021-12-01)
 
 
