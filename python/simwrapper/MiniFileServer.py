@@ -125,7 +125,6 @@ def find_free_port(port):
         try:
             s.bind(('', i))
             s.close()
-            print("Found free port:",i)
             return i
 
         except:
@@ -135,7 +134,8 @@ def find_free_port(port):
 
 def run_mini_file_server(port):
     print("\n-----------------------------------------------------------------")
-    print("SimWrapper file server:", os.getcwd())
+    print("SimWrapper file server: port", port)
+    print(os.getcwd())
 
     free_port = find_free_port(port)
 
