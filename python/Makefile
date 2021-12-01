@@ -31,6 +31,10 @@ push: test build
 > twine upload dist/*
 .PHONY: push
 
+bump-version:
+> npx standard-version
+.PHONY: bump-version
+
 #.build-sentinel: $(shell find simwrapper/*.py) $(shell find docs/*) README.md setup.py
 .build-sentinel: $(shell find simwrapper/*.py) README.md setup.py
 > rm -rf dist
