@@ -1,14 +1,3 @@
-<i18n>
-en:
-  title: 'Draw Shapes'
-  hint: 'Click on map to draw shapes.'
-  clear: 'Clear'
-  shapefile: 'Export'
-  close-shape: 'Add more points to close shape.'
-  more-shapes: 'Export now or start new shape.'
-de:
-</i18n>
-
 <template lang="pug">
 .draw-thing
   .map(:id="mapID" v-show="showShapeDrawer")
@@ -34,6 +23,19 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      title: 'Draw Shapes',
+      hint: 'Click on map to draw shapes.',
+      clear: 'Clear',
+      shapefile: 'Export',
+      'close-shape': 'Add more points to close shape.',
+      'more-shapes': 'Export now or start new shape.',
+    },
+    de: {},
+  },
+}
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import proj4 from 'proj4'
@@ -43,7 +45,7 @@ import LayerManager from '@/js/LayerManager'
 import { MAP_STYLES } from '@/Globals'
 import globalStore from '@/store'
 
-@Component({ components: {} })
+@Component({ i18n, components: {} })
 export default class VueComponent extends Vue {
   private canExport = false
   private points: any[] = []
@@ -257,7 +259,6 @@ export default class VueComponent extends Vue {
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .draw-thing {

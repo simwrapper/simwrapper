@@ -25,6 +25,7 @@ import * as turf from '@turf/turf'
 import { FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 @Component({ components: { PolygonAndCircleMap } })
 export default class VueComponent extends Vue {
@@ -32,6 +33,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop({ required: true }) datamanager!: DashboardDataManager
 
   private fileApi!: HTTPFileSystem
   private thread!: any
@@ -42,6 +44,8 @@ export default class VueComponent extends Vue {
   private activeColumn = ''
   private useCircles = false
   private sliderOpacity = 80
+
+  private globalState = this.$store.state
 
   private maxValue = 1000
   private expColors = this.config.exponentColors
@@ -71,8 +75,59 @@ export default class VueComponent extends Vue {
     this.$emit('isLoaded')
   }
 
+  private beforeDestroy() {
+    this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+  }
+
+  private async handleMapClick(click: any) {
+    try {
+      const { x, y, data } = click.points[0]
+
+      const filter = this.config.groupBy
+      const value = x
+
+      this.datamanager.setFilter(this.config.dataset, filter, value)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  private async handleFilterChanged() {
+    console.log('CHANGED FILTER')
+    // try {
+    //   const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
+
+    //   // is filter UN-selected?
+    //   if (!filteredRows) {
+    //     this.data = [this.data[0]]
+    //     this.data[0].opacity = 1.0
+    //     return
+    //   }
+
+    //   const fullDataCopy = Object.assign({}, this.data[0])
+
+    //   fullDataCopy.x = filteredRows.x
+    //   fullDataCopy.y = filteredRows.y
+    //   fullDataCopy.opacity = 1.0
+    //   fullDataCopy.name = 'Filtered'
+    //   //@ts-ignore - let plotly manage bar colors EXCEPT the filter
+    //   fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+
+    //   this.data = [this.data[0], fullDataCopy]
+    //   this.data[0].opacity = 0.3
+    //   this.data[0].name = 'All'
+    // } catch (e) {
+    //   const message = '' + e
+    //   console.log(message)
+    //   this.dataRows = {}
+    // }
+  }
+
   private async loadBoundaries() {
     if (!this.config.boundaries) return
+
+    // const { allRows } = await this.datamanager.getDataset(this.config)
+    // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
     try {
       if (this.config.boundaries.startsWith('http')) {

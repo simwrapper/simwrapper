@@ -219,7 +219,8 @@ class MyComponent extends Vue {
     } catch (e) {
       console.log('failed')
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+      const err = e as any
+      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
@@ -370,7 +371,7 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
+@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 #v3-app {

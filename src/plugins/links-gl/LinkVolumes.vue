@@ -1,22 +1,3 @@
-<i18n>
-en:
-  all: "All"
-  colors: "Colors"
-  loading: "Loading"
-  selectColumn: "Select data column"
-  timeOfDay: "Time of day"
-  bandwidths: "Widths: 1 pixel ="
-  showDiffs: "Show Differences"
-de:
-  all: "Alle"
-  colors: "Farben"
-  loading: "Wird geladen"
-  selectColumn: "Datenspalte wählen"
-  timeOfDay: "Uhrzeit"
-  bandwidths: "Linienbreiten: 1 pixel ="
-  showDiffs: "Differenzen"
-</i18n>
-
 <template lang="pug">
 .link-volume-plot(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}'
@@ -77,6 +58,28 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      all: 'All',
+      colors: 'Colors',
+      loading: 'Loading',
+      selectColumn: 'Select data column',
+      timeOfDay: 'Time of day',
+      bandwidths: 'Widths: 1 pixel =',
+      showDiffs: 'Show Differences',
+    },
+    de: {
+      all: 'Alle',
+      colors: 'Farben',
+      loading: 'Wird geladen',
+      selectColumn: 'Datenspalte wählen',
+      timeOfDay: 'Uhrzeit',
+      bandwidths: 'Linienbreiten: 1 pixel =',
+      showDiffs: 'Differenzen',
+    },
+  },
+}
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
 import Papaparse from 'papaparse'
@@ -90,7 +93,7 @@ import ConfigPanel from './ConfigPanel.vue'
 import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
-import GzipFetcher from '@/workers/GzipFetcher.worker'
+import GzipFetcher from '@/workers/GzipFetcher.worker.ts?worker'
 
 import {
   ColorScheme,
@@ -113,6 +116,7 @@ interface CSV {
 }
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     ConfigPanel,
@@ -240,8 +244,9 @@ class MyPlugin extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = YAML.parse(text)
-    } catch (e) {
-      console.log('failed')
+    } catch (err) {
+      console.error('failed')
+      const e = err as any
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
@@ -309,7 +314,7 @@ class MyPlugin extends Vue {
     // // find max value for scaling
     if (!this.csvData.headerMax[column]) {
       let max = 0
-      this.buildColumnValues[column].forEach(value => (max = Math.max(max, value)))
+      this.buildColumnValues[column].forEach((value) => (max = Math.max(max, value)))
       if (max) this.csvData.headerMax[column] = max
     }
 
@@ -383,10 +388,9 @@ class MyPlugin extends Vue {
     if (!this.myState.fileApi) return
 
     try {
+      this.myState.statusMessage = 'Loading network...'
       this.linkOffsetLookup = {}
       this.numLinks = 0
-
-      this.myState.statusMessage = 'Loading network...'
 
       const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
 
@@ -593,7 +597,6 @@ export default MyPlugin
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .link-volume-plot {

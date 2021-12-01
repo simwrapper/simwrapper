@@ -13,13 +13,13 @@ import SVNFileSystem from './js/HTTPFileSystem'
 const initialViewState = () => ({
   // start with western europe for now
   initial: true,
-  // longitude: 3.4,
-  // latitude: 45.5,
-  // zoom: 4,
   pitch: 0,
-  longitude: 10,
-  latitude: 50,
-  zoom: 5,
+  longitude: -122.4,
+  latitude: 37.8,
+  zoom: 9,
+  // longitude: 10,
+  // latitude: 50,
+  // zoom: 5,
   bearing: 0,
 })
 
@@ -158,7 +158,6 @@ export default new Vuex.Store({
     setLocale(state: GlobalState, value: string) {
       state.locale = value.toLocaleLowerCase()
       localStorage.setItem('locale', state.locale)
-      console.log('NEW LOCALE:', state.locale)
     },
   },
 

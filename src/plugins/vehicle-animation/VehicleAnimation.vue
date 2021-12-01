@@ -152,7 +152,7 @@ class VehicleAnimation extends Vue {
     'DRT Anfragen': false,
   }
 
-  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map(key => {
+  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map((key) => {
     return { type: LegendItemType.line, color: this.COLOR_OCCUPANCY[key], value: key, label: key }
   })
 
@@ -281,8 +281,9 @@ class VehicleAnimation extends Vue {
       )
       this.vizDetails = YAML.parse(text)
       if (!this.vizDetails.center) this.vizDetails.center = [14, 52.1]
-    } catch (e) {
+    } catch (err) {
       console.log('failed')
+      const e = err as any
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
@@ -462,23 +463,23 @@ class VehicleAnimation extends Vue {
     console.log('parsing vehicle motion')
     this.myState.statusMessage = '/ Standorte berechnen...'
     this.paths = await this.parseVehicles(trips)
-    this.pathStart = this.paths.dimension(d => d.t0)
-    this.pathEnd = this.paths.dimension(d => d.t1)
-    this.pathVehicle = this.paths.dimension(d => d.v)
+    this.pathStart = this.paths.dimension((d) => d.t0)
+    this.pathEnd = this.paths.dimension((d) => d.t1)
+    this.pathVehicle = this.paths.dimension((d) => d.v)
 
     console.log('Routen verarbeiten...')
     this.myState.statusMessage = '/ Routen verarbeiten...'
     this.traces = await this.parseRouteTraces(trips)
-    this.traceStart = this.traces.dimension(d => d.t0)
-    this.traceEnd = this.traces.dimension(d => d.t1)
-    this.traceVehicle = this.traces.dimension(d => d.v)
+    this.traceStart = this.traces.dimension((d) => d.t0)
+    this.traceEnd = this.traces.dimension((d) => d.t1)
+    this.traceVehicle = this.traces.dimension((d) => d.v)
 
     console.log('Anfragen sortieren...')
     this.myState.statusMessage = '/ Anfragen...'
     this.requests = await this.parseDrtRequests(drtRequests)
-    this.requestStart = this.requests.dimension(d => d[0]) // time0
-    this.requestEnd = this.requests.dimension(d => d[6]) // arrival
-    this.requestVehicle = this.requests.dimension(d => d[5])
+    this.requestStart = this.requests.dimension((d) => d[0]) // time0
+    this.requestEnd = this.requests.dimension((d) => d[6]) // arrival
+    this.requestVehicle = this.requests.dimension((d) => d[5])
 
     console.log('GO!')
     this.myState.statusMessage = ''
@@ -619,7 +620,7 @@ class VehicleAnimation extends Vue {
           vehicle.path[i][0] === vehicle.path[i - 1][0] &&
           vehicle.path[i][1] === vehicle.path[i - 1][1]
         ) {
-          segments.forEach(segment => {
+          segments.forEach((segment) => {
             segment.t1 = vehicle.timestamps[i - 1]
           })
 
@@ -639,7 +640,7 @@ class VehicleAnimation extends Vue {
       }
 
       // save final segments
-      segments.forEach(segment => {
+      segments.forEach((segment) => {
         segment.t1 = nextTime
       })
       traces.push(...segments)
@@ -712,7 +713,7 @@ export default VehicleAnimation
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
+@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .gl-app {

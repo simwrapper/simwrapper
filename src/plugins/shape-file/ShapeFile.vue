@@ -1,19 +1,3 @@
-<i18n>
-en:
-  all: "All"
-  colors: "Colors"
-  loading: "Loading"
-  selectColumn: "Select data column"
-  timeOfDay: "Time of Day"
-
-de:
-  all: "Alle"
-  colors: "Farben"
-  loading: "Wird geladen"
-  selectColumn: "Datenspalte wählen"
-  timeOfDay: "Uhrzeit"
-</i18n>
-
 <template lang="pug">
 .gl-viz(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
@@ -54,6 +38,24 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      all: 'All',
+      colors: 'Colors',
+      loading: 'Loading',
+      selectColumn: 'Select data column',
+      timeOfDay: 'Time of Day',
+    },
+    de: {
+      all: 'Alle',
+      colors: 'Farben',
+      loading: 'Wird geladen',
+      selectColumn: 'Datenspalte wählen',
+      timeOfDay: 'Uhrzeit',
+    },
+  },
+}
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
 import EPSGdefinitions from 'epsg'
@@ -75,6 +77,7 @@ import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     PolygonConfigurator,
@@ -240,7 +243,7 @@ class MyPlugin extends Vue {
     // // find max value for scaling
     if (!this.columnMax[header]) {
       let max = 0
-      Object.values(this.shapefile.data).forEach(row => {
+      Object.values(this.shapefile.data).forEach((row) => {
         max = Math.max(max, row.properties[header])
       })
       if (max) this.columnMax[header] = max || 1
@@ -360,7 +363,6 @@ export default MyPlugin
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .gl-viz {

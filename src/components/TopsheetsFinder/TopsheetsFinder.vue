@@ -1,10 +1,3 @@
-<i18n>
-en:
-  title: 'Key Performance Indicators'
-de:
-  title: 'Key Performance Indicators'
-</i18n>
-
 <template lang="pug">
 .topsheets-finder.curate-content
   top-sheet(v-for="sheet of topsheets" :key="sheet"
@@ -17,6 +10,12 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { title: 'Key Performance Indicators' },
+  },
+}
+
 import micromatch from 'micromatch'
 
 import { FileSystemConfig } from '@/Globals'
@@ -24,7 +23,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-@Component({ components: { TopSheet } })
+@Component({ i18n, components: { TopSheet } })
 export default class VueComponent extends Vue {
   @Prop({ required: true })
   private fileSystemConfig!: FileSystemConfig
@@ -99,7 +98,6 @@ export default class VueComponent extends Vue {
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 h3.curate-heading {

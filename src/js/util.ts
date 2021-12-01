@@ -1,5 +1,5 @@
 import micromatch from 'micromatch'
-import xml2js from 'xml2js'
+import { XMLParser } from 'fast-xml-parser'
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -46,54 +46,43 @@ export function findMatchingGlobInFiles(filenames: string[], glob: string): stri
   return []
 }
 
-export async function parseXML(xml: string, settings: any) {
-  // The '$' object contains a leaf's attributes
-  // The '$$' object contains an explicit array of the children
+export async function parseXML(xml: string, settings: any = {}) {
+  // This uses the fast-xml-parser library, which is the least-quirky
+  // of all the terrible XML libraries.
   //
-  // Sometimes you can also refer to a child node by name, such as
-  // carrier.shipments
+  // - Element attributes are stored directly in the element as "$attributeName"
+  //
+  // - Items with just one element are stored as is; but you can
+  //   force a path to be always-array with "alwaysArray: ['my.path.to.element]"
+  //
+  // - Order is not preserved; like items are stored as arrays. For matsim, this
+  //   is only a problem for plans (I think?) but you can recreate the plan order
+  //   since act and leg elements always alternate. (Or use "preserveOrder: true"
+  //   but that creates LOTS of one-item arrays everywhere. Sad.)
 
-  // Some examples:
-
-  // PLANS
-  // plan is at carriers.carrier[x].plan[0] -- are there ever multiple plans?
-  // tour is at plan.tour[x]
-  // -- $ has vehicleId
-  // -- $$ has array of:
-  //       #name --> act/leg
-  //           $ --> other params
-  //       route --> string of links "12345 6789 123"
-
-  // SHIPMENTS
-  // to get the array of shipment objects, use
-  // carriers.carrier[x].shipments.$$ -> returns array of shipment objects
-  // -- each shipment object: has .$ attributes
-
-  // these options are all mandatory for reading the complex carriers
-  // file. The main weirdness is that matsim puts children of different
-  // types in an order that matters (act,leg,act,leg,act... etc)
-  const defaultConfig = () => {
-    return {
-      strict: true,
-      trim: true,
-      preserveChildrenOrder: true,
-      explicitChildren: true,
-      explicitArray: true,
-    }
+  const defaultConfig = {
+    ignoreAttributes: false,
+    preserveOrder: false,
+    attributeNamePrefix: '$',
+    isArray: undefined as any,
   }
 
-  const options = Object.assign(defaultConfig, settings)
+  // Allow user to pass in an array of "always as array" XML paths:
+  if (settings.alwaysArray)
+    defaultConfig.isArray = (name: string, jpath: string) => {
+      if (settings.alwaysArray.indexOf(jpath) !== -1) return true
+    }
 
-  const parser = new xml2js.Parser(options)
+  const options = Object.assign(defaultConfig, settings)
+  const parser = new XMLParser(options)
 
   return new Promise((resolve, reject) => {
-    parser.parseString(xml, function(err: Error, result: string) {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(result)
-      }
-    })
+    try {
+      const result = parser.parse(xml)
+      resolve(result)
+    } catch (err) {
+      reject(err)
+    }
   })
 }
 

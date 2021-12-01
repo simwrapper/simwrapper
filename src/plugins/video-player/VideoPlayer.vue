@@ -1,50 +1,38 @@
 <template lang="pug">
-#container(:style="{padding: thumbnail ? '0 0' : '0 20px 20px 20px'}")
+.video-plugin-container(:class="{thumbnail}")
   h3(v-if="!thumbnail") {{ title }}
 
   .vid-container
     video-player.vjs-default-skin.vjs-big-play-centered(
-      v-if="movieSource"
       ref="videoPlayer"
       :options="playerOptions"
     )
+    //- v-if="movieSource"
 
 
 </template>
 
 <script lang="ts">
-'use strict'
-
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import readBlob from 'read-blob'
 import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
-import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
+import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({
-  components: {
-    'video-player': videoPlayer,
-  },
-})
+import '~/video.js/dist/video-js.min.css'
+
+@Component({ components: { videoPlayer } })
 class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
-
-  @Prop({ required: false })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private thumbnail!: boolean
-
-  private globalState = globalStore.state
+  @Prop({ required: true }) private root!: string
+  @Prop({ required: true }) private subfolder!: string
+  @Prop({ required: true }) private yamlConfig!: string
+  @Prop({ required: true }) private thumbnail!: boolean
 
   private movieSource = ''
   private title = ''
+
+  private fileApi?: FileSystemConfig
 
   // videojs options
   private playerOptions = {
@@ -53,40 +41,37 @@ class MyComponent extends Vue {
     playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
     preload: 'metadata',
     responsive: true,
-    fluid: true,
+    fluid: !!this.thumbnail,
     playsInline: true,
     controls: true,
     sources: [] as any[],
   }
 
   private myState = {
-    fileApi: this.fileApi,
     subfolder: this.subfolder,
     yamlConfig: this.yamlConfig,
     thumbnail: this.thumbnail,
     imageData: '',
   }
 
-  public destroyed() {
-    window.removeEventListener('resize', this.onResize)
-
+  public beforeDestroy() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
   }
 
   public mounted() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', true)
 
+    this.fileApi = this.getFileSystem(this.root)
+
     if (!this.yamlConfig) {
       this.buildRouteFromUrl()
     } else {
-      const filesystem = this.getFileSystem(this.$route.name as string)
-      this.buildMovieSource(filesystem.slug, this.subfolder + '/', this.yamlConfig)
+      this.myState.subfolder = this.subfolder
+      this.myState.yamlConfig = this.yamlConfig
+      this.buildMovieSource()
     }
 
     this.getVizDetails()
-
-    if (!this.thumbnail) this.generateBreadcrumbs()
-    if (!this.thumbnail) window.addEventListener('resize', this.onResize)
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -99,8 +84,8 @@ class MyComponent extends Vue {
     this.getVizDetails()
   }
 
-  private buildMovieSource(url: string, subfolder: string, config: string) {
-    this.movieSource = `${url}/${subfolder}${config}`
+  private buildMovieSource() {
+    this.movieSource = `${this.fileApi?.baseURL}/${this.myState.subfolder}/${this.myState.yamlConfig}`
 
     this.playerOptions.sources.push({
       type: 'video/mp4',
@@ -109,12 +94,9 @@ class MyComponent extends Vue {
   }
 
   private getFileSystem(name: string) {
-    let svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
       (a: FileSystemConfig) => a.slug === name
     )
-    if (svnProject.length === 0) {
-      svnProject = globalStore.state.svnProjects.filter((a: any) => a.url === name.substring(8))
-    }
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error
@@ -123,7 +105,7 @@ class MyComponent extends Vue {
   }
 
   // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
+  private async buildRouteFromUrl() {
     const params = this.$route.params
     if (!params.project || !params.pathMatch) {
       console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
@@ -131,8 +113,7 @@ class MyComponent extends Vue {
     }
 
     // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.fileApi = this.getFileSystem(params.project)
 
     // subfolder and config file
     const sep = 1 + params.pathMatch.lastIndexOf('/')
@@ -142,39 +123,7 @@ class MyComponent extends Vue {
     this.myState.subfolder = subfolder
     this.myState.yamlConfig = config
 
-    this.buildMovieSource(filesystem.slug, subfolder, config)
-  }
-
-  private aspect = 0
-
-  public onResize() {
-    const parent = document.getElementsByClassName('vid-container')[0] as HTMLElement
-    const video = document.getElementsByClassName('video-js')[0] as HTMLElement
-
-    if (!this.aspect) this.aspect = video.clientHeight / video.clientWidth
-
-    var parentWidth = parent.clientWidth
-    var windowHeight = window.innerHeight
-    var windowWidth = window.innerWidth
-
-    parent.style.width = '100%'
-    parent.style.margin = 'auto auto'
-
-    const maxHeight = windowHeight - 120
-    const newWidth = Math.floor(maxHeight / this.aspect)
-    video.style.width = `${newWidth}px`
-    video.style.height = `${newWidth * this.aspect}px`
-    parent.style.width = `${newWidth}px`
-    parent.style.height = `${newWidth * this.aspect}px`
-
-    const maxWidth = windowWidth - 60
-    if (video.clientWidth > maxWidth) {
-      const newWidth = maxWidth
-      video.style.width = `${newWidth}px`
-      video.style.height = `${newWidth * this.aspect}px`
-      parent.style.width = `${newWidth}px`
-      parent.style.height = `${newWidth * this.aspect}px`
-    }
+    this.buildMovieSource()
   }
 
   private async generateBreadcrumbs() {
@@ -228,24 +177,52 @@ globalStore.commit('registerPlugin', {
 export default MyComponent
 </script>
 
-<style scoped lang="scss">
-@import '~video.js/dist/video-js.min.css';
+<style>
+.video-js {
+  position: absolute;
+  width: 100%;
+  height: auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto 0;
+  background-color: #223;
+}
+</style>
 
-#container {
+<style scoped lang="scss">
+.video-plugin-container {
   display: flex;
   flex-direction: column;
-  // grid-template-columns: 1fr;
-  // grid-template-rows: auto auto;
   background-color: #223;
+  padding: 0 20px 20px 20px;
+  position: relative;
+}
+
+.thumbnail {
+  height: 11rem;
+  // z-index: -1;
+  padding: 0 0;
+}
+
+.vid-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.thumbnail .vid-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
 }
 
 h3 {
   color: #ccc;
   padding: 0.5rem 0;
   text-align: center;
-}
-
-.video-js {
-  background-color: #223;
 }
 </style>

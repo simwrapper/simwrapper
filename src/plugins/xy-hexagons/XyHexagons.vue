@@ -1,26 +1,3 @@
-<i18n>
-en:
-  loading: 'Loading data...'
-  sorting: 'Sorting into bins...'
-  threedee: 'Show in 3D'
-  aggregate: 'Summary'
-  maxHeight: 'Max Height'
-  showDetails: 'Show Details'
-  selection: 'Selection'
-  areas: 'Areas'
-  count: 'Count'
-de:
-  loading: 'Dateien laden...'
-  sorting: 'Sortieren...'
-  threedee: 'In 3D anzeigen'
-  aggregate: 'Daten'
-  maxHeight: 'Max Höhe'
-  showDetails: 'Details anzeigen'
-  selection: 'Ausgewählt'
-  areas: 'Orte'
-  count: 'Anzahl'
-</i18n>
-
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
@@ -85,17 +62,42 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      loading: 'Loading data...',
+      sorting: 'Sorting into bins...',
+      threedee: 'Show in 3D',
+      aggregate: 'Summary',
+      maxHeight: 'Max Height',
+      showDetails: 'Show Details',
+      selection: 'Selection',
+      areas: 'Areas',
+      count: 'Count',
+    },
+    de: {
+      loading: 'Dateien laden...',
+      sorting: 'Sortieren...',
+      threedee: 'In 3D anzeigen',
+      aggregate: 'Daten',
+      maxHeight: 'Max Höhe',
+      showDetails: 'Details anzeigen',
+      selection: 'Ausgewählt',
+      areas: 'Orte',
+      count: 'Anzahl',
+    },
+  },
+}
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
-import { spawn, Worker, Thread, ModuleThread } from 'threads'
 
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
-import { CSVParser } from './CsvGzipParser.thread'
+import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
 
 import {
   ColorScheme,
@@ -107,7 +109,6 @@ import {
   Status,
 } from '@/Globals'
 
-// import XyHexLayer from './XyHexLayer'
 import XyHexDeckMap from './XyHexDeckMap.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -130,10 +131,10 @@ interface VizDetail {
 }
 
 @Component({
+  i18n,
   components: {
     CollapsiblePanel,
     DrawingTool,
-    // XyHexLayer,
     XyHexDeckMap,
     VueSlider,
     ToggleButton,
@@ -403,7 +404,8 @@ class XyHexagons extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = YAML.parse(text)
-    } catch (e) {
+    } catch (err) {
+      const e = err as any
       console.log('failed')
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
@@ -457,7 +459,7 @@ class XyHexagons extends Vue {
   private handleShowSelectionButton() {
     const arrays = Object.values(this.multiSelectedHexagons)
     let points: any[] = []
-    arrays.map(a => (points = points.concat(a)))
+    arrays.map((a) => (points = points.concat(a)))
 
     const pickedObject = { object: { points } }
     this.flipViewToShowInvertedData(pickedObject)
@@ -474,7 +476,7 @@ class XyHexagons extends Vue {
     numHexagons: number
     selectedHexagonIds: any[]
   } | null {
-    const selectedHexes = Object.keys(this.multiSelectedHexagons).map(a => parseInt(a))
+    const selectedHexes = Object.keys(this.multiSelectedHexagons).map((a) => parseInt(a))
     if (!selectedHexes.length) return null
 
     const arrays = Object.values(this.multiSelectedHexagons)
@@ -552,8 +554,8 @@ class XyHexagons extends Vue {
 
   private beforeDestroy() {
     try {
-      if (this.gzipParser) {
-        Thread.terminate(this.gzipParser)
+      if (this.gzipWorker) {
+        this.gzipWorker.terminate()
       }
     } catch (e) {
       console.warn(e)
@@ -565,43 +567,41 @@ class XyHexagons extends Vue {
   private aggregations: Aggregations = {}
   private columnLookup: number[] = []
 
-  private gzipParser!: ModuleThread
+  private gzipWorker!: Worker
 
   private async parseCSVFile(filename: string) {
     if (!this.myState.fileSystem) return
     this.myState.statusMessage = 'Loading file...'
 
     // get the raw unzipped arraybuffer
-    this.gzipParser = await spawn<CSVParser>(new Worker('./CsvGzipParser.thread'))
+    this.gzipWorker = new CSVParserWorker()
 
-    const parent = this
-    await this.gzipParser
-      .startLoading(
-        filename,
-        this.myState.fileSystem,
-        this.vizDetails.aggregations,
-        this.vizDetails.projection
-      )
-      .subscribe({
-        next(msg) {
-          parent.myState.statusMessage = msg
-        },
-        async complete() {
-          const { rowCache, columnLookup } = await parent.gzipParser.results()
-          Thread.terminate(parent.gzipParser)
+    this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
+      if (buffer.data.status) {
+        this.myState.statusMessage = buffer.data.status
+      } else {
+        const { rowCache, columnLookup } = buffer.data
+        this.gzipWorker.terminate()
+        this.dataIsLoaded({ rowCache, columnLookup })
+      }
+    }
 
-          parent.dataIsLoaded({ rowCache, columnLookup })
-        },
-        error() {
-          console.log('GOT YOU!')
-        },
-      })
+    this.gzipWorker.postMessage({
+      filepath: filename,
+      fileSystem: this.myState.fileSystem,
+      aggregations: this.vizDetails.aggregations,
+      projection: this.vizDetails.projection,
+    })
   }
 
   private dataIsLoaded({ rowCache, columnLookup }: any) {
+    console.log('HERE!')
+
+    console.log({ rowCache })
     this.columnLookup = columnLookup
     this.rowCache = rowCache
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
+    console.log({ requests: this.requests })
     this.jumpToCenter()
 
     this.myState.statusMessage = ''
@@ -639,7 +639,6 @@ export default XyHexagons
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .xy-hexagons {

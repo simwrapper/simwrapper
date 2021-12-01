@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!--
-      CHANGE THESE THINGS IF THE BASE URL ROOT CHANGES
-      e.g. from mysite.com/simwrapper -> mysite.com/dash or newsite.com/
-      (the "/simwrapper" at the front of the link should change.)
+    <meta charset="utf-8" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta content="text/html; charset=utf-8" />
+    <meta
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
+      name="viewport"
+    />
 
-      If the root changes, you also need to change
-      - /vue.config.js
-      - /public/404.html
-    -->
-    <link href="/simwrapper/css/font-awesome-5.7.1.css" rel="stylesheet" />
-    <link href="/simwrapper/images/SW_favicon.png" rel="icon" type="image/png" />
+    <link rel="icon" href="/images/SW_favicon.png" />
+
+    <link href="/css/font-awesome-5.7.1.css" rel="stylesheet" />
+    <link href="/images/SW_favicon.png" rel="icon" type="image/png" />
 
     <!-- descriptive things -->
     <title>SimWrapper</title>
@@ -24,7 +25,6 @@
       content="https://github.com/matsim-vsp/covid-sim/raw/master/src/assets/images/v1-thumb.png"
       name="og:image"
     />
-
     <meta content="summary_large_image" name="twitter:card" />
     <meta content="@billyinberlin" name="twitter:site" />
     <meta content="@billyinberlin" name="twitter:creator" />
@@ -33,19 +33,9 @@
       name="twitter:image"
     />
 
-    <!-- below here should rarely/never change -->
-
-    <meta charset="utf-8" />
-    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
-    <meta content="text/html; charset=utf-8" />
-    <meta
-      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
-      name="viewport"
-    />
-
     <!-- github pages hack: allows single-page-app to handle arbitrary URLs -->
     <script>
-      ;(function() {
+      ;(function () {
         var redirect = sessionStorage.redirect
         delete sessionStorage.redirect
         if (redirect && redirect != location.href) {
@@ -65,12 +55,11 @@
       rel="stylesheet"
     />
   </head>
-
   <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
     <noscript>
       <strong>This site requires JavaScript. Please enable it to continue.</strong>
     </noscript>
-    <div id="app"></div>
-    <!-- built files will be auto injected -->
   </body>
 </html>

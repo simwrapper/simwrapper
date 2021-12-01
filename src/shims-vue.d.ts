@@ -3,6 +3,23 @@ declare module '*.vue' {
   export default Vue
 }
 
+declare module '*.vert' {
+  const content: string
+  export default content
+}
+
+declare module '*.frag' {
+  const content: string
+  export default content
+}
+
+// import markdown files directly, they become vue components using vue-plugin-md
+declare module '*.md' {
+  import { ComponentOptions } from 'vue'
+  const Component: ComponentOptions
+  export default Component
+}
+
 // this allows import of raw text files using raw-loader
 // e.g: import myTxt from 'raw-loader!./mytextfile.txt'
 declare module 'raw-loader!*' {
@@ -15,17 +32,16 @@ declare module 'yaml-loader!*' {
   export default content
 }
 
-declare module '@statnett/vue-plotly'
 declare module 'bulma-slider'
 declare module 'colormap'
 declare module 'convert-seconds'
 declare module 'd3-sankey-diagram'
 declare module 'epsg'
 declare module 'javascript-natural-sort'
+declare module 'plotly.js/dist/plotly-cartesian'
 declare module 'read-blob'
 declare module 'reproject'
 declare module 'shp-write'
-declare module 'vue-pivottable'
 declare module 'vue-slide-bar'
 declare module 'vue-table-component'
 declare module 'vue-video-player'

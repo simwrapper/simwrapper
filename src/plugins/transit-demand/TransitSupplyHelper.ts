@@ -1,6 +1,6 @@
 import AsyncWorkerConnector from '@/workers/AsyncWorkerConnector'
 import { INITIALIZE } from '@/workers/AsyncBackgroundWorker'
-import BackgroundWorker from './TransitSupplyHelper.worker'
+import BackgroundWorker from './TransitSupplyHelper.worker?worker'
 import { InitParams, MethodNames } from './TransitSupplyHelperContract'
 
 export default class TransitSupplyHelper extends AsyncWorkerConnector {

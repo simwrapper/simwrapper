@@ -69,19 +69,17 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
   // XML is sent in during worker initialization
   private createNodesAndLinksFromXML() {
     const roadXML = this._xml.roadXML
-    const netNodes = roadXML.network.nodes[0].node
-    const netLinks = roadXML.network.links[0].link
+    const netNodes = roadXML.network.nodes.node
+    const netLinks = roadXML.network.links.link
 
     for (const node of netNodes) {
-      const attr = node.$
-      attr.x = parseFloat(attr.x)
-      attr.y = parseFloat(attr.y)
-      this._network.nodes[attr.id] = attr
+      node.x = parseFloat(node.x)
+      node.y = parseFloat(node.y)
+      this._network.nodes[node.id] = node
     }
 
     for (const link of netLinks) {
-      const attr = link.$
-      this._network.links[attr.id] = attr
+      this._network.links[link.id] = link
     }
     return { data: {}, transferrables: [] }
   }
@@ -107,14 +105,14 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
     for (const line of transitLines) {
       const attr: TransitLine = {
-        id: line.$.id,
+        id: line.id,
         transitRoutes: [],
       }
 
       if (!line.transitRoute) continue
 
       for (const route of line.transitRoute) {
-        const details: RouteDetails = this.buildTransitRouteDetails(line.$.id, route)
+        const details: RouteDetails = this.buildTransitRouteDetails(line.id, route)
         details.uniqueRouteID = uniqueRouteID++
         attr.transitRoutes.push(details)
       }
@@ -136,48 +134,47 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
   }
 
   private generateStopFacilitiesFromXML() {
-    const stopFacilities = this._xml.transitXML.transitSchedule.transitStops[0].stopFacility
+    const stopFacilities = this._xml.transitXML.transitSchedule.transitStops.stopFacility
 
     for (const stop of stopFacilities) {
-      const attr = stop.$
-      attr.x = parseFloat(attr.x)
-      attr.y = parseFloat(attr.y)
+      stop.x = parseFloat(stop.x)
+      stop.y = parseFloat(stop.y)
       // convert coords
-      const z = proj4(this.projection, 'EPSG:4326', attr) as any
-      attr.x = z.x
-      attr.y = z.y
+      const z = proj4(this.projection, 'EPSG:4326', stop) as any
+      stop.x = z.x
+      stop.y = z.y
 
-      this._stopFacilities[attr.id] = attr
+      this._stopFacilities[stop.id] = stop
     }
   }
 
   private buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
-    const allDepartures = route.departures[0].departure
-    allDepartures.sort(function(a: any, b: any) {
-      const timeA = a.$.departureTime
-      const timeB = b.$.departureTime
+    const allDepartures = route.departures.departure
+    allDepartures.sort(function (a: any, b: any) {
+      const timeA = a.departureTime
+      const timeB = b.departureTime
       if (timeA < timeB) return -1
       if (timeA > timeB) return 1
       return 0
     })
 
     const routeDetails: RouteDetails = {
-      id: `${lineId} (${route.$.id})`,
-      transportMode: route.transportMode[0],
+      id: `${lineId} (${route.id})`,
+      transportMode: route.transportMode,
       routeProfile: [],
       route: [],
-      departures: route.departures[0].departure.length,
-      firstDeparture: allDepartures[0].$.departureTime,
-      lastDeparture: allDepartures[allDepartures.length - 1].$.departureTime,
+      departures: route.departures.departure.length,
+      firstDeparture: allDepartures.departureTime,
+      lastDeparture: allDepartures[allDepartures.length - 1].departureTime,
       geojson: '',
     }
 
-    for (const stop of route.routeProfile[0].stop) {
-      routeDetails.routeProfile.push(stop.$)
+    for (const stop of route.routeProfile.stop) {
+      routeDetails.routeProfile.push(stop)
     }
 
-    for (const link of route.route[0].link) {
-      routeDetails.route.push(link.$.refId)
+    for (const link of route.route.link) {
+      routeDetails.route.push(link.refId)
     }
 
     routeDetails.geojson = this.buildCoordinatesForRoute(routeDetails)
