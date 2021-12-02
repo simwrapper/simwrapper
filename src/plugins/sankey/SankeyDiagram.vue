@@ -1,15 +1,21 @@
 <template lang="pug">
-.sankey-container(
-  :class="{'show-thumbnail': myState.thumbnail}"
-  :style="{'overflow-y': myState.thumbnail ? 'hidden':'auto'}")
+.main-container
+  .sankey-container.show-thumbnail(v-if="myState.thumbnail"
+    :style="{'overflow-y': 'hidden'}")
 
-  .main-area(:class="{'center-area': !myState.thumbnail}")
-    .labels(v-if="!myState.thumbnail")
-      h3.center {{ vizDetails.title }}
-      h5.center {{ vizDetails.description }}
-      p.center {{ totalTrips.toLocaleString() }} total trips
+    .main-area
+      svg.chart-area(:id="cleanConfigId")
 
-    svg.chart-area(:id="cleanConfigId")
+  .sankey-container(v-else
+    :style="{'overflow-y': 'auto'}")
+
+    .main-area.center-area
+      .labels
+        h3.center {{ vizDetails.title }}
+        h5.center {{ vizDetails.description }}
+        p.center {{ totalTrips.toLocaleString() }} total trips
+
+      svg.chart-area(:id="cleanConfigId")
 
 </template>
 
@@ -128,7 +134,8 @@ class MyComponent extends Vue {
       )
 
       return { flows }
-    } catch (e) {
+    } catch (err) {
+      const e = err as any
       console.error({ e })
       this.loadingText = '' + e
 
@@ -237,8 +244,6 @@ export default MyComponent
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto;
-  // max-width: 60rem;
-  // margin: 0 auto;
 }
 
 .show-thumbnail {
@@ -305,6 +310,8 @@ p {
   grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  padding: 0 1rem;
 }
 
 .center-area {
