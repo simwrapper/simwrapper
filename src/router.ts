@@ -5,57 +5,33 @@ import globalStore from '@/store'
 
 Vue.use(VueRouter)
 
+const BASE = import.meta.env.BASE_URL
+
 const routes = [
   {
-    path: '/sql',
-    component: () => import(/* webpackChunkName: "sql" */ '@/views/SqlThing.vue'),
-  },
-  {
-    path: '/gist/:id',
+    path: BASE + 'gist/:id',
     component: () => import(/* webpackChunkName: "gist" */ '@/views/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
   {
-    path: '/sqlite',
-    component: () => import(/* webpackChunkName: "sql" */ '@/views/SqliteThing.vue'),
-  },
-  {
-    path: '/*',
+    path: BASE + '*',
     component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page
     path: '*',
-    redirect: '/',
+    redirect: BASE,
   },
 ]
 
-function projects(): RouteConfig[] {
-  const projectRoutes = [] as RouteConfig[]
-  // run folder pages
-  // for (const source of globalStore.state.svnProjects) {
-  //   projectRoutes.push({
-  //     path: '/' + source.slug + '*',
-  //     name: source.slug,
-  //     component: FolderBrowser,
-  //     props: (route: Route) => ({
-  //       root: source.slug,
-  //       xsubfolder: route.path.substring(source.slug.length + 2),
-  //     }),
-  //   })
-  // }
-
-  return projectRoutes
-}
-
-// individual viz plugins all go into /v/* subpaths
+// // individual viz plugins all go into /v/* subpaths
 function vizPlugins(): any[] {
   const plugins = []
   for (const plugin of globalStore.state.visualizationTypes.values()) {
     plugins.push({
-      path: '/v/' + plugin.kebabName + '/:slug/*',
+      path: BASE + 'v/' + plugin.kebabName + '/:slug/*',
       name: plugin.kebabName,
       component: plugin.component,
       props: (route: Route) => {
@@ -77,10 +53,8 @@ function vizPlugins(): any[] {
 
 const router = new VueRouter({
   mode: 'history',
-  base: process.env.BASE_URL,
-  routes: projects()
-    .concat(vizPlugins())
-    .concat(routes),
+  base: '/',
+  routes: vizPlugins().concat(routes),
   // native-like back/forward and top-of-page routing
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
@@ -90,5 +64,10 @@ const router = new VueRouter({
     }
   },
 })
+
+// router.beforeEach((to, from, next) => {
+//   console.log(to.path)
+//   next()
+// })
 
 export default router

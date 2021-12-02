@@ -106,7 +106,6 @@ export default class VueComponent extends Vue {
 </script>
 
 <style scoped lang="scss">
-@import '~vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 h3.curate-heading {

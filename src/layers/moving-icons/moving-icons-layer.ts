@@ -24,8 +24,8 @@ import { Layer, project32, picking, log } from '@deck.gl/core'
 import GL from '@luma.gl/constants'
 import { Model, Geometry } from '@luma.gl/core'
 
-const vs = require('./icon-layer.glsl.vert').default
-const fs = require('./icon-layer.glsl.frag').default
+import vertShader from './icon-layer.glsl.vert?raw'
+import fragShader from './icon-layer.glsl.frag?raw'
 
 import IconManager from './icon-manager'
 
@@ -60,7 +60,7 @@ const defaultProps = {
 
 export default class IconLayer extends Layer {
   getShaders() {
-    return super.getShaders({ vs, fs, modules: [project32, picking] })
+    return super.getShaders({ vs: vertShader, fs: fragShader, modules: [project32, picking] })
   }
 
   initializeState() {

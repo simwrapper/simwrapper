@@ -1,12 +1,3 @@
-<i18n>
-en:
-  more-info: 'Documentation:'
-  tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.'
-de:
-  more-info: 'Für weitere Informationen:'
-  tagLine: 'Der Modellergebnis-Browser der TU Berlin.'
-</i18n>
-
 <template lang="pug">
 .splash-page
 
@@ -25,7 +16,7 @@ de:
         hr
 
         h2: b {{ $t('more-info') }}
-        .splash-readme(v-html="readmeBottom")
+        info-bottom.splash-readme
 
         .tu-logo
           a(href="https://vsp.berlin/en/")
@@ -39,21 +30,34 @@ de:
 </template>
 
 <script lang="ts">
-const readme = require('@/assets/info-top.md')
-const bottom = require('@/assets/info-bottom.md')
+const i18n = {
+  messages: {
+    en: {
+      'more-info': 'Documentation:',
+      tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.',
+    },
+    de: {
+      'more-info': 'Für weitere Informationen:',
+      tagLine: 'Der Modellergebnis-Browser der TU Berlin.',
+    },
+  },
+}
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
+import globalStore from '@/store'
 import Colophon from '@/components/Colophon.vue'
-import VizCard from '@/components/VizCard.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 
-import globalStore from '@/store'
+import InfoBottom from '@/assets/info-bottom.md'
 
 @Component({
-  components: { Colophon, FileSystemProjects, VizCard },
+  i18n,
+  components: { Colophon, FileSystemProjects, InfoBottom },
 })
 class MyComponent extends Vue {
+  private state = globalStore.state
+
   private mounted() {
     const crumbs = [
       {
@@ -71,9 +75,8 @@ class MyComponent extends Vue {
     this.$emit('navigate', event)
   }
 
-  private state = globalStore.state
-  private readme = readme
-  private readmeBottom = bottom
+  // private readme = readme
+  // private readmeBottom = bottom
 }
 export default MyComponent
 </script>
@@ -144,12 +147,6 @@ a {
   h3 {
     color: white;
   }
-}
-.viz-cards {
-  padding-bottom: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 2rem;
 }
 
 .one-viz {

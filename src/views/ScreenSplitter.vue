@@ -1,12 +1,3 @@
-<i18n>
-en:
-  close: 'Close panel'
-  back: 'Go back'
-de:
-  close: 'Schließen'
-  back: 'Zurück'
-</i18n>
-
 <template lang="pug">
 #split-screen
 
@@ -30,7 +21,15 @@ de:
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { close: 'Close panel', back: 'Go back' },
+    de: { close: 'Schließen', back: 'Zurück' },
+  },
+}
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { Route } from 'vue-router'
 
 import plugins from '@/plugins/pluginRegistry'
 
@@ -38,18 +37,15 @@ import globalStore from '@/store'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
-import SqlThing from '@/views/SqlThing.vue'
-import SqlThingTwo from '@/views/SqliteThing.vue'
-import { Route } from 'vue-router'
 
 @Component({
-  components: Object.assign(
-    { SplashPage, RunFinderPanel, SqlThing, SqlThingTwo, TabbedDashboardView },
-    plugins
-  ),
+  i18n,
+  components: Object.assign({ SplashPage, RunFinderPanel, TabbedDashboardView }, plugins),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
+
+  private baseURL = import.meta.env.BASE_URL
 
   private panels = [
     {
@@ -70,7 +66,7 @@ class MyComponent extends Vue {
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
-    if (to.path === '/') {
+    if (to.path === this.baseURL) {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
       this.panels = [
@@ -89,14 +85,6 @@ class MyComponent extends Vue {
   private buildLayoutFromURL() {
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
-
-    if (pathMatch === 'sql') {
-      this.onNavigate(0, { component: 'SqlThing', props: {} })
-    }
-
-    if (pathMatch === 'sqlite') {
-      this.onNavigate(0, { component: 'SqlThingTwo', props: {} })
-    }
 
     // split panel
     if (pathMatch.startsWith('split/')) {
@@ -176,6 +164,8 @@ class MyComponent extends Vue {
 
   private updateURL() {
     // console.log(this.panels)
+    const BASE = import.meta.env.BASE_URL
+
     if (this.panels.length === 1) {
       const root = this.panels[0].props.root || ''
       const xsubfolder = this.panels[0].props.xsubfolder || ''
@@ -183,13 +173,13 @@ class MyComponent extends Vue {
 
       if (yaml) {
         const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`/split/${base64}`)
+        this.$router.push(`${BASE}split/${base64}`)
       } else {
-        this.$router.push(`/${root}/${xsubfolder}`)
+        this.$router.push(`${BASE}${root}/${xsubfolder}`)
       }
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
-      this.$router.push(`/split/${base64}`)
+      this.$router.push(`${BASE}split/${base64}`)
     }
   }
 }

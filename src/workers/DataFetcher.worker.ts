@@ -1,18 +1,11 @@
-// named *thread* because *worker* gets processed by webpack already
-
 /*eslint prefer-rest-params: "off"*/
 
-import { expose } from 'threads/worker'
 import pako from 'pako'
 import Papaparse from 'papaparse'
-import YAML from 'yaml'
-import { parseNumbers } from 'xml2js/lib/processors'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { findMatchingGlobInFiles, parseXML } from '@/js/util'
-import globalStore from '@/store'
-import { config } from 'vue/types/umd'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 // global variables
 let _fileSystem: HTTPFileSystem
@@ -23,37 +16,39 @@ let _dataset = ''
 
 const _fileData: any = {}
 
-expose({
-  async fetchData(props: {
-    fileSystemConfig: FileSystemConfig
-    subfolder: string
-    files: string[]
-    config: string
-  }) {
-    _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
-    _subfolder = props.subfolder
-    _files = props.files
-    _config = props.config
-    _dataset = _config.dataset
+onmessage = function (e) {
+  fetchData(e.data)
+}
 
-    // if dataset has a path in it, we need to fetch the correct subfolder contents
-    const slash = _config.dataset.indexOf('/')
-    if (slash > -1) {
-      const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
-      _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
-      _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+async function fetchData(props: {
+  fileSystemConfig: FileSystemConfig
+  subfolder: string
+  files: string[]
+  config: string
+}) {
+  _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
+  _subfolder = props.subfolder
+  _files = props.files
+  _config = props.config
+  _dataset = _config.dataset
 
-      // need to fetch new list of files
-      const { files } = await _fileSystem.getDirectory(_subfolder)
-      _files = files
-    }
+  // if dataset has a path in it, we need to fetch the correct subfolder contents
+  const slash = _config.dataset.indexOf('/')
+  if (slash > -1) {
+    const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
+    _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
+    _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
 
-    // load all files
-    await loadFiles()
+    // need to fetch new list of files
+    const { files } = await _fileSystem.getDirectory(_subfolder)
+    _files = files
+  }
 
-    return _fileData[_dataset]
-  },
-})
+  // load all files
+  await loadFiles()
+
+  postMessage(_fileData[_dataset])
+}
 
 // ----- helper functions ------------------------------------------------
 
@@ -77,6 +72,7 @@ async function loadFiles() {
     await parseVariousFileTypes(datasetPattern, filename, text)
     cleanData()
   } catch (e) {
+    console.log(2)
     console.error(e)
     throw e
   }
@@ -105,11 +101,12 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
 
   // XML
   if (filename.indexOf('.xml') > -1) {
-    const xml = (await parseXML(text, {
-      mergeAttrs: true,
-      explicitArray: false,
-      attrValueProcessors: [parseNumbers],
-    })) as any
+    const xml = {} as any
+    // const xml = (await parseXML(text, {
+    //   mergeAttrs: true,
+    //   explicitArray: false,
+    //   attrValueProcessors: [parseNumbers],
+    // })) as any
 
     // Do a splitty lookup if the xmlElement is specified
     const details = _config

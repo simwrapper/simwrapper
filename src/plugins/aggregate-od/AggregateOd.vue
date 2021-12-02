@@ -334,7 +334,8 @@ class MyComponent extends Vue {
         this.myState.subfolder + '/' + this.myState.yamlConfig
       )
       this.vizDetails = yaml.parse(text)
-    } catch (e) {
+    } catch (err) {
+      const e = err as any
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
@@ -573,17 +574,17 @@ class MyComponent extends Vue {
     this.changedScale(this.currentScale)
 
     const parent = this
-    this.mymap.on('click', 'spider-layer', function(e: maplibregl.MapMouseEvent) {
+    this.mymap.on('click', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
       parent.clickedOnSpiderLink(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'spider-layer', function(e: maplibregl.MapMouseEvent) {
+    this.mymap.on('mousemove', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
       parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
     })
 
     // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'spider-layer', function() {
+    this.mymap.on('mouseleave', 'spider-layer', function () {
       parent.mymap.getCanvas().style.cursor = 'grab'
     })
   }
@@ -707,10 +708,7 @@ class MyComponent extends Vue {
     html += `<p> -----------------------------</p>`
     html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
 
-    new maplibregl.Popup({ closeOnClick: true })
-      .setLngLat(e.lngLat)
-      .setHTML(html)
-      .addTo(this.mymap)
+    new maplibregl.Popup({ closeOnClick: true }).setLngLat(e.lngLat).setHTML(html).addTo(this.mymap)
   }
 
   private convertRegionColors(geojson: FeatureCollection) {
@@ -885,17 +883,17 @@ class MyComponent extends Vue {
 
     const parent = this
 
-    this.mymap.on('click', 'centroid-layer', function(e: maplibregl.MapMouseEvent) {
+    this.mymap.on('click', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
       parent.clickedOnCentroid(e)
     })
 
     // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'centroid-layer', function(e: maplibregl.MapMouseEvent) {
+    this.mymap.on('mousemove', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
       parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
     })
 
     // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'centroid-layer', function() {
+    this.mymap.on('mouseleave', 'centroid-layer', function () {
       parent.mymap.getCanvas().style.cursor = 'grab'
     })
   }
@@ -914,13 +912,13 @@ class MyComponent extends Vue {
 
   private setupKeyListeners() {
     const parent = this
-    window.addEventListener('keyup', function(event) {
+    window.addEventListener('keyup', function (event) {
       if (event.keyCode === 27) {
         // ESC
         parent.pressedEscape()
       }
     })
-    window.addEventListener('keydown', function(event) {
+    window.addEventListener('keydown', function (event) {
       if (event.keyCode === 38) {
         // UP
         parent.pressedArrowKey(-1)
@@ -1052,7 +1050,7 @@ class MyComponent extends Vue {
     const separator = lines[0].indexOf(';') > 0 ? ';' : ','
 
     // data is in format: o,d, value[1], value[2], value[3]...
-    const headers = lines[0].split(separator).map(a => a.trim())
+    const headers = lines[0].split(separator).map((a) => a.trim())
     this.rowName = headers[0]
     this.colName = headers[1]
     this.headers = [TOTAL_MSG].concat(headers.slice(2))
@@ -1139,7 +1137,7 @@ class MyComponent extends Vue {
 
   private addNeighborhoodHoverEffects() {
     const parent = this
-    this.mymap.on('mousemove', 'shplayer-fill', function(e: any) {
+    this.mymap.on('mousemove', 'shplayer-fill', function (e: any) {
       // typescript definitions and mapbox-gl are out of sync at the moment :-(
       // so setFeatureState is missing
       const tsMap = parent.mymap as any
@@ -1157,7 +1155,7 @@ class MyComponent extends Vue {
 
     // When the mouse leaves the state-fill layer, update the feature state of the
     // previously hovered feature.
-    this.mymap.on('mouseleave', 'shplayer-fill', function() {
+    this.mymap.on('mouseleave', 'shplayer-fill', function () {
       const tsMap = parent.mymap as any
       if (parent.hoveredStateId) {
         tsMap.setFeatureState({ source: 'shpsource', id: parent.hoveredStateId }, { hover: false })

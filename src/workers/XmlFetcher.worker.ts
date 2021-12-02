@@ -2,7 +2,7 @@ import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/workers/Async
 import { InitParams, MethodNames } from './XmlFetcherContract'
 
 import pako from 'pako'
-import xml2js from 'xml2js'
+import { parseXML } from '@/js/util'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -44,7 +44,9 @@ class XmlFetcher extends AsyncBackgroundWorker {
     if (!blob) throw Error('BLOB IS NULL')
 
     const data = await this.getDataFromBlob(blob)
-    const xml = await this.parseXML(data)
+    const xml = parseXML(data, {
+      alwaysArray: [],
+    })
 
     return { data: xml, transferrables: [] }
   }
@@ -70,19 +72,6 @@ class XmlFetcher extends AsyncBackgroundWorker {
     }
 
     return buffer
-  }
-
-  private parseXML(xml: string): Promise<string> {
-    const parser = new xml2js.Parser({ preserveChildrenOrder: true, strict: true })
-    return new Promise((resolve, reject) => {
-      parser.parseString(xml, function(err: Error, result: string) {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(result)
-        }
-      })
-    })
   }
 }
 

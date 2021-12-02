@@ -1,46 +1,58 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}" :class="className")
+Plotly#vue-bar-chart(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :id="id"
+  ref="plotly-element"
+@click="handlePlotlyClick"
+)
+  //- :class="className"
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
-import VuePlotly from '@statnett/vue-plotly'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import Plotly from '@/components/VuePlotly.vue'
 
-const mockData = {
-  car: 34,
-  bike: 18,
-  pt: 30,
-  walk: 8,
-}
+import globalStore from '@/store'
 
-@Component({ components: { VuePlotly } })
+@Component({ components: { Plotly } })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
+  @Prop() fileSystemConfig!: FileSystemConfig
+  @Prop() subfolder!: string
+  @Prop() files!: string[]
+  @Prop() datamanager!: DashboardDataManager
+  @Prop() config!: any
 
-  private globalState = this.$store.state
+  private id = 'bar-' + Math.random()
 
-  private thread!: any
+  private globalState = globalStore.state
+
   private dataRows: any = {}
 
   private plotID = this.getRandomInt(100000)
 
   private async mounted() {
+    this.updateLayout()
     this.updateTheme()
+
     await this.loadData()
-    this.resizePlot()
-    window.addEventListener('resize', this.myEventHandler)
+
+    // this.resizePlot()
+    window.addEventListener('resize', this.handleResizeEvent)
+
     this.$emit('isLoaded')
   }
 
-  private async beforeDestroy() {
-    window.removeEventListener('resize', this.myEventHandler)
+  private beforeDestroy() {
+    try {
+      window.removeEventListener('resize', this.handleResizeEvent)
+      this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+    } catch (e) {}
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
@@ -49,28 +61,67 @@ export default class VueComponent extends Vue {
     this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
   }
 
+  private updateLayout() {
+    this.layout.xaxis.title = this.config.xAxisTitle || ''
+    this.layout.yaxis.title = this.config.yAxisTitle || ''
+  }
+
+  private async handlePlotlyClick(click: any) {
+    try {
+      const { x, y, data } = click.points[0]
+
+      const filter = this.config.groupBy
+      const value = x
+
+      this.datamanager.setFilter(this.config.dataset, filter, value)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  private async handleFilterChanged() {
+    try {
+      const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
+
+      // is filter UN-selected?
+      if (!filteredRows) {
+        this.data = [this.data[0]]
+        this.data[0].opacity = 1.0
+        return
+      }
+
+      const fullDataCopy = Object.assign({}, this.data[0])
+
+      fullDataCopy.x = filteredRows.x
+      fullDataCopy.y = filteredRows.y
+      fullDataCopy.opacity = 1.0
+      fullDataCopy.name = 'Filtered'
+      //@ts-ignore - let plotly manage bar colors EXCEPT the filter
+      fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+
+      this.data = [this.data[0], fullDataCopy]
+      this.data[0].opacity = 0.3
+      this.data[0].name = 'All'
+    } catch (e) {
+      const message = '' + e
+      console.log(message)
+      this.dataRows = {}
+    }
+  }
+
   private async loadData() {
     if (!this.files.length) return
 
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
-
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
+      const { allRows } = await this.datamanager.getDataset(this.config)
+      this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
-      this.dataRows = data
+      this.dataRows = allRows
       this.updateChart()
     } catch (e) {
       const message = '' + e
       console.log(message)
       this.dataRows = {}
-    } finally {
-      Thread.terminate(this.thread)
     }
   }
 
@@ -78,8 +129,8 @@ export default class VueComponent extends Vue {
     return Math.floor(Math.random() * max).toString()
   }
 
-  // The myEventHandler was added because Plottly has a bug with resizing.
-  private myEventHandler() {
+  // The handleResizeEvent was added because Plotly has a bug with resizing (in stacked mode)
+  private handleResizeEvent() {
     this.resizePlot()
   }
 
@@ -104,6 +155,30 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    this.className = this.plotID // stacked bug-fix hack
+
+    const { x, y } = this.dataRows
+
+    this.data = [
+      {
+        x,
+        y,
+        name: this.config.groupBy,
+        type: 'bar',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        opacity: 1.0,
+      },
+    ]
+  }
+
+  private updateChartSimple() {
     const x = []
 
     var useOwnNames = false
@@ -148,6 +223,7 @@ export default class VueComponent extends Vue {
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: true,
+          opacity: 1.0,
         })
       }
     }
@@ -164,15 +240,15 @@ export default class VueComponent extends Vue {
       color: '#444444',
       family: UI_FONT,
     },
-    barmode: '',
+    barmode: 'overlay',
     bargap: 0.08,
     xaxis: {
       autorange: true,
-      title: this.config.xAxisTitle,
+      title: '',
     },
     yaxis: {
       autorange: true,
-      title: this.config.yAxisTitle,
+      title: '',
     },
     legend: {
       x: 1,
@@ -190,6 +266,7 @@ export default class VueComponent extends Vue {
       textinfo: 'label+percent',
       textposition: 'inside',
       automargin: true,
+      opacity: 1.0,
     },
   ]
 

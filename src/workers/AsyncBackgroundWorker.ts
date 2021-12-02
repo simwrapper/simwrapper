@@ -70,7 +70,8 @@ export default abstract class AsyncBackgroundWorker {
       const result = await this.handleMethodCall(message.call)
       this.postResult(message.id, result)
     } catch (error) {
-      this.postError(message.id, error.message)
+      const e = error as any
+      this.postError(message.id, e.message)
     }
   }
 

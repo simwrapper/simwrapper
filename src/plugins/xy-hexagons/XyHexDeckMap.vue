@@ -5,9 +5,10 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { ArcLayer } from '@deck.gl/layers'
+import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import colormap from 'colormap'
 
-import SelectableHexagonLayer from './SelectableHexLayer'
+// import SelectableHexagonLayer from './SelectableHexLayer'
 import { pointToHexbin } from './HexagonAggregator'
 
 import LayerManager from '@/js/LayerManager'
@@ -140,7 +141,7 @@ export default class VueComponent extends Vue {
     // is data filtered or not?
     let data = null
     if (this.props.highlights.length) {
-      data = this.props.highlights.map(row => row[1])
+      data = this.props.highlights.map((row) => row[1])
     } else if (!this.props.data) {
       data = null
     } else {
@@ -168,7 +169,7 @@ export default class VueComponent extends Vue {
     )
 
     this.layerManager.addLayer(
-      new SelectableHexagonLayer({
+      new HexagonLayer({
         id: 'hex-layer',
         data: data,
         getPosition: this.props.highlights.length ? (d: any) => d : null,
@@ -179,7 +180,7 @@ export default class VueComponent extends Vue {
         elevationScale: this.props.data && this.props.data.length ? 50 : 0,
         extruded: this.props.extrude,
         selectedHexStats: this.props.selectedHexStats,
-        hexagonAggregator: pointToHexbin,
+        // hexagonAggregator: pointToHexbin,
         // center: [viewState.longitude, viewState.latitude],
         pickable: true,
         opacity: 0.7, // dark && highlights.length ? 0.6 : 0.8,

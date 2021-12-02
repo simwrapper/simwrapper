@@ -2,7 +2,7 @@
 #vue-component
   .content
 
-    .stuff(v-html="mdContent")
+    NoSuchRun.stuff
 
     hr
 
@@ -12,10 +12,9 @@
 </template>
 
 <script lang="ts">
-// ###########################################################################
-import MarkdownIt from 'markdown-it'
-
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator'
+
+import NoSuchRun from '@/assets/no-such-run.md'
 
 interface Breadcrumb {
   title: string
@@ -23,20 +22,8 @@ interface Breadcrumb {
   isActive?: boolean
 }
 
-@Component({
-  components: {},
-})
-export default class VueComponent extends Vue {
-  private mdContent = ''
-  private mdParser = new MarkdownIt()
-
-  public mounted() {
-    const text = require('@/assets/no-such-run.md')
-    this.mdContent = text // this.mdParser.render(text)
-  }
-
-  private currentCity = -1
-}
+@Component({ components: { NoSuchRun } })
+export default class VueComponent extends Vue {}
 
 // ###########################################################################
 </script>

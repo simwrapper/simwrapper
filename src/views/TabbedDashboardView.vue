@@ -20,6 +20,7 @@
     :root="root"
     :xsubfolder="xsubfolder"
     :config="dashboards[activeTab]"
+    :datamanager="dashboardDataManager"
     @zoom="handleZoom"
   )
 
@@ -40,6 +41,7 @@ import { FileSystemConfig } from '@/Globals'
 import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 @Component({ components: { DashBoard, FolderBrowser }, props: {} })
 export default class VueComponent extends Vue {
@@ -51,6 +53,7 @@ export default class VueComponent extends Vue {
   private fileApi!: HTTPFileSystem
 
   private dashboards: any = []
+  private dashboardDataManager?: DashboardDataManager
 
   private isZoomed = false
 
@@ -58,11 +61,18 @@ export default class VueComponent extends Vue {
     this.updateRoute()
   }
 
+  private beforeDestroy() {
+    if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
+  }
+
   @Watch('root')
   @Watch('xsubfolder')
   private updateRoute() {
     this.fileSystemConfig = this.getFileSystem(this.root)
     if (!this.fileSystemConfig) return
+
+    if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
+    this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
 
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 

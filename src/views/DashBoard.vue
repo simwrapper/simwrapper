@@ -5,11 +5,14 @@
       h2 {{ title }}
       p {{ description }}
 
+    //- start row here
     .dash-row(v-for="row,i in rows" :key="i")
 
+      //- each card here
       .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
         :style="getCardStyle(card)")
 
+        //- card header/title
         .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
           .header-labels
             h3 {{ card.title }}
@@ -20,6 +23,7 @@
               :title="fullScreenCardId ? 'Restore':'Enlarge'")
               i.fa.fa-expand
 
+        //- card contents
         .spinner-box(:id="card.id" v-if="getCardComponent(card)" :class="{'is-loaded': card.isLoaded}")
           component.dash-card(
             :is="getCardComponent(card)"
@@ -28,6 +32,7 @@
             :files="fileList"
             :yaml="card.props.configFile"
             :config="card.props"
+            :datamanager="datamanager"
             :style="{opacity: opacity[card.id]}"
             @isLoaded="handleCardIsLoaded(card)"
           )
@@ -42,20 +47,23 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 import charts from '@/charts/allCharts'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
-Object.keys(charts).forEach((key: any) => {
+const chartTypes = Object.keys(charts)
+chartTypes.forEach((key: any) => {
   //@ts-ignore
   namedCharts[`card-${key}`] = charts[key] as any
 })
 
-@Component({ components: Object.assign({ TopSheet }, namedCharts), props: {} })
+@Component({ components: Object.assign({ TopSheet }, namedCharts) })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) private root!: string
-  @Prop({ required: true }) private xsubfolder!: string
-  @Prop({ required: false }) private gist!: any
-  @Prop({ required: false }) private config!: any
+  @Prop() private root!: string
+  @Prop() private xsubfolder!: string
+  @Prop() private datamanager!: DashboardDataManager
+  @Prop() private gist!: any
+  @Prop() private config?: any
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -88,7 +96,7 @@ export default class VueComponent extends Vue {
     const folderContents = await this.fileApi.getDirectory(this.xsubfolder)
 
     // hide dot folders
-    const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+    const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
     return files
   }
 
@@ -96,8 +104,7 @@ export default class VueComponent extends Vue {
     if (card.type === 'topsheet') return 'TopSheet'
 
     // might be a chart
-    const keys = Object.keys(charts)
-    if (keys.indexOf(card.type) > -1) return 'card-' + card.type
+    if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
     // or might be a vue component?
     return undefined // card.type
@@ -174,10 +181,9 @@ export default class VueComponent extends Vue {
     for (const rowId of Object.keys(this.yaml.layout)) {
       const cards: any[] = this.yaml.layout[rowId]
 
-      cards.forEach(card => {
+      cards.forEach((card) => {
         card.id = `card-id-${numCard}`
         card.isLoaded = false
-
         // Vue is weird about new properties: use Vue.set() instead
         Vue.set(this.opacity, card.id, 0.1)
 
