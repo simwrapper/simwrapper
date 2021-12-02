@@ -14,7 +14,7 @@ The new `simwrapper` command has two features:
 - `simwrapper serve` - Starts mini-file-server in your current folder. This is exactly the same as running the old mini-file-server.py script yourself.
 - `simwrapper open [vsp|asim]` - Starts a mini-file-server running in your current folder **AND OPENS A BROWSER TAB** to either the VSP or ASIM site, so you can immediately view results.
 
-Note that due to browser constraints, in either case you can only see & access files in current folder or below; so file paths with "../blah" won't work if you try to go above the launch folder.
+Note that due to browser constraints, in either case you can only see & access files in current folder or below; so file paths with `"../../blah"` won't work if you try to go above the launch folder.
 
 _You can still install the mini-file-server python script yourself if you want to; those directions are below._
 
