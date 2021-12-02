@@ -5,13 +5,26 @@ title: Mini File Server
 
 To view files that are either **local on your computer** or on **shared network drives** that you view on your computer through your regular filesytem, you can use Mini File Server!!
 
+## New Python package: simwrapper!!!
+
+> You can now run `pip install simwrapper` to install a command-line tool which can launch mini-file-server for you.
+
+The new `simwrapper` command has two features:
+
+- `simwrapper serve` - Starts mini-file-server in your current folder. This is exactly the same as running the old mini-file-server.py script yourself.
+- `simwrapper open [vsp|asim]` - Starts a mini-file-server running in your current folder **AND OPENS A BROWSER TAB** to either the VSP or ASIM site, so you can immediately view results.
+
+Note that due to browser constraints, in either case you can only see & access files in current folder or below; so file paths with "../blah" won't work if you try to go above the launch folder.
+
+_You can still install the mini-file-server python script yourself if you want to; those directions are below._
+
+## Using Mini File Server
+
 > Quick Link: Download Python **[mini-file-server.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/mini-file-server.py)** here
 
 Mini File Server is a tiny Python or Java program that runs on your local machine and allows the SimWrapper website to see the files. Nothing leaves your computer: it is all served locally from the client-side app.
 
 - See [File Management](file-management.md) for other ways to access server-based and cloud-storage files with SimWrapper!
-
-## Using Mini File Server
 
 You can access files on your local computer by running a small file server app which responds at URL "http://localhost:8000". You can set any folder on your computer as the root folder, and then SimWrapper will have access to anything in that folder and all subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 
