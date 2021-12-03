@@ -489,6 +489,11 @@ a.mapboxgl-ctrl-logo {
   position: 'static';
 }
 
+// sankey text colors don't break thru, sigh
+.node-title {
+  fill: var(--text);
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;
