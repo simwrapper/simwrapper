@@ -2,6 +2,9 @@
 # DEPLOY: Build site into /dist folder and PUSH to gh-pages branch ON GITHUB
 set -euo pipefail
 
+echo --- CLEARING ---
+rm -rf dist
+
 echo --- BUILDING ---
 npm run build
 

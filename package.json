@@ -1,6 +1,6 @@
 {
   "name": "simwrapper",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "license": "GPL-3.0-or-later",
   "author": "Billy Charlton <charlton@tu-berlin.de>",
@@ -9,13 +9,15 @@
     "Janek Laudan <laudan@vsp.tu-berlin.de>"
   ],
   "scripts": {
+    "deploy-vsp": "cp -f public/404.simwrapper.html public/404.html && bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper",
+    "deploy-staging": "cp -f public/404.staging.html public/404.html && bash scripts/deploy-ghpages.sh simwrapper/staging",
+    "deploy-asim": "cp -f public/404.dashboard.html public/404.html && bash scripts/deploy-ghpages.sh activitysim/dashboard",
     "serve": "vite",
     "build": "vite build",
     "release": "standard-version",
     "test:unit": "broken//vue-cli-service test:unit",
     "lint": "broken//vue-cli-service lint",
-    "bumpversion": "standard-version",
-    "deploy": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper"
+    "bumpversion": "standard-version"
   },
   "dependencies": {
     "@aftersim/pako": "^1.0.11-3",
