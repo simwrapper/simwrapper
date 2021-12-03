@@ -73,7 +73,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
-import TransitSupplyHelper from './TransitSupplyHelper'
+import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
 import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
@@ -135,9 +135,9 @@ class MyComponent extends Vue {
   private myState = {
     fileApi: this.fileApi,
     fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
+    subfolder: '',
+    yamlConfig: '',
+    thumbnail: true,
   }
 
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
@@ -162,7 +162,7 @@ class MyComponent extends Vue {
   private _transitLines!: { [index: string]: TransitLine }
   private _roadFetcher!: any
   private _transitFetcher!: any
-  private _transitHelper!: TransitSupplyHelper
+  private _transitHelper?: any
 
   public created() {
     this._attachedRouteLayers = []
@@ -174,6 +174,23 @@ class MyComponent extends Vue {
     this._stopFacilities = {}
     this._transitLines = {}
     this.selectedRoute = null
+  }
+
+  public async mounted() {
+    this.$store.commit('setFullScreen', !this.thumbnail)
+
+    // populate props after we attach, not before!
+    this.myState.subfolder = this.subfolder
+    this.myState.yamlConfig = this.yamlConfig
+    this.myState.thumbnail = this.thumbnail
+
+    if (!this.fileApi) this.buildFileApi()
+
+    await this.getVizDetails()
+
+    if (this.thumbnail) return
+
+    this.setupMap()
   }
 
   public destroyed() {
@@ -235,25 +252,13 @@ class MyComponent extends Vue {
     if (this.xmlWorker) this.xmlWorker.terminate()
     if (this._roadFetcher) this._roadFetcher.destroy()
     if (this._transitFetcher) this._transitFetcher.destroy()
-    if (this._transitHelper) this._transitHelper.destroy()
+    if (this._transitHelper) this._transitHelper.terminate()
   }
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
     this.myState.fileSystem = filesystem
-  }
-
-  public async mounted() {
-    this.$store.commit('setFullScreen', !this.thumbnail)
-
-    if (!this.fileApi) this.buildFileApi()
-
-    await this.getVizDetails()
-
-    if (this.thumbnail) return
-
-    this.setupMap()
   }
 
   private getFileSystem(name: string) {
@@ -691,29 +696,31 @@ class MyComponent extends Vue {
   private async processInputs(networks: NetworkInputs) {
     this.loadingText = 'Preparing...'
     // spawn transit helper web worker
-    this._transitHelper = await TransitSupplyHelper.create({
+    this._transitHelper = new TransitSupplyWorker()
+
+    this._transitHelper.onmessage = async (buffer: MessageEvent) => {
+      this.receivedProcessedTransit(buffer)
+    }
+
+    this._transitHelper.postMessage({
       xml: networks,
       projection: this.projection,
     })
+  }
 
-    this.loadingText = 'Crunching road network...'
-    await this._transitHelper.createNodesAndLinks()
-
-    this.loadingText = 'Converting coordinates...'
-    await this._transitHelper.convertCoordinates()
-
-    this.loadingText = 'Crunching transit network...'
-
-    const { network, routeData, stopFacilities, transitLines, mapExtent }: any =
-      await this._transitHelper.processTransit()
-
+  private async receivedProcessedTransit(buffer: MessageEvent) {
+    if (buffer.data.status) {
+      this.loadingText = buffer.data.status
+      return
+    }
+    const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
     this._network = network
     this._routeData = routeData
     this._stopFacilities = stopFacilities
     this._transitLines = transitLines
     this._mapExtentXYXY = mapExtent
 
-    // await this.addLinksToMap() // --no links for now
+    this._transitHelper.terminate()
 
     this.loadingText = 'Summarizing departures...'
     await this.processDepartures()
