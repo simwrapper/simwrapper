@@ -22,16 +22,16 @@
 <script lang="ts">
 'use strict'
 
-import nprogress from 'nprogress'
 import yaml from 'yaml'
 import { sankey, sankeyDiagram } from 'd3-sankey-diagram'
 import { select } from 'd3-selection'
 import { scaleOrdinal } from 'd3-scale'
 import { schemeCategory10 } from 'd3-scale-chromatic'
+import Papaparse from 'papaparse'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 interface SankeyYaml {
@@ -53,8 +53,6 @@ class MyComponent extends Vue {
 
   @Prop({ required: false })
   private thumbnail!: boolean
-
-  private globalState = globalStore.state
 
   private myState = {
     fileApi: undefined as HTTPFileSystem | undefined,
@@ -113,7 +111,6 @@ class MyComponent extends Vue {
 
     this.loadingText = ''
     this.doD3()
-    nprogress.done()
   }
 
   private async loadFiles() {
@@ -133,7 +130,7 @@ class MyComponent extends Vue {
         this.myState.subfolder + '/' + this.vizDetails.csv
       )
 
-      return { flows }
+      return flows
     } catch (err) {
       const e = err as any
       console.error({ e })
@@ -146,7 +143,7 @@ class MyComponent extends Vue {
     }
   }
 
-  private processInputs(networks: any) {
+  private processInputs(rawText: any) {
     this.loadingText = 'Building node graph...'
 
     const fromNodes: any = []
@@ -155,22 +152,29 @@ class MyComponent extends Vue {
     this.totalTrips = 0
 
     // build lookups
-    const csv = networks.flows.split('\n')
-    for (const line of csv.slice(1)) {
-      const cols = line.trim().split(';')
+    try {
+      const content = Papaparse.parse(rawText, {
+        // using header:false because we don't care what
+        // the column names are: we expect "from,to,value" in cols 0,1,2.
+        header: false,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+      })
 
-      if (!cols) continue
-      if (cols.length < 2) continue
+      for (const cols of content.data.slice(1) as any[]) {
+        if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
+        if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
 
-      if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
-      if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
+        const value = cols[2]
 
-      const value = parseFloat(cols[2])
-
-      if (value > 0) {
-        links.push([cols[0], cols[1], value])
-        this.totalTrips += value
+        if (value > 0) {
+          links.push([cols[0], cols[1], value])
+          this.totalTrips += value
+        }
       }
+    } catch (err) {
+      const e = err as any
+      console.error(e)
     }
 
     // build js object
