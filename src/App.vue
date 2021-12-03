@@ -239,10 +239,6 @@ h3 {
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
   padding: 0 0;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
