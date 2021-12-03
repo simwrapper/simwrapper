@@ -1,9 +1,9 @@
 <template lang="pug">
 .main-container
-  .sankey-container.show-thumbnail(v-if="myState.thumbnail"
+  .sankey-container.show-thumbnail(v-if="thumbnail"
     :style="{'overflow-y': 'hidden'}")
 
-    .main-area
+    .thumb-area
       svg.chart-area(:id="cleanConfigId")
 
   .sankey-container(v-else
@@ -48,19 +48,14 @@ class MyComponent extends Vue {
   @Prop({ required: true })
   private subfolder!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private yamlConfig!: string
 
-  @Prop({ required: false })
+  @Prop({ required: true })
   private thumbnail!: boolean
 
-  private myState = {
-    fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
-  }
+  private fileApi?: HTTPFileSystem
+  private fileSystem?: FileSystemConfig
 
   private vizDetails: SankeyYaml = { csv: '', title: '', description: '' }
 
@@ -69,7 +64,7 @@ class MyComponent extends Vue {
   private totalTrips = 0
 
   private get cleanConfigId() {
-    const clean = this.myState.yamlConfig.replace(/[\W_]+/g, '')
+    const clean = this.yamlConfig?.replace(/[\W_]+/g, '') || ''
     return clean
   }
 
@@ -79,19 +74,19 @@ class MyComponent extends Vue {
   }
 
   @Watch('yamlConfig') changedYaml() {
-    this.myState.yamlConfig = this.yamlConfig
+    this.yamlConfig = this.yamlConfig
     this.getVizDetails()
   }
 
   @Watch('subfolder') changedSubfolder() {
-    this.myState.subfolder = this.subfolder
+    this.subfolder = this.subfolder
     this.getVizDetails()
   }
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
+    this.fileApi = new HTTPFileSystem(filesystem)
+    this.fileSystem = filesystem
   }
 
   private getFileSystem(name: string) {
@@ -114,21 +109,17 @@ class MyComponent extends Vue {
   }
 
   private async loadFiles() {
-    if (!this.myState.fileApi) return
+    if (!this.fileApi) return
 
     try {
       this.loadingText = 'Loading files...'
 
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
       this.vizDetails = yaml.parse(text)
 
       this.$emit('title', this.vizDetails.title)
 
-      const flows = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.vizDetails.csv
-      )
+      const flows = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
 
       return flows
     } catch (err) {
@@ -137,8 +128,8 @@ class MyComponent extends Vue {
       this.loadingText = '' + e
 
       // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+      if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
+        globalStore.commit('requestLogin', this.fileSystem.slug)
       }
     }
   }
@@ -201,18 +192,15 @@ class MyComponent extends Vue {
 
   private doD3() {
     const data = this.jsonChart
-    data.order = [[[4, 1, 2, 3, 0, 5]], [[6, 7, 8, 9, 10, 11]]]
     data.alignTypes = true
     data.alignLinkTypes = true
 
     const layout = sankey()
       .extent([
-        [100, 100],
-        [700, 600],
+        [125, 0],
+        [675, 700],
       ])
-      .nodeWidth(3)
-
-    // layout.ordering(data.order)
+      .nodeWidth(8)
 
     const tryColor = scaleOrdinal(schemeCategory10)
     const diagram = sankeyDiagram().linkColor((link: any) => {
@@ -315,6 +303,12 @@ p {
   display: flex;
   flex-direction: column;
   width: 100%;
+  padding: 0 1rem;
+}
+
+.thumb-area {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
   padding: 0 1rem;
 }
 
