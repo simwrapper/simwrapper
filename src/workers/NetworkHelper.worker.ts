@@ -158,7 +158,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
   private buildTransitRouteDetails(lineId: string, route: any) {
     const allDepartures = route.departures[0].departure
-    allDepartures.sort(function(a: any, b: any) {
+    allDepartures.sort(function (a: any, b: any) {
       const timeA = a.$.departureTime
       const timeB = b.$.departureTime
       if (timeA < timeB) return -1
@@ -238,6 +238,3 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
 // make the typescript compiler happy on import
 export default null as any
-
-// bootstrap when worker is loaded
-const worker = new TransitSupplyHelper()

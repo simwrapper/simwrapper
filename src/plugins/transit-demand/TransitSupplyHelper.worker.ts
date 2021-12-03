@@ -230,6 +230,3 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
 
 // make the typescript compiler happy on import
 export default null as any
-
-// bootstrap when worker is loaded
-const worker = new TransitSupplyHelper()
