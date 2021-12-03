@@ -181,9 +181,9 @@ class CarrierPlugin extends Vue {
     isRunning: false,
     fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
+    subfolder: '',
+    yamlConfig: '',
+    thumbnail: true,
     data: [] as any[],
   }
 
@@ -617,6 +617,10 @@ class CarrierPlugin extends Vue {
 
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig
+    this.myState.subfolder = this.subfolder
 
     this.buildFileApi()
 

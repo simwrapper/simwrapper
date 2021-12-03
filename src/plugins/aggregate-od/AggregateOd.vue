@@ -144,9 +144,9 @@ class MyComponent extends Vue {
   private myState = {
     fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
+    subfolder: '',
+    yamlConfig: '',
+    thumbnail: false,
   }
 
   private vizDetails: AggOdYaml = {
@@ -229,6 +229,10 @@ class MyComponent extends Vue {
 
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig
+    this.myState.subfolder = this.subfolder
 
     this.buildFileApi()
     await this.getVizDetails()

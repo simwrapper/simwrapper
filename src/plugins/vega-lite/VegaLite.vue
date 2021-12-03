@@ -50,9 +50,9 @@ class VegaComponent extends Vue {
   private myState = {
     fileApi: this.fileApi,
     fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
+    subfolder: '',
+    yamlConfig: '',
+    thumbnail: false,
   }
 
   private vizDetails: any = { title: '', description: '' }
@@ -69,6 +69,10 @@ class VegaComponent extends Vue {
   }
 
   public async mounted() {
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig
+    this.myState.subfolder = this.subfolder
+
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
@@ -162,7 +166,8 @@ class VegaComponent extends Vue {
             .replace(/_/g, ' ')
 
       this.$emit('title', this.title)
-    } catch (e) {
+    } catch (err) {
+      const e = err as any
       console.error({ e })
       this.loadingText = '' + e
 

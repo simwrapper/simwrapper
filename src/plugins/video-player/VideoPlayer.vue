@@ -47,18 +47,20 @@ class MyComponent extends Vue {
     sources: [] as any[],
   }
 
-  private myState = {
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
-    imageData: '',
-  }
+  private myState: any = {}
 
   public beforeDestroy() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
   }
 
   public mounted() {
+    this.myState = {
+      subfolder: this.subfolder,
+      yamlConfig: this.yamlConfig,
+      thumbnail: this.thumbnail,
+      imageData: '',
+    }
+
     if (!this.thumbnail) globalStore.commit('setFullScreen', true)
 
     this.fileApi = this.getFileSystem(this.root)

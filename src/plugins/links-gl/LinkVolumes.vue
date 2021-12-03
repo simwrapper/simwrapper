@@ -178,9 +178,9 @@ class MyPlugin extends Vue {
     statusMessage: '',
     fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
+    subfolder: '',
+    yamlConfig: '',
+    thumbnail: false,
   }
 
   private csvData: CSV = { header: [], headerMax: [], rows: new Float32Array(), activeColumn: -1 }
@@ -352,6 +352,10 @@ class MyPlugin extends Vue {
 
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig
+    this.myState.subfolder = this.subfolder
 
     this.buildFileApi()
 

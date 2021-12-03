@@ -32,13 +32,7 @@ class MyComponent extends Vue {
 
   private globalState = globalStore.state
 
-  private myState = {
-    fileApi: this.fileApi,
-    subfolder: this.subfolder,
-    yamlConfig: this.yamlConfig,
-    thumbnail: this.thumbnail,
-    imageData: '',
-  }
+  private myState: any = {}
 
   private matsimPngTitles: { [key: string]: string } = {
     'modestats.png': 'Mode statistics',
@@ -55,6 +49,14 @@ class MyComponent extends Vue {
   }
 
   public mounted() {
+    this.myState = {
+      fileApi: this.fileApi,
+      subfolder: this.subfolder,
+      yamlConfig: this.yamlConfig,
+      thumbnail: this.thumbnail,
+      imageData: '',
+    }
+
     if (!this.yamlConfig) {
       this.buildRouteFromUrl()
     }

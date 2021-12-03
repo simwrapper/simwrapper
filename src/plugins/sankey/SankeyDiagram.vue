@@ -310,6 +310,7 @@ p {
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   padding: 0 1rem;
+  background-color: var(--bgPanel2);
 }
 
 .center-area {
