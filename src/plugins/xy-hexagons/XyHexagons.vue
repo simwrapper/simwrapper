@@ -599,13 +599,10 @@ class XyHexagons extends Vue {
   }
 
   private dataIsLoaded({ rowCache, columnLookup }: any) {
-    console.log('HERE!')
-
-    console.log({ rowCache })
+    // console.log({ rowCache })
     this.columnLookup = columnLookup
     this.rowCache = rowCache
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
-    console.log({ requests: this.requests })
     this.jumpToCenter()
 
     this.myState.statusMessage = ''

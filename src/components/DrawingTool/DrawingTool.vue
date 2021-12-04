@@ -138,10 +138,8 @@ export default class VueComponent extends Vue {
   }
 
   private exportIt() {
-    console.log('exporting')
-
     // only export closed polygons
-    this.polygons = this.polygons.filter(p => p.finished)
+    this.polygons = this.polygons.filter((p) => p.finished)
     this.points = []
     this.updateLayers()
 
@@ -216,11 +214,15 @@ export default class VueComponent extends Vue {
   }
 
   private updateLayers() {
+    // view isn't picking the changes up, let's force it
+    const shapes = this.polygons.slice(0)
+    const dots = this.points.slice(0)
+
     this.layerManager.removeLayer('draw-polygon-layer')
     this.layerManager.addLayer(
       new GeoJsonLayer({
         id: 'draw-polygon-layer',
-        data: this.polygons,
+        data: shapes,
         pickable: false,
         stroked: true,
         filled: true,
@@ -239,7 +241,7 @@ export default class VueComponent extends Vue {
     this.layerManager.addLayer(
       new ScatterplotLayer({
         id: 'scatterplot-layer',
-        data: this.points,
+        data: dots,
         getPosition: (d: any) => d,
         pickable: true,
         stroked: true,

@@ -17,7 +17,8 @@
     "release": "standard-version",
     "test:unit": "broken//vue-cli-service test:unit",
     "lint": "broken//vue-cli-service lint",
-    "bumpversion": "standard-version"
+    "bumpversion": "standard-version",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@aftersim/pako": "^1.0.11-3",
@@ -39,6 +40,7 @@
     "d3-scale": "^3.2.2",
     "d3-scale-chromatic": "^1.5.0",
     "d3-selection": "^1.4.1",
+    "dbf": "^0.1.4",
     "debounce": "^1.2.0",
     "deck.gl": "^8.5.5",
     "epsg": "^0.5.0",
@@ -121,6 +123,7 @@
     "eslint-plugin-react": "^7.27.1",
     "eslint-plugin-react-hooks": "^4.3.0",
     "eslint-plugin-vue": "^7.20.0",
+    "patch-package": "^6.4.7",
     "prettier": "^2.4.1",
     "pug": "^3.0.2",
     "sass": "^1.32.11",
