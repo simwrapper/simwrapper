@@ -16,6 +16,8 @@ except ImportError:
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 
+current_dir = os.getcwd()
+
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
     '''Like shutil.copyfileobj, but only copy a range of the streams.
 
@@ -110,6 +112,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
         self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
         self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Mini-File-Server-Root', current_dir)
 
         SimpleHTTPRequestHandler.end_headers(self)
 
@@ -135,7 +138,7 @@ def find_free_port(port):
 def run_mini_file_server(port):
     print("\n-----------------------------------------------------------------")
     print("SimWrapper file server: port", port)
-    print(os.getcwd())
+    print(current_dir)
 
     free_port = find_free_port(port)
 
