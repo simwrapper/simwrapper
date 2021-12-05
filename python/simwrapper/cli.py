@@ -16,12 +16,22 @@ def cli():
 
 @cli.command(help="Start a local file server in this folder")
 @click.argument('port', default=default_port)
-def serve(port):
-    MiniFileServer.run_mini_file_server(port)
+@click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
+@click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
+def serve(port, cert, key):
+    if (cert and not key) or (not cert and key):
+      raise click.BadParameter("need both a cert and a key to enable HTTPS")
+
+    MiniFileServer.run_mini_file_server(port, cert, key)
 
 @cli.command(help="Open your browser and view this folder using SimWrapper")
 @click.argument('site', default='vsp')
-def open(site):
+@click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
+@click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
+def open(site, cert, key):
+    if (cert and not key) or (not cert and key):
+      raise click.BadParameter("need both a cert and a key to enable HTTPS")
+
     port = MiniFileServer.find_free_port(default_port)
     # Build the full URL for this site, including the free port number
     url = ''
@@ -35,4 +45,4 @@ def open(site):
     webbrowser.open(url, new=2, autoraise=True)  # in a new tab
 
     # Then start local fileserver
-    MiniFileServer.run_mini_file_server(port)
+    MiniFileServer.run_mini_file_server(port, cert, key)

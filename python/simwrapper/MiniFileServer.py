@@ -4,11 +4,12 @@ import os
 import re
 import sys
 import socket
+import ssl
 
 try:
     # Python3
     import http.server as SimpleHTTPServer
-    from http.server import SimpleHTTPRequestHandler, test
+    from http.server import HTTPServer, SimpleHTTPRequestHandler, test
 
 except ImportError:
     # Python 2
@@ -135,16 +136,26 @@ def find_free_port(port):
         finally:
             s.close()
 
-def run_mini_file_server(port):
+def run_mini_file_server(port, cert, key):
     print("\n-----------------------------------------------------------------")
     print("SimWrapper file server: port", port)
+    if cert and key: print("Using HTTPS with PEM cert/key")
     print(current_dir)
 
     free_port = find_free_port(port)
 
     print("-----------------------------------------------------------------\n")
-    test(HandlerClass=RangeRequestHandler, port=free_port)
+    # test(HandlerClass=RangeRequestHandler, port=free_port)
+    httpd = HTTPServer(('localhost', free_port), RangeRequestHandler)
 
+    if cert and key: httpd.socket = ssl.wrap_socket(
+        httpd.socket,
+        certfile=cert,
+        keyfile=key,
+        server_side=True
+    )
+
+    httpd.serve_forever()
 
 if __name__ == '__main__':
     run_mini_file_server(8000)
