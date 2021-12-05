@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.2.1...v1.3.0) (2021-12-05)
+
+
+### Features
+
+* Learned --cert and --key fields to support HTTPS for Safari. See docs. ([fd8e286](https://github.com/simwrapper/simwrapper-python-tools/commit/fd8e2864e31de71e1fb27a750dcd6ad1ef64a71d))
+
 ### [1.2.1](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.2.0...v1.2.1) (2021-12-01)
 
 
