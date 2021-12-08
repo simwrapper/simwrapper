@@ -1,21 +1,19 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options")
-
+VuePlotly(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :id="id"
+  ref="plotly-element"
+)
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
-import VuePlotly from '@statnett/vue-plotly'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import VuePlotly from '@/components/VuePlotly.vue'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
-
-const mockData = {
-  car: 34,
-  bike: 18,
-  pt: 30,
-  walk: 8,
-}
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -23,15 +21,18 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop() datamanager!: DashboardDataManager
 
   private globalState = this.$store.state
 
-  private thread!: any
-  private dataRows: any = {}
+  // dataSet is either x,y or allRows[]
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private id = 'bubble-' + Math.random()
 
   private async mounted() {
     this.updateTheme()
-    await this.loadData()
+    this.dataSet = await this.loadData()
+    this.updateChart()
     this.$emit('isLoaded')
   }
 
@@ -42,76 +43,81 @@ export default class VueComponent extends Vue {
   }
 
   private async loadData() {
-    if (!this.files.length) return
-
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    if (!this.files.length) return {}
 
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
-
-      this.dataRows = data
-      this.updateChart()
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      return dataset
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = {}
-    } finally {
-      Thread.terminate(this.thread)
     }
+    return {}
+  }
+
+  private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    // tba
   }
 
   // size circle
   // color is data
-  private updateChart() {
+  private updateChartSimple() {
     const x = []
     const bubble = []
     const y = []
 
+    const factor = this.config.factor || 1.0
+
     var legendname = this.config.bubble
+    if (this.config.legendName) legendname = this.config.legendName
+    if (this.config.legendTitle) legendname = this.config.legendTitle
 
-    if (this.config.legendName !== undefined) {
-      legendname = this.config.legendName
-    }
+    const allRows = this.dataSet.allRows || []
 
-    for (var i = 0; i < this.dataRows.length; i++) {
+    for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
       } else {
-        x.push(this.dataRows[i][this.config.x])
+        x.push(allRows[i][this.config.x])
       }
     }
 
-    for (var i = 0; i < this.dataRows.length; i++) {
+    // // old configs called it "usedCol" --> now "columns"
+    // const columns = this.config.columns || this.config.usedCol
+
+    for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
       } else {
-        bubble.push(this.dataRows[i][this.config.bubble] / this.config.factor)
+        bubble.push(allRows[i][this.config.bubble] * factor)
       }
     }
 
-    for (var i = 0; i < this.dataRows.length; i++) {
+    for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
       } else {
-        y.push(this.dataRows[i][this.config.y])
+        y.push(allRows[i][this.config.y])
       }
     }
 
-    this.data.push({
-      x: x,
-      y: y,
-      name: legendname,
-      mode: 'markers',
-      type: 'scatter',
-      textinfo: 'label+percent',
-      textposition: 'inside',
-      automargin: true,
-      showlegend: true,
-      marker: { size: bubble },
-    })
+    this.data = [
+      {
+        x: x,
+        y: y,
+        name: legendname,
+        mode: 'markers',
+        type: 'scatter',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        showlegend: true,
+        marker: { size: bubble },
+      },
+    ]
   }
 
   private layout: any = {
@@ -138,20 +144,7 @@ export default class VueComponent extends Vue {
     },
   }
 
-  private data = [
-    {
-      x: [] as any[],
-      y: [] as any[],
-      name: '',
-      mode: 'markers',
-      type: 'scatter',
-      textinfo: 'label+percent',
-      textposition: 'inside',
-      automargin: true,
-      showlegend: true,
-      marker: { size: [] as any[] },
-    },
-  ]
+  private data = [] as any[]
 
   private options = {
     displaylogo: false,

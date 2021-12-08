@@ -1,13 +1,13 @@
 <template lang="pug">
-Plotly#vue-bar-chart(
+Plotly(
   :data="data"
   :layout="layout"
   :options="options"
   :id="id"
+  :class="className"
   ref="plotly-element"
-@click="handlePlotlyClick"
 )
-  //- :class="className"
+  //- @click="handlePlotlyClick"
 
 </template>
 
@@ -28,19 +28,22 @@ export default class VueComponent extends Vue {
   @Prop() datamanager!: DashboardDataManager
   @Prop() config!: any
 
-  private id = 'bar-' + Math.random()
-
   private globalState = globalStore.state
 
-  private dataRows: any = {}
-
+  private id = 'bar-' + Math.random()
   private plotID = this.getRandomInt(100000)
+
+  private className = ''
+
+  // dataSet is either x,y or allRows[]
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
 
   private async mounted() {
     this.updateLayout()
     this.updateTheme()
 
-    await this.loadData()
+    this.dataSet = await this.loadData()
+    this.updateChart()
 
     // this.resizePlot()
     window.addEventListener('resize', this.handleResizeEvent)
@@ -105,24 +108,23 @@ export default class VueComponent extends Vue {
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = {}
+      this.dataSet = {}
     }
   }
 
   private async loadData() {
-    if (!this.files.length) return
+    if (!this.files.length) return {}
 
     try {
-      const { allRows } = await this.datamanager.getDataset(this.config)
-      this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      const allRows = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
-      this.dataRows = allRows
-      this.updateChart()
+      return allRows
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = {}
     }
+    return {}
   }
 
   private getRandomInt(max: number) {
@@ -162,26 +164,31 @@ export default class VueComponent extends Vue {
   private updateChartWithGroupBy() {
     this.className = this.plotID // stacked bug-fix hack
 
-    const { x, y } = this.dataRows
+    // TODO: re-implement grouping
 
-    this.data = [
-      {
-        x,
-        y,
-        name: this.config.groupBy,
-        type: 'bar',
-        textinfo: 'label+percent',
-        textposition: 'inside',
-        automargin: true,
-        opacity: 1.0,
-      },
-    ]
+    // const { x, y } = this.dataRows
+
+    // this.data = [
+    //   {
+    //     x,
+    //     y,
+    //     name: this.config.groupBy,
+    //     type: 'bar',
+    //     textinfo: 'label+percent',
+    //     textposition: 'inside',
+    //     automargin: true,
+    //     opacity: 1.0,
+    //   },
+    // ]
   }
 
   private updateChartSimple() {
     const x = []
 
     var useOwnNames = false
+
+    // old legendname field
+    if (this.config.legendName) this.config.legendTitles = this.config.legendName
 
     if (this.config.legendTitles !== undefined) {
       if (this.config.legendTitles.length === this.config.columns.length) {
@@ -192,27 +199,32 @@ export default class VueComponent extends Vue {
     if (this.config.stacked) this.layout.barmode = 'stack'
     if (this.config.stacked) this.className = this.plotID
 
-    for (var i = 0; i < this.dataRows.length; i++) {
+    const allRows = this.dataSet.allRows || []
+
+    for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
       } else {
-        x.push(this.dataRows[i][this.config.x])
+        x.push(allRows[i][this.config.x])
       }
     }
 
-    for (let i = 0; i < this.config.columns.length; i++) {
-      const name = this.config.columns[i]
+    // old configs called it "usedCol" --> now "columns"
+    const columns = this.config.columns || this.config.usedCol
+
+    for (let i = 0; i < columns.length; i++) {
+      const name = columns[i]
       let legendName = ''
-      if (this.config.columns[i] !== 'undefined') {
+      if (columns[i] !== 'undefined') {
         if (useOwnNames) {
           legendName = this.config.legendTitles[i]
         } else {
           legendName = name
         }
         const value = []
-        for (var j = 0; j < this.dataRows.length; j++) {
+        for (var j = 0; j < allRows.length; j++) {
           if (j == 0 && this.config.skipFirstRow) {
           } else {
-            value.push(this.dataRows[j][name])
+            value.push(allRows[j][name])
           }
         }
         this.data.push({
@@ -228,8 +240,6 @@ export default class VueComponent extends Vue {
       }
     }
   }
-
-  private className = ''
 
   private layout: any = {
     height: 300,
@@ -257,18 +267,7 @@ export default class VueComponent extends Vue {
     },
   }
 
-  private data = [
-    {
-      x: [] as any[],
-      y: [] as any[],
-      name: '',
-      type: 'bar',
-      textinfo: 'label+percent',
-      textposition: 'inside',
-      automargin: true,
-      opacity: 1.0,
-    },
-  ]
+  private data = [] as any[]
 
   private options = {
     displaylogo: false,

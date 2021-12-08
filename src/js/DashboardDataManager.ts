@@ -19,6 +19,17 @@ import HTTPFileSystem from './HTTPFileSystem'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
+interface configuration {
+  dataset: string
+  groupBy?: string
+  value?: string
+  usedCol?: string[]
+  columns?: string[]
+  skipFirstRow?: boolean
+  x?: string
+  useLastRow?: boolean
+}
+
 export default class DashboardDataManager {
   constructor(...args: string[]) {
     // hello
@@ -53,7 +64,12 @@ export default class DashboardDataManager {
     return { filteredRows: { x, y } }
   }
 
-  public async getDataset(config: { dataset: string; groupBy?: string; value?: string }) {
+  /**
+   *
+   * @param config the configuration params from the YAML file. Must include dataset, and other optional parameters as needed by the viz
+   * @returns object with {x,y} or {allRows[]}
+   */
+  public async getDataset(config: configuration) {
     // first, get the dataset
     if (!this.datasets[config.dataset]) {
       console.log('load:', config.dataset)
@@ -67,12 +83,11 @@ export default class DashboardDataManager {
         filterListeners: new Set(),
       }
     }
+
     const allRows = await this.datasets[config.dataset].rows
-
-    // group the rows as needed
-    let bars: any = {}
-
     if (config.value && config.groupBy) {
+      // grouping/filtering enabled
+      let bars: any = {}
       const columnValues = config.value
       const columnGroups = config.groupBy
       bars = rollup(
@@ -80,14 +95,69 @@ export default class DashboardDataManager {
         (v) => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
-    } else {
-      // TODO need to handle non-value, non-group here
-    }
-    const x = Array.from(bars.keys())
-    const y = Array.from(bars.values())
+      const x = Array.from(bars.keys())
+      const y = Array.from(bars.values())
 
-    return { allRows: { x, y } }
+      return { x, y }
+      // #
+    } else {
+      // no grouping/filtering
+      return { allRows }
+    }
   }
+
+  // /**
+  //  * Load simple dataset without grouping/filtering
+  //  * @param allRows Each row
+  //  * @returns TBD
+  //  */
+  // public loadSimple(config: configuration, allRows: any[]) {
+  //   // Simple requires x and columns/usedCol
+  //   if (!config.x || (!config.columns && !config.usedCol)) {
+  //     throw Error('Config requires "x" and "columns" parameters')
+  //   }
+
+  //   var useOwnNames = false
+
+  //   const x = [] as any[]
+
+  //   for (var i = 0; i < allRows.length; i++) {
+  //     if (i == 0 && config.skipFirstRow) {
+  //     } else {
+  //       x.push(allRows[i][config.x])
+  //     }
+  //   }
+
+  //   const columns = config.columns || config.usedCol || []
+
+  //   for (let i = 0; i < columns.length; i++) {
+  //     const name = columns[i]
+  //     let legendName = ''
+  //     if (columns[i] !== 'undefined') {
+  //       if (useOwnNames) {
+  //         legendName = this.config.legendTitles[i]
+  //       } else {
+  //         legendName = name
+  //       }
+  //       const value = []
+  //       for (var j = 0; j < this.dataRows.length; j++) {
+  //         if (j == 0 && this.config.skipFirstRow) {
+  //         } else {
+  //           value.push(this.dataRows[j][name])
+  //         }
+  //       }
+  //       this.data.push({
+  //         x: x,
+  //         y: value,
+  //         name: legendName,
+  //         type: 'bar',
+  //         textinfo: 'label+percent',
+  //         textposition: 'inside',
+  //         automargin: true,
+  //       })
+  //     }
+  //   }
+  // }
 
   public setFilter(dataset: string, column: string, value: any) {
     console.log('Filtering dataset:', dataset)

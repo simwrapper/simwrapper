@@ -1,21 +1,19 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options")
-
+VuePlotly(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :id="id"
+  ref="plotly-element"
+)
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
-import VuePlotly from '@statnett/vue-plotly'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import VuePlotly from '@/components/VuePlotly.vue'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
-
-const mockData = {
-  car: 34,
-  bike: 18,
-  pt: 30,
-  walk: 8,
-}
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -23,21 +21,18 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop() datamanager!: DashboardDataManager
 
   private globalState = this.$store.state
 
-  private thread!: any
-  private dataRows: any = {}
-  private markerSize: any
+  // dataSet is either x,y or allRows[]
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private id = 'scatter-' + Math.random()
 
   private async mounted() {
     this.updateTheme()
-    if (this.config.markerSize === undefined) {
-      this.markerSize = 3
-    } else {
-      this.markerSize = this.config.markerSize
-    }
-    await this.loadData()
+    this.dataSet = await this.loadData()
+    this.updateChart()
     this.$emit('isLoaded')
   }
 
@@ -48,64 +43,70 @@ export default class VueComponent extends Vue {
   }
 
   private async loadData() {
-    if (!this.files.length) return
-
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    if (!this.files.length) return {}
 
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
-
-      this.dataRows = data
-      this.updateChart()
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      return dataset
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = {}
-    } finally {
-      Thread.terminate(this.thread)
     }
+    return {}
+  }
+
+  private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    // tba
   }
 
   // size circle
   // color is data
-  private updateChart() {
+  private updateChartSimple() {
     const x = []
 
     var useOwnNames = false
 
-    if (this.config.legendName !== undefined) {
-      if (this.config.legendName.length == this.config.usedCol.length) {
-        useOwnNames = true
-      }
-    }
+    const factor = this.config.factor || 1.0
 
-    for (var i = 0; i < this.dataRows.length; i++) {
+    // // old configs called it "usedCol" --> now "columns"
+    const columns = this.config.columns || this.config.usedCol || [this.config.y] || []
+
+    var legendname = columns
+    if (this.config.legendName) legendname = this.config.legendName
+    if (this.config.legendTitle) legendname = this.config.legendTitle
+
+    const allRows = this.dataSet.allRows || []
+
+    for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
       } else {
-        x.push(this.dataRows[i].iteration)
+        x.push(allRows[i][this.config.x])
       }
     }
 
-    for (var i = 0; i < this.config.usedCol.length; i++) {
-      var name = this.config.usedCol[i]
+    const markerSize = this.config.markerSize || 3
+
+    for (var i = 0; i < columns.length; i++) {
+      var name = columns[i]
       var legendName = ''
-      if (this.config.usedCol[i] !== 'undefined') {
+      if (columns[i] !== 'undefined') {
         if (useOwnNames) {
-          legendName = this.config.legendName[i]
+          legendName = legendname[i]
         } else {
           legendName = name
         }
+
         const value = []
-        for (var j = 0; j < this.dataRows.length; j++) {
+        for (var j = 0; j < allRows.length; j++) {
           if (j == 0 && this.config.skipFirstRow) {
           } else {
-            value.push(this.dataRows[j][name])
+            value.push(allRows[j][name])
           }
         }
         this.data.push({
@@ -118,7 +119,7 @@ export default class VueComponent extends Vue {
           textposition: 'inside',
           automargin: true,
           showlegend: true,
-          marker: { size: this.markerSize },
+          marker: { size: markerSize },
         })
       }
     }
@@ -148,20 +149,7 @@ export default class VueComponent extends Vue {
     },
   }
 
-  private data = [
-    {
-      x: [] as any[],
-      y: [] as any[],
-      name: '',
-      mode: 'markers',
-      type: 'scatter',
-      textinfo: 'label+percent',
-      textposition: 'inside',
-      automargin: true,
-      showlegend: true,
-      marker: { size: [] as any[] },
-    },
-  ]
+  private data = [] as any[]
 
   private options = {
     displaylogo: false,

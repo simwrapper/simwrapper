@@ -1,13 +1,18 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options" :config="{responsive: true}")
-
+VuePlotly(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :id="id"
+  ref="plotly-element"
+)
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
-import VuePlotly from '@statnett/vue-plotly'
 
+import VuePlotly from '@/components/VuePlotly.vue'
+import DashboardDataManager from '@/js/DashboardDataManager'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 
 @Component({ components: { VuePlotly } })
@@ -16,15 +21,18 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop() datamanager!: DashboardDataManager
 
   private globalState = this.$store.state
 
-  private thread!: any
-  private dataRows: any = {}
+  // dataSet is either x,y or allRows[]
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private id = 'heatmap-' + Math.random()
 
   private async mounted() {
     this.updateTheme()
-    await this.loadData()
+    this.dataSet = await this.loadData()
+    this.updateChart()
     this.$emit('isLoaded')
   }
 
@@ -35,57 +43,59 @@ export default class VueComponent extends Vue {
   }
 
   private async loadData() {
-    if (!this.files.length) return
-
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    if (!this.files.length) return {}
 
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
-
-      this.dataRows = data
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      return dataset
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = {}
-    } finally {
-      Thread.terminate(this.thread)
     }
+    return {}
   }
 
-  // Creates the HeatMap as soon as the data has been read in or updated.
-  @Watch('dataRows') private prepareData() {
+  private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    // tba
+  }
+
+  private updateChartSimple() {
     var xaxis: any[] = []
     var yaxis: any[] = []
     var matrix: any[] = []
     var subMatrix: any[] = []
 
+    const allRows = this.dataSet.allRows || []
+
+    const columns = this.config.columns || this.config.usedCol || []
+
     // Reads all the data of the y-axis.
-    for (var i = 0; i < this.dataRows.length; i++) {
+    for (var i = 0; i < allRows.length; i++) {
       // Adding all values to the yAxis Array
-      yaxis.push(this.dataRows[i][this.config.y])
+      yaxis.push(allRows[i][this.config.y])
     }
 
     // Reads all the data of the x-axis.
-    for (const [key, value] of Object.entries(this.dataRows[0])) {
-      if (this.config.columns.includes(key)) {
+    for (const [key, value] of Object.entries(allRows[0])) {
+      if (columns.includes(key)) {
         xaxis.push(key)
       }
     }
 
     // Converts all data to the matrix format of the heatmap
-    for (var i = 0; i < this.dataRows.length; i++) {
-      for (const [key, value] of Object.entries(this.dataRows[i])) {
+    for (var i = 0; i < allRows.length; i++) {
+      for (const [key, value] of Object.entries(allRows[i])) {
         if (this.config.columns.includes(key)) {
           subMatrix[xaxis.indexOf(key)] = value
         }
       }
-      matrix[yaxis.indexOf(this.dataRows[i][this.config.y])] = subMatrix
+      matrix[yaxis.indexOf(allRows[i][this.config.y])] = subMatrix
       subMatrix = []
     }
 

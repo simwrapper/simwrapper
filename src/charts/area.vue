@@ -1,14 +1,19 @@
 <template lang="pug">
-vue-plotly(:data="data" :layout="layout" :options="options")
-
+VuePlotly(
+  :data="data"
+  :layout="layout"
+  :options="options"
+  :id="id"
+  ref="plotly-element"
+)
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
 import { isNumeric } from 'vega-lite'
-import VuePlotly from '@statnett/vue-plotly'
 
+import VuePlotly from '@/components/VuePlotly.vue'
+import DashboardDataManager from '@/js/DashboardDataManager'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 
 @Component({ components: { VuePlotly } })
@@ -17,15 +22,18 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop() datamanager!: DashboardDataManager
 
   private globalState = this.$store.state
 
-  private thread!: any
-  private dataRows: any[] = []
+  // dataSet is either x,y or allRows[]
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private id = 'area-' + Math.random()
 
   private async mounted() {
     this.updateTheme()
-    await this.loadData()
+    this.dataSet = await this.loadData()
+    this.updateChart()
     this.$emit('isLoaded')
   }
 
@@ -36,49 +44,55 @@ export default class VueComponent extends Vue {
   }
 
   private async loadData() {
-    if (!this.files.length) return
-
-    // cancel any loose threads first
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
+    if (!this.files.length) return {}
 
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
-
-      this.dataRows = data
-      this.updateChart()
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      return dataset
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = []
-    } finally {
-      Thread.terminate(this.thread)
     }
+    return {}
   }
 
   private updateChart() {
+    if (this.config.groupBy) this.updateChartWithGroupBy()
+    else this.updateChartSimple()
+  }
+
+  private updateChartWithGroupBy() {
+    // tba
+  }
+
+  private updateChartSimple() {
     // data comes back as an array of objects with elements.
     // We need to reshape it into an array of { x:[...] and y:[...] } objects,
     // one for each area in the chart
 
-    const rows = this.dataRows as any[]
-    const x = this.dataRows.map((row: any) => row[this.config.x])
+    const allRows = this.dataSet.allRows || []
 
-    // Remove spurious columns
+    const x = allRows.map((row: any) => row[this.config.x])
+
+    // Identify usable data columns
     const ignore: any[] = this.config.ignoreColumns || []
-    const areaColumns = Object.keys(rows[0]).filter(
-      col => col !== this.config.x && ignore.indexOf(col) === -1
+    const include: any[] = this.config.columns || this.config.usedCol || []
+
+    // ignored columns
+    let useColumns = Object.keys(allRows[0]).filter(
+      (col) => col !== this.config.x && ignore.indexOf(col) === -1
     )
+
+    // selected columns
+    if (include.length) {
+      useColumns = Object.keys(allRows[0]).filter((col) => include.indexOf(col) > -1)
+    }
 
     // convert the data
     const convertedData: any = {}
 
-    for (const col of areaColumns.sort((a: string, b: string) => (a > b ? -1 : 1))) {
+    for (const col of useColumns.sort((a: string, b: string) => (a > b ? -1 : 1))) {
       convertedData[col] = {
         name: col,
         x: x,
@@ -88,8 +102,8 @@ export default class VueComponent extends Vue {
       }
     }
 
-    for (const row of rows) {
-      areaColumns.forEach((col: any) => {
+    for (const row of allRows) {
+      useColumns.forEach((col: any) => {
         convertedData[col].y.push(isNumeric(row[col]) ? row[col].toFixed(4) : row[col])
       })
     }

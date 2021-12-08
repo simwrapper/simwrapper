@@ -9,12 +9,12 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
 import * as turf from '@turf/turf'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES } from '@/Globals'
 import FlowMapLayer from '@/layers/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
 // import globalStore from '@/store'
 
 import { VuePlugin } from 'vuera'
@@ -26,9 +26,9 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
+  @Prop({ required: true }) datamanager!: DashboardDataManager
 
   private fileApi!: HTTPFileSystem
-  private thread!: any
   private boundaries: any[] = []
 
   private centroids: { id: any; name?: any; lat: number; lon: number }[] = []
@@ -89,7 +89,7 @@ export default class VueComponent extends Vue {
 
     try {
       if (this.config.boundaries.startsWith('http')) {
-        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
+        const boundaries = await fetch(this.config.boundaries).then(async (r) => await r.json())
         this.boundaries = boundaries.features
       } else {
         const boundaries = await this.fileApi.getFileJson(
@@ -123,17 +123,11 @@ export default class VueComponent extends Vue {
   }
 
   private async loadDataset() {
-    // cancel any loose threads first
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
-
     try {
-      const data = (await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })) as any[]
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+
+      const data = dataset.allRows || []
 
       // assumes flow data has "origin,destination,count" columns
       this.flows = data.map((row: any) => {
@@ -147,8 +141,6 @@ export default class VueComponent extends Vue {
       const message = '' + e
       console.log(message)
       this.flows = []
-    } finally {
-      Thread.terminate(this.thread)
     }
     console.log({ flows: this.flows })
   }

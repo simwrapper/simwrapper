@@ -18,7 +18,6 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { Worker, spawn, Thread } from 'threads'
 import bulmaSlider from 'bulma-slider'
 import * as turf from '@turf/turf'
 
@@ -131,7 +130,7 @@ export default class VueComponent extends Vue {
 
     try {
       if (this.config.boundaries.startsWith('http')) {
-        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
+        const boundaries = await fetch(this.config.boundaries).then(async (r) => await r.json())
         this.boundaries = boundaries.features
       } else {
         const boundaries = await this.fileApi.getFileJson(
@@ -159,26 +158,15 @@ export default class VueComponent extends Vue {
   }
 
   private async loadDataset() {
-    // cancel any loose threads first
-    if (this.thread) Thread.terminate(this.thread)
-    this.thread = await spawn(new Worker('../workers/DataFetcher.thread'))
-
     try {
-      const data = await this.thread.fetchData({
-        fileSystemConfig: this.fileSystemConfig,
-        subfolder: this.subfolder,
-        files: this.files,
-        config: this.config,
-      })
-
-      this.dataRows = data
+      const dataset = await this.datamanager.getDataset(this.config)
+      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      this.dataRows = dataset.allRows || []
     } catch (e) {
       const message = '' + e
       console.log(message)
-      this.dataRows = []
-    } finally {
-      Thread.terminate(this.thread)
     }
+    return []
   }
 
   private updateChart() {
@@ -194,14 +182,14 @@ export default class VueComponent extends Vue {
     // 1. make the lookup
     const lookup: any = {}
     const id = this.config.datasetJoinCol
-    this.dataRows.forEach(row => {
+    this.dataRows.forEach((row) => {
       if (row[id]) lookup[`${row[id]}`] = row // lookup in geojson is always string
     })
 
     // 2. insert values into geojson
     const idColumn = this.config.boundariesJoinCol
     let vMax = -1
-    this.boundaries.forEach(boundary => {
+    this.boundaries.forEach((boundary) => {
       const lookupValue = boundary.properties[idColumn]
       const row = lookup[lookupValue]
       boundary.properties.value = row ? row[this.config.datasetValue] : 'N/A'
@@ -211,7 +199,7 @@ export default class VueComponent extends Vue {
     if (vMax) this.maxValue = vMax
 
     // 3. insert values into centroids
-    this.centroids.forEach(centroid => {
+    this.centroids.forEach((centroid) => {
       const lookupValue = centroid.properties!.id
       if (!lookupValue) return
 

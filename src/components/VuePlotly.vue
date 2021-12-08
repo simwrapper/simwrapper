@@ -1,5 +1,5 @@
 <template lang="pug">
-  .plotly-plot(:id="plotlyId" :ref="plotlyId")
+.plotly-plot(:id="plotlyId" :ref="plotlyId")
 </template>
 
 <script lang="ts">
