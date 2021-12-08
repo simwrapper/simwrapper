@@ -38,7 +38,11 @@ export default class VueComponent extends Vue {
   @Watch('layout')
   @Watch('options')
   private updatePlot() {
-    Plotly.react(this.plotlyId, this.data, this.layout, this.options)
+    try {
+      Plotly.react(this.plotlyId, this.data, this.layout, this.options)
+    } catch (e) {
+      // can error if layout changes before plot is plotted. Ignore.
+    }
   }
 }
 </script>

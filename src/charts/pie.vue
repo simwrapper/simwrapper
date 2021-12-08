@@ -14,6 +14,7 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
+import globalStore from '@/store'
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -23,7 +24,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) config!: any
   @Prop() datamanager!: DashboardDataManager
 
-  private globalState = this.$store.state
+  private globalState = globalStore.state
 
   private id = 'pie-' + Math.random()
 
@@ -38,9 +39,12 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
-    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
-    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
-    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
+    const colors = {
+      paper_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      plot_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
+    }
+    this.layout = Object.assign({}, this.layout, colors)
   }
 
   private async loadData() {
@@ -68,10 +72,8 @@ export default class VueComponent extends Vue {
 
   private updateChartSimple() {
     const allRows = this.dataSet.allRows || {}
-    console.log({ allRows })
     this.data[0].labels = Object.keys(allRows)
     this.data[0].values = Object.values(allRows)
-    console.log(this.data)
   }
 
   private layout: any = {

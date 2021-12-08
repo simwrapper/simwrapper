@@ -59,14 +59,17 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
-    this.layout.paper_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff' // #f8f8ff
-    this.layout.plot_bgcolor = this.globalState.isDarkMode ? '#282c34' : '#fff'
-    this.layout.font.color = this.globalState.isDarkMode ? '#cccccc' : '#444444'
+    const colors = {
+      paper_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      plot_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
+    }
+    this.layout = Object.assign({}, this.layout, colors)
   }
 
   private updateLayout() {
-    this.layout.xaxis.title = this.config.xAxisTitle || ''
-    this.layout.yaxis.title = this.config.yAxisTitle || ''
+    this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
+    this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
   }
 
   private async handlePlotlyClick(click: any) {
@@ -187,11 +190,14 @@ export default class VueComponent extends Vue {
 
     var useOwnNames = false
 
+    // old configs called it "usedCol" --> now "columns"
+    const columns = this.config.columns || this.config.usedCol
+
     // old legendname field
     if (this.config.legendName) this.config.legendTitles = this.config.legendName
 
     if (this.config.legendTitles !== undefined) {
-      if (this.config.legendTitles.length === this.config.columns.length) {
+      if (this.config.legendTitles.length === columns.length) {
         useOwnNames = true
       }
     }
@@ -207,9 +213,6 @@ export default class VueComponent extends Vue {
         x.push(allRows[i][this.config.x])
       }
     }
-
-    // old configs called it "usedCol" --> now "columns"
-    const columns = this.config.columns || this.config.usedCol
 
     for (let i = 0; i < columns.length; i++) {
       const name = columns[i]
