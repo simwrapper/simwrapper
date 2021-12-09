@@ -32,6 +32,7 @@ layout:
                   'school','shopping','social']
         xAxisTitle: "Activity Purpose"
         yAxisTitle: "Time of Day (Hour)"
+        flipAxes: true
 ```
 
 ---
@@ -46,4 +47,6 @@ Heatmap chart properties belong in the `props` section:
 
 **columns:**: Array[] containing names of columns with data to be categorized on the x-axis. See example above.
 
-**xAxisTitle** and **yAxisTitle**: Descriptive titles for the x-axis and y-axis.
+**xAxisTitle** and **yAxisTitle**: Descriptive titles for the x-axis and y-axis (optional).
+
+**flipAxes:** True/false. Transpose the heatmap matrix, thus flipping the x and y axes. Can be useful if your data is stored one way but you want it displayed the other.
