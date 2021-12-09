@@ -9,7 +9,13 @@
   .split-panel(v-for="panel,i in panels" :key="panel.key"
     :class="{'is-multipanel' : panels.length > 1}"
   )
-    component.fill-panel(:is="panel.component" v-bind="panel.props" @navigate="onNavigate(i,$event)" @zoom="showBackArrow(i, $event)" )
+    component.fill-panel(
+      :is="panel.component"
+      v-bind="panel.props"
+      @navigate="onNavigate(i,$event)"
+      @zoom="showBackArrow(i, $event)"
+    )
+
     .control-buttons
       a(@click="onBack(i)" :title="$t('back')"
         v-if="panel.component !== 'SplashPage' && !zoomed")

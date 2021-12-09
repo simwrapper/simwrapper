@@ -1,10 +1,9 @@
 <template lang="pug">
-VuePlotly(
+VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
   :id="id"
-  ref="plotly-element"
 )
 </template>
 
@@ -25,6 +24,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
   @Prop() datamanager!: DashboardDataManager
+  @Prop() cardId!: string
 
   private globalState = globalStore.state
 
@@ -36,7 +36,13 @@ export default class VueComponent extends Vue {
     this.updateTheme()
     this.dataSet = await this.loadData()
     this.updateChart()
+
+    this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+  }
+
+  private changeDimensions(dimensions: { width: number; height: number }) {
+    this.layout = Object.assign({}, this.layout, dimensions)
   }
 
   @Watch('globalState.isDarkMode') updateTheme() {
@@ -168,6 +174,14 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+
+.myplot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
 
 @media only screen and (max-width: 640px) {
 }

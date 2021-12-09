@@ -17,14 +17,20 @@
           .header-labels
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
+
+          //- zoom button
           .header-buttons
             button.button.is-small.is-white(
-              @click="expand(card)"
+              @click="toggleZoom(card)"
               :title="fullScreenCardId ? 'Restore':'Enlarge'")
               i.fa.fa-expand
 
         //- card contents
-        .spinner-box(:id="card.id" v-if="getCardComponent(card)" :class="{'is-loaded': card.isLoaded}")
+        .spinner-box(v-if="getCardComponent(card)"
+          :id="card.id"
+          :class="{'is-loaded': card.isLoaded}"
+        )
+
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
@@ -34,7 +40,9 @@
             :config="card.props"
             :datamanager="datamanager"
             :style="{opacity: opacity[card.id]}"
+            :cardId="card.id"
             @isLoaded="handleCardIsLoaded(card)"
+            @dimension-resizer="setDimensionResizer"
           )
 
 </template>
@@ -59,11 +67,12 @@ chartTypes.forEach((key: any) => {
 
 @Component({ components: Object.assign({ TopSheet }, namedCharts) })
 export default class VueComponent extends Vue {
-  @Prop() private root!: string
-  @Prop() private xsubfolder!: string
-  @Prop() private datamanager!: DashboardDataManager
-  @Prop() private gist!: any
-  @Prop() private config?: any
+  @Prop({ required: true }) private root!: string
+  @Prop({ required: true }) private xsubfolder!: string
+  @Prop({ required: false }) private gist!: any
+  @Prop({ required: false }) private config!: any
+  @Prop({ required: false }) private zoomed!: boolean
+  @Prop({ required: true }) private datamanager!: DashboardDataManager
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -74,6 +83,9 @@ export default class VueComponent extends Vue {
   private rows: any[] = []
 
   private fileList: string[] = []
+
+  private fullScreenCardId = ''
+  private resizers: { [id: string]: any } = {}
 
   private async mounted() {
     if (this.gist) {
@@ -90,6 +102,21 @@ export default class VueComponent extends Vue {
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     this.fileList = await this.getFiles()
     this.setupDashboard()
+
+    window.addEventListener('resize', this.handleResizeEvent)
+  }
+
+  private beforeDestroy() {
+    this.resizers = {}
+    window.removeEventListener('resize', this.handleResizeEvent)
+  }
+
+  private handleResizeEvent() {
+    for (const row of this.rows) {
+      for (const card of row) {
+        this.updateDimensions(card.id)
+      }
+    }
   }
 
   private async getFiles() {
@@ -110,25 +137,40 @@ export default class VueComponent extends Vue {
     return undefined // card.type
   }
 
-  private fullScreenCardId = ''
+  private setDimensionResizer(options: { id: string; resizer: any }) {
+    this.resizers[options.id] = options.resizer
+    this.updateDimensions(options.id)
+  }
 
-  private expand(card: any) {
+  private async toggleZoom(card: any) {
     if (this.fullScreenCardId) {
       this.fullScreenCardId = ''
     } else {
       this.fullScreenCardId = card.id
     }
-
     this.$emit('zoom', this.fullScreenCardId)
+    // allow vue to resize everything
+    await this.$nextTick()
+    // tell plotly to resize everything
+    this.updateDimensions(card.id)
+  }
+
+  private updateDimensions(cardId: string) {
+    const element = document.getElementById(cardId)
+
+    if (element) {
+      const dimensions = { width: element.clientWidth, height: element.clientHeight }
+      if (this.resizers[cardId]) this.resizers[cardId](dimensions)
+    }
   }
 
   private getCardStyle(card: any) {
     const flex = card.width || 1
-    const height = card.height ? card.height * 60 : undefined
+    const height = card.height ? card.height * 60 : 300
 
     let style: any = {
       margin: '2rem 3rem 2rem 0',
-      flex,
+      flex: flex,
     }
 
     if (height) style.minHeight = `${height}px`
@@ -184,6 +226,7 @@ export default class VueComponent extends Vue {
       cards.forEach((card) => {
         card.id = `card-id-${numCard}`
         card.isLoaded = false
+
         // Vue is weird about new properties: use Vue.set() instead
         Vue.set(this.opacity, card.id, 0.1)
 

@@ -21,6 +21,7 @@
     :xsubfolder="xsubfolder"
     :config="dashboards[activeTab]"
     :datamanager="dashboardDataManager"
+    :zoomed="isZoomed"
     @zoom="handleZoom"
   )
 

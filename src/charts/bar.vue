@@ -1,11 +1,10 @@
 <template lang="pug">
-Plotly(
+VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
   :id="id"
   :class="className"
-  ref="plotly-element"
 )
   //- @click="handlePlotlyClick"
 
@@ -16,17 +15,18 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import Plotly from '@/components/VuePlotly.vue'
+import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
 
-@Component({ components: { Plotly } })
+@Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
   @Prop() fileSystemConfig!: FileSystemConfig
   @Prop() subfolder!: string
+  @Prop() config!: any
   @Prop() files!: string[]
   @Prop() datamanager!: DashboardDataManager
-  @Prop() config!: any
+  @Prop() cardId!: string
 
   private globalState = globalStore.state
 
@@ -41,24 +41,25 @@ export default class VueComponent extends Vue {
   private async mounted() {
     this.updateLayout()
     this.updateTheme()
-
     this.dataSet = await this.loadData()
     this.updateChart()
 
-    // this.resizePlot()
-    window.addEventListener('resize', this.handleResizeEvent)
-
+    this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+  }
+
+  private changeDimensions(dimensions: { width: number; height: number }) {
+    this.layout = Object.assign({}, this.layout, dimensions)
   }
 
   private beforeDestroy() {
     try {
-      window.removeEventListener('resize', this.handleResizeEvent)
       this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
     } catch (e) {}
   }
 
-  @Watch('globalState.isDarkMode') updateTheme() {
+  @Watch('globalState.isDarkMode')
+  updateTheme() {
     const colors = {
       paper_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
       plot_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
@@ -134,29 +135,17 @@ export default class VueComponent extends Vue {
     return Math.floor(Math.random() * max).toString()
   }
 
-  // The handleResizeEvent was added because Plotly has a bug with resizing (in stacked mode)
-  private handleResizeEvent() {
-    this.resizePlot()
-  }
-
-  private resizePlot() {
-    var plotElement = document.getElementsByClassName('dash-row')
-    for (var i = 0; i < plotElement.length; i++) {
-      var childElement = plotElement[i].firstChild?.lastChild?.firstChild as Element
-      var name = childElement.className
-      if (name.includes(this.plotID)) {
-        this.layout.width = plotElement[i].clientWidth - this.rem2px(3)
-      }
-    }
-  }
-
+  private remFactor = 0
   private rem2px(rem: number) {
-    var el = document.createElement('div')
-    document.body.appendChild(el)
-    el.style.width = '1000rem'
-    var factor = el.clientWidth / 1000
-    document.body.removeChild(el)
-    return rem * factor
+    // only calculate the factor one time
+    if (!this.remFactor) {
+      var el = document.createElement('div')
+      document.body.appendChild(el)
+      el.style.width = '1000rem'
+      var factor = el.clientWidth / 1000
+      document.body.removeChild(el)
+    }
+    return rem * this.remFactor
   }
 
   private updateChart() {
@@ -246,7 +235,6 @@ export default class VueComponent extends Vue {
 
   private layout: any = {
     height: 300,
-    width: 0,
     margin: { t: 30, b: 50, l: 60, r: 20 },
     //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
@@ -273,8 +261,8 @@ export default class VueComponent extends Vue {
   private data = [] as any[]
 
   private options = {
-    displaylogo: false,
     responsive: true,
+    displaylogo: false,
     modeBarButtonsToRemove: [
       'pan2d',
       'zoom2d',
@@ -302,6 +290,14 @@ export default class VueComponent extends Vue {
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+
+.myplot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
 
 @media only screen and (max-width: 640px) {
 }
