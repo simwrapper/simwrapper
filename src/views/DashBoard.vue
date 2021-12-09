@@ -54,15 +54,20 @@ import YAML from 'yaml'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
-import charts from '@/charts/allCharts'
+import charts, { plotlyCharts } from '@/charts/allCharts'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
 const chartTypes = Object.keys(charts)
+const plotlyChartTypes = {} as any
+
+// build lookups for chart types
 chartTypes.forEach((key: any) => {
   //@ts-ignore
   namedCharts[`card-${key}`] = charts[key] as any
+  //@ts-ignore
+  if (plotlyCharts[key]) plotlyChartTypes[key] = true
 })
 
 @Component({ components: Object.assign({ TopSheet }, namedCharts) })
@@ -88,6 +93,8 @@ export default class VueComponent extends Vue {
   private resizers: { [id: string]: any } = {}
 
   private async mounted() {
+    window.addEventListener('resize', this.resizeAllCards)
+
     if (this.gist) {
       this.fileSystemConfig = {
         name: 'gist',
@@ -101,17 +108,18 @@ export default class VueComponent extends Vue {
 
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     this.fileList = await this.getFiles()
-    this.setupDashboard()
 
-    window.addEventListener('resize', this.handleResizeEvent)
+    await this.setupDashboard()
+    // await this.$nextTick()
+    this.resizeAllCards()
   }
 
   private beforeDestroy() {
     this.resizers = {}
-    window.removeEventListener('resize', this.handleResizeEvent)
+    window.removeEventListener('resize', this.resizeAllCards)
   }
 
-  private handleResizeEvent() {
+  private resizeAllCards() {
     for (const row of this.rows) {
       for (const card of row) {
         this.updateDimensions(card.id)
@@ -167,7 +175,7 @@ export default class VueComponent extends Vue {
   private getCardStyle(card: any) {
     // figure out height. If card has registered a resizer with changeDimensions(),
     // then it needs a default height (300)
-    const defaultHeight = this.resizers[card.id] ? 300 : undefined
+    const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
     const height = card.height ? card.height * 60 : defaultHeight
 
     const flex = card.width || 1
