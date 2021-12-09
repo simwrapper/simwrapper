@@ -4,6 +4,7 @@ import markdownPlugin from 'vite-plugin-md'
 
 export default defineConfig({
   base: '/simwrapper/',
+  // base: '/staging/',
   build: { sourcemap: true },
   plugins: [
     // vue
