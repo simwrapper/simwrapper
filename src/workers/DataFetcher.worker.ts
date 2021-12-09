@@ -70,7 +70,7 @@ async function loadFiles() {
 
     // handle the various filetypes: csv, xml...
     await parseVariousFileTypes(datasetPattern, filename, text)
-    cleanData()
+    // cleanData()
   } catch (e) {
     console.log(2)
     console.error(e)
@@ -131,13 +131,7 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     skipEmptyLines: true,
   }).data
 
-  // if useLastRow, do that
-  if (_config.useLastRow) {
-    const lastRow = csv[csv.length - 1]
-    _fileData[fileKey] = lastRow
-  } else {
-    _fileData[fileKey] = csv
-  }
+  _fileData[fileKey] = csv
 }
 
 async function loadFileOrGzipFile(filename: string) {

@@ -57,9 +57,9 @@ export default class VueComponent extends Vue {
     if (!this.files.length) return {}
 
     try {
-      const allRows = await this.datamanager.getDataset(this.config)
+      const data = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-      return allRows
+      return data
     } catch (e) {
       const message = '' + e
       console.log(message)

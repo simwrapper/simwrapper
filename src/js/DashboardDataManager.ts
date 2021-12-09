@@ -25,9 +25,10 @@ interface configuration {
   value?: string
   usedCol?: string[]
   columns?: string[]
+  ignoreColumns?: any[]
   skipFirstRow?: boolean
-  x?: string
   useLastRow?: boolean
+  x?: string
 }
 
 export default class DashboardDataManager {
@@ -84,7 +85,24 @@ export default class DashboardDataManager {
       }
     }
 
-    const allRows = await this.datasets[config.dataset].rows
+    let allRows = await this.datasets[config.dataset].rows
+
+    // if useLastRow, do that
+    if (config.useLastRow) {
+      allRows = allRows[allRows.length - 1]
+    }
+
+    // remove ignored columns
+    if (config.ignoreColumns) {
+      if (Array.isArray(allRows)) {
+        for (const row of allRows) {
+          config.ignoreColumns.forEach((column: any) => delete row[column])
+        }
+      } else {
+        config.ignoreColumns.forEach((column: any) => delete allRows[column])
+      }
+    }
+
     if (config.value && config.groupBy) {
       // grouping/filtering enabled
       let bars: any = {}
