@@ -132,7 +132,7 @@ export default class VueComponent extends Vue {
         x: xaxis,
         y: yaxis,
         z: matrix,
-        //colorscale: 'Hot', // 'YlOrRed', // 'Hot',
+        colorscale: 'Viridis', // 'YlOrRed', // 'Hot',
         type: 'heatmap',
         automargin: true,
       },
