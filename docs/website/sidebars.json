@@ -8,6 +8,7 @@
     ],
     "Dashboards": [
       "dashboards",
+      "area-maps",
       "bar-area-line",
       "calculation-tables",
       "heatmap-charts",

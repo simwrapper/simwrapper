@@ -9,6 +9,8 @@ _A flow map of San Francisco_
 
 Flowmaps depict _aggregate movements_ between origins and destinations.
 
+**THIS VIEW IS UNDER CONSTRUCTION, MORE TO COME...**
+
 ## Usage
 
 Flow maps can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
