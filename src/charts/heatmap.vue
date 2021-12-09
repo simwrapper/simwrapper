@@ -81,6 +81,9 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
+    this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
+    this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
+
     if (this.config.groupBy) this.updateChartWithGroupBy()
     else this.updateChartSimple()
   }
@@ -150,11 +153,11 @@ export default class VueComponent extends Vue {
     bargap: 0.08,
     xaxis: {
       autorange: true,
-      title: this.config.xAxisTitle,
+      title: '',
     },
     yaxis: {
       autorange: true,
-      title: this.config.yAxisTitle,
+      title: '',
     },
     legend: {
       x: 1,
