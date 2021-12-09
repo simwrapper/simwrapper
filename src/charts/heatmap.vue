@@ -166,15 +166,7 @@ export default class VueComponent extends Vue {
     },
   }
 
-  private data = [
-    {
-      x: [] as any[],
-      y: [] as any[],
-      z: [] as any[],
-      type: 'heatmap',
-      automargin: true,
-    },
-  ]
+  private data = [] as any
 
   private options = {
     displaylogo: false,

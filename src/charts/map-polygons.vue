@@ -35,7 +35,6 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) datamanager!: DashboardDataManager
 
   private fileApi!: HTTPFileSystem
-  private thread!: any
   private boundaries: any[] = []
   private centroids: any[] = []
 
@@ -44,10 +43,8 @@ export default class VueComponent extends Vue {
   private useCircles = false
   private sliderOpacity = 80
 
-  private globalState = this.$store.state
-
   private maxValue = 1000
-  private expColors = this.config.exponentColors
+  private expColors = false
 
   private get mapProps() {
     return {
@@ -63,6 +60,8 @@ export default class VueComponent extends Vue {
   }
 
   private async mounted() {
+    this.expColors = this.config.exponentColors
+
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     // bulmaSlider.attach()
 
