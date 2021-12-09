@@ -52,6 +52,7 @@
     "maplibre-gl": ">=1.14.0",
     "markdown-it": "^12.2.0",
     "marked": "^0.8.0",
+    "mathjs": "^10.0.0",
     "medium-zoom": "^1.0.5",
     "micromatch": "^4.0.2",
     "moment": "^2.24.0",

@@ -9,6 +9,7 @@ VuePlotly.myplot(
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -126,11 +127,13 @@ export default class VueComponent extends Vue {
       subMatrix = []
     }
 
+    if (this.config.flipAxes) matrix = transpose(matrix)
+
     // Pushes the data into the chart
     this.data = [
       {
-        x: xaxis,
-        y: yaxis,
+        x: this.config.flipAxes ? yaxis : xaxis,
+        y: this.config.flipAxes ? xaxis : yaxis,
         z: matrix,
         colorscale: 'Viridis', // 'YlOrRed', // 'Hot',
         type: 'heatmap',
@@ -140,11 +143,7 @@ export default class VueComponent extends Vue {
   }
 
   private layout: any = {
-    height: 300,
-    width: 0,
-    margin: { t: 30, b: 50, l: 60, r: 20 },
-    //automargin: true,
-    //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
+    margin: { t: 8, b: 50 },
     font: {
       color: '#444444',
       family: UI_FONT,
