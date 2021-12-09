@@ -165,8 +165,12 @@ export default class VueComponent extends Vue {
   }
 
   private getCardStyle(card: any) {
+    // figure out height. If card has registered a resizer with changeDimensions(),
+    // then it needs a default height (300)
+    const defaultHeight = this.resizers[card.id] ? 300 : undefined
+    const height = card.height ? card.height * 60 : defaultHeight
+
     const flex = card.width || 1
-    const height = card.height ? card.height * 60 : 300
 
     let style: any = {
       margin: '2rem 3rem 2rem 0',

@@ -16,8 +16,9 @@
 
 <script lang="ts">
 import { FileSystemConfig } from '@/Globals'
-import { Worker, spawn, Thread } from 'threads'
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+
+import TopSheetWorker from './TopSheetWorker.worker.ts?worker'
 
 export type TableRow = {
   title: string
@@ -47,6 +48,7 @@ export default class VueComponent extends Vue {
 
   private formattedValue(value: any) {
     if (!isNaN(value)) return value.toLocaleString([this.$store.state.locale, 'en'])
+    if (value === undefined) return '-?-'
     return value
   }
 
@@ -58,7 +60,7 @@ export default class VueComponent extends Vue {
   private beforeDestroy() {
     try {
       if (this.solverThread) {
-        Thread.terminate(this.solverThread)
+        this.solverThread.terminate()
         this.solverThread = null
       }
     } catch (e) {
@@ -69,31 +71,35 @@ export default class VueComponent extends Vue {
   private async boxChanged() {
     console.log('changed!')
     if (this.solverThread) {
-      const output = await this.solverThread.updateCalculations(this.entries)
-      this.table = output
+      this.solverThread.postMessage({
+        command: 'updateCalculations',
+        entries: this.entries,
+      })
     }
   }
 
   private async runTopSheet() {
     if (!this.files.length) return
 
-    if (!this.solverThread) {
-      console.log('spawing topsheet thread')
-      this.solverThread = await spawn(new Worker('./TopSheetWorker.thread'))
-    }
-
     try {
-      this.table = await this.solverThread.runTopSheet({
+      if (!this.solverThread) {
+        console.log('spawning topsheet thread')
+        this.solverThread = new TopSheetWorker()
+        this.solverThread.onmessage = (message: MessageEvent) => {
+          this.processWorkerMessage(message)
+        }
+      }
+
+      this.solverThread.postMessage({
+        command: 'runTopSheet',
         fileSystemConfig: this.fileSystemConfig,
         subfolder: this.subfolder,
         files: this.files,
         yaml: this.yaml,
       })
 
-      this.title = await this.solverThread.getTitle(this.$store.state.locale)
-
-      const outputRows = await this.solverThread.getTextEntryFields()
-      this.entries = outputRows
+      this.solverThread.postMessage({ command: 'getTitle', locale: this.$store.state.locale })
+      this.solverThread.postMessage({ command: 'getTextEntryFields' })
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -101,6 +107,25 @@ export default class VueComponent extends Vue {
       // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
     }
     this.$emit('isLoaded')
+  }
+
+  private processWorkerMessage(message: MessageEvent) {
+    console.log(message)
+    const data = message.data
+    switch (data.response) {
+      case 'title':
+        this.title = data.title
+        break
+      case 'entries':
+        this.entries = data.entryFields
+        break
+      case 'results':
+        this.table = data.results
+        break
+      default:
+        // shouldn't be here
+        console.error(data)
+    }
   }
 }
 </script>

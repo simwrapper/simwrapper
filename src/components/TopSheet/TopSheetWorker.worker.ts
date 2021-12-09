@@ -1,13 +1,9 @@
-// named *thread* because *worker* gets processed by webpack already
-
 /*eslint prefer-rest-params: "off"*/
 
-import { expose } from 'threads/worker'
 import nerdamer, { ExpressionParam } from 'nerdamer'
 import pako from 'pako'
 import Papaparse from 'papaparse'
 import YAML from 'yaml'
-import { parseNumbers } from 'xml2js/lib/processors'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -34,6 +30,30 @@ type TopsheetYaml = {
   outputs: { title?: string; title_en?: string; title_de?: string; value: any; style?: any }[]
 }
 
+onmessage = async function (message) {
+  const data = message.data
+  switch (data.command) {
+    case 'getTitle':
+      const title = getTitle(data.locale)
+      postMessage({ response: 'title', title })
+      break
+    case 'getTextEntryFields':
+      const entryFields = getTextEntryFields()
+      postMessage({ response: 'entries', entryFields })
+      break
+    case 'runTopSheet':
+      const outputs = await runTopSheet(data)
+      postMessage({ response: 'results', results: outputs })
+      break
+    case 'updateCalculations':
+      const update = await updateCalculations(data.entries)
+      postMessage({ response: 'results', results: update })
+      break
+    default:
+      console.error('Strange command:', data)
+  }
+}
+
 // global variables
 let _fileSystem: HTTPFileSystem
 let _subfolder = ''
@@ -53,81 +73,79 @@ const testRows: TableRow[] = [
   { title: 'Rating', value: '⭐️⭐️⭐️' },
 ]
 
-expose({
-  async updateCalculations(entries: { key: string; title: string; value: any }[]) {
-    const boxes: any = {}
+async function updateCalculations(entries: { key: string; title: string; value: any }[]) {
+  const boxes: any = {}
 
-    for (const box of entries) boxes[box.key] = box.value
+  for (const box of entries) boxes[box.key] = box.value
 
-    _boxValues = boxes
+  _boxValues = boxes
 
-    // do all calculations, in order they are written.
-    _calculations = doAllCalculations()
-    const outputs = buildOutputs()
-    return outputs
-  },
+  // do all calculations, in order they are written.
+  _calculations = doAllCalculations()
+  const outputs = buildOutputs()
+  return outputs
+}
 
-  getTitle(locale: string) {
-    console.log('getTitle locale', locale)
+function getTitle(locale: string) {
+  console.log('getTitle locale', locale)
+  let title = ''
+
+  if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || ''
+  else title = _yaml.title_de || _yaml.title || _yaml.title_en || ''
+
+  return title
+}
+
+function getTextEntryFields() {
+  const boxes = _yaml.userEntries
+  if (!boxes) return []
+
+  const fields: any[] = []
+  const locale = globalStore.state.locale
+
+  for (const key of Object.keys(boxes)) {
+    const box = boxes[key]
+
     let title = ''
+    if (locale === 'en') title = box.title_en || box.title || box.title_de || key
+    else title = box.title_de || box.title || box.title_en || key
 
-    if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || ''
-    else title = _yaml.title_de || _yaml.title || _yaml.title_en || ''
+    fields.push({ key, title, value: _calculations[key] })
+  }
+  return fields
+}
 
-    return title
-  },
+async function runTopSheet(props: {
+  fileSystemConfig: FileSystemConfig
+  subfolder: string
+  files: string[]
+  yaml: string
+}) {
+  // console.log('TopSheet thread worker starting')
 
-  getTextEntryFields() {
-    const boxes = _yaml.userEntries
-    if (!boxes) return []
+  _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
+  _subfolder = props.subfolder
+  _files = props.files
+  _yamlFile = props.yaml
 
-    const fields: any[] = []
-    const locale = globalStore.state.locale
+  // read the table definitions from yaml
+  _yaml = await getYaml()
 
-    for (const key of Object.keys(boxes)) {
-      const box = boxes[key]
+  // load all files
+  await loadFiles()
+  console.log(_fileData)
 
-      let title = ''
-      if (locale === 'en') title = box.title_en || box.title || box.title_de || key
-      else title = box.title_de || box.title || box.title_en || key
+  // set up user entry boxes if first run
+  if (!Object.keys(_boxValues).length) {
+    console.log('** resetting boxvalues')
+    _boxValues = getBoxValues(_yaml)
+  }
 
-      fields.push({ key, title, value: _calculations[key] })
-    }
-    return fields
-  },
-
-  async runTopSheet(props: {
-    fileSystemConfig: FileSystemConfig
-    subfolder: string
-    files: string[]
-    yaml: string
-  }) {
-    // console.log('TopSheet thread worker starting')
-
-    _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
-    _subfolder = props.subfolder
-    _files = props.files
-    _yamlFile = props.yaml
-
-    // read the table definitions from yaml
-    _yaml = await getYaml()
-
-    // load all files
-    await loadFiles()
-    console.log(_fileData)
-
-    // set up user entry boxes if first run
-    if (!Object.keys(_boxValues).length) {
-      console.log('** resetting boxvalues')
-      _boxValues = getBoxValues(_yaml)
-    }
-
-    // do all calculations, in order they are written.
-    _calculations = doAllCalculations()
-    const outputs = buildOutputs()
-    return outputs
-  },
-})
+  // do all calculations, in order they are written.
+  _calculations = doAllCalculations()
+  const outputs = buildOutputs()
+  return outputs
+}
 
 // ----- helper functions ------------------------------------------------
 
@@ -391,4 +409,11 @@ async function loadFileOrGzipFile(filename: string) {
     }
     return buffer
   }
+}
+
+function parseNumbers(str: any) {
+  if (!isNaN(str)) {
+    str = str % 1 === 0 ? parseInt(str, 10) : parseFloat(str)
+  }
+  return str
 }
