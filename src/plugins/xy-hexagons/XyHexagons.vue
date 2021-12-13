@@ -380,12 +380,17 @@ class XyHexagons extends Vue {
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     if (!hasYaml) {
+      let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+      if (!this.myState.thumbnail) {
+        projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
+        if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
+      }
       // output_trips:
       this.vizDetails = {
         title: 'Output Trips',
         description: this.myState.yamlConfig,
         file: this.myState.yamlConfig,
-        projection: 'EPSG:31468', // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+        projection,
         aggregations: {
           'Trip Summary': [
             { title: 'Origins', x: 'start_x', y: 'start_y' },

@@ -14,12 +14,12 @@ const initialViewState = () => ({
   // start with western europe for now
   initial: true,
   pitch: 0,
-  longitude: -122.4,
-  latitude: 37.8,
-  zoom: 9,
-  // longitude: 10,
-  // latitude: 50,
-  // zoom: 5,
+  // longitude: -122.4,
+  // latitude: 37.8,
+  // zoom: 9,
+  longitude: 10,
+  latitude: 50,
+  zoom: 6,
   bearing: 0,
 })
 
