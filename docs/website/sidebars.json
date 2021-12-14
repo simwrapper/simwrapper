@@ -28,6 +28,6 @@
       "video",
       "xy-hexagons"
     ],
-    "Developer Guide": ["dev-guide", "plugin-guide"]
+    "Developer Guide": ["dev-guide", "plugin-guide", "changelog"]
   }
 }
