@@ -33,19 +33,14 @@ type TopsheetYaml = {
 onmessage = async function (message) {
   const data = message.data
   switch (data.command) {
-    case 'getTitle':
-      const title = getTitle(data.locale)
-      postMessage({ response: 'title', title })
-      break
-    case 'getTextEntryFields':
-      const entryFields = getTextEntryFields()
-      postMessage({ response: 'entries', entryFields })
-      break
     case 'runTopSheet':
       const outputs = await runTopSheet(data)
       postMessage({ response: 'results', results: outputs })
       break
     case 'updateCalculations':
+      _locale = data.locale
+      const title = getTitle(_locale)
+      postMessage({ response: 'title', title })
       const update = await updateCalculations(data.entries)
       postMessage({ response: 'results', results: update })
       break
@@ -62,6 +57,7 @@ let _boxValues: any = {}
 let _yaml: TopsheetYaml = { files: {}, calculations: {}, outputs: [] }
 let _calculations: any = {}
 let _yamlFile: string = ''
+let _locale = 'en'
 
 const _fileData: any = {}
 
@@ -101,16 +97,15 @@ function getTextEntryFields() {
   if (!boxes) return []
 
   const fields: any[] = []
-  const locale = globalStore.state.locale
 
   for (const key of Object.keys(boxes)) {
     const box = boxes[key]
 
     let title = ''
-    if (locale === 'en') title = box.title_en || box.title || box.title_de || key
+    if (_locale === 'en') title = box.title_en || box.title || box.title_de || key
     else title = box.title_de || box.title || box.title_en || key
 
-    fields.push({ key, title, value: _calculations[key] })
+    fields.push({ key, title, value: _boxValues[key] })
   }
   return fields
 }
@@ -120,6 +115,7 @@ async function runTopSheet(props: {
   subfolder: string
   files: string[]
   yaml: string
+  locale: string
 }) {
   // console.log('TopSheet thread worker starting')
 
@@ -127,9 +123,14 @@ async function runTopSheet(props: {
   _subfolder = props.subfolder
   _files = props.files
   _yamlFile = props.yaml
+  _locale = props.locale
 
   // read the table definitions from yaml
   _yaml = await getYaml()
+
+  // set the title
+  const title = getTitle(_locale)
+  postMessage({ response: 'title', title })
 
   // load all files
   await loadFiles()
@@ -140,6 +141,10 @@ async function runTopSheet(props: {
     console.log('** resetting boxvalues')
     _boxValues = getBoxValues(_yaml)
   }
+
+  // set the entryFields
+  const entryFields = getTextEntryFields()
+  postMessage({ response: 'entries', entryFields })
 
   // do all calculations, in order they are written.
   _calculations = doAllCalculations()
@@ -152,13 +157,16 @@ async function runTopSheet(props: {
 function buildOutputs() {
   const rows: TableRow[] = []
 
-  // Header: use (1) locale if we have it; (2) title if we don't; (3) otherLocale; (4) variable name.
-  const locale = globalStore.state.locale
+  // Description:
+  // use (1) locale if we have it; (2) title if we don't; (3) otherLocale; (4) variable name.
 
   for (const row of _yaml.outputs) {
     let title = ''
-    if (locale === 'en') title = row.title_en || row.title || row.title_de || row.value
-    else title = row.title_de || row.title || row.title_en || row.value
+    if (_locale === 'en') {
+      title = row.title_en || row.title || row.title_de || row.value
+    } else {
+      title = row.title_de || row.title || row.title_en || row.value
+    }
 
     const output = { title, value: _calculations[row.value], style: {} } as TableRow
 

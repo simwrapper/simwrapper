@@ -19,6 +19,7 @@ import { FileSystemConfig } from '@/Globals'
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import TopSheetWorker from './TopSheetWorker.worker.ts?worker'
+import globalStore from '@/store'
 
 export type TableRow = {
   title: string
@@ -41,6 +42,8 @@ export default class VueComponent extends Vue {
   private yaml!: string
 
   private solverThread!: any
+
+  private globalState = globalStore.state
 
   private table: TableRow[] = []
   private entries: { key: string; title: string; value: any }[] = []
@@ -68,12 +71,24 @@ export default class VueComponent extends Vue {
     }
   }
 
+  @Watch('globalState.locale')
+  private themeChanged() {
+    if (this.solverThread) {
+      this.solverThread.postMessage({
+        command: 'updateCalculations',
+        entries: this.entries,
+        locale: this.globalState.locale,
+      })
+    }
+  }
+
   private async boxChanged() {
     console.log('changed!')
     if (this.solverThread) {
       this.solverThread.postMessage({
         command: 'updateCalculations',
         entries: this.entries,
+        locale: this.globalState.locale,
       })
     }
   }
@@ -96,10 +111,8 @@ export default class VueComponent extends Vue {
         subfolder: this.subfolder,
         files: this.files,
         yaml: this.yaml,
+        locale: this.$store.state.locale,
       })
-
-      this.solverThread.postMessage({ command: 'getTitle', locale: this.$store.state.locale })
-      this.solverThread.postMessage({ command: 'getTextEntryFields' })
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -110,7 +123,6 @@ export default class VueComponent extends Vue {
   }
 
   private processWorkerMessage(message: MessageEvent) {
-    console.log(message)
     const data = message.data
     switch (data.response) {
       case 'title':
