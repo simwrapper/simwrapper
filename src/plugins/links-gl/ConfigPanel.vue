@@ -93,11 +93,13 @@ import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
 import { ColorScheme } from '@/Globals'
 
+import imgViridis from '/colors/scale-viridis.png'
+import imgInferno from '/colors/scale-inferno.png'
+import imgBlueRed from '/colors/scale-bluered.png'
+import imgPicnic from '/colors/scale-picnic.png'
+
 @Component({ i18n, components: { TimeSlider } })
 export default class VueComponent extends Vue {
-  //@Prop({ required: true })
-  //private darkMode!: boolean
-
   @Prop({ required: true })
   private activeColumn!: number
 
@@ -122,16 +124,16 @@ export default class VueComponent extends Vue {
   private isButtonActive = false
   private isColorButtonActive = false
 
-  private scaleWidthValue = '' + this.scaleWidth
+  private scaleWidthValue = ''
 
   private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+  private isDarkMode = globalStore.state.isDarkMode
 
-  private colorRamps: { [title: string]: { png: string; diff?: boolean } } = {
-    viridis: { png: 'scale-viridis.png' },
-    inferno: { png: 'scale-inferno.png' },
-    bluered: { png: 'scale-salinity.png', diff: true },
-    picnic: { png: 'scale-picnic.png' },
+  private colorRamps: { [title: string]: { png: any; diff?: boolean } } = {
+    viridis: { png: imgViridis },
+    inferno: { png: imgInferno },
+    bluered: { png: imgBlueRed, diff: true },
+    picnic: { png: imgPicnic },
   }
 
   @Watch('scaleWidth') handleScaleWidth() {
@@ -143,7 +145,7 @@ export default class VueComponent extends Vue {
   }
 
   private getColorRampUrl(ramp: string) {
-    return new URL(`/colors/scale-${ramp}.png`, import.meta.url).href
+    return this.colorRamps[ramp].png
   }
 
   @Watch('scaleWidthValue') handleScaleChanged() {

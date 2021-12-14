@@ -16,22 +16,27 @@ export default class TimeSlider extends Vue {
   @Prop({ required: true })
   private stops!: any[]
 
-  private sliderValue: any = this.stops[0] || '...'
+  private sliderValue: any = ''
 
   private timeSlider = {
     adsorb: true,
     contained: true,
-    data: this.stops,
+    data: [] as any[],
     'enable-cross': false,
     height: 6,
     piecewise: true,
     show: false,
-    marks: this.stops.filter((stop, i) => i % 3 === 0),
+    marks: [] as any[],
     minRange: 1,
     processStyle: { backgroundColor: '#00bb5588', borderColor: '#f05b72' },
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    // tooltip: 'always',
     'tooltip-placement': 'top',
+  }
+
+  private mounted() {
+    this.sliderValue = this.stops[0] || '...'
+    this.timeSlider.data = this.stops
+    this.timeSlider.marks = this.stops.filter((stop, i) => i % 3 === 0)
   }
 
   @Watch('useRange')
