@@ -179,8 +179,17 @@ export default class VueComponent extends Vue {
 
     var useOwnNames = false
 
+    const allRows = this.dataSet.allRows || []
+
+    console.log({ allRows })
     // old configs called it "usedCol" --> now "columns"
-    const columns = this.config.columns || this.config.usedCol
+    let columns = this.config.columns || this.config.usedCol
+
+    // Or maybe user didn't specify: then use all the columns!
+    if (!columns && allRows.length)
+      columns = Object.keys(allRows[0])
+        .filter((col) => col !== this.config.x)
+        .sort((a: any, b: any) => (allRows[0][a] > allRows[0][b] ? -1 : 1))
 
     // old legendname field
     if (this.config.legendName) this.config.legendTitles = this.config.legendName
@@ -193,8 +202,6 @@ export default class VueComponent extends Vue {
 
     if (this.config.stacked) this.layout.barmode = 'stack'
     if (this.config.stacked) this.className = this.plotID
-
-    const allRows = this.dataSet.allRows || []
 
     for (var i = 0; i < allRows.length; i++) {
       if (i == 0 && this.config.skipFirstRow) {
@@ -212,13 +219,31 @@ export default class VueComponent extends Vue {
         } else {
           legendName = name
         }
-        const value = []
+        let value = []
         for (var j = 0; j < allRows.length; j++) {
           if (j == 0 && this.config.skipFirstRow) {
           } else {
             value.push(allRows[j][name])
           }
         }
+
+        // are durations in 00:00:00 format?
+        if (this.config.convertToSeconds) {
+          value = value.map((v: string) => {
+            try {
+              const pieces = v.split(':')
+              // console.log(pieces)
+              const seconds = pieces.reduce(
+                (prev: any, curr: any) => parseInt(curr, 10) + prev * 60,
+                0
+              )
+              return seconds
+            } catch (e) {
+              return 0
+            }
+          })
+        }
+
         this.data.push({
           x: x,
           y: value,
@@ -231,6 +256,7 @@ export default class VueComponent extends Vue {
         })
       }
     }
+    console.log({ data: this.data })
   }
 
   private layout: any = {
@@ -252,9 +278,10 @@ export default class VueComponent extends Vue {
       title: '',
     },
     legend: {
-      x: 1,
-      xanchor: 'right',
-      y: 1,
+      // x: 0.5,
+      // xanchor: 'right',
+      // y: 0,
+      orientation: 'h',
     },
   }
 

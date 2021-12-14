@@ -103,7 +103,13 @@ export default class VueComponent extends Vue {
     }
 
     // old configs called it "usedCol" --> now "columns"
-    const columns = this.config.columns || this.config.usedCol
+    let columns = this.config.columns || this.config.usedCol
+
+    // Or maybe user didn't specify: then use all the columns!
+    if (!columns)
+      columns = Object.keys(allRows[0])
+        .filter((col) => col !== this.config.x)
+        .sort((a: any, b: any) => (allRows[0][a] > allRows[0][b] ? -1 : 1))
 
     for (let i = 0; i < columns.length; i++) {
       const name = columns[i]
@@ -114,13 +120,31 @@ export default class VueComponent extends Vue {
         } else {
           legendName = name
         }
-        const value = []
+        let value = []
         for (var j = 0; j < allRows.length; j++) {
           if (j == 0 && this.config.skipFirstRow) {
           } else {
             value.push(allRows[j][name])
           }
         }
+
+        // are durations in 00:00:00 format?
+        if (this.config.convertToSeconds) {
+          value = value.map((v: string) => {
+            try {
+              const pieces = v.split(':')
+              // console.log(pieces)
+              const seconds = pieces.reduce(
+                (prev: any, curr: any) => parseInt(curr, 10) + prev * 60,
+                0
+              )
+              return seconds
+            } catch (e) {
+              return 0
+            }
+          })
+        }
+
         this.data.push({
           x: x,
           y: value,
@@ -136,9 +160,7 @@ export default class VueComponent extends Vue {
 
   private layout: any = {
     height: 300,
-    // width: 500,
     margin: { t: 30, b: 50, l: 60, r: 20 },
-    //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
     font: {
       family: UI_FONT,
       color: '#444444',
@@ -150,11 +172,13 @@ export default class VueComponent extends Vue {
     yaxis: {
       autorange: true,
       title: '',
+      rangemode: 'tozero',
     },
     legend: {
-      x: 1,
-      xanchor: 'right',
-      y: 1,
+      // x: 0.5,
+      // xanchor: 'right',
+      // y: 0,
+      orientation: 'h',
     },
   }
 
