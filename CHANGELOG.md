@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.3](https://github.com/simwrapper/simwrapper/compare/v1.3.2...v1.3.3) (2021-12-14)
+
+
+### Bug Fixes
+
+* **charts:** bar/line charts now for standard matsim *stats.txt files ([aeb8fc9](https://github.com/simwrapper/simwrapper/commit/aeb8fc96f14f9646deaa7db86065dc25957d0a90))
+* **links:** Time-slider and colorramp buttons don't work together. ([77a7965](https://github.com/simwrapper/simwrapper/commit/77a79652cbd5cc68e0b714f64978132eeb9b0995))
+* **topsheet:** topsheets lost their user-entry fields and titles ([2312659](https://github.com/simwrapper/simwrapper/commit/23126594516b734c1f92b000e7061803a84e6aeb))
+
 ### [1.3.2](https://github.com/simwrapper/simwrapper/compare/v1.3.1...v1.3.2) (2021-12-13)
 
 
