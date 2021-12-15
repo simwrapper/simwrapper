@@ -131,7 +131,7 @@ export default new Vuex.Store({
         }
       }
     },
-    clearError(state: { statusErrors: any[] }, value: number) {
+    clearError(state: GlobalState, value: number) {
       if (state.statusErrors.length >= value) {
         state.statusErrors.splice(value, 1) // remove one element
       }
