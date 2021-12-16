@@ -100,7 +100,7 @@ export default class VueComponent extends Vue {
   width: 32px;
   height: 30px;
   text-align: center;
-  border: 2px solid var(--borderColor);
+  border: var(--borderZoomButtons);
   background-color: white;
   overflow: hidden;
 }

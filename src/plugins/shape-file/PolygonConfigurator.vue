@@ -150,7 +150,8 @@ export default MyComponent
 @import '@/styles.scss';
 
 .configurator {
-  margin-top: 4rem;
+  margin-top: 0rem;
+  margin-left: 1rem;
 }
 
 h3 {
@@ -158,7 +159,5 @@ h3 {
 }
 
 .panel-section {
-  margin: 0.5rem 0.5rem;
-  margin-bottom: 1rem;
 }
 </style>

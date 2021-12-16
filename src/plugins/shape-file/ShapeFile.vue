@@ -4,21 +4,20 @@
 
   polygon-layer.anim(v-if="!thumbnail && isLoaded" :props="mapProps")
 
-  zoom-buttons
+  zoom-buttons(v-if="!thumbnail")
+  drawing-tool(v-if="!thumbnail")
 
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left" :locked="true")
-      .panel-items
+      .vertical-items
         h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
-  .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel.selector-panel(direction="right")
-      .panel-items
-        //- button/dropdown for selecting column
+  .bottom-panel(v-if="!thumbnail")
+    .panel-items
         .panel-item
           p: b {{ $t('selectColumn') }}
-          .dropdown.full-width.is-hoverable.is-right
+          .dropdown.is-up.is-hoverable
             .dropdown-trigger
               button.button.full-width.is-warning(:class="{'is-loading': activeHeader===''}"
                 aria-haspopup="true" aria-controls="dropdown-menu-column-selector")
@@ -32,7 +31,8 @@
                 a.dropdown-item(v-for="column in shapefile.header"
                                 @click="handleNewDataColumn(column)") {{ column }}
 
-      polygon-configurator(@opacity="handleOpacity")
+        .panel-item
+          polygon-configurator(@opacity="handleOpacity")
 
   .nav(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -74,6 +74,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import PolygonConfigurator from './PolygonConfigurator.vue'
 import PolygonLayer from './PolygonLayerDeck.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
+import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { VuePlugin } from 'vuera'
@@ -83,6 +84,7 @@ Vue.use(VuePlugin)
   i18n,
   components: {
     CollapsiblePanel,
+    DrawingTool,
     PolygonConfigurator,
     PolygonLayer,
     TimeSlider,
@@ -369,7 +371,7 @@ export default MyPlugin
 @import '@/styles.scss';
 
 .gl-viz {
-  background-color: red;
+  background: var(--bgMapPanel);
   display: grid;
   pointer-events: none;
   min-height: $thumbnailHeight;
@@ -380,7 +382,7 @@ export default MyPlugin
 }
 
 .gl-viz.hide-thumbnail {
-  background: none;
+  background: var(--bgMapPanel);
 }
 
 .nav {
@@ -411,10 +413,6 @@ export default MyPlugin
   }
 }
 
-.legend-block {
-  margin-top: 2rem;
-}
-
 .status-message {
   padding: 0rem 0;
   font-size: 1.5rem;
@@ -431,7 +429,7 @@ export default MyPlugin
 
 .left-side {
   grid-row: 1 / 2;
-  grid-column: 1;
+  grid-column: 1 / 2;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
@@ -439,9 +437,23 @@ export default MyPlugin
   margin: 0 0 0 0;
 }
 
+.bottom-panel {
+  z-index: 50;
+  grid-row: 2 / 3;
+  grid-column: 1 / 3;
+  display: flex;
+  flex-direction: row;
+  background-color: var(--bgPanel);
+  font-size: 0.8rem;
+  pointer-events: auto;
+  padding: 0.5rem 0.5rem;
+  margin: auto auto 0.5rem 0.5rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
+}
+
 .right-side {
   position: absolute;
-  top: 9rem;
+  top: 11rem;
   right: 0;
   display: flex;
   flex-direction: column;
@@ -454,26 +466,24 @@ export default MyPlugin
 
 .anim {
   grid-column: 1 / 3;
-  grid-row: 1 / 2;
+  grid-row: 1 / 3;
   pointer-events: auto;
 }
 
 .panel-items {
-  margin: 0.5rem 0.5rem;
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: row;
+}
 
-  h3 {
-    line-height: 1.7rem;
-    margin-bottom: 0rem;
-  }
+.vertical-items {
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 1rem 1rem 0.5rem;
 }
 
 .panel-item {
-  margin-bottom: 1rem;
-
   h3 {
     line-height: 1.7rem;
-    margin-bottom: 0.5rem;
   }
 
   p {
@@ -497,24 +507,12 @@ label {
   text-align: 'left';
 }
 
-.toggle {
-  margin-bottom: 0.25rem;
-  margin-right: 0.5rem;
-}
-
 .full-width {
   display: block;
   width: 100%;
 }
 
 .dropdown {
-  position: absolute;
-  overflow: visible;
   display: inline-block;
-  width: 7rem;
-}
-
-.selector-panel {
-  padding-bottom: 5rem;
 }
 </style>

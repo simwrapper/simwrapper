@@ -8,7 +8,7 @@
     @emptyClick="handleEmptyClick"
   )
 
-  zoom-buttons
+  zoom-buttons(v-if="!thumbnail")
   drawing-tool.drawing-tool(v-if="!thumbnail")
 
   .left-side(v-if="isLoaded && !thumbnail")
@@ -162,6 +162,10 @@ class XyHexagons extends Vue {
 
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
+
+  private aggregations: Aggregations = {}
+  private columnLookup: number[] = []
+  private gzipWorker!: Worker
 
   private get buttonLabel() {
     const [group, offset] = this.activeAggregation.split('~') as any[]
@@ -586,11 +590,6 @@ class XyHexagons extends Vue {
     this.$store.commit('setFullScreen', false)
   }
 
-  private aggregations: Aggregations = {}
-  private columnLookup: number[] = []
-
-  private gzipWorker!: Worker
-
   private async parseCSVFile(filename: string) {
     if (!this.myState.fileSystem) return
     this.myState.statusMessage = 'Loading file...'
@@ -665,10 +664,6 @@ export default XyHexagons
   background: url('assets/thumbnail.jpg') center / cover no-repeat;
   grid-template-columns: auto 1fr min-content;
   grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    'leftside    .  rightside'
-    '.     .        rightside'
-    '.           .  rightside';
 }
 
 .xy-hexagons.hide-thumbnail {
@@ -677,8 +672,10 @@ export default XyHexagons
 
 .message {
   z-index: 5;
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
   box-shadow: 0px 2px 10px #22222222;
   display: flex;
   flex-direction: row;
@@ -732,7 +729,9 @@ export default XyHexagons
 }
 
 .left-side {
-  grid-area: leftside;
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
@@ -741,7 +740,10 @@ export default XyHexagons
 }
 
 .right-side {
-  grid-area: rightside;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: min-content;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
@@ -827,9 +829,10 @@ label {
 }
 
 .drawing-tool {
+  position: absolute;
+  top: 0;
+  right: 0;
   pointer-events: none;
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
 }
 
 @media only screen and (max-width: 640px) {

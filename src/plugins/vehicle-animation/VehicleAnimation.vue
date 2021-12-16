@@ -21,7 +21,7 @@
                 :vehicleLookup = "vehicleLookup"
                 :onClick = "handleClick")
 
-  zoom-buttons
+  zoom-buttons(v-if="!thumbnail")
 
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")

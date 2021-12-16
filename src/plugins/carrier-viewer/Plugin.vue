@@ -19,7 +19,7 @@
                 :viewId="linkLayerId"
                 :onClick="handleClick")
 
-  ZoomButtons
+  ZoomButtons(v-if="!thumbnail")
 
   .left-side(v-if="detailContent")
     collapsible-panel(direction="left" :locked="true")

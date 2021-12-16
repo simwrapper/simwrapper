@@ -33,6 +33,7 @@ $dashboardWidth: 70rem;
   --bgPanel: #fff;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
+  --bgMapPanel: #f2f2f2;
   --bgTag: #fdffa3;
   --bgBrowser: #37547c;
   --bgSplash: linear-gradient(150deg, #c4dbf5, #748add);
@@ -52,6 +53,7 @@ $dashboardWidth: 70rem;
   --yellow: $colorYellow;
   --splitPanel: #d4dbdd;
   --borderColor: #66666633;
+  --borderZoomButtons: 2px solid var(--borderColor);
 }
 
 .dark-mode {
@@ -66,6 +68,7 @@ $dashboardWidth: 70rem;
   --bgPanel: #2a3c4f;
   --bgPanel2: #32455a;
   --bgPanel3: #2f3b49;
+  --bgMapPanel: #181818;
   --bgTag: #2a3c4f;
   --bgBrowser: #37547c; // #18242e;
   --bgSplash: linear-gradient(150deg, #144e50, #23072c);
@@ -83,5 +86,6 @@ $dashboardWidth: 70rem;
   --borderThin: 1px solid #447;
   --borderDashboard: 3px solid #616169;
   --splitPanel: #2e343f;
-  --borderColor: #33333311;
+  --borderColor: #00000088;
+  --borderZoomButtons: 1px solid var(--borderColor);
 }

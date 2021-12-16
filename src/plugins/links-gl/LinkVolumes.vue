@@ -16,13 +16,11 @@
         :showDiffs="showDiffs"
         :viewId="linkLayerId"
     )
-    //- :vState="$store.state.viewState"
 
-    zoom-buttons
-    drawing-tool
+    zoom-buttons(v-if="!thumbnail")
+    drawing-tool(v-if="!thumbnail")
 
     .top-panel(v-if="vizDetails.title")
-      //- heading
       .panel-item
         h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
@@ -30,31 +28,31 @@
     .message-pane(v-if="!thumbnail && myState.statusMessage")
       p.status-message {{ myState.statusMessage }}
 
-  .bottom-panel(v-if="!thumbnail")
-    .panel-items
+    .bottom-panel(v-if="!thumbnail")
+      .panel-items
 
-        //- button/dropdown for selecting column
-        .panel-item.config-section
-          config-panel(
-            :header="csvData.header"
-            :activeColumn="csvData.activeColumn"
-            :scaleWidth="scaleWidth"
-            :selectedColorRamp="selectedColorRamp"
-            :csvData="csvData"
-            :useSlider="vizDetails.useSlider"
-            :showDiffs="showDiffs"
-            @colors="clickedColorRamp"
-            @column="handleNewDataColumn"
-            @slider="handleNewDataColumn"
-            @scale="handleScaleWidthChanged"
-          )
+          //- button/dropdown for selecting column
+          .panel-item.config-section
+            config-panel(
+              :header="csvData.header"
+              :activeColumn="csvData.activeColumn"
+              :scaleWidth="scaleWidth"
+              :selectedColorRamp="selectedColorRamp"
+              :csvData="csvData"
+              :useSlider="vizDetails.useSlider"
+              :showDiffs="showDiffs"
+              @colors="clickedColorRamp"
+              @column="handleNewDataColumn"
+              @slider="handleNewDataColumn"
+              @scale="handleScaleWidthChanged"
+            )
 
-        //- DIFF checkbox
-        .panel-item.diff-section(v-if="csvBase.header.length")
-          p: b {{ $t('showDiffs') }}
-          toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
-            :color="{checked: '#4b7cc4', unchecked: '#222'}"
-            @change="showDiffs = !showDiffs")
+          //- DIFF checkbox
+          .panel-item.diff-section(v-if="csvBase.header.length")
+            p: b {{ $t('showDiffs') }}
+            toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
+              :color="{checked: '#4b7cc4', unchecked: '#222'}"
+              @change="showDiffs = !showDiffs")
 
 </template>
 
@@ -620,7 +618,7 @@ export default MyPlugin
 }
 
 .link-volume-plot.hide-thumbnail {
-  background: none;
+  background: var(--bgMapPanel);
 }
 
 .plot-container {
@@ -633,8 +631,6 @@ export default MyPlugin
 }
 
 .map-area {
-  grid-column: 1 / 3;
-  grid-row: 1 / 2;
   pointer-events: auto;
 }
 
@@ -671,6 +667,8 @@ export default MyPlugin
   background-color: var(--bgPanel);
   font-size: 0.8rem;
   pointer-events: auto;
+  margin: auto auto 0.5rem 0.5rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
 }
 
 .right-side {
