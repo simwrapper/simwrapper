@@ -240,9 +240,13 @@ class MyPlugin extends Vue {
 
     // first get config
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = YAML.parse(text)
     } catch (err) {
       console.error('failed')
@@ -593,7 +597,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'links-gl',
   prettyName: 'Links',
   description: 'Network link attributes',
-  filePatterns: ['viz-gl-link*.y?(a)ml'],
+  filePatterns: ['**/viz-link*.y?(a)ml'],
   component: MyPlugin,
 } as VisualizationPlugin)
 

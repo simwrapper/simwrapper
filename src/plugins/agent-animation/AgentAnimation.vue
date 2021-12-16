@@ -212,9 +212,13 @@ class MyComponent extends Vue {
   private async getVizDetails() {
     // first get config
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = yaml.parse(text)
     } catch (e) {
       console.log('failed')
@@ -367,7 +371,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'agent-animation',
   prettyName: 'Agent Animation',
   description: 'birds',
-  filePatterns: ['viz-agent-anim*.y?(a)ml'],
+  filePatterns: ['**/viz-agent-anim*.y?(a)ml'],
   component: MyComponent,
 } as VisualizationPlugin)
 

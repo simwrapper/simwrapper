@@ -15,6 +15,12 @@ export enum Status {
   WARNING,
 }
 
+export type YamlConfigs = {
+  dashboards: { [filename: string]: string }
+  topsheets: { [filename: string]: string }
+  vizes: { [filename: string]: string }
+}
+
 export const UI_FONT =
   "'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif"
 

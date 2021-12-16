@@ -154,9 +154,13 @@ class VegaComponent extends Vue {
     try {
       this.loadingText = 'Loading chart...'
 
-      json = await this.myState.fileApi.getFileJson(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      json = await this.myState.fileApi.getFileJson(filename)
 
       this.description = json.description ? json.description : ''
       this.title = json.title
@@ -226,7 +230,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'vega-lite',
   prettyName: 'Chart',
   description: 'Interactive chart visualization',
-  filePatterns: ['*.vega.json'],
+  filePatterns: ['**/*.vega.json'],
   component: VegaComponent,
 } as VisualizationPlugin)
 

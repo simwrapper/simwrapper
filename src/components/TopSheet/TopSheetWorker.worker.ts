@@ -5,7 +5,7 @@ import pako from 'pako'
 import Papaparse from 'papaparse'
 import YAML from 'yaml'
 
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
 import globalStore from '@/store'
@@ -58,6 +58,12 @@ let _yaml: TopsheetYaml = { files: {}, calculations: {}, outputs: [] }
 let _calculations: any = {}
 let _yamlFile: string = ''
 let _locale = 'en'
+
+let _allConfigYamls: YamlConfigs = {
+  dashboards: {},
+  topsheets: {},
+  vizes: {},
+}
 
 const _fileData: any = {}
 
@@ -116,6 +122,7 @@ async function runTopSheet(props: {
   files: string[]
   yaml: string
   locale: string
+  allConfigFiles: YamlConfigs
 }) {
   // console.log('TopSheet thread worker starting')
 
@@ -124,6 +131,7 @@ async function runTopSheet(props: {
   _files = props.files
   _yamlFile = props.yaml
   _locale = props.locale
+  _allConfigYamls = props.allConfigFiles
 
   // read the table definitions from yaml
   _yaml = await getYaml()
@@ -308,7 +316,12 @@ function getFileVariableReplacements(expr: string) {
 }
 
 async function getYaml() {
-  const text = await _fileSystem.getFileText(_subfolder + '/' + _yamlFile)
+  let filename = _yamlFile
+
+  // if we have a reference to a yaml in a different folder, use that one
+  filename = _allConfigYamls.topsheets[_yamlFile] || filename
+
+  const text = await _fileSystem.getFileText(filename)
   const yaml = YAML.parse(text) as TopsheetYaml
   return yaml
 }

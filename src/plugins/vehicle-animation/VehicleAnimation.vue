@@ -276,9 +276,13 @@ class VehicleAnimation extends Vue {
 
     // first get config
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = YAML.parse(text)
       if (!this.vizDetails.center) this.vizDetails.center = [14, 52.1]
     } catch (err) {
@@ -709,7 +713,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'vehicle-animation',
   prettyName: 'Trip Viewer',
   description: 'Deck.gl based trip viewer',
-  filePatterns: ['viz-vehicles*.y?(a)ml'],
+  filePatterns: ['**/viz-vehicles*.y?(a)ml'],
   component: VehicleAnimation,
 } as VisualizationPlugin)
 

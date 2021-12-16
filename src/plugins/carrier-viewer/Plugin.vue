@@ -515,9 +515,13 @@ class CarrierPlugin extends Vue {
     if (!this.myState.fileApi) return
     // first get config
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = YAML.parse(text)
       if (!this.vizDetails.center) this.vizDetails.center = [13.4, 52.5]
     } catch (e) {
@@ -771,7 +775,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
-  filePatterns: ['viz-carrier*.y?(a)ml'],
+  filePatterns: ['**/viz-carrier*.y?(a)ml'],
   component: CarrierPlugin,
 } as VisualizationPlugin)
 

@@ -114,7 +114,11 @@ class MyComponent extends Vue {
     try {
       this.loadingText = 'Loading files...'
 
-      const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
+      // might be a project config:
+      const filename =
+        this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
+
+      const text = await this.fileApi.getFileText(filename)
       this.vizDetails = yaml.parse(text)
 
       this.$emit('title', this.vizDetails.title)
@@ -221,7 +225,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'sankey-diagram',
   prettyName: 'Flow Diagram',
   description: 'Depicts flows between choices',
-  filePatterns: ['sankey*.y?(a)ml'],
+  filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
   component: MyComponent,
 } as VisualizationPlugin)
 

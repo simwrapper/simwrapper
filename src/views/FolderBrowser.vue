@@ -116,7 +116,7 @@ import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { BreadCrumb, VisualizationPlugin, FileSystemConfig } from '@/Globals'
+import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 const allComponents = Object.assign({ TopsheetsFinder }, plugins)
@@ -130,6 +130,9 @@ export default class VueComponent extends Vue {
 
   @Prop({ required: true })
   private root!: string
+
+  @Prop({ required: true })
+  private allConfigFiles!: YamlConfigs
 
   private globalState = globalStore.state
 
@@ -189,7 +192,6 @@ export default class VueComponent extends Vue {
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
-
     return crumbs
   }
 
@@ -228,15 +230,10 @@ export default class VueComponent extends Vue {
 
   @Watch('xsubfolder')
   private updateRoute() {
-    // console.log({ xsubfolder: this.xsubfolder, xproject: this.root })
-
-    // why would this be here, don't remember
-    // if (!this.$route.name) return
-
     const svnProject = this.getFileSystem(this.root)
 
     this.myState.svnProject = svnProject
-    this.myState.subfolder = this.xsubfolder || '' // this.$route.params.pathMatch ? this.$route.params.pathMatch : ''
+    this.myState.subfolder = this.xsubfolder || ''
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -292,7 +289,6 @@ export default class VueComponent extends Vue {
     for (const viz of this.globalState.visualizationTypes.values()) {
       // filter based on file matching
       const matches = micromatch(this.myState.files, viz.filePatterns)
-
       for (const file of matches) {
         // add thumbnail for each matching file
         this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
@@ -366,7 +362,6 @@ export default class VueComponent extends Vue {
     this.myState.isLoading = true
     this.myState.errorStatus = ''
     this.myState.files = []
-    // this.myState.folders = []
 
     try {
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
@@ -375,9 +370,19 @@ export default class VueComponent extends Vue {
       const folders = folderContents.dirs.filter((f) => !f.startsWith('.')).sort()
       const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
 
+      // Also show any project-level viz thumbnails from other folders
+      // (but, ensure that files in this folder supercede any project viz files
+      // with the same name)
+      const mergedFilesAndVizes = Object.assign({}, this.allConfigFiles.vizes)
+      for (const file of files) {
+        mergedFilesAndVizes[file] = file
+      }
+
+      const allVizes = Object.values(mergedFilesAndVizes)
+
       this.myState.errorStatus = ''
       this.myState.folders = folders
-      this.myState.files = files
+      this.myState.files = allVizes
     } catch (err) {
       // Bad things happened! Tell user
       const e = err as any

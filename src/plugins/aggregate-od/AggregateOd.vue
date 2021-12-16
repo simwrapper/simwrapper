@@ -334,9 +334,13 @@ class MyComponent extends Vue {
     if (!this.myState.fileApi) return
     // first get config
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = yaml.parse(text)
     } catch (err) {
       const e = err as any
@@ -1242,7 +1246,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'aggregate-od',
   prettyName: 'Origin/Destination Patterns',
   description: 'Depicts aggregate O/D flows between areas.',
-  filePatterns: ['viz-od*.y?(a)ml'],
+  filePatterns: ['**/viz-od*.y?(a)ml'],
   component: MyComponent,
 } as VisualizationPlugin)
 

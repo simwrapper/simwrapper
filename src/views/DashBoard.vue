@@ -41,8 +41,10 @@
             :datamanager="datamanager"
             :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
+            :allConfigFiles="allConfigFiles"
             @isLoaded="handleCardIsLoaded(card)"
             @dimension-resizer="setDimensionResizer"
+            @titles="setCardTitles(card, $event)"
           )
 
 </template>
@@ -52,7 +54,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 import charts, { plotlyCharts } from '@/charts/allCharts'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -78,6 +80,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: false }) private config!: any
   @Prop({ required: false }) private zoomed!: boolean
   @Prop({ required: true }) private datamanager!: DashboardDataManager
+  @Prop({ required: true }) private allConfigFiles!: YamlConfigs
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -117,6 +120,16 @@ export default class VueComponent extends Vue {
   private beforeDestroy() {
     this.resizers = {}
     window.removeEventListener('resize', this.resizeAllCards)
+  }
+
+  /**
+   * This only gets triggered when a topsheet has some titles.
+   * Remove the dashboard titles and use the ones from the topsheet.
+   */
+  private setCardTitles(card: any, event: any) {
+    console.log(card, event)
+    card.title = event
+    card.description = ''
   }
 
   private resizeAllCards() {
@@ -347,6 +360,7 @@ export default class VueComponent extends Vue {
 
 .dash-card {
   transition: opacity 0.5s;
+  overflow-x: hidden;
 }
 
 @media only screen and (max-width: 50em) {

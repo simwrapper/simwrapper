@@ -375,39 +375,49 @@ class XyHexagons extends Vue {
   }
 
   private async getVizDetails() {
-    if (!this.myState.fileApi) return
-
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
-    if (!hasYaml) {
-      let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
-      if (!this.myState.thumbnail) {
-        projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
-        if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
-      }
-      // output_trips:
-      this.vizDetails = {
-        title: 'Output Trips',
-        description: this.myState.yamlConfig,
-        file: this.myState.yamlConfig,
-        projection,
-        aggregations: {
-          'Trip Summary': [
-            { title: 'Origins', x: 'start_x', y: 'start_y' },
-            { title: 'Destinations', x: 'end_x', y: 'end_y' },
-          ],
-        },
-      }
-      this.$emit('title', this.vizDetails.title)
-      // this.solveProjection()
-      return
+    if (hasYaml) {
+      await this.loadYamlConfig()
+    } else {
+      this.loadOutputTripsConfig()
     }
+  }
 
-    // first get config
+  private loadOutputTripsConfig() {
+    let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+    if (!this.myState.thumbnail) {
+      projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
+      if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
+    }
+    // output_trips:
+    this.vizDetails = {
+      title: 'Output Trips',
+      description: this.myState.yamlConfig,
+      file: this.myState.yamlConfig,
+      projection,
+      aggregations: {
+        'Trip Summary': [
+          { title: 'Origins', x: 'start_x', y: 'start_y' },
+          { title: 'Destinations', x: 'end_x', y: 'end_y' },
+        ],
+      },
+    }
+    this.$emit('title', this.vizDetails.title)
+    // this.solveProjection()
+    return
+  }
+
+  private async loadYamlConfig() {
+    if (!this.myState.fileApi) return
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = YAML.parse(text)
     } catch (err) {
       const e = err as any
@@ -619,7 +629,6 @@ class XyHexagons extends Vue {
 
     try {
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
-
       await this.parseCSVFile(filename)
     } catch (e) {
       console.error(e)
@@ -637,7 +646,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'xy-hexagons',
   prettyName: 'XY Aggregator',
   description: 'Collects XY data into geographic hexagons',
-  filePatterns: ['viz-xy*.y?(a)ml', '*output_trips.csv?(.gz)'],
+  filePatterns: ['**/viz-xy*.y?(a)ml', '*output_trips.csv?(.gz)'],
   component: XyHexagons,
 } as VisualizationPlugin)
 

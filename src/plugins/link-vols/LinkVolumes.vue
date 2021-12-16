@@ -327,11 +327,16 @@ class MyComponent extends Vue {
 
   private async getVizDetails() {
     try {
-      const text = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
+      // might be a project config:
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+      const text = await this.myState.fileApi.getFileText(filename)
       this.vizDetails = yaml.parse(text)
-    } catch (e) {
+    } catch (err) {
+      const e = err as any
       // maybe it failed because password?
       if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
         globalStore.commit('requestLogin', this.myState.fileSystem.slug)
@@ -966,7 +971,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'link-volumes',
   prettyName: 'Volumes',
   description: 'Aggregate volumes on network links',
-  filePatterns: ['viz-link*.y?(a)ml'],
+  filePatterns: ['**/viz-link*.y?(a)ml'],
   component: MyComponent,
 } as VisualizationPlugin)
 

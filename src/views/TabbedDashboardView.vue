@@ -22,12 +22,14 @@
     :config="dashboards[activeTab]"
     :datamanager="dashboardDataManager"
     :zoomed="isZoomed"
+    :allConfigFiles="allConfigFiles"
     @zoom="handleZoom"
   )
 
   folder-browser(v-if="activeTab && activeTab === 'FILE__BROWSER'"
     :root="root"
     :xsubfolder="xsubfolder"
+    :allConfigFiles="allConfigFiles"
     @navigate="onNavigate"
   )
 
@@ -35,10 +37,9 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import micromatch from 'micromatch'
 import YAML from 'yaml'
 
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -55,6 +56,8 @@ export default class VueComponent extends Vue {
 
   private dashboards: any = []
   private dashboardDataManager?: DashboardDataManager
+
+  private allConfigFiles!: YamlConfigs
 
   private isZoomed = false
 
@@ -92,20 +95,19 @@ export default class VueComponent extends Vue {
     if (!this.fileApi) return []
 
     try {
-      const { files } = await this.fileApi.getDirectory(this.xsubfolder)
-      const dashboards = micromatch(files, 'dashboard*.y?(a)ml')
+      this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.xsubfolder)
 
-      for (const filename of dashboards) {
+      for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
         // add the tab now
-        Vue.set(this.dashboards, filename, { header: { tab: '...' } })
+        Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
         // load the details (title) async
-        this.initDashboard(filename)
+        this.initDashboard(fullPath)
       }
 
-      // Add FileBrowser as "Details" tab
-      Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Details' } })
+      // Add FileBrowser as "Files" tab
+      Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
 
-      // Start on first tab
+      // // Start on first tab
       this.activeTab = Object.keys(this.dashboards)[0]
     } catch (e) {
       // Bad things happened! Tell user
@@ -114,21 +116,21 @@ export default class VueComponent extends Vue {
   }
 
   // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
-  private async initDashboard(filename: string) {
-    const config = await this.fileApi.getFileText(`${this.xsubfolder}/${filename}`)
+  private async initDashboard(fullPath: string) {
+    const config = await this.fileApi.getFileText(fullPath)
     const yaml = YAML.parse(config)
-    const shortFilename = filename.substring(0, filename.lastIndexOf('.'))
-    if (!yaml.header) yaml.header = { title: filename, tab: shortFilename }
+    const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
+    if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
     if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
-    this.dashboards[filename] = yaml
+    this.dashboards[fullPath] = yaml
+    console.log('DASHBOARD:', fullPath)
   }
 
   private async switchTab(tab: string) {
     if (tab === this.activeTab) return
 
-    // We are going to force teardown the dashboard to ensure we
-    // start with a clean slate
+    // Force teardown the dashboard to ensure we start with a clean slate
     this.activeTab = ''
     await this.$nextTick()
     this.activeTab = tab

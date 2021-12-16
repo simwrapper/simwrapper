@@ -5,7 +5,7 @@ import { FileSystemConfig } from '@/Globals'
 
 let foundFolders = { number: 0, folders: {} as any }
 
-const findRuns = function() {
+const findRuns = function () {
   // check date and time
   const storedUpdate = localStorage.getItem('RunFinder.lastUpdate')
   const lastUpdate = storedUpdate ? parseInt(storedUpdate) : 0
@@ -38,37 +38,34 @@ const populate = () => {
   foundFolders = { number: 0, folders: {} }
   store.commit('updateRunFolders', foundFolders)
 
-  store.state.svnProjects.forEach(root => {
+  store.state.svnProjects.forEach((root) => {
     if (!root.hidden && root.slug !== 'gallery') drillIntoRootProject(root)
   })
 }
 
-const drillIntoRootProject = function(root: FileSystemConfig) {
+const drillIntoRootProject = function (root: FileSystemConfig) {
   console.log('Drilling into:', root.name)
+
   const fileSystem = new HTTPFileSystem(root)
+  fileSystem.clearCache()
 
   foundFolders.folders[root.name] = []
 
   fetchFolders(root, fileSystem, '')
 }
 
-const fetchFolders = async function(
+const fetchFolders = async function (
   root: FileSystemConfig,
   fileSystem: HTTPFileSystem,
   folder: string
 ) {
   try {
     // skip some big folders we know we don't care about
-    if (root.skipList && root.skipList.filter(f => folder.endsWith(f)).length) return
+    if (root.skipList && root.skipList.filter((f) => folder.endsWith(f)).length) return
 
     // skip .dot and __MACOSX folders
     if (folder.endsWith('__MACOSX')) return
-    if (
-      folder
-        .split('/')
-        .pop()
-        ?.startsWith('.')
-    ) {
+    if (folder.split('/').pop()?.startsWith('.')) {
       return
     }
 

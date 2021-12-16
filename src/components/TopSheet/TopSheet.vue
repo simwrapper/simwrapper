@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts">
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import TopSheetWorker from './TopSheetWorker.worker.ts?worker'
@@ -35,11 +35,13 @@ export default class VueComponent extends Vue {
   @Prop({ required: true })
   private subfolder!: string
 
-  @Prop({ required: true })
-  private files!: string[]
+  @Prop({ required: true }) private files!: string[]
 
-  @Prop({ required: true })
-  private yaml!: string
+  @Prop({ required: true }) private yaml!: string
+
+  @Prop({ required: true }) private allConfigFiles!: YamlConfigs
+
+  @Prop({ required: false }) private cardId?: string
 
   private solverThread!: any
 
@@ -112,6 +114,7 @@ export default class VueComponent extends Vue {
         files: this.files,
         yaml: this.yaml,
         locale: this.$store.state.locale,
+        allConfigFiles: this.allConfigFiles,
       })
     } catch (e) {
       const message = '' + e
@@ -126,7 +129,8 @@ export default class VueComponent extends Vue {
     const data = message.data
     switch (data.response) {
       case 'title':
-        this.title = data.title
+        if (this.cardId) this.$emit('titles', data.title)
+        else this.title = data.title
         break
       case 'entries':
         this.entries = data.entryFields
@@ -146,12 +150,13 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 h3.curate-heading {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: bold;
   color: var(--textFancy);
   padding-top: 0.5rem;
   margin-top: 0rem;
   margin-bottom: 0.5rem;
+  border-bottom: 1px dotted var(--textFancy);
 }
 
 .curate-content {

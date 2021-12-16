@@ -289,11 +289,6 @@ class MyPlugin extends Vue {
     this.$store.commit('setFullScreen', false)
   }
 
-  // private handleClickColumnSelector() {
-  //   console.log('click!')
-  //   this.isButtonActiveColumn = !this.isButtonActiveColumn
-  // }
-
   private async loadShapefile() {
     if (!this.myState.fileApi) return
 

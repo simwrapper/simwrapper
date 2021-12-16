@@ -1,5 +1,13 @@
-import { DirectoryEntry, FileSystemConfig } from '@/Globals'
+import micromatch from 'micromatch'
+import { DirectoryEntry, FileSystemConfig, YamlConfigs } from '@/Globals'
 import globalStore from '@/store'
+
+const YAML_FOLDER = 'simwrapper'
+
+// Cache directory listings for each slug & directory
+const CACHE: { [slug: string]: { [dir: string]: DirectoryEntry } } = {}
+
+// ---------------------------------------------------------------------------
 
 class SVNFileSystem {
   private baseUrl: string
@@ -12,6 +20,12 @@ class SVNFileSystem {
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
+
+    if (!CACHE[this.urlId]) CACHE[this.urlId] = {}
+  }
+
+  public clearCache() {
+    CACHE[this.urlId] = {}
   }
 
   public cleanURL(scaryPath: string) {
@@ -38,7 +52,7 @@ class SVNFileSystem {
     }
 
     const myRequest = new Request(path, { headers })
-    const response = await fetch(myRequest).then(response => {
+    const response = await fetch(myRequest).then((response) => {
       // Check HTTP Response code: 200 is OK, everything else is a problem
       if (response.status != 200) {
         console.log('Status:', response.status)
@@ -82,10 +96,78 @@ class SVNFileSystem {
     // don't download any files!
     if (!stillScaryPath.endsWith('/')) stillScaryPath += '/'
 
+    // Use cached version if we have it
+    const cachedEntry = CACHE[this.urlId][stillScaryPath]
+    if (cachedEntry) return cachedEntry
+
+    // Generate and cache the listing
     const response = await this._getFileResponse(stillScaryPath).then()
     const htmlListing = await response.text()
+    const dirEntry = this.buildListFromHtml(htmlListing)
+    CACHE[this.urlId][stillScaryPath] = dirEntry
 
-    return this.buildListFromHtml(htmlListing)
+    return dirEntry
+  }
+
+  async findAllYamlConfigs(folder: string): Promise<YamlConfigs> {
+    const yamls: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
+
+    const configFolders = []
+
+    // first find all simwrapper folders
+    let currentPath = '/'
+    const { dirs } = await this.getDirectory(currentPath)
+    if (dirs.indexOf(YAML_FOLDER) > -1)
+      configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+
+    const pathChunks = folder.split('/')
+    for (const chunk of pathChunks) {
+      currentPath = `${currentPath}${chunk}/`
+      const { dirs } = await this.getDirectory(currentPath)
+      if (dirs.indexOf(YAML_FOLDER) > -1)
+        configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+    }
+
+    // also add current working folder as final option, which supercedes all others
+    configFolders.push(folder)
+
+    // console.log('configFolders', configFolders)
+
+    // find all dashboards, topsheets, and viz-* yamls in each configuration folder.
+    // Overwrite keys as we go; identically-named configs from parent folders get superceded as we go.
+    const dashboard = 'dashboard*.y?(a)ml'
+    const topsheet = 'topsheet*.y?(a)ml'
+    const viz = 'viz*.y?(a)ml'
+
+    for (const configFolder of configFolders) {
+      const { files } = await this.getDirectory(configFolder)
+
+      micromatch
+        .match(files, dashboard)
+        .map((yaml) => (yamls.dashboards[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+
+      micromatch
+        .match(files, topsheet)
+        .map((yaml) => (yamls.topsheets[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+
+      micromatch
+        .match(files, viz)
+        .map((yaml) => (yamls.vizes[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+    }
+
+    // Sort them all by filename
+    yamls.dashboards = Object.fromEntries(
+      Object.entries(yamls.dashboards).sort((a, b) => (a[0] > b[0] ? 1 : -1))
+    )
+    yamls.topsheets = Object.fromEntries(
+      Object.entries(yamls.topsheets).sort((a, b) => (a[0] > b[0] ? 1 : -1))
+    )
+    yamls.vizes = Object.fromEntries(
+      Object.entries(yamls.vizes).sort((a, b) => (a[0] > b[0] ? 1 : -1))
+    )
+
+    console.log(yamls)
+    return yamls
   }
 
   private buildListFromHtml(data: string): DirectoryEntry {
