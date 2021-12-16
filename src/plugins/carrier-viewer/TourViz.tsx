@@ -7,7 +7,7 @@ import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
-import { MAP_STYLES, MAPBOX_TOKEN } from '@/Globals'
+import { MAP_STYLES, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -67,20 +67,23 @@ export default function Component(props: {
   vehicleLookup: string[]
   searchEnabled: boolean
   onClick: any
+  viewId: number
 }) {
-  const mapStyle = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [hoverInfo, setHoverInfo] = useState({} as any)
 
+  const mapStyle = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
   const { shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
 
   const theme = DEFAULT_THEME
 
-  const initialView = Object.assign({}, INITIAL_VIEW_STATE)
-  initialView.latitude = center[1]
-  initialView.longitude = center[0]
-
-  const [hoverInfo, setHoverInfo] = useState({} as any)
-
   const layers: any = []
+
+  // register setViewState in global view updater
+  // so we can respond to external map motion
+  REACT_VIEW_HANDLES[props.viewId] = () => {
+    setViewState(globalStore.state.viewState)
+  }
 
   function handleClick() {
     console.log(hoverInfo)
@@ -90,6 +93,12 @@ export default function Component(props: {
     } else {
       onClick(hoverInfo.object.v)
     }
+  }
+
+  function handleViewState(view: any) {
+    setViewState(view)
+    view.center = [view.longitude, view.latitude]
+    globalStore.commit('setMapCamera', view)
   }
 
   function renderTooltip({ hoverInfo }: any) {
@@ -291,10 +300,11 @@ export default function Component(props: {
       layers={layers}
       effects={theme.effects}
       pickingRadius={5}
-      initialViewState={initialView}
       controller={true}
       getCursor={() => 'pointer'}
       onClick={handleClick}
+      viewState={viewState}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
         /*

@@ -4,6 +4,8 @@
 
   polygon-layer.anim(v-if="!thumbnail && isLoaded" :props="mapProps")
 
+  zoom-buttons
+
   .left-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="left" :locked="true")
       .panel-items
@@ -72,6 +74,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import PolygonConfigurator from './PolygonConfigurator.vue'
 import PolygonLayer from './PolygonLayerDeck.vue'
 import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
@@ -84,6 +87,7 @@ Vue.use(VuePlugin)
     PolygonLayer,
     TimeSlider,
     ToggleButton,
+    ZoomButtons,
   } as any,
 })
 class MyPlugin extends Vue {
@@ -427,7 +431,7 @@ export default MyPlugin
 
 .left-side {
   grid-row: 1 / 2;
-  grid-column: 1 / 3;
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
@@ -437,10 +441,10 @@ export default MyPlugin
 
 .right-side {
   position: absolute;
-  top: 5rem;
+  top: 9rem;
   right: 0;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   pointer-events: auto;
 }
 

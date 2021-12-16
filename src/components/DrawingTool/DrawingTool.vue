@@ -5,7 +5,6 @@
   .map-actions
     button.button.draw-button.is-tiny(title="Draw" @click="toggleShapeDrawer"
       :class="{'is-drawing': showShapeDrawer}"
-      :style="{'border-color': isDark ? '#111111': '#e0e0e0'}"
     )
       img(src="./images/draw-icon.png" width=16)
 
@@ -298,8 +297,9 @@ export default class VueComponent extends Vue {
 }
 
 .draw-button {
-  padding: 0 6.5px;
-  border: 2px solid #e0e0e0;
+  // background-color: var(--bgPanel3);
+  padding: 0px 6px 0px 6px;
+  border: 2px solid var(--borderColor);
   border-radius: 6px;
 }
 
@@ -318,7 +318,7 @@ export default class VueComponent extends Vue {
   position: absolute;
   display: flex;
   flex-direction: column;
-  top: 8rem;
+  top: 7.25rem;
   right: 8px;
   z-index: 15;
 }

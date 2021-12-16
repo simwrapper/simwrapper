@@ -18,6 +18,7 @@
     )
     //- :vState="$store.state.viewState"
 
+    zoom-buttons
     drawing-tool
 
     .top-panel(v-if="vizDetails.title")
@@ -93,6 +94,7 @@ import ConfigPanel from './ConfigPanel.vue'
 import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 import GzipFetcher from '@/workers/GzipFetcher.worker.ts?worker'
 
 import {
@@ -124,6 +126,7 @@ interface CSV {
     LinkGlLayer,
     TimeSlider,
     ToggleButton,
+    ZoomButtons,
   } as any,
 })
 class MyPlugin extends Vue {
@@ -597,7 +600,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'links-gl',
   prettyName: 'Links',
   description: 'Network link attributes',
-  filePatterns: ['**/viz-link*.y?(a)ml'],
+  filePatterns: ['**/viz-gl-link*.y?(a)ml', '**/viz-link*.y?(a)ml'],
   component: MyPlugin,
 } as VisualizationPlugin)
 

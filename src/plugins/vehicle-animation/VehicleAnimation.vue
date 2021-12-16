@@ -21,6 +21,8 @@
                 :vehicleLookup = "vehicleLookup"
                 :onClick = "handleClick")
 
+  zoom-buttons
+
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")
       .big.clock
@@ -86,6 +88,7 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from '@/components/LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import {
   ColorScheme,
@@ -113,6 +116,7 @@ Vue.use(VuePlugin)
     VueSlider,
     PlaybackControls,
     ToggleButton,
+    ZoomButtons,
   } as any,
 })
 class VehicleAnimation extends Vue {

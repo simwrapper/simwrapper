@@ -51,6 +51,7 @@ $dashboardWidth: 70rem;
   --beige: #ffeead;
   --yellow: $colorYellow;
   --splitPanel: #d4dbdd;
+  --borderColor: #66666633;
 }
 
 .dark-mode {
@@ -82,4 +83,5 @@ $dashboardWidth: 70rem;
   --borderThin: 1px solid #447;
   --borderDashboard: 3px solid #616169;
   --splitPanel: #2e343f;
+  --borderColor: #33333311;
 }

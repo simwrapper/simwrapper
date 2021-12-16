@@ -16,7 +16,10 @@
                 :center="vizDetails.center"
                 :searchEnabled="searchEnabled"
                 :vehicleLookup="vehicleLookup"
+                :viewId="linkLayerId"
                 :onClick="handleClick")
+
+  ZoomButtons
 
   .left-side(v-if="detailContent")
     collapsible-panel(direction="left" :locked="true")
@@ -117,6 +120,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 import { parseXML } from '@/js/util'
 
 import NetworkHelper from '@/workers/NetworkHelper'
@@ -132,6 +136,7 @@ import {
   VisualizationPlugin,
   LIGHT_MODE,
   DARK_MODE,
+  REACT_VIEW_HANDLES,
 } from '@/Globals'
 
 import { VuePlugin } from 'vuera'
@@ -150,6 +155,7 @@ naturalSort.insensitive = true
     ToggleButton,
     TourViz,
     VueSlider,
+    ZoomButtons,
   } as any,
 })
 class CarrierPlugin extends Vue {
@@ -164,6 +170,8 @@ class CarrierPlugin extends Vue {
 
   @Prop({ required: false })
   private thumbnail!: boolean
+
+  private linkLayerId = Math.random()
 
   private vizDetails = {
     network: '',
@@ -557,6 +565,11 @@ class CarrierPlugin extends Vue {
     }
   }
 
+  @Watch('$store.state.viewState') viewMoved() {
+    if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+    REACT_VIEW_HANDLES[this.linkLayerId]()
+  }
+
   @Watch('globalState.authAttempts') private async authenticationChanged() {
     console.log('AUTH CHANGED - Reload')
     if (!this.yamlConfig) this.buildRouteFromUrl()
@@ -891,7 +904,7 @@ export default CarrierPlugin
   top: 0rem;
   bottom: 0rem;
   right: 0;
-  margin: 6rem 0 5rem 0;
+  margin: 10rem 0 5rem 0;
   color: var(--text);
   display: flex;
   flex-direction: row;
