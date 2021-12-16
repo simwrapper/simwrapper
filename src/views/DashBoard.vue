@@ -42,6 +42,7 @@
             :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
             :allConfigFiles="allConfigFiles"
+            :title="card.title"
             @isLoaded="handleCardIsLoaded(card)"
             @dimension-resizer="setDimensionResizer"
             @titles="setCardTitles(card, $event)"
@@ -361,6 +362,7 @@ export default class VueComponent extends Vue {
 .dash-card {
   transition: opacity 0.5s;
   overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 @media only screen and (max-width: 50em) {

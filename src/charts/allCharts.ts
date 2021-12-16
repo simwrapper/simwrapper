@@ -18,5 +18,17 @@ import map from './map-polygons.vue'
 // export the charts here - be sure to put plotly charts separately!
 
 export const plotlyCharts = { area, bar, bubble, heatmap, line, pie, scatter }
-
 export default Object.assign({ flowmap, links, map }, plotlyCharts)
+
+// ----- HELPER FUNCTIONS -----------------------------------------------------
+
+export function buildCleanTitle(plotTitle: string, subfolder: string): string {
+  let title = plotTitle
+
+  if (subfolder) {
+    title = subfolder.substring(1 + subfolder.lastIndexOf('/')) + ' - ' + title
+  }
+
+  title = title.replaceAll('/', '-')
+  return title
+}

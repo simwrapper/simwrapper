@@ -16,6 +16,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { FileSystemConfig, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
+import { buildCleanTitle } from '@/charts/allCharts'
 
 import globalStore from '@/store'
 
@@ -27,6 +28,7 @@ export default class VueComponent extends Vue {
   @Prop() files!: string[]
   @Prop() datamanager!: DashboardDataManager
   @Prop() cardId!: string
+  @Prop({ required: true }) title!: string
 
   private globalState = globalStore.state
 
@@ -43,6 +45,8 @@ export default class VueComponent extends Vue {
     this.updateTheme()
     this.dataSet = await this.loadData()
     this.updateChart()
+
+    this.options.toImageButtonOptions.filename = buildCleanTitle(this.title, this.subfolder)
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
@@ -181,7 +185,6 @@ export default class VueComponent extends Vue {
 
     const allRows = this.dataSet.allRows || []
 
-    console.log({ allRows })
     // old configs called it "usedCol" --> now "columns"
     let columns = this.config.columns || this.config.usedCol
 
@@ -256,7 +259,6 @@ export default class VueComponent extends Vue {
         })
       }
     }
-    console.log({ data: this.data })
   }
 
   private layout: any = {
@@ -306,7 +308,7 @@ export default class VueComponent extends Vue {
     ],
     toImageButtonOptions: {
       format: 'png', // one of png, svg, jpeg, webp
-      filename: 'plot',
+      filename: 'bar-chart',
       width: 1200,
       height: 800,
       scale: 1.0, // Multiply title/legend/axis/canvas sizes by this factor
