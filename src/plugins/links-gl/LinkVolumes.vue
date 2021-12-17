@@ -25,12 +25,11 @@
         h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
-    .message-pane(v-if="!thumbnail && myState.statusMessage")
-      p.status-message {{ myState.statusMessage }}
-
     .bottom-panel(v-if="!thumbnail")
-      .panel-items
+      .status-message(v-if="myState.statusMessage")
+        p {{ myState.statusMessage }}
 
+      .panel-items
           //- button/dropdown for selecting column
           .panel-item.config-section
             config-panel(
@@ -634,23 +633,6 @@ export default MyPlugin
   pointer-events: auto;
 }
 
-.message-pane {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-  // box-shadow: 0px 2px 10px #22222266;
-  margin: 0 auto 0 0;
-  background-color: var(--bgPanel);
-  padding: 0rem 3rem;
-  z-index: 2;
-
-  p {
-    color: var(--textFancy);
-    padding: 0rem 0;
-    font-size: 1.5rem;
-    line-height: 3.25rem;
-  }
-}
-
 .top-panel {
   grid-column: 1 / 2;
   grid-row: 1 / 2;
@@ -663,12 +645,20 @@ export default MyPlugin
 
 .bottom-panel {
   display: flex;
-  flex-direction: row;
-  background-color: var(--bgPanel);
+  flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
   margin: auto auto 0.5rem 0.5rem;
   filter: drop-shadow(0px 2px 4px #22222233);
+}
+
+.status-message {
+  margin: 0 auto 0.5rem 0;
+  padding: 0rem 0.5rem;
+  color: var(--textFancy);
+  background-color: var(--bgPanel);
+  font-size: 1.5rem;
+  line-height: 3.25rem;
 }
 
 .right-side {
@@ -679,10 +669,10 @@ export default MyPlugin
 }
 
 .panel-items {
-  width: 100%;
   display: flex;
   flex-direction: row;
-  margin: 0rem 0.5rem;
+  padding: 0.5rem 0.5rem;
+  background-color: var(--bgPanel);
 }
 
 .panel-item {

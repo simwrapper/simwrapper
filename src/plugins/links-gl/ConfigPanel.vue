@@ -44,7 +44,7 @@
 
 
   //- COLOR PICKER
-  .panel-item.color-picker(v-if="activeColumn > -1"
+  .panel-item.last-item(v-if="activeColumn > -1"
     :style="{pointerEvents: showDiffs ? 'none': 'auto', opacity: showDiffs ? 0.4 : 1.0}"
   )
     p: b {{ $t('colors') }}
@@ -72,14 +72,14 @@ const i18n = {
     en: {
       selectColumn: 'Select data column',
       loading: 'Loading...',
-      bandwidths: 'Widths: 1 pixel =',
+      bandwidths: 'Widths: 1 pixel =:',
       timeOfDay: 'Time of day',
       colors: 'Colors',
     },
     de: {
       selectColumn: 'Datenspalte wählen',
       loading: 'Laden...',
-      bandwidths: 'Linienbreiten: 1 pixel =',
+      bandwidths: 'Linienbreiten: 1 pixel =:',
       timeOfDay: 'Uhrzeit',
       colors: 'Farben',
     },
@@ -246,8 +246,6 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .config-panel {
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
   display: flex;
   flex-direction: row;
 }
@@ -259,6 +257,10 @@ export default class VueComponent extends Vue {
 
 .panel-item {
   padding-right: 1rem;
+}
+
+.last-item {
+  padding-right: 0;
 }
 
 p {
@@ -312,7 +314,7 @@ input {
   width: 100%;
 }
 
-@media only screen and (max-width: 1024px) {
+@media only screen and (max-width: 768px) {
   .config-panel {
     flex-direction: column;
   }

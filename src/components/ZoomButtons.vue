@@ -26,7 +26,10 @@ export default class VueComponent extends Vue {
   private maxZoomOut = 0
   private arrowRotation = 0
 
-  private smooth = [0.0125, 0.025, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9, 0.95, 0.975, 0.9825, 1]
+  private smooth = [
+    0.0125, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.975, 0.9875,
+    1.0,
+  ]
 
   private globalState = globalStore.state
 
@@ -46,7 +49,7 @@ export default class VueComponent extends Vue {
   }
 
   private zoomIn() {
-    var currentZoom = globalStore.state.viewState.zoom
+    let currentZoom = globalStore.state.viewState.zoom
     if (currentZoom + this.zoomInFactor <= this.maxZoomIn) {
       for (let i = 0; i < this.smooth.length; i++) {
         setTimeout(() => {
@@ -54,7 +57,7 @@ export default class VueComponent extends Vue {
           const currentMapDirection = globalStore.state.viewState
           const mergedMap = Object.assign({}, currentMapDirection, newDirection)
           globalStore.commit('setMapCamera', mergedMap)
-        }, 24 * i)
+        }, 16.67 * i)
       }
     }
   }
@@ -68,7 +71,7 @@ export default class VueComponent extends Vue {
           const currentMapDirection = globalStore.state.viewState
           const mergedMap = Object.assign({}, currentMapDirection, newDirection)
           globalStore.commit('setMapCamera', mergedMap)
-        }, 16.66667 * i)
+        }, 16.67 * i)
       }
     }
   }

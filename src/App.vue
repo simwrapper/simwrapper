@@ -427,21 +427,20 @@ a:hover {
 
 // MapLibre Logo
 .mapboxgl-ctrl-bottom-left {
-  filter: opacity(30%);
-  margin-left: -0.5rem;
-  top: 2em;
-  right: 3.5rem;
-  bottom: unset;
+  filter: var(--logoOpacity);
+  bottom: 1.5em;
+  right: 0.8rem;
   left: unset;
+  z-index: 0;
 }
 
 // Mapbox Improve this Map attribution
 .mapboxgl-ctrl-bottom-right {
-  filter: opacity(35%);
-  top: 0.5em;
-  right: 3.25rem;
-  bottom: unset;
+  filter: var(--logoOpacity);
+  right: 0.5rem;
+  bottom: 0.5rem;
   left: unset;
+  z-index: 0;
 }
 
 .mapboxgl-popup-content {
