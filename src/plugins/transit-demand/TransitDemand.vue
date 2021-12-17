@@ -7,6 +7,7 @@
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
 
+  zoom-buttons(v-if="!thumbnail")
   drawing-tool(v-if="!thumbnail")
 
   collapsible-panel.left-side(v-if="!thumbnail"
@@ -76,6 +77,7 @@ import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
 import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import {
   FileSystem,
@@ -97,7 +99,10 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({ i18n, components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool } })
+@Component({
+  i18n,
+  components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool, ZoomButtons },
+})
 class MyComponent extends Vue {
   @Prop({ required: true })
   private root!: string
@@ -461,8 +466,6 @@ class MyComponent extends Vue {
     this.mymap.on('click', this.handleEmptyClick)
 
     this.mymap.keyboard.disable() // so arrow keys don't pan
-
-    this.mymap.addControl(new maplibregl.NavigationControl(), 'top-right')
   }
 
   private handleClickedMetric(metric: { field: string }) {

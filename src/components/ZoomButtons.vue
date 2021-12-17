@@ -1,5 +1,9 @@
 <template lang="pug">
-.zoom-button-area
+.map-complications
+
+  map-scale.map-scale
+
+  .zoom-buttons
     .button-single.button-top
       img.img-button(@click="zoomIn()"
                   src="@/assets/images/sw_plus.jpg")
@@ -10,15 +14,17 @@
       img.img-button(@click="setNorth()"
                   src="@/assets/images/sw_north_arrow.png"
                   :style="{transform: `rotate(${arrowRotation}deg)`}"
-        )
+    )
+
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import globalStore from '@/store'
+import MapScale from '@/components/MapScale.vue'
 
-@Component({ components: {}, props: {} })
+@Component({ components: { MapScale }, props: {} })
 export default class VueComponent extends Vue {
   private zoomInFactor = 0.5
   private zoomOutFactor = 0.5
@@ -85,14 +91,19 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.zoom-button-area {
+.map-complications {
   position: absolute;
   top: 8px;
   right: 8px;
   display: flex;
-  flex-direction: column;
-  pointer-events: auto;
+  flex-direction: row;
+  pointer-events: none;
   cursor: pointer;
+}
+
+.zoom-buttons {
+  margin-left: auto;
+  pointer-events: auto;
 }
 
 .button-single:last-child {
@@ -123,6 +134,10 @@ export default class VueComponent extends Vue {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
   height: 28px;
+}
+
+.map-scale {
+  margin: 0.25rem 0.5rem 0 0;
 }
 
 @media only screen and (max-width: 640px) {

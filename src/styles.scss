@@ -55,6 +55,8 @@ $dashboardWidth: 70rem;
   --borderColor: #66666633;
   --borderZoomButtons: 2px solid var(--borderColor);
   --logoOpacity: opacity(40%);
+  --scaleBorder: 1px solid #7974a0;
+  --scaleBg: #ffffffaa;
 }
 
 .dark-mode {
@@ -90,4 +92,6 @@ $dashboardWidth: 70rem;
   --borderColor: #00000088;
   --borderZoomButtons: 1px solid var(--borderColor);
   --logoOpacity: opacity(30%);
+  --scaleBorder: 1px solid #8fabca;
+  --scaleBg: #33333360;
 }

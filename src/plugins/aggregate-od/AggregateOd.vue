@@ -3,6 +3,8 @@
   .status-blob(v-show="!thumbnail && loadingText")
     p {{ loadingText }}
 
+  zoom-buttons.zoom-buttons(v-if="!thumbnail")
+
   .map-complications(v-if="!thumbnail && !isMobile()")
     legend-box.complication(:rows="legendRows")
     scale-box.complication(:rows="scaleRows")
@@ -82,6 +84,7 @@ import LineFilterSlider from './LineFilterSlider.vue'
 import ScaleBox from './ScaleBoxOD.vue'
 import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import {
   MAP_STYLES,
@@ -124,6 +127,7 @@ const INPUTS = {
     ScaleBox,
     ScaleSlider,
     TimeSlider,
+    ZoomButtons,
   },
 })
 class MyComponent extends Vue {
@@ -415,16 +419,6 @@ class MyComponent extends Vue {
           bearing: 0,
           jump: true, // initial map
         })
-        // if (this.thumbnail) {
-        //   this.mymap.fitBounds(lnglat, {
-        //     animate: false,
-        //   })
-        // } else {
-        //   this.mymap.fitBounds(lnglat, {
-        //     padding,
-        //     animate: false,
-        //   })
-        // }
       }
     } catch (e) {
       // no consequence if json was weird, just drop it
@@ -433,8 +427,6 @@ class MyComponent extends Vue {
     this.mymap.on('click', this.handleEmptyClick)
     // Start doing stuff AFTER the MapBox library has fully initialized
     this.mymap.on('load', this.mapIsReady)
-    this.mymap.addControl(new maplibregl.NavigationControl(), 'top-right')
-
     this.mymap.on('move', this.handleMapMotion)
 
     // clean up display just when we're in thumbnail mode
@@ -1415,6 +1407,12 @@ h4 {
 
 .white-box {
   padding: 0.5rem 0.25rem 0.5rem 0.25rem;
+}
+
+.zoom-buttons {
+  grid-row: 1 / 3;
+  grid-column: 1 / 3;
+  margin: 0 0 auto auto;
 }
 
 @media only screen and (max-width: 640px) {
