@@ -28,7 +28,7 @@ export default class VueComponent extends Vue {
   @Prop() files!: string[]
   @Prop() datamanager!: DashboardDataManager
   @Prop() cardId!: string
-  @Prop({ required: true }) title!: string
+  @Prop({ required: true }) cardTitle!: string
 
   private globalState = globalStore.state
 
@@ -46,7 +46,7 @@ export default class VueComponent extends Vue {
     this.dataSet = await this.loadData()
     this.updateChart()
 
-    this.options.toImageButtonOptions.filename = buildCleanTitle(this.title, this.subfolder)
+    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
