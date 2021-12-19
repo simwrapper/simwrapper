@@ -5,26 +5,37 @@
 
   .zoom-buttons
     .button-single.button-top
-      img.img-button(@click="zoomIn()"
-                  src="@/assets/images/sw_plus.jpg")
+      img.img-button(
+          :title="$t('in')"
+          @click="zoomIn()"
+          src="@/assets/images/sw_plus.jpg")
     .button-single
       img.img-button(@click="zoomOut()"
-                  src="@/assets/images/sw_minus.jpg")
+          :title="$t('out')"
+          src="@/assets/images/sw_minus.jpg")
     .button-single.button-bottom
       img.img-button(@click="setNorth()"
-                  src="@/assets/images/sw_north_arrow.png"
-                  :style="{transform: `rotate(${arrowRotation}deg)`}"
+          :title="$t('center')"
+          src="@/assets/images/sw_north_arrow.png"
+          :style="{transform: `rotate(${arrowRotation}deg)`}"
     )
 
 
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { in: 'Zoom in', out: 'Zoom out', center: 'Recenter' },
+    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'zentrieren' },
+  },
+}
+
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
 
-@Component({ components: { MapScale }, props: {} })
+@Component({ i18n, components: { MapScale }, props: {} })
 export default class VueComponent extends Vue {
   private zoomInFactor = 0.5
   private zoomOutFactor = 0.5
@@ -93,8 +104,8 @@ export default class VueComponent extends Vue {
 
 .map-complications {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
   display: flex;
   flex-direction: row;
   pointer-events: none;
@@ -111,8 +122,8 @@ export default class VueComponent extends Vue {
 }
 
 .button-single {
-  width: 32px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   text-align: center;
   border: var(--borderZoomButtons);
   background-color: white;
@@ -120,24 +131,24 @@ export default class VueComponent extends Vue {
 }
 
 .img-button {
-  height: 26px;
+  height: 22px;
 }
 
 .button-top {
   border-bottom-width: 0px;
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
 }
 
 .button-bottom {
   border-top-width: 0px;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
-  height: 28px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  height: 21px;
 }
 
 .map-scale {
-  margin: 0.25rem 0.5rem 0 0;
+  margin: 0.15rem 0.25rem 0 0;
 }
 
 @media only screen and (max-width: 640px) {

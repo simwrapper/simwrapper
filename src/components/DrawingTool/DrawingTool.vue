@@ -297,10 +297,11 @@ export default class VueComponent extends Vue {
 
 .draw-button {
   // background-color: var(--bgPanel3);
-  padding: 0px 6px 0px 6px;
+  padding: 0px 4px;
   border: var(--borderZoomButtons);
-  border-radius: 6px;
-  width: 32px;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
 }
 
 .draw-button:hover {
@@ -318,8 +319,8 @@ export default class VueComponent extends Vue {
   position: absolute;
   display: flex;
   flex-direction: column;
-  top: 7.25rem;
-  right: 8px;
+  top: 5.5rem;
+  right: 4px;
   z-index: 15;
 }
 
