@@ -12,6 +12,7 @@ import scatter from './scatter.vue'
 
 // all other dashboard viz components:
 import flowmap from './flowmap.vue'
+import hexagons from './hexagons.vue'
 import links from './links.vue'
 import sankey from './sankey.vue'
 import map from './map-polygons.vue'
@@ -19,7 +20,7 @@ import map from './map-polygons.vue'
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
 
 // export all plotly charts here - be sure to put plotly charts separately!
-export const plotlyCharts = { area, bar, bubble, heatmap, line, pie, sankey, scatter }
+export const plotlyCharts = { area, bar, bubble, heatmap, hexagons, line, pie, sankey, scatter }
 
 // export all remaining charts here:
 export default Object.assign({ flowmap, links, map }, plotlyCharts)

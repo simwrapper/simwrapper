@@ -363,12 +363,6 @@ a:hover {
   width: min-content !important;
 }
 
-.right-side {
-  display: flex;
-  flex-direction: row;
-  margin-left: auto;
-}
-
 .top-action-button {
   -moz-user-select: none;
   -webkit-user-select: none;

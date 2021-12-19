@@ -197,3 +197,12 @@ export default class VueComponent extends Vue {
   }
 }
 </script>
+
+<style scoped lang="scss">
+@import '@/styles.scss';
+
+.map {
+  width: 100%;
+  height: 100%;
+}
+</style>

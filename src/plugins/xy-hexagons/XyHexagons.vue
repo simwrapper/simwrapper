@@ -11,7 +11,7 @@
   zoom-buttons(v-if="!thumbnail")
   drawing-tool.drawing-tool(v-if="!thumbnail")
 
-  .left-side(v-if="isLoaded && !thumbnail")
+  .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
     collapsible-panel(direction="left" :locked="true")
       .panel-items
         p.big {{ vizDetails.title }}
@@ -22,38 +22,29 @@
         h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
         button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") {{ $t('showDetails') }}
 
-  .right-side(v-if="isLoaded && !thumbnail")
-    collapsible-panel(direction="right")
-      .panel-items
-
+  .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage"
+    :class="{'is-dashboard': config !== undefined }"
+  )
         .panel-item(v-for="group in Object.keys(aggregations)" :key="group")
           p.speed-label {{ group }}
-          .buttons.has-addons
-            button.button.is-small.aggregation-button(
-              v-for="element,i in aggregations[group]"
-              :key="i"
-              :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}~${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}~${i}` ? buttonColors[i] : $store.state.isDarkMode ? '#333':'white'}"
-              @click="handleOrigDest(group,i)") {{ element.title }}
+          button.button.is-small.aggregation-button(
+            v-for="element,i in aggregations[group]"
+            :key="i"
+            :style="{'margin-bottom': '0.25rem', 'color': activeAggregation===`${group}~${i}` ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeAggregation===`${group}~${i}` ? buttonColors[i] : $store.state.isDarkMode ? '#333':'white'}"
+            @click="handleOrigDest(group,i)") {{ element.title }}
 
-        .panel-item
-          p.speed-label {{ $t('threedee') }}
-          toggle-button.toggle(:width="40" :value="extrudeTowers" :labels="false"
-            :color="{checked: '#4b7cc4', unchecked: '#222'}"
-            @change="extrudeTowers = !extrudeTowers")
-
-        .panel-item
+        .panel-item.right
           p.speed-label {{ $t('maxHeight') }}: {{ maxHeight }}
           vue-slider.speed-slider(v-model="maxHeight"
-            :min="50" :max="500" :interval="25"
-            :duration="0" :dotSize="16"
+            :min="0" :max="250" :interval="5"
+            :duration="0" :dotSize="12"
             tooltip="none"
           )
 
-        .panel-item
-          p.speed-label Radius: {{ radius }}
+          p.speed-label Hex Radius: {{ radius }}
           vue-slider.speed-slider(v-model="radius"
             :min="50" :max="1000" :interval="5"
-            :duration="0" :dotSize="16"
+            :duration="0" :dotSize="12"
             tooltip="none"
           )
 
@@ -68,9 +59,8 @@ const i18n = {
     en: {
       loading: 'Loading data...',
       sorting: 'Sorting into bins...',
-      threedee: 'Show in 3D',
       aggregate: 'Summary',
-      maxHeight: 'Max Height',
+      maxHeight: '3D Height',
       showDetails: 'Show Details',
       selection: 'Selection',
       areas: 'Areas',
@@ -79,9 +69,8 @@ const i18n = {
     de: {
       loading: 'Dateien laden...',
       sorting: 'Sortieren...',
-      threedee: 'In 3D anzeigen',
       aggregate: 'Daten',
-      maxHeight: 'Max Höhe',
+      maxHeight: '3-D Höhe',
       showDetails: 'Details anzeigen',
       selection: 'Ausgewählt',
       areas: 'Orte',
@@ -154,11 +143,23 @@ class XyHexagons extends Vue {
   private yamlConfig!: string
 
   @Prop({ required: false })
+  private config!: any
+
+  @Prop({ required: false })
   private thumbnail!: boolean
 
+  @Watch('extrudeTowers')
+  private handleExtrude() {
+    if (this.extrudeTowers && this.globalState.viewState.pitch == 0) {
+      globalStore.commit(
+        'setMapCamera',
+        Object.assign({}, this.globalState.viewState, { pitch: 10 })
+      )
+    }
+  }
+
   private radius = 250
-  private maxHeight = 100
-  private extrudeTowers = false
+  private maxHeight = 0
 
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
@@ -231,6 +232,10 @@ class XyHexagons extends Vue {
       upperPercentile: 100,
       selectedHexStats: this.hexStats,
     }
+  }
+
+  private get extrudeTowers() {
+    return this.maxHeight > 0
   }
 
   private handleEmptyClick() {
@@ -382,6 +387,11 @@ class XyHexagons extends Vue {
   }
 
   private async getVizDetails() {
+    if (this.config) {
+      this.vizDetails = Object.assign({}, this.config)
+      return
+    }
+
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     if (hasYaml) {
@@ -397,6 +407,7 @@ class XyHexagons extends Vue {
       projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
       if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
     }
+
     // output_trips:
     this.vizDetails = {
       title: 'Output Trips',
@@ -460,10 +471,6 @@ class XyHexagons extends Vue {
     }
   }
 
-  // @Watch('$store.state.colorScheme') private swapTheme() {
-  //   this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-  // }
-
   private get textColor() {
     const lightmode = {
       text: '#3498db',
@@ -509,7 +516,7 @@ class XyHexagons extends Vue {
 
   private jumpToCenter() {
     // Only jump in camera is not yet set
-    if (!this.$store.state.viewState.initial) return
+    // if (!this.$store.state.viewState.initial) return
 
     let x = 0
     let y = 0
@@ -540,7 +547,6 @@ class XyHexagons extends Vue {
     // jump!
     const currentView = this.$store.state.viewState
     const jumpView = {
-      jump: true,
       longitude: x,
       latitude: y,
       bearing: currentView.bearing,
@@ -616,7 +622,6 @@ class XyHexagons extends Vue {
   }
 
   private dataIsLoaded({ rowCache, columnLookup }: any) {
-    // console.log({ rowCache })
     this.columnLookup = columnLookup
     this.rowCache = rowCache
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
@@ -659,15 +664,21 @@ export default XyHexagons
 @import '@/styles.scss';
 
 .xy-hexagons {
-  display: grid;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') center / cover no-repeat;
-  grid-template-columns: auto 1fr min-content;
-  grid-template-rows: auto 1fr auto;
+  z-index: -1;
 }
 
 .xy-hexagons.hide-thumbnail {
   background: none;
+  z-index: 0;
 }
 
 .message {
@@ -709,10 +720,7 @@ export default XyHexagons
 }
 
 .speed-slider {
-  flex: 1;
-  width: 100%;
-  margin: 0rem 0.5rem 0.25rem 0.25rem;
-  font-weight: bold;
+  min-width: 6rem;
 }
 
 .status-message {
@@ -739,55 +747,34 @@ export default XyHexagons
   margin: 0 0 0 0;
 }
 
-.right-side {
+.control-panel {
   position: absolute;
   bottom: 0;
-  right: 0;
-  width: min-content;
-  display: flex;
-  flex-direction: column;
-  font-size: 0.8rem;
-  pointer-events: auto;
-  margin-top: auto;
-  // margin-bottom: 3rem;
-}
-
-.playback-stuff {
-  flex: 1;
-}
-
-.bottom-area {
   display: flex;
   flex-direction: row;
-  margin-bottom: 2rem;
-  grid-area: playback;
-  padding: 0rem 1rem 1rem 2rem;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem 0.5rem;
   pointer-events: auto;
+  background-color: var(--bgPanel);
+  padding: 0.5rem 0.5rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
 }
 
-.settings-area {
-  z-index: 20;
-  pointer-events: auto;
-  background-color: $steelGray;
-  color: white;
-  font-size: 0.8rem;
-  padding: 0.25rem 0;
-  margin: 1.5rem 0rem 0 0;
+.is-dashboard {
+  position: static;
+  margin: 0 0;
+  padding: 0.25rem 0 0 0;
+  filter: unset;
+  background-color: unset;
 }
 
 .hex-layer {
-  grid-column: 1 / 4;
-  grid-row: 1 / 4;
   pointer-events: auto;
 }
 
 .speed-label {
   font-size: 0.8rem;
   font-weight: bold;
-}
-
-p.speed-label {
-  margin-bottom: 0.25rem;
 }
 
 .tooltip {
@@ -800,7 +787,13 @@ p.speed-label {
 }
 
 .panel-item {
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  margin-right: 1rem;
+}
+
+.right {
+  margin-left: auto;
 }
 
 input {
@@ -812,20 +805,6 @@ input {
 .row {
   display: 'grid';
   grid-template-columns: 'auto 1fr';
-}
-
-label {
-  margin: auto 0 auto 0rem;
-  text-align: 'left';
-}
-
-.toggle {
-  margin-bottom: 0.25rem;
-  margin-right: 0.5rem;
-}
-
-.aggregation-button {
-  width: 100%;
 }
 
 .drawing-tool {
