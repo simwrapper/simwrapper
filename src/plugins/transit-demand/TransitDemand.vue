@@ -337,15 +337,22 @@ class MyComponent extends Vue {
     }
   }
 
-  private async guessProjection(files: string[]) {
+  private async guessProjection(files: string[]): Promise<string> {
     // 1. if we have it in storage already, use it
-    let savedConfig = localStorage.getItem(this.myState.yamlConfig) as any
+    const storagePath = `${this.root}/${this.subfolder}`
+    let savedConfig = localStorage.getItem(storagePath) as any
+
+    const goodEPSG = /EPSG:.\d/
 
     if (savedConfig) {
       try {
-        const { projection } = JSON.parse(savedConfig)
-        if (projection) return projection
-        else savedConfig = {}
+        const config = JSON.parse(savedConfig)
+
+        if (goodEPSG.test(config.networkProjection)) {
+          return config.networkProjection
+        } else {
+          savedConfig = {}
+        }
       } catch (e) {
         console.error('bad saved config in storage', savedConfig)
         savedConfig = {}
@@ -354,37 +361,49 @@ class MyComponent extends Vue {
     }
 
     // 2. try to get it from config
-    const outputConfigs = files.filter((f) => f.indexOf('output_config.xml') > -1)
+    const outputConfigs = files.filter(
+      (f) => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
+    )
     if (outputConfigs.length && this.myState.fileSystem) {
       console.log('trying to find CRS in', outputConfigs[0])
 
-      try {
-        const configXML: any = await this.fetchXML({
-          fileApi: this.myState.fileSystem.slug,
-          filePath: this.myState.subfolder + '/' + outputConfigs[0],
-        })
+      for (const xmlConfigFileName of outputConfigs) {
+        try {
+          const configXML: any = await this.fetchXML({
+            fileApi: this.myState.fileSystem.slug,
+            filePath: this.myState.subfolder + '/' + xmlConfigFileName,
+          })
 
-        const global = configXML.config.module.filter((f: any) => f.$.name === 'global')[0]
-        const crs = global.param.filter((p: any) => p.$.name === 'coordinateSystem')[0]
-        const crsValue = crs.$.value
+          const global = configXML.config.module.filter((f: any) => f.$name === 'global')[0]
+          const crs = global.param.filter((p: any) => p.$name === 'coordinateSystem')[0]
 
-        // save it
-        savedConfig = savedConfig || {}
-        savedConfig.projection = crsValue
-        const outputSettings = JSON.stringify(savedConfig)
-        localStorage.setItem(this.myState.yamlConfig, outputSettings)
-        return crsValue
-      } catch (e) {
-        console.error('Failed parsing output config XML')
+          const crsValue = crs.$value
+
+          // save it
+          savedConfig = savedConfig || {}
+          savedConfig.networkProjection = crsValue
+          localStorage.setItem(storagePath, JSON.stringify(savedConfig))
+          return crsValue
+        } catch (e) {
+          console.warn('Failed parsing', xmlConfigFileName)
+        }
       }
     }
 
     // 3. ask the user
-    const entry = prompt('Need EPSG number:', '')
-    const projection = `EPSG:${entry}`
-    const outputSettings = JSON.stringify({ projection })
-    localStorage.setItem(this.myState.yamlConfig, outputSettings)
-    return projection
+    let entry = prompt('Need coordinate EPSG number:', '') || ''
+
+    // if user cancelled, give up
+    if (!entry) return ''
+    // if user gave bad answer, try again
+    if (isNaN(parseInt(entry, 10)) && !goodEPSG.test(entry)) return this.guessProjection(files)
+
+    // hopefully user gave a good EPSG number
+    if (!entry.startsWith('EPSG:')) entry = 'EPSG:' + entry
+
+    const networkProjection = entry
+    localStorage.setItem(storagePath, JSON.stringify({ networkProjection }))
+    return networkProjection
   }
 
   private async loadYamlConfig() {
