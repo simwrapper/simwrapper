@@ -286,8 +286,9 @@ export default class VueComponent extends Vue {
   padding: 0.5rem 1rem;
   z-index: 10;
   position: absolute;
-  top: 10px;
-  right: 4rem;
+  top: 6px;
+  right: 31px;
+  box-shadow: 0px 2px 5px #22222233;
 }
 
 .drawing-tool {

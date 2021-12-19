@@ -20,7 +20,7 @@
       .labels
         p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-      b-switch(v-model="onlyShowChanges") {{ $t('showChanges')}}
+      b-switch.switcher(v-model="onlyShowChanges") {{ $t('showChanges')}}
 
 </template>
 
@@ -365,7 +365,7 @@ p {
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding: 0 1rem;
+  padding: 0 0rem;
 }
 
 .thumb-area {
@@ -390,6 +390,10 @@ p {
   p {
     margin: 0px 0px;
   }
+}
+
+.switcher {
+  margin: 0.5rem 0 0 1rem;
 }
 
 .chart-area {

@@ -212,7 +212,7 @@ export default class VueComponent extends Vue {
           bottom: 0,
           left: 0,
           right: 0,
-          margin: '18px 1rem 1rem 1.5rem',
+          margin: '18px 1rem 0.5rem 1rem',
         }
       }
     }

@@ -148,7 +148,7 @@ export default class VueComponent extends Vue {
 }
 
 .map-scale {
-  margin: 0.15rem 0.25rem 0 0;
+  margin: 0.15rem 0.3rem 0 0;
 }
 
 @media only screen and (max-width: 640px) {

@@ -45,7 +45,6 @@ function startLoading(props: {
   aggregations: Aggregations
   projection: string
 }) {
-  console.log('csvGzipParser worker starting')
   allAggregations = props.aggregations
   proj = props.projection
 
@@ -62,8 +61,6 @@ function startLoading(props: {
  * @returns RowCache, ColumnLookup
  */
 function postResults() {
-  console.log('WORKER RESULTS')
-  console.log({ rowCache, columnLookup })
   postMessage(
     { rowCache, columnLookup },
     Object.values(rowCache).map((cache) => cache.raw.buffer)
@@ -97,7 +94,6 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 
   const separator = header.indexOf(';') > -1 ? ';' : header.indexOf('\t') > -1 ? '\t' : ','
   const headerColumns = header.split(separator)
-  console.log(headerColumns)
 
   // split uint8 array into subarrays
   const startOfData = endOfHeader + 1
@@ -116,7 +112,6 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   for (let i = startOfData; i < unzipped.length; i++) {
     if (unzipped[i] === 10) count++
   }
-  console.log(count, 'newlines')
 
   totalLines = count
 
