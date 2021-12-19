@@ -60,6 +60,8 @@ import TopSheet from '@/components/TopSheet/TopSheet.vue'
 import charts, { plotlyCharts } from '@/charts/allCharts'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
+import globalStore from '@/store'
+
 // append a prefix so the html template is legal
 const namedCharts = {} as any
 const chartTypes = Object.keys(charts)
@@ -184,6 +186,7 @@ export default class VueComponent extends Vue {
       const dimensions = { width: element.clientWidth, height: element.clientHeight }
       if (this.resizers[cardId]) this.resizers[cardId](dimensions)
     }
+    globalStore.commit('resize')
   }
 
   private getCardStyle(card: any) {

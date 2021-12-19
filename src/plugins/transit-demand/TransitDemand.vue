@@ -1,11 +1,14 @@
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
-
   .map-container(:class="{'hide-thumbnail': !thumbnail }")
-    div(:id="mapID" style="height: 100%; width: 100%; flex: 1")
+    div.map-styles(:id="mapID")
       .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
         :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
       )
+
+    legend-box.legend(v-if="!thumbnail"
+      :rows="legendRows"
+    )
 
   zoom-buttons(v-if="!thumbnail")
   drawing-tool(v-if="!thumbnail")
@@ -16,7 +19,7 @@
     direction="left")
 
     .panel-items
-      .panel-item
+      .panel-item(v-if="vizDetails.title")
         h3 {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
@@ -25,7 +28,7 @@
             :key="route.uniqueRouteID"
             :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
             @click="showRouteDetails(route.id)")
-          h3.mytitle {{route.id}}
+          .route-title {{route.id}}
           .detailed-route-data
             .col
               p: b {{route.departures}} departures
@@ -35,16 +38,17 @@
               p: b {{ route.passengersAtArrival }} passengers
               p {{ route.totalVehicleCapacity }} capacity
 
-  collapsible-panel.right-side(v-if="!thumbnail" :darkMode="isDarkMode" :width="300" direction="right")
+  .control-panel(v-if="!thumbnail"
+    :class="{'is-dashboard': config !== undefined }"
+  )
+
     .panel-item
-      h3 {{  $t('metrics') }}:
+      p.control-label {{  $t('metrics') }}:
       .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in metrics" :key="metric.field"
           :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
           @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
-
-    legend-box(:rows="legendRows")
 
   .status-corner(v-if="!thumbnail && loadingText")
     p {{ loadingText }}
@@ -115,6 +119,9 @@ class MyComponent extends Vue {
 
   @Prop({ required: false })
   private yamlConfig!: string
+
+  @Prop({ required: false })
+  private config!: any
 
   @Prop({ required: false })
   private thumbnail!: boolean
@@ -192,6 +199,7 @@ class MyComponent extends Vue {
     if (!this.fileApi) this.buildFileApi()
 
     await this.getVizDetails()
+    this.projection = this.vizDetails.projection
 
     if (this.thumbnail) return
 
@@ -279,8 +287,14 @@ class MyComponent extends Vue {
   }
 
   private async getVizDetails() {
+    // are we in a dashboard?
+    if (this.config) {
+      this.vizDetails = Object.assign({}, this.config)
+      return
+    }
+
     // if a YAML file was passed in, just use it
-    if (this.myState.yamlConfig.endsWith('yaml') || this.myState.yamlConfig.endsWith('yml')) {
+    if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
       this.loadYamlConfig()
       return
     }
@@ -332,12 +346,14 @@ class MyComponent extends Vue {
       // Save everything
       this.vizDetails.network = network
       this.vizDetails.projection = projection
-      this.projection = this.vizDetails.projection
       if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
     }
   }
 
   private async guessProjection(files: string[]): Promise<string> {
+    // 0. If it's in config, use it
+    if (this.config?.projection) return this.config.projection
+
     // 1. if we have it in storage already, use it
     const storagePath = `${this.root}/${this.subfolder}`
     let savedConfig = localStorage.getItem(storagePath) as any
@@ -1124,34 +1140,64 @@ p {
 }
 
 .transit-viz {
-  display: grid;
-  pointer-events: none;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    'title      rightside'
-    'leftside   rightside'
-    'playback   clock';
+  pointer-events: none;
 }
 
 .map-container {
+  position: relative;
+  flex: 1;
   pointer-events: auto;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
   background-size: cover;
-  grid-column: 1 / 3;
-  grid-row: 1 / 4;
-  display: flex;
-  flex-direction: column;
   min-height: $thumbnailHeight;
 }
 
 .hide-thumbnail {
   background: none;
   background-color: var(--bgBold);
+}
+
+.control-panel {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem 0.5rem;
+  pointer-events: auto;
+  background-color: var(--bgPanel);
+  padding: 0.5rem 0.5rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
+}
+
+.is-dashboard {
+  position: static;
+  margin: 0 0;
+  padding: 0.25rem 0 0 0;
+  filter: unset;
+  background-color: unset;
+}
+
+.legend {
+  background-color: var(--bgPanel);
+  padding: 0.25rem 0.5rem;
+  position: absolute;
+  bottom: 3.5rem;
+  right: 0.5rem;
+}
+
+.control-label {
+  margin: 0 0;
+  font-size: 0.8rem;
+  font-weight: bold;
 }
 
 .route {
@@ -1173,7 +1219,10 @@ h3 {
   line-height: 1.7rem;
 }
 
-.mytitle {
+.route-title {
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1.2rem;
   margin-left: 10px;
   color: var(--link);
 }
@@ -1248,24 +1297,24 @@ h3 {
 }
 
 .left-side {
-  grid-column: 1 / 3;
-  grid-row: 1 / 4;
+  position: absolute;
+  top: 0;
+  left: 0;
   margin-bottom: auto;
   margin-right: auto;
   display: flex;
-  z-index: 5;
   flex-direction: row;
   pointer-events: auto;
-  max-height: 50%;
-  max-width: 50%;
+  max-height: 40%;
+  max-width: 80%;
+  opacity: 0.96;
 }
 
 .right-side {
-  z-index: 5;
+  z-index: 1;
   position: absolute;
-  bottom: 0;
+  bottom: 3.75rem;
   right: 0;
-  margin: 0 0 0 0;
   color: white;
   display: flex;
   flex-direction: row;
@@ -1278,19 +1327,14 @@ h3 {
   flex-direction: column;
   margin: 0 0;
   max-height: 100%;
-  h3 {
-    padding: 0 0.5rem;
-  }
 }
 
 .panel-item {
-  color: var(--text);
-  padding: 0 0.5rem;
-  margin-top: 0.25rem;
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
 
-  h1 {
-    font-size: 2rem;
+  h3 {
+    padding: 0.5rem 1rem 1.5rem 0.5rem;
   }
 }
 
@@ -1316,11 +1360,11 @@ h3 {
 
 .metric-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 .metric-button {
-  margin-bottom: 0.25rem;
+  margin-right: 0.5rem;
 }
 
 .detailed-route-data {
@@ -1333,14 +1377,17 @@ h3 {
   flex-direction: column;
 }
 
+.map-styles {
+  height: 100%;
+}
+
 .status-corner {
-  z-index: 5;
-  grid-column: 1 / 3;
-  grid-row: 1 / 3;
-  // box-shadow: 0px 2px 10px #22222266;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 15;
   display: flex;
   flex-direction: row;
-  margin: auto auto 0 0;
   background-color: var(--bgPanel);
   padding: 0rem 3rem;
 
