@@ -7,26 +7,40 @@
       svg.chart-area(:id="cleanConfigId")
 
   .sankey-container(v-else
-    :style="{'overflow-y': 'auto'}")
+    :style="{'overflow-y': 'auto', 'padding-top': dimensions && dimensions.height ? '0rem': '1rem'}"
+  )
 
     .main-area.center-area
       .labels
         h3.center {{ vizDetails.title }}
         h5.center {{ vizDetails.description }}
-        p.center {{ totalTrips.toLocaleString() }} total trips
 
       svg.chart-area(:id="cleanConfigId")
+
+      .labels
+        p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
+
+      b-switch(v-model="onlyShowChanges") {{ $t('showChanges')}}
 
 </template>
 
 <script lang="ts">
-'use strict'
+const i18n = {
+  messages: {
+    en: { total: 'total', showChanges: 'Only show changes' },
+    de: { total: 'Insgesamt', showChanges: 'Nur Änderungen zeigen' },
+  },
+}
 
 import yaml from 'yaml'
 import { sankey, sankeyDiagram } from 'd3-sankey-diagram'
 import { select } from 'd3-selection'
 import { scaleOrdinal } from 'd3-scale'
-import { schemeCategory10 } from 'd3-scale-chromatic'
+import {
+  interpolateRainbow as interpolator,
+  schemeCategory10 as colorScheme,
+} from 'd3-scale-chromatic'
+
 import Papaparse from 'papaparse'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
@@ -40,7 +54,7 @@ interface SankeyYaml {
   description?: string
 }
 
-@Component({ components: {} })
+@Component({ i18n, components: {} })
 class MyComponent extends Vue {
   @Prop({ required: true })
   private root!: string
@@ -48,11 +62,17 @@ class MyComponent extends Vue {
   @Prop({ required: true })
   private subfolder!: string
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   private yamlConfig!: string
+
+  @Prop({ required: false })
+  private config!: any
 
   @Prop({ required: true })
   private thumbnail!: boolean
+
+  @Prop({ required: false })
+  private dimensions!: { width: number; height: number }
 
   private fileApi?: HTTPFileSystem
   private fileSystem?: FileSystemConfig
@@ -63,14 +83,19 @@ class MyComponent extends Vue {
   private jsonChart: any = {}
   private totalTrips = 0
 
-  private get cleanConfigId() {
-    const clean = this.yamlConfig?.replace(/[\W_]+/g, '') || ''
-    return clean
-  }
+  private cleanConfigId = 'sankey-' + Math.floor(1e12 * Math.random())
+
+  private onlyShowChanges = false
+
+  private csvData: any[] = []
 
   public async mounted() {
     this.buildFileApi()
+
     await this.getVizDetails()
+    this.csvData = await this.loadFiles()
+    this.jsonChart = this.processInputs()
+    this.doD3()
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -81,6 +106,17 @@ class MyComponent extends Vue {
   @Watch('subfolder') changedSubfolder() {
     this.subfolder = this.subfolder
     this.getVizDetails()
+  }
+
+  @Watch('dimensions')
+  private changeDimensions() {
+    if (this.jsonChart?.nodes) this.doD3()
+  }
+
+  @Watch('onlyShowChanges')
+  private handleShowChanges() {
+    this.jsonChart = this.processInputs()
+    this.doD3()
   }
 
   public buildFileApi() {
@@ -101,31 +137,37 @@ class MyComponent extends Vue {
   }
 
   private async getVizDetails() {
-    const files = await this.loadFiles()
-    if (files) this.jsonChart = this.processInputs(files)
+    if (this.config) {
+      this.vizDetails = Object.assign({}, this.config)
+      this.$emit('title', this.vizDetails.title)
+      return
+    }
+    // might be a project config:
+    this.loadingText = 'Loading config...'
+    const filename =
+      this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
 
-    this.loadingText = ''
-    this.doD3()
+    if (!this.fileApi) return
+    const text = await this.fileApi.getFileText(filename)
+    this.vizDetails = yaml.parse(text)
+    this.$emit('title', this.vizDetails.title)
   }
 
-  private async loadFiles() {
-    if (!this.fileApi) return
+  private async loadFiles(): Promise<any[]> {
+    if (!this.fileApi) return []
 
+    this.loadingText = 'Loading files...'
     try {
-      this.loadingText = 'Loading files...'
+      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
 
-      // might be a project config:
-      const filename =
-        this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
-
-      const text = await this.fileApi.getFileText(filename)
-      this.vizDetails = yaml.parse(text)
-
-      this.$emit('title', this.vizDetails.title)
-
-      const flows = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
-
-      return flows
+      const content = Papaparse.parse(rawText, {
+        // using header:false because we don't care what
+        // the column names are: we expect "from,to,value" in cols 0,1,2.
+        header: false,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+      })
+      return content.data
     } catch (err) {
       const e = err as any
       console.error({ e })
@@ -136,36 +178,35 @@ class MyComponent extends Vue {
         globalStore.commit('requestLogin', this.fileSystem.slug)
       }
     }
+    return []
   }
 
-  private processInputs(rawText: any) {
+  private processInputs() {
     this.loadingText = 'Building node graph...'
 
-    const fromNodes: any = []
-    const toNodes: any = []
-    const links: any = []
+    const fromNodes: any[] = []
+    const toNodes: any[] = []
+    const links: any[] = []
     this.totalTrips = 0
 
-    // build lookups
     try {
-      const content = Papaparse.parse(rawText, {
-        // using header:false because we don't care what
-        // the column names are: we expect "from,to,value" in cols 0,1,2.
-        header: false,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-      })
-
-      for (const cols of content.data.slice(1) as any[]) {
+      for (const cols of this.csvData.slice(1) as any[]) {
         if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
         if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
 
         const value = cols[2]
 
-        if (value > 0) {
-          links.push([cols[0], cols[1], value])
-          this.totalTrips += value
+        if (value === 0) continue
+        if (value < 0) {
+          console.warn('Data contains NEGATIVE numbers!!!')
+          continue
         }
+
+        // Don't include non-changes in the graph if we are hiding them
+        if (this.onlyShowChanges && cols[0] === cols[1]) continue
+
+        links.push([cols[0], cols[1], value])
+        this.totalTrips += value
       }
     } catch (err) {
       const e = err as any
@@ -173,7 +214,11 @@ class MyComponent extends Vue {
     }
 
     // build js object
-    const answer: any = { nodes: [], links: [] }
+    const answer: {
+      nodes: { id: any; title: string }[]
+      links: { source: any; target: any; value: number }[]
+    } = { nodes: [], links: [] }
+
     const fromLookup: any = {}
     const toLookup: any = {}
 
@@ -191,43 +236,56 @@ class MyComponent extends Vue {
       answer.links.push({ source: fromLookup[link[0]], target: toLookup[link[1]], value: link[2] })
     }
 
+    const numColors = fromNodes.length
+    const colors = [...Array(numColors).keys()].map((i) => {
+      return interpolator(i / numColors)
+    })
+
+    this.colorRamp = colors
+
     return answer
   }
+
+  private colorRamp: string[] = []
 
   private doD3() {
     const data = this.jsonChart
     data.alignTypes = true
     data.alignLinkTypes = true
 
+    // figure out dimensions, depending on if we are in a dashboard or not
+    const width = this.dimensions?.width || 800
+    const height = this.dimensions?.height || 600
+
     const layout = sankey()
+      .nodeWidth(8)
       .extent([
         [125, 0],
-        [675, 700],
+        [width - 125, height],
       ])
-      .nodeWidth(8)
 
-    const tryColor = scaleOrdinal(schemeCategory10)
+    const tryColor = scaleOrdinal(colorScheme)
     const diagram = sankeyDiagram().linkColor((link: any) => {
-      const c = tryColor(link.source.id)
-      return c + 'bb' // + opacity
+      const c = this.colorRamp[link.source.id]
+      return c // + 'bb' // + opacity
     })
 
     select('#' + this.cleanConfigId)
       .datum(layout(data))
       .call(diagram)
       .attr('preserveAspectRatio', 'xMinYMin meet')
-      .attr('viewBox', '0 0 800 800')
+      .attr('viewBox', `0 0 ${width} ${height}`)
   }
 }
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
   kebabName: 'sankey-diagram',
-  prettyName: 'Flow Diagram',
+  prettyName: 'Sankey Flow Diagram',
   description: 'Depicts flows between choices',
   filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
   component: MyComponent,
-} as VisualizationPlugin)
+})
 
 export default MyComponent
 </script>
@@ -236,7 +294,7 @@ export default MyComponent
 @import '@/styles.scss';
 
 .sankey-container {
-  padding-top: 3rem;
+  padding-top: 1rem;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto auto;
@@ -324,6 +382,14 @@ p {
 
 .center {
   text-align: center;
+}
+
+.labels {
+  padding: 0rem 1rem;
+
+  p {
+    margin: 0px 0px;
+  }
 }
 
 .chart-area {
