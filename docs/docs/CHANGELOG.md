@@ -5,6 +5,24 @@ title: Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/simwrapper/simwrapper/compare/v1.3.3...v1.4.0) (2021-12-20)
+
+### Features
+
+- Add interactive map scale to all maps, near the zoom buttons ([8021fce](https://github.com/simwrapper/simwrapper/commit/8021fce4c18862d89cf95b94be19b113c1b54254)), closes [#69](https://github.com/simwrapper/simwrapper/issues/69)
+- **dash:** Project-level dashboards, vizes, and calculation topsheets ([b920e63](https://github.com/simwrapper/simwrapper/commit/b920e634bb68277b2b6fbb4accf2fa812c8702aa))
+- **hexagons:** XY Hexagon viz learned how to embed in dashboards ([3b495ae](https://github.com/simwrapper/simwrapper/commit/3b495ae5bbadb5d4445bff3a7989427bd39dd1e9))
+- Maps learned zoom-in, zoom-on, and reset-view on all views ([244c4f5](https://github.com/simwrapper/simwrapper/commit/244c4f5b7d4474bef09a8908a652f52ef97d2968)), closes [#70](https://github.com/simwrapper/simwrapper/issues/70)
+- **sankey:** Sankey learned "only show changes" and can be embedded in dashboards ([a96c190](https://github.com/simwrapper/simwrapper/commit/a96c1901a75ffdc42ed424ad6d4d64362ed38309))
+- **transit:** add transit viz to dashboards too' ([12eb429](https://github.com/simwrapper/simwrapper/commit/12eb429246d7f5208a7965b81ad2c6fef16e30a2))
+
+### Bug Fixes
+
+- **charts:** Better filenames for exported charts ([d97041d](https://github.com/simwrapper/simwrapper/commit/d97041da790bb48f9b0890480a844fe5fd7c8a8e)), closes [#79](https://github.com/simwrapper/simwrapper/issues/79)
+- Hovering on a map shows a weird card title when it shouldn't ([d10c1ce](https://github.com/simwrapper/simwrapper/commit/d10c1ce68c3833b32e66439e715dd1660025ffcf))
+- Re-enable some error messages when files can't be loaded ([a709f7c](https://github.com/simwrapper/simwrapper/commit/a709f7cf371744b234c8cdd7897d1aeb0ad50729))
+- Transit viewer asks nicely for coordinate system EPSG now ([4c601bc](https://github.com/simwrapper/simwrapper/commit/4c601bcc9f985121fc8abf5351dbe39a1735ae48))
+
 ### [1.3.3](https://github.com/simwrapper/simwrapper/compare/v1.3.2...v1.3.3) (2021-12-14)
 
 ### Bug Fixes
