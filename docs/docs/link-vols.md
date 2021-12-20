@@ -17,9 +17,9 @@ A file named `viz-gl-links-*.yml` must be present in working folder. Each yml fi
 ```yaml
 title: "Passagieraufkommen in Sammeltaxis"
 description: "Stündliches Passagieraufkommen in Sammeltaxis"
-csvFile: "../base/hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv"
-csvFile2: "Vu-DRT-1.link_hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv"
-geojsonFile: ../vulkaneifel-network.geo.json.gz
+csvFile: "hourlyTrafficVolume-drt-vehicles.csv"
+csvBase: "../base/hourlyTrafficVolume-drt-vehicles.csv"
+geojsonFile: "../vulkaneifel-network.geo.json.gz"
 widthFactor: 0.01
 sampleRate: 0.25
 thumbnail: thumbnail-roads.jpg
@@ -39,9 +39,9 @@ shpFileIdProperty: "ID"
 - and will create a file with the name `mynetwork.geo.json.gz`.
 - Note projection must be given! Format `EPSG:25832` etc.
 
-**csvFile**: dataset, or "base" dataset for difference plots
+**csvFile**: dataset in CSV or TSV format
 
-**csvFile2:** (optional) "project" dataset for difference plots
+**csvBase:** (optional) "base" dataset for difference plots
 
 **sampleRate:** MATSim simulation sample rate; i.e. a 1% sample should use `0.01` here so that volumes are scaled properly
 
