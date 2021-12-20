@@ -405,6 +405,14 @@ class MyPlugin extends Vue {
       const worker = new GzipFetcher() as Worker
 
       worker.onmessage = (buffer: MessageEvent) => {
+        if (buffer.data.error) {
+          this.myState.statusMessage = buffer.data.error
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `Error loading: ${network}`,
+          })
+        }
+
         const buf = buffer.data
         const decoder = new TextDecoder('utf-8')
         const jsonData = decoder.decode(buf)
@@ -555,6 +563,13 @@ class MyPlugin extends Vue {
     const worker = new GzipFetcher() as Worker
     try {
       worker.onmessage = (buffer: MessageEvent) => {
+        if (buffer.data.error) {
+          this.myState.statusMessage = buffer.data.error
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `Error loading: ${csvFilename}`,
+          })
+        }
         const buf = buffer.data
         const decoder = new TextDecoder('utf-8')
         const text = decoder.decode(buf)
@@ -654,11 +669,11 @@ export default MyPlugin
 
 .status-message {
   margin: 0 auto 0.5rem 0;
-  padding: 0rem 0.5rem;
+  padding: 0.5rem 0.5rem;
   color: var(--textFancy);
   background-color: var(--bgPanel);
   font-size: 1.5rem;
-  line-height: 3.25rem;
+  line-height: 1.8rem;
 }
 
 .right-side {

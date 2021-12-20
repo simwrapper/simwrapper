@@ -19,14 +19,18 @@ onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
-  const httpFileSystem = new HTTPFileSystem(fileSystem)
-  const blob = await httpFileSystem.getFileBlob(filePath)
-  if (!blob) throw Error('BLOB IS NULL')
+  try {
+    const httpFileSystem = new HTTPFileSystem(fileSystem)
+    const blob = await httpFileSystem.getFileBlob(filePath)
+    if (!blob) throw Error('BLOB IS NULL')
 
-  const buffer = await blob.arrayBuffer()
-  const cargo = gUnzip(buffer)
+    const buffer = await blob.arrayBuffer()
+    const cargo = gUnzip(buffer)
 
-  return cargo
+    return cargo
+  } catch (e) {
+    ctx.postMessage({ error: 'Error loading ' + filePath })
+  }
 }
 
 /**

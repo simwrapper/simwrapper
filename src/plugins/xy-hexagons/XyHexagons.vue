@@ -606,6 +606,12 @@ class XyHexagons extends Vue {
     this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
       if (buffer.data.status) {
         this.myState.statusMessage = buffer.data.status
+      } else if (buffer.data.error) {
+        this.myState.statusMessage = buffer.data.error
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
+        })
       } else {
         const { rowCache, columnLookup } = buffer.data
         this.gzipWorker.terminate()
@@ -641,7 +647,7 @@ class XyHexagons extends Vue {
       console.error(e)
       this.myState.statusMessage = '' + e
       this.$store.commit('setStatus', {
-        type: Status.WARNING,
+        type: Status.ERROR,
         msg: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
       })
     }

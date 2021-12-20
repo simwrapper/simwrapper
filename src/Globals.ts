@@ -13,6 +13,7 @@ export const MAPBOX_TOKEN =
 export enum Status {
   INFO,
   WARNING,
+  ERROR,
 }
 
 export type YamlConfigs = {

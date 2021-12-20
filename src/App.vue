@@ -25,7 +25,7 @@ const i18n = {
     de: {
       light: 'hell',
       dark: 'dark',
-      share: 'freigeben',
+      share: 'teilen',
     },
   },
 }

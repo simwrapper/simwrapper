@@ -79,7 +79,8 @@ async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
 
     step2examineUnzippedData(unzipped)
   } catch (e) {
-    throw Error('LOAD FAIL !')
+    postMessage({ error: 'Error loading: ' + filepath })
+    throw Error('LOAD FAIL! ' + filepath)
   }
 }
 
