@@ -1,26 +1,17 @@
 <template lang="pug">
-.main-container
-  .sankey-container.show-thumbnail(v-if="thumbnail"
-    :style="{'overflow-y': 'hidden'}")
+.sankey-container(:class="{'is-thumbnail': thumbnail}")
+  //- :style="{'overflow-y': 'auto', 'padding-top': thumbnail || (dimensions && dimensions.height) ? '0rem': '1rem'}"
 
-    .thumb-area
-      svg.chart-area(:id="cleanConfigId")
+  .labels(v-if="!thumbnail")
+    h3.center {{ vizDetails.title }}
+    h5.center {{ vizDetails.description }}
 
-  .sankey-container(v-else
-    :style="{'overflow-y': 'auto', 'padding-top': dimensions && dimensions.height ? '0rem': '1rem'}"
-  )
+  svg.chart-area(:id="cleanConfigId" :class="{'is-thumbnail': thumbnail}")
 
-    .main-area.center-area
-      .labels
-        h3.center {{ vizDetails.title }}
-        h5.center {{ vizDetails.description }}
+  .labels(v-if="!thumbnail")
+    p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-      svg.chart-area(:id="cleanConfigId")
-
-      .labels
-        p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
-
-      b-switch.switcher(v-model="onlyShowChanges") {{ $t('showChanges')}}
+  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges") {{ $t('showChanges')}}
 
 </template>
 
@@ -62,17 +53,19 @@ class MyComponent extends Vue {
   @Prop({ required: true })
   private subfolder!: string
 
+  @Prop({ required: true })
+  private thumbnail!: boolean
+
   @Prop({ required: false })
   private yamlConfig!: string
 
   @Prop({ required: false })
   private config!: any
 
-  @Prop({ required: true })
-  private thumbnail!: boolean
-
   @Prop({ required: false })
   private dimensions!: { width: number; height: number }
+
+  private globalState = globalStore.state
 
   private fileApi?: HTTPFileSystem
   private fileSystem?: FileSystemConfig
@@ -95,7 +88,14 @@ class MyComponent extends Vue {
     await this.getVizDetails()
     this.csvData = await this.loadFiles()
     this.jsonChart = this.processInputs()
+
+    window.addEventListener('resize', this.changeDimensions)
+
     this.doD3()
+  }
+
+  public beforeDestroy() {
+    window.removeEventListener('resize', this.changeDimensions)
   }
 
   @Watch('yamlConfig') changedYaml() {
@@ -108,7 +108,7 @@ class MyComponent extends Vue {
     this.getVizDetails()
   }
 
-  @Watch('dimensions')
+  @Watch('globalState.resizeEvents')
   private changeDimensions() {
     if (this.jsonChart?.nodes) this.doD3()
   }
@@ -238,7 +238,9 @@ class MyComponent extends Vue {
 
     const numColors = fromNodes.length
     const colors = [...Array(numColors).keys()].map((i) => {
-      return interpolator(i / numColors)
+      const solidColor = interpolator(i / numColors)
+      const opacityColor = solidColor.replace(/rgb(.*)\)/, 'rgba$1, 0.7)')
+      return opacityColor
     })
 
     this.colorRamp = colors
@@ -254,21 +256,20 @@ class MyComponent extends Vue {
     data.alignLinkTypes = true
 
     // figure out dimensions, depending on if we are in a dashboard or not
-    const width = this.dimensions?.width || 800
-    const height = this.dimensions?.height || 600
+    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+    let width = box.clientWidth
+    let height = box.clientHeight
+
+    let labelWidth = this.thumbnail ? 60 : 125
 
     const layout = sankey()
       .nodeWidth(8)
       .extent([
-        [125, 0],
-        [width - 125, height],
+        [labelWidth, 0],
+        [width - labelWidth, height],
       ])
 
-    const tryColor = scaleOrdinal(colorScheme)
-    const diagram = sankeyDiagram().linkColor((link: any) => {
-      const c = this.colorRamp[link.source.id]
-      return c // + 'bb' // + opacity
-    })
+    const diagram = sankeyDiagram().linkColor((link: any) => this.colorRamp[link.source.id])
 
     select('#' + this.cleanConfigId)
       .datum(layout(data))
@@ -295,12 +296,11 @@ export default MyComponent
 
 .sankey-container {
   padding-top: 1rem;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.show-thumbnail {
+.sankey-container.is-thumbnail {
   padding-top: 0;
   height: $thumbnailHeight;
 }
@@ -359,27 +359,6 @@ p {
   stroke-opacity: 0.4;
 }
 
-.main-area {
-  grid-column: 1 / 3;
-  grid-row: 1 / 2;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding: 0 0rem;
-}
-
-.thumb-area {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  padding: 0 1rem;
-  background-color: var(--bgPanel2);
-}
-
-.center-area {
-  max-width: 60rem;
-  margin: 0 auto;
-}
-
 .center {
   text-align: center;
 }
@@ -388,16 +367,24 @@ p {
   padding: 0rem 1rem;
 
   p {
+    padding-top: 0;
     margin: 0px 0px;
   }
 }
 
 .switcher {
-  margin: 0.5rem 0 0 1rem;
+  margin: 0.5rem auto 0.5rem 1rem;
 }
 
 .chart-area {
-  max-width: 55rem;
+  height: 100%;
+  width: 100%;
+  flex: 1;
   margin: 0 auto;
+}
+
+.chart-area.is-thumbnail {
+  padding: 0rem 0rem;
+  margin: 0 0;
 }
 </style>

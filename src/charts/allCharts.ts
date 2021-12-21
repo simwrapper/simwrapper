@@ -9,18 +9,17 @@ import heatmap from './heatmap.vue'
 import hexagons from './hexagons.vue'
 import line from './line.vue'
 import pie from './pie.vue'
+import sankey from './sankey.vue'
 import scatter from './scatter.vue'
 import transit from './transit.vue'
 
-// all other dashboard viz components:
+// full-screen map visualizations:
 import flowmap from './flowmap.vue'
 import links from './links.vue'
-import sankey from './sankey.vue'
 import map from './map-polygons.vue'
 
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
-
-// export all resizable charts here - be sure to put plotly charts separately!
+// export all resizable charts here
 export const plotlyCharts = {
   area,
   bar,
@@ -34,7 +33,7 @@ export const plotlyCharts = {
   scatter,
 }
 
-// export all remaining charts here:
+// export all remaining charts/maps here:
 export default Object.assign({ flowmap, links, map }, plotlyCharts)
 
 // ----- HELPER FUNCTIONS -----------------------------------------------------
