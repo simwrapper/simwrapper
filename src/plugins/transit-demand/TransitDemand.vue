@@ -1162,7 +1162,7 @@ p {
 
 .hide-thumbnail {
   background: none;
-  background-color: var(--bgBold);
+  z-index: 0;
 }
 
 .control-panel {
