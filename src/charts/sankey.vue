@@ -4,7 +4,6 @@ sankey-diagram.deck-map(
   :subfolder="subfolder"
   :config="config"
   :thumbnail="false"
-  :dimensions="dimensions"
 )
 
 </template>
@@ -26,13 +25,7 @@ export default class VueComponent extends Vue {
   private dimensions: { width: number; height: number } = { width: 0, height: 0 }
 
   private mounted() {
-    this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
-  }
-
-  /** Our dashboard system tells us procedurally when we have a new dimension */
-  private changeDimensions(dimensions: { width: number; height: number }) {
-    this.dimensions = dimensions
   }
 }
 </script>

@@ -1,6 +1,5 @@
 <template lang="pug">
 .sankey-container(:class="{'is-thumbnail': thumbnail}")
-  //- :style="{'overflow-y': 'auto', 'padding-top': thumbnail || (dimensions && dimensions.height) ? '0rem': '1rem'}"
 
   .labels(v-if="!thumbnail")
     h3.center {{ vizDetails.title }}
@@ -61,9 +60,6 @@ class MyComponent extends Vue {
 
   @Prop({ required: false })
   private config!: any
-
-  @Prop({ required: false })
-  private dimensions!: { width: number; height: number }
 
   private globalState = globalStore.state
 
