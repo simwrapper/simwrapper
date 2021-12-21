@@ -36,12 +36,7 @@ function App({ data = [], initialView = {} as any }) {
       {
         /*
         // @ts-ignore */
-        <StaticMap
-          reuseMaps
-          mapStyle={MAP_STYLES.light}
-          preventStyleDiffing={true}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-        />
+        <StaticMap mapStyle={MAP_STYLES.light} mapboxApiAccessToken={MAPBOX_TOKEN} />
       }
     </DeckGL>
   )

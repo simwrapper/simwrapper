@@ -128,9 +128,7 @@ export default function Layer({
         /*
         // @ts-ignore */
         <StaticMap
-          reuseMaps
           mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-          preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />
       }

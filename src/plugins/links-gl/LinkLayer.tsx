@@ -16,7 +16,6 @@ enum COLUMNS {
 
 export default function Component({
   geojson = [] as any[],
-  // viewState = { center: [11.34, 48.3], zoom: 5, bearing: 0, pitch: 0 } as any,
   colors = 'viridis',
   dark = false,
   scaleWidth = 250,
@@ -196,13 +195,10 @@ export default function Component({
         /*
         // @ts-ignore */
         <StaticMap
-          reuseMaps
           mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-          preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />
       }
     </DeckGL>
   )
-  // {renderTooltip({ hoverInfo })}
 }

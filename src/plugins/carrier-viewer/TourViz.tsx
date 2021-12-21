@@ -309,12 +309,7 @@ export default function Component(props: {
       {
         /*
         // @ts-ignore */
-        <StaticMap
-          reuseMaps
-          mapStyle={mapStyle}
-          preventStyleDiffing={true}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-        />
+        <StaticMap mapStyle={mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
       }
       {renderTooltip({ hoverInfo })}
     </DeckGL>
