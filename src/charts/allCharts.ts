@@ -12,6 +12,7 @@ import pie from './pie.vue'
 import sankey from './sankey.vue'
 import scatter from './scatter.vue'
 import transit from './transit.vue'
+import vega from './vega.vue'
 
 // full-screen map visualizations:
 import flowmap from './flowmap.vue'
@@ -31,6 +32,7 @@ export const plotlyCharts = {
   sankey,
   transit,
   scatter,
+  vega,
 }
 
 // export all remaining charts/maps here:

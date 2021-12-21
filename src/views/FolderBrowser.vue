@@ -435,15 +435,6 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.folder-browser {
-  // position: absolute;
-  // top: 0;
-  // bottom: 0;
-  // left: 0;
-  // overflow-y: auto;
-  // background-color: var(--bgBrowser);
-}
-
 .vessel {
   margin: 0 auto;
   padding: 0rem 3rem 2rem 3rem;
@@ -528,7 +519,7 @@ h4 {
 }
 
 .viz-frame-component {
-  background-color: white;
+  background-color: var(--bgPanel);
 }
 
 .logo {

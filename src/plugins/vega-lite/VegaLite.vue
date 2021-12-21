@@ -1,40 +1,29 @@
 <template lang="pug">
-#vega-container(v-if="myState.yamlConfig")
-  .main-area
-    .labels(v-show="myState.thumbnail")
-      h5.center {{ vizDetails.description }}
+.vega-container(v-if="myState.yamlConfig")
 
-    .labels(v-show="!(myState.thumbnail)")
-      h3.center {{ title }}
-      h5.center {{ description }}
+  .labels(v-if="!config && !thumbnail")
+    h3.center {{ title }}
+    h5.center {{ description }}
 
+  .vega-chart(
+    :id="cleanConfigId"
 
-    .chart-area.center-chart(v-if="hasFacets")
-      .vega-chart(:id="cleanConfigId"
-                  :style="{padding: thumbnail ? '0 0' : '1rem 1rem'}")
-
-    .vega-chart(v-if="!hasFacets"
-                :id="cleanConfigId"
-                :style="{padding: thumbnail ? '0 0' : '1rem 1rem'}"
-    )
+  )
 </template>
 
 <script lang="ts">
-'use strict'
-
+import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import nprogress from 'nprogress'
 import vegaEmbed from 'vega-embed'
-import yaml from 'yaml'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import { FileSystem, FileSystemConfig, VisualizationPlugin } from '../../Globals'
+import { FileSystemConfig, VisualizationPlugin } from '../../Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: {} })
 class VegaComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+  @Prop({ required: true })
+  private root!: string
 
   @Prop({ required: false })
   private subfolder!: string
@@ -43,12 +32,15 @@ class VegaComponent extends Vue {
   private yamlConfig!: string
 
   @Prop({ required: false })
+  private config!: string
+
+  @Prop({ required: true })
   private thumbnail!: boolean
 
   private globalState = globalStore.state
 
   private myState = {
-    fileApi: this.fileApi,
+    fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
     subfolder: '',
     yamlConfig: '',
@@ -57,40 +49,76 @@ class VegaComponent extends Vue {
 
   private vizDetails: any = { title: '', description: '' }
 
+  private loadingText: string = 'Flow Diagram'
+  private totalTrips = 0
+
   private title = ''
   private description = ''
 
-  private loadingText: string = 'Flow Diagram'
-  private jsonChart: any = {}
-  private totalTrips = 0
-
-  private get cleanConfigId() {
-    return this.myState.yamlConfig.replace(/[\W_]+/g, '')
-  }
+  private cleanConfigId = 'vega-' + Math.floor(Math.random() * 1e12)
 
   public async mounted() {
+    this.buildFileApi()
+
     this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
+    this.myState.yamlConfig = this.config || this.yamlConfig // use whichever one was sent to us
     this.myState.subfolder = this.subfolder
 
-    if (!this.yamlConfig) this.buildRouteFromUrl()
+    console.log(this.myState.yamlConfig)
+    // if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
+    this.changeDimensions()
+    window.addEventListener('resize', this.changeDimensions)
+  }
+
+  public beforeDestroy() {
+    window.removeEventListener('resize', this.changeDimensions)
+  }
+
+  @Watch('globalState.isDarkMode')
+  private swapTheme() {
+    this.embedChart()
+  }
+
+  @Watch('globalState.resizeEvents')
+  private changeDimensions() {
+    // if (!this.vizDetails) return
+
+    // figure out dimensions, depending on if we are in a dashboard or not
+    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+    let width = box.clientWidth
+    let height = box.clientHeight
+    console.log(width, height)
+
+    if (this.thumbnail) height = 125
+    this.vizDetails.height = height
+
+    this.embedChart()
+  }
+
+  public buildFileApi() {
+    const filesystem = this.getFileSystem(this.root)
+    this.myState.fileApi = new HTTPFileSystem(filesystem)
+    this.myState.fileSystem = filesystem
   }
 
   @Watch('globalState.authAttempts') authenticationChanged() {
     console.log('AUTH CHANGED - Reload')
     this.getVizDetails()
+    if (this.vizDetails) this.embedChart()
   }
 
   @Watch('yamlConfig') changedYaml() {
     this.myState.yamlConfig = this.yamlConfig
     this.getVizDetails()
+    if (this.vizDetails) this.embedChart()
   }
 
   @Watch('subfolder') changedSubfolder() {
     this.myState.subfolder = this.subfolder
     this.getVizDetails()
+    if (this.vizDetails) this.embedChart()
   }
 
   private get hasFacets() {
@@ -120,6 +148,7 @@ class VegaComponent extends Vue {
 
   // this happens if viz is the full page, not a thumbnail on a project page
   private buildRouteFromUrl() {
+    console.log('HEEERE')
     const params = this.$route.params
     if (!params.project || !params.pathMatch) {
       console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
@@ -142,19 +171,20 @@ class VegaComponent extends Vue {
 
   private async getVizDetails() {
     this.vizDetails = await this.loadFiles()
-    if (this.vizDetails) this.jsonChart = this.processInputs()
-
     this.loadingText = ''
     nprogress.done()
   }
 
   private async loadFiles() {
+    if (!this.myState.fileApi) return
+
     let json: any = { data: {} }
 
     try {
       this.loadingText = 'Loading chart...'
 
       // might be a project config:
+      console.log(this.myState.yamlConfig)
       const filename =
         this.myState.yamlConfig.indexOf('/') > -1
           ? this.myState.yamlConfig
@@ -162,7 +192,7 @@ class VegaComponent extends Vue {
 
       json = await this.myState.fileApi.getFileJson(filename)
 
-      this.description = json.description ? json.description : ''
+      this.description = json.description || ''
       this.title = json.title
         ? json.title
         : this.myState.yamlConfig
@@ -202,16 +232,15 @@ class VegaComponent extends Vue {
     return json
   }
 
-  private processInputs() {
+  private embedChart() {
     this.loadingText = 'Building chart...'
 
     const exportActions = { export: true, source: false, compiled: false, editor: false }
-
     const embedOptions = {
       actions: this.thumbnail ? false : exportActions,
       hover: true,
       scaleFactor: 2.0, // make exported PNGs bigger
-      padding: { top: 2, left: 8, right: 8, bottom: 8 },
+      // padding: { top: 5, left: 5, right: 5, bottom: 5 },
     }
 
     // remove legends on thumbnails so chart fits better
@@ -220,6 +249,28 @@ class VegaComponent extends Vue {
         this.vizDetails.encoding[layer].legend = null
       }
     }
+
+    // set background and text colors
+    this.vizDetails = Object.assign(
+      this.vizDetails,
+      this.globalState.isDarkMode
+        ? {
+            // dark mode
+            background: '#00000000',
+            config: {
+              axis: { titleColor: 'white', labelColor: 'white' },
+              legend: { titleColor: 'white', labelColor: 'white' },
+            },
+          }
+        : {
+            // light mode
+            background: '#00000000',
+            config: {
+              axis: { titleColor: '#222', labelColor: '#222' },
+              legend: { titleColor: '#222', labelColor: '#222' },
+            },
+          }
+    )
 
     vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
   }
@@ -237,13 +288,19 @@ globalStore.commit('registerPlugin', {
 export default VegaComponent
 </script>
 
-<style scoped>
-#vega-container {
-  width: 100%;
-  display: grid;
-  background-color: white;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
+<style scoped lang="scss">
+@import '@/styles.scss';
+
+.vega-container {
+  display: flex;
+  flex-direction: column;
+  margin: 0rem 0rem 0rem 0rem;
+}
+
+.vega-chart {
+  flex: 1;
+  margin: 0rem 1rem 1rem 1rem;
+  overflow: hidden;
 }
 
 h1 {
@@ -260,46 +317,13 @@ p {
   margin: 1rem 1rem;
 }
 
-.details {
-  font-size: 12px;
-}
-
-.bigtitle {
-  font-weight: bold;
-  font-style: italic;
-  font-size: 20px;
-  margin: 20px 0px;
-}
-
-.info-header {
-  background-color: #097c43;
-  padding: 0.5rem 0rem;
-  border-top: solid 1px #888;
-  border-bottom: solid 1px #888;
-}
-
-.main-area {
-  padding-top: 1rem;
-  grid-row: 1/3;
-  grid-column: 1/3;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
 .labels {
-  margin-bottom: 1rem;
+  margin: 1rem 0rem;
 }
 
 .center-chart {
   margin: 0 auto;
-}
-
-.vega-chart {
-  width: 100%;
-  max-width: 60rem;
-  height: auto;
-  margin: 0px auto;
+  flex: 1;
 }
 
 .center {
