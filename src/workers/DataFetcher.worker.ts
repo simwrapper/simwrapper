@@ -2,6 +2,7 @@
 
 import pako from 'pako'
 import Papaparse from 'papaparse'
+import DBF from '@/js/dbfReader'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -66,13 +67,19 @@ async function loadFiles() {
     const filename = matchingFiles[0]
 
     // load the file
-    const text = await loadFileOrGzipFile(filename)
+    const unzipped = await loadFileOrGzipFile(filename)
 
-    // handle the various filetypes: csv, xml...
-    await parseVariousFileTypes(datasetPattern, filename, text)
-    // cleanData()
+    if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
+      const dbf = DBF(unzipped, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+      _fileData[datasetPattern] = dbf
+    } else {
+      // convert text to utf-8
+      const text = new TextDecoder().decode(unzipped)
+
+      // parse the text: we can handle CSV or XML
+      await parseVariousFileTypes(datasetPattern, filename, text)
+    }
   } catch (e) {
-    console.log(2)
     console.error(e)
     throw e
   }
@@ -159,8 +166,5 @@ async function loadFileOrGzipFile(filename: string) {
   // recursively gunzip until it can gunzip no more:
   const unzipped = gUnzip(buffer)
 
-  // convert to utf-8
-  const text = new TextDecoder().decode(unzipped)
-
-  return text
+  return unzipped
 }
