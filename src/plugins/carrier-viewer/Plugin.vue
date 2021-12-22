@@ -169,6 +169,9 @@ class CarrierPlugin extends Vue {
   private yamlConfig!: string
 
   @Prop({ required: false })
+  private config!: any
+
+  @Prop({ required: false })
   private thumbnail!: boolean
 
   private linkLayerId = Math.random()
@@ -519,28 +522,67 @@ class CarrierPlugin extends Vue {
 
   private async getVizDetails() {
     if (!this.myState.fileApi) return
-    // first get config
-    try {
-      // might be a project config:
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
 
-      const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
-      if (!this.vizDetails.center) this.vizDetails.center = [13.4, 52.5]
-    } catch (e) {
-      console.log('failed')
-      // maybe it failed because password?
-      const err = e as any
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+    // are we in a dashboard?
+    if (this.config) {
+      this.vizDetails = Object.assign({}, this.config)
+      return
+    }
+
+    // if a YAML file was passed in, just use it
+    if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
+      try {
+        const filename =
+          this.myState.yamlConfig.indexOf('/') > -1
+            ? this.myState.yamlConfig
+            : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+        const text = await this.myState.fileApi.getFileText(filename)
+        this.vizDetails = YAML.parse(text)
+        return
+      } catch (e) {
+        console.log('failed')
+        // maybe it failed because password?
+        const err = e as any
+        if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
+          globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+        }
+        return
       }
     }
 
-    // title
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Carrier Explorer'
+    // Fine, build the config based on folder contents -------------------------
+    const title = this.myState.yamlConfig.substring(
+      0,
+      15 + this.myState.yamlConfig.indexOf('carriers')
+    )
+
+    // Road network: first try the most obvious network filename:
+    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
+
+    let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
+    // if the obvious network file doesn't exist, just grab... the first network file:
+    if (files.indexOf(network) == -1) {
+      const allNetworks = files.filter((f) => f.indexOf('output_network') > -1)
+      if (allNetworks.length) network = allNetworks[0]
+      else {
+        this.myState.statusMessage = 'No road network found.'
+        network = ''
+      }
+    }
+
+    this.vizDetails = {
+      network,
+      carriers: this.yamlConfig,
+      title,
+      description: '',
+      center: [],
+      projection: '',
+      thumbnail: '',
+    }
+
+    console.log(this.vizDetails)
+    const t = this.vizDetails.title || 'Carrier Explorer'
     this.$emit('title', t)
 
     this.buildThumbnail()
