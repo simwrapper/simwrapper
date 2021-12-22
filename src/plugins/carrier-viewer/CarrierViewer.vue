@@ -12,6 +12,7 @@
                 :stopMidpoints="stopMidpoints"
                 :paths="[]"
                 :drtRequests="[]"
+                :dark="globalState.isDarkMode"
                 :traces="[]"
                 :center="vizDetails.center"
                 :searchEnabled="searchEnabled"
@@ -21,12 +22,11 @@
 
   ZoomButtons(v-if="!thumbnail")
 
-  .left-side(v-if="detailContent")
-    collapsible-panel(direction="left" :locked="true")
-      h3 Raw Details
-      .panel-items
-        .detail-list
-          pre {{detailContent}}
+  collapsible-panel.left-side(v-if="detailContent" direction="left" :locked="true")
+    h3 Raw Details
+    .panel-items
+      .detail-list
+        pre {{detailContent}}
 
   collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
 
@@ -581,8 +581,7 @@ class CarrierPlugin extends Vue {
       thumbnail: '',
     }
 
-    console.log(this.vizDetails)
-    const t = this.vizDetails.title || 'Carrier Explorer'
+    const t = 'Carrier Explorer'
     this.$emit('title', t)
 
     this.buildThumbnail()
@@ -747,7 +746,7 @@ class CarrierPlugin extends Vue {
 
   private async convertRoadNetwork(network: string) {
     this.myState.statusMessage = 'Projecting network...'
-    this.vizDetails.projection = 'EPSG:31464'
+    this.vizDetails.projection = 'EPSG:31468'
 
     this._networkHelper = await NetworkHelper.create({
       xml: network,
@@ -848,10 +847,10 @@ export default CarrierPlugin
   width: 8px;
 }
 *::-webkit-scrollbar-track {
-  background: $steelGray;
+  background: var(--bgPanel3);
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #454;
+  background-color: var(--textVeryPale);
   border-radius: 12px;
 }
 
@@ -921,20 +920,17 @@ export default CarrierPlugin
 }
 
 .left-side {
-  // white-space: pre-wrap;
-  // margin: 6rem auto 5rem 0;
   position: absolute;
   top: 70%;
-  bottom: 3rem;
-  left: 0;
-  width: 100px;
-  background-color: var(--bgPanel);
-  box-shadow: 0px 2px 10px #111111ee;
+  bottom: 0.5rem;
+  left: 0.5rem;
   color: var(--text);
   display: flex;
   flex-direction: row;
   font-size: 0.8rem;
   pointer-events: auto;
+  background-color: var(--bgPanel);
+  filter: $filterShadow;
 }
 
 .right-side {
@@ -942,7 +938,7 @@ export default CarrierPlugin
   top: 0rem;
   bottom: 0rem;
   right: 0;
-  margin: 10rem 0 5rem 0;
+  margin: 10rem 0 3.5rem 0;
   color: var(--text);
   display: flex;
   flex-direction: row;
@@ -1099,7 +1095,6 @@ input {
 }
 
 .detail-list {
-  // margin-left: 0.5rem;
   width: 250px;
   overflow-y: auto;
   overflow-x: hidden;

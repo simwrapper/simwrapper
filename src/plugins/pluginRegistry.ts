@@ -1,5 +1,5 @@
 // import plugins in the order you want them to appear on project pages
-import CarrierViewer from '@/plugins/carrier-viewer/Plugin.vue'
+import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
 import VehicleAnimation from '@/plugins/vehicle-animation/VehicleAnimation.vue'
 import XyHexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 // import AgentAnimation from '@/plugins/agent-animation/AgentAnimation.vue'

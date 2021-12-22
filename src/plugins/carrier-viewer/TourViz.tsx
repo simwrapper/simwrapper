@@ -68,12 +68,12 @@ export default function Component(props: {
   searchEnabled: boolean
   onClick: any
   viewId: number
+  dark: boolean
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
-  const mapStyle = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
-  const { shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
+  const { dark, shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
 
   const theme = DEFAULT_THEME
 
@@ -309,7 +309,10 @@ export default function Component(props: {
       {
         /*
         // @ts-ignore */
-        <StaticMap mapStyle={mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        <StaticMap
+          mapboxApiAccessToken={MAPBOX_TOKEN}
+          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
+        />
       }
       {renderTooltip({ hoverInfo })}
     </DeckGL>
