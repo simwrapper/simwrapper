@@ -1,6 +1,7 @@
 <template lang="pug">
 .map-layout
   polygon-and-circle-map.choro-map(:props="mapProps")
+  zoom-buttons
 
   .config-bar
     img.img-button(@click="useCircles=false"
@@ -23,10 +24,12 @@ import * as turf from '@turf/turf'
 
 import { FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
+
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
-@Component({ components: { PolygonAndCircleMap } })
+@Component({ components: { PolygonAndCircleMap, ZoomButtons } })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
   @Prop({ required: true }) subfolder!: string
