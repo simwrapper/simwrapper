@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/simwrapper/simwrapper/compare/v1.4.0...v1.5.0) (2021-12-22)
+
+
+### Features
+
+* **aggregate-od:** Aggregate O/D Spider diagrams learned to be in dashboards ([8485d45](https://github.com/simwrapper/simwrapper/commit/8485d45debf569c906554a76a80ff06dbb4362d4))
+* **carriers:** Carrier viewer learned how to be in a dashboard ([7e32b23](https://github.com/simwrapper/simwrapper/commit/7e32b23c0bbf68f438cb9ac85614297eb169dd1a))
+* **vega:** Vega-Lite charts now embeddable in dashboards ([b365bd0](https://github.com/simwrapper/simwrapper/commit/b365bd04098e074f7a2aa046c4dda6874d02eebd))
+
+
+### Bug Fixes
+
+* **carriers:** Carriers viewer should be available when output_carriers file exists ([86ce42a](https://github.com/simwrapper/simwrapper/commit/86ce42ad2baff406f8e81a05f74a7337866eedca))
+* **links:** Strange sadface appears instead of background map on Chrome ([c502ae8](https://github.com/simwrapper/simwrapper/commit/c502ae8fa32fe7efeb07ab8b01d13c6efc19eff3))
+* **sankey:** Sankey has resize problems ([e38f5cd](https://github.com/simwrapper/simwrapper/commit/e38f5cd5245f0f35ce0da5d4963f5b3f84d4e626)), closes [#82](https://github.com/simwrapper/simwrapper/issues/82)
+* **transit:** Improve transit dashboard layout ([7935a54](https://github.com/simwrapper/simwrapper/commit/7935a542c6bccd91f284ef0f563e1531d310eb97))
+* Zoom buttons are missing from area-maps ([9bb4bea](https://github.com/simwrapper/simwrapper/commit/9bb4beab87a97a7507a7931c3f92549ae6f32b2b))
+
 ## [1.4.0](https://github.com/simwrapper/simwrapper/compare/v1.3.3...v1.4.0) (2021-12-20)
 
 
