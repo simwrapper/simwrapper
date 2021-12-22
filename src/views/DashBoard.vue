@@ -5,30 +5,46 @@
       h2 {{ title }}
       p {{ description }}
 
+    //- start row here
     .dash-row(v-for="row,i in rows" :key="i")
 
+      //- each card here
       .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
         :style="getCardStyle(card)")
 
+        //- card header/title
         .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
           .header-labels
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
+
+          //- zoom button
           .header-buttons
             button.button.is-small.is-white(
-              @click="handleToggleClick(card)"
-              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'")
+              v-if="card.info"
+              @click="handleToggleInfoClick(card)"
+              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
+            )
               i.fa.fa-info-circle
+
             button.button.is-small.is-white(
-              @click="expand(card)"
-              :title="fullScreenCardId ? 'Restore':'Enlarge'")
+              @click="toggleZoom(card)"
+              :title="fullScreenCardId ? 'Restore':'Enlarge'"
+            )
               i.fa.fa-expand
-            
+
+        // info contents
         .info(v-show="infoToggle[card.id]")
-          p 
+          p
           p {{ card.info }}
-        
-        .spinner-box(:id="card.id" v-if="getCardComponent(card)" :class="{'is-loaded': card.isLoaded}")
+
+
+        //- card contents
+        .spinner-box(v-if="getCardComponent(card)"
+          :id="card.id"
+          :class="{'is-loaded': card.isLoaded}"
+        )
+
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
@@ -36,9 +52,16 @@
             :files="fileList"
             :yaml="card.props.configFile"
             :config="card.props"
+            :datamanager="datamanager"
             :style="{opacity: opacity[card.id]}"
+            :cardId="card.id"
+            :cardTitle="card.title"
+            :allConfigFiles="allConfigFiles"
             @isLoaded="handleCardIsLoaded(card)"
+            @dimension-resizer="setDimensionResizer"
+            @titles="setCardTitles(card, $event)"
           )
+
 </template>
 
 <script lang="ts">
@@ -46,23 +69,35 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
-import charts from '@/charts/allCharts'
+import charts, { plotlyCharts } from '@/charts/allCharts'
+import DashboardDataManager from '@/js/DashboardDataManager'
+
+import globalStore from '@/store'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
-Object.keys(charts).forEach((key: any) => {
+const chartTypes = Object.keys(charts)
+const plotlyChartTypes = {} as any
+
+// build lookups for chart types
+chartTypes.forEach((key: any) => {
   //@ts-ignore
   namedCharts[`card-${key}`] = charts[key] as any
+  //@ts-ignore
+  if (plotlyCharts[key]) plotlyChartTypes[key] = true
 })
 
-@Component({ components: Object.assign({ TopSheet }, namedCharts), props: {} })
+@Component({ components: Object.assign({ TopSheet }, namedCharts) })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private xsubfolder!: string
   @Prop({ required: false }) private gist!: any
   @Prop({ required: false }) private config!: any
+  @Prop({ required: false }) private zoomed!: boolean
+  @Prop({ required: true }) private datamanager!: DashboardDataManager
+  @Prop({ required: true }) private allConfigFiles!: YamlConfigs
 
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
@@ -74,7 +109,13 @@ export default class VueComponent extends Vue {
 
   private fileList: string[] = []
 
+  private fullScreenCardId = ''
+  private resizers: { [id: string]: any } = {}
+  private infoToggle: { [id: string]: boolean } = {}
+
   private async mounted() {
+    window.addEventListener('resize', this.resizeAllCards)
+
     if (this.gist) {
       this.fileSystemConfig = {
         name: 'gist',
@@ -88,14 +129,44 @@ export default class VueComponent extends Vue {
 
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
     this.fileList = await this.getFiles()
-    this.setupDashboard()
+
+    await this.setupDashboard()
+    // await this.$nextTick()
+    this.resizeAllCards()
+  }
+
+  private beforeDestroy() {
+    this.resizers = {}
+    window.removeEventListener('resize', this.resizeAllCards)
+  }
+
+  /**
+   * This only gets triggered when a topsheet has some titles.
+   * Remove the dashboard titles and use the ones from the topsheet.
+   */
+  private setCardTitles(card: any, event: any) {
+    console.log(card, event)
+    card.title = event
+    card.description = ''
+  }
+
+  private resizeAllCards() {
+    for (const row of this.rows) {
+      for (const card of row) {
+        this.updateDimensions(card.id)
+      }
+    }
+  }
+
+  private handleToggleInfoClick(card: any) {
+    this.infoToggle[card.id] = !this.infoToggle[card.id]
   }
 
   private async getFiles() {
     const folderContents = await this.fileApi.getDirectory(this.xsubfolder)
 
     // hide dot folders
-    const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+    const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
     return files
   }
 
@@ -103,37 +174,51 @@ export default class VueComponent extends Vue {
     if (card.type === 'topsheet') return 'TopSheet'
 
     // might be a chart
-    const keys = Object.keys(charts)
-    if (keys.indexOf(card.type) > -1) return 'card-' + card.type
+    if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
     // or might be a vue component?
     return undefined // card.type
   }
 
-  private fullScreenCardId = ''
+  private setDimensionResizer(options: { id: string; resizer: any }) {
+    this.resizers[options.id] = options.resizer
+    this.updateDimensions(options.id)
+  }
 
-  private expand(card: any) {
+  private async toggleZoom(card: any) {
     if (this.fullScreenCardId) {
       this.fullScreenCardId = ''
     } else {
       this.fullScreenCardId = card.id
     }
     this.$emit('zoom', this.fullScreenCardId)
+    // allow vue to resize everything
+    await this.$nextTick()
+    // tell plotly to resize everything
+    this.updateDimensions(card.id)
   }
 
-  private infoToggle: {[id:string]:boolean} = {}
+  private updateDimensions(cardId: string) {
+    const element = document.getElementById(cardId)
 
-  private handleToggleClick(card: any) {
-    this.infoToggle[card.id] = !this.infoToggle[card.id]
+    if (element) {
+      const dimensions = { width: element.clientWidth, height: element.clientHeight }
+      if (this.resizers[cardId]) this.resizers[cardId](dimensions)
+    }
+    globalStore.commit('resize')
   }
 
   private getCardStyle(card: any) {
+    // figure out height. If card has registered a resizer with changeDimensions(),
+    // then it needs a default height (300)
+    const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
+    const height = card.height ? card.height * 60 : defaultHeight
+
     const flex = card.width || 1
-    const height = card.height ? card.height * 60 : undefined
 
     let style: any = {
       margin: '2rem 3rem 2rem 0',
-      flex,
+      flex: flex,
     }
 
     if (height) style.minHeight = `${height}px`
@@ -149,7 +234,7 @@ export default class VueComponent extends Vue {
           bottom: 0,
           left: 0,
           right: 0,
-          margin: '18px 1rem 1rem 1.5rem',
+          margin: '18px 1rem 0.5rem 1rem',
         }
       }
     }
@@ -186,7 +271,7 @@ export default class VueComponent extends Vue {
     for (const rowId of Object.keys(this.yaml.layout)) {
       const cards: any[] = this.yaml.layout[rowId]
 
-      cards.forEach(card => {
+      cards.forEach((card) => {
         card.id = `card-id-${numCard}`
         card.isLoaded = false
 
@@ -299,6 +384,8 @@ export default class VueComponent extends Vue {
 
 .dash-card {
   transition: opacity 0.5s;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 @media only screen and (max-width: 50em) {
