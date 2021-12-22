@@ -128,7 +128,6 @@ import NetworkHelper from '@/workers/NetworkHelper'
 import TourViz from './TourViz'
 
 import {
-  ColorScheme,
   FileSystem,
   LegendItem,
   LegendItemType,
@@ -137,6 +136,7 @@ import {
   LIGHT_MODE,
   DARK_MODE,
   REACT_VIEW_HANDLES,
+  ColorScheme,
 } from '@/Globals'
 
 import { VuePlugin } from 'vuera'
@@ -185,7 +185,6 @@ class CarrierPlugin extends Vue {
 
   public myState = {
     statusMessage: '',
-    colorScheme: ColorScheme.DarkMode,
     isRunning: false,
     fileApi: undefined as HTTPFileSystem | undefined,
     fileSystem: undefined as FileSystemConfig | undefined,
@@ -199,7 +198,6 @@ class CarrierPlugin extends Vue {
   private searchEnabled = false
 
   private globalState = globalStore.state
-  private isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
   private isLoaded = true
   private showHelp = false
 
@@ -576,8 +574,7 @@ class CarrierPlugin extends Vue {
     await this.getVizDetails()
   }
 
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
+  @Watch('globalState.isDarkMode') private swapTheme() {
     this.updateLegendColors()
   }
 
@@ -629,7 +626,7 @@ class CarrierPlugin extends Vue {
       bg: '#181518aa',
     }
 
-    return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    return this.globalState.isDarkMode ? darkmode : lightmode
   }
 
   private async mounted() {
@@ -775,11 +772,10 @@ class CarrierPlugin extends Vue {
   }
 
   private rotateColors() {
-    this.myState.colorScheme =
-      this.myState.colorScheme === ColorScheme.DarkMode
-        ? ColorScheme.LightMode
-        : ColorScheme.DarkMode
-    localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
+    localStorage.setItem(
+      'plugin/agent-animation/colorscheme',
+      this.globalState.isDarkMode ? ColorScheme.DarkMode : ColorScheme.LightMode
+    )
   }
 }
 
@@ -788,7 +784,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
-  filePatterns: ['**/viz-carrier*.y?(a)ml'],
+  filePatterns: ['**/*output_carriers.xml*'],
   component: CarrierPlugin,
 } as VisualizationPlugin)
 
