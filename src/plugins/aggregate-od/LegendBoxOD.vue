@@ -1,6 +1,6 @@
 <template lang="pug">
 #legend-container
-  p.title Legende:
+  p.title {{$t('legend')}}
   .legend-item(v-for="item in rows")
     .legend-col(v-if ="typeof item === 'string' && item.includes('#')" :style="{'background-color': item}")
     .legend-element1(v-if ="typeof item === 'string' && !item.includes('#') && item == ('↓')") {{item}}
@@ -8,9 +8,15 @@
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { linewidth: 'Line widths:', legend: 'Legend:' },
+    de: { linewidth: 'Linienbreite:', legend: 'Legende:' },
+  },
+}
 import { Vue, Component, Prop } from 'vue-property-decorator'
 
-@Component
+@Component({ i18n })
 export default class LegendBox extends Vue {
   @Prop({ type: Array, required: true })
   private rows!: any

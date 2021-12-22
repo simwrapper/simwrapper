@@ -15,6 +15,7 @@ import transit from './transit.vue'
 import vega from './vega.vue'
 
 // full-screen map visualizations:
+import aggregate from './aggregate.vue'
 import carriers from './carriers.vue'
 import flowmap from './flowmap.vue'
 import links from './links.vue'
@@ -37,7 +38,7 @@ export const plotlyCharts = {
 }
 
 // export all remaining charts/maps here:
-export default Object.assign({ carriers, flowmap, links, map }, plotlyCharts)
+export default Object.assign({ aggregate, carriers, flowmap, links, map }, plotlyCharts)
 
 // ----- HELPER FUNCTIONS -----------------------------------------------------
 

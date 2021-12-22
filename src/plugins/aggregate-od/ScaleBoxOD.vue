@@ -1,15 +1,22 @@
 <template lang="pug">
 #scale-container
-  p.title Linienbreite:
+  p.title {{$t('linewidth')}}
     .scale-element {{ "|↔︎|" }}
-    .scale-scale {{ "~ " + this.rows[0] + " Fahrten" }}
+    .scale-scale {{ `~ ${this.rows[0]} ` + $t('trips') }}
 
 </template>
 
 <script lang="ts">
+const i18n = {
+  messages: {
+    en: { linewidth: 'Line widths:', legend: 'Legend:', trips: 'trips' },
+    de: { linewidth: 'Linienbreite:', legend: 'Legende:', trips: 'Fahrten' },
+  },
+}
+
 import { Vue, Component, Prop } from 'vue-property-decorator'
 
-@Component
+@Component({ i18n })
 export default class ScaleBox extends Vue {
   @Prop({ type: Array, required: true })
   private rows!: any
