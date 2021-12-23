@@ -115,6 +115,7 @@ export default class VueComponent extends Vue {
 .zoom-buttons {
   margin-left: auto;
   pointer-events: auto;
+  z-index: 2;
 }
 
 .button-single:last-child {

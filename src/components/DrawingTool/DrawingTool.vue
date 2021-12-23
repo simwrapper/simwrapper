@@ -268,7 +268,7 @@ export default class VueComponent extends Vue {
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+  z-index: 1;
 }
 
 .map {
@@ -284,7 +284,7 @@ export default class VueComponent extends Vue {
   background-color: var(--bgPanel);
   pointer-events: all;
   padding: 0.5rem 1rem;
-  z-index: 10;
+  z-index: 0;
   position: absolute;
   top: 6px;
   right: 31px;
@@ -322,7 +322,6 @@ export default class VueComponent extends Vue {
   flex-direction: column;
   top: 5.5rem;
   right: 4px;
-  z-index: 15;
 }
 
 .buttons {
