@@ -5,20 +5,32 @@
 
   .zoom-buttons
     .button-single.button-top
-      img.img-button(
+      img.img-button(v-if="globalState.isDarkMode"
+          :title="$t('in')"
+          @click="zoomIn()"
+          src="@/assets/images/sw_plus_dm.jpg")
+      img.img-button(v-else
           :title="$t('in')"
           @click="zoomIn()"
           src="@/assets/images/sw_plus.jpg")
     .button-single
-      img.img-button(@click="zoomOut()"
+      img.img-button(v-if="globalState.isDarkMode" @click="zoomOut()"
+          :title="$t('out')"
+          src="@/assets/images/sw_minus_dm.jpg")
+      img.img-button(v-else @click="zoomOut()"
           :title="$t('out')"
           src="@/assets/images/sw_minus.jpg")
     .button-single.button-bottom
-      img.img-button(@click="setNorth()"
+      img.img-button(v-if="globalState.isDarkMode" @click="setNorth()"
+          :title="$t('center')"
+          src="@/assets/images/sw_north_arrow_dm.png"
+          :style="{transform: `rotate(${arrowRotation}deg)`, background: `rgb(43,60,78)`}"
+      )
+      img.img-button(v-else @click="setNorth()"
           :title="$t('center')"
           src="@/assets/images/sw_north_arrow.png"
           :style="{transform: `rotate(${arrowRotation}deg)`}"
-    )
+      )
 
 
 </template>
@@ -139,6 +151,7 @@ export default class VueComponent extends Vue {
   border-bottom-width: 0px;
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
+  margin-bottom: -1px;
 }
 
 .button-bottom {

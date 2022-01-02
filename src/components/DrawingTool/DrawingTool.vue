@@ -3,7 +3,11 @@
   .map(:id="mapID" v-show="showShapeDrawer")
 
   .map-actions
-    button.button.draw-button.is-tiny(title="Draw" @click="toggleShapeDrawer"
+    button.button.draw-button.is-tiny(v-if="isDark" title="Draw" @click="toggleShapeDrawer"
+      :class="{'is-drawing': showShapeDrawer}" :style="{background: `rgb(43,60,78)`}"
+    )
+      img(src="./images/draw-icon-dm.png" width=16)
+    button.button.draw-button.is-tiny(v-else title="Draw" @click="toggleShapeDrawer"
       :class="{'is-drawing': showShapeDrawer}"
     )
       img(src="./images/draw-icon.png" width=16)
