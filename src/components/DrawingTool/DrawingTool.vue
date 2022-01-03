@@ -4,7 +4,7 @@
 
   .map-actions
     button.button.draw-button.is-tiny(v-if="isDark" title="Draw" @click="toggleShapeDrawer"
-      :class="{'is-drawing': showShapeDrawer}" :style="{background: `rgb(43,60,78)`}"
+      :class="{'is-drawing': showShapeDrawer}" :style="{background: `rgb(43,60,78)`, border: `1px solid rgb(119,119,119)`}"
     )
       img(src="./images/draw-icon-dm.png" width=16)
     button.button.draw-button.is-tiny(v-else title="Draw" @click="toggleShapeDrawer"
