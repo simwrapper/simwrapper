@@ -26,13 +26,13 @@
       img.img-button(v-if="globalState.isDarkMode" @click="setNorth()"
           :title="$t('center')"
           src="@/assets/images/sw_north_arrow_dm.png"
-          :style="{transform: `rotate(${arrowRotation}deg)`, background: `rgb(43,60,78)`}"
+          :style="{transform: `rotate(${arrowRotation}deg)`, background: `rgb(43,60,78)`, height: '21px'}"
       )
     .button-single.button-bottom(v-if="!globalState.isDarkMode" :style="{border: '1px solid rgb(224,224,224)'}")
       img.img-button(@click="setNorth()"
           :title="$t('center')"
           src="@/assets/images/sw_north_arrow.png"
-          :style="{transform: `rotate(${arrowRotation}deg)`}"
+          :style="{transform: `rotate(${arrowRotation}deg)`, height: '21px'}"
       )
 
 
