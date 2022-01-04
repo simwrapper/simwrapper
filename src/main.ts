@@ -2,8 +2,7 @@ import Vue from 'vue'
 import VueI18n from 'vue-i18n'
 import Buefy from 'buefy'
 
-// order is important: import locale before global store.
-
+// order of these is important:
 import locale from '@/localeSettings'
 import store from '@/store'
 import router from '@/router'

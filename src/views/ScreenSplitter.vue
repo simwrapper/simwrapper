@@ -17,12 +17,12 @@
     )
 
     .control-buttons
-      a(@click="onBack(i)" :title="$t('back')"
-        v-if="panel.component !== 'SplashPage' && !zoomed")
-        i.fa.fa-icon.fa-arrow-left
-      a(@click="onClose(i)"
-        v-if="panels.length > 1" :title="$t('close') && !zoomed")
-        i.fa.fa-icon.fa-times-circle
+      a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
+        @click="onBack(i)" :title="$t('back')")
+          i.fa.fa-icon.fa-arrow-left
+      a(v-if="panels.length > 1" :title="$t('close') && !zoomed"
+        @click="onClose(i)")
+          i.fa.fa-icon.fa-times-circle
 
 </template>
 
@@ -36,10 +36,11 @@ const i18n = {
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { Route } from 'vue-router'
-
-import plugins from '@/plugins/pluginRegistry'
+import micromatch from 'micromatch'
 
 import globalStore from '@/store'
+import plugins from '@/plugins/pluginRegistry'
+
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
@@ -60,6 +61,8 @@ class MyComponent extends Vue {
       props: {} as any,
     },
   ]
+
+  private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
   private zoomed = false
 
@@ -92,7 +95,19 @@ class MyComponent extends Vue {
     const pathMatch = this.$route.params.pathMatch
     if (!pathMatch) return
 
-    // split panel
+    // splash page:
+    if (pathMatch === '/') {
+      this.panels = [
+        {
+          component: 'SplashPage',
+          key: Math.random(),
+          props: {} as any,
+        },
+      ]
+      return
+    }
+
+    // split panel:
     if (pathMatch.startsWith('split/')) {
       const payload = pathMatch.substring(6)
       try {
@@ -103,27 +118,50 @@ class MyComponent extends Vue {
         // couldn't do
         this.$router.replace('/')
       }
-    } else {
-      let root = ''
-      let xsubfolder = ''
-      // regular file path
-      const slash = pathMatch.indexOf('/')
-      if (slash === -1) {
-        root = pathMatch
-        xsubfolder = ''
-      } else {
-        root = pathMatch.substring(0, slash)
-        xsubfolder = pathMatch.substring(slash + 1)
-      }
-
-      this.panels = [
-        {
-          component: 'TabbedDashboardView',
-          key: Math.random(),
-          props: { root, xsubfolder } as any,
-        },
-      ]
+      return
     }
+
+    // figure out our project and folder
+    let root = ''
+    let xsubfolder = ''
+    // regular file path
+    const slash = pathMatch.indexOf('/')
+    if (slash === -1) {
+      root = pathMatch
+      xsubfolder = ''
+    } else {
+      root = pathMatch.substring(0, slash)
+      xsubfolder = pathMatch.substring(slash + 1)
+    }
+
+    // single visualization?
+    const fileNameWithoutPath = [pathMatch.substring(1 + pathMatch.lastIndexOf('/'))]
+    for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
+      if (micromatch(fileNameWithoutPath, vizPlugin.filePatterns).length) {
+        // plugin matched!
+        this.panels = [
+          {
+            component: vizPlugin.kebabName,
+            key: Math.random(),
+            props: {
+              root,
+              subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+              yamlConfig: fileNameWithoutPath[0],
+            } as any,
+          },
+        ]
+        return
+      }
+    }
+
+    // Last option: browser/dashboard panel
+    this.panels = [
+      {
+        component: 'TabbedDashboardView',
+        key: Math.random(),
+        props: { root, xsubfolder } as any,
+      },
+    ]
   }
 
   private onSplit() {
@@ -150,8 +188,14 @@ class MyComponent extends Vue {
   }
 
   private onNavigate(panelNumber: number, newPanel: { component: string; props: any }) {
-    this.panels[panelNumber] = Object.assign({ key: this.panels[panelNumber].key }, newPanel)
+    if (newPanel.component === 'SplashPage') {
+      this.panels[panelNumber] = { component: 'SplashPage', props: {}, key: Math.random() }
+    } else {
+      this.panels[panelNumber] = Object.assign({ key: this.panels[panelNumber].key }, newPanel)
+    }
+
     this.updateURL()
+    // this.buildLayoutFromURL()
     this.$forceUpdate()
   }
 
@@ -164,22 +208,24 @@ class MyComponent extends Vue {
   private onBack(panel: number) {
     this.panels[panel].component = 'TabbedDashboardView'
     this.panels[panel].props.xsubfolder = this.panels[panel].props.subfolder
+    delete this.panels[panel].props.yamlConfig
+
     this.updateURL()
     this.$forceUpdate()
   }
 
   private updateURL() {
-    // console.log(this.panels)
     const BASE = import.meta.env.BASE_URL
 
     if (this.panels.length === 1) {
-      const root = this.panels[0].props.root || ''
-      const xsubfolder = this.panels[0].props.xsubfolder || ''
-      const yaml = this.panels[0].props.yamlConfig || ''
+      const props = this.panels[0].props
+
+      const root = props.root || ''
+      const xsubfolder = props.xsubfolder || ''
+      const yaml = props.yamlConfig || ''
 
       if (yaml) {
-        const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`${BASE}split/${base64}`)
+        this.$router.push(`${BASE}${root}/${xsubfolder}/${yaml}`)
       } else {
         this.$router.push(`${BASE}${root}/${xsubfolder}`)
       }

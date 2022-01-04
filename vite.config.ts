@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { createVuePlugin } from 'vite-plugin-vue2'
 import markdownPlugin from 'vite-plugin-md'
+import pluginRewriteAll from 'vite-plugin-rewrite-all'
 
 export default defineConfig({
   base: '/simwrapper/',
@@ -10,6 +11,7 @@ export default defineConfig({
     // vue
     createVuePlugin({ include: [/\.vue$/, /\.md$/] }),
     markdownPlugin(),
+    pluginRewriteAll(),
   ],
   resolve: {
     alias: {

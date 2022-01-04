@@ -52,7 +52,7 @@ class SVNFileSystem {
     }
 
     const myRequest = new Request(path, { headers })
-    const response = await fetch(myRequest).then((response) => {
+    const response = await fetch(myRequest).then(response => {
       // Check HTTP Response code: 200 is OK, everything else is a problem
       if (response.status != 200) {
         console.log('Status:', response.status)
@@ -123,9 +123,13 @@ class SVNFileSystem {
     const pathChunks = folder.split('/')
     for (const chunk of pathChunks) {
       currentPath = `${currentPath}${chunk}/`
-      const { dirs } = await this.getDirectory(currentPath)
-      if (dirs.indexOf(YAML_FOLDER) > -1)
-        configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+      try {
+        const { dirs } = await this.getDirectory(currentPath)
+        if (dirs.indexOf(YAML_FOLDER) > -1)
+          configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+      } catch (e) {
+        // doesn't matter, skip if it can't read it
+      }
     }
 
     // also add current working folder as final option, which supercedes all others
@@ -144,15 +148,15 @@ class SVNFileSystem {
 
       micromatch
         .match(files, dashboard)
-        .map((yaml) => (yamls.dashboards[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+        .map(yaml => (yamls.dashboards[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
 
       micromatch
         .match(files, topsheet)
-        .map((yaml) => (yamls.topsheets[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+        .map(yaml => (yamls.topsheets[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
 
       micromatch
         .match(files, viz)
-        .map((yaml) => (yamls.vizes[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+        .map(yaml => (yamls.vizes[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
     }
 
     // Sort them all by filename
@@ -166,7 +170,7 @@ class SVNFileSystem {
       Object.entries(yamls.vizes).sort((a, b) => (a[0] > b[0] ? 1 : -1))
     )
 
-    console.log(yamls)
+    // console.log(yamls)
     return yamls
   }
 

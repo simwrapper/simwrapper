@@ -10,14 +10,14 @@ const BASE = import.meta.env.BASE_URL
 const routes = [
   {
     path: BASE + 'gist/:id',
-    component: () => import(/* webpackChunkName: "gist" */ '@/views/GistView.vue'),
+    component: () => import('@/views/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
   {
     path: BASE + '*',
-    component: () => import(/* webpackChunkName: "split" */ '@/views/ScreenSplitter.vue'),
+    component: () => import('@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page
@@ -54,7 +54,8 @@ function vizPlugins(): any[] {
 const router = new VueRouter({
   mode: 'history',
   base: '/',
-  routes: vizPlugins().concat(routes),
+  routes,
+  // routes: vizPlugins().concat(routes),
   // native-like back/forward and top-of-page routing
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {

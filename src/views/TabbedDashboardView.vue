@@ -4,19 +4,20 @@
   .tabholder(v-show="!isZoomed")
     .tabholdercontainer
       .breadcrumbs
-        h3 {{ xsubfolder.substring(1+xsubfolder.lastIndexOf('/')) }}
+        h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       .tabs.is-centered
+        b.up-link: a(@click="goUpOneFolder()") ^ UP
         ul
           li(v-for="tab in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
           )
-            b: a(@click="switchTab(tab)") {{ dashboards[tab].header.tab }}
+            b: a(v-if="dashboards[tab].header" @click="switchTab(tab)") {{ dashboards[tab].header.tab }}
 
 
-  dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER' && dashboards[activeTab].header.tab !== '...'"
+  dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER' && dashboards[activeTab] && dashboards[activeTab].header.tab !== '...'"
     :root="root"
     :xsubfolder="xsubfolder"
     :config="dashboards[activeTab]"
@@ -61,6 +62,8 @@ export default class VueComponent extends Vue {
 
   private isZoomed = false
 
+  private pageHeader = ''
+
   private mounted() {
     this.updateRoute()
   }
@@ -69,17 +72,26 @@ export default class VueComponent extends Vue {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
   }
 
+  private getPageHeader() {
+    if (this.xsubfolder) return this.xsubfolder.substring(1 + this.xsubfolder.lastIndexOf('/'))
+
+    return this.fileSystemConfig.name || this.root
+  }
+
   @Watch('root')
   @Watch('xsubfolder')
   private updateRoute() {
-    this.fileSystemConfig = this.getFileSystem(this.root)
-    if (!this.fileSystemConfig) return
+    const fsConfig = this.getFileSystem(this.root)
+    if (!fsConfig) return
+
+    this.fileSystemConfig = fsConfig
 
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
 
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
+    this.pageHeader = this.getPageHeader()
     // this.generateBreadcrumbs()
 
     // this happens async
@@ -147,11 +159,30 @@ export default class VueComponent extends Vue {
     )
 
     if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
+      console.warn('no such project')
+      return null
     }
 
     return svnProject[0]
+  }
+
+  private goUpOneFolder() {
+    // if (this.myState.isLoading) return
+    if (!this.fileSystemConfig) return
+
+    const target = this.xsubfolder.substring(0, this.xsubfolder.lastIndexOf('/'))
+
+    const props = {
+      root: this.fileSystemConfig.slug,
+      xsubfolder: target,
+    }
+
+    // if we are at top of hierarchy, jump to splashpage
+    if (!target && !this.xsubfolder) {
+      this.onNavigate({ component: 'SplashPage', props: {} })
+    } else {
+      this.onNavigate({ component: 'TabbedDashboardView', props })
+    }
   }
 }
 </script>
@@ -225,6 +256,22 @@ li.is-not-active b a {
     max-width: $dashboardWidth;
     margin: 0 2rem;
   }
+}
+
+.tabs ul {
+  margin-right: 4rem;
+}
+
+.up-link {
+  margin-left: -0.75rem;
+}
+
+.up-link a {
+  color: var(--link);
+  border-bottom: none;
+}
+.up-link a:hover {
+  color: var(--linkHover);
 }
 
 @media only screen and (max-width: 50em) {

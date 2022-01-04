@@ -13,8 +13,6 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
-      b: a(v-if="xsubfolder" @click="openOutputFolder('..')") ^ UP
-
       //- this is the content of readme.md, if it exists
       .readme-header
         .curate-content.markdown(
@@ -427,7 +425,13 @@ export default class VueComponent extends Vue {
       root: this.myState.svnProject.slug,
       xsubfolder: target,
     }
-    this.$emit('navigate', { component: 'TabbedDashboardView', props })
+
+    // if we are at top of hierarchy, jump to splashpage
+    if (!target && !this.myState.subfolder) {
+      this.$emit('navigate', { component: 'SplashPage', props: {} })
+    } else {
+      this.$emit('navigate', { component: 'TabbedDashboardView', props })
+    }
   }
 }
 </script>

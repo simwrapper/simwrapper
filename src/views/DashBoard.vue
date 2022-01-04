@@ -309,6 +309,7 @@ export default class VueComponent extends Vue {
 }
 
 .dashboard-header {
+  margin-top: 1rem;
   margin-bottom: 1rem;
   h2 {
     line-height: 3rem;
