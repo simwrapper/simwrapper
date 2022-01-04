@@ -26,7 +26,7 @@
           src="@/assets/images/sw_north_arrow_dm.png"
           :style="{transform: `rotate(${arrowRotation}deg)`, background: `rgb(43,60,78)`}"
       )
-    .button-single.button-bottom(v-if="!globalState.isDarkMode" :style="{border: '1px solid rgb(224,224,224g)'}")
+    .button-single.button-bottom(v-if="!globalState.isDarkMode" :style="{border: '1px solid rgb(224,224,224)'}")
       img.img-button(@click="setNorth()"
           :title="$t('center')"
           src="@/assets/images/sw_north_arrow.png"
