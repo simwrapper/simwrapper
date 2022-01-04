@@ -161,7 +161,7 @@ export default class VueComponent extends Vue {
   border-top-width: 0px;
   border-bottom-left-radius: 4px;
   border-bottom-right-radius: 4px;
-  height: 22px;
+  height: 23px;
   margin-top: -1px;
 }
 
