@@ -13,6 +13,7 @@
           :title="$t('in')"
           @click="zoomIn()"
           src="@/assets/images/sw_plus.jpg")
+
     .button-single
       img.img-button(v-if="globalState.isDarkMode" @click="zoomOut()"
           :title="$t('out')"
@@ -20,6 +21,7 @@
       img.img-button(v-else @click="zoomOut()"
           :title="$t('out')"
           src="@/assets/images/sw_minus.jpg")
+
     .button-single.button-bottom(v-if="globalState.isDarkMode" :style="{ background: `rgb(43,60,78)`, border: '1px solid rgb(119,119,119)'}")
       img.img-button(v-if="globalState.isDarkMode" @click="setNorth()"
           :title="$t('center')"
@@ -140,7 +142,7 @@ export default class VueComponent extends Vue {
   height: 24px;
   text-align: center;
   border: var(--borderZoomButtons);
-  background-color: white;
+  background-color: var(--bgBold);
   overflow: hidden;
 }
 
@@ -159,7 +161,7 @@ export default class VueComponent extends Vue {
   border-top-width: 0px;
   border-bottom-left-radius: 4px;
   border-bottom-right-radius: 4px;
-  height: 21px;
+  height: 22px;
   margin-top: -1px;
 }
 
