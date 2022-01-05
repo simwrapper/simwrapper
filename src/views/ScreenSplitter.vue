@@ -20,7 +20,7 @@
       a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
         @click="onBack(i)" :title="$t('back')")
           i.fa.fa-icon.fa-arrow-left
-      a(v-if="panels.length > 1" :title="$t('close') && !zoomed"
+      a(v-if="panels.length > 1 && !zoomed" :title="$t('close')"
         @click="onClose(i)")
           i.fa.fa-icon.fa-times-circle
 
@@ -139,10 +139,11 @@ class MyComponent extends Vue {
     for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
       if (micromatch(fileNameWithoutPath, vizPlugin.filePatterns).length) {
         // plugin matched!
+        const key = this.panels.length === 1 ? this.panels[0].key : Math.random()
         this.panels = [
           {
+            key,
             component: vizPlugin.kebabName,
-            key: Math.random(),
             props: {
               root,
               subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
@@ -155,10 +156,11 @@ class MyComponent extends Vue {
     }
 
     // Last option: browser/dashboard panel
+    const key = this.panels.length === 1 ? this.panels[0].key : Math.random()
     this.panels = [
       {
+        key,
         component: 'TabbedDashboardView',
-        key: Math.random(),
         props: { root, xsubfolder } as any,
       },
     ]
@@ -195,12 +197,12 @@ class MyComponent extends Vue {
     }
 
     this.updateURL()
-    // this.buildLayoutFromURL()
-    this.$forceUpdate()
+    this.buildLayoutFromURL()
+    // this.$forceUpdate()
   }
 
   private onClose(panel: number) {
-    this.panels.splice(panel, 1) // at i:panel remove 1 item
+    this.panels.splice(panel, 1) // at i:panel, remove 1 item
     this.updateURL()
     globalStore.commit('resize')
   }
@@ -211,7 +213,7 @@ class MyComponent extends Vue {
     delete this.panels[panel].props.yamlConfig
 
     this.updateURL()
-    this.$forceUpdate()
+    // this.$forceUpdate()
   }
 
   private updateURL() {
@@ -221,11 +223,11 @@ class MyComponent extends Vue {
       const props = this.panels[0].props
 
       const root = props.root || ''
-      const xsubfolder = props.xsubfolder || ''
+      const xsubfolder = props.xsubfolder || props.subfolder || ''
       const yaml = props.yamlConfig || ''
 
       if (yaml) {
-        this.$router.push(`${BASE}${root}/${xsubfolder}/${yaml}`)
+        this.$router.replace(`${BASE}${root}/${xsubfolder}/${yaml}`)
       } else {
         this.$router.push(`${BASE}${root}/${xsubfolder}`)
       }
