@@ -14,8 +14,9 @@ let _subfolder = ''
 let _files: string[] = []
 let _config: any = {}
 let _dataset = ''
+let _buffer: Uint8Array
 
-const _fileData: any = {}
+const _fileData: { [key: string]: { rows: any[]; header: string[] } } = {}
 
 onmessage = function (e) {
   fetchData(e.data)
@@ -26,12 +27,24 @@ async function fetchData(props: {
   subfolder: string
   files: string[]
   config: string
+  buffer: Uint8Array
 }) {
+  _config = props.config
+  _dataset = _config.dataset
+
+  // Did we get a pre-filled buffer? Just need to parse it
+  if (props.buffer) {
+    _buffer = props.buffer
+    parseData(_dataset, _buffer)
+    postMessage(_fileData[_dataset])
+    return
+  }
+
+  // Got details, need to fetch and then parse
   _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
   _subfolder = props.subfolder
   _files = props.files
-  _config = props.config
-  _dataset = _config.dataset
+  _buffer = props.buffer
 
   // if dataset has a path in it, we need to fetch the correct subfolder contents
   const slash = _config.dataset.indexOf('/')
@@ -46,14 +59,13 @@ async function fetchData(props: {
   }
 
   // load all files
-  await loadFiles()
-
+  await loadFile()
   postMessage(_fileData[_dataset])
 }
 
 // ----- helper functions ------------------------------------------------
 
-async function loadFiles() {
+async function loadFile() {
   const datasetPattern = _dataset
 
   try {
@@ -69,24 +81,29 @@ async function loadFiles() {
     // load the file
     const unzipped = await loadFileOrGzipFile(filename)
 
-    if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
-      const dbf = DBF(unzipped, new TextDecoder('windows-1252')) // dbf has a weird default textcode
-      _fileData[datasetPattern] = dbf
-    } else {
-      // convert text to utf-8
-      const text = new TextDecoder().decode(unzipped)
-
-      // parse the text: we can handle CSV or XML
-      await parseVariousFileTypes(datasetPattern, filename, text)
-    }
+    // and parse it!
+    parseData(filename, unzipped)
   } catch (e) {
     console.error(e)
     throw e
   }
 }
 
+async function parseData(filename: string, buffer: Uint8Array) {
+  if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
+    const { header, rows } = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+    _fileData[_dataset] = { header, rows }
+  } else {
+    // convert text to utf-8
+    const text = new TextDecoder().decode(buffer)
+
+    // parse the text: we can handle CSV or XML
+    await parseVariousFileTypes(_dataset, filename, text)
+  }
+}
+
 function cleanData() {
-  const data = _fileData[_dataset]
+  const data = _fileData[_dataset].rows
 
   // remove extra columns
   if (_config.ignoreColumns) {
@@ -120,9 +137,9 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     if (details.xmlElements) {
       const subelements = details.xmlElements.split('.')
       const subXML = drillIntoXML(xml, subelements)
-      _fileData[fileKey] = subXML
+      _fileData[fileKey] = { header: [], rows: subXML }
     } else {
-      _fileData[fileKey] = xml
+      _fileData[fileKey] = { header: [], rows: xml }
     }
 
     return
@@ -136,9 +153,9 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     dynamicTyping: true,
     header: true,
     skipEmptyLines: true,
-  }).data
+  })
 
-  _fileData[fileKey] = csv
+  _fileData[fileKey] = { header: csv.meta.fields || [], rows: csv.data }
 }
 
 async function loadFileOrGzipFile(filename: string) {
@@ -148,7 +165,7 @@ async function loadFileOrGzipFile(filename: string) {
    * can single- or double-gzip .gz files on the wire. It's insane but true.
    */
   function gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $1f8b
+    // GZIP always starts with a magic number, hex $8b1f
     const header = new Uint8Array(buffer.slice(0, 2))
     if (header[0] === 0x1f && header[1] === 0x8b) {
       return gUnzip(pako.inflate(buffer))

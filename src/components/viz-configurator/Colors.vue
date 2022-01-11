@@ -96,17 +96,25 @@ export default class VueComponent extends Vue {
   private selectedColor: Ramp = this.colorChoices[0]
   private selectedSingleColor = this.simpleColors[0]
 
+  private datasetLabels = [] as string[]
+
   private mounted() {
     this.datasetsAreLoaded()
+    this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
   }
 
   @Watch('datasets')
   private datasetsAreLoaded() {
+    console.log('COLORS GOT THE DATSSET')
+
     const keys = Object.keys(this.datasets)
     if (keys.length) {
       const column = this.datasets[keys[0]].header[0]
+      console.log(column)
       if (column) this.dataColumn = `${keys[0]}/${column}`
     }
+    this.datasetLabels = keys
+    console.log(this.dataColumn)
   }
 
   @Watch('flip')
@@ -150,7 +158,7 @@ export default class VueComponent extends Vue {
   }
 
   private datasetChoices(): string[] {
-    return Object.keys(this.vizConfiguration.datasets)
+    return this.datasetLabels
   }
 
   private columnsInDataset(key: string): string[] {

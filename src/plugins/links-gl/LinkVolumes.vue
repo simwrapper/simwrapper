@@ -24,6 +24,8 @@
     viz-configurator(v-if="!thumbnail && isDataLoaded"
       :config="vizDetails"
       :datasets="datasets"
+      :fileSystem="myState.fileSystem"
+      :subfolder="myState.subfolder"
       @update="handleVizConfigurationChanged")
 
     .top-panel(v-if="vizDetails.title")
@@ -35,7 +37,8 @@
       .status-message(v-if="myState.statusMessage")
         p {{ myState.statusMessage }}
 
-      .panel-items
+      .panel-items(v-show="csvWidth.activeColumn > -1")
+
         //- button/dropdown for selecting column
         .panel-item.config-section
           selector-panel(
@@ -57,10 +60,10 @@
             @change="showDiffs = !showDiffs")
           p: b {{ $t('showDiffs') }}
 
-      //- FilterPanel.filter-panel(v-if="vizDetails.useSlider"
-      //-   :props="csvWidth"
-      //-   @activeColumns="handleNewFilter"
-      //- )
+        //- FilterPanel.filter-panel(v-if="vizDetails.useSlider"
+        //-   :props="csvWidth"
+        //-   @activeColumns="handleNewFilter"
+        //- )
 
 </template>
 
@@ -119,6 +122,7 @@ import {
 
 import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
+import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 
 @Component({
   i18n,
@@ -234,23 +238,45 @@ class MyPlugin extends Vue {
   }
 
   private async getVizDetails() {
-    if (!this.myState.fileApi) return
+    const filename = this.myState.yamlConfig
 
+    // are we in a dashboard?
     if (this.config) {
       this.vizDetails = Object.assign({}, this.config)
       return
     }
 
-    // first get config
+    // was a YAML file was passed in?
+    if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+      this.vizDetails = await this.loadYamlConfig()
+    }
+
+    // is this a bare network file? - build vizDetails manually
+    if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
+      const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
+
+      this.vizDetails = Object.assign(this.vizDetails, {
+        network: this.myState.yamlConfig,
+        title,
+        description: this.myState.subfolder,
+      })
+    }
+
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
+    this.$emit('title', t)
+  }
+
+  private async loadYamlConfig() {
+    if (!this.myState.fileApi) return {}
+
     try {
-      // might be a project config:
       const filename =
         this.myState.yamlConfig.indexOf('/') > -1
           ? this.myState.yamlConfig
           : this.myState.subfolder + '/' + this.myState.yamlConfig
 
       const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
+      return YAML.parse(text)
     } catch (err) {
       console.error('failed')
       const e = err as any
@@ -259,8 +285,6 @@ class MyPlugin extends Vue {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
-    this.$emit('title', t)
   }
 
   private async buildThumbnail() {
@@ -312,11 +336,13 @@ class MyPlugin extends Vue {
   private handleVizConfigurationChanged(props: {
     color?: ColorDefinition
     width?: WidthDefinition
+    dataset?: DatasetDefinition
   }) {
     console.log({ props })
 
     if (props['color']) this.handleNewColor(props.color)
     if (props['width']) this.handleNewWidth(props.width)
+    if (props['dataset']) this.handleNewDataset(props.dataset)
   }
 
   private handleNewFilter(columns: number[]) {
@@ -521,6 +547,58 @@ class MyPlugin extends Vue {
     this.isButtonActiveColumn = !this.isButtonActiveColumn
   }
 
+  private handleNewDataset(props: DatasetDefinition) {
+    console.log('NEW dataset', props)
+
+    const { key, header, rows } = props
+
+    // an array containing a separate Float32Array for each CSV column
+    const allLinks: any[] = []
+    const numColumns = header.length - (this.vizDetails.useSlider ? 0 : 1)
+
+    for (let i = 0; i < numColumns; i++) {
+      allLinks.push(new Float32Array(this.numLinks))
+    }
+
+    let globalMax = 0
+
+    const assumeLinkIdIsFirstColumn = header[0]
+    const allColumnsExceptLinkId = header.slice(1)
+
+    for (const link of rows) {
+      // get array offset, or skip if this link isn't in the network!
+      const offset = this.linkOffsetLookup[link[assumeLinkIdIsFirstColumn].toString()]
+      if (offset === undefined) continue
+
+      if (this.vizDetails.useSlider) {
+        delete link[assumeLinkIdIsFirstColumn] // skip first column (contains link-id)
+        const entries = Object.values(link) as number[]
+        const total = entries.reduce((a: number, b: number) => a + b, 0)
+
+        globalMax = Math.max(globalMax, total)
+        allLinks[0][offset] = total // total comes first
+        allColumnsExceptLinkId.forEach((columnName: string, i: number) => {
+          allLinks[i + 1][offset] = link[columnName]
+        })
+      } else {
+        allColumnsExceptLinkId.forEach((columnName: string, i: number) => {
+          allLinks[i][offset] = link[columnName]
+        })
+      }
+    }
+
+    const details: CSV = {
+      header,
+      headerMax: this.vizDetails.useSlider ? new Array(props.header.length).fill(0) : [],
+      rows: allLinks,
+      activeColumn: -1,
+    }
+
+    this.datasets = Object.assign({}, this.datasets, { [key]: details })
+    this.handleDatasetisLoaded(key)
+    console.log({ datasets: this.datasets })
+  }
+
   private loadCSVFiles() {
     this.myState.statusMessage = 'Loading datasets...'
 
@@ -687,7 +765,12 @@ globalStore.commit('registerPlugin', {
   kebabName: 'links-gl',
   prettyName: 'Links',
   description: 'Network link attributes',
-  filePatterns: ['**/viz-gl-link*.y?(a)ml', '**/viz-link*.y?(a)ml'],
+  filePatterns: [
+    '**/*output_network.xml?(.gz)',
+    '**/*network.geo?(.)json?(.gz)',
+    '**/viz-gl-link*.y?(a)ml',
+    '**/viz-link*.y?(a)ml',
+  ],
   component: MyPlugin,
 } as VisualizationPlugin)
 

@@ -1,7 +1,7 @@
 <template lang="pug">
 .viz-configurator
+
   .map-actions
-    //-  @click="toggleShapeDrawer" :class="{'is-drawing': true}")
     button.button.draw-button.is-tiny(
       title="Config"
       @click="clickedShowHide"
@@ -9,9 +9,13 @@
     )
       i.fa.fa-sliders-h.settings-icon
 
-  .configuration-panels(v-show="showPanels")
-    .section-panel(v-for="section in sections" :key="section.name")
+  .configuration-panels(v-show="showPanels && !showAddDatasets")
+    .section-panel
+      h1.add-data(@click="clickedAddData")
+        i.fa.fa-sm.fa-plus
+        | &nbsp;Add Data
 
+    .section-panel(v-for="section in sections" :key="section.name")
       h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
       .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
@@ -22,24 +26,34 @@
           @update="handleConfigChanged")
         p(v-else) To be added
 
+  add-datasets-panel(v-if="showAddDatasets"
+    :vizConfiguration="vizConfiguration"
+    :fileSystem="fileSystem"
+    :subfolder="subfolder"
+    @update="handleConfigChanged")
+
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import { VizLayerConfiguration } from '@/Globals'
+import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import WidthPanel from './Widths.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 type Configurator = {
   network?: string
   csvFile?: string
 }
 
-@Component({ components: { ColorPanel, WidthPanel }, props: {} })
+@Component({ components: { AddDatasetsPanel, ColorPanel, WidthPanel }, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) config!: any
   @Prop({ required: true }) datasets!: any
+  @Prop({ required: true }) fileSystem!: HTTPFileSystem
+  @Prop({ required: true }) subfolder!: string
 
   private showPanels = true
 
@@ -72,6 +86,7 @@ export default class VueComponent extends Vue {
   }
 
   private async handleConfigChanged(props: any) {
+    this.showAddDatasets = false
     await this.$nextTick()
     this.$emit('update', props)
   }
@@ -109,6 +124,11 @@ export default class VueComponent extends Vue {
       // outline: {},
       label: {},
     },
+  }
+
+  private showAddDatasets = false
+  private clickedAddData() {
+    this.showAddDatasets = true
   }
 }
 </script>
@@ -208,6 +228,12 @@ h1:hover {
 .settings-icon {
   opacity: 0.75;
 }
+
+.add-data {
+  padding-right: 0.5rem;
+  text-align: right;
+}
+
 @media only screen and (max-width: 640px) {
 }
 </style>

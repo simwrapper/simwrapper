@@ -61,7 +61,10 @@ export default function (source: Uint8Array, decoder: TextDecoder) {
     console.warn(e)
   }
   console.log('dbf total records', recordNumber)
-  return answer
+  return {
+    header: data._fields.map((f: any) => f.name).sort() as string[],
+    rows: answer,
+  }
 }
 
 //@ts-ignore
