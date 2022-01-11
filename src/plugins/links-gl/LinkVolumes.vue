@@ -9,7 +9,8 @@
         :baseData="baseData"
         :build="csvData"
         :buildData="buildData"
-        :colors="selectedColorRamp"
+        :colors="generatedColors"
+        :widths="csvWidth"
         :dark="isDarkMode"
         :geojson="geojsonData"
         :scaleWidth="scaleWidth"
@@ -19,6 +20,11 @@
 
     zoom-buttons(v-if="!thumbnail")
     drawing-tool(v-if="!thumbnail")
+
+    viz-configurator(v-if="!thumbnail && isDataLoaded"
+      :config="vizDetails"
+      :datasets="datasets"
+      @update="handleVizConfigurationChanged")
 
     .top-panel(v-if="vizDetails.title")
       .panel-item
@@ -30,28 +36,31 @@
         p {{ myState.statusMessage }}
 
       .panel-items
-          //- button/dropdown for selecting column
-          .panel-item.config-section
-            config-panel(
-              :header="csvData.header"
-              :activeColumn="csvData.activeColumn"
-              :scaleWidth="scaleWidth"
-              :selectedColorRamp="selectedColorRamp"
-              :csvData="csvData"
-              :useSlider="vizDetails.useSlider"
-              :showDiffs="showDiffs"
-              @colors="clickedColorRamp"
-              @column="handleNewDataColumn"
-              @slider="handleNewDataColumn"
-              @scale="handleScaleWidthChanged"
-            )
+        //- button/dropdown for selecting column
+        .panel-item.config-section
+          selector-panel(
+            :csvData="csvWidth"
+            :activeColumn="csvWidth.activeColumn"
+            :scaleWidth="scaleWidth"
+            :useSlider="vizDetails.useSlider"
+            :showDiffs="showDiffs"
+            @colors="clickedColorRamp"
+            @column="handleNewDataColumn"
+            @slider="handleNewDataColumn"
+            @scale="handleScaleWidthChanged"
+          )
 
-          //- DIFF checkbox
-          .panel-item.diff-section(v-if="csvBase.header.length")
-            p: b {{ $t('showDiffs') }}
-            toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
-              :color="{checked: '#4b7cc4', unchecked: '#222'}"
-              @change="showDiffs = !showDiffs")
+        //- DIFF checkbox
+        .panel-item.diff-section(v-if="csvBase.header.length")
+          toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
+            :color="{checked: '#4b7cc4', unchecked: '#222'}"
+            @change="showDiffs = !showDiffs")
+          p: b {{ $t('showDiffs') }}
+
+      //- FilterPanel.filter-panel(v-if="vizDetails.useSlider"
+      //-   :props="csvWidth"
+      //-   @activeColumns="handleNewFilter"
+      //- )
 
 </template>
 
@@ -85,94 +94,85 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
+import { CSV } from '@/Globals'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import TimeSlider from '@/plugins/links-gl/TimeSlider.vue'
-import ConfigPanel from './ConfigPanel.vue'
+import TimeSlider from './TimeSlider.vue'
+// import FilterPanel from './BadFilterPanel.vue'
+import SelectorPanel from './SelectorPanel.vue'
 import LinkGlLayer from './LinkLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+
 import GzipFetcher from '@/workers/GzipFetcher.worker.ts?worker'
+import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import {
   ColorScheme,
   FileSystem,
-  LegendItem,
-  LegendItemType,
   FileSystemConfig,
   VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
   Status,
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 
-interface CSV {
-  header: string[]
-  headerMax: number[]
-  rows: Float32Array
-  activeColumn: number
-}
+import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
+import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 
 @Component({
   i18n,
   components: {
     CollapsiblePanel,
-    ConfigPanel,
+    SelectorPanel,
     DrawingTool,
+    // FilterPanel,
     LinkGlLayer,
     TimeSlider,
     ToggleButton,
+    VizConfigurator,
     ZoomButtons,
   } as any,
 })
 class MyPlugin extends Vue {
-  @Prop({ required: true })
-  private root!: string
-
-  @Prop({ required: true })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private config!: any
-
-  @Prop({ required: false })
-  private thumbnail!: boolean
-
-  // store ALL the columns here, we'll just pass a reference to one column each to the view
-  private buildColumnValues: Float32Array[] = []
-  private baseColumnValues: Float32Array[] = []
-
-  private isButtonActiveColumn = false
-
-  private linkLayerId = Math.random()
-
-  private scaleWidth = 0
-
-  private showDiffs = false
-  private showTimeRange = false
-
-  private geojsonData: any[] = []
-
-  private selectedColorRamp = 'viridis'
+  @Prop({ required: true }) root!: string
+  @Prop({ required: true }) subfolder!: string
+  @Prop({ required: false }) yamlConfig!: string
+  @Prop({ required: false }) config!: any
+  @Prop({ required: false }) thumbnail!: boolean
 
   private vizDetails = {
     title: '',
     description: '',
     csvFile: '',
     csvBase: '',
+    datasets: {} as { [id: string]: string },
     useSlider: false,
     shpFile: '',
     dbfFile: '',
+    network: '',
     geojsonFile: '',
     projection: '',
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
   }
+
+  private datasets: { [id: string]: CSV } = {}
+
+  private isButtonActiveColumn = false
+
+  private linkLayerId = Math.random()
+
+  private scaleWidth = 0
+  private showDiffs = false
+  private showTimeRange = false
+
+  private geojsonData: any[] = []
+
+  private generatedColors: string[] = ['#4e79a7']
+
+  // private timeFilterColumns: number[] = []
 
   public myState = {
     statusMessage: '',
@@ -183,8 +183,24 @@ class MyPlugin extends Vue {
     thumbnail: false,
   }
 
-  private csvData: CSV = { header: [], headerMax: [], rows: new Float32Array(), activeColumn: -1 }
-  private csvBase: CSV = { header: [], headerMax: [], rows: new Float32Array(), activeColumn: -1 }
+  private csvData: CSV = {
+    header: [],
+    headerMax: [],
+    rows: [] as Float32Array[],
+    activeColumn: -1,
+  }
+  private csvBase: CSV = {
+    header: [],
+    headerMax: [],
+    rows: [] as Float32Array[],
+    activeColumn: -1,
+  }
+  private csvWidth: CSV = {
+    header: [],
+    headerMax: [],
+    rows: [] as Float32Array[],
+    activeColumn: -1,
+  }
 
   private buildData: Float32Array = new Float32Array()
   private baseData: Float32Array = new Float32Array()
@@ -193,20 +209,7 @@ class MyPlugin extends Vue {
   private numLinks = 0
 
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-  private isLoaded = false
-
-  private get mapProps() {
-    return {
-      geojson: this.geojsonData,
-      buildData: this.buildData,
-      baseData: this.baseData,
-      showDiffs: this.showDiffs,
-      colors: this.selectedColorRamp,
-      scaleWidth: this.scaleWidth,
-      dark: this.isDarkMode,
-      build: this.csvData,
-    }
-  }
+  private isDataLoaded = false
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
@@ -303,30 +306,117 @@ class MyPlugin extends Vue {
   }
 
   private clickedColorRamp(color: string) {
-    this.selectedColorRamp = color
+    // this.selectedColorRamp = color
+  }
+
+  private handleVizConfigurationChanged(props: {
+    color?: ColorDefinition
+    width?: WidthDefinition
+  }) {
+    console.log({ props })
+
+    if (props['color']) this.handleNewColor(props.color)
+    if (props['width']) this.handleNewWidth(props.width)
+  }
+
+  private handleNewFilter(columns: number[]) {
+    this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
+    this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
+
+    // // this.timeFilterColumns = columns
+    // // give animation 150ms to run
+    // setTimeout(() => {
+    //   if (columns.length) {
+    //     this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
+    //     this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
+    //   }
+    // }, 150)
   }
 
   private handleScaleWidthChanged(value: number) {
     this.scaleWidth = value
   }
 
-  private handleNewDataColumn(title: string) {
-    console.log('handling column:', title)
-    const column = this.csvData.header.indexOf(title)
+  private handleNewWidth(width: WidthDefinition) {
+    const { columnName, dataset, scaleFactor } = width
+    if (!columnName) return
+
+    if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
+
+    const selectedDataset = dataset ? this.datasets[dataset] : this.csvWidth
+    if (!selectedDataset) return
+
+    if (this.csvWidth !== selectedDataset) {
+      this.csvWidth = selectedDataset
+      this.csvWidth.activeColumn = -1
+    }
+
+    const column = selectedDataset.header.indexOf(columnName)
     if (column === -1) return
+
+    this.myState.statusMessage = 'Calculating...'
+
+    // // find max value for scaling
+    if (!selectedDataset.headerMax[column]) {
+      let max = -Infinity
+      const dataColumn = selectedDataset.rows[column]
+      dataColumn.forEach(value => {
+        max = Math.max(max, value)
+      })
+      if (max) selectedDataset.headerMax[column] = max
+    }
+
+    this.csvWidth.activeColumn = column
+    this.myState.statusMessage = ''
+
+    // Tell Vue we have new data
+    this.csvWidth = Object.assign({}, this.csvWidth)
+  }
+
+  private handleNewColor(color: ColorDefinition) {
+    this.generatedColors = color.generatedColors
+
+    const columnName = color.columnName
+    if (!columnName) {
+      this.csvData.activeColumn = -1
+      return
+    }
+
+    const datasetKey = color.dataset
+    const selectedDataset = this.datasets[datasetKey]
+    if (!selectedDataset) return
+
+    console.log(datasetKey, columnName)
+
+    if (this.csvData !== selectedDataset) {
+      this.csvData = selectedDataset
+      this.csvData.activeColumn = -1
+    }
+
+    const column = this.csvData.header.indexOf(columnName)
+    if (column === -1) return
+    if (column === this.csvData.activeColumn) return
+
+    this.myState.statusMessage = 'Calculating...'
 
     // // find max value for scaling
     if (!this.csvData.headerMax[column]) {
-      let max = 0
-      this.buildColumnValues[column].forEach((value) => (max = Math.max(max, value)))
+      let max = -Infinity
+      const dataColumn = this.csvData.rows[column]
+      dataColumn.forEach(value => {
+        max = Math.max(max, value)
+      })
       if (max) this.csvData.headerMax[column] = max
     }
 
-    this.buildData = this.buildColumnValues[column]
-    this.baseData = this.baseColumnValues[column]
+    this.buildData = this.csvData.rows[column]
+    this.baseData = this.csvBase.rows[column]
 
     this.csvData.activeColumn = column
+    this.csvBase.activeColumn = column
+
     this.isButtonActiveColumn = false
+    this.myState.statusMessage = ''
   }
 
   private async setMapCenter(data: any[]) {
@@ -373,79 +463,50 @@ class MyPlugin extends Vue {
       return
     }
 
-    this.myState.statusMessage = 'Dateien laden...'
-
-    // load network fully, first. Callback will then load CSVs later.
-    this.loadGeojsonFeatures()
+    this.loadEverything()
+    // this.loadGeojsonFeatures()
   }
 
-  private geoJsonNetworkIsLoaded(allLinks: any[]) {
-    this.geojsonData = allLinks
-    this.isLoaded = true
-
-    // runs in background
-    this.setMapCenter(allLinks)
-
-    this.myState.statusMessage = ''
-
-    // then load CSVs in background
-    this.loadCSVFiles()
+  private async loadEverything() {
+    this.loadNetwork()
   }
 
-  private async loadGeojsonFeatures() {
-    if (!this.myState.fileApi) return
+  private async loadNetwork(): Promise<any> {
+    this.myState.statusMessage = 'Loading network...'
+    this.geojsonData = []
+    this.linkOffsetLookup = {}
+    this.numLinks = 0
 
-    try {
-      this.myState.statusMessage = 'Loading network...'
-      this.linkOffsetLookup = {}
-      this.numLinks = 0
+    const filename = this.vizDetails.network || this.vizDetails.geojsonFile
+    const networkPath = `/${this.myState.subfolder}/${filename}`
 
-      const network = `/${this.myState.subfolder}/${this.vizDetails.geojsonFile}`
+    const worker = new RoadNetworkLoader() as Worker
 
-      const worker = new GzipFetcher() as Worker
+    worker.onmessage = (buffer: MessageEvent) => {
+      if (buffer.data.error) {
+        this.myState.statusMessage = buffer.data.error
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `Error loading: ${networkPath}`,
+        })
+      } else {
+        this.linkOffsetLookup = buffer.data.linkOffsetLookup
+        this.geojsonData = buffer.data.geojsonData
+        this.numLinks = this.geojsonData.length
 
-      worker.onmessage = (buffer: MessageEvent) => {
-        if (buffer.data.error) {
-          this.myState.statusMessage = buffer.data.error
-          this.$store.commit('setStatus', {
-            type: Status.ERROR,
-            msg: `Error loading: ${network}`,
-          })
-        }
+        worker.terminate()
 
-        const buf = buffer.data
-        const decoder = new TextDecoder('utf-8')
-        const jsonData = decoder.decode(buf)
-        const json = JSON.parse(jsonData)
-        this.numLinks = json.features.length
+        // runs in background
+        this.setMapCenter(this.geojsonData)
 
-        // super-efficient format is [ offset, coordsFrom[], coordsTo[] ]
-        const linkElements: any[] = []
+        this.myState.statusMessage = ''
 
-        for (let i = 0; i < this.numLinks; i++) {
-          const feature = json.features[i]
-          const link = [i, feature.geometry.coordinates[0], feature.geometry.coordinates[1]]
-          linkElements.push(link)
-
-          this.linkOffsetLookup[feature.properties.id] = i
-        }
-        this.geoJsonNetworkIsLoaded(linkElements)
+        // then load CSVs in background
+        this.loadCSVFiles()
       }
-
-      worker.postMessage({
-        filePath: network,
-        fileSystem: this.myState.fileSystem,
-      })
-    } catch (e) {
-      this.myState.statusMessage = '' + e
-
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: `Error loading geojson: ${this.myState.subfolder}/${this.vizDetails.geojsonFile}`,
-      })
-
-      return null
     }
+
+    worker.postMessage({ filePath: networkPath, fileSystem: this.myState.fileSystem })
   }
 
   private beforeDestroy() {
@@ -460,24 +521,33 @@ class MyPlugin extends Vue {
     this.isButtonActiveColumn = !this.isButtonActiveColumn
   }
 
-  private csvFilesToLoad: string[] = []
-
   private loadCSVFiles() {
-    this.myState.statusMessage = 'Loading CSV data...'
+    this.myState.statusMessage = 'Loading datasets...'
 
-    // these will load sequentially and on a worker, to make things seem faster
-    this.csvFilesToLoad = [this.vizDetails.csvFile]
-    if (this.vizDetails.csvBase) this.csvFilesToLoad.push(this.vizDetails.csvBase)
+    // Old yaml format listed csvFile and csvBase explicitly.
+    // Merge those into vizDetails.datasets if they exist.
+    if (!this.vizDetails.datasets) this.vizDetails.datasets = {}
+    if (this.vizDetails.csvFile) this.vizDetails.datasets.csvFile = this.vizDetails.csvFile
+    if (this.vizDetails.csvBase) this.vizDetails.datasets.csvBase = this.vizDetails.csvBase
 
-    // start the first load. The rest will happen sequentially,
-    // because papaparse will call finishedLoadingCSV() when it's done loading & parsing
-    this.loadCSVFile(this.csvFilesToLoad[0])
+    // Load files on workers, in parallel and off the main thread
+    // Papaparse will call finishedLoadingCSV() for each when it's done loading & parsing
+    const datasetsToLoad = Object.entries(this.vizDetails.datasets)
+
+    if (!datasetsToLoad.length) {
+      this.csvData.rows = [new Float32Array(Object.keys(this.linkOffsetLookup).length).fill(1)]
+      this.buildData = this.csvData.rows[0]
+      this.myState.statusMessage = ''
+      this.isDataLoaded = true
+    }
+
+    for (const [key, filename] of datasetsToLoad) {
+      this.loadOneCSVFile(key, filename)
+    }
   }
 
-  private async finishedLoadingCSV(parsed: any) {
-    const currentCSV = this.csvFilesToLoad.shift()
-
-    console.log('FINISHED PARSING: ', currentCSV)
+  private async finishedLoadingCSV(key: string, parsed: any) {
+    console.log('loaded', key)
     this.myState.statusMessage = 'Analyzing...'
 
     // an array containing a separate Float32Array for each CSV column
@@ -514,55 +584,53 @@ class MyPlugin extends Vue {
 
     const rowZero = parsed.data[0] as string[]
     const header = rowZero.slice(1) // skip first column with link id's
-
     if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
 
     //  "8 AM" is a lot narrower than "08:00:00"
     // const cleanHeaders = header.map(h => h.replace(':00:00', ''))
 
-    const details = {
-      header, // : cleanHeaders,
-      headerMax: this.vizDetails.useSlider
-        ? new Array(this.csvData.header.length).fill(globalMax)
-        : [],
-      rows: new Float32Array(),
+    const details: CSV = {
+      header,
+      headerMax: this.vizDetails.useSlider ? new Array(header.length).fill(globalMax) : [],
+      rows: allLinks,
       activeColumn: -1,
     }
 
-    if (this.csvFilesToLoad.length) {
-      // if there's still a file to load, then we just loaded build
-      this.buildColumnValues = allLinks
-      this.csvData = details
-      this.handleNewDataColumn(this.csvData.header[0])
-    } else if (this.vizDetails.csvBase) {
-      // otherwise we loaded baseline
-      this.baseColumnValues = allLinks
-      this.csvBase = details
-    } else {
-      // we are ONLY loading build
-      this.buildColumnValues = allLinks
-      this.csvData = details
-      this.handleNewDataColumn(this.csvData.header[0])
+    // Where to save this data?
+    this.datasets = Object.assign({}, this.datasets, { [key]: details })
+    this.handleDatasetisLoaded(key)
+  }
+
+  private handleDatasetisLoaded(key: string) {
+    const datasetKeys = Object.keys(this.datasets)
+
+    // first dataset
+    if (datasetKeys.length === 1) {
+      this.csvData = this.datasets[key]
     }
 
-    // ARE WE DONE?
-    if (this.csvFilesToLoad.length) {
-      this.myState.statusMessage = 'Loading CSV Baseline...'
-      this.loadCSVFile(this.csvFilesToLoad[0])
-    } else {
+    // base dataset
+    if (key === 'csvBase' || key === 'base') {
+      this.csvBase = this.datasets[key]
+      this.showDiffs = true
+    }
+
+    // last dataset
+    if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
+      this.isDataLoaded = true
       this.myState.statusMessage = ''
-      this.handleNewDataColumn(this.csvData.header[0])
+      console.log({ DATASETS: this.datasets })
     }
   }
 
-  private loadCSVFile(filename: string) {
+  private loadOneCSVFile(key: string, filename: string) {
     if (!this.myState.fileApi) return
 
     const csvFilename = `${this.myState.subfolder}/${filename}`
 
     const worker = new GzipFetcher() as Worker
-    try {
-      worker.onmessage = (buffer: MessageEvent) => {
+    worker.onmessage = (buffer: MessageEvent) => {
+      try {
         if (buffer.data.error) {
           this.myState.statusMessage = buffer.data.error
           this.$store.commit('setStatus', {
@@ -580,30 +648,37 @@ class MyPlugin extends Vue {
           skipEmptyLines: true,
           dynamicTyping: true,
           worker: true,
-          complete: this.finishedLoadingCSV,
+          complete: output => this.finishedLoadingCSV(key, output),
         })
+      } catch (e) {
+        console.error(e)
+
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Error loading dataset: ${this.myState.subfolder}/${filename}`,
+        })
+
+        return { allColumns: [], header: [], headerMax: [] }
       }
-
-      worker.postMessage({
-        filePath: csvFilename,
-        fileSystem: this.myState.fileSystem,
-      })
-    } catch (e) {
-      console.error(e)
-
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: `Error loading CSV: ${this.myState.subfolder}/${filename}`,
-      })
-
-      return { allColumns: [], header: [], headerMax: [] }
     }
+
+    worker.postMessage({
+      filePath: csvFilename,
+      fileSystem: this.myState.fileSystem,
+    })
   }
 
   private changedTimeSlider(value: any) {
     if (value.length && value.length === 1) value = value[0]
 
-    this.handleNewDataColumn(value)
+    // this.handleNewDataColumn(value)
+  }
+
+  private handleNewDataColumn(columnName: any) {
+    console.log(columnName)
+
+    const def: WidthDefinition = { columnName }
+    this.handleNewWidth(def)
   }
 }
 
@@ -649,6 +724,7 @@ export default MyPlugin
 }
 
 .top-panel {
+  pointer-events: auto;
   grid-column: 1 / 2;
   grid-row: 1 / 2;
   background-color: var(--bgPanel);
@@ -659,11 +735,13 @@ export default MyPlugin
 }
 
 .bottom-panel {
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: auto auto 0.5rem 0.5rem;
+  margin: auto 0.5rem 0rem 5px;
   filter: drop-shadow(0px 2px 4px #22222233);
 }
 
@@ -685,9 +763,14 @@ export default MyPlugin
 
 .panel-items {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   padding: 0.5rem 0.5rem;
+  margin-bottom: 5px;
+  width: 16rem;
   background-color: var(--bgPanel);
+  border-radius: 3px;
+  overflow: visible;
+  // overflow-x: hidden;
 }
 
 .panel-item {
@@ -727,7 +810,21 @@ input {
 }
 
 .diff-section {
+  display: flex;
+  flex-direction: row;
   margin-top: 0.7rem;
+
+  p {
+    margin: auto 0;
+  }
+}
+
+.filter-panel {
+  height: 6rem;
+  background-color: var(--bgPanel);
+  margin: 0rem auto 5px 0px;
+  border-radius: 3px;
+  // width: 100%;
 }
 
 @media only screen and (max-width: 640px) {

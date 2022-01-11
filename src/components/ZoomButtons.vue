@@ -26,8 +26,8 @@
 <script lang="ts">
 const i18n = {
   messages: {
-    en: { in: 'Zoom in', out: 'Zoom out', center: 'Recenter' },
-    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'zentrieren' },
+    en: { in: 'Zoom in', out: 'Zoom out', center: 'North' },
+    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'Norden' },
   },
 }
 

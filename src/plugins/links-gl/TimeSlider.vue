@@ -16,14 +16,21 @@ export default class TimeSlider extends Vue {
   @Prop({ required: true })
   private stops!: any[]
 
+  @Prop({ required: false })
+  private dropdownValue!: string
+
   private sliderValue: any = ''
+
+  @Watch('dropdownValue') dropdownChanged(value: string) {
+    this.sliderValue = value
+  }
 
   private timeSlider = {
     adsorb: true,
     contained: true,
     data: [] as any[],
     'enable-cross': false,
-    height: 6,
+    height: 8,
     piecewise: true,
     show: false,
     marks: [] as any[],
@@ -36,7 +43,11 @@ export default class TimeSlider extends Vue {
   private mounted() {
     this.sliderValue = this.stops[0] || '...'
     this.timeSlider.data = this.stops
-    this.timeSlider.marks = this.stops.filter((stop, i) => i % 3 === 0)
+    this.timeSlider.marks = [
+      this.stops[0],
+      this.stops[Math.floor(this.stops.length / 2)],
+      this.stops[this.stops.length - 1],
+    ] // this.stops.filter((stop, i) => i % 3 === 0)
   }
 
   @Watch('useRange')

@@ -7,7 +7,7 @@ import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
-import { MAP_STYLES, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
@@ -309,10 +309,7 @@ export default function Component(props: {
       {
         /*
         // @ts-ignore */
-        <StaticMap
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-        />
+        <StaticMap mapboxApiAccessToken={MAPBOX_TOKEN} mapStyle={globalStore.getters.mapStyle} />
       }
       {renderTooltip({ hoverInfo })}
     </DeckGL>

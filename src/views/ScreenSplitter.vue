@@ -121,15 +121,11 @@ class MyComponent extends Vue {
       return
     }
 
-    // figure out our project and folder
-    let root = ''
+    // split out project root and subfolder
+    let root = pathMatch
     let xsubfolder = ''
-    // regular file path
     const slash = pathMatch.indexOf('/')
-    if (slash === -1) {
-      root = pathMatch
-      xsubfolder = ''
-    } else {
+    if (slash > -1) {
       root = pathMatch.substring(0, slash)
       xsubfolder = pathMatch.substring(slash + 1)
     }
@@ -155,7 +151,7 @@ class MyComponent extends Vue {
       }
     }
 
-    // Last option: browser/dashboard panel
+    // Last option: folder browser/dashboard panel
     const key = this.panels.length === 1 ? this.panels[0].key : Math.random()
     this.panels = [
       {

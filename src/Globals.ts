@@ -1,10 +1,12 @@
-export const MAP_STYLES = {
+export const MAP_STYLES_ONLINE = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+}
 
+export const MAP_STYLES_OFFLINE = {
   // NO NETWoRK:
-  // light: { version: 8, layers: [], sources: {} },
-  // dark: { version: 8, layers: [], sources: {} },
+  light: { version: 8, layers: [], sources: {} },
+  dark: { version: 8, layers: [], sources: {} },
 }
 
 export const MAPBOX_TOKEN =
@@ -14,6 +16,21 @@ export enum Status {
   INFO,
   WARNING,
   ERROR,
+}
+
+export interface CSV {
+  header: string[]
+  headerMax: number[]
+  rows: Float32Array[]
+  activeColumn: number
+}
+
+export type VizLayerConfiguration = {
+  datasets: { [id: string]: string }
+  display: {
+    color: any
+    width: any
+  }
 }
 
 export type YamlConfigs = {

@@ -5,7 +5,7 @@ import { ArcLayer } from '@deck.gl/layers'
 import HexagonLayer from './SelectableHexLayer'
 import colormap from 'colormap'
 
-import { MAPBOX_TOKEN, MAP_STYLES } from '@/Globals'
+import { MAPBOX_TOKEN } from '@/Globals'
 import { pointToHexbin } from './HexagonAggregator'
 import globalStore from '@/store'
 
@@ -127,10 +127,7 @@ export default function Layer({
       {
         /*
         // @ts-ignore */
-        <StaticMap
-          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-        />
+        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
       }
     </DeckGL>
   )
