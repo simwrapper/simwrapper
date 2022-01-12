@@ -460,13 +460,15 @@ class MyPlugin extends Vue {
     longitude = longitude / samples
     latitude = latitude / samples
 
+    console.log('center', longitude, latitude)
+
     this.$store.commit('setMapCamera', {
       longitude,
       latitude,
       bearing: 0,
       pitch: 0,
       zoom: 7,
-      jump: true,
+      jump: false,
     })
   }
 
