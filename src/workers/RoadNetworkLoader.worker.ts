@@ -108,11 +108,15 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 }
 
 async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
+  console.log(11)
   const rawData = await fetchGzip(filePath, fileSystem)
+  console.log(12)
 
   // TODO for now we assume everything is UTF-8; add an option later
   const decoded = new TextDecoder('utf-8').decode(rawData)
+  console.log(13)
   const json = JSON.parse(decoded)
+  console.log(14)
 
   const linkOffsetLookup: { [id: string]: number } = {}
   const geojsonData: any[] = []
@@ -125,6 +129,8 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
 
     linkOffsetLookup[feature.properties.id] = i
   }
+  console.log(15)
+
   return { linkOffsetLookup, geojsonData }
 }
 
@@ -136,7 +142,7 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
 
     const buffer = await blob.arrayBuffer()
     const cargo = gUnzip(buffer)
-
+    console.log({ cargo })
     return cargo
   } catch (e) {
     console.error('oh no', e)
@@ -150,7 +156,7 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
  * can single- or double-gzip .gz files on the wire. It's insane but true.
  */
 function gUnzip(buffer: any): any {
-  console.log('gUnzip')
+  console.log('gUnzip', buffer)
   // GZIP always starts with a magic number, hex 0x8b1f
   const header = new Uint16Array(buffer, 0, 2)
 

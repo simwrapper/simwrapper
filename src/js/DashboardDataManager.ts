@@ -51,7 +51,7 @@ export default class DashboardDataManager {
       const columnGroups = config.groupBy
       bars = rollup(
         rows,
-        (v) => v.reduce((a, b) => a + b[columnValues], 0),
+        v => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
     } else {
@@ -75,17 +75,17 @@ export default class DashboardDataManager {
     if (!this.datasets[config.dataset]) {
       console.log('load:', config.dataset)
 
-      // allRows immediately returns a Promise<any[], which we wait on so that
+      // allRows immediately returns a Promise<>, which we wait on so that
       // multiple charts don't all try to fetch the dataset individually
       this.datasets[config.dataset] = {
-        rows: this.fetchDataset(config),
-        filteredRows: null,
+        dataset: this.fetchDataset(config),
         activeFilters: {},
+        filteredRows: null,
         filterListeners: new Set(),
       }
     }
 
-    let allRows = await this.datasets[config.dataset].rows
+    let allRows = (await this.datasets[config.dataset].dataset).rows
 
     // if useLastRow, do that
     if (config.useLastRow) {
@@ -110,7 +110,7 @@ export default class DashboardDataManager {
       const columnGroups = config.groupBy
       bars = rollup(
         allRows,
-        (v) => v.reduce((a, b) => a + b[columnValues], 0),
+        v => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
       const x = Array.from(bars.keys())
@@ -217,12 +217,12 @@ export default class DashboardDataManager {
     if (!Object.keys(dataset.activeFilters).length) {
       dataset.filteredRows = null
     } else {
-      const allRows = await dataset.rows
+      const allRows = (await dataset.dataset).rows
 
       let filteredRows = allRows
       for (const [column, value] of Object.entries(dataset.activeFilters)) {
         console.log('filtering:', column, value)
-        filteredRows = filteredRows.filter((row) => row[column] === value)
+        filteredRows = filteredRows.filter(row => row[column] === value)
       }
       dataset.filteredRows = filteredRows
     }
@@ -245,7 +245,7 @@ export default class DashboardDataManager {
       this.files = files
     }
 
-    return new Promise<any[]>((resolve, reject) => {
+    return new Promise<{ rows: any[]; header: string[] }>((resolve, reject) => {
       try {
         const thread = new DataFetcherWorker()
         thread.postMessage({
@@ -255,7 +255,7 @@ export default class DashboardDataManager {
           config: config,
         })
 
-        thread.onmessage = (e) => {
+        thread.onmessage = e => {
           resolve(e.data)
         }
       } catch (err) {
@@ -281,7 +281,7 @@ export default class DashboardDataManager {
 
   private datasets: {
     [id: string]: {
-      rows: Promise<any[]>
+      dataset: Promise<{ rows: any[]; header: string[] }>
       filteredRows: any[] | null
       activeFilters: { [column: string]: any }
       filterListeners: Set<any>
