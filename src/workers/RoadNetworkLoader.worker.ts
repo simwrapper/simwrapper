@@ -5,9 +5,12 @@
 
 import PROJ4 from 'proj4'
 import EPSG from 'epsg'
-import pako from 'pako'
+// import pako from 'pako'
+import { decompressSync } from 'fflate'
 
-import { parseXML } from '@/js/util'
+import { XMLParser } from 'fast-xml-parser'
+
+// import { parseXML } from '@/js/util'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
@@ -21,7 +24,12 @@ enum NetworkFormat {
 // Set up ALL coordinate systems in 'epsg' repository
 const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
 PROJ4.defs(allEPSGs)
+PROJ4.defs(
+  'GK4',
+  '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs'
+)
 
+// ENTRY POINT: -----------------------
 onmessage = async function (e) {
   const { id, filePath, fileSystem, options } = e.data
 
@@ -29,14 +37,14 @@ onmessage = async function (e) {
   const format = guessFileTypeFromExtension(filePath)
 
   // fetch nodes and links
-  const { geojsonData, linkOffsetLookup } = await fetchNodesAndLinks({
+  const { links, linkOffsetLookup } = await fetchNodesAndLinks({
     format,
     filePath,
     fileSystem,
     options,
   })
 
-  postMessage({ geojsonData, linkOffsetLookup })
+  postMessage({ links, linkOffsetLookup }, [links.source.buffer, links.dest.buffer])
 }
 
 function guessFileTypeFromExtension(name: string) {
@@ -75,11 +83,16 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
   const decoded = new TextDecoder('utf-8').decode(rawData)
   const xml: any = await parseXML(decoded, options)
 
+  console.log({ xml })
+
   // What is the CRS?
   let coordinateReferenceSystem = ''
+
   const attribute = xml.network.attributes.attribute
   if (attribute.$name === 'coordinateReferenceSystem')
     coordinateReferenceSystem = attribute['#text']
+
+  console.log('CRS', coordinateReferenceSystem)
 
   // build node/coordinate lookup
   const nodes: { [id: string]: number[] } = {}
@@ -96,42 +109,50 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 
   // build links
   const linkOffsetLookup: { [id: string]: number } = {}
-  const geojsonData: any[] = []
+
+  const source: Float32Array = new Float32Array(2 * xml.network.links.link.length)
+  const dest: Float32Array = new Float32Array(2 * xml.network.links.link.length)
+
   for (let i = 0; i < xml.network.links.link.length; i++) {
     const link = xml.network.links.link[i]
-    const coordinates = [nodes[link.$from], nodes[link.$to]]
-    geojsonData.push(coordinates)
     linkOffsetLookup[link.$id] = i
+
+    source[2 * i + 0] = nodes[link.$from][0]
+    source[2 * i + 1] = nodes[link.$from][1]
+    dest[2 * i + 0] = nodes[link.$to][0]
+    dest[2 * i + 1] = nodes[link.$to][1]
   }
 
-  return { linkOffsetLookup, geojsonData }
+  const links = { source, dest }
+
+  return { linkOffsetLookup, links }
 }
 
 async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
-  console.log(11)
   const rawData = await fetchGzip(filePath, fileSystem)
-  console.log(12)
 
   // TODO for now we assume everything is UTF-8; add an option later
   const decoded = new TextDecoder('utf-8').decode(rawData)
-  console.log(13)
   const json = JSON.parse(decoded)
-  console.log(14)
 
   const linkOffsetLookup: { [id: string]: number } = {}
-  const geojsonData: any[] = []
+
+  const source: Float32Array = new Float32Array(2 * json.features.length)
+  const dest: Float32Array = new Float32Array(2 * json.features.length)
 
   for (let i = 0; i < json.features.length; i++) {
     const feature = json.features[i]
     // super-efficient format lol is [ coordsFrom[], coordsTo[] ]
-    const link = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]]
-    geojsonData.push(link)
+    // const link = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]]
+    source[2 * i + 0] = feature.geometry.coordinates[0][0]
+    source[2 * i + 1] = feature.geometry.coordinates[0][1]
+    dest[2 * i + 0] = feature.geometry.coordinates[1][0]
+    dest[2 * i + 1] = feature.geometry.coordinates[1][1]
 
     linkOffsetLookup[feature.properties.id] = i
   }
-  console.log(15)
 
-  return { linkOffsetLookup, geojsonData }
+  return { linkOffsetLookup, links: { source, dest } }
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
@@ -142,7 +163,6 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
 
     const buffer = await blob.arrayBuffer()
     const cargo = gUnzip(buffer)
-    console.log({ cargo })
     return cargo
   } catch (e) {
     console.error('oh no', e)
@@ -155,17 +175,16 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
  * some combinations of subversion, nginx, and various user browsers
  * can single- or double-gzip .gz files on the wire. It's insane but true.
  */
-function gUnzip(buffer: any): any {
-  console.log('gUnzip', buffer)
+function gUnzip(buffer: ArrayBuffer): any {
+  const u8 = new Uint8Array(buffer)
+
   // GZIP always starts with a magic number, hex 0x8b1f
   const header = new Uint16Array(buffer, 0, 2)
 
   if (header[0] === 0x8b1f) {
-    console.log('hello')
     try {
-      const zcontent = pako.inflate(buffer)
-      console.log({ zcontent })
-      return zcontent
+      const result = decompressSync(u8)
+      return result
     } catch (e) {
       console.error('eee', e)
     }
@@ -177,6 +196,45 @@ function gUnzip(buffer: any): any {
 function throwError(message: string) {
   postMessage({ error: message })
   close()
+}
+
+function parseXML(xml: string, settings: any = {}) {
+  // This uses the fast-xml-parser library, which is the least-quirky
+  // of all the terrible XML libraries.
+  //
+  // - Element attributes are stored directly in the element as "$attributeName"
+  //
+  // - Items with just one element are stored as is; but you can
+  //   force a path to be always-array with "alwaysArray: ['my.path.to.element]"
+  //
+  // - Order is not preserved; like items are stored as arrays. For matsim, this
+  //   is only a problem for plans (I think?) but you can recreate the plan order
+  //   since act and leg elements always alternate. (Or use "preserveOrder: true"
+  //   but that creates LOTS of one-item arrays everywhere. Sad.)
+
+  const defaultConfig = {
+    ignoreAttributes: false,
+    preserveOrder: false,
+    attributeNamePrefix: '$',
+    // isArray: undefined as any,
+  }
+
+  // Allow user to pass in an array of "always as array" XML paths:
+  // if (settings.alwaysArray)
+  //   defaultConfig.isArray = (name: string, jpath: string) => {
+  //     if (settings.alwaysArray.indexOf(jpath) !== -1) return true
+  //   }
+
+  const options = Object.assign(defaultConfig, settings)
+  const parser = new XMLParser(options)
+
+  try {
+    const result = parser.parse(xml)
+    return result
+  } catch (e) {
+    console.error('WHAT', e)
+    throw Error('' + e)
+  }
 }
 
 // // make the typescript compiler happy on import

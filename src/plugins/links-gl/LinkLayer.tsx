@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
+import { Buffer } from '@luma.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
@@ -11,7 +12,7 @@ import { MAPBOX_TOKEN, REACT_VIEW_HANDLES, CSV } from '@/Globals'
 import globalStore from '@/store'
 
 export default function Component({
-  geojson = [] as any[],
+  links = { source: new Float32Array(), dest: new Float32Array() },
   colors = ['#0099ee'],
   dark = false,
   scaleWidth = 1,
@@ -177,7 +178,13 @@ export default function Component({
   //@ts-ignore
   const layer = new LineOffsetLayer({
     id: 'linkLayer',
-    data: geojson,
+    data: {
+      length: links.source.length / 2,
+      attributes: {
+        getSourcePosition: { value: links.source, size: 2 },
+        getTargetPosition: { value: links.dest, size: 2 },
+      },
+    },
     widthUnits: 'pixels',
     widthMinPixels: 1,
     widthMaxPixels: 50,
@@ -187,8 +194,6 @@ export default function Component({
     highlightColor: [255, 0, 224],
     offsetDirection: OFFSET_DIRECTION.RIGHT,
 
-    getSourcePosition: (link: any[]) => link[0], // COLUMNS.coordFrom],
-    getTargetPosition: (link: any[]) => link[1], // COLUMNS.coordTo],
     getColor: getLineColor,
     getWidth: getLineWidth,
 

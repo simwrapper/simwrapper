@@ -5,6 +5,7 @@
 
   .plot-container(v-if="!thumbnail")
     link-gl-layer.map-area(
+        :links="geojsonData"
         :base="csvBase"
         :baseData="baseData"
         :build="csvData"
@@ -12,7 +13,6 @@
         :colors="generatedColors"
         :widths="csvWidth"
         :dark="isDarkMode"
-        :geojson="geojsonData"
         :scaleWidth="scaleWidth"
         :showDiffs="showDiffs"
         :viewId="linkLayerId"
@@ -172,7 +172,7 @@ class MyPlugin extends Vue {
   private showDiffs = false
   private showTimeRange = false
 
-  private geojsonData: any[] = []
+  private geojsonData = { source: new Float32Array(), dest: new Float32Array() }
 
   private generatedColors: string[] = ['#4e79a7']
 
@@ -445,15 +445,21 @@ class MyPlugin extends Vue {
     this.myState.statusMessage = ''
   }
 
-  private async setMapCenter(data: any[]) {
+  private async setMapCenter() {
+    const data = this.geojsonData
+
+    if (!data.source.length) return
+
     let samples = 0
     let longitude = 0
     let latitude = 0
-    let gap = Math.floor(data.length / 512)
 
-    for (let i = 0; i < data.length; i += gap) {
-      longitude += data[i][1][0]
-      latitude += data[i][1][1]
+    const numLinks = data.source.length / 2
+
+    const gap = 2048
+    for (let i = 0; i < numLinks; i += gap) {
+      longitude += data.source[i * 2]
+      latitude += data.source[i * 2 + 1]
       samples++
     }
 
@@ -462,14 +468,16 @@ class MyPlugin extends Vue {
 
     console.log('center', longitude, latitude)
 
-    this.$store.commit('setMapCamera', {
-      longitude,
-      latitude,
-      bearing: 0,
-      pitch: 0,
-      zoom: 7,
-      jump: false,
-    })
+    if (longitude && latitude) {
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        bearing: 0,
+        pitch: 0,
+        zoom: 7,
+        jump: false,
+      })
+    }
   }
 
   private async mounted() {
@@ -499,18 +507,20 @@ class MyPlugin extends Vue {
     this.loadNetwork()
   }
 
+  private networkWorker?: Worker
+
   private async loadNetwork(): Promise<any> {
     this.myState.statusMessage = 'Loading network...'
-    this.geojsonData = []
     this.linkOffsetLookup = {}
     this.numLinks = 0
 
     const filename = this.vizDetails.network || this.vizDetails.geojsonFile
     const networkPath = `/${this.myState.subfolder}/${filename}`
 
-    const worker = new RoadNetworkLoader() as Worker
+    this.networkWorker = new RoadNetworkLoader() as Worker
 
-    worker.onmessage = (buffer: MessageEvent) => {
+    this.networkWorker.onmessage = (buffer: MessageEvent) => {
+      if (this.networkWorker) this.networkWorker.terminate()
       if (buffer.data.error) {
         this.myState.statusMessage = buffer.data.error
         this.$store.commit('setStatus', {
@@ -519,13 +529,13 @@ class MyPlugin extends Vue {
         })
       } else {
         this.linkOffsetLookup = buffer.data.linkOffsetLookup
-        this.geojsonData = buffer.data.geojsonData
-        this.numLinks = this.geojsonData.length
+        this.geojsonData = buffer.data.links
+        this.numLinks = this.geojsonData.source.length / 2
 
-        worker.terminate()
+        console.log('links', this.geojsonData)
 
         // runs in background
-        this.setMapCenter(this.geojsonData)
+        this.setMapCenter()
 
         this.myState.statusMessage = ''
 
@@ -534,12 +544,14 @@ class MyPlugin extends Vue {
       }
     }
 
-    worker.postMessage({ filePath: networkPath, fileSystem: this.myState.fileSystem })
+    this.networkWorker.postMessage({ filePath: networkPath, fileSystem: this.myState.fileSystem })
   }
 
   private beforeDestroy() {
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
+
+    if (this.networkWorker) this.networkWorker.terminate()
 
     this.$store.commit('setFullScreen', false)
   }
@@ -598,7 +610,7 @@ class MyPlugin extends Vue {
 
     this.datasets = Object.assign({}, this.datasets, { [key]: details })
     this.handleDatasetisLoaded(key)
-    console.log({ datasets: this.datasets })
+    // console.log({ datasets: this.datasets })
   }
 
   private loadCSVFiles() {
