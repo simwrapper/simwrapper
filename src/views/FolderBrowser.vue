@@ -31,7 +31,7 @@
                   @click="openOutputFolder(folder)")
             p
               i.fa.fa-folder-open
-              | &nbsp;{{ folder }}
+              | &nbsp;{{ cleanName(folder) }}
 
       topsheets-finder(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
 
@@ -63,7 +63,7 @@
         .file-table
           .file(:class="{fade: myState.isLoading}"
                 v-for="file in myState.files" :key="file")
-            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ file }}
+            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ cleanName(file) }}
 
 </template>
 
@@ -141,6 +141,10 @@ export default class VueComponent extends Vue {
     subfolder: '',
     vizes: [],
     summary: false,
+  }
+
+  private cleanName(text: string) {
+    return decodeURIComponent(text)
   }
 
   private getFileSystem(name: string) {

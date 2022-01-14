@@ -34,6 +34,13 @@ const fileSystems: FileSystemConfig[] = [
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
     hidden: true,
   },
+  {
+    name: 'SFCTA Prospector',
+    slug: 'champ',
+    description: 'Shared SFCTA CHAMP model runs',
+    baseURL: 'http://prospector/champ_runs',
+    hidden: true,
+  },
 
   // {
   //   name: 'Gallery',
