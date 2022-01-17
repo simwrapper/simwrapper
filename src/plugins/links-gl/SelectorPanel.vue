@@ -63,7 +63,7 @@ import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
-import { ColorScheme, CSV } from '@/Globals'
+import { ColorScheme, DataTable } from '@/Globals'
 
 import imgViridis from '/colors/scale-viridis.png'
 import imgInferno from '/colors/scale-inferno.png'
@@ -76,13 +76,13 @@ export default class VueComponent extends Vue {
   private scaleWidth!: number
 
   @Prop({ required: true })
-  private activeColumn!: number
+  private activeColumn!: string
 
   @Prop({ required: true })
   private showDiffs!: boolean
 
   @Prop({ required: true })
-  private csvData!: CSV
+  private csvData!: DataTable
 
   @Prop({ required: true })
   private useSlider!: boolean
@@ -140,8 +140,8 @@ export default class VueComponent extends Vue {
   }
 
   private get buttonTitle() {
-    if (this.activeColumn === -1) return this.$i18n.t('loading')
-    return this.csvData.header[this.activeColumn]
+    if (!this.activeColumn) return this.$i18n.t('loading')
+    return this.activeColumn
   }
 
   private handleClickDropdown() {

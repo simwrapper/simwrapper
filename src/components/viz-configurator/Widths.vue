@@ -3,7 +3,7 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="Single color" value="")
+          option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
@@ -30,9 +30,7 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import * as d3sc from 'd3-scale-chromatic'
-import * as d3color from 'd3-color'
-import { VizLayerConfiguration, CSV } from '@/Globals'
+import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
 export type WidthDefinition = {
   dataset?: string
@@ -43,20 +41,29 @@ export type WidthDefinition = {
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: CSV }
+  @Prop() datasets!: { [id: string]: DataTable }
 
   private transforms = ['none', 'sqrt', 'pow5']
   private dataColumn = ''
   private scaleFactor = 100
   private selectedTransform = this.transforms[0]
 
+  private datasetLabels = [] as string[]
+
   private mounted() {
     this.datasetsAreLoaded()
   }
 
-  // @Watch('flip')
-  // @Watch('steps')
-  // @Watch('globalState.isDarkMode')
+  @Watch('datasets')
+  private datasetsAreLoaded() {
+    const datasetIds = Object.keys(this.datasets)
+    if (datasetIds.length) {
+      const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
+      if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
+    }
+    this.datasetLabels = datasetIds
+  }
+
   @Watch('scaleFactor')
   @Watch('dataColumn')
   private emitWidthSpecification() {
@@ -79,15 +86,6 @@ export default class VueComponent extends Vue {
     setTimeout(() => this.$emit('update', { width }), 50)
   }
 
-  @Watch('datasets')
-  private datasetsAreLoaded() {
-    const keys = Object.keys(this.datasets)
-    if (keys.length) {
-      const column = this.datasets[keys[0]].header[0]
-      if (column) this.dataColumn = `${keys[0]}/${column}`
-    }
-  }
-
   private clickedSingle() {
     const width: WidthDefinition = {
       dataset: '',
@@ -101,12 +99,17 @@ export default class VueComponent extends Vue {
   }
 
   private datasetChoices(): string[] {
-    return Object.keys(this.vizConfiguration.datasets)
+    return this.datasetLabels
   }
 
-  private columnsInDataset(key: string): string[] {
-    if (!this.datasets[key]) return []
-    return this.datasets[key].header
+  private columnsInDataset(datasetId: string): string[] {
+    const dataset = this.datasets[datasetId]
+    if (!dataset) return []
+    const allColumns = Object.keys(dataset).filter(
+      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+    )
+
+    return allColumns
   }
 }
 </script>

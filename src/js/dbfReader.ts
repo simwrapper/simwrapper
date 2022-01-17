@@ -1,3 +1,5 @@
+import { DataTable, DataType, DataTableColumn } from '@/Globals'
+
 //@ts-ignore
 import dbf_cancel from 'shapefile/dbf/cancel'
 //@ts-ignore
@@ -22,7 +24,14 @@ export var types: any = {
   N: readNumber,
 }
 
-export default function (source: Uint8Array, decoder: TextDecoder) {
+const combinedTypes = {
+  readNumber: DataType.NUMBER,
+  readString: DataType.STRING,
+  readBoolean: DataType.BOOLEAN,
+  readDate: DataType.DATE,
+} as any
+
+export default function (source: Uint8Array, decoder: TextDecoder): DataTable {
   const head = new DataView(source.slice(0, 32))
 
   const headerLength = head.getUint16(8, true)
@@ -30,10 +39,25 @@ export default function (source: Uint8Array, decoder: TextDecoder) {
 
   //@ts-ignore
   const data = new Dbf(source, decoder, head, body)
-  const answer: any[] = []
+  // const answer: any[] = []
 
+  // prepare storage object -- figure out records and columns
+  const dataTable: DataTable = {}
+  const expectedNumberOfRows = (source.byteLength - headerLength) / data._recordLength
+  const numberOfColumns = data._fields.length
+  console.log({ numberOfColumns, expectedNumberOfRows })
+
+  // loop thru fields
+  for (const field of data._fields) {
+    const type = combinedTypes[types[field.type]]
+    const values =
+      types[field.type] === readNumber ? new Float32Array(expectedNumberOfRows) : ([] as any[])
+    const column: DataTableColumn = { values, name: field.name, type }
+    dataTable[field.name] = column
+  }
+
+  // decode binary data
   let recordNumber = 0
-
   const bufferLength = source.byteLength
 
   try {
@@ -45,13 +69,12 @@ export default function (source: Uint8Array, decoder: TextDecoder) {
       const value = source.slice(start, start + data._recordLength)
       if (value && value[0] !== 0x1a) {
         let i = 1
-        const row = data._fields.reduce(function (p: any, f: any) {
-          p[f.name] = types[f.type](data._decode(value.slice(i, i + f.length)))
+        data._fields.reduce(function (p: any, f: any) {
+          const decodedValue = types[f.type](data._decode(value.slice(i, i + f.length)))
+          dataTable[f.name].values[recordNumber] = decodedValue
           i = i + f.length
-          return p
         }, {})
-        if (!(recordNumber % 10000)) console.log('dbf reading', recordNumber)
-        answer.push(row)
+        if (!(recordNumber % 21377)) console.log('dbf reading', recordNumber)
       } else {
         break
       }
@@ -61,10 +84,9 @@ export default function (source: Uint8Array, decoder: TextDecoder) {
     console.warn(e)
   }
   console.log('dbf total records', recordNumber)
-  return {
-    header: data._fields.map((f: any) => f.name).sort() as string[],
-    rows: answer,
-  }
+  console.log({ dbf: data })
+
+  return dataTable
 }
 
 //@ts-ignore
@@ -76,7 +98,7 @@ function Dbf(source: ArrayBuffer, decoder: TextDecoder, head: DataView, body: Da
   //@ts-ignore
   this._recordLength = head.getUint16(10, true)
   //@ts-ignore
-  this._fields = []
+  this._fields = [] as { name: string; type: stringify; length: number }[]
   for (var n = 0; body.getUint8(n) !== 0x0d; n += 32) {
     for (var j = 0; j < 11; ++j) if (body.getUint8(n + j) === 0) break
     //@ts-ignore

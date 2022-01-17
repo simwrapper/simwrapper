@@ -18,6 +18,44 @@ export enum Status {
   ERROR,
 }
 
+export enum DataType {
+  NUMBER,
+  STRING,
+  BOOLEAN,
+  DATE,
+  LOOKUP,
+}
+
+export interface DataTable {
+  [columnName: string]: DataTableColumn
+}
+
+/**
+ * DataTableColumn represents one column of a loaded dataset. Numerical data will always be
+ * stored as a Float32Array, while other data such as strings will be stored as regular
+ * arrays.
+ *
+ * @property type - is one of the DataType enumeration, and is used to decode factors
+ *
+ * @property factors - is only populated during construction if the actual values are constrained
+ * to a small set of choices, in which case the index of the factor is stored in the row data instead
+ * of the value itself.
+ */
+export interface DataTableColumn {
+  values: Float32Array | any[]
+  name: string
+  type: DataType
+  max?: number
+  // factors?: any[] // only present if elements are stored as offset to the factor value here, instead of as the real value
+}
+
+/** LookupDataset bridges CSV data and link data with the join column containing array offsets */
+export interface LookupDataset {
+  dataTable: DataTable
+  activeColumn: string
+  joinColumn: string
+}
+
 export interface CSV {
   header: string[]
   headerMax: number[]
@@ -27,10 +65,7 @@ export interface CSV {
 
 export type VizLayerConfiguration = {
   datasets: { [id: string]: string }
-  display: {
-    color: any
-    width: any
-  }
+  display: { color: any; width: any }
 }
 
 export type YamlConfigs = {

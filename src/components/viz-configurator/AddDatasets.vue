@@ -48,15 +48,14 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { VizLayerConfiguration, CSV, FileSystemConfig } from '@/Globals'
+import { VizLayerConfiguration, LookupDataset, FileSystemConfig, DataTable } from '@/Globals'
 import FileSelector from './FileSelector.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
 export type DatasetDefinition = {
   key: string
-  rows: any[]
-  header: string[]
+  dataTable: DataTable
 }
 
 @Component({ components: { FileSelector }, props: {} })
@@ -90,14 +89,9 @@ export default class VueComponent extends Vue {
   private async fileChoiceChanged(file: string) {
     if (!file) return
 
-    const { rows, header } = await this.fetchDataset(file)
+    const dataTable = await this.fetchDataset(file)
 
-    const dataset: DatasetDefinition = {
-      key: file.substring(0, file.lastIndexOf('.')),
-      rows,
-      header,
-    }
-
+    const dataset: DatasetDefinition = { dataTable, key: file.substring(0, file.lastIndexOf('.')) }
     this.$emit('update', { dataset })
   }
 
@@ -120,8 +114,8 @@ export default class VueComponent extends Vue {
 
   private async processBuffer(name: string, buffer: ArrayBuffer) {
     return new Promise<any[]>((resolve, reject) => {
+      const thread = new DataFetcherWorker()
       try {
-        const thread = new DataFetcherWorker()
         thread.postMessage(
           {
             config: { dataset: name },
@@ -135,6 +129,7 @@ export default class VueComponent extends Vue {
           resolve(e.data)
         }
       } catch (err) {
+        thread.terminate()
         reject(err)
       }
     })
@@ -150,9 +145,9 @@ export default class VueComponent extends Vue {
   }
 
   private async fetchDataset(dataset: string) {
-    return new Promise<{ rows: any[]; header: string[] }>((resolve, reject) => {
+    return new Promise<DataTable>((resolve, reject) => {
+      const thread = new DataFetcherWorker()
       try {
-        const thread = new DataFetcherWorker()
         thread.postMessage({
           fileSystemConfig: this.fileSystem,
           subfolder: this.subfolder,
@@ -165,6 +160,7 @@ export default class VueComponent extends Vue {
           resolve(e.data)
         }
       } catch (err) {
+        thread.terminate()
         reject(err)
       }
     })

@@ -4,7 +4,7 @@ import pako from 'pako'
 import Papaparse from 'papaparse'
 import DBF from '@/js/dbfReader'
 
-import { FileSystemConfig } from '@/Globals'
+import { DataTableColumn, DataTable, DataType, FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles } from '@/js/util'
 
@@ -16,7 +16,7 @@ let _config: any = {}
 let _dataset = ''
 let _buffer: Uint8Array
 
-const _fileData: { [key: string]: { rows: any[]; header: string[] } } = {}
+const _fileData: { [key: string]: DataTable } = {}
 
 onmessage = function (e) {
   fetchData(e.data)
@@ -91,8 +91,8 @@ async function loadFile() {
 
 async function parseData(filename: string, buffer: Uint8Array) {
   if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
-    const { header, rows } = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
-    _fileData[_dataset] = { header, rows }
+    const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+    _fileData[_dataset] = dataTable
   } else {
     // convert text to utf-8
     const text = new TextDecoder().decode(buffer)
@@ -103,17 +103,11 @@ async function parseData(filename: string, buffer: Uint8Array) {
 }
 
 function cleanData() {
-  const data = _fileData[_dataset].rows
+  const dataset = _fileData[_dataset]
 
   // remove extra columns
   if (_config.ignoreColumns) {
-    if (Array.isArray(data)) {
-      for (const row of data) {
-        _config.ignoreColumns.forEach((column: string) => delete row[column])
-      }
-    } else {
-      _config.ignoreColumns.forEach((column: string) => delete data[column])
-    }
+    _config.ignoreColumns.forEach((column: string) => delete dataset[column])
   }
 }
 
@@ -137,15 +131,26 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     if (details.xmlElements) {
       const subelements = details.xmlElements.split('.')
       const subXML = drillIntoXML(xml, subelements)
-      _fileData[fileKey] = { header: [], rows: subXML }
+
+      // TODO: Make this column-wise!
+      _fileData[fileKey] = {} //  header: [], rows: subXML }
     } else {
-      _fileData[fileKey] = { header: [], rows: xml }
+      _fileData[fileKey] = {} //  header: [], rows: xml }
     }
 
     return
   }
 
-  // if it isn't XML, then let's hope assume Papaparse can handle it
+  // if it isn't XML, well then let's hope assume Papaparse can deal with it
+  parseCsvFile(fileKey, filename, text)
+}
+
+function parseCsvFile(fileKey: string, filename: string, text: string) {
+  // prepare storage object -- figure out records and columns
+  const dataTable: DataTable = {}
+
+  const columnNames: string[] = []
+
   const csv = Papaparse.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ','],
@@ -153,9 +158,49 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     dynamicTyping: true,
     header: true,
     skipEmptyLines: true,
-  })
+    step: (results: any, parser) => {
+      const row = results.data
+      // console.log(row)
+      for (const key in row) {
+        if (!dataTable[key]) {
+          dataTable[key] = { name: key, values: [], type: DataType.NUMBER } // DONT KNOW TYPE YET
+        }
+        ;(dataTable[key].values as any[]).push(row[key])
+      }
+    },
+    complete: results => {
+      console.log({ results })
 
-  _fileData[fileKey] = { header: csv.meta.fields || [], rows: csv.data }
+      let firstColumnName = ''
+      for (const columnName in dataTable) {
+        // first column is special: it contains the linkID
+        // TODO: This is obviously wrong; we need a way to specify this from User
+        if (!firstColumnName) {
+          firstColumnName = columnName
+          continue
+        }
+
+        // figure out types
+        const column = dataTable[columnName]
+        if (typeof column.values[0] == 'string') column.type = DataType.STRING
+        if (typeof column.values[0] == 'boolean') column.type = DataType.BOOLEAN
+
+        // convert numbers to Float32Arrays
+        if (column.type === DataType.NUMBER) {
+          const fArray = new Float32Array(column.values)
+          column.values = fArray
+
+          // calculate max for numeric columns
+          let max = -Infinity
+          for (const value of column.values) max = Math.max(max, value)
+          column.max = max
+        }
+      }
+
+      // and save it
+      _fileData[fileKey] = dataTable
+    },
+  })
 }
 
 async function loadFileOrGzipFile(filename: string) {

@@ -47,7 +47,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
 
-import { VizLayerConfiguration, CSV } from '@/Globals'
+import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import globalStore from '@/store'
 
 const d3 = Object.assign({}, d3sc, d3color) as any
@@ -70,7 +70,7 @@ export type ColorDefinition = {
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: CSV }
+  @Prop() datasets!: { [id: string]: DataTable }
 
   private simpleColors = this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
 
@@ -96,25 +96,22 @@ export default class VueComponent extends Vue {
   private selectedColor: Ramp = this.colorChoices[0]
   private selectedSingleColor = this.simpleColors[0]
 
-  private datasetLabels = [] as string[]
+  private datasetLabels: string[] = []
 
   private mounted() {
-    this.datasetsAreLoaded()
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
+    this.datasetsAreLoaded()
   }
 
   @Watch('datasets')
   private datasetsAreLoaded() {
-    console.log('COLORS GOT THE DATSSET')
-
-    const keys = Object.keys(this.datasets)
-    if (keys.length) {
-      const column = this.datasets[keys[0]].header[0]
-      console.log(column)
-      if (column) this.dataColumn = `${keys[0]}/${column}`
+    const datasetIds = Object.keys(this.datasets)
+    if (datasetIds.length) {
+      const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
+      console.log(secondColumn)
+      if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
-    this.datasetLabels = keys
-    console.log(this.dataColumn)
+    this.datasetLabels = datasetIds
   }
 
   @Watch('flip')
@@ -122,7 +119,6 @@ export default class VueComponent extends Vue {
   @Watch('dataColumn')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
-    // console.log('picked', this.steps, this.flip, this.dataColumn)
     const slash = this.dataColumn.indexOf('/')
 
     if (slash === -1) {
@@ -161,9 +157,14 @@ export default class VueComponent extends Vue {
     return this.datasetLabels
   }
 
-  private columnsInDataset(key: string): string[] {
-    if (!this.datasets[key]) return []
-    return this.datasets[key].header
+  private columnsInDataset(datasetId: string): string[] {
+    const dataset = this.datasets[datasetId]
+    if (!dataset) return []
+    const allColumns = Object.keys(dataset).filter(
+      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+    )
+
+    return allColumns
   }
 
   private pickColor(colorRamp: Ramp) {

@@ -6,10 +6,8 @@
   .plot-container(v-if="!thumbnail")
     link-gl-layer.map-area(
         :links="geojsonData"
-        :base="csvBase"
-        :baseData="baseData"
         :build="csvData"
-        :buildData="buildData"
+        :base="csvBase"
         :colors="generatedColors"
         :widths="csvWidth"
         :dark="isDarkMode"
@@ -37,7 +35,7 @@
       .status-message(v-if="myState.statusMessage")
         p {{ myState.statusMessage }}
 
-      .panel-items(v-show="csvWidth.activeColumn > -1")
+      .panel-items(v-show="csvWidth.activeColumn")
 
         //- button/dropdown for selecting column
         .panel-item.config-section
@@ -54,7 +52,7 @@
           )
 
         //- DIFF checkbox
-        .panel-item.diff-section(v-if="csvBase.header.length")
+        .panel-item.diff-section(v-if="csvBase.dataTable._LINK_OFFSET_")
           toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
             :color="{checked: '#4b7cc4', unchecked: '#222'}"
             @change="showDiffs = !showDiffs")
@@ -97,7 +95,7 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { CSV } from '@/Globals'
+import { DataTableColumn, DataTable, DataType, LookupDataset } from '@/Globals'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import TimeSlider from './TimeSlider.vue'
 // import FilterPanel from './BadFilterPanel.vue'
@@ -108,7 +106,7 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import GzipFetcher from '@/workers/GzipFetcher.worker.ts?worker'
+import DataFetcher from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import {
@@ -123,6 +121,8 @@ import {
 import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
+
+const LOOKUP_COLUMN = '_LINK_OFFSET_'
 
 @Component({
   i18n,
@@ -162,7 +162,7 @@ class MyPlugin extends Vue {
     sum: false,
   }
 
-  private datasets: { [id: string]: CSV } = {}
+  private datasets: { [id: string]: DataTable } = {}
 
   private isButtonActiveColumn = false
 
@@ -187,27 +187,9 @@ class MyPlugin extends Vue {
     thumbnail: false,
   }
 
-  private csvData: CSV = {
-    header: [],
-    headerMax: [],
-    rows: [] as Float32Array[],
-    activeColumn: -1,
-  }
-  private csvBase: CSV = {
-    header: [],
-    headerMax: [],
-    rows: [] as Float32Array[],
-    activeColumn: -1,
-  }
-  private csvWidth: CSV = {
-    header: [],
-    headerMax: [],
-    rows: [] as Float32Array[],
-    activeColumn: -1,
-  }
-
-  private buildData: Float32Array = new Float32Array()
-  private baseData: Float32Array = new Float32Array()
+  private csvData: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
+  private csvBase: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
+  private csvWidth: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
 
   private linkOffsetLookup: { [id: string]: number } = {}
   private numLinks = 0
@@ -325,13 +307,14 @@ class MyPlugin extends Vue {
   }
 
   private get buttonTitle() {
-    if (this.csvData.activeColumn === -1) return 'Loading...'
-    return this.csvData.header[this.csvData.activeColumn]
+    return this.csvData.activeColumn || 'Loading...'
   }
 
   private clickedColorRamp(color: string) {
     // this.selectedColorRamp = color
   }
+
+  private totalVizConfiguration: any = {}
 
   private handleVizConfigurationChanged(props: {
     color?: ColorDefinition
@@ -339,6 +322,9 @@ class MyPlugin extends Vue {
     dataset?: DatasetDefinition
   }) {
     console.log({ props })
+
+    this.totalVizConfiguration = Object.assign(this.totalVizConfiguration, props)
+    console.log({ totalVizConf: this.totalVizConfiguration })
 
     if (props['color']) this.handleNewColor(props.color)
     if (props['width']) this.handleNewWidth(props.width)
@@ -360,7 +346,8 @@ class MyPlugin extends Vue {
   }
 
   private handleScaleWidthChanged(value: number) {
-    this.scaleWidth = value
+    // TODO
+    // this.scaleWidth = value
   }
 
   private handleNewWidth(width: WidthDefinition) {
@@ -369,34 +356,23 @@ class MyPlugin extends Vue {
 
     if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
 
-    const selectedDataset = dataset ? this.datasets[dataset] : this.csvWidth
+    const selectedDataset = dataset ? this.datasets[dataset] : null // : this.csvWidth
     if (!selectedDataset) return
 
-    if (this.csvWidth !== selectedDataset) {
-      this.csvWidth = selectedDataset
-      this.csvWidth.activeColumn = -1
-    }
+    // if (this.csvWidth !== selectedDataset) {
+    //   this.csvWidth = selectedDataset
+    //   this.csvWidth.activeColumn = -1
+    // }
 
-    const column = selectedDataset.header.indexOf(columnName)
-    if (column === -1) return
-
-    this.myState.statusMessage = 'Calculating...'
-
-    // // find max value for scaling
-    if (!selectedDataset.headerMax[column]) {
-      let max = -Infinity
-      const dataColumn = selectedDataset.rows[column]
-      dataColumn.forEach(value => {
-        max = Math.max(max, value)
-      })
-      if (max) selectedDataset.headerMax[column] = max
-    }
-
-    this.csvWidth.activeColumn = column
-    this.myState.statusMessage = ''
+    const dataColumn = selectedDataset[columnName]
+    if (!dataColumn) return
 
     // Tell Vue we have new data
-    this.csvWidth = Object.assign({}, this.csvWidth)
+    this.csvWidth = {
+      dataTable: selectedDataset,
+      activeColumn: columnName,
+      joinColumn: LOOKUP_COLUMN,
+    }
   }
 
   private handleNewColor(color: ColorDefinition) {
@@ -404,7 +380,7 @@ class MyPlugin extends Vue {
 
     const columnName = color.columnName
     if (!columnName) {
-      this.csvData.activeColumn = -1
+      // this.csvData.activeColumn = ''
       return
     }
 
@@ -414,35 +390,22 @@ class MyPlugin extends Vue {
 
     console.log(datasetKey, columnName)
 
-    if (this.csvData !== selectedDataset) {
-      this.csvData = selectedDataset
-      this.csvData.activeColumn = -1
+    if (this.csvData.dataTable !== selectedDataset) {
+      this.csvData = {
+        dataTable: selectedDataset,
+        activeColumn: '',
+        joinColumn: LOOKUP_COLUMN,
+      }
     }
 
-    const column = this.csvData.header.indexOf(columnName)
-    if (column === -1) return
-    if (column === this.csvData.activeColumn) return
+    const column = this.csvData.dataTable[columnName]
+    if (!column) return
+    // if (column === this.csvData.activeColumn) return
 
-    this.myState.statusMessage = 'Calculating...'
-
-    // // find max value for scaling
-    if (!this.csvData.headerMax[column]) {
-      let max = -Infinity
-      const dataColumn = this.csvData.rows[column]
-      dataColumn.forEach(value => {
-        max = Math.max(max, value)
-      })
-      if (max) this.csvData.headerMax[column] = max
-    }
-
-    this.buildData = this.csvData.rows[column]
-    this.baseData = this.csvBase.rows[column]
-
-    this.csvData.activeColumn = column
-    this.csvBase.activeColumn = column
+    this.csvData.activeColumn = column.name
+    this.csvBase.activeColumn = column.name
 
     this.isButtonActiveColumn = false
-    this.myState.statusMessage = ''
   }
 
   private async setMapCenter() {
@@ -500,7 +463,6 @@ class MyPlugin extends Vue {
     }
 
     this.loadEverything()
-    // this.loadGeojsonFeatures()
   }
 
   private async loadEverything() {
@@ -556,61 +518,33 @@ class MyPlugin extends Vue {
     this.$store.commit('setFullScreen', false)
   }
 
-  private handleClickColumnSelector() {
-    console.log('click!')
-    this.isButtonActiveColumn = !this.isButtonActiveColumn
-  }
-
   private handleNewDataset(props: DatasetDefinition) {
     console.log('NEW dataset', props)
+    const { key, dataTable } = props
 
-    const { key, header, rows } = props
-
-    // an array containing a separate Float32Array for each CSV column
-    const allLinks: any[] = []
-    const numColumns = header.length - (this.vizDetails.useSlider ? 0 : 1)
-
-    for (let i = 0; i < numColumns; i++) {
-      allLinks.push(new Float32Array(this.numLinks))
+    // Create a LOOKUP column which links this CSV data to the network links
+    const joinColumn: DataTableColumn = {
+      name: LOOKUP_COLUMN,
+      type: DataType.LOOKUP,
+      values: [],
     }
 
-    let globalMax = 0
+    // For now we assume the 1st column always has the link ID
+    const columnNames = Object.keys(dataTable)
+    const assumedLinkIdIsFirstColumn = columnNames[0]
+    const linkIdColumn = dataTable[assumedLinkIdIsFirstColumn]
 
-    const assumeLinkIdIsFirstColumn = header[0]
-    const allColumnsExceptLinkId = header.slice(1)
-
-    for (const link of rows) {
-      // get array offset, or skip if this link isn't in the network!
-      const offset = this.linkOffsetLookup[link[assumeLinkIdIsFirstColumn].toString()]
-      if (offset === undefined) continue
-
-      if (this.vizDetails.useSlider) {
-        delete link[assumeLinkIdIsFirstColumn] // skip first column (contains link-id)
-        const entries = Object.values(link) as number[]
-        const total = entries.reduce((a: number, b: number) => a + b, 0)
-
-        globalMax = Math.max(globalMax, total)
-        allLinks[0][offset] = total // total comes first
-        allColumnsExceptLinkId.forEach((columnName: string, i: number) => {
-          allLinks[i + 1][offset] = link[columnName]
-        })
-      } else {
-        allColumnsExceptLinkId.forEach((columnName: string, i: number) => {
-          allLinks[i][offset] = link[columnName]
-        })
-      }
+    // do the lookup
+    for (let i = 0; i < linkIdColumn.values.length; i++) {
+      joinColumn.values[i] = this.linkOffsetLookup[linkIdColumn.values[i]]
     }
 
-    const details: CSV = {
-      header,
-      headerMax: this.vizDetails.useSlider ? new Array(props.header.length).fill(0) : [],
-      rows: allLinks,
-      activeColumn: -1,
-    }
-
-    this.datasets = Object.assign({}, this.datasets, { [key]: details })
+    // add the join column to the CSV dataset
+    dataTable[LOOKUP_COLUMN] = joinColumn
+    this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
     this.handleDatasetisLoaded(key)
-    // console.log({ datasets: this.datasets })
+
+    console.log({ datasets: this.datasets })
   }
 
   private loadCSVFiles() {
@@ -626,84 +560,79 @@ class MyPlugin extends Vue {
     // Papaparse will call finishedLoadingCSV() for each when it's done loading & parsing
     const datasetsToLoad = Object.entries(this.vizDetails.datasets)
 
-    if (!datasetsToLoad.length) {
-      this.csvData.rows = [new Float32Array(Object.keys(this.linkOffsetLookup).length).fill(1)]
-      this.buildData = this.csvData.rows[0]
-      this.myState.statusMessage = ''
-      this.isDataLoaded = true
-    }
-
-    for (const [key, filename] of datasetsToLoad) {
-      this.loadOneCSVFile(key, filename)
+    if (datasetsToLoad.length) {
+      for (const [key, filename] of datasetsToLoad) {
+        this.loadOneCSVFile(key, filename)
+      }
+    } else {
+      this.showSimpleNetworkWithNoDatasets()
     }
   }
 
-  private async finishedLoadingCSV(key: string, parsed: any) {
+  private showSimpleNetworkWithNoDatasets() {
+    // no datasets; we are just showing the bare network
+    this.csvData = {
+      dataTable: {
+        [LOOKUP_COLUMN]: {
+          name: LOOKUP_COLUMN,
+          type: DataType.LOOKUP,
+          values: [],
+        },
+      },
+      activeColumn: LOOKUP_COLUMN,
+      joinColumn: LOOKUP_COLUMN,
+    }
+
+    // there is no range(maxValue) in Javascript! :-(
+    const length = Object.keys(this.linkOffsetLookup).length
+    const lookup = [...Array(length).keys()]
+    this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
+
+    this.myState.statusMessage = ''
+    this.isDataLoaded = true
+  }
+
+  private async finishedLoadingCSV(key: string, dataTable: DataTable) {
     console.log('loaded', key)
     this.myState.statusMessage = 'Analyzing...'
 
-    // an array containing a separate Float32Array for each CSV column
-    const allLinks: Float32Array[] = []
-    const numColumns = parsed.data[0].length - (this.vizDetails.useSlider ? 0 : 1)
+    // const rowZero = parsed.data[0] as string[]
+    // const header = rowZero.slice(1) // skip first column with link id's
+    // if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
 
-    for (let i = 0; i < numColumns; i++) {
-      allLinks.push(new Float32Array(this.numLinks))
-    }
+    // const details: DataTable = {
+    //   allLinks
+    //   headerMax: this.vizDetails.useSlider ? new Array(header.length).fill(globalMax) : [],
+    //   rows: allLinks,
+    //   activeColumn: -1,
+    // }
 
-    let globalMax = 0
-
-    for (const link of parsed.data.splice(1)) {
-      // get array offset, or skip if this link isn't in the network!
-      const offset = this.linkOffsetLookup[link[0].toString()]
-      if (offset === undefined) continue
-
-      if (this.vizDetails.useSlider) {
-        const entries = link.slice(1) // skip first element (contains link-id)
-        const total = entries.reduce((a: number, b: number) => a + b, 0)
-
-        globalMax = Math.max(globalMax, total)
-        allLinks[0][offset] = total // total comes first
-        entries.forEach((value: number, i: number) => {
-          allLinks[i + 1][offset] = value
-        })
-      } else {
-        const entries = link.slice(1) // skip first element (contains link-id)
-        entries.forEach((value: number, i: number) => {
-          allLinks[i][offset] = value
-        })
-      }
-    }
-
-    const rowZero = parsed.data[0] as string[]
-    const header = rowZero.slice(1) // skip first column with link id's
-    if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
-
-    //  "8 AM" is a lot narrower than "08:00:00"
-    // const cleanHeaders = header.map(h => h.replace(':00:00', ''))
-
-    const details: CSV = {
-      header,
-      headerMax: this.vizDetails.useSlider ? new Array(header.length).fill(globalMax) : [],
-      rows: allLinks,
-      activeColumn: -1,
-    }
-
-    // Where to save this data?
-    this.datasets = Object.assign({}, this.datasets, { [key]: details })
-    this.handleDatasetisLoaded(key)
+    this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
+    this.handleNewDataset({ key, dataTable })
   }
 
-  private handleDatasetisLoaded(key: string) {
+  private handleDatasetisLoaded(datasetId: string) {
     const datasetKeys = Object.keys(this.datasets)
+
+    //TODO: WHAT SHOULD ACTIVECOLUMN BE
 
     // first dataset
     if (datasetKeys.length === 1) {
-      this.csvData = this.datasets[key]
+      const firstColumnName = Object.values(this.datasets[datasetId])[0].name
+      this.csvData = {
+        dataTable: this.datasets[datasetId],
+        activeColumn: firstColumnName,
+        joinColumn: LOOKUP_COLUMN,
+      }
     }
 
     // base dataset
-    if (key === 'csvBase' || key === 'base') {
-      this.csvBase = this.datasets[key]
+    if (datasetId === 'csvBase' || datasetId === 'base') {
+      this.csvBase = {
+        dataTable: this.datasets[datasetId],
+        activeColumn: '',
+        joinColumn: LOOKUP_COLUMN,
+      }
       this.showDiffs = true
     }
 
@@ -715,49 +644,32 @@ class MyPlugin extends Vue {
     }
   }
 
-  private loadOneCSVFile(key: string, filename: string) {
+  private async loadOneCSVFile(key: string, filename: string) {
     if (!this.myState.fileApi) return
 
-    const csvFilename = `${this.myState.subfolder}/${filename}`
+    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
 
-    const worker = new GzipFetcher() as Worker
-    worker.onmessage = (buffer: MessageEvent) => {
+    const thread = new Promise<DataTable>((resolve, reject) => {
+      const worker = new DataFetcher() as Worker
       try {
-        if (buffer.data.error) {
-          this.myState.statusMessage = buffer.data.error
-          this.$store.commit('setStatus', {
-            type: Status.ERROR,
-            msg: `Error loading: ${csvFilename}`,
-          })
+        worker.onmessage = e => {
+          worker.terminate()
+          resolve(e.data)
         }
-        const buf = buffer.data
-        const decoder = new TextDecoder('utf-8')
-        const text = decoder.decode(buf)
-
-        Papaparse.parse(text, {
-          // preview: 10000,
-          header: false,
-          skipEmptyLines: true,
-          dynamicTyping: true,
-          worker: true,
-          complete: output => this.finishedLoadingCSV(key, output),
+        worker.postMessage({
+          fileSystemConfig: this.myState.fileSystem,
+          subfolder: this.myState.subfolder,
+          files: files,
+          config: { dataset: filename },
         })
-      } catch (e) {
-        console.error(e)
-
-        this.$store.commit('setStatus', {
-          type: Status.WARNING,
-          msg: `Error loading dataset: ${this.myState.subfolder}/${filename}`,
-        })
-
-        return { allColumns: [], header: [], headerMax: [] }
+      } catch (err) {
+        worker.terminate()
+        reject(err)
       }
-    }
-
-    worker.postMessage({
-      filePath: csvFilename,
-      fileSystem: this.myState.fileSystem,
     })
+
+    const dataTable = await thread
+    this.finishedLoadingCSV(key, dataTable)
   }
 
   private changedTimeSlider(value: any) {
