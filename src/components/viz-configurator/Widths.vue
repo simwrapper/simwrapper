@@ -4,7 +4,7 @@
     .widget
         b-select.selector(expanded v-model="dataColumn")
           option(label="None" value="")
-          optgroup(v-for="dataset in datasetChoices()"
+          optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
@@ -54,6 +54,16 @@ export default class VueComponent extends Vue {
     this.datasetsAreLoaded()
   }
 
+  @Watch('vizConfiguration')
+  private vizConfigChanged() {
+    const config = this.vizConfiguration.display?.width
+    if (config?.columnName) {
+      const selectedColumn = `${config.dataset}/${config.columnName}`
+      this.dataColumn = selectedColumn
+      this.datasetLabels = [...this.datasetLabels]
+    }
+  }
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
@@ -98,7 +108,7 @@ export default class VueComponent extends Vue {
     setTimeout(() => this.$emit('update', { width }), 50)
   }
 
-  private datasetChoices(): string[] {
+  private get datasetChoices(): string[] {
     return this.datasetLabels
   }
 

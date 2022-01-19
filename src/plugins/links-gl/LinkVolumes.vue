@@ -20,11 +20,11 @@
     drawing-tool(v-if="!thumbnail")
 
     viz-configurator(v-if="!thumbnail && isDataLoaded"
-      :config="vizDetails"
+      :vizDetails="vizDetails"
       :datasets="datasets"
       :fileSystem="myState.fileSystem"
       :subfolder="myState.subfolder"
-      @update="handleVizConfigurationChanged")
+      @update="changeConfiguration")
 
     .top-panel(v-if="vizDetails.title")
       .panel-item
@@ -40,15 +40,13 @@
         //- button/dropdown for selecting column
         .panel-item.config-section
           selector-panel(
+            :vizDetails="vizDetails"
             :csvData="csvWidth"
-            :activeColumn="csvWidth.activeColumn"
             :scaleWidth="scaleWidth"
-            :useSlider="vizDetails.useSlider"
             :showDiffs="showDiffs"
             @colors="clickedColorRamp"
             @column="handleNewDataColumn"
             @slider="handleNewDataColumn"
-            @scale="handleScaleWidthChanged"
           )
 
         //- DIFF checkbox
@@ -145,6 +143,8 @@ class MyPlugin extends Vue {
   @Prop({ required: false }) config!: any
   @Prop({ required: false }) thumbnail!: boolean
 
+  // this contains the display settings for this view; it is the View Model.
+  // use changeConfiguration to modify this for now (todo: move to state model)
   private vizDetails = {
     title: '',
     description: '',
@@ -160,6 +160,10 @@ class MyPlugin extends Vue {
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
+    display: {
+      color: {} as any,
+      width: {} as any,
+    },
   }
 
   private datasets: { [id: string]: DataTable } = {}
@@ -222,22 +226,27 @@ class MyPlugin extends Vue {
   private async getVizDetails() {
     const filename = this.myState.yamlConfig
 
+    const emptyState = {
+      datasets: {} as any,
+      display: { color: {} as any, width: {} as any },
+    }
+
     // are we in a dashboard?
     if (this.config) {
-      this.vizDetails = Object.assign({}, this.config)
+      this.vizDetails = Object.assign({}, emptyState, this.config)
       return
     }
 
     // was a YAML file was passed in?
     if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-      this.vizDetails = await this.loadYamlConfig()
+      this.vizDetails = Object.assign({}, emptyState, await this.loadYamlConfig())
     }
 
     // is this a bare network file? - build vizDetails manually
     if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
       const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
 
-      this.vizDetails = Object.assign(this.vizDetails, {
+      this.vizDetails = Object.assign({}, this.vizDetails, {
         network: this.myState.yamlConfig,
         title,
         description: this.myState.subfolder,
@@ -314,21 +323,36 @@ class MyPlugin extends Vue {
     // this.selectedColorRamp = color
   }
 
-  private totalVizConfiguration: any = {}
-
-  private handleVizConfigurationChanged(props: {
+  /**
+   * changeConfiguration: is the main entry point for changing the viz model.
+   * anything that wants to change colors, widths, data, anthing like that
+   * should all pass through this function so the underlying data model
+   * is modified properly.
+   */
+  private changeConfiguration(props: {
     color?: ColorDefinition
     width?: WidthDefinition
     dataset?: DatasetDefinition
   }) {
     console.log({ props })
 
-    this.totalVizConfiguration = Object.assign(this.totalVizConfiguration, props)
-    console.log({ totalVizConf: this.totalVizConfiguration })
-
-    if (props['color']) this.handleNewColor(props.color)
-    if (props['width']) this.handleNewWidth(props.width)
-    if (props['dataset']) this.handleNewDataset(props.dataset)
+    if (props['color']) {
+      if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
+      this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.display.color = props.color
+      this.handleNewColor(props.color)
+    }
+    if (props['width']) {
+      if (JSON.stringify(props.width) === JSON.stringify(this.vizDetails.display.width)) return
+      this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.display.width = props.width
+      this.handleNewWidth(props.width)
+    }
+    if (props['dataset']) {
+      // vizdetails just had the string name, whereas props.dataset contains
+      // a fully-build DatasetDefinition, so let's just handle that
+      this.handleNewDataset(props.dataset)
+    }
   }
 
   private handleNewFilter(columns: number[]) {
@@ -345,24 +369,20 @@ class MyPlugin extends Vue {
     // }, 150)
   }
 
-  private handleScaleWidthChanged(value: number) {
-    // TODO
-    // this.scaleWidth = value
-  }
-
   private handleNewWidth(width: WidthDefinition) {
+    console.log({ width })
     const { columnName, dataset, scaleFactor } = width
     if (!columnName) return
 
     if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
 
-    const selectedDataset = dataset ? this.datasets[dataset] : null // : this.csvWidth
+    const selectedDataset = dataset ? this.datasets[dataset] : this.csvWidth.dataTable
     if (!selectedDataset) return
 
-    // if (this.csvWidth !== selectedDataset) {
-    //   this.csvWidth = selectedDataset
-    //   this.csvWidth.activeColumn = -1
-    // }
+    if (this.csvWidth.dataTable !== selectedDataset) {
+      this.csvWidth.dataTable = selectedDataset
+      this.csvWidth.activeColumn = ''
+    }
 
     const dataColumn = selectedDataset[columnName]
     if (!dataColumn) return
@@ -672,17 +692,12 @@ class MyPlugin extends Vue {
     this.finishedLoadingCSV(key, dataTable)
   }
 
-  private changedTimeSlider(value: any) {
-    if (value.length && value.length === 1) value = value[0]
-
-    // this.handleNewDataColumn(value)
-  }
-
   private handleNewDataColumn(columnName: any) {
     console.log(columnName)
 
-    const def: WidthDefinition = { columnName }
-    this.handleNewWidth(def)
+    const width: WidthDefinition = { ...this.vizDetails.display.width }
+    width.columnName = columnName
+    this.changeConfiguration({ width })
   }
 }
 

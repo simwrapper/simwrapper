@@ -37,26 +37,19 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import { VizLayerConfiguration } from '@/Globals'
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import WidthPanel from './Widths.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-type Configurator = {
-  network?: string
-  csvFile?: string
-}
-
 @Component({ components: { AddDatasetsPanel, ColorPanel, WidthPanel }, props: {} })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) config!: any
-  @Prop({ required: true }) datasets!: any
+  @Prop({ required: true }) vizDetails!: any
+  @Prop({ required: true }) datasets: any
   @Prop({ required: true }) fileSystem!: HTTPFileSystem
   @Prop({ required: true }) subfolder!: string
 
   private showPanels = true
-
   private activeSection = 'color'
 
   private sections = [
@@ -64,12 +57,21 @@ export default class VueComponent extends Vue {
     { component: 'WidthPanel', name: 'width' },
     // { component: '', name: 'labels' },
   ]
-  private vizConfiguration: VizLayerConfiguration = {
-    datasets: {},
-    display: {
-      color: {},
-      width: {},
-    },
+
+  // @Watch('vizDetails') modelChanged() {
+  //   // console.log('NEW VIZMODEL', this.vizDetails)
+  // }
+
+  // @Watch('datasets') datasetsChanged() {
+  //   // console.log('NEW DATASETS', this.datasets)
+  // }
+
+  // private mounted() {
+  //   this.buildConfiguration()
+  // }
+
+  private get vizConfiguration() {
+    return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
   }
 
   private get fidgetSections() {
@@ -91,24 +93,19 @@ export default class VueComponent extends Vue {
     this.$emit('update', props)
   }
 
-  private mounted() {
-    this.buildConfiguration()
-  }
-
   private buildConfiguration() {
     // get all data sources in config file
-    if (this.config['datasets']) {
-      this.vizConfiguration.datasets = Object.assign({}, this.config.datasets)
-    }
-    for (const key of ['csvFile', 'csvBase']) {
-      if (this.config[key]) this.vizConfiguration.datasets[key] = this.config[key]
-    }
-
-    // make copy of display section too
-    if (this.config['display']) {
-      this.vizConfiguration.display = Object.assign({}, this.config.dis)
-    }
-    this.vizConfiguration = Object.assign({}, this.vizConfiguration)
+    // if (this.config['datasets']) {
+    //   this.vizConfiguration.datasets = { ...this.config.datasets }
+    // }
+    // for (const key of ['csvFile', 'csvBase']) {
+    //   if (this.config[key]) this.vizConfiguration.datasets[key] = this.config[key]
+    // }
+    // // make copy of display section too
+    // if (this.config['display']) {
+    //   this.vizConfiguration.display = Object.assign({}, this.config.dis)
+    // }
+    // this.vizConfiguration = Object.assign({}, this.vizConfiguration)
   }
 
   private layer = {

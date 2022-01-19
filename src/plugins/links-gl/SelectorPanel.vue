@@ -2,28 +2,28 @@
 .config-panel
 
   //- time-of-day slider
-  .panel-item.expand(v-if="useSlider && activeColumn > -1")
+  .panel-item.expand(v-if="vizDetails.useSlider && activeColumn")
     p: b {{ $t('timeOfDay') }}:
-       | &nbsp; {{ csvData.header[activeColumn] }}
+       | &nbsp; {{ activeColumn }}
 
     //- button.button.full-width.is-warning.is-loading(v-if="activeColumn < 0"
     //-       aria-haspopup="true" aria-controls="dropdown-menu-column-selector")
 
     time-slider.time-slider(
       :useRange='false'
-      :stops="csvData.header"
-      :dropdownValue="csvData.header[activeColumn]"
+      :stops="getColumns()"
+      :dropdownValue="activeColumn"
       @change='handleTimeSliderChanged')
 
 
   //- Column picker  -- if no slider
-  .panel-item(v-if="!useSlider")
+  .panel-item(v-if="!vizDetails.useSlider")
     p: b {{ $t('selectColumn') }}
 
     .dropdown.is-up.full-width(:class="{'is-active': isButtonActive}")
       .dropdown-trigger
         button.full-width.is-warning.button(
-          :class="{'is-loading': activeColumn < 0}"
+          :class="{'is-loading': !activeColumn}"
           aria-haspopup="true" aria-controls="dropdown-menu-column-selector"
           @click="handleClickDropdown"
         )
@@ -33,7 +33,7 @@
 
       #dropdown-menu-column-selector.dropdown-menu(role="menu" :style="{'max-height':'24rem', 'overflow-y': 'auto', 'border': '1px solid #ccc'}")
         .dropdown-content
-          a.dropdown-item(v-for="column in csvData.header"
+          a.dropdown-item(v-for="column in getColumns()"
               @click="handleSelectColumn(column)") {{ column }}
 
 </template>
@@ -63,7 +63,7 @@ import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
-import { ColorScheme, DataTable } from '@/Globals'
+import { ColorScheme, DataTable, DataType, LookupDataset } from '@/Globals'
 
 import imgViridis from '/colors/scale-viridis.png'
 import imgInferno from '/colors/scale-inferno.png'
@@ -72,25 +72,28 @@ import imgPicnic from '/colors/scale-picnic.png'
 
 @Component({ i18n, components: { TimeSlider } })
 export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private scaleWidth!: number
-
-  @Prop({ required: true })
-  private activeColumn!: string
-
-  @Prop({ required: true })
-  private showDiffs!: boolean
-
-  @Prop({ required: true })
-  private csvData!: DataTable
-
-  @Prop({ required: true })
-  private useSlider!: boolean
+  @Prop({ required: true }) private csvData!: LookupDataset
+  @Prop({ required: true }) private scaleWidth!: number
+  @Prop({ required: true }) private showDiffs!: boolean
+  @Prop({ required: true }) private vizDetails!: { useSlider: boolean }
 
   private isButtonActive = false
   private isColorButtonActive = false
 
   private scaleWidthValue = ''
+
+  private get activeColumn() {
+    return this.csvData.activeColumn
+  }
+
+  private getColumns() {
+    // TODO: drop first column always: it's the link-id...
+    const columns = Object.values(this.csvData.dataTable)
+      .slice(1)
+      .filter(f => f.type !== DataType.LOOKUP && !f.name.startsWith('_'))
+      .map(f => f.name)
+    return columns
+  }
 
   private globalState = globalStore.state
   private isDarkMode = globalStore.state.isDarkMode
@@ -228,10 +231,6 @@ input {
 
 .expand {
   flex: 1;
-}
-
-.vert-space {
-  // margin-top: 4rem;
 }
 
 .time-slider {
