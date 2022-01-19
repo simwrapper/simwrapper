@@ -42,14 +42,14 @@
 const i18n = {
   messages: {
     en: {
-      selectColumn: 'Select data column',
+      selectColumn: 'Width data column',
       loading: 'Loading...',
       bandwidths: 'Widths: 1 pixel =:',
       timeOfDay: 'Time of day',
       colors: 'Colors',
     },
     de: {
-      selectColumn: 'Datenspalte wählen',
+      selectColumn: 'Width data column',
       loading: 'Laden...',
       bandwidths: 'Linienbreiten: 1 pixel =:',
       timeOfDay: 'Uhrzeit',

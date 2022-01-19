@@ -186,10 +186,10 @@ $secTextColor: #6f6f6f;
   margin-top: 0rem;
   margin-right: 0.5rem;
   background-color: var(--bgPanel2);
-  // border: 1px solid #ddd;
+  border: 1px solid var(--bgBold);
   border-radius: 4px;
-  box-shadow: 0px 0px 10px 3px #22222280;
-  filter: $filterShadow;
+  box-shadow: 0px 0px 10px 3px #22222240;
+  // filter: $filterShadow;
 }
 
 .widgets {

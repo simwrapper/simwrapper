@@ -338,13 +338,13 @@ class MyPlugin extends Vue {
     console.log({ props })
 
     if (props['color']) {
-      if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
+      // if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.vizDetails.display.color = props.color
       this.handleNewColor(props.color)
     }
     if (props['width']) {
-      if (JSON.stringify(props.width) === JSON.stringify(this.vizDetails.display.width)) return
+      // if (JSON.stringify(props.width) === JSON.stringify(this.vizDetails.display.width)) return
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.vizDetails.display.width = props.width
       this.handleNewWidth(props.width)
@@ -382,7 +382,7 @@ class MyPlugin extends Vue {
 
     if (this.csvWidth.dataTable !== selectedDataset) {
       this.csvWidth.dataTable = selectedDataset
-      this.csvWidth.activeColumn = ''
+      this.csvWidth.activeColumn = columnName
     }
 
     const dataColumn = selectedDataset[columnName]
@@ -476,17 +476,14 @@ class MyPlugin extends Vue {
     await this.getVizDetails()
 
     // default width is 250, why not
-    this.scaleWidth = this.vizDetails.widthFactor === undefined ? 250 : this.vizDetails.widthFactor
+    this.scaleWidth = this.vizDetails.display?.width?.widthFactor || 250
 
     if (this.thumbnail) {
       this.buildThumbnail()
       return
     }
 
-    this.loadEverything()
-  }
-
-  private async loadEverything() {
+    // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
   }
 
@@ -635,15 +632,16 @@ class MyPlugin extends Vue {
   private handleDatasetisLoaded(datasetId: string) {
     const datasetKeys = Object.keys(this.datasets)
 
-    //TODO: WHAT SHOULD ACTIVECOLUMN BE
-
     // first dataset
     if (datasetKeys.length === 1) {
-      const firstColumnName = Object.values(this.datasets[datasetId])[0].name
-      this.csvData = {
-        dataTable: this.datasets[datasetId],
-        activeColumn: firstColumnName,
-        joinColumn: LOOKUP_COLUMN,
+      // set a default view, if user didn't pass anything in
+      if (!this.vizDetails.display.color && !this.vizDetails.display.width) {
+        const firstColumnName = Object.values(this.datasets[datasetId])[0].name
+        this.csvData = {
+          dataTable: this.datasets[datasetId],
+          activeColumn: firstColumnName,
+          joinColumn: LOOKUP_COLUMN,
+        }
       }
     }
 

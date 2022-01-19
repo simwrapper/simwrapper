@@ -205,8 +205,8 @@ export default function Component({
       getWidth: [showDiffs, scaleWidth, widths],
     },
     transitions: {
-      getColor: 350,
-      getWidth: 350,
+      getColor: 200,
+      getWidth: 200,
     },
     parameters: {
       depthTest: false,

@@ -58,9 +58,14 @@ enum style {
   sequential,
 }
 
-type Ramp = { ramp: string; style: style; reverse?: boolean }
+interface Ramp {
+  ramp: string
+  style: style
+  reverse?: boolean
+  steps?: number
+}
 
-export type ColorDefinition = {
+export interface ColorDefinition {
   dataset: string
   columnName: string
   colorRamp?: Ramp
@@ -90,7 +95,7 @@ export default class VueComponent extends Vue {
 
   private globalState = globalStore.state
 
-  private steps = 9
+  private steps: string = '9'
   private flip = false
   private dataColumn = ''
   private selectedColor: Ramp = this.colorChoices[0]
@@ -106,7 +111,21 @@ export default class VueComponent extends Vue {
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
-    if (datasetIds.length) {
+
+    const { dataset, columnName, colorRamp } = this.vizConfiguration.display.color
+
+    if (dataset && columnName) {
+      console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
+      this.dataColumn = `${dataset}/${columnName}`
+
+      if (colorRamp) {
+        this.selectedColor =
+          this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
+          this.colorChoices[0]
+        this.flip = !!colorRamp.reverse ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
+        if (colorRamp.steps) this.steps = '' + colorRamp.steps
+      }
+    } else if (datasetIds.length) {
       const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
       console.log(secondColumn)
       if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
@@ -128,13 +147,19 @@ export default class VueComponent extends Vue {
 
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const generatedColors = this.buildColors(this.selectedColor, this.steps)
+    const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
 
-    const color: ColorDefinition = {
+    const steps = parseInt(this.steps)
+    const color = {
       dataset,
       columnName,
-      colorRamp: this.selectedColor,
       generatedColors,
+      colorRamp: {
+        ramp: this.selectedColor.ramp,
+        style: this.selectedColor.style,
+        reverse: this.flip,
+        steps,
+      },
     }
 
     setTimeout(() => this.$emit('update', { color }), 50)
@@ -173,7 +198,7 @@ export default class VueComponent extends Vue {
   }
 
   private buildColors(scale: Ramp, count?: number): string[] {
-    let colors = [...this.ramp(scale, count || this.steps)]
+    let colors = [...this.ramp(scale, count || parseInt(this.steps))]
 
     // many reasons to flip the colorscale:
     // (1) the scale preset; (2) the checkbox (3) dark mode

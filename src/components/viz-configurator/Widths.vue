@@ -12,7 +12,7 @@
     .widget
       p Scaling
       b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0" type="number")
+        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0" type="number")
 
   //- .widgets
   //-   .widget
@@ -45,7 +45,7 @@ export default class VueComponent extends Vue {
 
   private transforms = ['none', 'sqrt', 'pow5']
   private dataColumn = ''
-  private scaleFactor = 100
+  private xscaleFactor = '100'
   private selectedTransform = this.transforms[0]
 
   private datasetLabels = [] as string[]
@@ -67,14 +67,19 @@ export default class VueComponent extends Vue {
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
-    if (datasetIds.length) {
+    const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
+    if (dataset && columnName) {
+      console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
+      this.dataColumn = `${dataset}/${columnName}`
+      if (!!scaleFactor) this.xscaleFactor = '' + scaleFactor
+    } else if (datasetIds.length) {
       const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
       if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
     this.datasetLabels = datasetIds
   }
 
-  @Watch('scaleFactor')
+  @Watch('xscaleFactor')
   @Watch('dataColumn')
   private emitWidthSpecification() {
     const slash = this.dataColumn.indexOf('/')
@@ -90,7 +95,7 @@ export default class VueComponent extends Vue {
     const width: WidthDefinition = {
       dataset,
       columnName,
-      scaleFactor: this.scaleFactor,
+      scaleFactor: parseFloat(this.xscaleFactor),
     }
 
     setTimeout(() => this.$emit('update', { width }), 50)
@@ -100,7 +105,7 @@ export default class VueComponent extends Vue {
     const width: WidthDefinition = {
       dataset: '',
       columnName: '',
-      scaleFactor: this.scaleFactor,
+      scaleFactor: parseFloat(this.xscaleFactor),
     }
 
     // the link viewer is on main thread so lets make

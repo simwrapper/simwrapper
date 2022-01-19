@@ -11,6 +11,15 @@
 
   .configuration-panels(v-show="showPanels && !showAddDatasets")
 
+    .section-panel
+      h1.actions
+        .action(@click="clickedExport")
+          i.fa.fa-sm.fa-share
+          | &nbsp;Export
+        .action(@click="clickedAddData")
+          i.fa.fa-sm.fa-plus
+          | &nbsp;Add Data
+
     .section-panel(v-for="section in sections" :key="section.name")
       h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
@@ -21,15 +30,6 @@
           :datasets="datasets"
           @update="handleConfigChanged")
         p(v-else) To be added
-
-    .section-panel
-      h1.actions
-        .action(@click="clickedExport")
-          i.fa.fa-sm.fa-share
-          | &nbsp;Export
-        .action(@click="clickedAddData")
-          i.fa.fa-sm.fa-plus
-          | &nbsp;Add Data
 
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
@@ -146,7 +146,8 @@ export default class VueComponent extends Vue {
     const filename = prompt('Export filename:', suggestedFilename)
     if (!filename) return
 
-    // make a copy so we don't screw up the viz when we edit
+    // make a copy so we don't screw up the viz when we edit, and also
+    // to put things in a specific order every time:
     const config = {
       title: this.vizDetails.title,
       description: this.vizDetails.description,
@@ -237,14 +238,13 @@ h1:hover {
   background: var(--bgPanel);
   // padding: 2px 4px 4px 4px;
   width: 16rem;
+  color: $steelGray;
   user-select: none;
   border-radius: 3px;
   pointer-events: auto;
+  margin: 0 0.5rem auto 0;
   filter: $filterShadow;
-  margin-right: 3px;
   z-index: 1050;
-  color: $steelGray;
-  margin-bottom: auto;
 }
 
 .map-actions {
