@@ -353,6 +353,7 @@ class MyPlugin extends Vue {
       // a fully-build DatasetDefinition, so let's just handle that
       this.handleNewDataset(props.dataset)
     }
+    console.log('VIZDETAILS', this.vizDetails)
   }
 
   private handleNewFilter(columns: number[]) {

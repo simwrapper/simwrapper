@@ -19,26 +19,13 @@ export default function Component({
   build = {} as LookupDataset,
   base = {} as LookupDataset,
   widths = {} as LookupDataset,
-  // buildData = new Float32Array() as Float32Array | any[],
-  // baseData = new Float32Array() as Float32Array | any[],
   showDiffs = false,
   viewId = 0,
 }) {
   // ------- draw frame begins here -----------------------------
 
   const { dataTable, activeColumn, joinColumn } = build
-  // console.log({ build })
   const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
-
-  // console.log({ buildColumn })
-
-  const globalMax = Math.max(
-    ...Object.values(dataTable).map(column => {
-      return column.max || -Infinity
-    })
-  )
-
-  // const rows = buildData
 
   // const [hoverInfo, setHoverInfo] = useState({})
   // const [pickIndex, setPickIndex] = useState(-1)
@@ -83,16 +70,11 @@ export default function Component({
     let value = dataTable[activeColumn].values[objectInfo.index]
     if (!value) return colorInvisible
 
-    // if (pickIndex > -1) console.log(feature)
-    // if (objectInfo.index === pickIndex) {
-    //   return [255, 64, 255, 255]
-    // }
-
     if (colors.length === 1) return rgbColors[0]
 
     // comparison?
     if (showDiffs) {
-      const baseValue = baseData[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
       const diff = value - baseValue
 
       if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
@@ -118,7 +100,7 @@ export default function Component({
     const value = widthValues.values[objectInfo.index]
 
     if (showDiffs) {
-      const baseValue = baseData[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
       const diff = Math.abs(value - baseValue)
       return diff / scaleWidth
     } else {
@@ -148,7 +130,7 @@ export default function Component({
         let diff = undefined
 
         if (showDiffs) {
-          baseValue = baseData[index]
+          const baseValue = base.dataTable[base.activeColumn].values[index]
           diff = value - baseValue
         } else {
           if (value === undefined) return ''
