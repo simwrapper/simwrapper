@@ -58,7 +58,7 @@ export default class VueComponent extends Vue {
   private dashboards: any = []
   private dashboardDataManager?: DashboardDataManager
 
-  private allConfigFiles!: YamlConfigs
+  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
 
   private isZoomed = false
 
@@ -85,11 +85,10 @@ export default class VueComponent extends Vue {
     if (!fsConfig) return
 
     this.fileSystemConfig = fsConfig
+    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
-
-    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     this.pageHeader = this.getPageHeader()
     // this.generateBreadcrumbs()

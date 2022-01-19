@@ -233,7 +233,7 @@ class MyComponent extends Vue {
     }
 
     const numColors = fromNodes.length
-    const colors = [...Array(numColors).keys()].map((i) => {
+    const colors = [...Array(numColors).keys()].map(i => {
       const solidColor = interpolator(i / numColors)
       const opacityColor = solidColor.replace(/rgb(.*)\)/, 'rgba$1, 0.7)')
       return opacityColor
@@ -253,8 +253,8 @@ class MyComponent extends Vue {
 
     // figure out dimensions, depending on if we are in a dashboard or not
     let box = document.querySelector(`#${this.cleanConfigId}`) as Element
-    let width = box.clientWidth
-    let height = box.clientHeight
+    let width = box ? box.clientWidth : 100
+    let height = box ? box.clientHeight : 100
 
     let labelWidth = this.thumbnail ? 60 : 125
 
