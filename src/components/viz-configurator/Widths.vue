@@ -14,17 +14,17 @@
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0" type="number")
 
-  .widgets
-    .widget
-      p Transform
-      b-field.has-addons
-        p.control(v-for="transform of transforms" :key="transform")
-          b-button.is-small(
-            :disabled="!dataColumn"
-            :class="{'is-warning': dataColumn && transform==selectedTransform}"
-            @click="selectedTransform=transform"
-            :title="dataColumn ? 'Transforms occur after scaling':'Select a data field first'"
-            ) {{ transform }}
+  //- .widgets
+  //-   .widget
+  //-     p Transform
+  //-     b-field.has-addons
+  //-       p.control(v-for="transform of transforms" :key="transform")
+  //-         b-button.is-small(
+  //-           :disabled="!dataColumn"
+  //-           :class="{'is-warning': dataColumn && transform==selectedTransform}"
+  //-           @click="selectedTransform=transform"
+  //-           :title="dataColumn ? 'Transforms occur after scaling':'Select a data field first'"
+  //-           ) {{ transform }}
 
 </template>
 

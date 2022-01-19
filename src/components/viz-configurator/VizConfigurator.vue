@@ -10,10 +10,6 @@
       i.fa.fa-sliders-h.settings-icon
 
   .configuration-panels(v-show="showPanels && !showAddDatasets")
-    .section-panel
-      h1.add-data(@click="clickedAddData")
-        i.fa.fa-sm.fa-plus
-        | &nbsp;Add Data
 
     .section-panel(v-for="section in sections" :key="section.name")
       h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
@@ -26,6 +22,15 @@
           @update="handleConfigChanged")
         p(v-else) To be added
 
+    .section-panel
+      h1.actions
+        .action(@click="clickedExport")
+          i.fa.fa-sm.fa-share
+          | &nbsp;Export
+        .action(@click="clickedAddData")
+          i.fa.fa-sm.fa-plus
+          | &nbsp;Add Data
+
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
     :fileSystem="fileSystem"
@@ -36,6 +41,7 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import YAML from 'yaml'
 
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
@@ -48,6 +54,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) datasets: any
   @Prop({ required: true }) fileSystem!: HTTPFileSystem
   @Prop({ required: true }) subfolder!: string
+  @Prop({ required: true }) yamlConfig!: string
 
   private showPanels = true
   private activeSection = 'color'
@@ -124,8 +131,55 @@ export default class VueComponent extends Vue {
   }
 
   private showAddDatasets = false
+
   private clickedAddData() {
     this.showAddDatasets = true
+  }
+
+  private clickedExport() {
+    let suggestedFilename = 'viz-links-export.yaml'
+    const configFile = this.yamlConfig.toLocaleLowerCase()
+    if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
+      suggestedFilename = this.yamlConfig
+    }
+
+    const filename = prompt('Export filename:', suggestedFilename)
+    if (!filename) return
+
+    // make a copy so we don't screw up the viz when we edit
+    const config = {
+      title: this.vizDetails.title,
+      description: this.vizDetails.description,
+      network: this.vizDetails.network || this.vizDetails.geojsonFile,
+      projection: this.vizDetails.projection,
+      sampleRate: this.vizDetails.sampleRate,
+      datasets: { ...this.vizDetails.datasets },
+      display: { ...this.vizDetails.display },
+    } as any
+
+    // remove blank values
+    for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
+    if (config.display.color) {
+      delete config.display.color?.colorRamp?.style
+      delete config.display.color?.generatedColors
+    }
+
+    const text = YAML.stringify(config, {
+      indent: 4,
+      simpleKeys: true,
+      // schema: 'yaml-1.1',
+      // version: '1.2',
+    })
+
+    var element = document.createElement('a')
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
+    element.setAttribute('download', filename)
+    element.style.display = 'none'
+    document.body.appendChild(element)
+
+    element.click()
+
+    document.body.removeChild(element)
   }
 }
 </script>
@@ -226,9 +280,24 @@ h1:hover {
   opacity: 0.75;
 }
 
-.add-data {
-  padding-right: 0.5rem;
-  text-align: right;
+.actions {
+  display: flex;
+  flex-direction: row-reverse;
+  padding: 0.1rem 1px 0.1rem 0.5rem;
+  background-color: var(--bgPanel2);
+
+  :hover {
+    color: var(--textBold);
+    background-color: var(--bgBold);
+  }
+  .action {
+    padding: 2px 8px 2px 8px;
+  }
+}
+
+.actions:hover {
+  background-color: var(--bgPanel2);
+  color: var(--link);
 }
 
 @media only screen and (max-width: 640px) {

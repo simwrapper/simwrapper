@@ -24,6 +24,7 @@
       :datasets="datasets"
       :fileSystem="myState.fileSystem"
       :subfolder="myState.subfolder"
+      :yamlConfig="yamlConfig"
       @update="changeConfiguration")
 
     .top-panel(v-if="vizDetails.title")
@@ -353,7 +354,6 @@ class MyPlugin extends Vue {
       // a fully-build DatasetDefinition, so let's just handle that
       this.handleNewDataset(props.dataset)
     }
-    console.log('VIZDETAILS', this.vizDetails)
   }
 
   private handleNewFilter(columns: number[]) {
