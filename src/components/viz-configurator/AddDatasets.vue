@@ -48,7 +48,9 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { VizLayerConfiguration, LookupDataset, FileSystemConfig, DataTable } from '@/Globals'
+import { VizLayerConfiguration, FileSystemConfig, DataTable } from '@/Globals'
+import { gUnzip } from '@/js/util'
+
 import FileSelector from './FileSelector.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
@@ -65,7 +67,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop() vizConfiguration!: VizLayerConfiguration
 
-  private validDataTypes = ['CSV', 'TSV', 'TAB', 'DBF']
+  private validDataTypes = ['CSV', 'TSV', 'TAB', 'DBF', 'GZ']
   private validRegex = /\.(CSV|TSV|TAB|DBF)(\.GZ)?$/
 
   private fileChoice = ''
@@ -114,16 +116,28 @@ export default class VueComponent extends Vue {
 
     const list = Array.from(files) as any[]
     for (const file of list) {
-      const buffer = (await this.loadDataUrl(file)) as any
-      const data = await this.processBuffer(file.name, buffer)
-      console.log(file.name, data)
+      let result = (await this.loadDataUrl(file)) as any
+      const buffer = result.buffer || result
+      const dataTable = await this.processBuffer(file.name, buffer)
+
+      // create a human-readable key for this file based on filename
+      let key = file.name
+      const pieces = this.validRegex.exec(key.toLocaleUpperCase())
+      if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
+
+      const dataset: DatasetDefinition = {
+        key,
+        dataTable,
+        filename: file,
+      }
+      this.$emit('update', { dataset })
     }
 
     this.isLoading = false
   }
 
   private async processBuffer(name: string, buffer: ArrayBuffer) {
-    return new Promise<any[]>((resolve, reject) => {
+    return new Promise<DataTable>((resolve, reject) => {
       const thread = new DataFetcherWorker()
       try {
         thread.postMessage(
@@ -149,7 +163,11 @@ export default class VueComponent extends Vue {
     const url = await new Promise(resolve => {
       const reader = new FileReader()
       reader.readAsArrayBuffer(file)
-      reader.onload = (e: any) => resolve(e.target.result)
+      reader.onload = (e: any) => {
+        const buffer = e.target.result
+        const unzipped = gUnzip(buffer)
+        resolve(unzipped)
+      }
     })
     return url
   }

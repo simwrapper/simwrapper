@@ -130,7 +130,7 @@ export default class VueComponent extends Vue {
         this.selectedColor =
           this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
           this.colorChoices[0]
-        this.flip = !!colorRamp.reverse ? !this.selectedColor.reverse : !!this.selectedColor.reverse // XOR
+        this.flip = !!colorRamp.reverse // ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
         if (colorRamp.steps) this.steps = '' + colorRamp.steps
       }
     } else if (datasetIds.length) {
