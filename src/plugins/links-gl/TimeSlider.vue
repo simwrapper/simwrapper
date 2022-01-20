@@ -10,14 +10,9 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 @Component({ components: { 'vue-slider': vueSlider } })
 export default class TimeSlider extends Vue {
-  @Prop()
-  private useRange!: false
-
-  @Prop({ required: true })
-  private stops!: any[]
-
-  @Prop({ required: false })
-  private dropdownValue!: string
+  @Prop() private useRange!: false
+  @Prop({ required: true }) private stops!: any[]
+  @Prop({ required: false }) private dropdownValue!: string
 
   private sliderValue: any = ''
 

@@ -47,7 +47,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
 
-import { VizLayerConfiguration, CSV } from '@/Globals'
+import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import globalStore from '@/store'
 
 const d3 = Object.assign({}, d3sc, d3color) as any
@@ -58,9 +58,14 @@ enum style {
   sequential,
 }
 
-type Ramp = { ramp: string; style: style; reverse?: boolean }
+interface Ramp {
+  ramp: string
+  style: style
+  reverse?: boolean
+  steps?: number
+}
 
-export type ColorDefinition = {
+export interface ColorDefinition {
   dataset: string
   columnName: string
   colorRamp?: Ramp
@@ -70,7 +75,7 @@ export type ColorDefinition = {
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: CSV }
+  @Prop() datasets!: { [id: string]: DataTable }
 
   private simpleColors = this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
 
@@ -90,23 +95,42 @@ export default class VueComponent extends Vue {
 
   private globalState = globalStore.state
 
-  private steps = 9
+  private steps: string = '9'
   private flip = false
   private dataColumn = ''
   private selectedColor: Ramp = this.colorChoices[0]
   private selectedSingleColor = this.simpleColors[0]
 
+  private datasetLabels: string[] = []
+
   private mounted() {
+    this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
     this.datasetsAreLoaded()
   }
 
   @Watch('datasets')
   private datasetsAreLoaded() {
-    const keys = Object.keys(this.datasets)
-    if (keys.length) {
-      const column = this.datasets[keys[0]].header[0]
-      if (column) this.dataColumn = `${keys[0]}/${column}`
+    const datasetIds = Object.keys(this.datasets)
+
+    const { dataset, columnName, colorRamp } = this.vizConfiguration.display.color
+
+    if (dataset && columnName) {
+      console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
+      this.dataColumn = `${dataset}/${columnName}`
+
+      if (colorRamp) {
+        this.selectedColor =
+          this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
+          this.colorChoices[0]
+        this.flip = !!colorRamp.reverse ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
+        if (colorRamp.steps) this.steps = '' + colorRamp.steps
+      }
+    } else if (datasetIds.length) {
+      const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
+      console.log(secondColumn)
+      if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
+    this.datasetLabels = datasetIds
   }
 
   @Watch('flip')
@@ -114,7 +138,6 @@ export default class VueComponent extends Vue {
   @Watch('dataColumn')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
-    // console.log('picked', this.steps, this.flip, this.dataColumn)
     const slash = this.dataColumn.indexOf('/')
 
     if (slash === -1) {
@@ -124,13 +147,19 @@ export default class VueComponent extends Vue {
 
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const generatedColors = this.buildColors(this.selectedColor, this.steps)
+    const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
 
-    const color: ColorDefinition = {
+    const steps = parseInt(this.steps)
+    const color = {
       dataset,
       columnName,
-      colorRamp: this.selectedColor,
       generatedColors,
+      colorRamp: {
+        ramp: this.selectedColor.ramp,
+        style: this.selectedColor.style,
+        reverse: this.flip,
+        steps,
+      },
     }
 
     setTimeout(() => this.$emit('update', { color }), 50)
@@ -150,12 +179,17 @@ export default class VueComponent extends Vue {
   }
 
   private datasetChoices(): string[] {
-    return Object.keys(this.vizConfiguration.datasets)
+    return this.datasetLabels
   }
 
-  private columnsInDataset(key: string): string[] {
-    if (!this.datasets[key]) return []
-    return this.datasets[key].header
+  private columnsInDataset(datasetId: string): string[] {
+    const dataset = this.datasets[datasetId]
+    if (!dataset) return []
+    const allColumns = Object.keys(dataset).filter(
+      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+    )
+
+    return allColumns
   }
 
   private pickColor(colorRamp: Ramp) {
@@ -164,7 +198,7 @@ export default class VueComponent extends Vue {
   }
 
   private buildColors(scale: Ramp, count?: number): string[] {
-    let colors = [...this.ramp(scale, count || this.steps)]
+    let colors = [...this.ramp(scale, count || parseInt(this.steps))]
 
     // many reasons to flip the colorscale:
     // (1) the scale preset; (2) the checkbox (3) dark mode

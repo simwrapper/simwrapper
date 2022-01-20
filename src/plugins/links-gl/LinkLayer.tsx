@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
+import { Buffer } from '@luma.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
@@ -7,32 +8,30 @@ import { scaleThreshold } from 'd3-scale'
 import { StaticMap } from 'react-map-gl'
 import { rgb } from 'd3-color'
 
-import { MAPBOX_TOKEN, REACT_VIEW_HANDLES, CSV } from '@/Globals'
+import { MAPBOX_TOKEN, REACT_VIEW_HANDLES, DataTableColumn, LookupDataset } from '@/Globals'
 import globalStore from '@/store'
 
 export default function Component({
-  geojson = [] as any[],
+  links = { source: new Float32Array(), dest: new Float32Array() },
   colors = ['#0099ee'],
   dark = false,
   scaleWidth = 1,
-  build = {} as CSV,
-  base = {} as CSV,
-  widths = {} as CSV,
-  buildData = new Float32Array(),
-  baseData = new Float32Array(),
+  build = {} as LookupDataset,
+  base = {} as LookupDataset,
+  widths = {} as LookupDataset,
   showDiffs = false,
   viewId = 0,
 }) {
   // ------- draw frame begins here -----------------------------
 
-  const { header, headerMax, activeColumn } = build
-  const rows = buildData
+  const { dataTable, activeColumn, joinColumn } = build
+  const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
 
   // const [hoverInfo, setHoverInfo] = useState({})
   // const [pickIndex, setPickIndex] = useState(-1)
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  const widthValues = widths.rows[widths.activeColumn]
+  const widthValues = widths.dataTable[widths.activeColumn]
 
   // deck.gl colors must be in rgb[] or rgba[] format
   const rgbColors: any = colors.map(hexcolor => {
@@ -68,26 +67,21 @@ export default function Component({
     feature: any,
     objectInfo: { index: number; data: any; target: number[] }
   ) => {
-    let value = rows[objectInfo.index]
+    let value = dataTable[activeColumn].values[objectInfo.index]
     if (!value) return colorInvisible
-
-    // if (pickIndex > -1) console.log(feature)
-    // if (objectInfo.index === pickIndex) {
-    //   return [255, 64, 255, 255]
-    // }
 
     if (colors.length === 1) return rgbColors[0]
 
     // comparison?
     if (showDiffs) {
-      const baseValue = baseData[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
       const diff = value - baseValue
 
       if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
       return diff > 0 ? [255, 0, 0] : [0, 0, 255] // red vs. blue
     } else {
       // don't use log scale if numbers are below 1.0
-      let ratio = value / headerMax[activeColumn]
+      let ratio = value / (buildColumn.max || 1.0)
       // if (ratio < 0.0001) return colorPaleGrey
 
       return setColorBasedOnValue(ratio)
@@ -103,10 +97,10 @@ export default function Component({
   ) => {
     if (!widthValues) return 0
 
-    const value = widthValues[objectInfo.index]
+    const value = widthValues.values[objectInfo.index]
 
     if (showDiffs) {
-      const baseValue = baseData[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
       const diff = Math.abs(value - baseValue)
       return diff / scaleWidth
     } else {
@@ -126,19 +120,17 @@ export default function Component({
 
   function getTooltip({ object, index }: { object: any; index: number }) {
     try {
-      if (!object) return null
-
       // tooltip colors------------
       let html = (() => {
-        if (activeColumn === -1) return ''
+        if (!activeColumn) return ''
 
-        let value = rows[index]
+        let value = buildColumn.values[index]
 
         let baseValue = 0
         let diff = undefined
 
         if (showDiffs) {
-          baseValue = baseData[index]
+          const baseValue = base.dataTable[base.activeColumn].values[index]
           diff = value - baseValue
         } else {
           if (value === undefined) return ''
@@ -148,7 +140,7 @@ export default function Component({
         const roundDiff = diff ? Math.round(diff * 10000.0) / 10000.0 : diff
         const baseElement = baseValue ? `<p>+/- Base: ${roundDiff}</p>` : ''
 
-        return `<b>${header[activeColumn]}</b>
+        return `<b>${activeColumn}</b>
                 <p>${roundValue}</p>
                 ${baseElement}`
       })()
@@ -157,13 +149,19 @@ export default function Component({
       html += (() => {
         let widthValue = '' as any
         let widthColumnName = ''
-        if (widthValues !== rows) {
-          widthValue = Math.round(widthValues[index] * 10000.0) / 10000.0
-          widthColumnName = widths.header[widths.activeColumn] || 'N/A'
+
+        const value = widthValues.values[index]
+        if (value == undefined) return ''
+
+        if (widthValues !== buildColumn) {
+          widthValue = Math.round(widthValues.values[index] * 10000.0) / 10000.0
+          widthColumnName = widths.activeColumn || 'N/A'
         }
         return `<b>${widthColumnName}</b>
                 <p>${widthValue}</p>`
       })()
+
+      if (!html) return null
 
       return {
         html,
@@ -177,29 +175,38 @@ export default function Component({
   //@ts-ignore
   const layer = new LineOffsetLayer({
     id: 'linkLayer',
-    data: geojson,
+    data: buildColumn.values,
+    getSourcePosition: (object: any, props: { index: number; data: any; target: any[] }) => {
+      // target is [long,lat]
+      const offset = 2 * dataTable[joinColumn].values[props.index]
+      props.target[0] = links.source[offset]
+      props.target[1] = links.source[offset + 1]
+      return props.target
+    },
+    getTargetPosition: (object: any, props: { index: number; data: any; target: any[] }) => {
+      // target is [long,lat]
+      const offset = 2 * dataTable[joinColumn].values[props.index]
+      props.target[0] = links.dest[offset]
+      props.target[1] = links.dest[offset + 1]
+      return props.target
+    },
+    getColor: getLineColor,
+    getWidth: getLineWidth,
     widthUnits: 'pixels',
     widthMinPixels: 1,
     widthMaxPixels: 50,
     pickable: true,
-    opacity: 0.95,
+    opacity: 0.97,
     autoHighlight: true,
     highlightColor: [255, 0, 224],
     offsetDirection: OFFSET_DIRECTION.RIGHT,
-
-    getSourcePosition: (link: any[]) => link[0], // COLUMNS.coordFrom],
-    getTargetPosition: (link: any[]) => link[1], // COLUMNS.coordTo],
-    getColor: getLineColor,
-    getWidth: getLineWidth,
-
     updateTriggers: {
-      getColor: [showDiffs, dark, colors, activeColumn, buildData, baseData],
+      getColor: [showDiffs, dark, colors, activeColumn],
       getWidth: [showDiffs, scaleWidth, widths],
     },
-
     transitions: {
-      getColor: 350,
-      getWidth: 350,
+      getColor: 200,
+      getWidth: 200,
     },
     parameters: {
       depthTest: false,

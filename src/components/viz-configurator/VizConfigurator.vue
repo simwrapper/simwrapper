@@ -1,7 +1,7 @@
 <template lang="pug">
 .viz-configurator
+
   .map-actions
-    //-  @click="toggleShapeDrawer" :class="{'is-drawing': true}")
     button.button.draw-button.is-tiny(
       title="Config"
       @click="clickedShowHide"
@@ -9,9 +9,18 @@
     )
       i.fa.fa-sliders-h.settings-icon
 
-  .configuration-panels(v-show="showPanels")
-    .section-panel(v-for="section in sections" :key="section.name")
+  .configuration-panels(v-show="showPanels && !showAddDatasets")
 
+    .section-panel
+      h1.actions
+        .action(@click="clickedExport")
+          i.fa.fa-sm.fa-share
+          | &nbsp;Export
+        .action(@click="clickedAddData")
+          i.fa.fa-sm.fa-plus
+          | &nbsp;Add Data
+
+    .section-panel(v-for="section in sections" :key="section.name")
       h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
       .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
@@ -22,27 +31,32 @@
           @update="handleConfigChanged")
         p(v-else) To be added
 
+  add-datasets-panel(v-if="showAddDatasets"
+    :vizConfiguration="vizConfiguration"
+    :fileSystem="fileSystem"
+    :subfolder="subfolder"
+    @update="handleConfigChanged")
+
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import YAML from 'yaml'
 
-import { VizLayerConfiguration } from '@/Globals'
+import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import WidthPanel from './Widths.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-type Configurator = {
-  network?: string
-  csvFile?: string
-}
-
-@Component({ components: { ColorPanel, WidthPanel }, props: {} })
+@Component({ components: { AddDatasetsPanel, ColorPanel, WidthPanel }, props: {} })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) config!: any
-  @Prop({ required: true }) datasets!: any
+  @Prop({ required: true }) vizDetails!: any
+  @Prop({ required: true }) datasets: any
+  @Prop({ required: true }) fileSystem!: HTTPFileSystem
+  @Prop({ required: true }) subfolder!: string
+  @Prop({ required: true }) yamlConfig!: string
 
   private showPanels = true
-
   private activeSection = 'color'
 
   private sections = [
@@ -50,12 +64,21 @@ export default class VueComponent extends Vue {
     { component: 'WidthPanel', name: 'width' },
     // { component: '', name: 'labels' },
   ]
-  private vizConfiguration: VizLayerConfiguration = {
-    datasets: {},
-    display: {
-      color: {},
-      width: {},
-    },
+
+  // @Watch('vizDetails') modelChanged() {
+  //   // console.log('NEW VIZMODEL', this.vizDetails)
+  // }
+
+  // @Watch('datasets') datasetsChanged() {
+  //   // console.log('NEW DATASETS', this.datasets)
+  // }
+
+  // private mounted() {
+  //   this.buildConfiguration()
+  // }
+
+  private get vizConfiguration() {
+    return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
   }
 
   private get fidgetSections() {
@@ -72,28 +95,24 @@ export default class VueComponent extends Vue {
   }
 
   private async handleConfigChanged(props: any) {
+    this.showAddDatasets = false
     await this.$nextTick()
     this.$emit('update', props)
   }
 
-  private mounted() {
-    this.buildConfiguration()
-  }
-
   private buildConfiguration() {
     // get all data sources in config file
-    if (this.config['datasets']) {
-      this.vizConfiguration.datasets = Object.assign({}, this.config.datasets)
-    }
-    for (const key of ['csvFile', 'csvBase']) {
-      if (this.config[key]) this.vizConfiguration.datasets[key] = this.config[key]
-    }
-
-    // make copy of display section too
-    if (this.config['display']) {
-      this.vizConfiguration.display = Object.assign({}, this.config.dis)
-    }
-    this.vizConfiguration = Object.assign({}, this.vizConfiguration)
+    // if (this.config['datasets']) {
+    //   this.vizConfiguration.datasets = { ...this.config.datasets }
+    // }
+    // for (const key of ['csvFile', 'csvBase']) {
+    //   if (this.config[key]) this.vizConfiguration.datasets[key] = this.config[key]
+    // }
+    // // make copy of display section too
+    // if (this.config['display']) {
+    //   this.vizConfiguration.display = Object.assign({}, this.config.dis)
+    // }
+    // this.vizConfiguration = Object.assign({}, this.vizConfiguration)
   }
 
   private layer = {
@@ -109,6 +128,59 @@ export default class VueComponent extends Vue {
       // outline: {},
       label: {},
     },
+  }
+
+  private showAddDatasets = false
+
+  private clickedAddData() {
+    this.showAddDatasets = true
+  }
+
+  private clickedExport() {
+    let suggestedFilename = 'viz-links-export.yaml'
+    const configFile = this.yamlConfig.toLocaleLowerCase()
+    if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
+      suggestedFilename = this.yamlConfig
+    }
+
+    const filename = prompt('Export filename:', suggestedFilename)
+    if (!filename) return
+
+    // make a copy so we don't screw up the viz when we edit, and also
+    // to put things in a specific order every time:
+    const config = {
+      title: this.vizDetails.title,
+      description: this.vizDetails.description,
+      network: this.vizDetails.network || this.vizDetails.geojsonFile,
+      projection: this.vizDetails.projection,
+      sampleRate: this.vizDetails.sampleRate,
+      datasets: { ...this.vizDetails.datasets },
+      display: { ...this.vizDetails.display },
+    } as any
+
+    // remove blank values
+    for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
+    if (config.display.color) {
+      delete config.display.color?.colorRamp?.style
+      delete config.display.color?.generatedColors
+    }
+
+    const text = YAML.stringify(config, {
+      indent: 4,
+      simpleKeys: true,
+      // schema: 'yaml-1.1',
+      // version: '1.2',
+    })
+
+    var element = document.createElement('a')
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
+    element.setAttribute('download', filename)
+    element.style.display = 'none'
+    document.body.appendChild(element)
+
+    element.click()
+
+    document.body.removeChild(element)
   }
 }
 </script>
@@ -166,14 +238,13 @@ h1:hover {
   background: var(--bgPanel);
   // padding: 2px 4px 4px 4px;
   width: 16rem;
+  color: $steelGray;
   user-select: none;
   border-radius: 3px;
   pointer-events: auto;
+  margin: 0 0.5rem auto 0;
   filter: $filterShadow;
-  margin-right: 3px;
   z-index: 1050;
-  color: $steelGray;
-  margin-bottom: auto;
 }
 
 .map-actions {
@@ -208,6 +279,27 @@ h1:hover {
 .settings-icon {
   opacity: 0.75;
 }
+
+.actions {
+  display: flex;
+  flex-direction: row-reverse;
+  padding: 0.1rem 1px 0.1rem 0.5rem;
+  background-color: var(--bgPanel2);
+
+  :hover {
+    color: var(--textBold);
+    background-color: var(--bgBold);
+  }
+  .action {
+    padding: 2px 8px 2px 8px;
+  }
+}
+
+.actions:hover {
+  background-color: var(--bgPanel2);
+  color: var(--link);
+}
+
 @media only screen and (max-width: 640px) {
 }
 </style>

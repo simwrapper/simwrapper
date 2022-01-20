@@ -144,6 +144,7 @@ class MyComponent extends Vue {
               root,
               subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
               yamlConfig: fileNameWithoutPath[0],
+              thumbnail: false,
             } as any,
           },
         ]
