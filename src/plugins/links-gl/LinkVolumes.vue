@@ -177,7 +177,11 @@ class MyPlugin extends Vue {
   private showDiffs = false
   private showTimeRange = false
 
-  private geojsonData = { source: new Float32Array(), dest: new Float32Array() }
+  private geojsonData = {
+    source: new Float32Array(),
+    dest: new Float32Array(),
+    linkIds: [] as any[],
+  }
 
   private generatedColors: string[] = ['#4e79a7']
 
@@ -192,11 +196,23 @@ class MyPlugin extends Vue {
     thumbnail: false,
   }
 
-  private csvData: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
-  private csvBase: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
-  private csvWidth: LookupDataset = { activeColumn: '', joinColumn: '', dataTable: {} }
+  private csvData: LookupDataset = {
+    activeColumn: '',
+    dataTable: {},
+    csvRowFromLinkRow: [],
+  }
+  private csvBase: LookupDataset = {
+    activeColumn: '',
+    dataTable: {},
+    csvRowFromLinkRow: [],
+  }
+  private csvWidth: LookupDataset = {
+    activeColumn: '',
+    dataTable: {},
+    csvRowFromLinkRow: [],
+  }
 
-  private linkOffsetLookup: { [id: string]: number } = {}
+  // private linkOffsetLookup: { [id: string]: number } = {}
   private numLinks = 0
 
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
@@ -214,7 +230,6 @@ class MyPlugin extends Vue {
   }
 
   private get colorRampType() {
-    console.log(this.vizDetails)
     const rampType = this.vizDetails.display.color?.colorRamp?.style
     if (rampType === undefined) return -1
     return rampType
@@ -342,7 +357,7 @@ class MyPlugin extends Vue {
     width?: WidthDefinition
     dataset?: DatasetDefinition
   }) {
-    console.log({ props })
+    console.log(props)
 
     if (props['color']) {
       // if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
@@ -378,7 +393,6 @@ class MyPlugin extends Vue {
   }
 
   private handleNewWidth(width: WidthDefinition) {
-    console.log({ width })
     const { columnName, dataset, scaleFactor } = width
     if (!columnName) return
 
@@ -399,7 +413,7 @@ class MyPlugin extends Vue {
     this.csvWidth = {
       dataTable: selectedDataset,
       activeColumn: columnName,
-      joinColumn: LOOKUP_COLUMN,
+      csvRowFromLinkRow: dataset ? this.csvRowLookupFromLinkRow[dataset] : [],
     }
   }
 
@@ -416,13 +430,11 @@ class MyPlugin extends Vue {
     const selectedDataset = this.datasets[datasetKey]
     if (!selectedDataset) return
 
-    console.log(datasetKey, columnName)
-
     if (this.csvData.dataTable !== selectedDataset) {
       this.csvData = {
         dataTable: selectedDataset,
         activeColumn: '',
-        joinColumn: LOOKUP_COLUMN,
+        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
       }
     }
 
@@ -498,7 +510,7 @@ class MyPlugin extends Vue {
 
   private async loadNetwork(): Promise<any> {
     this.myState.statusMessage = 'Loading network...'
-    this.linkOffsetLookup = {}
+    // this.linkOffsetLookup = {}
     this.numLinks = 0
 
     const filename = this.vizDetails.network || this.vizDetails.geojsonFile
@@ -515,7 +527,7 @@ class MyPlugin extends Vue {
           msg: `Error loading: ${networkPath}`,
         })
       } else {
-        this.linkOffsetLookup = buffer.data.linkOffsetLookup
+        // this.linkOffsetLookup = buffer.data.linkOffsetLookup
         this.geojsonData = buffer.data.links
         this.numLinks = this.geojsonData.source.length / 2
 
@@ -534,42 +546,56 @@ class MyPlugin extends Vue {
     this.networkWorker.postMessage({ filePath: networkPath, fileSystem: this.myState.fileSystem })
   }
 
+  private dataLoaderWorkers: Worker[] = []
+
   private beforeDestroy() {
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
 
     if (this.networkWorker) this.networkWorker.terminate()
+    for (const worker of this.dataLoaderWorkers) worker.terminate()
 
     this.$store.commit('setFullScreen', false)
   }
+
+  private csvRowLookupFromLinkRow: { [datasetId: string]: number[] } = {}
 
   private handleNewDataset(props: DatasetDefinition) {
     console.log('NEW dataset', props)
     const { key, dataTable, filename } = props
 
-    // Create a LOOKUP column which links this CSV data to the network links
-    const joinColumn: DataTableColumn = {
-      name: LOOKUP_COLUMN,
-      type: DataType.LOOKUP,
-      values: [],
-    }
+    // We need a lookup so we can find the CSV row that matches each link row.
+    // A normal hashmap lookup is too slow, so we'll create an array containing
+    // the lookup on load (now); then it should be O(1) fast from that point forward.
 
-    // For now we assume the 1st column always has the link ID
+    // For now we assume the 1st CSV column always has the link ID
     const columnNames = Object.keys(dataTable)
     const assumedLinkIdIsFirstColumn = columnNames[0]
     const linkIdColumn = dataTable[assumedLinkIdIsFirstColumn]
 
-    // do the lookup
-    for (let i = 0; i < linkIdColumn.values.length; i++) {
-      joinColumn.values[i] = this.linkOffsetLookup[linkIdColumn.values[i]]
+    let tempMapLinkIdToCsvRow = {} as any
+    for (let csvRow = 0; csvRow < linkIdColumn.values.length; csvRow++) {
+      tempMapLinkIdToCsvRow[linkIdColumn.values[csvRow]] = csvRow
     }
 
-    // add the join column to the CSV dataset
-    dataTable[LOOKUP_COLUMN] = joinColumn
+    // Create a LOOKUP array which links this CSV data to the network links
+    // loop through all network links, we need the CSV row for each link.
+    const getCsvRowNumberFromLinkRowNumber: number[] = []
+    console.log({ geo: this.geojsonData })
+    for (let linkRow = 0; linkRow < this.geojsonData.linkIds.length; linkRow++) {
+      const linkId = this.geojsonData.linkIds[linkRow]
+      const csvRow = tempMapLinkIdToCsvRow[linkId]
+      if (csvRow !== undefined) getCsvRowNumberFromLinkRowNumber[linkRow] = csvRow
+    }
+
+    // Save the lookup with the dataset.
+    this.csvRowLookupFromLinkRow[key] = getCsvRowNumberFromLinkRowNumber
+    tempMapLinkIdToCsvRow = {} // probably unnecessary but we def want this to be GC'ed
+
+    // all done!
+    if (filename) this.vizDetails.datasets[key] = filename
     this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
     this.handleDatasetisLoaded(key)
-
-    if (filename) this.vizDetails.datasets[key] = filename
   }
 
   private loadCSVFiles() {
@@ -605,11 +631,11 @@ class MyPlugin extends Vue {
         },
       },
       activeColumn: LOOKUP_COLUMN,
-      joinColumn: LOOKUP_COLUMN,
+      csvRowFromLinkRow: [],
     }
 
     // there is no range(maxValue) in Javascript! :-(
-    const length = Object.keys(this.linkOffsetLookup).length
+    const length = this.geojsonData.source.length / 2 // half because this contains x/y coordinates
     const lookup = [...Array(length).keys()]
     this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
 
@@ -647,7 +673,7 @@ class MyPlugin extends Vue {
         this.csvData = {
           dataTable: this.datasets[datasetId],
           activeColumn: firstColumnName,
-          joinColumn: LOOKUP_COLUMN,
+          csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
         }
       }
     }
@@ -657,7 +683,7 @@ class MyPlugin extends Vue {
       this.csvBase = {
         dataTable: this.datasets[datasetId],
         activeColumn: '',
-        joinColumn: LOOKUP_COLUMN,
+        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
       }
       this.showDiffs = true
     }
@@ -677,6 +703,8 @@ class MyPlugin extends Vue {
 
     const thread = new Promise<DataTable>((resolve, reject) => {
       const worker = new DataFetcher() as Worker
+      this.dataLoaderWorkers.push(worker) // so we can terminate them all on destroy
+
       try {
         worker.onmessage = e => {
           worker.terminate()
@@ -695,6 +723,7 @@ class MyPlugin extends Vue {
     })
 
     const dataTable = await thread
+
     this.finishedLoadingCSV(key, dataTable)
   }
 

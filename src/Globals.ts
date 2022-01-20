@@ -53,7 +53,7 @@ export interface DataTableColumn {
 export interface LookupDataset {
   dataTable: DataTable
   activeColumn: string
-  joinColumn: string
+  csvRowFromLinkRow: number[]
 }
 
 export interface CSV {

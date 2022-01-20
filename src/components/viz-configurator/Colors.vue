@@ -108,9 +108,17 @@ export default class VueComponent extends Vue {
     this.datasetsAreLoaded()
   }
 
+  private isFirstDataset = true
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
+    this.datasetLabels = datasetIds
+
+    // don't change colors if we already set them
+    if (!this.isFirstDataset) return
+
+    if (datasetIds.length) this.isFirstDataset = false
 
     const { dataset, columnName, colorRamp } = this.vizConfiguration.display.color
 
@@ -122,7 +130,7 @@ export default class VueComponent extends Vue {
         this.selectedColor =
           this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
           this.colorChoices[0]
-        this.flip = !!colorRamp.reverse ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
+        this.flip = !!colorRamp.reverse ? !this.selectedColor.reverse : !!this.selectedColor.reverse // XOR
         if (colorRamp.steps) this.steps = '' + colorRamp.steps
       }
     } else if (datasetIds.length) {
@@ -130,7 +138,6 @@ export default class VueComponent extends Vue {
       console.log(secondColumn)
       if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
-    this.datasetLabels = datasetIds
   }
 
   @Watch('flip')

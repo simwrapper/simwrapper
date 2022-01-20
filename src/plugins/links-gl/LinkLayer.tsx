@@ -32,10 +32,11 @@ export default function Component({
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  const { dataTable, activeColumn, joinColumn } = build
+  const { dataTable, activeColumn, csvRowFromLinkRow } = build
   const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
 
   const widthValues = widths.dataTable[widths.activeColumn]
+  const widthRowLookup = widths.csvRowFromLinkRow
 
   // deck.gl colors must be in rgb[] or rgba[] format
   const colorsAsRGB: any = colors.map(hexcolor => {
@@ -71,12 +72,19 @@ export default function Component({
     setViewState(globalStore.state.viewState)
   }
 
+  const numCsvRows = csvRowFromLinkRow.length
+
   // --- LINE COLORS -----------------------------------------------
   const getLineColor = (
     feature: any,
     objectInfo: { index: number; data: any; target: number[] }
   ) => {
-    let value = dataTable[activeColumn].values[objectInfo.index]
+    if (!dataTable[activeColumn]) return colorPaleGrey
+
+    // use the csvRowLookup if we have it; if now then just use the link row number.
+    const csvRow = numCsvRows ? csvRowFromLinkRow[objectInfo.index] : objectInfo.index
+    let value = dataTable[activeColumn].values[csvRow]
+
     if (!value) return colorInvisible
 
     if (colors.length === 1) return colorsAsRGB[0]
@@ -111,7 +119,8 @@ export default function Component({
   ) => {
     if (!widthValues) return 0
 
-    const value = widthValues.values[objectInfo.index]
+    const csvRow = widthRowLookup.length ? widthRowLookup[objectInfo.index] : objectInfo.index
+    const value = widthValues.values[csvRow]
 
     if (showDiffs) {
       const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
@@ -194,20 +203,12 @@ export default function Component({
   //@ts-ignore
   const layer = new LineOffsetLayer({
     id: 'linkLayer',
-    data: buildColumn.values,
-    getSourcePosition: (object: any, props: { index: number; data: any; target: any[] }) => {
-      // target is [long,lat]
-      const offset = 2 * dataTable[joinColumn].values[props.index]
-      props.target[0] = links.source[offset]
-      props.target[1] = links.source[offset + 1]
-      return props.target
-    },
-    getTargetPosition: (object: any, props: { index: number; data: any; target: any[] }) => {
-      // target is [long,lat]
-      const offset = 2 * dataTable[joinColumn].values[props.index]
-      props.target[0] = links.dest[offset]
-      props.target[1] = links.dest[offset + 1]
-      return props.target
+    data: {
+      length: links.source.length / 2,
+      attributes: {
+        getSourcePosition: { value: links.source, size: 2 },
+        getTargetPosition: { value: links.dest, size: 2 },
+      },
     },
     getColor: getLineColor,
     getWidth: getLineWidth,

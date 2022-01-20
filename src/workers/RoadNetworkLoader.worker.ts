@@ -44,16 +44,17 @@ onmessage = async function (e) {
     options,
   })
 
-  postMessage({ links, linkOffsetLookup }, [links.source.buffer, links.dest.buffer])
+  // postMessage({ links, linkOffsetLookup }, [links.source.buffer, links.dest.buffer])
+  postMessage({ links }, [links.source.buffer, links.dest.buffer])
 }
 
 function guessFileTypeFromExtension(name: string) {
   const f = name.toLocaleLowerCase()
 
   // regex is ugly, but this tests for various extensions with/without .gz suffix
+  if (/\.xml(|\.gz)$/.test(f)) return NetworkFormat.MATSIM_XML
   if (/\.json(|\.gz)$/.test(f)) return NetworkFormat.GEOJSON
   if (/\.geojson(|\.gz)$/.test(f)) return NetworkFormat.GEOJSON
-  if (/\.xml(|\.gz)$/.test(f)) return NetworkFormat.MATSIM_XML
   if (/\.dbf(|\.gz)$/.test(f)) return NetworkFormat.DBF
 
   // No idea; guess MATSim.
@@ -107,15 +108,19 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
     nodes[node.$id] = longlat
   }
 
+  // const linkOffsetLookup: { [id: string]: number } = {}
+
   // build links
-  const linkOffsetLookup: { [id: string]: number } = {}
 
   const source: Float32Array = new Float32Array(2 * xml.network.links.link.length)
   const dest: Float32Array = new Float32Array(2 * xml.network.links.link.length)
 
+  const linkIds: any = []
+
   for (let i = 0; i < xml.network.links.link.length; i++) {
     const link = xml.network.links.link[i]
-    linkOffsetLookup[link.$id] = i
+    // linkOffsetLookup[link.$id] = i
+    linkIds[i] = link.$id
 
     source[2 * i + 0] = nodes[link.$from][0]
     source[2 * i + 1] = nodes[link.$from][1]
@@ -123,9 +128,9 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
     dest[2 * i + 1] = nodes[link.$to][1]
   }
 
-  const links = { source, dest }
+  const links = { source, dest, linkIds }
 
-  return { linkOffsetLookup, links }
+  return { links }
 }
 
 async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
@@ -135,10 +140,12 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
   const decoded = new TextDecoder('utf-8').decode(rawData)
   const json = JSON.parse(decoded)
 
-  const linkOffsetLookup: { [id: string]: number } = {}
+  // const linkOffsetLookup: { [id: string]: number } = {}
 
   const source: Float32Array = new Float32Array(2 * json.features.length)
   const dest: Float32Array = new Float32Array(2 * json.features.length)
+
+  const linkIds: any = []
 
   for (let i = 0; i < json.features.length; i++) {
     const feature = json.features[i]
@@ -149,10 +156,11 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     dest[2 * i + 0] = feature.geometry.coordinates[1][0]
     dest[2 * i + 1] = feature.geometry.coordinates[1][1]
 
-    linkOffsetLookup[feature.properties.id] = i
+    // linkOffsetLookup[feature.properties.id] = i
+    linkIds[i] = feature.properties.id
   }
 
-  return { linkOffsetLookup, links: { source, dest } }
+  return { links: { source, dest, linkIds } }
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
