@@ -6,7 +6,7 @@
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
-            option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
+            option(v-for="column in numericColumnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
   .widgets
     .widget
@@ -117,11 +117,12 @@ export default class VueComponent extends Vue {
     return this.datasetLabels
   }
 
-  private columnsInDataset(datasetId: string): string[] {
+  private numericColumnsInDataset(datasetId: string): string[] {
     const dataset = this.datasets[datasetId]
     if (!dataset) return []
     const allColumns = Object.keys(dataset).filter(
-      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+      // skip first row, it has ID
+      (colName, i) => i > 0 && dataset[colName].type === DataType.NUMBER
     )
 
     return allColumns

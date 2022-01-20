@@ -55,6 +55,7 @@ import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
 export type DatasetDefinition = {
   key: string
+  filename?: string
   dataTable: DataTable
 }
 
@@ -65,7 +66,7 @@ export default class VueComponent extends Vue {
   @Prop() vizConfiguration!: VizLayerConfiguration
 
   private validDataTypes = ['CSV', 'TSV', 'TAB', 'DBF']
-  private validRegex = /\.(CSV|TSV|TAB|DBF)$/
+  private validRegex = /\.(CSV|TSV|TAB|DBF)(\.GZ)?$/
 
   private fileChoice = ''
   private filesInFolder = [] as string[]
@@ -91,7 +92,16 @@ export default class VueComponent extends Vue {
 
     const dataTable = await this.fetchDataset(file)
 
-    const dataset: DatasetDefinition = { dataTable, key: file.substring(0, file.lastIndexOf('.')) }
+    // create a human-readable key for this file based on filename
+    let key = file
+    const pieces = this.validRegex.exec(file.toLocaleUpperCase())
+    if (pieces && pieces[0]) key = file.substring(0, file.length - pieces[0].length)
+
+    const dataset: DatasetDefinition = {
+      key,
+      dataTable,
+      filename: file,
+    }
     this.$emit('update', { dataset })
   }
 

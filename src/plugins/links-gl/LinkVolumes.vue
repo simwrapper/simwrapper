@@ -9,6 +9,7 @@
         :build="csvData"
         :base="csvBase"
         :colors="generatedColors"
+        :colorRampType="colorRampType"
         :widths="csvWidth"
         :dark="isDarkMode"
         :scaleWidth="scaleWidth"
@@ -89,7 +90,6 @@ const i18n = {
 }
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { ToggleButton } from 'vue-js-toggle-button'
-import Papaparse from 'papaparse'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 
@@ -211,6 +211,13 @@ class MyPlugin extends Vue {
   private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
   private get urlThumbnail() {
     return this.thumbnailUrl
+  }
+
+  private get colorRampType() {
+    console.log(this.vizDetails)
+    const rampType = this.vizDetails.display.color?.colorRamp?.style
+    if (rampType === undefined) return -1
+    return rampType
   }
 
   private getFileSystem(name: string) {
@@ -538,7 +545,7 @@ class MyPlugin extends Vue {
 
   private handleNewDataset(props: DatasetDefinition) {
     console.log('NEW dataset', props)
-    const { key, dataTable } = props
+    const { key, dataTable, filename } = props
 
     // Create a LOOKUP column which links this CSV data to the network links
     const joinColumn: DataTableColumn = {
@@ -562,7 +569,7 @@ class MyPlugin extends Vue {
     this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
     this.handleDatasetisLoaded(key)
 
-    console.log({ datasets: this.datasets })
+    if (filename) this.vizDetails.datasets[key] = filename
   }
 
   private loadCSVFiles() {
@@ -575,7 +582,7 @@ class MyPlugin extends Vue {
     if (this.vizDetails.csvBase) this.vizDetails.datasets.csvBase = this.vizDetails.csvBase
 
     // Load files on workers, in parallel and off the main thread
-    // Papaparse will call finishedLoadingCSV() for each when it's done loading & parsing
+    // this will call finishedLoadingCSV() for each when it's done loading & parsing
     const datasetsToLoad = Object.entries(this.vizDetails.datasets)
 
     if (datasetsToLoad.length) {

@@ -1,19 +1,25 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import { Buffer } from '@luma.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
-import { scaleThreshold } from 'd3-scale'
+import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { StaticMap } from 'react-map-gl'
 import { rgb } from 'd3-color'
 
-import { MAPBOX_TOKEN, REACT_VIEW_HANDLES, DataTableColumn, LookupDataset } from '@/Globals'
+import {
+  MAPBOX_TOKEN,
+  REACT_VIEW_HANDLES,
+  DataTableColumn,
+  LookupDataset,
+  DataType,
+} from '@/Globals'
 import globalStore from '@/store'
 
 export default function Component({
   links = { source: new Float32Array(), dest: new Float32Array() },
   colors = ['#0099ee'],
+  colorRampType = -1, // -1 undefined, 0 categorical, 1 diffs, 2 sequential
   dark = false,
   scaleWidth = 1,
   build = {} as LookupDataset,
@@ -24,17 +30,15 @@ export default function Component({
 }) {
   // ------- draw frame begins here -----------------------------
 
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
+
   const { dataTable, activeColumn, joinColumn } = build
   const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
-
-  // const [hoverInfo, setHoverInfo] = useState({})
-  // const [pickIndex, setPickIndex] = useState(-1)
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   const widthValues = widths.dataTable[widths.activeColumn]
 
   // deck.gl colors must be in rgb[] or rgba[] format
-  const rgbColors: any = colors.map(hexcolor => {
+  const colorsAsRGB: any = colors.map(hexcolor => {
     const c = rgb(hexcolor)
     return [c.r, c.g, c.b]
   })
@@ -43,14 +47,19 @@ export default function Component({
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
   // An exponent reduces visual dominance of very large values at the high end of the scale
   const exponent = 4.0
-
   const domain = new Array(colors.length - 1)
     .fill(0)
     .map((v, i) => Math.pow((1 / colors.length) * (i + 1), exponent))
 
-  // scaleThreshold is the d3 function that maps values 0.0-1.0 to the color buckets
-  // range is the list of colors; domain is the list of breakpoints in the 0-1.0 continuum
-  const setColorBasedOnValue = scaleThreshold().range(rgbColors).domain(domain)
+  // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
+  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
+  // *range* is the list of colors;
+  // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
+  // *colorRampType* is 0 if a categorical color ramp is chosen
+  const isCategorical = colorRampType === 0 || buildColumn.type == DataType.STRING
+  const setColorBasedOnValue: any = isCategorical
+    ? scaleOrdinal().range(colorsAsRGB)
+    : scaleThreshold().range(colorsAsRGB).domain(domain)
 
   // this assumes that zero means hide the link. This may not be generic enough
   const colorPaleGrey = dark ? [80, 80, 80, 96] : [212, 212, 212, 96]
@@ -70,7 +79,12 @@ export default function Component({
     let value = dataTable[activeColumn].values[objectInfo.index]
     if (!value) return colorInvisible
 
-    if (colors.length === 1) return rgbColors[0]
+    if (colors.length === 1) return colorsAsRGB[0]
+
+    // categorical?
+    if (isCategorical) {
+      return setColorBasedOnValue(value)
+    }
 
     // comparison?
     if (showDiffs) {
@@ -125,6 +139,11 @@ export default function Component({
         if (!activeColumn) return ''
 
         let value = buildColumn.values[index]
+
+        if (isCategorical) {
+          if (value === undefined) return ''
+          return `<b>${activeColumn}</b><p>${value}</p>`
+        }
 
         let baseValue = 0
         let diff = undefined
