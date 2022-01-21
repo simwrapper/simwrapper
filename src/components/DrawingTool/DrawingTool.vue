@@ -3,8 +3,16 @@
   .map(:id="mapID" v-show="showShapeDrawer")
 
   .map-actions
-    button.button.draw-button.is-tiny(title="Draw" @click="toggleShapeDrawer"
-      :class="{'is-drawing': showShapeDrawer}"
+    button.button.draw-button.is-tiny(v-if="isDark && showShapeDrawer" title="Draw" @click="toggleShapeDrawer"
+      :class="{'is-drawing': showShapeDrawer}" :style="{border: `1px solid rgb(119,119,119)`}"
+    )
+      img(src="./images/draw-icon-dm.png" width=16)
+    button.button.draw-button.is-tiny(v-else-if="isDark && !showShapeDrawer" title="Draw" @click="toggleShapeDrawer"
+      :class="{'is-drawing': showShapeDrawer}" :style="{background: `rgb(43,60,78)`, border: `1px solid rgb(119,119,119)`}"
+    )
+      img(src="./images/draw-icon-dm.png" width=16)
+    button.button.draw-button.is-tiny(v-else title="Draw" @click="toggleShapeDrawer"
+      :class="{'is-drawing': showShapeDrawer}" :style="{border: '1px solid rgb(224,224,224)'}"
     )
       img(src="./images/draw-icon.png" width=16)
 
@@ -22,6 +30,7 @@
 </template>
 
 <script lang="ts">
+// :style="{background: `rgb(43,60,78)`, border: `1px solid rgb(119,119,119)`
 const i18n = {
   messages: {
     en: {
@@ -312,6 +321,11 @@ export default class VueComponent extends Vue {
 .draw-button.is-drawing {
   background-color: rgb(255, 0, 200);
   border-color: rgb(255, 0, 200);
+}
+
+.draw-button.is-drawing-dark {
+  background-color: rgb(37, 185, 104);
+  border-color: rgb(37, 185, 104);
 }
 
 .map-actions {
