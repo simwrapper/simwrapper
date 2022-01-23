@@ -149,7 +149,9 @@ export default class VueComponent extends Vue {
 
   private calculateCentroids() {
     for (const feature of this.boundaries) {
-      const centroid: any = turf.centerOfMass(feature as any)
+      const centroid = turf.centerOfMass(feature as any)
+      if (!centroid.properties) centroid.properties = {}
+
       if (feature.properties[this.config.boundariesLabel]) {
         centroid.properties.label = feature.properties[this.config.boundariesLabel]
       }
@@ -200,8 +202,14 @@ export default class VueComponent extends Vue {
 
     if (vMax) this.maxValue = vMax
 
+    let centerLong = 0
+    let centerLat = 0
+
     // 3. insert values into centroids
     this.centroids.forEach((centroid) => {
+      centerLong += centroid.geometry.coordinates[0]
+      centerLat += centroid.geometry.coordinates[1]
+
       const lookupValue = centroid.properties!.id
       if (!lookupValue) return
 
@@ -209,6 +217,19 @@ export default class VueComponent extends Vue {
       if (answer) centroid.properties!.value = answer[this.config.datasetValue]
       else centroid.properties!.value = 'N/A'
     })
+
+    centerLong /= this.centroids.length
+    centerLat /= this.centroids.length
+
+    this.$store.commit('setMapCamera', {
+      longitude: centerLong,
+      latitude: centerLat,
+      bearing: 0,
+      pitch: 0,
+      zoom: 7,
+      initial: true,
+    })
+
     // sort them so big bubbles are below small bubbles
     this.centroids = this.centroids.sort((a: any, b: any) =>
       a.properties.value > b.properties.value ? -1 : 1
