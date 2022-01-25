@@ -131,7 +131,7 @@ export default function Component({
     const roundValue = Math.round(value * 10000.0) / 10000.0
     const roundDiff = diff ? Math.round(diff * 10000.0) / 10000.0 : diff
 
-    const baseElement = baseValue ? <p>+/- Base: {roundDiff}</p> : null
+    const baseElement = baseValue ? `<p>+/- Base: ${roundDiff}</p>` : null
 
     return {
       html: `
