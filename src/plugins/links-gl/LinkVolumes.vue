@@ -13,7 +13,7 @@
         :widths="csvWidth"
         :dark="isDarkMode"
         :scaleWidth="scaleWidth"
-        :showDiffs="showDiffs"
+        :showDiffs="vizDetails.showDifferences"
         :viewId="linkLayerId"
     )
 
@@ -45,17 +45,17 @@
             :vizDetails="vizDetails"
             :csvData="csvWidth"
             :scaleWidth="scaleWidth"
-            :showDiffs="showDiffs"
+            :showDiffs="vizDetails.showDifferences"
             @colors="clickedColorRamp"
             @column="handleNewDataColumn"
             @slider="handleNewDataColumn"
           )
 
         //- DIFF checkbox
-        .panel-item.diff-section(v-if="csvBase.dataTable._LINK_OFFSET_")
-          toggle-button.toggle(:width="40" :value="showDiffs" :labels="false"
+        .panel-item.diff-section(v-if="vizDetails.datasets.csvBase")
+          toggle-button.toggle(:width="40" :value="vizDetails.showDifferences" :sync="true" :labels="false"
             :color="{checked: '#4b7cc4', unchecked: '#222'}"
-            @change="showDiffs = !showDiffs")
+            @change="toggleShowDiffs")
           p: b {{ $t('showDiffs') }}
 
         //- FilterPanel.filter-panel(v-if="vizDetails.useSlider"
@@ -153,6 +153,7 @@ class MyPlugin extends Vue {
     csvBase: '',
     datasets: {} as { [id: string]: string },
     useSlider: false,
+    showDifferences: false,
     shpFile: '',
     dbfFile: '',
     network: '',
@@ -174,7 +175,6 @@ class MyPlugin extends Vue {
   private linkLayerId = Math.random()
 
   private scaleWidth = 0
-  private showDiffs = false
   private showTimeRange = false
 
   private geojsonData = {
@@ -250,6 +250,7 @@ class MyPlugin extends Vue {
     const filename = this.myState.yamlConfig
 
     const emptyState = {
+      showDifferences: false,
       datasets: {} as any,
       display: { color: {} as any, width: {} as any },
     }
@@ -340,6 +341,10 @@ class MyPlugin extends Vue {
 
   private get buttonTitle() {
     return this.csvData.activeColumn || 'Loading...'
+  }
+
+  private toggleShowDiffs() {
+    this.vizDetails.showDifferences = !this.vizDetails.showDifferences
   }
 
   private clickedColorRamp(color: string) {
@@ -665,27 +670,25 @@ class MyPlugin extends Vue {
   private handleDatasetisLoaded(datasetId: string) {
     const datasetKeys = Object.keys(this.datasets)
 
-    // first dataset
-    if (datasetKeys.length === 1) {
+    if (datasetId === 'csvBase' || datasetId === 'base') {
+      // is base dataset:
+      this.csvBase = {
+        dataTable: this.datasets[datasetId],
+        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+        activeColumn: '',
+      }
+      // this.vizDetails.showDifferences = true
+    } else if (this.csvData.activeColumn === '') {
+      // is first non-base dataset:
       // set a default view, if user didn't pass anything in
       if (!this.vizDetails.display.color && !this.vizDetails.display.width) {
         const firstColumnName = Object.values(this.datasets[datasetId])[0].name
         this.csvData = {
           dataTable: this.datasets[datasetId],
-          activeColumn: firstColumnName,
           csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+          activeColumn: firstColumnName,
         }
       }
-    }
-
-    // base dataset
-    if (datasetId === 'csvBase' || datasetId === 'base') {
-      this.csvBase = {
-        dataTable: this.datasets[datasetId],
-        activeColumn: '',
-        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
-      }
-      this.showDiffs = true
     }
 
     // last dataset

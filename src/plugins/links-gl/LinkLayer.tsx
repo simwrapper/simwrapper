@@ -63,7 +63,7 @@ export default function Component({
     : scaleThreshold().range(colorsAsRGB).domain(domain)
 
   // this assumes that zero means hide the link. This may not be generic enough
-  const colorPaleGrey = dark ? [80, 80, 80, 96] : [212, 212, 212, 96]
+  const colorPaleGrey = dark ? [80, 80, 80, 96] : [212, 212, 212]
   const colorInvisible = [0, 0, 0, 0]
 
   // register setViewState in global view updater
@@ -96,7 +96,7 @@ export default function Component({
 
     // comparison?
     if (showDiffs) {
-      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
       const diff = value - baseValue
 
       if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
@@ -111,8 +111,6 @@ export default function Component({
   }
 
   // --- LINE WIDTHS -----------------------------------------------
-  // --> 2 pixels if no line width at all
-  // --> Scaled up to 50 pixels, scaled vs. maxWidth
   const getLineWidth = (
     feature: any,
     objectInfo: { index: number; data: any; target: number[] }
@@ -123,7 +121,7 @@ export default function Component({
     const value = widthValues.values[csvRow]
 
     if (showDiffs) {
-      const baseValue = base.dataTable[base.activeColumn].values[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
       const diff = Math.abs(value - baseValue)
       return diff / scaleWidth
     } else {
@@ -141,61 +139,62 @@ export default function Component({
     globalStore.commit('setMapCamera', view)
   }
 
-  function getTooltip({ object, index }: { object: any; index: number }) {
+  function precise(x: number) {
+    return x.toPrecision(5)
+  }
+
+  function buildTooltipHtml(column: DataTableColumn, index: number) {
     try {
-      // tooltip colors------------
-      let html = (() => {
-        if (!activeColumn) return ''
+      if (!column) return null
 
-        let value = buildColumn.values[index]
+      let value = column.values[index]
+      let baseValue = base ? base.dataTable[column.name].values[index] : null
 
-        if (isCategorical) {
-          if (value === undefined) return ''
-          return `<b>${activeColumn}</b><p>${value}</p>`
-        }
+      if (isCategorical) {
+        if (!Number.isFinite(value)) return null
+        return `<b>${column.name}</b><p>${value}</p>`
+      }
 
-        let baseValue = 0
-        let diff = undefined
+      let html = null
 
-        if (showDiffs) {
-          const baseValue = base.dataTable[base.activeColumn].values[index]
-          diff = value - baseValue
-        } else {
-          if (value === undefined) return ''
-        }
+      if (Number.isFinite(value)) html = `<b>${column.name}</b><p>Value: ${precise(value)}</p>`
 
-        const roundValue = Math.round(value * 10000.0) / 10000.0
-        const roundDiff = diff ? Math.round(diff * 10000.0) / 10000.0 : diff
-        const baseElement = baseValue ? `<p>+/- Base: ${roundDiff}</p>` : ''
+      let diff = value - baseValue
+      if (Number.isFinite(baseValue)) {
+        html += `<p>Base: ${precise(baseValue)}</p>`
+        html += `<p>+/- Base: ${precise(diff)}</p>`
+      }
 
-        return `<b>${activeColumn}</b>
-                <p>${roundValue}</p>
-                ${baseElement}`
-      })()
+      return html
+    } catch (e) {
+      return null
+    }
+  }
+
+  function getTooltip({ object, index }: { object: any; index: number }) {
+    // tooltip will show values for color settings and for width settings.
+    // if there is base data, it will also show values and diff vs. base for both color and width.
+
+    try {
+      // tooltip color valuess------------
+      const csvRow = numCsvRows ? csvRowFromLinkRow[index] : index
+      let tooltip = buildTooltipHtml(buildColumn, csvRow)
 
       // tooltip widths------------
-      html += (() => {
-        let widthValue = '' as any
-        let widthColumnName = ''
+      if (widthValues && widthValues.name !== buildColumn.name) {
+        const csvRow = widthRowLookup.length ? widthRowLookup[index] : index
+        const widthTip = buildTooltipHtml(widthValues, csvRow)
+        if (widthTip) tooltip = tooltip ? tooltip + widthTip : widthTip
+      }
 
-        const value = widthValues.values[index]
-        if (value == undefined) return ''
-
-        if (widthValues !== buildColumn) {
-          widthValue = Math.round(widthValues.values[index] * 10000.0) / 10000.0
-          widthColumnName = widths.activeColumn || 'N/A'
-        }
-        return `<b>${widthColumnName}</b>
-                <p>${widthValue}</p>`
-      })()
-
-      if (!html) return null
+      if (!tooltip) return null
 
       return {
-        html,
+        html: tooltip,
         style: { color: dark ? '#ccc' : '#223', backgroundColor: dark ? '#2a3c4f' : 'white' },
       }
     } catch (e) {
+      console.warn(e)
       return null
     }
   }

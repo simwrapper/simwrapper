@@ -153,12 +153,13 @@ export default class VueComponent extends Vue {
       description: this.vizDetails.description,
       network: this.vizDetails.network || this.vizDetails.geojsonFile,
       projection: this.vizDetails.projection,
+      showDifferences: this.vizDetails.showDifferences,
       sampleRate: this.vizDetails.sampleRate,
       datasets: { ...this.vizDetails.datasets },
       display: { ...this.vizDetails.display },
     } as any
 
-    // remove blank values
+    // remove blank and false values
     for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
     if (config.display.color) {
       delete config.display.color?.colorRamp?.style
