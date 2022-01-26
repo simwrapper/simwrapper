@@ -12,7 +12,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -72,8 +72,13 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -82,6 +87,7 @@ export default class VueComponent extends Vue {
 
   private updateChartSimple() {
     const allRows = this.dataSet.allRows || {}
+    console.log({ allRows })
     this.data[0].labels = Object.keys(allRows)
     this.data[0].values = Object.values(allRows)
   }

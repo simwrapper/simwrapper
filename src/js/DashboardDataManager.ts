@@ -89,44 +89,40 @@ export default class DashboardDataManager {
       let myDataset = await this.datasets[config.dataset].dataset
       let columns = Object.keys(myDataset)
 
-      let allRows: any
-
-      // if useLastRow, do that
-      if (config.useLastRow) {
-        allRows = {} as any
-        columns.forEach(column => {
-          allRows[column] = myDataset[column].values[columns.length - 1]
-        })
-      }
+      let allRows = { ...myDataset }
 
       // remove ignored columns
       if (config.ignoreColumns) {
-        if (Array.isArray(allRows)) {
-          for (const row of allRows) {
-            config.ignoreColumns.forEach((column: any) => delete row[column])
-          }
-        } else {
-          allRows = { ...myDataset }
-          config.ignoreColumns.forEach(column => delete allRows[column])
-        }
+        config.ignoreColumns.forEach(column => {
+          console.log(column)
+          delete allRows[column]
+        })
       }
 
-      if (!allRows) allRows = { ...myDataset }
+      // if useLastRow, do that
+      if (config.useLastRow) {
+        Object.keys(allRows).forEach(colName => {
+          allRows[colName] = myDataset[colName].values[columns.length - 1]
+        })
+      }
+
+      return { allRows }
 
       if (config.value && config.groupBy) {
         // grouping/filtering enabled
         let bars: any = {}
         const columnValues = config.value
         const columnGroups = config.groupBy
-        bars = rollup(
-          allRows,
-          v => v.reduce((a, b) => a + b[columnValues], 0),
-          (d: any) => d[columnGroups] // group-by
-        )
-        const x = Array.from(bars.keys())
-        const y = Array.from(bars.values())
+        // TODO: Fix this!
 
-        return { x, y }
+        // bars = rollup(
+        //   allRows,
+        //   v => v.reduce((a, b) => a + b[columnValues], 0),
+        //   (d: any) => d[columnGroups] // group-by
+        // )
+        // const x = Array.from(bars.keys())
+        // const y = Array.from(bars.values())
+        // return { x, y }
         // #
       } else {
         // no grouping/filtering
@@ -233,12 +229,13 @@ export default class DashboardDataManager {
     } else {
       const allRows = (await dataset.dataset).rows
 
-      let filteredRows = allRows
-      for (const [column, value] of Object.entries(dataset.activeFilters)) {
-        console.log('filtering:', column, value)
-        filteredRows = filteredRows.filter(row => row[column] === value)
-      }
-      dataset.filteredRows = filteredRows
+      // TODO: fix this!
+      // let filteredRows = allRows
+      // for (const [column, value] of Object.entries(dataset.activeFilters)) {
+      //   console.log('filtering:', column, value)
+      //   filteredRows = filteredRows.filter(row => row[column] === value)
+      // }
+      // dataset.filteredRows = filteredRows
     }
     this.notifyListeners(datasetId)
   }
