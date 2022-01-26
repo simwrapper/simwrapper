@@ -13,7 +13,7 @@ import { isNumeric } from 'vega-lite'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import { buildCleanTitle } from '@/charts/allCharts'
 
 import globalStore from '@/store'
@@ -73,8 +73,13 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -82,48 +87,68 @@ export default class VueComponent extends Vue {
   }
 
   private updateChartSimple() {
-    // data comes back as an array of objects with elements.
-    // We need to reshape it into an array of { x:[...] and y:[...] } objects,
-    // one for each area in the chart
+    const allRows = this.dataSet.allRows || ({} as any)
+    const columnNames = Object.keys(allRows)
+    let useOwnNames = false
+    let x: any[] = []
 
-    const allRows = this.dataSet.allRows || []
+    if (!columnNames.length) {
+      this.data = []
+      return
+    }
 
-    const x = allRows.map((row: any) => row[this.config.x])
+    // old configs called it "usedCol" --> now "columns"
+    let columns = this.config.columns || this.config.usedCol
 
-    // Identify usable data columns
-    const ignore: any[] = this.config.ignoreColumns || []
-    const include: any[] = this.config.columns || this.config.usedCol || []
+    // Or maybe user didn't specify: then use all the columns!
+    if (!columns && columnNames.length) {
+      columns = columnNames.filter(col => col !== this.config.x).sort()
+    }
 
-    // ignored columns
-    let useColumns = Object.keys(allRows[0]).filter(
-      (col) => col !== this.config.x && ignore.indexOf(col) === -1
-    )
-
-    // selected columns
-    if (include.length) {
-      useColumns = Object.keys(allRows[0]).filter((col) => include.indexOf(col) > -1)
+    // old legendname field
+    if (this.config.legendName) this.config.legendTitles = this.config.legendName
+    if (this.config.legendTitles !== undefined) {
+      if (this.config.legendTitles.length === columns.length) {
+        useOwnNames = true
+      }
     }
 
     // convert the data
     const convertedData: any = {}
+    x = allRows[this.config.x].values || []
+    if (this.config.skipFirstRow) x = x.slice(1)
 
-    for (const col of useColumns.sort((a: string, b: string) => (a > b ? -1 : 1))) {
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i]
+      const legendName = useOwnNames ? this.config.legendTitles[i] : col
+
+      let values = allRows[col].values
+      if (this.config.skipFirstRow) values = values.slice(1)
+
+      // are durations in 00:00:00 format?
+      if (this.config.convertToSeconds) values = this.convertToSeconds(values)
       convertedData[col] = {
         name: col,
         x: x,
-        y: [],
+        y: values,
         stackgroup: 'one', // so they stack
         mode: 'none', // no background lines
       }
     }
 
-    for (const row of allRows) {
-      useColumns.forEach((col: any) => {
-        convertedData[col].y.push(isNumeric(row[col]) ? row[col].toFixed(4) : row[col])
-      })
-    }
-
     this.data = Object.values(convertedData)
+  }
+
+  private convertToSeconds(values: any[]) {
+    values = values.map((v: string) => {
+      try {
+        const pieces = v.split(':')
+        const seconds = pieces.reduce((prev: any, curr: any) => parseInt(curr, 10) + prev * 60, 0)
+        return seconds
+      } catch (e) {
+        return 0
+      }
+    })
   }
 
   private layout: any = {

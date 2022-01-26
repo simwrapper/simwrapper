@@ -59,8 +59,13 @@ async function fetchData(props: {
   }
 
   // load all files
-  await loadFile()
-  postMessage(_fileData[_dataset])
+  try {
+    await loadFile()
+    postMessage(_fileData[_dataset])
+  } catch (e) {
+    const error = '' + e
+    postMessage({ error })
+  }
 }
 
 // ----- helper functions ------------------------------------------------
@@ -68,25 +73,20 @@ async function fetchData(props: {
 async function loadFile() {
   const datasetPattern = _dataset
 
-  try {
-    // figure out which file to load
-    const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
+  // figure out which file to load
+  const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
 
-    if (matchingFiles.length == 0) throw Error(`No files matched pattern ${datasetPattern}`)
-    if (matchingFiles.length > 1)
-      throw Error(`More than one file matched pattern ${datasetPattern}: ${matchingFiles}`)
+  if (matchingFiles.length == 0) throw Error(`No files matched "${datasetPattern}"`)
+  if (matchingFiles.length > 1)
+    throw Error(`More than one file matched "${datasetPattern}": ${matchingFiles}`)
 
-    const filename = matchingFiles[0]
+  const filename = matchingFiles[0]
 
-    // load the file
-    const unzipped = await loadFileOrGzipFile(filename)
+  // load the file
+  const unzipped = await loadFileOrGzipFile(filename)
 
-    // and parse it!
-    parseData(filename, unzipped)
-  } catch (e) {
-    console.error(e)
-    throw e
-  }
+  // and parse it!
+  parseData(filename, unzipped)
 }
 
 async function parseData(filename: string, buffer: Uint8Array) {
@@ -169,8 +169,6 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       }
     },
     complete: results => {
-      console.log({ results })
-
       let firstColumnName = ''
       for (const columnName in dataTable) {
         // first column is special: it contains the linkID

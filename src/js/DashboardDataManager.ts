@@ -13,7 +13,7 @@
 
 import { rollup } from 'd3-array'
 
-import { FileSystemConfig } from '@/Globals'
+import { DataTable, FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 
@@ -71,56 +71,70 @@ export default class DashboardDataManager {
    * @returns object with {x,y} or {allRows[]}
    */
   public async getDataset(config: configuration) {
-    // first, get the dataset
-    if (!this.datasets[config.dataset]) {
-      console.log('load:', config.dataset)
+    try {
+      // first, get the dataset
+      if (!this.datasets[config.dataset]) {
+        console.log('load:', config.dataset)
 
-      // allRows immediately returns a Promise<>, which we wait on so that
-      // multiple charts don't all try to fetch the dataset individually
-      this.datasets[config.dataset] = {
-        dataset: this.fetchDataset(config),
-        activeFilters: {},
-        filteredRows: null,
-        filterListeners: new Set(),
-      }
-    }
-
-    let allRows = (await this.datasets[config.dataset].dataset).rows
-
-    // if useLastRow, do that
-    if (config.useLastRow) {
-      allRows = allRows[allRows.length - 1]
-    }
-
-    // remove ignored columns
-    if (config.ignoreColumns) {
-      if (Array.isArray(allRows)) {
-        for (const row of allRows) {
-          config.ignoreColumns.forEach((column: any) => delete row[column])
+        // allRows immediately returns a Promise<>, which we wait on so that
+        // multiple charts don't all try to fetch the dataset individually
+        this.datasets[config.dataset] = {
+          dataset: this.fetchDataset(config),
+          activeFilters: {},
+          filteredRows: null,
+          filterListeners: new Set(),
         }
-      } else {
-        config.ignoreColumns.forEach((column: any) => delete allRows[column])
       }
-    }
 
-    if (config.value && config.groupBy) {
-      // grouping/filtering enabled
-      let bars: any = {}
-      const columnValues = config.value
-      const columnGroups = config.groupBy
-      bars = rollup(
-        allRows,
-        v => v.reduce((a, b) => a + b[columnValues], 0),
-        (d: any) => d[columnGroups] // group-by
-      )
-      const x = Array.from(bars.keys())
-      const y = Array.from(bars.values())
+      let myDataset = await this.datasets[config.dataset].dataset
+      let columns = Object.keys(myDataset)
 
-      return { x, y }
-      // #
-    } else {
-      // no grouping/filtering
-      return { allRows }
+      let allRows: any
+
+      // if useLastRow, do that
+      if (config.useLastRow) {
+        allRows = {} as any
+        columns.forEach(column => {
+          allRows[column] = myDataset[column].values[columns.length - 1]
+        })
+      }
+
+      // remove ignored columns
+      if (config.ignoreColumns) {
+        if (Array.isArray(allRows)) {
+          for (const row of allRows) {
+            config.ignoreColumns.forEach((column: any) => delete row[column])
+          }
+        } else {
+          allRows = { ...myDataset }
+          config.ignoreColumns.forEach(column => delete allRows[column])
+        }
+      }
+
+      if (!allRows) allRows = { ...myDataset }
+
+      if (config.value && config.groupBy) {
+        // grouping/filtering enabled
+        let bars: any = {}
+        const columnValues = config.value
+        const columnGroups = config.groupBy
+        bars = rollup(
+          allRows,
+          v => v.reduce((a, b) => a + b[columnValues], 0),
+          (d: any) => d[columnGroups] // group-by
+        )
+        const x = Array.from(bars.keys())
+        const y = Array.from(bars.values())
+
+        return { x, y }
+        // #
+      } else {
+        // no grouping/filtering
+        return { allRows }
+      }
+    } catch (e) {
+      const message = '' + e
+      return { allRows: {} }
     }
   }
 
@@ -245,7 +259,7 @@ export default class DashboardDataManager {
       this.files = files
     }
 
-    return new Promise<{ rows: any[]; header: string[] }>((resolve, reject) => {
+    return new Promise<DataTable>((resolve, reject) => {
       try {
         const thread = new DataFetcherWorker()
         thread.postMessage({
@@ -256,9 +270,16 @@ export default class DashboardDataManager {
         })
 
         thread.onmessage = e => {
+          if (e.data.error) {
+            console.log(666, e.data.error)
+            globalStore.commit('setStatus', { type: Status.ERROR, msg: e.data.error })
+            reject()
+          }
+
           resolve(e.data)
         }
       } catch (err) {
+        console.error(err)
         reject(err)
       }
     })
@@ -281,7 +302,7 @@ export default class DashboardDataManager {
 
   private datasets: {
     [id: string]: {
-      dataset: Promise<{ rows: any[]; header: string[] }>
+      dataset: Promise<DataTable>
       filteredRows: any[] | null
       activeFilters: { [column: string]: any }
       filterListeners: Set<any>

@@ -31,7 +31,7 @@ export default class VueComponent extends Vue {
   private id = 'pie-' + Math.random()
 
   // dataSet is either x,y or allRows[]
-  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private dataSet: { x?: any[]; y?: any[]; allRows?: any } = {}
 
   private async mounted() {
     this.updateTheme()

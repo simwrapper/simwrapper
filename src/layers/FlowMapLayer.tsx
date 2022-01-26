@@ -25,7 +25,7 @@ export default function Layer({
   }
 
   function handleHover(hover: any) {
-    console.log(hover)
+    // console.log(hover)
     // setHoverInfo(hover)
   }
 

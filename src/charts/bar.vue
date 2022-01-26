@@ -13,7 +13,7 @@ VuePlotly.myplot(
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from '@/charts/allCharts'
@@ -126,11 +126,11 @@ export default class VueComponent extends Vue {
     try {
       const allRows = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-
       return allRows
     } catch (e) {
       const message = '' + e
       console.log(message)
+      // this.$store.commit('setStatus', { type: Status.ERROR, message })
     }
     return {}
   }
@@ -153,8 +153,13 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -179,24 +184,28 @@ export default class VueComponent extends Vue {
   }
 
   private updateChartSimple() {
-    const x = []
+    let x: any[] = []
 
     var useOwnNames = false
 
-    const allRows = this.dataSet.allRows || []
+    const allRows = this.dataSet.allRows || ({} as any)
+    const columnNames = Object.keys(allRows)
+
+    if (!columnNames.length) {
+      this.data = []
+      return
+    }
 
     // old configs called it "usedCol" --> now "columns"
     let columns = this.config.columns || this.config.usedCol
 
     // Or maybe user didn't specify: then use all the columns!
-    if (!columns && allRows.length)
-      columns = Object.keys(allRows[0])
-        .filter((col) => col !== this.config.x)
-        .sort((a: any, b: any) => (allRows[0][a] > allRows[0][b] ? -1 : 1))
+    if (!columns && columnNames.length) {
+      columns = columnNames.filter(col => col !== this.config.x).sort()
+    }
 
     // old legendname field
     if (this.config.legendName) this.config.legendTitles = this.config.legendName
-
     if (this.config.legendTitles !== undefined) {
       if (this.config.legendTitles.length === columns.length) {
         useOwnNames = true
@@ -206,59 +215,46 @@ export default class VueComponent extends Vue {
     if (this.config.stacked) this.layout.barmode = 'stack'
     if (this.config.stacked) this.className = this.plotID
 
-    for (var i = 0; i < allRows.length; i++) {
-      if (i == 0 && this.config.skipFirstRow) {
-      } else {
-        x.push(allRows[i][this.config.x])
-      }
+    const xColumn = allRows[this.config.x]
+    if (!xColumn) {
+      throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
     }
+    x = xColumn.values
+    if (this.config.skipFirstRow) x = x.slice(1)
 
     for (let i = 0; i < columns.length; i++) {
-      const name = columns[i]
-      let legendName = ''
-      if (columns[i] !== 'undefined') {
-        if (useOwnNames) {
-          legendName = this.config.legendTitles[i]
-        } else {
-          legendName = name
-        }
-        let value = []
-        for (var j = 0; j < allRows.length; j++) {
-          if (j == 0 && this.config.skipFirstRow) {
-          } else {
-            value.push(allRows[j][name])
-          }
-        }
+      const col = columns[i]
+      const legendName = useOwnNames ? this.config.legendTitles[i] : col
 
-        // are durations in 00:00:00 format?
-        if (this.config.convertToSeconds) {
-          value = value.map((v: string) => {
-            try {
-              const pieces = v.split(':')
-              // console.log(pieces)
-              const seconds = pieces.reduce(
-                (prev: any, curr: any) => parseInt(curr, 10) + prev * 60,
-                0
-              )
-              return seconds
-            } catch (e) {
-              return 0
-            }
-          })
-        }
+      let values = allRows[col].values
+      if (this.config.skipFirstRow) values = values.slice(1)
 
-        this.data.push({
-          x: x,
-          y: value,
-          name: legendName,
-          type: 'bar',
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-          opacity: 1.0,
-        })
-      }
+      // are durations in 00:00:00 format?
+      if (this.config.convertToSeconds) values = this.convertToSeconds(values)
+
+      this.data.push({
+        x: x,
+        y: values,
+        name: legendName,
+        type: 'bar',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        opacity: 1.0,
+      })
     }
+  }
+
+  private convertToSeconds(values: any[]) {
+    values = values.map((v: string) => {
+      try {
+        const pieces = v.split(':')
+        const seconds = pieces.reduce((prev: any, curr: any) => parseInt(curr, 10) + prev * 60, 0)
+        return seconds
+      } catch (e) {
+        return 0
+      }
+    })
   }
 
   private layout: any = {

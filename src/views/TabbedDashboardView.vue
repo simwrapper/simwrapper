@@ -40,7 +40,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 
-import { FileSystemConfig, YamlConfigs } from '@/Globals'
+import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -128,14 +128,18 @@ export default class VueComponent extends Vue {
 
   // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
   private async initDashboard(fullPath: string) {
-    const config = await this.fileApi.getFileText(fullPath)
-    const yaml = YAML.parse(config)
-    const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
-    if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
-    if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
+    try {
+      const config = await this.fileApi.getFileText(fullPath)
+      const yaml = YAML.parse(config)
+      const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
+      if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
+      if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
-    this.dashboards[fullPath] = yaml
-    console.log('DASHBOARD:', fullPath)
+      this.dashboards[fullPath] = yaml
+      console.log('DASHBOARD:', fullPath)
+    } catch (e) {
+      this.$store.commit('setStatus', { type: Status.ERROR, msg: '' + e })
+    }
   }
 
   private async switchTab(tab: string) {
