@@ -34,6 +34,8 @@
     @navigate="onNavigate"
   )
 
+  p.load-error: b {{ loadErrorMessage }}
+
 </template>
 
 <script lang="ts">
@@ -61,7 +63,7 @@ export default class VueComponent extends Vue {
   private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
 
   private isZoomed = false
-
+  private loadErrorMessage = ''
   private pageHeader = ''
 
   private mounted() {
@@ -103,6 +105,7 @@ export default class VueComponent extends Vue {
   }
 
   private async findDashboards() {
+    this.loadErrorMessage = ''
     if (!this.fileApi) return []
 
     try {
@@ -122,7 +125,8 @@ export default class VueComponent extends Vue {
       this.activeTab = Object.keys(this.dashboards)[0]
     } catch (e) {
       // Bad things happened! Tell user
-      console.error({ eeee: e })
+      console.warn({ eeee: e })
+      this.loadErrorMessage = this.fileSystemConfig.baseURL + ': Could not load'
     }
   }
 
@@ -275,6 +279,11 @@ li.is-not-active b a {
 }
 .up-link a:hover {
   color: var(--linkHover);
+}
+
+.load-error {
+  margin-top: 2rem;
+  text-align: center;
 }
 
 @media only screen and (max-width: 50em) {
