@@ -87,7 +87,7 @@ export default class VueComponent extends Vue {
 
   private updateChartSimple() {
     const allRows = this.dataSet.allRows || {}
-    console.log({ allRows })
+
     this.data[0].labels = Object.keys(allRows)
     this.data[0].values = Object.values(allRows)
   }

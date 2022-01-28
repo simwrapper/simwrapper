@@ -190,7 +190,6 @@ class SVNFileSystem {
 
     const lines = data.split('\n')
     for (const line of lines) {
-      console.log(line)
       const href = line.indexOf('<li><a href="')
       if (href < 0) continue
       const entry = line.match(regex)
