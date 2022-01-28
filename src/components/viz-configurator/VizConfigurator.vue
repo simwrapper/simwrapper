@@ -56,7 +56,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) yamlConfig!: string
 
-  private showPanels = true
+  private showPanels = false
   private activeSection = 'color'
 
   private sections = [
@@ -245,7 +245,7 @@ h1:hover {
   pointer-events: auto;
   margin: 0 0.5rem auto 0;
   filter: $filterShadow;
-  z-index: 1050;
+  z-index: 4;
 }
 
 .map-actions {

@@ -217,7 +217,7 @@ export default class VueComponent extends Vue {
 .tabholder {
   max-width: $dashboardWidth + 3;
   margin: 0 auto;
-  z-index: 5;
+  z-index: 50;
   top: 0px;
   position: sticky;
   background-color: var(--bgDashboard);
