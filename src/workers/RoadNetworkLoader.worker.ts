@@ -167,14 +167,14 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
     const blob = await httpFileSystem.getFileBlob(filePath)
-    if (!blob) throw Error('BLOB IS NULL')
+    if (!blob) throwError('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()
     const cargo = gUnzip(buffer)
     return cargo
   } catch (e) {
     console.error('oh no', e)
-    throw Error('Fetch failed' + e)
+    throwError('Error loading ' + filePath)
   }
 }
 

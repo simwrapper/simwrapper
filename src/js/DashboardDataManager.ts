@@ -129,7 +129,7 @@ export default class DashboardDataManager {
         return { allRows }
       }
     } catch (e) {
-      const message = '' + e
+      // const message = '' + e
       return { allRows: {} }
     }
   }
@@ -268,8 +268,8 @@ export default class DashboardDataManager {
 
         thread.onmessage = e => {
           if (e.data.error) {
-            console.log(666, e.data.error)
-            globalStore.commit('setStatus', { type: Status.ERROR, msg: e.data.error })
+            console.error(e.data.error)
+            globalStore.commit('error', e.data.error)
             reject()
           }
           resolve(e.data)
