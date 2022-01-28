@@ -38,7 +38,7 @@ const populate = () => {
   foundFolders = { number: 0, folders: {} }
   store.commit('updateRunFolders', foundFolders)
 
-  store.state.svnProjects.forEach((root) => {
+  store.state.svnProjects.forEach(root => {
     if (!root.hidden && root.slug !== 'gallery') drillIntoRootProject(root)
   })
 }
@@ -51,17 +51,18 @@ const drillIntoRootProject = function (root: FileSystemConfig) {
 
   foundFolders.folders[root.name] = []
 
-  fetchFolders(root, fileSystem, '')
+  fetchFolders(root, fileSystem, '', 0)
 }
 
 const fetchFolders = async function (
   root: FileSystemConfig,
   fileSystem: HTTPFileSystem,
-  folder: string
+  folder: string,
+  deep: number
 ) {
   try {
     // skip some big folders we know we don't care about
-    if (root.skipList && root.skipList.filter((f) => folder.endsWith(f)).length) return
+    if (root.skipList && root.skipList.filter(f => folder.endsWith(f)).length) return
 
     // skip .dot and __MACOSX folders
     if (folder.endsWith('__MACOSX')) return
@@ -70,21 +71,25 @@ const fetchFolders = async function (
     }
 
     const { dirs } = await fileSystem.getDirectory(folder)
-
-    foundFolders.number++
-    foundFolders.folders[root.name].push({ root, path: folder })
-    foundFolders.folders[root.name].sort((a: any, b: any) => (a.path < b.path ? -1 : 1))
+    const realDirs = dirs.filter(d => !d.startsWith('.'))
+    for (const dir of realDirs) {
+      foundFolders.number++
+      foundFolders.folders[root.name].push({ root, path: folder + '/' + dir })
+      foundFolders.folders[root.name].sort((a: any, b: any) => (a.path < b.path ? -1 : 1))
+    }
 
     // save the results
     store.commit('updateRunFolders', foundFolders)
     localStorage.setItem('RunFinder.foundFolders', JSON.stringify(foundFolders.folders))
 
-    for (const dir of dirs) {
-      // if (dir.startsWith('.')) continue
-      fetchFolders(root, fileSystem, `${folder}/${dir}`)
+    // // only recurse one deep, for now
+    if (deep < 1) {
+      for (const dir of realDirs) {
+        fetchFolders(root, fileSystem, `${folder}/${dir}`, deep + 1)
+      }
     }
   } catch (e) {
-    console.error(e)
+    console.warn(e)
   }
 }
 
