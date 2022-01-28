@@ -94,7 +94,6 @@ export default class DashboardDataManager {
       // remove ignored columns
       if (config.ignoreColumns) {
         config.ignoreColumns.forEach(column => {
-          console.log(column)
           delete allRows[column]
         })
       }
@@ -102,7 +101,8 @@ export default class DashboardDataManager {
       // if useLastRow, do that
       if (config.useLastRow) {
         Object.keys(allRows).forEach(colName => {
-          allRows[colName] = myDataset[colName].values[columns.length - 1]
+          const values = myDataset[colName].values
+          allRows[colName] = values[values.length - 1]
         })
       }
 
@@ -272,7 +272,6 @@ export default class DashboardDataManager {
             globalStore.commit('setStatus', { type: Status.ERROR, msg: e.data.error })
             reject()
           }
-
           resolve(e.data)
         }
       } catch (err) {
