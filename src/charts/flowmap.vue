@@ -89,7 +89,7 @@ export default class VueComponent extends Vue {
 
     try {
       if (this.config.boundaries.startsWith('http')) {
-        const boundaries = await fetch(this.config.boundaries).then(async (r) => await r.json())
+        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
         this.boundaries = boundaries.features
       } else {
         const boundaries = await this.fileApi.getFileJson(
@@ -127,16 +127,22 @@ export default class VueComponent extends Vue {
       const dataset = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
-      const data = dataset.allRows || []
+      const data = dataset.allRows || ({} as any)
 
       // assumes flow data has "origin,destination,count" columns
-      this.flows = data.map((row: any) => {
-        return {
-          o: `${row.origin}`,
-          d: `${row.destination}`,
-          v: row.count,
-        }
-      })
+      const origin = data.origin.values
+      const destination = data.origin.values
+      const count = data.origin.values
+
+      const flows = [] as any[]
+      for (let i = 0; i < origin.length; i++) {
+        flows.push({
+          o: `${origin[i]}`,
+          d: `${destination[i]}`,
+          v: count[i],
+        })
+      }
+      this.flows = flows
     } catch (e) {
       const message = '' + e
       console.log(message)

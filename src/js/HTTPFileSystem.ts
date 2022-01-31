@@ -91,15 +91,16 @@ class SVNFileSystem {
     // This can throw lots of errors; we are not going to catch them
     // here so the code further up can deal with errors properly.
     // "Throw early, catch late."
-    let stillScaryPath = scaryPath
+    let stillScaryPath = scaryPath.replaceAll('//', '/')
 
     // don't download any files!
     if (!stillScaryPath.endsWith('/')) stillScaryPath += '/'
 
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
-    if (cachedEntry) return cachedEntry
-
+    if (cachedEntry) {
+      return cachedEntry
+    }
     // Generate and cache the listing
     const response = await this._getFileResponse(stillScaryPath).then()
     const htmlListing = await response.text()
@@ -189,7 +190,6 @@ class SVNFileSystem {
 
     const lines = data.split('\n')
     for (const line of lines) {
-      console.log(line)
       const href = line.indexOf('<li><a href="')
       if (href < 0) continue
       const entry = line.match(regex)

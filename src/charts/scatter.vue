@@ -12,7 +12,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -74,8 +74,13 @@ export default class VueComponent extends Vue {
     this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
     this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
 
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -85,9 +90,15 @@ export default class VueComponent extends Vue {
   // size circle
   // color is data
   private updateChartSimple() {
-    const x = []
-
     var useOwnNames = false
+
+    const allRows = this.dataSet.allRows || ({} as any)
+    const columnNames = Object.keys(allRows)
+
+    if (!columnNames.length) {
+      this.data = []
+      return
+    }
 
     const factor = this.config.factor || 1.0
 
@@ -98,47 +109,30 @@ export default class VueComponent extends Vue {
     if (this.config.legendName) legendname = this.config.legendName
     if (this.config.legendTitle) legendname = this.config.legendTitle
 
-    const allRows = this.dataSet.allRows || []
-
-    for (var i = 0; i < allRows.length; i++) {
-      if (i == 0 && this.config.skipFirstRow) {
-      } else {
-        x.push(allRows[i][this.config.x])
-      }
-    }
+    let x = allRows[this.config.x].values || []
+    if (this.config.skipFirstRow) x = x.slice(1)
 
     const markerSize = this.config.markerSize || 3
 
-    for (var i = 0; i < columns.length; i++) {
-      var name = columns[i]
-      var legendName = ''
-      if (columns[i] !== 'undefined') {
-        if (useOwnNames) {
-          legendName = legendname[i]
-        } else {
-          legendName = name
-        }
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i]
+      const legendName = useOwnNames ? this.config.legendTitles[i] : col
 
-        const value = []
-        for (var j = 0; j < allRows.length; j++) {
-          if (j == 0 && this.config.skipFirstRow) {
-          } else {
-            value.push(allRows[j][name])
-          }
-        }
-        this.data.push({
-          x: x,
-          y: value,
-          name: legendName,
-          mode: 'markers',
-          type: 'scatter',
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-          showlegend: true,
-          marker: { size: markerSize },
-        })
-      }
+      let values = allRows[col].values
+      if (this.config.skipFirstRow) values = values.slice(1)
+
+      this.data.push({
+        x: x,
+        y: values,
+        name: legendName,
+        mode: 'markers',
+        type: 'scatter',
+        textinfo: 'label+percent',
+        textposition: 'inside',
+        automargin: true,
+        showlegend: true,
+        marker: { size: markerSize },
+      })
     }
   }
 

@@ -44,7 +44,7 @@
         @change='bounceTimeSlider')
 
     .widget-column
-      h4.heading {{ $t('Centroids')}}
+      h4.heading {{ $t('circle')}}
       label.checkbox
         input(type="checkbox" v-model="showCentroids")
         | &nbsp;{{ $t('showCentroids')}}
@@ -104,13 +104,7 @@ import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import {
-  MAP_STYLES,
-  ColorScheme,
-  FileSystem,
-  FileSystemConfig,
-  VisualizationPlugin,
-} from '@/Globals'
+import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -302,7 +296,7 @@ class MyComponent extends Vue {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
     if (!this.mymap) return
 
-    this.mymap.setStyle(this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light)
+    this.mymap.setStyle(globalStore.getters.mapStyle)
 
     this.mymap.on('style.load', () => {
       this.buildCentroids(this.geojson)
@@ -425,7 +419,7 @@ class MyComponent extends Vue {
   private setupMap() {
     this.mymap = new maplibregl.Map({
       container: this.mapId,
-      style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
+      style: globalStore.getters.mapStyle,
       logoPosition: 'top-left',
     })
 
@@ -1076,7 +1070,7 @@ class MyComponent extends Vue {
     const separator = lines[0].indexOf(';') > 0 ? ';' : ','
 
     // data is in format: o,d, value[1], value[2], value[3]...
-    const headers = lines[0].split(separator).map((a) => a.trim())
+    const headers = lines[0].split(separator).map(a => a.trim())
     this.rowName = headers[0]
     this.colName = headers[1]
     this.headers = [TOTAL_MSG].concat(headers.slice(2))

@@ -7,7 +7,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 // import { ArcLayer } from '@deck.gl/layers'
 
 import LayerManager from '@/js/LayerManager'
-import { MAP_STYLES } from '@/Globals'
+import globalStore from '@/store'
 
 @Component({ components: {} })
 export default class VueComponent extends Vue {
@@ -55,7 +55,7 @@ export default class VueComponent extends Vue {
       container: `#${this.mapID}`,
       viewState: this.$store.state.viewState,
       pickingRadius: 3,
-      mapStyle: this.props.dark ? MAP_STYLES.dark : MAP_STYLES.light,
+      mapStyle: globalStore.getters.mapStyle,
       getTooltip: this.getTooltip,
       onViewStateChange: ({ viewState }: any) => {
         this.$store.commit('setMapCamera', viewState)

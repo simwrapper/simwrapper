@@ -1,5 +1,6 @@
 import micromatch from 'micromatch'
 import { XMLParser } from 'fast-xml-parser'
+import { decompressSync } from 'fflate'
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -86,4 +87,27 @@ export async function parseXML(xml: string, settings: any = {}) {
   })
 }
 
-export default { arrayBufferToBase64, debounce, findMatchingGlobInFiles, parseXML }
+/**
+ * This recursive function gunzips the buffer. It is recursive because
+ * some combinations of subversion, nginx, and various user browsers
+ * can single- or double-gzip .gz files on the wire. It's insane but true.
+ */
+export function gUnzip(buffer: ArrayBuffer): any {
+  const u8 = new Uint8Array(buffer)
+
+  // GZIP always starts with a magic number, hex 0x8b1f
+  const header = new Uint16Array(buffer, 0, 2)
+
+  if (header[0] === 0x8b1f) {
+    try {
+      const result = decompressSync(u8)
+      return result
+    } catch (e) {
+      console.error('eee', e)
+    }
+  }
+
+  return buffer
+}
+
+export default { arrayBufferToBase64, debounce, findMatchingGlobInFiles, gUnzip, parseXML }

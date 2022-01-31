@@ -13,7 +13,7 @@
 
 import { rollup } from 'd3-array'
 
-import { FileSystemConfig } from '@/Globals'
+import { DataTable, FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 
@@ -51,7 +51,7 @@ export default class DashboardDataManager {
       const columnGroups = config.groupBy
       bars = rollup(
         rows,
-        (v) => v.reduce((a, b) => a + b[columnValues], 0),
+        v => v.reduce((a, b) => a + b[columnValues], 0),
         (d: any) => d[columnGroups] // group-by
       )
     } else {
@@ -71,56 +71,66 @@ export default class DashboardDataManager {
    * @returns object with {x,y} or {allRows[]}
    */
   public async getDataset(config: configuration) {
-    // first, get the dataset
-    if (!this.datasets[config.dataset]) {
-      console.log('load:', config.dataset)
+    try {
+      // first, get the dataset
+      if (!this.datasets[config.dataset]) {
+        console.log('load:', config.dataset)
 
-      // allRows immediately returns a Promise<any[], which we wait on so that
-      // multiple charts don't all try to fetch the dataset individually
-      this.datasets[config.dataset] = {
-        rows: this.fetchDataset(config),
-        filteredRows: null,
-        activeFilters: {},
-        filterListeners: new Set(),
-      }
-    }
-
-    let allRows = await this.datasets[config.dataset].rows
-
-    // if useLastRow, do that
-    if (config.useLastRow) {
-      allRows = allRows[allRows.length - 1]
-    }
-
-    // remove ignored columns
-    if (config.ignoreColumns) {
-      if (Array.isArray(allRows)) {
-        for (const row of allRows) {
-          config.ignoreColumns.forEach((column: any) => delete row[column])
+        // allRows immediately returns a Promise<>, which we wait on so that
+        // multiple charts don't all try to fetch the dataset individually
+        this.datasets[config.dataset] = {
+          dataset: this.fetchDataset(config),
+          activeFilters: {},
+          filteredRows: null,
+          filterListeners: new Set(),
         }
-      } else {
-        config.ignoreColumns.forEach((column: any) => delete allRows[column])
       }
-    }
 
-    if (config.value && config.groupBy) {
-      // grouping/filtering enabled
-      let bars: any = {}
-      const columnValues = config.value
-      const columnGroups = config.groupBy
-      bars = rollup(
-        allRows,
-        (v) => v.reduce((a, b) => a + b[columnValues], 0),
-        (d: any) => d[columnGroups] // group-by
-      )
-      const x = Array.from(bars.keys())
-      const y = Array.from(bars.values())
+      let myDataset = await this.datasets[config.dataset].dataset
+      let columns = Object.keys(myDataset)
 
-      return { x, y }
-      // #
-    } else {
-      // no grouping/filtering
+      let allRows = { ...myDataset }
+
+      // remove ignored columns
+      if (config.ignoreColumns) {
+        config.ignoreColumns.forEach(column => {
+          delete allRows[column]
+        })
+      }
+
+      // if useLastRow, do that
+      if (config.useLastRow) {
+        Object.keys(allRows).forEach(colName => {
+          const values = myDataset[colName].values
+          allRows[colName] = values[values.length - 1]
+        })
+      }
+
       return { allRows }
+
+      if (config.value && config.groupBy) {
+        // grouping/filtering enabled
+        let bars: any = {}
+        const columnValues = config.value
+        const columnGroups = config.groupBy
+        // TODO: Fix this!
+
+        // bars = rollup(
+        //   allRows,
+        //   v => v.reduce((a, b) => a + b[columnValues], 0),
+        //   (d: any) => d[columnGroups] // group-by
+        // )
+        // const x = Array.from(bars.keys())
+        // const y = Array.from(bars.values())
+        // return { x, y }
+        // #
+      } else {
+        // no grouping/filtering
+        return { allRows }
+      }
+    } catch (e) {
+      // const message = '' + e
+      return { allRows: {} }
     }
   }
 
@@ -217,14 +227,15 @@ export default class DashboardDataManager {
     if (!Object.keys(dataset.activeFilters).length) {
       dataset.filteredRows = null
     } else {
-      const allRows = await dataset.rows
+      const allRows = (await dataset.dataset).rows
 
-      let filteredRows = allRows
-      for (const [column, value] of Object.entries(dataset.activeFilters)) {
-        console.log('filtering:', column, value)
-        filteredRows = filteredRows.filter((row) => row[column] === value)
-      }
-      dataset.filteredRows = filteredRows
+      // TODO: fix this!
+      // let filteredRows = allRows
+      // for (const [column, value] of Object.entries(dataset.activeFilters)) {
+      //   console.log('filtering:', column, value)
+      //   filteredRows = filteredRows.filter(row => row[column] === value)
+      // }
+      // dataset.filteredRows = filteredRows
     }
     this.notifyListeners(datasetId)
   }
@@ -245,7 +256,7 @@ export default class DashboardDataManager {
       this.files = files
     }
 
-    return new Promise<any[]>((resolve, reject) => {
+    return new Promise<DataTable>((resolve, reject) => {
       try {
         const thread = new DataFetcherWorker()
         thread.postMessage({
@@ -255,10 +266,16 @@ export default class DashboardDataManager {
           config: config,
         })
 
-        thread.onmessage = (e) => {
+        thread.onmessage = e => {
+          if (e.data.error) {
+            console.error(e.data.error)
+            globalStore.commit('error', e.data.error)
+            reject()
+          }
           resolve(e.data)
         }
       } catch (err) {
+        console.error(err)
         reject(err)
       }
     })
@@ -281,7 +298,7 @@ export default class DashboardDataManager {
 
   private datasets: {
     [id: string]: {
-      rows: Promise<any[]>
+      dataset: Promise<DataTable>
       filteredRows: any[] | null
       activeFilters: { [column: string]: any }
       filterListeners: Set<any>

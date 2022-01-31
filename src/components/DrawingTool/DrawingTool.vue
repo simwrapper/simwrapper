@@ -50,7 +50,6 @@ import proj4 from 'proj4'
 import ShapeWrite from 'shp-write'
 
 import LayerManager from '@/js/LayerManager'
-import { MAP_STYLES } from '@/Globals'
 import globalStore from '@/store'
 
 @Component({ i18n, components: {} })
@@ -147,7 +146,7 @@ export default class VueComponent extends Vue {
 
   private exportIt() {
     // only export closed polygons
-    this.polygons = this.polygons.filter((p) => p.finished)
+    this.polygons = this.polygons.filter(p => p.finished)
     this.points = []
     this.updateLayers()
 
@@ -297,7 +296,8 @@ export default class VueComponent extends Vue {
   position: absolute;
   top: 6px;
   right: 31px;
-  box-shadow: 0px 2px 5px #22222233;
+  filter: $filterShadow;
+  border-radius: 3px;
 }
 
 .drawing-tool {

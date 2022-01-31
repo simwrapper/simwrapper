@@ -1,62 +1,69 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import { LineLayer } from '@deck.gl/layers'
-import { scaleLinear, scaleThreshold } from 'd3-scale'
-import { StaticMap } from 'react-map-gl'
-import colormap from 'colormap'
 
-import { MAP_STYLES, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+
+import { scaleThreshold, scaleOrdinal } from 'd3-scale'
+import { StaticMap } from 'react-map-gl'
+import { rgb } from 'd3-color'
+
+import {
+  MAPBOX_TOKEN,
+  REACT_VIEW_HANDLES,
+  DataTableColumn,
+  LookupDataset,
+  DataType,
+} from '@/Globals'
 import globalStore from '@/store'
 
-enum COLUMNS {
-  offset = 0,
-  coordFrom = 1,
-  coordTo = 2,
-}
-
 export default function Component({
-  geojson = [] as any[],
-  colors = 'viridis',
+  links = { source: new Float32Array(), dest: new Float32Array() },
+  colors = ['#0099ee'],
+  colorRampType = -1, // -1 undefined, 0 categorical, 1 diffs, 2 sequential
   dark = false,
-  scaleWidth = 250,
-  build = {} as {
-    rows: Float32Array
-    header: string[]
-    headerMax: number[]
-    activeColumn: number
-  },
-  base = {} as {
-    rows: Float32Array
-    header: string[]
-    headerMax: number[]
-    activeColumn: number
-  },
-  buildData = new Float32Array(),
-  baseData = new Float32Array(),
+  scaleWidth = 1,
+  build = {} as LookupDataset,
+  base = {} as LookupDataset,
+  widths = {} as LookupDataset,
   showDiffs = false,
   viewId = 0,
 }) {
   // ------- draw frame begins here -----------------------------
 
-  const { header, headerMax, activeColumn } = build
-  const rows = buildData
-
   const [viewState, setViewState] = useState(globalStore.state.viewState)
-  // const [hoverInfo, setHoverInfo] = useState({})
 
-  const builtColors = colormap({
-    colormap: colors,
-    nshades: 20,
-    format: 'rba',
-  }).map((a: number[]) => [a[0], a[1], a[2], 255])
+  const { dataTable, activeColumn, csvRowFromLinkRow } = build
+  const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
 
-  const fetchColor = scaleThreshold()
-    .domain(new Array(20).fill(0).map((v, i) => 0.05 * i))
-    .range(builtColors)
-    .range(dark ? builtColors : builtColors.reverse())
+  const widthValues = widths.dataTable[widths.activeColumn]
+  const widthRowLookup = widths.csvRowFromLinkRow
+
+  // deck.gl colors must be in rgb[] or rgba[] format
+  const colorsAsRGB: any = colors.map(hexcolor => {
+    const c = rgb(hexcolor)
+    return [c.r, c.g, c.b]
+  })
+
+  // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
+  // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
+  // An exponent reduces visual dominance of very large values at the high end of the scale
+  const exponent = 4.0
+  const domain = new Array(colors.length - 1)
+    .fill(0)
+    .map((v, i) => Math.pow((1 / colors.length) * (i + 1), exponent))
+
+  // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
+  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
+  // *range* is the list of colors;
+  // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
+  // *colorRampType* is 0 if a categorical color ramp is chosen
+  const isCategorical = colorRampType === 0 || buildColumn.type == DataType.STRING
+  const setColorBasedOnValue: any = isCategorical
+    ? scaleOrdinal().range(colorsAsRGB)
+    : scaleThreshold().range(colorsAsRGB).domain(domain)
 
   // this assumes that zero means hide the link. This may not be generic enough
-  const colorPaleGrey = dark ? [80, 80, 80, 40] : [212, 212, 212, 40]
+  const colorPaleGrey = dark ? [80, 80, 80, 96] : [212, 212, 212]
   const colorInvisible = [0, 0, 0, 0]
 
   // register setViewState in global view updater
@@ -65,37 +72,56 @@ export default function Component({
     setViewState(globalStore.state.viewState)
   }
 
+  const numCsvRows = csvRowFromLinkRow.length
+
   // --- LINE COLORS -----------------------------------------------
-  const getLineColor = (feature: any) => {
-    const value = rows[feature[COLUMNS.offset]]
+  const getLineColor = (
+    feature: any,
+    objectInfo: { index: number; data: any; target: number[] }
+  ) => {
+    if (!dataTable[activeColumn]) return colorPaleGrey
+
+    // use the csvRowLookup if we have it; if now then just use the link row number.
+    const csvRow = numCsvRows ? csvRowFromLinkRow[objectInfo.index] : objectInfo.index
+    let value = dataTable[activeColumn].values[csvRow]
 
     if (!value) return colorInvisible
 
+    if (colors.length === 1) return colorsAsRGB[0]
+
+    // categorical?
+    if (isCategorical) {
+      return setColorBasedOnValue(value)
+    }
+
     // comparison?
     if (showDiffs) {
-      const baseValue = baseData[feature[COLUMNS.offset]]
+      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
       const diff = value - baseValue
 
-      if (diff === 0) return 0 // fetchColor(0.5)
-      return baseValue < value ? [255, 0, 0, 255] : [0, 0, 255, 255] // red vs. blue
+      if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
+      return diff > 0 ? [255, 0, 0] : [0, 0, 255] // red vs. blue
     } else {
-      // const scaledValue = value / headerMax[activeColumn]
-      const scaledValue = Math.log(value) / Math.log(headerMax[activeColumn])
-      if (scaledValue < 0.0001) return colorPaleGrey
+      // don't use log scale if numbers are below 1.0
+      let ratio = value / (buildColumn.max || 1.0)
+      // if (ratio < 0.0001) return colorPaleGrey
 
-      return fetchColor(scaledValue)
+      return setColorBasedOnValue(ratio)
     }
   }
 
   // --- LINE WIDTHS -----------------------------------------------
-  // --> 2 pixels if no line width at all
-  // --> Scaled up to 50 pixels, scaled vs. maxWidth
-  const getLineWidth = (feature: any) => {
-    const value = rows[feature[COLUMNS.offset]]
+  const getLineWidth = (
+    feature: any,
+    objectInfo: { index: number; data: any; target: number[] }
+  ) => {
+    if (!widthValues) return 0
 
-    // comparison?
+    const csvRow = widthRowLookup.length ? widthRowLookup[objectInfo.index] : objectInfo.index
+    const value = widthValues.values[csvRow]
+
     if (showDiffs) {
-      const baseValue = baseData[feature[COLUMNS.offset]]
+      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
       const diff = Math.abs(value - baseValue)
       return diff / scaleWidth
     } else {
@@ -113,74 +139,104 @@ export default function Component({
     globalStore.commit('setMapCamera', view)
   }
 
-  function getTooltip({ object }: any) {
-    if (!object) return null
+  function precise(x: number) {
+    return x.toPrecision(5)
+  }
 
-    let value = rows[object[COLUMNS.offset]]
+  function buildTooltipHtml(column: DataTableColumn, index: number) {
+    try {
+      if (!column) return null
 
-    let baseValue = 0
-    let diff = undefined
+      let value = column.values[index]
+      let baseValue = base ? base.dataTable[column.name].values[index] : null
 
-    if (showDiffs) {
-      baseValue = baseData[object[COLUMNS.offset]]
-      diff = value - baseValue
-    } else {
-      if (value === undefined) return null
-    }
+      if (isCategorical) {
+        if (!Number.isFinite(value)) return null
+        return `<b>${column.name}</b><p>${value}</p>`
+      }
 
-    const roundValue = Math.round(value * 10000.0) / 10000.0
-    const roundDiff = diff ? Math.round(diff * 10000.0) / 10000.0 : diff
+      let html = null
 
-    const baseElement = baseValue ? `<p>+/- Base: ${roundDiff}</p>` : null
+      if (Number.isFinite(value)) html = `<b>${column.name}</b><p>Value: ${precise(value)}</p>`
 
-    return {
-      html: `
-        <big><b>${header[activeColumn]}</b></big>
-        <p>${roundValue}</p>
-        ${baseElement || ''}
-      `,
-      style: dark
-        ? { color: '#ccc', backgroundColor: '#2a3c4f' }
-        : { color: '#223', backgroundColor: 'white' },
+      let diff = value - baseValue
+      if (Number.isFinite(baseValue)) {
+        html += `<p>Base: ${precise(baseValue)}</p>`
+        html += `<p>+/- Base: ${precise(diff)}</p>`
+      }
+
+      return html
+    } catch (e) {
+      return null
     }
   }
 
-  const layers = [
-    new LineLayer({
-      id: 'linkLayer',
-      data: geojson,
-      widthUnits: 'pixels',
-      widthMinPixels: 0,
-      widthMaxPixels: 200,
-      pickable: true,
-      opacity: 0.8,
-      autoHighlight: true,
-      parameters: {
-        depthTest: false,
-      },
+  function getTooltip({ object, index }: { object: any; index: number }) {
+    // tooltip will show values for color settings and for width settings.
+    // if there is base data, it will also show values and diff vs. base for both color and width.
 
-      getSourcePosition: (link: any[]) => link[COLUMNS.coordFrom],
-      getTargetPosition: (link: any[]) => link[COLUMNS.coordTo],
-      getColor: getLineColor,
-      getWidth: getLineWidth,
+    try {
+      // tooltip color valuess------------
+      const csvRow = numCsvRows ? csvRowFromLinkRow[index] : index
+      let tooltip = buildTooltipHtml(buildColumn, csvRow)
 
-      updateTriggers: {
-        getColor: [showDiffs, dark, colors, activeColumn],
-        getWidth: [showDiffs, scaleWidth, activeColumn],
-      },
+      // tooltip widths------------
+      if (widthValues && widthValues.name !== buildColumn.name) {
+        const csvRow = widthRowLookup.length ? widthRowLookup[index] : index
+        const widthTip = buildTooltipHtml(widthValues, csvRow)
+        if (widthTip) tooltip = tooltip ? tooltip + widthTip : widthTip
+      }
 
-      transitions: {
-        getColor: 350,
-        getWidth: 350,
+      if (!tooltip) return null
+
+      return {
+        html: tooltip,
+        style: { color: dark ? '#ccc' : '#223', backgroundColor: dark ? '#2a3c4f' : 'white' },
+      }
+    } catch (e) {
+      console.warn(e)
+      return null
+    }
+  }
+
+  //@ts-ignore
+  const layer = new LineOffsetLayer({
+    id: 'linkLayer',
+    data: {
+      length: links.source.length / 2,
+      attributes: {
+        getSourcePosition: { value: links.source, size: 2 },
+        getTargetPosition: { value: links.dest, size: 2 },
       },
-    }),
-  ]
+    },
+    getColor: getLineColor,
+    getWidth: getLineWidth,
+    widthUnits: 'pixels',
+    widthMinPixels: 1,
+    widthMaxPixels: 50,
+    pickable: true,
+    opacity: 0.97,
+    autoHighlight: true,
+    highlightColor: [255, 0, 224],
+    offsetDirection: OFFSET_DIRECTION.RIGHT,
+    updateTriggers: {
+      getColor: [showDiffs, dark, colors, activeColumn],
+      getWidth: [showDiffs, scaleWidth, widths],
+    },
+    transitions: {
+      getColor: 200,
+      getWidth: 200,
+    },
+    parameters: {
+      depthTest: false,
+    },
+  })
 
   return (
     /*
     //@ts-ignore */
     <DeckGL
-      layers={layers}
+      layers={[layer]}
       viewState={viewState}
       controller={true}
       pickingRadius={5}
@@ -194,10 +250,7 @@ export default function Component({
       {
         /*
         // @ts-ignore */
-        <StaticMap
-          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-        />
+        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
       }
     </DeckGL>
   )

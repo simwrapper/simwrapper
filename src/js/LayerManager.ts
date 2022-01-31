@@ -1,5 +1,5 @@
 import DeckMap from './DeckMap'
-import { MAP_STYLES, MAPBOX_TOKEN } from '@/Globals'
+import { MAPBOX_TOKEN } from '@/Globals'
 import globalStore from '@/store'
 
 export default class LayerManager {
@@ -14,7 +14,7 @@ export default class LayerManager {
   init(deckProps: any) {
     this.deckInstance = new DeckMap({ ...deckProps, map: MAPBOX_TOKEN })
     if (deckProps.mapStyle !== null) {
-      const style = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
+      const style = globalStore.getters.mapStyle
       this.deckInstance.setMapStyle(style)
     }
   }
@@ -48,7 +48,7 @@ export default class LayerManager {
   updateStyle() {
     if (!this.deckInstance) return
 
-    const style = globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light
+    const style = globalStore.getters.mapStyle
     this.deckInstance.setMapStyle(style)
   }
 

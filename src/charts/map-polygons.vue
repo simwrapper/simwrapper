@@ -22,7 +22,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import bulmaSlider from 'bulma-slider'
 import * as turf from '@turf/turf'
 
-import { FileSystemConfig } from '@/Globals'
+import { DataTableColumn, FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
@@ -41,7 +41,8 @@ export default class VueComponent extends Vue {
   private boundaries: any[] = []
   private centroids: any[] = []
 
-  private dataRows: any[] = []
+  private dataRows: { [column: string]: DataTableColumn } = {}
+
   private activeColumn = ''
   private useCircles = false
   private sliderOpacity = 80
@@ -127,12 +128,9 @@ export default class VueComponent extends Vue {
   private async loadBoundaries() {
     if (!this.config.boundaries) return
 
-    // const { allRows } = await this.datamanager.getDataset(this.config)
-    // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-
     try {
       if (this.config.boundaries.startsWith('http')) {
-        const boundaries = await fetch(this.config.boundaries).then(async (r) => await r.json())
+        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
         this.boundaries = boundaries.features
       } else {
         const boundaries = await this.fileApi.getFileJson(
@@ -149,7 +147,9 @@ export default class VueComponent extends Vue {
 
   private calculateCentroids() {
     for (const feature of this.boundaries) {
-      const centroid: any = turf.centerOfMass(feature as any)
+      const centroid = turf.centerOfMass(feature as any)
+      if (!centroid.properties) centroid.properties = {}
+
       if (feature.properties[this.config.boundariesLabel]) {
         centroid.properties.label = feature.properties[this.config.boundariesLabel]
       }
@@ -163,7 +163,7 @@ export default class VueComponent extends Vue {
     try {
       const dataset = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-      this.dataRows = dataset.allRows || []
+      this.dataRows = dataset.allRows
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -172,43 +172,71 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    // Data comes back as an array of objects with elements.
+    // Data comes back as an object of columnName: values[].
     // We need to make a lookup of the values by ID and then
     // insert those values into the boundaries geojson.
 
     if (!this.config.datasetJoinCol || !this.config.boundariesJoinCol) {
-      console.error('Cannot make map without datasetJoinCol and boundariesJoinCol')
-      return
+      throw Error('Config requires datasetJoinCol and boundariesJoinCol')
     }
 
-    // 1. make the lookup
+    if (!this.dataRows[this.config.datasetJoinCol])
+      throw Error('Cannot find column ' + this.config.datasetJoinCol)
+    // if (!this.dataRows[this.config.boundariesJoinCol])
+    //   throw Error('Cannot find column ' + this.config.boundariesJoinCol)
+
+    // 1. build the offset lookup
     const lookup: any = {}
-    const id = this.config.datasetJoinCol
-    this.dataRows.forEach((row) => {
-      if (row[id]) lookup[`${row[id]}`] = row // lookup in geojson is always string
-    })
+    const joinCol = this.dataRows[this.config.datasetJoinCol].values
+    for (let i = 0; i < joinCol.length; i++) {
+      lookup[joinCol[i]] = i // lookup in geojson will be the offset
+    }
 
     // 2. insert values into geojson
     const idColumn = this.config.boundariesJoinCol
     let vMax = -1
-    this.boundaries.forEach((boundary) => {
+    this.boundaries.forEach(boundary => {
       const lookupValue = boundary.properties[idColumn]
       const row = lookup[lookupValue]
-      boundary.properties.value = row ? row[this.config.datasetValue] : 'N/A'
-      if (row) vMax = Math.max(vMax, row[this.config.datasetValue])
+      if (row === undefined) {
+        boundary.properties.value = 'N/A'
+      } else {
+        boundary.properties.value = this.dataRows[this.config.datasetValue].values[row]
+        if (row) vMax = Math.max(vMax, row[this.config.datasetValue])
+      }
     })
 
-    if (vMax) this.maxValue = vMax
+    this.maxValue = this.dataRows[this.config.datasetValue].max || 0
+
+    let centerLong = 0
+    let centerLat = 0
 
     // 3. insert values into centroids
-    this.centroids.forEach((centroid) => {
-      const lookupValue = centroid.properties!.id
-      if (!lookupValue) return
+    this.centroids.forEach(centroid => {
+      centerLong += centroid.geometry.coordinates[0]
+      centerLat += centroid.geometry.coordinates[1]
 
-      const answer = lookup[lookupValue]
-      if (answer) centroid.properties!.value = answer[this.config.datasetValue]
-      else centroid.properties!.value = 'N/A'
+      const centroidId = centroid.properties!.id
+      if (!centroidId) return
+
+      const offset = lookup[centroidId]
+      if (offset !== undefined) {
+        centroid.properties!.value = this.dataRows[this.config.datasetValue].values[offset]
+      } else centroid.properties!.value = 'N/A'
     })
+
+    centerLong /= this.centroids.length
+    centerLat /= this.centroids.length
+
+    this.$store.commit('setMapCamera', {
+      longitude: centerLong,
+      latitude: centerLat,
+      bearing: 0,
+      pitch: 0,
+      zoom: 7,
+      initial: true,
+    })
+
     // sort them so big bubbles are below small bubbles
     this.centroids = this.centroids.sort((a: any, b: any) =>
       a.properties.value > b.properties.value ? -1 : 1

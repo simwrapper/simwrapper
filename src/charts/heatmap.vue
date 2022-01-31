@@ -13,7 +13,7 @@ import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { DataTable, FileSystemConfig, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -31,17 +31,17 @@ export default class VueComponent extends Vue {
   private globalState = globalStore.state
 
   // dataSet is either x,y or allRows[]
-  private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+  private dataSet: { x?: any[]; y?: any[]; allRows?: DataTable } = {}
   private id = 'heatmap-' + Math.random()
 
   private async mounted() {
     this.updateTheme()
     this.dataSet = await this.loadData()
-    this.updateChart()
-
-    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
-
-    this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+    if (Object.keys(this.dataSet).length) {
+      this.updateChart()
+      this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
+      this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+    }
     this.$emit('isLoaded')
   }
 
@@ -80,7 +80,8 @@ export default class VueComponent extends Vue {
       return dataset
     } catch (e) {
       const message = '' + e
-      console.log(message)
+      console.error(message)
+      this.$store.commit('error', message)
     }
     return {}
   }
@@ -89,8 +90,13 @@ export default class VueComponent extends Vue {
     this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
     this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
 
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('error', msg)
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -99,39 +105,29 @@ export default class VueComponent extends Vue {
 
   private updateChartSimple() {
     var xaxis: any[] = []
-    var yaxis: any[] = []
     var matrix: any[] = []
-    var subMatrix: any[] = []
 
-    const allRows = this.dataSet.allRows || []
+    const allRows = this.dataSet.allRows || ({} as any)
 
     const columns = this.config.columns || this.config.usedCol || []
 
     // Reads all the data of the y-axis.
-    for (var i = 0; i < allRows.length; i++) {
-      // Adding all values to the yAxis Array
-      yaxis.push(allRows[i][this.config.y])
-    }
+    let yaxis = allRows[this.config.y].values
 
     // Reads all the data of the x-axis.
-    for (const [key, value] of Object.entries(allRows[0])) {
+    for (const key of Object.keys(allRows)) {
       if (columns.includes(key)) {
         xaxis.push(key)
       }
     }
 
     // Converts all data to the matrix format of the heatmap
-    for (var i = 0; i < allRows.length; i++) {
-      for (const [key, value] of Object.entries(allRows[i])) {
-        if (this.config.columns.includes(key)) {
-          subMatrix[xaxis.indexOf(key)] = value
-        }
-      }
-      matrix[yaxis.indexOf(allRows[i][this.config.y])] = subMatrix
-      subMatrix = []
+    let i = 0
+    for (const column of this.config.columns) {
+      matrix[i++] = allRows[column].values
     }
 
-    if (this.config.flipAxes) matrix = transpose(matrix)
+    if (!this.config.flipAxes) matrix = transpose(matrix)
 
     // Pushes the data into the chart
     this.data = [

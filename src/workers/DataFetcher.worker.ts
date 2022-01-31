@@ -4,7 +4,7 @@ import pako from 'pako'
 import Papaparse from 'papaparse'
 import DBF from '@/js/dbfReader'
 
-import { FileSystemConfig } from '@/Globals'
+import { DataTableColumn, DataTable, DataType, FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles } from '@/js/util'
 
@@ -14,8 +14,9 @@ let _subfolder = ''
 let _files: string[] = []
 let _config: any = {}
 let _dataset = ''
+let _buffer: Uint8Array
 
-const _fileData: any = {}
+const _fileData: { [key: string]: DataTable } = {}
 
 onmessage = function (e) {
   fetchData(e.data)
@@ -26,12 +27,24 @@ async function fetchData(props: {
   subfolder: string
   files: string[]
   config: string
+  buffer: Uint8Array
 }) {
+  _config = props.config
+  _dataset = _config.dataset
+
+  // Did we get a pre-filled buffer? Just need to parse it
+  if (props.buffer) {
+    _buffer = props.buffer
+    parseData(_dataset, _buffer)
+    postMessage(_fileData[_dataset])
+    return
+  }
+
+  // Got details, need to fetch and then parse
   _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
   _subfolder = props.subfolder
   _files = props.files
-  _config = props.config
-  _dataset = _config.dataset
+  _buffer = props.buffer
 
   // if dataset has a path in it, we need to fetch the correct subfolder contents
   const slash = _config.dataset.indexOf('/')
@@ -46,57 +59,55 @@ async function fetchData(props: {
   }
 
   // load all files
-  await loadFiles()
-
-  postMessage(_fileData[_dataset])
+  try {
+    await loadFile()
+    postMessage(_fileData[_dataset])
+  } catch (e) {
+    const error = '' + e
+    postMessage({ error })
+  }
 }
 
 // ----- helper functions ------------------------------------------------
 
-async function loadFiles() {
+async function loadFile() {
   const datasetPattern = _dataset
 
-  try {
-    // figure out which file to load
-    const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
+  // figure out which file to load
+  const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
 
-    if (matchingFiles.length == 0) throw Error(`No files matched pattern ${datasetPattern}`)
-    if (matchingFiles.length > 1)
-      throw Error(`More than one file matched pattern ${datasetPattern}: ${matchingFiles}`)
+  if (matchingFiles.length == 0) throw Error(`No files matched "${datasetPattern}"`)
+  if (matchingFiles.length > 1)
+    throw Error(`More than one file matched "${datasetPattern}": ${matchingFiles}`)
 
-    const filename = matchingFiles[0]
+  const filename = matchingFiles[0]
 
-    // load the file
-    const unzipped = await loadFileOrGzipFile(filename)
+  // load the file
+  const unzipped = await loadFileOrGzipFile(filename)
 
-    if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
-      const dbf = DBF(unzipped, new TextDecoder('windows-1252')) // dbf has a weird default textcode
-      _fileData[datasetPattern] = dbf
-    } else {
-      // convert text to utf-8
-      const text = new TextDecoder().decode(unzipped)
+  // and parse it!
+  parseData(filename, unzipped)
+}
 
-      // parse the text: we can handle CSV or XML
-      await parseVariousFileTypes(datasetPattern, filename, text)
-    }
-  } catch (e) {
-    console.error(e)
-    throw e
+async function parseData(filename: string, buffer: Uint8Array) {
+  if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
+    const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+    _fileData[_dataset] = dataTable
+  } else {
+    // convert text to utf-8
+    const text = new TextDecoder().decode(buffer)
+
+    // parse the text: we can handle CSV or XML
+    await parseVariousFileTypes(_dataset, filename, text)
   }
 }
 
 function cleanData() {
-  const data = _fileData[_dataset]
+  const dataset = _fileData[_dataset]
 
   // remove extra columns
   if (_config.ignoreColumns) {
-    if (Array.isArray(data)) {
-      for (const row of data) {
-        _config.ignoreColumns.forEach((column: string) => delete row[column])
-      }
-    } else {
-      _config.ignoreColumns.forEach((column: string) => delete data[column])
-    }
+    _config.ignoreColumns.forEach((column: string) => delete dataset[column])
   }
 }
 
@@ -120,15 +131,26 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     if (details.xmlElements) {
       const subelements = details.xmlElements.split('.')
       const subXML = drillIntoXML(xml, subelements)
-      _fileData[fileKey] = subXML
+
+      // TODO: Make this column-wise!
+      _fileData[fileKey] = {} //  header: [], rows: subXML }
     } else {
-      _fileData[fileKey] = xml
+      _fileData[fileKey] = {} //  header: [], rows: xml }
     }
 
     return
   }
 
-  // if it isn't XML, then let's hope assume Papaparse can handle it
+  // if it isn't XML, well then let's hope assume Papaparse can deal with it
+  parseCsvFile(fileKey, filename, text)
+}
+
+function parseCsvFile(fileKey: string, filename: string, text: string) {
+  // prepare storage object -- figure out records and columns
+  const dataTable: DataTable = {}
+
+  const columnNames: string[] = []
+
   const csv = Papaparse.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ','],
@@ -136,9 +158,47 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     dynamicTyping: true,
     header: true,
     skipEmptyLines: true,
-  }).data
+    step: (results: any, parser) => {
+      const row = results.data
+      // console.log(row)
+      for (const key in row) {
+        if (!dataTable[key]) {
+          dataTable[key] = { name: key, values: [], type: DataType.NUMBER } // DONT KNOW TYPE YET
+        }
+        ;(dataTable[key].values as any[]).push(row[key])
+      }
+    },
+    complete: results => {
+      let firstColumnName = ''
+      for (const columnName in dataTable) {
+        // first column is special: it contains the linkID
+        // TODO: This is obviously wrong; we need a way to specify this from User
+        if (!firstColumnName) {
+          firstColumnName = columnName
+          continue
+        }
 
-  _fileData[fileKey] = csv
+        // figure out types
+        const column = dataTable[columnName]
+        if (typeof column.values[0] == 'string') column.type = DataType.STRING
+        if (typeof column.values[0] == 'boolean') column.type = DataType.BOOLEAN
+
+        // convert numbers to Float32Arrays
+        if (column.type === DataType.NUMBER) {
+          const fArray = new Float32Array(column.values)
+          column.values = fArray
+
+          // calculate max for numeric columns
+          let max = -Infinity
+          for (const value of column.values) max = Math.max(max, value)
+          column.max = max
+        }
+      }
+
+      // and save it
+      _fileData[fileKey] = dataTable
+    },
+  })
 }
 
 async function loadFileOrGzipFile(filename: string) {
@@ -148,7 +208,7 @@ async function loadFileOrGzipFile(filename: string) {
    * can single- or double-gzip .gz files on the wire. It's insane but true.
    */
   function gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $1f8b
+    // GZIP always starts with a magic number, hex $8b1f
     const header = new Uint8Array(buffer.slice(0, 2))
     if (header[0] === 0x1f && header[1] === 0x8b) {
       return gUnzip(pako.inflate(buffer))

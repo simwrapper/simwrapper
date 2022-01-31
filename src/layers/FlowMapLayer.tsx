@@ -3,7 +3,7 @@ import DeckGL from '@deck.gl/react'
 import { StaticMap } from 'react-map-gl'
 import FlowMapLayer from '@flowmap.gl/core'
 
-import { MAPBOX_TOKEN, MAP_STYLES, REACT_VIEW_HANDLES } from '@/Globals'
+import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
 
 export default function Layer({
@@ -25,7 +25,7 @@ export default function Layer({
   }
 
   function handleHover(hover: any) {
-    console.log(hover)
+    // console.log(hover)
     // setHoverInfo(hover)
   }
 
@@ -72,10 +72,7 @@ export default function Layer({
       {
         /*
       // @ts-ignore */
-        <StaticMap
-          mapStyle={dark ? MAP_STYLES.dark : MAP_STYLES.light}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-        />
+        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
       }
     </DeckGL>
   )

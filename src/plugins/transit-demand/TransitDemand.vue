@@ -83,13 +83,7 @@ import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import {
-  FileSystem,
-  FileSystemConfig,
-  ColorScheme,
-  VisualizationPlugin,
-  MAP_STYLES,
-} from '@/Globals'
+import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 
@@ -252,7 +246,7 @@ class MyComponent extends Vue {
 
     this.removeAttachedRoutes()
 
-    this.mymap.setStyle(this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light)
+    this.mymap.setStyle(globalStore.getters.mapStyle)
 
     this.mymap.on('style.load', () => {
       if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
@@ -325,7 +319,7 @@ class MyComponent extends Vue {
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
-        const allNetworks = files.filter((f) => f.endsWith('network.xml.gz'))
+        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
         if (allNetworks.length) network = allNetworks[0]
         else {
           this.loadingText = 'No road network found.'
@@ -336,7 +330,7 @@ class MyComponent extends Vue {
       // Departures: use them if we are in an output folder (and they exist)
       let demandFiles = [] as string[]
       if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-        demandFiles = files.filter((f) => f.endsWith('pt_stop2stop_departures.csv.gz'))
+        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
       }
 
       // Coordinates:
@@ -378,7 +372,7 @@ class MyComponent extends Vue {
 
     // 2. try to get it from config
     const outputConfigs = files.filter(
-      (f) => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
+      f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
     )
     if (outputConfigs.length && this.myState.fileSystem) {
       console.log('trying to find CRS in', outputConfigs[0])
@@ -473,7 +467,7 @@ class MyComponent extends Vue {
         bearing: 0,
         container: this.mapID,
         logoPosition: 'bottom-left',
-        style: this.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
+        style: globalStore.getters.mapStyle,
         pitch: 0,
       })
 
@@ -570,13 +564,13 @@ class MyComponent extends Vue {
 
   private setupKeyListeners() {
     // const parent = this
-    window.addEventListener('keyup', (event) => {
+    window.addEventListener('keyup', event => {
       if (event.keyCode === 27) {
         // ESC
         this.pressedEscape()
       }
     })
-    window.addEventListener('keydown', (event) => {
+    window.addEventListener('keydown', event => {
       if (event.keyCode === 38) {
         this.pressedArrowKey(-1) // UP
       }
@@ -668,7 +662,7 @@ class MyComponent extends Vue {
         skipEmptyLines: true,
         dynamicTyping: true,
         worker: true,
-        complete: (results) => {
+        complete: results => {
           this.processDemand(results)
         },
       })
@@ -700,7 +694,7 @@ class MyComponent extends Vue {
     group
       .reduceSum((d: any) => d.passengersAtArrival)
       .all()
-      .map((link) => {
+      .map(link => {
         linkPassengersById[link.key as any] = link.value
       })
 
@@ -709,7 +703,7 @@ class MyComponent extends Vue {
     group
       .reduceSum((d: any) => d.totalVehicleCapacity)
       .all()
-      .map((link) => {
+      .map(link => {
         capacity[link.key as any] = link.value
       })
 
@@ -1041,7 +1035,7 @@ class MyComponent extends Vue {
     const allLinks = this.cfDemand.allFiltered()
     let sum = 0
 
-    allLinks.map((d) => {
+    allLinks.map(d => {
       sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
     })
 

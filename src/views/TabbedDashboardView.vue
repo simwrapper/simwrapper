@@ -34,13 +34,15 @@
     @navigate="onNavigate"
   )
 
+  p.load-error: b {{ loadErrorMessage }}
+
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 
-import { FileSystemConfig, YamlConfigs } from '@/Globals'
+import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -58,10 +60,10 @@ export default class VueComponent extends Vue {
   private dashboards: any = []
   private dashboardDataManager?: DashboardDataManager
 
-  private allConfigFiles!: YamlConfigs
+  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
 
   private isZoomed = false
-
+  private loadErrorMessage = ''
   private pageHeader = ''
 
   private mounted() {
@@ -85,11 +87,10 @@ export default class VueComponent extends Vue {
     if (!fsConfig) return
 
     this.fileSystemConfig = fsConfig
+    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
-
-    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     this.pageHeader = this.getPageHeader()
     // this.generateBreadcrumbs()
@@ -104,6 +105,7 @@ export default class VueComponent extends Vue {
   }
 
   private async findDashboards() {
+    this.loadErrorMessage = ''
     if (!this.fileApi) return []
 
     try {
@@ -123,20 +125,25 @@ export default class VueComponent extends Vue {
       this.activeTab = Object.keys(this.dashboards)[0]
     } catch (e) {
       // Bad things happened! Tell user
-      console.error({ eeee: e })
+      console.warn({ eeee: e })
+      this.loadErrorMessage = this.fileSystemConfig.baseURL + ': Could not load'
     }
   }
 
   // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
   private async initDashboard(fullPath: string) {
-    const config = await this.fileApi.getFileText(fullPath)
-    const yaml = YAML.parse(config)
-    const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
-    if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
-    if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
+    try {
+      const config = await this.fileApi.getFileText(fullPath)
+      const yaml = YAML.parse(config)
+      const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
+      if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
+      if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
-    this.dashboards[fullPath] = yaml
-    console.log('DASHBOARD:', fullPath)
+      this.dashboards[fullPath] = yaml
+      console.log('DASHBOARD:', fullPath)
+    } catch (e) {
+      this.$store.commit('setStatus', { type: Status.ERROR, msg: '' + e })
+    }
   }
 
   private async switchTab(tab: string) {
@@ -210,7 +217,7 @@ export default class VueComponent extends Vue {
 .tabholder {
   max-width: $dashboardWidth + 3;
   margin: 0 auto;
-  z-index: 5;
+  z-index: 50;
   top: 0px;
   position: sticky;
   background-color: var(--bgDashboard);
@@ -272,6 +279,11 @@ li.is-not-active b a {
 }
 .up-link a:hover {
   color: var(--linkHover);
+}
+
+.load-error {
+  margin-top: 2rem;
+  text-align: center;
 }
 
 @media only screen and (max-width: 50em) {

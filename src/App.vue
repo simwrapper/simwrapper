@@ -35,7 +35,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
 
-import { ColorScheme, MAPBOX_TOKEN } from '@/Globals'
+import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import LoginPanel from '@/components/LoginPanel.vue'
 
 // MAPBOX TOKEN
@@ -60,6 +60,22 @@ class App extends Vue {
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
     this.toggleFullScreen(true)
+    this.setOnlineOrOfflineMode()
+  }
+
+  /**
+   * Set Mapbox styles to be blank if we cannot reach the internet
+   */
+  private setOnlineOrOfflineMode() {
+    const url = 'https://raw.githubusercontent.com/simwrapper/simwrapper/master/package.json'
+    fetch(url)
+      .then(response => {
+        console.log('online!!')
+      })
+      .catch(error => {
+        console.log('offline!')
+        this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
+      })
   }
 
   private get topNavLinks() {

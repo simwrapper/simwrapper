@@ -13,7 +13,7 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 
-import { FileSystemConfig, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -75,8 +75,13 @@ export default class VueComponent extends Vue {
     this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
     this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
 
-    if (this.config.groupBy) this.updateChartWithGroupBy()
-    else this.updateChartSimple()
+    try {
+      if (this.config.groupBy) this.updateChartWithGroupBy()
+      else this.updateChartSimple()
+    } catch (e) {
+      const msg = '' + e
+      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+    }
   }
 
   private updateChartWithGroupBy() {
@@ -86,41 +91,28 @@ export default class VueComponent extends Vue {
   // size circle
   // color is data
   private updateChartSimple() {
-    const x = []
-    const bubble = []
-    const y = []
-
     const factor = this.config.factor || 1.0
 
     var legendname = this.config.bubble
     if (this.config.legendName) legendname = this.config.legendName
     if (this.config.legendTitle) legendname = this.config.legendTitle
 
-    const allRows = this.dataSet.allRows || []
+    const allRows = this.dataSet.allRows || ({} as any)
 
-    for (var i = 0; i < allRows.length; i++) {
-      if (i == 0 && this.config.skipFirstRow) {
-      } else {
-        x.push(allRows[i][this.config.x])
-      }
+    if (Object.keys(allRows).length === 0) {
+      this.data = []
+      return
     }
 
-    // // old configs called it "usedCol" --> now "columns"
-    // const columns = this.config.columns || this.config.usedCol
+    // bubble sizes
+    let bubble = allRows[this.config.bubble].values.map((v: any) => v * factor)
+    if (this.config.skipFirstRow) bubble = bubble.slice(1)
 
-    for (var i = 0; i < allRows.length; i++) {
-      if (i == 0 && this.config.skipFirstRow) {
-      } else {
-        bubble.push(allRows[i][this.config.bubble] * factor)
-      }
-    }
+    let x = allRows[this.config.x].values || []
+    if (this.config.skipFirstRow) x = x.slice(1)
 
-    for (var i = 0; i < allRows.length; i++) {
-      if (i == 0 && this.config.skipFirstRow) {
-      } else {
-        y.push(allRows[i][this.config.y])
-      }
-    }
+    let y = allRows[this.config.y].values
+    if (this.config.skipFirstRow) y = y.slice(1)
 
     this.data = [
       {

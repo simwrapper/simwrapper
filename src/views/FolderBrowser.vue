@@ -31,7 +31,7 @@
                   @click="openOutputFolder(folder)")
             p
               i.fa.fa-folder-open
-              | &nbsp;{{ folder }}
+              | &nbsp;{{ cleanName(folder) }}
 
       topsheets-finder(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
 
@@ -63,7 +63,7 @@
         .file-table
           .file(:class="{fade: myState.isLoading}"
                 v-for="file in myState.files" :key="file")
-            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ file }}
+            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ cleanName(file) }}
 
 </template>
 
@@ -112,7 +112,6 @@ import yaml from 'yaml'
 
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
-import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
@@ -123,14 +122,9 @@ const allComponents = Object.assign({ TopsheetsFinder }, plugins)
   components: allComponents,
 })
 export default class VueComponent extends Vue {
-  @Prop({ required: false })
-  private xsubfolder!: string
-
-  @Prop({ required: true })
-  private root!: string
-
-  @Prop({ required: true })
-  private allConfigFiles!: YamlConfigs
+  @Prop({ required: false }) private xsubfolder!: string
+  @Prop({ required: true }) private root!: string
+  @Prop({ required: true }) private allConfigFiles!: YamlConfigs
 
   private globalState = globalStore.state
 
@@ -147,6 +141,10 @@ export default class VueComponent extends Vue {
     subfolder: '',
     vizes: [],
     summary: false,
+  }
+
+  private cleanName(text: string) {
+    return decodeURIComponent(text)
   }
 
   private getFileSystem(name: string) {
@@ -227,6 +225,7 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('xsubfolder')
+  @Watch('allConfigFiles')
   private updateRoute() {
     const svnProject = this.getFileSystem(this.root)
 
@@ -346,7 +345,7 @@ export default class VueComponent extends Vue {
       console.log(subsubfolder)
       const contents = await this.myState.svnRoot.getDirectory(subsubfolder)
       const matches = micromatch(contents.files, split[1])
-      return matches.map((f) => split[0] + '/' + f)
+      return matches.map(f => split[0] + '/' + f)
     } catch (e) {
       // oh well, we tried
     }
@@ -365,8 +364,8 @@ export default class VueComponent extends Vue {
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
       // hide dot folders
-      const folders = folderContents.dirs.filter((f) => !f.startsWith('.')).sort()
-      const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
+      const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
+      const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
 
       // Also show any project-level viz thumbnails from other folders
       // (but, ensure that files in this folder supercede any project viz files
@@ -548,6 +547,7 @@ h4 {
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
+  word-wrap: break-word;
 }
 
 .folder:hover {

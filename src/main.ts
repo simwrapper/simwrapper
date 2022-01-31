@@ -6,7 +6,6 @@ import Buefy from 'buefy'
 import locale from '@/localeSettings'
 import store from '@/store'
 import router from '@/router'
-
 import App from '@/App.vue'
 
 store.commit('setLocale', locale)

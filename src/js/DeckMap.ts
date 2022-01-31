@@ -5,11 +5,11 @@ import { Deck } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 
 import globalStore from '@/store'
-import { MAP_STYLES, ColorScheme } from '@/Globals'
+import { ColorScheme } from '@/Globals'
 
 const DEFAULT_MAP_PROPS = {
   layers: [],
-  mapStyle: globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
+  mapStyle: globalStore.getters.mapStyle,
   controller: true,
   useDevicePixels: false, // don't need 4X retina pixels!
   // getTooltip,

@@ -5,6 +5,7 @@ Vue.use(Vuex)
 
 import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import fileSystems from '@/fileSystemConfig'
+import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 import { debounce } from '@/js/util'
 import SVNFileSystem from './js/HTTPFileSystem'
 
@@ -14,13 +15,17 @@ const initialViewState = () => ({
   // start with western europe for now
   initial: true,
   pitch: 0,
+  bearing: 0,
+  maxZoom: 22,
   // longitude: -122.4,
-  // latitude: 37.8,
-  // zoom: 9,
+  // latitude: 37.78,
+  // zoom: 10.5,
+  // longitude: 13.45,
+  // latitude: 52.5,
+  // zoom: 8,
   longitude: 10,
   latitude: 50,
   zoom: 6,
-  bearing: 0,
 })
 
 interface GlobalState {
@@ -33,6 +38,8 @@ interface GlobalState {
   isFullScreen: boolean
   isDarkMode: boolean
   locale: string
+  mapLoaded: boolean
+  mapStyles: { light: string; dark: string }
   needLoginForUrl: string
   resizeEvents: number
   runFolders: { [root: string]: { path: string }[] }
@@ -41,8 +48,6 @@ interface GlobalState {
   statusMessage: string
   svnProjects: FileSystemConfig[]
   visualizationTypes: Map<string, VisualizationPlugin>
-
-  mapLoaded: boolean
   viewState: {
     initial?: boolean
     jump?: boolean
@@ -51,6 +56,7 @@ interface GlobalState {
     zoom: number
     pitch: number
     bearing: number
+    maxZoom?: number
   }
 }
 
@@ -63,6 +69,7 @@ export default new Vuex.Store({
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
     isDarkMode: false,
+    mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as string[],
     statusMessage: 'Loading',
@@ -102,6 +109,9 @@ export default new Vuex.Store({
     setFullScreen(state: GlobalState, value: boolean) {
       state.isFullScreen = value
     },
+    setMapStyles(state: GlobalState, value: { light: string; dark: string }) {
+      state.mapStyles = value
+    },
     setMapCamera(
       state: GlobalState,
       value: {
@@ -117,6 +127,15 @@ export default new Vuex.Store({
       /** Only jump camera if there is no view yet to avoid jarring */
       if (!value.jump) state.viewState = value
       else if (state.viewState.initial) state.viewState = value
+    },
+    error(state: GlobalState, value: string) {
+      // don't repeat yourself
+      if (
+        !state.statusErrors.length ||
+        state.statusErrors[state.statusErrors.length - 1] !== value
+      ) {
+        state.statusErrors.push(value)
+      }
     },
     setStatus(state: GlobalState, value: { type: Status; msg: string }) {
       if (value.type === Status.INFO) {
@@ -163,5 +182,9 @@ export default new Vuex.Store({
 
   actions: {},
   modules: {},
-  getters: {},
+  getters: {
+    mapStyle: state => {
+      return state.isDarkMode ? state.mapStyles.dark : state.mapStyles.light
+    },
+  },
 })
