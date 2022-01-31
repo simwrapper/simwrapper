@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.6.0](https://github.com/simwrapper/simwrapper/compare/v1.5.0...v1.6.0) (2022-01-31)
+
+
+### Features
+
+* DBF files now supported in most places where CSVs are allowed ([3866379](https://github.com/simwrapper/simwrapper/commit/38663796e78936dd5c72e36aa43d76119ae4e645))
+* Enable drag/drop to load datasets (CSV,.GZ) ([a4bd4ce](https://github.com/simwrapper/simwrapper/commit/a4bd4ce2c276dbb0f88902bfdabbe450ea912521))
+* **links:** Categorical link data can be used for colors ([2e00fa5](https://github.com/simwrapper/simwrapper/commit/2e00fa50c2e77220ead36e29e9860d65d5958ce3))
+* **links:** Export YAML config with full color & width settings ([2fd285e](https://github.com/simwrapper/simwrapper/commit/2fd285eedad8af6cb2fcb1ad368b37f239ba7749))
+* **links:** Load detailed color and width settings from YAML ([fa02c9e](https://github.com/simwrapper/simwrapper/commit/fa02c9e2078354adeeef047893bc020528b606d0))
+* New configuration panel for colors & widths ([84c7c35](https://github.com/simwrapper/simwrapper/commit/84c7c35bddfb7deac841d818bcf0640dab631b33)), closes [#98](https://github.com/simwrapper/simwrapper/issues/98)
+
+
+### Bug Fixes
+
+* area map should center on geojson data center instead of San Francisco ([37b5430](https://github.com/simwrapper/simwrapper/commit/37b54307f251dbbf8651c1774f5996b7f42af9df))
+* create-geojson.network fails because Python 3.9 flipped coordinate x/y for projections ([4bc9e9d](https://github.com/simwrapper/simwrapper/commit/4bc9e9d47113e54afba1327157997ed78d7c640b))
+* Dark mode map zoom/center buttons should follow map theme ([2858907](https://github.com/simwrapper/simwrapper/commit/2858907c381408f588dd0c1b5ee54defb17037d9))
+* Fix single-panel navigation; URL of YAML file should load the viz ([ba79c79](https://github.com/simwrapper/simwrapper/commit/ba79c79e6939d793d5c885ffd700208bad7215a2))
+* **links:** diff mode better, but still WIP ([f19b954](https://github.com/simwrapper/simwrapper/commit/f19b954bf512b264f49fe0f87532d63da2c20468))
+* **links:** Diff tooltip not showing difference values ([74b4c79](https://github.com/simwrapper/simwrapper/commit/74b4c794f3e79b86a45d693a007043b4ff14e153))
+* **links:** Firefox crashes when large network.xml.gz files are read ([5453401](https://github.com/simwrapper/simwrapper/commit/545340157eba660046adca22f3fcafdcd92d042f))
+* **links:** Link widths could show wrong data if multiple datafiles loaded ([10b234b](https://github.com/simwrapper/simwrapper/commit/10b234bc22b3de247fd35f07e614a0005d0f7309))
+* Zoom buttons & drawing tool aren't drawn nicely together (z-indexes) ([8b299ba](https://github.com/simwrapper/simwrapper/commit/8b299ba2ae9de2ba137575f75d52f7bdcc2691f3))
+
 ## [1.5.0](https://github.com/simwrapper/simwrapper/compare/v1.4.0...v1.5.0) (2021-12-22)
 
 
