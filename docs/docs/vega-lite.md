@@ -27,6 +27,18 @@ See [Data in Vega](https://vega.github.io/vega-lite/docs/data.html) for the full
 
 **WIDTH** and **HEIGHT** can be hardcoded to pixel sizes, but a width set to `container` will be responsive. Height needs to be specified.
 
+## Dashboards
+
+Vega-lite charts can be embedded in dashboards using `type: vega` and specifying the config details in the props as follows:
+
+```yaml
+row:
+  - title: My Vega Chart
+    type: vega
+    props:
+      config: my-example.vega.json
+```
+
 ---
 
 **example.vega.json**

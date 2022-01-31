@@ -12,8 +12,8 @@
       "bar-area-line",
       "calculation-tables",
       "heatmap-charts",
-      "flow-map",
       "pie-charts",
+      "vega-lite",
       "xy-scatter-plots"
     ],
     "Advanced Visualizations": [
@@ -21,10 +21,10 @@
       "aggregate-od",
       "carrier-viewer",
       "drt-vehicles",
+      "flow-map",
       "link-vols",
       "sankey",
       "transit-supply",
-      "vega-lite",
       "video",
       "xy-hexagons"
     ],
