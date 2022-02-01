@@ -6,6 +6,7 @@ import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { StaticMap } from 'react-map-gl'
 import { rgb } from 'd3-color'
+import { format } from 'mathjs'
 
 import {
   MAPBOX_TOKEN,
@@ -34,6 +35,7 @@ export default function Component({
 
   const { dataTable, activeColumn, csvRowFromLinkRow } = build
   const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
+  const baseColumn: DataTableColumn = base.dataTable[activeColumn] || { values: [] }
 
   const widthValues = widths.dataTable[widths.activeColumn]
   const widthRowLookup = widths.csvRowFromLinkRow
@@ -96,7 +98,8 @@ export default function Component({
 
     // comparison?
     if (showDiffs) {
-      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
+      const baseRow = base.csvRowFromLinkRow[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[baseRow]
       const diff = value - baseValue
 
       if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
@@ -121,7 +124,8 @@ export default function Component({
     const value = widthValues.values[csvRow]
 
     if (showDiffs) {
-      const baseValue = base.dataTable[base.activeColumn].values[csvRow]
+      const baseRow = base.csvRowFromLinkRow[objectInfo.index]
+      const baseValue = base.dataTable[base.activeColumn].values[baseRow]
       const diff = Math.abs(value - baseValue)
       return diff / scaleWidth
     } else {
@@ -140,24 +144,31 @@ export default function Component({
   }
 
   function precise(x: number) {
-    return x.toPrecision(5)
+    return format(x, { lowerExp: -6, upperExp: 6, precision: 5 })
   }
 
-  function buildTooltipHtml(column: DataTableColumn, index: number) {
+  function buildTooltipHtml(
+    columnBuild: DataTableColumn,
+    columnBase: DataTableColumn,
+    geoOffset: number
+  ) {
     try {
-      if (!column) return null
+      if (!columnBuild) return null
 
-      let value = column.values[index]
-      let baseValue = base ? base.dataTable[column.name].values[index] : null
+      const index = build.csvRowFromLinkRow[geoOffset]
+      const baseIndex = base.csvRowFromLinkRow[geoOffset]
+
+      let value = columnBuild.values[index]
+      let baseValue = base ? base.dataTable[columnBase.name].values[baseIndex] : null
 
       if (isCategorical) {
         if (!Number.isFinite(value)) return null
-        return `<b>${column.name}</b><p>${value}</p>`
+        return `<b>${columnBuild.name}</b><p>${value}</p>`
       }
 
       let html = null
 
-      if (Number.isFinite(value)) html = `<b>${column.name}</b><p>Value: ${precise(value)}</p>`
+      if (Number.isFinite(value)) html = `<b>${columnBuild.name}</b><p>Value: ${precise(value)}</p>`
 
       let diff = value - baseValue
       if (Number.isFinite(baseValue)) {
@@ -177,13 +188,11 @@ export default function Component({
 
     try {
       // tooltip color valuess------------
-      const csvRow = numCsvRows ? csvRowFromLinkRow[index] : index
-      let tooltip = buildTooltipHtml(buildColumn, csvRow)
+      let tooltip = buildTooltipHtml(buildColumn, baseColumn, index)
 
       // tooltip widths------------
       if (widthValues && widthValues.name !== buildColumn.name) {
-        const csvRow = widthRowLookup.length ? widthRowLookup[index] : index
-        const widthTip = buildTooltipHtml(widthValues, csvRow)
+        const widthTip = buildTooltipHtml(widthValues, base.dataTable[base.activeColumn], index)
         if (widthTip) tooltip = tooltip ? tooltip + widthTip : widthTip
       }
 
