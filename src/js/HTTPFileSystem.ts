@@ -38,6 +38,10 @@ class SVNFileSystem {
     path = path.replace('https:/', 'https://')
     path = path.replace('http:/', 'http://')
     // console.log('CLEAN2: ', path)
+
+    // sanity: /parent/my/../etc  => /parent/etc
+    path = new URL(path).href
+
     return path
   }
 
