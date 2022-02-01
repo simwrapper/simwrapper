@@ -32,7 +32,7 @@ export default class TimeSlider extends Vue {
     minRange: 1,
     processStyle: { backgroundColor: '#00bb5588', borderColor: '#f05b72' },
     sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    'tooltip-placement': 'top',
+    'tooltip-placement': 'bottom',
   }
 
   private mounted() {

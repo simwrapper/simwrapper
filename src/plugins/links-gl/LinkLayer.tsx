@@ -18,119 +18,32 @@ import {
 import globalStore from '@/store'
 
 export default function Component({
+  viewId = 0,
   links = { source: new Float32Array(), dest: new Float32Array() },
-  colors = ['#0099ee'],
   colorRampType = -1, // -1 undefined, 0 categorical, 1 diffs, 2 sequential
-  dark = false,
-  scaleWidth = 1,
   build = {} as LookupDataset,
   base = {} as LookupDataset,
   widths = {} as LookupDataset,
-  showDiffs = false,
-  viewId = 0,
+  newColors = new Uint8Array(),
+  newWidths = new Float32Array(),
+  dark = false,
+  scaleWidth = 1,
 }) {
   // ------- draw frame begins here -----------------------------
 
+  const widthDivisor = scaleWidth ? 1 / scaleWidth : 0
+
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  const { dataTable, activeColumn, csvRowFromLinkRow } = build
-  const buildColumn: DataTableColumn = dataTable[activeColumn] || { values: [] }
-  const baseColumn: DataTableColumn = base.dataTable[activeColumn] || { values: [] }
+  const buildColumn = build.dataTable[build.activeColumn]
+  const baseColumn = base.dataTable[base.activeColumn]
+  const widthColumn = widths.dataTable[widths.activeColumn]
 
-  const widthValues = widths.dataTable[widths.activeColumn]
-  const widthRowLookup = widths.csvRowFromLinkRow
+  const isCategorical = colorRampType === 0 || buildColumn?.type == DataType.STRING
 
-  // deck.gl colors must be in rgb[] or rgba[] format
-  const colorsAsRGB: any = colors.map(hexcolor => {
-    const c = rgb(hexcolor)
-    return [c.r, c.g, c.b]
-  })
-
-  // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
-  // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
-  // An exponent reduces visual dominance of very large values at the high end of the scale
-  const exponent = 4.0
-  const domain = new Array(colors.length - 1)
-    .fill(0)
-    .map((v, i) => Math.pow((1 / colors.length) * (i + 1), exponent))
-
-  // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
-  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
-  // *range* is the list of colors;
-  // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
-  // *colorRampType* is 0 if a categorical color ramp is chosen
-  const isCategorical = colorRampType === 0 || buildColumn.type == DataType.STRING
-  const setColorBasedOnValue: any = isCategorical
-    ? scaleOrdinal().range(colorsAsRGB)
-    : scaleThreshold().range(colorsAsRGB).domain(domain)
-
-  // this assumes that zero means hide the link. This may not be generic enough
-  const colorPaleGrey = dark ? [80, 80, 80, 96] : [212, 212, 212]
-  const colorInvisible = [0, 0, 0, 0]
-
-  // register setViewState in global view updater
-  // so we can respond to external map motion
+  // register setViewState in global view updater so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
-  }
-
-  const numCsvRows = csvRowFromLinkRow.length
-
-  // --- LINE COLORS -----------------------------------------------
-  const getLineColor = (
-    feature: any,
-    objectInfo: { index: number; data: any; target: number[] }
-  ) => {
-    if (!dataTable[activeColumn]) return colorPaleGrey
-
-    // use the csvRowLookup if we have it; if now then just use the link row number.
-    const csvRow = numCsvRows ? csvRowFromLinkRow[objectInfo.index] : objectInfo.index
-    let value = dataTable[activeColumn].values[csvRow]
-
-    if (!value) return colorInvisible
-
-    if (colors.length === 1) return colorsAsRGB[0]
-
-    // categorical?
-    if (isCategorical) {
-      return setColorBasedOnValue(value)
-    }
-
-    // comparison?
-    if (showDiffs) {
-      const baseRow = base.csvRowFromLinkRow[objectInfo.index]
-      const baseValue = base.dataTable[base.activeColumn].values[baseRow]
-      const diff = value - baseValue
-
-      if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
-      return diff > 0 ? [255, 0, 0] : [0, 0, 255] // red vs. blue
-    } else {
-      // don't use log scale if numbers are below 1.0
-      let ratio = value / (buildColumn.max || 1.0)
-      // if (ratio < 0.0001) return colorPaleGrey
-
-      return setColorBasedOnValue(ratio)
-    }
-  }
-
-  // --- LINE WIDTHS -----------------------------------------------
-  const getLineWidth = (
-    feature: any,
-    objectInfo: { index: number; data: any; target: number[] }
-  ) => {
-    if (!widthValues) return 0
-
-    const csvRow = widthRowLookup.length ? widthRowLookup[objectInfo.index] : objectInfo.index
-    const value = widthValues.values[csvRow]
-
-    if (showDiffs) {
-      const baseRow = base.csvRowFromLinkRow[objectInfo.index]
-      const baseValue = base.dataTable[base.activeColumn].values[baseRow]
-      const diff = Math.abs(value - baseValue)
-      return diff / scaleWidth
-    } else {
-      return value / scaleWidth
-    }
   }
 
   function handleClick() {
@@ -156,24 +69,25 @@ export default function Component({
       if (!columnBuild) return null
 
       const index = build.csvRowFromLinkRow[geoOffset]
-      const baseIndex = base.csvRowFromLinkRow[geoOffset]
-
       let value = columnBuild.values[index]
-      let baseValue = base ? base.dataTable[columnBase.name].values[baseIndex] : null
 
       if (isCategorical) {
         if (!Number.isFinite(value)) return null
-        return `<b>${columnBuild.name}</b><p>${value}</p>`
+        return `<b>${columnBuild.name}</b><p>${precise(value)}</p>`
       }
 
       let html = null
 
       if (Number.isFinite(value)) html = `<b>${columnBuild.name}</b><p>Value: ${precise(value)}</p>`
 
-      let diff = value - baseValue
-      if (Number.isFinite(baseValue)) {
-        html += `<p>Base: ${precise(baseValue)}</p>`
-        html += `<p>+/- Base: ${precise(diff)}</p>`
+      const baseIndex = base?.csvRowFromLinkRow[geoOffset]
+      if (baseIndex) {
+        let baseValue = base ? base.dataTable[columnBase.name].values[baseIndex] : null
+        let diff = value - baseValue
+        if (Number.isFinite(baseValue)) {
+          html += `<p>Base: ${precise(baseValue)}</p>`
+          html += `<p>+/- Base: ${precise(diff)}</p>`
+        }
       }
 
       return html
@@ -191,8 +105,8 @@ export default function Component({
       let tooltip = buildTooltipHtml(buildColumn, baseColumn, index)
 
       // tooltip widths------------
-      if (widthValues && widthValues.name !== buildColumn.name) {
-        const widthTip = buildTooltipHtml(widthValues, base.dataTable[base.activeColumn], index)
+      if (widthColumn && widthColumn.name !== buildColumn.name) {
+        const widthTip = buildTooltipHtml(widthColumn, base.dataTable[base.activeColumn], index)
         if (widthTip) tooltip = tooltip ? tooltip + widthTip : widthTip
       }
 
@@ -216,21 +130,24 @@ export default function Component({
       attributes: {
         getSourcePosition: { value: links.source, size: 2 },
         getTargetPosition: { value: links.dest, size: 2 },
+        getColor: { value: newColors, size: 4 },
+        getWidth: { value: newWidths, size: 1 },
       },
     },
-    getColor: getLineColor,
-    getWidth: getLineWidth,
     widthUnits: 'pixels',
+    widthScale: widthDivisor,
     widthMinPixels: 1,
     widthMaxPixels: 50,
     pickable: true,
-    opacity: 0.97,
+    opacity: 1,
     autoHighlight: true,
     highlightColor: [255, 0, 224],
     offsetDirection: OFFSET_DIRECTION.RIGHT,
     updateTriggers: {
-      getColor: [showDiffs, dark, colors, activeColumn],
-      getWidth: [showDiffs, scaleWidth, widths],
+      getSourcePosition: [links.source],
+      getTargetPosition: [links.dest],
+      getColor: [newColors, dark],
+      getWidth: [newWidths, scaleWidth],
     },
     transitions: {
       getColor: 200,
