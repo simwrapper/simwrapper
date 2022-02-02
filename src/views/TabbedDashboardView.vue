@@ -17,17 +17,17 @@
             b: a(v-if="dashboards[tab].header" @click="switchTab(tab)") {{ dashboards[tab].header.tab }}
 
 
-  dash-board(v-if="activeTab && activeTab !== 'FILE__BROWSER' && dashboards[activeTab] && dashboards[activeTab].header.tab !== '...'"
+  dash-board(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
     :root="root"
     :xsubfolder="xsubfolder"
-    :config="dashboards[activeTab]"
+    :config="dashboards[dashboardTabWithDelay]"
     :datamanager="dashboardDataManager"
     :zoomed="isZoomed"
     :allConfigFiles="allConfigFiles"
     @zoom="handleZoom"
   )
 
-  folder-browser(v-if="activeTab && activeTab === 'FILE__BROWSER'"
+  folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
     :root="root"
     :xsubfolder="xsubfolder"
     :allConfigFiles="allConfigFiles"
@@ -123,6 +123,7 @@ export default class VueComponent extends Vue {
 
       // // Start on first tab
       this.activeTab = Object.keys(this.dashboards)[0]
+      this.dashboardTabWithDelay = this.activeTab
     } catch (e) {
       // Bad things happened! Tell user
       console.warn({ eeee: e })
@@ -146,13 +147,22 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private dashboardTabWithDelay = ''
+
   private async switchTab(tab: string) {
     if (tab === this.activeTab) return
 
     // Force teardown the dashboard to ensure we start with a clean slate
     this.activeTab = ''
+    this.dashboardTabWithDelay = ''
     await this.$nextTick()
+
     this.activeTab = tab
+
+    // to give browser time to teardown
+    setTimeout(() => {
+      this.dashboardTabWithDelay = tab
+    }, 150)
   }
 
   private handleZoom(isZoomed: any) {
