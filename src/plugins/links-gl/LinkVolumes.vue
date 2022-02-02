@@ -125,6 +125,7 @@ import {
 import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 const LOOKUP_COLUMN = '_LINK_OFFSET_'
 
@@ -148,6 +149,7 @@ class MyPlugin extends Vue {
   @Prop({ required: false }) yamlConfig!: string
   @Prop({ required: false }) config!: any
   @Prop({ required: false }) thumbnail!: boolean
+  @Prop({ required: false }) datamanager!: DashboardDataManager
 
   // this contains the display settings for this view; it is the View Model.
   // use changeConfiguration to modify this for now (todo: move to state model)
@@ -491,7 +493,7 @@ class MyPlugin extends Vue {
 
     const numLinks = data.source.length / 2
 
-    const gap = 2048
+    const gap = 4096
     for (let i = 0; i < numLinks; i += gap) {
       longitude += data.source[i * 2]
       latitude += data.source[i * 2 + 1]
@@ -515,6 +517,8 @@ class MyPlugin extends Vue {
     }
   }
 
+  private myDataManager!: DashboardDataManager
+
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -523,6 +527,10 @@ class MyPlugin extends Vue {
     this.myState.subfolder = this.subfolder
 
     this.buildFileApi()
+
+    // DataManager might be passed in from the dashboard; or we might be
+    // in single-view mode, in which case we need to create one for ourselves
+    this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
     await this.getVizDetails()
 
@@ -542,40 +550,21 @@ class MyPlugin extends Vue {
 
   private async loadNetwork(): Promise<any> {
     this.myState.statusMessage = 'Loading network...'
-    // this.linkOffsetLookup = {}
-    this.numLinks = 0
 
     const filename = this.vizDetails.network || this.vizDetails.geojsonFile
     const networkPath = `/${this.myState.subfolder}/${filename}`
 
-    this.networkWorker = new RoadNetworkLoader() as Worker
+    const network = await this.myDataManager.getRoadNetwork(networkPath)
 
-    this.networkWorker.onmessage = (buffer: MessageEvent) => {
-      if (this.networkWorker) this.networkWorker.terminate()
-      if (buffer.data.error) {
-        this.myState.statusMessage = buffer.data.error
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: `Error loading: ${networkPath}`,
-        })
-      } else {
-        // this.linkOffsetLookup = buffer.data.linkOffsetLookup
-        this.geojsonData = buffer.data.links
-        this.numLinks = this.geojsonData.source.length / 2
+    this.numLinks = network.linkIds.length
+    this.geojsonData = network
 
-        console.log('links', this.geojsonData)
+    this.setMapCenter() // this could be off main thread
 
-        // runs in background
-        this.setMapCenter()
+    this.myState.statusMessage = ''
 
-        this.myState.statusMessage = ''
-
-        // then load CSVs in background
-        this.loadCSVFiles()
-      }
-    }
-
-    this.networkWorker.postMessage({ filePath: networkPath, fileSystem: this.myState.fileSystem })
+    // then load CSVs in background
+    this.loadCSVFiles()
   }
 
   private dataLoaderWorkers: Worker[] = []
@@ -636,6 +625,10 @@ class MyPlugin extends Vue {
 
     const widthValues = this.csvWidth?.dataTable[this.csvWidth.activeColumn]?.values
     const baseValues = this.csvBase?.dataTable[this.csvBase.activeColumn]?.values
+
+    // widths.fill(4)
+    // this.widthArray = widths
+    // return
 
     const width = (i: number) => {
       const csvRow = this.csvWidth.csvRowFromLinkRow[i]
@@ -779,31 +772,6 @@ class MyPlugin extends Vue {
     this.isDataLoaded = true
   }
 
-  private async finishedLoadingCSV(key: string, dataTable: DataTable) {
-    console.log('loaded', key)
-    this.myState.statusMessage = 'Analyzing...'
-
-    // remove columns without names; we can't use them
-    const cleanTable: DataTable = {}
-    for (const key of Object.keys(dataTable)) {
-      if (key) cleanTable[key] = dataTable[key]
-    }
-
-    // const rowZero = parsed.data[0] as string[]
-    // const header = rowZero.slice(1) // skip first column with link id's
-    // if (this.vizDetails.useSlider) header.unshift(`${this.$t('all')}`)
-
-    // const details: DataTable = {
-    //   allLinks
-    //   headerMax: this.vizDetails.useSlider ? new Array(header.length).fill(globalMax) : [],
-    //   rows: allLinks,
-    //   activeColumn: -1,
-    // }
-
-    this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
-    this.handleNewDataset({ key, dataTable: cleanTable })
-  }
-
   private handleDatasetisLoaded(datasetId: string) {
     const datasetKeys = Object.keys(this.datasets)
 
@@ -842,31 +810,20 @@ class MyPlugin extends Vue {
   private async loadOneCSVFile(key: string, filename: string) {
     if (!this.myState.fileApi) return
 
-    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
+    const dataset = await this.myDataManager.getDataset({ dataset: filename })
+    const dataTable = dataset.allRows
 
-    const thread = new Promise<DataTable>((resolve, reject) => {
-      const worker = new DataFetcher() as Worker
-      this.dataLoaderWorkers.push(worker) // so we can terminate them all on destroy
+    console.log('loaded', key)
+    this.myState.statusMessage = 'Analyzing...'
 
-      try {
-        worker.onmessage = e => {
-          worker.terminate()
-          resolve(e.data)
-        }
-        worker.postMessage({
-          fileSystemConfig: this.myState.fileSystem,
-          subfolder: this.myState.subfolder,
-          files: files,
-          config: { dataset: filename },
-        })
-      } catch (err) {
-        worker.terminate()
-        reject(err)
-      }
-    })
+    // remove columns without names; we can't use them
+    const cleanTable: DataTable = {}
+    for (const key of Object.keys(dataTable)) {
+      if (key) cleanTable[key] = dataTable[key]
+    }
 
-    const dataTable = await thread
-    this.finishedLoadingCSV(key, dataTable)
+    this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
+    this.handleNewDataset({ key, dataTable: cleanTable })
   }
 
   private handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {

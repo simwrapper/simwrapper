@@ -18,6 +18,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
+import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 interface configuration {
   dataset: string
@@ -29,6 +30,12 @@ interface configuration {
   skipFirstRow?: boolean
   useLastRow?: boolean
   x?: string
+}
+
+interface NetworkLinks {
+  source: Float32Array
+  dest: Float32Array
+  linkIds: any[]
 }
 
 export default class DashboardDataManager {
@@ -107,31 +114,30 @@ export default class DashboardDataManager {
       }
 
       return { allRows }
-
-      if (config.value && config.groupBy) {
-        // grouping/filtering enabled
-        let bars: any = {}
-        const columnValues = config.value
-        const columnGroups = config.groupBy
-        // TODO: Fix this!
-
-        // bars = rollup(
-        //   allRows,
-        //   v => v.reduce((a, b) => a + b[columnValues], 0),
-        //   (d: any) => d[columnGroups] // group-by
-        // )
-        // const x = Array.from(bars.keys())
-        // const y = Array.from(bars.values())
-        // return { x, y }
-        // #
-      } else {
-        // no grouping/filtering
-        return { allRows }
-      }
     } catch (e) {
       // const message = '' + e
       return { allRows: {} }
     }
+  }
+
+  /**
+   *
+   * @param path Full path/filename to the network file
+   * @returns network (format TBA)
+   */
+  public async getRoadNetwork(path: string) {
+    // first, get the dataset
+    if (!this.networks[path]) {
+      console.log(111, 'load network:', path)
+
+      // fetchNetwork immediately returns a Promise<>, which we wait on so that
+      // multiple views don't all try to fetch the network individually
+      this.networks[path] = this.fetchNetwork(path)
+    } else {
+    }
+
+    let network = await this.networks[path]
+    return network
   }
 
   // /**
@@ -281,6 +287,32 @@ export default class DashboardDataManager {
     })
   }
 
+  private async fetchNetwork(path: string) {
+    return new Promise<NetworkLinks>((resolve, reject) => {
+      const thread = new RoadNetworkLoader()
+      try {
+        thread.postMessage({
+          filePath: path,
+          fileSystem: this.fileApi,
+        })
+
+        thread.onmessage = e => {
+          thread.terminate()
+          if (e.data.error) {
+            console.error(e.data.error)
+            globalStore.commit('error', e.data.error)
+            reject()
+          }
+          resolve(e.data.links)
+        }
+      } catch (err) {
+        thread.terminate()
+        console.error(err)
+        reject(err)
+      }
+    })
+  }
+
   private getFileSystem(name: string) {
     const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
       (a: FileSystemConfig) => a.slug === name
@@ -304,4 +336,6 @@ export default class DashboardDataManager {
       filterListeners: Set<any>
     }
   } = {}
+
+  private networks: { [id: string]: Promise<NetworkLinks> } = {}
 }
