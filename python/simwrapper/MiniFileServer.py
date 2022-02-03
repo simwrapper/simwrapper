@@ -146,7 +146,7 @@ def run_mini_file_server(port, cert, key):
 
     print("-----------------------------------------------------------------\n")
     # test(HandlerClass=RangeRequestHandler, port=free_port)
-    httpd = HTTPServer(('localhost', free_port), RangeRequestHandler)
+    httpd = HTTPServer(('', free_port), RangeRequestHandler)
 
     if cert and key: httpd.socket = ssl.wrap_socket(
         httpd.socket,
