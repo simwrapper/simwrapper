@@ -36,14 +36,14 @@
 const i18n = {
   messages: {
     en: {
-      selectColumn: 'Width data column',
+      selectColumn: 'Data:',
       loading: 'Loading...',
       bandwidths: 'Widths: 1 pixel =:',
       timeOfDay: '',
       colors: 'Colors',
     },
     de: {
-      selectColumn: 'Width data column',
+      selectColumn: 'Datenmengen:',
       loading: 'Laden...',
       bandwidths: 'Linienbreiten: 1 pixel =:',
       timeOfDay: '',

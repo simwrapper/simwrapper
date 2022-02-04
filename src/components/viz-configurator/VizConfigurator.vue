@@ -65,18 +65,6 @@ export default class VueComponent extends Vue {
     // { component: '', name: 'labels' },
   ]
 
-  // @Watch('vizDetails') modelChanged() {
-  //   // console.log('NEW VIZMODEL', this.vizDetails)
-  // }
-
-  // @Watch('datasets') datasetsChanged() {
-  //   // console.log('NEW DATASETS', this.datasets)
-  // }
-
-  // private mounted() {
-  //   this.buildConfiguration()
-  // }
-
   private get vizConfiguration() {
     return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
   }

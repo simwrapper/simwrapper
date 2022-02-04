@@ -24,6 +24,7 @@ export default function Component({
   build = {} as LookupDataset,
   base = {} as LookupDataset,
   widths = {} as LookupDataset,
+  widthsBase = {} as LookupDataset,
   newColors = new Uint8Array(),
   newWidths = new Float32Array(),
   dark = false,
@@ -106,7 +107,11 @@ export default function Component({
 
       // tooltip widths------------
       if (widthColumn && widthColumn.name !== buildColumn.name) {
-        const widthTip = buildTooltipHtml(widthColumn, base.dataTable[base.activeColumn], index)
+        const widthTip = buildTooltipHtml(
+          widthColumn,
+          widthsBase.dataTable[widthsBase.activeColumn],
+          index
+        )
         if (widthTip) tooltip = tooltip ? tooltip + widthTip : widthTip
       }
 

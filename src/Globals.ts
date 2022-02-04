@@ -51,6 +51,7 @@ export interface DataTableColumn {
 
 /** LookupDataset bridges CSV data and link data with the join column containing array offsets */
 export interface LookupDataset {
+  datasetKey: string
   dataTable: DataTable
   activeColumn: string
   csvRowFromLinkRow: number[]

@@ -11,6 +11,7 @@
         :build="csvData"
         :base="csvBase"
         :widths="csvWidth"
+        :widthsBase="csvWidthBase"
         :dark="isDarkMode"
         :newColors="colorArray"
         :newWidths="widthArray"
@@ -109,9 +110,7 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import DataFetcher from '@/workers/DataFetcher.worker.ts?worker'
-import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
-import AttributeCalculator from './attributeCalculator.worker.ts?worker'
+// import AttributeCalculator from './attributeCalculator.worker.ts?worker'
 
 import {
   ColorScheme,
@@ -204,16 +203,25 @@ class MyPlugin extends Vue {
   }
 
   private csvData: LookupDataset = {
+    datasetKey: '',
     activeColumn: '',
     dataTable: {},
     csvRowFromLinkRow: [],
   }
   private csvBase: LookupDataset = {
+    datasetKey: '',
     activeColumn: '',
     dataTable: {},
     csvRowFromLinkRow: [],
   }
   private csvWidth: LookupDataset = {
+    datasetKey: '',
+    activeColumn: '',
+    dataTable: {},
+    csvRowFromLinkRow: [],
+  }
+  private csvWidthBase: LookupDataset = {
+    datasetKey: '',
     activeColumn: '',
     dataTable: {},
     csvRowFromLinkRow: [],
@@ -417,6 +425,7 @@ class MyPlugin extends Vue {
     let recalculate = true
 
     if (!columnName) recalculate = false
+
     if (
       width.columnName === this.currentWidthDefinition.columnName &&
       width.dataset === this.currentWidthDefinition.dataset
@@ -436,6 +445,8 @@ class MyPlugin extends Vue {
     if (this.csvWidth.dataTable !== selectedDataset) {
       this.csvWidth.dataTable = selectedDataset
       this.csvWidth.activeColumn = columnName
+      // this.csvWidthBase.dataTable = selectedDataset
+      this.csvWidthBase.activeColumn = columnName
     }
 
     const dataColumn = selectedDataset[columnName]
@@ -443,6 +454,7 @@ class MyPlugin extends Vue {
 
     // Tell Vue we have new data
     this.csvWidth = {
+      datasetKey: dataset || this.csvWidth.datasetKey,
       dataTable: selectedDataset,
       activeColumn: columnName,
       csvRowFromLinkRow: dataset ? this.csvRowLookupFromLinkRow[dataset] : [],
@@ -465,6 +477,7 @@ class MyPlugin extends Vue {
 
     if (this.csvData.dataTable !== selectedDataset) {
       this.csvData = {
+        datasetKey,
         dataTable: selectedDataset,
         activeColumn: '',
         csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
@@ -511,7 +524,7 @@ class MyPlugin extends Vue {
         latitude,
         bearing: 0,
         pitch: 0,
-        zoom: 7,
+        zoom: 9,
         jump: false,
       })
     }
@@ -626,10 +639,6 @@ class MyPlugin extends Vue {
     const widthValues = this.csvWidth?.dataTable[this.csvWidth.activeColumn]?.values
     const baseValues = this.csvBase?.dataTable[this.csvBase.activeColumn]?.values
 
-    // widths.fill(4)
-    // this.widthArray = widths
-    // return
-
     const width = (i: number) => {
       const csvRow = this.csvWidth.csvRowFromLinkRow[i]
       const value = widthValues[csvRow]
@@ -686,7 +695,7 @@ class MyPlugin extends Vue {
     const numLinks = this.geojsonData.linkIds.length
     const colors = new Uint8Array(4 * numLinks)
 
-    const colorPaleGrey = globalStore.state.isDarkMode ? [80, 80, 80, 96] : [212, 212, 212, 20]
+    const colorPaleGrey = globalStore.state.isDarkMode ? [80, 80, 80, 96] : [212, 212, 212, 40]
     const colorInvisible = [0, 0, 0, 0]
 
     const color = (i: number) => {
@@ -752,6 +761,7 @@ class MyPlugin extends Vue {
   private showSimpleNetworkWithNoDatasets() {
     // no datasets; we are just showing the bare network
     this.csvData = {
+      datasetKey: '',
       dataTable: {
         [LOOKUP_COLUMN]: {
           name: LOOKUP_COLUMN,
@@ -778,17 +788,24 @@ class MyPlugin extends Vue {
     if (datasetId === 'csvBase' || datasetId === 'base') {
       // is base dataset:
       this.csvBase = {
+        datasetKey: datasetId,
         dataTable: this.datasets[datasetId],
         csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
         activeColumn: '',
       }
-      // this.vizDetails.showDifferences = true
+      this.csvWidthBase = {
+        datasetKey: datasetId,
+        dataTable: this.datasets[datasetId],
+        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+        activeColumn: '',
+      }
     } else if (this.csvData.activeColumn === '') {
       // is first non-base dataset:
       // set a default view, if user didn't pass anything in
       if (!this.vizDetails.display.color && !this.vizDetails.display.width) {
         const firstColumnName = Object.values(this.datasets[datasetId])[0].name
         this.csvData = {
+          datasetKey: datasetId,
           dataTable: this.datasets[datasetId],
           csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
           activeColumn: firstColumnName,
@@ -828,7 +845,6 @@ class MyPlugin extends Vue {
 
   private handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {
     const { dataset, column } = value
-    console.log(column)
 
     // selector is attached to a dataset. Both color and width could be
     // impacted, if they are attached to that dataset.
@@ -836,14 +852,14 @@ class MyPlugin extends Vue {
     const config: any = {}
 
     // WIDTHS
-    if (dataset === this.csvWidth) {
+    if (dataset.datasetKey === this.csvWidth.datasetKey) {
       const width: WidthDefinition = { ...this.vizDetails.display.width }
       width.columnName = column
       config.width = width
     }
 
     // COLORS
-    if (dataset === this.csvData) {
+    if (dataset.datasetKey === this.csvData.datasetKey) {
       const color: ColorDefinition = { ...this.vizDetails.display.color }
       color.columnName = column
       config.color = color

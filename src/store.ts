@@ -25,7 +25,7 @@ const initialViewState = () => ({
   // zoom: 8,
   longitude: 10,
   latitude: 50,
-  zoom: 6,
+  zoom: 9,
 })
 
 interface GlobalState {

@@ -110,6 +110,16 @@ export default class VueComponent extends Vue {
 
   private isFirstDataset = true
 
+  @Watch('vizConfiguration')
+  private vizConfigChanged() {
+    const config = this.vizConfiguration.display?.color
+    if (config?.columnName) {
+      const selectedColumn = `${config.dataset}/${config.columnName}`
+      this.dataColumn = selectedColumn
+      this.datasetLabels = [...this.datasetLabels]
+    }
+  }
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
