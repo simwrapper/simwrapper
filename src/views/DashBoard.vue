@@ -166,7 +166,7 @@ export default class VueComponent extends Vue {
     const folderContents = await this.fileApi.getDirectory(this.xsubfolder)
 
     // hide dot folders
-    const files = folderContents.files.filter((f) => !f.startsWith('.')).sort()
+    const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
     return files
   }
 
@@ -262,8 +262,7 @@ export default class VueComponent extends Vue {
     }
 
     // set header
-    this.title = this.yaml.header.title || 'Dashboard'
-    this.description = this.yaml.header.description || ''
+    this.updateLabels()
 
     // build rows
     let numCard = 1
@@ -271,7 +270,7 @@ export default class VueComponent extends Vue {
     for (const rowId of Object.keys(this.yaml.layout)) {
       const cards: any[] = this.yaml.layout[rowId]
 
-      cards.forEach((card) => {
+      cards.forEach(card => {
         card.id = `card-id-${numCard}`
         card.isLoaded = false
 
@@ -284,6 +283,26 @@ export default class VueComponent extends Vue {
 
       this.rows.push(cards)
     }
+  }
+
+  @Watch('$store.state.locale') updateLabels() {
+    this.title = this.getDashboardLabel('title')
+    this.description = this.getDashboardLabel('description')
+  }
+
+  private getDashboardLabel(element: 'title' | 'description') {
+    const header = this.yaml.header
+    let tag = '...'
+
+    if (this.$store.state.locale === 'de') {
+      tag =
+        header[`${element}_de`] || header[`${element}`] || header[`${element}_en`] || 'Dashboard'
+    } else {
+      tag =
+        header[`${element}_en`] || header[`${element}`] || header[`${element}_de`] || 'Dashboard'
+    }
+
+    return tag
   }
 
   private opacity: any = {}
