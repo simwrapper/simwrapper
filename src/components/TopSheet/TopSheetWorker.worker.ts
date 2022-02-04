@@ -146,7 +146,7 @@ async function runTopSheet(props: {
 
   // set up user entry boxes if first run
   if (!Object.keys(_boxValues).length) {
-    console.log('** resetting boxvalues')
+    // console.log('** resetting boxvalues')
     _boxValues = getBoxValues(_yaml)
   }
 
@@ -189,7 +189,7 @@ function buildOutputs() {
 }
 
 function getBoxValues(yaml: TopsheetYaml) {
-  console.log('getBoxValues')
+  // console.log('getBoxValues')
   const boxes = yaml.userEntries
   if (!boxes) return {}
 
@@ -232,7 +232,7 @@ function doAllCalculations() {
       // solve the equation using nerdamer
       const value = nerdamer(expr).valueOf()
       calculations[calc] = value
-      console.log(calc, value)
+      // console.log(calc, value)
     } catch (e) {
       calculations[calc] = `Error:${calc}: ${expr}`
     }
@@ -244,15 +244,17 @@ function doAllCalculations() {
 function getFilterReplacements(calc: string): any[] {
   const expr = '' + _yaml.calculations[calc]
 
-  // this regex matches @filter(file.column==value)
-  const re = /(?<=\@filter\().*?(?=\))/g
-  const patterns = expr.match(re)
+  // this regex matches @filter(file.column==value):
 
-  if (!patterns) return []
-  if (patterns.length > 1) throw Error('Only one filter allowed per calculation')
+  // OOPS: SAFARI doesn't support real regex, fuck you safari!
+  // const re = /(?<=\@filter\().*?(?=\))/g
+  // const patterns = expr.match(re)
+
+  const loc = expr.indexOf('@filter(')
+  if (loc == -1) return []
 
   // analyze first @filter only
-  const innerPattern = patterns[0]
+  const innerPattern = expr.substring(loc + 8, expr.indexOf(')', loc))
 
   const filters = {
     '==': (row: any) => row[column] == value,
@@ -290,9 +292,22 @@ function getFilterReplacements(calc: string): any[] {
 
 function getFileVariableReplacements(expr: string) {
   // this regex matches {variables}
-  const re = /(?<={).*?(?=})/g
-  const patterns = expr.match(re)
-  if (!patterns) return expr
+  // OOPS! SAFARI FUCKALL DOESN'T SUPPORT REGEX WITH LOOKBEHIND
+  // broken: const re = /(?<={).*?(?=})/g
+  // const patterns = expr.match(re)
+
+  // non-regex version because SAFARI IS THE WORST :-O
+  let offset = 0
+  const patterns: string[] = []
+
+  while (expr.indexOf('{', offset) > -1) {
+    offset = 1 + expr.indexOf('{', offset)
+    const element = expr.substring(offset, expr.indexOf('}', offset))
+    patterns.push(element)
+  }
+
+  // no vars? just return the string
+  if (!patterns.length) return expr
 
   // for each {variable}, do a lookup and replace
   for (const p of patterns) {
@@ -350,7 +365,7 @@ async function loadFiles() {
       await parseVariousFileTypes(inputFile, filename, text)
     } catch (e) {
       console.error(e)
-      throw e
+      // throw e
     }
   }
 }
