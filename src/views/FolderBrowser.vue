@@ -128,7 +128,11 @@ export default class VueComponent extends Vue {
 
   private globalState = globalStore.state
 
-  private mdRenderer = new markdown()
+  private mdRenderer = new markdown({
+    html: true,
+    linkify: true,
+    typographer: true,
+  })
 
   private myState: IMyState = {
     errorStatus: '',
@@ -231,6 +235,7 @@ export default class VueComponent extends Vue {
 
     this.myState.svnProject = svnProject
     this.myState.subfolder = this.xsubfolder || ''
+    this.myState.readme = ''
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -269,10 +274,9 @@ export default class VueComponent extends Vue {
   }
 
   private async showReadme() {
+    this.myState.readme = ''
     const readme = 'readme.md'
-    if (this.myState.files.indexOf(readme) === -1) {
-      this.myState.readme = ''
-    } else {
+    if (this.myState.files.map(f => f.toLocaleLowerCase()).indexOf(readme) > -1) {
       if (!this.myState.svnRoot) return
       const text = await this.myState.svnRoot.getFileText(this.myState.subfolder + '/' + readme)
       this.myState.readme = this.mdRenderer.render(text)
