@@ -59,13 +59,14 @@ for link_id in converted_links:
     points = converted_links[link_id]
     geojson["features"].append({
         "type": "Feature",
+        "id": link_id,
         "geometry": {
             "type": "LineString",
             "coordinates": [ [points[0],points[1]], [points[2],points[3]]]
-        },
-        "properties": {
-            "id": link_id
         }
+        # -- for now, no properties. Saves space
+        # "properties": {
+        # }
     })
 
 # write it out
