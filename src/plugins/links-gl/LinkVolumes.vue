@@ -233,6 +233,11 @@ class MyPlugin extends Vue {
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isDataLoaded = false
 
+  private setDataIsLoaded() {
+    this.isDataLoaded = true
+    this.$emit('isLoaded', true)
+  }
+
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
     this.myState.fileApi = new HTTPFileSystem(filesystem)
@@ -341,7 +346,10 @@ class MyPlugin extends Vue {
   }
 
   @Watch('$store.state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+    setTimeout(
+      () => (this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode),
+      100
+    )
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -779,7 +787,7 @@ class MyPlugin extends Vue {
     this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
 
     this.myState.statusMessage = ''
-    this.isDataLoaded = true
+    this.setDataIsLoaded()
   }
 
   private handleDatasetisLoaded(datasetId: string) {
@@ -815,7 +823,7 @@ class MyPlugin extends Vue {
 
     // last dataset
     if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
-      this.isDataLoaded = true
+      this.setDataIsLoaded()
       this.myState.statusMessage = ''
       console.log({ DATASETS: this.datasets })
     }

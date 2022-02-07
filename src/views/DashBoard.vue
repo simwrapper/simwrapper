@@ -40,12 +40,10 @@
 
 
         //- card contents
-        .spinner-box(v-if="getCardComponent(card)"
-          :id="card.id"
-          :class="{'is-loaded': card.isLoaded}"
-        )
+        .spinner-box(v-if="getCardComponent(card)" :id="card.id" :class="{'is-loaded': numberOfShownCards >= card.number}")
 
           component.dash-card(
+            v-if="numberOfShownCards >= card.number"
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
             :subfolder="xsubfolder"
@@ -53,7 +51,6 @@
             :yaml="card.props.configFile"
             :config="card.props"
             :datamanager="datamanager"
-            :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
             :cardTitle="card.title"
             :allConfigFiles="allConfigFiles"
@@ -273,9 +270,10 @@ export default class VueComponent extends Vue {
       cards.forEach(card => {
         card.id = `card-id-${numCard}`
         card.isLoaded = false
+        card.number = numCard
 
         // Vue is weird about new properties: use Vue.set() instead
-        Vue.set(this.opacity, card.id, 0.1)
+        Vue.set(this.opacity, card.id, 0.15)
         Vue.set(this.infoToggle, card.id, false)
 
         numCard++
@@ -284,6 +282,8 @@ export default class VueComponent extends Vue {
       this.rows.push(cards)
     }
   }
+
+  private numberOfShownCards = 1
 
   @Watch('$store.state.locale') updateLabels() {
     this.title = this.getDashboardLabel('title')
@@ -310,6 +310,7 @@ export default class VueComponent extends Vue {
   private async handleCardIsLoaded(card: any) {
     card.isLoaded = true
     this.opacity[card.id] = 1.0
+    this.numberOfShownCards++
   }
 }
 </script>
