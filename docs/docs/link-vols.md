@@ -6,7 +6,7 @@ title: Link Volumes
 ![bandwidth banner](assets/links.jpg)
 _Bandwidth plot_
 
-Link bandwidth plot plugin. Supports regular bandwidth plots as well as difference and sum plots when comparing two alternatives.
+Link bandwidth plot plugin. Supports regular bandwidth plots as well as difference plots when comparing two alternatives.
 
 ## Usage
 
@@ -67,7 +67,8 @@ This works as far up the hierarchy as the base of the public-svn specified in `s
 **csvFile** - Use whatever method you like to produce a CSV for your data. The first line of the file should contain labels of the column names, e.g. the hour of the day, etc.
 
 - First column must include the link ID, identical to the link ID in the network file
-- All remaining columns will be available and will be labeled accordingly. The viz will also produce a sum "total" automatically
+- All remaining columns will be available and will be labeled accordingly.
+- **Note:** older versions of SimWrapper used to autogenerate a "sum" column, but it no longer does. If you want to show a "sum" total column, you will have to calculate it yourself as a separate column in your data file.
 
 **example-data.csv**
 
