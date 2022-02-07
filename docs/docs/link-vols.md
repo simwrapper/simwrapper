@@ -1,6 +1,6 @@
 ---
 id: link-vols
-title: Network link plots
+title: Network Link Plots
 ---
 
 ![bandwidth banner](assets/links.jpg)
@@ -76,29 +76,6 @@ Use whatever method you like to produce a CSV for your data; most of us either b
 - All remaining columns will be available and will be labeled according to the file header.
 - **Note:** older versions of SimWrapper used to autogenerate a "sum" column. This has been removed. If you want to show a "sum" total column, you will have to calculate it yourself as a separate column in your data file.
 
-## Defining Colors and Widths
-
-Both colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML; see the example above.
-
-### Color
-
-The `color` section may include the following properties:
-
-- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
-- **columnName** The name of the column containing color values
-- **colorRamp** This section can have multiple settings:
-  - `ramp`: The name of the color progression; can be `Viridis`, `Plasma`, `Blues`, `Purples`, `Oranges`, `PRGn`, `RdBu`, `Tableau10`, `Paired`. Note that `PRGn` and `RdBu` are **diverging scales**, while `Tableau10` and `Paired` are appropriate for **categorical** instead of sequential data.
-  - `reversed` true or false, flips the order of colors
-  - `steps` the number of different colors in the progression; default is 9.
-
-### Width
-
-The `width` section includes the following properties:
-
-- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
-- **columnName** The name of the column containing width values
-- **scaleFactor** Values will be **divided by** this scaling factor. Set this to `0` to have constant, paper-thin widths.
-
 ---
 
 ## YAML fields explained
@@ -129,13 +106,30 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 
 - Differences are always calculated as `'csvFile - csvBase'`
 
-### Deprecated fields, do not use:
+**display:** The optional display section includes details of the color and width data specifications.
 
-**shpFile,dbfFile, shpFileIdProperty:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
+## Defining Colors and Widths
 
-**widthFactor:** (deprecated) Width values used to be uniformly scaled by this value. See **Colors and Widths** on this page.
+Both colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML; see the example above.
 
-**sampleRate:** (deprecated) This option used to specify the MATSim simulation sample rate; i.e. a 1% sample would use `0.01` here so that volumes were scaled properly. This is NOW IGNORED; you must scale your CSV data appropriately.
+### Color
+
+The `color` section may include the following properties:
+
+- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
+- **columnName** The name of the column containing color values
+- **colorRamp** This section can have multiple settings:
+  - `ramp`: The name of the color progression; can be `Viridis`, `Plasma`, `Blues`, `Purples`, `Oranges`, `PRGn`, `RdBu`, `Tableau10`, `Paired`. Note that `PRGn` and `RdBu` are **diverging scales**, while `Tableau10` and `Paired` are appropriate for **categorical** instead of sequential data.
+  - `reversed` true or false, flips the order of colors
+  - `steps` the number of different colors in the progression; default is 9.
+
+### Width
+
+The `width` section includes the following properties:
+
+- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
+- **columnName** The name of the column containing width values
+- **scaleFactor** Values will be **divided by** this scaling factor. Set this to `0` to have constant, paper-thin widths.
 
 ---
 
@@ -148,3 +142,11 @@ link;01:00:00;02:00:00;03:00:00;04:00:00;05:00:00;06:00:00;07:00:00;08:00:00;09:
 72539936;0;1;0;0;17;57;63;52;51;47;49;59;78;67;73;113;99;98;107;47;38;36;24;13;4;0;0;0;0
 6173553;0;1;0;3;5;1;10;10;9;3;8;4;6;3;4;9;5;7;4;2;1;1;1;2;0;1;0;0;0
 ```
+
+## Deprecated fields, do not use:
+
+**shpFile,dbfFile, shpFileIdProperty:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
+
+**widthFactor:** (deprecated) Width values used to be uniformly scaled by this value. See **Colors and Widths** on this page.
+
+**sampleRate:** (deprecated) This option used to specify the MATSim simulation sample rate; i.e. a 1% sample would use `0.01` here so that volumes were scaled properly. This is NOW IGNORED; you must scale your CSV data appropriately.

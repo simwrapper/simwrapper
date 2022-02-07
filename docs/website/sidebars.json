@@ -2,32 +2,29 @@
   "doc": {
     "Getting Started": [
       "simwrapper-intro",
-      "mini-file-server",
+      "dashboards",
       "file-management",
+      "mini-file-server",
       "scripts"
     ],
-    "Dashboards": [
-      "dashboards",
+    "Visualizations and Charts": [
       "area-maps",
       "bar-area-line",
-      "calculation-tables",
-      "heatmap-charts",
-      "pie-charts",
-      "text-block",
-      "vega-lite",
-      "xy-scatter-plots"
-    ],
-    "Advanced Visualizations": [
-      "viz-intro",
-      "aggregate-od",
       "carrier-viewer",
+      "calculation-tables",
       "drt-vehicles",
       "flow-map",
+      "heatmap-charts",
       "link-vols",
+      "pie-charts",
       "sankey",
+      "text-block",
       "transit-supply",
+      "vega-lite",
       "video",
-      "xy-hexagons"
+      "xy-hexagons",
+      "xy-scatter-plots",
+      "aggregate-od"
     ],
     "Developer Guide": ["dev-guide", "plugin-guide", "changelog"]
   }
