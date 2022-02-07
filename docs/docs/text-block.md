@@ -12,6 +12,7 @@ layout:
   row:
     title: "Introduction"
     description: "Each box can have a title and description"
+    type: text
     props:
       file: "README.md"
 ```
