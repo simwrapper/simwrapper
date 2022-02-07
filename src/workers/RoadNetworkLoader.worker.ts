@@ -156,8 +156,19 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     dest[2 * i + 0] = feature.geometry.coordinates[1][0]
     dest[2 * i + 1] = feature.geometry.coordinates[1][1]
 
-    // linkOffsetLookup[feature.properties.id] = i
-    linkIds[i] = feature.properties.id
+    // Geojson spec is unclear on where the ID should go.
+    // - Section 3 says if there is a general ID, it "should" go
+    //   in the top level of the feature itself, ie. feature.id
+    //   https://datatracker.ietf.org/doc/html/rfc7946#section-6
+    // - Section 6 says that all properties of the feature
+    //   should go in the "properties" object and putting anything
+    //   outside of the geometry or properties will cause
+    //   interoperability problems
+    //   https://datatracker.ietf.org/doc/html/rfc7946#section-6
+    //
+    // Thus we will look in both places.
+
+    linkIds[i] = feature.id || feature.properties.id
   }
 
   return { links: { source, dest, linkIds } }
