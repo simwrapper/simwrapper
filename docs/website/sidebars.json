@@ -13,6 +13,7 @@
       "calculation-tables",
       "heatmap-charts",
       "pie-charts",
+      "text-block",
       "vega-lite",
       "xy-scatter-plots"
     ],
