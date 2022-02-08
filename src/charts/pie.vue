@@ -105,6 +105,7 @@ export default class VueComponent extends Vue {
   // format hover ?
   private data = [
     {
+      sort: false, // to keep colors consistent across plots
       labels: [] as any[],
       values: [] as any[],
       type: 'pie',
