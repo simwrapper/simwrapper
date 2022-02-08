@@ -214,7 +214,7 @@ export default class VueComponent extends Vue {
     const flex = card.width || 1
 
     let style: any = {
-      margin: '2rem 3rem 2rem 0',
+      // margin: '2rem 1rem 2rem 0',
       flex: flex,
     }
 
@@ -332,8 +332,8 @@ export default class VueComponent extends Vue {
 }
 
 .dashboard-header {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
+  margin: 1rem 3rem 1rem 0rem;
+
   h2 {
     line-height: 3rem;
   }
@@ -348,6 +348,7 @@ export default class VueComponent extends Vue {
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
+  margin: 2rem 3rem 2rem 0;
 
   .dash-card-headers {
     display: flex;
@@ -413,8 +414,20 @@ export default class VueComponent extends Vue {
 }
 
 @media only screen and (max-width: 50em) {
+  .dashboard {
+    padding: 1rem 0rem 1rem 1rem;
+  }
+
+  .dashboard-header {
+    margin: 1rem 1rem 1rem 0rem;
+  }
+
   .dash-row {
     flex-direction: column;
+  }
+
+  .dash-card-frame {
+    margin: 2rem 1rem 2rem 0;
   }
 }
 </style>

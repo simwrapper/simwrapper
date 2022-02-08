@@ -297,5 +297,8 @@ li.is-not-active b a {
 }
 
 @media only screen and (max-width: 50em) {
+  .tabholdercontainer {
+    margin: 0 1rem;
+  }
 }
 </style>
