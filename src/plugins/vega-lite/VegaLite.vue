@@ -5,10 +5,9 @@
     h3.center {{ title }}
     h5.center {{ description }}
 
-  .vega-chart(
-    :id="cleanConfigId"
+  .zippy(:id="zippyId")
+    .vega-chart(:id="cleanConfigId")
 
-  )
 </template>
 
 <script lang="ts">
@@ -22,20 +21,11 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: {} })
 class VegaComponent extends Vue {
-  @Prop({ required: true })
-  private root!: string
-
-  @Prop({ required: false })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private config!: string
-
-  @Prop({ required: true })
-  private thumbnail!: boolean
+  @Prop({ required: true }) private root!: string
+  @Prop({ required: false }) private subfolder!: string
+  @Prop({ required: false }) private yamlConfig!: string
+  @Prop({ required: false }) private config!: string
+  @Prop({ required: true }) private thumbnail!: boolean
 
   private globalState = globalStore.state
 
@@ -49,13 +39,14 @@ class VegaComponent extends Vue {
 
   private vizDetails: any = { title: '', description: '' }
 
-  private loadingText: string = 'Flow Diagram'
+  private loadingText: string = 'Loading'
   private totalTrips = 0
 
   private title = ''
   private description = ''
 
   private cleanConfigId = 'vega-' + Math.floor(Math.random() * 1e12)
+  private zippyId = 'zippy-' + Math.floor(Math.random() * 1e12)
 
   public async mounted() {
     this.buildFileApi()
@@ -68,12 +59,13 @@ class VegaComponent extends Vue {
     // if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
-    this.changeDimensions()
-    window.addEventListener('resize', this.changeDimensions)
+    this.embedChart()
+    // this.changeDimensions()
+    // window.addEventListener('resize', this.changeDimensions)
   }
 
   public beforeDestroy() {
-    window.removeEventListener('resize', this.changeDimensions)
+    // window.removeEventListener('resize', this.changeDimensions)
   }
 
   @Watch('globalState.isDarkMode')
@@ -86,7 +78,7 @@ class VegaComponent extends Vue {
     // if (!this.vizDetails) return
 
     // figure out dimensions, depending on if we are in a dashboard or not
-    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+    let box = document.querySelector(`#${this.zippyId}`) as Element
     let width = box.clientWidth
     let height = box.clientHeight
     console.log(width, height)
@@ -148,7 +140,6 @@ class VegaComponent extends Vue {
 
   // this happens if viz is the full page, not a thumbnail on a project page
   private buildRouteFromUrl() {
-    console.log('HEEERE')
     const params = this.$route.params
     if (!params.project || !params.pathMatch) {
       console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
@@ -185,10 +176,7 @@ class VegaComponent extends Vue {
 
       // might be a project config:
       console.log(this.myState.yamlConfig)
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
+      const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
 
       json = await this.myState.fileApi.getFileJson(filename)
 
@@ -233,14 +221,17 @@ class VegaComponent extends Vue {
   }
 
   private async embedChart() {
+    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+    if (!box) return
+
     this.loadingText = 'Building chart...'
 
     const exportActions = { export: true, source: false, compiled: false, editor: false }
+
     const embedOptions = {
       actions: this.thumbnail ? false : exportActions,
       hover: true,
       scaleFactor: 2.0, // make exported PNGs bigger
-      // padding: { top: 5, left: 5, right: 5, bottom: 5 },
     }
 
     // remove legends on thumbnails so chart fits better
@@ -272,6 +263,10 @@ class VegaComponent extends Vue {
           }
     )
 
+    // Always use responsive size -- let dashboard determine the size.
+    this.vizDetails.width = 'container'
+    this.vizDetails.height = 'container'
+
     try {
       await vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
     } catch (e) {
@@ -301,15 +296,32 @@ export default VegaComponent
 @import '@/styles.scss';
 
 .vega-container {
-  display: flex;
-  flex-direction: column;
-  margin: 0rem 0rem 0rem 0rem;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+}
+
+.labels {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  margin: 1rem 0rem;
+}
+
+.zippy {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+  max-height: 100%;
+  height: 100%;
 }
 
 .vega-chart {
-  flex: 1;
-  margin: 0rem 1rem 1rem 1rem;
-  overflow: hidden;
+  height: 100%;
+  width: 100%;
 }
 
 h1 {
@@ -324,15 +336,6 @@ h3 {
 h4,
 p {
   margin: 1rem 1rem;
-}
-
-.labels {
-  margin: 1rem 0rem;
-}
-
-.center-chart {
-  margin: 0 auto;
-  flex: 1;
 }
 
 .center {
