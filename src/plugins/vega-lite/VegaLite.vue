@@ -232,7 +232,7 @@ class VegaComponent extends Vue {
     return json
   }
 
-  private embedChart() {
+  private async embedChart() {
     this.loadingText = 'Building chart...'
 
     const exportActions = { export: true, source: false, compiled: false, editor: false }
@@ -272,7 +272,16 @@ class VegaComponent extends Vue {
           }
     )
 
-    vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
+    try {
+      await vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
+    } catch (e) {
+      let message = '' + e
+      console.error(message)
+
+      if (message.indexOf('{') > -1) message = message.substring(0, message.indexOf('{'))
+
+      this.$store.commit('error', 'Vega: ' + message)
+    }
   }
 }
 
