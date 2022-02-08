@@ -64,15 +64,19 @@ export default class VueComponent extends Vue {
   }
 
   private async mounted() {
-    this.expColors = this.config.exponentColors
+    try {
+      this.expColors = this.config.exponentColors
 
-    this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
-    // bulmaSlider.attach()
+      this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
+      // bulmaSlider.attach()
 
-    // load the boundaries and the dataset, use promises so we can clear
-    // the spinner when things are finished
-    await Promise.all([this.loadBoundaries(), this.loadDataset()])
-    this.updateChart()
+      // load the boundaries and the dataset, use promises so we can clear
+      // the spinner when things are finished
+      await Promise.all([this.loadBoundaries(), this.loadDataset()])
+      this.updateChart()
+    } catch (e) {
+      this.$store.commit('error', 'Mapview ' + e)
+    }
 
     this.$emit('isLoaded')
   }

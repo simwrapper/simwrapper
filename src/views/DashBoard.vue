@@ -265,7 +265,10 @@ export default class VueComponent extends Vue {
     let numCard = 1
 
     for (const rowId of Object.keys(this.yaml.layout)) {
-      const cards: any[] = this.yaml.layout[rowId]
+      let cards: any[] = this.yaml.layout[rowId]
+
+      // row must be an array - if it isn't, assume it is an array of length one
+      if (!cards.forEach) cards = [cards]
 
       cards.forEach(card => {
         card.id = `card-id-${numCard}`

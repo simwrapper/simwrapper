@@ -575,17 +575,22 @@ class MyPlugin extends Vue {
     const filename = this.vizDetails.network || this.vizDetails.geojsonFile
     const networkPath = `/${this.myState.subfolder}/${filename}`
 
-    const network = await this.myDataManager.getRoadNetwork(networkPath)
+    try {
+      const network = await this.myDataManager.getRoadNetwork(networkPath)
 
-    this.numLinks = network.linkIds.length
-    this.geojsonData = network
+      this.numLinks = network.linkIds.length
+      this.geojsonData = network
 
-    this.setMapCenter() // this could be off main thread
+      this.setMapCenter() // this could be off main thread
 
-    this.myState.statusMessage = ''
+      this.myState.statusMessage = ''
 
-    // then load CSVs in background
-    this.loadCSVFiles()
+      // then load CSVs in background
+      this.loadCSVFiles()
+    } catch (e) {
+      this.$store.commit('error', `Could not load ${networkPath}`)
+      this.$emit('isLoaded')
+    }
   }
 
   private dataLoaderWorkers: Worker[] = []
@@ -835,20 +840,25 @@ class MyPlugin extends Vue {
   private async loadOneCSVFile(key: string, filename: string) {
     if (!this.myState.fileApi) return
 
-    const dataset = await this.myDataManager.getDataset({ dataset: filename })
-    const dataTable = dataset.allRows
+    try {
+      const dataset = await this.myDataManager.getDataset({ dataset: filename })
+      const dataTable = dataset.allRows
 
-    console.log('loaded', key)
-    this.myState.statusMessage = 'Analyzing...'
+      console.log('loaded', key)
+      this.myState.statusMessage = 'Analyzing...'
 
-    // remove columns without names; we can't use them
-    const cleanTable: DataTable = {}
-    for (const key of Object.keys(dataTable)) {
-      if (key) cleanTable[key] = dataTable[key]
+      // remove columns without names; we can't use them
+      const cleanTable: DataTable = {}
+      for (const key of Object.keys(dataTable)) {
+        if (key) cleanTable[key] = dataTable[key]
+      }
+
+      this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
+      this.handleNewDataset({ key, dataTable: cleanTable })
+    } catch (e) {
+      this.$store.commit('error', 'Could not load ' + filename)
+      this.$emit('isLoaded')
     }
-
-    this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
-    this.handleNewDataset({ key, dataTable: cleanTable })
   }
 
   private handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {
