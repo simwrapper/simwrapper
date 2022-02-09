@@ -249,7 +249,7 @@ class VegaComponent extends Vue {
             // dark mode
             background: '#00000000',
             config: {
-              axis: { titleColor: 'white', labelColor: 'white' },
+              axis: { titleColor: 'white', labelColor: 'white', gridColor: '#404040' },
               legend: { titleColor: 'white', labelColor: 'white' },
             },
           }
