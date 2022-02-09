@@ -5,6 +5,8 @@ import re
 import sys
 import socket
 import ssl
+import urllib
+from pathlib import Path
 
 try:
     # Python3
@@ -18,6 +20,9 @@ except ImportError:
 
 
 current_dir = os.getcwd()
+package_dir = os.path.dirname(__file__)
+
+pattern = re.compile('.png|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.woff|.ttf|.woff2|.eot', re.IGNORECASE)
 
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
     '''Like shutil.copyfileobj, but only copy a range of the streams.
@@ -122,6 +127,24 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         return None
 
+    def do_GET(self):
+
+        # File server
+        if self.path.startswith('/_f_/'):
+            self.path = self.path[4:]
+            return super().do_GET()
+
+        # Single Page App - path shenanigans
+        url_parts = urllib.parse.urlparse(self.path)
+        request_file_path = Path(url_parts.path.strip("/"))
+        ext = request_file_path.suffix
+        if not request_file_path.is_file() and not pattern.match(ext):
+            self.path = 'index.html'
+
+        self.directory = package_dir + '/static'
+
+        return super().do_GET()
+
 def find_free_port(port):
     for i in range(port,port+256):
         s = socket.socket()
@@ -136,17 +159,18 @@ def find_free_port(port):
         finally:
             s.close()
 
-def run_mini_file_server(port, cert, key):
+def run_mini_file_server(maybe_port, cert, key):
+    port = find_free_port(maybe_port)
+
     print("\n-----------------------------------------------------------------")
     print("SimWrapper file server: port", port)
     if cert and key: print("Using HTTPS with PEM cert/key")
     print(current_dir)
 
-    free_port = find_free_port(port)
 
     print("-----------------------------------------------------------------\n")
     # test(HandlerClass=RangeRequestHandler, port=free_port)
-    httpd = HTTPServer(('', free_port), RangeRequestHandler)
+    httpd = HTTPServer(('', port), RangeRequestHandler)
 
     if cert and key: httpd.socket = ssl.wrap_socket(
         httpd.socket,
@@ -155,7 +179,35 @@ def run_mini_file_server(port, cert, key):
         server_side=True
     )
 
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+
+
+def serve_entire_website(port):
+    print("\n-----------------------------------------------------------------")
+    print("Start SimWrapper website on PORT:", port)
+
+    # Build the full URL for this site, including the free port number
+    print("\nTry: http://localhost:" + str(port))
+    print("And: " + "http://" + socket.gethostname() + ":" + str(port))
+
+    print("-----------------------------------------------------------------")
+    print("Serving files and folders in:")
+    print(current_dir)
+
+    print("-----------------------------------------------------------------\n")
+    # test(HandlerClass=RangeRequestHandler, port=free_port)
+    httpd = HTTPServer(('', port), RangeRequestHandler)
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+
 
 if __name__ == '__main__':
     run_mini_file_server(8000)

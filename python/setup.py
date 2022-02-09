@@ -28,6 +28,7 @@ setup(
     install_requires=[
         "Click",
     ],
+    include_package_data=True,
     extras_require = {
     },
     tests_require=["assertpy", "pytest"],

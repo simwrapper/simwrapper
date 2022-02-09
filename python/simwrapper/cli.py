@@ -10,6 +10,8 @@ from . import MiniFileServer
 
 default_port = 8000
 
+PORT_SINGLE_PAGE_APP = 9039
+
 @click.group()
 def cli():
     pass
@@ -46,3 +48,7 @@ def open(site, cert, key):
 
     # Then start local fileserver
     MiniFileServer.run_mini_file_server(port, cert, key)
+
+@cli.command(help="Run a live SimWrapper Website locally")
+def live():
+    MiniFileServer.serve_entire_website(PORT_SINGLE_PAGE_APP)
