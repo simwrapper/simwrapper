@@ -707,6 +707,10 @@ class MyPlugin extends Vue {
       ? scaleOrdinal().range(colorsAsRGB)
       : scaleThreshold().range(colorsAsRGB).domain(domain)
 
+    // FRIEDRICH -- Hi! These two lines "should" give you the breakpoints and RGB values you need
+    console.log(setColorBasedOnValue.range()) // --> array of breakpoints
+    console.log(setColorBasedOnValue.domain()) // --> array of RGB colors
+
     const numLinks = this.geojsonData.linkIds.length
     const colors = new Uint8Array(4 * numLinks)
 
