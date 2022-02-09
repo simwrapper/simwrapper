@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.3.1...v1.4.0) (2022-02-09)
+
+
+### Features
+
+* learned "simwrapper live" command: serve entire site locally. ([e286d6f](https://github.com/simwrapper/simwrapper-python-tools/commit/e286d6fb58d8349189c13735038bb01a5aa211e9))
+
 ### [1.3.1](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.3.0...v1.3.1) (2022-02-03)
 
 
