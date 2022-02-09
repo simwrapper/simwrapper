@@ -46,6 +46,10 @@ export default class DashboardDataManager {
     this.fileApi = this.getFileSystem(this.root)
   }
 
+  public kill() {
+    for (const worker of this.threads) worker.terminate()
+  }
+
   public async getFilteredDataset(config: { dataset: string; groupBy?: string; value?: string }) {
     const rows = this.datasets[config.dataset].filteredRows
     if (!rows) return { filteredRows: null }
@@ -222,6 +226,7 @@ export default class DashboardDataManager {
   }
 
   public clearCache() {
+    this.kill() // any stragglers must die
     this.datasets = {}
   }
 
@@ -256,6 +261,8 @@ export default class DashboardDataManager {
   // private thread!: any
   private files: any[] = []
 
+  private threads: Worker[] = []
+
   private async fetchDataset(config: { dataset: string }) {
     if (!this.files.length) {
       const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
@@ -263,8 +270,9 @@ export default class DashboardDataManager {
     }
 
     return new Promise<DataTable>((resolve, reject) => {
+      const thread = new DataFetcherWorker()
+      this.threads.push(thread)
       try {
-        const thread = new DataFetcherWorker()
         thread.postMessage({
           fileSystemConfig: this.fileApi,
           subfolder: this.subfolder,
@@ -273,6 +281,7 @@ export default class DashboardDataManager {
         })
 
         thread.onmessage = e => {
+          thread.terminate()
           if (e.data.error) {
             console.error(e.data.error)
             globalStore.commit('error', e.data.error)
@@ -281,6 +290,7 @@ export default class DashboardDataManager {
           resolve(e.data)
         }
       } catch (err) {
+        thread.terminate()
         console.error(err)
         reject(err)
       }

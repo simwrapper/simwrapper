@@ -235,7 +235,6 @@ class MyPlugin extends Vue {
 
   private setDataIsLoaded() {
     this.isDataLoaded = true
-    this.$emit('isLoaded', true)
   }
 
   public buildFileApi() {
@@ -584,6 +583,9 @@ class MyPlugin extends Vue {
       this.setMapCenter() // this could be off main thread
 
       this.myState.statusMessage = ''
+
+      this.$emit('isLoaded', true)
+      // this.setDataIsLoaded()
 
       // then load CSVs in background
       this.loadCSVFiles()

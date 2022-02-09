@@ -40,10 +40,9 @@
 
 
         //- card contents
-        .spinner-box(v-if="getCardComponent(card)" :id="card.id" :class="{'is-loaded': numberOfShownCards >= card.number}")
+        .spinner-box(v-if="getCardComponent(card)" :id="card.id" :class="{'is-loaded': card.isLoaded}")
 
           component.dash-card(
-            v-if="numberOfShownCards >= card.number"
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
             :subfolder="xsubfolder"
@@ -51,6 +50,7 @@
             :yaml="card.props.configFile"
             :config="card.props"
             :datamanager="datamanager"
+            :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
             :cardTitle="card.title"
             :allConfigFiles="allConfigFiles"
@@ -276,7 +276,7 @@ export default class VueComponent extends Vue {
         card.number = numCard
 
         // Vue is weird about new properties: use Vue.set() instead
-        Vue.set(this.opacity, card.id, 0.15)
+        Vue.set(this.opacity, card.id, 0.2)
         Vue.set(this.infoToggle, card.id, false)
 
         numCard++
