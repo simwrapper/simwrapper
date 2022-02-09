@@ -7,6 +7,27 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.7.0](https://github.com/simwrapper/simwrapper/compare/v1.6.0...v1.7.0) (2022-02-09)
+
+
+### Features
+
+* Dashboards learned "text" block type, for including readme content ([94a2087](https://github.com/simwrapper/simwrapper/commit/94a2087c017021a51b80111734498786a5c87b5d))
+
+
+### Bug Fixes
+
+* Add more helpful error messages when files don't load ([53f994f](https://github.com/simwrapper/simwrapper/commit/53f994f067b874fa27ff8cc139e92cd0524f6092))
+* Bug in SAFARI prevents topsheets from loading ([e1b4907](https://github.com/simwrapper/simwrapper/commit/e1b4907c2892bf01fb4b622654fa13717458a9df))
+* Dashboards should respect locale for title/title_en/title_de and desc ([f27bf70](https://github.com/simwrapper/simwrapper/commit/f27bf70298baa7271f777d19fcdf1df92a28d8a0))
+* firefox on windows hangs on background worker dataset load ([f1fdb87](https://github.com/simwrapper/simwrapper/commit/f1fdb8790b9e0ea4768b93f38061cb0ad638b6ac))
+* **links:** Diff mode plot could show wrong data in some situations ([6d34252](https://github.com/simwrapper/simwrapper/commit/6d34252e1bedab64f0a22bb93b39c25b378bdb48))
+* load dashboard panels in sequence, WIP ([8e42dec](https://github.com/simwrapper/simwrapper/commit/8e42decf2749d7c0e5be1ecb37badf71273c407f))
+* Pie charts should use column order, not "largest first" ([3cb622d](https://github.com/simwrapper/simwrapper/commit/3cb622dbfdf4aec657f1700c0f83095dbd0203ac))
+* Support GeoJSON networks with feature.id or feature.properties.id ([825546a](https://github.com/simwrapper/simwrapper/commit/825546a2c27e9ac429eb6e2a9120ab709c2ded36)), closes [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6) [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6)
+* topsheets can reference parent folders in /file/../paths ([d1bb736](https://github.com/simwrapper/simwrapper/commit/d1bb736d75a2aed82d8a10abadb22c505dacb756))
+* Vega-lite chart sizes & subfolder paths were not calculated correctly ([3d76add](https://github.com/simwrapper/simwrapper/commit/3d76add5dc90b6a8691ce98dd7da7c77e741a79c))
+
 ### [1.6.1](https://github.com/simwrapper/simwrapper/compare/v1.6.0...v1.6.1) (2022-02-07)
 
 
