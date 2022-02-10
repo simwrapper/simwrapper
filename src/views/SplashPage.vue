@@ -46,14 +46,13 @@ const i18n = {
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import Colophon from '@/components/Colophon.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 
 import InfoBottom from '@/assets/info-bottom.md'
 
 @Component({
   i18n,
-  components: { Colophon, FileSystemProjects, InfoBottom },
+  components: { FileSystemProjects, InfoBottom },
 })
 class MyComponent extends Vue {
   private state = globalStore.state
