@@ -7,6 +7,16 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.1](https://github.com/simwrapper/simwrapper/compare/v1.7.0...v1.7.1) (2022-02-10)
+
+
+### Bug Fixes
+
+* improve vega chart backgrounds in dark mode ([b95807c](https://github.com/simwrapper/simwrapper/commit/b95807cfdbceeb23ce60f39c08348abf8c5c46ee))
+* **links:** colors and widths of bare networks not set correctly ([af13e2f](https://github.com/simwrapper/simwrapper/commit/af13e2fe39c68c42c72b347d53403df06cfe1768))
+* Markdown table formatting needs spacing and shading. ([f7cbd72](https://github.com/simwrapper/simwrapper/commit/f7cbd72c6c2835ebca53c16f6b7c364919f1a227))
+* Sankey label widths should be based on data, not hard-coded ([3eb120d](https://github.com/simwrapper/simwrapper/commit/3eb120db342a168c95d7298d54f9950d76ea0a18))
+
 ## [1.7.0](https://github.com/simwrapper/simwrapper/compare/v1.6.0...v1.7.0) (2022-02-09)
 
 
