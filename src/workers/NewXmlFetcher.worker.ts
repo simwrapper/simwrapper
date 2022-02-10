@@ -1,32 +1,17 @@
 import pako from 'pako'
 import { parseXML } from '@/js/util'
 
-import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 onmessage = async function (e) {
   const id = e.data.id
-  const xml = await fetchXML(e.data.fileApi, e.data.filePath, e.data.options)
+  const xml = await fetchXML(e.data.fileSystem, e.data.filePath, e.data.options)
 
   postMessage({ xml, id })
 }
 
-const state = globalStore.state
-
-function getFileSystem(name: string) {
-  const svnProject: FileSystemConfig[] = state.svnProjects.filter(
-    (a: FileSystemConfig) => a.slug === name
-  )
-  if (svnProject.length === 0) {
-    console.log('no such project:', name)
-    throwError('no such project' + name)
-  }
-  return svnProject[0]
-}
-
-async function fetchXML(fileApi: string, filePath: string, options: any) {
-  const fileSystem = getFileSystem(fileApi)
+async function fetchXML(fileSystem: FileSystemConfig, filePath: string, options: any) {
   const httpFileSystem = new HTTPFileSystem(fileSystem)
 
   const blob = await httpFileSystem.getFileBlob(filePath)

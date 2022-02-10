@@ -1,6 +1,5 @@
 import micromatch from 'micromatch'
 import { DirectoryEntry, FileSystemConfig, YamlConfigs } from '@/Globals'
-import globalStore from '@/store'
 
 const YAML_FOLDER = 'simwrapper'
 
@@ -49,11 +48,11 @@ class SVNFileSystem {
     const path = this.cleanURL(scaryPath)
 
     const headers: any = {}
-    const credentials = globalStore.state.credentials[this.urlId]
 
-    if (this.needsAuth) {
-      headers['Authorization'] = `Basic ${credentials}`
-    }
+    // const credentials = globalStore.state.credentials[this.urlId]
+    // if (this.needsAuth) {
+    //   headers['Authorization'] = `Basic ${credentials}`
+    // }
 
     const myRequest = new Request(path, { headers })
     const response = await fetch(myRequest).then(response => {
