@@ -37,6 +37,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { Context } from 'react'
 
 interface SankeyYaml {
   csv: string
@@ -246,6 +247,24 @@ class MyComponent extends Vue {
 
   private colorRamp: string[] = []
 
+  private getMaxLabelWidth() {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) return 120
+
+    context.font = '16px Arial'
+
+    let max = 0
+
+    for (const node of this.jsonChart.nodes) {
+      const text = node.title
+      const width = context.measureText(text).width
+      max = Math.max(max, width)
+    }
+
+    return max
+  }
+
   private doD3() {
     const data = this.jsonChart
     data.alignTypes = true
@@ -256,7 +275,7 @@ class MyComponent extends Vue {
     let width = box ? box.clientWidth : 100
     let height = box ? box.clientHeight : 100
 
-    let labelWidth = this.thumbnail ? 60 : 125
+    let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
 
     const layout = sankey()
       .nodeWidth(8)

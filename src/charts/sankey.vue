@@ -22,8 +22,6 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) config!: any
   @Prop() cardId!: string
 
-  private dimensions: { width: number; height: number } = { width: 0, height: 0 }
-
   private mounted() {
     this.$emit('isLoaded')
   }
