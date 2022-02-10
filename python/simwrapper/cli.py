@@ -53,6 +53,9 @@ def open(site, cert, key):
       else:
         url = os.path.join(site,str(port))
 
+      print("Opening:", url)
+      webbrowser.open(url, new=2, autoraise=True)  # in a new tab
+
       MiniFileServer.run_mini_file_server(port, cert, key)
 
 @cli.command(help="Run a live SimWrapper Website locally")

@@ -206,7 +206,7 @@ def serve_entire_website(port):
     # Build the full URL for this site, including the free port number
     if port == 9039:
         print("\nBrowse: http://localhost:" + str(port) + "/live")
-        print("    Or:" + "http://" + socket.gethostname() + ":" + str(port) + "/live")
+        print("    Or: " + "http://" + socket.gethostname() + ":" + str(port) + "/live")
     else:
         print("\nTry: http://localhost:" + str(port) + "/" + str(port))
         print("And: " + "http://" + socket.gethostname() + ":" + str(port) + "/" + str(port))
