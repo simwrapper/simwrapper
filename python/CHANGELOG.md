@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.1](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.4.2...v1.7.1) (2022-02-10)
+
+
+### Bug Fixes
+
+* open command not opening browser tab when if vsp/asim are specified ([f88fbb8](https://github.com/simwrapper/simwrapper-python-tools/commit/f88fbb81ffa6878c25cc14adc1f6266dab7a0c1c))
+
 ### [1.4.2](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.4.0...v1.4.2) (2022-02-10)
 
 
