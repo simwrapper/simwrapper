@@ -373,6 +373,28 @@ a:hover {
     margin-top: 0.5rem;
     padding-left: 1.5rem;
   }
+
+  table {
+    margin: 1rem 0rem;
+    color: var(--text);
+  }
+
+  th {
+    color: var(--text);
+    border-bottom: 1px solid #88888888;
+    padding-bottom: 0.25rem;
+  }
+  tr:nth-child(even) {
+    background-color: #88888822;
+  }
+
+  tr.displaynone ~ tr {
+    background-color: transparent;
+  }
+
+  td {
+    padding-right: 1rem;
+  }
 }
 
 .mapboxgl-popup-content {
