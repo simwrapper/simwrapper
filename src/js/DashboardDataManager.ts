@@ -132,7 +132,7 @@ export default class DashboardDataManager {
   public async getRoadNetwork(path: string) {
     // first, get the dataset
     if (!this.networks[path]) {
-      console.log(111, 'load network:', path)
+      console.log('load network:', path)
 
       // fetchNetwork immediately returns a Promise<>, which we wait on so that
       // multiple views don't all try to fetch the network individually

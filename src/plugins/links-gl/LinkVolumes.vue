@@ -425,6 +425,12 @@ class MyPlugin extends Vue {
 
     const { columnName, dataset, scaleFactor } = width
 
+    // if dataset is set to None, just set scale to 0 and we're done
+    if (!dataset) {
+      this.scaleWidth = 0
+      return
+    }
+
     // change scaling factor without recalculating anything:
     if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
 
@@ -474,7 +480,7 @@ class MyPlugin extends Vue {
 
     const columnName = color.columnName
     if (!columnName) {
-      // this.csvData.activeColumn = ''
+      this.generateColorArray()
       return
     }
 
@@ -719,8 +725,8 @@ class MyPlugin extends Vue {
       const csvRow = this.csvData.csvRowFromLinkRow[i]
       let value = buildData[this.csvData.activeColumn]?.values[csvRow]
 
-      if (!value) return colorInvisible
       if (this.generatedColors.length === 1) return colorsAsRGB[0]
+      if (!value) return colorInvisible
       if (isCategorical) return setColorBasedOnValue(value)
 
       if (this.vizDetails.showDifferences) {
@@ -795,6 +801,13 @@ class MyPlugin extends Vue {
 
     this.myState.statusMessage = ''
     this.setDataIsLoaded()
+
+    const color: ColorDefinition = {
+      generatedColors: this.generatedColors,
+      dataset: '',
+      columnName: '',
+    }
+    this.changeConfiguration({ color })
   }
 
   private handleDatasetisLoaded(datasetId: string) {
