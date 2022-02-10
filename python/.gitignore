@@ -1,6 +1,7 @@
 __pycache__
 build/
 dist/
+simwrapper/static/
 *.egg-info
 .ipynb_checkpoints
 .build-sentinel

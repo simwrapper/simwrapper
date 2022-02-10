@@ -10,7 +10,7 @@ from . import MiniFileServer
 
 default_port = 8000
 
-PORT_SINGLE_PAGE_APP = 9039
+SINGLE_PAGE_APP_PORT = 9039
 
 @click.group()
 def cli():
@@ -27,28 +27,35 @@ def serve(port, cert, key):
     MiniFileServer.run_mini_file_server(port, cert, key)
 
 @cli.command(help="Open your browser and view this folder using SimWrapper")
-@click.argument('site', default='vsp')
+@click.argument('site', default='live')
 @click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
 @click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
 def open(site, cert, key):
     if (cert and not key) or (not cert and key):
       raise click.BadParameter("need both a cert and a key to enable HTTPS")
 
-    port = MiniFileServer.find_free_port(default_port)
-    # Build the full URL for this site, including the free port number
-    url = ''
-    if site in sites.sites:
-      url = os.path.join(sites.sites[site],str(port))
+    if site == "live":
+      port = MiniFileServer.find_free_port(SINGLE_PAGE_APP_PORT)
+      url = os.path.join("http://localhost:" + str(port), "live")
+      # Open web browser first, because this command returns immediately
+      print("Opening:", url)
+      webbrowser.open(url, new=2, autoraise=True)  # in a new tab
+      # Then start local fileserver
+      MiniFileServer.serve_entire_website(port)
+
     else:
-      url = os.path.join(site,str(port))
+      port = MiniFileServer.find_free_port(default_port)
 
-    # Open web browser first, because this command returns immediately
-    print("Opening:", url)
-    webbrowser.open(url, new=2, autoraise=True)  # in a new tab
+      # Build the full URL for this site, including the free port number
+      url = ''
+      if site in sites.sites:
+        url = os.path.join(sites.sites[site],str(port))
+      else:
+        url = os.path.join(site,str(port))
 
-    # Then start local fileserver
-    MiniFileServer.run_mini_file_server(port, cert, key)
+      MiniFileServer.run_mini_file_server(port, cert, key)
 
 @cli.command(help="Run a live SimWrapper Website locally")
-def live():
-    MiniFileServer.serve_entire_website(PORT_SINGLE_PAGE_APP)
+def here():
+    port = MiniFileServer.find_free_port(SINGLE_PAGE_APP_PORT)
+    MiniFileServer.serve_entire_website(port)

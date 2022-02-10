@@ -24,6 +24,8 @@ package_dir = os.path.dirname(__file__)
 
 pattern = re.compile('.png|.jpg|.jpeg|.js|.css|.ico|.gif|.svg|.woff|.ttf|.woff2|.eot', re.IGNORECASE)
 
+SPA_MODE = False
+
 def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
     '''Like shutil.copyfileobj, but only copy a range of the streams.
 
@@ -116,11 +118,16 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Accept-Ranges,Range,*")
         self.send_header("Access-Control-Max-Age", "86400")
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
-        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
         self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Mini-File-Server-Root', current_dir)
-
+        self.send_header("Cache-Control", "no-cache, max-age=86400, must-revalidate")
         SimpleHTTPRequestHandler.end_headers(self)
+
+        # experimenting with no-cache but must-revalidate: which means
+        # the browser MUST ping us to see if there is a new copy of every
+        # file, but if it has the latest file then it can use a cached version
+        # instead of transferring it again.
+        # Former settings no caching EVER: "no-cache, max-age=0, must-revalidate, no-store"
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -128,6 +135,13 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         return None
 
     def do_GET(self):
+
+        # If we are not in SPA_MODE the just serve up the files
+        if not SPA_MODE:
+            return super().do_GET()
+
+        # -------------------------------------------------------
+        # SPA_MODE: We are -both- a file server and an app server
 
         # File server
         if self.path.startswith('/_f_/'):
@@ -169,7 +183,6 @@ def run_mini_file_server(maybe_port, cert, key):
 
 
     print("-----------------------------------------------------------------\n")
-    # test(HandlerClass=RangeRequestHandler, port=free_port)
     httpd = HTTPServer(('', port), RangeRequestHandler)
 
     if cert and key: httpd.socket = ssl.wrap_socket(
@@ -191,16 +204,24 @@ def serve_entire_website(port):
     print("Start SimWrapper website on PORT:", port)
 
     # Build the full URL for this site, including the free port number
-    print("\nTry: http://localhost:" + str(port))
-    print("And: " + "http://" + socket.gethostname() + ":" + str(port))
+    if port == 9039:
+        print("\nBrowse: http://localhost:" + str(port) + "/live")
+        print("    Or:" + "http://" + socket.gethostname() + ":" + str(port) + "/live")
+    else:
+        print("\nTry: http://localhost:" + str(port) + "/" + str(port))
+        print("And: " + "http://" + socket.gethostname() + ":" + str(port) + "/" + str(port))
 
     print("-----------------------------------------------------------------")
     print("Serving files and folders in:")
     print(current_dir)
 
     print("-----------------------------------------------------------------\n")
-    # test(HandlerClass=RangeRequestHandler, port=free_port)
     httpd = HTTPServer(('', port), RangeRequestHandler)
+
+    # SPA_MODE handles the case where we are serving
+    # website internals -and- file contents from one URL.
+    global SPA_MODE
+    SPA_MODE = True
 
     try:
         httpd.serve_forever()
