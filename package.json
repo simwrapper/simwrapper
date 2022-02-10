@@ -60,7 +60,7 @@
     "observable-fns": "^0.6.1",
     "pako": "^2.0.4",
     "papaparse": "^5.1.1",
-    "plotly.js": "^2.6.3",
+    "plotly.js": "^2.9.0",
     "proj4": "^2.6.2",
     "randomcolor": "^0.6.2",
     "react": "^17.0.0",
