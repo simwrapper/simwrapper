@@ -11,7 +11,7 @@
   "scripts": {
     "deploy-vsp": "cp -f public/404.simwrapper.html public/404.html && bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper",
     "deploy-staging": "cp -f public/404.staging.html public/404.html && bash scripts/deploy-ghpages.sh simwrapper/staging",
-    "deploy-asim": "cp -f public/404.dashboard.html public/404.html && bash scripts/deploy-ghpages.sh activitysim/dashboard",
+    "deploy-asim": "cp -f public/404.dashboard.html public/404.html && bash scripts/deploy-ghpages.sh ActivitySim/dashboard",
     "serve": "vite",
     "build": "vite build",
     "release": "standard-version",
