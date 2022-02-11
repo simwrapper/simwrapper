@@ -200,23 +200,14 @@ class VegaComponent extends Vue {
       return
     }
 
-    // if there is a URL in the schema, try to load/download it locally first
-    if (json.data.url) {
-      try {
-        let data = ''
-        const localUrl = this.myState.subfolder + '/' + json.data.url
-        if (json.data.url.endsWith('.json')) {
-          data = await this.myState.fileApi.getFileJson(localUrl)
-          if (data) json.data = { values: data }
-        } else if (json.data.url.endsWith('.csv')) {
-          data = await this.myState.fileApi.getFileText(localUrl)
-          if (data) json.data = { values: data, format: { type: 'csv' } }
-        }
-      } catch (e) {
-        // didn't work -- let Vega try on its own.
-        console.warn(e)
-      }
+    // Let Vega load it - but first, reformulate the URL to point to the
+    // file store location if it is not a FQDN
+    if (json.data.url && !json.data.url.startsWith('http')) {
+      const localUrl = `${this.myState.fileSystem?.baseURL}/${this.myState.subfolder}/${json.data.url}`
+      json.data.url = localUrl
     }
+
+    // just pass the config to Vega
     return json
   }
 
@@ -317,11 +308,13 @@ export default VegaComponent
   grid-row: 2 / 3;
   max-height: 100%;
   height: 100%;
+  padding-right: 0.75rem;
 }
 
 .vega-chart {
   height: 100%;
   width: 100%;
+  z-index: 0;
 }
 
 h1 {
