@@ -7,6 +7,16 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.2](https://github.com/simwrapper/simwrapper/compare/v1.7.1...v1.7.2) (2022-02-11)
+
+
+### Bug Fixes
+
+* Clean up Plotly chart margins and layouts ([cb52138](https://github.com/simwrapper/simwrapper/commit/cb52138e80813d5449867a32c14404ac0b7c188a))
+* **flowmap:** flowmap link volumes not showing up in latest build ([b95984e](https://github.com/simwrapper/simwrapper/commit/b95984e60564f38aa6bbdb2ef795ffd82247594f))
+* support simwrapper command-line tool "here" mode ([231f70d](https://github.com/simwrapper/simwrapper/commit/231f70d6e2d4ec02ddfd80d28461b9a9816176d3))
+* **vega:** reformulate non-FQDN data URLs to point to file storage ([2ed4c74](https://github.com/simwrapper/simwrapper/commit/2ed4c74cd25e3c4df7dd69342724883b31a02a48))
+
 ### [1.7.1](https://github.com/simwrapper/simwrapper/compare/v1.7.0...v1.7.1) (2022-02-10)
 
 
