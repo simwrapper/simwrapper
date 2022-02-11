@@ -131,8 +131,8 @@ export default class VueComponent extends Vue {
 
       // assumes flow data has "origin,destination,count" columns
       const origin = data.origin.values
-      const destination = data.origin.values
-      const count = data.origin.values
+      const destination = data.destination.values
+      const count = data.count.values
 
       const flows = [] as any[]
       for (let i = 0; i < origin.length; i++) {
