@@ -116,6 +116,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Accept-Ranges,Range,*")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Max-Age", "86400")
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
         self.send_header('Accept-Ranges', 'bytes')
