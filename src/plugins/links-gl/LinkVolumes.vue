@@ -165,6 +165,8 @@ class MyPlugin extends Vue {
     network: '',
     geojsonFile: '',
     projection: '',
+    center: null,
+    zoom: 9,
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
@@ -510,6 +512,19 @@ class MyPlugin extends Vue {
 
   private async setMapCenter() {
     const data = this.geojsonData
+
+    if (this.vizDetails.center) {
+      this.$store.commit('setMapCamera', {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom,
+        jump: false,
+      })
+      return
+    }
+
 
     if (!data.source.length) return
 
