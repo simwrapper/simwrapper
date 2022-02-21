@@ -15,6 +15,11 @@
         file-system-projects.gap(@navigate="onNavigate")
         hr
 
+        .is-chrome(v-if="isChrome")
+          h2 Chrome: Browse local files directly
+          button.button(@click="showChromeDirectory") Select folder...
+          hr
+
         h2: b {{ $t('more-info') }}
         info-bottom.splash-readme
 
@@ -30,6 +35,9 @@
 </template>
 
 <script lang="ts">
+// Typescript doesn't know the Chrome File System API
+declare const window: any
+
 const i18n = {
   messages: {
     en: {
@@ -47,8 +55,8 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-
 import InfoBottom from '@/assets/info-bottom.md'
+import { addLocalFilesystem } from '@/fileSystemConfig'
 
 @Component({
   i18n,
@@ -72,6 +80,25 @@ class MyComponent extends Vue {
   private onNavigate(event: any) {
     // pass it on up
     this.$emit('navigate', event)
+  }
+
+  // Only Chrome supports the FileSystemAPI
+  private get isChrome() {
+    return !!window.showDirectoryPicker
+  }
+
+  private async showChromeDirectory() {
+    try {
+      const FileSystemDirectoryHandle = window.showDirectoryPicker()
+      const dir = await FileSystemDirectoryHandle
+
+      // add our new local filesystem as root 'fs'
+      addLocalFilesystem(dir)
+      const BASE = import.meta.env.BASE_URL
+      this.$router.push(`${BASE}fs/`)
+    } catch (e) {
+      // shrug
+    }
   }
 
   // private readme = readme

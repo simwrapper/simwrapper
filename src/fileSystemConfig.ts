@@ -1,9 +1,21 @@
-import { FileSystemConfig } from '@/Globals'
+import { FileSystemConfig, FileSystemAPIHandle } from '@/Globals'
 
 // The URL contains the websiteLiveHost, calculated at runtime
 const loc = window.location
 const webLiveHostname = loc.hostname
 const websiteLiveHost = `${loc.protocol}//${webLiveHostname}`
+
+export function addLocalFilesystem(handle: FileSystemAPIHandle) {
+  const system: FileSystemConfig = {
+    name: handle.name,
+    slug: 'fs',
+    description: 'Local folder: ' + handle.name,
+    handle: handle,
+    baseURL: '',
+  }
+
+  fileSystems.unshift(system)
+}
 
 const fileSystems: FileSystemConfig[] = [
   {
