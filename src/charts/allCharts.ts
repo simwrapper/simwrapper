@@ -14,6 +14,7 @@ import scatter from './scatter.vue'
 import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
+import video from './video.vue'
 
 // full-screen map visualizations:
 import aggregate from './aggregate.vue'
@@ -37,6 +38,7 @@ export const plotlyCharts = {
   transit,
   scatter,
   vega,
+  video,
 }
 
 // export all remaining charts/maps here:
