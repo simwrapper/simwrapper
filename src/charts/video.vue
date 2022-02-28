@@ -1,11 +1,13 @@
 <template lang="pug">
 
-video(:controls="controls" :loop='loop')
+figure(class="video_container")
 
-  source(v-for="source in sources" :src="source.src" :type="source.type")
+  video(:controls="controls" :loop='loop' :allowfullscreen='allowfullscreen')
 
-  p(v-for="source in sources") Video tag not supported. Download the video&nbsp;
-    a(:href="source.src" target="_blank") here
+    source(v-for="(src, type) in sources" :src="src" :type="type" :key="type")
+
+    p(v-for="(src, type) in sources" :key="type") Video tag not supported. Download the video&nbsp;
+      a(:href="src" target="_blank") here
 
 </template>
 
@@ -13,6 +15,7 @@ video(:controls="controls" :loop='loop')
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import { FileSystemConfig } from '@/Globals'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({})
 export default class VueComponent extends Vue {
@@ -23,6 +26,7 @@ export default class VueComponent extends Vue {
 
   private controls: string | null = null
   private loop: string | null = null
+  private allowfullscreen: string | null = null
   private sources: { [key: string]: string } = {}
 
   // true for absolute URLs
@@ -31,14 +35,17 @@ export default class VueComponent extends Vue {
   private async mounted() {
     this.controls = this.config.controls
     this.loop = this.config.loop
+    this.allowfullscreen = this.config.allowfullscreen
 
     this.sources = {}
+
+    const fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     // Resolve relative URLs
     for (const k in this.config.sources) {
       var url = this.config.sources[k]
 
-      if (!this.r.test(url)) url = `${this.subfolder}/${url}`
+      if (!this.r.test(url)) url = fileApi.cleanURL(`${this.subfolder}/${url}`)
 
       this.sources[k] = url
     }
