@@ -1,14 +1,11 @@
 <template lang="pug">
 
-video(:controls='controls' :loop='loop')
+video(:controls="controls" :loop='loop')
 
-  each type, src in sources
-   source(:src="src" :type="type")
+  source(v-for="source in sources" :src="source.src" :type="source.type")
 
-  each type, src in sources
-    Video tag not supported. Download the video 
-    a(:href="src" target="_blank")=here
-
+  p(v-for="source in sources") Video tag not supported. Download the video&nbsp;
+    a(:href="source.src" target="_blank") here
 
 </template>
 
@@ -26,13 +23,12 @@ export default class VueComponent extends Vue {
 
   private controls: string | null = null
   private loop: string | null = null
-  private sources: {[key:string] : string} = {}
+  private sources: { [key: string]: string } = {}
 
   // true for absolute URLs
-  private r : RegExp = new RegExp('^(?:[a-z]+:)?//', 'i');
+  private r: RegExp = new RegExp('^(?:[a-z]+:)?//', 'i')
 
   private async mounted() {
-
     this.controls = this.config.controls
     this.loop = this.config.loop
 
@@ -40,15 +36,12 @@ export default class VueComponent extends Vue {
 
     // Resolve relative URLs
     for (const k in this.config.sources) {
+      var url = this.config.sources[k]
 
-        var url = this.config.sources[k]
+      if (!this.r.test(url)) url = `${this.subfolder}/${url}`
 
-        if (!this.r.test(url))
-          url = `${this.subfolder}/${url}`
-
-        this.sources[k] = url
+      this.sources[k] = url
     }
-
 
     this.$emit('isLoaded')
   }
