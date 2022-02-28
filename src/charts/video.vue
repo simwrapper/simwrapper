@@ -2,10 +2,10 @@
 
 video(:controls='controls' :loop='loop')
 
-  each type, src in source
+  each type, src in sources
    source(:src="src" :type="type")
 
-  each type, src in source
+  each type, src in sources
     Video tag not supported. Download the video 
     a(:href="src" target="_blank")=here
 
@@ -24,17 +24,31 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
-  private controls = null
-  private loop = null
-  private sources = null
+  private controls: string | null = null
+  private loop: string | null = null
+  private sources: {[key:string] : string} = {}
+
+  // true for absolute URLs
+  private r : RegExp = new RegExp('^(?:[a-z]+:)?//', 'i');
 
   private async mounted() {
-    
 
-    const filename = `${this.subfolder}/${this.config.file}`
+    this.controls = this.config.controls
+    this.loop = this.config.loop
 
+    this.sources = {}
 
-    // TODO
+    // Resolve relative URLs
+    for (const k in this.config.sources) {
+
+        var url = this.config.sources[k]
+
+        if (!this.r.test(url))
+          url = `${this.subfolder}/${url}`
+
+        this.sources[k] = url
+    }
+
 
     this.$emit('isLoaded')
   }
