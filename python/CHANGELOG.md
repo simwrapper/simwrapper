@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.7.3](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.1...v1.7.3) (2022-03-02)
+
+
+### Bug Fixes
+
+* include static files for 'simwrapper here' command ([31bf6d9](https://github.com/simwrapper/simwrapper-python-tools/commit/31bf6d948a971eb34438194ca0affa4b18685435))
+
 ### [1.7.3](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.1...v1.7.3) (2022-02-11)
 
 ### [1.7.2](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.1...v1.7.2) (2022-02-11)
