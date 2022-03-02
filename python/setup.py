@@ -3,19 +3,18 @@ import pathlib
 from setuptools import setup,find_packages
 
 # The directory containing this file
-HERE = pathlib.Path(__file__).parent
+# HERE = pathlib.Path(__file__).parent
 
 # The text of the README file
-README = (HERE / "README.md").read_text()
-VERSION = (HERE / "VERSION").read_text()
-CHANGELOG = (HERE / "CHANGELOG.md").read_text()
+#README = (HERE / "README.md").read_text()
+#VERSION = (HERE / "VERSION").read_text()
+#CHANGELOG = (HERE / "CHANGELOG.md").read_text()
 
 # This call to setup() does all the work
 setup(
     name="simwrapper",
-    version=VERSION,
+    version="1.7.5",
     description="Python support library for SimWrapper data visualization tool",
-    long_description_content_type="text/markdown",
     url="https://github.com/simwrapper/simwrapper-python-tools",
     author="Billy Charlton",
     author_email="billy@okbecause.com",
@@ -37,5 +36,5 @@ setup(
             'simwrapper = simwrapper.cli:cli'
         ]
     },
-    long_description=README + "\n---\n" + CHANGELOG,
+    long_description="See https://simwrapper.github.io for complete documentation.",
 )
