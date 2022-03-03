@@ -199,13 +199,20 @@ export default class VueComponent extends Vue {
       }
     }
 
-    if (this.config.stacked) this.layout.barmode = 'stack'
+    if (this.config.stacked) {
+      this.layout.barmode = 'stack'
+    } else {
+      this.layout.barmode = 'group'
+    }
+
     if (this.config.stacked) this.className = this.plotID
 
     const xColumn = allRows[this.config.x]
+
     if (!xColumn) {
       throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
     }
+
     x = xColumn.values
     if (this.config.skipFirstRow) x = x.slice(1)
 
