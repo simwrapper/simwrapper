@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.7...v1.8.0) (2022-03-03)
+
+
+### Features
+
+* update to simwrapper v1.8.0 ([acf731f](https://github.com/simwrapper/simwrapper-python-tools/commit/acf731fc4f0ec64fe7e29e074ce446f6bbb6d8fa))
+
 ### [1.7.7](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.6...v1.7.7) (2022-03-02)
 
 ### [1.7.6](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.5...v1.7.6) (2022-03-02)
