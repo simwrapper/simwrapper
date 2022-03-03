@@ -31,8 +31,13 @@ export default class VueComponent extends Vue {
   private async mounted() {
     const fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
-    if (this.config.options != null)
-      Object.assign(this.options, this.config.options)
+    if (this.config != null)
+      Object.assign(this.options, this.config)
+
+     // Delete slide property because this is only used in the loop
+     if (hasOwnProperty(this.options, 'slides')) {
+        delete this.options.slides;
+     }
 
 
     this.slides = []
