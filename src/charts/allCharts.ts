@@ -11,6 +11,7 @@ import line from './line.vue'
 import pie from './pie.vue'
 import sankey from './sankey.vue'
 import scatter from './scatter.vue'
+import slideshow from './slideshow.vue'
 import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
@@ -34,6 +35,7 @@ export const plotlyCharts = {
   line,
   pie,
   sankey,
+  slideshow,
   text,
   transit,
   scatter,
