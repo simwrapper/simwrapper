@@ -1,7 +1,14 @@
 <template>
 
-<vueper-slides v-bind="options">
-  <vueper-slide v-for="(slide, i) in slides" :key="i" v-bind="slide" />
+<vueper-slides v-bind="options" style="padding-bottom: 34px">
+  <vueper-slide v-for="(slide, i) in slides" :key="i" v-bind="slide">
+    <template #content>
+      <div v-if="slide.content" class="vueperslide__content-wrapper" style="flex-direction: row; justify-content: flex-start; align-items: baseline; gap: 10px">
+        <h3>{{ slide.title}} </h3>
+        <span>{{ slide.content }}</span>
+      </div>
+    </template>
+  </vueper-slide>
 </vueper-slides>
 
 </template>
@@ -22,7 +29,12 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
-  private options : { [key: string]: any } = {}
+  private options : { [key: string]: any } = {
+    "slide-content-outside": "bottom",
+    "fixed-height": "100%",
+    "class": "no-shadow",
+    "bullets": false
+  }
   private slides: any[] = []
 
   // true for absolute URLs
