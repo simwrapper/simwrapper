@@ -16,7 +16,7 @@ _Soon you will be able to define project-level dashboards, so that you don't hav
 
 Start with the example below and edit as necessary. YAML is extremely picky about white space and indentation, be careful!
 
-**header:** A dashboard requires a header containg _tab_ and _title_ and optional _description._
+**header:** A dashboard requires a header containing _tab_ and _title_ and optional _description._
 
 ```yaml
 header:
@@ -27,15 +27,26 @@ header:
 
 **layout:** The layout consists of a set of named **rows**. The row name themselves are not shown anywhere, they are just there to help organize the file.
 
-**row**: Each `row` consists of a list of chart objects. By default, all objects in the row will be laid out horizontally from left to right, in equal widths. (But see _width_ option further below)
+**row**: Each `row` can contain either (1) the properties of a full-width panel, or (2) a **list** of properties for panels that will be laid out horizontally in the row. By default, multiple panels are laid out from left to right, in equal widths. (But see _width_ option further below)
 
 ```yaml
 layout:
-  row1: # this row has two charts
-    - ...
-    - ...
-  row2: # next row has just one
-    - ...
+  myRow1: # this row has one full-width chart
+    type: bar
+    title: "My Bar Chart"
+    props:
+      dataset: mycsvdata.csv
+      # ...
+  myMultiRow: # next row has two charts, using the '-' YAML list syntax
+    - type: bar
+      title: "My Bar Chart"
+      props:
+        dataset: mycsvdata.csv
+        # ...
+    - type: table
+      title: "My Summary Table"
+      props:
+        config: summary-table.yaml
 ```
 
 **Chart/plot details:** Finally, each element in a row has the following properties. This defines the actual chart that will be displayed.
@@ -80,17 +91,17 @@ layout:
         yAxisName: "Distanz"
         xAxisName: "Iteration"
 
-  secondRow: # this row has just one
-    - title: "Example Line Plot"
-      description: "Distance over Iteration"
-      type: "line"
-      width: 1
-      props:
-        usedCol: [distance_m_mean, directDistance_m_mean]
-        legendName: [Distance (mean), Direct Distance (mean)]
-        skipFirstRow: false
-        dataset: "*drt_customer_stats_drt.csv"
-        x: "iteration"
-        yAxisName: "Distance"
-        xAxisName: "Iteration"
+  secondRow: # this row has just one plot
+    title: "Example Line Plot"
+    description: "Distance over Iteration"
+    type: "line"
+    width: 1
+    props:
+      usedCol: [distance_m_mean, directDistance_m_mean]
+      legendName: [Distance (mean), Direct Distance (mean)]
+      skipFirstRow: false
+      dataset: "*drt_customer_stats_drt.csv"
+      x: "iteration"
+      yAxisName: "Distance"
+      xAxisName: "Iteration"
 ```

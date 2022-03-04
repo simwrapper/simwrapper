@@ -7,6 +7,19 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.8.0](https://github.com/simwrapper/simwrapper/compare/v1.7.2...v1.8.0) (2022-03-03)
+
+
+### Features
+
+* Dashboards learned "video" panel type ([#107](https://github.com/simwrapper/simwrapper/issues/107)) ([a2670a4](https://github.com/simwrapper/simwrapper/commit/a2670a4dec989b1b794b5843c05875116dce74a7))
+* **links:** configurable viewport ([#103](https://github.com/simwrapper/simwrapper/issues/103)) ([5011174](https://github.com/simwrapper/simwrapper/commit/5011174e2662e53ea8e55edb7123558ba71d9c43))
+
+
+### Bug Fixes
+
+* Fix [#105](https://github.com/simwrapper/simwrapper/issues/105), bar charts not grouping properly ([#112](https://github.com/simwrapper/simwrapper/issues/112)) ([b43cfc2](https://github.com/simwrapper/simwrapper/commit/b43cfc27aab6e27f1a770ed553ed6fbb8b64158a))
+
 ### [1.7.2](https://github.com/simwrapper/simwrapper/compare/v1.7.1...v1.7.2) (2022-02-11)
 
 
