@@ -34,7 +34,7 @@
     @navigate="onNavigate"
   )
 
-  p.load-error: b {{ loadErrorMessage }}
+  p.load-error(@click="authorizeAfterError"): b {{ loadErrorMessage }}
 
 </template>
 
@@ -127,7 +127,11 @@ export default class VueComponent extends Vue {
     } catch (e) {
       // Bad things happened! Tell user
       console.warn({ eeee: e })
-      this.loadErrorMessage = this.fileSystemConfig.baseURL + ': Could not load'
+      if (this.fileSystemConfig.handle) {
+        this.loadErrorMessage = `Click to grant access to folder "${this.fileSystemConfig.handle.name}"`
+      } else {
+        this.loadErrorMessage = this.fileSystemConfig.baseURL + ': Could not load'
+      }
     }
   }
 
@@ -177,6 +181,7 @@ export default class VueComponent extends Vue {
 
     if (svnProject.length === 0) {
       console.warn('no such project')
+      this.loadErrorMessage = `Can't locate "${name}": please check running services and browser version.`
       return null
     }
 
@@ -199,6 +204,18 @@ export default class VueComponent extends Vue {
       this.onNavigate({ component: 'SplashPage', props: {} })
     } else {
       this.onNavigate({ component: 'TabbedDashboardView', props })
+    }
+  }
+
+  private async authorizeAfterError() {
+    try {
+      const handle = this.fileSystemConfig.handle
+      if (handle) {
+        const status = await handle.requestPermission({ mode: 'read' })
+        if (status === 'granted') this.updateRoute()
+      }
+    } catch (e) {
+      // meh
     }
   }
 }
@@ -292,8 +309,20 @@ li.is-not-active b a {
 }
 
 .load-error {
-  margin-top: 2rem;
+  margin: 3rem auto;
+  padding: 1rem 0;
+  border-radius: 5px;
   text-align: center;
+  font-size: 1.2rem;
+  color: var(--link);
+  background-color: var(--bgPanel2);
+  max-width: 40rem;
+}
+
+.load-error:hover {
+  cursor: pointer;
+  color: var(--linkHover);
+  background-color: var(--bgPanel3);
 }
 
 @media only screen and (max-width: 50em) {

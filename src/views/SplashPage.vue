@@ -64,21 +64,6 @@ import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import InfoBottom from '@/assets/info-bottom.md'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
-const doThisOnce = async () => {
-  // clear()
-  console.log(12341235125)
-  if (globalStore.state.localFileHandles.length) return
-
-  const lfsh = (await get('fs')) as { key: string; handle: any }[]
-  if (lfsh && lfsh.length) {
-    for (const entry of lfsh) {
-      addLocalFilesystem(entry.handle, entry.key)
-    }
-  }
-}
-
-doThisOnce()
-
 @Component({
   i18n,
   components: { FileSystemProjects, InfoBottom },

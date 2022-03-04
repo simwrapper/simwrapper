@@ -25,6 +25,7 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
   // console.log(globalStore.state.localFileHandles)
 
   // write it out to indexed-db so we have it on next startup
+  console.log('WRITING ALL FILE HANDLES')
   set('fs', globalStore.state.localFileHandles)
   return system.slug
 }

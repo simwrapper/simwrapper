@@ -208,6 +208,7 @@ export interface FileSystemAPIHandle {
   name: string
   values: any // returns { kind: string; name: string; getFile: any }[]
   getFile: any
+  requestPermission: any
 }
 
 export const LIGHT_MODE: ColorSet = {
