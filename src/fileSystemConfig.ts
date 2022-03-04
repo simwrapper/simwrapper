@@ -1,20 +1,32 @@
+import { get, set, clear } from 'idb-keyval'
 import { FileSystemConfig, FileSystemAPIHandle } from '@/Globals'
+import globalStore from '@/store'
 
 // The URL contains the websiteLiveHost, calculated at runtime
 const loc = window.location
 const webLiveHostname = loc.hostname
 const websiteLiveHost = `${loc.protocol}//${webLiveHostname}`
 
-export function addLocalFilesystem(handle: FileSystemAPIHandle) {
+export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | null) {
+  const slug = key || 'fs' + (1 + Object.keys(globalStore.state.localFileHandles).length)
+
   const system: FileSystemConfig = {
     name: handle.name,
-    slug: 'fs',
-    description: 'Local folder: ' + handle.name,
+    slug: slug,
+    description: 'Local folder',
     handle: handle,
     baseURL: '',
   }
 
   fileSystems.unshift(system)
+
+  // commit to app state
+  globalStore.commit('addLocalFileSystem', { key: system.slug, handle: handle })
+  // console.log(globalStore.state.localFileHandles)
+
+  // write it out to indexed-db so we have it on next startup
+  set('fs', globalStore.state.localFileHandles)
+  return system.slug
 }
 
 const fileSystems: FileSystemConfig[] = [
