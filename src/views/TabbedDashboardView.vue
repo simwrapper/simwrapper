@@ -34,7 +34,7 @@
     @navigate="onNavigate"
   )
 
-  p.load-error(@click="authorizeAfterError"): b {{ loadErrorMessage }}
+  p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
 </template>
 
