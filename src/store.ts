@@ -26,39 +26,6 @@ const initialViewState = () => ({
   zoom: 9,
 })
 
-// interface GlobalState {
-//   app: string
-//   authAttempts: number
-//   breadcrumbs: BreadCrumb[]
-//   credentials: { [url: string]: string }
-//   colorScheme: string
-//   debug: boolean
-//   isFullScreen: boolean
-//   isDarkMode: boolean
-//   locale: string
-//   localFileHandles: any[]
-//   mapLoaded: boolean
-//   mapStyles: { light: string; dark: string }
-//   needLoginForUrl: string
-//   resizeEvents: number
-//   runFolders: { [root: string]: { path: string }[] }
-//   runFolderCount: number
-//   statusErrors: string[]
-//   statusMessage: string
-//   svnProjects: FileSystemConfig[]
-//   visualizationTypes: Map<string, VisualizationPlugin>
-//   viewState: {
-//     initial?: boolean
-//     jump?: boolean
-//     longitude: number
-//     latitude: number
-//     zoom: number
-//     pitch: number
-//     bearing: number
-//     maxZoom?: number
-//   }
-// }
-
 export default new Vuex.Store({
   state: {
     app: 'SimWrapper',
@@ -67,6 +34,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
+    isShowingLeftBar: true,
     isDarkMode: false,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
@@ -174,12 +142,11 @@ export default new Vuex.Store({
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
 
-      state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
-
       console.log('NEW COLORS:', state.colorScheme)
 
-      localStorage.setItem('colorscheme', state.colorScheme)
+      state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
+      localStorage.setItem('colorscheme', state.colorScheme)
       document.body.style.backgroundColor =
         state.colorScheme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
     },
@@ -192,6 +159,12 @@ export default new Vuex.Store({
     },
     setLocalFileSystem(state, value: any) {
       state.localFileHandles = value
+    },
+    setShowLeftBar(state, value: boolean) {
+      state.isShowingLeftBar = value
+    },
+    toggleShowLeftBar(state) {
+      state.isShowingLeftBar = !state.isShowingLeftBar
     },
   },
   actions: {},

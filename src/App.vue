@@ -68,6 +68,19 @@ class App extends Vue {
 
     // local files
     if (doThisOnceForLocalFiles) await this.setupLocalFiles()
+
+    document.addEventListener('keydown', this.toggleLeftBar)
+  }
+
+  private beforeDestroy() {
+    document.removeEventListener('keyup', this.toggleLeftBar)
+  }
+
+  private toggleLeftBar(event: any) {
+    // not ctrl-B then return
+    if (!event.ctrlKey || event.keyCode !== 66) return
+
+    this.$store.commit('toggleShowLeftBar')
   }
 
   // ------ Find Chrome Local File System roots ----

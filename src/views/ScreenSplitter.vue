@@ -1,7 +1,7 @@
 <template lang="pug">
 #split-screen
 
-  run-finder-panel.split-panel.narrow(
+  run-finder-panel.split-panel.narrow(v-show="showLeftBar"
     @navigate="onNavigate(0,$event)"
     @split="onSplit"
   )
@@ -232,6 +232,9 @@ class MyComponent extends Vue {
       const base64 = btoa(JSON.stringify(this.panels))
       this.$router.push(`${BASE}split/${base64}`)
     }
+  }
+  private get showLeftBar() {
+    return this.$store.state.isShowingLeftBar
   }
 }
 
