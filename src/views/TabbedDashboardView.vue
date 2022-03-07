@@ -1,16 +1,18 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!isZoomed")
-    .tabholdercontainer
-      .project-header(v-if="header" v-html="header")
+  .tabholder(v-show="!isZoomed" :class="{wiide}")
+    .tabholdercontainer(:class="{wiide}")
+      .project-header(v-if="header" v-html="header" :class="{wiide}")
       .breadcrumbs(v-else)
         h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       .tabs.is-centered
-        b.up-link: a(@click="goUpOneFolder()") ^ UP
-        ul
+        b.up-link(:style="{marginLeft: wiide ? '0':'-0.75rem'}")
+          a(@click="goUpOneFolder()") ^ UP
+
+        ul(:style="{marginRight: wiide ? '2rem':'4rem'}")
           li(v-for="tab in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
@@ -37,9 +39,9 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-show="!isZoomed")
-    .tabholdercontainer
-      .project-footer(v-if="footer" v-html="footer")
+  .tabholder(v-show="!isZoomed" :class="{wiide}")
+    .tabholdercontainer(:class="{wiide}")
+      .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
 </template>
 
@@ -85,6 +87,10 @@ export default class VueComponent extends Vue {
 
   private mounted() {
     this.updateRoute()
+  }
+
+  private get wiide() {
+    return this.$store.state.isFullWidth
   }
 
   private beforeDestroy() {
@@ -181,7 +187,9 @@ export default class VueComponent extends Vue {
       try {
         const config = await this.fileApi.getFileText(filename)
         const yaml = YAML.parse(config)
+
         if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
+        if (yaml.fullWidth !== undefined) this.$store.commit('setFullWidth', yaml.fullWidth)
 
         try {
           if (yaml.css) {
@@ -222,7 +230,7 @@ export default class VueComponent extends Vue {
     // convert to HTML
     const html = mdRenderer.render(header)
 
-    // sanitize
+    // sanitize it
     const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
     // use it
@@ -344,21 +352,22 @@ export default class VueComponent extends Vue {
   background-color: var(--bgDashboard);
 }
 
+.tabholder.wiide {
+  max-width: unset;
+}
+
 .tabholdercontainer {
   background-image: var(--bgDashboard);
   // background-image: var(--bgTabBanner);
   margin: 0 3rem;
 }
 
-// li.is-active b a {
-//   // color: #ebff67;
-//   text-transform: uppercase;
-// }
+.tabholdercontainer.wiide {
+  margin: 0 0rem;
+}
 
 li.is-not-active b a {
   color: var(--text);
-  // text-transform: uppercase;
-  // border-bottom-color: var(--bg);
 }
 
 .breadcrumbs {
@@ -386,18 +395,11 @@ li.is-not-active b a {
   }
 }
 
-.tabs ul {
-  margin-right: 4rem;
-}
-
-.up-link {
-  margin-left: -0.75rem;
-}
-
 .up-link a {
   color: var(--link);
   border-bottom: none;
 }
+
 .up-link a:hover {
   color: var(--linkHover);
 }
@@ -420,9 +422,9 @@ li.is-not-active b a {
 }
 
 .project-header {
-  padding-top: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   color: var(--text);
+  padding: 1rem 0.5rem;
 
   ::v-deep h1 {
     font-size: 3rem;
@@ -449,12 +451,15 @@ li.is-not-active b a {
   }
 }
 
-.project-footer {
-  margin: 3rem 0 1rem 0;
-  padding-top: 1rem;
-  border-top: 1px solid #88888822;
-  color: var(--text);
+.project-header.wiide {
+  padding: 1rem 1rem;
+}
 
+.project-footer {
+  margin: 3rem 0rem 1rem 0rem;
+  padding: 1rem 1rem;
+  color: var(--text);
+  border-top: 2px solid #88888815;
   ::v-deep h1 {
     font-size: 2rem;
     font-weight: bold;
@@ -478,6 +483,14 @@ li.is-not-active b a {
   ::v-deep ul {
     list-style: inside;
   }
+}
+
+.project-footer.wiide {
+  margin: 3rem 0rem 1rem 0rem;
+  padding: 1rem 1rem;
+  border-top: none;
+  background-color: #88888815;
+  color: var(--text);
 }
 
 @media only screen and (max-width: 50em) {

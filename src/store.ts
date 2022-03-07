@@ -34,6 +34,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
+    isFullWidth: false,
     isShowingLeftBar: false,
     isDarkMode: false,
     mapStyles: MAP_STYLES_ONLINE,
@@ -165,6 +166,12 @@ export default new Vuex.Store({
     },
     toggleShowLeftBar(state) {
       state.isShowingLeftBar = !state.isShowingLeftBar
+    },
+    setFullWidth(state, value: boolean) {
+      state.isFullWidth = value
+    },
+    toggleFullWidth(state) {
+      state.isFullWidth = !state.isFullWidth
     },
   },
   actions: {},

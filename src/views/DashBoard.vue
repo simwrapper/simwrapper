@@ -1,7 +1,7 @@
 <template lang="pug">
-#dashboard.dashboard
-  .dashboard-content
-    .dashboard-header(v-if="!fullScreenCardId")
+#dashboard.dashboard(:class="{wiide}")
+  .dashboard-content(:class="{wiide}")
+    .dashboard-header(v-if="!fullScreenCardId" :class="{wiide}")
       h2 {{ title }}
       p {{ description }}
 
@@ -10,7 +10,9 @@
 
       //- each card here
       .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
-        :style="getCardStyle(card)")
+        :style="getCardStyle(card)"
+        :class="{wiide}"
+      )
 
         //- card header/title
         .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
@@ -308,6 +310,10 @@ export default class VueComponent extends Vue {
     return tag
   }
 
+  private get wiide() {
+    return this.$store.state.isFullWidth
+  }
+
   private opacity: any = {}
 
   private async handleCardIsLoaded(card: any) {
@@ -329,6 +335,14 @@ export default class VueComponent extends Vue {
     max-width: $dashboardWidth;
     margin: 0 auto 0 auto;
   }
+
+  .dashboard-content.wiide {
+    max-width: unset;
+  }
+}
+
+.dashboard.wiide {
+  padding-left: 1rem;
 }
 
 .dashboard-header {
@@ -337,6 +351,10 @@ export default class VueComponent extends Vue {
   h2 {
     line-height: 3rem;
   }
+}
+
+.dashboard-header.wiide {
+  margin-right: 3rem;
 }
 
 .dash-row {
@@ -405,6 +423,10 @@ export default class VueComponent extends Vue {
   .spinner-box.is-loaded {
     background: none;
   }
+}
+
+.dash-card-frame.wiide {
+  margin-right: 1rem;
 }
 
 .dash-card {
