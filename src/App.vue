@@ -77,8 +77,9 @@ class App extends Vue {
   }
 
   private toggleLeftBar(event: any) {
-    // not ctrl-B then return
-    if (!event.ctrlKey || event.keyCode !== 66) return
+    // not shift-alt-Q then return
+    console.log(event)
+    if (!event.altKey || !event.shiftKey || event.keyCode !== 81) return
 
     this.$store.commit('toggleShowLeftBar')
   }
