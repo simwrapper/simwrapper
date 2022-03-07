@@ -39,7 +39,7 @@
 
   .tabholder(v-show="!isZoomed")
     .tabholdercontainer
-      .project-footer(v-show="footer" v-html="footer")
+      .project-footer(v-if="footer" v-html="footer")
 
 </template>
 
@@ -177,8 +177,8 @@ export default class VueComponent extends Vue {
       return
     }
 
-    try {
-      for (const filename of Object.values(this.allConfigFiles.configs)) {
+    for (const filename of Object.values(this.allConfigFiles.configs)) {
+      try {
         const config = await this.fileApi.getFileText(filename)
         const yaml = YAML.parse(config)
         if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
@@ -196,9 +196,9 @@ export default class VueComponent extends Vue {
 
         this.header = await this.buildPanel('header', yaml)
         this.footer = await this.buildPanel('footer', yaml)
+      } catch (e) {
+        console.error('' + e)
       }
-    } catch (e) {
-      console.error('' + e)
     }
   }
 
