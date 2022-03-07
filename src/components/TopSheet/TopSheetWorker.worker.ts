@@ -63,6 +63,7 @@ let _allConfigYamls: YamlConfigs = {
   dashboards: {},
   topsheets: {},
   vizes: {},
+  configs: {},
 }
 
 const _fileData: any = {}

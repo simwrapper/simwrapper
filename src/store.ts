@@ -34,7 +34,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     isFullScreen: false,
-    isShowingLeftBar: true,
+    isShowingLeftBar: false,
     isDarkMode: false,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
