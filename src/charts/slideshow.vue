@@ -4,7 +4,7 @@
   <vueper-slide v-for="(slide, i) in slides" :key="i" v-bind="slide">
     <template #content>
       <div v-if="slide.content" class="vueperslide__content-wrapper" style="flex-direction: row; justify-content: flex-start; align-items: baseline; gap: 10px">
-        <h3>{{ slide.title}} </h3>
+        <h3>{{ slide.title }}</h3>
         <span>{{ slide.content }}</span>
       </div>
     </template>
@@ -53,7 +53,8 @@ export default class VueComponent extends Vue {
 
 
     this.slides = []
-    // Check if defined and iterable, throwing an error otherwise would be good
+    // Check if defined and iterable
+    // TODO: throw
     if (this.config.slides != null && typeof this.config.slides[Symbol.iterator] === 'function') {
       // Resolve relative URLs
       for (const data of this.config.slides) {
@@ -71,8 +72,6 @@ export default class VueComponent extends Vue {
         this.slides.push(data)
       }
     }
-
-    console.log(this.slides)
 
     this.$emit('isLoaded')
   }
