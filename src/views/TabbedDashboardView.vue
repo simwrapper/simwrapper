@@ -81,6 +81,7 @@ export default class VueComponent extends Vue {
 
   private header = ''
   private footer = ''
+  private customCSS = ''
 
   private mounted() {
     this.updateRoute()
@@ -88,6 +89,14 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
+    this.clearStyles()
+  }
+
+  private clearStyles() {
+    if (this.styleElement) {
+      document.getElementsByTagName('head')[0].removeChild(this.styleElement)
+      this.styleElement = null
+    }
   }
 
   private getPageHeader() {
@@ -101,6 +110,8 @@ export default class VueComponent extends Vue {
   private updateRoute() {
     const fsConfig = this.getFileSystem(this.root)
     if (!fsConfig) return
+
+    this.clearStyles()
 
     this.fileSystemConfig = fsConfig
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
@@ -156,6 +167,8 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private styleElement: any = null
+
   private async setupProjectConfig() {
     // no configs mean no setup is necessary
     if (!Object.keys(this.allConfigFiles.configs).length) {
@@ -169,6 +182,17 @@ export default class VueComponent extends Vue {
         const config = await this.fileApi.getFileText(filename)
         const yaml = YAML.parse(config)
         if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
+
+        try {
+          if (yaml.css) {
+            this.customCSS = await this.fileApi.getFileText(`${this.xsubfolder}/${yaml.css}`)
+            this.styleElement = document.createElement('style')
+            this.styleElement.appendChild(document.createTextNode(this.customCSS))
+            document.getElementsByTagName('head')[0].appendChild(this.styleElement)
+          }
+        } catch (e) {
+          // no css, oh well
+        }
 
         this.header = await this.buildPanel('header', yaml)
         this.footer = await this.buildPanel('footer', yaml)
