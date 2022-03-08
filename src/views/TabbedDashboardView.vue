@@ -188,7 +188,11 @@ export default class VueComponent extends Vue {
         const config = await this.fileApi.getFileText(filename)
         const yaml = YAML.parse(config)
 
-        if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
+        // always reveal quickview bar unless told not to
+        // if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
+        this.$store.commit('setShowLeftBar', !!!yaml.hideLeftBar)
+
+        // set margins wide if requested to do so
         if (yaml.fullWidth !== undefined) this.$store.commit('setFullWidth', yaml.fullWidth)
 
         try {

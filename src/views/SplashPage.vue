@@ -64,8 +64,6 @@ import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import InfoBottom from '@/assets/info-bottom.md'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
-let firstRun = true
-
 @Component({
   i18n,
   components: { FileSystemProjects, InfoBottom },
@@ -84,11 +82,8 @@ class MyComponent extends Vue {
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
 
-    // always start with nav bar when loading splashpage (first time)
-    if (firstRun) {
-      globalStore.commit('setShowLeftBar', true)
-      firstRun = false
-    }
+    // always start with nav bar when loading splashpage
+    globalStore.commit('setShowLeftBar', true)
   }
 
   private async clickedLocalRow(row: { key: string; handle: any }) {
