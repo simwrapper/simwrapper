@@ -188,8 +188,12 @@ export default class VueComponent extends Vue {
         const config = await this.fileApi.getFileText(filename)
         const yaml = YAML.parse(config)
 
+        // figure out relative path for config file
+        const yamlFolder = filename.startsWith('http')
+          ? ''
+          : filename.substring(0, filename.indexOf('simwrapper-config.y'))
+
         // always reveal quickview bar unless told not to
-        // if (yaml.hideLeftBar !== undefined) this.$store.commit('setShowLeftBar', !yaml.hideLeftBar)
         this.$store.commit('setShowLeftBar', !!!yaml.hideLeftBar)
 
         // set margins wide if requested to do so
@@ -197,7 +201,7 @@ export default class VueComponent extends Vue {
 
         try {
           if (yaml.css) {
-            this.customCSS = await this.fileApi.getFileText(`${this.xsubfolder}/${yaml.css}`)
+            this.customCSS = await this.fileApi.getFileText(`${yamlFolder}${yaml.css}`)
             this.styleElement = document.createElement('style')
             this.styleElement.appendChild(document.createTextNode(this.customCSS))
             document.getElementsByTagName('head')[0].appendChild(this.styleElement)
@@ -206,15 +210,15 @@ export default class VueComponent extends Vue {
           // no css, oh well
         }
 
-        this.header = await this.buildPanel('header', yaml)
-        this.footer = await this.buildPanel('footer', yaml)
+        this.header = await this.buildPanel('header', yaml, yamlFolder)
+        this.footer = await this.buildPanel('footer', yaml, yamlFolder)
       } catch (e) {
         console.error('' + e)
       }
     }
   }
 
-  private async buildPanel(which: string, yaml: any) {
+  private async buildPanel(which: string, yaml: any, folder: string) {
     // first get the correct/best header for this locale
     let header = ''
     if (this.$store.state.locale === 'de') {
@@ -227,7 +231,7 @@ export default class VueComponent extends Vue {
 
     // if it is a filename, load it from disk
     if (header.indexOf('\n') == -1 && header.endsWith('.md')) {
-      const text = await this.fileApi.getFileText(`${this.xsubfolder}/${header}`)
+      const text = await this.fileApi.getFileText(`${folder}${header}`)
       header = text
     }
 
