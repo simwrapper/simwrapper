@@ -13,7 +13,7 @@
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
       .warnings(v-else)
         .message-area(v-if="!state.statusErrors.length") 
-          p There are no errors and warnings :)
+          p.no-error There are no errors and warnings.
         .message-area(v-else)
           h3 {{state.statusErrors.length}} Errors
           .single-message(v-for="err,i in state.statusErrors")
@@ -350,6 +350,11 @@ a {
   padding: 5px;
   text-indent: 0px;
   margin-left: 0px;
+}
+
+.no-error {
+  text-indent: 0;
+  margin-left: -20px;
 }
 
 ::-webkit-scrollbar-corner {
