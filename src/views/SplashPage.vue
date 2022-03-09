@@ -82,7 +82,8 @@ class MyComponent extends Vue {
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
 
-    // this.figureOutLocalFileSystemHandles()
+    // always start with nav bar when loading splashpage
+    globalStore.commit('setShowLeftBar', true)
   }
 
   private async clickedLocalRow(row: { key: string; handle: any }) {

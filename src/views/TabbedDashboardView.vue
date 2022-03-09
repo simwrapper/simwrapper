@@ -1,15 +1,18 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!isZoomed")
-    .tabholdercontainer
-      .breadcrumbs
+  .tabholder(v-show="!isZoomed" :class="{wiide}")
+    .tabholdercontainer(:class="{wiide}")
+      .project-header(v-if="header" v-html="header" :class="{wiide}")
+      .breadcrumbs(v-else)
         h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       .tabs.is-centered
-        b.up-link: a(@click="goUpOneFolder()") ^ UP
-        ul
+        b.up-link(:style="{marginLeft: wiide ? '0':'-0.75rem'}")
+          a(@click="goUpOneFolder()") ^ UP
+
+        ul(:style="{marginRight: wiide ? '2rem':'4rem'}")
           li(v-for="tab in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
@@ -36,10 +39,16 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
+  .tabholder(v-show="!isZoomed" :class="{wiide}")
+    .tabholdercontainer(:class="{wiide}")
+      .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
+
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import markdown from 'markdown-it'
+import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
@@ -47,6 +56,12 @@ import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
+
+const mdRenderer = new markdown({
+  html: true,
+  linkify: true,
+  typographer: true,
+})
 
 @Component({ components: { DashBoard, FolderBrowser }, props: {} })
 export default class VueComponent extends Vue {
@@ -60,18 +75,34 @@ export default class VueComponent extends Vue {
   private dashboards: any = []
   private dashboardDataManager?: DashboardDataManager
 
-  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
+  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
 
   private isZoomed = false
   private loadErrorMessage = ''
   private pageHeader = ''
 
+  private header = ''
+  private footer = ''
+  private customCSS = ''
+
   private mounted() {
     this.updateRoute()
   }
 
+  private get wiide() {
+    return this.$store.state.isFullWidth
+  }
+
   private beforeDestroy() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
+    this.clearStyles()
+  }
+
+  private clearStyles() {
+    if (this.styleElement) {
+      document.getElementsByTagName('head')[0].removeChild(this.styleElement)
+      this.styleElement = null
+    }
   }
 
   private getPageHeader() {
@@ -86,25 +117,29 @@ export default class VueComponent extends Vue {
     const fsConfig = this.getFileSystem(this.root)
     if (!fsConfig) return
 
+    this.clearStyles()
+
     this.fileSystemConfig = fsConfig
     this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
     this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
 
+    this.header = ''
+    this.footer = ''
     this.pageHeader = this.getPageHeader()
     // this.generateBreadcrumbs()
 
     // this happens async
     this.dashboards = []
-    this.findDashboards()
+    this.findConfigsAndDashboards()
   }
 
   private onNavigate(options: any) {
     this.$emit('navigate', options)
   }
 
-  private async findDashboards() {
+  private async findConfigsAndDashboards() {
     this.loadErrorMessage = ''
     if (!this.fileApi) return []
 
@@ -124,6 +159,9 @@ export default class VueComponent extends Vue {
       // // Start on first tab
       this.activeTab = Object.keys(this.dashboards)[0]
       this.dashboardTabWithDelay = this.activeTab
+
+      // headers, footers, etc
+      await this.setupProjectConfig()
     } catch (e) {
       // Bad things happened! Tell user
       console.warn({ eeee: e })
@@ -133,6 +171,78 @@ export default class VueComponent extends Vue {
         this.loadErrorMessage = this.fileSystemConfig.baseURL + ': Could not load'
       }
     }
+  }
+
+  private styleElement: any = null
+
+  private async setupProjectConfig() {
+    // no configs mean no setup is necessary
+    if (!Object.keys(this.allConfigFiles.configs).length) {
+      // no config, so show navbar and be done
+      this.$store.commit('setShowLeftBar', true)
+      return
+    }
+
+    for (const filename of Object.values(this.allConfigFiles.configs)) {
+      try {
+        const config = await this.fileApi.getFileText(filename)
+        const yaml = YAML.parse(config)
+
+        // figure out relative path for config file
+        const yamlFolder = filename.startsWith('http')
+          ? ''
+          : filename.substring(0, filename.indexOf('simwrapper-config.y'))
+
+        // always reveal quickview bar unless told not to
+        this.$store.commit('setShowLeftBar', !!!yaml.hideLeftBar)
+
+        // set margins wide if requested to do so
+        if (yaml.fullWidth !== undefined) this.$store.commit('setFullWidth', yaml.fullWidth)
+
+        try {
+          if (yaml.css) {
+            this.customCSS = await this.fileApi.getFileText(`${yamlFolder}${yaml.css}`)
+            this.styleElement = document.createElement('style')
+            this.styleElement.appendChild(document.createTextNode(this.customCSS))
+            document.getElementsByTagName('head')[0].appendChild(this.styleElement)
+          }
+        } catch (e) {
+          // no css, oh well
+        }
+
+        this.header = await this.buildPanel('header', yaml, yamlFolder)
+        this.footer = await this.buildPanel('footer', yaml, yamlFolder)
+      } catch (e) {
+        console.error('' + e)
+      }
+    }
+  }
+
+  private async buildPanel(which: string, yaml: any, folder: string) {
+    // first get the correct/best header for this locale
+    let header = ''
+    if (this.$store.state.locale === 'de') {
+      header = yaml[which + '_de'] || yaml[which] || yaml[which + '_en'] || ''
+    } else {
+      header = yaml[which + '_en'] || yaml[which] || yaml[which + '_de'] || ''
+    }
+
+    if (!header) return ''
+
+    // if it is a filename, load it from disk
+    if (header.indexOf('\n') == -1 && header.endsWith('.md')) {
+      const text = await this.fileApi.getFileText(`${folder}${header}`)
+      header = text
+    }
+
+    // convert to HTML
+    const html = mdRenderer.render(header)
+
+    // sanitize it
+    const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
+
+    // use it
+    return clean
   }
 
   // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
@@ -250,21 +360,22 @@ export default class VueComponent extends Vue {
   background-color: var(--bgDashboard);
 }
 
+.tabholder.wiide {
+  max-width: unset;
+}
+
 .tabholdercontainer {
   background-image: var(--bgDashboard);
   // background-image: var(--bgTabBanner);
   margin: 0 3rem;
 }
 
-// li.is-active b a {
-//   // color: #ebff67;
-//   text-transform: uppercase;
-// }
+.tabholdercontainer.wiide {
+  margin: 0 0rem;
+}
 
 li.is-not-active b a {
   color: var(--text);
-  // text-transform: uppercase;
-  // border-bottom-color: var(--bg);
 }
 
 .breadcrumbs {
@@ -292,18 +403,11 @@ li.is-not-active b a {
   }
 }
 
-.tabs ul {
-  margin-right: 4rem;
-}
-
-.up-link {
-  margin-left: -0.75rem;
-}
-
 .up-link a {
   color: var(--link);
   border-bottom: none;
 }
+
 .up-link a:hover {
   color: var(--linkHover);
 }
@@ -323,6 +427,78 @@ li.is-not-active b a {
   cursor: pointer;
   color: var(--linkHover);
   background-color: var(--bgPanel3);
+}
+
+.project-header {
+  margin-bottom: 1rem;
+  color: var(--text);
+  padding: 1rem 0.5rem;
+
+  ::v-deep h1 {
+    font-size: 3rem;
+    font-weight: bold;
+  }
+
+  ::v-deep h2 {
+    font-size: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  ::v-deep h3 {
+    font-size: 1.25rem;
+    margin-top: 0.5rem;
+  }
+
+  ::v-deep h4 {
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  ::v-deep ul {
+    list-style: inside;
+  }
+}
+
+.project-header.wiide {
+  padding: 1rem 1rem;
+}
+
+.project-footer {
+  margin: 3rem 0rem 1rem 0rem;
+  padding: 1rem 1rem;
+  color: var(--text);
+  border-top: 2px solid #88888815;
+  ::v-deep h1 {
+    font-size: 2rem;
+    font-weight: bold;
+  }
+
+  ::v-deep h2 {
+    font-size: 1.5rem;
+    margin-top: 1rem;
+  }
+
+  ::v-deep h3 {
+    font-size: 1.25rem;
+    margin-top: 0.5rem;
+  }
+
+  ::v-deep h4 {
+    margin-top: 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  ::v-deep ul {
+    list-style: inside;
+  }
+}
+
+.project-footer.wiide {
+  margin: 3rem 0rem 1rem 0rem;
+  padding: 1rem 1rem;
+  border-top: none;
+  background-color: #88888815;
+  color: var(--text);
 }
 
 @media only screen and (max-width: 50em) {
