@@ -81,11 +81,13 @@ class App extends Vue {
     if (event.altKey && event.shiftKey && event.keyCode === 81) {
       console.log('QUICKVIEW')
       this.$store.commit('toggleShowLeftBar')
+      this.$store.commit('resize')
     }
     // shift-alt-W: wide screen mode
     if (event.altKey && event.shiftKey && event.keyCode === 87) {
       console.log('WIIIDE')
       this.$store.commit('toggleFullWidth')
+      this.$store.commit('resize')
     }
     return
   }

@@ -149,12 +149,23 @@ export default class VueComponent extends Vue {
     card.description = ''
   }
 
+  @Watch('$store.state.resizeEvents')
+  private async handleResize() {
+    await this.$nextTick()
+
+    this.resizeAllCards()
+  }
+
+  private isResizing = false
+
   private resizeAllCards() {
+    this.isResizing = true
     for (const row of this.rows) {
       for (const card of row) {
         this.updateDimensions(card.id)
       }
     }
+    this.isResizing = false
   }
 
   private handleToggleInfoClick(card: any) {
@@ -204,7 +215,7 @@ export default class VueComponent extends Vue {
       const dimensions = { width: element.clientWidth, height: element.clientHeight }
       if (this.resizers[cardId]) this.resizers[cardId](dimensions)
     }
-    globalStore.commit('resize')
+    if (!this.isResizing) globalStore.commit('resize')
   }
 
   private getCardStyle(card: any) {
