@@ -50,6 +50,34 @@ export default class VueComponent extends Vue {
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+
+    // Example Error and Warnings
+    //
+    // this.$store.commit('setStatus', {
+    //   type: Status.ERROR,
+    //   msg: `This is an Example Error (Bar Plot)`,
+    //   desc: 'Das ist eine detailierte Beschreibung des Fehlers. Damit der Fehler behoben werden kann, muss einiges geändert werden.',
+    // })
+    // this.$store.commit('setStatus', {
+    //   type: Status.WARNING,
+    //   msg: `This is an Example Error (Bar Plot)`,
+    //   desc: 'Das ist eine detailierte Beschreibung des Fehlers. Damit der Fehler behoben werden kann, muss einiges geändert werden.',
+    // })
+    // this.$store.commit('setStatus', {
+    //   type: Status.ERROR,
+    //   msg: `You did a misstake!`,
+    //   desc: 'Leider hast du einen Fehler.....',
+    // })
+    // this.$store.commit('setStatus', {
+    //   type: Status.WARNING,
+    //   msg: `This is an Example Error (Bar Plot) 2`,
+    //   desc: 'Das ist eine detailierte Beschreibung des Fehlers. Damit der Fehler behoben werden kann, muss einiges geändert werden.',
+    // })
+    // this.$store.commit('setStatus', {
+    //   type: Status.ERROR,
+    //   msg: `Oooopppsss.. Data is missing`,
+    //   desc: 'Leider hast du einen Fehler.....',
+    // })
   }
 
   private changeDimensions(dimensions: { width: number; height: number }) {

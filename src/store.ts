@@ -3,7 +3,14 @@ import Vuex, { Store } from 'vuex'
 
 Vue.use(Vuex)
 
-import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
+import {
+  BreadCrumb,
+  Warnings,
+  ColorScheme,
+  FileSystemConfig,
+  Status,
+  VisualizationPlugin,
+} from '@/Globals'
 import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 import { debounce } from '@/js/util'
@@ -44,7 +51,8 @@ interface GlobalState {
   resizeEvents: number
   runFolders: { [root: string]: { path: string }[] }
   runFolderCount: number
-  statusErrors: string[]
+  statusErrors: Warnings[]
+  statusWarnings: Warnings[]
   statusMessage: string
   svnProjects: FileSystemConfig[]
   visualizationTypes: Map<string, VisualizationPlugin>
@@ -71,7 +79,8 @@ export default new Vuex.Store({
     isDarkMode: false,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
-    statusErrors: [] as string[],
+    statusErrors: [] as Warnings[],
+    statusWarnings: [] as Warnings[],
     statusMessage: 'Loading',
     svnProjects: fileSystems,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
@@ -128,7 +137,7 @@ export default new Vuex.Store({
       if (!value.jump) state.viewState = value
       else if (state.viewState.initial) state.viewState = value
     },
-    error(state: GlobalState, value: string) {
+    error(state: GlobalState, value: Warnings) {
       // don't repeat yourself
       if (
         !state.statusErrors.length ||
@@ -137,16 +146,31 @@ export default new Vuex.Store({
         state.statusErrors.push(value)
       }
     },
-    setStatus(state: GlobalState, value: { type: Status; msg: string }) {
+    setStatus(state: GlobalState, value: { type: Status; msg: string; desc?: string }) {
+      if (!value.desc?.length) {
+        value.desc = ''
+      }
+      const warningObj = {
+        msg: value.msg,
+        desc: value.desc,
+      }
       if (value.type === Status.INFO) {
         state.statusMessage = value.msg
+      } else if (value.type === Status.WARNING) {
+        if (
+          // don't repeat yourself
+          !state.statusWarnings.length ||
+          state.statusWarnings[state.statusWarnings.length - 1].msg !== value.msg
+        ) {
+          state.statusWarnings.push(warningObj)
+        }
       } else {
         if (
           // don't repeat yourself
           !state.statusErrors.length ||
-          state.statusErrors[state.statusErrors.length - 1] !== value.msg
+          state.statusErrors[state.statusErrors.length - 1].msg !== value.msg
         ) {
-          state.statusErrors.push(value.msg)
+          state.statusErrors.push(warningObj)
         }
       }
     },
