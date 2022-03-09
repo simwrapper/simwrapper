@@ -80,8 +80,11 @@ export default class VueComponent extends Vue {
       return dataset
     } catch (e) {
       const message = '' + e
-      console.error(message)
-      this.$store.commit('error', message)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        message,
+        desc: 'Add a desription...',
+      })
     }
     return {}
   }
