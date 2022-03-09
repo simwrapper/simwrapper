@@ -13,7 +13,7 @@ import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { DataTable, FileSystemConfig, UI_FONT } from '@/Globals'
+import { DataTable, FileSystemConfig, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -95,7 +95,11 @@ export default class VueComponent extends Vue {
       else this.updateChartSimple()
     } catch (e) {
       const msg = '' + e
-      this.$store.commit('error', msg)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg,
+        desc: 'Add a desription...',
+      })
     }
   }
 
