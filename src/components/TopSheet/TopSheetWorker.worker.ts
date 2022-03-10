@@ -8,7 +8,6 @@ import YAML from 'yaml'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
-import globalStore from '@/store'
 
 type TableRow = {
   title: string
@@ -377,7 +376,8 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
     const xml = (await parseXML(text, {
       mergeAttrs: true,
       explicitArray: false,
-      attrValueProcessors: [parseNumbers],
+      parseAttributeValue: true,
+      attributeNamePrefix: '',
     })) as any
 
     // Do a splitty lookup if the xmlElement is specified
