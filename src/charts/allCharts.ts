@@ -2,6 +2,7 @@
 // the name of the import will be the chart "type" in YAML.
 
 // resizable charts:
+import aggregate from './aggregate.vue'
 import area from './area.vue'
 import bar from './bar.vue'
 import bubble from './bubble.vue'
@@ -18,7 +19,6 @@ import vega from './vega.vue'
 import video from './video.vue'
 
 // full-screen map visualizations:
-import aggregate from './aggregate.vue'
 import carriers from './carriers.vue'
 import flowmap from './flowmap.vue'
 import links from './links.vue'
