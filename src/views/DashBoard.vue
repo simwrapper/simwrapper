@@ -189,7 +189,7 @@ export default class VueComponent extends Vue {
   }
 
   private getCardComponent(card: any) {
-    if (card.type === 'topsheet') return 'TopSheet'
+    if (card.type === 'table' || card.type === 'topsheet') return 'TopSheet'
 
     // might be a chart
     if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
