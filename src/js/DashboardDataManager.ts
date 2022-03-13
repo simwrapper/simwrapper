@@ -274,8 +274,14 @@ export default class DashboardDataManager {
 
         thread.onmessage = e => {
           if (e.data.error) {
-            console.error(e.data.error)
-            globalStore.commit('error', e.data.error)
+            console.log(e.data.error)
+            var msg = '' + e.data.error
+            //globalStore.commit('error', e.data.error)
+            globalStore.commit('setStatus', {
+              type: Status.ERROR,
+              message: '' + msg,
+              desc: 'Add a desription!',
+            })
             reject()
           }
           resolve(e.data)

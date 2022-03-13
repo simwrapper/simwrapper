@@ -25,10 +25,13 @@
             li(v-html="err.msg" @click="toggleShowDescription(i, false)")
             .description(v-if="descriptionIndexListWarning.includes(i)")
               p(v-html="err.desc")
+      
 
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
+    button.button.clear-button(v-if="state.statusErrors.length && showWarnings" @click="clearAllButtons()") Clear all errors...
+
 
     .commands
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
@@ -97,6 +100,10 @@ class MyComponent extends Vue {
     this.debounceRunFoldersChanged()
   }
 
+  @Watch('state.isDarkMode') updateTheme() {
+    console.log('Hi!', this.$store.state.statusWarnings)
+  }
+
   private async onRunFoldersChanged() {
     const newTree = {} as any
     this.rootNodes = []
@@ -157,6 +164,11 @@ class MyComponent extends Vue {
       parent.children.push(folder)
     }
     return rootNode
+  }
+
+  private clearAllButtons() {
+    console.log(this.state.statusErrors)
+    this.$store.commit('clearAllErrors')
   }
 
   private onSplit() {
@@ -355,6 +367,21 @@ a {
 .no-error {
   text-indent: 0;
   margin-left: -20px;
+}
+
+.clear-button {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  margin-left: 0.25rem;
+
+  /*
+  width: 100%;
+  border-style: none;
+  background-color: white;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 5px;
+  */
 }
 
 ::-webkit-scrollbar-corner {

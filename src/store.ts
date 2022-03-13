@@ -15,6 +15,7 @@ import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 import { debounce } from '@/js/util'
 import SVNFileSystem from './js/HTTPFileSystem'
+import { StaticReadUsage } from 'three'
 
 // ----------------------------------------
 

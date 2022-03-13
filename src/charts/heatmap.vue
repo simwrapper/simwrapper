@@ -80,7 +80,6 @@ export default class VueComponent extends Vue {
       return dataset
     } catch (e) {
       const message = '' + e
-      console.log('Nachricht', message)
       this.$store.commit('setStatus', {
         type: Status.ERROR,
         message,
@@ -99,7 +98,6 @@ export default class VueComponent extends Vue {
       else this.updateChartSimple()
     } catch (e) {
       const msg = '' + e
-      console.log('Nachricht', msg)
       this.$store.commit('setStatus', {
         type: Status.ERROR,
         msg,
