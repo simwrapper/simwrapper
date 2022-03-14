@@ -20,7 +20,7 @@
           i.fa.fa-sm.fa-plus
           | &nbsp;Add Data
 
-    .section-panel(v-for="section in sections" :key="section.name")
+    .section-panel(v-for="section in getSections()" :key="section.name")
       h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
       .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
@@ -45,25 +45,48 @@ import YAML from 'yaml'
 
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
+import FillPanel from './Fill.vue'
 import WidthPanel from './Widths.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({ components: { AddDatasetsPanel, ColorPanel, WidthPanel }, props: {} })
+@Component({ components: { AddDatasetsPanel, ColorPanel, FillPanel, WidthPanel }, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) vizDetails!: any
   @Prop({ required: true }) datasets: any
   @Prop({ required: true }) fileSystem!: HTTPFileSystem
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) yamlConfig!: string
+  @Prop({ required: false }) sections!: string[]
 
   private showPanels = false
-  private activeSection = 'color'
+  private activeSection = this.sections ? this.sections[0] : 'color'
 
-  private sections = [
-    { component: 'ColorPanel', name: 'color' },
-    { component: 'WidthPanel', name: 'width' },
-    // { component: '', name: 'labels' },
-  ]
+  private getSections() {
+    if (this.sections) {
+      return this.sections.map(section => {
+        const componentName = section.slice(0, 1).toUpperCase() + section.slice(1) + 'Panel'
+        return { component: componentName, name: section }
+      })
+    } else {
+      return [
+        { component: 'ColorPanel', name: 'color' },
+        { component: 'WidthPanel', name: 'width' },
+        // { component: 'FillPanel', name: 'fill' },
+      ]
+    }
+  }
+
+  // @Watch('vizDetails') modelChanged() {
+  //   // console.log('NEW VIZMODEL', this.vizDetails)
+  // }
+
+  // @Watch('datasets') datasetsChanged() {
+  //   // console.log('NEW DATASETS', this.datasets)
+  // }
+
+  // private mounted() {
+  //   this.buildConfiguration()
+  // }
 
   private get vizConfiguration() {
     return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
@@ -126,8 +149,7 @@ export default class VueComponent extends Vue {
 
   private clickedExport() {
     let suggestedFilename = 'viz-links-export.yaml'
-
-    const configFile = this.yamlConfig?.toLocaleLowerCase() || ''
+    const configFile = this.yamlConfig.toLocaleLowerCase()
     if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
       suggestedFilename = this.yamlConfig
     }
@@ -153,6 +175,15 @@ export default class VueComponent extends Vue {
     if (config.display.color) {
       delete config.display.color?.colorRamp?.style
       delete config.display.color?.generatedColors
+    }
+    if (config.display.fill) {
+      delete config.display.fill?.colorRamp?.style
+      delete config.display.fill?.generatedColors
+    }
+    // delete empty display sections
+    for (const entries of Object.entries(config.display) as any[]) {
+      console.log(entries)
+      if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
     }
 
     const text = YAML.stringify(config, {
@@ -234,7 +265,7 @@ h1:hover {
   pointer-events: auto;
   margin: 0 0.5rem auto 0;
   filter: $filterShadow;
-  z-index: 4;
+  z-index: 1050;
 }
 
 .map-actions {
@@ -242,7 +273,7 @@ h1:hover {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  margin-top: 100px;
+  margin-top: 72px;
   right: 4px;
   z-index: 20;
 }

@@ -2,6 +2,14 @@
 .map-layout
   polygon-and-circle-map.choro-map(:props="mapProps")
   zoom-buttons
+  viz-configurator(v-if="isLoaded"
+    :sections="['fill']"
+    :fileSystem="fileSystemConfig"
+    :subfolder="subfolder"
+    :yamlConfig="'dashboard-map.yaml'"
+    :vizDetails="vizDetails"
+    :datasets="datasets"
+    @update="changeConfiguration")
 
   .config-bar
     img.img-button(@click="useCircles=false"
@@ -22,14 +30,19 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import bulmaSlider from 'bulma-slider'
 import * as turf from '@turf/turf'
 
-import { DataTableColumn, FileSystemConfig } from '@/Globals'
+import { DataTable, DataTableColumn, FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
+import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
+import { FillDefinition } from '@/components/viz-configurator/Fill.vue'
+import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
+import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 
-@Component({ components: { PolygonAndCircleMap, ZoomButtons } })
+@Component({ components: { PolygonAndCircleMap, VizConfigurator, ZoomButtons } })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
   @Prop({ required: true }) subfolder!: string
@@ -41,7 +54,7 @@ export default class VueComponent extends Vue {
   private boundaries: any[] = []
   private centroids: any[] = []
 
-  private dataRows: { [column: string]: DataTableColumn } = {}
+  private dataRows: DataTable = {}
 
   private activeColumn = ''
   private useCircles = false
@@ -49,13 +62,39 @@ export default class VueComponent extends Vue {
 
   private maxValue = 1000
   private expColors = false
+  private isLoaded = false
+
+  private generatedColors: string[] = ['#4e79a7']
+
+  private vizDetails = {
+    title: '',
+    description: '',
+    datasets: {} as { [id: string]: string },
+    useSlider: false,
+    showDifferences: false,
+    shpFile: '',
+    dbfFile: '',
+    network: '',
+    geojsonFile: '',
+    projection: '',
+    widthFactor: null as any,
+    thumbnail: '',
+    sum: false,
+    display: {
+      fill: {} as any,
+      color: {} as any,
+      width: {} as any,
+    },
+  }
+
+  private datasets: { [id: string]: DataTable } = {}
 
   private get mapProps() {
     return {
       useCircles: this.useCircles,
       data: this.useCircles ? this.centroids : this.boundaries,
       dark: this.$store.state.isDarkMode,
-      colors: 'viridis',
+      colors: this.generatedColors,
       activeColumn: this.activeColumn,
       maxValue: this.maxValue,
       opacity: this.sliderOpacity,
@@ -65,7 +104,7 @@ export default class VueComponent extends Vue {
 
   private async mounted() {
     try {
-      this.expColors = this.config.exponentColors
+      this.expColors = this.config.display?.fill?.exponentColors
 
       this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
       // bulmaSlider.attach()
@@ -73,16 +112,75 @@ export default class VueComponent extends Vue {
       // load the boundaries and the dataset, use promises so we can clear
       // the spinner when things are finished
       await Promise.all([this.loadBoundaries(), this.loadDataset()])
+
       this.updateChart()
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
     }
 
+    this.isLoaded = true
     this.$emit('isLoaded')
   }
 
   private beforeDestroy() {
     this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+  }
+
+  /**
+   * changeConfiguration: is the main entry point for changing the viz model.
+   * anything that wants to change colors, widths, data, anthing like that
+   * should all pass through this function so the underlying data model
+   * is modified properly.
+   */
+  private changeConfiguration(props: {
+    fill?: FillDefinition
+    width?: WidthDefinition
+    dataset?: DatasetDefinition
+  }) {
+    console.log(props)
+
+    if (props['fill']) {
+      this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.display.fill = props.fill
+      this.handleNewFill(props.fill)
+    }
+    if (props['dataset']) {
+      // vizdetails just had the string name, whereas props.dataset contains
+      // a fully-build DatasetDefinition, so let's just handle that
+      this.handleNewDataset(props.dataset)
+    }
+  }
+
+  private handleNewDataset(dataset: DatasetDefinition) {}
+  private handleNewFill(fill: FillDefinition) {
+    this.generatedColors = fill.generatedColors
+
+    const columnName = fill.columnName
+    if (!columnName) {
+      // this.csvData.activeColumn = ''
+      return
+    }
+
+    const datasetKey = fill.dataset
+    const selectedDataset = this.datasets[datasetKey]
+    if (!selectedDataset) return
+
+    // if (this.csvData.dataTable !== selectedDataset) {
+    //   this.csvData = {
+    //     dataTable: selectedDataset,
+    //     activeColumn: '',
+    //     csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
+    //   }
+    // }
+
+    // const column = this.csvData.dataTable[columnName]
+    // if (!column) return
+    // // if (column === this.csvData.activeColumn) return
+
+    // this.csvData.activeColumn = column.name
+    // this.csvBase.activeColumn = column.name
+
+    // this.isButtonActiveColumn = false
   }
 
   private async handleMapClick(click: any) {
@@ -130,26 +228,31 @@ export default class VueComponent extends Vue {
   }
 
   private async loadBoundaries() {
-    if (!this.config.boundaries) return
+    const shapeConfig = this.config.boundaries || this.config.shapes || this.config.geojson
+    if (!shapeConfig) return
+
+    // shapes could be a string or a shape.file=blah
+    let shapes: string = shapeConfig.file || shapeConfig
 
     try {
-      if (this.config.boundaries.startsWith('http')) {
-        const boundaries = await fetch(this.config.boundaries).then(async r => await r.json())
+      if (shapes.startsWith('http')) {
+        const boundaries = await fetch(shapes).then(async r => await r.json())
         this.boundaries = boundaries.features
       } else {
-        const boundaries = await this.fileApi.getFileJson(
-          `${this.subfolder}/${this.config.boundaries}`
-        )
+        const boundaries = await this.fileApi.getFileJson(`${this.subfolder}/${shapes}`)
         this.boundaries = boundaries.features
       }
     } catch (e) {
-      console.error(e)
-      return
+      console.warn(e)
+      throw Error(`Could not load "${shapes}"`)
     }
-    this.calculateCentroids()
+    if (!this.boundaries) throw Error(`"features" not found in shapes file`)
+    this.generateCentroids()
   }
 
-  private calculateCentroids() {
+  private generateCentroids() {
+    const idField = this.config.shapes.join || 'id'
+
     for (const feature of this.boundaries) {
       const centroid = turf.centerOfMass(feature as any)
       if (!centroid.properties) centroid.properties = {}
@@ -157,17 +260,31 @@ export default class VueComponent extends Vue {
       if (feature.properties[this.config.boundariesLabel]) {
         centroid.properties.label = feature.properties[this.config.boundariesLabel]
       }
-      centroid.properties.id = feature.properties[this.config.boundariesJoinCol]
+
+      centroid.properties.id = feature.properties[idField]
+      if (centroid.properties.id === undefined) centroid.properties.id = feature[idField]
 
       this.centroids.push(centroid)
     }
   }
 
+  private datasetJoinColumn = ''
+
   private async loadDataset() {
     try {
-      const dataset = await this.datamanager.getDataset(this.config)
+      // for now just load first dataset
+      const datasetId = Object.keys(this.config.datasets)[0]
+      const datasetFilename = this.config.datasets[datasetId].file
+      const dataset = await this.datamanager.getDataset({ dataset: datasetFilename })
+
+      // figure out join - use ".join" or first column key
+      this.datasetJoinColumn =
+        this.config.datasets[datasetId].join || Object.keys(this.config.datasets[datasetId])[0]
+
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+
       this.dataRows = dataset.allRows
+      this.datasets[datasetId] = dataset.allRows
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -176,41 +293,60 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    // Data comes back as an object of columnName: values[].
-    // We need to make a lookup of the values by ID and then
+    // dataRows come back as an object of columnName: values[].
+    // We need to make a lookup of the values by ID, and then
     // insert those values into the boundaries geojson.
 
-    if (!this.config.datasetJoinCol || !this.config.boundariesJoinCol) {
-      throw Error('Config requires datasetJoinCol and boundariesJoinCol')
+    if (!this.config.display || !this.config.datasets || !this.config.display.fill) return
+
+    let joinShapesBy = 'id'
+
+    if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
+    // throw Error('Need "join" property to link shapes to datasets')
+
+    const datasetJoinCol = this.datasetJoinColumn // used to be this.config.display.fill.join
+    if (!datasetJoinCol) throw Error(`Cannot find column ${datasetJoinCol}`)
+
+    // value columns can be a string; a string,with,commas; or an array
+    let valueColumns = this.config.display.fill.values
+    let datasetValuesCol = valueColumns
+
+    // figure out first (only?) data column to be displayed
+    if (Array.isArray(valueColumns)) {
+      datasetValuesCol = valueColumns[0] // TODO for now
+    } else if (valueColumns.indexOf(',') > -1) {
+      valueColumns = valueColumns.split(',').map((f: any) => f.trim())
+      datasetValuesCol = valueColumns[0] // TODO for now
     }
 
-    if (!this.dataRows[this.config.datasetJoinCol])
-      throw Error('Cannot find column ' + this.config.datasetJoinCol)
-    // if (!this.dataRows[this.config.boundariesJoinCol])
-    //   throw Error('Cannot find column ' + this.config.boundariesJoinCol)
+    if (!datasetValuesCol) throw Error(`Need to specify column for data values`)
 
     // 1. build the offset lookup
     const lookup: any = {}
-    const joinCol = this.dataRows[this.config.datasetJoinCol].values
+    const joinCol = this.dataRows[datasetJoinCol].values
     for (let i = 0; i < joinCol.length; i++) {
       lookup[joinCol[i]] = i // lookup in geojson will be the offset
     }
 
     // 2. insert values into geojson
-    const idColumn = this.config.boundariesJoinCol
-    let vMax = -1
     this.boundaries.forEach(boundary => {
-      const lookupValue = boundary.properties[idColumn]
+      // id can be in root of feature, or in properties
+      let lookupValue = boundary[joinShapesBy]
+      if (lookupValue == undefined) lookupValue = boundary.properties[joinShapesBy]
+
+      if (lookupValue === undefined) {
+        this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
+      }
+
       const row = lookup[lookupValue]
       if (row === undefined) {
         boundary.properties.value = 'N/A'
       } else {
-        boundary.properties.value = this.dataRows[this.config.datasetValue].values[row]
-        if (row) vMax = Math.max(vMax, row[this.config.datasetValue])
+        boundary.properties.value = this.dataRows[datasetValuesCol].values[row]
       }
     })
 
-    this.maxValue = this.dataRows[this.config.datasetValue].max || 0
+    this.maxValue = this.dataRows[datasetValuesCol].max || 0
 
     let centerLong = 0
     let centerLat = 0
@@ -225,7 +361,7 @@ export default class VueComponent extends Vue {
 
       const offset = lookup[centroidId]
       if (offset !== undefined) {
-        centroid.properties!.value = this.dataRows[this.config.datasetValue].values[offset]
+        centroid.properties!.value = this.dataRows[datasetValuesCol].values[offset]
       } else centroid.properties!.value = 'N/A'
     })
 
@@ -237,7 +373,7 @@ export default class VueComponent extends Vue {
       latitude: centerLat,
       bearing: 0,
       pitch: 0,
-      zoom: 7,
+      zoom: 8,
       initial: true,
     })
 
