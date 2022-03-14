@@ -51,7 +51,13 @@ export default class DashboardDataManager {
     for (const worker of this.threads) worker.terminate()
   }
 
-  public async getFilteredDataset(config: { dataset: string; groupBy?: string; value?: string }) {
+  public async getFilteredDataset(config: { dataset: string }) {
+    // console.log(config.dataset)
+    const filteredRows = this.datasets[config.dataset].filteredRows
+    return { filteredRows }
+  }
+
+  public async OLDgetFiltered(config: { dataset: string; groupBy?: string; value?: string }) {
     const rows = this.datasets[config.dataset].filteredRows
     if (!rows) return { filteredRows: null }
 
@@ -99,6 +105,7 @@ export default class DashboardDataManager {
       }
 
       let myDataset = await this.datasets[config.dataset].dataset
+
       let allRows = { ...myDataset }
 
       // remove ignored columns
@@ -219,7 +226,6 @@ export default class DashboardDataManager {
       allFilters[column] = value
     }
     this.datasets[dataset].activeFilters = allFilters
-
     this.updateFilters(dataset) // this is async
   }
 
@@ -245,21 +251,37 @@ export default class DashboardDataManager {
   // ---- PRIVATE STUFFS -----------------------
 
   private async updateFilters(datasetId: string) {
-    const dataset = this.datasets[datasetId]
-
-    if (!Object.keys(dataset.activeFilters).length) {
-      dataset.filteredRows = null
-    } else {
-      const allRows = (await dataset.dataset).rows
-
-      // TODO: fix this!
-      // let filteredRows = allRows
-      // for (const [column, value] of Object.entries(dataset.activeFilters)) {
-      //   console.log('filtering:', column, value)
-      //   filteredRows = filteredRows.filter(row => row[column] === value)
-      // }
-      // dataset.filteredRows = filteredRows
+    const metaData = this.datasets[datasetId]
+    if (!Object.keys(metaData.activeFilters).length) {
+      metaData.filteredRows = null
+      this.notifyListeners(datasetId)
+      return
     }
+
+    // Let's do this the stupid way first, and make it better once we get it working.
+    const dataset = await metaData.dataset
+    const allColumns = Object.keys(dataset)
+    let filteredRows: any[] = []
+
+    const numberOfRowsInFullDataset = dataset[allColumns[0]].values.length
+    // console.log('FILTERS', metaData.activeFilters)
+    // console.log('NROWS', numberOfRowsInFullDataset)
+
+    for (const [column, value] of Object.entries(metaData.activeFilters)) {
+      if (filteredRows.length) {
+        filteredRows = filteredRows.filter(row => row[column] === value)
+      } else {
+        for (let i = 0; i < numberOfRowsInFullDataset; i++) {
+          if (dataset[column].values[i] === value) {
+            const row = {} as any
+            allColumns.forEach(col => (row[col] = dataset[col].values[i]))
+            filteredRows.push(row)
+          }
+        }
+      }
+    }
+
+    metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
   }
 

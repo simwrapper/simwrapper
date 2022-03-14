@@ -2,6 +2,7 @@
 .map-layout
   polygon-and-circle-map.choro-map(:props="mapProps")
   zoom-buttons
+
   viz-configurator(v-if="isLoaded"
     :sections="['fill']"
     :fileSystem="fileSystemConfig"
@@ -12,13 +13,24 @@
     @update="changeConfiguration")
 
   .config-bar
-    img.img-button(@click="useCircles=false"
-                   src="../assets/btn-polygons.jpg"
-                   title="Shapes")
+    img.img-button(@click="useCircles=false" src="../assets/btn-polygons.jpg" title="Shapes")
+    img.img-button(@click="useCircles=true" src="../assets/btn-circles.jpg" title="Circles")
 
-    img.img-button(@click="useCircles=true"
-                   src="../assets/btn-circles.jpg"
-                   title="Circles")
+    .filter(v-for="filter in Object.keys(filters)")
+      p: b {{ filter }}
+      b-dropdown(
+        multiple
+        v-model="filters[filter].active"
+        @change="handleUserSelectedNewFilters(filter)"
+        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+      )
+        template(#trigger="{ active }")
+          b-button.is-primary.is-outlined(
+            :label="filterLabel(filter)"
+            :icon-right="active ? 'menu-up' : 'menu-down'"
+          )
+
+        b-dropdown-item(v-for="option in filters[filter].options" :value="option" aria-role="listitem") {{ option }}
 
     input.slider.is-small.is-fullwidth.is-danger(
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
@@ -27,7 +39,7 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import bulmaSlider from 'bulma-slider'
+import { group, zip, sum } from 'd3-array'
 import * as turf from '@turf/turf'
 
 import { DataTable, DataTableColumn, FileSystemConfig } from '@/Globals'
@@ -41,6 +53,13 @@ import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { FillDefinition } from '@/components/viz-configurator/Fill.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
+
+interface FilterDetails {
+  column: string
+  label?: string
+  options: any[]
+  active: any[]
+}
 
 @Component({ components: { PolygonAndCircleMap, VizConfigurator, ZoomButtons } })
 export default class VueComponent extends Vue {
@@ -63,6 +82,11 @@ export default class VueComponent extends Vue {
   private maxValue = 1000
   private expColors = false
   private isLoaded = false
+
+  // private active = false
+
+  // Filters. Key is column id; value array is empty for "all" or a list of "or" values
+  private filters: { [column: string]: FilterDetails } = {}
 
   private generatedColors: string[] = ['#4e79a7']
 
@@ -123,7 +147,7 @@ export default class VueComponent extends Vue {
   }
 
   private beforeDestroy() {
-    this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
+    this.datamanager.removeFilterListener(this.config, this.filterListener)
   }
 
   /**
@@ -152,6 +176,7 @@ export default class VueComponent extends Vue {
   }
 
   private handleNewDataset(dataset: DatasetDefinition) {}
+
   private handleNewFill(fill: FillDefinition) {
     this.generatedColors = fill.generatedColors
 
@@ -190,41 +215,55 @@ export default class VueComponent extends Vue {
       const filter = this.config.groupBy
       const value = x
 
-      this.datamanager.setFilter(this.config.dataset, filter, value)
+      // this.datamanager.setFilter(this.config.dataset, filter, value)
     } catch (e) {
       console.error(e)
     }
   }
 
-  private async handleFilterChanged() {
-    console.log('CHANGED FILTER')
-    // try {
-    //   const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
+  private async filterListener() {
+    try {
+      const { filteredRows } = await this.datamanager.getFilteredDataset({
+        dataset: this.datasetFilename,
+      })
 
-    //   // is filter UN-selected?
-    //   if (!filteredRows) {
-    //     this.data = [this.data[0]]
-    //     this.data[0].opacity = 1.0
-    //     return
-    //   }
+      // is filter UN-selected?
+      if (!filteredRows) return
 
-    //   const fullDataCopy = Object.assign({}, this.data[0])
+      // group values by lookup key
+      const groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
 
-    //   fullDataCopy.x = filteredRows.x
-    //   fullDataCopy.y = filteredRows.y
-    //   fullDataCopy.opacity = 1.0
-    //   fullDataCopy.name = 'Filtered'
-    //   //@ts-ignore - let plotly manage bar colors EXCEPT the filter
-    //   fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+      // ok we have a filter, let's update the geojson values
+      let joinShapesBy = 'id'
+      if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
 
-    //   this.data = [this.data[0], fullDataCopy]
-    //   this.data[0].opacity = 0.3
-    //   this.data[0].name = 'All'
-    // } catch (e) {
-    //   const message = '' + e
-    //   console.log(message)
-    //   this.dataRows = {}
-    // }
+      const filteredBoundaries = [] as any[]
+      this.boundaries.forEach(boundary => {
+        // id can be in root of feature, or in properties
+        let lookupKey = boundary[joinShapesBy] || boundary.properties[joinShapesBy]
+        if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
+
+        const row = groupLookup.get(lookupKey)
+        boundary.properties.value = row ? sum(row.map(v => v[this.datasetValuesColumn])) : 'N/A'
+        filteredBoundaries.push(boundary)
+      })
+
+      // centroids
+      const filteredCentroids = [] as any[]
+      this.centroids.forEach(centroid => {
+        const centroidId = centroid.properties!.id
+        if (!centroidId) return
+
+        const row = groupLookup.get(centroidId)
+        centroid.properties!.value = row ? sum(row.map(v => v[this.datasetValuesColumn])) : 'N/A'
+        filteredCentroids.push(centroid)
+      })
+
+      this.boundaries = filteredBoundaries
+      this.centroids = filteredCentroids
+    } catch (e) {
+      console.error('' + e)
+    }
   }
 
   private async loadBoundaries() {
@@ -269,19 +308,20 @@ export default class VueComponent extends Vue {
   }
 
   private datasetJoinColumn = ''
+  private datasetFilename = ''
 
   private async loadDataset() {
     try {
       // for now just load first dataset
       const datasetId = Object.keys(this.config.datasets)[0]
-      const datasetFilename = this.config.datasets[datasetId].file
-      const dataset = await this.datamanager.getDataset({ dataset: datasetFilename })
+      this.datasetFilename = this.config.datasets[datasetId].file
+      const dataset = await this.datamanager.getDataset({ dataset: this.datasetFilename })
 
       // figure out join - use ".join" or first column key
       this.datasetJoinColumn =
         this.config.datasets[datasetId].join || Object.keys(this.config.datasets[datasetId])[0]
 
-      // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      this.datamanager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
       this.dataRows = dataset.allRows
       this.datasets[datasetId] = dataset.allRows
@@ -291,6 +331,40 @@ export default class VueComponent extends Vue {
     }
     return []
   }
+
+  private setupFilters() {
+    let filterColumns = this.config.display.fill.filters
+    if (!filterColumns) return
+
+    // Get the set of filters from array / string / list
+    if (!Array.isArray(filterColumns)) {
+      if (filterColumns.indexOf(',') > -1) {
+        filterColumns = filterColumns.split(',').map((f: any) => f.trim())
+      } else {
+        filterColumns = [filterColumns.trim()]
+      }
+    }
+
+    // Get the set of options available for each filter
+    filterColumns.forEach((f: string) => {
+      let options = [...new Set(this.dataRows[f].values)]
+      this.filters[f] = { column: f, label: f, options, active: [] }
+    })
+  }
+
+  private filterLabel(filter: string) {
+    const label = this.filters[filter].active.join(',').substring(0, 20) || 'Select...'
+    return label
+  }
+
+  private handleUserSelectedNewFilters(column: string) {
+    const active = this.filters[column].active
+
+    this.$forceUpdate()
+    this.datamanager.setFilter(this.datasetFilename, column, active[0])
+  }
+
+  private datasetValuesColumn = ''
 
   private updateChart() {
     // dataRows come back as an object of columnName: values[].
@@ -320,13 +394,16 @@ export default class VueComponent extends Vue {
     }
 
     if (!datasetValuesCol) throw Error(`Need to specify column for data values`)
+    this.datasetValuesColumn = datasetValuesCol
 
-    // 1. build the offset lookup
-    const lookup: any = {}
+    this.setupFilters()
+
+    // 1. build the data lookup for each key in the dataset.
+    //    There is often more than one row per key, so we will
+    //    create an array for the group now, and (sum) them in step 2 below
     const joinCol = this.dataRows[datasetJoinCol].values
-    for (let i = 0; i < joinCol.length; i++) {
-      lookup[joinCol[i]] = i // lookup in geojson will be the offset
-    }
+    const dataValues = this.dataRows[datasetValuesCol].values
+    const groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
 
     // 2. insert values into geojson
     this.boundaries.forEach(boundary => {
@@ -338,12 +415,9 @@ export default class VueComponent extends Vue {
         this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
       }
 
-      const row = lookup[lookupValue]
-      if (row === undefined) {
-        boundary.properties.value = 'N/A'
-      } else {
-        boundary.properties.value = this.dataRows[datasetValuesCol].values[row]
-      }
+      // sum the values of the second elements of the zips from (1) above
+      const row = groupLookup.get(lookupValue)
+      boundary.properties.value = row ? sum(row.map(v => v[1])) : 'N/A'
     })
 
     this.maxValue = this.dataRows[datasetValuesCol].max || 0
@@ -359,10 +433,8 @@ export default class VueComponent extends Vue {
       const centroidId = centroid.properties!.id
       if (!centroidId) return
 
-      const offset = lookup[centroidId]
-      if (offset !== undefined) {
-        centroid.properties!.value = this.dataRows[datasetValuesCol].values[offset]
-      } else centroid.properties!.value = 'N/A'
+      const row = groupLookup.get(centroidId)
+      centroid.properties!.value = row ? sum(row.map(v => v[1])) : 'N/A'
     })
 
     centerLong /= this.centroids.length
@@ -409,20 +481,35 @@ export default class VueComponent extends Vue {
   padding-top: 0.25rem;
 
   input.slider {
-    margin-left: auto;
+    margin: auto 0 0.5rem auto;
     width: 8rem;
   }
 
   .img-button {
+    margin-top: auto;
     margin-right: 0.15rem;
-    height: 2.5rem;
-    width: 2.5rem;
+    height: 2.3rem;
+    width: 2.3rem;
     border: var(--borderThin);
     border-radius: 4px;
   }
   .img-button:hover {
     border: 2px solid var(--linkHover);
   }
+}
+
+.filter {
+  margin-left: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.filter p {
+  margin: -0.25rem 0 0 0;
 }
 
 @media only screen and (max-width: 640px) {

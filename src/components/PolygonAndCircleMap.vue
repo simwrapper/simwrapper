@@ -41,6 +41,7 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('props')
+  @Watch('bump')
   private handlePropsChanged() {
     if (this.layerManager) this.updateLayers()
   }
@@ -113,12 +114,6 @@ export default class VueComponent extends Vue {
   }
 
   private updateLayers() {
-    // const builtColors = colormap({
-    //   colormap: this.props.colors,
-    //   nshades: 20,
-    //   format: 'rba',
-    // }).map((a: number[]) => [a.slice(0, 3)])
-
     // deck.gl colors must be in rgb[] or rgba[] format
     const colorsAsRGB: any = this.props.colors.map(hexcolor => {
       const c = rgb(hexcolor)
@@ -128,7 +123,7 @@ export default class VueComponent extends Vue {
     // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
     // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
     // An exponent reduces visual dominance of very large values at the high end of the scale
-    const exponent = 4.0
+    const exponent = 3.0
     const domain = new Array(this.props.colors.length - 1)
       .fill(0)
       .map((v, i) => Math.pow((1 / this.props.colors.length) * (i + 1), exponent))
@@ -163,13 +158,12 @@ export default class VueComponent extends Vue {
             stroked: true,
             filled: true,
             radiusScale: 2,
-            radiusMinPixels: 3,
+            radiusMinPixels: 0,
             radiusMaxPixels: 250,
             radiusUnits: 'pixels',
             lineWidthMinPixels: 1,
             getPosition: (d: any) => d.geometry.coordinates,
             getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
-
             getFillColor: (d: any) => {
               if (this.props.colors.length === 1) return colorsAsRGB[0]
 
