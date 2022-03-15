@@ -30,7 +30,8 @@
             :icon-right="active ? 'menu-up' : 'menu-down'"
           )
 
-        b-dropdown-item(v-for="option in filters[filter].options" :value="option" aria-role="listitem") {{ option }}
+        b-dropdown-item(v-for="option in filters[filter].options"
+          :key="option" :value="option" aria-role="listitem") {{ option }}
 
     input.slider.is-small.is-fullwidth.is-danger(
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
@@ -223,15 +224,23 @@ export default class VueComponent extends Vue {
 
   private async filterListener() {
     try {
-      const { filteredRows } = await this.datamanager.getFilteredDataset({
+      let { filteredRows } = await this.datamanager.getFilteredDataset({
         dataset: this.datasetFilename,
       })
 
-      // is filter UN-selected?
-      if (!filteredRows) return
+      let groupLookup: any // this will be the map of boundary IDs to rows
+      let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
 
-      // group values by lookup key
-      const groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
+      if (!filteredRows) {
+        // is filter UN-selected? Rebuild full dataset
+        const joinCol = this.dataRows[this.datasetJoinColumn].values
+        const dataValues = this.dataRows[this.datasetValuesColumn].values
+        groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
+      } else {
+        // group filtered values by lookup key
+        groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
+        groupIndex = this.datasetValuesColumn // index is values column name
+      }
 
       // ok we have a filter, let's update the geojson values
       let joinShapesBy = 'id'
@@ -244,7 +253,7 @@ export default class VueComponent extends Vue {
         if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
 
         const row = groupLookup.get(lookupKey)
-        boundary.properties.value = row ? sum(row.map(v => v[this.datasetValuesColumn])) : 'N/A'
+        boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredBoundaries.push(boundary)
       })
 
@@ -255,7 +264,7 @@ export default class VueComponent extends Vue {
         if (!centroidId) return
 
         const row = groupLookup.get(centroidId)
-        centroid.properties!.value = row ? sum(row.map(v => v[this.datasetValuesColumn])) : 'N/A'
+        centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredCentroids.push(centroid)
       })
 
@@ -359,9 +368,7 @@ export default class VueComponent extends Vue {
 
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
-
-    this.$forceUpdate()
-    this.datamanager.setFilter(this.datasetFilename, column, active[0])
+    this.datamanager.setFilter(this.datasetFilename, column, active)
   }
 
   private datasetValuesColumn = ''
@@ -415,7 +422,7 @@ export default class VueComponent extends Vue {
         this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
       }
 
-      // sum the values of the second elements of the zips from (1) above
+      // SUM the values of the second elements of the zips from (1) above
       const row = groupLookup.get(lookupValue)
       boundary.properties.value = row ? sum(row.map(v => v[1])) : 'N/A'
     })

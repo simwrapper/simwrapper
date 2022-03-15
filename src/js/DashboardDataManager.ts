@@ -217,15 +217,20 @@ export default class DashboardDataManager {
   // }
 
   public setFilter(dataset: string, column: string, value: any) {
-    console.log('Filtering dataset:', dataset)
+    // Filter might be single or an array; make it an array.
+    const values = Array.isArray(value) ? value : [value]
 
     const allFilters = this.datasets[dataset].activeFilters
-    if (allFilters[column] !== undefined && allFilters[column] === value) {
+    // a second click on a filter means REMOVE this filter.
+    // if (allFilters[column] !== undefined && allFilters[column] === values) {
+    //   console.log('A1', allFilters[column])
+    //   delete allFilters[column]
+    // } else
+    if (!values.length) {
       delete allFilters[column]
     } else {
       allFilters[column] = value
     }
-    this.datasets[dataset].activeFilters = allFilters
     this.updateFilters(dataset) // this is async
   }
 
@@ -252,6 +257,7 @@ export default class DashboardDataManager {
 
   private async updateFilters(datasetId: string) {
     const metaData = this.datasets[datasetId]
+
     if (!Object.keys(metaData.activeFilters).length) {
       metaData.filteredRows = null
       this.notifyListeners(datasetId)
@@ -267,12 +273,12 @@ export default class DashboardDataManager {
     // console.log('FILTERS', metaData.activeFilters)
     // console.log('NROWS', numberOfRowsInFullDataset)
 
-    for (const [column, value] of Object.entries(metaData.activeFilters)) {
+    for (const [column, values] of Object.entries(metaData.activeFilters)) {
       if (filteredRows.length) {
-        filteredRows = filteredRows.filter(row => row[column] === value)
+        filteredRows = filteredRows.filter(row => values.includes(row[column]))
       } else {
         for (let i = 0; i < numberOfRowsInFullDataset; i++) {
-          if (dataset[column].values[i] === value) {
+          if (values.includes(dataset[column].values[i])) {
             const row = {} as any
             allColumns.forEach(col => (row[col] = dataset[col].values[i]))
             filteredRows.push(row)
@@ -281,6 +287,7 @@ export default class DashboardDataManager {
       }
     }
 
+    // console.log('FROWS', filteredRows)
     metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
   }
