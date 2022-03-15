@@ -83,7 +83,7 @@ export default class VueComponent extends Vue {
     { ramp: 'Viridis', style: style.sequential, reverse: true }, // , reverse: true },
     { ramp: 'Plasma', style: style.sequential, reverse: true }, // , reverse: true },
     { ramp: 'Blues', style: style.sequential }, // , reverse: true },
-    // { ramp: 'Greens', style: style.sequential }, // , reverse: true },
+    { ramp: 'Greens', style: style.sequential }, // , reverse: true },
     { ramp: 'Purples', style: style.sequential }, // , reverse: true },
     { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
     { ramp: 'PRGn', style: style.diverging, reverse: true },
@@ -135,7 +135,7 @@ export default class VueComponent extends Vue {
       }
     } else if (datasetIds.length) {
       const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-      console.log(secondColumn)
+      // console.log(secondColumn)
       if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
   }

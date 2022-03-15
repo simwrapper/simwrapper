@@ -1,7 +1,7 @@
 <template lang="pug">
 #dashboard.dashboard(:class="{wiide}")
   .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
-    .dashboard-header(v-if="!fullScreenCardId" :class="{wiide}")
+    .dashboard-header(v-if="!fullScreenCardId && (title + description)" :class="{wiide}")
       h2 {{ title }}
       p {{ description }}
 
@@ -320,11 +320,9 @@ export default class VueComponent extends Vue {
     let tag = '...'
 
     if (this.$store.state.locale === 'de') {
-      tag =
-        header[`${element}_de`] || header[`${element}`] || header[`${element}_en`] || 'Dashboard'
+      tag = header[`${element}_de`] || header[`${element}`] || header[`${element}_en`] || ''
     } else {
-      tag =
-        header[`${element}_en`] || header[`${element}`] || header[`${element}_de`] || 'Dashboard'
+      tag = header[`${element}_en`] || header[`${element}`] || header[`${element}_de`] || ''
     }
 
     return tag

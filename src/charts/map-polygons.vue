@@ -13,11 +13,20 @@
     @update="changeConfiguration")
 
   .config-bar
-    img.img-button(@click="useCircles=false" src="../assets/btn-polygons.jpg" title="Shapes")
-    img.img-button(@click="useCircles=true" src="../assets/btn-circles.jpg" title="Circles")
+    .filter
+      p Display
+      b-dropdown(v-model="datasetValuesColumn"
+        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+        @change="handleUserSelectedNewMetric"
+      )
+        template(#trigger="{ active }")
+          b-button.is-warning(:label="datasetValuesColumn" :icon-right="active ? 'menu-up' : 'menu-down'")
+
+        b-dropdown-item(v-for="option in datasetValuesColumnOptions"
+          :key="option" :value="option" aria-role="listitem") {{ option }}
 
     .filter(v-for="filter in Object.keys(filters)")
-      p: b {{ filter }}
+      p {{ filter }}
       b-dropdown(
         multiple
         v-model="filters[filter].active"
@@ -25,7 +34,8 @@
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
       )
         template(#trigger="{ active }")
-          b-button.is-primary.is-outlined(
+          b-button.is-primary(
+            :type="filters[filter].active.length ? '' : 'is-outlined'"
             :label="filterLabel(filter)"
             :icon-right="active ? 'menu-up' : 'menu-down'"
           )
@@ -33,8 +43,12 @@
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
-    input.slider.is-small.is-fullwidth.is-danger(
+    input.slider.is-small.is-fullwidth.is-primary(
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
+
+    .map-type-buttons
+      img.img-button(@click="useCircles=false" src="../assets/btn-polygons.jpg" title="Shapes")
+      img.img-button(@click="useCircles=true" src="../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -366,12 +380,18 @@ export default class VueComponent extends Vue {
     return label
   }
 
+  private handleUserSelectedNewMetric() {
+    console.log('METRIC', this.datasetValuesColumn)
+    this.filterListener()
+  }
+
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
     this.datamanager.setFilter(this.datasetFilename, column, active)
   }
 
   private datasetValuesColumn = ''
+  private datasetValuesColumnOptions = []
 
   private updateChart() {
     // dataRows come back as an object of columnName: values[].
@@ -388,7 +408,7 @@ export default class VueComponent extends Vue {
     const datasetJoinCol = this.datasetJoinColumn // used to be this.config.display.fill.join
     if (!datasetJoinCol) throw Error(`Cannot find column ${datasetJoinCol}`)
 
-    // value columns can be a string; a string,with,commas; or an array
+    // value columns can be a string; a string,with,commas; or an array; or missing!
     let valueColumns = this.config.display.fill.values
     let datasetValuesCol = valueColumns
 
@@ -396,12 +416,18 @@ export default class VueComponent extends Vue {
     if (Array.isArray(valueColumns)) {
       datasetValuesCol = valueColumns[0] // TODO for now
     } else if (valueColumns.indexOf(',') > -1) {
+      // comma,separated,list:
       valueColumns = valueColumns.split(',').map((f: any) => f.trim())
+      datasetValuesCol = valueColumns[0] // TODO for now
+    } else {
+      // just one item
+      valueColumns = [valueColumns]
       datasetValuesCol = valueColumns[0] // TODO for now
     }
 
     if (!datasetValuesCol) throw Error(`Need to specify column for data values`)
     this.datasetValuesColumn = datasetValuesCol
+    this.datasetValuesColumnOptions = valueColumns
 
     this.setupFilters()
 
@@ -492,9 +518,12 @@ export default class VueComponent extends Vue {
     width: 8rem;
   }
 
+  .map-type-buttons {
+    margin: auto 0 0 0.5rem;
+  }
+
   .img-button {
-    margin-top: auto;
-    margin-right: 0.15rem;
+    margin: 0 0rem -5px 0.5rem;
     height: 2.3rem;
     width: 2.3rem;
     border: var(--borderThin);
@@ -506,7 +535,7 @@ export default class VueComponent extends Vue {
 }
 
 .filter {
-  margin-left: 0.5rem;
+  margin-right: 0.5rem;
   display: flex;
   flex-direction: column;
   -webkit-user-select: none;
@@ -517,6 +546,7 @@ export default class VueComponent extends Vue {
 
 .filter p {
   margin: -0.25rem 0 0 0;
+  font-weight: bold;
 }
 
 @media only screen and (max-width: 640px) {

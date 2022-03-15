@@ -41,7 +41,6 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('props')
-  @Watch('bump')
   private handlePropsChanged() {
     if (this.layerManager) this.updateLayers()
   }
@@ -162,23 +161,27 @@ export default class VueComponent extends Vue {
             radiusMaxPixels: 250,
             radiusUnits: 'pixels',
             lineWidthMinPixels: 1,
+            getLineColor: this.props.dark ? [100, 100, 100] : [255, 255, 255],
             getPosition: (d: any) => d.geometry.coordinates,
             getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
             getFillColor: (d: any) => {
               if (this.props.colors.length === 1) return colorsAsRGB[0]
-
               const v = d.properties[this.props.activeColumn]
               if (isNaN(v)) return this.props.dark ? [100, 100, 100] : [200, 200, 200]
-
               let ratio = v / this.props.maxValue
               if (this.props.expColors) ratio = Math.sqrt(ratio)
-
               return setColorBasedOnValue(ratio) as any
             },
-            getLineColor: this.props.dark ? [100, 100, 100] : [255, 255, 255],
-            parameters: {
-              depthTest: false,
+            updateTriggers: {
+              getFillColor: {
+                dark: this.props.dark,
+                colors: this.props.colors,
+                activeColumn: this.props.activeColumn,
+                maxValue: this.props.maxValue,
+              },
             },
+            transitions: { getFillColor: 250 },
+            parameters: { depthTest: false },
           })
         : new GeoJsonLayer({
             id: 'shapefileLayer',
@@ -191,23 +194,16 @@ export default class VueComponent extends Vue {
             opacity: 0.01 * this.props.opacity,
             autoHighlight: true,
             highlightColor: [255, 0, 200],
-            parameters: {
-              depthTest: false,
-            },
-
+            getLineWidth: 1,
             getLineColor: this.props.dark ? [96, 96, 96, 96] : [192, 192, 192, 64],
             getFillColor: (d: any) => {
               if (this.props.colors.length === 1) return colorsAsRGB[0]
-
               const v = d.properties[this.props.activeColumn]
               if (isNaN(v)) return this.props.dark ? [40, 40, 40] : [224, 224, 224, 128]
-
               let ratio = v / this.props.maxValue
               if (this.props.expColors) ratio = Math.sqrt(ratio)
-
               return setColorBasedOnValue(ratio) as any
             },
-            getLineWidth: 1,
             getTooltip: this.getTooltip,
             updateTriggers: {
               getFillColor: {
@@ -217,10 +213,8 @@ export default class VueComponent extends Vue {
                 maxValue: this.props.maxValue,
               },
             },
-
-            transitions: {
-              getFillColor: 250,
-            },
+            transitions: { getFillColor: 250 },
+            parameters: { depthTest: false },
           })
     )
   }
