@@ -6,7 +6,7 @@
       p {{ description }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i" :class="row.id")
+    .dash-row(v-for="row,i in rows" :key="i" :class="`row-${row.id}`")
 
       //- each card here
       .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
