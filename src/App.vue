@@ -32,8 +32,10 @@ const i18n = {
 import maplibregl from 'maplibre-gl'
 import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
+import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import LoginPanel from '@/components/LoginPanel.vue'
@@ -44,11 +46,13 @@ import LoginPanel from '@/components/LoginPanel.vue'
 const writableMapBox: any = maplibregl
 writableMapBox.accessToken = MAPBOX_TOKEN
 
+let doThisOnceForLocalFiles = true
+
 @Component({ i18n, components: { LoginPanel } })
 class App extends Vue {
   private state = globalStore.state
 
-  private mounted() {
+  private async mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -61,6 +65,22 @@ class App extends Vue {
 
     this.toggleFullScreen(true)
     this.setOnlineOrOfflineMode()
+
+    // local files
+    if (doThisOnceForLocalFiles) await this.setupLocalFiles()
+  }
+
+  // ------ Find Chrome Local File System roots ----
+  private async setupLocalFiles() {
+    console.log(12341235125)
+    if (globalStore.state.localFileHandles.length) return
+
+    const lfsh = (await get('fs')) as { key: string; handle: any }[]
+    if (lfsh && lfsh.length) {
+      for (const entry of lfsh) {
+        addLocalFilesystem(entry.handle, entry.key)
+      }
+    }
   }
 
   /**

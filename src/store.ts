@@ -4,10 +4,8 @@ import Vuex, { Store } from 'vuex'
 Vue.use(Vuex)
 
 import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
-import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
-import { debounce } from '@/js/util'
-import SVNFileSystem from './js/HTTPFileSystem'
+import fileSystems from '@/fileSystemConfig'
 
 // ----------------------------------------
 
@@ -38,6 +36,7 @@ interface GlobalState {
   isFullScreen: boolean
   isDarkMode: boolean
   locale: string
+  localFileHandles: any[]
   mapLoaded: boolean
   mapStyles: { light: string; dark: string }
   needLoginForUrl: string
@@ -77,6 +76,7 @@ export default new Vuex.Store({
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.LightMode,
     locale: 'en',
+    localFileHandles: [] as any[],
     runFolders: {},
     runFolderCount: 0,
     resizeEvents: 0,
@@ -178,8 +178,13 @@ export default new Vuex.Store({
       state.locale = value.toLocaleLowerCase()
       localStorage.setItem('locale', state.locale)
     },
+    addLocalFileSystem(state: GlobalState, value: any) {
+      state.localFileHandles.unshift(value)
+    },
+    setLocalFileSystem(state: GlobalState, value: any) {
+      state.localFileHandles = value
+    },
   },
-
   actions: {},
   modules: {},
   getters: {

@@ -15,6 +15,16 @@
         file-system-projects.gap(@navigate="onNavigate")
         hr
 
+        .is-chrome(v-if="isChrome")
+          h2: b Browse local files directly (Chrome only):
+
+          .localRow(v-for="row in localRows" @click="clickedLocalRow(row)")
+            p(style="flex: 1;") Local folder {{ row.key.substring(2) }}: {{ row.handle.name}}
+            i.fa.fa-times(@click.stop="clickedDelete(row)")
+
+          button.button.add-folder(@click="showChromeDirectory") Add folder...
+          hr
+
         h2: b {{ $t('more-info') }}
         info-bottom.splash-readme
 
@@ -30,6 +40,9 @@
 </template>
 
 <script lang="ts">
+// Typescript doesn't know the Chrome File System API
+declare const window: any
+
 const i18n = {
   messages: {
     en: {
@@ -44,11 +57,12 @@ const i18n = {
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-
 import InfoBottom from '@/assets/info-bottom.md'
+import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 @Component({
   i18n,
@@ -67,6 +81,34 @@ class MyComponent extends Vue {
 
     // save them!
     globalStore.commit('setBreadCrumbs', crumbs)
+
+    // this.figureOutLocalFileSystemHandles()
+  }
+
+  private async clickedLocalRow(row: { key: string; handle: any }) {
+    try {
+      const status = await row.handle.requestPermission({ mode: 'read' })
+      console.log(row.handle, status)
+
+      // if first time, add its key to the fileSystemConfig
+      const exists = fileSystems.find(f => f.slug == row.key)
+      if (!exists) addLocalFilesystem(row.handle, row.key)
+
+      const BASE = import.meta.env.BASE_URL
+      this.$router.push(`${BASE}${row.key}/`)
+    } catch (e) {
+      console.error('' + e)
+    }
+  }
+
+  private async clickedDelete(row: { key: string; handle: any }) {
+    const handles = this.$store.state.localFileHandles
+    // just filter out the key I guess?
+    const filtered = handles.filter((f: any) => f.key !== row.key)
+
+    // and save it everywhere
+    await set('fs', filtered)
+    this.$store.commit('setLocalFileSystem', filtered)
   }
 
   private onNavigate(event: any) {
@@ -74,8 +116,28 @@ class MyComponent extends Vue {
     this.$emit('navigate', event)
   }
 
-  // private readme = readme
-  // private readmeBottom = bottom
+  private get localRows() {
+    return this.$store.state.localFileHandles.sort((a: any, b: any) =>
+      parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
+    )
+  }
+
+  // Only Chrome supports the File System Access API
+  private get isChrome() {
+    return !!window.showDirectoryPicker
+  }
+
+  private async showChromeDirectory() {
+    try {
+      const FileSystemDirectoryHandle = window.showDirectoryPicker()
+      const dir = await FileSystemDirectoryHandle
+      const slug = addLocalFilesystem(dir, null) // no key yet
+      const BASE = import.meta.env.BASE_URL
+      this.$router.push(`${BASE}${slug}/`)
+    } catch (e) {
+      // shrug
+    }
+  }
 }
 export default MyComponent
 </script>
@@ -226,6 +288,39 @@ hr {
   background-color: #53ade1; // 8d4eeb
   margin: 4rem 0 -0.5rem 0;
 }
+
+.localRow {
+  color: var(--link);
+  font-size: 1.1rem;
+  padding: 0.1rem 0.25rem;
+  margin-bottom: 0.25rem;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: row;
+
+  p {
+    margin-bottom: 0;
+  }
+}
+
+.localRow:hover {
+  cursor: pointer;
+  color: white;
+  background-color: #ffffff30;
+}
+
+.add-folder {
+  margin-top: 1rem;
+}
+
+.fa-times {
+  margin: auto 0.5rem;
+}
+
+.fa-times:hover {
+  color: red;
+}
+
 @media only screen and (max-width: 640px) {
   .content {
     padding: 2rem 1rem 8rem 1rem;
