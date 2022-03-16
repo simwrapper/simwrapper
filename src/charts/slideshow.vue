@@ -42,7 +42,7 @@ export default class VueComponent extends Vue {
   // true for absolute URLs
   private r: RegExp = new RegExp('^(?:[a-z]+:)?//', 'i')
 
-  private async mounted() {
+  private mounted() {
     const fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
     if (this.config != null) Object.assign(this.options, this.config)

@@ -32,6 +32,7 @@ export const plotlyCharts = {
   bubble,
   heatmap,
   hexagons,
+  image: slideshow, // both 'image' and 'slideshow' types work for images
   line,
   pie,
   sankey,
