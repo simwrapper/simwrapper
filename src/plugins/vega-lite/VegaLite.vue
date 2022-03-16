@@ -48,6 +48,8 @@ class VegaComponent extends Vue {
   private cleanConfigId = 'vega-' + Math.floor(Math.random() * 1e12)
   private zippyId = 'zippy-' + Math.floor(Math.random() * 1e12)
 
+  private hasHardCodedHeight = false
+
   public async mounted() {
     this.buildFileApi()
 
@@ -56,16 +58,9 @@ class VegaComponent extends Vue {
     this.myState.subfolder = this.subfolder
 
     console.log(this.myState.yamlConfig)
-    // if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
     this.embedChart()
-    // this.changeDimensions()
-    // window.addEventListener('resize', this.changeDimensions)
-  }
-
-  public beforeDestroy() {
-    // window.removeEventListener('resize', this.changeDimensions)
   }
 
   @Watch('globalState.isDarkMode')
@@ -79,12 +74,10 @@ class VegaComponent extends Vue {
 
     // figure out dimensions, depending on if we are in a dashboard or not
     let box = document.querySelector(`#${this.zippyId}`) as Element
-    let width = box.clientWidth
-    let height = box.clientHeight
-    console.log(width, height)
 
-    if (this.thumbnail) height = 125
-    this.vizDetails.height = height
+    let height = this.thumbnail ? 125 : box.clientHeight
+
+    if (!this.hasHardCodedHeight) this.vizDetails.height = height
 
     this.embedChart()
   }
@@ -254,9 +247,12 @@ class VegaComponent extends Vue {
           }
     )
 
-    // Always use responsive size -- let dashboard determine the size.
-    this.vizDetails.width = 'container'
-    this.vizDetails.height = 'container'
+    // Note whether user specified a height; we need to know this if the page size changes
+    this.hasHardCodedHeight = !!this.vizDetails.height
+
+    // Use responsive size unless user has forced a size on us
+    if (!this.vizDetails.width) this.vizDetails.width = 'container'
+    if (!this.vizDetails.height) this.vizDetails.height = 'container'
 
     try {
       await vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
