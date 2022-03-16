@@ -6,10 +6,10 @@
       p {{ description }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i")
+    .dash-row(v-for="row,i in rows" :key="i" :class="row.id")
 
       //- each card here
-      .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
+      .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
         :style="getCardStyle(card)"
         :class="{wiide}"
       )
@@ -104,7 +104,8 @@ export default class VueComponent extends Vue {
   private yaml: any
   private title = ''
   private description = ''
-  private rows: any[] = []
+
+  private rows: { id: string; cards: any[] }[] = []
 
   private fileList: string[] = []
 
@@ -161,7 +162,7 @@ export default class VueComponent extends Vue {
   private resizeAllCards() {
     this.isResizing = true
     for (const row of this.rows) {
-      for (const card of row) {
+      for (const card of row.cards) {
         this.updateDimensions(card.id)
       }
     }
@@ -295,7 +296,7 @@ export default class VueComponent extends Vue {
         numCard++
       })
 
-      this.rows.push(cards)
+      this.rows.push({ id: rowId, cards })
     }
     this.$emit('layoutComplete')
   }
