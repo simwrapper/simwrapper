@@ -1,16 +1,18 @@
 <template>
-
-<vueper-slides v-bind="options" style="padding-bottom: 34px">
-  <vueper-slide v-for="(slide, i) in slides" :key="i" v-bind="slide">
-    <template #content>
-      <div v-if="slide.content" class="vueperslide__content-wrapper" style="flex-direction: row; justify-content: flex-start; align-items: baseline; gap: 10px">
-        <h3>{{ slide.title }}</h3>
-        <span>{{ slide.content }}</span>
-      </div>
-    </template>
-  </vueper-slide>
-</vueper-slides>
-
+  <vueper-slides v-bind="options" style="padding-bottom: 34px">
+    <vueper-slide v-for="(slide, i) in slides" :key="i" v-bind="slide">
+      <template #content>
+        <div
+          v-if="slide.content"
+          class="vueperslide__content-wrapper"
+          style="flex-direction: row; justify-content: flex-start; align-items: baseline; gap: 10px"
+        >
+          <h3>{{ slide.title }}</h3>
+          <span>{{ slide.content }}</span>
+        </div>
+      </template>
+    </vueper-slide>
+  </vueper-slides>
 </template>
 
 <script lang="ts">
@@ -22,18 +24,18 @@ import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { hasOwnProperty } from 'vega'
 
-@Component({ components: {VueperSlides, VueperSlide}})
+@Component({ components: { VueperSlides, VueperSlide } })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
 
-  private options : { [key: string]: any } = {
-    "slide-content-outside": "bottom",
-    "fixed-height": "100%",
-    "class": "no-shadow",
-    "bullets": false
+  private options: { [key: string]: any } = {
+    'slide-content-outside': 'bottom',
+    'fixed-height': '100%',
+    class: 'no-shadow',
+    bullets: false,
   }
   private slides: any[] = []
 
@@ -43,14 +45,12 @@ export default class VueComponent extends Vue {
   private async mounted() {
     const fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
-    if (this.config != null)
-      Object.assign(this.options, this.config)
+    if (this.config != null) Object.assign(this.options, this.config)
 
-     // Delete slide property because this is only used in the loop
-     if (hasOwnProperty(this.options, 'slides')) {
-        delete this.options.slides;
-     }
-
+    // Delete slide property because this is only used in the loop
+    if (hasOwnProperty(this.options, 'slides')) {
+      delete this.options.slides
+    }
 
     this.slides = []
     // Check if defined and iterable
@@ -58,10 +58,9 @@ export default class VueComponent extends Vue {
     if (this.config.slides != null && typeof this.config.slides[Symbol.iterator] === 'function') {
       // Resolve relative URLs
       for (const data of this.config.slides) {
-
         if (hasOwnProperty(data, 'image')) {
           if (!this.r.test(data.image))
-            data.image = fileApi.cleanURL(`${this.subfolder}/${data.image}`)          
+            data.image = fileApi.cleanURL(`${this.subfolder}/${data.image}`)
         }
 
         if (hasOwnProperty(data, 'video')) {
