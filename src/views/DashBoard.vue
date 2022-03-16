@@ -297,6 +297,7 @@ export default class VueComponent extends Vue {
 
       this.rows.push(cards)
     }
+    this.$emit('layoutComplete')
   }
 
   private numberOfShownCards = 1

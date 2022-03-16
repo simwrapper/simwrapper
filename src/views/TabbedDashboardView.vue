@@ -28,6 +28,7 @@
     :zoomed="isZoomed"
     :allConfigFiles="allConfigFiles"
     @zoom="handleZoom"
+    @layoutComplete="handleLayoutComplete"
   )
 
   folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
@@ -39,7 +40,7 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-show="!isZoomed" :class="{wiide}")
+  .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}")
     .tabholdercontainer(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
@@ -269,6 +270,7 @@ export default class VueComponent extends Vue {
     // Force teardown the dashboard to ensure we start with a clean slate
     this.activeTab = ''
     this.dashboardTabWithDelay = ''
+    this.showFooter = false
     await this.$nextTick()
 
     this.activeTab = tab
@@ -282,6 +284,12 @@ export default class VueComponent extends Vue {
   private handleZoom(isZoomed: any) {
     this.isZoomed = !!isZoomed
     this.$emit('zoom', this.isZoomed)
+  }
+
+  private showFooter = false
+
+  private handleLayoutComplete() {
+    this.showFooter = true
   }
 
   private getFileSystem(name: string) {
