@@ -1,7 +1,7 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!isZoomed" :class="{wiide}")
+  .tabholder(v-show="!isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
       .project-header(v-if="header" v-html="header" :class="{wiide}")
       .breadcrumbs(v-else)
@@ -9,16 +9,15 @@
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       .tabs.is-centered
-        b.up-link(:style="{marginLeft: wiide ? '0':'-0.75rem'}")
+        b.up-link(:style="{marginLeft: wiide ? '1rem':'-0.75rem'}")
           a(@click="goUpOneFolder()") ^ UP
 
-        ul(:style="{marginRight: wiide ? '2rem':'4rem'}")
+        ul(:style="{marginRight: wiide ? '4rem':'4rem'}")
           li(v-for="tab in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
           )
             b: a(v-if="dashboards[tab].header" @click="switchTab(tab)") {{ dashboards[tab].header.tab }}
-
 
   dash-board(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
     :root="root"
@@ -40,7 +39,7 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}")
+  .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
@@ -92,6 +91,13 @@ export default class VueComponent extends Vue {
 
   private get wiide() {
     return this.$store.state.isFullWidth
+  }
+
+  private get dashWidthCalculator() {
+    if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
+      return { maxWidth: this.$store.state.dashboardWidth }
+    }
+    return {}
   }
 
   private beforeDestroy() {
@@ -198,7 +204,12 @@ export default class VueComponent extends Vue {
         this.$store.commit('setShowLeftBar', !!!yaml.hideLeftBar)
 
         // set margins wide if requested to do so
-        if (yaml.fullWidth !== undefined) this.$store.commit('setFullWidth', yaml.fullWidth)
+        this.$store.commit('setFullWidth', !!yaml.fullWidth)
+        this.$store.commit('setDashboardWidth', '')
+        if (yaml.width !== undefined) {
+          this.$store.commit('setDashboardWidth', '' + yaml.width)
+          this.$store.commit('setFullWidth', true)
+        }
 
         try {
           if (yaml.css) {
@@ -468,7 +479,7 @@ li.is-not-active b a {
 }
 
 .project-header.wiide {
-  padding: 1rem 1rem;
+  padding: 1rem 2rem;
 }
 
 .project-footer {
@@ -503,7 +514,7 @@ li.is-not-active b a {
 
 .project-footer.wiide {
   margin: 3rem 0rem 1rem 0rem;
-  padding: 1rem 1rem;
+  padding: 1rem 2rem;
   border-top: none;
   background-color: #88888815;
   color: var(--text);

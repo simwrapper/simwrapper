@@ -1,6 +1,6 @@
 <template lang="pug">
 #dashboard.dashboard(:class="{wiide}")
-  .dashboard-content(:class="{wiide}")
+  .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
     .dashboard-header(v-if="!fullScreenCardId" :class="{wiide}")
       h2 {{ title }}
       p {{ description }}
@@ -138,6 +138,13 @@ export default class VueComponent extends Vue {
   private beforeDestroy() {
     this.resizers = {}
     window.removeEventListener('resize', this.resizeAllCards)
+  }
+
+  private get dashWidthCalculator() {
+    if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
+      return { maxWidth: this.$store.state.dashboardWidth }
+    }
+    return {}
   }
 
   /**
@@ -355,7 +362,7 @@ export default class VueComponent extends Vue {
 }
 
 .dashboard.wiide {
-  padding-left: 1rem;
+  padding-left: 2rem;
 }
 
 .dashboard-header {
@@ -439,7 +446,7 @@ export default class VueComponent extends Vue {
 }
 
 .dash-card-frame.wiide {
-  margin-right: 1rem;
+  margin-right: 2rem;
 }
 
 .dash-card {

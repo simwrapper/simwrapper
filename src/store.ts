@@ -33,6 +33,7 @@ export default new Vuex.Store({
     authAttempts: 0,
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
+    dashboardWidth: '',
     isFullScreen: false,
     isFullWidth: false,
     isShowingLeftBar: false,
@@ -166,6 +167,9 @@ export default new Vuex.Store({
     },
     toggleShowLeftBar(state) {
       state.isShowingLeftBar = !state.isShowingLeftBar
+    },
+    setDashboardWidth(state, value: string) {
+      state.dashboardWidth = value
     },
     setFullWidth(state, value: boolean) {
       state.isFullWidth = value
