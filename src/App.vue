@@ -68,6 +68,28 @@ class App extends Vue {
 
     // local files
     if (doThisOnceForLocalFiles) await this.setupLocalFiles()
+
+    document.addEventListener('keydown', this.toggleUIPanels)
+  }
+
+  private beforeDestroy() {
+    document.removeEventListener('keyup', this.toggleUIPanels)
+  }
+
+  private toggleUIPanels(event: any) {
+    // shift-alt-Q: left side QuickView panel
+    if (event.altKey && event.shiftKey && event.keyCode === 81) {
+      console.log('QUICKVIEW')
+      this.$store.commit('toggleShowLeftBar')
+      this.$store.commit('resize')
+    }
+    // shift-alt-W: wide screen mode
+    if (event.altKey && event.shiftKey && event.keyCode === 87) {
+      console.log('WIIIDE')
+      this.$store.commit('toggleFullWidth')
+      this.$store.commit('resize')
+    }
+    return
   }
 
   // ------ Find Chrome Local File System roots ----

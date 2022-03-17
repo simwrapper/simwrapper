@@ -217,7 +217,7 @@ class SVNFileSystem {
   }
 
   async findAllYamlConfigs(folder: string): Promise<YamlConfigs> {
-    const yamls: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {} }
+    const yamls: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
 
     const configFolders = []
 
@@ -249,6 +249,7 @@ class SVNFileSystem {
     const dashboard = 'dashboard*.y?(a)ml'
     const topsheet = 'topsheet*.y?(a)ml'
     const viz = 'viz*.y?(a)ml'
+    const config = 'simwrapper-config.y?(a)ml'
 
     for (const configFolder of configFolders) {
       const { files } = await this.getDirectory(configFolder)
@@ -264,6 +265,10 @@ class SVNFileSystem {
       micromatch
         .match(files, viz)
         .map(yaml => (yamls.vizes[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
+
+      micromatch
+        .match(files, config)
+        .map(yaml => (yamls.configs[yaml] = `${configFolder}/${yaml}`.replaceAll('//', '/')))
     }
 
     // Sort them all by filename
@@ -276,8 +281,10 @@ class SVNFileSystem {
     yamls.vizes = Object.fromEntries(
       Object.entries(yamls.vizes).sort((a, b) => (a[0] > b[0] ? 1 : -1))
     )
+    yamls.configs = Object.fromEntries(
+      Object.entries(yamls.configs).sort((a, b) => (a[0] > b[0] ? 1 : -1))
+    )
 
-    // console.log(yamls)
     return yamls
   }
 

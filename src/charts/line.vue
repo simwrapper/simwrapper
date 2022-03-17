@@ -117,6 +117,8 @@ export default class VueComponent extends Vue {
       columns = columnNames.filter(col => col !== this.config.x).sort()
     }
 
+    const lines = [] as any[]
+
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i]
       const legendName = useOwnNames ? this.config.legendTitles[i] : col
@@ -127,16 +129,17 @@ export default class VueComponent extends Vue {
       // are durations in 00:00:00 format?
       if (this.config.convertToSeconds) values = this.convertToSeconds(values)
 
-      this.data.push({
+      lines.push({
         x: x,
         y: values,
         name: legendName,
         type: 'line',
         textinfo: 'label+percent',
         textposition: 'inside',
-        automargin: true,
+        automargin: false,
       })
     }
+    this.data = lines
   }
 
   private convertToSeconds(values: any[]) {

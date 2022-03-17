@@ -1,9 +1,12 @@
 <!DOCTYPE html>
+<!-- this custom 404 page instructs Github Pages to direct SPA missing links back to the Vue Router -->
 <html lang="en">
   <head>
     <script>
       sessionStorage.redirect = location.href
     </script>
-    <meta http-equiv="refresh" content="0;URL='/simwrapper/'" />
+    <!-- URL below MUST reflect base folder of built site;
+         example: '/simwrapper/' for https://vsp.berlin/simwrapper/ -->
+    <meta http-equiv="refresh" content="0;URL='/'" />
   </head>
 </html>

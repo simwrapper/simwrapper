@@ -1,7 +1,7 @@
 <template lang="pug">
 #split-screen
 
-  run-finder-panel.split-panel.narrow(
+  run-finder-panel.split-panel.narrow(v-show="showLeftBar"
     @navigate="onNavigate(0,$event)"
     @split="onSplit"
   )
@@ -54,13 +54,7 @@ class MyComponent extends Vue {
 
   private baseURL = import.meta.env.BASE_URL
 
-  private panels = [
-    {
-      component: 'SplashPage',
-      key: Math.random(),
-      props: {} as any,
-    },
-  ]
+  private panels = [] as any
 
   private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
@@ -93,7 +87,10 @@ class MyComponent extends Vue {
 
   private buildLayoutFromURL() {
     const pathMatch = this.$route.params.pathMatch
-    if (!pathMatch) return
+    if (!pathMatch) {
+      this.panels = [{ component: 'SplashPage', key: Math.random(), props: {} as any }]
+      return
+    }
 
     // splash page:
     if (pathMatch === '/') {
@@ -232,6 +229,9 @@ class MyComponent extends Vue {
       const base64 = btoa(JSON.stringify(this.panels))
       this.$router.push(`${BASE}split/${base64}`)
     }
+  }
+  private get showLeftBar() {
+    return this.$store.state.isShowingLeftBar
   }
 }
 

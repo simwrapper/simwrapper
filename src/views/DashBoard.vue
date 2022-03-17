@@ -1,16 +1,18 @@
 <template lang="pug">
-#dashboard.dashboard
-  .dashboard-content
-    .dashboard-header(v-if="!fullScreenCardId")
+#dashboard.dashboard(:class="{wiide}")
+  .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
+    .dashboard-header(v-if="!fullScreenCardId" :class="{wiide}")
       h2 {{ title }}
       p {{ description }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i")
+    .dash-row(v-for="row,i in rows" :key="i" :class="`row-${row.id}`")
 
       //- each card here
-      .dash-card-frame(v-for="card,j in row" :key="`${i}/${j}`"
-        :style="getCardStyle(card)")
+      .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
+        :style="getCardStyle(card)"
+        :class="{wiide}"
+      )
 
         //- card header/title
         .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
@@ -102,7 +104,8 @@ export default class VueComponent extends Vue {
   private yaml: any
   private title = ''
   private description = ''
-  private rows: any[] = []
+
+  private rows: { id: string; cards: any[] }[] = []
 
   private fileList: string[] = []
 
@@ -137,6 +140,13 @@ export default class VueComponent extends Vue {
     window.removeEventListener('resize', this.resizeAllCards)
   }
 
+  private get dashWidthCalculator() {
+    if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
+      return { maxWidth: this.$store.state.dashboardWidth }
+    }
+    return {}
+  }
+
   /**
    * This only gets triggered when a topsheet has some titles.
    * Remove the dashboard titles and use the ones from the topsheet.
@@ -147,12 +157,23 @@ export default class VueComponent extends Vue {
     card.description = ''
   }
 
+  @Watch('$store.state.resizeEvents')
+  private async handleResize() {
+    await this.$nextTick()
+
+    this.resizeAllCards()
+  }
+
+  private isResizing = false
+
   private resizeAllCards() {
+    this.isResizing = true
     for (const row of this.rows) {
-      for (const card of row) {
+      for (const card of row.cards) {
         this.updateDimensions(card.id)
       }
     }
+    this.isResizing = false
   }
 
   private handleToggleInfoClick(card: any) {
@@ -202,7 +223,7 @@ export default class VueComponent extends Vue {
       const dimensions = { width: element.clientWidth, height: element.clientHeight }
       if (this.resizers[cardId]) this.resizers[cardId](dimensions)
     }
-    globalStore.commit('resize')
+    if (!this.isResizing) globalStore.commit('resize')
   }
 
   private getCardStyle(card: any) {
@@ -282,8 +303,9 @@ export default class VueComponent extends Vue {
         numCard++
       })
 
-      this.rows.push(cards)
+      this.rows.push({ id: rowId, cards })
     }
+    this.$emit('layoutComplete')
   }
 
   private numberOfShownCards = 1
@@ -308,6 +330,10 @@ export default class VueComponent extends Vue {
     return tag
   }
 
+  private get wiide() {
+    return this.$store.state.isFullWidth
+  }
+
   private opacity: any = {}
 
   private async handleCardIsLoaded(card: any) {
@@ -329,6 +355,14 @@ export default class VueComponent extends Vue {
     max-width: $dashboardWidth;
     margin: 0 auto 0 auto;
   }
+
+  .dashboard-content.wiide {
+    max-width: unset;
+  }
+}
+
+.dashboard.wiide {
+  padding-left: 2rem;
 }
 
 .dashboard-header {
@@ -337,6 +371,10 @@ export default class VueComponent extends Vue {
   h2 {
     line-height: 3rem;
   }
+}
+
+.dashboard-header.wiide {
+  margin-right: 3rem;
 }
 
 .dash-row {
@@ -405,6 +443,10 @@ export default class VueComponent extends Vue {
   .spinner-box.is-loaded {
     background: none;
   }
+}
+
+.dash-card-frame.wiide {
+  margin-right: 2rem;
 }
 
 .dash-card {

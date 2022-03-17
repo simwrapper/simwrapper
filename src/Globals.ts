@@ -73,6 +73,7 @@ export type YamlConfigs = {
   dashboards: { [filename: string]: string }
   topsheets: { [filename: string]: string }
   vizes: { [filename: string]: string }
+  configs: { [filename: string]: string }
 }
 
 export const UI_FONT =
