@@ -13,11 +13,11 @@
           a(@click="goUpOneFolder()") ^ UP
 
         ul(:style="{marginRight: wiide ? '4rem':'4rem'}")
-          li(v-for="tab in Object.keys(dashboards)" :key="tab"
+          li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
           )
-            b: a(v-if="dashboards[tab].header" @click="switchTab(tab)") {{ dashboards[tab].header.tab }}
+            b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
 
   dash-board(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
     :root="root"
@@ -163,8 +163,19 @@ export default class VueComponent extends Vue {
       // Add FileBrowser as "Files" tab
       Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
 
-      // // Start on first tab
-      this.activeTab = Object.keys(this.dashboards)[0]
+      // // Start on correct tab
+      if (this.$route.query.tab) {
+        try {
+          const userSupplied = parseInt('' + this.$route.query.tab) - 1
+          const userTab = Object.keys(this.dashboards)[userSupplied]
+          this.activeTab = userTab || Object.keys(this.dashboards)[0]
+        } catch (e) {
+          // user spam; just use first tab
+          this.activeTab = Object.keys(this.dashboards)[0]
+        }
+      } else {
+        this.activeTab = Object.keys(this.dashboards)[0]
+      }
       this.dashboardTabWithDelay = this.activeTab
 
       // headers, footers, etc
@@ -275,13 +286,14 @@ export default class VueComponent extends Vue {
 
   private dashboardTabWithDelay = ''
 
-  private async switchTab(tab: string) {
+  private async switchTab(tab: string, index: number) {
     if (tab === this.activeTab) return
 
     // Force teardown the dashboard to ensure we start with a clean slate
     this.activeTab = ''
     this.dashboardTabWithDelay = ''
     this.showFooter = false
+
     await this.$nextTick()
 
     this.activeTab = tab
@@ -289,7 +301,12 @@ export default class VueComponent extends Vue {
     // to give browser time to teardown
     setTimeout(() => {
       this.dashboardTabWithDelay = tab
-    }, 150)
+      if (index) {
+        this.$router.replace({ query: { tab: `${index + 1}` } })
+      } else {
+        this.$router.replace({ query: {} })
+      }
+    }, 125)
   }
 
   private handleZoom(isZoomed: any) {
