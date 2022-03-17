@@ -2,7 +2,7 @@
 
 figure(class="video_container")
 
-  video(:controls="controls" :loop='loop' :allowfullscreen='allowfullscreen')
+  video(:controls="controls" :loop='loop' :allowfullscreen='allowfullscreen' :autoplay="autoplay" :muted="muted")
 
     source(v-for="(src, type) in sources" :src="src" :type="type" :key="type")
 
@@ -27,6 +27,8 @@ export default class VueComponent extends Vue {
   private controls: string | null = null
   private loop: string | null = null
   private allowfullscreen: string | null = null
+  private autoplay: string | null = null
+  private muted: string | null = null
   private sources: { [key: string]: string } = {}
 
   // true for absolute URLs
@@ -36,6 +38,8 @@ export default class VueComponent extends Vue {
     this.controls = this.config.controls
     this.loop = this.config.loop
     this.allowfullscreen = this.config.allowfullscreen
+    this.autoplay = this.config.autoplay
+    this.muted = this.config.muted
 
     this.sources = {}
 
