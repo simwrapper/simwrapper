@@ -7,6 +7,26 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/simwrapper/simwrapper/compare/v1.8.0...v1.9.0) (2022-03-17)
+
+
+### Features
+
+* Add dashboard row-id as a CSS class name, to enable custom css ([97f9a7d](https://github.com/simwrapper/simwrapper/commit/97f9a7da79c646a10f6211dfc89862727738cbca)), closes [#122](https://github.com/simwrapper/simwrapper/issues/122)
+* Dashboard widths in simwrapper-config.yaml; width: [100%|70rem] etc ([131fca6](https://github.com/simwrapper/simwrapper/commit/131fca67c572a90e3c0b0dccef94a602408801cb)), closes [#120](https://github.com/simwrapper/simwrapper/issues/120)
+* Enable Chrome local file browsing ([5bb3bed](https://github.com/simwrapper/simwrapper/commit/5bb3bedfd27bf741cd54e036e037f5fff691703a))
+* New 'slideshow' or 'image' dashboard panel type ([e010ca3](https://github.com/simwrapper/simwrapper/commit/e010ca398b364f832f6c7552bc82e7c80de8c433)), closes [#113](https://github.com/simwrapper/simwrapper/issues/113)
+* save tab in URL bar ([f85f2a6](https://github.com/simwrapper/simwrapper/commit/f85f2a66ffb50c2239ae0590f496bf70ac7d6722)), closes [#134](https://github.com/simwrapper/simwrapper/issues/134)
+* Site headers, footers, and standalone dashboards ([#116](https://github.com/simwrapper/simwrapper/issues/116)) ([3669579](https://github.com/simwrapper/simwrapper/commit/3669579c9bd28b07c0bb0393a93563ac266545a8))
+
+
+### Bug Fixes
+
+* Don't flash footer at top of page while tabs are switching ([2f19ade](https://github.com/simwrapper/simwrapper/commit/2f19adecfab111b5ef8d8bc0abc686cf11d172c8)), closes [#123](https://github.com/simwrapper/simwrapper/issues/123)
+* Sankey ordering should be based on data input, not inconsistent ([04f6a12](https://github.com/simwrapper/simwrapper/commit/04f6a12db850178b3312ed77324294b99be46886)), closes [#114](https://github.com/simwrapper/simwrapper/issues/114)
+* topsheet doesn't parse XML correctly ([107c277](https://github.com/simwrapper/simwrapper/commit/107c277512def600aedd5a636208eb40a38a9566))
+* Vega-chart layout broken in multi-facted charts ([714b29b](https://github.com/simwrapper/simwrapper/commit/714b29b2a2a28433dd420f22a723887e608480b8)), closes [#133](https://github.com/simwrapper/simwrapper/issues/133)
+
 ## [1.8.0](https://github.com/simwrapper/simwrapper/compare/v1.7.2...v1.8.0) (2022-03-03)
 
 
