@@ -36,6 +36,7 @@ export default class VueComponent extends Vue {
 
   private async mounted() {
     this.updateTheme()
+    this.checkWarningsAndErrors()
     this.dataSet = await this.loadData()
     if (Object.keys(this.dataSet).length) {
       this.updateChart()
@@ -147,6 +148,21 @@ export default class VueComponent extends Vue {
         automargin: true,
       },
     ]
+  }
+
+  // Check this plot for warnings and errors
+  private checkWarningsAndErrors() {
+    var plotTitle = this.cardTitle
+    // warnings
+    // missing title
+    if (plotTitle.length == 0) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `The plot title is missing!`,
+        desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
+      })
+    }
+    // errors
   }
 
   private layout: any = {

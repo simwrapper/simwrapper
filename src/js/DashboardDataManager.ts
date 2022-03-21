@@ -279,8 +279,12 @@ export default class DashboardDataManager {
             //globalStore.commit('error', e.data.error)
             globalStore.commit('setStatus', {
               type: Status.ERROR,
-              message: '' + msg,
-              desc: 'Add a desription!',
+              msg: `File cannot be loaded.`,
+              desc:
+                'Please check if the file exists. It is this file: ' +
+                this.subfolder +
+                '/' +
+                config.dataset,
             })
             reject()
           }

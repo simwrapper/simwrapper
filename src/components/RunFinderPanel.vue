@@ -12,15 +12,15 @@
 
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
       .warnings(v-else)
-        .message-area(v-if="!state.statusErrors.length") 
+        .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length") 
           p.no-error There are no errors and warnings.
         .message-area(v-else)
-          h3 {{state.statusErrors.length}} Errors
+          h3(v-if="state.statusErrors.length") {{state.statusErrors.length}} Errors
           .single-message(v-for="err,i in state.statusErrors")
             li(v-html="err.msg" @click="toggleShowDescription(i, true)")
             .description(v-if="descriptionIndexListError.includes(i)")
               p(v-html="err.desc")
-          h3 {{state.statusWarnings.length}} Warnings
+          h3(v-if="state.statusWarnings.length") {{state.statusWarnings.length}} Warnings
           .single-message(v-for="err,i in state.statusWarnings")
             li(v-html="err.msg" @click="toggleShowDescription(i, false)")
             .description(v-if="descriptionIndexListWarning.includes(i)")
@@ -30,7 +30,7 @@
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
-    button.button.clear-button(v-if="state.statusErrors.length && showWarnings" @click="clearAllButtons()") Clear all errors...
+    button.button.clear-button(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all errors...
 
 
     .commands
@@ -94,6 +94,10 @@ class MyComponent extends Vue {
     runFinder.findRuns()
     // react to found folders
     this.onRunFoldersChanged()
+  }
+
+  @Watch('$route.path') test() {
+    this.clearAllButtons()
   }
 
   @Watch('$store.state.runFolderCount') updatedCount() {
@@ -167,7 +171,6 @@ class MyComponent extends Vue {
   }
 
   private clearAllButtons() {
-    console.log(this.state.statusErrors)
     this.$store.commit('clearAllErrors')
   }
 

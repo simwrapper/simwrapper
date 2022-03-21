@@ -182,6 +182,7 @@ export default new Vuex.Store({
     },
     clearAllErrors(state: GlobalState) {
       state.statusErrors = []
+      state.statusWarnings = []
     },
     resize(state: GlobalState) {
       state.resizeEvents += 1
