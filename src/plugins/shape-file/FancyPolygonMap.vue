@@ -47,8 +47,8 @@
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
 
     .map-type-buttons
-      img.img-button(@click="useCircles=false" src="../assets/btn-polygons.jpg" title="Shapes")
-      img.img-button(@click="useCircles=true" src="../assets/btn-circles.jpg" title="Circles")
+      img.img-button(@click="useCircles=false" src="../../assets/btn-polygons.jpg" title="Shapes")
+      img.img-button(@click="useCircles=true" src="../../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -58,7 +58,8 @@ import { group, zip, sum } from 'd3-array'
 import * as turf from '@turf/turf'
 import YAML from 'yaml'
 
-import { DataTable, DataTableColumn, FileSystemConfig } from '@/Globals'
+import globalStore from '@/store'
+import { DataTable, DataTableColumn, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -546,6 +547,15 @@ export default class VueComponent extends Vue {
     this.activeColumn = 'value'
   }
 }
+
+// !register plugin!
+globalStore.commit('registerPlugin', {
+  kebabName: 'area-map',
+  prettyName: 'Area Map',
+  description: 'Area Map',
+  filePatterns: ['**/viz-map*.y?(a)ml'],
+  component: VueComponent,
+} as VisualizationPlugin)
 </script>
 
 <style scoped lang="scss">

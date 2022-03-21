@@ -22,7 +22,7 @@ import video from './video.vue'
 import carriers from './carriers.vue'
 import flowmap from './flowmap.vue'
 import links from './links.vue'
-import map from './map-polygons.vue'
+import map from './area-map.vue'
 
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
 // export all resizable charts here
