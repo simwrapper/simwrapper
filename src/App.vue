@@ -32,8 +32,10 @@ const i18n = {
 import maplibregl from 'maplibre-gl'
 import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
+import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import LoginPanel from '@/components/LoginPanel.vue'
@@ -44,11 +46,13 @@ import LoginPanel from '@/components/LoginPanel.vue'
 const writableMapBox: any = maplibregl
 writableMapBox.accessToken = MAPBOX_TOKEN
 
+let doThisOnceForLocalFiles = true
+
 @Component({ i18n, components: { LoginPanel } })
 class App extends Vue {
   private state = globalStore.state
 
-  private mounted() {
+  private async mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -61,6 +65,44 @@ class App extends Vue {
 
     this.toggleFullScreen(true)
     this.setOnlineOrOfflineMode()
+
+    // local files
+    if (doThisOnceForLocalFiles) await this.setupLocalFiles()
+
+    document.addEventListener('keydown', this.toggleUIPanels)
+  }
+
+  private beforeDestroy() {
+    document.removeEventListener('keyup', this.toggleUIPanels)
+  }
+
+  private toggleUIPanels(event: any) {
+    // shift-alt-Q: left side QuickView panel
+    if (event.altKey && event.shiftKey && event.keyCode === 81) {
+      console.log('QUICKVIEW')
+      this.$store.commit('toggleShowLeftBar')
+      this.$store.commit('resize')
+    }
+    // shift-alt-W: wide screen mode
+    if (event.altKey && event.shiftKey && event.keyCode === 87) {
+      console.log('WIIIDE')
+      this.$store.commit('toggleFullWidth')
+      this.$store.commit('resize')
+    }
+    return
+  }
+
+  // ------ Find Chrome Local File System roots ----
+  private async setupLocalFiles() {
+    console.log(12341235125)
+    if (globalStore.state.localFileHandles.length) return
+
+    const lfsh = (await get('fs')) as { key: string; handle: any }[]
+    if (lfsh && lfsh.length) {
+      for (const entry of lfsh) {
+        addLocalFilesystem(entry.handle, entry.key)
+      }
+    }
   }
 
   /**
@@ -372,6 +414,28 @@ a:hover {
     list-style: disc;
     margin-top: 0.5rem;
     padding-left: 1.5rem;
+  }
+
+  table {
+    margin: 1rem 0rem;
+    color: var(--text);
+  }
+
+  th {
+    color: var(--text);
+    border-bottom: 1px solid #88888888;
+    padding-bottom: 0.25rem;
+  }
+  tr:nth-child(even) {
+    background-color: #88888822;
+  }
+
+  tr.displaynone ~ tr {
+    background-color: transparent;
+  }
+
+  td {
+    padding-right: 1rem;
   }
 }
 

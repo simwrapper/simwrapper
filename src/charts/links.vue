@@ -5,6 +5,7 @@ link-volumes.deck-map(
   :config="config"
   :thumbnail="false"
   :datamanager="datamanager"
+  @isLoaded="isLoaded"
 )
 
 </template>
@@ -28,6 +29,10 @@ export default class VueComponent extends Vue {
     // console.log(this.fileSystemConfig)
     // console.log('subfolder', this.subfolder)
     // console.log('config', this.config)
+    // this.$emit('isLoaded')
+  }
+
+  private isLoaded() {
     this.$emit('isLoaded')
   }
 }

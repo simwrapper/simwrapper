@@ -2,6 +2,80 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.9.0](https://github.com/simwrapper/simwrapper/compare/v1.8.0...v1.9.0) (2022-03-17)
+
+
+### Features
+
+* Add dashboard row-id as a CSS class name, to enable custom css ([97f9a7d](https://github.com/simwrapper/simwrapper/commit/97f9a7da79c646a10f6211dfc89862727738cbca)), closes [#122](https://github.com/simwrapper/simwrapper/issues/122)
+* Dashboard widths in simwrapper-config.yaml; width: [100%|70rem] etc ([131fca6](https://github.com/simwrapper/simwrapper/commit/131fca67c572a90e3c0b0dccef94a602408801cb)), closes [#120](https://github.com/simwrapper/simwrapper/issues/120)
+* Enable Chrome local file browsing ([5bb3bed](https://github.com/simwrapper/simwrapper/commit/5bb3bedfd27bf741cd54e036e037f5fff691703a))
+* New 'slideshow' or 'image' dashboard panel type ([e010ca3](https://github.com/simwrapper/simwrapper/commit/e010ca398b364f832f6c7552bc82e7c80de8c433)), closes [#113](https://github.com/simwrapper/simwrapper/issues/113)
+* save tab in URL bar ([f85f2a6](https://github.com/simwrapper/simwrapper/commit/f85f2a66ffb50c2239ae0590f496bf70ac7d6722)), closes [#134](https://github.com/simwrapper/simwrapper/issues/134)
+* Site headers, footers, and standalone dashboards ([#116](https://github.com/simwrapper/simwrapper/issues/116)) ([3669579](https://github.com/simwrapper/simwrapper/commit/3669579c9bd28b07c0bb0393a93563ac266545a8))
+
+
+### Bug Fixes
+
+* Don't flash footer at top of page while tabs are switching ([2f19ade](https://github.com/simwrapper/simwrapper/commit/2f19adecfab111b5ef8d8bc0abc686cf11d172c8)), closes [#123](https://github.com/simwrapper/simwrapper/issues/123)
+* Sankey ordering should be based on data input, not inconsistent ([04f6a12](https://github.com/simwrapper/simwrapper/commit/04f6a12db850178b3312ed77324294b99be46886)), closes [#114](https://github.com/simwrapper/simwrapper/issues/114)
+* topsheet doesn't parse XML correctly ([107c277](https://github.com/simwrapper/simwrapper/commit/107c277512def600aedd5a636208eb40a38a9566))
+* Vega-chart layout broken in multi-facted charts ([714b29b](https://github.com/simwrapper/simwrapper/commit/714b29b2a2a28433dd420f22a723887e608480b8)), closes [#133](https://github.com/simwrapper/simwrapper/issues/133)
+
+## [1.8.0](https://github.com/simwrapper/simwrapper/compare/v1.7.2...v1.8.0) (2022-03-03)
+
+
+### Features
+
+* Dashboards learned "video" panel type ([#107](https://github.com/simwrapper/simwrapper/issues/107)) ([a2670a4](https://github.com/simwrapper/simwrapper/commit/a2670a4dec989b1b794b5843c05875116dce74a7))
+* **links:** configurable viewport ([#103](https://github.com/simwrapper/simwrapper/issues/103)) ([5011174](https://github.com/simwrapper/simwrapper/commit/5011174e2662e53ea8e55edb7123558ba71d9c43))
+
+
+### Bug Fixes
+
+* Fix [#105](https://github.com/simwrapper/simwrapper/issues/105), bar charts not grouping properly ([#112](https://github.com/simwrapper/simwrapper/issues/112)) ([b43cfc2](https://github.com/simwrapper/simwrapper/commit/b43cfc27aab6e27f1a770ed553ed6fbb8b64158a))
+
+### [1.7.2](https://github.com/simwrapper/simwrapper/compare/v1.7.1...v1.7.2) (2022-02-11)
+
+
+### Bug Fixes
+
+* Clean up Plotly chart margins and layouts ([cb52138](https://github.com/simwrapper/simwrapper/commit/cb52138e80813d5449867a32c14404ac0b7c188a))
+* **flowmap:** flowmap link volumes not showing up in latest build ([b95984e](https://github.com/simwrapper/simwrapper/commit/b95984e60564f38aa6bbdb2ef795ffd82247594f))
+* support simwrapper command-line tool "here" mode ([231f70d](https://github.com/simwrapper/simwrapper/commit/231f70d6e2d4ec02ddfd80d28461b9a9816176d3))
+* **vega:** reformulate non-FQDN data URLs to point to file storage ([2ed4c74](https://github.com/simwrapper/simwrapper/commit/2ed4c74cd25e3c4df7dd69342724883b31a02a48))
+
+### [1.7.1](https://github.com/simwrapper/simwrapper/compare/v1.7.0...v1.7.1) (2022-02-10)
+
+
+### Bug Fixes
+
+* improve vega chart backgrounds in dark mode ([b95807c](https://github.com/simwrapper/simwrapper/commit/b95807cfdbceeb23ce60f39c08348abf8c5c46ee))
+* **links:** colors and widths of bare networks not set correctly ([af13e2f](https://github.com/simwrapper/simwrapper/commit/af13e2fe39c68c42c72b347d53403df06cfe1768))
+* Markdown table formatting needs spacing and shading. ([f7cbd72](https://github.com/simwrapper/simwrapper/commit/f7cbd72c6c2835ebca53c16f6b7c364919f1a227))
+* Sankey label widths should be based on data, not hard-coded ([3eb120d](https://github.com/simwrapper/simwrapper/commit/3eb120db342a168c95d7298d54f9950d76ea0a18))
+
+## [1.7.0](https://github.com/simwrapper/simwrapper/compare/v1.6.0...v1.7.0) (2022-02-09)
+
+
+### Features
+
+* Dashboards learned "text" block type, for including readme content ([94a2087](https://github.com/simwrapper/simwrapper/commit/94a2087c017021a51b80111734498786a5c87b5d))
+
+
+### Bug Fixes
+
+* Add more helpful error messages when files don't load ([53f994f](https://github.com/simwrapper/simwrapper/commit/53f994f067b874fa27ff8cc139e92cd0524f6092))
+* Bug in SAFARI prevents topsheets from loading ([e1b4907](https://github.com/simwrapper/simwrapper/commit/e1b4907c2892bf01fb4b622654fa13717458a9df))
+* Dashboards should respect locale for title/title_en/title_de and desc ([f27bf70](https://github.com/simwrapper/simwrapper/commit/f27bf70298baa7271f777d19fcdf1df92a28d8a0))
+* firefox on windows hangs on background worker dataset load ([f1fdb87](https://github.com/simwrapper/simwrapper/commit/f1fdb8790b9e0ea4768b93f38061cb0ad638b6ac))
+* **links:** Diff mode plot could show wrong data in some situations ([6d34252](https://github.com/simwrapper/simwrapper/commit/6d34252e1bedab64f0a22bb93b39c25b378bdb48))
+* load dashboard panels in sequence, WIP ([8e42dec](https://github.com/simwrapper/simwrapper/commit/8e42decf2749d7c0e5be1ecb37badf71273c407f))
+* Pie charts should use column order, not "largest first" ([3cb622d](https://github.com/simwrapper/simwrapper/commit/3cb622dbfdf4aec657f1700c0f83095dbd0203ac))
+* Support GeoJSON networks with feature.id or feature.properties.id ([825546a](https://github.com/simwrapper/simwrapper/commit/825546a2c27e9ac429eb6e2a9120ab709c2ded36)), closes [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6) [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6)
+* topsheets can reference parent folders in /file/../paths ([d1bb736](https://github.com/simwrapper/simwrapper/commit/d1bb736d75a2aed82d8a10abadb22c505dacb756))
+* Vega-lite chart sizes & subfolder paths were not calculated correctly ([3d76add](https://github.com/simwrapper/simwrapper/commit/3d76add5dc90b6a8691ce98dd7da7c77e741a79c))
+
 ### [1.6.1](https://github.com/simwrapper/simwrapper/compare/v1.6.0...v1.6.1) (2022-02-07)
 
 

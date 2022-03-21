@@ -82,16 +82,16 @@ export default class VueComponent extends Vue {
   @Watch('globalState.isDarkMode')
   updateTheme() {
     const colors = {
-      paper_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
-      plot_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      paper_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
+      plot_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
       font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
     }
     this.layout = Object.assign({}, this.layout, colors)
   }
 
   private updateLayout() {
-    this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
-    this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
+    this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+    this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
   }
 
   private async handlePlotlyClick(click: any) {
@@ -156,19 +156,6 @@ export default class VueComponent extends Vue {
     return Math.floor(Math.random() * max).toString()
   }
 
-  private remFactor = 0
-  private rem2px(rem: number) {
-    // only calculate the factor one time
-    if (!this.remFactor) {
-      var el = document.createElement('div')
-      document.body.appendChild(el)
-      el.style.width = '1000rem'
-      var factor = el.clientWidth / 1000
-      document.body.removeChild(el)
-    }
-    return rem * this.remFactor
-  }
-
   private updateChart() {
     try {
       if (this.config.groupBy) this.updateChartWithGroupBy()
@@ -229,13 +216,20 @@ export default class VueComponent extends Vue {
       }
     }
 
-    if (this.config.stacked) this.layout.barmode = 'stack'
+    if (this.config.stacked) {
+      this.layout.barmode = 'stack'
+    } else {
+      this.layout.barmode = 'group'
+    }
+
     if (this.config.stacked) this.className = this.plotID
 
     const xColumn = allRows[this.config.x]
+
     if (!xColumn) {
       throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
     }
+
     x = xColumn.values
     if (this.config.skipFirstRow) x = x.slice(1)
 
@@ -275,28 +269,30 @@ export default class VueComponent extends Vue {
   }
 
   private layout: any = {
+    barmode: 'overlay',
+    bargap: 0.08,
     height: 300,
-    margin: { t: 30, b: 50, l: 60, r: 20 },
-    //legend: { orientation: 'h' }, // , yanchor: 'bottom', y: -0.4 },
+    margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
     font: {
       color: '#444444',
       family: UI_FONT,
     },
-    barmode: 'overlay',
-    bargap: 0.08,
     xaxis: {
+      automargin: true,
       autorange: true,
-      title: '',
+      title: { text: '', standoff: 12 },
+      animate: true,
     },
     yaxis: {
+      automargin: true,
       autorange: true,
-      title: '',
+      title: { text: '', standoff: 16 },
+      animate: true,
     },
     legend: {
-      // x: 0.5,
-      // xanchor: 'right',
-      // y: 0,
-      orientation: 'h',
+      orientation: 'v',
+      x: 1,
+      y: 1,
     },
   }
 
@@ -322,9 +318,8 @@ export default class VueComponent extends Vue {
     toImageButtonOptions: {
       format: 'png', // one of png, svg, jpeg, webp
       filename: 'bar-chart',
-      width: 1200,
-      height: 800,
-      scale: 1.0, // Multiply title/legend/axis/canvas sizes by this factor
+      width: null,
+      height: null,
     },
   }
 }

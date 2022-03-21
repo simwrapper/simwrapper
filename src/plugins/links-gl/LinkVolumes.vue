@@ -165,6 +165,8 @@ class MyPlugin extends Vue {
     network: '',
     geojsonFile: '',
     projection: '',
+    center: null,
+    zoom: 9,
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
@@ -232,6 +234,10 @@ class MyPlugin extends Vue {
 
   private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
   private isDataLoaded = false
+
+  private setDataIsLoaded() {
+    this.isDataLoaded = true
+  }
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
@@ -341,7 +347,10 @@ class MyPlugin extends Vue {
   }
 
   @Watch('$store.state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+    setTimeout(
+      () => (this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode),
+      100
+    )
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -418,6 +427,12 @@ class MyPlugin extends Vue {
 
     const { columnName, dataset, scaleFactor } = width
 
+    // if dataset is set to None, just set scale to 0 and we're done
+    if (!dataset) {
+      this.scaleWidth = 0
+      return
+    }
+
     // change scaling factor without recalculating anything:
     if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
 
@@ -467,7 +482,7 @@ class MyPlugin extends Vue {
 
     const columnName = color.columnName
     if (!columnName) {
-      // this.csvData.activeColumn = ''
+      this.generateColorArray()
       return
     }
 
@@ -497,6 +512,19 @@ class MyPlugin extends Vue {
 
   private async setMapCenter() {
     const data = this.geojsonData
+
+    if (this.vizDetails.center) {
+      this.$store.commit('setMapCamera', {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom,
+        jump: false,
+      })
+      return
+    }
+
 
     if (!data.source.length) return
 
@@ -567,17 +595,25 @@ class MyPlugin extends Vue {
     const filename = this.vizDetails.network || this.vizDetails.geojsonFile
     const networkPath = `/${this.myState.subfolder}/${filename}`
 
-    const network = await this.myDataManager.getRoadNetwork(networkPath)
+    try {
+      const network = await this.myDataManager.getRoadNetwork(networkPath)
 
-    this.numLinks = network.linkIds.length
-    this.geojsonData = network
+      this.numLinks = network.linkIds.length
+      this.geojsonData = network
 
-    this.setMapCenter() // this could be off main thread
+      this.setMapCenter() // this could be off main thread
 
-    this.myState.statusMessage = ''
+      this.myState.statusMessage = ''
 
-    // then load CSVs in background
-    this.loadCSVFiles()
+      this.$emit('isLoaded', true)
+      // this.setDataIsLoaded()
+
+      // then load CSVs in background
+      this.loadCSVFiles()
+    } catch (e) {
+      this.$store.commit('error', `Could not load ${networkPath}`)
+      this.$emit('isLoaded')
+    }
   }
 
   private dataLoaderWorkers: Worker[] = []
@@ -704,8 +740,8 @@ class MyPlugin extends Vue {
       const csvRow = this.csvData.csvRowFromLinkRow[i]
       let value = buildData[this.csvData.activeColumn]?.values[csvRow]
 
-      if (!value) return colorInvisible
       if (this.generatedColors.length === 1) return colorsAsRGB[0]
+      if (!value) return colorInvisible
       if (isCategorical) return setColorBasedOnValue(value)
 
       if (this.vizDetails.showDifferences) {
@@ -779,7 +815,14 @@ class MyPlugin extends Vue {
     this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
 
     this.myState.statusMessage = ''
-    this.isDataLoaded = true
+    this.setDataIsLoaded()
+
+    const color: ColorDefinition = {
+      generatedColors: this.generatedColors,
+      dataset: '',
+      columnName: '',
+    }
+    this.changeConfiguration({ color })
   }
 
   private handleDatasetisLoaded(datasetId: string) {
@@ -815,7 +858,7 @@ class MyPlugin extends Vue {
 
     // last dataset
     if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
-      this.isDataLoaded = true
+      this.setDataIsLoaded()
       this.myState.statusMessage = ''
       console.log({ DATASETS: this.datasets })
     }
@@ -827,20 +870,25 @@ class MyPlugin extends Vue {
   private async loadOneCSVFile(key: string, filename: string) {
     if (!this.myState.fileApi) return
 
-    const dataset = await this.myDataManager.getDataset({ dataset: filename })
-    const dataTable = dataset.allRows
+    try {
+      const dataset = await this.myDataManager.getDataset({ dataset: filename })
+      const dataTable = dataset.allRows
 
-    console.log('loaded', key)
-    this.myState.statusMessage = 'Analyzing...'
+      console.log('loaded', key)
+      this.myState.statusMessage = 'Analyzing...'
 
-    // remove columns without names; we can't use them
-    const cleanTable: DataTable = {}
-    for (const key of Object.keys(dataTable)) {
-      if (key) cleanTable[key] = dataTable[key]
+      // remove columns without names; we can't use them
+      const cleanTable: DataTable = {}
+      for (const key of Object.keys(dataTable)) {
+        if (key) cleanTable[key] = dataTable[key]
+      }
+
+      this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
+      this.handleNewDataset({ key, dataTable: cleanTable })
+    } catch (e) {
+      this.$store.commit('error', 'Could not load ' + filename)
+      this.$emit('isLoaded')
     }
-
-    this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
-    this.handleNewDataset({ key, dataTable: cleanTable })
   }
 
   private handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {

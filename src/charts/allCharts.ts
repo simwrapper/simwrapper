@@ -11,9 +11,11 @@ import line from './line.vue'
 import pie from './pie.vue'
 import sankey from './sankey.vue'
 import scatter from './scatter.vue'
+import slideshow from './slideshow.vue'
 import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
+import video from './video.vue'
 
 // full-screen map visualizations:
 import aggregate from './aggregate.vue'
@@ -30,13 +32,16 @@ export const plotlyCharts = {
   bubble,
   heatmap,
   hexagons,
+  image: slideshow, // both 'image' and 'slideshow' types work for images
   line,
   pie,
   sankey,
+  slideshow,
   text,
   transit,
   scatter,
   vega,
+  video,
 }
 
 // export all remaining charts/maps here:

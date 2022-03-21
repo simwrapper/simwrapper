@@ -49,8 +49,8 @@ export default class VueComponent extends Vue {
 
   @Watch('globalState.isDarkMode') updateTheme() {
     const colors = {
-      paper_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
-      plot_bgcolor: this.globalState.isDarkMode ? '#282c34' : '#fff',
+      paper_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
+      plot_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
       font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
     }
     this.layout = Object.assign({}, this.layout, colors)
@@ -71,8 +71,8 @@ export default class VueComponent extends Vue {
   }
 
   private updateChart() {
-    this.layout.xaxis.title = this.config.xAxisTitle || this.config.xAxisName || ''
-    this.layout.yaxis.title = this.config.yAxisTitle || this.config.yAxisName || ''
+    this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+    this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
 
     try {
       if (this.config.groupBy) this.updateChartWithGroupBy()
@@ -121,6 +121,8 @@ export default class VueComponent extends Vue {
       columns = columnNames.filter(col => col !== this.config.x).sort()
     }
 
+    const lines = [] as any[]
+
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i]
       const legendName = useOwnNames ? this.config.legendTitles[i] : col
@@ -131,16 +133,17 @@ export default class VueComponent extends Vue {
       // are durations in 00:00:00 format?
       if (this.config.convertToSeconds) values = this.convertToSeconds(values)
 
-      this.data.push({
+      lines.push({
         x: x,
         y: values,
         name: legendName,
         type: 'line',
         textinfo: 'label+percent',
         textposition: 'inside',
-        automargin: true,
+        automargin: false,
       })
     }
+    this.data = lines
   }
 
   private convertToSeconds(values: any[]) {
@@ -157,25 +160,28 @@ export default class VueComponent extends Vue {
 
   private layout: any = {
     height: 300,
-    margin: { t: 30, b: 50, l: 60, r: 20 },
+    margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
     font: {
-      family: UI_FONT,
       color: '#444444',
+      family: UI_FONT,
     },
     xaxis: {
+      automargin: true,
       autorange: true,
-      title: '',
+      title: { text: '', standoff: 12 },
+      animate: true,
     },
     yaxis: {
+      automargin: true,
       autorange: true,
-      title: '',
+      title: { text: '', standoff: 16 },
+      animate: true,
       rangemode: 'tozero',
     },
     legend: {
-      // x: 0.5,
-      // xanchor: 'right',
-      // y: 0,
-      orientation: 'h',
+      orientation: 'v',
+      x: 1,
+      y: 1,
     },
   }
 
@@ -201,9 +207,8 @@ export default class VueComponent extends Vue {
     toImageButtonOptions: {
       format: 'png', // one of png, svg, jpeg, webp
       filename: 'line-chart',
-      width: 1200,
-      height: 800,
-      scale: 1.0, // Multiply title/legend/axis/canvas sizes by this factor
+      width: null,
+      height: null,
     },
   }
 }

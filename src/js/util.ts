@@ -69,10 +69,13 @@ export async function parseXML(xml: string, settings: any = {}) {
   }
 
   // Allow user to pass in an array of "always as array" XML paths:
-  if (settings.alwaysArray)
+  if (settings.alwaysArray) {
     defaultConfig.isArray = (name: string, jpath: string) => {
       if (settings.alwaysArray.indexOf(jpath) !== -1) return true
     }
+  } else {
+    delete defaultConfig.isArray
+  }
 
   const options = Object.assign(defaultConfig, settings)
   const parser = new XMLParser(options)

@@ -115,7 +115,6 @@ export default class VueComponent extends Vue {
       this.table = []
       // this.table = [{ title: message, value: '', style: { backgroundColor: 'yellow' } }]
     }
-    this.$emit('isLoaded')
   }
 
   private processWorkerMessage(message: MessageEvent) {
@@ -130,9 +129,11 @@ export default class VueComponent extends Vue {
         break
       case 'results':
         this.table = data.results
+        this.$emit('isLoaded')
         break
       default:
         // shouldn't be here
+        this.$emit('isLoaded')
         console.error(data)
     }
   }

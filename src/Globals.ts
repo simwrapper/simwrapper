@@ -73,6 +73,7 @@ export type YamlConfigs = {
   dashboards: { [filename: string]: string }
   topsheets: { [filename: string]: string }
   vizes: { [filename: string]: string }
+  configs: { [filename: string]: string }
 }
 
 export const UI_FONT =
@@ -98,6 +99,7 @@ export interface FileSystemConfig {
   skipList?: string[]
   dashboardFolder?: string
   hidden?: boolean
+  handle?: FileSystemAPIHandle
 }
 
 export interface VisualizationPlugin {
@@ -111,6 +113,7 @@ export interface VisualizationPlugin {
 export interface DirectoryEntry {
   files: string[]
   dirs: string[]
+  handles: { [name: string]: FileSystemAPIHandle }
 }
 
 export enum ColorScheme {
@@ -205,6 +208,13 @@ export interface RunYaml {
       options?: number[]
     }[]
   }[]
+}
+
+export interface FileSystemAPIHandle {
+  name: string
+  values: any // returns { kind: string; name: string; getFile: any }[]
+  getFile: any
+  requestPermission: any
 }
 
 export const LIGHT_MODE: ColorSet = {

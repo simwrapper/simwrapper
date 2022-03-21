@@ -149,56 +149,153 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
   // prepare storage object -- figure out records and columns
   const dataTable: DataTable = {}
 
-  const columnNames: string[] = []
+  let rowCount = 0
 
   const csv = Papaparse.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ','],
     comments: '#',
-    dynamicTyping: true,
-    header: true,
+    dynamicTyping: false,
+    header: false,
     skipEmptyLines: true,
-    step: (results: any, parser) => {
-      const row = results.data
-      // console.log(row)
-      for (const key in row) {
-        if (!dataTable[key]) {
-          dataTable[key] = { name: key, values: [], type: DataType.NUMBER } // DONT KNOW TYPE YET
-        }
-        ;(dataTable[key].values as any[]).push(row[key])
-      }
-    },
-    complete: results => {
-      let firstColumnName = ''
-      for (const columnName in dataTable) {
-        // first column is special: it contains the linkID
-        // TODO: This is obviously wrong; we need a way to specify this from User
-        if (!firstColumnName) {
-          firstColumnName = columnName
-          continue
-        }
-
-        // figure out types
-        const column = dataTable[columnName]
-        if (typeof column.values[0] == 'string') column.type = DataType.STRING
-        if (typeof column.values[0] == 'boolean') column.type = DataType.BOOLEAN
-
-        // convert numbers to Float32Arrays
-        if (column.type === DataType.NUMBER) {
-          const fArray = new Float32Array(column.values)
-          column.values = fArray
-
-          // calculate max for numeric columns
-          let max = -Infinity
-          for (const value of column.values) max = Math.max(max, value)
-          column.max = max
-        }
-      }
-
-      // and save it
-      _fileData[fileKey] = dataTable
-    },
   })
+
+  // set up arrays
+  // First we assume everything is a number. Then when we find out otherwise, we switch
+  // to a regular JS array as necessary
+  const headers = csv.data[0] as string[]
+  const numColumns = headers.length
+
+  // first column is always string lookup
+  dataTable[headers[0]] = { name: headers[0], values: [], type: DataType.STRING }
+  // other columns: start with numbers and switch if we have to
+  for (let column = 1; column < numColumns; column++) {
+    const values = new Float32Array(csv.data.length - 1)
+    values.fill(NaN)
+    dataTable[headers[column]] = { name: headers[column], values, type: DataType.NUMBER } // DONT KNOW TYPE YET
+  }
+
+  // copy data to column-based arrays
+  for (let rowCount = 0; rowCount < csv.data.length - 1; rowCount++) {
+    const row = csv.data[rowCount + 1] as any[]
+
+    // if (rowCount % 65536 === 0) console.log(row)
+
+    for (let column = 0; column < numColumns; column++) {
+      const key = headers[column]
+      const value = row[column] // always string
+
+      if (column == 0) {
+        // column 0 is always string
+        dataTable[key].values[rowCount] = value
+      } else {
+        const float = parseFloat(value) // number or NaN
+        if (!isNaN(float)) {
+          // number:
+          dataTable[key].values[rowCount] = value
+        } else {
+          // non-number:
+          if (Array.isArray(dataTable[key].values)) {
+            dataTable[key].values[rowCount] = value
+          } else {
+            // first, convert the Float32Array to a normal javascript array
+            if (typeof value == 'string') dataTable[key].type = DataType.STRING
+            if (typeof value == 'boolean') dataTable[key].type = DataType.BOOLEAN
+
+            // convert to regular array
+            const regularArray = Array.from(dataTable[key].values.slice(0, rowCount))
+            regularArray[rowCount] = value
+            // switch the array out
+            dataTable[key].values = regularArray
+          }
+        }
+      }
+    }
+  }
+
+  // calculate max for numeric columns
+  for (const column of Object.values(dataTable)) {
+    if (column.type !== DataType.NUMBER) continue
+
+    let max = -Infinity
+    for (const value of column.values) max = Math.max(max, value)
+    column.max = max
+  }
+
+  _fileData[fileKey] = dataTable
+}
+
+function badparseCsvFile(fileKey: string, filename: string, text: string) {
+  // prepare storage object -- figure out records and columns
+  // console.log('c1')
+  const dataTable: DataTable = {}
+
+  const csv = Papaparse.parse(text, {
+    // preview: 10000,
+    delimitersToGuess: ['\t', ';', ','],
+    comments: '#',
+    dynamicTyping: false,
+    header: false,
+    skipEmptyLines: true,
+  })
+  console.log('c2')
+
+  // step: (results: any, parser) => {
+  //   rowCount++
+  //   const row = results.data
+
+  //   // if (rowCount % 8192 === 0) console.log(row)
+
+  //   // console.log(row)
+  //   const keys = Object.keys(row)
+  //   for (let column = 0; column < keys.length; column++) {
+  //     const key = keys[column]
+  //     if (!dataTable[key]) {
+  //       dataTable[key] = { name: key, values: [], type: DataType.NUMBER } // DONT KNOW TYPE YET
+  //     }
+
+  //     const v = row[key]
+  //     const float = parseFloat(v)
+  //     if (column === 0 || isNaN(float)) {
+  //       dataTable[key].values[rowCount] = v
+  //     } else {
+  //       dataTable[key].values[rowCount] = float
+  //     }
+  //   }
+  // },
+  // complete: results => {
+  //   console.log('finished parsing', fileKey)
+  //   let firstColumnName = ''
+
+  //   for (const columnName in dataTable) {
+  //     // first column is special: it contains the linkID
+  //     // TODO: This is obviously wrong; we need a way to specify this from User
+  //     if (!firstColumnName) {
+  //       firstColumnName = columnName
+  //       continue
+  //     }
+
+  //     // figure out types
+  //     const column = dataTable[columnName]
+  //     if (typeof column.values[0] == 'string') column.type = DataType.STRING
+  //     if (typeof column.values[0] == 'boolean') column.type = DataType.BOOLEAN
+
+  //     // convert numbers to Float32Arrays
+  //     if (column.type === DataType.NUMBER) {
+  //       const fArray = new Float32Array(column.values)
+  //       column.values = fArray
+
+  //       // calculate max for numeric columns
+  //       let max = -Infinity
+  //       for (const value of column.values) max = Math.max(max, value)
+  //       column.max = max
+  //     }
+  //   }
+
+  // and save it
+  _fileData[fileKey] = dataTable
+
+  // })
 }
 
 async function loadFileOrGzipFile(filename: string) {

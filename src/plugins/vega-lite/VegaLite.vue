@@ -5,10 +5,9 @@
     h3.center {{ title }}
     h5.center {{ description }}
 
-  .vega-chart(
-    :id="cleanConfigId"
+  .zippy(:id="zippyId")
+    .vega-chart(:id="cleanConfigId")
 
-  )
 </template>
 
 <script lang="ts">
@@ -22,20 +21,11 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 @Component({ components: {} })
 class VegaComponent extends Vue {
-  @Prop({ required: true })
-  private root!: string
-
-  @Prop({ required: false })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private config!: string
-
-  @Prop({ required: true })
-  private thumbnail!: boolean
+  @Prop({ required: true }) private root!: string
+  @Prop({ required: false }) private subfolder!: string
+  @Prop({ required: false }) private yamlConfig!: string
+  @Prop({ required: false }) private config!: string
+  @Prop({ required: true }) private thumbnail!: boolean
 
   private globalState = globalStore.state
 
@@ -49,13 +39,16 @@ class VegaComponent extends Vue {
 
   private vizDetails: any = { title: '', description: '' }
 
-  private loadingText: string = 'Flow Diagram'
+  private loadingText: string = 'Loading'
   private totalTrips = 0
 
   private title = ''
   private description = ''
 
   private cleanConfigId = 'vega-' + Math.floor(Math.random() * 1e12)
+  private zippyId = 'zippy-' + Math.floor(Math.random() * 1e12)
+
+  private hasHardCodedHeight = false
 
   public async mounted() {
     this.buildFileApi()
@@ -65,15 +58,9 @@ class VegaComponent extends Vue {
     this.myState.subfolder = this.subfolder
 
     console.log(this.myState.yamlConfig)
-    // if (!this.yamlConfig) this.buildRouteFromUrl()
 
     await this.getVizDetails()
-    this.changeDimensions()
-    window.addEventListener('resize', this.changeDimensions)
-  }
-
-  public beforeDestroy() {
-    window.removeEventListener('resize', this.changeDimensions)
+    this.embedChart()
   }
 
   @Watch('globalState.isDarkMode')
@@ -86,13 +73,11 @@ class VegaComponent extends Vue {
     // if (!this.vizDetails) return
 
     // figure out dimensions, depending on if we are in a dashboard or not
-    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
-    let width = box.clientWidth
-    let height = box.clientHeight
-    console.log(width, height)
+    let box = document.querySelector(`#${this.zippyId}`) as Element
 
-    if (this.thumbnail) height = 125
-    this.vizDetails.height = height
+    let height = this.thumbnail ? 125 : box.clientHeight
+
+    if (!this.hasHardCodedHeight) this.vizDetails.height = height
 
     this.embedChart()
   }
@@ -148,7 +133,6 @@ class VegaComponent extends Vue {
 
   // this happens if viz is the full page, not a thumbnail on a project page
   private buildRouteFromUrl() {
-    console.log('HEEERE')
     const params = this.$route.params
     if (!params.project || !params.pathMatch) {
       console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
@@ -185,10 +169,7 @@ class VegaComponent extends Vue {
 
       // might be a project config:
       console.log(this.myState.yamlConfig)
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
+      const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
 
       json = await this.myState.fileApi.getFileJson(filename)
 
@@ -212,35 +193,29 @@ class VegaComponent extends Vue {
       return
     }
 
-    // if there is a URL in the schema, try to load/download it locally first
-    if (json.data.url) {
-      try {
-        let data = ''
-        const localUrl = this.myState.subfolder + '/' + json.data.url
-        if (json.data.url.endsWith('.json')) {
-          data = await this.myState.fileApi.getFileJson(localUrl)
-          if (data) json.data = { values: data }
-        } else if (json.data.url.endsWith('.csv')) {
-          data = await this.myState.fileApi.getFileText(localUrl)
-          if (data) json.data = { values: data, format: { type: 'csv' } }
-        }
-      } catch (e) {
-        // didn't work -- let Vega try on its own.
-        console.warn(e)
-      }
+    // Let Vega load it - but first, reformulate the URL to point to the
+    // file store location if it is not a FQDN
+    if (json.data.url && !json.data.url.startsWith('http')) {
+      const localUrl = `${this.myState.fileSystem?.baseURL}/${this.myState.subfolder}/${json.data.url}`
+      json.data.url = localUrl
     }
+
+    // just pass the config to Vega
     return json
   }
 
-  private embedChart() {
+  private async embedChart() {
+    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+    if (!box) return
+
     this.loadingText = 'Building chart...'
 
     const exportActions = { export: true, source: false, compiled: false, editor: false }
+
     const embedOptions = {
       actions: this.thumbnail ? false : exportActions,
       hover: true,
       scaleFactor: 2.0, // make exported PNGs bigger
-      // padding: { top: 5, left: 5, right: 5, bottom: 5 },
     }
 
     // remove legends on thumbnails so chart fits better
@@ -258,7 +233,7 @@ class VegaComponent extends Vue {
             // dark mode
             background: '#00000000',
             config: {
-              axis: { titleColor: 'white', labelColor: 'white' },
+              axis: { titleColor: 'white', labelColor: 'white', gridColor: '#404040' },
               legend: { titleColor: 'white', labelColor: 'white' },
             },
           }
@@ -272,7 +247,23 @@ class VegaComponent extends Vue {
           }
     )
 
-    vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
+    // Note whether user specified a height; we need to know this if the page size changes
+    this.hasHardCodedHeight = !!this.vizDetails.height
+
+    // Use responsive size unless user has forced a size on us
+    if (!this.vizDetails.width) this.vizDetails.width = 'container'
+    if (!this.vizDetails.height) this.vizDetails.height = 'container'
+
+    try {
+      await vegaEmbed(`#${this.cleanConfigId}`, this.vizDetails, embedOptions)
+    } catch (e) {
+      let message = '' + e
+      console.error(message)
+
+      if (message.indexOf('{') > -1) message = message.substring(0, message.indexOf('{'))
+
+      this.$store.commit('error', 'Vega: ' + message)
+    }
   }
 }
 
@@ -292,15 +283,34 @@ export default VegaComponent
 @import '@/styles.scss';
 
 .vega-container {
-  display: flex;
-  flex-direction: column;
-  margin: 0rem 0rem 0rem 0rem;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+}
+
+.labels {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  margin: 1rem 0rem;
+}
+
+.zippy {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+  max-height: 100%;
+  height: 100%;
+  padding-right: 0.75rem;
 }
 
 .vega-chart {
-  flex: 1;
-  margin: 0rem 1rem 1rem 1rem;
-  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  z-index: 0;
 }
 
 h1 {
@@ -315,15 +325,6 @@ h3 {
 h4,
 p {
   margin: 1rem 1rem;
-}
-
-.labels {
-  margin: 1rem 0rem;
-}
-
-.center-chart {
-  margin: 0 auto;
-  flex: 1;
 }
 
 .center {

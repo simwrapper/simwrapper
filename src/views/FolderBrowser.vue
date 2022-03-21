@@ -444,7 +444,7 @@ export default class VueComponent extends Vue {
 
 .vessel {
   margin: 0 auto;
-  padding: 0rem 3rem 2rem 3rem;
+  padding: 0rem 1rem 2rem 1rem;
   max-width: $sizeVessel;
 }
 

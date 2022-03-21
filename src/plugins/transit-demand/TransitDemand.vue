@@ -598,7 +598,8 @@ class MyComponent extends Vue {
     // save the promise by id so we can look it up when we get messages
     const id = this.resolverId++
 
-    this.xmlWorker.postMessage(Object.assign({ id }, props))
+    const fileSystem = this.getFileSystem(props.fileApi)
+    this.xmlWorker.postMessage(Object.assign({ id, fileSystem }, props))
 
     const promise = new Promise((resolve, reject) => {
       this.resolvers[id] = { resolve, reject }

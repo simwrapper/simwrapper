@@ -210,22 +210,30 @@ class MyComponent extends Vue {
     }
 
     // build js object
-    const answer: {
-      nodes: { id: any; title: string }[]
-      links: { source: any; target: any; value: number }[]
-    } = { nodes: [], links: [] }
+    const fromOrder = [] as number[]
+    const toOrder = [] as number[]
+
+    const answer = {
+      nodes: [] as { id: any; title: string }[],
+      links: [] as { source: any; target: any; value: number }[],
+      // alignTypes: true,
+      ordering: [[fromOrder], [toOrder]],
+    }
 
     const fromLookup: any = {}
     const toLookup: any = {}
 
-    fromNodes.forEach((value: string, i: number) => {
-      answer.nodes.push({ id: i, title: value })
-      fromLookup[value] = i
+    fromNodes.forEach((title: string, i: number) => {
+      answer.nodes.push({ id: i, title })
+      fromLookup[title] = i
+      fromOrder.push(i)
     })
 
-    toNodes.forEach((value: string, i: number) => {
-      answer.nodes.push({ id: i + fromNodes.length, title: value })
-      toLookup[value] = i + fromNodes.length
+    toNodes.forEach((title: string, i: number) => {
+      const offset = i + fromNodes.length
+      answer.nodes.push({ id: offset, title })
+      toLookup[title] = offset
+      toOrder.push(offset)
     })
 
     for (const link of links) {
@@ -246,20 +254,39 @@ class MyComponent extends Vue {
 
   private colorRamp: string[] = []
 
+  private getMaxLabelWidth() {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) return 120
+
+    context.font = '16px Arial'
+
+    let max = 0
+
+    for (const node of this.jsonChart.nodes) {
+      const text = node.title
+      const width = context.measureText(text).width
+      max = Math.max(max, width)
+    }
+
+    return max
+  }
+
   private doD3() {
     const data = this.jsonChart
-    data.alignTypes = true
-    data.alignLinkTypes = true
+    // data.alignTypes = true
+    // data.alignLinkTypes = true
 
     // figure out dimensions, depending on if we are in a dashboard or not
     let box = document.querySelector(`#${this.cleanConfigId}`) as Element
     let width = box ? box.clientWidth : 100
     let height = box ? box.clientHeight : 100
 
-    let labelWidth = this.thumbnail ? 60 : 125
+    let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
 
     const layout = sankey()
       .nodeWidth(8)
+      .ordering(data.ordering)
       .extent([
         [labelWidth, 0],
         [width - labelWidth, height],

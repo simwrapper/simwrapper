@@ -4,13 +4,11 @@ import { InitParams, MethodNames } from './XmlFetcherContract'
 import pako from 'pako'
 import { parseXML } from '@/js/util'
 
-import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 
 class XmlFetcher extends AsyncBackgroundWorker {
   private params!: InitParams
-  private state = globalStore.state
 
   public handleInitialize(call: MethodCall) {
     this.params = call.parameters as InitParams
@@ -26,9 +24,10 @@ class XmlFetcher extends AsyncBackgroundWorker {
   }
 
   private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
+    const svnProject: FileSystemConfig[] = []
+    // const svnProject: FileSystemConfig[] = this.state.svnProjects.filter(
+    //   (a: FileSystemConfig) => a.slug === name
+    // )
     if (svnProject.length === 0) {
       console.log('no such project')
       throw Error

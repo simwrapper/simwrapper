@@ -126,7 +126,8 @@ export default class VueComponent extends Vue {
 
   private clickedExport() {
     let suggestedFilename = 'viz-links-export.yaml'
-    const configFile = this.yamlConfig.toLocaleLowerCase()
+
+    const configFile = this.yamlConfig?.toLocaleLowerCase() || ''
     if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
       suggestedFilename = this.yamlConfig
     }
