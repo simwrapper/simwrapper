@@ -1,4 +1,5 @@
 // import plugins in the order you want them to appear on project pages
+import AreaMap from '@/plugins/shape-file/FancyPolygonMap.vue'
 import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
 import VehicleAnimation from '@/plugins/vehicle-animation/VehicleAnimation.vue'
 import CalculationTable from '@/plugins/calculation-table/CalculationTable.vue'
@@ -15,6 +16,7 @@ import ImageView from '@/plugins/image/ImageView.vue'
 // // EVERY plugin must also be exported here:
 const plugins = {
   AggregateOd,
+  AreaMap,
   CalculationTable,
   CarrierViewer,
   ImageView,

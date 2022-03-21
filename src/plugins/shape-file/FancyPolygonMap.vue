@@ -1,9 +1,11 @@
 <template lang="pug">
-.map-layout
-  polygon-and-circle-map.choro-map(:props="mapProps")
-  zoom-buttons
+.map-layout(:class="{'hide-thumbnail': !thumbnail}"
+        :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  viz-configurator(v-if="isLoaded"
+  polygon-and-circle-map.choro-map(v-if="!thumbnail" :props="mapProps")
+  zoom-buttons(v-if="isLoaded && !thumbnail")
+
+  viz-configurator(v-if="isLoaded && !thumbnail"
     :sections="['fill']"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
@@ -12,7 +14,7 @@
     :datasets="datasets"
     @update="changeConfiguration")
 
-  .config-bar
+  .config-bar(v-if="isLoaded && !thumbnail" :class="{'is-standalone': !configFromDashboard}")
     .filter
       p Display
       b-dropdown(v-model="datasetValuesColumn"
@@ -60,7 +62,7 @@ import YAML from 'yaml'
 
 import globalStore from '@/store'
 import { DataTable, DataTableColumn, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
+import PolygonAndCircleMap from '@/plugins/shape-file/PolygonAndCircleMap.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
@@ -80,14 +82,17 @@ interface FilterDetails {
 
 @Component({ components: { PolygonAndCircleMap, VizConfigurator, ZoomButtons } })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
   @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-  @Prop({ required: true }) datamanager!: DashboardDataManager
+  @Prop({ required: false }) configFromDashboard!: any
+  @Prop({ required: false }) datamanager!: DashboardDataManager
   @Prop({ required: false }) yamlConfig!: string
+  @Prop({ required: false }) thumbnail!: boolean
+  @Prop({ required: true }) root!: string
+  @Prop({ required: false }) fsConfig!: FileSystemConfig
 
   private fileApi!: HTTPFileSystem
+  private fileSystemConfig!: FileSystemConfig
+
   private boundaries: any[] = []
   private centroids: any[] = []
 
@@ -144,13 +149,27 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private myDataManager!: DashboardDataManager
+
+  private config: any = {}
+
   private async mounted() {
     try {
-      this.expColors = this.config.display?.fill?.exponentColors
+      this.buildFileApi()
 
-      this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
+
+      this.expColors = this.config.display?.fill?.exponentColors
+      // convert values to arrays as needed
+      this.config.display.fill.filters = this.convertCommasToArray(this.config.display.fill.filters)
+
+      if (this.config.display.fill.values) {
+        this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
+      }
 
       // load the boundaries and the dataset, use promises so we can clear
       // the spinner when things are finished
@@ -166,7 +185,7 @@ export default class VueComponent extends Vue {
   }
 
   private beforeDestroy() {
-    this.datamanager.removeFilterListener(this.config, this.filterListener)
+    this.myDataManager.removeFilterListener(this.config, this.filterListener)
   }
 
   private convertCommasToArray(thing: any): any[] {
@@ -187,24 +206,20 @@ export default class VueComponent extends Vue {
       display: { fill: {} as any },
     }
 
-    // convert values to arrays as needed
-    this.config.display.fill.filters = this.convertCommasToArray(this.config.display.fill.filters)
-
-    if (this.config.display.fill.values) {
-      this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
-    }
-
     // are we in a dashboard?
-    if (this.config) {
-      this.vizDetails = Object.assign({}, emptyState, this.config)
+    if (this.configFromDashboard) {
+      this.config = Object.assign({}, this.configFromDashboard)
+      this.vizDetails = Object.assign({}, emptyState, this.configFromDashboard)
       return
     }
 
-    // // was a YAML file was passed in?
-    // const filename = this.yamlConfig
-    // if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-    //   this.vizDetails = Object.assign({}, emptyState, await this.loadYamlConfig())
-    // }
+    // was a YAML file was passed in?
+    const filename = this.yamlConfig
+    if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+      const ycfg = await this.loadYamlConfig()
+      this.config = Object.assign({}, ycfg)
+      this.vizDetails = Object.assign({}, emptyState, ycfg)
+    }
 
     // // is this a bare network file? - build vizDetails manually
     // if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
@@ -219,6 +234,23 @@ export default class VueComponent extends Vue {
 
     const t = this.vizDetails.title || 'Map'
     this.$emit('title', t)
+  }
+
+  private getFileSystem(name: string) {
+    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+      (a: FileSystemConfig) => a.slug === name
+    )
+    if (svnProject.length === 0) {
+      console.log('no such project')
+      throw Error
+    }
+    return svnProject[0]
+  }
+
+  public buildFileApi() {
+    const filesystem = this.fsConfig || this.getFileSystem(this.root)
+    this.fileApi = new HTTPFileSystem(filesystem)
+    this.fileSystemConfig = filesystem
   }
 
   private async loadYamlConfig() {
@@ -313,7 +345,7 @@ export default class VueComponent extends Vue {
 
   private async filterListener() {
     try {
-      let { filteredRows } = await this.datamanager.getFilteredDataset({
+      let { filteredRows } = await this.myDataManager.getFilteredDataset({
         dataset: this.datasetFilename,
       })
 
@@ -413,13 +445,13 @@ export default class VueComponent extends Vue {
       // for now just load first dataset
       const datasetId = Object.keys(this.config.datasets)[0]
       this.datasetFilename = this.config.datasets[datasetId].file
-      const dataset = await this.datamanager.getDataset({ dataset: this.datasetFilename })
+      const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
 
       // figure out join - use ".join" or first column key
       this.datasetJoinColumn =
         this.config.datasets[datasetId].join || Object.keys(this.config.datasets[datasetId])[0]
 
-      this.datamanager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+      this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
       this.dataRows = dataset.allRows
       this.datasets[datasetId] = dataset.allRows
@@ -457,7 +489,7 @@ export default class VueComponent extends Vue {
 
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
-    this.datamanager.setFilter(this.datasetFilename, column, active)
+    this.myDataManager.setFilter(this.datasetFilename, column, active)
   }
 
   private datasetValuesColumn = ''
@@ -569,9 +601,19 @@ globalStore.commit('registerPlugin', {
   right: 0;
   display: flex;
   flex-direction: column;
+  min-height: $thumbnailHeight;
+  background: url('assets/thumbnail.jpg') no-repeat;
+  background-size: cover;
+  z-index: -1;
+}
+
+.map-layout.hide-thumbnail {
+  background: unset;
+  z-index: 0;
 }
 
 .choro-map {
+  z-index: -1;
   flex: 1;
 }
 
@@ -599,6 +641,10 @@ globalStore.commit('registerPlugin', {
   .img-button:hover {
     border: 2px solid var(--linkHover);
   }
+}
+
+.config-bar.is-standalone {
+  padding: 0.5rem 0.5rem;
 }
 
 .filter {

@@ -1,10 +1,9 @@
 <template lang="pug">
 fancy-polygon-map.deck-map(
-  :files="files"
-  :fileSystemConfig="fileSystemConfig"
+  :fsConfig="fileSystemConfig"
   :root="fileSystemConfig.slug"
   :subfolder="subfolder"
-  :config="config"
+  :configFromDashboard="config"
   :thumbnail="false"
   :datamanager="datamanager"
   :yamlConfig="'funk-yaml-config.yaml'"
