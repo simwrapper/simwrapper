@@ -136,6 +136,7 @@ export default class VueComponent extends Vue {
       color: {},
       width: {},
       circle: {},
+      fill: {},
       // outline: {},
       label: {},
     },
@@ -180,6 +181,7 @@ export default class VueComponent extends Vue {
       delete config.display.fill?.colorRamp?.style
       delete config.display.fill?.generatedColors
     }
+
     // delete empty display sections
     for (const entries of Object.entries(config.display) as any[]) {
       console.log(entries)

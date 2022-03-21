@@ -4,8 +4,8 @@
     .widget
         b-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="")
-          optgroup(v-for="dataset in datasetChoices()"
-                  :key="dataset" :label="dataset")
+
+          optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
   .colorbar.single(v-show="!dataColumn")
@@ -110,6 +110,16 @@ export default class VueComponent extends Vue {
 
   private isFirstDataset = true
 
+  @Watch('vizConfiguration')
+  private vizConfigChanged() {
+    const config = this.vizConfiguration.display?.fill
+    if (config?.columnName) {
+      const selectedColumn = `${config.dataset}/${config.columnName}`
+      this.dataColumn = selectedColumn
+      this.datasetLabels = [...this.datasetLabels]
+    }
+  }
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
@@ -120,7 +130,9 @@ export default class VueComponent extends Vue {
 
     if (datasetIds.length) this.isFirstDataset = false
 
-    const { dataset, columnName, colorRamp } = this.vizConfiguration.display.color
+    let { dataset, columnName, colorRamp, values } = this.vizConfiguration.display.fill
+
+    if (values) columnName = values[0]
 
     if (dataset && columnName) {
       console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
@@ -134,8 +146,9 @@ export default class VueComponent extends Vue {
         if (colorRamp.steps) this.steps = '' + colorRamp.steps
       }
     } else if (datasetIds.length) {
+      // Grab the first useful column
+      // Only do this if user has NOT specified a starting column
       const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-      // console.log(secondColumn)
       if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
     }
   }

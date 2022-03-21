@@ -153,17 +153,23 @@ export default class VueComponent extends Vue {
             id: 'scatterplot-layer',
             data: this.props.data,
             pickable: true,
+            autoHighlight: true,
+            highlightColor: [255, 0, 200],
             opacity: 0.01 * this.props.opacity,
             stroked: true,
             filled: true,
-            radiusScale: 2,
+            radiusScale: 0.25,
             radiusMinPixels: 0,
-            radiusMaxPixels: 250,
+            // radiusMaxPixels: 50,
             radiusUnits: 'pixels',
             lineWidthMinPixels: 1,
-            getLineColor: this.props.dark ? [100, 100, 100] : [255, 255, 255],
+            getLineColor: this.props.dark ? [0, 0, 0] : [200, 200, 200],
             getPosition: (d: any) => d.geometry.coordinates,
-            getRadius: (d: any) => 15 * Math.sqrt(d.properties.value / this.props.maxValue),
+            getRadius: (d: any) => {
+              const v = Math.sqrt(d.properties.value) //  / this.props.maxValue)
+              // const v = Math.sqrt(d.properties.value / this.props.maxValue)
+              return isNaN(v) ? 0 : v
+            },
             getFillColor: (d: any) => {
               if (this.props.colors.length === 1) return colorsAsRGB[0]
               const v = d.properties[this.props.activeColumn]

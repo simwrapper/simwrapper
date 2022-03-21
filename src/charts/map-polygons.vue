@@ -56,6 +56,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { group, zip, sum } from 'd3-array'
 import * as turf from '@turf/turf'
+import YAML from 'yaml'
 
 import { DataTable, DataTableColumn, FileSystemConfig } from '@/Globals'
 import PolygonAndCircleMap from '@/components/PolygonAndCircleMap.vue'
@@ -83,6 +84,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) files!: string[]
   @Prop({ required: true }) config!: any
   @Prop({ required: true }) datamanager!: DashboardDataManager
+  @Prop({ required: false }) yamlConfig!: string
 
   private fileApi!: HTTPFileSystem
   private boundaries: any[] = []
@@ -146,7 +148,8 @@ export default class VueComponent extends Vue {
       this.expColors = this.config.display?.fill?.exponentColors
 
       this.fileApi = new HTTPFileSystem(this.fileSystemConfig)
-      // bulmaSlider.attach()
+
+      await this.getVizDetails()
 
       // load the boundaries and the dataset, use promises so we can clear
       // the spinner when things are finished
@@ -163,6 +166,73 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     this.datamanager.removeFilterListener(this.config, this.filterListener)
+  }
+
+  private convertCommasToArray(thing: any): any[] {
+    if (thing === undefined) return []
+    if (Array.isArray(thing)) return thing
+
+    if (thing.indexOf(',') > -1) {
+      thing = thing.split(',').map((f: any) => f.trim())
+    } else {
+      thing = [thing.trim()]
+    }
+    return thing
+  }
+
+  private async getVizDetails() {
+    const emptyState = {
+      datasets: {} as any,
+      display: { fill: {} as any },
+    }
+
+    // convert values to arrays as needed
+    this.config.display.fill.filters = this.convertCommasToArray(this.config.display.fill.filters)
+
+    if (this.config.display.fill.values) {
+      this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
+    }
+
+    // are we in a dashboard?
+    if (this.config) {
+      this.vizDetails = Object.assign({}, emptyState, this.config)
+      return
+    }
+
+    // // was a YAML file was passed in?
+    // const filename = this.yamlConfig
+    // if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+    //   this.vizDetails = Object.assign({}, emptyState, await this.loadYamlConfig())
+    // }
+
+    // // is this a bare network file? - build vizDetails manually
+    // if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
+    //   const title = 'Network: ' + this.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
+
+    //   this.vizDetails = Object.assign({}, this.vizDetails, {
+    //     network: this.yamlConfig,
+    //     title,
+    //     description: this.subfolder,
+    //   })
+    // }
+
+    const t = this.vizDetails.title || 'Map'
+    this.$emit('title', t)
+  }
+
+  private async loadYamlConfig() {
+    if (!this.fileApi) return {}
+
+    try {
+      const filename =
+        this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
+
+      const text = await this.fileApi.getFileText(filename)
+      return YAML.parse(text)
+    } catch (err) {
+      console.error('failed')
+      const e = err as any
+    }
   }
 
   /**
@@ -202,8 +272,12 @@ export default class VueComponent extends Vue {
     }
 
     const datasetKey = fill.dataset
+
     const selectedDataset = this.datasets[datasetKey]
     if (!selectedDataset) return
+
+    this.datasetValuesColumn = columnName
+    this.filterListener()
 
     // if (this.csvData.dataTable !== selectedDataset) {
     //   this.csvData = {
@@ -359,15 +433,6 @@ export default class VueComponent extends Vue {
     let filterColumns = this.config.display.fill.filters
     if (!filterColumns) return
 
-    // Get the set of filters from array / string / list
-    if (!Array.isArray(filterColumns)) {
-      if (filterColumns.indexOf(',') > -1) {
-        filterColumns = filterColumns.split(',').map((f: any) => f.trim())
-      } else {
-        filterColumns = [filterColumns.trim()]
-      }
-    }
-
     // Get the set of options available for each filter
     filterColumns.forEach((f: string) => {
       let options = [...new Set(this.dataRows[f].values)]
@@ -380,8 +445,12 @@ export default class VueComponent extends Vue {
     return label
   }
 
-  private handleUserSelectedNewMetric() {
+  private async handleUserSelectedNewMetric() {
+    await this.$nextTick()
     console.log('METRIC', this.datasetValuesColumn)
+
+    this.vizDetails.display.fill.columnName = this.datasetValuesColumn
+    this.vizDetails = Object.assign({}, this.vizDetails)
     this.filterListener()
   }
 
@@ -408,24 +477,12 @@ export default class VueComponent extends Vue {
     const datasetJoinCol = this.datasetJoinColumn // used to be this.config.display.fill.join
     if (!datasetJoinCol) throw Error(`Cannot find column ${datasetJoinCol}`)
 
-    // value columns can be a string; a string,with,commas; or an array; or missing!
+    // value columns should be an array but might not be there yet
     let valueColumns = this.config.display.fill.values
-    let datasetValuesCol = valueColumns
+    if (!valueColumns) throw Error(`Need to specify column for data values`)
 
-    // figure out first (only?) data column to be displayed
-    if (Array.isArray(valueColumns)) {
-      datasetValuesCol = valueColumns[0] // TODO for now
-    } else if (valueColumns.indexOf(',') > -1) {
-      // comma,separated,list:
-      valueColumns = valueColumns.split(',').map((f: any) => f.trim())
-      datasetValuesCol = valueColumns[0] // TODO for now
-    } else {
-      // just one item
-      valueColumns = [valueColumns]
-      datasetValuesCol = valueColumns[0] // TODO for now
-    }
+    let datasetValuesCol = valueColumns[0] // TODO for now use first
 
-    if (!datasetValuesCol) throw Error(`Need to specify column for data values`)
     this.datasetValuesColumn = datasetValuesCol
     this.datasetValuesColumnOptions = valueColumns
 

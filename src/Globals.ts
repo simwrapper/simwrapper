@@ -66,7 +66,7 @@ export interface CSV {
 
 export type VizLayerConfiguration = {
   datasets: { [id: string]: string }
-  display: { color: any; width: any }
+  display: { color: any; width: any; fill: any }
 }
 
 export type YamlConfigs = {
