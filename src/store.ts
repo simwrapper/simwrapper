@@ -58,7 +58,7 @@ export default new Vuex.Store({
     colorScheme: ColorScheme.LightMode,
     locale: 'en',
     localFileHandles: [] as any[],
-    runFolders: {},
+    runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
     viewState: initialViewState() as {
@@ -118,7 +118,7 @@ export default new Vuex.Store({
       if (!value.jump) state.viewState = value
       else if (state.viewState.initial) state.viewState = value
     },
-    error(state: GlobalState, value: Warnings) {
+    error(state, value: Warnings) {
       // don't repeat yourself
       if (
         !state.statusErrors.length ||
@@ -127,7 +127,7 @@ export default new Vuex.Store({
         state.statusErrors.push(value)
       }
     },
-    setStatus(state: GlobalState, value: { type: Status; msg: string; desc?: string }) {
+    setStatus(state, value: { type: Status; msg: string; desc?: string }) {
       if (!value.desc?.length) {
         value.desc = ''
       }
