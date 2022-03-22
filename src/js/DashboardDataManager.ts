@@ -130,6 +130,17 @@ export default class DashboardDataManager {
     }
   }
 
+  public setPreloadedDataset(props: { key: string; dataTable: DataTable; filename: string }) {
+    this.datasets[props.filename] = {
+      dataset: new Promise<DataTable>((resolve, reject) => {
+        resolve(props.dataTable)
+      }),
+      activeFilters: {},
+      filteredRows: null,
+      filterListeners: new Set(),
+    }
+  }
+
   /**
    *
    * @param path Full path/filename to the network file

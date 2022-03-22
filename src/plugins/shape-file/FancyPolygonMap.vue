@@ -200,6 +200,11 @@ export default class VueComponent extends Vue {
     return thing
   }
 
+  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
+  private get urlThumbnail() {
+    return this.thumbnailUrl
+  }
+
   private async getVizDetails() {
     const emptyState = {
       datasets: {} as any,
@@ -215,22 +220,26 @@ export default class VueComponent extends Vue {
 
     // was a YAML file was passed in?
     const filename = this.yamlConfig
+
     if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
       const ycfg = await this.loadYamlConfig()
       this.config = Object.assign({}, ycfg)
       this.vizDetails = Object.assign({}, emptyState, ycfg)
     }
 
-    // // is this a bare network file? - build vizDetails manually
-    // if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
-    //   const title = 'Network: ' + this.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
+    // is this a bare geojson file? - build vizDetails manually
+    if (/(\.geojson)(|\.gz)$/.test(filename)) {
+      console.log('FILENAM!', filename)
+      const title = 'GeoJSON: ' + filename
 
-    //   this.vizDetails = Object.assign({}, this.vizDetails, {
-    //     network: this.yamlConfig,
-    //     title,
-    //     description: this.subfolder,
-    //   })
-    // }
+      this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
+        title,
+        description: this.subfolder,
+        shapes: filename,
+      })
+
+      this.config = Object.assign({}, this.vizDetails)
+    }
 
     const t = this.vizDetails.title || 'Map'
     this.$emit('title', t)
@@ -293,7 +302,27 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private handleNewDataset(dataset: DatasetDefinition) {}
+  private handleNewDataset(props: DatasetDefinition) {
+    console.log('NEW dataset', props)
+    const { key, dataTable, filename } = props
+
+    const datasetId = key
+    this.datasetFilename = filename || datasetId
+
+    // figure out join - use ".join" or first column key
+    this.datasetJoinColumn = Object.keys(dataTable)[0] || 'id'
+
+    //TODO  add this dataset to the datamanager
+    this.myDataManager.setPreloadedDataset({ key, dataTable, filename: this.datasetFilename })
+    this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+
+    // this.vizDetails.datasets[datasetId] = { file: this.datasetFilename } as any
+    // this.vizDetails = Object.assign({}, this.vizDetails)
+
+    this.dataRows = dataTable
+    this.datasets[datasetId] = dataTable
+    this.datasetValuesColumnOptions = Object.keys(dataTable)
+  }
 
   private handleNewFill(fill: FillDefinition) {
     this.generatedColors = fill.generatedColors
@@ -493,7 +522,7 @@ export default class VueComponent extends Vue {
   }
 
   private datasetValuesColumn = ''
-  private datasetValuesColumnOptions = []
+  private datasetValuesColumnOptions = [] as string[]
 
   private updateChart() {
     // dataRows come back as an object of columnName: values[].
@@ -585,7 +614,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'area-map',
   prettyName: 'Area Map',
   description: 'Area Map',
-  filePatterns: ['**/viz-map*.y?(a)ml'],
+  filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)'],
   component: VueComponent,
 } as VisualizationPlugin)
 </script>
