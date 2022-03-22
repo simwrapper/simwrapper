@@ -37,7 +37,9 @@
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" :title="$t('theme')"): i.fa.fa-adjust
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" :title="$t('lang')"): i.fa.fa-globe
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
       button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" :title="$t('split')"): i.fa.fa-columns
 
     p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
@@ -102,6 +104,14 @@ class MyComponent extends Vue {
 
   @Watch('$store.state.runFolderCount') updatedCount() {
     this.debounceRunFoldersChanged()
+  }
+
+  @Watch('$store.state.statusErrors') openErrorPage() {
+    this.showWarnings = true
+  }
+
+  @Watch('$store.state.statusWarnings') openWarningPage() {
+    this.showWarnings = true
   }
 
   @Watch('state.isDarkMode') updateTheme() {
