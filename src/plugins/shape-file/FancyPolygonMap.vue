@@ -15,7 +15,8 @@
     @update="changeConfiguration")
 
   .config-bar(v-if="isLoaded && !thumbnail" :class="{'is-standalone': !configFromDashboard}")
-    .filter
+    //- Column picker
+    .filter(v-if="datasetValuesColumnOptions.length")
       p Display
       b-dropdown(v-model="datasetValuesColumn"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
@@ -27,6 +28,7 @@
         b-dropdown-item(v-for="option in datasetValuesColumnOptions"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
+    //- Filter pickers
     .filter(v-for="filter in Object.keys(filters)")
       p {{ filter }}
       b-dropdown(
@@ -229,7 +231,6 @@ export default class VueComponent extends Vue {
 
     // is this a bare geojson file? - build vizDetails manually
     if (/(\.geojson)(|\.gz)$/.test(filename)) {
-      console.log('FILENAM!', filename)
       const title = 'GeoJSON: ' + filename
 
       this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
@@ -316,11 +317,16 @@ export default class VueComponent extends Vue {
     this.myDataManager.setPreloadedDataset({ key, dataTable, filename: this.datasetFilename })
     this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
-    // this.vizDetails.datasets[datasetId] = { file: this.datasetFilename } as any
-    // this.vizDetails = Object.assign({}, this.vizDetails)
+    this.vizDetails.datasets[datasetId] = {
+      file: this.datasetFilename,
+      join: this.datasetJoinColumn,
+    } as any
+    this.vizDetails = Object.assign({}, this.vizDetails)
 
     this.dataRows = dataTable
     this.datasets[datasetId] = dataTable
+    this.datasets = Object.assign({}, this.datasets)
+
     this.datasetValuesColumnOptions = Object.keys(dataTable)
   }
 
@@ -328,35 +334,17 @@ export default class VueComponent extends Vue {
     this.generatedColors = fill.generatedColors
 
     const columnName = fill.columnName
-    if (!columnName) {
-      // this.csvData.activeColumn = ''
-      return
+
+    if (columnName) {
+      const datasetKey = fill.dataset
+      const selectedDataset = this.datasets[datasetKey]
+      if (selectedDataset) {
+        this.activeColumn = 'value'
+        this.datasetValuesColumn = columnName
+      }
     }
 
-    const datasetKey = fill.dataset
-
-    const selectedDataset = this.datasets[datasetKey]
-    if (!selectedDataset) return
-
-    this.datasetValuesColumn = columnName
     this.filterListener()
-
-    // if (this.csvData.dataTable !== selectedDataset) {
-    //   this.csvData = {
-    //     dataTable: selectedDataset,
-    //     activeColumn: '',
-    //     csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
-    //   }
-    // }
-
-    // const column = this.csvData.dataTable[columnName]
-    // if (!column) return
-    // // if (column === this.csvData.activeColumn) return
-
-    // this.csvData.activeColumn = column.name
-    // this.csvBase.activeColumn = column.name
-
-    // this.isButtonActiveColumn = false
   }
 
   private async handleMapClick(click: any) {
@@ -445,14 +433,19 @@ export default class VueComponent extends Vue {
       throw Error(`Could not load "${shapes}"`)
     }
     if (!this.boundaries) throw Error(`"features" not found in shapes file`)
-    this.generateCentroids()
+    this.generateCentroidsAndMapCenter()
   }
 
-  private generateCentroids() {
+  private generateCentroidsAndMapCenter() {
     const idField = this.config.shapes.join || 'id'
+
+    // Find the map center while we're here
+    let centerLong = 0
+    let centerLat = 0
 
     for (const feature of this.boundaries) {
       const centroid = turf.centerOfMass(feature as any)
+
       if (!centroid.properties) centroid.properties = {}
 
       if (feature.properties[this.config.boundariesLabel]) {
@@ -463,7 +456,24 @@ export default class VueComponent extends Vue {
       if (centroid.properties.id === undefined) centroid.properties.id = feature[idField]
 
       this.centroids.push(centroid)
+
+      if (centroid.geometry) {
+        centerLong += centroid.geometry.coordinates[0]
+        centerLat += centroid.geometry.coordinates[1]
+      }
     }
+
+    centerLong /= this.centroids.length
+    centerLat /= this.centroids.length
+
+    this.$store.commit('setMapCamera', {
+      longitude: centerLong,
+      latitude: centerLat,
+      bearing: 0,
+      pitch: 0,
+      zoom: 8,
+      initial: true,
+    })
   }
 
   private datasetJoinColumn = ''
@@ -511,6 +521,9 @@ export default class VueComponent extends Vue {
     await this.$nextTick()
     console.log('METRIC', this.datasetValuesColumn)
 
+    this.maxValue = this.dataRows[this.datasetValuesColumn].max || 0
+    console.log('MAXVALUE', this.maxValue)
+
     this.vizDetails.display.fill.columnName = this.datasetValuesColumn
     this.vizDetails = Object.assign({}, this.vizDetails)
     this.filterListener()
@@ -537,7 +550,10 @@ export default class VueComponent extends Vue {
     // throw Error('Need "join" property to link shapes to datasets')
 
     const datasetJoinCol = this.datasetJoinColumn // used to be this.config.display.fill.join
-    if (!datasetJoinCol) throw Error(`Cannot find column ${datasetJoinCol}`)
+    if (!datasetJoinCol) {
+      console.error(`No join column ${datasetJoinCol}`)
+      return
+    }
 
     // value columns should be an array but might not be there yet
     let valueColumns = this.config.display.fill.values
@@ -574,31 +590,13 @@ export default class VueComponent extends Vue {
 
     this.maxValue = this.dataRows[datasetValuesCol].max || 0
 
-    let centerLong = 0
-    let centerLat = 0
-
     // 3. insert values into centroids
     this.centroids.forEach(centroid => {
-      centerLong += centroid.geometry.coordinates[0]
-      centerLat += centroid.geometry.coordinates[1]
-
       const centroidId = centroid.properties!.id
       if (!centroidId) return
 
       const row = groupLookup.get(centroidId)
       centroid.properties!.value = row ? sum(row.map(v => v[1])) : 'N/A'
-    })
-
-    centerLong /= this.centroids.length
-    centerLat /= this.centroids.length
-
-    this.$store.commit('setMapCamera', {
-      longitude: centerLong,
-      latitude: centerLat,
-      bearing: 0,
-      pitch: 0,
-      zoom: 8,
-      initial: true,
     })
 
     // sort them so big bubbles are below small bubbles

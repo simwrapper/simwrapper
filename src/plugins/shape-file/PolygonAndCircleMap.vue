@@ -91,8 +91,11 @@ export default class VueComponent extends Vue {
     let tooltipHeight = 24 + 22 * Object.keys(object.properties).length
     if (y + tooltipHeight < window.innerHeight) tooltipHeight = 0
 
+    const entries = Object.entries(object.properties)
+    if (!entries.length) return null
+
     let html = `<div id="shape-tooltip" class="tooltip">`
-    for (const [key, value] of Object.entries(object.properties)) {
+    for (const [key, value] of entries) {
       html = html + `<div>${key}:&nbsp;<b>${value}</b></div>`
     }
 
@@ -138,8 +141,8 @@ export default class VueComponent extends Vue {
       : scaleThreshold().range(colorsAsRGB).domain(domain)
 
     // this assumes that zero means hide the link. This may not be generic enough
-    const colorPaleGrey = this.props.dark ? [80, 80, 80, 96] : [212, 212, 212]
-    const colorInvisible = [0, 0, 0, 0]
+    // const colorPaleGrey = this.props.dark ? [80, 80, 80, 96] : [212, 212, 212]
+    // const colorInvisible = [0, 0, 0, 0]
 
     // const fetchColor = scaleThreshold()
     //   .domain(new Array(20).fill(0).map((v, i) => 0.05 * i))
@@ -158,16 +161,16 @@ export default class VueComponent extends Vue {
             opacity: 0.01 * this.props.opacity,
             stroked: true,
             filled: true,
-            radiusScale: 0.25,
+            radiusScale: 2,
             radiusMinPixels: 0,
-            // radiusMaxPixels: 50,
+            radiusMaxPixels: 50,
             radiusUnits: 'pixels',
             lineWidthMinPixels: 1,
             getLineColor: this.props.dark ? [0, 0, 0] : [200, 200, 200],
             getPosition: (d: any) => d.geometry.coordinates,
             getRadius: (d: any) => {
-              const v = Math.sqrt(d.properties.value) //  / this.props.maxValue)
-              // const v = Math.sqrt(d.properties.value / this.props.maxValue)
+              const v = 15 * Math.sqrt(d.properties.value / this.props.maxValue)
+              // const v = Math.sqrt(d.properties.value)
               return isNaN(v) ? 0 : v
             },
             getFillColor: (d: any) => {
@@ -180,6 +183,7 @@ export default class VueComponent extends Vue {
             },
             updateTriggers: {
               getFillColor: {
+                data: this.props.data,
                 dark: this.props.dark,
                 colors: this.props.colors,
                 activeColumn: this.props.activeColumn,
