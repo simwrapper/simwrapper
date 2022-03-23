@@ -2,6 +2,10 @@
 .map-layout(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
+  .title-panel(v-if="vizDetails.title && !thumbnail")
+     h3 {{ vizDetails.title }}
+     p {{ vizDetails.description }}
+
   polygon-and-circle-map.choro-map(v-if="!thumbnail" :props="mapProps")
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -573,6 +577,8 @@ export default class VueComponent extends Vue {
     const dataValues = this.dataRows[datasetValuesCol].values
     const groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
 
+    let max = 0
+
     // 2. insert values into geojson
     this.boundaries.forEach(boundary => {
       // id can be in root of feature, or in properties
@@ -585,9 +591,15 @@ export default class VueComponent extends Vue {
 
       // SUM the values of the second elements of the zips from (1) above
       const row = groupLookup.get(lookupValue)
-      boundary.properties.value = row ? sum(row.map(v => v[1])) : 'N/A'
+      if (row) {
+        boundary.properties.value = sum(row.map(v => v[1]))
+        max = Math.max(max, boundary.properties.value)
+      } else {
+        boundary.properties.value = 'N/A'
+      }
     })
 
+    // this.maxValue = max // this.dataRows[datasetValuesCol].max || 0
     this.maxValue = this.dataRows[datasetValuesCol].max || 0
 
     // 3. insert values into centroids
@@ -689,6 +701,14 @@ globalStore.commit('registerPlugin', {
   font-weight: bold;
 }
 
+.title-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 1rem 0.25rem 2rem;
+  background-color: var(--bgPanel);
+  filter: $filterShadow;
+}
 @media only screen and (max-width: 640px) {
 }
 </style>
