@@ -190,7 +190,7 @@ export default class VueComponent extends Vue {
                 maxValue: this.props.maxValue,
               },
             },
-            transitions: { getFillColor: 250 },
+            transitions: { getFillColor: 250, getRadius: 250 },
             parameters: { depthTest: false },
           })
         : new GeoJsonLayer({

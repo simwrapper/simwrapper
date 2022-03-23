@@ -51,6 +51,22 @@
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
+    //- Filter ADDers
+    .filter(v-if="availableFilterColumns.length")
+      p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
+      b-dropdown(v-model="chosenNewFilterColumn"
+        @change="handleUserCreatedNewFilter"
+        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+      )
+        template(#trigger="{ active }")
+          b-button.is-primary.is-outlined(
+            label="+"
+          )
+
+        b-dropdown-item(v-for="option in availableFilterColumns"
+          :key="option" :value="option" aria-role="listitem"
+        ) {{ option }}
+
     input.slider.is-small.is-fullwidth.is-primary(
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
 
@@ -101,6 +117,9 @@ export default class VueComponent extends Vue {
 
   private boundaries: any[] = []
   private centroids: any[] = []
+
+  private chosenNewFilterColumn = ''
+  private availableFilterColumns: string[] = []
 
   private dataRows: DataTable = {}
 
@@ -331,7 +350,16 @@ export default class VueComponent extends Vue {
     this.datasets[datasetId] = dataTable
     this.datasets = Object.assign({}, this.datasets)
 
-    this.datasetValuesColumnOptions = Object.keys(dataTable)
+    this.figureOutRemainingFilteringOptions()
+  }
+
+  private figureOutRemainingFilteringOptions() {
+    this.datasetValuesColumnOptions = Object.keys(this.dataRows)
+    const existingFilterColumnNames = Object.keys(this.filters)
+    const columns = Array.from(this.datasetValuesColumnOptions).filter(
+      f => f !== this.datasetJoinColumn && existingFilterColumnNames.indexOf(f) === -1
+    )
+    this.availableFilterColumns = columns
   }
 
   private handleNewFill(fill: FillDefinition) {
@@ -498,6 +526,7 @@ export default class VueComponent extends Vue {
 
       this.dataRows = dataset.allRows
       this.datasets[datasetId] = dataset.allRows
+      this.figureOutRemainingFilteringOptions()
     } catch (e) {
       const message = '' + e
       console.log(message)
@@ -514,6 +543,8 @@ export default class VueComponent extends Vue {
       let options = [...new Set(this.dataRows[f].values)]
       this.filters[f] = { column: f, label: f, options, active: [] }
     })
+
+    this.figureOutRemainingFilteringOptions()
   }
 
   private filterLabel(filter: string) {
@@ -536,6 +567,22 @@ export default class VueComponent extends Vue {
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
     this.myDataManager.setFilter(this.datasetFilename, column, active)
+  }
+
+  private async handleUserCreatedNewFilter() {
+    await this.$nextTick()
+    console.log('ADD NEW FILTER:', this.chosenNewFilterColumn)
+    const f = this.chosenNewFilterColumn
+    let options = [...new Set(this.dataRows[f].values)]
+    this.chosenNewFilterColumn = ''
+
+    if (options.length > 48) {
+      alert('Column ' + f + ' has too many values to be used as a filter.')
+      return
+    }
+    this.filters[f] = { column: f, label: f, options, active: [] }
+
+    this.figureOutRemainingFilteringOptions()
   }
 
   private datasetValuesColumn = ''
