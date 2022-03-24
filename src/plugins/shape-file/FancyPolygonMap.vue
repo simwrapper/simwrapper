@@ -71,8 +71,8 @@
       id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
 
     .map-type-buttons
-      img.img-button(@click="useCircles=false" src="../../assets/btn-polygons.jpg" title="Shapes")
-      img.img-button(@click="useCircles=true" src="../../assets/btn-circles.jpg" title="Circles")
+      img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
+      img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -189,6 +189,7 @@ export default class VueComponent extends Vue {
       await this.getVizDetails()
 
       this.expColors = this.config.display?.fill?.exponentColors
+
       // convert values to arrays as needed
       this.config.display.fill.filters = this.convertCommasToArray(this.config.display.fill.filters)
 
@@ -200,6 +201,10 @@ export default class VueComponent extends Vue {
       // the spinner when things are finished
       await Promise.all([this.loadBoundaries(), this.loadDataset()])
 
+      // Check URL query parameters
+      this.honorQueryParameters()
+
+      // Finally, update the view
       this.updateChart()
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
@@ -211,6 +216,11 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     this.myDataManager.removeFilterListener(this.config, this.filterListener)
+  }
+
+  private honorQueryParameters() {
+    const query = this.$route.query
+    if (query.show == 'dots') this.useCircles = true
   }
 
   private convertCommasToArray(thing: any): any[] {
@@ -544,6 +554,15 @@ export default class VueComponent extends Vue {
       this.filters[f] = { column: f, label: f, options, active: [] }
     })
 
+    // perhaps we have some active filters in the URL query
+    const columnNames = Object.keys(this.dataRows)
+    const queryFilters = Object.keys(this.$route.query).filter(f => columnNames.indexOf(f) > -1)
+    for (const column of queryFilters) {
+      const text = '' + this.$route.query[column]
+      if (text) this.filters[column].active = text.split(',')
+      this.myDataManager.setFilter(this.datasetFilename, column, this.filters[column].active)
+    }
+
     this.figureOutRemainingFilteringOptions()
   }
 
@@ -556,6 +575,10 @@ export default class VueComponent extends Vue {
     await this.$nextTick()
     console.log('METRIC', this.datasetValuesColumn)
 
+    const query = Object.assign({}, this.$route.query)
+    query.display = this.datasetValuesColumn
+    this.$router.replace({ query })
+
     this.maxValue = this.dataRows[this.datasetValuesColumn].max || 0
     console.log('MAXVALUE', this.maxValue)
 
@@ -567,6 +590,26 @@ export default class VueComponent extends Vue {
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
     this.myDataManager.setFilter(this.datasetFilename, column, active)
+
+    // update URL too
+    const queryFilters = Object.assign({}, this.$route.query)
+    for (const filter of Object.entries(this.filters)) {
+      if (filter[1].active.length) {
+        queryFilters[filter[0]] = filter[1].active.join(',')
+      } else {
+        delete queryFilters[filter[0]]
+      }
+    }
+    this.$router.replace({ query: queryFilters })
+  }
+
+  private showCircles(show: boolean) {
+    this.useCircles = show
+
+    const query = Object.assign({}, this.$route.query)
+    if (show) query.show = 'dots'
+    else delete query.show
+    this.$router.replace({ query })
   }
 
   private async handleUserCreatedNewFilter() {
@@ -610,7 +653,9 @@ export default class VueComponent extends Vue {
     let valueColumns = this.config.display.fill.values
     if (!valueColumns) throw Error(`Need to specify column for data values`)
 
-    let datasetValuesCol = valueColumns[0] // TODO for now use first
+    // Display values from query param if available, or config, or first option.
+    if (this.$route.query.display) this.config.display.fill.columnName = this.$route.query.display
+    let datasetValuesCol = this.config.display.fill.columnName || valueColumns[0]
 
     this.datasetValuesColumn = datasetValuesCol
     this.datasetValuesColumnOptions = valueColumns

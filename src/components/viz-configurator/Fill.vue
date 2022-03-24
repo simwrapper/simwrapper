@@ -132,7 +132,7 @@ export default class VueComponent extends Vue {
 
     let { dataset, columnName, colorRamp, values } = this.vizConfiguration.display.fill
 
-    if (values) columnName = values[0]
+    if (!columnName && values) columnName = values[0]
 
     if (dataset && columnName) {
       console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
