@@ -98,8 +98,6 @@ export default class DashboardDataManager {
       }
 
       let myDataset = await this.datasets[config.dataset].dataset
-      let columns = Object.keys(myDataset)
-
       let allRows = { ...myDataset }
 
       // remove ignored columns
@@ -284,12 +282,12 @@ export default class DashboardDataManager {
           thread.terminate()
           if (e.data.error) {
             console.log(e.data.error)
-            var msg = '' + e.data.error
+            // var msg = '' + e.data.error
             //globalStore.commit('error', e.data.error)
             globalStore.commit('setStatus', {
               type: Status.ERROR,
               msg: `File cannot be loaded...`,
-              desc: 'Please check if the file exists: ' + this.subfolder + '/' + config.dataset,
+              desc: 'Check filename and path: ' + this.subfolder + '/' + config.dataset,
             })
             reject()
           }
