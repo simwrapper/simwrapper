@@ -126,6 +126,11 @@ export interface BreadCrumb {
   url?: string
 }
 
+export interface Warnings {
+  msg: string
+  desc?: string
+}
+
 export interface ColorSet {
   text: string
   background: string

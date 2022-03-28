@@ -50,6 +50,8 @@ export default class VueComponent extends Vue {
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+
+    this.checkWarningsAndErrors()
   }
 
   private changeDimensions(dimensions: { width: number; height: number }) {
@@ -60,6 +62,21 @@ export default class VueComponent extends Vue {
     try {
       this.datamanager.removeFilterListener(this.config, this.handleFilterChanged)
     } catch (e) {}
+  }
+
+  // Check this plot for warnings and errors
+  private checkWarningsAndErrors() {
+    var plotTitle = this.cardTitle
+    // warnings
+    // missing title
+    if (plotTitle.length == 0) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `The plot title is missing!`,
+        desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
+      })
+    }
+    // errors
   }
 
   @Watch('globalState.isDarkMode')

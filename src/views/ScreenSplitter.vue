@@ -82,6 +82,7 @@ class MyComponent extends Vue {
     } else {
       this.buildLayoutFromURL()
       globalStore.commit('resize')
+      // TODO clear error
     }
   }
 

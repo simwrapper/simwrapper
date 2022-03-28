@@ -6,21 +6,42 @@
 
   .top-panel
     .stuff-in-main-panel
-      .more-stuff
-
+      .more-stuff(v-if="!showWarnings")
         .root-files(v-for="node,i in rootNodes" :key="i")
           h3: b {{ node.name }}
 
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
 
+      .warnings(v-else)
+        .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length")
+          p.no-error There are no errors or warnings.
+
+        .message-area(v-else)
+          h3(v-if="state.statusErrors.length") {{state.statusErrors.length}} Error{{state.statusErrors.length !== 1 ? 's' : ''}}
+          .single-message(v-for="err,i in state.statusErrors")
+            li(v-html="err.msg" @click="toggleShowDescription(i, true)")
+            .description(v-if="descriptionIndexListError.includes(i)")
+              p(v-html="err.desc")
+          h3(v-if="state.statusWarnings.length") {{state.statusWarnings.length}} Warnings
+          .single-message(v-for="err,i in state.statusWarnings")
+            li(v-html="err.msg" @click="toggleShowDescription(i, false)")
+            .description(v-if="descriptionIndexListWarning.includes(i)")
+              p(v-html="err.desc")
+
+
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
+    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all errors
+
 
     .commands
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" :title="$t('theme')"): i.fa.fa-adjust
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" :title="$t('lang')"): i.fa.fa-globe
+      button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
       button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" :title="$t('split')"): i.fa.fa-columns
 
     p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
@@ -66,6 +87,12 @@ class MyComponent extends Vue {
 
   private baseURL = import.meta.env.BASE_URL
 
+  private showWarnings = false
+  private showDescription = false
+  private descriptionIndexListWarning: number[] = []
+  private descriptionIndexListError: number[] = []
+  private isError = false
+
   private mounted() {
     // start the run finder process
     runFinder.findRuns()
@@ -73,8 +100,30 @@ class MyComponent extends Vue {
     this.onRunFoldersChanged()
   }
 
+  @Watch('$route.path') test() {
+    this.clearAllButtons()
+  }
+
   @Watch('$store.state.runFolderCount') updatedCount() {
     this.debounceRunFoldersChanged()
+  }
+
+  @Watch('$store.state.statusErrors') openErrorPage() {
+    if (this.$store.state.statusErrors.length) this.showWarnings = true
+  }
+
+  @Watch('$store.state.statusWarnings') openWarningPage() {
+    if (this.$store.state.statusWarnings.length) this.showWarnings = true
+  }
+
+  @Watch('state.isDarkMode') updateTheme() {
+    console.log('Hi!', this.$store.state.statusWarnings)
+  }
+
+  @Watch('$store.state.statusErrors') gotNewErrors() {
+    if (this.$store.state.statusErrors.length) {
+      this.showWarnings = true
+    }
   }
 
   private async onRunFoldersChanged() {
@@ -139,6 +188,11 @@ class MyComponent extends Vue {
     return rootNode
   }
 
+  private clearAllButtons() {
+    this.$store.commit('clearAllErrors')
+    this.showWarnings = false
+  }
+
   private onSplit() {
     this.$emit('split')
   }
@@ -157,6 +211,28 @@ class MyComponent extends Vue {
     this.$root.$i18n.locale = newLocale
   }
 
+  private onWarning() {
+    this.showWarnings = !this.showWarnings
+  }
+
+  private toggleShowDescription(i: number, isError: boolean) {
+    this.isError = isError
+    if (isError) {
+      if (this.descriptionIndexListError.includes(i)) {
+        var index = this.descriptionIndexListError.indexOf(i)
+        this.descriptionIndexListError.splice(index, 1)
+      } else {
+        this.descriptionIndexListError.push(i)
+      }
+    } else {
+      if (this.descriptionIndexListWarning.includes(i)) {
+        var index = this.descriptionIndexListWarning.indexOf(i)
+        this.descriptionIndexListWarning.splice(index, 1)
+      } else {
+        this.descriptionIndexListWarning.push(i)
+      }
+    }
+  }
   private globalState = globalStore.state
 }
 export default MyComponent
@@ -213,7 +289,7 @@ export default MyComponent
 
 .bottom-panel {
   margin-top: auto;
-  padding: 0 1rem 0.25rem 0.5rem;
+  padding: 0 0.5rem 0.25rem 0.5rem;
 }
 
 a {
@@ -235,7 +311,7 @@ a {
 .commands {
   display: flex;
   flex-direction: row;
-  margin-right: -0.5rem;
+  // margin-right: -0.5rem;
 }
 
 .commands .button {
@@ -281,6 +357,50 @@ a {
 .things {
   font-size: 0.85rem;
   margin-left: -1rem;
+}
+
+.warnings {
+  display: flex;
+  flex-direction: column;
+  inline-size: 13rem;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.message-area {
+  text-indent: -20px;
+  margin-left: 20px;
+}
+
+.single-message {
+  list-style-position: outside;
+  cursor: pointer;
+}
+
+.description {
+  width: 100%;
+  height: min-content;
+  background-color: rgb(95, 123, 167);
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  padding: 0 0.25rem;
+  text-indent: 0;
+  margin-left: 0px;
+}
+
+.no-error {
+  text-indent: 0;
+  margin-left: -20px;
+}
+
+.clear-button {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  margin-left: 0rem;
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0);
 }
 
 @media only screen and (max-width: 640px) {

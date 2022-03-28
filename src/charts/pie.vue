@@ -77,7 +77,11 @@ export default class VueComponent extends Vue {
       else this.updateChartSimple()
     } catch (e) {
       const msg = '' + e
-      this.$store.commit('setStatus', { type: Status.ERROR, msg })
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg,
+        desc: 'Add a desription...',
+      })
     }
   }
 

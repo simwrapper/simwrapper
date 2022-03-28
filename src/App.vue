@@ -6,7 +6,7 @@
     router-view.main-content
     p(style="text-justify: center; margin: auto auto; font-size: 2rem;"): i • S i m W r a p p e r •
 
-  .message-zone(v-if="state.statusErrors.length")
+  //.message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
       p: i.fa.fa-icon.fa-exclamation-triangle(style="color: orange;")
       p(v-html="err")
