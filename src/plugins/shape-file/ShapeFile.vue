@@ -326,14 +326,14 @@ class MyPlugin extends Vue {
     try {
       projection = await this.myState.fileApi.getFileText(url.replace('.shp', '.prj'))
     } catch (e) {
-      // we can live without a projection
+      // lol we can live without a projection
     }
-
     const guessCRS = Coords.guessProjection(projection)
+    console.log('PROJ:', guessCRS)
 
     // then, reproject if we have a .prj file
     if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
-
+    console.log(111, geojson)
     const bbox: any = geojson.bbox
 
     const header = Object.keys(geojson.features[0].properties)
@@ -361,7 +361,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'shape-file',
   prettyName: 'Shapefile',
   description: 'Shapefile Viewer',
-  filePatterns: ['*.shp'],
+  filePatterns: ['*.xshp'],
   component: MyPlugin,
 } as VisualizationPlugin)
 

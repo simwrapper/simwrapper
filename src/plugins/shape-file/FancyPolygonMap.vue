@@ -7,7 +7,14 @@
      p {{ vizDetails.description }}
 
   polygon-and-circle-map.choro-map(v-if="!thumbnail" :props="mapProps")
+
   zoom-buttons(v-if="isLoaded && !thumbnail")
+
+  modal-join-column-picker(v-if="datasetJoinSelector"
+    :data1="datasetJoinSelector.data1"
+    :data2="datasetJoinSelector.data2"
+    @join="datasetJoined"
+  )
 
   viz-configurator(v-if="isLoaded && !thumbnail"
     :sections="['fill']"
@@ -79,6 +86,9 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { group, zip, sum } from 'd3-array'
+import EPSGdefinitions from 'epsg'
+import reproject from 'reproject'
+import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import YAML from 'yaml'
 
@@ -86,6 +96,7 @@ import globalStore from '@/store'
 import { DataTable, DataTableColumn, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import PolygonAndCircleMap from '@/plugins/shape-file/PolygonAndCircleMap.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
+import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -94,6 +105,7 @@ import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { FillDefinition } from '@/components/viz-configurator/Fill.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
+import Coords from '@/js/Coords'
 
 interface FilterDetails {
   column: string
@@ -102,7 +114,9 @@ interface FilterDetails {
   active: any[]
 }
 
-@Component({ components: { PolygonAndCircleMap, VizConfigurator, ZoomButtons } })
+@Component({
+  components: { ModalJoinColumnPicker, PolygonAndCircleMap, VizConfigurator, ZoomButtons },
+})
 export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: false }) configFromDashboard!: any
@@ -137,6 +151,8 @@ export default class VueComponent extends Vue {
   private filters: { [column: string]: FilterDetails } = {}
 
   private generatedColors: string[] = ['#4e79a7']
+
+  private datasetJoinSelector: { [id: string]: { title: string; columns: string[] } } | null = null
 
   private vizDetails = {
     title: '',
@@ -262,9 +278,9 @@ export default class VueComponent extends Vue {
       this.vizDetails = Object.assign({}, emptyState, ycfg)
     }
 
-    // is this a bare geojson file? - build vizDetails manually
-    if (/(\.geojson)(|\.gz)$/.test(filename)) {
-      const title = 'GeoJSON: ' + filename
+    // is this a bare geojson/shapefile file? - build vizDetails manually
+    if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
+      const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${filename}`
 
       this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
         title,
@@ -336,14 +352,30 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private handleNewDataset(props: DatasetDefinition) {
+  private async handleNewDataset(props: DatasetDefinition) {
     console.log('NEW dataset', props)
     const { key, dataTable, filename } = props
 
     const datasetId = key
     this.datasetFilename = filename || datasetId
 
-    // figure out join - use ".join" or first column key
+    // ask user for the join columns
+    const join = await new Promise((resolve, reject) => {
+      const boundaryProperties = new Set()
+      if (this.boundaries[0].id) boundaryProperties.add('id')
+      Object.keys(this.boundaries[0].properties).forEach(key => boundaryProperties.add(key))
+
+      this.datasetJoinSelector = {
+        data1: { title: key, columns: Object.keys(dataTable) },
+        data2: { title: 'Boundaries', columns: Array.from(boundaryProperties) as string[] },
+      }
+      this.datasetJoined = (join: string[]) => {
+        this.datasetJoinSelector = null
+        resolve(join)
+      }
+    })
+
+    console.log({ join })
     this.datasetJoinColumn = Object.keys(dataTable)[0] || 'id'
 
     //TODO  add this dataset to the datamanager
@@ -354,6 +386,7 @@ export default class VueComponent extends Vue {
       file: this.datasetFilename,
       join: this.datasetJoinColumn,
     } as any
+
     this.vizDetails = Object.assign({}, this.vizDetails)
 
     this.dataRows = dataTable
@@ -362,6 +395,8 @@ export default class VueComponent extends Vue {
 
     this.figureOutRemainingFilteringOptions()
   }
+
+  private datasetJoined: any
 
   private figureOutRemainingFilteringOptions() {
     this.datasetValuesColumnOptions = Object.keys(this.dataRows)
@@ -459,13 +494,17 @@ export default class VueComponent extends Vue {
     const shapeConfig = this.config.boundaries || this.config.shapes || this.config.geojson
     if (!shapeConfig) return
 
-    // shapes could be a string or a shape.file=blah
+    // shapes could be a string or an object: shape.file=blah
     let shapes: string = shapeConfig.file || shapeConfig
 
     try {
       if (shapes.startsWith('http')) {
         const boundaries = await fetch(shapes).then(async r => await r.json())
         this.boundaries = boundaries.features
+      } else if (shapes.endsWith('.shp')) {
+        // shapefile!
+        const boundaries = await this.loadShapefileFeatures(shapes)
+        this.boundaries = boundaries
       } else {
         const boundaries = await this.fileApi.getFileJson(`${this.subfolder}/${shapes}`)
         this.boundaries = boundaries.features
@@ -516,6 +555,64 @@ export default class VueComponent extends Vue {
       zoom: 8,
       initial: true,
     })
+  }
+
+  private async loadShapefileFeatures(filename: string) {
+    if (!this.fileApi) return []
+
+    console.log('loading shapefile', filename)
+
+    const url = `${this.subfolder}/${filename}`
+
+    console.log(url)
+    // first, get shp/dbf files
+    let geojson: any = {}
+    try {
+      const shpPromise = this.fileApi.getFileBlob(url)
+      const dbfPromise = this.fileApi.getFileBlob(url.replace('.shp', '.dbf'))
+      await Promise.all([shpPromise, dbfPromise])
+
+      const shpBlob = await (await shpPromise)?.arrayBuffer()
+      const dbfBlob = await (await dbfPromise)?.arrayBuffer()
+      if (!shpBlob || !dbfBlob) return []
+
+      geojson = await shapefile.read(shpBlob, dbfBlob)
+    } catch (e) {
+      console.error(e)
+      this.$store.commit('error', '' + e)
+      return []
+    }
+
+    // next, see if there is a .prj file with projection information
+    let projection = ''
+    try {
+      projection = await this.fileApi.getFileText(url.replace('.shp', '.prj'))
+    } catch (e) {
+      // lol we can live without a projection
+    }
+
+    const guessCRS = Coords.guessProjection(projection)
+
+    // then, reproject if we have a .prj file
+    if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
+
+    return geojson.features as any[]
+
+    // const bbox: any = geojson.bbox
+
+    // const header = Object.keys(geojson.features[0].properties)
+    // const shapefile = { data: geojson.features, prj: projection, header, bbox }
+
+    // this.$store.commit('setMapCamera', {
+    //   longitude: 0.5 * (bbox[2] + bbox[0]),
+    //   latitude: 0.5 * (bbox[3] + bbox[1]),
+    //   bearing: 0,
+    //   pitch: 0,
+    //   zoom: 8,
+    //   jump: true,
+    // })
+    // done! show the first column
+    // this.handleNewDataColumn(this.shapefile.header[0])
   }
 
   private datasetJoinColumn = ''
@@ -716,7 +813,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'area-map',
   prettyName: 'Area Map',
   description: 'Area Map',
-  filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)'],
+  filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*.shp'],
   component: VueComponent,
 } as VisualizationPlugin)
 </script>
@@ -801,6 +898,7 @@ globalStore.commit('registerPlugin', {
   background-color: var(--bgPanel);
   filter: $filterShadow;
 }
+
 @media only screen and (max-width: 640px) {
 }
 </style>

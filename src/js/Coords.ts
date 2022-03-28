@@ -1,9 +1,13 @@
 import proj4 from 'proj4'
 
-// interface Xy {
-//   x: number
-//   y: number
-// }
+const lookups = {
+  DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
+  NAD_1983_StatePlane_California_III_FIPS_0403_Feet: 'EPSG:2227',
+  NAD_1983_UTM_Zone_10N: 'EPSG:26910',
+  ETRS89_UTM_zone_32N: 'EPSG:25832',
+  ETRS89_UTM_zone_33N: 'EPSG:25833',
+  Hartebeesthoek94: 'EPSG:2048',
+}
 
 // Add all standard MATSim projects from TransformationFactory to proj4
 proj4.defs([
@@ -49,14 +53,6 @@ function toLngLat(projection: string, p: any) {
  */
 function guessProjection(definition: string) {
   const favoriteEPSG = ['31468', '25832', '25833', '2048', '26910', '4326']
-
-  const lookups = {
-    DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
-    NAD_1983_UTM_Zone_10N: 'EPSG:26910',
-    ETRS89_UTM_zone_32N: 'EPSG:25832',
-    ETRS89_UTM_zone_33N: 'EPSG:25833',
-    Hartebeesthoek94: 'EPSG:2048',
-  }
 
   // Simple EPSG:xxxx code? Just return it
   const epsg = /^EPSG:\d+$/
