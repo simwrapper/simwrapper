@@ -11,11 +11,13 @@
           h3: b {{ node.name }}
 
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
+
       .warnings(v-else)
-        .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length") 
-          p.no-error There are no errors and warnings.
+        .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length")
+          p.no-error There are no errors or warnings.
+
         .message-area(v-else)
-          h3(v-if="state.statusErrors.length") {{state.statusErrors.length}} Errors
+          h3(v-if="state.statusErrors.length") {{state.statusErrors.length}} Error{{state.statusErrors.length !== 1 ? 's' : ''}}
           .single-message(v-for="err,i in state.statusErrors")
             li(v-html="err.msg" @click="toggleShowDescription(i, true)")
             .description(v-if="descriptionIndexListError.includes(i)")
@@ -25,12 +27,12 @@
             li(v-html="err.msg" @click="toggleShowDescription(i, false)")
             .description(v-if="descriptionIndexListWarning.includes(i)")
               p(v-html="err.desc")
-      
+
 
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
-    button.button.clear-button(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all errors...
+    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all errors
 
 
     .commands
@@ -107,15 +109,21 @@ class MyComponent extends Vue {
   }
 
   @Watch('$store.state.statusErrors') openErrorPage() {
-    this.showWarnings = true
+    if (this.$store.state.statusErrors.length) this.showWarnings = true
   }
 
   @Watch('$store.state.statusWarnings') openWarningPage() {
-    this.showWarnings = true
+    if (this.$store.state.statusWarnings.length) this.showWarnings = true
   }
 
   @Watch('state.isDarkMode') updateTheme() {
     console.log('Hi!', this.$store.state.statusWarnings)
+  }
+
+  @Watch('$store.state.statusErrors') gotNewErrors() {
+    if (this.$store.state.statusErrors.length) {
+      this.showWarnings = true
+    }
   }
 
   private async onRunFoldersChanged() {
@@ -182,6 +190,7 @@ class MyComponent extends Vue {
 
   private clearAllButtons() {
     this.$store.commit('clearAllErrors')
+    this.showWarnings = false
   }
 
   private onSplit() {
@@ -280,7 +289,7 @@ export default MyComponent
 
 .bottom-panel {
   margin-top: auto;
-  padding: 0 1rem 0.25rem 0.5rem;
+  padding: 0 0.5rem 0.25rem 0.5rem;
 }
 
 a {
@@ -302,7 +311,7 @@ a {
 .commands {
   display: flex;
   flex-direction: row;
-  margin-right: -0.5rem;
+  // margin-right: -0.5rem;
 }
 
 .commands .button {
@@ -355,6 +364,7 @@ a {
   flex-direction: column;
   inline-size: 13rem;
   text-align: left;
+  font-size: 0.9rem;
 }
 
 .message-area {
@@ -364,16 +374,17 @@ a {
 
 .single-message {
   list-style-position: outside;
+  cursor: pointer;
 }
 
 .description {
   width: 100%;
   height: min-content;
   background-color: rgb(95, 123, 167);
-  margin-top: 10px;
-  margin-bottom: 10px;
-  padding: 5px;
-  text-indent: 0px;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  padding: 0 0.25rem;
+  text-indent: 0;
   margin-left: 0px;
 }
 
@@ -385,16 +396,7 @@ a {
 .clear-button {
   width: 100%;
   margin-bottom: 0.5rem;
-  margin-left: 0.25rem;
-
-  /*
-  width: 100%;
-  border-style: none;
-  background-color: white;
-  margin-top: 10px;
-  margin-bottom: 10px;
-  padding: 5px;
-  */
+  margin-left: 0rem;
 }
 
 ::-webkit-scrollbar-corner {
