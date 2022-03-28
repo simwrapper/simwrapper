@@ -445,8 +445,9 @@ class XyHexagons extends Vue {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       } else {
         this.$store.commit('setStatus', {
-          type: Status.WARNING,
-          msg: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
+          type: Status.ERROR,
+          msg: `File not found`,
+          desc: 'Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}',
         })
       }
     }
@@ -488,7 +489,7 @@ class XyHexagons extends Vue {
   private handleShowSelectionButton() {
     const arrays = Object.values(this.multiSelectedHexagons)
     let points: any[] = []
-    arrays.map((a) => (points = points.concat(a)))
+    arrays.map(a => (points = points.concat(a)))
 
     const pickedObject = { object: { points } }
     this.flipViewToShowInvertedData(pickedObject)
@@ -505,7 +506,7 @@ class XyHexagons extends Vue {
     numHexagons: number
     selectedHexagonIds: any[]
   } | null {
-    const selectedHexes = Object.keys(this.multiSelectedHexagons).map((a) => parseInt(a))
+    const selectedHexes = Object.keys(this.multiSelectedHexagons).map(a => parseInt(a))
     if (!selectedHexes.length) return null
 
     const arrays = Object.values(this.multiSelectedHexagons)
@@ -610,7 +611,8 @@ class XyHexagons extends Vue {
         this.myState.statusMessage = buffer.data.error
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
+          msg: `Loading Error`,
+          desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
         })
       } else {
         const { rowCache, columnLookup } = buffer.data
@@ -648,7 +650,8 @@ class XyHexagons extends Vue {
       this.myState.statusMessage = '' + e
       this.$store.commit('setStatus', {
         type: Status.ERROR,
-        msg: `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`,
+        msg: `Loading/Parsing Error`,
+        desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
       })
     }
   }

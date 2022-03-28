@@ -13,7 +13,7 @@ import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { DataTable, FileSystemConfig, UI_FONT } from '@/Globals'
+import { DataTable, FileSystemConfig, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -36,6 +36,7 @@ export default class VueComponent extends Vue {
 
   private async mounted() {
     this.updateTheme()
+    this.checkWarningsAndErrors()
     this.dataSet = await this.loadData()
     if (Object.keys(this.dataSet).length) {
       this.updateChart()
@@ -80,8 +81,11 @@ export default class VueComponent extends Vue {
       return dataset
     } catch (e) {
       const message = '' + e
-      console.error(message)
-      this.$store.commit('error', message)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        message,
+        desc: 'Add a desription...',
+      })
     }
     return {}
   }
@@ -95,7 +99,11 @@ export default class VueComponent extends Vue {
       else this.updateChartSimple()
     } catch (e) {
       const msg = '' + e
-      this.$store.commit('error', msg)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg,
+        desc: 'Add a desription...',
+      })
     }
   }
 
@@ -140,6 +148,21 @@ export default class VueComponent extends Vue {
         automargin: true,
       },
     ]
+  }
+
+  // Check this plot for warnings and errors
+  private checkWarningsAndErrors() {
+    var plotTitle = this.cardTitle
+    // warnings
+    // missing title
+    if (plotTitle.length == 0) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `The plot title is missing!`,
+        desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
+      })
+    }
+    // errors
   }
 
   private layout: any = {

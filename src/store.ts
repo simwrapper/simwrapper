@@ -3,9 +3,19 @@ import Vuex, { Store } from 'vuex'
 
 Vue.use(Vuex)
 
-import { BreadCrumb, ColorScheme, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
-import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
+import {
+  BreadCrumb,
+  Warnings,
+  ColorScheme,
+  FileSystemConfig,
+  Status,
+  VisualizationPlugin,
+} from '@/Globals'
 import fileSystems from '@/fileSystemConfig'
+import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
+import { debounce } from '@/js/util'
+import SVNFileSystem from './js/HTTPFileSystem'
+import { StaticReadUsage } from 'three'
 
 // ----------------------------------------
 
@@ -40,14 +50,15 @@ export default new Vuex.Store({
     isDarkMode: false,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
-    statusErrors: [] as string[],
+    statusErrors: [] as Warnings[],
+    statusWarnings: [] as Warnings[],
     statusMessage: 'Loading',
     svnProjects: fileSystems,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
     colorScheme: ColorScheme.LightMode,
     locale: 'en',
     localFileHandles: [] as any[],
-    runFolders: {},
+    runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
     viewState: initialViewState() as {
@@ -107,7 +118,7 @@ export default new Vuex.Store({
       if (!value.jump) state.viewState = value
       else if (state.viewState.initial) state.viewState = value
     },
-    error(state, value: string) {
+    error(state, value: Warnings) {
       // don't repeat yourself
       if (
         !state.statusErrors.length ||
@@ -116,16 +127,31 @@ export default new Vuex.Store({
         state.statusErrors.push(value)
       }
     },
-    setStatus(state, value: { type: Status; msg: string }) {
+    setStatus(state, value: { type: Status; msg: string; desc?: string }) {
+      if (!value.desc?.length) {
+        value.desc = ''
+      }
+      const warningObj = {
+        msg: value.msg,
+        desc: value.desc,
+      }
       if (value.type === Status.INFO) {
         state.statusMessage = value.msg
+      } else if (value.type === Status.WARNING) {
+        if (
+          // don't repeat yourself
+          !state.statusWarnings.length ||
+          state.statusWarnings[state.statusWarnings.length - 1].msg !== value.msg
+        ) {
+          state.statusWarnings.push(warningObj)
+        }
       } else {
         if (
           // don't repeat yourself
           !state.statusErrors.length ||
-          state.statusErrors[state.statusErrors.length - 1] !== value.msg
+          state.statusErrors[state.statusErrors.length - 1].msg !== value.msg
         ) {
-          state.statusErrors.push(value.msg)
+          state.statusErrors.push(warningObj)
         }
       }
     },
@@ -136,6 +162,7 @@ export default new Vuex.Store({
     },
     clearAllErrors(state) {
       state.statusErrors = []
+      state.statusWarnings = []
     },
     resize(state) {
       state.resizeEvents += 1
