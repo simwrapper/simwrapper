@@ -23,7 +23,7 @@ import 'vueperslides/dist/vueperslides.css'
 import { FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import SVNFileSystem from '@/js/HTTPFileSystem'
-import { findMatchingGlobInFiles } from '@/js/util'
+import { findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 
 @Component({ components: { VueperSlides, VueperSlide } })
 export default class VueComponent extends Vue {
@@ -50,13 +50,11 @@ export default class VueComponent extends Vue {
     if (this.config != null) Object.assign(this.options, this.config)
 
     // Delete slide property because this is only used in the loop
-    if (this.options.slides) {
-      delete this.options.slides
-    }
+    if (this.options.slides) delete this.options.slides
 
     this.slides = []
+
     // Check if defined and iterable
-    // TODO: throw
     if (this.config.slides != null && typeof this.config.slides[Symbol.iterator] === 'function') {
       // Resolve relative URLs
       for (const data of this.config.slides) {
@@ -69,6 +67,9 @@ export default class VueComponent extends Vue {
 
         if (data.video) {
           if (!this.absoluteUrl.test(data.video)) {
+            // NO VIDEO for chrome-local-files-mode
+            if (this.fileSystemConfig.handle) return ''
+
             const exactUrl = await this.buildImageUrlFromUserPath(data.video)
             data.video = exactUrl
           }
@@ -98,7 +99,23 @@ export default class VueComponent extends Vue {
 
     // do we have a match?
     const match = findMatchingGlobInFiles(files, pattern)
-    if (match.length === 1) return this.fileApi.cleanURL(`${this.subfolder}/${match[0]}`)
+
+    if (match.length === 1) {
+      if (!this.fileSystemConfig.handle) {
+        // Regular URL: return it
+        return this.fileApi.cleanURL(`${folder}/${match[0]}`)
+      } else {
+        // Chrome local files mode: read & generate base64 since regular URLs wont work
+        try {
+          const blob = await this.fileApi.getFileBlob(`${folder}/${match[0]}`)
+          const base64 = arrayBufferToBase64(await blob.arrayBuffer())
+          return `data:image/png;base64,${base64}`
+          // return `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
 
     if (!match.length) {
       this.$store.commit('setStatus', {

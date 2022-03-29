@@ -179,12 +179,21 @@ class SVNFileSystem {
 
     let parts = stillScaryPath.split('/').filter(p => !!p) // split and remove blanks
 
+    // Normalize directory / get rid of '..' sections
+    function eatDots(parts: string[]): string[] {
+      const dotdot = parts.indexOf('..')
+      if (dotdot <= 0) return parts
+      const spliced = parts.filter((part: string, i) => i !== dotdot - 1 && i !== dotdot)
+      return eatDots(spliced)
+    }
+
+    const cleanDirParts: string[] = eatDots(parts)
+
     let currentDir = this.fsHandle as any
 
     // iterate thru the tree, top-down:
-    if (parts.length) {
-      for (const subfolder of parts) {
-        console.log('searching for:', subfolder)
+    if (cleanDirParts.length) {
+      for (const subfolder of cleanDirParts) {
         let found = false
         for await (let [name, handle] of currentDir) {
           if (name === subfolder) {
