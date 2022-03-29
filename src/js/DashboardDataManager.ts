@@ -15,6 +15,7 @@ import { rollup } from 'd3-array'
 
 import { DataTable, FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
+import { findMatchingGlobInFiles } from '@/js/util'
 import HTTPFileSystem from './HTTPFileSystem'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
@@ -132,9 +133,22 @@ export default class DashboardDataManager {
     if (!this.networks[path]) {
       console.log('load network:', path)
 
-      // fetchNetwork immediately returns a Promise<>, which we wait on so that
-      // multiple views don't all try to fetch the network individually
-      this.networks[path] = this.fetchNetwork(path)
+      // get folder
+      let folder =
+        path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
+
+      // get file path search pattern
+      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
+      let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
+      const match = findMatchingGlobInFiles(files, pattern)
+
+      if (match.length === 1) {
+        // fetchNetwork immediately returns a Promise<>, which we wait on so that
+        // multiple views don't all try to fetch the network individually
+        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`)
+      } else {
+        throw Error('File not found: ' + path)
+      }
     } else {
     }
 
@@ -314,7 +328,6 @@ export default class DashboardDataManager {
           thread.terminate()
           if (e.data.error) {
             console.error(e.data.error)
-            globalStore.commit('error', e.data.error)
             reject()
           }
           resolve(e.data.links)
