@@ -474,6 +474,8 @@ class MyComponent extends Vue {
 
   private handleEmptyClick(e: mapboxgl.MapMouseEvent) {
     this.fadeUnselectedLinks(-1)
+    this.selectedCentroid = 0
+
     if (this.isMobile()) {
       // do something
     }
