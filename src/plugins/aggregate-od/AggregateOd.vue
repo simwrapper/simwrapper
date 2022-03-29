@@ -9,9 +9,9 @@
     .status-blob(v-show="!thumbnail && loadingText")
       p {{ loadingText }}
 
-    .lower-left(v-if="!thumbnail")
+    .lower-left(v-if="!thumbnail && !loadingText")
       .subheading {{ $t('lineWidths')}}
-      scale-slider.scale-slider(:stops='scaleValues' :initialTime='1' @change='bounceScaleSlider')
+      scale-slider.scale-slider(:stops='scaleValues' :initialValue='currentScale' @change='bounceScaleSlider')
 
       .subheading {{ $t('hide')}}
       line-filter-slider.scale-slider(
@@ -82,16 +82,13 @@ const i18n = {
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
-import colormap from 'colormap'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
 import { forEachAsync } from 'js-coroutines'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
-import { multiPolygon } from '@turf/turf'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
-import VueSlider from 'vue-slider-component'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import yaml from 'yaml'
 
@@ -118,6 +115,9 @@ interface AggOdYaml {
   title?: string
   description?: string
   idColumn?: string
+  lineWidth?: number
+  lineWidths?: number
+  hideSmallerThan?: number
 }
 
 const TOTAL_MSG = 'Alle >>'
@@ -180,7 +180,7 @@ class MyComponent extends Vue {
   }
 
   private containerId = `c${Math.floor(1e12 * Math.random())}`
-  private mapId = 'map-' + this.containerId
+  private mapId = ''
 
   private centroids: any = {}
   private centroidSource: any = {}
@@ -250,6 +250,8 @@ class MyComponent extends Vue {
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
+    this.mapId = 'map-' + this.containerId
+
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig
     this.myState.subfolder = this.subfolder
@@ -258,9 +260,17 @@ class MyComponent extends Vue {
     await this.getVizDetails()
 
     this.setupMap()
+    this.configureSettings()
   }
 
   private isMapMoving = false
+
+  private configureSettings() {
+    if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
+      this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
+    }
+    if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
+  }
 
   @Watch('$store.state.viewState') private mapMoved({
     bearing,
@@ -421,12 +431,17 @@ class MyComponent extends Vue {
     return ['#00aa66', '#880033', '↓', '↑']
   }
 
-  private setupMap() {
-    this.mymap = new maplibregl.Map({
-      container: this.mapId,
-      style: globalStore.getters.mapStyle,
-      logoPosition: 'top-left',
-    })
+  private async setupMap() {
+    try {
+      this.mymap = new maplibregl.Map({
+        container: this.mapId,
+        style: globalStore.getters.mapStyle,
+        logoPosition: 'top-left',
+      })
+    } catch (e) {
+      console.error('HUH?')
+      return
+    }
 
     try {
       const extent = localStorage.getItem(this.$route.fullPath + '-bounds')

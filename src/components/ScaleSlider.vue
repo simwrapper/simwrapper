@@ -10,8 +10,8 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 @Component({ components: { 'vue-slider': vueSlider } })
 export default class ScaleSlider extends Vue {
-  @Prop({ required: true })
-  private stops!: any[]
+  @Prop({ required: true }) private stops!: any[]
+  @Prop({ required: true }) private initialValue!: number
 
   private sliderValue: number = 1
 
@@ -35,6 +35,7 @@ export default class ScaleSlider extends Vue {
   // VUE LIFECYCLE HOOKS
   public created() {}
   public mounted() {
+    this.sliderValue = this.initialValue
     this.scaleSlider.data = this.stops
   }
 
