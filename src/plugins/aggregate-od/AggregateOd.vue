@@ -104,7 +104,7 @@ import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -406,8 +406,13 @@ class MyComponent extends Vue {
       return { shpFile, dbfFile, odFlows }
       //
     } catch (e) {
-      console.error({ e })
+      const error = e as any
+      let msg = error.statusText || '' + error
+      if (error.url) msg += ': ' + error.url
+
+      console.error(msg)
       this.loadingText = '' + e
+      this.$store.commit('error', msg)
       return null
     }
   }
@@ -924,7 +929,7 @@ class MyComponent extends Vue {
     const options = this.thumbnail
       ? { animate: false }
       : {
-          padding: { top: 100, bottom: 100, right: 100, left: 100 },
+          padding: { top: 25, bottom: 25, right: 100, left: 100 },
           animate: false,
         }
     this.mymap.fitBounds(this._mapExtentXYXY, options)
@@ -1075,6 +1080,13 @@ class MyComponent extends Vue {
     this.colName = headers[1]
     this.headers = [TOTAL_MSG].concat(headers.slice(2))
 
+    if (!this.rowName || !this.colName) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: 'CSV data might be wrong format',
+        desc: 'First column has no name. Data MUST be orig,dest,values...',
+      })
+    }
     // console.log(this.headers)
 
     await forEachAsync(lines.slice(1), (row: any) => {

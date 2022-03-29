@@ -27,6 +27,7 @@ import map from './map-polygons.vue'
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
 // export all resizable charts here
 export const plotlyCharts = {
+  aggregate,
   area,
   bar,
   bubble,
@@ -45,7 +46,7 @@ export const plotlyCharts = {
 }
 
 // export all remaining charts/maps here:
-export default Object.assign({ aggregate, carriers, flowmap, links, map }, plotlyCharts)
+export default Object.assign({ carriers, flowmap, links, map }, plotlyCharts)
 
 // ----- HELPER FUNCTIONS -----------------------------------------------------
 
