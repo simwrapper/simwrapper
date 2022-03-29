@@ -645,8 +645,9 @@ class MyComponent extends Vue {
     if (this.mymap.getLayer('centroid-layer')) this.mymap.removeLayer('centroid-layer')
     if (this.mymap.getLayer('centroid-label-layer')) this.mymap.removeLayer('centroid-label-layer')
 
-    if (this.showCentroids && !this.thumbnail) {
+    if (this.showCentroids) {
       this.mymap.addLayer({
+        layout: { visibility: this.thumbnail ? 'none' : 'visible' },
         id: 'centroid-layer',
         source: 'centroids',
         type: 'circle',
