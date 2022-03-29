@@ -88,7 +88,10 @@ export default class VueComponent extends Vue {
    * Try to figure out what file they really want.
    */
   private async buildImageUrlFromUserPath(path: string) {
-    // first get correct folder contents
+    // if image is already loaded, just return it
+    if (path.startsWith('data:image')) return path
+
+    // get correct folder contents
     let folder = this.subfolder
     if (path.indexOf('/') > -1) folder += '/' + path.substring(0, path.lastIndexOf('/'))
 
