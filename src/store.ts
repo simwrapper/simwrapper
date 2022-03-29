@@ -118,13 +118,13 @@ export default new Vuex.Store({
       if (!value.jump) state.viewState = value
       else if (state.viewState.initial) state.viewState = value
     },
-    error(state, value: Warnings) {
-      // don't repeat yourself
+    error(state, value: string) {
       if (
         !state.statusErrors.length ||
-        state.statusErrors[state.statusErrors.length - 1] !== value
+        state.statusErrors[state.statusErrors.length - 1].msg !== value
       ) {
-        state.statusErrors.push(value)
+        state.statusErrors.push({ msg: value, desc: '' })
+        state.isShowingLeftBar = true
       }
     },
     setStatus(state, value: { type: Status; msg: string; desc?: string }) {
@@ -152,6 +152,7 @@ export default new Vuex.Store({
           state.statusErrors[state.statusErrors.length - 1].msg !== value.msg
         ) {
           state.statusErrors.push(warningObj)
+          state.isShowingLeftBar = true
         }
       }
     },
