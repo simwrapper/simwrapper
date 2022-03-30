@@ -32,8 +32,8 @@
     .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
       p.description {{ this.vizDetails.description }}
 
-  .widgets(v-if="!thumbnail" style="{'padding': config ? '0 0'}")
-    .widget-column()
+  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+    .widget-column
       h4.heading {{ $t('time')}}
       label.checkbox(style="margin: 0 0.5rem 0 auto;")
           input(type="checkbox" v-model="showTimeRange")
@@ -1359,7 +1359,6 @@ h4 {
   display: flex;
   flex-direction: row;
   user-select: none;
-  padding: 0.5rem 0.5rem;
 }
 
 .widget-column {
@@ -1409,10 +1408,6 @@ h4 {
   width: 12rem;
 }
 
-.scale-slider {
-  // margin: 0rem 0px auto 0px;
-}
-
 .heading {
   font-weight: bold;
   text-align: left;
@@ -1422,13 +1417,6 @@ h4 {
 .subheading {
   text-align: left;
   margin: 0 0 0rem 0.5rem;
-}
-
-.checkbox {
-  // font-size: 0.8rem;
-  // margin-top: 0.25rem;
-  // margin-right: 0.5rem;
-  // margin-left: 1rem;
 }
 
 .description {
