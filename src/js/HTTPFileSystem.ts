@@ -256,7 +256,7 @@ class SVNFileSystem {
     // find all dashboards, topsheets, and viz-* yamls in each configuration folder.
     // Overwrite keys as we go; identically-named configs from parent folders get superceded as we go.
     const dashboard = 'dashboard*.y?(a)ml'
-    const topsheet = 'topsheet*.y?(a)ml'
+    const topsheet = '{topsheet,table}*.y?(a)ml'
     const viz = 'viz*.y?(a)ml'
     const config = 'simwrapper-config.y?(a)ml'
 
