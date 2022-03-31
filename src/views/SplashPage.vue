@@ -16,7 +16,7 @@
         hr
 
         .is-chrome(v-if="isChrome")
-          h2: b Browse local files directly (Chrome only):
+          h2: b Browse local files (Chrome/Edge only):
 
           .localRow(v-for="row in localRows" @click="clickedLocalRow(row)")
             p(style="flex: 1;") Local folder {{ row.key.substring(2) }}: {{ row.handle.name}}

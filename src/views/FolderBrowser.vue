@@ -502,6 +502,7 @@ h4 {
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: $thumbnailHeight;
   border-radius: 16px;
   overflow: hidden;
   display: flex;
