@@ -87,6 +87,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { group, zip, sum } from 'd3-array'
 import EPSGdefinitions from 'epsg'
+import readBlob from 'read-blob'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
@@ -101,6 +102,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import { arrayBufferToBase64 } from '@/js/util'
 import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
 import { FillDefinition } from '@/components/viz-configurator/Fill.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
@@ -203,6 +205,8 @@ export default class VueComponent extends Vue {
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
+      this.buildThumbnail()
+      if (this.thumbnail) return
 
       this.expColors = this.config.display?.fill?.exponentColors
 
@@ -295,6 +299,24 @@ export default class VueComponent extends Vue {
     this.$emit('title', t)
   }
 
+  private async buildThumbnail() {
+    if (!this.fileApi) return
+
+    if (this.thumbnail && this.vizDetails.thumbnail) {
+      try {
+        const blob = await this.fileApi.getFileBlob(
+          this.subfolder + '/' + this.vizDetails.thumbnail
+        )
+        const buffer = await readBlob.arraybuffer(blob)
+        const base64 = arrayBufferToBase64(buffer)
+        if (base64)
+          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }
+
   private getFileSystem(name: string) {
     const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
       (a: FileSystemConfig) => a.slug === name
@@ -360,7 +382,7 @@ export default class VueComponent extends Vue {
     this.datasetFilename = filename || datasetId
 
     // ask user for the join columns
-    const join = await new Promise((resolve, reject) => {
+    const join: any[] = await new Promise((resolve, reject) => {
       const boundaryProperties = new Set()
       if (this.boundaries[0].id) boundaryProperties.add('id')
       Object.keys(this.boundaries[0].properties).forEach(key => boundaryProperties.add(key))
@@ -375,8 +397,19 @@ export default class VueComponent extends Vue {
       }
     })
 
-    console.log({ join })
-    this.datasetJoinColumn = Object.keys(dataTable)[0] || 'id'
+    if (!join.length) return
+
+    console.log({ DATASET: join[0], BOUNDS: join[1] })
+
+    this.datasetJoinColumn = join[0] || Object.keys(dataTable)[0] || 'id'
+
+    // hard-code copy of id column into shapefile feature IDs, for later lookup
+    for (const [i, taz] of this.boundaries.entries()) {
+      if (join[1] in taz.properties) {
+        taz.id = taz.properties[join[1]]
+        this.centroids[i].properties.id = taz.id
+      }
+    }
 
     //TODO  add this dataset to the datamanager
     this.myDataManager.setPreloadedDataset({ key, dataTable, filename: this.datasetFilename })
@@ -445,32 +478,47 @@ export default class VueComponent extends Vue {
 
       let groupLookup: any // this will be the map of boundary IDs to rows
       let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
+      console.log('aa')
 
       if (!filteredRows) {
         // is filter UN-selected? Rebuild full dataset
+        console.log('11', this.datasetJoinColumn, this.dataRows)
         const joinCol = this.dataRows[this.datasetJoinColumn].values
+        console.log('12')
         const dataValues = this.dataRows[this.datasetValuesColumn].values
+        console.log('13')
         groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
+        console.log(14, groupLookup)
       } else {
+        console.log('bb')
         // group filtered values by lookup key
         groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
+        console.log('cc')
         groupIndex = this.datasetValuesColumn // index is values column name
+        console.log('dd', groupIndex)
       }
 
       // ok we have a filter, let's update the geojson values
       let joinShapesBy = 'id'
       if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
 
+      console.log('a', joinShapesBy)
       const filteredBoundaries = [] as any[]
+
       this.boundaries.forEach(boundary => {
         // id can be in root of feature, or in properties
-        let lookupKey = boundary[joinShapesBy] || boundary.properties[joinShapesBy]
+        let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
         if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
 
-        const row = groupLookup.get(lookupKey)
+        // the groupy thing doesn't auto-convert between strings and numbers
+        let row = groupLookup.get(lookupKey)
+        if (row == undefined) row = groupLookup.get('' + lookupKey)
+
+        // do we have an answer
         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredBoundaries.push(boundary)
       })
+      console.log('b')
 
       // centroids
       const filteredCentroids = [] as any[]
@@ -478,13 +526,16 @@ export default class VueComponent extends Vue {
         const centroidId = centroid.properties!.id
         if (!centroidId) return
 
-        const row = groupLookup.get(centroidId)
+        let row = groupLookup.get(centroidId)
+        if (row == undefined) row = groupLookup.get('' + centroidId)
         centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredCentroids.push(centroid)
       })
+      console.log('c')
 
       this.boundaries = filteredBoundaries
       this.centroids = filteredCentroids
+      // console.log(123, this.boundaries)
     } catch (e) {
       console.error('' + e)
     }
@@ -622,21 +673,34 @@ export default class VueComponent extends Vue {
     try {
       // for now just load first dataset
       const datasetId = Object.keys(this.config.datasets)[0]
-      this.datasetFilename = this.config.datasets[datasetId].file
+      console.log({ datasetId })
+      // dataset could be  { dataset: myfile.csv }
+      //               or  { dataset: { file: myfile.csv, join: TAZ }}
+      this.datasetFilename =
+        'string' === typeof this.config.datasets[datasetId]
+          ? this.config.datasets[datasetId]
+          : this.config.datasets[datasetId].file
+
       const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
+      console.log(21, this.datasetFilename, dataset)
+      console.log(23, this.config.datasets[datasetId])
 
       // figure out join - use ".join" or first column key
       this.datasetJoinColumn =
-        this.config.datasets[datasetId].join || Object.keys(this.config.datasets[datasetId])[0]
+        'string' === typeof this.config.datasets[datasetId]
+          ? Object.keys(dataset.allRows)[0]
+          : this.config.datasets[datasetId].join
 
+      console.log(22, this.datasetJoinColumn)
       this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
       this.dataRows = dataset.allRows
       this.datasets[datasetId] = dataset.allRows
+
       this.figureOutRemainingFilteringOptions()
     } catch (e) {
       const message = '' + e
-      console.log(message)
+      console.error(message)
     }
     return []
   }
@@ -769,7 +833,10 @@ export default class VueComponent extends Vue {
     let max = 0
 
     // 2. insert values into geojson
-    this.boundaries.forEach(boundary => {
+    for (let idx = 0; idx < this.boundaries.length; idx++) {
+      const boundary = this.boundaries[idx]
+      const centroid = this.centroids[idx]
+
       // id can be in root of feature, or in properties
       let lookupValue = boundary[joinShapesBy]
       if (lookupValue == undefined) lookupValue = boundary.properties[joinShapesBy]
@@ -786,19 +853,23 @@ export default class VueComponent extends Vue {
       } else {
         boundary.properties.value = 'N/A'
       }
-    })
+
+      // update the centroid too
+      if (centroid) centroid.properties!.value = boundary.properties.value
+    }
 
     // this.maxValue = max // this.dataRows[datasetValuesCol].max || 0
     this.maxValue = this.dataRows[datasetValuesCol].max || 0
 
-    // 3. insert values into centroids
-    this.centroids.forEach(centroid => {
-      const centroidId = centroid.properties!.id
-      if (!centroidId) return
+    // // 3. insert values into centroids
+    // this.centroids.forEach(centroid => {
+    //   const centroidId = centroid.properties!.id
+    //   if (!centroidId) return
 
-      const row = groupLookup.get(centroidId)
-      centroid.properties!.value = row ? sum(row.map(v => v[1])) : 'N/A'
-    })
+    //   let row = groupLookup.get(centroidId)
+    //   if (row === undefined) row = groupLookup.get(parseInt(centroidId))
+    //   centroid.properties!.value = row ? sum(row.map(v => v[1])) : 'N/A'
+    // })
 
     // sort them so big bubbles are below small bubbles
     this.centroids = this.centroids.sort((a: any, b: any) =>
