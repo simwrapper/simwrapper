@@ -31,6 +31,8 @@
       p Display
       b-dropdown(v-model="datasetValuesColumn"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+        :scrollable="datasetValuesColumnOptions.length > 10"
+        max-height="250"
         @change="handleUserSelectedNewMetric"
       )
         template(#trigger="{ active }")
@@ -43,8 +45,10 @@
     .filter(v-for="filter in Object.keys(filters)")
       p {{ filter }}
       b-dropdown(
-        multiple
         v-model="filters[filter].active"
+        :scrollable="filters[filter].active.length > 10"
+        max-height="250"
+        multiple
         @change="handleUserSelectedNewFilters(filter)"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
       )
@@ -63,6 +67,8 @@
       p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
       b-dropdown(v-model="chosenNewFilterColumn"
         @change="handleUserCreatedNewFilter"
+        :scrollable="availableFilterColumns.length > 10"
+        max-height="250"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
       )
         template(#trigger="{ active }")
