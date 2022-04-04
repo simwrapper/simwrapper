@@ -156,7 +156,7 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
 
   const csv = Papaparse.parse(text, {
     // preview: 10000,
-    delimitersToGuess: ['\t', ';', ','],
+    delimitersToGuess: ['\t', ';', ',', ' '],
     comments: '#',
     dynamicTyping: false,
     header: false,
