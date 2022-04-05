@@ -13,7 +13,8 @@
 
   .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
     collapsible-panel(direction="left" :locked="true")
-      .panel-items
+      //- show the header in upper/left if we are in single-view mode
+      .panel-items(v-if="!config")
         p.big {{ vizDetails.title }}
         p {{ vizDetails.description }}
 
