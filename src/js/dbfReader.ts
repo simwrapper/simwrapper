@@ -24,12 +24,15 @@ export var types: any = {
   N: readNumber,
 }
 
-const combinedTypes = {
-  readNumber: DataType.NUMBER,
-  readString: DataType.STRING,
-  readBoolean: DataType.BOOLEAN,
-  readDate: DataType.DATE,
-} as any
+const typeLookup: { [id: string]: DataType } = {
+  B: DataType.NUMBER,
+  C: DataType.STRING,
+  D: DataType.DATE,
+  F: DataType.NUMBER,
+  L: DataType.BOOLEAN,
+  M: DataType.NUMBER,
+  N: DataType.NUMBER,
+}
 
 export default function (source: Uint8Array, decoder: TextDecoder): DataTable {
   const head = new DataView(source.slice(0, 32))
@@ -49,7 +52,7 @@ export default function (source: Uint8Array, decoder: TextDecoder): DataTable {
 
   // loop thru fields
   for (const field of data._fields) {
-    const type = combinedTypes[types[field.type]]
+    const type = typeLookup[field.type]
     const values =
       types[field.type] === readNumber ? new Float32Array(expectedNumberOfRows) : ([] as any[])
     const column: DataTableColumn = { values, name: field.name, type }

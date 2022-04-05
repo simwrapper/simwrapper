@@ -20,6 +20,9 @@
     "bumpversion": "standard-version",
     "postinstall": "patch-package"
   },
+  "optionalDependencies": {
+    "fsevents": "*"
+  },
   "dependencies": {
     "@aftersim/pako": "^1.0.11-3",
     "@flowmap.gl/core": "^7.3.3",

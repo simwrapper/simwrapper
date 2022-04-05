@@ -30,6 +30,7 @@ async function fetchData(props: {
   buffer: Uint8Array
 }) {
   _config = props.config
+  console.log(10, _config)
   _dataset = _config.dataset
 
   // Did we get a pre-filled buffer? Just need to parse it
@@ -47,6 +48,7 @@ async function fetchData(props: {
   _buffer = props.buffer
 
   // if dataset has a path in it, we need to fetch the correct subfolder contents
+  console.log(11, _config.dataset)
   const slash = _config.dataset.indexOf('/')
   if (slash > -1) {
     const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
@@ -92,6 +94,7 @@ async function loadFile() {
 async function parseData(filename: string, buffer: Uint8Array) {
   if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
     const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+    calculateMaxValues(_dataset, dataTable)
     _fileData[_dataset] = dataTable
   } else {
     // convert text to utf-8
@@ -153,7 +156,7 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
 
   const csv = Papaparse.parse(text, {
     // preview: 10000,
-    delimitersToGuess: ['\t', ';', ','],
+    delimitersToGuess: ['\t', ';', ',', ' '],
     comments: '#',
     dynamicTyping: false,
     header: false,
@@ -212,7 +215,11 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       }
     }
   }
+  calculateMaxValues(fileKey, dataTable)
+  _fileData[fileKey] = dataTable
+}
 
+function calculateMaxValues(fileKey: string, dataTable: DataTable) {
   // calculate max for numeric columns
   for (const column of Object.values(dataTable)) {
     if (column.type !== DataType.NUMBER) continue
@@ -221,8 +228,6 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
     for (const value of column.values) max = Math.max(max, value)
     column.max = max
   }
-
-  _fileData[fileKey] = dataTable
 }
 
 function badparseCsvFile(fileKey: string, filename: string, text: string) {

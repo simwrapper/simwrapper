@@ -33,8 +33,6 @@
               i.fa.fa-folder-open
               | &nbsp;{{ cleanName(folder) }}
 
-      topsheets-finder(:fileSystemConfig="myState.svnProject" :subfolder="xsubfolder" :files="myState.files")
-
       //- thumbnails of each viz and image in this folder
       h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
 
@@ -55,6 +53,11 @@
                     :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
                     @title="updateTitle(index, $event)")
               p {{ viz.title }}
+
+      //- TODO calculation tables
+      //-       this.allConfigFiles = await this.fileSystem.findAllYamlConfigs(this.subfolder)
+      //- return Object.values(this.allConfigFiles.topsheets)
+
 
       // individual links to files in this folder
       h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
@@ -499,6 +502,7 @@ h4 {
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: $thumbnailHeight;
   border-radius: 16px;
   overflow: hidden;
   display: flex;

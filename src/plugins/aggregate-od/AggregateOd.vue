@@ -9,9 +9,9 @@
     .status-blob(v-show="!thumbnail && loadingText")
       p {{ loadingText }}
 
-    .lower-left(v-if="!thumbnail")
+    .lower-left(v-if="!thumbnail && !loadingText")
       .subheading {{ $t('lineWidths')}}
-      scale-slider.scale-slider(:stops='scaleValues' :initialTime='1' @change='bounceScaleSlider')
+      scale-slider.scale-slider(:stops='scaleValues' :initialValue='currentScale' @change='bounceScaleSlider')
 
       .subheading {{ $t('hide')}}
       line-filter-slider.scale-slider(
@@ -32,8 +32,8 @@
     .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
       p.description {{ this.vizDetails.description }}
 
-  .widgets(v-if="!thumbnail" style="{'padding': config ? '0 0'}")
-    .widget-column()
+  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+    .widget-column
       h4.heading {{ $t('time')}}
       label.checkbox(style="margin: 0 0.5rem 0 auto;")
           input(type="checkbox" v-model="showTimeRange")
@@ -82,16 +82,13 @@ const i18n = {
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
-import colormap from 'colormap'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
 import { forEachAsync } from 'js-coroutines'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
-import { multiPolygon } from '@turf/turf'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
-import VueSlider from 'vue-slider-component'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import yaml from 'yaml'
 
@@ -104,7 +101,7 @@ import TimeSlider from './TimeSlider.vue'
 import ScaleSlider from '@/components/ScaleSlider.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
@@ -118,6 +115,9 @@ interface AggOdYaml {
   title?: string
   description?: string
   idColumn?: string
+  lineWidth?: number
+  lineWidths?: number
+  hideSmallerThan?: number
 }
 
 const TOTAL_MSG = 'Alle >>'
@@ -180,7 +180,7 @@ class MyComponent extends Vue {
   }
 
   private containerId = `c${Math.floor(1e12 * Math.random())}`
-  private mapId = 'map-' + this.containerId
+  private mapId = ''
 
   private centroids: any = {}
   private centroidSource: any = {}
@@ -250,6 +250,8 @@ class MyComponent extends Vue {
   public async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
+    this.mapId = 'map-' + this.containerId
+
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig
     this.myState.subfolder = this.subfolder
@@ -258,9 +260,17 @@ class MyComponent extends Vue {
     await this.getVizDetails()
 
     this.setupMap()
+    this.configureSettings()
   }
 
   private isMapMoving = false
+
+  private configureSettings() {
+    if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
+      this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
+    }
+    if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
+  }
 
   @Watch('$store.state.viewState') private mapMoved({
     bearing,
@@ -406,8 +416,13 @@ class MyComponent extends Vue {
       return { shpFile, dbfFile, odFlows }
       //
     } catch (e) {
-      console.error({ e })
+      const error = e as any
+      let msg = error.statusText || '' + error
+      if (error.url) msg += ': ' + error.url
+
+      console.error(msg)
       this.loadingText = '' + e
+      this.$store.commit('error', msg)
       return null
     }
   }
@@ -416,12 +431,17 @@ class MyComponent extends Vue {
     return ['#00aa66', '#880033', '↓', '↑']
   }
 
-  private setupMap() {
-    this.mymap = new maplibregl.Map({
-      container: this.mapId,
-      style: globalStore.getters.mapStyle,
-      logoPosition: 'top-left',
-    })
+  private async setupMap() {
+    try {
+      this.mymap = new maplibregl.Map({
+        container: this.mapId,
+        style: globalStore.getters.mapStyle,
+        logoPosition: 'top-left',
+      })
+    } catch (e) {
+      console.error('HUH?')
+      return
+    }
 
     try {
       const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
@@ -469,6 +489,8 @@ class MyComponent extends Vue {
 
   private handleEmptyClick(e: mapboxgl.MapMouseEvent) {
     this.fadeUnselectedLinks(-1)
+    this.selectedCentroid = 0
+
     if (this.isMobile()) {
       // do something
     }
@@ -638,8 +660,9 @@ class MyComponent extends Vue {
     if (this.mymap.getLayer('centroid-layer')) this.mymap.removeLayer('centroid-layer')
     if (this.mymap.getLayer('centroid-label-layer')) this.mymap.removeLayer('centroid-label-layer')
 
-    if (this.showCentroids && !this.thumbnail) {
+    if (this.showCentroids) {
       this.mymap.addLayer({
+        layout: { visibility: this.thumbnail ? 'none' : 'visible' },
         id: 'centroid-layer',
         source: 'centroids',
         type: 'circle',
@@ -924,7 +947,7 @@ class MyComponent extends Vue {
     const options = this.thumbnail
       ? { animate: false }
       : {
-          padding: { top: 100, bottom: 100, right: 100, left: 100 },
+          padding: { top: 25, bottom: 25, right: 100, left: 100 },
           animate: false,
         }
     this.mymap.fitBounds(this._mapExtentXYXY, options)
@@ -1075,6 +1098,13 @@ class MyComponent extends Vue {
     this.colName = headers[1]
     this.headers = [TOTAL_MSG].concat(headers.slice(2))
 
+    if (!this.rowName || !this.colName) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: 'CSV data might be wrong format',
+        desc: 'First column has no name. Data MUST be orig,dest,values...',
+      })
+    }
     // console.log(this.headers)
 
     await forEachAsync(lines.slice(1), (row: any) => {
@@ -1329,7 +1359,6 @@ h4 {
   display: flex;
   flex-direction: row;
   user-select: none;
-  padding: 0.5rem 0.5rem;
 }
 
 .widget-column {
@@ -1379,10 +1408,6 @@ h4 {
   width: 12rem;
 }
 
-.scale-slider {
-  // margin: 0rem 0px auto 0px;
-}
-
 .heading {
   font-weight: bold;
   text-align: left;
@@ -1392,13 +1417,6 @@ h4 {
 .subheading {
   text-align: left;
   margin: 0 0 0rem 0.5rem;
-}
-
-.checkbox {
-  // font-size: 0.8rem;
-  // margin-top: 0.25rem;
-  // margin-right: 0.5rem;
-  // margin-left: 1rem;
 }
 
 .description {

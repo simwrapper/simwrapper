@@ -9,7 +9,6 @@ VuePlotly.myplot(
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { isNumeric } from 'vega-lite'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'

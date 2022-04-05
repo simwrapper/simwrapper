@@ -32,7 +32,7 @@
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
-    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all errors
+    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all messages
 
 
     .commands

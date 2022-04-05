@@ -2,6 +2,7 @@
 // the name of the import will be the chart "type" in YAML.
 
 // resizable charts:
+import aggregate from './aggregate.vue'
 import area from './area.vue'
 import bar from './bar.vue'
 import bubble from './bubble.vue'
@@ -18,15 +19,15 @@ import vega from './vega.vue'
 import video from './video.vue'
 
 // full-screen map visualizations:
-import aggregate from './aggregate.vue'
 import carriers from './carriers.vue'
 import flowmap from './flowmap.vue'
 import links from './links.vue'
-import map from './map-polygons.vue'
+import map from './area-map.vue'
 
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
 // export all resizable charts here
 export const plotlyCharts = {
+  aggregate,
   area,
   bar,
   bubble,
@@ -45,7 +46,7 @@ export const plotlyCharts = {
 }
 
 // export all remaining charts/maps here:
-export default Object.assign({ aggregate, carriers, flowmap, links, map }, plotlyCharts)
+export default Object.assign({ carriers, flowmap, links, map }, plotlyCharts)
 
 // ----- HELPER FUNCTIONS -----------------------------------------------------
 

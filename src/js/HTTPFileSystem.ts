@@ -179,12 +179,21 @@ class SVNFileSystem {
 
     let parts = stillScaryPath.split('/').filter(p => !!p) // split and remove blanks
 
+    // Normalize directory / get rid of '..' sections
+    function eatDots(parts: string[]): string[] {
+      const dotdot = parts.indexOf('..')
+      if (dotdot <= 0) return parts
+      const spliced = parts.filter((part: string, i) => i !== dotdot - 1 && i !== dotdot)
+      return eatDots(spliced)
+    }
+
+    const cleanDirParts: string[] = eatDots(parts)
+
     let currentDir = this.fsHandle as any
 
     // iterate thru the tree, top-down:
-    if (parts.length) {
-      for (const subfolder of parts) {
-        console.log('searching for:', subfolder)
+    if (cleanDirParts.length) {
+      for (const subfolder of cleanDirParts) {
         let found = false
         for await (let [name, handle] of currentDir) {
           if (name === subfolder) {
@@ -223,31 +232,29 @@ class SVNFileSystem {
 
     // first find all simwrapper folders
     let currentPath = '/'
-    const { dirs } = await this.getDirectory(currentPath)
-    if (dirs.indexOf(YAML_FOLDER) > -1)
-      configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+    // const { dirs } = await this.getDirectory(currentPath)
+    // if (dirs.indexOf(YAML_FOLDER) > -1) {
+    //   configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+    // }
 
     const pathChunks = folder.split('/')
-    for (const chunk of pathChunks) {
+    for (const chunk of pathChunks.slice(0, pathChunks.length - 1)) {
       currentPath = `${currentPath}${chunk}/`
       try {
         const { dirs } = await this.getDirectory(currentPath)
-        if (dirs.indexOf(YAML_FOLDER) > -1)
+        if (dirs.indexOf(YAML_FOLDER) > -1) {
           configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
-      } catch (e) {
-        // doesn't matter, skip if it can't read it
-      }
+        }
+      } catch (e) {}
     }
 
     // also add current working folder as final option, which supercedes all others
     configFolders.push(folder)
 
-    // console.log('configFolders', configFolders)
-
     // find all dashboards, topsheets, and viz-* yamls in each configuration folder.
     // Overwrite keys as we go; identically-named configs from parent folders get superceded as we go.
     const dashboard = 'dashboard*.y?(a)ml'
-    const topsheet = 'topsheet*.y?(a)ml'
+    const topsheet = '(topsheet|table)*.y?(a)ml'
     const viz = 'viz*.y?(a)ml'
     const config = 'simwrapper-config.y?(a)ml'
 
