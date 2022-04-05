@@ -63,7 +63,7 @@ function startLoading(props: {
 function postResults() {
   postMessage(
     { rowCache, columnLookup },
-    Object.values(rowCache).map((cache) => cache.raw.buffer)
+    Object.values(rowCache).map(cache => cache.raw.buffer)
   )
 }
 
@@ -73,9 +73,10 @@ async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
     const blob = await httpFileSystem.getFileBlob(filepath)
     if (!blob) throw Error('BLOB IS NULL')
     const buffer = await blob.arrayBuffer()
+    const uint8View = new Uint8Array(buffer)
 
     // this will recursively gunzip until it can gunzip no more:
-    const unzipped = gUnzip(buffer)
+    const unzipped = gUnzip(uint8View)
 
     step2examineUnzippedData(unzipped)
   } catch (e) {
@@ -142,30 +143,35 @@ function step3parseCSVdata(sections: Uint8Array[]) {
 
   const decoder = new TextDecoder()
 
-  for (const section of sections) {
-    const text = decoder.decode(section)
+  try {
+    for (const section of sections) {
+      const text = decoder.decode(section)
 
-    Papaparse.parse(text, {
-      header: false,
-      // preview: 100,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      step: (results: any, parser) => {
-        if (offset % 65536 === 0) {
-          console.log(offset)
-          postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
-        }
-        for (const key of Object.keys(rowCache)) {
-          const wgs84 = Coords.toLngLat(proj, [
-            results.data[rowCache[key].coordColumns[0] as any],
-            results.data[rowCache[key].coordColumns[1] as any],
-          ])
-          rowCache[key].raw.set(wgs84, offset)
-        }
-        offset += 2
-        return results
-      },
-    })
+      Papaparse.parse(text, {
+        header: false,
+        // preview: 100,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+        step: (results: any, parser) => {
+          if (offset % 65536 === 0) {
+            console.log(offset)
+            postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
+          }
+          for (const key of Object.keys(rowCache)) {
+            const wgs84 = Coords.toLngLat(proj, [
+              results.data[rowCache[key].coordColumns[0] as any],
+              results.data[rowCache[key].coordColumns[1] as any],
+            ])
+            rowCache[key].raw.set(wgs84, offset)
+          }
+          offset += 2
+          return results
+        },
+      })
+    }
+  } catch (e) {
+    postMessage({ error: 'ERROR projection coordinates' })
+    return
   }
 
   postMessage({ status: 'Trimming results...' })
