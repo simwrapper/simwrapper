@@ -7,7 +7,8 @@ li
         @click="toggle"
         style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
       )
-    .leaf-label(:root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
+    .leaf-label(v-if="item.searchField" style="color: rgb(250,223,141);" :root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
+    .leaf-label(v-else :root="item.root" :xsubfolder="item.path" @click="activate") {{ item.name }}
 
   ul.children(v-show="isOpen" v-if="isFolder")
     tree-item.item(
@@ -27,26 +28,26 @@ export default Vue.component('tree-item', {
   props: {
     item: {} as any,
   },
-  data: function() {
+  data: function () {
     return {
       isOpen: true, // this.item.level < 2, // default to all-open
     }
   },
   computed: {
-    isFolder: function() {
+    isFolder: function () {
       const item = this.item as any
       return item.children && item.children.length
     },
   },
   methods: {
-    activate: function(element: any) {
+    activate: function (element: any) {
       const { root, xsubfolder } = element.target.attributes
       this.$emit('navigate', {
         component: 'FolderBrowser',
         props: { root: root.value, xsubfolder: xsubfolder.value },
       })
     },
-    toggle: function(element: any) {
+    toggle: function (element: any) {
       this.isOpen = !this.isOpen
     },
   },
