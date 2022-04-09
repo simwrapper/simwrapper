@@ -85,7 +85,6 @@ class MyComponent extends Vue {
   private state = globalStore.state
 
   private rootNodes: any[] = []
-  private rootNodessearch: any[] = []
 
   private baseURL = import.meta.env.BASE_URL
 
