@@ -6,7 +6,7 @@
 
   .top-panel
     .stuff-in-main-panel
-      input.search-box(v-model="searchField" :placeholder="placeholder" style="")
+      input.search-box(v-model="searchField" :placeholder="placeholder")
       .more-stuff(v-if="!showWarnings")
         .root-files(v-for="node,i in rootNodes" :key="i")
           h3: b {{ node.name }}
