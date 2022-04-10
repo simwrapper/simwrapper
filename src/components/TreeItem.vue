@@ -31,6 +31,8 @@ export default Vue.component('tree-item', {
   data: function () {
     return {
       isOpen: true, // this.item.level < 2, // default to all-open
+      //isOpen: this.$props.item.root ? true : this.$props.item.searchField,
+      //isOpen:  this.$props.item.level < 2,
     }
   },
   computed: {
