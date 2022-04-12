@@ -6,6 +6,8 @@
      h3 {{ vizDetails.title }}
      p {{ vizDetails.description }}
 
+  .status-bar(v-if="statusText") {{ statusText }}
+
   polygon-and-circle-map.choro-map(v-if="!thumbnail" :props="mapProps")
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
@@ -20,7 +22,7 @@
     :sections="['fill']"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
-    :yamlConfig="'dashboard-map.yaml'"
+    :yamlConfig="generatedExportFilename"
     :vizDetails="vizDetails"
     :datasets="datasets"
     @update="changeConfiguration")
@@ -95,6 +97,7 @@ import { group, zip, sum } from 'd3-array'
 import EPSGdefinitions from 'epsg'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
+import Sanitize from 'sanitize-filename'
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import YAML from 'yaml'
@@ -152,6 +155,7 @@ export default class VueComponent extends Vue {
   private maxValue = 1000
   private expColors = false
   private isLoaded = false
+  private statusText = 'Loading...'
 
   // private active = false
 
@@ -198,6 +202,13 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private get generatedExportFilename() {
+    let filename = Sanitize(this.yamlConfig + '-1')
+    filename = filename.replaceAll(' ', ' ')
+
+    return `viz-map-${filename}.yaml`
+  }
+
   private myDataManager!: DashboardDataManager
 
   private config: any = {}
@@ -232,6 +243,7 @@ export default class VueComponent extends Vue {
 
       // Finally, update the view
       this.updateChart()
+      this.statusText = ''
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
     }
@@ -488,27 +500,27 @@ export default class VueComponent extends Vue {
 
       if (!filteredRows) {
         // is filter UN-selected? Rebuild full dataset
-        console.log('11', this.datasetJoinColumn, this.dataRows)
+        // console.log('11', this.datasetJoinColumn, this.dataRows)
         const joinCol = this.dataRows[this.datasetJoinColumn].values
-        console.log('12')
+        // console.log('12')
         const dataValues = this.dataRows[this.datasetValuesColumn].values
-        console.log('13')
+        // console.log('13')
         groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
-        console.log(14, groupLookup)
+        // console.log(14, groupLookup)
       } else {
-        console.log('bb')
+        // console.log('bb')
         // group filtered values by lookup key
         groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
-        console.log('cc')
+        // console.log('cc')
         groupIndex = this.datasetValuesColumn // index is values column name
-        console.log('dd', groupIndex)
+        // console.log('dd', groupIndex)
       }
 
       // ok we have a filter, let's update the geojson values
       let joinShapesBy = 'id'
       if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
 
-      console.log('a', joinShapesBy)
+      // console.log('a', joinShapesBy)
       const filteredBoundaries = [] as any[]
 
       this.boundaries.forEach(boundary => {
@@ -524,7 +536,7 @@ export default class VueComponent extends Vue {
         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredBoundaries.push(boundary)
       })
-      console.log('b')
+      // console.log('b')
 
       // centroids
       const filteredCentroids = [] as any[]
@@ -537,7 +549,7 @@ export default class VueComponent extends Vue {
         centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
         filteredCentroids.push(centroid)
       })
-      console.log('c')
+      // console.log('c')
 
       this.boundaries = filteredBoundaries
       this.centroids = filteredCentroids
@@ -555,6 +567,8 @@ export default class VueComponent extends Vue {
     let shapes: string = shapeConfig.file || shapeConfig
 
     try {
+      this.statusText = 'Loading shapes...'
+
       if (shapes.startsWith('http')) {
         const boundaries = await fetch(shapes).then(async r => await r.json())
         this.boundaries = boundaries.features
@@ -687,6 +701,8 @@ export default class VueComponent extends Vue {
           ? this.config.datasets[datasetId]
           : this.config.datasets[datasetId].file
 
+      this.statusText = `Loading dataset ${this.datasetFilename} ...`
+
       const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
       console.log(21, this.datasetFilename, dataset)
       console.log(23, this.config.datasets[datasetId])
@@ -805,6 +821,8 @@ export default class VueComponent extends Vue {
 
     if (!this.config.display || !this.config.datasets || !this.config.display.fill) return
 
+    this.statusText = 'Calculating...'
+
     let joinShapesBy = 'id'
 
     if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
@@ -918,6 +936,7 @@ globalStore.commit('registerPlugin', {
 }
 
 .choro-map {
+  // position: relative;
   z-index: -1;
   flex: 1;
 }
@@ -974,6 +993,17 @@ globalStore.commit('registerPlugin', {
   padding: 0 1rem 0.25rem 2rem;
   background-color: var(--bgPanel);
   filter: $filterShadow;
+}
+
+.status-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 200;
+  background-color: var(--bgPanel2);
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+  border: 1px solid var(--);
 }
 
 @media only screen and (max-width: 640px) {
