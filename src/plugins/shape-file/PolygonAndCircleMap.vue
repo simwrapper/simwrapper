@@ -87,30 +87,35 @@ export default class VueComponent extends Vue {
       }
     }
 
-    // try to figure out how tall it is? So tooltip doesn't go below the screen bottom
-    let tooltipHeight = 24 + 22 * Object.keys(object.properties).length
-    if (y + tooltipHeight < window.innerHeight) tooltipHeight = 0
-
     const entries = Object.entries(object.properties)
     if (!entries.length) return null
 
+    // try to figure out how tall it is? So tooltip doesn't go below the screen bottom
+    let tooltipHeight = 22 * entries.length
+    if (y + tooltipHeight < window.innerHeight) tooltipHeight = 0
+
     let html = `<div id="shape-tooltip" class="tooltip">`
-    for (const [key, value] of entries) {
+
+    if (object.properties.value) {
+      html = html + `<div>Value:&nbsp;<b>${object.properties.value}</b></div><br/>`
+    }
+
+    for (const [key, value] of entries.filter(entry => entry[0] !== 'value')) {
       html = html + `<div>${key}:&nbsp;<b>${value}</b></div>`
     }
 
     return {
       html,
       style: {
+        position: 'absolute',
+        top: y - tooltipHeight,
+        left: x + 10,
         backgroundColor: this.props.dark ? '#445' : 'white',
+        boxShadow: '0px 2px 10px #22222266',
         color: this.props.dark ? 'white' : '#222',
         fontSize: '0.9rem',
-        padding: '1rem 1rem',
-        position: 'absolute',
-        left: x + 10,
-        top: y - tooltipHeight,
-        boxShadow: '0px 2px 10px #22222266',
-        opacity: 0.8,
+        opacity: 0.85,
+        padding: '0.5rem 1rem',
       },
     }
   }
