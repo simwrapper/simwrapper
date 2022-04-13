@@ -205,7 +205,7 @@ export default class VueComponent extends Vue {
             lineWidthUnits: 'pixels',
             lineWidthMinPixels: 1,
             pickable: true,
-            stroked: false,
+            stroked: false, // this.props.data.length < 2500, // turn off borders for huge GeoJSON
             opacity: 0.01 * this.props.opacity,
             autoHighlight: true,
             highlightColor: [255, 0, 200],
