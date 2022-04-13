@@ -180,6 +180,7 @@ export default class VueComponent extends Vue {
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
+    shapes: '' as string | { file: string; join: string },
     display: {
       fill: {} as any,
       color: {} as any,
@@ -393,7 +394,6 @@ export default class VueComponent extends Vue {
   }
 
   private async handleNewDataset(props: DatasetDefinition) {
-    console.log('NEW dataset', props)
     const { key, dataTable, filename } = props
 
     const datasetId = key
@@ -417,8 +417,6 @@ export default class VueComponent extends Vue {
 
     if (!join.length) return
 
-    console.log({ DATASET: join[0], BOUNDS: join[1] })
-
     this.datasetJoinColumn = join[0] || Object.keys(dataTable)[0] || 'id'
 
     // hard-code copy of id column into shapefile feature IDs, for later lookup
@@ -437,6 +435,13 @@ export default class VueComponent extends Vue {
       file: this.datasetFilename,
       join: this.datasetJoinColumn,
     } as any
+
+    // update shapefile join column
+    if (typeof this.vizDetails.shapes === 'string') {
+      this.vizDetails.shapes = { file: this.vizDetails.shapes, join: join[1] }
+    } else {
+      this.vizDetails.shapes.join = join[1]
+    }
 
     this.vizDetails = Object.assign({}, this.vizDetails)
 
@@ -496,7 +501,6 @@ export default class VueComponent extends Vue {
 
       let groupLookup: any // this will be the map of boundary IDs to rows
       let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
-      console.log('aa')
 
       if (!filteredRows) {
         // is filter UN-selected? Rebuild full dataset
@@ -589,6 +593,7 @@ export default class VueComponent extends Vue {
   }
 
   private generateCentroidsAndMapCenter() {
+    this.statusText = 'Calculating centroids...'
     const idField = this.config.shapes.join || 'id'
 
     // Find the map center while we're here
@@ -631,6 +636,7 @@ export default class VueComponent extends Vue {
   private async loadShapefileFeatures(filename: string) {
     if (!this.fileApi) return []
 
+    this.statusText = 'Loading shapefile...'
     console.log('loading shapefile', filename)
 
     const url = `${this.subfolder}/${filename}`
@@ -646,6 +652,8 @@ export default class VueComponent extends Vue {
       const shpBlob = await (await shpPromise)?.arrayBuffer()
       const dbfBlob = await (await dbfPromise)?.arrayBuffer()
       if (!shpBlob || !dbfBlob) return []
+
+      this.statusText = 'Generating shapes...'
 
       geojson = await shapefile.read(shpBlob, dbfBlob)
     } catch (e) {
@@ -665,7 +673,11 @@ export default class VueComponent extends Vue {
     const guessCRS = Coords.guessProjection(projection)
 
     // then, reproject if we have a .prj file
-    if (guessCRS) geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
+    if (guessCRS) {
+      this.statusText = 'Projecting coordinates...'
+      await this.$nextTick()
+      geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
+    }
 
     return geojson.features as any[]
 
@@ -693,7 +705,6 @@ export default class VueComponent extends Vue {
     try {
       // for now just load first dataset
       const datasetId = Object.keys(this.config.datasets)[0]
-      console.log({ datasetId })
       // dataset could be  { dataset: myfile.csv }
       //               or  { dataset: { file: myfile.csv, join: TAZ }}
       this.datasetFilename =
@@ -704,8 +715,6 @@ export default class VueComponent extends Vue {
       this.statusText = `Loading dataset ${this.datasetFilename} ...`
 
       const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
-      console.log(21, this.datasetFilename, dataset)
-      console.log(23, this.config.datasets[datasetId])
 
       // figure out join - use ".join" or first column key
       this.datasetJoinColumn =
@@ -713,7 +722,6 @@ export default class VueComponent extends Vue {
           ? Object.keys(dataset.allRows)[0]
           : this.config.datasets[datasetId].join
 
-      console.log(22, this.datasetJoinColumn)
       this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
       this.dataRows = dataset.allRows

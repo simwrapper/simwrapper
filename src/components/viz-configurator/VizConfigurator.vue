@@ -167,6 +167,7 @@ export default class VueComponent extends Vue {
       projection: this.vizDetails.projection,
       showDifferences: this.vizDetails.showDifferences,
       sampleRate: this.vizDetails.sampleRate,
+      shapes: this.vizDetails.shapes,
       datasets: { ...this.vizDetails.datasets },
       display: { ...this.vizDetails.display },
     } as any
@@ -180,6 +181,15 @@ export default class VueComponent extends Vue {
     if (config.display.fill) {
       delete config.display.fill?.colorRamp?.style
       delete config.display.fill?.generatedColors
+    }
+
+    // clean up datasets filenames
+    if (config.datasets) {
+      for (const [key, filenameOrObject] of Object.entries(config.datasets) as any[]) {
+        if (typeof filenameOrObject.file === 'object') {
+          config.datasets[key].file = filenameOrObject.file?.name || filenameOrObject.file || key
+        }
+      }
     }
 
     // delete empty display sections
