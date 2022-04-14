@@ -1,6 +1,6 @@
 ---
 id: dashboards
-title: Dashboards
+title: 2. Dashboards in depth
 ---
 
 A dashboard is a page laid out with multiple charts, plots, and visualizations all together. You define the layout with a YAML configuration file which contains the types of plots and their configurations all in one place.
@@ -20,9 +20,9 @@ Start with the example below and edit as necessary. YAML is extremely picky abou
 
 ```yaml
 header:
-  tab: "Summary"
-  title: "Top-Level Summary Statistics"
-  description: "At-a-glance figures we usually look at" #optional
+  tab: 'Summary'
+  title: 'Top-Level Summary Statistics'
+  description: 'At-a-glance figures we usually look at' #optional
 ```
 
 **layout:** The layout consists of a set of named **rows**. The row name themselves are not shown anywhere, they are just there to help organize the file.
@@ -33,18 +33,18 @@ header:
 layout:
   myRow1: # this row has one full-width chart
     type: bar
-    title: "My Bar Chart"
+    title: 'My Bar Chart'
     props:
       dataset: mycsvdata.csv
       # ...
   myMultiRow: # next row has two charts, using the '-' YAML list syntax
     - type: bar
-      title: "My Bar Chart"
+      title: 'My Bar Chart'
       props:
         dataset: mycsvdata.csv
         # ...
     - type: table
-      title: "My Summary Table"
+      title: 'My Summary Table'
       props:
         config: summary-table.yaml
 ```
@@ -65,43 +65,43 @@ Here is a full example dashboard, pulling all of the above together. Note especi
 header:
   tab: Summary
   title: My Summary Dashboard
-  description: "Examples of various chart types"
+  description: 'Examples of various chart types'
 
 layout:
   row1: # this row has two charts
-    - title: "Mode Share - Final"
-      description: "From modestats.txt summary"
-      type: "pie"
+    - title: 'Mode Share - Final'
+      description: 'From modestats.txt summary'
+      type: 'pie'
       width: 1
       props:
-        dataset: "*modestats.txt"
+        dataset: '*modestats.txt'
         useLastRow: true
-        ignoreColumns: ["Iteration"]
+        ignoreColumns: ['Iteration']
 
-    - title: "Example Bar Plot"
-      description: "Distance over Iteration"
-      type: "bar"
+    - title: 'Example Bar Plot'
+      description: 'Distance over Iteration'
+      type: 'bar'
       width: 2
       props:
         usedCol: [distance_m_mean, directDistance_m_mean]
         legendName: [Distance (mean), Direct Distance (mean)]
         skipFirstRow: true
-        dataset: "*drt_customer_stats_drt_short.csv"
-        x: "iteration"
-        yAxisName: "Distanz"
-        xAxisName: "Iteration"
+        dataset: '*drt_customer_stats_drt_short.csv'
+        x: 'iteration'
+        yAxisName: 'Distanz'
+        xAxisName: 'Iteration'
 
   secondRow: # this row has just one plot
-    title: "Example Line Plot"
-    description: "Distance over Iteration"
-    type: "line"
+    title: 'Example Line Plot'
+    description: 'Distance over Iteration'
+    type: 'line'
     width: 1
     props:
       usedCol: [distance_m_mean, directDistance_m_mean]
       legendName: [Distance (mean), Direct Distance (mean)]
       skipFirstRow: false
-      dataset: "*drt_customer_stats_drt.csv"
-      x: "iteration"
-      yAxisName: "Distance"
-      xAxisName: "Iteration"
+      dataset: '*drt_customer_stats_drt.csv'
+      x: 'iteration'
+      yAxisName: 'Distance'
+      xAxisName: 'Iteration'
 ```

@@ -1,12 +1,12 @@
 ---
 id: area-maps
-title: 'Area Maps'
+title: Area Maps
 ---
 
 ![Examples of choropleth and dot-size maps](assets/area-maps.jpg)
 _(1) Area map with "choropleth" color-filled areas; (2) Area map with circles instead of filled areas_
 
-### Aggregate 'choropleth' and dot-size maps
+### Aggregate area maps and dot-size maps
 
 Area maps with filled colors are excellent for depicting spatial data in one dimension.
 
