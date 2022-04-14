@@ -1,6 +1,6 @@
 ---
 id: area-maps
-title: "Area Maps"
+title: 'Area Maps'
 ---
 
 ![Examples of choropleth and dot-size maps](assets/area-maps.jpg)
@@ -16,71 +16,140 @@ Note that very large and very small areas on the same maps can create misleading
 
 ## Usage
 
-Area maps can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
+**Standalone:** Create a `viz-map*.yaml` file as described below
+
+-or-
+
+**Embed in Dashboard:** Create a `dashboard-*.yaml` file and include a `type: map` section as described below.
 
 - Each area map panel is defined inside a **row** in a `dashboard-*.yaml` file.
 - Use panel type `map` in the dashboard configuration. (Note this may change in the future as we add more map types)
 - Standard title, description, and width fields define the frame.
-- **BOUNDARIES** must be in GeoJSON format, and must use latitude/longitude (EPSG:4326) coordinates. You can use QGis, R, Python to convert shapefiles to GeoJSON format.
+- See [Dashboard documentation](dashboards) for general tips on creating dashboard configurations.
 
 ---
 
-### Sample dashboard.yaml config snippet with a heatmap
+### Configuration reference properties
+
+NOTE: These properties all go into a `viz-map*.yaml` file as-is, or in a dashboard file they all go under the `props:` section of a layout row. See the examples at the end of this document.
+
+There are **two separate data types** loaded for an area map: one for the boundaries/shapes, and one for the dataset.
+
+Joining data: Both files must contain an matching identification column in order to join the two datasets together. In other words, the boundary IDs must be present (somwhere) in both datafiles. The names of the columns can be different in the two files; see below.
+
+### **shapes:** the boundaries/areas to be drawn
 
 ```yaml
-layout:
-  trips:
-    - title: "Trip Destinations"
-      description: "All day"
-      type: "map"
-      width: 2
-      height: 10
-      props:
-        dataset: "data/trip-destinations.csv"
-        datasetValue: "tour_id"
-        datasetJoinCol: "dtaz"
-        boundaries: "boundaries/TAZ/sftaz.geojson"
-        boundariesJoinCol: "TAZ"
-        boundariesLabels: "SFTAZ"
-        exponentColors: true
-
-    - title: "Zero-Car Households"
-      description: "Absolute number of 0-car households"
-      type: "map"
-      width: 1
-      height: 8
-      props:
-        dataset: "data/hh-by-autos-taz.csv"
-        datasetValue: "zeroHHs"
-        datasetJoinCol: "hhtaz"
-        boundaries: "boundaries/TAZ/sftaz.geojson"
-        boundariesJoinCol: "TAZ"
-        boundariesLabels: "SFTAZ"
+shapes:
+  file: my-taz-shapefile.shp
+  join: id
 ```
+
+Contains two subentries:
+
+- **file:** String. The filepath containing the data. May include wildcards \* and ?. File can be in _geojson_ format, or a _shapefile_. File type is determined by suffix, so must end in either `.geojson` or `.shp` When loading shapefiles, an identically-named .dbf and .prj file will also be read from the same folder. Be sure to supply a .prj file containing a valid EPSG code if your data is not in lat/long format.
+- **join:** String. The name of the data column containing shape IDs, or 'id' if it is in the id field of geojson.
+
+### **datasets:** the dataset to be joined to the shapefile
+
+```yaml
+dataset:
+  transit-trips:
+    file: .summaries/transit-outputs.csv
+    join: TAZ
+```
+
+Contains an object naming the dataset and providing its filename and join column:
+
+- **name of dataset:** Give the dataset a simple name, which will be used in the display settings below. e.g. `tazdata`
+  - **file:** String. The filepath containing the data. May include wildcards \* and ?. File can be in _CSV or DBF_ format. Any filename not ending in `.dbf` will be parsed as a CSV file, using either commas, tabs, or spaces as delimiters.
+  - **join:** String. The name of the data column containing the shape IDs for joining.
+
+### **display:** define the color and value details
+
+For area maps, the `fill` section defines the color fill, and is (currently) the only section that is required. At a later date we may include borders, etc.
+
+```yaml
+display:
+  fill:
+    dataset: transit-trips
+    filters: operator, income
+    values: trip_origins, trip_boards, trip_reslocs
+    colorRamp:
+      ramp: Plasma
+      reversed: true
+      steps: 5
+```
+
+**dataset:** Name of the dataset from above which includes the data.
+
+**filters:** (optional) List of any columns which can be used as category filters by the user interactively. Note that _active filters_ will be shown in the URL bar, so curated maps can be shared via URL.
+
+**values:** The column name (or names) containing values to be plotted. If multiple rows have a matching shape ID, all values will be summed together. (Other stats to be added)
+
+**colorRamp:** Describe the colors themselves:
+
+- **ramp:** Name of the color ramp to use.
+  - Sequential: `Viridis` `Plasma` `Blues` `Greens` `Purples` `Oranges`
+  - Diverging: `PRGn` `RdBu`
+  - Categorical: `Tableau10` `Paired`. Note categoricals only have ten or twelve categories.
+- **reversed:** true/false
+- **steps:** Number of steps in the ramp.
+- **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
 
 ---
 
-### Area Map properties
+## YAML configuration examples
 
-Area map properties belong in the `props` section:
+### Sample viz-map-1.yaml configuration
 
-Note there are two separate data files loaded for each area map: one for the boundaries, and one for the dataset.
+```yaml
+title: 'VIZ-MAP 1'
+description: 'All day transit usage'
+shapes:
+  file: '../../shapefiles/geoid.geojson'
+  join: id
+datasets:
+  transit-trips:
+    file: .dashboard/transit-data.csv
+    join: geoid
+display:
+  fill:
+    dataset: transit-trips
+    filters: operator, income
+    values: trip_origins, trip_boards, trip_reslocs
+    colorRamp:
+      ramp: Plasma
+      steps: 7
+```
 
-Each data file must contain a column identifying the aggregation area, in order to join the two datasets together. In other words, the boundary IDs must be present (somwhere) in both datafiles. The names of the columns can be different in the two files; see below.
+### Sample dashboard-1.yaml dashboard with an area map
 
-**dataset:** String. The filepath containing the data. May include wildcards \* and ?.
+```yaml
+header:
+  title: 'Trip Destinations'
+  description: 'All day'
 
-**datasetValue:** Name of the column in the dataset that contains the data to be plotted. Data will be aggregated (summed).
-
-**datasetJoinCol:** Name of the column containing the shapefile boundary IDs; e.g. the TAZ numbers or neighborhood group IDs.
-
-**boundaries:** A GeoJSON file containing the geometries for the boundaries.
-
-- There must be a property containing an ID for each boundary.
-- Coordinates MUST be in longitude/latitude (EPSG:4326) format. Do any necessary conversions before you load the data. Use QGis, R, Python, etc to do the conversions.
-
-**boundariesJoinCol:** The name of the column (or property) containing the ID for each subarea.
-
-**boundariesLabels:** The name of the column containing labels for each area, if it exists. The ID itself will be displayed if no labels are specified.
-
-**exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
+layout:
+  row:
+    - type: map
+      height: 10
+      props:
+        title: 'VIZ-MAP 1'
+        description: 'All day transit usage'
+        shapes:
+          file: '../../shapefiles/geoid.geojson'
+          join: id
+        datasets:
+          transit-trips:
+            file: .dashboard/transit-data.csv
+            join: geoid
+        display:
+          fill:
+            dataset: transit-trips
+            filters: operator, income
+            values: trip_origins, trip_boards, trip_reslocs
+            colorRamp:
+              ramp: Plasma
+              steps: 7
+```

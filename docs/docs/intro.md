@@ -1,6 +1,6 @@
 ---
-id: simwrapper-intro
-title: What is SimWrapper?
+id: intro
+title: SimWrapper
 ---
 
 **SimWrapper** is a unique, web-based data visualization tool for researchers building disaggregate transportation simulations with software such as [MATSim](https://matsim.org) and [ActivitySim](https://activitysim.github.io).
@@ -56,11 +56,11 @@ Here is an example YAML config file for a link-volume summary:
 **viz-links-example.yaml:**
 
 ```yaml
-title: "Taxi Passengers"
-description: "Hourly passenger pickups"
-csvFile: "vol_passengers.csv"
-geojsonFile: "../road-network.json.gz"
-projection: "EPSG:25832"
+title: 'Taxi Passengers'
+description: 'Hourly passenger pickups'
+csvFile: 'vol_passengers.csv'
+geojsonFile: '../road-network.json.gz'
+projection: 'EPSG:25832'
 sampleRate: 0.10
 ```
 

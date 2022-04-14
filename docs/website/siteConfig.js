@@ -1,46 +1,46 @@
 const siteConfig = {
-  title: "SimWrapper", // Title for your website.
-  tagline: "The simulation visualizer from TU Berlin",
-  url: "https://simwrapper.github.io", // Your website URL
-  baseUrl: "/", // Base URL for your project */
-  projectName: "simwrapper.github.io",
-  organizationName: "simwrapper",
-  headerIcon: "img/SW_favicon.png",
-  footerIcon: "img/vsp-logo-300dpi.png",
-  favicon: "img/SW_favicon.png",
+  title: 'SimWrapper', // Title for your website.
+  tagline: 'The simulation visualizer from TU Berlin',
+  url: 'https://simwrapper.github.io', // Your website URL
+  baseUrl: '/', // Base URL for your project */
+  projectName: 'simwrapper.github.io',
+  organizationName: 'simwrapper',
+  headerIcon: 'img/SW_favicon.png',
+  footerIcon: 'img/vsp-logo-300dpi.png',
+  favicon: 'img/SW_favicon.png',
 
   headerLinks: [
-    { doc: "simwrapper-intro", label: "Documentation" },
-    { blog: true, label: "News", left: true },
+    { doc: 'intro', label: 'Documentation' },
+    { blog: true, label: 'News', left: true },
     {
-      href: "https://github.com/simwrapper/simwrapper",
-      label: "Github",
+      href: 'https://github.com/simwrapper/simwrapper',
+      label: 'Github',
       external: true,
     },
   ],
 
   /* Colors for website */
   colors: {
-    primaryColor: "#43407E",
-    secondaryColor: "#514E9A",
+    primaryColor: '#43407E',
+    secondaryColor: '#514E9A',
   },
 
   stylesheets: [
     // "https://fonts.googleapis.com/css?family=Space+Grotesk:400,400i,700|Titillium+Web:400,400i,700",
-    "https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700",
+    'https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700',
   ],
 
-  highlight: { theme: "default" },
+  highlight: { theme: 'default' },
 
   scripts: [], // "https://buttons.github.io/buttons.js"],
 
   cleanUrl: true,
   copyright: `Copyright © ${new Date().getFullYear()} VSP, TU Berlin`,
   enableUpdateTime: true,
-  onPageNav: "separate",
+  onPageNav: 'separate',
 
   // Open Graph and Twitter card images.
-  ogImage: "img/undraw_online.svg",
+  ogImage: 'img/undraw_online.svg',
   //  twitterImage: "img/undraw_tweetstorm.svg",
   //  twitterUsername: "billyinberlin",
   // For sites with a sizable amount of content, set collapsible to true.

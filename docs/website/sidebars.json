@@ -1,13 +1,8 @@
 {
   "doc": {
-    "Getting Started": [
-      "simwrapper-intro",
-      "dashboards",
-      "file-management",
-      "mini-file-server",
-      "scripts"
-    ],
-    "Visualizations and Charts": [
+    "Getting Started": ["intro", "dashboards", "file-management", "mini-file-server", "scripts"],
+    "Guides": ["dashboards"],
+    "Reference": [
       "area-maps",
       "bar-area-line",
       "carrier-viewer",
@@ -26,6 +21,6 @@
       "xy-scatter-plots",
       "aggregate-od"
     ],
-    "Developer Guide": ["dev-guide", "plugin-guide", "changelog"]
+    "For Developers": ["dev-guide", "plugin-guide", "changelog"]
   }
 }
