@@ -146,6 +146,7 @@ class MyComponent extends Vue {
             } as any,
           },
         ]
+        this.$store.commit('setShowLeftBar', true)
         return
       }
     }
@@ -289,8 +290,8 @@ export default MyComponent
 }
 
 .control-buttons {
-  padding: 0.5rem 0.5rem;
-  z-index: 5;
+  padding: 0.25rem 0.5rem;
+  z-index: 250;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   display: flex;
