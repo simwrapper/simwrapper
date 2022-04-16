@@ -10,13 +10,23 @@
       i.fa.fa-sliders-h.settings-icon
 
   .configuration-panels(v-show="showPanels && !showAddDatasets")
-
     .section-panel
-      h1.actions
-        .action(@click="clickedExport")
-          i.fa.fa-sm.fa-share
-          | &nbsp;Export
-        .action(@click="clickedAddData")
+      .actions
+        //- .action(@click="clickedExport")
+        //-   i.fa.fa-sm.fa-share
+        //-   | &nbsp;Export
+        b-dropdown(v-model="selectedExportAction"
+          aria-role="list" position="is-bottom-left" :close-on-click="true"
+          @change="clickedExport"
+        )
+            template(#trigger="{ active }")
+              b-button.is-small.is-white.export-button()
+                i.fa.fa-sm.fa-share
+                | &nbsp;Export
+            b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+            b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
+
+        b-button.is-small.is-white.export-button(@click="clickedAddData")
           i.fa.fa-sm.fa-plus
           | &nbsp;Add Data
 
@@ -143,12 +153,23 @@ export default class VueComponent extends Vue {
   }
 
   private showAddDatasets = false
+  private selectedExportAction = ''
 
   private clickedAddData() {
     this.showAddDatasets = true
   }
 
-  private clickedExport() {
+  private async clickedExport() {
+    await this.$nextTick()
+    if (this.selectedExportAction == 'yaml') {
+      this.exportYaml()
+    } else if (this.selectedExportAction == 'png') {
+      this.$emit('screenshot')
+    }
+    this.selectedExportAction = ''
+  }
+
+  private exportYaml() {
     let suggestedFilename = 'viz-links-export.yaml'
     const configFile = this.yamlConfig.toLocaleLowerCase()
     if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
@@ -316,21 +337,33 @@ h1:hover {
 .actions {
   display: flex;
   flex-direction: row-reverse;
-  padding: 0.1rem 1px 0.1rem 0.5rem;
-  background-color: var(--bgPanel2);
+  padding: 0rem 1px 0rem 0.5rem;
+  background-color: var(--bgBold);
 
   :hover {
-    color: var(--textBold);
-    background-color: var(--bgBold);
-  }
-  .action {
-    padding: 2px 8px 2px 8px;
+    cursor: pointer;
   }
 }
 
 .actions:hover {
-  background-color: var(--bgPanel2);
+  // background-color: var(--bgPanel2);
   color: var(--link);
+}
+
+.export-button {
+  background-color: var(--bgBold);
+  margin: 0 0;
+  padding: 0rem 0.4rem;
+  color: var(--link);
+  font-size: 0.8rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.export-button:hover {
+  background-color: var(--bgCream4);
+  color: var(--linkHover);
 }
 
 @media only screen and (max-width: 640px) {

@@ -88,4 +88,8 @@ export default class LayerManager {
       this.updateLayer(id, { visible: true })
     }
   }
+
+  takeScreenshot() {
+    this.deckInstance.takeScreenshot()
+  }
 }

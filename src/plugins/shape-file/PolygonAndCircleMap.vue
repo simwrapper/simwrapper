@@ -25,6 +25,8 @@ export default class VueComponent extends Vue {
     expColors: boolean
   }
 
+  @Prop({ required: false }) screenshot: any
+
   private layerManager!: LayerManager
   private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
 
@@ -38,6 +40,10 @@ export default class VueComponent extends Vue {
 
   @Watch('props.dark') swapTheme() {
     this.layerManager.updateStyle()
+  }
+
+  @Watch('screenshot') takeScreenshot() {
+    this.layerManager.takeScreenshot()
   }
 
   @Watch('props')

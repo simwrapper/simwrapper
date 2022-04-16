@@ -8,7 +8,10 @@
 
   .status-bar(v-if="statusText") {{ statusText }}
 
-  polygon-and-circle-map.choro-map(v-if="!thumbnail" :props="mapProps")
+  polygon-and-circle-map.choro-map(v-if="!thumbnail"
+    :props="mapProps"
+    :screenshot="screenshotNotifier"
+  )
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -25,7 +28,8 @@
     :yamlConfig="generatedExportFilename"
     :vizDetails="vizDetails"
     :datasets="datasets"
-    @update="changeConfiguration")
+    @update="changeConfiguration"
+    @screenshot="takeScreenshot")
 
   .config-bar(v-if="isLoaded && !thumbnail" :class="{'is-standalone': !configFromDashboard}")
     //- Column picker
@@ -190,6 +194,11 @@ export default class VueComponent extends Vue {
 
   private datasets: { [id: string]: DataTable } = {}
 
+  private screenshotNotifier = ''
+  private takeScreenshot() {
+    this.screenshotNotifier += '1'
+  }
+
   private get mapProps() {
     return {
       useCircles: this.useCircles,
@@ -200,6 +209,7 @@ export default class VueComponent extends Vue {
       maxValue: this.maxValue,
       opacity: this.sliderOpacity,
       expColors: this.expColors,
+      screenshotCallback: this.screenshotNotifier,
     }
   }
 

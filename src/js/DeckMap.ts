@@ -11,8 +11,8 @@ const DEFAULT_MAP_PROPS = {
   layers: [],
   mapStyle: globalStore.getters.mapStyle,
   controller: true,
+  screenshotFilename: '',
   useDevicePixels: false, // don't need 4X retina pixels!
-  // getTooltip,
   getCursor: ({ isDragging, isHovering }: any) =>
     isDragging ? 'grabbing' : isHovering ? 'pointer' : '',
 }
@@ -101,11 +101,17 @@ export default class DeckMap extends Deck {
           this._map.resize()
         }
       },
+      onAfterRender: () => {
+        if (this.props.screenshotFilename) {
+          this.savePNGcallback()
+          this.props.screenshotFilename = ''
+        }
+      },
       ...props,
     }
     const { mapboxCanvas, deckCanvas } = createCanvas(props)
 
-    const viewState = props.viewState // || props.initialViewState
+    const viewState = props.viewState
     const basemap = props.basemap
 
     super({ canvas: deckCanvas, ...props })
@@ -189,5 +195,83 @@ export default class DeckMap extends Deck {
     }
 
     super.setProps(props)
+  }
+
+  takeScreenshot() {
+    // set useDevicePixels:true before screenshot, or screenshot dimensions
+    // are 2X wrong on HiDPI screens
+    this.props.useDevicePixels = true
+    this.props.screenshotFilename = 'screenshot1.png'
+    this.redraw()
+  }
+
+  savePNGcallback() {
+    // convert deck+map to image URL
+    const backgroundMap = this._map._canvas.toDataURL('image/png')
+    const deckLayer = this.canvas.toDataURL('image/png')
+
+    // merge images together with watermark
+    const mergedImage = this.mergeImageURIs({
+      width: this.canvas.width,
+      height: this.canvas.height,
+      imageDataURLs: [backgroundMap, deckLayer],
+    })
+
+    // set useDevicePixels back to off, after screenshot is taken
+    this.props.useDevicePixels = false
+
+    mergedImage.then(image => {
+      var element = document.createElement('a')
+      element.setAttribute('href', image)
+      element.setAttribute('download', 'screenshot.png')
+      element.style.display = 'none'
+      document.body.appendChild(element)
+
+      element.click()
+
+      document.body.removeChild(element)
+    })
+  }
+
+  // copypasta from
+  // https://stackoverflow.com/questions/32096540/merge-two-datauris-to-create-a-single-image
+  mergeImageURIs(props: { width: number; height: number; imageDataURLs: string[] }) {
+    return new Promise<any>((resolve, reject) => {
+      var canvas = document.createElement('canvas')
+      canvas.width = props.width
+      canvas.height = props.height
+
+      Promise.all(props.imageDataURLs.map(dataURL => this.add2canvas(canvas, dataURL))).then(() => {
+        // add watermark
+        const ctx = canvas.getContext('2d') as any
+        const boxLeft = canvas.width - 152
+        const boxTop = canvas.height - 8
+        ctx.beginPath()
+        ctx.rect(boxLeft - 4, boxTop - 14, 158, 22)
+        ctx.fillStyle = '#ffffff44'
+        ctx.fill()
+        ctx.font = '11px Arial'
+        ctx.fillStyle = '#888'
+        ctx.fillText('© Mapbox  © OpenStreetMap', boxLeft, boxTop)
+
+        // return final dataURL with fully-built image
+        resolve(canvas.toDataURL('image/png'))
+      })
+    })
+  }
+
+  add2canvas(canvas: any, dataURL: string) {
+    return new Promise((resolve, reject) => {
+      if (!canvas) reject()
+      if (!dataURL) reject()
+
+      var image = new Image()
+
+      image.onload = function () {
+        canvas.getContext('2d').drawImage(this, 0, 0)
+        resolve(true)
+      }
+      image.src = dataURL
+    })
   }
 }
