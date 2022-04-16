@@ -82,10 +82,10 @@ const fetchFolders = async function (
     store.commit('updateRunFolders', foundFolders)
     localStorage.setItem('RunFinder.foundFolders', JSON.stringify(foundFolders.folders))
 
-    // if (deep < 1) {
-    for (const dir of realDirs) {
-      fetchFolders(root, fileSystem, `${folder}/${dir}`, deep + 1)
-      // }
+    if (deep < 2) {
+      for (const dir of realDirs) {
+        fetchFolders(root, fileSystem, `${folder}/${dir}`, deep + 1)
+      }
     }
   } catch (e) {
     console.warn(e)
