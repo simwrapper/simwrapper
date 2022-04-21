@@ -187,10 +187,10 @@ class XyHexagons extends Vue {
     projection: '',
     thumbnail: '',
     aggregations: {},
-    radius: 0,
+    radius: 250,
     maxHeight: 0,
     center: null as any,
-    zoom: 0,
+    zoom: 9,
   }
 
   public myState = {
@@ -417,7 +417,7 @@ class XyHexagons extends Vue {
     }
 
     if (!this.vizDetails.radius) {
-      this.vizDetails.radius = 1
+      this.vizDetails.radius = 250
     }
 
     if (!this.vizDetails.maxHeight) {
@@ -439,7 +439,7 @@ class XyHexagons extends Vue {
       radius: this.vizDetails.radius,
       maxHeight: this.vizDetails.maxHeight,
       center: this.vizDetails.center,
-      zoom: this.vizDetails.center,
+      zoom: this.vizDetails.zoom,
     }
     this.$emit('title', this.vizDetails.title)
     // this.solveProjection()
@@ -456,7 +456,8 @@ class XyHexagons extends Vue {
           : this.myState.subfolder + '/' + this.myState.yamlConfig
 
       const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
+
+      this.vizDetails = Object.assign({}, this.vizDetails, YAML.parse(text))
     } catch (err) {
       const e = err as any
       console.log('failed')
@@ -536,17 +537,12 @@ class XyHexagons extends Vue {
   }
 
   private async setMapCenter() {
-    console.log('in setmapcenter')
     const data = Object.values(this.rowCache)[0].raw
+
+    // If user gave us the center, use it
     if (this.vizDetails.center) {
-      console.log('center:', this.vizDetails.center)
       if (typeof this.vizDetails.center == 'string') {
         this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-      }
-
-      if (!this.vizDetails.zoom) {
-        this.vizDetails.zoom = 20
-        console.log('zooom')
       }
 
       this.$store.commit('setMapCamera', {
@@ -554,13 +550,13 @@ class XyHexagons extends Vue {
         latitude: this.vizDetails.center[1],
         bearing: 0,
         pitch: 0,
-        zoom: this.vizDetails.zoom,
+        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
         jump: false,
       })
-      console.log('center/zoom', this.vizDetails.center, this.vizDetails.zoom)
       return
     }
 
+    // user didn't give us the center, so calculate it
     if (!data.length) return
 
     let samples = 0
@@ -579,7 +575,6 @@ class XyHexagons extends Vue {
     longitude = longitude / samples
     latitude = latitude / samples
 
-    console.log('center', longitude, latitude)
     const currentView = this.$store.state.viewState
 
     if (longitude && latitude) {
@@ -588,53 +583,11 @@ class XyHexagons extends Vue {
         latitude,
         bearing: currentView.bearing,
         pitch: currentView.pitch,
-        zoom: currentView.zoom,
+        zoom: this.vizDetails.zoom || currentView.zoom,
         jump: false,
       })
     }
   }
-  /* private jumpToCenter() {
-    // Only jump in camera is not yet set
-    // if (!this.$store.state.viewState.initial) return
-
-    let x = 0
-    let y = 0
-
-    try {
-      const data = Object.values(this.rowCache)[0].raw
-
-      let count = 0
-      for (let i = 0; i < data.length; i += 1024) {
-        const tx = data[i]
-        const ty = data[i + 1]
-        if (tx && ty) {
-          count++
-          x += tx
-          y += ty
-        }
-      }
-      x = x / count
-      y = y / count
-    } catch (e) {
-      // that's ok
-      console.warn(e)
-    }
-
-    // don't move for reasons
-    if (!x || !y) return
-
-    // jump!
-    const currentView = this.$store.state.viewState
-    const jumpView = {
-      longitude: x,
-      latitude: y,
-      bearing: currentView.bearing,
-      pitch: currentView.pitch,
-      zoom: currentView.zoom,
-    }
-
-    this.$store.commit('setMapCamera', jumpView)
-  } */
 
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
