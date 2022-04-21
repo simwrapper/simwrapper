@@ -1,4 +1,5 @@
 import micromatch from 'micromatch'
+import pako from 'pako'
 import { DirectoryEntry, FileSystemAPIHandle, FileSystemConfig, YamlConfigs } from '@/Globals'
 
 const YAML_FOLDER = 'simwrapper'
@@ -127,7 +128,14 @@ class SVNFileSystem {
     // here so the code further up can deal with errors properly.
     // "Throw early, catch late."
     const response = await this._getFileResponse(scaryPath)
-    return response.json()
+    const blob = await response.blob()
+    const buffer = await blob.arrayBuffer()
+
+    // recursively gunzip until it can gunzip no more:
+    const unzipped = this.gUnzip(buffer)
+
+    const text = new TextDecoder('utf-8').decode(unzipped)
+    return JSON.parse(text)
   }
 
   async getFileBlob(scaryPath: string): Promise<Blob> {
@@ -377,6 +385,20 @@ class SVNFileSystem {
       else files.push(name)
     }
     return { dirs, files, handles: {} }
+  }
+
+  /**
+   * This recursive function gunzips the buffer. It is recursive because
+   * some combinations of subversion, nginx, and various web browsers
+   * can single- or double-gzip .gz files on the wire. It's insane but true.
+   */
+  private gUnzip(buffer: any): Uint8Array {
+    // GZIP always starts with a magic number, hex $8b1f
+    const header = new Uint8Array(buffer.slice(0, 2))
+    if (header[0] === 0x1f && header[1] === 0x8b) {
+      return this.gUnzip(pako.inflate(buffer))
+    }
+    return buffer
   }
 }
 
