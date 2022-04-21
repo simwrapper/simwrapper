@@ -4,4 +4,4 @@ This repository contains the VSP implementation of SimWrapper, available at http
 
 This site was built from source files that can be found at https://github.com/simwrapper/simwrapper
 
-To learn more about SimWrapper, see the documentation at https://simwrapper.github.io/docs/
+To learn more about SimWrapper, see the documentation at https://simwrapper.github.io/docs/intro
