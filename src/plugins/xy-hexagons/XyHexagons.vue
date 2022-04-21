@@ -35,15 +35,15 @@
             @click="handleOrigDest(group,i)") {{ element.title }}
 
         .panel-item.right
-          p.speed-label {{ $t('maxHeight') }}: {{ maxHeight }}
-          vue-slider.speed-slider(v-model="maxHeight"
+          p.speed-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
+          vue-slider.speed-slider(v-model="vizDetails.maxHeight"
             :min="0" :max="250" :interval="5"
             :duration="0" :dotSize="12"
             tooltip="none"
           )
 
-          p.speed-label Hex Radius: {{ radius }}
-          vue-slider.speed-slider(v-model="radius"
+          p.speed-label Hex Radius: {{ vizDetails.radius }}
+          vue-slider.speed-slider(v-model="vizDetails.radius"
             :min="50" :max="1000" :interval="5"
             :duration="0" :dotSize="12"
             tooltip="none"
@@ -120,6 +120,10 @@ interface VizDetail {
   thumbnail?: string
   elements?: string
   aggregations: Aggregations
+  radius: number
+  maxHeight: number
+  center: any
+  zoom: number
 }
 
 @Component({
@@ -159,8 +163,8 @@ class XyHexagons extends Vue {
     }
   }
 
-  private radius = 250
-  private maxHeight = 0
+  //private radius = 250
+  //private maxHeight = 0
 
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
@@ -184,6 +188,10 @@ class XyHexagons extends Vue {
     projection: '',
     thumbnail: '',
     aggregations: {},
+    radius: 250,
+    maxHeight: 0,
+    center: null as any,
+    zoom: 9,
   }
 
   public myState = {
@@ -227,16 +235,16 @@ class XyHexagons extends Vue {
       data: this.requests,
       extrude: this.extrudeTowers,
       highlights: this.highlightedTrips,
-      maxHeight: this.maxHeight,
+      maxHeight: this.vizDetails.maxHeight,
       metric: this.buttonLabel,
-      radius: this.radius,
+      radius: this.vizDetails.radius,
       upperPercentile: 100,
       selectedHexStats: this.hexStats,
     }
   }
 
   private get extrudeTowers() {
-    return this.maxHeight > 0
+    return this.vizDetails.maxHeight > 0
   }
 
   private handleEmptyClick() {
@@ -409,6 +417,14 @@ class XyHexagons extends Vue {
       if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
     }
 
+    if (!this.vizDetails.radius) {
+      this.vizDetails.radius = 250
+    }
+
+    if (!this.vizDetails.maxHeight) {
+      this.vizDetails.maxHeight = 0
+    }
+
     // output_trips:
     this.vizDetails = {
       title: 'Output Trips',
@@ -421,6 +437,10 @@ class XyHexagons extends Vue {
           { title: 'Destinations', x: 'end_x', y: 'end_y' },
         ],
       },
+      radius: this.vizDetails.radius,
+      maxHeight: this.vizDetails.maxHeight,
+      center: this.vizDetails.center,
+      zoom: this.vizDetails.zoom,
     }
     this.$emit('title', this.vizDetails.title)
     // this.solveProjection()
@@ -437,7 +457,8 @@ class XyHexagons extends Vue {
           : this.myState.subfolder + '/' + this.myState.yamlConfig
 
       const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
+
+      this.vizDetails = Object.assign({}, this.vizDetails, YAML.parse(text))
     } catch (err) {
       const e = err as any
       console.log('failed')
@@ -516,47 +537,57 @@ class XyHexagons extends Vue {
     return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
   }
 
-  private jumpToCenter() {
-    // Only jump in camera is not yet set
-    // if (!this.$store.state.viewState.initial) return
+  private async setMapCenter() {
+    const data = Object.values(this.rowCache)[0].raw
 
-    let x = 0
-    let y = 0
-
-    try {
-      const data = Object.values(this.rowCache)[0].raw
-
-      let count = 0
-      for (let i = 0; i < data.length; i += 1024) {
-        const tx = data[i]
-        const ty = data[i + 1]
-        if (tx && ty) {
-          count++
-          x += tx
-          y += ty
-        }
+    // If user gave us the center, use it
+    if (this.vizDetails.center) {
+      if (typeof this.vizDetails.center == 'string') {
+        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
       }
-      x = x / count
-      y = y / count
-    } catch (e) {
-      // that's ok
-      console.warn(e)
+
+      this.$store.commit('setMapCamera', {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+        jump: false,
+      })
+      return
     }
 
-    // don't move for reasons
-    if (!x || !y) return
+    // user didn't give us the center, so calculate it
+    if (!data.length) return
 
-    // jump!
+    let samples = 0
+    let longitude = 0
+    let latitude = 0
+
+    const numLinks = data.length / 2
+
+    const gap = 4096
+    for (let i = 0; i < numLinks; i += gap) {
+      longitude += data[i * 2]
+      latitude += data[i * 2 + 1]
+      samples++
+    }
+
+    longitude = longitude / samples
+    latitude = latitude / samples
+
     const currentView = this.$store.state.viewState
-    const jumpView = {
-      longitude: x,
-      latitude: y,
-      bearing: currentView.bearing,
-      pitch: currentView.pitch,
-      zoom: currentView.zoom,
-    }
 
-    this.$store.commit('setMapCamera', jumpView)
+    if (longitude && latitude) {
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        bearing: currentView.bearing,
+        pitch: currentView.pitch,
+        zoom: this.vizDetails.zoom || currentView.zoom,
+        jump: false,
+      })
+    }
   }
 
   private async mounted() {
@@ -634,7 +665,7 @@ class XyHexagons extends Vue {
     this.columnLookup = columnLookup
     this.rowCache = rowCache
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
-    this.jumpToCenter()
+    this.setMapCenter()
 
     this.myState.statusMessage = ''
   }
