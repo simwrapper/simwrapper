@@ -79,7 +79,8 @@ calculations:
   # opHours: the drtVehicles file is an array of elements that each have t_1 and t_0.
   # This eqn takes the SUM of all t_1 values, subtracts the SUM of all t_0 values,
   # and divides this by 3600
-  opHours: '( {drtVehicles.t_1} - {drtVehicles.t_0}) / 3600'
+  # Arrays can be reduced with @sum, @count, @min, @max, @mean, @first, @last.
+  opHours: '( {@sum(drtVehicles.t_1)} - {@sum(drtVehicles.t_0)}) / 3600'
 
   # operatingHours: this takes the value of opHours just calculated and
   # multiplies it by the sampleSize found in the UI entry fields
@@ -196,7 +197,8 @@ will return an array of rows for which the value in the specified file's column 
 sets myVar to the value of the referenced **file** for the specified **field**.
 
 - If `file` is just one row of data, such as from `useLastRow`, the value of the `field` column or property will be directly used.
-- If `file` is an array of rows, such as a CSV file, then the values from all rows will be **SUMMED TOGETHER**. In the future we may add other capabilities but for now, you get a summation every time.
+
+**Arrays** can be reduced using several obvious functions: **@sum**, **@count**, **@min**, **@max**, **@mean**, **@first**, **@last**. If an array is found in an equation without one of these functions, the SUM of all values will be taken by default.
 
 See the example above for more hints on how this works.
 
