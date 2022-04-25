@@ -7,6 +7,41 @@ title: Change Log
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.10.0](https://github.com/simwrapper/simwrapper/compare/v1.9.0...v1.10.0) (2022-04-25)
+
+
+### Features
+
+* Aggregate-OD learned dashboards, lineWidths, and hideSmallerThan ([b8035c2](https://github.com/simwrapper/simwrapper/commit/b8035c2a522d67272b26a255177c39b60dfca0de))
+* Calculation tables can now be 'table' type, and use table*.yaml config ([2868708](https://github.com/simwrapper/simwrapper/commit/28687085dce957d62fb336d5dcce2ce6b783a7a3))
+* Dashboards learned "text" block type, for including readme content ([7d7b4f4](https://github.com/simwrapper/simwrapper/commit/7d7b4f4a71cdeafcc21a0d435c49a7ee6c81b20f))
+* **map:** give user feedback while loading files ([ef919d5](https://github.com/simwrapper/simwrapper/commit/ef919d5a2e7ab3bf32f297f5e0585de145e13ce1))
+* new "Area Map" viz type for zone maps, etc: viz-map*.yaml ([9bf2a8d](https://github.com/simwrapper/simwrapper/commit/9bf2a8d084da6e17e389ab634f431b43843ef576))
+* Save PNG screenshot of all DeckMap-based views ([059e43a](https://github.com/simwrapper/simwrapper/commit/059e43ab146df028abb87a95a2b2a63a6bc59d6f))
+* **tables:** add @sum, @count, @first, @last, @mean, @min, @max functions to tables ([9b2020a](https://github.com/simwrapper/simwrapper/commit/9b2020ab9d07124fd39a2e18636030b6559d1ab2)), closes [#35](https://github.com/simwrapper/simwrapper/issues/35)
+
+
+### Bug Fixes
+
+* Allow *wildcards* in network path loader ([dd70112](https://github.com/simwrapper/simwrapper/commit/dd70112bd12c7640726629824108a01b52a53610)), closes [#117](https://github.com/simwrapper/simwrapper/issues/117)
+* Autoplay option for video ([cce6922](https://github.com/simwrapper/simwrapper/commit/cce69228ffa2adc649d8827bfe38ca79b2d14f1a)), closes [#135](https://github.com/simwrapper/simwrapper/issues/135)
+* DBF data loader wasn't calculating max column values ([2ef2336](https://github.com/simwrapper/simwrapper/commit/2ef2336a1a5562497c17b3427f68767b39b5905c))
+* drawing tool placement conflicts with map settings ([72ad432](https://github.com/simwrapper/simwrapper/commit/72ad43285bf7a6eab51bc4f7f4c9b246750dbee8))
+* fix [#138](https://github.com/simwrapper/simwrapper/issues/138), images don't reload on tabs in chrome-local-mode ([f7ba932](https://github.com/simwrapper/simwrapper/commit/f7ba93276e90a0ed3bc294b6631b1da3219bed7b))
+* gunzip JSON files if necessary ([0832c4f](https://github.com/simwrapper/simwrapper/commit/0832c4f0439b9c6862c53765c494e50cf0cee202))
+* Honor simwrapper/ folder contents for SUBFOLDER dashboards only ([373685a](https://github.com/simwrapper/simwrapper/commit/373685a6813b1bf761ec7340c189188af161996e)), closes [#108](https://github.com/simwrapper/simwrapper/issues/108)
+* Image plugin now handles asterisks ([e216e4b](https://github.com/simwrapper/simwrapper/commit/e216e4be244c015ca981954eb7a943d1849964a0)), closes [#136](https://github.com/simwrapper/simwrapper/issues/136)
+* **map:** better tooltip with value at top ([a92937a](https://github.com/simwrapper/simwrapper/commit/a92937aed5c2d5c3d8a9d76f5c0c4bab1cbc0bb1))
+* **map:** improved export with more fields populated ([3dabf6f](https://github.com/simwrapper/simwrapper/commit/3dabf6fadc869b39ef96a57077bf13bb3ab76378))
+* **map:** Massive speed boost by turning off shape border-lines ([372c94d](https://github.com/simwrapper/simwrapper/commit/372c94d24e4b814c18b27c19d5b257d8c7698358))
+* **maps:** handle large number of columns, filters in UI ([d35274e](https://github.com/simwrapper/simwrapper/commit/d35274e0749112bf1f89abb7c8477922a7683409))
+* **map:** still show TAZ boundaries for smaller geojson files ([ee632cf](https://github.com/simwrapper/simwrapper/commit/ee632cf3fbec12cf461ff8a659b0cbe5dd806560))
+* overall layout bugs - left panel, close buttons, etc ([7f185f1](https://github.com/simwrapper/simwrapper/commit/7f185f138e4fa0d33cd8c65a1cf131fb81147c19))
+* Parse space-delimited CSVs properly ([79da8bd](https://github.com/simwrapper/simwrapper/commit/79da8bdd5b58ae999c399d09c02d9579e7f0275e))
+* Support GeoJSON networks with feature.id or feature.properties.id ([dbbaf7e](https://github.com/simwrapper/simwrapper/commit/dbbaf7e1851cf89c24b624618f83a0c9b29f3525)), closes [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6) [/datatracker.ietf.org/doc/html/rfc7946#section-6](https://github.com/simwrapper//datatracker.ietf.org/doc/html/rfc7946/issues/section-6)
+* Tables and topsheets now shown as thumbnails on Files tab ([2c79733](https://github.com/simwrapper/simwrapper/commit/2c7973350b2e93f21c9461e6a485f23d90b84d86)), closes [#106](https://github.com/simwrapper/simwrapper/issues/106)
+* Xy-hexagon YAML now has zoom,center,maxHeight,radius enabled ([d50ba3b](https://github.com/simwrapper/simwrapper/commit/d50ba3b3ea2c1abc499be611f1d2c29647d22ade))
+
 ## [1.9.0](https://github.com/simwrapper/simwrapper/compare/v1.8.0...v1.9.0) (2022-03-17)
 
 
