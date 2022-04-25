@@ -24,7 +24,10 @@ csvFile: od-analysis-hourly-drt.csv
 projection: GK4
 scaleFactor: 100
 idColumn: "id"
+lineWidth: 50
 ```
+
+## Input Files
 
 **Shapefile:** The DBF data must contain a column with the ID of the zones/regions. This ID will be used to identify the O/D flows in the CSV file
 
@@ -47,3 +50,13 @@ origin;destination;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23;2
 88;112;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0
 etc...
 ```
+
+## Configuration Parameters
+
+**projection:** Coordinate projection, such as "EPSG:31468" or "GK4"
+
+**scaleFactor:** Factor to scale all values -- to handle 1% or 10% scenarios, for example
+
+**lineWidth:** Starting width scaling of lines
+
+**idColumn:** Data column in shapefile which contains the ID for regions/zones (default "id")
