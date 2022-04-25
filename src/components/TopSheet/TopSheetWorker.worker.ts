@@ -313,7 +313,7 @@ function getFileVariableReplacements(expr: string) {
     // e.g. sum, count
     let calculationType = ''
 
-    // TODO: start with '@'
+    // special functions start with '@': @sum, @count, @etc
     if (p[0] == '@') {
       const pSplitted = p.split(/[()@]+/)
       p = pSplitted[2]
@@ -324,7 +324,6 @@ function getFileVariableReplacements(expr: string) {
     const element = _fileData[pattern[0]]
 
     let lookup
-    // TODO: min, max, mean, first, last
 
     switch (calculationType) {
       case 'min':
@@ -383,11 +382,7 @@ function getFileVariableReplacements(expr: string) {
       case 'first':
         // Calculate the first element
         if (Array.isArray(element)) {
-          for (const row of element) {
-            if (lookup == undefined) {
-              lookup = row[pattern[1]]
-            }
-          }
+          lookup = element[0][pattern[1]]
         } else {
           lookup = element[pattern[1]]
         }
@@ -400,9 +395,7 @@ function getFileVariableReplacements(expr: string) {
       case 'last':
         // Calculate the last element
         if (Array.isArray(element)) {
-          for (const row of element) {
-            lookup = row[pattern[1]]
-          }
+          lookup = element[element.length-1][pattern[1]]
         } else {
           lookup = element[pattern[1]]
         }
@@ -432,9 +425,7 @@ function getFileVariableReplacements(expr: string) {
         lookup = 0
         // Count all elements
         if (Array.isArray(element)) {
-          for (const row of element) {
-            lookup++
-          }
+          lookup = element.length
         } else {
           lookup = 1
         }
