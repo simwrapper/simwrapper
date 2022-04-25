@@ -232,7 +232,6 @@ function doAllCalculations() {
       // solve the equation using nerdamer
       const value = nerdamer(expr).valueOf()
       calculations[calc] = value
-      // console.log(calc, value)
     } catch (e) {
       calculations[calc] = `Error:${calc}: ${expr}`
     }
@@ -310,21 +309,153 @@ function getFileVariableReplacements(expr: string) {
   if (!patterns.length) return expr
 
   // for each {variable}, do a lookup and replace
-  for (const p of patterns) {
-    const pattern = p.split('.') // ${file.variable} --> ['file','variable']
+  for (let p of patterns) {
+    // e.g. sum, count
+    let calculationType = ''
 
-    const element = _fileData[pattern[0]]
-
-    // if this represents a scalar, use it; otherwise it is an array, and do a summation
-    let lookup = 0
-    if (Array.isArray(element)) {
-      for (const row of element) {
-        lookup = lookup + row[pattern[1]]
-      }
-    } else {
-      lookup = element[pattern[1]]
+    // TODO: start with '@'
+    if (p[0] == '@') {
+      const pSplitted = p.split(/[()@]+/)
+      p = pSplitted[2]
+      calculationType = pSplitted[1]
     }
 
+    const pattern = p.split('.') // ${file.variable} --> ['file','variable']
+    const element = _fileData[pattern[0]]
+
+    let lookup
+    // TODO: min, max, mean, first, last
+
+    switch (calculationType) {
+      case 'min':
+        // Calculate the min
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            if (lookup > row[pattern[1]] || lookup == undefined) {
+              lookup = row[pattern[1]]
+            }
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @min(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@min(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'max':
+        // Calculate the max
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            if (lookup < row[pattern[1]] || lookup == undefined) {
+              lookup = row[pattern[1]]
+            }
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @max(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@max(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'mean':
+        // Calculate the mean
+        if (Array.isArray(element)) {
+          lookup = 0
+          let count = 0
+          for (const row of element) {
+            count++
+            lookup = lookup + row[pattern[1]]
+          }
+          lookup = lookup / count
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @mean(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@mean(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'first':
+        // Calculate the first element
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            if (lookup == undefined) {
+              lookup = row[pattern[1]]
+            }
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @first(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@first(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'last':
+        // Calculate the last element
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            lookup = row[pattern[1]]
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @last(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@last(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'sum':
+        // Calculate the sum
+        lookup = 0
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            lookup = lookup + row[pattern[1]]
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        // @sum(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@sum(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      case 'count':
+        lookup = 0
+        // Count all elements
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            lookup++
+          }
+        } else {
+          lookup = 1
+        }
+        // @count(drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '@count(' + pattern[0] + '.' + pattern[1] + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
+        break
+      default:
+        lookup = 0
+        // if this represents a scalar, use it; otherwise it is an array, and do a summation
+        if (Array.isArray(element)) {
+          for (const row of element) {
+            lookup = lookup + row[pattern[1]]
+          }
+        } else {
+          lookup = element[pattern[1]]
+        }
+        break
+    }
     expr = expr.replaceAll('{' + pattern[0] + '.' + pattern[1] + '}', '' + lookup)
   }
   return expr
