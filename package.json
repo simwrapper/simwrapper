@@ -1,6 +1,6 @@
 {
   "name": "simwrapper",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "private": true,
   "license": "GPL-3.0-or-later",
   "author": "Billy Charlton <charlton@tu-berlin.de>",
