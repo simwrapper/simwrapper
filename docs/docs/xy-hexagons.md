@@ -18,6 +18,7 @@ A file named `viz-xy-*.yml` must be present in working folder. Each yml file mat
 title: "XY Example-1: DRT Vehicles"
 file: drt-vehicles.json.gz
 thumbnail: thumbnail-vehicles.jpg
+projection: EPSG:25832
 center: [6.9814, 51.57]
 description: "Total origins/destinations by area"
 elements: drtRequests # only if json
@@ -44,6 +45,7 @@ aggregations:
 
 You can specify multiple aggregations in the data section.
 
+- `projection` can be any valid EPSG code, default assumes lat/long if 
 - `elements` is the name of the property containing the data array (for JSON files only)
 - `aggregations` is a list of `title`, `x`, `y` which say which COLUMNS of data in the elements array contain the x,y data.
 - x,y can be column numbers or column names
