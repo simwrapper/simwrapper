@@ -45,7 +45,6 @@ aggregations:
 
 You can specify multiple aggregations in the data section.
 
-- `projection` can be any valid EPSG code, default assumes lat/long if 
 - `elements` is the name of the property containing the data array (for JSON files only)
 - `aggregations` is a list of `title`, `x`, `y` which say which COLUMNS of data in the elements array contain the x,y data.
 - x,y can be column numbers or column names
@@ -72,3 +71,9 @@ In this example, each array element is also an array with xy data in columns 0,1
 ```
 
 All other elements in the JSON are ignored.
+
+## Configuration parameters
+
+- `projection` can be any valid EPSG code, default assumes lat/long
+- `center` is an array with longitude/latitude
+- `zoom` is zoom level, 5-20
