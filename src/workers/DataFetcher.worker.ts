@@ -30,7 +30,6 @@ async function fetchData(props: {
   buffer: Uint8Array
 }) {
   _config = props.config
-  console.log(10, _config)
   _dataset = _config.dataset
 
   // Did we get a pre-filled buffer? Just need to parse it
@@ -48,7 +47,6 @@ async function fetchData(props: {
   _buffer = props.buffer
 
   // if dataset has a path in it, we need to fetch the correct subfolder contents
-  console.log(11, _config.dataset)
   const slash = _config.dataset.indexOf('/')
   if (slash > -1) {
     const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
@@ -243,7 +241,6 @@ function badparseCsvFile(fileKey: string, filename: string, text: string) {
     header: false,
     skipEmptyLines: true,
   })
-  console.log('c2')
 
   // step: (results: any, parser) => {
   //   rowCount++

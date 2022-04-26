@@ -7,6 +7,7 @@ import Papaparse from 'papaparse'
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -70,7 +71,23 @@ function postResults() {
 async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
-    const blob = await httpFileSystem.getFileBlob(filepath)
+
+    // figure out which file to load with *? wildcards
+    let expandedFilename = filepath
+    if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
+      const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
+      const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
+
+      // fetch list of files in this folder
+      const { files } = await httpFileSystem.getDirectory(zSubfolder)
+      const matchingFiles = findMatchingGlobInFiles(files, zDataset)
+      if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+      if (matchingFiles.length > 1)
+        throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
+      expandedFilename = `${zSubfolder}/${matchingFiles[0]}`
+    }
+
+    const blob = await httpFileSystem.getFileBlob(expandedFilename)
     if (!blob) throw Error('BLOB IS NULL')
     const buffer = await blob.arrayBuffer()
     const uint8View = new Uint8Array(buffer)
@@ -94,8 +111,15 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   const header = decoder.decode(unzipped.subarray(0, 1024)).split('\n')[0]
   const endOfHeader = header.length + 1
 
-  const separator = header.indexOf(';') > -1 ? ';' : header.indexOf('\t') > -1 ? '\t' : ','
-  const headerColumns = header.split(separator)
+  const separator =
+    header.indexOf(';') > -1
+      ? ';'
+      : header.indexOf('\t') > -1
+      ? '\t'
+      : header.indexOf(',') > -1
+      ? ','
+      : ' '
+  const headerColumns = header.trim().split(separator) // trim to avoid line ending problems
 
   // split uint8 array into subarrays
   const startOfData = endOfHeader + 1
@@ -125,6 +149,17 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     for (const agg of aggregations) {
       const xCol = headerColumns.indexOf(agg.x)
       const yCol = headerColumns.indexOf(agg.y)
+
+      if (xCol === -1 || yCol === -1) {
+        let msg = 'Could not find column '
+        const missingColumn = []
+        if (xCol === -1) missingColumn.push(agg.x)
+        if (yCol === -1) missingColumn.push(agg.y)
+        msg = msg + missingColumn.join(',')
+        postMessage({ error: msg })
+        return
+      }
+
       columnLookup.push(...[xCol, yCol])
       rowCache[`${group}${i}`] = {
         raw: new Float32Array(count * 2),
@@ -170,6 +205,7 @@ function step3parseCSVdata(sections: Uint8Array[]) {
       })
     }
   } catch (e) {
+    console.log('' + e)
     postMessage({ error: 'ERROR projection coordinates' })
     return
   }
