@@ -16,11 +16,13 @@ A file named `viz-xy-*.yml` must be present in working folder. Each yml file mat
 
 ```yaml
 title: "XY Example-1: DRT Vehicles"
+description: "Total origins/destinations by area"
 file: drt-vehicles.json.gz
 thumbnail: thumbnail-vehicles.jpg
-projection: EPSG:25832
 center: [6.9814, 51.57]
-description: "Total origins/destinations by area"
+zoom: 10
+radius: 200
+maxHeight: 30
 elements: drtRequests # only if json
 aggregations:
   OD Summary:
@@ -39,16 +41,71 @@ aggregations:
       y: baseToY
 ```
 
+
+**dashboard-xy-example.yml**
+
+```yaml
+
+header:
+  tab: 'Example'
+  title: 'DRT Vehicles'
+  description: "XY plot for DRT vehicles"
+
+layout:
+  general:
+    - title: 'Summary DRT Vehicles'
+      description: 'example on how to use a config file'
+      type: 'hexagons'
+      props:
+        configFile: 'viz-xy-example.yaml'
+        
+    - title: "Another XY plot"
+      description: "descriptions are optional"
+      type: "hexagons"
+      props:
+        height: 10
+        width: 2
+        file: 'drt-vehicles.csv'
+        projection: 'EPSG:25832'
+        #elements: features #only for json data
+        thumbnail: thumbnail-vehicles.jpg
+        center: [6.9814, 51.57]
+        zoom: 10
+        radius: 100
+        maxHeight: 20
+        aggregations:
+          OD Summary:
+            - title: Stops
+              x: X
+              y: Y
+ 
+```
+
+
 ## YAML fields explained
 
-**file:** a json or gzip'ed json file containing an array with the data (CSV support coming soon)
+**title:** (optional) title of the visualization, appears right on top of the map. If a title is specified both under ´general´ and under ´props´, the one under ´general´ will be used.
 
-You can specify multiple aggregations in the data section.
+**description:** (optional) description of the visualization, appears between title and map. If a description is specified both under ´general´ and under ´props´, the one under ´general´ will be used.
 
-- `elements` is the name of the property containing the data array (for JSON files only)
-- `aggregations` is a list of `title`, `x`, `y` which say which COLUMNS of data in the elements array contain the x,y data.
-- x,y can be column numbers or column names
-- _Note column numbers are zero-based!_
+**file:** a csv, json or gzip'ed json file containing an array with the data.
+
+**projection:** EPSG code of the projection
+
+**elements:** the name of the property containing the data array (for JSON files only)
+
+**thumbnail:** (optional) file path to a thumbnail in jpg format
+
+**center:** (optional) coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data.
+
+**zoom:** (optional) zoom level of the map between 5 and 20. If it is not provided, the zoom level 9 is used. 
+
+**radius:** starting radius of the hexagons. 
+
+**maxHeight:** (optional) starting height of the hexagons. If it is not provided, 0 is used.
+
+**aggregations:**  a list of `title`, `x`, `y` which say which columns of data in the elements array contain the x,y data. x,y can be column numbers or column names. You can specify multiple aggregations in the data section. _Note: column numbers are zero-based!_
+
 
 ## XY Data File format
 
@@ -71,9 +128,3 @@ In this example, each array element is also an array with xy data in columns 0,1
 ```
 
 All other elements in the JSON are ignored.
-
-## Configuration parameters
-
-- `projection` can be any valid EPSG code, default assumes lat/long
-- `center` is an array with longitude/latitude
-- `zoom` is zoom level, 5-20
