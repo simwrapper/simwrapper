@@ -46,8 +46,9 @@ layout:
       props:
         network: "../input/baseCase/hamburg-v2.0-network-with-pt-hvvArea.geo.json.gz"
         projection: EPSG:25832
+        center: 13.4684, 56.6787
+        zoom: 9
         showDifferences: true
-        sampleRate: 1
         datasets:
           csvFile: "output/reallab2030/accidentCosts.csv.gz"
           csvBase: "../base/output/accidentCosts.csv.gz"
@@ -88,16 +89,11 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 
 ### Field descriptions
 
-**network:** Specify either at MATSim `output_network.xml.gz` network file, or a geojson-format network file. The geojson format loads much faster, but requires that you create it first.
+**title:** (optional) title of the visualization, appears right on top of the map. If a title is specified both under `general` and under `props`, the one under  `general` will be used.
 
-- Use the python script [create-geojson-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/create-geojson-network.py) to create a geojson network from a MATSim network.xml.gz file.
-- Command is `python create-geojson-network.py [my_output_network.xml.gz] [Projection]`
-- and will create a file with the name `mynetwork.geo.json.gz`.
-- Note projection must be given! Format `EPSG:25832` etc.
+**description:** (optional) description of the visualization, appears between title and map. If a description is specified both under `general` and under `props`, the one under `general` will be used.
 
-**geojsonFile:** (deprecated) - same as `network`.
-
-**csvFile**: dataset in CSV or TSV format.
+**csvFile:** dataset in CSV or TSV format.
 
 - Columns are autodetected and will split at commas, semicolons, or tabs.
 - Numbers **must be in 1234.56 format** -- European "1.234.567,00" formats will not work.
@@ -106,8 +102,25 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 
 - Differences are always calculated as `'csvFile - csvBase'`
 
-**display:** The optional display section includes details of the color and width data specifications.
+**network:** Specify either at MATSim `output_network.xml.gz` network file, or a geojson-format network file. The geojson format loads much faster, but requires that you create it first.
 
+- Use the python script [create-geojson-network.py](https://raw.githubusercontent.com/simwrapper/simwrapper/master/scripts/create-geojson-network.py) to create a geojson network from a MATSim network.xml.gz file.
+- Command is `python create-geojson-network.py [my_output_network.xml.gz] [Projection]`
+- and will create a file with the name `mynetwork.geo.json.gz`.
+
+**projection:** projection must be given! Format `EPSG:25832` etc.
+
+**geojsonFile:** (deprecated) - same as `network`.
+
+**thumbnail:** (optional) file path to a thumbnail in jpg format
+
+**center:** (optional) coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data.
+
+**zoom:** (optional) zoom level of the map. If it is not provided, the zoom level 9 is used.
+
+**showDifference:** allows difference plots to be created if a base case is provided. Should be `true`.
+
+**display:** The optional display section includes details of the color and width data specifications.
 ## Defining Colors and Widths
 
 Both colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML; see the example above.
