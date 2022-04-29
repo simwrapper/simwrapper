@@ -365,6 +365,17 @@ export default class DashboardDataManager {
         })
 
         thread.onmessage = e => {
+          // perhaps network has no CRS and we need to ask user
+          if (e.data.promptUserForCRS) {
+            let crs =
+              prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+            if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
+
+            thread.postMessage({ crs })
+            return
+          }
+
+          // normal exit
           thread.terminate()
           if (e.data.error) {
             console.error(e.data.error)

@@ -3,12 +3,10 @@
 // Pass in a filename; can be MATSim network.xml.gz or preprocessed GeoJSON
 // Get a table of links with Anode Bnode and properties
 
-import PROJ4 from 'proj4'
-import EPSG from 'epsg'
-// import pako from 'pako'
 import { decompressSync } from 'fflate'
 
 import { XMLParser } from 'fast-xml-parser'
+import Coords from '@/js/Coords'
 
 // import { parseXML } from '@/js/util'
 
@@ -21,31 +19,26 @@ enum NetworkFormat {
   DBF,
 }
 
-// Set up ALL coordinate systems in 'epsg' repository
-const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
-PROJ4.defs(allEPSGs)
-PROJ4.defs(
-  'GK4',
-  '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs'
-)
+let _xml = {} as any
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
-  const { id, filePath, fileSystem, options } = e.data
+  if (e.data.crs) {
+    parseXmlNetworkAndPostResults(e.data.crs)
+  } else {
+    const { id, filePath, fileSystem, options } = e.data
 
-  // guess file type from extension
-  const format = guessFileTypeFromExtension(filePath)
+    // guess file type from extension
+    const format = guessFileTypeFromExtension(filePath)
 
-  // fetch nodes and links
-  const { links, linkOffsetLookup } = await fetchNodesAndLinks({
-    format,
-    filePath,
-    fileSystem,
-    options,
-  })
-
-  // postMessage({ links, linkOffsetLookup }, [links.source.buffer, links.dest.buffer])
-  postMessage({ links }, [links.source.buffer, links.dest.buffer])
+    // fetch nodes and links
+    fetchNodesAndLinks({
+      format,
+      filePath,
+      fileSystem,
+      options,
+    })
+  }
 }
 
 function guessFileTypeFromExtension(name: string) {
@@ -82,27 +75,31 @@ async function fetchNodesAndLinks(props: {
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
   const decoded = new TextDecoder('utf-8').decode(rawData)
-  const xml: any = await parseXML(decoded, options)
-
-  console.log({ xml })
+  _xml = await parseXML(decoded, options)
 
   // What is the CRS?
   let coordinateReferenceSystem = ''
 
-  const attribute = xml.network.attributes.attribute
-  if (attribute.$name === 'coordinateReferenceSystem')
+  const attribute = _xml.network.attributes?.attribute
+  if (attribute?.$name === 'coordinateReferenceSystem') {
     coordinateReferenceSystem = attribute['#text']
+    console.log('CRS', coordinateReferenceSystem)
+    parseXmlNetworkAndPostResults(coordinateReferenceSystem)
+  } else {
+    // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
+    postMessage({ promptUserForCRS: 'crs needed' })
+  }
+}
 
-  console.log('CRS', coordinateReferenceSystem)
-
+function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
   // build node/coordinate lookup
   const nodes: { [id: string]: number[] } = {}
-  for (const node of xml.network.nodes.node as any) {
+  for (const node of _xml.network.nodes.node as any) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
 
     // convert coordinates to long/lat if necessary
     const longlat = coordinateReferenceSystem
-      ? (PROJ4(coordinateReferenceSystem, 'EPSG:4326', coordinates) as any)
+      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
       : coordinates
 
     nodes[node.$id] = longlat
@@ -112,13 +109,13 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 
   // build links
 
-  const source: Float32Array = new Float32Array(2 * xml.network.links.link.length)
-  const dest: Float32Array = new Float32Array(2 * xml.network.links.link.length)
+  const source: Float32Array = new Float32Array(2 * _xml.network.links.link.length)
+  const dest: Float32Array = new Float32Array(2 * _xml.network.links.link.length)
 
   const linkIds: any = []
 
-  for (let i = 0; i < xml.network.links.link.length; i++) {
-    const link = xml.network.links.link[i]
+  for (let i = 0; i < _xml.network.links.link.length; i++) {
+    const link = _xml.network.links.link[i]
     // linkOffsetLookup[link.$id] = i
     linkIds[i] = link.$id
 
@@ -130,7 +127,8 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 
   const links = { source, dest, linkIds }
 
-  return { links }
+  // all done! post the links
+  postMessage({ links }, [links.source.buffer, links.dest.buffer])
 }
 
 async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {

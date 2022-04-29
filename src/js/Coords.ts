@@ -1,4 +1,5 @@
 import proj4 from 'proj4'
+import EPSG from 'epsg'
 
 const lookups = {
   DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
@@ -8,6 +9,14 @@ const lookups = {
   ETRS89_UTM_zone_33N: 'EPSG:25833',
   Hartebeesthoek94: 'EPSG:2048',
 }
+
+// Set up ALL coordinate systems in 'epsg' repository
+const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
+proj4.defs(allEPSGs)
+proj4.defs(
+  'GK4',
+  '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs'
+)
 
 // Add all standard MATSim projects from TransformationFactory to proj4
 proj4.defs([
