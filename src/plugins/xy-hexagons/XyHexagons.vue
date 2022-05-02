@@ -398,13 +398,14 @@ class XyHexagons extends Vue {
   private async getVizDetails() {
     if (this.config) {
       this.vizDetails = Object.assign({}, this.config)
+      this.setRadiusAndHeight()
       return
     }
 
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     if (hasYaml) {
-      await this.loadYamlConfig()
+      await this.loadStandaloneYAMLConfig()
     } else {
       this.loadOutputTripsConfig()
     }
@@ -415,14 +416,6 @@ class XyHexagons extends Vue {
     if (!this.myState.thumbnail) {
       projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
       if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
-    }
-
-    if (!this.vizDetails.radius) {
-      this.vizDetails.radius = 250
-    }
-
-    if (!this.vizDetails.maxHeight) {
-      this.vizDetails.maxHeight = 0
     }
 
     // output_trips:
@@ -447,7 +440,13 @@ class XyHexagons extends Vue {
     return
   }
 
-  private async loadYamlConfig() {
+  private setRadiusAndHeight() {
+    if (!this.vizDetails.radius) this.vizDetails.radius = 250
+
+    if (!this.vizDetails.maxHeight) this.vizDetails.maxHeight = 0
+  }
+
+  private async loadStandaloneYAMLConfig() {
     if (!this.myState.fileApi) return
     try {
       // might be a project config:
@@ -459,19 +458,16 @@ class XyHexagons extends Vue {
       const text = await this.myState.fileApi.getFileText(filename)
 
       this.vizDetails = Object.assign({}, this.vizDetails, YAML.parse(text))
+      this.setRadiusAndHeight()
     } catch (err) {
       const e = err as any
       console.log('failed')
-      // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
-      } else {
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: `File not found`,
-          desc: 'Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}',
-        })
-      }
+
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg: `File not found`,
+        desc: 'Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}',
+      })
     }
     const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
     this.$emit('title', t)
@@ -577,6 +573,7 @@ class XyHexagons extends Vue {
     latitude = latitude / samples
 
     const currentView = this.$store.state.viewState
+    console.log('center', longitude, latitude, 'radius', this.vizDetails.radius)
 
     if (longitude && latitude) {
       this.$store.commit('setMapCamera', {
