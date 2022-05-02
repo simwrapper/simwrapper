@@ -426,7 +426,6 @@ function getFileVariableReplacements(expr: string) {
               lookup = lookup + row[pattern[1]]
             }
           }
-          console.log(count, lookup)
           if (count != 0) {
             lookup = lookup / count
           }
