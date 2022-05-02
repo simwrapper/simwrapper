@@ -48,6 +48,7 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import markdown from 'markdown-it'
+import micromatch from 'micromatch'
 import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
@@ -56,6 +57,8 @@ import DashBoard from '@/views/DashBoard.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
+
+const NO_DASHBOARDS = '.nodashboards'
 
 const mdRenderer = new markdown({
   html: true,
@@ -153,11 +156,18 @@ export default class VueComponent extends Vue {
     try {
       this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.xsubfolder)
 
-      for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
-        // add the tab now
-        Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
-        // load the details (title) async
-        this.initDashboard(fullPath)
+      const { files } = await this.fileApi.getDirectory(this.xsubfolder)
+
+      // if folder has .nodashboards, then skip all dashboards!
+      if (files.indexOf(NO_DASHBOARDS) == -1) {
+        for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
+          // add the tab now
+          Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
+          // load the details (title)
+          const showThisDashboard = await this.initDashboard(fullPath)
+          // and now remove it if it isn't triggered. Yes this order is correct
+          if (!showThisDashboard) delete this.dashboards[fullPath]
+        }
       }
 
       // Add FileBrowser as "Files" tab
@@ -273,14 +283,27 @@ export default class VueComponent extends Vue {
     try {
       const config = await this.fileApi.getFileText(fullPath)
       const yaml = YAML.parse(config)
+
+      // see if trigger condition is met
+      if (yaml.header?.triggerPattern) {
+        const { files, dirs } = await this.fileApi.getDirectory(this.xsubfolder)
+        const allContents = [...files, ...dirs]
+        if (micromatch.match(allContents, yaml.triggerPattern).length === 0) {
+          // no files matched trigger; skip this dashboard
+          return false
+        }
+      }
+
       const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
       if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
       if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
       this.dashboards[fullPath] = yaml
       console.log('DASHBOARD:', fullPath)
+      return true
     } catch (e) {
       this.$store.commit('setStatus', { type: Status.ERROR, msg: '' + e })
+      return false
     }
   }
 
