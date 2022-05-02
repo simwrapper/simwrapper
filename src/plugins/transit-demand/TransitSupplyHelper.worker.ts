@@ -1,7 +1,6 @@
 import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 
-import proj4 from 'proj4'
-import EPSGdefinitions from 'epsg'
+import Coords from '@/js/Coords'
 
 let params!: any
 let projection!: string
@@ -18,7 +17,6 @@ onmessage = function (e) {
   _xml = params.xml
   projection = params.projection
 
-  addProj4Definitions()
   createNodesAndLinksFromXML()
   convertCoords()
   const answer = processTransit()
@@ -26,36 +24,6 @@ onmessage = function (e) {
   postMessage(answer)
 }
 // -----------------------------------------------------------
-
-/** Add various projections that we use here */
-function addProj4Definitions() {
-  for (const [key, epsg] of Object.entries(EPSGdefinitions) as any[]) {
-    if (epsg) proj4.defs(key, epsg)
-  }
-
-  proj4.defs([
-    [
-      // south africa
-      'EPSG:2048',
-      '+proj=tmerc +lat_0=0 +lon_0=19 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
-    ],
-    [
-      // berlin
-      'EPSG:31468',
-      '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs',
-    ],
-    [
-      // cottbus
-      'EPSG:25833',
-      '+proj=utm +zone=33 +ellps=GRS80 +units=m +no_defs',
-    ],
-    [
-      // avoev
-      'EPSG:25832',
-      '+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
-    ],
-  ])
-}
 
 // XML is sent in during worker initialization
 function createNodesAndLinksFromXML() {
@@ -83,7 +51,7 @@ function convertCoords() {
   for (const id in _network.nodes) {
     if (_network.nodes.hasOwnProperty(id)) {
       const node: NetworkNode = _network.nodes[id]
-      const z = proj4(projection, 'EPSG:4326', node) as any
+      const z = Coords.toLngLat(projection, node)
       node.x = z.x
       node.y = z.y
     }
@@ -133,7 +101,7 @@ function generateStopFacilitiesFromXML() {
     stop.x = parseFloat(stop.x)
     stop.y = parseFloat(stop.y)
     // convert coords
-    const z = proj4(projection, 'EPSG:4326', stop) as any
+    const z = Coords.toLngLat(projection, stop)
     stop.x = z.x
     stop.y = z.y
 
@@ -162,8 +130,13 @@ function buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
     geojson: '',
   }
 
-  for (const stop of route.routeProfile.stop) {
-    routeDetails.routeProfile.push(stop)
+  if (Array.isArray(route.routeProfile.stop)) {
+    for (const stop of route.routeProfile.stop) {
+      routeDetails.routeProfile.push(stop)
+    }
+  } else {
+    console.warn('Route only has one stop: ', route)
+    routeDetails.routeProfile.push(route.routeProfile.stop)
   }
 
   for (const link of route.route.link) {
