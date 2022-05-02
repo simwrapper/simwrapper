@@ -8,6 +8,8 @@ import YAML from 'yaml'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
+import { exp } from 'mathjs'
+import { any } from 'micromatch'
 
 type TableRow = {
   title: string
@@ -276,7 +278,6 @@ function getFilterReplacements(calc: string): any[] {
 
   const [left, value] = innerPattern.split(whichFilter).map((a: string) => a.trim())
   const [file, column] = left.split('.').map((a: string) => a.trim())
-  console.log(file, column, value)
 
   // ok now do the filtering
   const table = _fileData[file] as any[]
@@ -294,6 +295,33 @@ function getFileVariableReplacements(expr: string) {
   // OOPS! SAFARI FUCKALL DOESN'T SUPPORT REGEX WITH LOOKBEHIND
   // broken: const re = /(?<={).*?(?=})/g
   // const patterns = expr.match(re)
+
+  const filterTypes = ['<', '>', '<=', '>=', '==', '!=']
+  // TODO: put filterTyped on a higer level
+  // Errors on: mode not found, expresion cant be split (check length of .split() return)
+  // Equals: nerdamer(x).eq(y)                    == / !=
+  // Less Than: nerdamer(x).lt(y)                 <
+  // Greater Than: nerdamer(x).gt(y)              >
+  // Less Than Or Equals: nerdamer(x).lte(y)      <=
+  // Greater Than Or Equals: nerdamer(x).gte(y)   >=
+
+  let filter = {
+    key: '',
+    value: '',
+    mode: -1,
+    file: '',
+    element: '',
+  }
+  // check if a filter is included
+  if (expr.includes(',')) {
+    const filterTemp = expr.split(',')[1].split(')')[0].trim()
+    filter.key = filterTemp.split(' ')[0].trim()
+    filter.mode = filterTypes.indexOf(filterTemp.split(' ')[1].trim())
+    filter.value = filterTemp.split(' ')[2].trim()
+    filter.file = filter.key.split('.')[0]
+    filter.element = filter.key.split('.')[1]
+    expr = expr.split(/[,)]/)[0] + ')' + expr.split(/[,)]/)[2]
+  }
 
   // non-regex version because SAFARI IS THE WORST :-O
   let offset = 0
@@ -322,6 +350,7 @@ function getFileVariableReplacements(expr: string) {
 
     const pattern = p.split('.') // ${file.variable} --> ['file','variable']
     const element = _fileData[pattern[0]]
+    const filterKey = filter.element
 
     let lookup
 
@@ -329,9 +358,20 @@ function getFileVariableReplacements(expr: string) {
       case 'min':
         // Calculate the min
         if (Array.isArray(element)) {
-          for (const row of element) {
-            if (lookup > row[pattern[1]] || lookup == undefined) {
-              lookup = row[pattern[1]]
+          if (filter.element.length) {
+            for (const row of element) {
+              if (
+                (lookup > row[pattern[1]] || lookup == undefined) &&
+                filterElements(row, filterKey, filter.mode, filter.value)
+              ) {
+                lookup = row[pattern[1]]
+              }
+            }
+          } else {
+            for (const row of element) {
+              if (lookup > row[pattern[1]] || lookup == undefined) {
+                lookup = row[pattern[1]]
+              }
             }
           }
         } else {
@@ -346,9 +386,19 @@ function getFileVariableReplacements(expr: string) {
       case 'max':
         // Calculate the max
         if (Array.isArray(element)) {
-          for (const row of element) {
-            if (lookup < row[pattern[1]] || lookup == undefined) {
-              lookup = row[pattern[1]]
+          if (filter.element.length) {
+            for (const row of element) {
+              if (filterElements(row, filterKey, filter.mode, filter.value)) {
+                if (lookup < row[pattern[1]] || lookup == undefined) {
+                  lookup = row[pattern[1]]
+                }
+              }
+            }
+          } else {
+            for (const row of element) {
+              if (lookup < row[pattern[1]] || lookup == undefined) {
+                lookup = row[pattern[1]]
+              }
             }
           }
         } else {
@@ -366,10 +416,20 @@ function getFileVariableReplacements(expr: string) {
           lookup = 0
           let count = 0
           for (const row of element) {
-            count++
-            lookup = lookup + row[pattern[1]]
+            if (filter.element.length) {
+              if (filterElements(row, filterKey, filter.mode, filter.value)) {
+                count++
+                lookup = lookup + row[pattern[1]]
+              }
+            } else {
+              count++
+              lookup = lookup + row[pattern[1]]
+            }
           }
-          lookup = lookup / count
+          console.log(count, lookup)
+          if (count != 0) {
+            lookup = lookup / count
+          }
         } else {
           lookup = element[pattern[1]]
         }
@@ -382,7 +442,18 @@ function getFileVariableReplacements(expr: string) {
       case 'first':
         // Calculate the first element
         if (Array.isArray(element)) {
-          lookup = element[0][pattern[1]]
+          if (filter.element.length) {
+            for (const row of element) {
+              if (
+                filterElements(row, filterKey, filter.mode, filter.value) &&
+                lookup == undefined
+              ) {
+                lookup = row[pattern[1]]
+              }
+            }
+          } else {
+            lookup = element[0][pattern[1]]
+          }
         } else {
           lookup = element[pattern[1]]
         }
@@ -395,11 +466,20 @@ function getFileVariableReplacements(expr: string) {
       case 'last':
         // Calculate the last element
         if (Array.isArray(element)) {
-          lookup = element[element.length-1][pattern[1]]
+          if (filter.element.length) {
+            for (const row of element) {
+              if (filterElements(row, filterKey, filter.mode, filter.value)) {
+                lookup = row[pattern[1]]
+              }
+            }
+          } else {
+            lookup = element[element.length - 1][pattern[1]]
+          }
         } else {
           lookup = element[pattern[1]]
         }
         // @last(drtVehicles.t_1) -> drtVehicles.t_1
+
         expr = expr.replaceAll(
           '@last(' + pattern[0] + '.' + pattern[1] + ')',
           '' + pattern[0] + '.' + pattern[1]
@@ -407,14 +487,24 @@ function getFileVariableReplacements(expr: string) {
         break
       case 'sum':
         // Calculate the sum
+        // check if a filter was used...
         lookup = 0
-        if (Array.isArray(element)) {
+        if (filter.element.length) {
           for (const row of element) {
-            lookup = lookup + row[pattern[1]]
+            if (filterElements(row, filterKey, filter.mode, filter.value)) {
+              lookup = lookup + row[pattern[1]]
+            }
           }
         } else {
-          lookup = element[pattern[1]]
+          if (Array.isArray(element)) {
+            for (const row of element) {
+              lookup = lookup + row[pattern[1]]
+            }
+          } else {
+            lookup = element[pattern[1]]
+          }
         }
+
         // @sum(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@sum(' + pattern[0] + '.' + pattern[1] + ')',
@@ -423,11 +513,21 @@ function getFileVariableReplacements(expr: string) {
         break
       case 'count':
         lookup = 0
-        // Count all elements
-        if (Array.isArray(element)) {
-          lookup = element.length
+        // If there is a filter
+        if (filter.element.length) {
+          for (const row of element) {
+            if (filterElements(row, filterKey, filter.mode, filter.value)) {
+              lookup++
+            }
+          }
         } else {
-          lookup = 1
+          // IF there is no filter
+          // Count all elements
+          if (Array.isArray(element)) {
+            lookup = element.length
+          } else {
+            lookup = 1
+          }
         }
         // @count(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
@@ -450,6 +550,36 @@ function getFileVariableReplacements(expr: string) {
     expr = expr.replaceAll('{' + pattern[0] + '.' + pattern[1] + '}', '' + lookup)
   }
   return expr
+}
+
+//if (filterElements(row, filterKey, filter.mode, filter.value)) {
+function filterElements(row: any, filterKey: string, mode: number, value: string) {
+  // filterTypes = ['<', '>', '<=', '>=', '==', '!=']
+  // TODO: put filterTyped on a higer level
+  // Errors on: mode not found, expresion cant be split (check length of .split() return)
+  // Equals: nerdamer(x).eq(y)                    == / !=
+  // Less Than: nerdamer(x).lt(y)                 <
+  // Greater Than: nerdamer(x).gt(y)              >
+  // Less Than Or Equals: nerdamer(x).lte(y)      <=
+  // Greater Than Or Equals: nerdamer(x).gte(y)   >=
+  const x = row[filterKey]
+
+  switch (mode) {
+    case 0:
+      return nerdamer(x).lt(value)
+    case 1:
+      return nerdamer(x).gt(value)
+    case 2:
+      return nerdamer(x).lte(value)
+    case 3:
+      return nerdamer(x).gte(value)
+    case 4:
+      return nerdamer(x).eq(value)
+    case 5:
+      return !nerdamer(x).eq(value)
+    default:
+      return false
+  }
 }
 
 async function getYaml() {
