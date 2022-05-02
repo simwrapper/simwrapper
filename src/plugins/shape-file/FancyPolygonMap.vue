@@ -854,7 +854,10 @@ export default class VueComponent extends Vue {
 
     // value columns should be an array but might not be there yet
     let valueColumns = this.config.display.fill.values
-    if (!valueColumns) throw Error(`Need to specify column for data values`)
+    if (!valueColumns) {
+      this.statusText = ''
+      throw Error(`Need to specify column for data values`)
+    }
 
     // Display values from query param if available, or config, or first option.
     if (this.$route.query.display) this.config.display.fill.columnName = this.$route.query.display

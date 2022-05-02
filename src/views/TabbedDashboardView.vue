@@ -222,7 +222,9 @@ export default class VueComponent extends Vue {
           : filename.substring(0, filename.indexOf('simwrapper-config.y'))
 
         // always reveal quickview bar unless told not to
-        this.$store.commit('setShowLeftBar', !!!yaml.hideLeftBar)
+        console.log(555, yaml.hideLeftBar)
+        if (yaml.hideLeftBar === true) this.$store.commit('setShowLeftBar', false)
+        if (yaml.hideLeftBar === false) this.$store.commit('setShowLeftBar', true)
 
         // set margins wide if requested to do so
         this.$store.commit('setFullWidth', !!yaml.fullWidth)
@@ -250,6 +252,8 @@ export default class VueComponent extends Vue {
       }
     }
   }
+
+  private handleRemoveDashboard() {}
 
   private async buildPanel(which: string, yaml: any, folder: string) {
     // first get the correct/best header for this locale
