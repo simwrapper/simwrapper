@@ -35,6 +35,7 @@ export const plotlyCharts = {
   hexagons,
   image: slideshow, // both 'image' and 'slideshow' types work for images
   line,
+  markdown: text,
   pie,
   sankey,
   slideshow,
