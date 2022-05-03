@@ -193,10 +193,10 @@ class MyComponent extends Vue {
     if (!this.fileApi) this.buildFileApi()
 
     await this.getVizDetails()
-    this.projection = this.vizDetails.projection
 
     if (this.thumbnail) return
 
+    await this.prepareView()
     this.setupMap()
   }
 
@@ -309,39 +309,40 @@ class MyComponent extends Vue {
     }
 
     this.$emit('title', title)
+  }
 
-    // go deeper if we are in full-screen
-    if (!this.thumbnail) {
-      const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
+  private async prepareView() {
+    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
 
-      // Road network: first try the most obvious network filename:
-      let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+    // Road network: first try the most obvious network filename:
+    let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
-      // if the obvious network file doesn't exist, just grab... the first network file:
-      if (files.indexOf(network) == -1) {
-        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
-        if (allNetworks.length) network = allNetworks[0]
-        else {
-          this.loadingText = 'No road network found.'
-          network = ''
-        }
+    // if the obvious network file doesn't exist, just grab... the first network file:
+    if (files.indexOf(network) == -1) {
+      const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
+      if (allNetworks.length) network = allNetworks[0]
+      else {
+        this.loadingText = 'No road network found.'
+        network = ''
       }
-
-      // Departures: use them if we are in an output folder (and they exist)
-      let demandFiles = [] as string[]
-      if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
-      }
-
-      // Coordinates:
-      const projection = await this.guessProjection(files)
-      console.log(projection)
-
-      // Save everything
-      this.vizDetails.network = network
-      this.vizDetails.projection = projection
-      if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
     }
+
+    // Departures: use them if we are in an output folder (and they exist)
+    let demandFiles = [] as string[]
+    if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
+      demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+    }
+
+    // Coordinates:
+    const projection = await this.guessProjection(files)
+    console.log(projection)
+
+    // Save everything
+    this.vizDetails.network = network
+    this.vizDetails.projection = projection
+    if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
+
+    this.projection = this.vizDetails.projection
   }
 
   private async guessProjection(files: string[]): Promise<string> {
@@ -633,11 +634,9 @@ class MyComponent extends Vue {
         },
       })
 
-      // and wait for them to both complete
+      // and wait for them to all complete
       const results = await Promise.all([roads, transit])
-
-      const ridership = this.loadDemandData(this.vizDetails.demand)
-      return { roadXML: results[0], transitXML: results[1], ridership }
+      return { roadXML: results[0], transitXML: results[1], ridership: [] }
     } catch (e) {
       console.error('TRANSIT:', e)
       // this.loadingText = '' + e
@@ -645,34 +644,33 @@ class MyComponent extends Vue {
     }
   }
 
-  private loadDemandData(filename: string) {
-    if (!filename) return []
+  private loadDemandData(filename: string): Promise<any[]> {
+    const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
+      if (!filename) resolve([])
+      this.loadingText = 'Loading demand...'
+      const worker = new GzipWorker() as Worker
 
-    this.loadingText = 'Loading demand...'
-    const worker = new GzipWorker() as Worker
+      worker.onmessage = (event: MessageEvent) => {
+        this.loadingText = 'Processing demand...'
+        const csvData = new TextDecoder('utf-8').decode(event.data)
+        Papaparse.parse(csvData, {
+          // preview: 10000,
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          worker: true,
+          complete: results => {
+            resolve(this.processDemand(results))
+          },
+        })
+      }
 
-    worker.onmessage = (event: MessageEvent) => {
-      this.loadingText = 'Processing demand...'
-      const buf = event.data
-      const decoder = new TextDecoder('utf-8')
-      const csvData = decoder.decode(buf)
-
-      Papaparse.parse(csvData, {
-        // preview: 10000,
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-        worker: true,
-        complete: results => {
-          this.processDemand(results)
-        },
+      worker.postMessage({
+        filePath: this.myState.subfolder + '/' + filename,
+        fileSystem: this.myState.fileSystem,
       })
-    }
-
-    worker.postMessage({
-      filePath: this.myState.subfolder + '/' + filename,
-      fileSystem: this.myState.fileSystem,
     })
+    return promise
   }
 
   private cfDemand: crossfilter.Crossfilter<any> | null = null
@@ -728,6 +726,7 @@ class MyComponent extends Vue {
     source.setData(this._transitLinks)
 
     this.loadingText = ''
+    return []
   }
 
   private async processInputs(networks: NetworkInputs) {
@@ -760,6 +759,7 @@ class MyComponent extends Vue {
     this._transitHelper.terminate()
 
     this.loadingText = 'Summarizing departures...'
+
     await this.processDepartures()
 
     // Build the links layer and add it
@@ -773,7 +773,9 @@ class MyComponent extends Vue {
       animate: false,
     })
 
-    if (!this.vizDetails.demand) this.loadingText = ''
+    if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
+
+    this.loadingText = ''
     nprogress.done()
   }
 
