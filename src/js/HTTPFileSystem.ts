@@ -308,6 +308,7 @@ class SVNFileSystem {
     if (data.indexOf('SimpleWebServer') > -1) return this.buildListFromSimpleWebServer(data)
     if (data.indexOf('<ul>') > -1) return this.buildListFromSVN(data)
     if (data.indexOf('<table>') > -1) return this.buildListFromApache24(data)
+    if (data.indexOf('\n<a ') > -1) return this.buildListFromNGINX(data)
 
     return { dirs: [], files: [], handles: {} }
   }
@@ -384,6 +385,36 @@ class SVNFileSystem {
 
       if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
       else files.push(name)
+    }
+    return { dirs, files, handles: {} }
+  }
+
+  private buildListFromNGINX(data: string): DirectoryEntry {
+    const regex = /"(.*?)"/
+    const dirs = []
+    const files = []
+
+    const lines = data.split('\n')
+
+    for (const line of lines) {
+      // match rows listing href links only: should be all folders/files only
+      const href = line.indexOf('<a href="')
+      if (href < 0) continue
+
+      const entry = line.substring(href).match(regex)
+      if (!entry) continue
+
+      // got one!
+      const name = entry[1] // regex returns first match in [1]
+
+      // skip parent link
+      if (name === '../') continue
+
+      if (name.endsWith('/')) {
+        dirs.push(name.substring(0, name.length - 1))
+      } else {
+        files.push(name)
+      }
     }
     return { dirs, files, handles: {} }
   }
