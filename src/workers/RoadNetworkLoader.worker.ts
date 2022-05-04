@@ -171,7 +171,9 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     linkIds[i] = feature.id || feature.properties.id
   }
 
-  return { links: { source, dest, linkIds } }
+  const links = { source, dest, linkIds }
+  // all done! post the links
+  postMessage({ links }, [links.source.buffer, links.dest.buffer])
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
