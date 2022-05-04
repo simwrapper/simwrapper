@@ -334,7 +334,7 @@ export default class VueComponent extends Vue {
   position: absolute;
   display: flex;
   flex-direction: column;
-  top: 6.5rem;
+  top: 100px;
   right: 4px;
 }
 
