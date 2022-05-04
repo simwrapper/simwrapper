@@ -37,6 +37,7 @@ class SVNFileSystem {
     // console.log('CLEAN: ', path)
 
     path = path.replaceAll('//', '/')
+    path = path.replaceAll('//', '/') // twice just in case!
     path = path.replace('https:/', 'https://')
     path = path.replace('http:/', 'http://')
     // console.log('CLEAN2: ', path)
