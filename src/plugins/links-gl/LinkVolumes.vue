@@ -170,6 +170,8 @@ class MyPlugin extends Vue {
     widthFactor: null as any,
     thumbnail: '',
     sum: false,
+    nodes: '', // SFCTA nodes shapefile
+    links: [] as string[], // SFCTA links DBF files
     display: {
       color: {} as any,
       width: {} as any,
@@ -382,7 +384,7 @@ class MyPlugin extends Vue {
     width?: WidthDefinition
     dataset?: DatasetDefinition
   }) {
-    console.log(props)
+    // console.log(props)
 
     if (props['color']) {
       // if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
@@ -598,11 +600,15 @@ class MyPlugin extends Vue {
   private async loadNetwork(): Promise<any> {
     this.myState.statusMessage = 'Loading network...'
 
-    const filename = this.vizDetails.network || this.vizDetails.geojsonFile
+    const filename = this.vizDetails.network || this.vizDetails.geojsonFile || this.vizDetails.nodes
     const networkPath = `/${this.myState.subfolder}/${filename}`
 
     try {
-      const network = await this.myDataManager.getRoadNetwork(networkPath)
+      const network = await this.myDataManager.getRoadNetwork(
+        filename,
+        this.myState.subfolder,
+        this.vizDetails
+      )
 
       this.numLinks = network.linkIds.length
       this.geojsonData = network

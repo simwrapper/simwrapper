@@ -34,11 +34,12 @@ const typeLookup: { [id: string]: DataType } = {
   N: DataType.NUMBER,
 }
 
-export default function (source: Uint8Array, decoder: TextDecoder): DataTable {
-  const head = new DataView(source.slice(0, 32))
+export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataTable {
+  const source = new Uint8Array(sourceBuffer)
+  const head = new DataView(sourceBuffer.slice(0, 32))
 
   const headerLength = head.getUint16(8, true)
-  const body = new DataView(source.slice(32, headerLength))
+  const body = new DataView(sourceBuffer.slice(32, headerLength))
 
   //@ts-ignore
   const data = new Dbf(source, decoder, head, body)

@@ -33,7 +33,7 @@ interface configuration {
   x?: string
 }
 
-interface NetworkLinks {
+export interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
   linkIds: any[]
@@ -146,8 +146,10 @@ export default class DashboardDataManager {
    * @param path Full path/filename to the network file
    * @returns network (format TBA)
    */
-  public async getRoadNetwork(path: string) {
-    // first, get the dataset
+  public async getRoadNetwork(filename: string, subfolder: string, vizDetails: any) {
+    const path = `/${subfolder}/${filename}`
+
+    // Get the dataset the first time it is requested
     if (!this.networks[path]) {
       console.log('load network:', path)
 
@@ -163,13 +165,13 @@ export default class DashboardDataManager {
       if (match.length === 1) {
         // fetchNetwork immediately returns a Promise<>, which we wait on so that
         // multiple views don't all try to fetch the network individually
-        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`)
+        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`, vizDetails)
       } else {
         throw Error('File not found: ' + path)
       }
-    } else {
     }
 
+    // wait for the worker to provide the network
     let network = await this.networks[path]
     return network
   }
@@ -355,13 +357,14 @@ export default class DashboardDataManager {
     })
   }
 
-  private async fetchNetwork(path: string) {
+  private async fetchNetwork(path: string, vizDetails: any) {
     return new Promise<NetworkLinks>((resolve, reject) => {
       const thread = new RoadNetworkLoader()
       try {
         thread.postMessage({
           filePath: path,
           fileSystem: this.fileApi,
+          vizDetails,
         })
 
         thread.onmessage = e => {
