@@ -579,11 +579,7 @@ function filterElements(row: any, filterElements: any[]) {
     }
   }
 
-  if (allResults.includes(false)) {
-    return false
-  } else {
-    return true
-  }
+  return !allResults.includes(false)
 }
 
 async function getYaml() {
