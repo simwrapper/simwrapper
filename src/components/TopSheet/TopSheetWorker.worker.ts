@@ -375,14 +375,12 @@ function getFileVariableReplacements(expr: string) {
         } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
-        // @min(drtVehicles.t_1) -> drtVehicles.t_1
+
         for (let filter of allFilters[pIndex]) {
           filterString =
             filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
         }
-        // @first(drtVehicles.t_1) -> drtVehicles.t_1
-        //console.log(p, allFilters[pIndex])
-        //console.log(expr)
+        // @min(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@min(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
@@ -399,14 +397,12 @@ function getFileVariableReplacements(expr: string) {
         } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
-        // @max(drtVehicles.t_1) -> drtVehicles.t_1
+
         for (let filter of allFilters[pIndex]) {
           filterString =
             filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
         }
-        // @first(drtVehicles.t_1) -> drtVehicles.t_1
-        //console.log(p, allFilters[pIndex])
-        //console.log(expr)
+        // @max(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@max(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
