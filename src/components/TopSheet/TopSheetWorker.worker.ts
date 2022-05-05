@@ -308,13 +308,6 @@ function getFileVariableReplacements(expr: string) {
   }
 
   const filterTypes = ['<', '>', '<=', '>=', '==', '!=']
-  // TODO: put filterTyped on a higer level
-  // Errors on: mode not found, expresion cant be split (check length of .split() return)
-  // Equals: nerdamer(x).eq(y)                    == / !=
-  // Less Than: nerdamer(x).lt(y)                 <
-  // Greater Than: nerdamer(x).gt(y)              >
-  // Less Than Or Equals: nerdamer(x).lte(y)      <=
-  // Greater Than Or Equals: nerdamer(x).gte(y)   >=
 
   for (let i = 0; i < patterns.length; i++) {
     let patternElement = patterns[i]
