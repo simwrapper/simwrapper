@@ -292,7 +292,8 @@ export default class VueComponent extends Vue {
       if (yaml.header?.triggerPattern) {
         const { files, dirs } = await this.fileApi.getDirectory(this.xsubfolder)
         const allContents = [...files, ...dirs]
-        if (micromatch.match(allContents, yaml.triggerPattern).length === 0) {
+
+        if (micromatch.match(allContents, yaml.header.triggerPattern).length === 0) {
           // no files matched trigger; skip this dashboard
           return false
         }
