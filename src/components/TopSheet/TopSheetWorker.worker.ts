@@ -8,7 +8,7 @@ import YAML from 'yaml'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
-import { exp } from 'mathjs'
+import { all, exp, filter } from 'mathjs'
 import { any } from 'micromatch'
 
 type TableRow = {
@@ -224,6 +224,7 @@ function doAllCalculations() {
       expr = '' + _yaml.calculations[calc]
 
       // look up any file-based variables
+
       expr = getFileVariableReplacements(expr)
 
       // replace variables with known quantities
@@ -296,6 +297,18 @@ function getFileVariableReplacements(expr: string) {
   // broken: const re = /(?<={).*?(?=})/g
   // const patterns = expr.match(re)
 
+  // non-regex version because SAFARI IS THE WORST :-O
+  let offset = 0
+  const patterns: string[] = []
+  let allFilters: any[] = []
+
+  while (expr.indexOf('{', offset) > -1) {
+    offset = 1 + expr.indexOf('{', offset)
+    const element = expr.substring(offset, expr.indexOf('}', offset))
+    patterns.push(element)
+    allFilters.push([])
+  }
+
   const filterTypes = ['<', '>', '<=', '>=', '==', '!=']
   // TODO: put filterTyped on a higer level
   // Errors on: mode not found, expresion cant be split (check length of .split() return)
@@ -305,32 +318,29 @@ function getFileVariableReplacements(expr: string) {
   // Less Than Or Equals: nerdamer(x).lte(y)      <=
   // Greater Than Or Equals: nerdamer(x).gte(y)   >=
 
-  let filter = {
-    key: '',
-    value: '',
-    mode: -1,
-    file: '',
-    element: '',
-  }
-  // check if a filter is included
-  if (expr.includes(',')) {
-    const filterTemp = expr.split(',')[1].split(')')[0].trim()
-    filter.key = filterTemp.split(' ')[0].trim()
-    filter.mode = filterTypes.indexOf(filterTemp.split(' ')[1].trim())
-    filter.value = filterTemp.split(' ')[2].trim()
-    filter.file = filter.key.split('.')[0]
-    filter.element = filter.key.split('.')[1]
-    expr = expr.split(/[,)]/)[0] + ')' + expr.split(/[,)]/)[2]
-  }
+  for (let i = 0; i < patterns.length; i++) {
+    let patternElement = patterns[i]
 
-  // non-regex version because SAFARI IS THE WORST :-O
-  let offset = 0
-  const patterns: string[] = []
+    // check if a filter is included
+    if (patternElement.includes(',')) {
+      const split = patternElement.split(',')
 
-  while (expr.indexOf('{', offset) > -1) {
-    offset = 1 + expr.indexOf('{', offset)
-    const element = expr.substring(offset, expr.indexOf('}', offset))
-    patterns.push(element)
+      for (let j = 1; j < split.length; j++) {
+        allFilters[i].push({
+          key: split[j].trim().split(' ')[0],
+          value: split[j].trim().split(' ')[2].replaceAll(')', ''),
+          mode: filterTypes.indexOf(split[j].trim().split(' ')[1]),
+          file: split[j].trim().split('.')[0],
+          element: split[j].split('.')[1].split(' ')[0],
+        })
+      }
+      //  {stops.id}
+      if (patternElement[0] == '@') {
+        patterns[i] = patternElement.split(',')[0] + ')'
+      } else {
+        patterns[i] = patternElement.split(',')[0].replaceAll('(', '')
+      }
+    }
   }
 
   // no vars? just return the string
@@ -339,6 +349,7 @@ function getFileVariableReplacements(expr: string) {
   // for each {variable}, do a lookup and replace
   for (let p of patterns) {
     // e.g. sum, count
+    const pIndex = patterns.indexOf(p)
     let calculationType = ''
 
     // special functions start with '@': @sum, @count, @etc
@@ -350,63 +361,56 @@ function getFileVariableReplacements(expr: string) {
 
     const pattern = p.split('.') // ${file.variable} --> ['file','variable']
     const element = _fileData[pattern[0]]
-    const filterKey = filter.element
 
     let lookup
+    let filterString = ''
 
     switch (calculationType) {
       case 'min':
         // Calculate the min
         if (Array.isArray(element)) {
-          if (filter.element.length) {
-            for (const row of element) {
-              if (
-                (lookup > row[pattern[1]] || lookup == undefined) &&
-                filterElements(row, filterKey, filter.mode, filter.value)
-              ) {
-                lookup = row[pattern[1]]
-              }
-            }
-          } else {
-            for (const row of element) {
-              if (lookup > row[pattern[1]] || lookup == undefined) {
-                lookup = row[pattern[1]]
-              }
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            if (lookup > row[pattern[1]] || lookup == undefined) {
+              lookup = row[pattern[1]]
             }
           }
-        } else {
+        } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
         // @min(drtVehicles.t_1) -> drtVehicles.t_1
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
+        // @first(drtVehicles.t_1) -> drtVehicles.t_1
+        //console.log(p, allFilters[pIndex])
+        //console.log(expr)
         expr = expr.replaceAll(
-          '@min(' + pattern[0] + '.' + pattern[1] + ')',
+          '@min(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       case 'max':
         // Calculate the max
         if (Array.isArray(element)) {
-          if (filter.element.length) {
-            for (const row of element) {
-              if (filterElements(row, filterKey, filter.mode, filter.value)) {
-                if (lookup < row[pattern[1]] || lookup == undefined) {
-                  lookup = row[pattern[1]]
-                }
-              }
-            }
-          } else {
-            for (const row of element) {
-              if (lookup < row[pattern[1]] || lookup == undefined) {
-                lookup = row[pattern[1]]
-              }
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            if (lookup < row[pattern[1]] || lookup == undefined) {
+              lookup = row[pattern[1]]
             }
           }
-        } else {
+        } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
         // @max(drtVehicles.t_1) -> drtVehicles.t_1
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
+        // @first(drtVehicles.t_1) -> drtVehicles.t_1
+        //console.log(p, allFilters[pIndex])
+        //console.log(expr)
         expr = expr.replaceAll(
-          '@max(' + pattern[0] + '.' + pattern[1] + ')',
+          '@max(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
@@ -415,16 +419,9 @@ function getFileVariableReplacements(expr: string) {
         if (Array.isArray(element)) {
           lookup = 0
           let count = 0
-          for (const row of element) {
-            if (filter.element.length) {
-              if (filterElements(row, filterKey, filter.mode, filter.value)) {
-                count++
-                lookup = lookup + row[pattern[1]]
-              }
-            } else {
-              count++
-              lookup = lookup + row[pattern[1]]
-            }
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            count++
+            lookup = lookup + row[pattern[1]]
           }
           if (count != 0) {
             lookup = lookup / count
@@ -432,118 +429,123 @@ function getFileVariableReplacements(expr: string) {
         } else {
           lookup = element[pattern[1]]
         }
+
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
         // @mean(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
-          '@mean(' + pattern[0] + '.' + pattern[1] + ')',
+          '@mean(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       case 'first':
         // Calculate the first element
         if (Array.isArray(element)) {
-          if (filter.element.length) {
-            for (const row of element) {
-              if (
-                filterElements(row, filterKey, filter.mode, filter.value) &&
-                lookup == undefined
-              ) {
-                lookup = row[pattern[1]]
-              }
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            if (lookup == undefined) {
+              lookup = row[pattern[1]]
             }
-          } else {
-            lookup = element[0][pattern[1]]
           }
-        } else {
+        } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
+        }
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
         }
         // @first(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
-          '@first(' + pattern[0] + '.' + pattern[1] + ')',
+          '@first(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       case 'last':
         // Calculate the last element
         if (Array.isArray(element)) {
-          if (filter.element.length) {
-            for (const row of element) {
-              if (filterElements(row, filterKey, filter.mode, filter.value)) {
-                lookup = row[pattern[1]]
-              }
-            }
-          } else {
-            lookup = element[element.length - 1][pattern[1]]
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            lookup = row[pattern[1]]
           }
-        } else {
+        } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
         // @last(drtVehicles.t_1) -> drtVehicles.t_1
-
         expr = expr.replaceAll(
-          '@last(' + pattern[0] + '.' + pattern[1] + ')',
+          '@last(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       case 'sum':
         // Calculate the sum
         // check if a filter was used...
+        // sum of an empty set is 0
         lookup = 0
-        if (filter.element.length) {
-          for (const row of element) {
-            if (filterElements(row, filterKey, filter.mode, filter.value)) {
-              lookup = lookup + row[pattern[1]]
-            }
+
+        if (Array.isArray(element)) {
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            lookup = lookup + row[pattern[1]]
           }
-        } else {
-          if (Array.isArray(element)) {
-            for (const row of element) {
-              lookup = lookup + row[pattern[1]]
-            }
-          } else {
-            lookup = element[pattern[1]]
-          }
+        } else if (filterElements(element, allFilters[pIndex])) {
+          lookup = element[pattern[1]]
         }
 
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
         // @sum(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
-          '@sum(' + pattern[0] + '.' + pattern[1] + ')',
+          '@sum(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       case 'count':
         lookup = 0
-        // If there is a filter
-        if (filter.element.length) {
-          for (const row of element) {
-            if (filterElements(row, filterKey, filter.mode, filter.value)) {
-              lookup++
-            }
+        if (Array.isArray(element)) {
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
+            lookup++
           }
-        } else {
-          // IF there is no filter
-          // Count all elements
-          if (Array.isArray(element)) {
-            lookup = element.length
-          } else {
-            lookup = 1
-          }
+        } else if (filterElements(element, allFilters[pIndex])) {
+          lookup = 1
+        }
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
         }
         // @count(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
-          '@count(' + pattern[0] + '.' + pattern[1] + ')',
+          '@count(' + pattern[0] + '.' + pattern[1] + filterString + ')',
           '' + pattern[0] + '.' + pattern[1]
         )
         break
       default:
+        // Calculate the sum
+        // check if a filter was used...
+        // sum of an empty set is 0
         lookup = 0
-        // if this represents a scalar, use it; otherwise it is an array, and do a summation
+
         if (Array.isArray(element)) {
-          for (const row of element) {
+          for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
             lookup = lookup + row[pattern[1]]
           }
-        } else {
+        } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
+
+        for (let filter of allFilters[pIndex]) {
+          filterString =
+            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+        }
+        // (drtVehicles.t_1) -> drtVehicles.t_1
+        expr = expr.replaceAll(
+          '(' + pattern[0] + '.' + pattern[1] + filterString + ')',
+          '' + pattern[0] + '.' + pattern[1]
+        )
         break
     }
     expr = expr.replaceAll('{' + pattern[0] + '.' + pattern[1] + '}', '' + lookup)
@@ -551,33 +553,42 @@ function getFileVariableReplacements(expr: string) {
   return expr
 }
 
-//if (filterElements(row, filterKey, filter.mode, filter.value)) {
-function filterElements(row: any, filterKey: string, mode: number, value: string) {
-  // filterTypes = ['<', '>', '<=', '>=', '==', '!=']
-  // TODO: put filterTyped on a higer level
-  // Errors on: mode not found, expresion cant be split (check length of .split() return)
-  // Equals: nerdamer(x).eq(y)                    == / !=
-  // Less Than: nerdamer(x).lt(y)                 <
-  // Greater Than: nerdamer(x).gt(y)              >
-  // Less Than Or Equals: nerdamer(x).lte(y)      <=
-  // Greater Than Or Equals: nerdamer(x).gte(y)   >=
-  const x = row[filterKey]
+function filterElements(row: any, filterElements: any[]) {
+  let allResults = []
 
-  switch (mode) {
-    case 0:
-      return nerdamer(x).lt(value)
-    case 1:
-      return nerdamer(x).gt(value)
-    case 2:
-      return nerdamer(x).lte(value)
-    case 3:
-      return nerdamer(x).gte(value)
-    case 4:
-      return nerdamer(x).eq(value)
-    case 5:
-      return !nerdamer(x).eq(value)
-    default:
-      return false
+  for (let i = 0; i < filterElements.length; i++) {
+    switch (filterElements[i].mode) {
+      case -1:
+        allResults.push(true)
+        break
+      case 0:
+        allResults.push(nerdamer(row[filterElements[i].element]).lt(filterElements[i].value))
+        break
+      case 1:
+        allResults.push(nerdamer(row[filterElements[i].element]).gt(filterElements[i].value))
+        break
+      case 2:
+        allResults.push(nerdamer(row[filterElements[i].element]).lte(filterElements[i].value))
+        break
+      case 3:
+        allResults.push(nerdamer(row[filterElements[i].element]).gte(filterElements[i].value))
+        break
+      case 4:
+        allResults.push(nerdamer(row[filterElements[i].element]).eq(filterElements[i].value))
+        break
+      case 5:
+        allResults.push(!nerdamer(row[filterElements[i].element]).eq(filterElements[i].value))
+        break
+      default:
+        allResults.push(false)
+        break
+    }
+  }
+
+  if (allResults.includes(false)) {
+    return false
+  } else {
+    return true
   }
 }
 
