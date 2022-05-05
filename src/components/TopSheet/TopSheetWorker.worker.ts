@@ -8,8 +8,6 @@ import YAML from 'yaml'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
-import { all, exp, filter } from 'mathjs'
-import { any } from 'micromatch'
 
 type TableRow = {
   title: string
