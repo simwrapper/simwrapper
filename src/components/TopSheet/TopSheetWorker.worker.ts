@@ -578,7 +578,6 @@ function filterElements(row: any, filterElements: any[]) {
         break
     }
   }
-
   return !allResults.includes(false)
 }
 
@@ -617,7 +616,6 @@ async function loadFiles() {
       await parseVariousFileTypes(inputFile, filename, text)
     } catch (e) {
       console.error(e)
-
       // throw e
     }
   }
