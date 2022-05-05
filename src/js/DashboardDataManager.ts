@@ -382,7 +382,7 @@ export default class DashboardDataManager {
           thread.terminate()
           if (e.data.error) {
             console.error(e.data.error)
-            reject()
+            reject(e.data.error)
           }
           resolve(e.data.links)
         }

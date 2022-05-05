@@ -155,6 +155,8 @@ export default class VueComponent extends Vue {
   @Watch('dataColumn')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
+    if (!this.dataColumn) return
+
     const slash = this.dataColumn.indexOf('/')
 
     if (slash === -1) {

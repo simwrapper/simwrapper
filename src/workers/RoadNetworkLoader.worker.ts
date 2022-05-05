@@ -10,9 +10,10 @@ import reproject from 'reproject'
 import * as shapefile from 'shapefile'
 
 import Coords from '@/js/Coords'
-import DBF from '@/js/dbfReader'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystemConfig } from '@/Globals'
+import { DataTable, FileSystemConfig } from '@/Globals'
+
+import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
 enum NetworkFormat {
   MATSIM_XML,
@@ -26,6 +27,9 @@ const nodePropsToIgnore = new Set()
 ignore.forEach(key => nodePropsToIgnore.add(key))
 
 let _xml = {} as any
+let _fileApi: HTTPFileSystem
+let _fileSystemConfig: FileSystemConfig
+let _subfolder = ''
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
@@ -85,14 +89,16 @@ async function fetchNodesAndLinks(props: {
 async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig, vizDetails: any) {
   console.log('WORKER loading shapefile', filePath)
 
-  const fileApi = new HTTPFileSystem(fileSystem)
+  _fileApi = new HTTPFileSystem(fileSystem)
+  _fileSystemConfig = fileSystem
+
   const url = filePath
   let nodes: any = {}
 
   // first, get shp/dbf files
   try {
-    const shpPromise = fileApi.getFileBlob(url)
-    const dbfPromise = fileApi.getFileBlob(url.replace('.shp', '.dbf'))
+    const shpPromise = _fileApi.getFileBlob(url)
+    const dbfPromise = _fileApi.getFileBlob(url.replace('.shp', '.dbf'))
     await Promise.all([shpPromise, dbfPromise])
 
     const shpBlob = await (await shpPromise)?.arrayBuffer()
@@ -109,7 +115,7 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
   let projection = vizDetails.projection
   if (!projection) {
     try {
-      projection = await fileApi.getFileText(url.replace('.shp', '.prj'))
+      projection = await _fileApi.getFileText(url.replace('.shp', '.prj'))
     } catch (e) {
       // lol we can live without a projection
     }
@@ -138,26 +144,29 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
 
   // Download links data from first link datafile specified
   const linksFilename = Array.isArray(vizDetails.links) ? vizDetails.links[0] : vizDetails.links
-  const linksPath = `${filePath.substring(0, filePath.lastIndexOf('/'))}/${linksFilename}`
-
-  const blob = await fileApi.getFileBlob(linksPath)
-  const buffer = await blob.arrayBuffer()
-  const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // DBF has weird text
-
-  console.log({ dataTable })
+  _subfolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`
 
   const linkIds: any = []
-
-  // build link array from columnar data
-  const numLinks = dataTable.A.values.length
   const links = [] as any[]
-  const keys = Object.keys(dataTable)
-  for (let i = 0; i < numLinks; i++) {
-    links[i] = {}
-    linkIds.push(dataTable.AB.values[i])
-    for (const key of keys) {
-      links[i][key] = dataTable[key].values[i]
+  let numLinks = 0
+
+  try {
+    const dataTable = await fetchDataset({ dataset: linksFilename })
+    console.log({ dataTable })
+
+    // build link array from columnar data
+    numLinks = dataTable.A.values.length
+    const keys = Object.keys(dataTable)
+    for (let i = 0; i < numLinks; i++) {
+      links[i] = {}
+      linkIds.push(dataTable.AB.values[i])
+      for (const key of keys) {
+        links[i][key] = dataTable[key].values[i]
+      }
     }
+  } catch (err) {
+    const e = err as any
+    postMessage({ error: '' + e.error })
   }
 
   const source: Float32Array = new Float32Array(2 * numLinks)
@@ -209,27 +218,8 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
   // })
   if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
   // return outputLinks
-
   // return geojson.features as any[]
 }
-
-//   const rawData = await fetchGzip(filePath, fileSystem)
-//   const decoded = new TextDecoder('utf-8').decode(rawData)
-//   _xml = await parseXML(decoded, options)
-
-//   // What is the CRS?
-//   let coordinateReferenceSystem = ''
-
-//   const attribute = _xml.network.attributes?.attribute
-//   if (attribute?.$name === 'coordinateReferenceSystem') {
-//     coordinateReferenceSystem = attribute['#text']
-//     console.log('CRS', coordinateReferenceSystem)
-//     parseXmlNetworkAndPostResults(coordinateReferenceSystem)
-//   } else {
-//     // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
-//     postMessage({ promptUserForCRS: 'crs needed' })
-//   }
-// }
 
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
@@ -264,8 +254,6 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
     nodes[node.$id] = longlat
   }
 
-  // const linkOffsetLookup: { [id: string]: number } = {}
-
   // build links
 
   const source: Float32Array = new Float32Array(2 * _xml.network.links.link.length)
@@ -275,7 +263,6 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
 
   for (let i = 0; i < _xml.network.links.link.length; i++) {
     const link = _xml.network.links.link[i]
-    // linkOffsetLookup[link.$id] = i
     linkIds[i] = link.$id
 
     source[2 * i + 0] = nodes[link.$from][0]
@@ -296,8 +283,6 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
   // TODO for now we assume everything is UTF-8; add an option later
   const decoded = new TextDecoder('utf-8').decode(rawData)
   const json = JSON.parse(decoded)
-
-  // const linkOffsetLookup: { [id: string]: number } = {}
 
   const source: Float32Array = new Float32Array(2 * json.features.length)
   const dest: Float32Array = new Float32Array(2 * json.features.length)
@@ -413,6 +398,33 @@ function parseXML(xml: string, settings: any = {}) {
     console.error('WHAT', e)
     throw Error('' + e)
   }
+}
+
+async function fetchDataset(config: { dataset: string }) {
+  const { files } = await _fileApi.getDirectory(_subfolder)
+  return new Promise<DataTable>((resolve, reject) => {
+    const thread = new DataFetcherWorker()
+    try {
+      thread.postMessage({
+        fileSystemConfig: _fileSystemConfig,
+        subfolder: _subfolder,
+        files: files,
+        config: config,
+      })
+
+      thread.onmessage = e => {
+        thread.terminate()
+        if (e.data.error) {
+          reject(e.data)
+        }
+        resolve(e.data)
+      }
+    } catch (err) {
+      thread.terminate()
+      console.error(err)
+      reject('' + err)
+    }
+  })
 }
 
 // // make the typescript compiler happy on import

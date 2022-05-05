@@ -467,7 +467,15 @@ class MyPlugin extends Vue {
     }
 
     const dataColumn = selectedDataset[columnName]
-    if (!dataColumn) return
+    if (!dataColumn) {
+      const msg = `Width: column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
+      console.error(msg)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg,
+      })
+      return
+    }
 
     // Tell Vue we have new data
     this.csvWidth = {
@@ -502,8 +510,15 @@ class MyPlugin extends Vue {
     }
 
     const column = this.csvData.dataTable[columnName]
-    if (!column) return
-    // if (column === this.csvData.activeColumn) return
+    if (!column) {
+      const msg = `Color: Column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
+      console.error(msg)
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg,
+      })
+      return
+    }
 
     this.csvData.activeColumn = column.name
     this.csvBase.activeColumn = column.name
@@ -623,7 +638,7 @@ class MyPlugin extends Vue {
       // then load CSVs in background
       this.loadCSVFiles()
     } catch (e) {
-      this.$store.commit('error', `Could not load ${networkPath}`)
+      this.$store.commit('error', '' + e)
       this.$emit('isLoaded')
     }
   }
