@@ -39,7 +39,7 @@
       .curate-content(v-if="myState.vizes.length")
         .viz-table
           .viz-grid-item(v-for="viz,index in myState.vizes"
-                    :key="viz.config"
+                    :key="index"
                     @click="clickedVisualization(index)")
 
             .viz-frame

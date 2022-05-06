@@ -26,25 +26,39 @@ const ignore = ['X', 'Y']
 const nodePropsToIgnore = new Set()
 ignore.forEach(key => nodePropsToIgnore.add(key))
 
-let _xml = {} as any
+let _content = {} as any
 let _fileApi: HTTPFileSystem
 let _fileSystemConfig: FileSystemConfig
+let _filePath = ''
+let _networkFormat: NetworkFormat
 let _subfolder = ''
+let _vizDetails = {} as any
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
   if (e.data.crs) {
-    parseXmlNetworkAndPostResults(e.data.crs)
+    switch (_networkFormat) {
+      case NetworkFormat.MATSIM_XML:
+        parseXmlNetworkAndPostResults(e.data.crs)
+        break
+      case NetworkFormat.SFCTA:
+        parseSFCTANetworkAndPostResults(e.data.crs)
+        break
+      default:
+        console.log('oops')
+        parseXmlNetworkAndPostResults(e.data.crs)
+        break
+    }
   } else {
-    const { id, filePath, fileSystem, vizDetails, options } = e.data
+    const { filePath, fileSystem, vizDetails, options } = e.data
 
     // guess file type from extension
-    const format = guessFileTypeFromExtension(filePath)
+    _networkFormat = guessFileTypeFromExtension(filePath)
+    _vizDetails = vizDetails
+    _filePath = filePath
 
     // fetch nodes and links
     fetchNodesAndLinks({
-      format,
-      filePath,
       fileSystem,
       vizDetails,
       options,
@@ -66,21 +80,19 @@ function guessFileTypeFromExtension(name: string) {
 }
 
 async function fetchNodesAndLinks(props: {
-  format: NetworkFormat
-  filePath: string
   fileSystem: FileSystemConfig
   vizDetails: any
   options: any
 }): Promise<any> {
-  const { format, filePath, fileSystem, vizDetails, options } = props
+  const { fileSystem, vizDetails, options } = props
 
-  switch (format) {
+  switch (_networkFormat) {
     case NetworkFormat.GEOJSON:
-      return fetchGeojson(filePath, fileSystem)
+      return fetchGeojson(_filePath, fileSystem)
     case NetworkFormat.MATSIM_XML:
-      return fetchMatsimXmlNetwork(filePath, fileSystem, options)
+      return fetchMatsimXmlNetwork(_filePath, fileSystem, options)
     case NetworkFormat.SFCTA:
-      return fetchSFCTANetwork(filePath, fileSystem, vizDetails)
+      return fetchSFCTANetwork(_filePath, fileSystem, vizDetails)
     default:
       break
   }
@@ -93,7 +105,7 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
   _fileSystemConfig = fileSystem
 
   const url = filePath
-  let nodes: any = {}
+  _content = {}
 
   // first, get shp/dbf files
   try {
@@ -105,7 +117,7 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
     const dbfBlob = await (await dbfPromise)?.arrayBuffer()
     if (!shpBlob || !dbfBlob) return []
 
-    nodes = await shapefile.read(shpBlob, dbfBlob)
+    _content = await shapefile.read(shpBlob, dbfBlob)
   } catch (e) {
     console.error(e)
     return []
@@ -117,52 +129,38 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
     try {
       projection = await _fileApi.getFileText(url.replace('.shp', '.prj'))
     } catch (e) {
-      // lol we can live without a projection
+      // need a projection to continue; post message asking user.
+      postMessage({ promptUserForCRS: 'crs needed' })
+      return
     }
   }
+  // if we got here, then we got a valid projection.
+  console.log(projection)
+  parseSFCTANetworkAndPostResults(projection)
+}
 
+async function parseSFCTANetworkAndPostResults(projection: string) {
   const guessCRS = Coords.guessProjection(projection)
+
   // then, reproject if we have a projection
   if (guessCRS && guessCRS !== 'EPSG:4326') {
-    nodes = reproject.toWgs84(nodes, guessCRS, EPSGdefinitions)
+    _content = reproject.toWgs84(_content, guessCRS, EPSGdefinitions)
   }
 
-  // OK we now have NODES in geojson.features!! ----------------------------------------
-  console.log({ nodes })
-
-  // build node coord lookup map
-  const nodeLookup: { [id: string]: { properties: any; coords: number[] } } = {}
-  for (const node of nodes.features) {
-    // console.log(node.properties.N)
-    // node lookup IDs must be strings
-    const id = '' + node.properties['N']
-    nodeLookup[id] = {
-      properties: node.properties,
-      coords: node.geometry.coordinates,
-    }
-  }
-
-  // Download links data from first link datafile specified
-  const linksFilename = Array.isArray(vizDetails.links) ? vizDetails.links[0] : vizDetails.links
-  _subfolder = `${filePath.substring(0, filePath.lastIndexOf('/'))}`
+  // OK we now have LINKS in geojson.features!! ----------------------------------------
+  console.log({ _content })
 
   const linkIds: any = []
-  const links = [] as any[]
+  // const links = [] as any[]
   let numLinks = 0
 
   try {
-    const dataTable = await fetchDataset({ dataset: linksFilename })
-    console.log({ dataTable })
-
     // build link array from columnar data
-    numLinks = dataTable.A.values.length
-    const keys = Object.keys(dataTable)
-    for (let i = 0; i < numLinks; i++) {
-      links[i] = {}
-      linkIds.push(dataTable.AB.values[i])
-      for (const key of keys) {
-        links[i][key] = dataTable[key].values[i]
-      }
+    // numLinks = dataTable.AB.values.length
+    numLinks = _content.features.length
+    // const keys = Object.keys(dataTable)
+    for (const feature of _content.features) {
+      linkIds.push(feature.properties.AB)
     }
   } catch (err) {
     const e = err as any
@@ -172,64 +170,38 @@ async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig,
   const source: Float32Array = new Float32Array(2 * numLinks)
   const dest: Float32Array = new Float32Array(2 * numLinks)
 
-  const outputLinks: any[] = []
   let warnings = 0
 
   // link source/dest coordinate lookup
   for (let j = 0; j < numLinks; j++) {
-    const anode = nodeLookup[links[j].A]
-    const bnode = nodeLookup[links[j].B]
-
-    source[2 * j + 0] = anode.coords[0]
-    source[2 * j + 1] = anode.coords[1]
-    dest[2 * j + 0] = bnode.coords[0]
-    dest[2 * j + 1] = bnode.coords[1]
+    // TODO shapefile has curvy lines; we are going to FLATTEN them
+    // for now, just to get this up and running quickly.
+    // Correct way to do this: use GeoJsonLayer, but that means rewriting
+    // the centerline stuff from the LineOffsetLayer that we custom wrote :-(
+    const lastcoord = _content.features[j].geometry.coordinates.length - 1
+    source[2 * j + 0] = _content.features[j].geometry.coordinates[0][0]
+    source[2 * j + 1] = _content.features[j].geometry.coordinates[0][1]
+    dest[2 * j + 0] = _content.features[j].geometry.coordinates[lastcoord][0]
+    dest[2 * j + 1] = _content.features[j].geometry.coordinates[lastcoord][1]
   }
 
   // all done! post the links
-  const linkCoordinates = { source, dest, linkIds }
+  const links = { source, dest, linkIds }
 
-  postMessage({ links: linkCoordinates }, [
-    linkCoordinates.source.buffer,
-    linkCoordinates.dest.buffer,
-  ])
+  postMessage({ links }, [links.source.buffer, links.dest.buffer])
 
-  // // add coordinates to links
-  // links.forEach(link => {
-  //   try {
-  //     const row = Object.assign({}, link) as any
-  //     // add A_coords, B_coords
-  //     row.A_xy = nodeLookup[link.A].coords
-  //     row.B_xy = nodeLookup[link.B].coords
-  //     // add node properties
-  //     Object.keys(nodeLookup[link.A].properties).forEach(key => {
-  //       if (nodePropsToIgnore.has(key)) return
-  //       row[`${key}_A`] = nodeLookup[link.A].properties[key]
-  //     })
-  //     Object.keys(nodeLookup[link.B].properties).forEach(key => {
-  //       if (nodePropsToIgnore.has(key)) return
-  //       row[`${key}_B`] = nodeLookup[link.B].properties[key]
-  //     })
-  //     outputLinks.push(row)
-  //   } catch (e) {
-  //     console.warn('link problem:', link)
-  //     warnings++
-  //   }
-  // })
   if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
-  // return outputLinks
-  // return geojson.features as any[]
 }
 
 async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
   const decoded = new TextDecoder('utf-8').decode(rawData)
-  _xml = await parseXML(decoded, options)
+  _content = await parseXML(decoded, options)
 
   // What is the CRS?
   let coordinateReferenceSystem = ''
 
-  const attribute = _xml.network.attributes?.attribute
+  const attribute = _content.network.attributes?.attribute
   if (attribute?.$name === 'coordinateReferenceSystem') {
     coordinateReferenceSystem = attribute['#text']
     console.log('CRS', coordinateReferenceSystem)
@@ -243,7 +215,7 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
   // build node/coordinate lookup
   const nodes: { [id: string]: number[] } = {}
-  for (const node of _xml.network.nodes.node as any) {
+  for (const node of _content.network.nodes.node as any) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
 
     // convert coordinates to long/lat if necessary
@@ -256,13 +228,13 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
 
   // build links
 
-  const source: Float32Array = new Float32Array(2 * _xml.network.links.link.length)
-  const dest: Float32Array = new Float32Array(2 * _xml.network.links.link.length)
+  const source: Float32Array = new Float32Array(2 * _content.network.links.link.length)
+  const dest: Float32Array = new Float32Array(2 * _content.network.links.link.length)
 
   const linkIds: any = []
 
-  for (let i = 0; i < _xml.network.links.link.length; i++) {
-    const link = _xml.network.links.link[i]
+  for (let i = 0; i < _content.network.links.link.length; i++) {
+    const link = _content.network.links.link[i]
     linkIds[i] = link.$id
 
     source[2 * i + 0] = nodes[link.$from][0]

@@ -78,7 +78,7 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
           dataTable[f.name].values[recordNumber] = decodedValue
           i = i + f.length
         }, {})
-        if (!(recordNumber % 21377)) console.log('dbf reading', recordNumber)
+        if (!(recordNumber % 50000)) console.log('dbf', recordNumber)
       } else {
         break
       }

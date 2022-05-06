@@ -290,7 +290,7 @@ class MyPlugin extends Vue {
     }
 
     // is this a bare network file? - build vizDetails manually
-    if (/(xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
+    if (/(shp|xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
       const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
 
       this.vizDetails = Object.assign({}, this.vizDetails, {
@@ -300,7 +300,7 @@ class MyPlugin extends Vue {
       })
     }
 
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Network Links'
+    const t = this.vizDetails.title ? this.vizDetails.title : filename || 'Network Links'
     this.$emit('title', t)
   }
 
@@ -615,9 +615,7 @@ class MyPlugin extends Vue {
   private async loadNetwork(): Promise<any> {
     this.myState.statusMessage = 'Loading network...'
 
-    const filename = this.vizDetails.network || this.vizDetails.geojsonFile || this.vizDetails.nodes
-    const networkPath = `/${this.myState.subfolder}/${filename}`
-
+    const filename = this.vizDetails.network || this.vizDetails.geojsonFile
     try {
       const network = await this.myDataManager.getRoadNetwork(
         filename,
@@ -954,6 +952,7 @@ globalStore.commit('registerPlugin', {
     '**/*network.geo?(.)json?(.gz)',
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
+    '**/freeflow.shp',
   ],
   component: MyPlugin,
 } as VisualizationPlugin)

@@ -7,7 +7,7 @@
       .column
           p: b {{ data1.title }}
           .options-box
-            p(v-for="(row,i) in data1.columns" :key="i"
+            p(v-for="(row,i) in data1.columns.sort()" :key="i"
               :class="{'selected': i===selected1}"
               @click="selected1=i"
             ) {{ row }}
@@ -17,7 +17,7 @@
       .column
           p: b {{ data2.title }}
           .options-box
-            p(v-for="(row,i) in data2.columns" :key="i"
+            p(v-for="(row,i) in data2.columns.sort()" :key="i"
               :class="{'selected': i===selected2}"
               @click="selected2=i"
             ) {{ row }}
@@ -38,8 +38,6 @@ const i18n = {
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-
-import { FileSystem, FileSystemConfig } from '@/Globals'
 
 @Component({
   i18n,
