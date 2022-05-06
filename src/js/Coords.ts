@@ -65,7 +65,7 @@ function guessProjection(definition: string) {
 
   // Simple EPSG:xxxx code? Just return it
   const epsg = /^EPSG:\d+$/
-  if (epsg.test(definition)) return definition
+  if (epsg.test(definition.trim())) return definition.trim()
 
   // maybe a DHDN GK4 is there
   for (const [key, epsg] of Object.entries(lookups)) {
