@@ -315,15 +315,62 @@ function getFileVariableReplacements(expr: string) {
     // check if a filter is included
     if (patternElement.includes(',')) {
       const split = patternElement.split(',')
-
       for (let j = 1; j < split.length; j++) {
-        allFilters[i].push({
-          key: split[j].trim().split(' ')[0],
-          value: split[j].trim().split(' ')[2].replaceAll(')', ''),
-          mode: filterTypes.indexOf(split[j].trim().split(' ')[1]),
-          file: split[j].trim().split('.')[0],
-          element: split[j].split('.')[1].split(' ')[0],
-        })
+        if (split[j].includes('=')) {
+          allFilters[i].push({
+            key: split[j].slice(0, split[j].lastIndexOf('=') - 1).trim(),
+            value: split[j]
+              .slice(split[j].lastIndexOf('=') + 1)
+              .trim()
+              .replaceAll(')', ''),
+            mode: filterTypes.indexOf(
+              split[j].slice(split[j].lastIndexOf('=') - 1, split[j].lastIndexOf('=') + 1).trim()
+            ),
+            file: split[j]
+              .slice(0, split[j].lastIndexOf('=') - 1)
+              .trim()
+              .split('.')[0],
+            element: split[j]
+              .slice(0, split[j].lastIndexOf('=') - 1)
+              .trim()
+              .split('.')[1],
+            exp: split[j].replaceAll(')', ''),
+          })
+        } else if (split[j].includes('>')) {
+          allFilters[i].push({
+            key: split[j].split('>')[0].trim(),
+            value: split[j].split('>')[1].trim().replaceAll(')', ''),
+            mode: filterTypes.indexOf(
+              split[j].slice(split[j].lastIndexOf('>') - 1, split[j].lastIndexOf('>') + 1).trim()
+            ),
+            file: split[j]
+              .slice(0, split[j].lastIndexOf('>') - 1)
+              .trim()
+              .split('.')[0],
+            element: split[j]
+              .slice(0, split[j].lastIndexOf('>') - 1)
+              .trim()
+              .split('.')[1],
+            exp: split[j].replaceAll(')', ''),
+          })
+        } else if (split[j].includes('<')) {
+          allFilters[i].push({
+            key: split[j].split('<')[0].trim(),
+            value: split[j].split('<')[1].trim().replaceAll(')', ''),
+            mode: filterTypes.indexOf(
+              split[j].slice(split[j].lastIndexOf('<') - 1, split[j].lastIndexOf('<') + 1).trim()
+            ),
+            file: split[j]
+              .slice(0, split[j].lastIndexOf('<') - 1)
+              .trim()
+              .split('.')[0],
+            element: split[j]
+              .slice(0, split[j].lastIndexOf('<') - 1)
+              .trim()
+              .split('.')[1],
+            exp: split[j].replaceAll(')', ''),
+          })
+        }
       }
       //  {stops.id}
       if (patternElement[0] == '@') {
@@ -370,9 +417,9 @@ function getFileVariableReplacements(expr: string) {
         }
 
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @min(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@min(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -392,9 +439,9 @@ function getFileVariableReplacements(expr: string) {
         }
 
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @max(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@max(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -418,9 +465,9 @@ function getFileVariableReplacements(expr: string) {
         }
 
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @mean(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@mean(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -438,10 +485,11 @@ function getFileVariableReplacements(expr: string) {
         } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
+
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @first(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@first(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -457,10 +505,11 @@ function getFileVariableReplacements(expr: string) {
         } else if (filterElements(element, allFilters[pIndex])) {
           lookup = element[pattern[1]]
         }
+
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @last(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@last(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -482,9 +531,9 @@ function getFileVariableReplacements(expr: string) {
         }
 
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @sum(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@sum(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -501,9 +550,9 @@ function getFileVariableReplacements(expr: string) {
           lookup = 1
         }
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // @count(drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '@count(' + pattern[0] + '.' + pattern[1] + filterString + ')',
@@ -525,9 +574,9 @@ function getFileVariableReplacements(expr: string) {
         }
 
         for (let filter of allFilters[pIndex]) {
-          filterString =
-            filterString + ', ' + filter.key + ' ' + filterTypes[filter.mode] + ' ' + filter.value
+          filterString = filterString + ',' + filter.exp
         }
+
         // (drtVehicles.t_1) -> drtVehicles.t_1
         expr = expr.replaceAll(
           '(' + pattern[0] + '.' + pattern[1] + filterString + ')',
