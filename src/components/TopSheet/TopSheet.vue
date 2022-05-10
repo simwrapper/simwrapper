@@ -131,6 +131,10 @@ export default class VueComponent extends Vue {
         this.table = data.results
         this.$emit('isLoaded')
         break
+      case 'error':
+        this.$store.commit('error', data.message)
+        this.$emit('isLoaded')
+        break
       default:
         // shouldn't be here
         this.$emit('isLoaded')
