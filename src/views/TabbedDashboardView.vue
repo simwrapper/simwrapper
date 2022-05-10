@@ -8,6 +8,11 @@
         h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
+      .folder-readme(v-if="folderReadme"
+        :class="{'readme-centered': !this.header}"
+        v-html="folderReadme"
+      )
+
       .tabs.is-centered
         b.up-link(:style="{marginLeft: wiide ? '1rem':'-0.75rem'}")
           a(@click="goUpOneFolder()") ^ UP
@@ -84,6 +89,7 @@ export default class VueComponent extends Vue {
   private loadErrorMessage = ''
   private pageHeader = ''
 
+  private folderReadme = ''
   private header = ''
   private footer = ''
   private customCSS = ''
@@ -138,6 +144,7 @@ export default class VueComponent extends Vue {
     this.header = ''
     this.footer = ''
     this.pageHeader = this.getPageHeader()
+    this.getFolderReadme()
     // this.generateBreadcrumbs()
 
     // this happens async
@@ -147,6 +154,22 @@ export default class VueComponent extends Vue {
 
   private onNavigate(options: any) {
     this.$emit('navigate', options)
+  }
+
+  private async getFolderReadme() {
+    try {
+      this.folderReadme = ''
+      const { files } = await this.fileApi.getDirectory(this.xsubfolder)
+      const readmes = files.filter(f => f.toLocaleLowerCase() === 'readme.md')
+      if (!readmes.length) return
+
+      const readmeText = await this.fileApi.getFileText(`${this.xsubfolder}/${readmes[0]}`)
+      const html = mdRenderer.render(readmeText)
+      this.folderReadme = html
+    } catch (e) {
+      // no readme is OK
+      this.folderReadme = ''
+    }
   }
 
   private async findConfigsAndDashboards() {
@@ -563,6 +586,14 @@ li.is-not-active b a {
   border-top: none;
   background-color: #88888815;
   color: var(--text);
+}
+
+.folder-readme {
+  margin-top: 0.5rem;
+}
+
+.folder-readme.readme-centered {
+  text-align: center;
 }
 
 @media only screen and (max-width: 50em) {
