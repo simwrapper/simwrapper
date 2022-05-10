@@ -222,8 +222,7 @@ function doAllCalculations() {
       expr = '' + _yaml.calculations[calc]
 
       // look up any file-based variables
-
-      expr = getFileVariableReplacements(expr)
+      expr = getFileVariableReplacements(calc, expr)
 
       // replace variables with known quantities
       for (const [k, v] of Object.entries(calculations)) {
@@ -289,12 +288,12 @@ function getFilterReplacements(calc: string): any[] {
   return filtered
 }
 
-function getFileVariableReplacements(expr: string) {
+function getFileVariableReplacements(calc: string, expr: string) {
+  const validFunctions = ['first', 'last', 'sum', 'mean', 'min', 'max', 'count']
+
   // this regex matches {variables}
-  // OOPS! SAFARI FUCKALL DOESN'T SUPPORT REGEX WITH LOOKBEHIND
   // broken: const re = /(?<={).*?(?=})/g
   // const patterns = expr.match(re)
-
   // non-regex version because SAFARI IS THE WORST :-O
   let offset = 0
   const patterns: string[] = []
@@ -357,6 +356,14 @@ function getFileVariableReplacements(expr: string) {
       p = pSplitted[2]
       calculationType = pSplitted[1]
       calculationPrefix = '@'
+    }
+
+    if (validFunctions.indexOf(calculationType) == -1) {
+      postMessage({
+        response: 'error',
+        message: `${calc}: no such function @${calculationType}`,
+      })
+      return '???'
     }
 
     const pattern = p.split('.') // ${file.variable} --> ['file','variable']
@@ -484,6 +491,7 @@ async function getYaml() {
 }
 
 async function loadFiles() {
+  let filename = ''
   for (const inputFile of Object.keys(_yaml.files)) {
     try {
       // figure out which file to load
@@ -498,7 +506,7 @@ async function loadFiles() {
         throw Error(`More than one file matched pattern ${pattern}: ${matchingFiles}`)
       }
 
-      const filename = matchingFiles[0]
+      filename = matchingFiles[0]
 
       // load the file
       const text = await loadFileOrGzipFile(filename)
@@ -507,7 +515,7 @@ async function loadFiles() {
       await parseVariousFileTypes(inputFile, filename, text)
     } catch (e) {
       console.error(e)
-      // throw e
+      postMessage({ response: 'error', message: `${inputFile}: Error loading "${filename}"` })
     }
   }
 }
