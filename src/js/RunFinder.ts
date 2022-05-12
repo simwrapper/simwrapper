@@ -88,7 +88,7 @@ const fetchFolders = async function (
       }
     }
   } catch (e) {
-    console.warn(e)
+    // console.warn(e)
   }
 }
 
