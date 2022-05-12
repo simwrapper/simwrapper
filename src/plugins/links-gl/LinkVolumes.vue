@@ -952,7 +952,6 @@ globalStore.commit('registerPlugin', {
     '**/*network.geo?(.)json?(.gz)',
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
-    '**/freeflow.shp',
   ],
   component: MyPlugin,
 } as VisualizationPlugin)

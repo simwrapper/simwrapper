@@ -1,56 +1,57 @@
-# Link Volumes Plugin
+# Shapefile Viz: Some notes
 
-Link bandwidth plot plugin. Supports regular bandwidth plots as well as difference and sum plots when comparing two alternatives.
+### Files:
 
-## Usage
-
-A file named `viz-links-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate link volume diagram.
-
-**viz-links-example.yml**
-
-```yaml
----
-title: 'Passagieraufkommen in Sammeltaxis'
-description: 'Stündliches Passagieraufkommen in Sammeltaxis'
-csvFile: '../base/hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv'
-csvFile2: 'Vu-DRT-1.link_hourlyTrafficVolume_passengers_VEHICLEFILTER-drt-vehicles.csv'
-geojsonFile: ../vulkaneifel-network.geo.json.gz
-shpFile: 'vulkaneifel-network/vulkaneifel-network.shp'
-dbfFile: 'vulkaneifel-network/vulkaneifel-network.dbf'
-projection: 'EPSG:25832'
-widthFactor: 0.01
-sampleRate: 0.25
-thumbnail: thumbnail-roads.jpg
-shpFileIdProperty: 'ID'
-```
-
-## YAML fields explained
+- All feature types supported: lines, polygons, points, multi-\*
+- **GeoJSON** and **Shapefile (.shp)** file types can both be read;
+- GeoJSON is expected to be in **long/lat** already, while shapefiles can have a `.prj` file containing the projection, or the config can specify a projection; or we will ask the user
 
 ---
 
-**geojsonFile:** geojson-converted network file. Use the python script in `scripts/create-network.py` to create a geojson network from a matsim network.xml.gz file.
+### Symbology:
 
-- Command is `python3 create-network.py [mynetwork.xml.gz]`
-- and will create a file with the name `mynetwork.json.gz`.
+Features can be painted based on properties or joined data.
 
-**shpFile,dbfFile:** (deprecated) filenames for the alternative, slower network file in shapefile format. Don't use this if you have created the geojson network file above.
-
-**csvFile**: dataset, or "base" dataset for difference plots
-
-**csvFile2:** (optional) "project" dataset for difference plots
-
-**sampleRate:** MATSim simulation sample rate; i.e. a 1% sample should use `0.01` here so that volumes are scaled properly
-
-**shpFileIdProperty:** property name of field in Shapefile which contains area ID for linking shapefile regions to csvFile data.
+- Polygons can have **fill color**,
+- Lines can have **color** and **width**
+- Points can have **color** and **radius**
+- Symbology can be **categorical** or **numerical** with various breakpoints and scaling options. Examples:
+  - Link-bandwidth plots where width represents volume; color represents facility type
+  - Delay plots where width is by facility type and color is delay or speed etc
 
 ---
 
-Note: All filename fields can refer to parent folders using `../`.
+### Joined datasets:
 
-- example: `geojsonfile: '../networks/base.json.gz'`
+- Datasets can be joined to features, based on a common join column (which can be named anything)
 
-This works as far up the hierarchy as the base of the public-svn specified in `svnConfig.js` but no further.
+- Multiple datasets are supported
 
-```
+---
 
-```
+### Filtering data:
+
+- Some **datasets** have **multiple rows per feature**, such as zonal ridership by transit agency; allow user to show total or filter some/all/none based on column data
+
+- Some **features** may be filtered OUT based on data; such as hiding zone-centroid links
+
+---
+
+### Implementation:
+
+- Need to modify deck.gl LineLayer to handle left/right bandwidths
+
+- Move shapefile/geojson **properties** into a separate "dataset" and leave the properties of each element blank, because tests show this is more performant. Also helps to make the UI of selecting symbology more consistent.
+
+- Pass **separate arrays** into the deck.gl layer for each of
+  `fillColor`, `lineColor`, `lineWidth`, `pointRadius`. And `opacity` too?
+
+- Use **d3 functions** to determine color ramps, width buckets, etc.
+
+- **Filtering:**
+  - hide features based on properties (centroid links)
+  - filter datasets (trips to downtown only; BART trips)
+
+### User Interface
+
+- The bottom-side filter and selection thingies are nice but hard to set up. User probably doesn't just want to switch the colors but also the widths. Probably full set changes. Need to think about this.
