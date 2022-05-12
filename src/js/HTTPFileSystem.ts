@@ -241,14 +241,13 @@ class SVNFileSystem {
 
     // first find all simwrapper folders
     let currentPath = '/'
-    // const { dirs } = await this.getDirectory(currentPath)
-    // if (dirs.indexOf(YAML_FOLDER) > -1) {
-    //   configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
-    // }
+    let fullFolder = folder.startsWith('/') ? folder : '/' + folder
 
-    const pathChunks = folder.split('/')
+    const pathChunks = fullFolder.split('/')
+
     for (const chunk of pathChunks.slice(0, pathChunks.length - 1)) {
-      currentPath = `${currentPath}${chunk}/`
+      currentPath = `${currentPath}${chunk}/`.replaceAll('//', '/')
+
       try {
         const { dirs } = await this.getDirectory(currentPath)
         if (dirs.indexOf(YAML_FOLDER) > -1) {
