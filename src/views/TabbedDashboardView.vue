@@ -63,7 +63,7 @@ import FolderBrowser from '@/views/FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
-const NO_DASHBOARDS = '.nodashboards'
+const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
 const mdRenderer = new markdown({
   html: true,
@@ -182,7 +182,14 @@ export default class VueComponent extends Vue {
       const { files } = await this.fileApi.getDirectory(this.xsubfolder)
 
       // if folder has .nodashboards, then skip all dashboards!
-      if (files.indexOf(NO_DASHBOARDS) == -1) {
+      let showDashboards = true
+      NO_DASHBOARDS.forEach(filename => {
+        if (files.indexOf(filename) > -1) {
+          showDashboards = false
+        }
+      })
+
+      if (showDashboards) {
         for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
           // add the tab now
           Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
