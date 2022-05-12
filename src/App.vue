@@ -94,7 +94,6 @@ class App extends Vue {
 
   // ------ Find Chrome Local File System roots ----
   private async setupLocalFiles() {
-    console.log(12341235125)
     if (globalStore.state.localFileHandles.length) return
 
     const lfsh = (await get('fs')) as { key: string; handle: any }[]
