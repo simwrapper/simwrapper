@@ -8,8 +8,17 @@
 
   .status-bar(v-if="statusText") {{ statusText }}
 
-  polygon-and-circle-map.choro-map(v-if="!thumbnail"
-    :props="mapProps"
+  //- polygon-and-circle-map.choro-map(v-if="!thumbnail"
+  //-   :props="mapProps"
+  //-   :screenshot="screenshotNotifier"
+  //- )
+
+  geojson-layer.choro-map(v-if="!thumbnail"
+    :features="boundaries"
+    :lineColors="dataLineColors"
+    :lineWidths="dataLineWidths"
+    :fillColors="dataLineColors"
+    :pointRadii="dataLineColors"
     :screenshot="screenshotNotifier"
   )
 
@@ -22,7 +31,7 @@
   )
 
   viz-configurator(v-if="isLoaded && !thumbnail"
-    :sections="['fill']"
+    :sections="['fill-color',  'line-color','line-width', 'circle-radius']"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
     :yamlConfig="generatedExportFilename"
@@ -107,8 +116,15 @@ import * as turf from '@turf/turf'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { DataTable, DataTableColumn, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-import PolygonAndCircleMap from '@/plugins/shape-file/PolygonAndCircleMap.vue'
+import {
+  DataTable,
+  DataTableColumn,
+  FileSystemConfig,
+  VisualizationPlugin,
+  REACT_VIEW_HANDLES,
+} from '@/Globals'
+
+import GeojsonLayer from './GeojsonLayer'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -117,6 +133,8 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import { arrayBufferToBase64 } from '@/js/util'
 import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
+import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
+import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
 import { FillDefinition } from '@/components/viz-configurator/Fill.vue'
 import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
@@ -130,7 +148,7 @@ interface FilterDetails {
 }
 
 @Component({
-  components: { ModalJoinColumnPicker, PolygonAndCircleMap, VizConfigurator, ZoomButtons },
+  components: { ModalJoinColumnPicker, GeojsonLayer, VizConfigurator, ZoomButtons } as any,
 })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
@@ -151,6 +169,11 @@ export default class VueComponent extends Vue {
   private availableFilterColumns: string[] = []
 
   private dataRows: DataTable = {}
+
+  private dataLineColors: string | Uint8Array = '#4e79a7'
+  private dataLineWidths: number | Float32Array = 2
+
+  private layerId = Math.random()
 
   private activeColumn = ''
   private useCircles = false
@@ -189,6 +212,8 @@ export default class VueComponent extends Vue {
       fill: {} as any,
       color: {} as any,
       width: {} as any,
+      lineColor: {} as any,
+      lineWidth: {} as any,
     },
   }
 
@@ -197,20 +222,6 @@ export default class VueComponent extends Vue {
   private screenshotNotifier = ''
   private takeScreenshot() {
     this.screenshotNotifier += '1'
-  }
-
-  private get mapProps() {
-    return {
-      useCircles: this.useCircles,
-      data: this.useCircles ? this.centroids : this.boundaries,
-      dark: this.$store.state.isDarkMode,
-      colors: this.generatedColors,
-      activeColumn: this.activeColumn,
-      maxValue: this.maxValue,
-      opacity: this.sliderOpacity,
-      expColors: this.expColors,
-      screenshotCallback: this.screenshotNotifier,
-    }
   }
 
   private get generatedExportFilename() {
@@ -265,6 +276,15 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     this.myDataManager.removeFilterListener(this.config, this.filterListener)
+
+    // MUST delete the React view handle to prevent gigantic memory leak!
+    delete REACT_VIEW_HANDLES[this.layerId]
+    this.$store.commit('setFullScreen', false)
+  }
+
+  @Watch('$store.state.viewState') viewMoved() {
+    if (!REACT_VIEW_HANDLES[this.layerId]) return
+    REACT_VIEW_HANDLES[this.layerId]()
   }
 
   private honorQueryParameters() {
@@ -388,6 +408,8 @@ export default class VueComponent extends Vue {
     fill?: FillDefinition
     width?: WidthDefinition
     dataset?: DatasetDefinition
+    lineColor?: LineColorDefinition
+    lineWidth?: LineWidthDefinition
   }) {
     console.log(props)
 
@@ -396,6 +418,19 @@ export default class VueComponent extends Vue {
       this.vizDetails.display.fill = props.fill
       this.handleNewFill(props.fill)
     }
+
+    if (props['lineColor']) {
+      this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.display.lineColor = props.lineColor
+      this.handleNewLineColor(props.lineColor)
+    }
+
+    if (props['lineWidth']) {
+      this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.display.lineWidth = props.lineWidth
+      this.handleNewLineWidth(props.lineWidth)
+    }
+
     if (props['dataset']) {
       // vizdetails just had the string name, whereas props.dataset contains
       // a fully-build DatasetDefinition, so let's just handle that
@@ -488,6 +523,48 @@ export default class VueComponent extends Vue {
     }
 
     this.filterListener()
+  }
+
+  private handleNewLineColor(color: LineColorDefinition) {
+    this.generatedColors = color.generatedColors
+
+    const columnName = color.columnName
+
+    if (columnName) {
+      const datasetKey = color.dataset
+      const selectedDataset = this.datasets[datasetKey]
+      if (selectedDataset) {
+        this.activeColumn = 'value'
+        this.datasetValuesColumn = columnName
+      }
+    } else {
+      // simple color
+      // const colors = new Uint8Array(3 * this.boundaries.length)
+      // for (let i = 0; i < colors.length; i++) {
+      //   colors[i] = Math.floor(256 * Math.random())
+      // }
+      // this.dataLineColors = colors
+      this.dataLineColors = color.generatedColors[0]
+    }
+
+    // this.filterListener()
+  }
+
+  private handleNewLineWidth(width: LineWidthDefinition) {
+    const columnName = width.columnName
+    if (columnName) {
+      // const datasetKey = width.dataset
+      // const selectedDataset = this.datasets[datasetKey]
+      // if (selectedDataset) {
+      //   this.activeColumn = 'value'
+      //   this.datasetValuesColumn = columnName
+      // }
+    } else {
+      // simple width
+      this.dataLineWidths = 2
+    }
+
+    // this.filterListener()
   }
 
   private async handleMapClick(click: any) {
@@ -588,7 +665,12 @@ export default class VueComponent extends Vue {
         this.boundaries = boundaries.features
       } else if (shapes.endsWith('.shp')) {
         // shapefile!
-        const boundaries = await this.loadShapefileFeatures(shapes)
+        let boundaries = await this.loadShapefileFeatures(shapes)
+        // console.log(111, boundaries.length, 'features')
+        // if (boundaries.length > 5000) boundaries = boundaries.slice(0, 5000)
+        boundaries.forEach(b => {
+          b.properties = {}
+        })
         this.boundaries = boundaries
       } else {
         const boundaries = await this.fileApi.getFileJson(`${this.subfolder}/${shapes}`)
@@ -647,11 +729,10 @@ export default class VueComponent extends Vue {
     if (!this.fileApi) return []
 
     this.statusText = 'Loading shapefile...'
-    console.log('loading shapefile', filename)
+    console.log('loading', filename)
 
     const url = `${this.subfolder}/${filename}`
 
-    console.log(url)
     // first, get shp/dbf files
     let geojson: any = {}
     try {
@@ -739,8 +820,8 @@ export default class VueComponent extends Vue {
 
       this.figureOutRemainingFilteringOptions()
     } catch (e) {
-      const message = '' + e
-      console.error(message)
+      // const message = '' + e
+      // console.error(message)
     }
     return []
   }
@@ -929,7 +1010,14 @@ globalStore.commit('registerPlugin', {
   kebabName: 'area-map',
   prettyName: 'Area Map',
   description: 'Area Map',
-  filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*.shp'],
+  filePatterns: [
+    // viz-map plugin
+    '**/viz-map*.y?(a)ml',
+    // raw geojson files
+    '**/*.geojson?(.gz)',
+    // shapefiles too
+    '**/*.shp',
+  ],
   component: VueComponent,
 } as VisualizationPlugin)
 </script>

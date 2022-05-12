@@ -52,14 +52,31 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
-
+import { startCase } from 'lodash'
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
+import LineColorPanel from './LineColors.vue'
 import FillPanel from './Fill.vue'
 import WidthPanel from './Widths.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({ components: { AddDatasetsPanel, ColorPanel, FillPanel, WidthPanel }, props: {} })
+const FillColorPanel = ColorPanel
+const LineWidthPanel = WidthPanel
+const CircleRadiusPanel = WidthPanel
+
+@Component({
+  components: {
+    AddDatasetsPanel,
+    CircleRadiusPanel,
+    ColorPanel,
+    FillPanel,
+    FillColorPanel,
+    LineColorPanel,
+    LineWidthPanel,
+    WidthPanel,
+  },
+  props: {},
+})
 export default class VueComponent extends Vue {
   @Prop({ required: true }) vizDetails!: any
   @Prop({ required: true }) datasets: any
@@ -74,8 +91,9 @@ export default class VueComponent extends Vue {
   private getSections() {
     if (this.sections) {
       return this.sections.map(section => {
-        const componentName = section.slice(0, 1).toUpperCase() + section.slice(1) + 'Panel'
-        return { component: componentName, name: section }
+        const caps = startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
+        const componentName = caps
+        return { component: componentName, name: section.replaceAll('-', ' ') }
       })
     } else {
       return [
