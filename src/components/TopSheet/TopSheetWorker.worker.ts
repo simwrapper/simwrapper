@@ -425,27 +425,16 @@ function getFileVariableReplacements(expr: string) {
     }
 
     for (let filter of allFilters[pIndex]) {
-      filterString = filterString + ',' + filter.exp
+      filterString = `${filterString},${filter.exp}`
     }
-
-    console.log(expr)
-    console.log(calculationType + '(' + pattern[0] + '.' + pattern[1] + filterString + ')')
 
     // (drtVehicles.t_1) -> drtVehicles.t_1
     expr = expr.replaceAll(
-      calculationType + '(' + pattern[0] + '.' + pattern[1] + filterString + ')',
-      '' + pattern[0] + '.' + pattern[1]
+      `${calculationType}(${pattern[0]}.${pattern[1]}${filterString})`,
+      `${pattern[0]}.${pattern[1]}`
     )
 
-    console.log(expr)
-    console.log('{' + calculationPrefix + pattern[0] + '.' + pattern[1] + '}')
-
-    expr = expr.replaceAll(
-      '{' + calculationPrefix + pattern[0] + '.' + pattern[1] + '}',
-      '' + lookup
-    )
-
-    console.log(expr)
+    expr = expr.replaceAll(`{${calculationPrefix}${pattern[0]}.${pattern[1]}}`, `${lookup}`)
   }
   return expr
 }
