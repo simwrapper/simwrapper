@@ -14,7 +14,7 @@
     .widget
       p Scaling
       b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
 
   //- .widgets
   //-   .widget
@@ -34,7 +34,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
-export type LineWidthDefinition = {
+export type CircleRadiusDefinition = {
   dataset?: string
   columnName?: string
   scaleFactor?: number
@@ -47,7 +47,7 @@ export default class VueComponent extends Vue {
 
   private transforms = ['none', 'sqrt', 'pow5']
   private dataColumn = ''
-  private scaleFactor = '1'
+  private xscaleFactor = '100'
   private selectedTransform = this.transforms[0]
 
   private datasetLabels = [] as string[]
@@ -59,11 +59,11 @@ export default class VueComponent extends Vue {
 
   @Watch('vizConfiguration')
   private vizConfigChanged() {
-    const config = this.vizConfiguration.display?.lineWidth
+    const config = this.vizConfiguration.display?.width
     if (config?.columnName) {
-      this.dataColumn = `${config.dataset}/${config.columnName}`
+      const selectedColumn = `${config.dataset}/${config.columnName}`
+      this.dataColumn = selectedColumn
       this.datasetLabels = [...this.datasetLabels]
-      this.scaleFactor = config.scaleFactor
     }
   }
 
@@ -83,7 +83,7 @@ export default class VueComponent extends Vue {
     // }
   }
 
-  @Watch('scaleFactor')
+  @Watch('xscaleFactor')
   @Watch('dataColumn')
   private emitWidthSpecification() {
     const slash = this.dataColumn.indexOf('/')
@@ -96,25 +96,25 @@ export default class VueComponent extends Vue {
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
 
-    const lineWidth: LineWidthDefinition = {
+    const radius: CircleRadiusDefinition = {
       dataset,
       columnName,
-      scaleFactor: parseFloat(this.scaleFactor),
+      scaleFactor: parseFloat(this.xscaleFactor),
     }
 
-    setTimeout(() => this.$emit('update', { lineWidth }), 50)
+    setTimeout(() => this.$emit('update', { radius }), 50)
   }
 
   private clickedSingle() {
-    const lineWidth: LineWidthDefinition = {
+    const radius: CircleRadiusDefinition = {
       dataset: '',
       columnName: '',
-      scaleFactor: parseFloat(this.scaleFactor),
+      scaleFactor: parseFloat(this.xscaleFactor),
     }
 
     // the link viewer is on main thread so lets make
     // sure user gets some visual feedback
-    setTimeout(() => this.$emit('update', { lineWidth }), 50)
+    setTimeout(() => this.$emit('update', { radius }), 50)
   }
 
   private get datasetChoices(): string[] {
@@ -124,7 +124,6 @@ export default class VueComponent extends Vue {
   private numericColumnsInDataset(datasetId: string): string[] {
     const dataset = this.datasets[datasetId]
     if (!dataset) return []
-
     const allColumns = Object.keys(dataset).filter(
       colName => dataset[colName].type !== DataType.LOOKUP
     )

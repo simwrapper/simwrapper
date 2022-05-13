@@ -25,17 +25,40 @@ interface DeckObject {
 export default function Component({
   viewId = 0,
   features = [] as any[],
+  fillColors = '#59a14f' as string | Uint8Array,
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 2 as number | Float32Array,
+  pointRadii = 5 as number | Float32Array,
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
+  // FILL COLORS ----------------------------------------------------------------------
+  let cbFillColor // can be callback OR a plain string in simple mode
+  if (typeof fillColors == 'string') {
+    // simple color mode
+    const color = rgb(fillColors)
+    cbFillColor = [color.r, color.g, color.b]
+  } else {
+    // array of colors
+    cbFillColor = (feature: any, o: DeckObject) => {
+      return [
+        fillColors[o.index * 3 + 0], // r
+        fillColors[o.index * 3 + 1], // g
+        fillColors[o.index * 3 + 2], // b
+        255, // no opacity, for now
+      ]
+    }
+  }
+
   // LINE COLORS ----------------------------------------------------------------------
+  const isStroked = !!lineColors
+
   let cbLineColor // can be callback OR a plain string in simple mode
   if (typeof lineColors == 'string') {
     // simple color mode
     const color = rgb(lineColors)
     cbLineColor = [color.r, color.g, color.b]
+    if (!isStroked) cbLineColor.push(0) // totally transparent
   } else {
     // array of colors
     cbLineColor = (feature: any, o: DeckObject) => {
@@ -57,6 +80,17 @@ export default function Component({
     // array of widths
     cbLineWidth = (feature: any, o: DeckObject) => {
       return lineWidths[o.index]
+    }
+  }
+
+  // CIRCLE RADIISESS ---------------------------------------------------------------
+  let cbPointRadius // can be callback OR a plain string in simple mode
+  if (typeof pointRadii == 'number') {
+    // simple radius mode
+    cbPointRadius = pointRadii
+  } else {
+    cbPointRadius = (feature: any, o: DeckObject) => {
+      return pointRadii[o.index]
     }
   }
 
@@ -114,28 +148,39 @@ export default function Component({
   const layer = new GeoJsonLayer({
     id: 'geoJsonLayer',
     data: features,
+    // function callbacks:
     getLineWidth: cbLineWidth,
     getLineColor: cbLineColor,
-    getFillColor: [64, 128, 255],
-    getPointRadius: 10,
+    getFillColor: cbFillColor,
+    getPointRadius: cbPointRadius,
+    // settings:
+    autoHighlight: true,
+    highlightColor: [255, 0, 224],
     lineWidthUnits: 'pixels',
     lineWidthScale: 1,
     lineWidthMinPixels: 2,
-    lineWidthMaxPixels: 25,
-    pickable: true,
-    opacity: 1,
-    autoHighlight: true,
-    highlightColor: [255, 0, 224],
+    lineWidthMaxPixels: 50,
     offsetDirection: OFFSET_DIRECTION.RIGHT,
+    opacity: 1,
+    pickable: true,
+    pointRadiusUnits: 'pixels',
+    pointRadiusMinPixels: 2,
+    // pointRadiusMaxPixels: 50,
+    stroked: isStroked,
     updateTriggers: {
+      getFillColor: fillColors,
       getLineColor: lineColors,
+      getLineWidth: lineWidths,
+      getPointRadius: pointRadii,
     },
     transitions: {
+      getFillColor: 300,
       getLineColor: 200,
       getLineWidth: 200,
+      getPointRadius: 300,
     },
     parameters: {
-      // depthTest: false,
+      depthTest: false,
     },
   }) as any
 

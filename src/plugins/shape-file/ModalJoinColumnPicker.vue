@@ -5,21 +5,22 @@
     p.subheader Select the data columns containing matching IDs
     .split-panel
       .column
-          p: b {{ data1.title }}
+          p: b {{ data2.title }}
           .options-box
-            p(v-for="(row,i) in data1.columns.sort()" :key="i"
-              :class="{'selected': i===selected1}"
-              @click="selected1=i"
+            p(v-for="(row,i) in columns2" :key="'2@'+i"
+              :class="{'selected': i===selected2}"
+              @click="selected2=i"
             ) {{ row }}
 
       .linky
           p <->
+
       .column
-          p: b {{ data2.title }}
+          p: b {{ data1.title }}
           .options-box
-            p(v-for="(row,i) in data2.columns.sort()" :key="i"
-              :class="{'selected': i===selected2}"
-              @click="selected2=i"
+            p(v-for="(row,i) in columns1" :key="'1@'+i"
+              :class="{'selected': i===selected1}"
+              @click="selected1=i"
             ) {{ row }}
 
     .buttons
@@ -50,8 +51,16 @@ class MyComponent extends Vue {
   private selected1 = 0
   private selected2 = 0
 
+  private get columns1() {
+    return [...this.data1.columns].sort()
+  }
+
+  private get columns2() {
+    return [...this.data2.columns].sort()
+  }
+
   private clickedJoin() {
-    this.$emit('join', [this.data1.columns[this.selected1], this.data2.columns[this.selected2]])
+    this.$emit('join', [this.columns1[this.selected1], this.columns2[this.selected2]])
   }
 
   private clickedCancel() {
@@ -74,6 +83,7 @@ export default MyComponent
   left: 0;
   right: 0;
   user-select: none;
+  color: #333;
 }
 
 .picker-panel {

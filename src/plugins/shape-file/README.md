@@ -52,6 +52,21 @@ Features can be painted based on properties or joined data.
   - hide features based on properties (centroid links)
   - filter datasets (trips to downtown only; BART trips)
 
-### User Interface
+### Issues / Considerations
+
+- Add a default dataset containing the **feature properties**
 
 - The bottom-side filter and selection thingies are nice but hard to set up. User probably doesn't just want to switch the colors but also the widths. Probably full set changes. Need to think about this.
+
+- The data loader is impossibly complicated. It would probably have been easier to just do Papaparse.parse({guess: true}). Is it too late?
+
+### Choosing colors, bins, etc with D3
+
+Right now the color code is embedded in the link and area map layers, which is nuts. Let's refactor and do it right:
+
+- User selects a data column for the fill color / line color / line width.
+- Extract the d3 code from those layers and put it into a ColorGenerator
+- While we're here, let's do the binning and user-specified breakpoints
+- And the exponent/sqrt/log
+
+- The column could be categorical, in which case we can still use D3 but need to research how to do it.

@@ -205,7 +205,7 @@ export default class VueComponent extends Vue {
     const dataset = this.datasets[datasetId]
     if (!dataset) return []
     const allColumns = Object.keys(dataset).filter(
-      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+      colName => dataset[colName].type !== DataType.LOOKUP
     )
 
     return allColumns

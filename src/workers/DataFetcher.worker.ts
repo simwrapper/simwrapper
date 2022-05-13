@@ -28,9 +28,17 @@ async function fetchData(props: {
   files: string[]
   config: string
   buffer: Uint8Array
+  featureProperties?: any[]
 }) {
   _config = props.config
   _dataset = _config.dataset
+
+  // Did we get featureProperties array? Just need to convert it to DataTable
+  if (props.featureProperties) {
+    convertFeaturePropertiesToDataTable(props.featureProperties)
+    postMessage(_fileData[_dataset])
+    return
+  }
 
   // Did we get a pre-filled buffer? Just need to parse it
   if (props.buffer) {
@@ -69,6 +77,41 @@ async function fetchData(props: {
 }
 
 // ----- helper functions ------------------------------------------------
+
+function convertFeaturePropertiesToDataTable(features: any[]) {
+  const dataTable: DataTable = {}
+
+  // 1. set up one array for each column
+  const firstRow = features[0]
+  const headers = Object.keys(firstRow).sort()
+
+  // 2. Determine column types based on first row (scary but necessary?)
+  for (const columnId of headers) {
+    let values: any[] | Float32Array
+    let columnType = DataType.NUMBER
+    if (typeof firstRow[columnId] == 'number') {
+      values = new Float32Array(features.length)
+      values.fill(NaN)
+    } else {
+      values = []
+      columnType = DataType.STRING // DONT REALLY KNOW TYPE YET; everything except number is STRING.
+    }
+    dataTable[columnId] = { name: columnId, values, type: columnType }
+  }
+
+  // 3. copy data to column-based arrays
+  for (let rowCount = 0; rowCount < features.length; rowCount++) {
+    const row = features[rowCount]
+
+    for (const columnId of headers) {
+      const value = row[columnId]
+      dataTable[columnId].values[rowCount] = value
+    }
+  }
+
+  calculateMaxValues(_dataset, dataTable)
+  _fileData[_dataset] = dataTable
+}
 
 async function loadFile() {
   const datasetPattern = _dataset

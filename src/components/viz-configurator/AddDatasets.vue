@@ -1,5 +1,11 @@
 <template lang="pug">
 .datasets-panel
+  .loading-panel(v-if="isLoading")
+    .thing
+      .spinner-box
+        p &nbsp;
+      h3 LOADING...
+
   h3.button-close(@click="clickedClose")
     i.fa.fa-sm.fa-times
 
@@ -22,10 +28,9 @@
         :is-loading="isLoading"
         @validated="handleFilesValidated"
         @changed="handleFilesChanged")
-          //- :max-file-size="5 * 1024 * 1024"
 
-          | Or&nbsp;
-          a browse your files
+          | or&nbsp;
+          b: a browse your files
 
           .section-top(slot="top")
             br
@@ -92,6 +97,7 @@ export default class VueComponent extends Vue {
   private async fileChoiceChanged(file: string) {
     if (!file) return
 
+    this.isLoading = true
     const dataTable = await this.fetchDataset(file)
 
     // create a human-readable key for this file based on filename
@@ -105,6 +111,7 @@ export default class VueComponent extends Vue {
       filename: file,
     }
     this.$emit('update', { dataset })
+    this.isLoading = false
   }
 
   private handleFilesValidated(result: any, files: any) {
@@ -324,53 +331,38 @@ a {
   background-color: rgba(#fff, 0.9);
   backdrop-filter: blur(20px);
 }
-.gallery {
-  margin-top: 2rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  grid-column-gap: 1rem;
-  grid-row-gap: 1rem;
-  .gallery-item {
-    height: 150px;
-    overflow: hidden;
-    display: grid;
-    grid-template-rows: 1fr min-content;
-    align-items: center;
-    justify-content: center;
-    background-size: contain;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-color: rgba($primColor, 0.05);
-    .img {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      img {
-        max-width: 100%;
-        max-height: 100%;
-      }
-    }
-    .img-info {
-      margin: 1rem 0;
-      overflow: hidden;
-      text-align: center;
-      .img-name {
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        font-size: 0.875rem;
-        max-width: 100%;
-        overflow: hidden;
-        padding: 0 1rem;
-      }
-      .img-size {
-        font-size: 0.75rem;
-        color: $secTextColor;
-        text-align: center;
-        padding: 0 1rem;
-      }
-    }
-  }
+
+.loading-panel {
+  display: flex;
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  vertical-align: center;
+  margin: auto auto;
+  background-color: #444466cc;
+}
+
+.thing {
+  display: flex;
+  color: white;
+  padding: 1rem 3rem;
+  margin: auto auto;
+  background-color: #7a7ad4;
+  border-radius: 5px;
+  filter: drop-shadow(0px 3px 8px #222);
+}
+
+.spinner-box {
+  width: 3rem;
+  height: 2.5rem;
+  margin-right: 1rem;
+  z-index: 20;
+  background: url('../../assets/simwrapper-logo/SW_logo_icon_anim.gif');
+  background-size: 4rem;
+  background-repeat: no-repeat;
+  background-position: center center;
 }
 </style>
