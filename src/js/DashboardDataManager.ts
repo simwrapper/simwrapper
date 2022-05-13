@@ -52,7 +52,6 @@ export default class DashboardDataManager {
   }
 
   public async getFilteredDataset(config: { dataset: string }) {
-    // console.log(config.dataset)
     const filteredRows = this.datasets[config.dataset].filteredRows
     return { filteredRows }
   }
@@ -128,6 +127,48 @@ export default class DashboardDataManager {
       // const message = '' + e
       return { allRows: {} }
     }
+  }
+
+  /**
+   * Convert features array from GeoJSONs and Shapefiles into DataTable
+   * @param filename
+   * @param featureProperties array of feature objects
+   */
+  public setFeatureProperties(fullpath: string, featureProperties: any[]) {
+    const key = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+
+    this.datasets[key] = {
+      activeFilters: {},
+      filteredRows: null,
+      filterListeners: new Set(),
+      dataset: new Promise<DataTable>((resolve, reject) => {
+        const thread = new DataFetcherWorker()
+        this.threads.push(thread)
+        try {
+          thread.postMessage({ config: { dataset: key }, featureProperties })
+
+          thread.onmessage = e => {
+            thread.terminate()
+            if (e.data.error) {
+              console.log(e.data.error)
+              globalStore.commit('setStatus', {
+                type: Status.ERROR,
+                msg: `Problem loading properties in ${fullpath}`,
+                desc: 'File loaded from storage, but properties table could not be parsed',
+              })
+              reject()
+            }
+            resolve(e.data)
+          }
+        } catch (err) {
+          thread.terminate()
+          console.error(err)
+          reject(err)
+        }
+      }),
+    }
+    // this is a promise:
+    return this.datasets[key].dataset
   }
 
   public setPreloadedDataset(props: { key: string; dataTable: DataTable; filename: string }) {

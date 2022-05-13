@@ -12,9 +12,6 @@
   .configuration-panels(v-show="showPanels && !showAddDatasets")
     .section-panel
       .actions
-        //- .action(@click="clickedExport")
-        //-   i.fa.fa-sm.fa-share
-        //-   | &nbsp;Export
         b-dropdown(v-model="selectedExportAction"
           aria-role="list" position="is-bottom-left" :close-on-click="true"
           @change="clickedExport"
@@ -23,8 +20,8 @@
               b-button.is-small.is-white.export-button()
                 i.fa.fa-sm.fa-share
                 | &nbsp;Export
-            b-dropdown-item(value="png" aria-role="listitem") Take screenshot
             b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
+            b-dropdown-item(value="png" aria-role="listitem") Take screenshot
 
         b-button.is-small.is-white.export-button(@click="clickedAddData")
           i.fa.fa-sm.fa-plus
@@ -56,29 +53,24 @@ import { startCase } from 'lodash'
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import LineColorPanel from './LineColors.vue'
-import FillPanel from './Fill.vue'
-import WidthPanel from './Widths.vue'
+import FillColorPanel from './FillColors.vue'
+import LineWidthPanel from './LineWidths.vue'
+import CircleRadiusPanel from './CircleRadius.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-
-const FillColorPanel = ColorPanel
-const LineWidthPanel = WidthPanel
-const CircleRadiusPanel = WidthPanel
 
 @Component({
   components: {
     AddDatasetsPanel,
     CircleRadiusPanel,
     ColorPanel,
-    FillPanel,
     FillColorPanel,
     LineColorPanel,
     LineWidthPanel,
-    WidthPanel,
   },
   props: {},
 })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) vizDetails!: any
+  @Prop({ required: true }) vizDetails: any
   @Prop({ required: true }) datasets: any
   @Prop({ required: true }) fileSystem!: HTTPFileSystem
   @Prop({ required: true }) subfolder!: string
@@ -103,18 +95,6 @@ export default class VueComponent extends Vue {
       ]
     }
   }
-
-  // @Watch('vizDetails') modelChanged() {
-  //   // console.log('NEW VIZMODEL', this.vizDetails)
-  // }
-
-  // @Watch('datasets') datasetsChanged() {
-  //   // console.log('NEW DATASETS', this.datasets)
-  // }
-
-  // private mounted() {
-  //   this.buildConfiguration()
-  // }
 
   private get vizConfiguration() {
     return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
@@ -161,11 +141,11 @@ export default class VueComponent extends Vue {
       columns: {},
     },
     display: {
+      lineColor: {},
       color: {},
-      width: {},
-      circle: {},
+      lineWidth: {},
+      radius: {},
       fill: {},
-      // outline: {},
       label: {},
     },
   }
@@ -194,6 +174,10 @@ export default class VueComponent extends Vue {
       suggestedFilename = this.yamlConfig
     }
 
+    if (configFile.endsWith('shp')) {
+      suggestedFilename = `viz-map-${configFile}.yaml`
+    }
+
     const filename = prompt('Export filename:', suggestedFilename)
     if (!filename) return
 
@@ -206,10 +190,13 @@ export default class VueComponent extends Vue {
       projection: this.vizDetails.projection,
       showDifferences: this.vizDetails.showDifferences,
       sampleRate: this.vizDetails.sampleRate,
-      shapes: this.vizDetails.shapes,
+      shapes: this.vizDetails.shapes?.file || this.vizDetails.shapes,
       datasets: { ...this.vizDetails.datasets },
       display: { ...this.vizDetails.display },
     } as any
+
+    // remove shapefile itself from list of datasets
+    if (config.datasets[config.shapes]) delete config.datasets[config.shapes]
 
     // remove blank and false values
     for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
@@ -218,8 +205,29 @@ export default class VueComponent extends Vue {
       delete config.display.color?.generatedColors
     }
     if (config.display.fill) {
-      delete config.display.fill?.colorRamp?.style
-      delete config.display.fill?.generatedColors
+      if (config.display.fill.colorRamp) {
+        delete config.display.fill.colorRamp?.style
+        delete config.display.fill.generatedColors
+        if (!config.display.fill.colorRamp.reverse) {
+          delete config.display.fill.colorRamp.reverse
+        }
+      } else {
+        delete config.display.fill.filters
+        delete config.display.fill.dataset
+        delete config.display.fill.columnName
+      }
+    }
+    if (config.display.lineColor) {
+      if (config.display.lineColor.colorRamp) {
+        delete config.display.lineColor.colorRamp?.style
+        delete config.display.lineColor.generatedColors
+        if (!config.display.lineColor.colorRamp.reverse) {
+          delete config.display.lineColor.colorRamp.reverse
+        }
+      } else {
+        delete config.display.lineColor.dataset
+        delete config.display.lineColor.columnName
+      }
     }
 
     // clean up datasets filenames

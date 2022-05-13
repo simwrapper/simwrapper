@@ -65,7 +65,7 @@ interface Ramp {
   steps?: number
 }
 
-export interface FillDefinition {
+export interface FillColorDefinition {
   dataset: string
   columnName: string
   colorRamp?: Ramp
@@ -106,6 +106,7 @@ export default class VueComponent extends Vue {
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
     this.datasetsAreLoaded()
+    this.vizConfigChanged()
   }
 
   private isFirstDataset = true
@@ -117,6 +118,15 @@ export default class VueComponent extends Vue {
       const selectedColumn = `${config.dataset}/${config.columnName}`
       this.dataColumn = selectedColumn
       this.datasetLabels = [...this.datasetLabels]
+      if (config.colorRamp) {
+        let colorChoice =
+          this.colorChoices.find(f => f.ramp == config.colorRamp.ramp) || this.colorChoices[0]
+        this.selectedColor = colorChoice
+        this.steps = config.colorRamp.steps
+        this.flip = !!config.colorRamp.reverse
+      }
+    } else if (config?.generatedColors) {
+      this.clickedSingleColor(config.generatedColors[0])
     }
   }
 
@@ -125,32 +135,34 @@ export default class VueComponent extends Vue {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
 
-    // don't change colors if we already set them
-    if (!this.isFirstDataset) return
+    return
 
-    if (datasetIds.length) this.isFirstDataset = false
+    // // don't change colors if we already set them
+    // if (!this.isFirstDataset) return
 
-    let { dataset, columnName, colorRamp, values } = this.vizConfiguration.display.fill
+    // if (datasetIds.length) this.isFirstDataset = false
 
-    if (!columnName && values) columnName = values[0]
+    // let { dataset, columnName, colorRamp, values } = this.vizConfiguration.display.fill
 
-    if (dataset && columnName) {
-      console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
-      this.dataColumn = `${dataset}/${columnName}`
+    // if (!columnName && values) columnName = values[0]
 
-      if (colorRamp) {
-        this.selectedColor =
-          this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
-          this.colorChoices[0]
-        this.flip = !!colorRamp.reverse // ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
-        if (colorRamp.steps) this.steps = '' + colorRamp.steps
-      }
-    } else if (datasetIds.length) {
-      // Grab the first useful column
-      // Only do this if user has NOT specified a starting column
-      const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-      if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
-    }
+    // if (dataset && columnName) {
+    //   console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
+    //   this.dataColumn = `${dataset}/${columnName}`
+
+    //   if (colorRamp) {
+    //     this.selectedColor =
+    //       this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
+    //       this.colorChoices[0]
+    //     this.flip = !!colorRamp.reverse // ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
+    //     if (colorRamp.steps) this.steps = '' + colorRamp.steps
+    //   }
+    // } else if (datasetIds.length) {
+    //   // Grab the first useful column
+    //   // Only do this if user has NOT specified a starting column
+    //   const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
+    //   if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
+    // }
   }
 
   @Watch('flip')
@@ -187,7 +199,7 @@ export default class VueComponent extends Vue {
 
   private clickedSingleColor(swatch: string) {
     this.selectedSingleColor = swatch
-    const fill: FillDefinition = {
+    const fill: FillColorDefinition = {
       generatedColors: [this.selectedSingleColor],
       dataset: '',
       columnName: '',
@@ -206,7 +218,7 @@ export default class VueComponent extends Vue {
     const dataset = this.datasets[datasetId]
     if (!dataset) return []
     const allColumns = Object.keys(dataset).filter(
-      (colName, i) => i > 0 && dataset[colName].type !== DataType.LOOKUP
+      colName => dataset[colName].type !== DataType.LOOKUP
     )
 
     return allColumns
