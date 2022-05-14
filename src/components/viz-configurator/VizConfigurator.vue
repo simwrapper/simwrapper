@@ -186,6 +186,11 @@ export default class VueComponent extends Vue {
     const config = {
       title: this.vizDetails.title,
       description: this.vizDetails.description,
+      zoom: Math.round(10 * this.$store.state.viewState.zoom) / 10,
+      center: [
+        Math.round(100 * this.$store.state.viewState.center[0]) / 100,
+        Math.round(100 * this.$store.state.viewState.center[1]) / 100,
+      ],
       network: this.vizDetails.network || this.vizDetails.geojsonFile,
       projection: this.vizDetails.projection,
       showDifferences: this.vizDetails.showDifferences,
@@ -248,8 +253,6 @@ export default class VueComponent extends Vue {
     const text = YAML.stringify(config, {
       indent: 4,
       simpleKeys: true,
-      // schema: 'yaml-1.1',
-      // version: '1.2',
     })
 
     var element = document.createElement('a')

@@ -2,7 +2,7 @@
 .map-layout(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .title-panel(v-if="vizDetails.title && !thumbnail")
+  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard")
      h3 {{ vizDetails.title }}
      p {{ vizDetails.description }}
 
@@ -19,8 +19,11 @@
     :lineColors="dataLineColors"
     :lineWidths="dataLineWidths"
     :fillColors="dataFillColors"
+    :opacity="sliderOpacity"
     :pointRadii="dataPointRadii"
     :screenshot="screenshotNotifier"
+    :featureDataTable="boundaryDataTable"
+    :tooltip="vizDetails.tooltip"
   )
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
@@ -41,7 +44,9 @@
     @update="changeConfiguration"
     @screenshot="takeScreenshot")
 
-  .config-bar(v-if="isLoaded && !thumbnail" :class="{'is-standalone': !configFromDashboard}")
+  .config-bar(v-if="!thumbnail"
+    :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
+
     //- Column picker
     .filter(v-if="datasetValuesColumnOptions.length")
       p Display
@@ -96,10 +101,12 @@
           :key="option" :value="option" aria-role="listitem"
         ) {{ option }}
 
-    input.slider.is-small.is-fullwidth.is-primary(
-      id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="5" type="range")
+    .filter.right
+      p Transparency
+      input.slider.is-small.is-fullwidth.is-primary(
+        id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="2.5" type="range")
 
-    .map-type-buttons
+    .map-type-buttons(v-if="isAreaMode")
       img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
       img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
 
@@ -167,7 +174,6 @@ export default class VueComponent extends Vue {
   private fileSystemConfig!: FileSystemConfig
 
   private boundaries: any[] = []
-  // private featureProperties: any[] = []
   private centroids: any[] = []
   private cbDatasetJoined: any
 
@@ -190,6 +196,7 @@ export default class VueComponent extends Vue {
   private maxValue = 1000
   private expColors = false
   private isLoaded = false
+  private isAreaMode = true
   private statusText = 'Loading...'
 
   // private active = false
@@ -216,6 +223,8 @@ export default class VueComponent extends Vue {
     thumbnail: '',
     sum: false,
     shapes: '' as string | { file: string; join: string },
+    zoom: 8,
+    center: [14, 52],
     display: {
       fill: {} as any,
       color: {} as any,
@@ -256,6 +265,17 @@ export default class VueComponent extends Vue {
       this.buildThumbnail()
       if (this.thumbnail) return
 
+      if (this.vizDetails.center || this.vizDetails.zoom) {
+        this.$store.commit('setMapCamera', {
+          center: this.vizDetails.center,
+          zoom: this.vizDetails.zoom || 9,
+          bearing: 0,
+          pitch: 0,
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
+        })
+      }
+
       this.expColors = this.config.display?.fill?.exponentColors
 
       // convert values to arrays as needed
@@ -266,11 +286,15 @@ export default class VueComponent extends Vue {
         this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
       }
 
-      // load the boundaries and the dataset, use promises so we can clear
-      // the spinner when things are finished
-      await Promise.all([this.loadBoundaries(), this.loadDataset()])
-      // await this.loadBoundaries()
-      // await this.loadDataset()
+      // load the boundaries first, then the dataset.
+      // Need boundaries first so we can build the lookups.
+      // await Promise.all([this.loadBoundaries(), this.loadDataset()])
+      await this.loadBoundaries()
+
+      this.isLoaded = true
+      this.$emit('isLoaded')
+
+      await this.loadDataset()
 
       // Check URL query parameters
       this.honorQueryParameters()
@@ -281,9 +305,6 @@ export default class VueComponent extends Vue {
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
     }
-
-    this.isLoaded = true
-    this.$emit('isLoaded')
   }
 
   private beforeDestroy() {
@@ -331,29 +352,28 @@ export default class VueComponent extends Vue {
     if (this.configFromDashboard) {
       this.config = Object.assign({}, this.configFromDashboard)
       this.vizDetails = Object.assign({}, emptyState, this.configFromDashboard)
-      return
-    }
+    } else {
+      // was a YAML file was passed in?
+      const filename = this.yamlConfig
 
-    // was a YAML file was passed in?
-    const filename = this.yamlConfig
+      if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+        const ycfg = await this.loadYamlConfig()
+        this.config = Object.assign({}, ycfg)
+        this.vizDetails = Object.assign({}, emptyState, ycfg)
+      }
 
-    if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-      const ycfg = await this.loadYamlConfig()
-      this.config = Object.assign({}, ycfg)
-      this.vizDetails = Object.assign({}, emptyState, ycfg)
-    }
+      // is this a bare geojson/shapefile file? - build vizDetails manually
+      if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
+        const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${filename}`
 
-    // is this a bare geojson/shapefile file? - build vizDetails manually
-    if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
-      const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${filename}`
+        this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
+          title,
+          description: this.subfolder,
+          shapes: filename,
+        })
 
-      this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
-        title,
-        description: this.subfolder,
-        shapes: filename,
-      })
-
-      this.config = Object.assign({}, this.vizDetails)
+        this.config = Object.assign({}, this.vizDetails)
+      }
     }
 
     const t = this.vizDetails.title || 'Map'
@@ -609,7 +629,6 @@ export default class VueComponent extends Vue {
 
       const columnName = color.columnName
       if (columnName) {
-        // Get the data column
         const datasetKey = color.dataset || ''
         const selectedDataset = this.datasets[datasetKey]
         const lookupColumn = selectedDataset['@']
@@ -813,6 +832,9 @@ export default class VueComponent extends Vue {
       // turn off line borders if it's a big dataset (user can re-enable)
       if (hasNoLines && this.boundaries.length > 5000) this.dataLineColors = ''
 
+      // hide polygon/point buttons and opacity if we have no polygons
+      if (hasNoPolygons) this.isAreaMode = false
+
       // generate centroids if we have polygons
       if (!hasNoPolygons) this.generateCentroidsAndMapCenter()
     } catch (e) {
@@ -884,14 +906,15 @@ export default class VueComponent extends Vue {
     centerLong /= this.centroids.length
     centerLat /= this.centroids.length
 
-    this.$store.commit('setMapCamera', {
-      longitude: centerLong,
-      latitude: centerLat,
-      bearing: 0,
-      pitch: 0,
-      zoom: 8,
-      initial: true,
-    })
+    if (!this.vizDetails.center) {
+      this.$store.commit('setMapCamera', {
+        longitude: centerLong,
+        latitude: centerLat,
+        bearing: 0,
+        pitch: 0,
+        zoom: 10,
+      })
+    }
   }
 
   private async loadShapefileFeatures(filename: string) {
@@ -940,23 +963,20 @@ export default class VueComponent extends Vue {
       this.statusText = ''
     }
 
+    // if we don't have a user-specified map center/zoom, focus on the shapefile itself
+    if (!this.$store.state.viewState.latitude) {
+      const bbox: any = geojson.bbox
+      this.$store.commit('setMapCamera', {
+        longitude: 0.5 * (bbox[0] + bbox[2]),
+        latitude: 0.5 * (bbox[1] + bbox[3]),
+        bearing: 0,
+        pitch: 0,
+        zoom: 8,
+        jump: true,
+      })
+    }
+
     return geojson.features as any[]
-
-    // const bbox: any = geojson.bbox
-
-    // const header = Object.keys(geojson.features[0].properties)
-    // const shapefile = { data: geojson.features, prj: projection, header, bbox }
-
-    // this.$store.commit('setMapCamera', {
-    //   longitude: 0.5 * (bbox[2] + bbox[0]),
-    //   latitude: 0.5 * (bbox[3] + bbox[1]),
-    //   bearing: 0,
-    //   pitch: 0,
-    //   zoom: 8,
-    //   jump: true,
-    // })
-    // done! show the first column
-    // this.handleNewDataColumn(this.shapefile.header[0])
   }
 
   private datasetJoinColumn = ''
@@ -1219,7 +1239,7 @@ globalStore.commit('registerPlugin', {
 }
 
 .choro-map {
-  // position: relative;
+  position: relative;
   z-index: -1;
   flex: 1;
 }
@@ -1228,7 +1248,7 @@ globalStore.commit('registerPlugin', {
   display: flex;
   flex-direction: row;
   padding-top: 0.25rem;
-
+  background-color: var(--bgBold);
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;
@@ -1252,6 +1272,11 @@ globalStore.commit('registerPlugin', {
 
 .config-bar.is-standalone {
   padding: 0.5rem 0.5rem;
+}
+
+.config-bar.is-disabled {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .filter {
@@ -1287,6 +1312,10 @@ globalStore.commit('registerPlugin', {
   padding: 0.75rem 1rem;
   font-size: 1.1rem;
   border: 1px solid var(--);
+}
+
+.right {
+  margin-left: auto;
 }
 
 @media only screen and (max-width: 640px) {
