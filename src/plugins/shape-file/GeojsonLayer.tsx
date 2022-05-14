@@ -6,7 +6,7 @@ import { StaticMap } from 'react-map-gl'
 import { rgb } from 'd3-color'
 import { format } from 'mathjs'
 
-import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
@@ -28,7 +28,11 @@ export default function Component({
   fillColors = '#59a14f' as string | Uint8Array,
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 2 as number | Float32Array,
+  opacity = 1,
   pointRadii = 5 as number | Float32Array,
+  takeScreenshotNow = false,
+  featureDataTable = {} as DataTable,
+  tooltip = [] as string[],
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
@@ -100,8 +104,9 @@ export default function Component({
   }
 
   function handleViewState(view: any) {
-    setViewState(view)
+    if (!view.latitude) return
     view.center = [view.longitude, view.latitude]
+    setViewState(view)
     globalStore.commit('setMapCamera', view)
   }
 
@@ -118,26 +123,35 @@ export default function Component({
     // tooltip will show values for color settings and for width settings.
     // if there is base data, it will also show values and diff vs. base for both color and width.
 
-    if (!object?.properties) return
-    // console.log(object)
+    if (object == null) return null
     let propList = ''
-    Object.entries(object.properties).forEach(
-      entry => (propList += `<li>${entry[0]}: <b>${entry[1]}</b></li>`)
-    )
 
-    // const html = `<ul>${propList}</ul>`
-    const html = `i: ${index}`
+    let columns = Object.keys(featureDataTable)
+    if (tooltip && tooltip.length) {
+      columns = tooltip.map(tip => {
+        return tip.substring(tip.indexOf(':') + 1)
+      })
+    }
+    columns.forEach(column => {
+      if (featureDataTable[column]) {
+        let value = featureDataTable[column].values[index]
+        if (value == null) return
+        if (typeof value == 'number') value = precise(value)
+        propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
+      }
+    })
+
+    const html = `<table>${propList}</table>`
 
     try {
       return {
         html,
         style: {
+          fontSize: '0.9rem',
           color: '#224',
           backgroundColor: 'white',
           filter: 'drop-shadow(0px 4px 8px #44444444)',
         },
-        // html: tooltip,
-        // style: { color: dark ? '#ccc' : '#223', backgroundColor: dark ? '#2a3c4f' : 'white' },
       }
     } catch (e) {
       console.warn(e)
@@ -161,7 +175,7 @@ export default function Component({
     lineWidthMinPixels: 2,
     lineWidthMaxPixels: 50,
     offsetDirection: OFFSET_DIRECTION.RIGHT,
-    opacity: 1,
+    opacity: opacity / 100,
     pickable: true,
     pointRadiusUnits: 'pixels',
     pointRadiusMinPixels: 2,
@@ -175,8 +189,8 @@ export default function Component({
     },
     transitions: {
       getFillColor: 300,
-      getLineColor: 200,
-      getLineWidth: 200,
+      getLineColor: 300,
+      getLineWidth: 300,
       getPointRadius: 300,
     },
     parameters: {
@@ -198,6 +212,11 @@ export default function Component({
       getCursor={({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
       }
+      onAfterRender={() => {
+        if (takeScreenshotNow) {
+          takeScreenshotNow = false
+        }
+      }}
     >
       {
         /*
