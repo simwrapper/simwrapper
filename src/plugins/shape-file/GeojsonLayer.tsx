@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
 
 import { GeoJsonLayer } from '@deck.gl/layers'
-import { StaticMap } from 'react-map-gl'
+import { StaticMap, MapRef } from 'react-map-gl'
 import { rgb } from 'd3-color'
 import { format } from 'mathjs'
 
@@ -10,6 +10,7 @@ import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import screenshots from '@/js/screenshots'
 
 // GeoJsonLayer.defaultProps = {
 //   bearing: 0,
@@ -30,11 +31,16 @@ export default function Component({
   lineWidths = 2 as number | Float32Array,
   opacity = 1,
   pointRadii = 5 as number | Float32Array,
-  takeScreenshotNow = false,
+  screenshot = 0,
   featureDataTable = {} as DataTable,
   tooltip = [] as string[],
 }) {
+  const mapRef = useRef<MapRef>() as any
   const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [screenshotCount, setScreenshot] = useState(screenshot)
+
+  // SCREENSHOT -----------------------------------------------------------------------
+  let isTakingScreenshot = screenshot > screenshotCount
 
   // FILL COLORS ----------------------------------------------------------------------
   let cbFillColor // can be callback OR a plain string in simple mode
@@ -181,6 +187,7 @@ export default function Component({
     pointRadiusMinPixels: 2,
     // pointRadiusMaxPixels: 50,
     stroked: isStroked,
+    useDevicePixels: isTakingScreenshot,
     updateTriggers: {
       getFillColor: fillColors,
       getLineColor: lineColors,
@@ -196,9 +203,12 @@ export default function Component({
     parameters: {
       depthTest: false,
     },
+    glOptions: {
+      preserveDrawingBuffer: true, // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+    },
   }) as any
 
-  return (
+  const deckInstance = (
     /*
     //@ts-ignore */
     <DeckGL
@@ -212,17 +222,27 @@ export default function Component({
       getCursor={({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
       }
-      onAfterRender={() => {
-        if (takeScreenshotNow) {
-          takeScreenshotNow = false
+      onAfterRender={async () => {
+        if (screenshot > screenshotCount) {
+          await screenshots.savePNG(deckInstance.props.layers[0], mapRef?.current?.getMap()._canvas)
+          setScreenshot(screenshot) // update scrnshot count so we don't take 1000 screenshots by mistake :-/
         }
       }}
     >
       {
         /*
         // @ts-ignore */
-        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        <StaticMap
+          ref={mapRef}
+          mapStyle={globalStore.getters.mapStyle}
+          mapboxApiAccessToken={MAPBOX_TOKEN}
+          preserveDrawingBuffer
+          preventStyleDiffing
+          reuseMaps
+        />
       }
     </DeckGL>
   )
+
+  return deckInstance
 }

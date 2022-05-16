@@ -21,7 +21,7 @@
     :fillColors="dataFillColors"
     :opacity="sliderOpacity"
     :pointRadii="dataPointRadii"
-    :screenshot="screenshotNotifier"
+    :screenshot="triggerScreenshot"
     :featureDataTable="boundaryDataTable"
     :tooltip="vizDetails.tooltip"
   )
@@ -237,9 +237,10 @@ export default class VueComponent extends Vue {
 
   private datasets: { [id: string]: DataTable } = {}
 
-  private screenshotNotifier = ''
+  // incrementing screenshot count triggers the screenshot.
+  private triggerScreenshot = 0
   private takeScreenshot() {
-    this.screenshotNotifier += '1'
+    this.triggerScreenshot++
   }
 
   private get generatedExportFilename() {
@@ -871,8 +872,6 @@ export default class VueComponent extends Vue {
     this.datasets = Object.assign({}, this.datasets)
 
     this.figureOutRemainingFilteringOptions()
-
-    console.log(this.datasets)
   }
 
   private generateCentroidsAndMapCenter() {
