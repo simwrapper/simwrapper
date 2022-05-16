@@ -183,7 +183,7 @@ export default class VueComponent extends Vue {
   private boundaryDataTable: DataTable = {}
 
   private dataFillColors: string | Uint8Array = '#59a14f'
-  private dataLineColors: string | Uint8Array = '#4e79a7'
+  private dataLineColors: string | Uint8Array = ''
   private dataLineWidths: number | Float32Array = 2
   private dataPointRadii: number | Float32Array = 5
 
@@ -223,8 +223,8 @@ export default class VueComponent extends Vue {
     thumbnail: '',
     sum: false,
     shapes: '' as string | { file: string; join: string },
-    zoom: 8,
-    center: [14, 52],
+    zoom: null as number | null,
+    center: null as any[] | null,
     display: {
       fill: {} as any,
       color: {} as any,
@@ -266,15 +266,16 @@ export default class VueComponent extends Vue {
       this.buildThumbnail()
       if (this.thumbnail) return
 
-      if (this.vizDetails.center || this.vizDetails.zoom) {
+      if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
           zoom: this.vizDetails.zoom || 9,
           bearing: 0,
           pitch: 0,
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
+          longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
+          latitude: this.vizDetails.center ? this.vizDetails.center[1] : 0,
         })
+        this.needsInitialMapExtent = false
       }
 
       this.expColors = this.config.display?.fill?.exponentColors
@@ -830,8 +831,10 @@ export default class VueComponent extends Vue {
       // set feature properties as a data source
       await this.setFeaturePropertiesAsDataSource(filename, featureProperties)
 
-      // turn off line borders if it's a big dataset (user can re-enable)
-      if (hasNoLines && this.boundaries.length > 5000) this.dataLineColors = ''
+      // turn ON line borders if it's NOT a big dataset (user can re-enable)
+      if (!hasNoLines || this.boundaries.length < 5000) {
+        this.dataLineColors = '#4e79a7'
+      }
 
       // hide polygon/point buttons and opacity if we have no polygons
       if (hasNoPolygons) this.isAreaMode = false
@@ -874,8 +877,9 @@ export default class VueComponent extends Vue {
     this.figureOutRemainingFilteringOptions()
   }
 
-  private generateCentroidsAndMapCenter() {
+  private async generateCentroidsAndMapCenter() {
     this.statusText = 'Calculating centroids...'
+    await this.$nextTick()
     const idField = this.config.shapes.join || 'id'
 
     // Find the map center while we're here
@@ -905,14 +909,17 @@ export default class VueComponent extends Vue {
     centerLong /= this.centroids.length
     centerLat /= this.centroids.length
 
-    if (!this.vizDetails.center) {
+    if (this.needsInitialMapExtent && !this.vizDetails.center) {
       this.$store.commit('setMapCamera', {
         longitude: centerLong,
         latitude: centerLat,
+        center: [centerLong, centerLat],
         bearing: 0,
         pitch: 0,
         zoom: 10,
+        initial: true,
       })
+      this.needsInitialMapExtent = false
     }
   }
 
@@ -962,21 +969,38 @@ export default class VueComponent extends Vue {
       this.statusText = ''
     }
 
-    // if we don't have a user-specified map center/zoom, focus on the shapefile itself
-    if (!this.$store.state.viewState.latitude) {
-      const bbox: any = geojson.bbox
+    if (this.needsInitialMapExtent && !this.$store.state.viewState.latitude) {
+      // if we don't have a user-specified map center/zoom, focus on the shapefile itself
+      function getFirstPoint(thing: any): any[] {
+        if (Array.isArray(thing[0])) return getFirstPoint(thing[0])
+        else return [thing[0], thing[1]]
+      }
+      const long = []
+      const lat = []
+      for (let i = 0; i < geojson.features.length; i += 128) {
+        const firstPoint = getFirstPoint(geojson.features[i].geometry.coordinates)
+        long.push(firstPoint[0])
+        lat.push(firstPoint[1])
+      }
+      const longitude = long.reduce((x, y) => x + y) / long.length
+      const latitude = lat.reduce((x, y) => x + y) / lat.length
+
       this.$store.commit('setMapCamera', {
-        longitude: 0.5 * (bbox[0] + bbox[2]),
-        latitude: 0.5 * (bbox[1] + bbox[3]),
+        longitude,
+        latitude,
         bearing: 0,
         pitch: 0,
-        zoom: 8,
+        zoom: 10,
+        center: [longitude, latitude],
         jump: true,
       })
+      this.needsInitialMapExtent = false
     }
 
     return geojson.features as any[]
   }
+
+  private needsInitialMapExtent = true
 
   private datasetJoinColumn = ''
   private datasetFilename = ''
@@ -989,6 +1013,7 @@ export default class VueComponent extends Vue {
 
       // dataset could be  { dataset: myfile.csv }
       //               or  { dataset: { file: myfile.csv, join: TAZ }}
+
       this.datasetFilename =
         'string' === typeof this.config.datasets[datasetId]
           ? this.config.datasets[datasetId]
@@ -1008,9 +1033,14 @@ export default class VueComponent extends Vue {
       if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
 
       this.datasets[datasetId] = dataset.allRows
-      this.setupJoin(this.datasets[datasetId], datasetId, joinColumns[1], joinColumns[0])
+
+      // link the joins if we have a join
+      if (joinColumns[0]) {
+        this.setupJoin(this.datasets[datasetId], datasetId, joinColumns[1], joinColumns[0])
+      }
 
       this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+
       this.figureOutRemainingFilteringOptions()
     } catch (e) {
       console.error('' + e)
