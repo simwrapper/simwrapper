@@ -14,7 +14,7 @@
     .widget
       p Scaling
       b-field
-        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
+        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
   //- .widgets
   //-   .widget
@@ -47,7 +47,7 @@ export default class VueComponent extends Vue {
 
   private transforms = ['none', 'sqrt', 'pow5']
   private dataColumn = ''
-  private xscaleFactor = '100'
+  private scaleFactor = '100'
   private selectedTransform = this.transforms[0]
 
   private datasetLabels = [] as string[]
@@ -59,11 +59,12 @@ export default class VueComponent extends Vue {
 
   @Watch('vizConfiguration')
   private vizConfigChanged() {
-    const config = this.vizConfiguration.display?.width
+    const config = this.vizConfiguration.display?.radius
     if (config?.columnName) {
       const selectedColumn = `${config.dataset}/${config.columnName}`
       this.dataColumn = selectedColumn
       this.datasetLabels = [...this.datasetLabels]
+      this.scaleFactor = config.scaleFactor
     }
   }
 
@@ -71,27 +72,12 @@ export default class VueComponent extends Vue {
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
-
-    // const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
-    // if (dataset && columnName) {
-    //   console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
-    //   this.dataColumn = `${dataset}/${columnName}`
-    //   if (!!scaleFactor) this.xscaleFactor = '' + scaleFactor
-    // } else if (datasetIds.length) {
-    //   const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-    //   if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
-    // }
   }
 
-  @Watch('xscaleFactor')
+  @Watch('scaleFactor')
   @Watch('dataColumn')
   private emitWidthSpecification() {
     const slash = this.dataColumn.indexOf('/')
-
-    if (slash === -1) {
-      this.clickedSingle()
-      return
-    }
 
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
@@ -99,21 +85,9 @@ export default class VueComponent extends Vue {
     const radius: CircleRadiusDefinition = {
       dataset,
       columnName,
-      scaleFactor: parseFloat(this.xscaleFactor),
+      scaleFactor: parseFloat(this.scaleFactor),
     }
 
-    setTimeout(() => this.$emit('update', { radius }), 50)
-  }
-
-  private clickedSingle() {
-    const radius: CircleRadiusDefinition = {
-      dataset: '',
-      columnName: '',
-      scaleFactor: parseFloat(this.xscaleFactor),
-    }
-
-    // the link viewer is on main thread so lets make
-    // sure user gets some visual feedback
     setTimeout(() => this.$emit('update', { radius }), 50)
   }
 
