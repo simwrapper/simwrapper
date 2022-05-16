@@ -65,5 +65,5 @@ declare module '@deck.gl/geo-layers'
 declare module '@luma.gl/constants'
 declare module '@luma.gl/core'
 declare module '@math.gl/polygon'
-
+declare module '@deck.gl/layers/src/geojson-layer/sub-layer-map'
 declare module '@aftersim/pako'

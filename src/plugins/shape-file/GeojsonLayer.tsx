@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
 
-import { GeoJsonLayer } from '@deck.gl/layers'
 import { StaticMap, MapRef } from 'react-map-gl'
 import { rgb } from 'd3-color'
 import { format } from 'mathjs'
@@ -10,6 +9,7 @@ import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import screenshots from '@/js/screenshots'
 
 // GeoJsonLayer.defaultProps = {
@@ -165,8 +165,8 @@ export default function Component({
     }
   }
 
-  const layer = new GeoJsonLayer({
-    id: 'geoJsonLayer',
+  const layer = new GeojsonOffsetLayer({
+    id: 'geoJsonOffsetLayer',
     data: features,
     // function callbacks:
     getLineWidth: cbLineWidth,
@@ -176,9 +176,10 @@ export default function Component({
     // settings:
     autoHighlight: true,
     highlightColor: [255, 0, 224],
+    lineJointRounded: true,
     lineWidthUnits: 'pixels',
     lineWidthScale: 1,
-    lineWidthMinPixels: 2,
+    lineWidthMinPixels: 0.5,
     lineWidthMaxPixels: 50,
     offsetDirection: OFFSET_DIRECTION.RIGHT,
     opacity: opacity / 100,
@@ -224,6 +225,7 @@ export default function Component({
       }
       onAfterRender={async () => {
         if (screenshot > screenshotCount) {
+          // console.log({ deckInstance })
           await screenshots.savePNG(deckInstance.props.layers[0], mapRef?.current?.getMap()._canvas)
           setScreenshot(screenshot) // update scrnshot count so we don't take 1000 screenshots by mistake :-/
         }
