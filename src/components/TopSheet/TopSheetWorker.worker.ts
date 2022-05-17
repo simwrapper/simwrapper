@@ -371,6 +371,7 @@ function getFileVariableReplacements(calc: string, expr: string) {
 
     let lookup
     let filterString = ''
+    let filteredRows
 
     if (!Array.isArray(element)) {
       element = [element]
@@ -403,16 +404,12 @@ function getFileVariableReplacements(calc: string, expr: string) {
         }
         break
       case 'first':
-        for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
-          if (lookup == undefined) {
-            lookup = row[pattern[1]]
-          }
-        }
+        filteredRows = element.filter(f => filterElements(f, allFilters[pIndex]))
+        if (filteredRows.length) lookup = filteredRows[0][pattern[1]]
         break
       case 'last':
-        for (const row of element.filter(f => filterElements(f, allFilters[pIndex]))) {
-          lookup = row[pattern[1]]
-        }
+        filteredRows = element.filter(f => filterElements(f, allFilters[pIndex]))
+        if (filteredRows.length) lookup = filteredRows[filteredRows.length - 1][pattern[1]]
         break
       case 'sum':
         lookup = 0
