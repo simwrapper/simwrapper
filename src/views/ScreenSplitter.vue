@@ -222,9 +222,15 @@ class MyComponent extends Vue {
       const xsubfolder = props.xsubfolder || props.subfolder || ''
       const yaml = props.yamlConfig || ''
 
-      if (yaml) {
+      if (yaml.indexOf('/') > -1) {
+        // a YAML from a config folder will have a path in it:
+        const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
+        this.$router.replace(`${BASE}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
+      } else if (yaml) {
+        // YAML config specified
         this.$router.replace(`${BASE}${root}/${xsubfolder}/${yaml}`)
       } else {
+        // No config file, just the folder
         this.$router.push(`${BASE}${root}/${xsubfolder}`)
       }
     } else {
