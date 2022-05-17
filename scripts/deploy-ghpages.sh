@@ -15,8 +15,7 @@ sed -I .bak "s#'/'#'/$2/'#"  vite.config.ts
 sed -I .bak "s#'/'#'/$2/'#"  public/404.html
 
 echo --- BUILDING ---
-npm run build
-
+node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build
 
 echo --- CREATING GIT COMMIT FOR GH-PAGES ---
 cd dist

@@ -94,7 +94,7 @@ export default class VueComponent extends Vue {
   }
 
   private get datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'csvBase')
+    return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
   }
 
   private numericColumnsInDataset(datasetId: string): string[] {

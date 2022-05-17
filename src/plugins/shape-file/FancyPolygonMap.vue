@@ -696,7 +696,7 @@ export default class VueComponent extends Vue {
       }
     } else {
       // simple width
-      this.dataLineWidths = 2
+      this.dataLineWidths = 1
     }
     // this.filterListener()
   }
