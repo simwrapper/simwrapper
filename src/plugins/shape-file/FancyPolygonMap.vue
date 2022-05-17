@@ -420,16 +420,28 @@ export default class VueComponent extends Vue {
   private async loadYamlConfig() {
     if (!this.fileApi) return {}
 
-    try {
-      const filename =
-        this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
+    const filename =
+      this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
 
+    // 1. First try loading the file directly
+    try {
       const text = await this.fileApi.getFileText(filename)
       return YAML.parse(text)
     } catch (err) {
-      console.error('failed')
-      const e = err as any
+      console.log(`${filename} not found, trying config folders`)
     }
+
+    // 2. Try loading from a config folder instead
+    const { vizes } = await this.fileApi.findAllYamlConfigs(this.subfolder)
+    if (vizes[this.yamlConfig]) {
+      try {
+        const text = await this.fileApi.getFileText(vizes[this.yamlConfig])
+        return YAML.parse(text)
+      } catch (err) {
+        console.error(`Also failed to load ${vizes[this.yamlConfig]}`)
+      }
+    }
+    this.$store.commit('error', 'Could not load YAML: ' + filename)
   }
 
   /**
