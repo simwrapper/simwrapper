@@ -29,7 +29,7 @@ export default function Component({
   features = [] as any[],
   fillColors = '#59a14f' as string | Uint8Array,
   lineColors = '#4e79a7' as string | Uint8Array,
-  lineWidths = 2 as number | Float32Array,
+  lineWidths = 0 as number | Float32Array,
   opacity = 1,
   pointRadii = 5 as number | Float32Array,
   screenshot = 0,
@@ -72,7 +72,7 @@ export default function Component({
     if (!isStroked) cbLineColor.push(0) // totally transparent
   } else {
     // array of colors
-    cbLineColor = (feature: any, o: DeckObject) => {
+    cbLineColor = (_: any, o: DeckObject) => {
       return [
         lineColors[o.index * 3 + 0], // r
         lineColors[o.index * 3 + 1], // g
@@ -89,7 +89,7 @@ export default function Component({
     cbLineWidth = lineWidths
   } else {
     // array of widths
-    cbLineWidth = (feature: any, o: DeckObject) => {
+    cbLineWidth = (_: any, o: DeckObject) => {
       return lineWidths[o.index]
     }
   }
@@ -100,7 +100,7 @@ export default function Component({
     // simple radius mode
     cbPointRadius = pointRadii
   } else {
-    cbPointRadius = (feature: any, o: DeckObject) => {
+    cbPointRadius = (_: any, o: DeckObject) => {
       return pointRadii[o.index]
     }
   }
@@ -177,10 +177,10 @@ export default function Component({
     // settings: ------------------------
     autoHighlight: true,
     highlightColor: [255, 0, 224],
-    lineJointRounded: true,
+    // lineJointRounded: true,
     lineWidthUnits: 'pixels',
     lineWidthScale: 1,
-    lineWidthMinPixels: 0.5,
+    lineWidthMinPixels: 1,
     lineWidthMaxPixels: 50,
     // getOffset: OFFSET_DIRECTION.RIGHT,
     opacity: opacity / 100,

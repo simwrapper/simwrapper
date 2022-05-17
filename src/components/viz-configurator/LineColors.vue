@@ -3,7 +3,7 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="No lines" value="")
+          option(label="No lines" value="^")
           option(label="Single color" value="@")
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
@@ -143,8 +143,14 @@ export default class VueComponent extends Vue {
   @Watch('selectedColor')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
-    // no lines
+    // no answer
     if (!this.dataColumn) return
+
+    // no lines
+    if (this.dataColumn == '^') {
+      this.clickedSingleColor('')
+      return
+    }
 
     const slash = this.dataColumn.indexOf('/')
 
@@ -190,7 +196,7 @@ export default class VueComponent extends Vue {
   }
 
   private datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'csvBase')
+    return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
   }
 
   private columnsInDataset(datasetId: string): string[] {

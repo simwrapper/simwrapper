@@ -105,7 +105,7 @@ export default class VueComponent extends Vue {
       scaleFactor: parseFloat(this.scaleFactor),
     }
 
-    setTimeout(() => this.$emit('update', { lineWidth }), 50)
+    setTimeout(() => this.$emit('update', { lineWidth }), 25)
   }
 
   private clickedSingle() {
@@ -117,11 +117,11 @@ export default class VueComponent extends Vue {
 
     // the link viewer is on main thread so lets make
     // sure user gets some visual feedback
-    setTimeout(() => this.$emit('update', { lineWidth }), 50)
+    setTimeout(() => this.$emit('update', { lineWidth }), 25)
   }
 
   private get datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'csvBase')
+    return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
   }
 
   private numericColumnsInDataset(datasetId: string): string[] {
