@@ -50,7 +50,7 @@ export default class PathOffsetLayer extends PathLayer {
 
 PathOffsetLayer.layerName = 'PathOffsetLayer'
 PathOffsetLayer.defaultProps = {
-  getOffset: { type: 'accessor', value: 0 },
+  getOffset: { type: 'accessor', value: OFFSET_TYPE.RIGHT },
 }
 
 // /** DeckGL **/

@@ -170,13 +170,19 @@ export default class VueComponent extends Vue {
   @Watch('dataColumn')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
+    // no fill
+    if (!this.dataColumn) return
+
     const slash = this.dataColumn.indexOf('/')
 
+    // single color
     if (slash === -1) {
+      if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
       this.clickedSingleColor(this.selectedSingleColor)
       return
     }
 
+    // based on data
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
     const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
@@ -194,7 +200,7 @@ export default class VueComponent extends Vue {
       },
     }
 
-    setTimeout(() => this.$emit('update', { fill }), 50)
+    setTimeout(() => this.$emit('update', { fill }), 25)
   }
 
   private clickedSingleColor(swatch: string) {
@@ -207,7 +213,7 @@ export default class VueComponent extends Vue {
 
     // the viewer is on main thread so lets make
     // sure user gets some visual feedback
-    setTimeout(() => this.$emit('update', { fill }), 50)
+    setTimeout(() => this.$emit('update', { fill }), 25)
   }
 
   private datasetChoices(): string[] {

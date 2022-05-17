@@ -77,6 +77,8 @@ export default class VueComponent extends Vue {
   @Watch('scaleFactor')
   @Watch('dataColumn')
   private emitWidthSpecification() {
+    if (!this.dataColumn) return
+
     const slash = this.dataColumn.indexOf('/')
 
     const dataset = this.dataColumn.substring(0, slash)

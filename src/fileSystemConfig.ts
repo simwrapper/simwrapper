@@ -70,6 +70,13 @@ const fileSystems: FileSystemConfig[] = [
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
     hidden: true,
   },
+  {
+    name: 'SFCTA Prospector',
+    slug: 'prospector',
+    description: 'Shared CHAMP model runs',
+    baseURL: 'http://prospector/champ_runs',
+    hidden: true,
+  },
 ]
 
 for (let port = 8000; port < 8500; port++) {
