@@ -297,7 +297,7 @@ export default class VueComponent extends Vue {
         card.number = numCard
 
         // Vue is weird about new properties: use Vue.set() instead
-        Vue.set(this.opacity, card.id, 0.2)
+        Vue.set(this.opacity, card.id, 0.5)
         Vue.set(this.infoToggle, card.id, false)
 
         numCard++

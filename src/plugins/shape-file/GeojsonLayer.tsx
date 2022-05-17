@@ -9,6 +9,7 @@ import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import { GeoJsonLayer } from '@deck.gl/layers'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import screenshots from '@/js/screenshots'
 
@@ -168,12 +169,12 @@ export default function Component({
   const layer = new GeojsonOffsetLayer({
     id: 'geoJsonOffsetLayer',
     data: features,
-    // function callbacks:
+    // function callbacks: --------------
     getLineWidth: cbLineWidth,
     getLineColor: cbLineColor,
     getFillColor: cbFillColor,
     getPointRadius: cbPointRadius,
-    // settings:
+    // settings: ------------------------
     autoHighlight: true,
     highlightColor: [255, 0, 224],
     lineJointRounded: true,
@@ -181,7 +182,7 @@ export default function Component({
     lineWidthScale: 1,
     lineWidthMinPixels: 0.5,
     lineWidthMaxPixels: 50,
-    offsetDirection: OFFSET_DIRECTION.RIGHT,
+    // getOffset: OFFSET_DIRECTION.RIGHT,
     opacity: opacity / 100,
     pickable: true,
     pointRadiusUnits: 'pixels',

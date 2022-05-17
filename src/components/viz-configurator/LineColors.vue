@@ -16,7 +16,7 @@
       :class="{active: selectedSingleColor == swatch }"
       @click="clickedSingleColor(swatch)")
 
-  .more(v-show="dataColumn.length > 1")
+  .more(v-show="dataColumn && dataColumn.length >= 2")
     .widgets
       .widget
         p Steps
@@ -144,10 +144,7 @@ export default class VueComponent extends Vue {
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
     // no lines
-    if (!this.dataColumn) {
-      this.clickedSingleColor('')
-      return
-    }
+    if (!this.dataColumn) return
 
     const slash = this.dataColumn.indexOf('/')
 

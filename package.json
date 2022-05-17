@@ -13,7 +13,7 @@
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
     "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
     "serve": "vite",
-    "build": "vite build",
+    "build": "node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
     "release": "standard-version",
     "test": "jest",
     "lint": "broken//vue-cli-service lint",

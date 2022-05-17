@@ -6,7 +6,7 @@ fancy-polygon-map.deck-map(
   :configFromDashboard="config"
   :thumbnail="false"
   :datamanager="datamanager"
-  :yamlConfig="'funk-yaml-config.yaml'"
+  :yamlConfig="'config'"
   @isLoaded="isLoaded"
 )
 
