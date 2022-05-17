@@ -133,6 +133,17 @@ export default function Component({
     if (object == null) return null
     let propList = ''
 
+    // dataset elements
+    const featureTips = Object.entries(features[index].properties)
+    for (const tip of featureTips) {
+      let value = tip[1]
+      if (value == null) return
+      if (typeof value == 'number') value = precise(value)
+      propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tip[0]}</td><td><b>${value}</b></td></tr>`
+    }
+    if (propList) propList += `<tr><td>&nbsp;</td></tr>`
+
+    // feature elements
     let columns = Object.keys(featureDataTable)
     if (tooltip && tooltip.length) {
       columns = tooltip.map(tip => {

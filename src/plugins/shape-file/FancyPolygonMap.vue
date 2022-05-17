@@ -233,6 +233,7 @@ export default class VueComponent extends Vue {
       lineWidth: {} as any,
       radius: {} as any,
     },
+    tooltip: [] as string[],
   }
 
   private datasets: { [id: string]: DataTable } = {}
@@ -541,11 +542,25 @@ export default class VueComponent extends Vue {
     const boundaryOffsets = this.getBoundaryOffsetLookup(featureJoinColumn)
 
     console.log('retrieving lookup values:', featureJoinColumn, dataJoinColumn)
+
+    // if user wants specific tooltips based on this dataset, save the values
+    const tips = this.vizDetails.tooltip || []
+    const relevantTips = tips
+      .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+      .map(tip => {
+        return [tip, tip.substring(1 + tip.indexOf(':'))]
+      })
+    console.log({ relevantTips })
+
     for (let i = 0; i < dataValues.length; i++) {
       const featureOffset = boundaryOffsets[dataValues[i]]
       lookupColumn.values[i] = featureOffset
+      for (const tip of relevantTips) {
+        this.boundaries[featureOffset].properties[tip[0]] = dataTable[tip[1]].values[i]
+      }
     }
 
+    console.log({ boundaries: this.boundaries })
     // add this dataset to the datamanager
     dataTable['@'] = lookupColumn
     this.myDataManager.setPreloadedDataset({
@@ -563,6 +578,8 @@ export default class VueComponent extends Vue {
           ? featureJoinColumn
           : `${featureJoinColumn}:${dataJoinColumn}`,
     } as any
+
+    console.log('triggering updates')
 
     this.vizDetails = Object.assign({}, this.vizDetails)
 
@@ -746,7 +763,7 @@ export default class VueComponent extends Vue {
       let { filteredRows } = await this.myDataManager.getFilteredDataset({
         dataset: this.datasetFilename,
       })
-      console.log(12, filteredRows)
+      // console.log(12, filteredRows)
 
       let groupLookup: any // this will be the map of boundary IDs to rows
       let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
