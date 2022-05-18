@@ -178,7 +178,7 @@ export default class VueComponent extends Vue {
 
   private boundaryDataTable: DataTable = {}
 
-  private dataFillColors: string | Uint8Array = '#59a14f'
+  private dataFillColors: string | Uint8Array = '#888' // '#59a14f'
   private dataLineColors: string | Uint8Array = ''
   private dataLineWidths: number | Float32Array = 2
   private dataPointRadii: number | Float32Array = 5
