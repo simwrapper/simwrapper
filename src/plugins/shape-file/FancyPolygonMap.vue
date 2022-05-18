@@ -564,7 +564,7 @@ export default class VueComponent extends Vue {
       lookupColumn.values[i] = featureOffset
       for (const tip of relevantTips) {
         const feature = this.boundaries[featureOffset]
-        const value = dataTable[tip[1]]
+        const value = dataTable[tip[1]].values[i]
         if (feature && value) feature.properties[tip[0]] = value
       }
     }
@@ -614,6 +614,7 @@ export default class VueComponent extends Vue {
     for (let i = 0; i < this.boundaries.length; i++) {
       lookupValues[boundaryLookupColumnValues[i]] = i
     }
+    this.statusText = ''
     return lookupValues
   }
 
