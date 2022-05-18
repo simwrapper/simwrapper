@@ -8,11 +8,6 @@
 
   .status-bar(v-show="statusText") {{ statusText }}
 
-  //- polygon-and-circle-map.choro-map(v-if="!thumbnail"
-  //-   :props="mapProps"
-  //-   :screenshot="screenshotNotifier"
-  //- )
-
   geojson-layer.choro-map(v-if="!thumbnail"
     :viewId="layerId"
     :features="useCircles ? centroids : boundaries"
@@ -48,7 +43,7 @@
     :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
 
     //- Column picker
-    .filter(v-if="datasetValuesColumnOptions.length")
+    .filter(:disabled="!datasetValuesColumnOptions.length")
       p Display
       b-dropdown(v-model="datasetValuesColumn"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
@@ -130,6 +125,7 @@ import {
   DataType,
   FileSystemConfig,
   VisualizationPlugin,
+  DEFAULT_PROJECTION,
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 
@@ -297,6 +293,7 @@ export default class VueComponent extends Vue {
       this.isLoaded = true
       this.$emit('isLoaded')
 
+      // this.datasets = Object.assign({}, this.datasets)
       await this.loadDataset()
 
       // Check URL query parameters
@@ -304,6 +301,11 @@ export default class VueComponent extends Vue {
 
       // Finally, update the view
       // this.updateChart()
+
+      this.datasets = Object.assign({}, this.datasets)
+      // this.vizDetails.datasets = this.datasets
+      this.vizDetails = Object.assign({}, this.vizDetails)
+
       this.statusText = ''
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
@@ -458,7 +460,6 @@ export default class VueComponent extends Vue {
     lineWidth?: LineWidthDefinition
     radius?: CircleRadiusDefinition
   }) {
-    this.statusText = 'Updating symbology...'
     console.log('props', props)
 
     if (props['fill']) {
@@ -486,7 +487,7 @@ export default class VueComponent extends Vue {
       // a fully-build DatasetDefinition, so let's just handle that
       this.handleNewDataset(props.dataset)
     }
-    this.statusText = ''
+    console.log('DONE updating')
   }
 
   private async handleNewDataset(props: DatasetDefinition) {
@@ -529,6 +530,7 @@ export default class VueComponent extends Vue {
     dataJoinColumn: string,
     featureJoinColumn: string
   ) {
+    console.log('setup join')
     // make sure columns exist!
     if (!this.boundaryDataTable[featureJoinColumn])
       throw Error(`Geodata does not have property ${featureJoinColumn}`)
@@ -556,7 +558,9 @@ export default class VueComponent extends Vue {
       const featureOffset = boundaryOffsets[dataValues[i]]
       lookupColumn.values[i] = featureOffset
       for (const tip of relevantTips) {
-        this.boundaries[featureOffset].properties[tip[0]] = dataTable[tip[1]].values[i]
+        const feature = this.boundaries[featureOffset]
+        const value = dataTable[tip[1]]
+        if (feature && value) feature.properties[tip[0]] = value
       }
     }
 
@@ -827,28 +831,29 @@ export default class VueComponent extends Vue {
 
     let featureProperties = [] as any[]
 
+    let boundaries: any[]
     try {
       this.statusText = 'Loading features...'
 
       if (filename.startsWith('http')) {
         // geojson from url!
-        const boundaries = await fetch(filename).then(async r => await r.json())
-        this.boundaries = boundaries.features
+        boundaries = (await fetch(filename).then(async r => await r.json())).features
+        // this.boundaries = boundaries.features
       } else if (filename.endsWith('.shp')) {
         // shapefile!
-        let boundaries = await this.loadShapefileFeatures(filename)
-        this.boundaries = boundaries
+        boundaries = await this.loadShapefileFeatures(filename)
+        // this.boundaries = boundaries
       } else {
         // geojson!
-        const boundaries = await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)
-        this.boundaries = boundaries.features
+        boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+        // this.boundaries = boundaries.features
       }
 
       // for a big speedup, move properties to its own nabob
       let hasNoLines = true
       let hasNoPolygons = true
 
-      this.boundaries.forEach(b => {
+      boundaries.forEach(b => {
         featureProperties.push(b.properties || {})
         b.properties = {}
 
@@ -870,7 +875,7 @@ export default class VueComponent extends Vue {
       await this.setFeaturePropertiesAsDataSource(filename, featureProperties)
 
       // turn ON line borders if it's NOT a big dataset (user can re-enable)
-      if (!hasNoLines || this.boundaries.length < 5000) {
+      if (!hasNoLines || boundaries.length < 5000) {
         this.dataLineColors = '#4e79a7'
       }
 
@@ -879,6 +884,8 @@ export default class VueComponent extends Vue {
 
       // generate centroids if we have polygons
       if (!hasNoPolygons) this.generateCentroidsAndMapCenter()
+
+      this.boundaries = boundaries
     } catch (e) {
       console.error(e)
       this.$store.commit('error', '' + e)
@@ -890,30 +897,27 @@ export default class VueComponent extends Vue {
 
   private async setFeaturePropertiesAsDataSource(filename: string, featureProperties: any[]) {
     const dataTable = await this.myDataManager.setFeatureProperties(filename, featureProperties)
-    const datasetId = filename.substring(filename.lastIndexOf('/'))
-    this.datasetFilename = datasetId
+    this.boundaryDataTable = dataTable
 
-    // this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+    const datasetId = filename.substring(filename.lastIndexOf('/'))
+    this.datasets[datasetId] = dataTable
 
     this.vizDetails.datasets[datasetId] = {
-      file: this.datasetFilename,
+      file: datasetId,
       join: this.datasetJoinColumn,
     } as any
 
-    // // update shapefile join column
-    // if (typeof this.vizDetails.shapes === 'string') {
-    //   this.vizDetails.shapes = { file: this.vizDetails.shapes, join: join[1] }
-    // } else {
-    //   this.vizDetails.shapes.join = join[1]
-    // }
+    console.log(333, this.vizDetails)
 
-    this.vizDetails = Object.assign({}, this.vizDetails)
+    // this.datasetFilename = datasetId
 
-    this.boundaryDataTable = dataTable
-    this.datasets[datasetId] = dataTable
-    this.datasets = Object.assign({}, this.datasets)
+    // this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
 
-    this.figureOutRemainingFilteringOptions()
+    // this.vizDetails = Object.assign({}, this.vizDetails)
+
+    // this.datasets = Object.assign({}, this.datasets)
+
+    // this.figureOutRemainingFilteringOptions()
   }
 
   private async generateCentroidsAndMapCenter() {
@@ -990,12 +994,14 @@ export default class VueComponent extends Vue {
       return []
     }
 
+    // geojson.features = geojson.features.slice(0, 10000)
+
     // next, see if there is a .prj file with projection information
-    let projection = ''
+    let projection = DEFAULT_PROJECTION
     try {
       projection = await this.fileApi.getFileText(url.replace('.shp', '.prj'))
     } catch (e) {
-      // lol we can live without a projection
+      // lol we can live without a projection right? ;-O
     }
 
     const guessCRS = Coords.guessProjection(projection)
@@ -1061,7 +1067,9 @@ export default class VueComponent extends Vue {
       this.statusText = `Loading dataset ${this.datasetFilename} ...`
       await this.$nextTick()
 
+      console.log(11, 'loading' + this.datasetFilename)
       const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
+      console.log(12, 'got it')
 
       // figure out join - use ".join" or first column key
       const joiner =
@@ -1383,8 +1391,9 @@ globalStore.commit('registerPlugin', {
   left: 0;
   z-index: 200;
   background-color: var(--bgPanel2);
-  padding: 0.75rem 1rem;
+  padding: 1rem 1rem;
   font-size: 1.1rem;
+  margin-bottom: 6px;
   border: 1px solid var(--);
 }
 

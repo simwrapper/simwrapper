@@ -1,3 +1,5 @@
+export const DEFAULT_PROJECTION = ''
+
 export const MAP_STYLES_ONLINE = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
