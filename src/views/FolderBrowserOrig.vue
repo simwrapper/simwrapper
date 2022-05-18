@@ -34,7 +34,7 @@
               | &nbsp;{{ cleanName(folder) }}
 
       //- thumbnails of each viz and image in this folder
-      h3.curate-heading(v-if="myState.vizes.length") {{ $t('Maps')}}
+      h3.curate-heading(v-if="myState.vizes.length") {{ $t('Analysis')}}
 
       .curate-content(v-if="myState.vizes.length")
         .viz-table
@@ -43,11 +43,7 @@
                     @click="clickedVisualization(index)")
 
             .viz-frame
-              p: b {{ viz.title }}
-              p(:style="{'margin-left': 'auto'}") {{ viz.config }}
-              p {{ viz.component }}
               component.viz-frame-component(
-                    v-show="false"
                     :is="viz.component"
                     :root="myState.svnProject.slug"
                     :subfolder="myState.subfolder"
@@ -56,6 +52,12 @@
                     :fileApi="myState.svnRoot"
                     :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
                     @title="updateTitle(index, $event)")
+              p {{ viz.title }}
+
+      //- TODO calculation tables
+      //-       this.allConfigFiles = await this.fileSystem.findAllYamlConfigs(this.subfolder)
+      //- return Object.values(this.allConfigFiles.topsheets)
+
 
       // individual links to files in this folder
       h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
@@ -72,14 +74,12 @@
 const i18n = {
   messages: {
     en: {
-      Maps: 'Maps',
       Analysis: 'Analysis',
       Files: 'Files',
       Folders: 'Folders',
       Topsheet: 'Topsheet',
     },
     de: {
-      Maps: 'Karten',
       Analysis: 'Ergebnisse',
       Files: 'Dateien',
       Folders: 'Ordner',
@@ -478,41 +478,43 @@ h4 {
 }
 
 .viz-table {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
 }
 
 .viz-grid-item {
   z-index: 1;
   text-align: center;
-  margin: 4px 0;
+  margin: 0 0;
   padding: 0 0;
   display: flex;
   flex-direction: column;
   cursor: pointer;
   vertical-align: top;
-  background-color: var(--bgMapPanel);
-  // border: var(--borderThin);
-  border-radius: 5px;
+  background-color: var(--bgBold);
+  border: var(--borderThin);
+  border-radius: 16px;
 }
 
 .viz-frame {
   position: relative;
   z-index: 1;
   flex: 1;
-  // min-height: $thumbnailHeight;
-  // border-radius: 16px;
+  min-height: $thumbnailHeight;
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
 
   p {
     margin: auto 0 0 0;
-    // background-color: var(--bgBold);
+    background-color: var(--bgBold);
     font-size: 1rem;
-    line-height: 1rem;
-    padding: 0.8rem 0.8rem;
+    font-weight: bold;
+    line-height: 1.2rem;
+    padding: 1rem 0.5rem;
     color: var(--text);
     word-wrap: break-word;
     /* Required for text-overflow to do anything */
@@ -523,10 +525,8 @@ h4 {
 }
 
 .viz-frame:hover {
-  // box-shadow: var(--shadowMode);
-  background-color: var(--bgHover);
-  border-radius: 5px;
-  transition: background-color 0.02s ease-in-out;
+  box-shadow: var(--shadowMode);
+  transition: box-shadow 0.1s ease-in-out;
 }
 
 .viz-frame-component {
@@ -560,8 +560,8 @@ h4 {
 
 .folder:hover {
   background-color: var(--bgHover);
-  // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
-  transition: background-color 0.1s ease-in-out;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.1s ease-in-out;
 }
 
 .project-bar {
