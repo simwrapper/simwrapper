@@ -303,6 +303,7 @@ export default class VueComponent extends Vue {
       // this.updateChart()
 
       this.datasets = Object.assign({}, this.datasets)
+      this.config.datasets = Object.assign({}, this.datasets)
       // this.vizDetails.datasets = this.datasets
       this.vizDetails = Object.assign({}, this.vizDetails)
 
@@ -462,32 +463,36 @@ export default class VueComponent extends Vue {
   }) {
     console.log('props', props)
 
-    if (props['fill']) {
-      this.vizDetails.display.fill = props.fill
-      this.handleNewFillColor(props.fill)
-    }
+    try {
+      if (props['fill']) {
+        this.vizDetails.display.fill = props.fill
+        this.handleNewFillColor(props.fill)
+      }
 
-    if (props['lineColor']) {
-      this.vizDetails.display.lineColor = props.lineColor
-      this.handleNewLineColor(props.lineColor)
-    }
+      if (props['lineColor']) {
+        this.vizDetails.display.lineColor = props.lineColor
+        this.handleNewLineColor(props.lineColor)
+      }
 
-    if (props['lineWidth']) {
-      this.vizDetails.display.lineWidth = props.lineWidth
-      this.handleNewLineWidth(props.lineWidth)
-    }
+      if (props['lineWidth']) {
+        this.vizDetails.display.lineWidth = props.lineWidth
+        this.handleNewLineWidth(props.lineWidth)
+      }
 
-    if (props['radius']) {
-      this.vizDetails.display.radius = props.radius
-      this.handleNewRadius(props.radius)
-    }
+      if (props['radius']) {
+        this.vizDetails.display.radius = props.radius
+        this.handleNewRadius(props.radius)
+      }
 
-    if (props['dataset']) {
-      // vizdetails just had the string name, whereas props.dataset contains
-      // a fully-build DatasetDefinition, so let's just handle that
-      this.handleNewDataset(props.dataset)
+      if (props['dataset']) {
+        // vizdetails just had the string name, whereas props.dataset contains
+        // a fully-build DatasetDefinition, so let's just handle that
+        this.handleNewDataset(props.dataset)
+      }
+      console.log('DONE updating')
+    } catch (e) {
+      this.$store.commit('error', '' + e)
     }
-    console.log('DONE updating')
   }
 
   private async handleNewDataset(props: DatasetDefinition) {
@@ -647,21 +652,38 @@ export default class VueComponent extends Vue {
       // Get the data column
       const datasetKey = color.dataset || ''
       const selectedDataset = this.datasets[datasetKey]
+
       if (selectedDataset) {
         const dataColumn = selectedDataset[columnName]
+        if (!dataColumn)
+          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
+
+        // Figure out the normal
+        let normalColumn
+        if (color.normalize) {
+          const keys = color.normalize.split(':')
+          console.log({ keys, datasets: this.datasets })
+          if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]])
+            throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+          normalColumn = this.datasets[keys[0]][keys[1]]
+          console.log({ normalColumn })
+        }
+
         // Calculate colors for each feature
         console.log('Updating fills...')
-        const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn(
-          this.boundaries.length,
-          dataColumn,
-          lookupColumn,
-          color
-        )
+        const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+          length: this.boundaries.length,
+          data: dataColumn,
+          normalize: normalColumn,
+          lookup: lookupColumn,
+          options: color,
+        })
         this.dataFillColors = calculatedColors
       }
     } else {
       // simple color
+      console.log('WHHOPS')
       this.dataFillColors = color.generatedColors[0]
     }
   }
@@ -677,14 +699,16 @@ export default class VueComponent extends Vue {
         if (selectedDataset) {
           const lookupColumn = selectedDataset['@']
           const dataColumn = selectedDataset[columnName]
+          if (!dataColumn)
+            throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
           // Calculate colors for each feature
           console.log('update lines...')
-          const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn(
-            this.boundaries.length,
-            dataColumn,
-            lookupColumn,
-            color
-          )
+          const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+            length: this.boundaries.length,
+            data: dataColumn,
+            lookup: lookupColumn,
+            options: color,
+          })
           this.dataLineColors = calculatedColors
         }
       } else {
@@ -704,15 +728,17 @@ export default class VueComponent extends Vue {
       const selectedDataset = this.datasets[datasetKey]
       if (selectedDataset) {
         const dataColumn = selectedDataset[columnName]
+        if (!dataColumn)
+          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
         // Calculate widths for each feature
         console.log('update line widths...')
-        const calculatedWidths = ColorWidthSymbologizer.getWidthsForDataColumn(
-          this.boundaries.length,
-          dataColumn,
-          lookupColumn,
-          width
-        )
+        const calculatedWidths = ColorWidthSymbologizer.getWidthsForDataColumn({
+          length: this.boundaries.length,
+          data: dataColumn,
+          lookup: lookupColumn,
+          options: width,
+        })
         this.dataLineWidths = calculatedWidths
       }
     } else {
@@ -730,14 +756,16 @@ export default class VueComponent extends Vue {
       const selectedDataset = this.datasets[datasetKey]
       if (selectedDataset) {
         const dataColumn = selectedDataset[columnName]
+        if (!dataColumn)
+          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
         // Calculate radius for each feature
-        const calculatedRadius = ColorWidthSymbologizer.getRadiusForDataColumn(
-          this.boundaries.length,
-          dataColumn,
-          lookupColumn,
-          radius
-        )
+        const calculatedRadius = ColorWidthSymbologizer.getRadiusForDataColumn({
+          length: this.boundaries.length,
+          data: dataColumn,
+          lookup: lookupColumn,
+          options: radius,
+        })
         this.dataPointRadii = calculatedRadius
       }
     } else {
@@ -899,7 +927,7 @@ export default class VueComponent extends Vue {
     const dataTable = await this.myDataManager.setFeatureProperties(filename, featureProperties)
     this.boundaryDataTable = dataTable
 
-    const datasetId = filename.substring(filename.lastIndexOf('/'))
+    const datasetId = filename.substring(1 + filename.lastIndexOf('/'))
     this.datasets[datasetId] = dataTable
 
     this.vizDetails.datasets[datasetId] = {
@@ -907,6 +935,7 @@ export default class VueComponent extends Vue {
       join: this.datasetJoinColumn,
     } as any
 
+    this.config.datasets = Object.assign({}, this.vizDetails.datasets)
     console.log(333, this.vizDetails)
 
     // this.datasetFilename = datasetId
@@ -1054,6 +1083,7 @@ export default class VueComponent extends Vue {
     try {
       // for now just load first dataset
       const datasetId = Object.keys(this.config.datasets)[0]
+      console.log({ datasetId })
       if (!datasetId) return
 
       // dataset could be  { dataset: myfile.csv }
@@ -1067,9 +1097,9 @@ export default class VueComponent extends Vue {
       this.statusText = `Loading dataset ${this.datasetFilename} ...`
       await this.$nextTick()
 
-      console.log(11, 'loading' + this.datasetFilename)
+      console.log(11, 'loading ' + this.datasetFilename)
       const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
-      console.log(12, 'got it')
+      console.log(12, 'got it', dataset)
 
       // figure out join - use ".join" or first column key
       const joiner =

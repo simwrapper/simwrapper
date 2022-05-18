@@ -10,42 +10,45 @@ enum Style {
   sequential,
 }
 
-function getColorsForDataColumn(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function getColorsForDataColumn(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
   // Figure out what kind of thing the user wants
   // const colorRamp = options.colorRamp as style
-  if (data.type === DataType.STRING || options.colorRamp.style == Style.categorical) {
-    return buildColorsBasedOnCategories(length, data, lookup, options)
+  if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
+    return buildColorsBasedOnCategories(props)
   } else {
-    return buildColorsBasedOnNumericValues(length, data, lookup, options)
+    return buildColorsBasedOnNumericValues(props)
   }
 }
 
-function getWidthsForDataColumn(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function getWidthsForDataColumn(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
   // Figure out what kind of thing the user wants
-  if (data.type === DataType.STRING) {
-    return buildWidthsBasedOnCategories(length, data, lookup, options)
+  if (props.data.type === DataType.STRING) {
+    return buildWidthsBasedOnCategories(props)
   } else {
-    return buildWidthsBasedOnNumericValues(length, data, lookup, options)
+    return buildWidthsBasedOnNumericValues(props)
   }
 }
 
-function buildWidthsBasedOnCategories(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function buildWidthsBasedOnCategories(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
-  const { columnName, dataset, scaleFactor } = options
+}) {
+  const { columnName, dataset, scaleFactor } = props.options
 
   const legend = {} as any
   return new Float32Array()
@@ -58,12 +61,14 @@ function buildWidthsBasedOnCategories(
   // return rgbArray
 }
 
-function buildWidthsBasedOnNumericValues(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function buildWidthsBasedOnNumericValues(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
+  const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
   if (typeof scaleFactor !== 'number') return 0
@@ -79,12 +84,14 @@ function buildWidthsBasedOnNumericValues(
   return widths
 }
 
-function getRadiusForDataColumn(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function getRadiusForDataColumn(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
+  const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
   // console.log(data, options)
 
@@ -101,13 +108,16 @@ function getRadiusForDataColumn(
   return radius
 }
 
-function buildColorsBasedOnCategories(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function buildColorsBasedOnCategories(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
+  const { length, data, lookup, normalize, options } = props
   const { colorRamp, columnName, dataset, generatedColors } = options
+
   const colorsAsRGB = buildRGBfromHexCodes(generatedColors)
 
   // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
@@ -137,13 +147,16 @@ function buildColorsBasedOnCategories(
   return rgbArray
 }
 
-function buildColorsBasedOnNumericValues(
-  length: number,
-  data: DataTableColumn,
-  lookup: DataTableColumn,
+function buildColorsBasedOnNumericValues(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
   options: any
-) {
+}) {
+  const { length, data, lookup, normalize, options } = props
   const { colorRamp, columnName, dataset, generatedColors } = options
+
   const colorsAsRGB = buildRGBfromHexCodes(generatedColors)
 
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
@@ -161,16 +174,30 @@ function buildColorsBasedOnNumericValues(
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
   // *colorRampType* is 0 if a categorical color ramp is chosen
 
-  const isCategorical = false // colorRampType === 0 || buildColumn.type == DataType.STRING
-  const setColorBasedOnValue: any = isCategorical
-    ? scaleOrdinal().range(colorsAsRGB)
-    : scaleThreshold().range(colorsAsRGB).domain(domain)
+  // const isCategorical = false // colorRampType === 0 || buildColumn.type == DataType.STRING
+  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
+
+  let normalizedValues = data.values
+  let normalizedMax = data.max || -Infinity
+
+  // Normalize data
+  if (normalize) {
+    console.log('NORMALIZING')
+    normalizedValues = new Float32Array(data.values.length)
+    normalizedMax = -Infinity
+    for (let i = 0; i < data.values.length; i++) {
+      normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
+      if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
+    }
+  }
+
+  console.log({ normalizedValues, normalizedMax })
 
   const rgbArray = new Uint8Array(length * 3)
 
   for (let i = 0; i < data.values.length; i++) {
-    const value = data.values[i] / (data.max || 1)
-    const color = setColorBasedOnValue(value)
+    const value = normalizedValues[i] / (normalizedMax || 1)
+    const color = isNaN(value) ? [128, 128, 128] : setColorBasedOnValue(value)
 
     const offset = lookup ? lookup.values[i] * 3 : i * 3
 
@@ -182,9 +209,10 @@ function buildColorsBasedOnNumericValues(
   const legend = {} as any
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
-  // console.log(keys, colors)
+
   keys.forEach((key, index) => (legend[key] = colors[index]))
   console.log({ legend })
+  console.log(4)
 
   return rgbArray
 }

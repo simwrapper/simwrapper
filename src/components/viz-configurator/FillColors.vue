@@ -1,21 +1,34 @@
 <template lang="pug">
 .color-ramp-picker
+
+  //- DATA COLUMN
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="Single color" value="")
+          option(label="Single color" value="@")
 
           optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
-  .colorbar.single(v-show="!dataColumn")
+  //- NORMALIZE COLUMN
+  .widgets(v-if="dataColumn && dataColumn.length > 1")
+    .widget
+        p.tight Normalize by
+        b-select.selector(expanded v-model="normalSelection")
+          option(label="None" value="")
+          optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
+            option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
+
+  //- SIMPLE COLORS
+  .colorbar.single(v-show="dataColumn=='@'")
     .single-color(
       v-for="swatch of simpleColors" :key="swatch"
       :style="{backgroundColor: `${swatch}`}"
       :class="{active: selectedSingleColor == swatch }"
       @click="clickedSingleColor(swatch)")
 
-  .more(v-show="dataColumn")
+  //- STEPS, REVERSE, COLOR RAMPS
+  .more(v-show="dataColumn && dataColumn.length > 1")
     .widgets
       .widget
         p Steps
@@ -68,6 +81,7 @@ interface Ramp {
 export interface FillColorDefinition {
   dataset: string
   columnName: string
+  normalize: string
   colorRamp?: Ramp
   generatedColors: string[]
 }
@@ -98,6 +112,7 @@ export default class VueComponent extends Vue {
   private steps: string = '9'
   private flip = false
   private dataColumn = ''
+  private normalSelection = ''
   private selectedColor: Ramp = this.colorChoices[0]
   private selectedSingleColor = this.simpleColors[0]
 
@@ -109,8 +124,6 @@ export default class VueComponent extends Vue {
     this.vizConfigChanged()
   }
 
-  private isFirstDataset = true
-
   @Watch('vizConfiguration')
   private vizConfigChanged() {
     const config = this.vizConfiguration.display?.fill
@@ -118,6 +131,11 @@ export default class VueComponent extends Vue {
       const selectedColumn = `${config.dataset}/${config.columnName}`
       this.dataColumn = selectedColumn
       this.datasetLabels = [...this.datasetLabels]
+
+      if (config?.normalize) {
+        this.normalSelection = config.normalize
+      }
+
       if (config.colorRamp) {
         let colorChoice =
           this.colorChoices.find(f => f.ramp == config.colorRamp.ramp) || this.colorChoices[0]
@@ -136,51 +154,33 @@ export default class VueComponent extends Vue {
     this.datasetLabels = datasetIds
 
     return
-
-    // // don't change colors if we already set them
-    // if (!this.isFirstDataset) return
-
-    // if (datasetIds.length) this.isFirstDataset = false
-
-    // let { dataset, columnName, colorRamp, values } = this.vizConfiguration.display.fill
-
-    // if (!columnName && values) columnName = values[0]
-
-    // if (dataset && columnName) {
-    //   console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
-    //   this.dataColumn = `${dataset}/${columnName}`
-
-    //   if (colorRamp) {
-    //     this.selectedColor =
-    //       this.colorChoices.find(c => c.ramp.toLowerCase() === colorRamp.ramp.toLowerCase()) ||
-    //       this.colorChoices[0]
-    //     this.flip = !!colorRamp.reverse // ? !!this.selectedColor.reverse : !this.selectedColor.reverse // XOR
-    //     if (colorRamp.steps) this.steps = '' + colorRamp.steps
-    //   }
-    // } else if (datasetIds.length) {
-    //   // Grab the first useful column
-    //   // Only do this if user has NOT specified a starting column
-    //   const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-    //   if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
-    // }
   }
 
   @Watch('flip')
   @Watch('steps')
   @Watch('dataColumn')
+  @Watch('normalSelection')
   @Watch('globalState.isDarkMode')
   private emitColorSpecification() {
     // no fill
     if (!this.dataColumn) return
 
-    const slash = this.dataColumn.indexOf('/')
-
     // single color
-    if (slash === -1) {
+    if (this.dataColumn == '@') {
+      this.normalSelection = ''
       if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
       this.clickedSingleColor(this.selectedSingleColor)
       return
     }
+
+    const slash = this.dataColumn.indexOf('/')
+
+    // // single color
+    // if (slash === -1) {
+    //   if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
+    //   this.clickedSingleColor(this.selectedSingleColor)
+    //   return
+    // }
 
     // based on data
     const dataset = this.dataColumn.substring(0, slash)
@@ -192,6 +192,7 @@ export default class VueComponent extends Vue {
       dataset,
       columnName,
       generatedColors,
+      normalize: this.normalSelection,
       colorRamp: {
         ramp: this.selectedColor.ramp,
         style: this.selectedColor.style,
@@ -209,6 +210,7 @@ export default class VueComponent extends Vue {
       generatedColors: [this.selectedSingleColor],
       dataset: '',
       columnName: '',
+      normalize: '',
     }
 
     // the viewer is on main thread so lets make
@@ -363,5 +365,8 @@ export default class VueComponent extends Vue {
 }
 .single-color.active {
   border-color: black;
+}
+.tight {
+  margin: 0 0 -10px 1px;
 }
 </style>
