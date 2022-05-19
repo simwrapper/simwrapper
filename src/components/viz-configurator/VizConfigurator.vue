@@ -189,7 +189,8 @@ export default class VueComponent extends Vue {
     } as any
 
     // remove shapefile itself from list of datasets
-    if (config.datasets[config.shapes]) delete config.datasets[config.shapes]
+    const shapeFilename = config.shapes?.substring(1 + config.shapes.indexOf('/'))
+    if (config.datasets[shapeFilename]) delete config.datasets[shapeFilename]
 
     // remove blank and false values
     for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]

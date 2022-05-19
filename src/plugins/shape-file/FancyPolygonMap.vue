@@ -31,7 +31,7 @@
   )
 
   viz-configurator(v-if="isLoaded && !thumbnail"
-    :sections="['fill-color',  'fill-height', 'line-color','line-width', 'circle-radius']"
+    :sections="configuratorSections"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
     :yamlConfig="generatedExportFilename"
@@ -175,6 +175,12 @@ export default class VueComponent extends Vue {
 
   private chosenNewFilterColumn = ''
   private availableFilterColumns: string[] = []
+
+  private get configuratorSections() {
+    if (this.isAreaMode)
+      return ['fill-color', 'fill-height', 'line-color', 'line-width', 'circle-radius']
+    else return ['line-color', 'line-width']
+  }
 
   private boundaryDataTable: DataTable = {}
 
