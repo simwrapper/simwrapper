@@ -152,8 +152,6 @@ export default class VueComponent extends Vue {
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
-
-    return
   }
 
   @Watch('flip')
@@ -161,7 +159,7 @@ export default class VueComponent extends Vue {
   @Watch('dataColumn')
   @Watch('normalSelection')
   @Watch('globalState.isDarkMode')
-  private emitColorSpecification() {
+  private emitSpecification() {
     // no fill
     if (!this.dataColumn) return
 
@@ -234,7 +232,7 @@ export default class VueComponent extends Vue {
 
   private pickColor(colorRamp: Ramp) {
     this.selectedColor = colorRamp
-    this.emitColorSpecification()
+    this.emitSpecification()
   }
 
   private buildColors(scale: Ramp, count?: number): string[] {

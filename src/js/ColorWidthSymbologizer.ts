@@ -84,6 +84,43 @@ function buildWidthsBasedOnNumericValues(props: {
   return widths
 }
 
+function getHeightsBasedOnNumericValues(props: {
+  length: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
+  options: any
+}) {
+  const { length, data, lookup, normalize, options } = props
+  const { columnName, dataset, scaleFactor } = options
+
+  if (typeof scaleFactor !== 'number') return 0
+
+  const heights = new Float32Array(length)
+
+  let normalizedValues = data.values
+  let normalizedMax = data.max || -Infinity
+
+  // Normalize data
+  if (normalize) {
+    console.log('NORMALIZING')
+    normalizedValues = new Float32Array(data.values.length)
+    normalizedMax = -Infinity
+    for (let i = 0; i < data.values.length; i++) {
+      normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
+      if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
+    }
+  }
+
+  if (scaleFactor) {
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      heights[offset] = normalizedValues[i] / scaleFactor
+    }
+  }
+  return heights
+}
+
 function getRadiusForDataColumn(props: {
   length: number
   data: DataTableColumn
@@ -228,4 +265,9 @@ function buildRGBfromHexCodes(hexcodes: string[]) {
   return colorsAsRGB
 }
 
-export default { getColorsForDataColumn, getWidthsForDataColumn, getRadiusForDataColumn }
+export default {
+  getHeightsBasedOnNumericValues,
+  getColorsForDataColumn,
+  getWidthsForDataColumn,
+  getRadiusForDataColumn,
+}

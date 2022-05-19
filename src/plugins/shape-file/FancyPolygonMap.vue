@@ -14,6 +14,7 @@
     :lineColors="dataLineColors"
     :lineWidths="dataLineWidths"
     :fillColors="dataFillColors"
+    :fillHeights="dataFillHeights"
     :opacity="sliderOpacity"
     :pointRadii="dataPointRadii"
     :screenshot="triggerScreenshot"
@@ -30,7 +31,7 @@
   )
 
   viz-configurator(v-if="isLoaded && !thumbnail"
-    :sections="['fill-color',  'line-color','line-width', 'circle-radius']"
+    :sections="['fill-color',  'fill-height', 'line-color','line-width', 'circle-radius']"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
     :yamlConfig="generatedExportFilename"
@@ -142,8 +143,7 @@ import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadi
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
 import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
 import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
-// import { FillDefinition } from '@/components/viz-configurator/FillColors.vue'
-// import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
+import { FillHeightDefinition } from '@/components/viz-configurator/FillHeight.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import Coords from '@/js/Coords'
 
@@ -182,6 +182,7 @@ export default class VueComponent extends Vue {
   private dataLineColors: string | Uint8Array = ''
   private dataLineWidths: number | Float32Array = 2
   private dataPointRadii: number | Float32Array = 5
+  private dataFillHeights: number | Float32Array = 0
 
   private layerId = Math.random()
 
@@ -223,6 +224,7 @@ export default class VueComponent extends Vue {
     center: null as any[] | null,
     display: {
       fill: {} as any,
+      fillHeight: {} as any,
       color: {} as any,
       width: {} as any,
       lineColor: {} as any,
@@ -432,6 +434,10 @@ export default class VueComponent extends Vue {
       const text = await this.fileApi.getFileText(filename)
       return YAML.parse(text)
     } catch (err) {
+      const message = '' + err
+      if (message.startsWith('YAMLSemantic')) {
+        this.$store.commit('error', `${filename}: ${message}`)
+      }
       console.log(`${filename} not found, trying config folders`)
     }
 
@@ -460,6 +466,7 @@ export default class VueComponent extends Vue {
     lineColor?: LineColorDefinition
     lineWidth?: LineWidthDefinition
     radius?: CircleRadiusDefinition
+    fillHeight?: FillHeightDefinition
   }) {
     console.log('props', props)
 
@@ -467,6 +474,11 @@ export default class VueComponent extends Vue {
       if (props['fill']) {
         this.vizDetails.display.fill = props.fill
         this.handleNewFillColor(props.fill)
+      }
+
+      if (props['fillHeight']) {
+        this.vizDetails.display.fillHeight = props.fillHeight
+        this.handleNewFillHeight(props.fillHeight)
       }
 
       if (props['lineColor']) {
@@ -745,6 +757,53 @@ export default class VueComponent extends Vue {
     } else {
       // simple width
       this.dataLineWidths = 1
+    }
+    // this.filterListener()
+  }
+
+  private handleNewFillHeight(height: FillHeightDefinition) {
+    const columnName = height.columnName
+    if (columnName) {
+      // Get the data column
+      const datasetKey = height.dataset || ''
+      const selectedDataset = this.datasets[datasetKey]
+      if (selectedDataset) {
+        const dataColumn = selectedDataset[columnName]
+        if (!dataColumn)
+          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+        const lookupColumn = selectedDataset['@']
+
+        // Figure out the normal
+        let normalColumn
+        if (height.normalize) {
+          const keys = height.normalize.split(':')
+          console.log({ keys, datasets: this.datasets })
+          if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]])
+            throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+          normalColumn = this.datasets[keys[0]][keys[1]]
+          console.log({ normalColumn })
+        }
+
+        // Calculate widths for each feature
+        console.log('update fill height...')
+        const calculatedHeights = ColorWidthSymbologizer.getHeightsBasedOnNumericValues({
+          length: this.boundaries.length,
+          data: dataColumn,
+          lookup: lookupColumn,
+          options: height,
+          normalize: normalColumn,
+        })
+        this.dataFillHeights = calculatedHeights
+        if (this.$store.state.viewState.pitch == 0) {
+          const angledView = Object.assign({}, this.$store.state.viewState, {
+            pitch: 30,
+          })
+          this.$store.commit('setMapCamera', angledView)
+        }
+      }
+    } else {
+      // simple width
+      this.dataFillHeights = 0
     }
     // this.filterListener()
   }

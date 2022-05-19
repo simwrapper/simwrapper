@@ -30,6 +30,7 @@ export default function Component({
   fillColors = '#59a14f' as string | Uint8Array,
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 0 as number | Float32Array,
+  fillHeights = 0 as number | Float32Array,
   opacity = 1,
   pointRadii = 5 as number | Float32Array,
   screenshot = 0,
@@ -102,6 +103,18 @@ export default function Component({
   } else {
     cbPointRadius = (_: any, o: DeckObject) => {
       return pointRadii[o.index]
+    }
+  }
+
+  // FILL HEIGHTS -----------------------------------------------------------------
+  let cbFillHeight // can be callback OR a plain string in simple mode
+  if (typeof fillHeights == 'number') {
+    // simple mode
+    cbFillHeight = fillHeights
+  } else {
+    // array function
+    cbFillHeight = (_: any, o: DeckObject) => {
+      return fillHeights[o.index]
     }
   }
 
@@ -185,8 +198,10 @@ export default function Component({
     getLineColor: cbLineColor,
     getFillColor: cbFillColor,
     getPointRadius: cbPointRadius,
+    getElevation: cbFillHeight,
     // settings: ------------------------
     autoHighlight: true,
+    extruded: !!fillHeights,
     highlightColor: [255, 0, 224],
     // lineJointRounded: true,
     lineWidthUnits: 'pixels',
@@ -194,7 +209,7 @@ export default function Component({
     lineWidthMinPixels: 1,
     lineWidthMaxPixels: 50,
     // getOffset: OFFSET_DIRECTION.RIGHT,
-    opacity: opacity / 100,
+    opacity: fillHeights ? 100 : opacity / 100, // 3D must be opaque
     pickable: true,
     pointRadiusUnits: 'pixels',
     pointRadiusMinPixels: 2,
@@ -206,6 +221,7 @@ export default function Component({
       getLineColor: lineColors,
       getLineWidth: lineWidths,
       getPointRadius: pointRadii,
+      getElevation: fillHeights,
     },
     transitions: {
       getFillColor: 300,
@@ -214,7 +230,7 @@ export default function Component({
       getPointRadius: 300,
     },
     parameters: {
-      depthTest: false,
+      depthTest: !!fillHeights,
     },
     glOptions: {
       preserveDrawingBuffer: true, // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
