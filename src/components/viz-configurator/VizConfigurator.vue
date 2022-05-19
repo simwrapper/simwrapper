@@ -54,6 +54,7 @@ import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import LineColorPanel from './LineColors.vue'
 import FillColorPanel from './FillColors.vue'
+import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -64,6 +65,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
     CircleRadiusPanel,
     ColorPanel,
     FillColorPanel,
+    FillHeightPanel,
     LineColorPanel,
     LineWidthPanel,
   },
@@ -119,21 +121,6 @@ export default class VueComponent extends Vue {
     this.$emit('update', props)
   }
 
-  private buildConfiguration() {
-    // get all data sources in config file
-    // if (this.config['datasets']) {
-    //   this.vizConfiguration.datasets = { ...this.config.datasets }
-    // }
-    // for (const key of ['csvFile', 'csvBase']) {
-    //   if (this.config[key]) this.vizConfiguration.datasets[key] = this.config[key]
-    // }
-    // // make copy of display section too
-    // if (this.config['display']) {
-    //   this.vizConfiguration.display = Object.assign({}, this.config.dis)
-    // }
-    // this.vizConfiguration = Object.assign({}, this.vizConfiguration)
-  }
-
   private layer = {
     general: {
       type: 'links',
@@ -147,6 +134,7 @@ export default class VueComponent extends Vue {
       radius: {},
       fill: {},
       label: {},
+      fillHeight: {},
     },
   }
 
@@ -168,7 +156,7 @@ export default class VueComponent extends Vue {
   }
 
   private exportYaml() {
-    let suggestedFilename = 'viz-links-export.yaml'
+    let suggestedFilename = 'viz-viztype-config.yaml'
     const configFile = this.yamlConfig.toLocaleLowerCase()
     if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
       suggestedFilename = this.yamlConfig
