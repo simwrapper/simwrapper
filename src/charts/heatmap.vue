@@ -34,6 +34,12 @@ export default class VueComponent extends Vue {
   private dataSet: { x?: any[]; y?: any[]; allRows?: DataTable } = {}
   private id = 'heatmap-' + Math.random()
 
+  private YAMLrequirementsHeatmap = {
+    dataset: '',
+    y: '',
+    columns: [],
+  }
+
   private async mounted() {
     this.updateTheme()
     this.checkWarningsAndErrors()
@@ -76,6 +82,7 @@ export default class VueComponent extends Vue {
     if (!this.files.length) return {}
 
     try {
+      this.validateYAML()
       const dataset = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
       return dataset
@@ -88,6 +95,20 @@ export default class VueComponent extends Vue {
       })
     }
     return {}
+  }
+
+  private validateYAML() {
+    console.log('in heatmap validation')
+
+    for (const key in this.YAMLrequirementsHeatmap) {
+      if (key in this.config === false) {
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsXY for required keys',
+        })
+      }
+    }
   }
 
   private updateChart() {

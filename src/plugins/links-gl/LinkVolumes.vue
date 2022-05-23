@@ -150,6 +150,38 @@ class MyPlugin extends Vue {
   @Prop({ required: false }) thumbnail!: boolean
   @Prop({ required: false }) datamanager!: DashboardDataManager
 
+  private standaloneYAMLconfig = {
+    title: '',
+    description: '',
+    csvFile: '',
+    csvBase: '',
+    datasets: {} as { [id: string]: string },
+    useSlider: false,
+    showDifferences: false,
+    shpFile: '',
+    dbfFile: '',
+    network: '',
+    geojsonFile: '',
+    projection: '',
+    center: null as any,
+    zoom: 0,
+    widthFactor: null as any,
+    thumbnail: '',
+    sum: false,
+    nodes: '', // SFCTA nodes shapefile
+    links: [] as string[], // SFCTA links DBF files
+    display: {
+      color: {} as any,
+      width: {} as any,
+    },
+  }
+
+  private YAMLrequirementsLinks = {
+    csvFile: '',
+    network: '',
+    projection: '',
+  }
+
   // this contains the display settings for this view; it is the View Model.
   // use changeConfiguration to modify this for now (todo: move to state model)
   private vizDetails = {
@@ -280,13 +312,14 @@ class MyPlugin extends Vue {
 
     // are we in a dashboard?
     if (this.config) {
+      this.validateYAML()
       this.vizDetails = Object.assign({}, emptyState, this.config)
       return
     }
 
     // was a YAML file was passed in?
     if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-      this.vizDetails = Object.assign({}, emptyState, await this.loadYamlConfig())
+      await this.loadStandaloneYamlConfig()
     }
 
     // is this a bare network file? - build vizDetails manually
@@ -304,7 +337,7 @@ class MyPlugin extends Vue {
     this.$emit('title', t)
   }
 
-  private async loadYamlConfig() {
+  private async loadStandaloneYamlConfig() {
     if (!this.myState.fileApi) return {}
 
     try {
@@ -314,7 +347,9 @@ class MyPlugin extends Vue {
           : this.myState.subfolder + '/' + this.myState.yamlConfig
 
       const text = await this.myState.fileApi.getFileText(filename)
-      return YAML.parse(text)
+      this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+      this.validateYAML()
+      this.setVizDetails()
     } catch (err) {
       console.error('failed')
       const e = err as any
@@ -323,6 +358,58 @@ class MyPlugin extends Vue {
         this.$store.commit('requestLogin', this.myState.fileSystem.slug)
       }
     }
+  }
+  private async validateYAML() {
+    console.log('in yaml validation')
+
+    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+
+    if (hasYaml) {
+      console.log('has yaml')
+      var configuration = this.standaloneYAMLconfig
+    } else {
+      console.log('no yaml')
+      var configuration = this.config
+    }
+
+    for (const key in this.YAMLrequirementsLinks) {
+      if (key in configuration === false) {
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsLinks for required keys',
+        })
+      }
+    }
+
+    if (configuration.zoom < 5 || configuration.zoom > 20) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `Zoom is out of the recommended range `,
+        desc: 'Zoom levels should be between 5 and 20. ',
+      })
+    }
+
+    const hasGeoJson = !configuration.network && configuration.geojsonFile
+    if (hasGeoJson) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `YAML field geojsonFile deprecated`,
+        desc: 'Use YAML field network instad. ',
+      })
+    }
+
+    if (!configuration.display) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `Display properties not set`,
+        desc: 'Standard values are used',
+      })
+    }
+  }
+
+  private setVizDetails() {
+    this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
   }
 
   private async buildThumbnail() {
