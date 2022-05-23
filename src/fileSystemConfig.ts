@@ -38,9 +38,16 @@ const fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
   {
+    name: 'Browse data',
+    slug: 'view',
+    description: "View this site's datasets",
+    baseURL: loc.origin + '/data',
+    hidden: true,
+  },
+  {
     name: 'Localhost',
     slug: 'local',
-    description: 'Files on this computer, shared with "simwrapper serve"',
+    description: 'Files on this computer, shared using "simwrapper serve" tool',
     baseURL: 'http://localhost:8000',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
