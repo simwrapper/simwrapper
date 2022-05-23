@@ -19,6 +19,7 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from '@/charts/allCharts'
 
 import globalStore from '@/store'
+import { string } from 'mathjs'
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -39,6 +40,12 @@ export default class VueComponent extends Vue {
 
   // dataSet is either x,y or allRows[]
   private dataSet: { x?: any[]; y?: any[]; allRows?: any[] } = {}
+
+  private YAMLrequirementsBar = {
+    dataset: '',
+    x: '',
+    columns: '',
+  }
 
   private async mounted() {
     this.updateLayout()
@@ -109,7 +116,7 @@ export default class VueComponent extends Vue {
 
   private async handleFilterChanged() {
     try {
-      const { filteredRows } = await this.datamanager.getFilteredDataset(this.config)
+      const { filteredRows } = (await this.datamanager.getFilteredDataset(this.config)) as any
 
       // is filter UN-selected?
       if (!filteredRows) {
@@ -141,6 +148,7 @@ export default class VueComponent extends Vue {
     if (!this.files.length) return {}
 
     try {
+      this.validateYAML()
       const allRows = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
       return allRows
@@ -150,6 +158,20 @@ export default class VueComponent extends Vue {
       // this.$store.commit('setStatus', { type: Status.ERROR, message })
     }
     return {}
+  }
+
+  private validateYAML() {
+    console.log('in bars validation')
+
+    for (const key in this.YAMLrequirementsBar) {
+      if (key in this.config === false) {
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsXY for required keys',
+        })
+      }
+    }
   }
 
   private getRandomInt(max: number) {
