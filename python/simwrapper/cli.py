@@ -10,7 +10,7 @@ from . import MiniFileServer
 
 default_port = 8000
 
-SINGLE_PAGE_APP_PORT = 9039
+SINGLE_PAGE_APP_PORT = 8050
 
 @click.group()
 def cli():

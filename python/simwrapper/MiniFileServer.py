@@ -117,11 +117,11 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Accept-Ranges,Range,*")
         self.send_header("Access-Control-Allow-Private-Network", "true")
-        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("Access-Control-Max-Age", "0")
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
         self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Mini-File-Server-Root', current_dir)
-        self.send_header("Cache-Control", "no-cache, max-age=86400, must-revalidate")
+        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate")
         SimpleHTTPRequestHandler.end_headers(self)
 
         # experimenting with no-cache but must-revalidate: which means
@@ -161,7 +161,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
 def find_free_port(port):
-    for i in range(port,port+256):
+    for i in range(port,port+49):
         s = socket.socket()
 
         try:
@@ -205,7 +205,7 @@ def serve_entire_website(port):
     print("Start SimWrapper website on PORT:", port)
 
     # Build the full URL for this site, including the free port number
-    if port == 9039:
+    if port == 8050:
         print("\nBrowse: http://localhost:" + str(port) + "/live")
         print("    Or: " + "http://" + socket.gethostname() + ":" + str(port) + "/live")
     else:
