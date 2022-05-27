@@ -3,7 +3,7 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="")
+          option(label="None" value="^")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
@@ -91,6 +91,23 @@ export default class VueComponent extends Vue {
       // this.normalSelection = ''
       return
     }
+
+    // set to "None"
+    if (this.dataColumn === '^') {
+      this.normalSelection = ''
+
+      const fillHeight: FillHeightDefinition = {
+        dataset: '',
+        columnName: '',
+        normalize: this.normalSelection,
+        scaleFactor: parseFloat(this.scaleFactor),
+      }
+
+      setTimeout(() => this.$emit('update', { fillHeight }), 25)
+
+      return
+    }
+
     const slash = this.dataColumn.indexOf('/')
 
     const dataset = this.dataColumn.substring(0, slash)
