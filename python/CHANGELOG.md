@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.8.1](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.8.0...v1.8.1) (2022-05-27)
+
+
+### Bug Fixes
+
+* Switch "simwrapper here" ports to 8050-8099 ([27c94a1](https://github.com/simwrapper/simwrapper-python-tools/commit/27c94a174846bd90375d3796971407c442db32ae))
+
 ## [1.8.0](https://github.com/simwrapper/simwrapper-python-tools/compare/v1.7.7...v1.8.0) (2022-03-03)
 
 
