@@ -33,31 +33,50 @@
               i.fa.fa-folder-open
               | &nbsp;{{ cleanName(folder) }}
 
-      //- thumbnails of each viz and image in this folder
-      h3.curate-heading(v-if="myState.vizes.length") {{ $t('Maps')}}
+      //- MAPS: thumbnails of each viz map here
+      .section-maps(v-if="Object.keys(vizMaps).length")
+        h3.curate-heading {{ $t('Maps')}}
+        .curate-content
+          .viz-table
+            .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
+                      @click="clickedVisualization(index)")
 
-      .curate-content(v-if="myState.vizes.length")
-        .viz-table
-          .viz-grid-item(v-for="viz,index in myState.vizes"
-                    :key="index"
-                    @click="clickedVisualization(index)")
+              .viz-frame
+                p: b {{ viz.title }}
+                p(:style="{'margin-left': 'auto'}") {{ viz.config }}
+                p {{ viz.component }}
+                component.viz-frame-component(
+                      v-show="false"
+                      :is="viz.component"
+                      :root="myState.svnProject.slug"
+                      :subfolder="myState.subfolder"
+                      :yamlConfig="viz.config"
+                      :thumbnail="true"
+                      :fileApi="myState.svnRoot"
+                      :style="{'pointer-events': 'none'}"
+                      @title="updateTitle(index, $event)")
 
-            .viz-frame
-              p: b {{ viz.title }}
-              p(:style="{'margin-left': 'auto'}") {{ viz.config }}
-              p {{ viz.component }}
-              component.viz-frame-component(
-                    v-show="false"
-                    :is="viz.component"
-                    :root="myState.svnProject.slug"
-                    :subfolder="myState.subfolder"
-                    :yamlConfig="viz.config"
-                    :thumbnail="true"
-                    :fileApi="myState.svnRoot"
-                    :style="{'pointer-events': viz.component==='image-view' ? 'auto' : 'none'}"
-                    @title="updateTitle(index, $event)")
+      //- IMAGES here
+      .section-images(v-if="Object.keys(vizImages).length")
+        h3.curate-heading {{ $t('Images')}}
+        .curate-content
+          .viz-image-table
+            .viz-image-grid-item(v-for="[index, viz] of Object.entries(vizImages)" :key="index"
+                      @click="clickedVisualization(index)")
 
-      // individual links to files in this folder
+              .viz-image-frame
+                component.viz-image-frame-component(
+                      :is="viz.component"
+                      :root="myState.svnProject.slug"
+                      :subfolder="myState.subfolder"
+                      :yamlConfig="viz.config"
+                      :thumbnail="true"
+                      :fileApi="myState.svnRoot"
+                      :style="{'pointer-events': 'auto'}"
+                      @title="updateTitle(index, $event)")
+                p {{ viz.title }}
+
+      //- FILES: individual links to files in this folder
       h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
 
       .curate-content(v-if="myState.files.length")
@@ -73,6 +92,7 @@ const i18n = {
   messages: {
     en: {
       Maps: 'Maps',
+      Images: 'Images',
       Analysis: 'Analysis',
       Files: 'Files',
       Folders: 'Folders',
@@ -80,6 +100,7 @@ const i18n = {
     },
     de: {
       Maps: 'Karten',
+      Images: 'Bilder',
       Analysis: 'Ergebnisse',
       Files: 'Dateien',
       Folders: 'Ordner',
@@ -148,6 +169,26 @@ export default class VueComponent extends Vue {
     subfolder: '',
     vizes: [],
     summary: false,
+  }
+
+  private get vizImages() {
+    const images: { [index: number]: any } = {}
+    for (let i = 0; i < this.myState.vizes.length; i++) {
+      if (this.myState.vizes[i].component === 'image-view') {
+        images[i] = this.myState.vizes[i]
+      }
+    }
+    return images
+  }
+
+  private get vizMaps() {
+    const maps: { [index: number]: any } = {}
+    for (let i = 0; i < this.myState.vizes.length; i++) {
+      if (this.myState.vizes[i].component !== 'image-view') {
+        maps[i] = this.myState.vizes[i]
+      }
+    }
+    return maps
   }
 
   private cleanName(text: string) {
@@ -623,5 +664,61 @@ h3.curate-heading {
 .curate-content {
   padding: 1rem 0rem;
   margin: 0rem 0rem;
+}
+
+.viz-image-table {
+  display: grid;
+  grid-gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  list-style: none;
+}
+
+.viz-image-grid-item {
+  z-index: 1;
+  text-align: center;
+  margin: 0 0;
+  padding: 0 0;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  vertical-align: top;
+  background-color: var(--bgBold);
+  border: var(--borderThin);
+  border-radius: 16px;
+}
+
+.viz-image-frame {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: $thumbnailHeight;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  p {
+    margin: auto 0 0 0;
+    background-color: var(--bgBold);
+    font-size: 1rem;
+    font-weight: bold;
+    line-height: 1.2rem;
+    padding: 1rem 0.5rem;
+    color: var(--text);
+    word-wrap: break-word;
+    /* Required for text-overflow to do anything */
+    // text-overflow: ellipsis;
+    // white-space: nowrap;
+    // overflow: hidden;
+  }
+}
+
+.viz-image-frame:hover {
+  box-shadow: var(--shadowMode);
+  transition: box-shadow 0.1s ease-in-out;
+}
+
+.viz-image-frame-component {
+  background-color: var(--bgPanel);
 }
 </style>
