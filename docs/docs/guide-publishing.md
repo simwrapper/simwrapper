@@ -7,7 +7,7 @@ OK so you've curated your model runs, post-processed all your results, and built
 
 We are experimenting with several different ways of publishing results to the open web. Please send us feedback on which of these methods works best for you, or if some other way of getting things online would be better.
 
-## Speedrun to your live site: Use fly.io to host it
+## Speedrun: Host your site on fly.io
 
 There are many, many hosting options on the web but we have found that https://fly.io is the most developer-friendly and has an extremely generous free tier, so it's a great place to start. They seem to have taken what Heroku used to be good at, and made it better.
 
@@ -15,29 +15,34 @@ Fly.io free tier currently (May 2022) includes:
 
 - 5 Gb storage
 - 3 (or 10?) site URLs
-- 100 GB data transfer / month free, then $0.02/Gb over
+- 100 GB data transfer per month free, then $0.02/Gb over
 
 Thus, you only need to watch the outbound data transfer to keep your site free. This service doesn't have any redundancy or fault-tolerance, so keep local copies of all your files in case their data center explodes.
 
 ### First time setup
 
-- Install the `flyctl` utility with [these instructions](https://fly.io/docs/getting-started/installing-flyctl/)
-- Run `flyctl auth signup` to open a browser and set up your account. Yes, you need a credit card but it's free if you stay within the limits above.
-- See https://fly.io/docs/speedrun/ for more setup examples
+1. Install the `flyctl` utility with [these instructions](https://fly.io/docs/getting-started/installing-flyctl/) but it is really this simple:
+
+   - Mac: `brew install flyctl`
+   - Linux: `curl -L https://fly.io/install.sh | sh`
+   - Windows: `iwr https://fly.io/install.ps1 -useb | iex`
+
+2. Then run **`flyctl auth signup`** to open a browser and set up your account. Yes, you need a credit card but it's free if you stay within the limits above.
+3. No step 3!
 
 ### Push your site
 
 Now that `flyctl` is set up on your machine you can launch your first site!
 
-- Clone the git repo at `https://github.com/simwrapper/fly-io-site` which has the Dockerfile for SimWrapper ready to go
-- Copy your project folder -- everything you want published -- into the local `data` folder inside that repo
-- Run `flyctl launch` and answer the questions.
-  - Give your site a useful name or it will give you something random
-  - Choose the datacenter; Frankfurt is a nice choice for Germany
-  - You do NOT need a database
-  - Yes, launch it now!
+1. Clone the git repo at `https://github.com/simwrapper/fly-io-site` which has the Dockerfile for SimWrapper ready to go
+2. Copy your project folder -- everything you want published -- into the local `data` folder inside that repo
+3. Run `flyctl launch` and answer the questions:
+   - Give your site a useful name or it will give you something random
+   - Choose the datacenter; Frankfurt is a nice choice for Germany
+   - You do NOT need a database
+   - Yes, launch it now!
 
-That's it. It will take a few minutes to upload all your files and provision the site, and then... that's it; it's live at your-site-name.fly.dev
+That's it. It will take a few minutes to upload all your files and provision the site, and then... that's it; it's live at **your-site-name.fly.dev**
 
 There are ways to give it your own domain name, etc. See the [fly.io/docs](https://fly.io/docs) for all the details.
 
