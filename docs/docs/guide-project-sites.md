@@ -1,5 +1,5 @@
 ---
-id: project-sites
+id: guide-project-sites
 title: 3. Building a project site
 ---
 

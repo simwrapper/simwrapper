@@ -1,5 +1,5 @@
 ---
-id: dashboards
+id: guide-dashboards
 title: 2. Dashboards in depth
 ---
 

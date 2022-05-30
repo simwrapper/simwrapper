@@ -1,7 +1,12 @@
 {
   "doc": {
     "Introduction": ["intro", "file-management", "mini-file-server"],
-    "Guides": ["getting-started", "dashboards", "project-sites"],
+    "Guides": [
+      "guide-getting-started",
+      "guide-dashboards",
+      "guide-project-sites",
+      "guide-publishing"
+    ],
     "Reference": [
       "area-maps",
       "bar-area-line",

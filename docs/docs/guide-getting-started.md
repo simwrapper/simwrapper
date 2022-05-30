@@ -1,5 +1,5 @@
 ---
-id: getting-started
+id: guide-getting-started
 title: 1. Getting started tutorial
 ---
 
