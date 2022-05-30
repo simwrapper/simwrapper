@@ -11,6 +11,7 @@
   "scripts": {
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
+    "deploy-simwrapper": "bash scripts/deploy-ghpages.sh simwrapper/site site",
     "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
     "serve": "vite",
     "build": "node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
