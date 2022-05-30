@@ -8,10 +8,10 @@
         h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
-      .folder-readme(v-if="folderReadme"
-        :class="{'readme-centered': !this.header}"
-        v-html="folderReadme"
-      )
+      //- .folder-readme(v-if="folderReadme"
+      //-   :class="{'readme-centered': !this.header}"
+      //-   v-html="folderReadme"
+      //- )
 
       .tabs.is-centered
         b.up-link(:style="{marginLeft: wiide ? '1rem':'-0.75rem'}")
