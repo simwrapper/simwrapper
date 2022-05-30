@@ -9,6 +9,15 @@
     )
       i.fa.fa-sliders-h.settings-icon
 
+    button.button.draw-button.is-tiny(
+      title="Legend"
+      @click="clickedLegendShowHide"
+      :class="{'is-showing': showLegend}"
+    )
+      i.fa.fa-info.settings-icon
+
+  legend-box.legend-panel(v-show="showLegend")
+
   .configuration-panels(v-show="showPanels && !showAddDatasets")
     .section-panel
       .actions
@@ -52,6 +61,7 @@ import YAML from 'yaml'
 import { startCase } from 'lodash'
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
+import LegendBox from './LegendBox.vue'
 import LineColorPanel from './LineColors.vue'
 import FillColorPanel from './FillColors.vue'
 import FillHeightPanel from './FillHeight.vue'
@@ -66,6 +76,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
     ColorPanel,
     FillColorPanel,
     FillHeightPanel,
+    LegendBox,
     LineColorPanel,
     LineWidthPanel,
   },
@@ -80,6 +91,8 @@ export default class VueComponent extends Vue {
   @Prop({ required: false }) sections!: string[]
 
   private showPanels = false
+  private showLegend = false
+
   private activeSection = this.sections ? this.sections[0] : 'color'
 
   private getSections() {
@@ -108,6 +121,10 @@ export default class VueComponent extends Vue {
 
   private clickedShowHide() {
     this.showPanels = !this.showPanels
+  }
+
+  private clickedLegendShowHide() {
+    this.showLegend = !this.showLegend
   }
 
   private clickedSection(section: string) {
@@ -333,7 +350,7 @@ h1:hover {
   // background-color: var(--bgPanel3);
   padding: 0px 4px;
   border: var(--borderZoomButtons);
-  border-radius: 4px;
+  // border-radius: 4px;
   width: 24px;
   height: 24px;
 }
@@ -382,6 +399,15 @@ h1:hover {
 .export-button:hover {
   background-color: var(--bgCream4);
   color: var(--linkHover);
+}
+
+.legend-panel {
+  background-color: cyan;
+  position: absolute;
+  top: 12rem;
+  bottom: 0;
+  width: 10rem;
+  height: 15rem;
 }
 
 @media only screen and (max-width: 640px) {
