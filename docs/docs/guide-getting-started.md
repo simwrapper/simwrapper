@@ -11,12 +11,12 @@ Welcome to SimWrapper! Let's get you up and running with the basics. This guide 
 
 (create a sample-data.zip with some useful data)
 
-- Install with `pip install simwrapper` or `conda install simwrapper`
+- Install with `pip install simwrapper` or `conda install -c conda-forge simwrapper`
 - Switch to your data folder and run `simwrapper here`
 
 ### 2. Area maps and CSV data
 
-- Get some sample data
+- Get some sample data such as `git clone https://github.com/simwrapper/simwrapper-example-project`
 - Load a shapefile or geojson
 - Add a datafile
 - set some colors, filters
