@@ -3,11 +3,12 @@ import EPSG from 'epsg'
 
 const lookups = {
   DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
+  Hartebeesthoek94: 'EPSG:2048',
   NAD_1983_StatePlane_California_III_FIPS_0403_Feet: 'EPSG:2227',
   NAD_1983_UTM_Zone_10N: 'EPSG:26910',
   ETRS89_UTM_zone_32N: 'EPSG:25832',
   ETRS89_UTM_zone_33N: 'EPSG:25833',
-  Hartebeesthoek94: 'EPSG:2048',
+  UTM_Zone_32N: 'EPSG:25832',
 }
 
 // Set up ALL coordinate systems in 'epsg' repository
