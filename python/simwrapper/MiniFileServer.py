@@ -136,7 +136,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         return None
 
     def do_GET(self):
-        print('\nREQUEST', SPA_MODE, self.directory, ':::', self.path)
+        print('\nREQUEST', self.directory, ':::', self.path)
 
         # If we are not in SPA_MODE the just serve up the files
         if not SPA_MODE:
@@ -148,7 +148,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # File server
         if self.path.startswith('/_f_/'):
             self.path = self.path[4:]
-            print('  FILES', SPA_MODE, self.directory, ':::', self.path)
+            print('  FILES', self.directory, ':::', self.path)
             return super().do_GET()
 
         # Single Page App - path shenanigans
@@ -160,7 +160,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
 
         self.directory = package_dir + '/static'
 
-        print('   SITE', SPA_MODE, self.directory, self.path)
+        print('   SITE', self.directory, self.path)
 
         return super().do_GET()
 
