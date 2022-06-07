@@ -146,6 +146,7 @@ import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vu
 import { FillHeightDefinition } from '@/components/viz-configurator/FillHeight.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import Coords from '@/js/Coords'
+import legendConfiguratorStore from '@/js/storeLegendDetails'
 
 interface FilterDetails {
   column: string
@@ -172,6 +173,8 @@ export default class VueComponent extends Vue {
   private boundaries: any[] = []
   private centroids: any[] = []
   private cbDatasetJoined: any
+
+  private legendStore = legendConfiguratorStore
 
   private chosenNewFilterColumn = ''
   private availableFilterColumns: string[] = []
@@ -691,14 +694,21 @@ export default class VueComponent extends Vue {
 
         // Calculate colors for each feature
         console.log('Updating fills...')
-        const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+        const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           normalize: normalColumn,
           lookup: lookupColumn,
           options: color,
         })
-        this.dataFillColors = calculatedColors
+
+        this.dataFillColors = array
+
+        this.legendStore.setLegendSection({
+          section: 'Color',
+          column: dataColumn.name,
+          values: legend,
+        })
       }
     } else {
       // simple color
@@ -722,13 +732,19 @@ export default class VueComponent extends Vue {
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
           // Calculate colors for each feature
           console.log('update lines...')
-          const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+          const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
             length: this.boundaries.length,
             data: dataColumn,
             lookup: lookupColumn,
             options: color,
           })
-          this.dataLineColors = calculatedColors
+          this.dataLineColors = array
+
+          this.legendStore.setLegendSection({
+            section: 'Lines',
+            column: dataColumn.name,
+            values: legend,
+          })
         }
       } else {
         // simple color

@@ -16,36 +16,38 @@
     )
       i.fa.fa-info.settings-icon
 
-  legend-box.legend-panel(v-show="showLegend")
+  .right-panels
+    .configuration-panels(v-show="showPanels && !showAddDatasets")
+      .section-panel
+        .actions
+          b-dropdown(v-model="selectedExportAction"
+            aria-role="list" position="is-bottom-left" :close-on-click="true"
+            @change="clickedExport"
+          )
+              template(#trigger="{ active }")
+                b-button.is-small.is-white.export-button()
+                  i.fa.fa-sm.fa-share
+                  | &nbsp;Export
+              b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
+              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
 
-  .configuration-panels(v-show="showPanels && !showAddDatasets")
-    .section-panel
-      .actions
-        b-dropdown(v-model="selectedExportAction"
-          aria-role="list" position="is-bottom-left" :close-on-click="true"
-          @change="clickedExport"
-        )
-            template(#trigger="{ active }")
-              b-button.is-small.is-white.export-button()
-                i.fa.fa-sm.fa-share
-                | &nbsp;Export
-            b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-            b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+          b-button.is-small.is-white.export-button(@click="clickedAddData")
+            i.fa.fa-sm.fa-plus
+            | &nbsp;Add Data
 
-        b-button.is-small.is-white.export-button(@click="clickedAddData")
-          i.fa.fa-sm.fa-plus
-          | &nbsp;Add Data
+      .section-panel(v-for="section in getSections()" :key="section.name")
+        h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
-    .section-panel(v-for="section in getSections()" :key="section.name")
-      h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
+        .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
+          component(v-if="section.component"
+            :is="section.component"
+            :vizConfiguration="vizConfiguration"
+            :datasets="datasets"
+            @update="handleConfigChanged")
+          p(v-else) To be added
 
-      .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
-        component(v-if="section.component"
-          :is="section.component"
-          :vizConfiguration="vizConfiguration"
-          :datasets="datasets"
-          @update="handleConfigChanged")
-        p(v-else) To be added
+    .legend-area
+      legend-box.legend-panel(v-show="showLegend")
 
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
@@ -135,6 +137,7 @@ export default class VueComponent extends Vue {
   private async handleConfigChanged(props: any) {
     this.showAddDatasets = false
     await this.$nextTick()
+    console.log(111, props)
     this.$emit('update', props)
   }
 
@@ -280,7 +283,8 @@ export default class VueComponent extends Vue {
 .viz-configurator {
   position: absolute;
   top: 5px;
-  right: 4px;
+  right: 5px;
+  bottom: 8rem;
   display: flex;
   flex-direction: row-reverse;
 }
@@ -331,7 +335,7 @@ h1:hover {
   user-select: none;
   border-radius: 3px;
   pointer-events: auto;
-  margin: 0 0.5rem auto 0;
+  margin: 0 0.5rem 2rem 0;
   filter: $filterShadow;
   z-index: 1050;
 }
@@ -342,7 +346,7 @@ h1:hover {
   display: flex;
   flex-direction: column;
   margin-top: 72px;
-  right: 4px;
+  margin-right: 1px;
   z-index: 20;
 }
 
@@ -353,6 +357,7 @@ h1:hover {
   // border-radius: 4px;
   width: 24px;
   height: 24px;
+  margin-top: 1px;
 }
 
 .draw-button:hover {
@@ -401,15 +406,21 @@ h1:hover {
   color: var(--linkHover);
 }
 
-.legend-panel {
-  background-color: cyan;
-  position: absolute;
-  top: 12rem;
-  bottom: 0;
-  width: 10rem;
-  height: 15rem;
+.legend-area {
+  margin: auto 0.5rem 0 0;
+  background-color: var(--bgBold);
+  filter: $filterShadow;
+  overflow: auto;
 }
 
+.legend-panel {
+  background-color: var(--bgBold);
+}
+
+.right-panels {
+  display: flex;
+  flex-direction: column;
+}
 @media only screen and (max-width: 640px) {
 }
 </style>
