@@ -37,6 +37,7 @@
     :yamlConfig="generatedExportFilename"
     :vizDetails="vizDetails"
     :datasets="datasets"
+    :legendStore="legendStore"
     @update="changeConfiguration"
     @screenshot="takeScreenshot")
 
@@ -712,8 +713,9 @@ export default class VueComponent extends Vue {
       }
     } else {
       // simple color
-      console.log('WHHOPS')
+      console.log('simple')
       this.dataFillColors = color.generatedColors[0]
+      this.legendStore.clear('Color')
     }
   }
 
@@ -741,7 +743,7 @@ export default class VueComponent extends Vue {
           this.dataLineColors = array
 
           this.legendStore.setLegendSection({
-            section: 'Lines',
+            section: 'Line Color',
             column: dataColumn.name,
             values: legend,
           })
@@ -749,6 +751,7 @@ export default class VueComponent extends Vue {
       } else {
         // simple color
         this.dataLineColors = color.generatedColors[0]
+        this.legendStore.clear('Line Color')
       }
     } catch (e) {
       console.error('' + e)
@@ -766,19 +769,28 @@ export default class VueComponent extends Vue {
         if (!dataColumn)
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
+
         // Calculate widths for each feature
         console.log('update line widths...')
-        const calculatedWidths = ColorWidthSymbologizer.getWidthsForDataColumn({
+        const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           lookup: lookupColumn,
           options: width,
         })
-        this.dataLineWidths = calculatedWidths
+
+        this.dataLineWidths = array || 0
+
+        this.legendStore.setLegendSection({
+          section: 'Line Width',
+          column: dataColumn.name,
+          values: legend,
+        })
       }
     } else {
       // simple width
       this.dataLineWidths = 1
+      this.legendStore.clear('Line Width')
     }
     // this.filterListener()
   }

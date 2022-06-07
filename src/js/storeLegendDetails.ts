@@ -10,11 +10,20 @@ const store = {
   debug: true,
   state: {
     message: '',
-    sections: {} as { [id: string]: LegendSection },
+    sections: [] as LegendSection[],
+  },
+  clear(section?: string) {
+    if (section) {
+      // delete the one section
+      this.state.sections = this.state.sections.filter(s => s.section !== section)
+    } else {
+      // delete EVERYTHING
+      this.state.sections = []
+    }
   },
   setLegendSection(props: LegendSection) {
-    const { section, column, values } = props
-    Vue.set(this.state.sections, section, { section, column, values })
+    this.clear(props.section)
+    this.state.sections.unshift(props)
   },
 
   // setMessageAction(newValue: any) {

@@ -50,8 +50,8 @@ function buildWidthsBasedOnCategories(props: {
 }) {
   const { columnName, dataset, scaleFactor } = props.options
 
-  const legend = {} as any
-  return new Float32Array()
+  return { array: new Float32Array(), legend: [] }
+
   // const keys = setColorBasedOnCategory.domain() as any[]
   // const colors = setColorBasedOnCategory.range() as any[]
   // console.log(keys, colors)
@@ -71,7 +71,7 @@ function buildWidthsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (typeof scaleFactor !== 'number') return 0
+  if (typeof scaleFactor !== 'number') return { array: null, legend: [] }
 
   const widths = new Float32Array(length)
 
@@ -81,7 +81,17 @@ function buildWidthsBasedOnNumericValues(props: {
       widths[offset] = data.values[i] / scaleFactor
     }
   }
-  return widths
+
+  // For legend, let's show 1-2-4-8-16-32-64 pixels?
+  const legend = [] as any[]
+  for (const thickness of [1, 5, 10, 17, 25, 50]) {
+    legend.push({ label: scaleFactor * thickness, value: thickness })
+  }
+
+  legend[0].label = '<' + legend[0].label
+  legend[legend.length - 1].label = legend[legend.length - 1].label + '+'
+
+  return { array: widths, legend }
 }
 
 function getHeightsBasedOnNumericValues(props: {

@@ -47,7 +47,10 @@
           p(v-else) To be added
 
     .legend-area
-      legend-box.legend-panel(v-show="showLegend")
+      legend-box.legend-panel(
+        v-show="showLegend"
+        :legendStore="legendStore"
+      )
 
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
@@ -61,6 +64,7 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 import { startCase } from 'lodash'
+
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import LegendBox from './LegendBox.vue'
@@ -70,6 +74,7 @@ import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import lgStore, { LegendSection } from '@/js/storeLegendDetails'
 
 @Component({
   components: {
@@ -91,6 +96,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) yamlConfig!: string
   @Prop({ required: false }) sections!: string[]
+  @Prop({ required: false }) legendStore!: any
 
   private showPanels = false
   private showLegend = false
@@ -287,6 +293,7 @@ export default class VueComponent extends Vue {
   bottom: 8rem;
   display: flex;
   flex-direction: row-reverse;
+  pointer-events: none;
 }
 
 h1 {
@@ -407,10 +414,13 @@ h1:hover {
 }
 
 .legend-area {
-  margin: auto 0.5rem 0 0;
   background-color: var(--bgBold);
   filter: $filterShadow;
+  margin: auto 0.5rem 0 0;
+  opacity: 0.97;
   overflow: auto;
+  pointer-events: all;
+  user-select: none;
 }
 
 .legend-panel {

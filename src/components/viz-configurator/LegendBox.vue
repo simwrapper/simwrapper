@@ -1,22 +1,28 @@
 <template lang="pug">
 .legend-box
-  .legend-section(v-for="section in sections" :key="'' + section")
-    p: b {{ section.column }}
-    .section-row(v-for="row of getRowsInSection(section)")
-      .row-value(:style="getRowStyle(row.value)")
-      .row-label {{ getRowLabel(row.label) }}
+  .legend-section(v-for="section,i in sections" :key="section.section")
+    p(:style="{marginTop: i ? '1rem':''}"): b {{ section.column }}
+    .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
+      .row-value(:style="getRowStyle(row)")
+      .row-label(:style="getLabelStyle(row)") {{ getRowLabel(row) }}
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import legendStore, { LegendSection } from '@/js/storeLegendDetails'
+import lgStore, { LegendSection } from '@/js/storeLegendDetails'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
-  private state = legendStore.state
+  @Prop({ required: true }) legendStore!: any
+
+  private state = this.legendStore.state
+
+  private beforeDestroy() {
+    this.legendStore.clear()
+  }
 
   private get sections() {
-    return Object.values(this.state.sections)
+    return this.state.sections
   }
 
   private getRowsInSection(section: LegendSection) {
@@ -32,25 +38,49 @@ export default class VueComponent extends Vue {
     // return entries
   }
 
-  private getRowLabel(label: any) {
-    return label
+  private getRowLabel(row: { label: string; value: any }) {
+    return row.label || row.value // no label -> it's a line width
   }
 
-  private getRowStyle(value: any) {
-    if (Array.isArray(value)) {
+  private getRowStyle(row: { label: string; value: any }) {
+    if (Array.isArray(row.value)) {
       // it's a 3-color
-      const backgroundColor = `rgb(${value[0]},${value[1]},${value[2]})`
+      const backgroundColor = `rgb(${row.value[0]},${row.value[1]},${row.value[2]})`
       const style = {
         backgroundColor,
         width: '1rem',
         height: '1rem',
-        margin: '',
         border: '1px solid #88888844',
-        lineHeight: '14px',
+        // lineHeight: '14px',
+      }
+      return style
+    } else {
+      const style = {
+        backgroundColor: '#779',
+        width: '2rem',
+        height: `${row.value / 2}px`,
+        margin: 'auto 0 4px 0',
       }
       return style
     }
     return {}
+  }
+
+  private getLabelStyle(row: { label: string; value: any }) {
+    if (Array.isArray(row.value)) {
+      // colors
+      return {
+        marginLeft: '4px',
+      }
+    } else {
+      // widths
+      return {
+        display: 'flex',
+        flexDirection: 'column-reverse',
+        marginLeft: '4px',
+        marginBottom: '-2px',
+      }
+    }
   }
 }
 </script>
@@ -61,7 +91,7 @@ export default class VueComponent extends Vue {
 .legend-box {
   background-color: cyan;
   font-size: 0.85rem;
-  padding: 0.25rem 0.25rem;
+  padding: 0.25rem 0.5rem;
   height: 100%;
   min-height: 100%;
   // overflow-y: auto;
@@ -70,10 +100,6 @@ export default class VueComponent extends Vue {
 .section-row {
   display: flex;
   flex-direction: row;
-}
-
-.row-label {
-  margin-left: 4px;
 }
 
 b {
