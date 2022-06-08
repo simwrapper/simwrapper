@@ -37,6 +37,7 @@
     :yamlConfig="generatedExportFilename"
     :vizDetails="vizDetails"
     :datasets="datasets"
+    :legendStore="legendStore"
     @update="changeConfiguration"
     @screenshot="takeScreenshot")
 
@@ -146,6 +147,7 @@ import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vu
 import { FillHeightDefinition } from '@/components/viz-configurator/FillHeight.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import Coords from '@/js/Coords'
+import LegendStore from '@/js/LegendStore'
 
 interface FilterDetails {
   column: string
@@ -172,6 +174,8 @@ export default class VueComponent extends Vue {
   private boundaries: any[] = []
   private centroids: any[] = []
   private cbDatasetJoined: any
+
+  private legendStore = new LegendStore()
 
   private chosenNewFilterColumn = ''
   private availableFilterColumns: string[] = []
@@ -322,6 +326,7 @@ export default class VueComponent extends Vue {
   }
 
   private beforeDestroy() {
+    this.legendStore.clear()
     this.myDataManager.removeFilterListener(this.config, this.filterListener)
 
     // MUST delete the React view handle to prevent gigantic memory leak!
@@ -691,19 +696,27 @@ export default class VueComponent extends Vue {
 
         // Calculate colors for each feature
         console.log('Updating fills...')
-        const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+        const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           normalize: normalColumn,
           lookup: lookupColumn,
           options: color,
         })
-        this.dataFillColors = calculatedColors
+
+        this.dataFillColors = array
+
+        this.legendStore.setLegendSection({
+          section: 'Color',
+          column: dataColumn.name,
+          values: legend,
+        })
       }
     } else {
       // simple color
-      console.log('WHHOPS')
+      console.log('simple')
       this.dataFillColors = color.generatedColors[0]
+      this.legendStore.clear('Color')
     }
   }
 
@@ -718,21 +731,29 @@ export default class VueComponent extends Vue {
         if (selectedDataset) {
           const lookupColumn = selectedDataset['@']
           const dataColumn = selectedDataset[columnName]
+
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
           // Calculate colors for each feature
-          console.log('update lines...')
-          const calculatedColors = ColorWidthSymbologizer.getColorsForDataColumn({
+          const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
             length: this.boundaries.length,
             data: dataColumn,
             lookup: lookupColumn,
             options: color,
           })
-          this.dataLineColors = calculatedColors
+          this.dataLineColors = array
+
+          this.legendStore.setLegendSection({
+            section: 'Line Color',
+            column: dataColumn.name,
+            values: legend,
+          })
         }
       } else {
         // simple color
         this.dataLineColors = color.generatedColors[0]
+        this.legendStore.clear('Line Color')
       }
     } catch (e) {
       console.error('' + e)
@@ -741,6 +762,14 @@ export default class VueComponent extends Vue {
 
   private handleNewLineWidth(width: LineWidthDefinition) {
     const columnName = width.columnName
+
+    // No scale factor? go hoome
+    if (width.scaleFactor && isNaN(width.scaleFactor)) {
+      this.dataLineWidths = 1
+      this.legendStore.clear('Line Width')
+      return
+    }
+
     if (columnName) {
       // Get the data column
       const datasetKey = width.dataset || ''
@@ -750,19 +779,32 @@ export default class VueComponent extends Vue {
         if (!dataColumn)
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
+
         // Calculate widths for each feature
-        console.log('update line widths...')
-        const calculatedWidths = ColorWidthSymbologizer.getWidthsForDataColumn({
+        const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           lookup: lookupColumn,
           options: width,
         })
-        this.dataLineWidths = calculatedWidths
+
+        this.dataLineWidths = array || 0
+
+        if (legend.length) {
+          this.legendStore.setLegendSection({
+            section: 'Line Width',
+            column: dataColumn.name,
+            values: legend,
+          })
+        } else {
+          this.legendStore.clear('Line Width')
+        }
       }
     } else {
       // simple width
+
       this.dataLineWidths = 1
+      this.legendStore.clear('Line Width')
     }
     // this.filterListener()
   }

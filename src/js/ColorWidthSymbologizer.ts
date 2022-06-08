@@ -50,8 +50,8 @@ function buildWidthsBasedOnCategories(props: {
 }) {
   const { columnName, dataset, scaleFactor } = props.options
 
-  const legend = {} as any
-  return new Float32Array()
+  return { array: new Float32Array(), legend: [] }
+
   // const keys = setColorBasedOnCategory.domain() as any[]
   // const colors = setColorBasedOnCategory.range() as any[]
   // console.log(keys, colors)
@@ -71,7 +71,7 @@ function buildWidthsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (typeof scaleFactor !== 'number') return 0
+  if (isNaN(scaleFactor)) return { array: null, legend: [] }
 
   const widths = new Float32Array(length)
 
@@ -81,7 +81,17 @@ function buildWidthsBasedOnNumericValues(props: {
       widths[offset] = data.values[i] / scaleFactor
     }
   }
-  return widths
+
+  // For legend, let's show 1-2-4-8-16-32-64 pixels?
+  const legend = [] as any[]
+  for (const thickness of [1, 5, 10, 17, 25, 50]) {
+    legend.push({ label: scaleFactor * thickness, value: thickness })
+  }
+
+  legend[0].label = '<' + legend[0].label
+  legend[legend.length - 1].label = legend[legend.length - 1].label + '+'
+
+  return { array: widths, legend }
 }
 
 function getHeightsBasedOnNumericValues(props: {
@@ -174,14 +184,16 @@ function buildColorsBasedOnCategories(props: {
     rgbArray[offset + 2] = color[2]
   }
 
-  const legend = {} as any
+  const legend = [] as any[]
   const keys = setColorBasedOnCategory.domain() as any[]
   const colors = setColorBasedOnCategory.range() as any[]
-  // console.log(keys, colors)
-  keys.forEach((key, index) => (legend[key] = colors[index]))
+
+  keys.forEach((key, index) => legend.push({ label: key, value: colors[index % colors.length] }))
+  legend.sort((a, b) => (a.label < b.label ? -1 : 1))
+
   console.log({ legend })
 
-  return rgbArray
+  return { array: rgbArray, legend }
 }
 
 function buildColorsBasedOnNumericValues(props: {
@@ -243,15 +255,32 @@ function buildColorsBasedOnNumericValues(props: {
     rgbArray[offset + 2] = color[2]
   }
 
-  const legend = {} as any
+  const legend = [] as any[]
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
-  keys.forEach((key, index) => (legend[key] = colors[index]))
-  console.log({ legend })
-  console.log(4)
+  // need to figure out RANGES, not just breakpoints:
+  let lowerBound = 0
+  for (let i = 0; i < keys.length; i++) {
+    const upperBound = keys[i]
+    const lowerLabel = Math.round(lowerBound * normalizedMax)
+    const upperLabel = Math.round(upperBound * normalizedMax)
+    legend.push({
+      label: `${lowerLabel} - ${upperLabel}`,
+      value: colors[i],
+    })
+    lowerBound = upperBound
+  }
+  legend.push({
+    label: `${Math.round(lowerBound * normalizedMax)} - ${normalizedMax}`,
+    value: colors[keys.length - 1],
+  })
 
-  return rgbArray
+  // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
+
+  console.log({ legend, colors })
+
+  return { array: rgbArray, legend }
 }
 
 // helpers ------------------------------------------------------------
