@@ -24,6 +24,7 @@ const store = {
   setLegendSection(props: LegendSection) {
     this.clear(props.section)
     this.state.sections.unshift(props)
+    this.state.sections.sort((a, b) => (a.section < b.section ? -1 : 1))
   },
 
   // setMessageAction(newValue: any) {

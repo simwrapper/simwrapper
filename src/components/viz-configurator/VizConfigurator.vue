@@ -143,7 +143,6 @@ export default class VueComponent extends Vue {
   private async handleConfigChanged(props: any) {
     this.showAddDatasets = false
     await this.$nextTick()
-    console.log(111, props)
     this.$emit('update', props)
   }
 

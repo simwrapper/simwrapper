@@ -71,7 +71,7 @@ function buildWidthsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (typeof scaleFactor !== 'number') return { array: null, legend: [] }
+  if (isNaN(scaleFactor)) return { array: null, legend: [] }
 
   const widths = new Float32Array(length)
 

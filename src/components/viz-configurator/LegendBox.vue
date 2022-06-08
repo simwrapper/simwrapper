@@ -39,7 +39,7 @@ export default class VueComponent extends Vue {
   }
 
   private getRowLabel(row: { label: string; value: any }) {
-    return row.label || row.value // no label -> it's a line width
+    return row.label // || row.value // no label -> it's a line width
   }
 
   private getRowStyle(row: { label: string; value: any }) {

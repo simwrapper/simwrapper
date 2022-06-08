@@ -730,10 +730,11 @@ export default class VueComponent extends Vue {
         if (selectedDataset) {
           const lookupColumn = selectedDataset['@']
           const dataColumn = selectedDataset[columnName]
+
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
           // Calculate colors for each feature
-          console.log('update lines...')
           const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
             length: this.boundaries.length,
             data: dataColumn,
@@ -760,6 +761,14 @@ export default class VueComponent extends Vue {
 
   private handleNewLineWidth(width: LineWidthDefinition) {
     const columnName = width.columnName
+
+    // No scale factor? go hoome
+    if (width.scaleFactor && isNaN(width.scaleFactor)) {
+      this.dataLineWidths = 1
+      this.legendStore.clear('Line Width')
+      return
+    }
+
     if (columnName) {
       // Get the data column
       const datasetKey = width.dataset || ''
@@ -771,7 +780,6 @@ export default class VueComponent extends Vue {
         const lookupColumn = selectedDataset['@']
 
         // Calculate widths for each feature
-        console.log('update line widths...')
         const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
@@ -781,14 +789,19 @@ export default class VueComponent extends Vue {
 
         this.dataLineWidths = array || 0
 
-        this.legendStore.setLegendSection({
-          section: 'Line Width',
-          column: dataColumn.name,
-          values: legend,
-        })
+        if (legend.length) {
+          this.legendStore.setLegendSection({
+            section: 'Line Width',
+            column: dataColumn.name,
+            values: legend,
+          })
+        } else {
+          this.legendStore.clear('Line Width')
+        }
       }
     } else {
       // simple width
+
       this.dataLineWidths = 1
       this.legendStore.clear('Line Width')
     }
