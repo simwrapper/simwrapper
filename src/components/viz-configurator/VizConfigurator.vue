@@ -38,7 +38,7 @@
       .section-panel(v-for="section in getSections()" :key="section.name")
         h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
 
-        .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
+        .symbology-panel(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
           component(v-if="section.component"
             :is="section.component"
             :vizConfiguration="vizConfiguration"
@@ -326,7 +326,10 @@ h1:hover {
   border-bottom-right-radius: 3px;
 }
 
-.details {
+.symbology-panel {
+  border: var(--borderSymbology);
+  color: var(--textBold);
+  background-color: var(--bgCream);
   padding-left: 0.75rem;
   padding-bottom: 0.5rem;
 }
