@@ -120,7 +120,7 @@ export default class VueComponent extends Vue {
 .map-complications {
   position: absolute;
   top: 4px;
-  right: 4px;
+  right: 5px;
   display: flex;
   flex-direction: row;
   pointer-events: none;

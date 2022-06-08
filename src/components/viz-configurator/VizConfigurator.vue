@@ -9,34 +9,48 @@
     )
       i.fa.fa-sliders-h.settings-icon
 
-  .configuration-panels(v-show="showPanels && !showAddDatasets")
-    .section-panel
-      .actions
-        b-dropdown(v-model="selectedExportAction"
-          aria-role="list" position="is-bottom-left" :close-on-click="true"
-          @change="clickedExport"
-        )
-            template(#trigger="{ active }")
-              b-button.is-small.is-white.export-button()
-                i.fa.fa-sm.fa-share
-                | &nbsp;Export
-            b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-            b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+    button.button.draw-button.is-tiny(
+      title="Legend"
+      @click="clickedLegendShowHide"
+      :class="{'is-showing': showLegend}"
+    )
+      i.fa.fa-info.settings-icon
 
-        b-button.is-small.is-white.export-button(@click="clickedAddData")
-          i.fa.fa-sm.fa-plus
-          | &nbsp;Add Data
+  .right-panels
+    .configuration-panels(v-show="showPanels && !showAddDatasets")
+      .section-panel
+        .actions
+          b-dropdown(v-model="selectedExportAction"
+            aria-role="list" position="is-bottom-left" :close-on-click="true"
+            @change="clickedExport"
+          )
+              template(#trigger="{ active }")
+                b-button.is-small.is-white.export-button()
+                  i.fa.fa-sm.fa-share
+                  | &nbsp;Export
+              b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
+              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
 
-    .section-panel(v-for="section in getSections()" :key="section.name")
-      h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
+          b-button.is-small.is-white.export-button(@click="clickedAddData")
+            i.fa.fa-sm.fa-plus
+            | &nbsp;Add Data
 
-      .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
-        component(v-if="section.component"
-          :is="section.component"
-          :vizConfiguration="vizConfiguration"
-          :datasets="datasets"
-          @update="handleConfigChanged")
-        p(v-else) To be added
+      .section-panel(v-for="section in getSections()" :key="section.name")
+        h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
+
+        .details(v-show="section.name===activeSection" :class="{active: section.name === activeSection}")
+          component(v-if="section.component"
+            :is="section.component"
+            :vizConfiguration="vizConfiguration"
+            :datasets="datasets"
+            @update="handleConfigChanged")
+          p(v-else) To be added
+
+    .legend-area
+      legend-box.legend-panel(
+        v-show="showLegend"
+        :legendStore="legendStore"
+      )
 
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
@@ -50,14 +64,17 @@
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 import { startCase } from 'lodash'
+
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
+import LegendBox from './LegendBox.vue'
 import LineColorPanel from './LineColors.vue'
 import FillColorPanel from './FillColors.vue'
 import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendStore from '@/js/LegendStore'
 
 @Component({
   components: {
@@ -66,6 +83,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
     ColorPanel,
     FillColorPanel,
     FillHeightPanel,
+    LegendBox,
     LineColorPanel,
     LineWidthPanel,
   },
@@ -78,8 +96,11 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) yamlConfig!: string
   @Prop({ required: false }) sections!: string[]
+  @Prop({ required: true }) legendStore!: LegendStore
 
   private showPanels = false
+  private showLegend = false
+
   private activeSection = this.sections ? this.sections[0] : 'color'
 
   private getSections() {
@@ -108,6 +129,10 @@ export default class VueComponent extends Vue {
 
   private clickedShowHide() {
     this.showPanels = !this.showPanels
+  }
+
+  private clickedLegendShowHide() {
+    this.showLegend = !this.showLegend
   }
 
   private clickedSection(section: string) {
@@ -263,9 +288,11 @@ export default class VueComponent extends Vue {
 .viz-configurator {
   position: absolute;
   top: 5px;
-  right: 4px;
+  right: 5px;
+  bottom: 8rem;
   display: flex;
   flex-direction: row-reverse;
+  pointer-events: none;
 }
 
 h1 {
@@ -314,7 +341,7 @@ h1:hover {
   user-select: none;
   border-radius: 3px;
   pointer-events: auto;
-  margin: 0 0.5rem auto 0;
+  margin: 0 0.5rem 2rem 0;
   filter: $filterShadow;
   z-index: 1050;
 }
@@ -325,7 +352,7 @@ h1:hover {
   display: flex;
   flex-direction: column;
   margin-top: 72px;
-  right: 4px;
+  margin-right: 1px;
   z-index: 20;
 }
 
@@ -333,9 +360,10 @@ h1:hover {
   // background-color: var(--bgPanel3);
   padding: 0px 4px;
   border: var(--borderZoomButtons);
-  border-radius: 4px;
+  // border-radius: 4px;
   width: 24px;
   height: 24px;
+  margin-top: 1px;
 }
 
 .draw-button:hover {
@@ -384,6 +412,24 @@ h1:hover {
   color: var(--linkHover);
 }
 
+.legend-area {
+  background-color: var(--bgBold);
+  filter: $filterShadow;
+  margin: auto 0.5rem 0 0;
+  opacity: 0.97;
+  overflow: auto;
+  pointer-events: all;
+  user-select: none;
+}
+
+.legend-panel {
+  background-color: var(--bgBold);
+}
+
+.right-panels {
+  display: flex;
+  flex-direction: column;
+}
 @media only screen and (max-width: 640px) {
 }
 </style>
