@@ -74,7 +74,7 @@ import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import lgStore, { LegendSection } from '@/js/storeLegendDetails'
+import LegendStore from '@/js/LegendStore'
 
 @Component({
   components: {
@@ -96,7 +96,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: true }) yamlConfig!: string
   @Prop({ required: false }) sections!: string[]
-  @Prop({ required: false }) legendStore!: any
+  @Prop({ required: true }) legendStore!: LegendStore
 
   private showPanels = false
   private showLegend = false

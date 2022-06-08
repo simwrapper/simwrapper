@@ -147,7 +147,7 @@ import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vu
 import { FillHeightDefinition } from '@/components/viz-configurator/FillHeight.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import Coords from '@/js/Coords'
-import legendConfiguratorStore from '@/js/storeLegendDetails'
+import LegendStore from '@/js/LegendStore'
 
 interface FilterDetails {
   column: string
@@ -175,7 +175,7 @@ export default class VueComponent extends Vue {
   private centroids: any[] = []
   private cbDatasetJoined: any
 
-  private legendStore = legendConfiguratorStore
+  private legendStore = new LegendStore()
 
   private chosenNewFilterColumn = ''
   private availableFilterColumns: string[] = []
@@ -326,6 +326,7 @@ export default class VueComponent extends Vue {
   }
 
   private beforeDestroy() {
+    this.legendStore.clear()
     this.myDataManager.removeFilterListener(this.config, this.filterListener)
 
     // MUST delete the React view handle to prevent gigantic memory leak!

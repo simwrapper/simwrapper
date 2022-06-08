@@ -9,11 +9,11 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import lgStore, { LegendSection } from '@/js/storeLegendDetails'
+import LegendStore, { LegendSection } from '@/js/LegendStore'
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
-  @Prop({ required: true }) legendStore!: any
+  @Prop({ required: true }) legendStore!: LegendStore
 
   private state = this.legendStore.state
 
