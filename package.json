@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@aftersim/pako": "^1.0.11-3",
+    "@deck.gl/extensions": "^8.7.11",
     "@flowmap.gl/core": "^7.3.3",
     "@luma.gl/core": "^8.5.10",
     "@math.gl/polygon": "^3.5.6",
