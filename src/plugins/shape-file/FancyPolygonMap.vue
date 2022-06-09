@@ -576,10 +576,11 @@ export default class VueComponent extends Vue {
     // if user wants specific tooltips based on this dataset, save the values
     const tips = this.vizDetails.tooltip || []
     const relevantTips = tips
-      .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+      .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
       .map(tip => {
-        return [tip, tip.substring(1 + tip.indexOf(':'))]
+        return [tip, tip.substring(1 + tip.indexOf('.'))]
       })
+
     console.log({ relevantTips })
 
     for (let i = 0; i < dataValues.length; i++) {
