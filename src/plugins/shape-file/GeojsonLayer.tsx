@@ -160,7 +160,7 @@ export default function Component({
     let columns = Object.keys(featureDataTable)
     if (tooltip && tooltip.length) {
       columns = tooltip.map(tip => {
-        return tip.substring(tip.indexOf(':') + 1)
+        return tip.substring(tip.indexOf('.') + 1)
       })
     }
     columns.forEach(column => {
