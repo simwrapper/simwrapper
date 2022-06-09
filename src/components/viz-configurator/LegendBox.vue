@@ -89,12 +89,11 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .legend-box {
-  background-color: cyan;
   font-size: 0.85rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.75rem;
   height: 100%;
   min-height: 100%;
-  // overflow-y: auto;
+  border: var(--borderThin);
 }
 
 .section-row {

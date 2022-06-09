@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
+import { DataFilterExtension } from '@deck.gl/extensions'
 
 import { StaticMap, MapRef } from 'react-map-gl'
 import { rgb } from 'd3-color'
@@ -8,9 +9,9 @@ import { format } from 'mathjs'
 import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
-import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
-import { GeoJsonLayer } from '@deck.gl/layers'
+import { OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
+
 import screenshots from '@/js/screenshots'
 
 // GeoJsonLayer.defaultProps = {
@@ -36,6 +37,7 @@ export default function Component({
   screenshot = 0,
   featureDataTable = {} as DataTable,
   tooltip = [] as string[],
+  featureFilter = new Float32Array(0),
 }) {
   const mapRef = useRef<MapRef>() as any
   const [viewState, setViewState] = useState(globalStore.state.viewState)
@@ -74,6 +76,8 @@ export default function Component({
   } else {
     // array of colors
     cbLineColor = (_: any, o: DeckObject) => {
+      if (features[o.index].properties._hide) return [0, 0, 0, 0]
+
       return [
         lineColors[o.index * 3 + 0], // r
         lineColors[o.index * 3 + 1], // g
@@ -234,6 +238,12 @@ export default function Component({
     },
     glOptions: {
       preserveDrawingBuffer: true, // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+    },
+    // filter shapes
+    extensions: [new DataFilterExtension({ filterSize: 1 })],
+    filterRange: [0, 1], // set filter to -1 to filter element out
+    getFilterValue: (_: any, o: DeckObject) => {
+      return featureFilter[o.index]
     },
   }) as any
 
