@@ -2,7 +2,7 @@
 .map-layout(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard")
+  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
      h3 {{ vizDetails.title }}
      p {{ vizDetails.description }}
 
@@ -32,6 +32,7 @@
   )
 
   viz-configurator(v-if="isLoaded && !thumbnail"
+    :embedded="isEmbedded"
     :sections="configuratorSections"
     :fileSystem="fileSystemConfig"
     :subfolder="subfolder"
@@ -42,7 +43,7 @@
     @update="changeConfiguration"
     @screenshot="takeScreenshot")
 
-  .config-bar(v-if="!thumbnail"
+  .config-bar(v-if="!thumbnail && !isEmbedded"
     :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
 
     //- //- Column picker
@@ -183,7 +184,7 @@ export default class VueComponent extends Vue {
   private centroids: any[] = []
   private cbDatasetJoined: any
 
-  private legendStore = new LegendStore()
+  private legendStore: LegendStore = new LegendStore()
 
   private chosenNewFilterColumn = ''
   private availableFilterColumns: string[] = []
@@ -274,9 +275,23 @@ export default class VueComponent extends Vue {
 
   private filterDefinitions: FilterDefinition[] = []
 
+  private isEmbedded = false
+
+  private setEmbeddedMode() {
+    if ('embed' in this.$route.query) {
+      console.log('EMBEDDED MODE')
+      this.isEmbedded = true
+      this.$store.commit('setShowLeftBar', false)
+      this.$store.commit('setFullWidth', true)
+    }
+  }
+
   private async mounted() {
     try {
       this.buildFileApi()
+
+      // EMBED MODE?
+      this.setEmbeddedMode()
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
