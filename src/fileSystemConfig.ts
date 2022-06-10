@@ -39,9 +39,9 @@ const fileSystems: FileSystemConfig[] = [
   },
   {
     name: 'Public Data Folder',
-    slug: 'public',
+    slug: 'files',
     description: 'Data from /public/data folder',
-    baseURL: loc.origin + '/dashboard/data',
+    baseURL: loc.origin + '/' + 'data',
     hidden: true,
   },
 
@@ -61,7 +61,7 @@ const fileSystems: FileSystemConfig[] = [
   },
   {
     name: 'Public Scenarios',
-    slug: 'public-svn',
+    slug: 'public',
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
     thumbnail: '/simwrapper/images/thumb-chart.jpg',
