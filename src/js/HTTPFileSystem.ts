@@ -58,7 +58,7 @@ class SVNFileSystem {
 
   private async _getFileFetchResponse(scaryPath: string): Promise<Response> {
     const path = this.cleanURL(scaryPath)
-
+    // console.log(path)
     const headers: any = {}
 
     // const credentials = globalStore.state.credentials[this.urlId]
@@ -228,8 +228,10 @@ class SVNFileSystem {
   }
 
   async getDirectoryFromURL(stillScaryPath: string) {
+    // console.log(stillScaryPath)
     const response = await this._getFileResponse(stillScaryPath).then()
     const htmlListing = await response.text()
+    // console.log(htmlListing)
     const dirEntry = this.buildListFromHtml(htmlListing)
     return dirEntry
   }
