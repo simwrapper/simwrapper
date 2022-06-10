@@ -1,7 +1,7 @@
 <template lang="pug">
 .legend-box
   .legend-section(v-for="section,i in sections" :key="section.section")
-    p(:style="{marginTop: i ? '1rem':''}"): b {{ section.column }}
+    p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ section.column }}
     .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
       .row-value(:style="getRowStyle(row)")
       .row-label(:style="getLabelStyle(row)") {{ getRowLabel(row) }}
@@ -15,14 +15,12 @@ import LegendStore, { LegendSection } from '@/js/LegendStore'
 export default class VueComponent extends Vue {
   @Prop({ required: true }) legendStore!: LegendStore
 
-  private state = this.legendStore.state
-
   private beforeDestroy() {
     this.legendStore.clear()
   }
 
   private get sections() {
-    return this.state.sections
+    return this.legendStore.state.sections
   }
 
   private getRowsInSection(section: LegendSection) {

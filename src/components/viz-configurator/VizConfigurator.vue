@@ -3,6 +3,7 @@
 
   .map-actions
     button.button.draw-button.is-tiny(
+      v-show="!embedded"
       title="Config"
       @click="clickedShowHide"
       :class="{'is-showing': showPanels}"
@@ -97,11 +98,16 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) yamlConfig!: string
   @Prop({ required: false }) sections!: string[]
   @Prop({ required: true }) legendStore!: LegendStore
+  @Prop({ required: false }) embedded!: boolean
 
   private showPanels = false
   private showLegend = false
 
   private activeSection = this.sections ? this.sections[0] : 'color'
+
+  private mounted() {
+    if (this.embedded) this.showLegend = true
+  }
 
   private getSections() {
     if (this.sections) {

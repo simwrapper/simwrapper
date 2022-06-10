@@ -16,7 +16,7 @@
       @zoom="showBackArrow(i, $event)"
     )
 
-    .control-buttons
+    .control-buttons(v-if="!isEmbedded")
       a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
         @click="onBack(i)" :title="$t('back')")
           i.fa.fa-icon.fa-arrow-left
@@ -60,11 +60,16 @@ class MyComponent extends Vue {
 
   private zoomed = false
 
+  private isEmbedded = false
+
   private showBackArrow(isZoomed: number, state: boolean) {
     this.zoomed = state
   }
 
   private mounted() {
+    // EMBEDDED MODE? We'll hide some chrome
+    if ('embed' in this.$route.query) this.isEmbedded = true
+
     this.buildLayoutFromURL()
   }
 
