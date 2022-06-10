@@ -8,20 +8,33 @@
 
   .status-bar(v-show="statusText") {{ statusText }}
 
-  geojson-layer.choro-map(v-if="!thumbnail"
-    :viewId="layerId"
-    :features="useCircles ? centroids : boundaries"
-    :featureFilter="boundaryFilters"
-    :lineColors="dataLineColors"
-    :lineWidths="dataLineWidths"
-    :fillColors="dataFillColors"
-    :fillHeights="dataFillHeights"
-    :opacity="sliderOpacity"
-    :pointRadii="dataPointRadii"
-    :screenshot="triggerScreenshot"
-    :featureDataTable="boundaryDataTable"
-    :tooltip="vizDetails.tooltip"
-  )
+  .area-map(v-if="!thumbnail")
+    geojson-layer(v-if="!thumbnail"
+      :viewId="layerId"
+      :features="useCircles ? centroids : boundaries"
+      :featureFilter="boundaryFilters"
+      :lineColors="dataLineColors"
+      :lineWidths="dataLineWidths"
+      :fillColors="dataFillColors"
+      :fillHeights="dataFillHeights"
+      :opacity="sliderOpacity"
+      :pointRadii="dataPointRadii"
+      :screenshot="triggerScreenshot"
+      :featureDataTable="boundaryDataTable"
+      :tooltip="vizDetails.tooltip"
+    )
+    viz-configurator(v-if="isLoaded && !thumbnail"
+      :embedded="isEmbedded"
+      :sections="configuratorSections"
+      :fileSystem="fileSystemConfig"
+      :subfolder="subfolder"
+      :yamlConfig="generatedExportFilename"
+      :vizDetails="vizDetails"
+      :datasets="datasets"
+      :legendStore="legendStore"
+      @update="changeConfiguration"
+      @screenshot="takeScreenshot"
+    )
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -31,17 +44,6 @@
     @join="cbDatasetJoined"
   )
 
-  viz-configurator(v-if="isLoaded && !thumbnail"
-    :embedded="isEmbedded"
-    :sections="configuratorSections"
-    :fileSystem="fileSystemConfig"
-    :subfolder="subfolder"
-    :yamlConfig="generatedExportFilename"
-    :vizDetails="vizDetails"
-    :datasets="datasets"
-    :legendStore="legendStore"
-    @update="changeConfiguration"
-    @screenshot="takeScreenshot")
 
   .config-bar(v-if="!thumbnail && !isEmbedded"
     :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
@@ -1563,7 +1565,7 @@ globalStore.commit('registerPlugin', {
   z-index: 0;
 }
 
-.choro-map {
+.area-map {
   position: relative;
   z-index: -1;
   flex: 1;
