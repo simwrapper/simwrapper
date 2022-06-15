@@ -13,7 +13,7 @@
 
 import { rollup } from 'd3-array'
 
-import { DataTable, FileSystemConfig, Status } from '@/Globals'
+import { DataTable, DataTableColumn, FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
 import { findMatchingGlobInFiles } from '@/js/util'
 import HTTPFileSystem from './HTTPFileSystem'
@@ -31,6 +31,13 @@ interface configuration {
   skipFirstRow?: boolean
   useLastRow?: boolean
   x?: string
+}
+
+export interface FilterDefinition {
+  dataset: string
+  column: string
+  invert: boolean
+  value: any
 }
 
 export interface NetworkLinks {
@@ -270,10 +277,12 @@ export default class DashboardDataManager {
   //   }
   // }
 
-  public setFilter(dataset: string, column: string, value: any) {
+  public setFilter(filter: FilterDefinition) {
+    const { dataset, column, value, invert } = filter
+
+    console.log('> setFilter', dataset, column, value)
     // Filter might be single or an array; make it an array.
     const values = Array.isArray(value) ? value : [value]
-
     const allFilters = this.datasets[dataset].activeFilters
     // a second click on a filter means REMOVE this filter.
     // if (allFilters[column] !== undefined && allFilters[column] === values) {
@@ -283,12 +292,16 @@ export default class DashboardDataManager {
     if (!values.length) {
       delete allFilters[column]
     } else {
-      allFilters[column] = value
+      allFilters[column] = { values, invert }
     }
     this.updateFilters(dataset) // this is async
   }
 
   public addFilterListener(config: { dataset: string }, listener: any) {
+    const selectedDataset = this.datasets[config.dataset]
+    if (!selectedDataset) throw Error('No dataset named: ' + config.dataset)
+
+    console.log(22, config.dataset, this.datasets[config.dataset])
     this.datasets[config.dataset].filterListeners.add(listener)
   }
 
@@ -310,9 +323,12 @@ export default class DashboardDataManager {
   // ---- PRIVATE STUFFS -----------------------
 
   private async updateFilters(datasetId: string) {
+    console.log('> updateFilters ', datasetId)
     const metaData = this.datasets[datasetId]
+    console.log({ metaData })
 
     if (!Object.keys(metaData.activeFilters).length) {
+      console.log('no keys')
       metaData.filteredRows = null
       this.notifyListeners(datasetId)
       return
@@ -324,38 +340,89 @@ export default class DashboardDataManager {
     let filteredRows: any[] = []
 
     const numberOfRowsInFullDataset = dataset[allColumns[0]].values.length
-    // console.log('FILTERS', metaData.activeFilters)
-    // console.log('NROWS', numberOfRowsInFullDataset)
+    console.log('FILTERS', metaData.activeFilters)
+    console.log('NROWS', numberOfRowsInFullDataset)
 
-    for (const [column, values] of Object.entries(metaData.activeFilters)) {
-      if (filteredRows.length) {
-        filteredRows = filteredRows.filter(row => values.includes(row[column]))
-      } else {
-        for (let i = 0; i < numberOfRowsInFullDataset; i++) {
-          if (values.includes(dataset[column].values[i])) {
-            const row = {} as any
-            allColumns.forEach(col => (row[col] = dataset[col].values[i]))
-            filteredRows.push(row)
-          }
+    const ltgt = /^(<|>)/ // starts with < or >
+
+    for (const [column, spec] of Object.entries(metaData.activeFilters)) {
+      const dataColumn = dataset[column]
+      if (spec.values[0] === undefined || spec.values[0] === '') {
+        globalStore.commit('error', datasetId + ': filter error')
+      }
+
+      // prep LT/GT
+      if (ltgt.test(spec.values[0])) {
+        if (spec.values[0].startsWith('<=')) {
+          spec.conditional = '<='
+          spec.values[0] = spec.values[0].substring(2).trim()
+        } else if (spec.values[0].startsWith('>=')) {
+          spec.conditional = '>='
+          spec.values[0] = spec.values[0].substring(2).trim()
+        } else if (spec.values[0].startsWith('<')) {
+          spec.conditional = '<'
+          spec.values[0] = spec.values[0].substring(1).trim()
+        } else if (spec.values[0].startsWith('>')) {
+          spec.conditional = '>'
+          spec.values[0] = spec.values[0].substring(1).trim()
+        }
+      }
+
+      // update every row
+      for (let i = 0; i < numberOfRowsInFullDataset; i++) {
+        if (this.checkFilterValue(spec, dataColumn.values[i])) {
+          const row = {} as any
+          allColumns.forEach(col => (row[col] = dataset[col].values[i]))
+          filteredRows.push(row)
         }
       }
     }
 
-    // console.log('FROWS', filteredRows)
+    console.log('FROWS', filteredRows)
     metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
+  }
+
+  private checkFilterValue(
+    spec: { conditional: string; invert: boolean; values: any[] },
+    elementValue: any
+  ) {
+    // lookup closure functions for < > <= >=
+    const conditionals: any = {
+      '<': () => {
+        return elementValue < spec.values[0]
+      },
+      '<=': () => {
+        return elementValue <= spec.values[0]
+      },
+      '>': () => {
+        return elementValue > spec.values[0]
+      },
+      '>=': () => {
+        return elementValue >= spec.values[0]
+      },
+    }
+
+    let isValueInFilterSpec: boolean
+
+    if (spec.conditional) {
+      isValueInFilterSpec = conditionals[spec.conditional]()
+    } else {
+      isValueInFilterSpec = spec.values.includes(elementValue)
+    }
+
+    if (spec.invert) return !isValueInFilterSpec
+    return isValueInFilterSpec
   }
 
   private notifyListeners(datasetId: string) {
     const dataset = this.datasets[datasetId]
     for (const notifyListener of dataset.filterListeners) {
-      notifyListener()
+      notifyListener(datasetId)
     }
   }
 
-  // private thread!: any
   private files: any[] = []
-
   private threads: Worker[] = []
 
   private async fetchDataset(config: { dataset: string }) {
