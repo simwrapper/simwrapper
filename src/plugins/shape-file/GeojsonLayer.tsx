@@ -226,6 +226,7 @@ export default function Component({
       getLineWidth: lineWidths,
       getPointRadius: pointRadii,
       getElevation: fillHeights,
+      getFilterValue: featureFilter,
     },
     transitions: {
       getFillColor: 300,

@@ -26,14 +26,8 @@ export default class VueComponent extends Vue {
   private getRowsInSection(section: LegendSection) {
     if (!section) return
 
-    return section.values
-
-    // const entries = Object.entries(section.values)
-    //   .map(entry => {
-    //     return { label: entry[0], value: entry[1] }
-    //   })
-    //   .sort((a, b) => (a.label < b.label ? -1 : 1))
-    // return entries
+    const z = section.values.filter((f: any) => !Number.isNaN(f.label))
+    return z
   }
 
   private getRowLabel(row: { label: string; value: any }) {
