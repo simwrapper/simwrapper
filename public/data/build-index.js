@@ -1,5 +1,10 @@
 'use strict'
 
+// COMMAND:
+// node build-index.js
+//
+// this will create an index.html file listing in each folder + subfolder 
+
 const fs = require('fs')
 
 const indexTemplate =
