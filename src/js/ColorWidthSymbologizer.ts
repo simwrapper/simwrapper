@@ -4,6 +4,8 @@ import { rgb } from 'd3-color'
 
 import { DataTableColumn, DataType } from '@/Globals'
 
+import store from '@/store'
+
 enum Style {
   categorical,
   diverging,
@@ -15,6 +17,7 @@ function getColorsForDataColumn(props: {
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
+  filter: Float32Array
   options: any
 }) {
   // Figure out what kind of thing the user wants
@@ -160,6 +163,7 @@ function buildColorsBasedOnCategories(props: {
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
+  filter: Float32Array
   options: any
 }) {
   const { length, data, lookup, normalize, options } = props
@@ -173,12 +177,15 @@ function buildColorsBasedOnCategories(props: {
 
   const setColorBasedOnCategory: any = scaleOrdinal().range(colorsAsRGB)
 
-  const rgbArray = new Uint8Array(length * 3)
+  const gray = store.state.isDarkMode ? 48 : 212
+  const rgbArray = new Uint8Array(length * 3).fill(gray)
+
+  console.log('22 ####################')
 
   for (let i = 0; i < data.values.length; i++) {
+    if (props.filter[i] === -1) continue
     const color = setColorBasedOnCategory(data.values[i])
     const offset = lookup ? lookup.values[i] * 3 : i * 3
-
     rgbArray[offset + 0] = color[0]
     rgbArray[offset + 1] = color[1]
     rgbArray[offset + 2] = color[2]
@@ -242,11 +249,13 @@ function buildColorsBasedOnNumericValues(props: {
 
   console.log({ normalizedValues, normalizedMax })
 
+  const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
+
   const rgbArray = new Uint8Array(length * 3)
 
   for (let i = 0; i < data.values.length; i++) {
     const value = normalizedValues[i] / (normalizedMax || 1)
-    const color = isNaN(value) ? [128, 128, 128] : setColorBasedOnValue(value)
+    const color = isNaN(value) ? gray : setColorBasedOnValue(value)
 
     const offset = lookup ? lookup.values[i] * 3 : i * 3
 

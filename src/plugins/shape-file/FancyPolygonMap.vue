@@ -84,23 +84,23 @@
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
-    //- Filter ADDers
-    .filter(v-if="availableFilterColumns.length")
-      p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
-      b-dropdown(v-model="chosenNewFilterColumn"
-        @change="handleUserCreatedNewFilter"
-        :scrollable="availableFilterColumns.length > 10"
-        max-height="250"
-        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
-      )
-        template(#trigger="{ active }")
-          b-button.is-primary.is-outlined(
-            label="+"
-          )
+    //- //- Filter ADDers
+    //- .filter(v-if="availableFilterColumns.length")
+    //-   p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
+    //-   b-dropdown(v-model="chosenNewFilterColumn"
+    //-     @change="handleUserCreatedNewFilter"
+    //-     :scrollable="availableFilterColumns.length > 10"
+    //-     max-height="250"
+    //-     aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+    //-   )
+    //-     template(#trigger="{ active }")
+    //-       b-button.is-primary.is-outlined(
+    //-         label="+"
+    //-       )
 
-        b-dropdown-item(v-for="option in availableFilterColumns"
-          :key="option" :value="option" aria-role="listitem"
-        ) {{ option }}
+    //-     b-dropdown-item(v-for="option in availableFilterColumns"
+    //-       :key="option" :value="option" aria-role="listitem"
+    //-     ) {{ option }}
 
     .filter.right
       p Transparency
@@ -142,7 +142,7 @@ import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import { arrayBufferToBase64 } from '@/js/util'
 import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
@@ -158,13 +158,6 @@ interface FilterDetails {
   label?: string
   options: any[]
   active: any[]
-}
-
-interface FilterDefinition {
-  dataset: string
-  column: string
-  invert: boolean
-  value: any
 }
 
 @Component({
@@ -224,12 +217,16 @@ export default class VueComponent extends Vue {
 
   private generatedColors: string[] = ['#4e79a7']
 
+  private needsInitialMapExtent = true
+  private datasetJoinColumn = ''
+  private datasetFilename = ''
+
   private datasetJoinSelector: { [id: string]: { title: string; columns: string[] } } | null = null
 
   private vizDetails = {
     title: '',
     description: '',
-    datasets: {} as { [id: string]: string },
+    datasets: {} as { [id: string]: { file: string; join: string } },
     useSlider: false,
     showDifferences: false,
     shpFile: '',
@@ -357,7 +354,7 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     this.legendStore.clear()
-    this.myDataManager.removeFilterListener(this.config, this.filterListener)
+    this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
 
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.layerId]
@@ -408,32 +405,29 @@ export default class VueComponent extends Vue {
 
   private parseFilterDefinitions() {
     // no filters? go away
-    if (!Array.isArray(this.vizDetails.filters)) return []
+    if (!this.vizDetails.filters) return []
 
-    // Filter the shapes themselves
     const filters = [] as FilterDefinition[]
 
-    for (const filter of this.vizDetails.filters) {
-      const [id, value] = Object.entries(filter)[0] // there should only be one
-      const [dataset, column] = id.split('.')
-      if (column.endsWith('!')) {
-        filters.push({
-          dataset,
-          column: column.substring(0, column.length - 1),
-          invert: true,
-          value,
-        })
-      } else {
-        filters.push({
-          dataset,
-          column,
-          value,
-          invert: false,
-        })
-      }
+    // User may have specified an array or an object:
+    let filterSpecs: any[]
+    if (Array.isArray(this.vizDetails.filters)) {
+      filterSpecs = this.vizDetails.filters.map(f => Object.entries(f)[0])
+    } else {
+      filterSpecs = Object.entries(this.vizDetails.filters)
     }
 
-    console.log(77, filters)
+    for (const filter of filterSpecs) {
+      const [id, value] = filter
+      const [dataset, column] = id.split('.')
+      filters.push({
+        dataset,
+        value,
+        column: column.endsWith('!') ? column.substring(0, column.length - 1) : column,
+        invert: column.endsWith('!'),
+      })
+    }
+
     return filters
   }
 
@@ -655,13 +649,16 @@ export default class VueComponent extends Vue {
     this.figureOutRemainingFilteringOptions()
   }
 
+  /**
+   *
+   */
   private setupJoin(
     dataTable: DataTable,
     datasetId: string,
     dataJoinColumn: string,
     featureJoinColumn: string
   ) {
-    console.log('setup join')
+    console.log('> setupJoin', datasetId)
     // make sure columns exist!
     if (!this.boundaryDataTable[featureJoinColumn])
       throw Error(`Geodata does not have property ${featureJoinColumn}`)
@@ -705,7 +702,7 @@ export default class VueComponent extends Vue {
       dataTable,
       filename: this.datasetFilename,
     })
-    this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+    this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.processFiltersNow)
 
     this.vizDetails.datasets[datasetId] = {
       file: this.datasetFilename,
@@ -749,6 +746,7 @@ export default class VueComponent extends Vue {
   private figureOutRemainingFilteringOptions() {
     this.datasetValuesColumnOptions = Object.keys(this.boundaryDataTable)
     const existingFilterColumnNames = Object.keys(this.filters)
+
     const columns = Array.from(this.datasetValuesColumnOptions).filter(
       f => f !== this.datasetJoinColumn && existingFilterColumnNames.indexOf(f) === -1
     )
@@ -806,6 +804,7 @@ export default class VueComponent extends Vue {
           data: dataColumn,
           normalize: normalColumn,
           lookup: lookupColumn,
+          filter: this.boundaryFilters,
           options: color,
         })
 
@@ -1002,15 +1001,125 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private async filterListener() {
-    return
+  private async processFiltersNow(datasetName?: string) {
+    // This callback occurs when there is a newly filtered dataset.
+    // - Grouping is required because some datasets will have multiple rows per TAZ/Link/Shape
+    //   (for example, one row per transit operator with trip data for a zone)
+    // - We need to get the correct join columns so that grouping happens on the right key
+    // - Then apply those values (summed if necessary) to the boundaries.
 
     try {
-      console.log(11, this.datasetFilename)
+      console.log('> processFiltersNow', datasetName)
+
+      // get dataset + join for this filename --> reverse lookup by filename
+      const datasetKey = Object.entries(this.datasetKeyToFilename).filter(
+        d => d[1] == datasetName
+      )[0][0]
+      const dataset = this.datasets[datasetKey]
+      let join = this.vizDetails.datasets[datasetKey].join.split(':')
+      if (join.length == 1) join.push(join[0])
+
+      console.log(this.vizDetails.datasets[datasetKey])
+      console.log({ datasetKey, dataset, join })
+
       let { filteredRows } = await this.myDataManager.getFilteredDataset({
         dataset: this.datasetFilename,
       })
-      // console.log(12, filteredRows)
+      console.log(12, filteredRows)
+
+      if (!filteredRows) return
+
+      // hide shapes that don't match filter.
+      const hideFeature = new Uint8Array(this.boundaries.length).fill(1) // hide by default
+      filteredRows.forEach(row => {
+        const rowNumber = row['@']
+        hideFeature[rowNumber] = 0
+      })
+      const newFilter = new Float32Array(this.boundaries.length)
+      for (let i = 0; i < this.boundaries.length; i++) {
+        if (this.boundaryFilters[i] == -1 || hideFeature[i]) newFilter[i] = -1
+      }
+
+      this.boundaryFilters = newFilter
+      return
+
+      // let groupLookup: any // this will be the map of boundary IDs to rows
+      // let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
+
+      // if (!filteredRows) {
+      //   // is filter UN-selected? Rebuild full dataset
+      //   // TODO: FIXME this is old ------:
+      //   // const joinCol = this.boundaryDataTable[this.datasetJoinColumn].values
+      //   // const dataValues = this.boundaryDataTable[this.datasetValuesColumn].values
+      //   // groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
+      //   filteredRows = [] // get rid of this
+      // } else {
+      //   // group filtered values by lookup key
+      //   groupLookup = group(filteredRows, d => d[join[0]])
+      //   groupIndex = this.datasetValuesColumn // index is values column name
+      // }
+
+      // console.log({ groupLookup })
+
+      // // Build the filtered dataset columns
+      // const filteredDataset: DataTable = {}
+      // const columns = Object.keys(filteredRows[0])
+      // for (const column of columns) {
+      //   filteredDataset[column] = { name: column, values: [], type: DataType.NUMBER }
+      // }
+      // for (let i = 0; i < filteredRows.length; i++) {
+      //   for (const column of columns) {
+      //     filteredDataset[column].values[i] = filteredRows[i][column]
+      //   }
+      // }
+
+      // console.log({ filteredDataset })
+      // // ok we have a filter, let's update the geojson values
+      // this.setupJoin(filteredDataset, '_filter', join[0], join[1])
+
+      // // const filteredBoundaries = [] as any[]
+
+      //       this.boundaries.forEach(boundary => {
+      //         // id can be in root of feature, or in properties
+      //         let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
+      //         if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
+
+      //         // the groupy thing doesn't auto-convert between strings and numbers
+      //         let row = groupLookup.get(lookupKey)
+      //         if (row == undefined) row = groupLookup.get('' + lookupKey)
+
+      //         // do we have an answer
+      //         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
+      //         filteredBoundaries.push(boundary)
+      //       })
+
+      // // centroids
+      // const filteredCentroids = [] as any[]
+      // this.centroids.forEach(centroid => {
+      //   const centroidId = centroid.properties!.id
+      //   if (!centroidId) return
+
+      //   let row = groupLookup.get(centroidId)
+      //   if (row == undefined) row = groupLookup.get('' + centroidId)
+      //   centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
+      //   filteredCentroids.push(centroid)
+      // })
+
+      // this.boundaries = filteredBoundaries
+      // this.centroids = filteredCentroids
+    } catch (e) {
+      console.error('' + e)
+    }
+  }
+
+  private async oldProcessFiltersNow(singleDataset?: string) {
+    try {
+      console.log('> processFiltersNow')
+
+      let { filteredRows } = await this.myDataManager.getFilteredDataset({
+        dataset: this.datasetFilename,
+      })
+      console.log(12, filteredRows)
 
       let groupLookup: any // this will be the map of boundary IDs to rows
       let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
@@ -1025,6 +1134,8 @@ export default class VueComponent extends Vue {
         groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
         groupIndex = this.datasetValuesColumn // index is values column name
       }
+
+      console.log(23, groupLookup)
 
       // ok we have a filter, let's update the geojson values
       let joinShapesBy = 'id'
@@ -1155,10 +1266,9 @@ export default class VueComponent extends Vue {
 
     // this.datasetFilename = datasetId
 
-    // this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+    // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
 
     // this.vizDetails = Object.assign({}, this.vizDetails)
-
     // this.datasets = Object.assign({}, this.datasets)
 
     // this.figureOutRemainingFilteringOptions()
@@ -1289,25 +1399,20 @@ export default class VueComponent extends Vue {
     return geojson.features as any[]
   }
 
-  private needsInitialMapExtent = true
-
-  private datasetJoinColumn = ''
-  private datasetFilename = ''
-
   private async loadDataset() {
     try {
       // for now just load first dataset
-      const datasetId = Object.keys(this.config.datasets)[0]
-      console.log({ datasetId })
-      if (!datasetId) return
+      const datasetKey = Object.keys(this.config.datasets)[0]
+      console.log({ datasetKey })
+      if (!datasetKey) return
 
       // dataset could be  { dataset: myfile.csv }
       //               or  { dataset: { file: myfile.csv, join: TAZ }}
 
       this.datasetFilename =
-        'string' === typeof this.config.datasets[datasetId]
-          ? this.config.datasets[datasetId]
-          : this.config.datasets[datasetId].file
+        'string' === typeof this.config.datasets[datasetKey]
+          ? this.config.datasets[datasetKey]
+          : this.config.datasets[datasetKey].file
 
       this.statusText = `Loading dataset ${this.datasetFilename} ...`
       console.log(11, 'loading ' + this.datasetFilename)
@@ -1318,25 +1423,34 @@ export default class VueComponent extends Vue {
 
       // figure out join - use ".join" or first column key
       const joiner =
-        'string' === typeof this.config.datasets[datasetId]
+        'string' === typeof this.config.datasets[datasetKey]
           ? Object.keys(dataset.allRows)[0]
-          : this.config.datasets[datasetId].join
+          : this.config.datasets[datasetKey].join
 
       const joinColumns = joiner.split(':')
       if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
 
-      this.datasets[datasetId] = dataset.allRows
+      // save it!
+      this.datasets[datasetKey] = dataset.allRows
+      this.datasetKeyToFilename[datasetKey] = this.datasetFilename
 
       // link the joins if we have a join
       this.statusText = `Joining datasets...`
       await this.$nextTick()
-
       if (joinColumns[0]) {
-        this.setupJoin(this.datasets[datasetId], datasetId, joinColumns[1], joinColumns[0])
+        this.setupJoin(this.datasets[datasetKey], datasetKey, joinColumns[1], joinColumns[0])
       }
 
-      this.myDataManager.addFilterListener({ dataset: this.datasetFilename }, this.filterListener)
+      // Set up filters -- there could be some in YAML already
+      this.myDataManager.addFilterListener(
+        { dataset: this.datasetFilename },
+        this.processFiltersNow
+      )
+      console.log(21, this.filterDefinitions)
 
+      this.activateFiltersForDataset({ datasetKey })
+
+      console.log(22, 'heloo')
       this.figureOutRemainingFilteringOptions()
     } catch (e) {
       const msg = '' + e
@@ -1344,6 +1458,19 @@ export default class VueComponent extends Vue {
       this.$store.commit('error', msg)
     }
     return []
+  }
+
+  private datasetKeyToFilename: any = {}
+
+  private activateFiltersForDataset(props: { datasetKey: string }) {
+    console.log('> activateFiltersForDataset ', props.datasetKey)
+    const filters = this.filterDefinitions.filter(f => f.dataset == props.datasetKey)
+
+    for (const filter of filters) {
+      this.myDataManager.setFilter(
+        Object.assign(filter, { dataset: this.datasetKeyToFilename[props.datasetKey] })
+      )
+    }
   }
 
   private setupFilters() {
@@ -1362,7 +1489,8 @@ export default class VueComponent extends Vue {
     for (const column of queryFilters) {
       const text = '' + this.$route.query[column]
       if (text) this.filters[column].active = text.split(',')
-      this.myDataManager.setFilter(this.datasetFilename, column, this.filters[column].active)
+      // TODO FIXME
+      // this.myDataManager.setFilter(this.datasetFilename, column, this.filters[column].active)
     }
 
     this.figureOutRemainingFilteringOptions()
@@ -1374,6 +1502,7 @@ export default class VueComponent extends Vue {
   }
 
   private async handleUserSelectedNewMetric() {
+    console.log('> handleUserSelectedNewMetric')
     await this.$nextTick()
     console.log('METRIC', this.datasetValuesColumn)
 
@@ -1386,12 +1515,18 @@ export default class VueComponent extends Vue {
 
     this.vizDetails.display.fill.columnName = this.datasetValuesColumn
     this.vizDetails = Object.assign({}, this.vizDetails)
-    this.filterListener()
+    this.processFiltersNow()
   }
 
   private handleUserSelectedNewFilters(column: string) {
     const active = this.filters[column].active
-    this.myDataManager.setFilter(this.datasetFilename, column, active)
+    // TODO FIXME
+    this.myDataManager.setFilter({
+      dataset: this.datasetFilename,
+      column,
+      invert: false,
+      value: '', // <-- what should this be?
+    })
 
     // update URL too
     const queryFilters = Object.assign({}, this.$route.query)
