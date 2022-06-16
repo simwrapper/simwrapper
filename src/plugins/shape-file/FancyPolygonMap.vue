@@ -1115,7 +1115,9 @@ export default class VueComponent extends Vue {
   }
 
   private async loadBoundaries() {
-    const shapeConfig = this.config.boundaries || this.config.shapes || this.config.geojson
+    const shapeConfig =
+      this.config.boundaries || this.config.shapes || this.config.geojsonv || this.config.network
+
     if (!shapeConfig) return
 
     // shapes could be a string or an object: shape.file=blah
@@ -1146,7 +1148,10 @@ export default class VueComponent extends Vue {
       let hasNoPolygons = true
 
       boundaries.forEach(b => {
+        // push property object to its own dataset array
         featureProperties.push(b.properties || {})
+
+        // clear out actual feature properties; they will be in the dataset instead
         b.properties = {}
 
         // check if we have linestrings: network mode!
@@ -1164,7 +1169,7 @@ export default class VueComponent extends Vue {
       })
 
       // set feature properties as a data source
-      await this.setFeaturePropertiesAsDataSource(filename, featureProperties)
+      await this.setFeaturePropertiesAsDataSource(filename, featureProperties, shapeConfig)
 
       // turn ON line borders if it's NOT a big dataset (user can re-enable)
       if (!hasNoLines || boundaries.length < 5000) {
@@ -1187,8 +1192,16 @@ export default class VueComponent extends Vue {
     if (!this.boundaries) throw Error(`"features" not found in shapes file`)
   }
 
-  private async setFeaturePropertiesAsDataSource(filename: string, featureProperties: any[]) {
-    const dataTable = await this.myDataManager.setFeatureProperties(filename, featureProperties)
+  private async setFeaturePropertiesAsDataSource(
+    filename: string,
+    featureProperties: any[],
+    config: any
+  ) {
+    const dataTable = await this.myDataManager.setFeatureProperties(
+      filename,
+      featureProperties,
+      config
+    )
     this.boundaryDataTable = dataTable
 
     const datasetId = filename.substring(1 + filename.lastIndexOf('/'))
@@ -1351,7 +1364,12 @@ export default class VueComponent extends Vue {
 
       await this.$nextTick()
 
-      const dataset = await this.myDataManager.getDataset({ dataset: this.datasetFilename })
+      let loaderConfig = { dataset: this.datasetFilename }
+      if ('string' !== typeof this.config.datasets[datasetKey]) {
+        loaderConfig = Object.assign(loaderConfig, this.config.datasets[datasetKey])
+      }
+
+      const dataset = await this.myDataManager.getDataset(loaderConfig)
 
       // figure out join - use ".join" or first column key
       const joiner =
