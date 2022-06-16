@@ -364,14 +364,12 @@ export default class VueComponent extends Vue {
   }
 
   private filterShapesNow() {
-    console.log(311)
-
     // shape filters
     const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
 
     if (!shapeFilters.length) return
 
-    console.log({ shapeFilters, length: this.boundaries.length })
+    // console.log({ shapeFilters, length: this.boundaries.length })
 
     // loop on all boundaries and centroids
     this.boundaryFilters = new Float32Array(this.boundaries.length)
@@ -660,7 +658,8 @@ export default class VueComponent extends Vue {
     dataJoinColumn: string,
     featureJoinColumn: string
   ) {
-    console.log('> setupJoin', datasetId)
+    // console.log('> setupJoin', datasetId)
+
     // make sure columns exist!
     if (!this.boundaryDataTable[featureJoinColumn])
       throw Error(`Geodata does not have property ${featureJoinColumn}`)
@@ -673,7 +672,7 @@ export default class VueComponent extends Vue {
     const dataValues = dataTable[dataJoinColumn].values
     const boundaryOffsets = this.getBoundaryOffsetLookup(featureJoinColumn)
 
-    console.log('retrieving lookup values:', featureJoinColumn, dataJoinColumn)
+    // console.log('retrieving lookup values:', featureJoinColumn, dataJoinColumn)
 
     // if user wants specific tooltips based on this dataset, save the values
     const tips = this.vizDetails.tooltip || []
@@ -683,7 +682,7 @@ export default class VueComponent extends Vue {
         return [tip, tip.substring(1 + tip.indexOf('.'))]
       })
 
-    console.log({ relevantTips })
+    // console.log({ relevantTips })
 
     for (let i = 0; i < dataValues.length; i++) {
       const featureOffset = boundaryOffsets[dataValues[i]]
@@ -695,7 +694,7 @@ export default class VueComponent extends Vue {
       }
     }
 
-    console.log({ boundaries: this.boundaries })
+    // console.log({ boundaries: this.boundaries })
 
     // add this dataset to the datamanager
     dataTable['@'] = lookupColumn
@@ -715,7 +714,7 @@ export default class VueComponent extends Vue {
           : `${featureJoinColumn}:${dataJoinColumn}`,
     } as any
 
-    console.log('triggering updates')
+    // console.log('triggering updates')
 
     this.vizDetails = Object.assign({}, this.vizDetails)
 
@@ -731,7 +730,7 @@ export default class VueComponent extends Vue {
 
     // build it
     this.statusText = 'Joining datasets...'
-    console.log('building lookup for', joinColumn)
+    // console.log('building lookup for', joinColumn)
 
     this.boundaryJoinLookups[joinColumn] = {}
     const lookupValues = this.boundaryJoinLookups[joinColumn]
@@ -792,15 +791,15 @@ export default class VueComponent extends Vue {
         let normalColumn
         if (color.normalize) {
           const keys = color.normalize.split(':')
-          console.log({ keys, datasets: this.datasets })
+          // console.log({ keys, datasets: this.datasets })
           if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]])
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
           normalColumn = this.datasets[keys[0]][keys[1]]
-          console.log({ normalColumn })
+          // console.log({ normalColumn })
         }
 
         // Calculate colors for each feature
-        console.log('Updating fills...')
+        // console.log('Updating fills...')
         const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
@@ -820,7 +819,7 @@ export default class VueComponent extends Vue {
       }
     } else {
       // simple color
-      console.log('simple')
+      // console.log('simple')
       this.dataFillColors = color.generatedColors[0]
       this.legendStore.clear('Color')
     }
@@ -847,6 +846,7 @@ export default class VueComponent extends Vue {
             data: dataColumn,
             lookup: lookupColumn,
             options: color,
+            filter: this.boundaryFilters,
           })
           this.dataLineColors = array
 
@@ -931,15 +931,15 @@ export default class VueComponent extends Vue {
         let normalColumn
         if (height.normalize) {
           const keys = height.normalize.split(':')
-          console.log({ keys, datasets: this.datasets })
+          // console.log({ keys, datasets: this.datasets })
           if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]])
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
           normalColumn = this.datasets[keys[0]][keys[1]]
-          console.log({ normalColumn })
+          // console.log({ normalColumn })
         }
 
         // Calculate widths for each feature
-        console.log('update fill height...')
+        // console.log('update fill height...')
         const calculatedHeights = ColorWidthSymbologizer.getHeightsBasedOnNumericValues({
           length: this.boundaries.length,
           data: dataColumn,
@@ -1011,7 +1011,7 @@ export default class VueComponent extends Vue {
     // - Then apply those values (summed if necessary) to the boundaries.
 
     try {
-      console.log('> processFiltersNow', datasetName)
+      // console.log('> processFiltersNow', datasetName)
 
       // get dataset + join for this filename --> reverse lookup by filename
       const datasetKey = Object.entries(this.datasetKeyToFilename).filter(
@@ -1021,13 +1021,13 @@ export default class VueComponent extends Vue {
       let join = this.vizDetails.datasets[datasetKey].join.split(':')
       if (join.length == 1) join.push(join[0])
 
-      console.log(this.vizDetails.datasets[datasetKey])
-      console.log({ datasetKey, dataset, join })
+      // console.log(this.vizDetails.datasets[datasetKey])
+      // console.log({ datasetKey, dataset, join })
 
       let { filteredRows } = await this.myDataManager.getFilteredDataset({
         dataset: this.datasetFilename,
       })
-      console.log(12, filteredRows)
+      // console.log(12, filteredRows)
 
       if (!filteredRows) return
 
@@ -1109,70 +1109,6 @@ export default class VueComponent extends Vue {
 
       // this.boundaries = filteredBoundaries
       // this.centroids = filteredCentroids
-    } catch (e) {
-      console.error('' + e)
-    }
-  }
-
-  private async oldProcessFiltersNow(singleDataset?: string) {
-    try {
-      console.log('> processFiltersNow')
-
-      let { filteredRows } = await this.myDataManager.getFilteredDataset({
-        dataset: this.datasetFilename,
-      })
-      console.log(12, filteredRows)
-
-      let groupLookup: any // this will be the map of boundary IDs to rows
-      let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
-
-      if (!filteredRows) {
-        // is filter UN-selected? Rebuild full dataset
-        const joinCol = this.boundaryDataTable[this.datasetJoinColumn].values
-        const dataValues = this.boundaryDataTable[this.datasetValuesColumn].values
-        groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
-      } else {
-        // group filtered values by lookup key
-        groupLookup = group(filteredRows, d => d[this.datasetJoinColumn])
-        groupIndex = this.datasetValuesColumn // index is values column name
-      }
-
-      console.log(23, groupLookup)
-
-      // ok we have a filter, let's update the geojson values
-      let joinShapesBy = 'id'
-      if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
-
-      const filteredBoundaries = [] as any[]
-
-      this.boundaries.forEach(boundary => {
-        // id can be in root of feature, or in properties
-        let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
-        if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
-
-        // the groupy thing doesn't auto-convert between strings and numbers
-        let row = groupLookup.get(lookupKey)
-        if (row == undefined) row = groupLookup.get('' + lookupKey)
-
-        // do we have an answer
-        boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-        filteredBoundaries.push(boundary)
-      })
-
-      // centroids
-      const filteredCentroids = [] as any[]
-      this.centroids.forEach(centroid => {
-        const centroidId = centroid.properties!.id
-        if (!centroidId) return
-
-        let row = groupLookup.get(centroidId)
-        if (row == undefined) row = groupLookup.get('' + centroidId)
-        centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-        filteredCentroids.push(centroid)
-      })
-
-      this.boundaries = filteredBoundaries
-      this.centroids = filteredCentroids
     } catch (e) {
       console.error('' + e)
     }
@@ -1264,15 +1200,9 @@ export default class VueComponent extends Vue {
     } as any
 
     this.config.datasets = Object.assign({}, this.vizDetails.datasets)
-    console.log(333, this.vizDetails)
-
-    // this.datasetFilename = datasetId
+    // console.log(333, this.vizDetails)
 
     // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
-
-    // this.vizDetails = Object.assign({}, this.vizDetails)
-    // this.datasets = Object.assign({}, this.datasets)
-
     // this.figureOutRemainingFilteringOptions()
   }
 
@@ -1352,7 +1282,7 @@ export default class VueComponent extends Vue {
 
     // geojson.features = geojson.features.slice(0, 10000)
 
-    // next, see if there is a .prj file with projection information
+    // See if there is a .prj file with projection information
     let projection = DEFAULT_PROJECTION
     try {
       projection = await this.fileApi.getFileText(url.replace('.shp', '.prj'))
@@ -1405,7 +1335,7 @@ export default class VueComponent extends Vue {
     try {
       // for now just load first dataset
       const datasetKey = Object.keys(this.config.datasets)[0]
-      console.log({ datasetKey })
+      // console.log({ datasetKey })
       if (!datasetKey) return
 
       // dataset could be  { dataset: myfile.csv }
@@ -1417,7 +1347,7 @@ export default class VueComponent extends Vue {
           : this.config.datasets[datasetKey].file
 
       this.statusText = `Loading dataset ${this.datasetFilename} ...`
-      console.log(11, 'loading ' + this.datasetFilename)
+      // console.log(11, 'loading ' + this.datasetFilename)
 
       await this.$nextTick()
 
@@ -1448,11 +1378,11 @@ export default class VueComponent extends Vue {
         { dataset: this.datasetFilename },
         this.processFiltersNow
       )
-      console.log(21, this.filterDefinitions)
+      // console.log(21, this.filterDefinitions)
 
       this.activateFiltersForDataset({ datasetKey })
 
-      console.log(22, 'heloo')
+      // console.log(22, 'heloo')
       this.figureOutRemainingFilteringOptions()
     } catch (e) {
       const msg = '' + e
@@ -1465,7 +1395,7 @@ export default class VueComponent extends Vue {
   private datasetKeyToFilename: any = {}
 
   private activateFiltersForDataset(props: { datasetKey: string }) {
-    console.log('> activateFiltersForDataset ', props.datasetKey)
+    // console.log('> activateFiltersForDataset ', props.datasetKey)
     const filters = this.filterDefinitions.filter(f => f.dataset == props.datasetKey)
 
     for (const filter of filters) {
@@ -1504,7 +1434,7 @@ export default class VueComponent extends Vue {
   }
 
   private async handleUserSelectedNewMetric() {
-    console.log('> handleUserSelectedNewMetric')
+    // console.log('> handleUserSelectedNewMetric')
     await this.$nextTick()
     console.log('METRIC', this.datasetValuesColumn)
 
@@ -1575,7 +1505,6 @@ export default class VueComponent extends Vue {
     // We need to make a lookup of the values by ID, and then
     // insert those values into the boundaries geojson.
 
-    console.log('HERE I AM')
     console.log(this.config)
     console.log(this.datasets)
     if (!this.config.display || !this.config.datasets) return
