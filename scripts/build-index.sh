@@ -2,6 +2,4 @@
 # BUILD-INDEX: build index.html files iteravily for public/data folder
 set -euo pipefail
 
-cd public/data
-node ../../scripts/build-index.js
-
+node scripts/build-index.js public/data
