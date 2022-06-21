@@ -52,4 +52,9 @@ const buildIndexForFolder = source => {
   }
 }
 
-buildIndexForFolder('.')
+if (process.argv.length < 3) {
+  console.error('Error: Must supply folder, try:\n\nnode build-index.js public/data')
+} else {
+  const dir = process.argv[2] || '.'
+  buildIndexForFolder(dir)
+}
