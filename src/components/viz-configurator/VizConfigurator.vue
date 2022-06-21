@@ -352,7 +352,7 @@ h1:hover {
   pointer-events: auto;
   margin: 0 0.5rem 2rem 0;
   filter: $filterShadow;
-  z-index: 1050;
+  z-index: 10;
 }
 
 .map-actions {
@@ -361,8 +361,8 @@ h1:hover {
   display: flex;
   flex-direction: column;
   margin-top: 72px;
-  margin-right: 1px;
-  z-index: 20;
+  margin-right: 0px;
+  z-index: 5;
 }
 
 .draw-button {
@@ -429,6 +429,7 @@ h1:hover {
   overflow: auto;
   pointer-events: all;
   user-select: none;
+  z-index: 1;
 }
 
 .legend-panel {
@@ -439,6 +440,7 @@ h1:hover {
   display: flex;
   flex-direction: column;
 }
+
 @media only screen and (max-width: 640px) {
 }
 </style>

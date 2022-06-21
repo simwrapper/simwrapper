@@ -1651,7 +1651,6 @@ globalStore.commit('registerPlugin', {
 
 .area-map {
   position: relative;
-  z-index: -1;
   flex: 1;
 }
 
