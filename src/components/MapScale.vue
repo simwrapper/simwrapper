@@ -125,6 +125,7 @@ export default class VueComponent extends Vue {
   flex-direction: column;
   overflow-x: hidden;
   pointer-events: none;
+  margin: 0.15rem 0.5rem 0 0;
 }
 
 p {
