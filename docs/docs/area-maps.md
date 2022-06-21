@@ -33,11 +33,34 @@ Note that very large and very small areas on the same maps can create misleading
 
 NOTE: These properties all go into a `viz-map*.yaml` file as-is, or in a dashboard file they all go under the `props:` section of a layout row. See the examples at the end of this document.
 
+```yaml
+title: "Area map example: DRT vehicles"
+description: "DRT Trips by PLZ Code"
+center: [6.9814, 51.57]
+zoom: 10
+pitch: 0
+bearing: 0
+```
+All of these properties are optional. 
+
+- **title:** (optional) title of the visualization, appears right on top of the map. In the case of a dashboard: if a title is specified both under `general` and under `props`, the one under `general` will be used.
+
+- **description:** (optional) description of the visualization, appears between title and map. In the case of a dashboard: if a description is specified both under `general` and under `props`, the one under `general` will be used.
+
+- **center:** (optional) coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data.
+
+- **zoom:** (optional) zoom level of the map between 5 and 20. If it is not provided, the zoom level 9 is used.
+
+- **pitch:** (optional) If it is not provided, the pitch is 0.
+
+- **bearing:** (optional) If it is not provided, the bearing is 0.
+
+
+### **shapes:** the boundaries/areas to be drawn
+
 There are **two separate data types** loaded for an area map: one for the boundaries/shapes, and one for the dataset.
 
 Joining data: Both files must contain an matching identification column in order to join the two datasets together. In other words, the boundary IDs must be present (somwhere) in both datafiles. The names of the columns can be different in the two files; see below.
-
-### **shapes:** the boundaries/areas to be drawn
 
 ```yaml
 shapes:
@@ -74,7 +97,7 @@ display:
   fill:
     dataset: transit-trips
     filters: operator, income
-    values: trip_origins, trip_boards, trip_reslocs
+    columnName: trip_origins, trip_boards, trip_reslocs
     colorRamp:
       ramp: Plasma
       reversed: true
@@ -85,7 +108,7 @@ display:
 
 **filters:** (optional) List of any columns which can be used as category filters by the user interactively. Note that _active filters_ will be shown in the URL bar, so curated maps can be shared via URL.
 
-**values:** The column name (or names) containing values to be plotted. If multiple rows have a matching shape ID, all values will be summed together. (Other stats to be added)
+**columnName:** The column name (or names) containing values to be plotted. If multiple rows have a matching shape ID, all values will be summed together. (Other stats to be added)
 
 **colorRamp:** Describe the colors themselves:
 
@@ -106,6 +129,8 @@ display:
 ```yaml
 title: 'VIZ-MAP 1'
 description: 'All day transit usage'
+center: [6.9814, 51.57]
+zoom: 10
 shapes:
   file: '../../shapefiles/geoid.geojson'
   join: id
@@ -117,7 +142,7 @@ display:
   fill:
     dataset: transit-trips
     filters: operator, income
-    values: trip_origins, trip_boards, trip_reslocs
+    columnName: trip_origins, trip_boards, trip_reslocs
     colorRamp:
       ramp: Plasma
       steps: 7
@@ -137,6 +162,8 @@ layout:
       props:
         title: 'VIZ-MAP 1'
         description: 'All day transit usage'
+        center: [6.9814, 51.57]
+        zoom: 10
         shapes:
           file: '../../shapefiles/geoid.geojson'
           join: id
@@ -148,7 +175,7 @@ layout:
           fill:
             dataset: transit-trips
             filters: operator, income
-            values: trip_origins, trip_boards, trip_reslocs
+            columnName: trip_origins, trip_boards, trip_reslocs
             colorRamp:
               ramp: Plasma
               steps: 7
