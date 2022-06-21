@@ -241,6 +241,8 @@ export default class VueComponent extends Vue {
     shapes: '' as string | { file: string; join: string },
     zoom: null as number | null,
     center: null as any[] | null,
+    pitch: null as number | null,
+    bearing: null as number | null,
     display: {
       fill: {} as any,
       fillHeight: {} as any,
@@ -307,8 +309,8 @@ export default class VueComponent extends Vue {
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
           zoom: this.vizDetails.zoom || 9,
-          bearing: 0,
-          pitch: 0,
+          bearing: this.vizDetails.bearing || 0,
+          pitch: this.vizDetails.pitch || 0,
           longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
           latitude: this.vizDetails.center ? this.vizDetails.center[1] : 0,
         })
