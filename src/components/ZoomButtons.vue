@@ -125,6 +125,7 @@ export default class VueComponent extends Vue {
   flex-direction: row;
   pointer-events: none;
   cursor: pointer;
+  zoom: -5;
 }
 
 .zoom-buttons {
@@ -163,10 +164,6 @@ export default class VueComponent extends Vue {
   border-bottom-right-radius: 4px;
   height: 23px;
   margin-top: -1px;
-}
-
-.map-scale {
-  margin: 0.15rem 0.5rem 0 0;
 }
 
 @media only screen and (max-width: 640px) {

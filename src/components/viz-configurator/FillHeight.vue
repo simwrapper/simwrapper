@@ -31,6 +31,7 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import { debounce } from 'debounce'
 
 export type FillHeightDefinition = {
   dataset?: string
@@ -83,6 +84,10 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('scaleFactor')
+  private handleScaleChanged = debounce(() => {
+    this.emitSpecification()
+  }, 500)
+
   @Watch('dataColumn')
   @Watch('normalSelection')
   private emitSpecification() {
