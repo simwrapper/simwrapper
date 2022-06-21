@@ -19,7 +19,6 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from '@/charts/allCharts'
 
 import globalStore from '@/store'
-import { string } from 'mathjs'
 
 @Component({ components: { VuePlotly } })
 export default class VueComponent extends Vue {
@@ -108,7 +107,7 @@ export default class VueComponent extends Vue {
       const filter = this.config.groupBy
       const value = x
 
-      this.datamanager.setFilter(this.config.dataset, filter, value)
+      // TODO this.datamanager.setFilter(this.config.dataset, filter, value)
     } catch (e) {
       console.error(e)
     }
