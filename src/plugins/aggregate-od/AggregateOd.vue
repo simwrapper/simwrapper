@@ -90,7 +90,7 @@ import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import yaml from 'yaml'
+import YAML from 'yaml'
 
 import Coords from '@/js/Coords'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -177,6 +177,24 @@ class MyComponent extends Vue {
     scaleFactor: 1,
     title: '',
     description: '',
+  }
+
+  private standaloneYAMLconfig = {
+    csvFile: '',
+    shpFile: '',
+    dbfFile: '',
+    projection: '',
+    scaleFactor: 1,
+    title: '',
+    description: '',
+  }
+
+  private YAMLrequirementsOD = {
+    shpFile: '',
+    dbfFile: '',
+    csvFile: '',
+    projection: '',
+    scaleFactor: 1,
   }
 
   private containerId = `c${Math.floor(1e12 * Math.random())}`
@@ -364,6 +382,7 @@ class MyComponent extends Vue {
     if (!this.myState.fileApi) return
 
     if (this.config) {
+      this.validateYAML()
       this.vizDetails = Object.assign({}, this.config)
     } else {
       try {
@@ -374,7 +393,9 @@ class MyComponent extends Vue {
             : this.myState.subfolder + '/' + this.myState.yamlConfig
 
         const text = await this.myState.fileApi.getFileText(filename)
-        this.vizDetails = yaml.parse(text)
+        this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+        this.validateYAML()
+        this.setVizDetails()
       } catch (err) {
         const e = err as any
         // maybe it failed because password?
@@ -391,6 +412,39 @@ class MyComponent extends Vue {
     this.idColumn = this.vizDetails.idColumn ? this.vizDetails.idColumn : 'id'
 
     nprogress.done()
+  }
+
+  private validateYAML() {
+    console.log('in yaml validation 2')
+
+    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+
+    let configuration
+
+    if (hasYaml) {
+      console.log('has yaml')
+      configuration = this.standaloneYAMLconfig
+    } else {
+      console.log('no yaml')
+      configuration = this.config
+    }
+
+    for (const key in this.YAMLrequirementsOD) {
+      if (key in configuration === false) {
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsXY for required keys',
+        })
+      }
+    }
+  }
+
+  private setVizDetails() {
+    this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Aggregate OD'
+    this.$emit('title', t)
   }
 
   private async loadFiles() {

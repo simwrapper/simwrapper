@@ -166,6 +166,23 @@ class XyHexagons extends Vue {
   //private radius = 250
   //private maxHeight = 0
 
+  private standaloneYAMLconfig = {
+    title: '',
+    description: '',
+    file: '',
+    projection: '',
+    thumbnail: '',
+    aggregations: {},
+    radius: 250,
+    maxHeight: 0,
+    center: null as any,
+    zoom: 9,
+  }
+  private YAMLrequirementsXY = {
+    file: '',
+    aggregations: {},
+  }
+
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
   private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
 
@@ -397,14 +414,16 @@ class XyHexagons extends Vue {
 
   private async getVizDetails() {
     if (this.config) {
+      this.validateYAML()
       this.vizDetails = Object.assign({}, this.config)
+      this.setRadiusAndHeight()
       return
     }
 
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     if (hasYaml) {
-      await this.loadYamlConfig()
+      await this.loadStandaloneYAMLConfig()
     } else {
       this.loadOutputTripsConfig()
     }
@@ -415,14 +434,6 @@ class XyHexagons extends Vue {
     if (!this.myState.thumbnail) {
       projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
       if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
-    }
-
-    if (!this.vizDetails.radius) {
-      this.vizDetails.radius = 250
-    }
-
-    if (!this.vizDetails.maxHeight) {
-      this.vizDetails.maxHeight = 0
     }
 
     // output_trips:
@@ -447,7 +458,13 @@ class XyHexagons extends Vue {
     return
   }
 
-  private async loadYamlConfig() {
+  private setRadiusAndHeight() {
+    if (!this.vizDetails.radius) this.vizDetails.radius = 250
+
+    if (!this.vizDetails.maxHeight) this.vizDetails.maxHeight = 0
+  }
+
+  private async loadStandaloneYAMLConfig() {
     if (!this.myState.fileApi) return
     try {
       // might be a project config:
@@ -457,25 +474,74 @@ class XyHexagons extends Vue {
           : this.myState.subfolder + '/' + this.myState.yamlConfig
 
       const text = await this.myState.fileApi.getFileText(filename)
-
-      this.vizDetails = Object.assign({}, this.vizDetails, YAML.parse(text))
+      this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+      this.validateYAML()
+      this.setVizDetails()
     } catch (err) {
       const e = err as any
       console.log('failed')
-      // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
-      } else {
+
+      this.$store.commit('setStatus', {
+        type: Status.ERROR,
+        msg: `File not found`,
+        desc: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
+      })
+    }
+  }
+
+  private validateYAML() {
+    console.log('in yaml validation 2')
+
+    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+    let configuration
+
+    if (hasYaml) {
+      console.log('has yaml')
+      configuration = this.standaloneYAMLconfig
+    } else {
+      console.log('no yaml')
+      configuration = this.config
+    }
+
+    for (const key in this.YAMLrequirementsXY) {
+      if (key in configuration === false) {
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `File not found`,
-          desc: 'Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}',
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsXY for required keys',
         })
       }
     }
+
+    if (configuration.radius == 0) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `Radius set to zero`,
+        desc: 'Radius can not be zero, preset value used instead. ',
+      })
+    }
+
+    if (configuration.zoom < 5 || configuration.zoom > 20) {
+      this.$store.commit('setStatus', {
+        type: Status.WARNING,
+        msg: `Zoom is out of the recommended range `,
+        desc: 'Zoom levels should be between 5 and 20. ',
+      })
+    }
+  }
+
+  private setVizDetails() {
+    this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+
+    this.setRadiusAndHeight()
+
     const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
     this.$emit('title', t)
   }
+  /* catch(err) {
+    const e = err as any
+    console.log('failed')
+  } */
 
   private async buildThumbnail() {
     if (!this.myState.fileApi) return

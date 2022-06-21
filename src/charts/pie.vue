@@ -33,6 +33,11 @@ export default class VueComponent extends Vue {
   // dataSet is either x,y or allRows[]
   private dataSet: { x?: any[]; y?: any[]; allRows?: any } = {}
 
+  private YAMLrequirementsPie = {
+    dataset: '',
+    useLastRow: '',
+  }
+
   private async mounted() {
     this.updateTheme()
     this.dataSet = await this.loadData()
@@ -61,6 +66,7 @@ export default class VueComponent extends Vue {
     if (!this.files.length) return {}
 
     try {
+      this.validateYAML()
       const data = await this.datamanager.getDataset(this.config)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
       return data
@@ -69,6 +75,20 @@ export default class VueComponent extends Vue {
       console.log(message)
     }
     return {}
+  }
+
+  private validateYAML() {
+    console.log('in pie validation')
+
+    for (const key in this.YAMLrequirementsPie) {
+      if (key in this.config === false) {
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: `YAML file missing required key: ${key}`,
+          desc: 'Check this.YAMLrequirementsXY for required keys',
+        })
+      }
+    }
   }
 
   private updateChart() {
