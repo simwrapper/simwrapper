@@ -6,6 +6,12 @@
 
   .top-panel
     .stuff-in-main-panel
+      input.search-box(v-if="!showWarnings" v-model="searchField" :placeholder="placeholder")
+      ul.search-box-suggestions(v-if="searchField.length >= minimumLength && !showWarnings && showSuggestions")
+        li.search-box-item(v-if="suggestion.includes(searchField)" v-for="suggestion in suggestions" @click="autocomplete(suggestion)") 
+          p.search-box-subitem {{splitPart(suggestion)[0]}}
+          strong.search-box-subitem(style="color: white;") {{splitPart(suggestion)[1]}}
+          p.search-box-subitem {{splitPart(suggestion)[2]}}
       .more-stuff(v-if="!showWarnings")
         .root-files(v-for="node,i in rootNodes" :key="i")
           h3: b {{ node.name }}
@@ -93,11 +99,235 @@ class MyComponent extends Vue {
   private descriptionIndexListError: number[] = []
   private isError = false
 
+  private searchField = ''
+
+  private minimumLength = 3
+  private placeholder = "Search (At least " + this.minimumLength.toString() + " characters)"
+  private suggestions: String[] = []
+  private showSuggestions = false
+  private usedAutocomplete = false
+
   private mounted() {
     // start the run finder process
     runFinder.findRuns()
     // react to found folders
     this.onRunFoldersChanged()
+  }
+
+  //TODO: suggsestions, specify folder/file
+
+  @Watch('rootNodes') createSuggestions() {
+    for (var i = 0; i < this.rootNodes.length; i++) {
+      // 1st Layer
+      if(!this.suggestions.includes(this.rootNodes[i].name)) {
+        this.suggestions.push(this.rootNodes[i].name)
+      }
+      // 2nd Layer
+      if (this.rootNodes[i].children.length > 0) {
+        for (let j = 0; j < this.rootNodes[i].children.length; j++) {
+          if(!this.suggestions.includes(this.rootNodes[i].children[j].name)) {
+            this.suggestions.push(this.rootNodes[i].children[j].name)
+          }
+          // 3rd Layer
+          if (this.rootNodes[i].children[j].children.length > 0) {
+            for (let k = 0; k < this.rootNodes[i].children[j].children.length; k++) {
+              if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].name)) {
+                this.suggestions.push(this.rootNodes[i].children[j].children[k].name)
+              }
+              // 4th Layer
+              if (this.rootNodes[i].children[j].children[k].children.length > 0) {
+                for (let l = 0; l < this.rootNodes[i].children[j].children[k].children.length; l++) {
+                  if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].name)) {
+                    this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].name)
+                  }
+                  // 5th Layer
+                  if (this.rootNodes[i].children[j].children[k].children[l].children.length > 0) {
+                    for (let m = 0; m < this.rootNodes[i].children[j].children[k].children[l].children.length; m++) {
+                      if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].children[m].name)) {
+                        this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].children[m].name)
+                      }
+                      // 6th Layer
+                      if (this.rootNodes[i].children[j].children[k].children[l].children[m].children.length > 0) {
+                        for (let n = 0; n < this.rootNodes[i].children[j].children[k].children[l].children[m].children.length; n++) {
+                          if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].name)) {
+                            this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].name)
+                          }
+                          // 7th Layer
+                          if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children.length > 0) {
+                            for (let o = 0; o < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children.length; o++) {
+                              if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].name)) {
+                                this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].name)
+                              }
+                              // 7th Layer
+                              if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children.length > 0) {
+                                for (let p = 0; p < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children.length; p++) {
+                                  if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].name)) {
+                                    this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].name)
+                                  }
+                                  // 8th Layer
+                                  if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children.length > 0) {
+                                    for (let q = 0; q < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children.length; q++) {
+                                      if(!this.suggestions.includes(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].name)) {
+                                        this.suggestions.push(this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].name)
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Watch('searchField') updateSearch() {
+    if (!this.usedAutocomplete) {
+      this.showSuggestions = true
+    } else {
+      this.usedAutocomplete = false
+    }
+    for (var i = 0; i < this.rootNodes.length; i++) {
+      // 1st Layer
+      this.rootNodes[i].searchField = false
+      if (this.rootNodes[i].name.includes(this.searchField) && this.searchField.length >= this.minimumLength) {
+        this.rootNodes[i].searchField = true
+      } else {
+        this.rootNodes[i].searchField = false
+      }
+      // 2nd Layer
+      if (this.rootNodes[i].children.length > 0) {
+        for (let j = 0; j < this.rootNodes[i].children.length; j++) {
+          this.rootNodes[i].children[j].searchField = false
+          if (this.rootNodes[i].children[j].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+            this.rootNodes[i].searchField = true
+            this.rootNodes[i].children[j].searchField = true
+          } else {
+            this.rootNodes[i].children[j].searchField = false
+          }
+          // 3rd Layer
+          if (this.rootNodes[i].children[j].children.length > 0) {
+            for (let k = 0; k < this.rootNodes[i].children[j].children.length; k++) {
+              this.rootNodes[i].children[j].children[k].searchField = false
+              if (this.rootNodes[i].children[j].children[k].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                this.rootNodes[i].searchField = true
+                this.rootNodes[i].children[j].searchField = true
+                this.rootNodes[i].children[j].children[k].searchField = true
+              } else {
+                this.rootNodes[i].children[j].children[k].searchField = false
+              }
+              // 4th Layer
+              if (this.rootNodes[i].children[j].children[k].children.length > 0) {
+                for (let l = 0; l < this.rootNodes[i].children[j].children[k].children.length; l++) {
+                  this.rootNodes[i].children[j].children[k].children[l].searchField = false
+                  if (this.rootNodes[i].children[j].children[k].children[l].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                    this.rootNodes[i].searchField = true
+                    this.rootNodes[i].children[j].searchField = true
+                    this.rootNodes[i].children[j].children[k].searchField = true
+                    this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                  } else {
+                    this.rootNodes[i].children[j].children[k].children[l].searchField = false
+                  }
+                  // 5th Layer
+                  if (this.rootNodes[i].children[j].children[k].children[l].children.length > 0) {
+                    for (let m = 0; m < this.rootNodes[i].children[j].children[k].children[l].children.length; m++) {
+                      this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = false
+                     if (this.rootNodes[i].children[j].children[k].children[l].children[m].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                        this.rootNodes[i].searchField = true
+                        this.rootNodes[i].children[j].searchField = true
+                        this.rootNodes[i].children[j].children[k].searchField = true
+                        this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                        this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = true
+                      } else {
+                        this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = false
+                      }
+                      // 6th Layer
+                      if (this.rootNodes[i].children[j].children[k].children[l].children[m].children.length > 0) {
+                        for (let n = 0; n < this.rootNodes[i].children[j].children[k].children[l].children[m].children.length; n++) {
+                          this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = false
+                          if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                            this.rootNodes[i].searchField = true
+                            this.rootNodes[i].children[j].searchField = true
+                            this.rootNodes[i].children[j].children[k].searchField = true
+                            this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                            this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = true
+                            this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = true
+                          } else {
+                            this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = false
+                          }
+                          // 7th Layer
+                          if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children.length > 0) {
+                            for (let o = 0; o < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children.length; o++) {
+                              this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].searchField = false
+                              if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                                this.rootNodes[i].searchField = true
+                                this.rootNodes[i].children[j].searchField = true
+                                this.rootNodes[i].children[j].children[k].searchField = true
+                                this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                                this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = true
+                                this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = true
+                                this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].searchField = true
+                              } else {
+                                this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].searchField = false
+                              }
+                              // 7th Layer
+                              if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children.length > 0) {
+                                for (let p = 0; p < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children.length; p++) {
+                                  this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].searchField = false
+                                  if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                                    this.rootNodes[i].searchField = true
+                                    this.rootNodes[i].children[j].searchField = true
+                                    this.rootNodes[i].children[j].children[k].searchField = true
+                                    this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                                    this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = true
+                                    this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = true
+                                    this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].searchField = true
+                                    this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].searchField = true
+                                  } else {
+                                    this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].searchField = false
+                                  }
+                                  // 8th Layer
+                                  if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children.length > 0) {
+                                    for (let q = 0; q < this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children.length; q++) {
+                                      this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].searchField = false
+                                      if (this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].name.toLowerCase().includes(this.searchField.toLowerCase()) && this.searchField.length >= this.minimumLength) {
+                                        this.rootNodes[i].searchField = true
+                                        this.rootNodes[i].children[j].searchField = true
+                                        this.rootNodes[i].children[j].children[k].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].searchField = true
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].searchField = true
+                                      } else {
+                                        this.rootNodes[i].children[j].children[k].children[l].children[m].children[n].children[o].children[p].children[q].searchField = false
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   @Watch('$route.path') test() {
@@ -155,6 +385,7 @@ class MyComponent extends Vue {
       path: '/',
       name: project.name,
       children: [] as Folder[],
+      searchField: false,
     }
     this.runLookupByPath[root + '/'] = rootNode
 
@@ -174,6 +405,7 @@ class MyComponent extends Vue {
         name: folderName,
         children: [] as Folder[],
         level: 0,
+        searchField: false,
       }
       // console.log(run.path)
       if (!this.runLookupByPath[root + run.path]) this.runLookupByPath[root + run.path] = folder
@@ -233,6 +465,21 @@ class MyComponent extends Vue {
       }
     }
   }
+
+  private autocomplete(searchContent: string) {
+    this.searchField = searchContent
+    this.showSuggestions = false
+    this.usedAutocomplete = true
+  }
+
+  private splitPart(suggestion: string) {
+    let data: string[] = []
+    data.push(suggestion.split(this.searchField)[0])
+    data.push(this.searchField)
+    data.push(suggestion.slice(suggestion.indexOf(this.searchField) + this.searchField.length))
+    return data
+  }
+
   private globalState = globalStore.state
 }
 export default MyComponent
@@ -397,6 +644,42 @@ a {
   width: 100%;
   margin-bottom: 0.5rem;
   margin-left: 0rem;
+}
+
+.search-box {
+  width: calc(100% + 0.5rem);
+  margin-top: 0.5rem;
+  margin-left: -0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  height: 2rem;
+}
+
+.search-box-suggestions {
+  width: calc(100% + 0.5rem);
+  //margin-top: 0.5rem;
+  margin-left: -0.5rem;
+  font-size: 0.9rem;
+  max-height: 200px;
+  overflow: scroll;
+  overflow-x: hidden;
+}
+
+.search-box-item {
+  margin-left: 0.5rem;
+  width: 100%;
+
+
+  
+}
+
+.search-box-subitem {
+  width: max-content;
+  display: inline;
+}
+
+.search-box:focus {
+    outline: none;
 }
 
 ::-webkit-scrollbar-corner {

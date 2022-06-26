@@ -5,6 +5,7 @@ ul
 </template>
 
 <script lang="ts">
+// Source: https://v2.vuejs.org/v2/examples/tree-view.html
 import Vue from 'vue'
 import TreeItem from './TreeItem.vue'
 
@@ -15,23 +16,23 @@ export default Vue.component('tree-view', {
   components: {
     TreeItem,
   },
-  data: function() {
+  data: function () {
     return {
       treeData: this.initialData,
     }
   },
   methods: {
-    onNavigate: function(event: any) {
+    onNavigate: function (event: any) {
       this.$emit('navigate', {
         component: 'TabbedDashboardView',
         props: { root: event.props.root, xsubfolder: event.props.xsubfolder },
       })
     },
-    makeFolder: function(item: any) {
+    makeFolder: function (item: any) {
       Vue.set(item, 'children', [])
       this.addItem(item)
     },
-    addItem: function(item: any) {
+    addItem: function (item: any) {
       item.children.push({
         name: 'new stuff',
       })
