@@ -496,14 +496,26 @@ async function loadFiles() {
       let matchingFiles = findMatchingGlobInFiles(_files, pattern)
 
       if (matchingFiles.length == 0) {
-        console.warn(`No files in THIS FOLDER matched pattern ${pattern}`)
-        console.warn('Assuming filename is hardcoded.')
-        matchingFiles = [pattern]
+        // not in this folder. Maybe we have a path
+        const slash = pattern.indexOf('/')
+        if (slash > -1) {
+          const mergedFolder = slash === 0 ? pattern : `${_subfolder}/${pattern}`
+          const dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
+          _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+          // fetch new list of files
+          const { files } = await _fileSystem.getDirectory(_subfolder)
+          _files = files
+          matchingFiles = findMatchingGlobInFiles(_files, dataset)
+        } else {
+          console.warn(`No files in THIS FOLDER matched pattern ${pattern}`)
+          console.warn('Assuming filename is hardcoded.')
+          matchingFiles = [pattern]
+        }
       } else if (matchingFiles.length > 1) {
         throw Error(`More than one file matched pattern ${pattern}: ${matchingFiles}`)
       }
 
-      filename = matchingFiles[0]
+      filename = matchingFiles[0] || pattern
 
       // load the file
       const text = await loadFileOrGzipFile(filename)
