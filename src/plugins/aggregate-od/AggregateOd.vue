@@ -654,7 +654,6 @@ class MyComponent extends Vue {
     // avoiding mapbox typescript bug:
     const tsMap = this.mymap as any
     tsMap.getSource('shpsource').setData(this.geojson)
-    //console.log(this.geojson[i].properties.dailyFrom/dailyTo)
   }
 
   private updateCentroidLabels() {
