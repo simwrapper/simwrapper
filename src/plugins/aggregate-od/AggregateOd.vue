@@ -38,7 +38,7 @@
       label.checkbox(style="margin: 0 0.5rem 0 auto;")
           input(type="checkbox" v-model="showTimeRange")
           | &nbsp;{{ $t('duration') }}
-      time-slider.time-slider(v-if="headers.length > 0"
+      time-slider.time-slider(v-if="headers.length > 2"
         :useRange='showTimeRange'
         :stops='headers'
         @change='bounceTimeSlider')
@@ -549,16 +549,17 @@ class MyComponent extends Vue {
         const fade = 0.7
         const properties: any = {
           id: id,
-          orig: link.orig,
-          dest: link.dest,
-          daily: link.daily,
+          orig: link.orig || 0,
+          dest: link.dest || 0,
+          daily: link.daily || 0,
           color,
           fade,
         }
-        ;(properties[TOTAL_MSG] = link.daily),
-          link.values.forEach((value: number, i: number) => {
-            properties[this.headers[i + 1]] = value ? value : 0
-          })
+        // Test this
+        properties[TOTAL_MSG] = link.daily
+        link.values.forEach((value: number, i: number) => {
+          properties[this.headers[i + 1]] = value ? value : 0
+        })
 
         const feature: any = {
           type: 'Feature',
@@ -825,8 +826,10 @@ class MyComponent extends Vue {
 
     // daily
     if (timePeriod === 'Alle >>') {
-      from = Math.round(this.marginals.rowTotal[feature.id])
-      to = Math.round(this.marginals.colTotal[feature.id])
+      //from = Math.round(this.marginals.rowTotal[feature.id])
+      //to = Math.round(this.marginals.colTotal[feature.id])
+      to = feature.properties.dailyTo
+      from = feature.properties.dailyFrom
       return { from, to }
     }
 
@@ -865,8 +868,6 @@ class MyComponent extends Vue {
       const centroid: any = turf.centerOfMass(feature as any)
       centroid.properties.id = feature.id
       centroid.id = feature.id
-
-      // console.log(centroid.id, centroid.geometry.coordinates[1], centroid.geometry.coordinates[0])
 
       let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
       let dailyTo = Math.round(this.marginals.colTotal[feature.id])
