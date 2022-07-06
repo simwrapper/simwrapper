@@ -105,6 +105,7 @@ import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
+import { feature } from '@turf/turf'
 
 interface AggOdYaml {
   shpFile: string
@@ -500,6 +501,8 @@ class MyComponent extends Vue {
     const files = await this.loadFiles()
     if (files) {
       this.geojson = await this.processShapefile(files)
+      await this.processGeojson()
+      console.log(this.geojson)
       await this.processHourlyData(files.odFlows)
       this.marginals = await this.getDailyDataSummary()
       this.buildCentroids(this.geojson)
@@ -652,6 +655,7 @@ class MyComponent extends Vue {
     // avoiding mapbox typescript bug:
     const tsMap = this.mymap as any
     tsMap.getSource('shpsource').setData(this.geojson)
+    //console.log(this.geojson[i].properties.dailyFrom/dailyTo)
   }
 
   private updateCentroidLabels() {
@@ -972,6 +976,24 @@ class MyComponent extends Vue {
         parent.pressedArrowKey(+1)
       }
     })
+  }
+
+  private async processGeojson() {
+    let processFeatures = []
+
+    for (let i = 0; i < this.geojson.features.length; i++) {
+      const data = this.geojson.features[i].properties
+      console.log(data)
+      console.log(Object.keys(data))
+      if (
+        this.geojson.features[i].properties.dailyFrom != 0 ||
+        this.geojson.features[i].properties.dailyTo != 0
+      ) {
+        processFeatures.push(this.geojson.features[i])
+      }
+    }
+
+    this.geojson.features = processFeatures
   }
 
   private async processShapefile(files: any) {
