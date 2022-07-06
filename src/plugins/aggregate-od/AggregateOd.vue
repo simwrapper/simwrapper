@@ -105,7 +105,6 @@ import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import globalStore from '@/store'
-import { feature } from '@turf/turf'
 
 interface AggOdYaml {
   shpFile: string
