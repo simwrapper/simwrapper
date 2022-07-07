@@ -855,7 +855,11 @@ class MyPlugin extends Vue {
       let value = buildData[this.csvData.activeColumn]?.values[csvRow]
 
       if (this.fixedColors.length === 1) return colorsAsRGB[0]
+<<<<<<< HEAD
       if (!value && !this.vizDetails.showDifferences) return colorInvisible
+=======
+      if (!value) return colorInvisible
+>>>>>>> 53f51c3 (allow "fixedColors" to hard-code color values)
       if (isCategorical) return setColorBasedOnValue(value)
 
       if (this.vizDetails.showDifferences) {

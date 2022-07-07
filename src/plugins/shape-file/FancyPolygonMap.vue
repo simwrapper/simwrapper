@@ -946,7 +946,11 @@ export default class VueComponent extends Vue {
 
         // Calculate colors for each feature
         // console.log('Updating fills...')
+<<<<<<< HEAD
         const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+=======
+        const { array, legend, normalizedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+>>>>>>> 53f51c3 (allow "fixedColors" to hard-code color values)
           length: this.boundaries.length,
           data: dataColumn,
           normalize: normalColumn,
@@ -968,7 +972,10 @@ export default class VueComponent extends Vue {
       // simple color
       // console.log('simple')
       this.dataFillColors = color.fixedColors[0]
+<<<<<<< HEAD
       this.dataCalculatedValueLabel = ''
+=======
+>>>>>>> 53f51c3 (allow "fixedColors" to hard-code color values)
       this.legendStore.clear('Color')
     }
   }
@@ -1055,7 +1062,10 @@ export default class VueComponent extends Vue {
       } else {
         // simple color
         this.dataLineColors = color.fixedColors[0]
+<<<<<<< HEAD
         this.dataCalculatedValueLabel = ''
+=======
+>>>>>>> 53f51c3 (allow "fixedColors" to hard-code color values)
         this.legendStore.clear('Line Color')
       }
     } catch (e) {
