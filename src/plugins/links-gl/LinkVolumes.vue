@@ -225,7 +225,7 @@ class MyPlugin extends Vue {
     linkIds: [] as any[],
   }
 
-  private generatedColors: string[] = ['#4e79a7']
+  private fixedColors: string[] = ['#4e79a7']
 
   // private timeFilterColumns: number[] = []
 
@@ -577,7 +577,7 @@ class MyPlugin extends Vue {
   }
 
   private handleNewColor(color: ColorDefinition) {
-    this.generatedColors = color.generatedColors
+    this.fixedColors = color.fixedColors
 
     const columnName = color.columnName
     if (!columnName) {
@@ -812,7 +812,7 @@ class MyPlugin extends Vue {
   @Watch('vizDetails.showDifferences')
   private generateColorArray() {
     // deck.gl colors must be in rgb[] or rgba[] format
-    const colorsAsRGB: any = this.generatedColors.map(hexcolor => {
+    const colorsAsRGB: any = this.fixedColors.map(hexcolor => {
       const c = rgb(hexcolor)
       return [c.r, c.g, c.b, 255]
     })
@@ -821,9 +821,9 @@ class MyPlugin extends Vue {
     // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
     // An exponent reduces visual dominance of very large values at the high end of the scale
     const exponent = 4.0
-    const domain = new Array(this.generatedColors.length - 1)
+    const domain = new Array(this.fixedColors.length - 1)
       .fill(0)
-      .map((v, i) => Math.pow((1 / this.generatedColors.length) * (i + 1), exponent))
+      .map((v, i) => Math.pow((1 / this.fixedColors.length) * (i + 1), exponent))
 
     // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
     // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
@@ -854,7 +854,7 @@ class MyPlugin extends Vue {
       const csvRow = this.csvData.csvRowFromLinkRow[i]
       let value = buildData[this.csvData.activeColumn]?.values[csvRow]
 
-      if (this.generatedColors.length === 1) return colorsAsRGB[0]
+      if (this.fixedColors.length === 1) return colorsAsRGB[0]
       if (!value) return colorInvisible
       if (isCategorical) return setColorBasedOnValue(value)
 
@@ -932,7 +932,7 @@ class MyPlugin extends Vue {
     this.setDataIsLoaded()
 
     const color: ColorDefinition = {
-      generatedColors: this.generatedColors,
+      fixedColors: this.fixedColors,
       dataset: '',
       columnName: '',
     }

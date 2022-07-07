@@ -69,7 +69,7 @@ export interface ColorDefinition {
   dataset: string
   columnName: string
   colorRamp?: Ramp
-  generatedColors: string[]
+  fixedColors: string[]
 }
 
 @Component({ components: {}, props: {} })
@@ -166,13 +166,13 @@ export default class VueComponent extends Vue {
 
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
+    const fixedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
 
     const steps = parseInt(this.steps)
     const color = {
       dataset,
       columnName,
-      generatedColors,
+      fixedColors,
       colorRamp: {
         ramp: this.selectedColor.ramp,
         style: this.selectedColor.style,
@@ -187,7 +187,7 @@ export default class VueComponent extends Vue {
   private clickedSingleColor(swatch: string) {
     this.selectedSingleColor = swatch
     const color: ColorDefinition = {
-      generatedColors: [this.selectedSingleColor],
+      fixedColors: [this.selectedSingleColor],
       dataset: '',
       columnName: '',
     }

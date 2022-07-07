@@ -85,7 +85,7 @@ export interface FillColorDefinition {
   columnName: string
   normalize: string
   colorRamp?: Ramp
-  generatedColors: string[]
+  fixedColors: string[]
 }
 
 @Component({ components: {}, props: {} })
@@ -149,8 +149,8 @@ export default class VueComponent extends Vue {
         this.steps = config.colorRamp.steps
         this.flip = !!config.colorRamp.reverse
       }
-    } else if (config?.generatedColors) {
-      this.clickedSingleColor(config.generatedColors[0])
+    } else if (config?.fixedColors) {
+      this.clickedSingleColor(config.fixedColors[0])
     }
   }
 
@@ -206,14 +206,19 @@ export default class VueComponent extends Vue {
     // based on data
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
+
+    // Define the actual colors in the ramp.
+    // Use hard-coded colors if they are present (in fixedColors).
+    const fixedColors = this.vizConfiguration.display?.fill?.fixedColors
+      ? this.vizConfiguration.display?.fill?.fixedColors.slice()
+      : this.buildColors(this.selectedColor, parseInt(this.steps))
 
     const steps = parseInt(this.steps)
 
     const fill = {
       dataset,
       columnName,
-      generatedColors,
+      fixedColors,
       normalize: this.normalSelection,
       colorRamp: {
         ramp: this.selectedColor.ramp,
@@ -225,13 +230,17 @@ export default class VueComponent extends Vue {
 
     if (this.diffDatasets.length) fill.diffDatasets = this.diffDatasets
 
+    if (this.vizConfiguration.display?.fill?.colorRamp?.breakpoints) {
+      fill.colorRamp.breakpoints = this.vizConfiguration.display?.fill?.colorRamp?.breakpoints
+    }
+
     setTimeout(() => this.$emit('update', { fill }), 25)
   }
 
   private clickedSingleColor(swatch: string) {
     this.selectedSingleColor = swatch
     const fill: FillColorDefinition = {
-      generatedColors: [this.selectedSingleColor],
+      fixedColors: [this.selectedSingleColor],
       dataset: '',
       columnName: '',
       normalize: '',
