@@ -32,13 +32,13 @@
     .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
       p.description {{ this.vizDetails.description }}
 
-  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+  .widgets(v-if="!thumbnail && headers.length > 2" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
     .widget-column
       h4.heading {{ $t('time')}}
       label.checkbox(style="margin: 0 0.5rem 0 auto;")
           input(type="checkbox" v-model="showTimeRange")
           | &nbsp;{{ $t('duration') }}
-      time-slider.time-slider(v-if="headers.length > 2"
+      time-slider.time-slider(
         :useRange='showTimeRange'
         :stops='headers'
         @change='bounceTimeSlider')
