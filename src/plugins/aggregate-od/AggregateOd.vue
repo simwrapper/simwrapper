@@ -500,8 +500,6 @@ class MyComponent extends Vue {
     const files = await this.loadFiles()
     if (files) {
       this.geojson = await this.processShapefile(files)
-      await this.processGeojson()
-      console.log(this.geojson)
       await this.processHourlyData(files.odFlows)
       this.marginals = await this.getDailyDataSummary()
       this.buildCentroids(this.geojson)
@@ -976,22 +974,18 @@ class MyComponent extends Vue {
     })
   }
 
-  private async processGeojson() {
-    let processFeatures = []
-
+  // To display only the centroids whose dailyTo and dailyFrom values are not
+  // both 0, the objects get the property 'isVisable'. When adding the geojson
+  // data to the map, it is filtered by this attribute.
+  private processGeojson() {
     for (let i = 0; i < this.geojson.features.length; i++) {
       const data = this.geojson.features[i].properties
-      console.log(data)
-      console.log(Object.keys(data))
-      if (
-        this.geojson.features[i].properties.dailyFrom != 0 ||
-        this.geojson.features[i].properties.dailyTo != 0
-      ) {
-        processFeatures.push(this.geojson.features[i])
+      if (data.dailyFrom != 0 || data.dailyTo != 0) {
+        this.geojson.features[i].properties.isVisiable = true
+      } else {
+        this.geojson.features[i].properties.isVisiable = false
       }
     }
-
-    this.geojson.features = processFeatures
   }
 
   private async processShapefile(files: any) {
@@ -1164,6 +1158,7 @@ class MyComponent extends Vue {
   }
 
   private addGeojsonToMap(geojson: any) {
+    this.processGeojson()
     this.addGeojsonLayers(geojson)
     this.addNeighborhoodHoverEffects()
   }
@@ -1201,6 +1196,7 @@ class MyComponent extends Vue {
           'line-opacity': 0.5,
           'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
         },
+        filter: ['==', 'isVisiable', true],
       },
       'centroid-layer'
     )
