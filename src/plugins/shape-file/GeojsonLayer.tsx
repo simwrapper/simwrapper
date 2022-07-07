@@ -210,7 +210,7 @@ export default function Component({
     // lineJointRounded: true,
     lineWidthUnits: 'pixels',
     lineWidthScale: 1,
-    lineWidthMinPixels: 1,
+    lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
     lineWidthMaxPixels: 50,
     // getOffset: OFFSET_DIRECTION.RIGHT,
     opacity: fillHeights ? 100 : opacity / 100, // 3D must be opaque

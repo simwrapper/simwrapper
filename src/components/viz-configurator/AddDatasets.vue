@@ -72,8 +72,8 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) subfolder!: string
   @Prop() vizConfiguration!: VizLayerConfiguration
 
-  private validDataTypes = ['CSV', 'TSV', 'TAB', 'DBF', 'GZ']
-  private validRegex = /\.(CSV|TSV|TAB|DBF)(\.GZ)?$/
+  private validDataTypes = ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT']
+  private validRegex = /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?$/
 
   private fileChoice = ''
   private filesInFolder = [] as string[]

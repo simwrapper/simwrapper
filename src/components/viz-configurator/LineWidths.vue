@@ -3,7 +3,11 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="")
+
+          option(label="None" value="@0")
+          option(label="1px" value="@1")
+          option(label="2px" value="@2")
+
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
@@ -32,12 +36,16 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import debounce from 'debounce'
+
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
 export type LineWidthDefinition = {
   dataset?: string
   columnName?: string
   scaleFactor?: number
+  diff?: string
+  diffDatasets?: string[]
 }
 
 @Component({ components: {}, props: {} })
@@ -51,6 +59,7 @@ export default class VueComponent extends Vue {
   private selectedTransform = this.transforms[0]
 
   private datasetLabels = [] as string[]
+  private diffDatasets: string[] = []
 
   private mounted() {
     this.datasetsAreLoaded()
@@ -60,6 +69,9 @@ export default class VueComponent extends Vue {
   @Watch('vizConfiguration')
   private vizConfigChanged() {
     const config = this.vizConfiguration.display?.lineWidth
+
+    this.setupDiffMode(config)
+
     if (config?.columnName) {
       this.dataColumn = `${config.dataset}/${config.columnName}`
       this.datasetLabels = [...this.datasetLabels]
@@ -84,8 +96,13 @@ export default class VueComponent extends Vue {
   }
 
   @Watch('scaleFactor')
+  private handleScaleChanged = debounce(() => {
+    this.emitSpecification()
+  }, 500)
+
   @Watch('dataColumn')
-  private emitWidthSpecification() {
+  @Watch('diffDatasets')
+  private emitSpecification() {
     // no width? ignore this
     if (!this.dataColumn) return
 
@@ -103,16 +120,24 @@ export default class VueComponent extends Vue {
       dataset,
       columnName,
       scaleFactor: parseFloat(this.scaleFactor),
-    }
+    } as any
+
+    if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
 
     setTimeout(() => this.$emit('update', { lineWidth }), 25)
   }
 
   private clickedSingle() {
+    // console.log('SINGLE', this.dataColumn)
     const lineWidth: LineWidthDefinition = {
       dataset: '',
       columnName: '',
       scaleFactor: parseFloat(this.scaleFactor),
+    }
+
+    const simpleWidth = /^@\d$/
+    if (simpleWidth.test(this.dataColumn)) {
+      lineWidth.dataset = this.dataColumn
     }
 
     // the link viewer is on main thread so lets make
@@ -133,6 +158,21 @@ export default class VueComponent extends Vue {
     )
 
     return allColumns
+  }
+
+  private setupDiffMode(config: LineWidthDefinition) {
+    if (!config?.diff) return
+
+    let diffPieces: string[] = []
+
+    if (config.diff.indexOf(' - ') > -1) {
+      diffPieces = config.diff.split(' - ').map(p => p.trim())
+    } else {
+      diffPieces = config.diff.split('-').map(p => p.trim())
+      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+    }
+
+    this.diffDatasets = diffPieces
   }
 }
 </script>

@@ -454,8 +454,8 @@ export default class DashboardDataManager {
             //globalStore.commit('error', e.data.error)
             globalStore.commit('setStatus', {
               type: Status.ERROR,
-              msg: `File cannot be loaded...`,
-              desc: 'Check filename and path: ' + this.subfolder + '/' + config.dataset,
+              msg: `File not found: ${this.subfolder}/${config.dataset}`,
+              desc: 'Check filename and path.',
             })
             reject()
           }

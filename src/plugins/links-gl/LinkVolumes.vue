@@ -364,12 +364,14 @@ class MyPlugin extends Vue {
 
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
+    let configuration: any
+
     if (hasYaml) {
       console.log('has yaml')
-      var configuration = this.standaloneYAMLconfig
+      configuration = this.standaloneYAMLconfig
     } else {
       console.log('no yaml')
-      var configuration = this.config
+      configuration = this.config
     }
 
     for (const key in this.YAMLrequirementsLinks) {

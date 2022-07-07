@@ -64,9 +64,12 @@ interface Ramp {
   style: style
   reverse?: boolean
   steps?: number
+  breakpoints?: string
 }
 
 export interface LineColorDefinition {
+  diff?: string
+  diffDatasets?: string[]
   dataset: string
   columnName: string
   colorRamp?: Ramp
@@ -87,8 +90,8 @@ export default class VueComponent extends Vue {
     // { ramp: 'Greens', style: style.sequential }, // , reverse: true },
     { ramp: 'Purples', style: style.sequential }, // , reverse: true },
     { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
-    { ramp: 'PRGn', style: style.diverging, reverse: true },
     { ramp: 'RdBu', style: style.diverging, reverse: true },
+    { ramp: 'PRGn', style: style.diverging, reverse: true },
     { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
     { ramp: 'Paired', style: style.categorical }, // , reverse: true },
     // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
@@ -101,8 +104,8 @@ export default class VueComponent extends Vue {
   private dataColumn = '@'
   private selectedColor: Ramp = this.colorChoices[0]
   private selectedSingleColor = this.simpleColors[0]
-
   private datasetLabels: string[] = []
+  private diffDatasets: string[] = []
 
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -115,6 +118,9 @@ export default class VueComponent extends Vue {
   @Watch('vizConfiguration')
   private vizConfigChanged() {
     const config = this.vizConfiguration.display?.lineColor
+
+    this.setupDiffMode(config)
+
     if (config?.columnName) {
       const selectedColumn = `${config.dataset}/${config.columnName}`
       this.dataColumn = selectedColumn
@@ -131,17 +137,33 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private setupDiffMode(config: LineColorDefinition) {
+    if (!config?.diff) return
+
+    let diffPieces: string[] = []
+
+    if (config.diff.indexOf(' - ') > -1) {
+      diffPieces = config.diff.split(' - ').map(p => p.trim())
+    } else {
+      diffPieces = config.diff.split('-').map(p => p.trim())
+      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+    }
+
+    this.diffDatasets = diffPieces
+  }
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
   }
 
-  @Watch('flip')
-  @Watch('steps')
   @Watch('dataColumn')
-  @Watch('selectedColor')
+  @Watch('diffDatasets')
+  @Watch('flip')
   @Watch('globalState.isDarkMode')
+  @Watch('selectedColor')
+  @Watch('steps')
   private emitColorSpecification() {
     // no answer
     if (!this.dataColumn) return
@@ -177,7 +199,14 @@ export default class VueComponent extends Vue {
         reverse: this.flip,
         steps,
       },
-    }
+    } as any
+
+    if (this.diffDatasets.length) lineColor.diffDatasets = this.diffDatasets
+
+    console.log(75, this.vizConfiguration)
+    if (this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints)
+      lineColor.colorRamp.breakpoints =
+        this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints
 
     setTimeout(() => this.$emit('update', { lineColor }), 50)
   }
@@ -234,11 +263,13 @@ export default class VueComponent extends Vue {
     let colors
     // let dark
 
+    // categorical
     if (scale.style === style.categorical) {
       const categories = d3[`scheme${scale.ramp}`]
       return categories.slice(0, n)
     }
 
+    // sequential and diverging
     if (d3[`scheme${scale.ramp}`] && d3[`scheme${scale.ramp}`][n]) {
       colors = d3[`scheme${scale.ramp}`][n]
       // dark = d3.lab(colors[0]).l < 50
@@ -256,6 +287,12 @@ export default class VueComponent extends Vue {
         return this.ramp(scale, n - 1)
       }
     }
+
+    // fix center color if diverging: pale grey
+    if (scale.style === style.diverging && n % 2 === 1) {
+      colors[Math.floor(n / 2)] = globalStore.state.isDarkMode ? '#282828' : '#e4e4e4'
+    }
+
     return colors
   }
 }
