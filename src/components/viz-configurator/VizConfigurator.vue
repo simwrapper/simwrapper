@@ -227,12 +227,12 @@ export default class VueComponent extends Vue {
     for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
     if (config.display.color) {
       delete config.display.color?.colorRamp?.style
-      delete config.display.color?.generatedColors
+      delete config.display.color?.fixedColors
     }
     if (config.display.fill) {
       if (config.display.fill.colorRamp) {
         delete config.display.fill.colorRamp?.style
-        delete config.display.fill.generatedColors
+        delete config.display.fill.fixedColors
         if (!config.display.fill.colorRamp.reverse) {
           delete config.display.fill.colorRamp.reverse
         }
@@ -245,7 +245,7 @@ export default class VueComponent extends Vue {
     if (config.display.lineColor) {
       if (config.display.lineColor.colorRamp) {
         delete config.display.lineColor.colorRamp?.style
-        delete config.display.lineColor.generatedColors
+        delete config.display.lineColor.fixedColors
         if (!config.display.lineColor.colorRamp.reverse) {
           delete config.display.lineColor.colorRamp.reverse
         }

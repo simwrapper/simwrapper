@@ -33,7 +33,7 @@ export default function Component({
   lineWidths = 0 as number | Float32Array,
   fillHeights = 0 as number | Float32Array,
   opacity = 1,
-  pointRadii = 5 as number | Float32Array,
+  pointRadii = 4 as number | Float32Array,
   screenshot = 0,
   featureDataTable = {} as DataTable,
   tooltip = [] as string[],
@@ -152,11 +152,11 @@ export default function Component({
 
     // dataset elements
     const featureTips = Object.entries(features[index].properties)
-    for (const tip of featureTips) {
-      let value = tip[1]
+    for (const [tipKey, tipValue] of featureTips) {
+      let value = tipValue
       if (value == null) return
       if (typeof value == 'number') value = precise(value)
-      propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tip[0]}</td><td><b>${value}</b></td></tr>`
+      propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
     }
     if (propList) propList += `<tr><td>&nbsp;</td></tr>`
 

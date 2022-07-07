@@ -216,9 +216,9 @@ function buildColorsBasedOnCategories(props: {
   options: any
 }) {
   const { length, data, lookup, normalize, options } = props
-  const { colorRamp, columnName, dataset, generatedColors } = options
+  const { colorRamp, columnName, dataset, fixedColors } = options
 
-  const colorsAsRGB = buildRGBfromHexCodes(generatedColors)
+  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
 
   // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
   // *range* is the list of colors which we received;
@@ -249,11 +249,11 @@ function buildColorsBasedOnCategories(props: {
 
   console.log({ legend })
 
-  return { array: rgbArray, legend }
+  return { array: rgbArray, legend, normalizedValues: null }
 }
 
 function buildDiffDomainBreakpoints(options: any, minDiff: number, maxDiff: number) {
-  const { colorRamp, columnName, dataset, generatedColors } = options
+  const { colorRamp, columnName, dataset, fixedColors } = options
 
   // MANUAL BREAKPOINTS
   if (colorRamp.breakpoints) {
@@ -322,7 +322,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
   options: any
 }) {
   const { length, data, data2, lookup, lookup2, normalize, options } = props
-  const { colorRamp, columnName, dataset, generatedColors } = options
+  const { colorRamp, columnName, dataset, fixedColors } = options
 
   // Figure out differences
 
@@ -348,7 +348,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
   // *scaleThreshold* is the d3 function that maps numerical values to the color buckets
   // *colorRampType* is 0 if a categorical color ramp is chosen
   const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff)
-  const colorsAsRGB = buildRGBfromHexCodes(generatedColors)
+  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
@@ -388,7 +388,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   console.log({ legend, colors })
 
-  return { array: rgbArray, legend }
+  return { array: rgbArray, legend, normalizedValues: null }
 }
 
 function buildColorsBasedOnNumericValues(props: {
@@ -399,14 +399,14 @@ function buildColorsBasedOnNumericValues(props: {
   options: any
 }) {
   const { length, data, lookup, normalize, options } = props
-  const { colorRamp, columnName, dataset, generatedColors } = options
+  const { colorRamp, columnName, dataset, fixedColors } = options
 
-  const colorsAsRGB = buildRGBfromHexCodes(generatedColors)
+  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
 
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
   // An exponent reduces visual dominance of very large values at the high end of the scale
-  const numColors = generatedColors.length
+  const numColors = fixedColors.length
   const exponent = 3.0
   const domain = new Array(numColors - 1)
     .fill(0)
@@ -477,7 +477,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   console.log({ legend, colors })
 
-  return { array: rgbArray, legend }
+  return { array: rgbArray, legend, normalizedValues: null }
 }
 
 // helpers ------------------------------------------------------------

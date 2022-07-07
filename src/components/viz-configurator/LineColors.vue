@@ -73,7 +73,7 @@ export interface LineColorDefinition {
   dataset: string
   columnName: string
   colorRamp?: Ramp
-  generatedColors: string[]
+  fixedColors: string[]
 }
 
 @Component({ components: {}, props: {} })
@@ -132,8 +132,8 @@ export default class VueComponent extends Vue {
         this.steps = config.colorRamp.steps
         this.flip = !!config.colorRamp.reverse
       }
-    } else if (config?.generatedColors) {
-      this.clickedSingleColor(config.generatedColors[0])
+    } else if (config?.fixedColors) {
+      this.clickedSingleColor(config.fixedColors[0])
     }
   }
 
@@ -186,13 +186,13 @@ export default class VueComponent extends Vue {
     // based on data
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
+    const fixedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
 
     const steps = parseInt(this.steps)
     const lineColor = {
       dataset,
       columnName,
-      generatedColors,
+      fixedColors,
       colorRamp: {
         ramp: this.selectedColor.ramp,
         style: this.selectedColor.style,
@@ -203,18 +203,17 @@ export default class VueComponent extends Vue {
 
     if (this.diffDatasets.length) lineColor.diffDatasets = this.diffDatasets
 
-    console.log(75, this.vizConfiguration)
-    if (this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints)
+    if (this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints) {
       lineColor.colorRamp.breakpoints =
         this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints
-
+    }
     setTimeout(() => this.$emit('update', { lineColor }), 50)
   }
 
   private clickedSingleColor(swatch: string) {
     this.selectedSingleColor = swatch
     const lineColor: LineColorDefinition = {
-      generatedColors: [this.selectedSingleColor],
+      fixedColors: [this.selectedSingleColor],
       dataset: '',
       columnName: '',
     }
