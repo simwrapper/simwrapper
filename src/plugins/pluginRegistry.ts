@@ -11,7 +11,7 @@ import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
-import AreaMap from '@/plugins/shape-file/FancyPolygonMap.vue'
+import MapView from '@/plugins/shape-file/FancyPolygonMap.vue'
 
 // // EVERY plugin must also be exported here:
 const plugins = {
@@ -22,7 +22,7 @@ const plugins = {
   LinksGl,
   SankeyDiagram,
   // ShapeFile,
-  AreaMap,
+  MapView,
   TransitDemand,
   VegaLite,
   VehicleAnimation,

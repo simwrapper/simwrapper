@@ -194,7 +194,7 @@ export default class VueComponent extends Vue {
 
   private dataFillColors: string | Uint8Array = '#888' // '#59a14f'
   private dataLineColors: string | Uint8Array = ''
-  private dataLineWidths: number | Float32Array = 2
+  private dataLineWidths: number | Float32Array = 1
   private dataPointRadii: number | Float32Array = 5
   private dataFillHeights: number | Float32Array = 0
 
@@ -318,6 +318,7 @@ export default class VueComponent extends Vue {
       }
 
       this.expColors = this.config.display?.fill?.exponentColors
+      this.dataFillColors = globalStore.state.isDarkMode ? '#44445580' : '#dddddd80'
 
       // convert values to arrays as needed
       if (!this.config.display.fill) this.config.display.fill = { filters: [] }
@@ -336,14 +337,13 @@ export default class VueComponent extends Vue {
       this.isLoaded = true
       this.$emit('isLoaded')
 
-      await this.loadDataset()
+      await this.loadDatasets()
 
       // Check URL query parameters
       this.honorQueryParameters()
 
       this.datasets = Object.assign({}, this.datasets)
       this.config.datasets = Object.assign({}, this.datasets)
-      // this.vizDetails.datasets = this.datasets
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.statusText = ''
@@ -776,7 +776,42 @@ export default class VueComponent extends Vue {
     this.generatedColors = color.generatedColors
 
     const columnName = color.columnName
-    if (columnName) {
+
+    if (color.diffDatasets) {
+      const key1 = color.diffDatasets[0] || ''
+      const dataset1 = this.datasets[key1]
+      const key2 = color.diffDatasets[1] || ''
+      const dataset2 = this.datasets[key2]
+
+      console.log({ key1, key2, dataset1, dataset2 })
+      if (dataset1 && dataset2) {
+        const lookup1 = dataset1['@']
+        const dataCol1 = dataset1[columnName]
+        const lookup2 = dataset2['@']
+        const dataCol2 = dataset2[columnName]
+
+        if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
+        if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
+
+        // Calculate colors for each feature
+        const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
+          length: this.boundaries.length,
+          data: dataCol1,
+          data2: dataCol2,
+          lookup: lookup1,
+          lookup2: lookup2,
+          options: color,
+          filter: this.boundaryFilters,
+        })
+        this.dataFillColors = array
+
+        this.legendStore.setLegendSection({
+          section: 'Fill',
+          column: dataCol1.name,
+          values: legend,
+        })
+      }
+    } else if (columnName) {
       // Get the data column
       const datasetKey = color.dataset || ''
       const selectedDataset = this.datasets[datasetKey]
@@ -830,7 +865,42 @@ export default class VueComponent extends Vue {
       this.generatedColors = color.generatedColors
 
       const columnName = color.columnName
-      if (columnName) {
+
+      if (color.diffDatasets) {
+        const key1 = color.diffDatasets[0] || ''
+        const dataset1 = this.datasets[key1]
+        const key2 = color.diffDatasets[1] || ''
+        const dataset2 = this.datasets[key2]
+
+        console.log({ key1, key2, dataset1, dataset2 })
+        if (dataset1 && dataset2) {
+          const lookup1 = dataset1['@']
+          const dataCol1 = dataset1[columnName]
+          const lookup2 = dataset2['@']
+          const dataCol2 = dataset2[columnName]
+
+          if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
+          if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
+
+          // Calculate colors for each feature
+          const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
+            length: this.boundaries.length,
+            data: dataCol1,
+            data2: dataCol2,
+            lookup: lookup1,
+            lookup2: lookup2,
+            options: color,
+            filter: this.boundaryFilters,
+          })
+          this.dataLineColors = array
+
+          this.legendStore.setLegendSection({
+            section: 'Line Color',
+            column: dataCol1.name,
+            values: legend,
+          })
+        }
+      } else if (columnName) {
         const datasetKey = color.dataset || ''
         const selectedDataset = this.datasets[datasetKey]
         if (selectedDataset) {
@@ -862,21 +932,64 @@ export default class VueComponent extends Vue {
         this.legendStore.clear('Line Color')
       }
     } catch (e) {
+      globalStore.commit('error', '' + e)
       console.error('' + e)
     }
   }
 
   private handleNewLineWidth(width: LineWidthDefinition) {
-    const columnName = width.columnName
+    const columnName = width.columnName || ''
 
-    // No scale factor? go hoome
+    // constant line width?  @0, @1, @2
+    if (width.dataset && /^@\d$/.test(width.dataset)) {
+      this.dataLineWidths = Number.parseInt(width.dataset.substring(1))
+      this.legendStore.clear('Line Width')
+      return
+    }
+
+    // No scale factor?
     if (width.scaleFactor && isNaN(width.scaleFactor)) {
       this.dataLineWidths = 1
       this.legendStore.clear('Line Width')
       return
     }
 
-    if (columnName) {
+    if (width.diffDatasets) {
+      const key1 = width.diffDatasets[0] || ''
+      const dataset1 = this.datasets[key1]
+      const key2 = width.diffDatasets[1] || ''
+      const dataset2 = this.datasets[key2]
+
+      console.log({ key1, key2, dataset1, dataset2 })
+
+      if (dataset1 && dataset2) {
+        const lookup1 = dataset1['@']
+        const dataCol1 = dataset1[columnName]
+        const lookup2 = dataset2['@']
+        const dataCol2 = dataset2[columnName]
+
+        if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
+        if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
+
+        // Calculate widths for each feature
+        const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
+          length: this.boundaries.length,
+          data: dataCol1,
+          data2: dataCol2,
+          lookup: lookup1,
+          lookup2: lookup2,
+          options: width,
+        })
+
+        this.dataLineWidths = array || 0
+
+        this.legendStore.setLegendSection({
+          section: 'Line Color',
+          column: '' + dataCol1.name,
+          values: legend,
+        })
+      }
+    } else if (columnName) {
       // Get the data column
       const datasetKey = width.dataset || ''
       const selectedDataset = this.datasets[datasetKey]
@@ -1344,11 +1457,16 @@ export default class VueComponent extends Vue {
     return geojson.features as any[]
   }
 
-  private async loadDataset() {
+  private async loadDatasets() {
+    // for now just load first dataset
+    const keys = Object.keys(this.config.datasets)
+    for (const key of keys) {
+      await this.loadDataset(key)
+    }
+  }
+
+  private async loadDataset(datasetKey: string) {
     try {
-      // for now just load first dataset
-      const datasetKey = Object.keys(this.config.datasets)[0]
-      // console.log({ datasetKey })
       if (!datasetKey) return
 
       // dataset could be  { dataset: myfile.csv }
@@ -1612,9 +1730,9 @@ export default class VueComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'area-map',
-  prettyName: 'Area Map',
-  description: 'Area Map',
+  kebabName: 'map-view',
+  prettyName: 'Map Viewer',
+  description: 'Shapefile, Geojson, Network Viewer',
   filePatterns: [
     // viz-map plugin
     '**/viz-map*.y?(a)ml',
@@ -1711,6 +1829,7 @@ globalStore.commit('registerPlugin', {
   padding: 0 1rem 0.25rem 2rem;
   background-color: var(--bgPanel);
   filter: $filterShadow;
+  z-index: 2;
 }
 
 .status-bar {

@@ -79,6 +79,8 @@ interface Ramp {
 }
 
 export interface FillColorDefinition {
+  diff?: string
+  diffDatasets?: string[]
   dataset: string
   columnName: string
   normalize: string
@@ -100,8 +102,8 @@ export default class VueComponent extends Vue {
     { ramp: 'Greens', style: style.sequential }, // , reverse: true },
     { ramp: 'Purples', style: style.sequential }, // , reverse: true },
     { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
-    { ramp: 'PRGn', style: style.diverging, reverse: true },
     { ramp: 'RdBu', style: style.diverging, reverse: true },
+    { ramp: 'PRGn', style: style.diverging, reverse: true },
     { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
     { ramp: 'Paired', style: style.categorical }, // , reverse: true },
     // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
@@ -117,6 +119,7 @@ export default class VueComponent extends Vue {
   private selectedSingleColor = this.simpleColors[0]
 
   private datasetLabels: string[] = []
+  private diffDatasets: string[] = []
 
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -127,6 +130,9 @@ export default class VueComponent extends Vue {
   @Watch('vizConfiguration')
   private vizConfigChanged() {
     const config = this.vizConfiguration.display?.fill
+
+    this.setupDiffMode(config)
+
     if (config?.columnName) {
       const selectedColumn = `${config.dataset}/${config.columnName}`
       this.dataColumn = selectedColumn
@@ -148,17 +154,34 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private setupDiffMode(config: FillColorDefinition) {
+    if (!config?.diff) return
+
+    let diffPieces: string[] = []
+
+    if (config.diff.indexOf(' - ') > -1) {
+      diffPieces = config.diff.split(' - ').map(p => p.trim())
+    } else {
+      diffPieces = config.diff.split('-').map(p => p.trim())
+      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+    }
+
+    this.diffDatasets = diffPieces
+  }
+
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
   }
 
-  @Watch('flip')
-  @Watch('steps')
   @Watch('dataColumn')
-  @Watch('normalSelection')
+  @Watch('diffDatasets')
+  @Watch('flip')
   @Watch('globalState.isDarkMode')
+  @Watch('normalSelection')
+  @Watch('selectedColor')
+  @Watch('steps')
   private emitSpecification() {
     // no fill
     if (!this.dataColumn) return
@@ -186,6 +209,7 @@ export default class VueComponent extends Vue {
     const generatedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
 
     const steps = parseInt(this.steps)
+
     const fill = {
       dataset,
       columnName,
@@ -197,7 +221,9 @@ export default class VueComponent extends Vue {
         reverse: this.flip,
         steps,
       },
-    }
+    } as any
+
+    if (this.diffDatasets.length) fill.diffDatasets = this.diffDatasets
 
     setTimeout(() => this.$emit('update', { fill }), 25)
   }
@@ -278,6 +304,12 @@ export default class VueComponent extends Vue {
         return this.ramp(scale, n - 1)
       }
     }
+
+    // fix center color if diverging: opaque grey
+    if (scale.style === style.diverging && n % 2 === 1) {
+      colors[Math.floor(n / 2)] = globalStore.state.isDarkMode ? '#282828' : '#e4e4e4'
+    }
+
     return colors
   }
 }

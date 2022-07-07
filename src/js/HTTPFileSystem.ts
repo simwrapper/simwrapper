@@ -95,6 +95,8 @@ class SVNFileSystem {
     const dirContents = await this.getDirectory(folder)
     const fileHandle = dirContents.handles[filename]
 
+    if (!fileHandle) throw Error(`File ${filename} missing`)
+
     const file = (await fileHandle.getFile()) as any
 
     file.json = () => {
@@ -160,13 +162,16 @@ class SVNFileSystem {
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
     if (cachedEntry) return cachedEntry
 
-    // Generate and cache the listing
-    const dirEntry = this.fsHandle
-      ? await this.getDirectoryFromHandle(stillScaryPath)
-      : await this.getDirectoryFromURL(stillScaryPath)
-
-    CACHE[this.urlId][stillScaryPath] = dirEntry
-    return dirEntry
+    try {
+      // Generate and cache the listing
+      const dirEntry = this.fsHandle
+        ? await this.getDirectoryFromHandle(stillScaryPath)
+        : await this.getDirectoryFromURL(stillScaryPath)
+      CACHE[this.urlId][stillScaryPath] = dirEntry
+      return dirEntry
+    } catch (e) {
+      throw Error('' + e)
+    }
   }
 
   async getDirectoryFromHandle(stillScaryPath: string) {
@@ -211,7 +216,7 @@ class SVNFileSystem {
             break
           }
         }
-        if (!found) throw Error('Could not find ' + subfolder)
+        if (!found) throw Error(`Could not find folder "${subfolder}"`)
       }
     }
 

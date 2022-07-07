@@ -54,20 +54,20 @@ async function fetchData(props: {
   _files = props.files
   _buffer = props.buffer
 
-  // if dataset has a path in it, we need to fetch the correct subfolder contents
-  const slash = _config.dataset.indexOf('/')
-  if (slash > -1) {
-    const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
-    _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
-    _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
-
-    // need to fetch new list of files
-    const { files } = await _fileSystem.getDirectory(_subfolder)
-    _files = files
-  }
-
-  // load all files
   try {
+    // if dataset has a path in it, we need to fetch the correct subfolder contents
+    const slash = _config.dataset.indexOf('/')
+    if (slash > -1) {
+      const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
+      _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
+      _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+
+      // need to fetch new list of files
+      const { files } = await _fileSystem.getDirectory(_subfolder)
+      _files = files
+    }
+
+    // load all files
     await loadFile()
     postMessage(_fileData[_dataset])
   } catch (e) {
