@@ -206,6 +206,8 @@ export default class VueComponent extends Vue {
       title: this.vizDetails.title,
       description: this.vizDetails.description,
       zoom: Math.round(10 * this.$store.state.viewState.zoom) / 10,
+      pitch: Math.round(this.$store.state.viewState.pitch),
+      bearing: Math.round(this.$store.state.viewState.bearing),
       center: [
         Math.round(100 * this.$store.state.viewState.center[0]) / 100,
         Math.round(100 * this.$store.state.viewState.center[1]) / 100,
@@ -218,6 +220,10 @@ export default class VueComponent extends Vue {
       datasets: { ...this.vizDetails.datasets },
       display: { ...this.vizDetails.display },
     } as any
+
+    // remove pitch and bearing if they're zero
+    if (!this.$store.state.viewState.bearing) delete config.bearing
+    if (!this.$store.state.viewState.pitch) delete config.pitch
 
     // remove shapefile itself from list of datasets
     const shapeFilename = config.shapes?.substring(1 + config.shapes.indexOf('/'))
