@@ -32,13 +32,13 @@
     .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
       p.description {{ this.vizDetails.description }}
 
-  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+  .widgets(v-if="!thumbnail && headers.length > 2" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
     .widget-column
       h4.heading {{ $t('time')}}
       label.checkbox(style="margin: 0 0.5rem 0 auto;")
           input(type="checkbox" v-model="showTimeRange")
           | &nbsp;{{ $t('duration') }}
-      time-slider.time-slider(v-if="headers.length > 0"
+      time-slider.time-slider(
         :useRange='showTimeRange'
         :stops='headers'
         @change='bounceTimeSlider')
@@ -549,16 +549,17 @@ class MyComponent extends Vue {
         const fade = 0.7
         const properties: any = {
           id: id,
-          orig: link.orig,
-          dest: link.dest,
-          daily: link.daily,
+          orig: link.orig || 0,
+          dest: link.dest || 0,
+          daily: link.daily || 0,
           color,
           fade,
         }
-        ;(properties[TOTAL_MSG] = link.daily),
-          link.values.forEach((value: number, i: number) => {
-            properties[this.headers[i + 1]] = value ? value : 0
-          })
+        // Test this
+        properties[TOTAL_MSG] = link.daily
+        link.values.forEach((value: number, i: number) => {
+          properties[this.headers[i + 1]] = value ? value : 0
+        })
 
         const feature: any = {
           type: 'Feature',
@@ -825,8 +826,10 @@ class MyComponent extends Vue {
 
     // daily
     if (timePeriod === 'Alle >>') {
-      from = Math.round(this.marginals.rowTotal[feature.id])
-      to = Math.round(this.marginals.colTotal[feature.id])
+      //from = Math.round(this.marginals.rowTotal[feature.id])
+      //to = Math.round(this.marginals.colTotal[feature.id])
+      to = feature.properties.dailyTo
+      from = feature.properties.dailyFrom
       return { from, to }
     }
 
@@ -865,8 +868,6 @@ class MyComponent extends Vue {
       const centroid: any = turf.centerOfMass(feature as any)
       centroid.properties.id = feature.id
       centroid.id = feature.id
-
-      // console.log(centroid.id, centroid.geometry.coordinates[1], centroid.geometry.coordinates[0])
 
       let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
       let dailyTo = Math.round(this.marginals.colTotal[feature.id])
@@ -971,6 +972,20 @@ class MyComponent extends Vue {
         parent.pressedArrowKey(+1)
       }
     })
+  }
+
+  // To display only the centroids whose dailyTo and dailyFrom values are not
+  // both 0, the objects get the property 'isVisable'. When adding the geojson
+  // data to the map, it is filtered by this attribute.
+  private processGeojson() {
+    for (let i = 0; i < this.geojson.features.length; i++) {
+      const data = this.geojson.features[i].properties
+      if (data.dailyFrom != 0 || data.dailyTo != 0) {
+        this.geojson.features[i].properties.isVisiable = true
+      } else {
+        this.geojson.features[i].properties.isVisiable = false
+      }
+    }
   }
 
   private async processShapefile(files: any) {
@@ -1143,6 +1158,7 @@ class MyComponent extends Vue {
   }
 
   private addGeojsonToMap(geojson: any) {
+    this.processGeojson()
     this.addGeojsonLayers(geojson)
     this.addNeighborhoodHoverEffects()
   }
@@ -1180,6 +1196,7 @@ class MyComponent extends Vue {
           'line-opacity': 0.5,
           'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
         },
+        filter: ['==', 'isVisiable', true],
       },
       'centroid-layer'
     )
