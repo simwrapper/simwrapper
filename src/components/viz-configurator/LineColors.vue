@@ -70,6 +70,7 @@ interface Ramp {
 export interface LineColorDefinition {
   diff?: string
   diffDatasets?: string[]
+  relative?: boolean
   dataset: string
   columnName: string
   colorRamp?: Ramp
@@ -106,6 +107,7 @@ export default class VueComponent extends Vue {
   private selectedSingleColor = this.simpleColors[0]
   private datasetLabels: string[] = []
   private diffDatasets: string[] = []
+  private diffRelative = false
 
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -160,6 +162,7 @@ export default class VueComponent extends Vue {
 
   @Watch('dataColumn')
   @Watch('diffDatasets')
+  @Watch('diffRelative')
   @Watch('flip')
   @Watch('globalState.isDarkMode')
   @Watch('selectedColor')
@@ -202,6 +205,7 @@ export default class VueComponent extends Vue {
     } as any
 
     if (this.diffDatasets.length) lineColor.diffDatasets = this.diffDatasets
+    if (this.diffRelative) lineColor.relative = true
 
     if (this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints) {
       lineColor.colorRamp.breakpoints =

@@ -155,7 +155,10 @@ export default function Component({
     // calculated value
     if (calculatedValues && calculatedValueLabel) {
       const key = calculatedValueLabel || 'Value'
-      const value = precise(calculatedValues[index])
+      let value = precise(calculatedValues[index])
+
+      if (calculatedValueLabel.startsWith('%')) value = value + ' %'
+
       propList.push(
         `<tr><td style="text-align: right; padding-right: 0.5rem;">${key}</td><td><b>${value}</b></td></tr>`
       )

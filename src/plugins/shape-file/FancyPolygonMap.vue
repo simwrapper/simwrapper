@@ -786,8 +786,10 @@ export default class VueComponent extends Vue {
       const dataset1 = this.datasets[key1]
       const key2 = color.diffDatasets[1] || ''
       const dataset2 = this.datasets[key2]
+      const relative = !!color.relative
 
-      console.log({ key1, key2, dataset1, dataset2 })
+      console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
+
       if (dataset1 && dataset2) {
         const lookup1 = dataset1['@']
         const dataCol1 = dataset1[columnName]
@@ -806,15 +808,18 @@ export default class VueComponent extends Vue {
           lookup2: lookup2,
           options: color,
           filter: this.boundaryFilters,
+          relative,
         })
         this.dataFillColors = array
         this.dataCalculatedValues = calculatedValues
-        this.dataCalculatedValueLabel = `Diff: ${columnName}` // : ${key1}-${key2}`
+        this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 
         this.legendStore.setLegendSection({
           section: 'Fill',
           column: dataCol1.name,
           values: legend,
+          diff: true,
+          relative,
         })
       }
     } else if (columnName) {
@@ -883,8 +888,10 @@ export default class VueComponent extends Vue {
         const dataset1 = this.datasets[key1]
         const key2 = color.diffDatasets[1] || ''
         const dataset2 = this.datasets[key2]
+        const relative = !!color.relative
 
-        console.log({ key1, key2, dataset1, dataset2 })
+        console.log('000 DIFF', relative, key1, key2, dataset1, dataset2)
+
         if (dataset1 && dataset2) {
           const lookup1 = dataset1['@']
           const dataCol1 = dataset1[columnName]
@@ -904,16 +911,19 @@ export default class VueComponent extends Vue {
               lookup2: lookup2,
               options: color,
               filter: this.boundaryFilters,
+              relative,
             }
           )
           this.dataLineColors = array
           this.dataCalculatedValues = calculatedValues
-          this.dataCalculatedValueLabel = 'Diff: ' + columnName
+          this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}`
 
           this.legendStore.setLegendSection({
             section: 'Line Color',
             column: dataCol1.name,
             values: legend,
+            diff: true,
+            relative,
           })
         }
       } else if (columnName) {

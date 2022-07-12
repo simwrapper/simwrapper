@@ -1,7 +1,7 @@
 <template lang="pug">
 .legend-box
   .legend-section(v-for="section,i in sections" :key="section.section")
-    p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ section.column }}
+    p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ sectionTitle(section) }}
     .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
       .row-value(:style="getRowStyle(row)")
       .row-label(:style="getLabelStyle(row)") {{ getRowLabel(row) }}
@@ -17,6 +17,18 @@ export default class VueComponent extends Vue {
 
   private beforeDestroy() {
     this.legendStore.clear()
+  }
+
+  private sectionTitle(section: LegendSection) {
+    let title = section.column
+
+    if (section.relative) {
+      title += ' (% Diff)'
+    } else if (section.diff) {
+      title += ' (Diff)'
+    }
+
+    return title
   }
 
   private get sections() {

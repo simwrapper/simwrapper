@@ -81,6 +81,7 @@ interface Ramp {
 export interface FillColorDefinition {
   diff?: string
   diffDatasets?: string[]
+  relative?: boolean
   dataset: string
   columnName: string
   normalize: string
@@ -120,6 +121,7 @@ export default class VueComponent extends Vue {
 
   private datasetLabels: string[] = []
   private diffDatasets: string[] = []
+  private diffRelative = false
 
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -167,6 +169,7 @@ export default class VueComponent extends Vue {
     }
 
     this.diffDatasets = diffPieces
+    this.diffRelative = !!config.relative
   }
 
   @Watch('datasets')
@@ -182,6 +185,7 @@ export default class VueComponent extends Vue {
   @Watch('normalSelection')
   @Watch('selectedColor')
   @Watch('steps')
+  @Watch('diffRelative')
   private emitSpecification() {
     // no fill
     if (!this.dataColumn) return
@@ -229,6 +233,7 @@ export default class VueComponent extends Vue {
     } as any
 
     if (this.diffDatasets.length) fill.diffDatasets = this.diffDatasets
+    if (this.diffRelative) fill.relative = true
 
     if (this.vizConfiguration.display?.fill?.colorRamp?.breakpoints) {
       fill.colorRamp.breakpoints = this.vizConfiguration.display?.fill?.colorRamp?.breakpoints
