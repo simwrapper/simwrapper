@@ -21,9 +21,9 @@ function getColorsForDataColumn(props: {
   normalize?: DataTableColumn
   filter: Float32Array
   options: any
+  relative?: boolean
 }) {
   // Figure out what kind of thing the user wants
-  // const colorRamp = options.colorRamp as style
   if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
     return buildColorsBasedOnCategories(props)
   } else if (props.data2) {
@@ -101,11 +101,12 @@ function buildDiffWidthsBasedOnNumericValues(props: {
       })
     }
     for (let i = 0; i < widths.length; i++) {
-      widths[i] = Math.abs(widths[i] / scaleFactor)
+      widths[i] = Math.abs(calculatedValues[i] / scaleFactor)
     }
   }
 
   console.log({ widths, calculatedValues })
+
   // For legend, let's show 1-2-4-8-16-32-64 pixels?
   const legend = [] as any[]
   for (const thickness of [1, 5, 10, 17, 25, 50]) {
@@ -261,7 +262,12 @@ function buildColorsBasedOnCategories(props: {
   return { array: rgbArray, legend, calculatedValues: null }
 }
 
-function buildDiffDomainBreakpoints(options: any, minDiff: number, maxDiff: number) {
+function buildDiffDomainBreakpoints(
+  options: any,
+  minDiff: number,
+  maxDiff: number,
+  relative: boolean
+) {
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   // MANUAL BREAKPOINTS
@@ -328,22 +334,39 @@ function buildDiffColorsBasedOnNumericValues(props: {
   lookup: DataTableColumn
   lookup2?: DataTableColumn
   normalize?: DataTableColumn
+  relative?: boolean
   options: any
 }) {
-  const { length, data, data2, lookup, lookup2, normalize, options } = props
+  const { length, data, data2, lookup, lookup2, normalize, relative, options } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   // Figure out differences
 
   const diffValues = new Float32Array(length)
+
   data.values.forEach((value, index) => {
     diffValues[lookup.values[index]] = value
   })
+
   if (data2 && lookup2) {
-    data2.values.forEach((value, index) => {
-      const offset = lookup2.values[index]
-      diffValues[offset] -= value
-    })
+    if (relative) {
+      // percent difference diff
+      data2.values.forEach((originalValue, index) => {
+        const offset = lookup2.values[index]
+        const newValue = diffValues[offset]
+        // don't divide by zero
+        const percentDifference = newValue
+          ? (100 * (newValue - originalValue)) / originalValue
+          : NaN
+        diffValues[offset] = percentDifference
+      })
+    } else {
+      // simple subtraction for non-relative difference
+      data2.values.forEach((value, index) => {
+        const offset = lookup2.values[index]
+        diffValues[offset] -= value
+      })
+    }
   }
 
   console.log({ diffValues })
@@ -356,7 +379,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
   // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
   // *scaleThreshold* is the d3 function that maps numerical values to the color buckets
   // *colorRampType* is 0 if a categorical color ramp is chosen
-  const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff)
+  const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff, relative || false)
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 

@@ -2,6 +2,8 @@ export interface LegendSection {
   section: string
   column: string
   values: any
+  diff?: boolean
+  relative?: boolean
 }
 
 class LegendStore {
