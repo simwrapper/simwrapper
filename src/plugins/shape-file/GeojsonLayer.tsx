@@ -32,6 +32,8 @@ export default function Component({
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 0 as number | Float32Array,
   fillHeights = 0 as number | Float32Array,
+  calculatedValues = null as null | Float32Array,
+  calculatedValueLabel = '',
   opacity = 1,
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
@@ -140,7 +142,7 @@ export default function Component({
   }
 
   function precise(x: number) {
-    return format(x, { lowerExp: -6, upperExp: 6, precision: 5 })
+    return format(x, { lowerExp: -7, upperExp: 7, precision: 4 })
   }
 
   function getTooltip({ object, index }: { object: any; index: number }) {
@@ -148,17 +150,28 @@ export default function Component({
     // if there is base data, it will also show values and diff vs. base for both color and width.
 
     if (object == null) return null
-    let propList = ''
+    const propList = []
+
+    // calculated value
+    if (calculatedValues && calculatedValueLabel) {
+      const key = calculatedValueLabel || 'Value'
+      const value = precise(calculatedValues[index])
+      propList.push(
+        `<tr><td style="text-align: right; padding-right: 0.5rem;">${key}</td><td><b>${value}</b></td></tr>`
+      )
+    }
 
     // dataset elements
     const featureTips = Object.entries(features[index].properties)
+
+    let datasetProps = ''
     for (const [tipKey, tipValue] of featureTips) {
       let value = tipValue
       if (value == null) return
       if (typeof value == 'number') value = precise(value)
-      propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
+      datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
     }
-    if (propList) propList += `<tr><td>&nbsp;</td></tr>`
+    if (datasetProps) propList.push(datasetProps)
 
     // feature elements
     let columns = Object.keys(featureDataTable)
@@ -167,16 +180,20 @@ export default function Component({
         return tip.substring(tip.indexOf('.') + 1)
       })
     }
+
+    let featureProps = ''
     columns.forEach(column => {
       if (featureDataTable[column]) {
         let value = featureDataTable[column].values[index]
         if (value == null) return
         if (typeof value == 'number') value = precise(value)
-        propList += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
+        featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
       }
     })
+    if (featureProps) propList.push(featureProps)
 
-    const html = `<table>${propList}</table>`
+    let finalHTML = propList.join('<tr><td>&nbsp;</td></tr>')
+    const html = `<table>${finalHTML}</table>`
 
     try {
       return {
