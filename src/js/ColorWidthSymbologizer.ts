@@ -61,7 +61,7 @@ function buildWidthsBasedOnCategories(props: {
 }) {
   const { columnName, dataset, scaleFactor } = props.options
 
-  return { array: new Float32Array(), legend: [] }
+  return { array: new Float32Array(), legend: [], calculatedValues: null }
 
   // const keys = setColorBasedOnCategory.domain() as any[]
   // const colors = setColorBasedOnCategory.range() as any[]
@@ -84,23 +84,28 @@ function buildDiffWidthsBasedOnNumericValues(props: {
   const { length, data, data2, lookup, lookup2, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (isNaN(scaleFactor)) return { array: null, legend: [] }
+  if (isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
   const widths = new Float32Array(length)
+  const calculatedValues = new Float32Array(length)
 
   if (scaleFactor) {
     data.values.forEach((value, index) => {
-      widths[lookup.values[index]] = value / scaleFactor
+      const offset = lookup.values[index]
+      calculatedValues[offset] = value
     })
     if (data2 && lookup2) {
       data2.values.forEach((value, index) => {
         const offset = lookup2.values[index]
-        widths[offset] = Math.abs(widths[offset] - value / scaleFactor)
+        calculatedValues[offset] = calculatedValues[offset] - value
       })
+    }
+    for (let i = 0; i < widths.length; i++) {
+      widths[i] = Math.abs(widths[i] / scaleFactor)
     }
   }
 
-  console.log({ widths })
+  console.log({ widths, calculatedValues })
   // For legend, let's show 1-2-4-8-16-32-64 pixels?
   const legend = [] as any[]
   for (const thickness of [1, 5, 10, 17, 25, 50]) {
@@ -110,7 +115,7 @@ function buildDiffWidthsBasedOnNumericValues(props: {
   legend[0].label = '<' + legend[0].label
   legend[legend.length - 1].label = legend[legend.length - 1].label + '+'
 
-  return { array: widths, legend }
+  return { array: widths, legend, calculatedValues }
 }
 
 function buildWidthsBasedOnNumericValues(props: {
@@ -123,14 +128,16 @@ function buildWidthsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (isNaN(scaleFactor)) return { array: null, legend: [] }
+  if (isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
   const widths = new Float32Array(length)
+  const calculatedValues = new Float32Array(length)
 
   if (scaleFactor) {
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
       widths[offset] = data.values[i] / scaleFactor
+      calculatedValues[offset] = data.values[i]
     }
   }
 
@@ -143,7 +150,7 @@ function buildWidthsBasedOnNumericValues(props: {
   legend[0].label = '<' + legend[0].label
   legend[legend.length - 1].label = legend[legend.length - 1].label + '+'
 
-  return { array: widths, legend }
+  return { array: widths, legend, calculatedValues }
 }
 
 function getHeightsBasedOnNumericValues(props: {
@@ -156,9 +163,10 @@ function getHeightsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (typeof scaleFactor !== 'number') return 0
+  if (typeof scaleFactor !== 'number') return { heights: 0, calculatedValues: null }
 
   const heights = new Float32Array(length)
+  const calculatedValues = new Float32Array(length)
 
   let normalizedValues = data.values
   let normalizedMax = data.max || -Infinity
@@ -177,10 +185,11 @@ function getHeightsBasedOnNumericValues(props: {
   if (scaleFactor) {
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] = normalizedValues[i]
       heights[offset] = normalizedValues[i] / scaleFactor
     }
   }
-  return heights
+  return { heights, calculatedValues }
 }
 
 function getRadiusForDataColumn(props: {
@@ -194,17 +203,19 @@ function getRadiusForDataColumn(props: {
   const { columnName, dataset, scaleFactor } = options
   // console.log(data, options)
 
-  if (typeof scaleFactor !== 'number') return 0
+  if (typeof scaleFactor !== 'number') return { radius: 0, calculatedValues: null }
 
   const radius = new Float32Array(length)
+  const calculatedValues = new Float32Array(length)
 
   if (scaleFactor) {
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] = data.values[i]
       radius[offset] = Math.sqrt(data.values[i] / scaleFactor)
     }
   }
-  return radius
+  return { radius, calculatedValues }
 }
 
 function buildColorsBasedOnCategories(props: {
@@ -229,8 +240,6 @@ function buildColorsBasedOnCategories(props: {
   const gray = store.state.isDarkMode ? 48 : 212
   const rgbArray = new Uint8Array(length * 3).fill(gray)
 
-  console.log('22 ####################')
-
   for (let i = 0; i < data.values.length; i++) {
     if (props.filter[i] === -1) continue
     const color = setColorBasedOnCategory(data.values[i])
@@ -249,7 +258,7 @@ function buildColorsBasedOnCategories(props: {
 
   console.log({ legend })
 
-  return { array: rgbArray, legend, normalizedValues: null }
+  return { array: rgbArray, legend, calculatedValues: null }
 }
 
 function buildDiffDomainBreakpoints(options: any, minDiff: number, maxDiff: number) {
@@ -388,7 +397,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   console.log({ legend, colors })
 
-  return { array: rgbArray, legend, normalizedValues: null }
+  return { array: rgbArray, legend, calculatedValues: diffValues }
 }
 
 function buildColorsBasedOnNumericValues(props: {
@@ -421,6 +430,7 @@ function buildColorsBasedOnNumericValues(props: {
   // const isCategorical = false // colorRampType === 0 || buildColumn.type == DataType.STRING
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
+  const calculatedValues = new Float32Array(length)
   let normalizedValues = data.values
   let normalizedMax = data.max || -Infinity
 
@@ -429,6 +439,7 @@ function buildColorsBasedOnNumericValues(props: {
     console.log('NORMALIZING')
     normalizedValues = new Float32Array(data.values.length)
     normalizedMax = -Infinity
+
     for (let i = 0; i < data.values.length; i++) {
       normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
       if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
@@ -445,11 +456,14 @@ function buildColorsBasedOnNumericValues(props: {
     const value = normalizedValues[i] / (normalizedMax || 1)
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
 
-    const offset = lookup ? lookup.values[i] * 3 : i * 3
+    const offset = lookup ? lookup.values[i] : i
+    const colorOffset = offset * 3
 
-    rgbArray[offset + 0] = color[0]
-    rgbArray[offset + 1] = color[1]
-    rgbArray[offset + 2] = color[2]
+    calculatedValues[offset] = value
+
+    rgbArray[colorOffset + 0] = color[0]
+    rgbArray[colorOffset + 1] = color[1]
+    rgbArray[colorOffset + 2] = color[2]
   }
 
   const legend = [] as any[]
@@ -477,7 +491,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   console.log({ legend, colors })
 
-  return { array: rgbArray, legend, normalizedValues: null }
+  return { array: rgbArray, legend, calculatedValues }
 }
 
 // helpers ------------------------------------------------------------

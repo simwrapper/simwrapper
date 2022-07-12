@@ -17,6 +17,8 @@
       :lineWidths="dataLineWidths"
       :fillColors="dataFillColors"
       :fillHeights="dataFillHeights"
+      :calculatedValues="dataCalculatedValues"
+      :calculatedValueLabel="dataCalculatedValueLabel"
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
       :screenshot="triggerScreenshot"
@@ -197,6 +199,8 @@ export default class VueComponent extends Vue {
   private dataLineWidths: number | Float32Array = 1
   private dataPointRadii: number | Float32Array = 5
   private dataFillHeights: number | Float32Array = 0
+  private dataCalculatedValues: Float32Array | null = null
+  private dataCalculatedValueLabel = ''
 
   private layerId = Math.random()
 
@@ -794,7 +798,7 @@ export default class VueComponent extends Vue {
         if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
 
         // Calculate colors for each feature
-        const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
           length: this.boundaries.length,
           data: dataCol1,
           data2: dataCol2,
@@ -804,6 +808,8 @@ export default class VueComponent extends Vue {
           filter: this.boundaryFilters,
         })
         this.dataFillColors = array
+        this.dataCalculatedValues = calculatedValues
+        this.dataCalculatedValueLabel = `Diff: ${columnName}` // : ${key1}-${key2}`
 
         this.legendStore.setLegendSection({
           section: 'Fill',
@@ -816,6 +822,8 @@ export default class VueComponent extends Vue {
       const datasetKey = color.dataset || ''
       const selectedDataset = this.datasets[datasetKey]
 
+      this.dataCalculatedValueLabel = ''
+
       if (selectedDataset) {
         const dataColumn = selectedDataset[columnName]
         if (!dataColumn)
@@ -826,6 +834,8 @@ export default class VueComponent extends Vue {
         let normalColumn
         if (color.normalize) {
           const keys = color.normalize.split(':')
+          this.dataCalculatedValueLabel = columnName + '/' + keys[1]
+
           // console.log({ keys, datasets: this.datasets })
           if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]])
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
@@ -835,7 +845,7 @@ export default class VueComponent extends Vue {
 
         // Calculate colors for each feature
         // console.log('Updating fills...')
-        const { array, legend, normalizedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           normalize: normalColumn,
@@ -845,6 +855,7 @@ export default class VueComponent extends Vue {
         })
 
         this.dataFillColors = array
+        this.dataCalculatedValues = calculatedValues
 
         this.legendStore.setLegendSection({
           section: 'Color',
@@ -856,6 +867,7 @@ export default class VueComponent extends Vue {
       // simple color
       // console.log('simple')
       this.dataFillColors = color.fixedColors[0]
+      this.dataCalculatedValueLabel = ''
       this.legendStore.clear('Color')
     }
   }
@@ -883,16 +895,20 @@ export default class VueComponent extends Vue {
           if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
 
           // Calculate colors for each feature
-          const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
-            length: this.boundaries.length,
-            data: dataCol1,
-            data2: dataCol2,
-            lookup: lookup1,
-            lookup2: lookup2,
-            options: color,
-            filter: this.boundaryFilters,
-          })
+          const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn(
+            {
+              length: this.boundaries.length,
+              data: dataCol1,
+              data2: dataCol2,
+              lookup: lookup1,
+              lookup2: lookup2,
+              options: color,
+              filter: this.boundaryFilters,
+            }
+          )
           this.dataLineColors = array
+          this.dataCalculatedValues = calculatedValues
+          this.dataCalculatedValueLabel = 'Diff: ' + columnName
 
           this.legendStore.setLegendSection({
             section: 'Line Color',
@@ -911,14 +927,18 @@ export default class VueComponent extends Vue {
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Calculate colors for each feature
-          const { array, legend } = ColorWidthSymbologizer.getColorsForDataColumn({
-            length: this.boundaries.length,
-            data: dataColumn,
-            lookup: lookupColumn,
-            options: color,
-            filter: this.boundaryFilters,
-          })
+          const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn(
+            {
+              length: this.boundaries.length,
+              data: dataColumn,
+              lookup: lookupColumn,
+              options: color,
+              filter: this.boundaryFilters,
+            }
+          )
           this.dataLineColors = array
+          this.dataCalculatedValues = calculatedValues
+          this.dataCalculatedValueLabel = ''
 
           this.legendStore.setLegendSection({
             section: 'Line Color',
@@ -929,6 +949,7 @@ export default class VueComponent extends Vue {
       } else {
         // simple color
         this.dataLineColors = color.fixedColors[0]
+        this.dataCalculatedValueLabel = ''
         this.legendStore.clear('Line Color')
       }
     } catch (e) {
@@ -972,7 +993,7 @@ export default class VueComponent extends Vue {
         if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
 
         // Calculate widths for each feature
-        const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getWidthsForDataColumn({
           length: this.boundaries.length,
           data: dataCol1,
           data2: dataCol2,
@@ -982,6 +1003,8 @@ export default class VueComponent extends Vue {
         })
 
         this.dataLineWidths = array || 0
+        this.dataCalculatedValues = calculatedValues
+        this.dataCalculatedValueLabel = 'Diff: ' + columnName
 
         this.legendStore.setLegendSection({
           section: 'Line Color',
@@ -1000,7 +1023,7 @@ export default class VueComponent extends Vue {
         const lookupColumn = selectedDataset['@']
 
         // Calculate widths for each feature
-        const { array, legend } = ColorWidthSymbologizer.getWidthsForDataColumn({
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getWidthsForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           lookup: lookupColumn,
@@ -1008,6 +1031,8 @@ export default class VueComponent extends Vue {
         })
 
         this.dataLineWidths = array || 0
+        this.dataCalculatedValues = calculatedValues
+        this.dataCalculatedValueLabel = ''
 
         if (legend.length) {
           this.legendStore.setLegendSection({
@@ -1023,6 +1048,7 @@ export default class VueComponent extends Vue {
       // simple width
 
       this.dataLineWidths = 1
+      this.dataCalculatedValueLabel = ''
       this.legendStore.clear('Line Width')
     }
     // this.filterListener()
@@ -1049,18 +1075,24 @@ export default class VueComponent extends Vue {
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
           normalColumn = this.datasets[keys[0]][keys[1]]
           // console.log({ normalColumn })
+          this.dataCalculatedValueLabel = columnName + '/' + keys[1]
         }
 
         // Calculate widths for each feature
         // console.log('update fill height...')
-        const calculatedHeights = ColorWidthSymbologizer.getHeightsBasedOnNumericValues({
-          length: this.boundaries.length,
-          data: dataColumn,
-          lookup: lookupColumn,
-          options: height,
-          normalize: normalColumn,
-        })
-        this.dataFillHeights = calculatedHeights
+        const { heights, calculatedValues } = ColorWidthSymbologizer.getHeightsBasedOnNumericValues(
+          {
+            length: this.boundaries.length,
+            data: dataColumn,
+            lookup: lookupColumn,
+            options: height,
+            normalize: normalColumn,
+          }
+        )
+        this.dataFillHeights = heights
+        this.dataCalculatedValues = calculatedValues
+        this.dataCalculatedValueLabel = ''
+
         if (this.$store.state.viewState.pitch == 0) {
           const angledView = Object.assign({}, this.$store.state.viewState, {
             pitch: 30,
@@ -1071,15 +1103,17 @@ export default class VueComponent extends Vue {
     } else {
       // simple width
       this.dataFillHeights = 0
+      this.dataCalculatedValues = null
+      this.dataCalculatedValueLabel = ''
     }
     // this.filterListener()
   }
 
-  private handleNewRadius(radius: CircleRadiusDefinition) {
-    const columnName = radius.columnName
+  private handleNewRadius(radiusOptions: CircleRadiusDefinition) {
+    const columnName = radiusOptions.columnName
     if (columnName) {
       // Get the data column
-      const datasetKey = radius.dataset || ''
+      const datasetKey = radiusOptions.dataset || ''
       const selectedDataset = this.datasets[datasetKey]
       if (selectedDataset) {
         const dataColumn = selectedDataset[columnName]
@@ -1087,13 +1121,14 @@ export default class VueComponent extends Vue {
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         const lookupColumn = selectedDataset['@']
         // Calculate radius for each feature
-        const calculatedRadius = ColorWidthSymbologizer.getRadiusForDataColumn({
+        const { radius, calculatedValues } = ColorWidthSymbologizer.getRadiusForDataColumn({
           length: this.boundaries.length,
           data: dataColumn,
           lookup: lookupColumn,
-          options: radius,
+          options: radiusOptions,
         })
-        this.dataPointRadii = calculatedRadius
+        this.dataPointRadii = radius
+        this.dataCalculatedValues = calculatedValues
       }
     } else {
       // simple width
