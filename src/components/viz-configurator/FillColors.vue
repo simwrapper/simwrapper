@@ -239,7 +239,7 @@ export default class VueComponent extends Vue {
       fill.colorRamp.breakpoints = this.vizConfiguration.display?.fill?.colorRamp?.breakpoints
     }
 
-    setTimeout(() => this.$emit('update', { fill }), 25)
+    setTimeout(() => this.$emit('update', { fill }), 50)
   }
 
   private clickedSingleColor(swatch: string) {

@@ -189,9 +189,14 @@ export default class VueComponent extends Vue {
     // based on data
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
-    const fixedColors = this.buildColors(this.selectedColor, parseInt(this.steps))
-
     const steps = parseInt(this.steps)
+
+    // Define the actual colors in the ramp.
+    // Use hard-coded colors if they are present (in fixedColors).
+    const fixedColors = this.vizConfiguration.display?.lineColor?.fixedColors
+      ? this.vizConfiguration.display?.lineColor?.fixedColors.slice()
+      : this.buildColors(this.selectedColor, steps)
+
     const lineColor = {
       dataset,
       columnName,
