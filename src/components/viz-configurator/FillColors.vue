@@ -126,6 +126,9 @@ export default class VueComponent extends Vue {
   private mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
     this.datasetsAreLoaded()
+
+    if (this.vizConfiguration.display?.fill?.fixedColors) this.useHardCodedColors = true
+
     this.vizConfigChanged()
   }
 
@@ -178,6 +181,8 @@ export default class VueComponent extends Vue {
     this.datasetLabels = datasetIds
   }
 
+  private useHardCodedColors = false
+
   @Watch('dataColumn')
   @Watch('diffDatasets')
   @Watch('flip')
@@ -212,10 +217,12 @@ export default class VueComponent extends Vue {
     const columnName = this.dataColumn.substring(slash + 1)
 
     // Define the actual colors in the ramp.
-    // Use hard-coded colors if they are present (in fixedColors).
-    const fixedColors = this.vizConfiguration.display?.fill?.fixedColors
+    // Use hard-coded colors if they are present (in fixedColors) -- first load only.
+    const fixedColors = this.useHardCodedColors
       ? this.vizConfiguration.display?.fill?.fixedColors.slice()
       : this.buildColors(this.selectedColor, parseInt(this.steps))
+
+    // this.useHardCodedColors = false
 
     const steps = parseInt(this.steps)
 
