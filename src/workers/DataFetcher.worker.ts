@@ -158,32 +158,6 @@ async function parseData(filename: string, buffer: Uint8Array) {
     // parse the text: we can handle CSV or XML
     await parseVariousFileTypes(_dataset, filename, text)
   }
-
-  cleanData()
-}
-
-// keep specified, or remove extra, columns.
-function cleanData() {
-  if (_config.drop) {
-    let dropColumns: string[] = Array.isArray(_config.drop) ? _config.drop : _config.drop.split(',')
-    if (dropColumns.length) {
-      console.log('DROPPING: ', dropColumns)
-      const dataset = _fileData[_dataset]
-      dropColumns.forEach(column => delete dataset[column.trim()])
-    }
-  }
-  if (_config.keep) {
-    let keepColumns: string[] = Array.isArray(_config.keep) ? _config.keep : _config.keep.split(',')
-    if (keepColumns.length) {
-      console.log('KEEPING ONLY: ', keepColumns)
-
-      const trimmedDataset: any = {}
-      keepColumns.forEach(
-        column => (trimmedDataset[column.trim()] = _fileData[_dataset][column.trim()])
-      )
-      _fileData[_dataset] = trimmedDataset
-    }
-  }
 }
 
 async function parseVariousFileTypes(fileKey: string, filename: string, text: string) {
@@ -224,64 +198,77 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
   // prepare storage object -- figure out records and columns
   const dataTable: DataTable = {}
 
-  let rowCount = 0
-
+  const headerLookup: any = {}
   const csv = Papaparse.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ',', ' '],
     comments: '#',
-    dynamicTyping: false,
-    header: false,
     skipEmptyLines: true,
+    dynamicTyping: true,
+    header: true,
+    transformHeader: (column, index) => {
+      // add _1,_2 suffixes to any header labels that are repeated; e.g. 00,..,24,00_1
+      if (!headerLookup[column]) headerLookup[column] = 0
+      headerLookup[column] += 1
+      if (headerLookup[column] > 1) return `${column.trim()}_${headerLookup[column] - 1}`
+      return column.trim()
+    },
   })
 
+  let headers = csv.meta.fields || []
+
+  if (_config.drop) {
+    let dropColumns: string[] = Array.isArray(_config.drop) ? _config.drop : _config.drop.split(',')
+    if (dropColumns.length) {
+      console.log('DROPPING', dropColumns)
+      headers = headers.filter(header => dropColumns.indexOf(header) == -1)
+    }
+  }
+  if (_config.keep) {
+    let keepColumns: string[] = Array.isArray(_config.keep) ? _config.keep : _config.keep.split(',')
+    if (keepColumns.length) {
+      console.log('KEEPING', keepColumns)
+      headers = headers.filter(header => keepColumns.indexOf(header) > -1)
+    }
+  }
+
   // set up arrays
+
   // First we assume everything is a number. Then when we find out otherwise, we switch
   // to a regular JS array as necessary
-  const headers = csv.data[0] as string[]
-  const numColumns = headers.length
-
-  // first column is always string lookup
-  dataTable[headers[0]] = { name: headers[0], values: [], type: DataType.STRING }
-  // other columns: start with numbers and switch if we have to
-  for (let column = 1; column < numColumns; column++) {
-    const values = new Float32Array(csv.data.length - 1)
+  for (const column of headers) {
+    const values = new Float32Array(csv.data.length)
     values.fill(NaN)
-    dataTable[headers[column]] = { name: headers[column], values, type: DataType.NUMBER } // DONT KNOW TYPE YET
+    dataTable[column] = { name: column, values, type: DataType.NUMBER } // DONT KNOW TYPE YET
   }
 
   // copy data to column-based arrays
-  for (let rowCount = 0; rowCount < csv.data.length - 1; rowCount++) {
-    const row = csv.data[rowCount + 1] as any[]
+  for (let rowCount = 0; rowCount < csv.data.length; rowCount++) {
+    const row = csv.data[rowCount] as any[]
 
     // if (rowCount % 65536 === 0) console.log(row)
 
-    for (let column = 0; column < numColumns; column++) {
-      const key = headers[column]
-      const value = row[column] // always string
+    for (const column of headers as any) {
+      const value = row[column]
 
-      if (column == 0) {
-        // column 0 is always string
-        dataTable[key].values[rowCount] = value
-      } else {
+      if (value !== '') {
         const float = parseFloat(value) // number or NaN
-        if (!isNaN(float)) {
+        if (!Number.isNaN(float)) {
           // number:
-          dataTable[key].values[rowCount] = value
+          dataTable[column].values[rowCount] = value
         } else {
-          // non-number:
-          if (Array.isArray(dataTable[key].values)) {
-            dataTable[key].values[rowCount] = value
+          // non-number. Store in js array, (but convert Float32Array to regular js array first, if needed)
+          if (Array.isArray(dataTable[column].values)) {
+            dataTable[column].values[rowCount] = value
           } else {
-            // first, convert the Float32Array to a normal javascript array
-            if (typeof value == 'string') dataTable[key].type = DataType.STRING
-            if (typeof value == 'boolean') dataTable[key].type = DataType.BOOLEAN
-
-            // convert to regular array
-            const regularArray = Array.from(dataTable[key].values.slice(0, rowCount))
+            // need to convert the Float32Array to a normal javascript array which can contain strings & booleans
+            if (typeof value == 'string') dataTable[column].type = DataType.STRING
+            if (typeof value == 'boolean') dataTable[column].type = DataType.BOOLEAN
+            const regularArray = Array.from(dataTable[column].values.slice(0, rowCount))
+            // append this value
             regularArray[rowCount] = value
             // switch the array out
-            dataTable[key].values = regularArray
+            dataTable[column].values = regularArray
           }
         }
       }
