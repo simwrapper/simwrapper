@@ -258,7 +258,8 @@ export default function Component({
       depthTest: !!fillHeights,
     },
     glOptions: {
-      preserveDrawingBuffer: true, // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+      // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+      preserveDrawingBuffer: true,
     },
     // filter shapes
     extensions: [new DataFilterExtension({ filterSize: 1 })],
