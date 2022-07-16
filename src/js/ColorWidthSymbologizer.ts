@@ -369,10 +369,10 @@ function buildDiffColorsBasedOnNumericValues(props: {
     }
   }
 
-  console.log({ diffValues })
+  const minDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.min(a, b)), Infinity)
+  const maxDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.max(a, b)), -Infinity)
 
-  const minDiff = Math.min(...diffValues)
-  const maxDiff = Math.max(...diffValues)
+  console.log({ minDiff, maxDiff, diffValues })
 
   // *range* is the list of colors;
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
