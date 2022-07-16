@@ -156,6 +156,7 @@ export default class VueComponent extends Vue {
     }
 
     this.diffDatasets = diffPieces
+    this.diffRelative = !!config.relative
   }
 
   @Watch('datasets')
