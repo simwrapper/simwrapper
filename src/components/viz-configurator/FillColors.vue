@@ -205,26 +205,18 @@ export default class VueComponent extends Vue {
 
     const slash = this.dataColumn.indexOf('/')
 
-    // // single color
-    // if (slash === -1) {
-    //   if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
-    //   this.clickedSingleColor(this.selectedSingleColor)
-    //   return
-    // }
-
     // based on data
     const dataset = this.dataColumn.substring(0, slash)
     const columnName = this.dataColumn.substring(slash + 1)
+    const steps = parseInt(this.steps)
 
     // Define the actual colors in the ramp.
     // Use hard-coded colors if they are present (in fixedColors) -- first load only.
     const fixedColors = this.useHardCodedColors
       ? this.vizConfiguration.display?.fill?.fixedColors.slice()
-      : this.buildColors(this.selectedColor, parseInt(this.steps))
+      : this.buildColors(this.selectedColor, steps)
 
     // this.useHardCodedColors = false
-
-    const steps = parseInt(this.steps)
 
     const fill = {
       dataset,
