@@ -15,20 +15,18 @@ sed -I .bak "s#'/'#'/$2/'#"  vite.config.ts
 sed -I .bak "s#'/'#'/$2/'#"  public/404.html
 sed -I .bak "s#'/'#'/$2/'#"  src/fileSystemConfig.ts
 
-echo --- BUILDING INDEX.HTML FILES
-cd public/data
-node ../../scripts/build-index.js
-cd ../..
+echo --- BUILD INDEX.HTML FILES ---
+npm run index
 
-echo --- BUILDING ---
+echo --- BUILD SITE ---
 node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build
 
-echo --- CREATING GIT COMMIT FOR GH-PAGES ---
+echo --- CREATE GIT COMMIT FOR GH-PAGES ---
 cd dist
 git init .
 git add . && git commit -m "gh-pages"
 
-echo --- PUSHING TO GITHUB ---
+echo --- PUSH TO GITHUB ---
 git remote add origin git@github.com:$1.git
 git push --force origin master:gh-pages
 
