@@ -268,10 +268,13 @@ export default class VueComponent extends Vue {
   }
 
   private get generatedExportFilename() {
-    let filename = Sanitize(this.yamlConfig + '-1')
-    filename = filename.replaceAll(' ', ' ')
+    let filename = Sanitize(this.yamlConfig)
+    filename = filename.replaceAll(' ', '-')
 
-    return `viz-map-${filename}.yaml`
+    if (!filename.startsWith('viz-map-')) filename = 'viz-map-' + filename
+    if (!filename.endsWith('.yml') && !filename.endsWith('.yaml')) filename = filename + '.yaml'
+
+    return filename
   }
 
   private myDataManager!: DashboardDataManager
