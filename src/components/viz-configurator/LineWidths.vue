@@ -8,7 +8,7 @@
           option(label="1px" value="@1")
           option(label="2px" value="@2")
 
-          optgroup(v-for="dataset in datasetChoices"
+          optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :value="`${dataset}/${column}`"
@@ -19,6 +19,25 @@
       p Scaling
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+
+  //- DIFF MODE
+  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
+    .widgets
+      .widget(style="flex: 3")
+        p.tight Compare datasets
+        b-select.selector(
+          :disabled="!dataColumn || diffChoices.length<2"
+          expanded
+          v-model="diffUISelection"
+        )
+          option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
+
+      //- .widget
+      //-   p % Diff
+      //-   b-checkbox.hello(
+      //-     :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
+      //-     v-model="diffRelative"
+      //-   )
 
   //- .widgets
   //-   .widget
@@ -46,6 +65,7 @@ export type LineWidthDefinition = {
   scaleFactor?: number
   diff?: string
   diffDatasets?: string[]
+  relative?: boolean
 }
 
 @Component({ components: {}, props: {} })
@@ -60,6 +80,7 @@ export default class VueComponent extends Vue {
 
   private datasetLabels = [] as string[]
   private diffDatasets: string[] = []
+  private diffRelative = false
 
   private mounted() {
     this.datasetsAreLoaded()
@@ -73,16 +94,37 @@ export default class VueComponent extends Vue {
     this.setupDiffMode(config)
 
     if (config?.columnName) {
-      this.dataColumn = `${config.dataset}/${config.columnName}`
+      this.dataColumn = this.diffDatasets.length
+        ? `${this.diffDatasets[0]}/${config.columnName}`
+        : `${config.dataset}/${config.columnName}`
+
       this.datasetLabels = [...this.datasetLabels]
       this.scaleFactor = config.scaleFactor
     }
+  }
+
+  private setupDiffMode(config: LineWidthDefinition) {
+    if (!config?.diff) return
+
+    let diffPieces: string[] = []
+
+    if (config.diff.indexOf(' - ') > -1) {
+      diffPieces = config.diff.split(' - ').map(p => p.trim())
+    } else {
+      diffPieces = config.diff.split('-').map(p => p.trim())
+      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+    }
+
+    this.diffDatasets = diffPieces
+    this.diffRelative = !!config.relative
+    this.diffUISelection = `${diffPieces[0]} - ${diffPieces[1]}`
   }
 
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
+    this.updateDiffLabels()
 
     // const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
     // if (dataset && columnName) {
@@ -95,6 +137,45 @@ export default class VueComponent extends Vue {
     // }
   }
 
+  private diffUISelection = ''
+  private diffChoices = [] as any[]
+
+  private updateDiffLabels() {
+    const choices = []
+
+    choices.push(['No', ''])
+    if (this.datasetLabels.length <= 1) return
+
+    // create all combinations of x-y and y-x
+    const nonShapefileDatasets = this.datasetLabels.slice(1)
+    let combos = nonShapefileDatasets.flatMap((v, i) =>
+      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+    )
+    combos.forEach(combo => choices.push([combo, combo]))
+
+    nonShapefileDatasets.reverse()
+    combos = nonShapefileDatasets.flatMap((v, i) =>
+      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+    )
+    combos.forEach(combo => choices.push([combo, combo]))
+
+    this.diffChoices = choices
+  }
+
+  private isCurrentlyDiffMode = false
+
+  @Watch('diffUISelection')
+  private diffSelectionChanged() {
+    if (this.diffUISelection) {
+      const pieces = this.diffUISelection.split(' - ')
+      this.diffDatasets = pieces
+    } else {
+      this.diffDatasets = []
+      this.diffRelative = false
+    }
+    this.isCurrentlyDiffMode = !!this.diffUISelection
+  }
+
   @Watch('scaleFactor')
   private handleScaleChanged = debounce(() => {
     this.emitSpecification()
@@ -102,6 +183,7 @@ export default class VueComponent extends Vue {
 
   @Watch('dataColumn')
   @Watch('diffDatasets')
+  @Watch('diffRelative')
   private emitSpecification() {
     // no width? ignore this
     if (!this.dataColumn) return
@@ -123,6 +205,7 @@ export default class VueComponent extends Vue {
     } as any
 
     if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
+    if (this.diffRelative) lineWidth.relative = true
 
     setTimeout(() => this.$emit('update', { lineWidth }), 25)
   }
@@ -145,7 +228,7 @@ export default class VueComponent extends Vue {
     setTimeout(() => this.$emit('update', { lineWidth }), 25)
   }
 
-  private get datasetChoices(): string[] {
+  private datasetChoices(): string[] {
     return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
   }
 
@@ -158,21 +241,6 @@ export default class VueComponent extends Vue {
     )
 
     return allColumns
-  }
-
-  private setupDiffMode(config: LineWidthDefinition) {
-    if (!config?.diff) return
-
-    let diffPieces: string[] = []
-
-    if (config.diff.indexOf(' - ') > -1) {
-      diffPieces = config.diff.split(' - ').map(p => p.trim())
-    } else {
-      diffPieces = config.diff.split('-').map(p => p.trim())
-      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
-    }
-
-    this.diffDatasets = diffPieces
   }
 }
 </script>
@@ -203,5 +271,9 @@ export default class VueComponent extends Vue {
   margin-top: 0.75rem;
   overflow-x: auto;
   max-width: 100%;
+}
+
+.tight {
+  margin: 0 0 -10px 1px;
 }
 </style>

@@ -19,6 +19,25 @@
           optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
 
+  //- DIFF MODE
+  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
+    .widgets
+      .widget(style="flex: 3")
+        p.tight Compare datasets
+        b-select.selector(
+          :disabled="!dataColumn || diffChoices.length<2"
+          expanded
+          v-model="diffUISelection"
+        )
+          option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
+
+      .widget
+        p % Diff
+        b-checkbox.hello(
+          :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
+          v-model="diffRelative"
+        )
+
   //- SIMPLE COLORS
   .colorbar.single(v-show="dataColumn=='@'")
     .single-color(
@@ -30,7 +49,7 @@
   //- STEPS, REVERSE, COLOR RAMPS
   .more(v-show="dataColumn && dataColumn.length > 1")
     .widgets
-      .widget
+      .widget(style="flex: 3")
         p Steps
         b-input(v-model="steps"
             placeholder="Number"
@@ -39,7 +58,7 @@
             max="15")
 
       .widget
-        p Reverse
+        p Flip
         b-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
@@ -89,6 +108,20 @@ export interface FillColorDefinition {
   fixedColors: string[]
 }
 
+const ALL_COLOR_RAMPS = [
+  { ramp: 'Viridis', style: style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Plasma', style: style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Blues', style: style.sequential }, // , reverse: true },
+  { ramp: 'Greens', style: style.sequential }, // , reverse: true },
+  { ramp: 'Purples', style: style.sequential }, // , reverse: true },
+  { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
+  { ramp: 'RdBu', style: style.diverging, reverse: true },
+  { ramp: 'PRGn', style: style.diverging, reverse: true },
+  { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
+  { ramp: 'Paired', style: style.categorical }, // , reverse: true },
+  // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
+]
+
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop() vizConfiguration!: VizLayerConfiguration
@@ -96,19 +129,13 @@ export default class VueComponent extends Vue {
 
   private simpleColors = this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
 
-  private colorChoices = [
-    { ramp: 'Viridis', style: style.sequential, reverse: true }, // , reverse: true },
-    { ramp: 'Plasma', style: style.sequential, reverse: true }, // , reverse: true },
-    { ramp: 'Blues', style: style.sequential }, // , reverse: true },
-    { ramp: 'Greens', style: style.sequential }, // , reverse: true },
-    { ramp: 'Purples', style: style.sequential }, // , reverse: true },
-    { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
-    { ramp: 'RdBu', style: style.diverging, reverse: true },
-    { ramp: 'PRGn', style: style.diverging, reverse: true },
-    { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
-    { ramp: 'Paired', style: style.categorical }, // , reverse: true },
-    // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
-  ]
+  private get colorChoices() {
+    if (!this.diffDatasets || this.diffDatasets.length) {
+      return ALL_COLOR_RAMPS.filter(ramp => ramp.style == style.diverging)
+    }
+
+    return ALL_COLOR_RAMPS
+  }
 
   private globalState = globalStore.state
 
@@ -139,7 +166,10 @@ export default class VueComponent extends Vue {
     this.setupDiffMode(config)
 
     if (config?.columnName) {
-      const selectedColumn = `${config.dataset}/${config.columnName}`
+      const selectedColumn = this.diffDatasets.length
+        ? `${this.diffDatasets[0]}/${config.columnName}`
+        : `${config.dataset}/${config.columnName}`
+
       this.dataColumn = selectedColumn
       this.datasetLabels = [...this.datasetLabels]
 
@@ -173,12 +203,57 @@ export default class VueComponent extends Vue {
 
     this.diffDatasets = diffPieces
     this.diffRelative = !!config.relative
+    this.diffUISelection = `${diffPieces[0]} - ${diffPieces[1]}`
   }
 
   @Watch('datasets')
   private datasetsAreLoaded() {
     const datasetIds = Object.keys(this.datasets)
     this.datasetLabels = datasetIds
+    this.updateDiffLabels()
+  }
+
+  private diffUISelection = ''
+  private diffChoices = [] as any[]
+
+  private updateDiffLabels() {
+    const choices = []
+
+    choices.push(['No', ''])
+    if (this.datasetLabels.length <= 1) return
+
+    // create all combinations of x-y and y-x
+    const nonShapefileDatasets = this.datasetLabels.slice(1)
+    let combos = nonShapefileDatasets.flatMap((v, i) =>
+      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+    )
+    combos.forEach(combo => choices.push([combo, combo]))
+
+    nonShapefileDatasets.reverse()
+    combos = nonShapefileDatasets.flatMap((v, i) =>
+      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+    )
+    combos.forEach(combo => choices.push([combo, combo]))
+
+    this.diffChoices = choices
+  }
+
+  private isCurrentlyDiffMode = false
+
+  @Watch('diffUISelection')
+  private diffSelectionChanged() {
+    if (this.diffUISelection) {
+      const pieces = this.diffUISelection.split(' - ')
+      this.diffDatasets = pieces
+      // pick a diverging color ramp if we don't have one yet
+      if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
+    } else {
+      // pick a nondiverging color ramp if we just turned diffmode off
+      if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
+      this.diffDatasets = []
+      this.diffRelative = false
+    }
+    this.isCurrentlyDiffMode = !!this.diffUISelection
   }
 
   private useHardCodedColors = false
@@ -368,17 +443,17 @@ export default class VueComponent extends Vue {
   padding: 1px 1px;
   border-radius: 3px;
   margin-right: 0.75rem;
-  border: 3px solid #00000000;
+  border: 2px solid #00000000;
 }
 
 .color-ramp.active {
-  border: 3px solid #6361dd;
+  border: 2px solid #6361dd;
 }
 
 .colorbar {
   display: flex;
   flex-direction: row;
-  height: 12px;
+  height: 9px;
 }
 
 .color-ramp:hover {
@@ -409,6 +484,7 @@ export default class VueComponent extends Vue {
 .single-color.active {
   border-color: black;
 }
+
 .tight {
   margin: 0 0 -10px 1px;
 }

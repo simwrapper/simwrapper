@@ -189,6 +189,7 @@ export default class VueComponent extends Vue {
   private exportYaml() {
     let suggestedFilename = 'viz-viztype-config.yaml'
     const configFile = this.yamlConfig.toLocaleLowerCase()
+
     if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
       suggestedFilename = this.yamlConfig
     }
@@ -258,6 +259,25 @@ export default class VueComponent extends Vue {
       } else {
         delete config.display.lineColor.dataset
         delete config.display.lineColor.columnName
+      }
+    }
+
+    // diff mode
+    for (const panel of ['fill', 'lineColor', 'lineWidth']) {
+      const section = config.display[panel]
+      if (!section) continue
+
+      if (!section.normalize) delete section.normalize
+      if (!section.relative) delete section.relative
+
+      if (section.diffDatasets) {
+        section.diff = `${section.diffDatasets[0]} - ${section.diffDatasets[1]}`
+        delete section.dataset
+        delete section.diffDatasets
+        // reorder elements
+        const topElements = { diff: section.diff, columnName: section.columnName } as any
+        if (section.relative) topElements.relative = true
+        config.display[panel] = Object.assign(topElements, section)
       }
     }
 
