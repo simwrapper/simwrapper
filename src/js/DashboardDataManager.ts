@@ -36,7 +36,8 @@ interface configuration {
 export interface FilterDefinition {
   dataset: string
   column: string
-  invert: boolean
+  operator?: string
+  invert?: boolean
   value: any
 }
 
@@ -344,8 +345,8 @@ export default class DashboardDataManager {
     let filteredRows: any[] = []
 
     const numberOfRowsInFullDataset = dataset[allColumns[0]].values.length
-    console.log('FILTERS', metaData.activeFilters)
-    console.log('NROWS', numberOfRowsInFullDataset)
+    console.log('FILTERS:', metaData.activeFilters)
+    console.log('TOTLROWS', numberOfRowsInFullDataset)
 
     const ltgt = /^(<|>)/ // starts with < or >
 
@@ -359,22 +360,29 @@ export default class DashboardDataManager {
       if (ltgt.test(spec.values[0])) {
         if (spec.values[0].startsWith('<=')) {
           spec.conditional = '<='
-          spec.values[0] = spec.values[0].substring(2).trim()
+          spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
         } else if (spec.values[0].startsWith('>=')) {
           spec.conditional = '>='
-          spec.values[0] = spec.values[0].substring(2).trim()
+          spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
         } else if (spec.values[0].startsWith('<')) {
           spec.conditional = '<'
-          spec.values[0] = spec.values[0].substring(1).trim()
+          spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
         } else if (spec.values[0].startsWith('>')) {
           spec.conditional = '>'
-          spec.values[0] = spec.values[0].substring(1).trim()
+          spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
+        }
+      } else {
+        // handle case where we are testing equal/inequal and its a "numeric" string
+        if (spec.values.length === 1 && typeof spec.values[0] === 'string') {
+          const numericString = parseFloat(spec.values[0])
+          if (!Number.isNaN(numericString)) spec.values.push(numericString)
         }
       }
 
+      console.log('HEREWEGO: ', spec)
       // update every row
       for (let i = 0; i < numberOfRowsInFullDataset; i++) {
-        if (this.checkFilterValue(spec, dataColumn.values[i])) {
+        if (checkFilterValue(spec, dataColumn.values[i])) {
           const row = {} as any
           allColumns.forEach(col => (row[col] = dataset[col].values[i]))
           filteredRows.push(row)
@@ -382,41 +390,9 @@ export default class DashboardDataManager {
       }
     }
 
-    console.log('FROWS', filteredRows)
+    console.log('FILTROWS', filteredRows)
     metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
-  }
-
-  private checkFilterValue(
-    spec: { conditional: string; invert: boolean; values: any[] },
-    elementValue: any
-  ) {
-    // lookup closure functions for < > <= >=
-    const conditionals: any = {
-      '<': () => {
-        return elementValue < spec.values[0]
-      },
-      '<=': () => {
-        return elementValue <= spec.values[0]
-      },
-      '>': () => {
-        return elementValue > spec.values[0]
-      },
-      '>=': () => {
-        return elementValue >= spec.values[0]
-      },
-    }
-
-    let isValueInFilterSpec: boolean
-
-    if (spec.conditional) {
-      isValueInFilterSpec = conditionals[spec.conditional]()
-    } else {
-      isValueInFilterSpec = spec.values.includes(elementValue)
-    }
-
-    if (spec.invert) return !isValueInFilterSpec
-    return isValueInFilterSpec
   }
 
   private notifyListeners(datasetId: string) {
@@ -531,4 +507,36 @@ export default class DashboardDataManager {
   } = {}
 
   private networks: { [id: string]: Promise<NetworkLinks> } = {}
+}
+
+export function checkFilterValue(
+  spec: { conditional: string; invert: boolean; values: any[] },
+  elementValue: any
+) {
+  // lookup closure functions for < > <= >=
+  const conditionals: any = {
+    '<': () => {
+      return elementValue < spec.values[0]
+    },
+    '<=': () => {
+      return elementValue <= spec.values[0]
+    },
+    '>': () => {
+      return elementValue > spec.values[0]
+    },
+    '>=': () => {
+      return elementValue >= spec.values[0]
+    },
+  }
+
+  let isValueInFilterSpec: boolean
+
+  if (spec.conditional) {
+    isValueInFilterSpec = conditionals[spec.conditional]()
+  } else {
+    isValueInFilterSpec = spec.values.includes(elementValue)
+  }
+
+  if (spec.invert) return !isValueInFilterSpec
+  return isValueInFilterSpec
 }

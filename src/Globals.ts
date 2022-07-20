@@ -77,6 +77,7 @@ export type VizLayerConfiguration = {
     lineWidth: any
     radius: any
   }
+  filters: any
 }
 
 export type YamlConfigs = {
