@@ -66,6 +66,9 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import YAML from 'yaml'
 import { startCase } from 'lodash'
 
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendStore from '@/js/LegendStore'
+
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
 import LegendBox from './LegendBox.vue'
@@ -74,8 +77,7 @@ import FillColorPanel from './FillColors.vue'
 import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import LegendStore from '@/js/LegendStore'
+import FiltersPanel from './Filters.vue'
 
 @Component({
   components: {
@@ -87,6 +89,7 @@ import LegendStore from '@/js/LegendStore'
     LegendBox,
     LineColorPanel,
     LineWidthPanel,
+    FiltersPanel,
   },
   props: {},
 })
@@ -112,9 +115,8 @@ export default class VueComponent extends Vue {
   private getSections() {
     if (this.sections) {
       return this.sections.map(section => {
-        const caps = startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
-        const componentName = caps
-        return { component: componentName, name: section.replaceAll('-', ' ') }
+        const camelCaseName = startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
+        return { component: camelCaseName, name: section.replaceAll('-', ' ') }
       })
     } else {
       return [
@@ -126,7 +128,11 @@ export default class VueComponent extends Vue {
   }
 
   private get vizConfiguration() {
-    return { datasets: this.vizDetails.datasets, display: this.vizDetails.display }
+    return {
+      datasets: this.vizDetails.datasets,
+      display: this.vizDetails.display,
+      filters: this.vizDetails.filters,
+    }
   }
 
   private get fidgetSections() {
@@ -294,6 +300,11 @@ export default class VueComponent extends Vue {
     for (const entries of Object.entries(config.display) as any[]) {
       console.log(entries)
       if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
+    }
+
+    // filters
+    if (this.vizDetails.filters) {
+      config.filters = Object.assign({}, this.vizDetails.filters)
     }
 
     const text = YAML.stringify(config, {

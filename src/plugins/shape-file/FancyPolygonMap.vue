@@ -144,7 +144,7 @@ import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
 import { arrayBufferToBase64 } from '@/js/util'
 import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
@@ -188,8 +188,8 @@ export default class VueComponent extends Vue {
 
   private get configuratorSections() {
     if (this.isAreaMode)
-      return ['fill-color', 'fill-height', 'line-color', 'line-width', 'circle-radius']
-    else return ['line-color', 'line-width']
+      return ['fill-color', 'fill-height', 'line-color', 'line-width', 'circle-radius', 'filters']
+    else return ['line-color', 'line-width', 'filters']
   }
 
   private boundaryDataTable: DataTable = {}
@@ -307,7 +307,7 @@ export default class VueComponent extends Vue {
 
       await this.getVizDetails()
 
-      this.filterDefinitions = this.parseFilterDefinitions()
+      this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
 
       this.buildThumbnail()
       if (this.thumbnail) return
@@ -371,16 +371,79 @@ export default class VueComponent extends Vue {
   }
 
   private filterShapesNow() {
-    // shape filters
+    // shape filters only
     const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
 
+    this.boundaryFilters = new Float32Array(this.boundaries.length)
+
+    // show all elements if there are no shapefilters defined
+    if (!shapeFilters.length) return
+
+    const isLTGT = /^(<|>)/ // starts with < or >
+
+    for (const filter of shapeFilters) {
+      console.log('filter >>>:', filter)
+      let spec = filter.value
+      let conditional = ''
+
+      // prep LT/GT
+      if (isLTGT.test(spec)) {
+        if (spec.startsWith('<=')) {
+          conditional = '<='
+          spec = parseFloat(spec.substring(2).trim())
+        } else if (spec.startsWith('>=')) {
+          conditional = '>='
+          spec = parseFloat(spec.substring(2).trim())
+        } else if (spec.startsWith('<')) {
+          conditional = '<'
+          spec = parseFloat(spec.substring(1).trim())
+        } else if (spec.startsWith('>')) {
+          conditional = '>'
+          spec = parseFloat(spec.substring(1).trim())
+        }
+      } else {
+        // handle case where we are testing equal/inequal and its a "numeric" string
+        if (typeof spec === 'string') {
+          // handle a comma-separated list
+          if (spec.indexOf(',') > -1) {
+            spec = spec
+              .split(',')
+              .map(v => v.trim())
+              .map(v => (isNaN(parseFloat(v)) ? v : parseFloat(v)))
+          } else {
+            const numericString = parseFloat(spec)
+            if (!Number.isNaN(numericString)) spec = numericString
+          }
+        }
+      }
+
+      if (!Array.isArray(spec)) spec = [spec]
+
+      const fullSpecification = { conditional, invert: filter.invert || false, values: spec }
+      console.log('HEREWEGO: ', fullSpecification)
+      const dataColumnValues = this.boundaryDataTable[filter.column].values
+
+      // update every row
+      for (let i = 0; i < this.boundaries.length; i++) {
+        if (!checkFilterValue(fullSpecification, dataColumnValues[i])) {
+          this.boundaryFilters[i] = -1
+        }
+      }
+    }
+  }
+
+  private filterShapesNowOriginal() {
+    // shape filters only
+    const shapeFilters = this.filterDefinitions.filter(f => f.dataset === 'shapes')
+
+    this.boundaryFilters = new Float32Array(this.boundaries.length)
+
+    // show all elements if there are no shapefilters defined
     if (!shapeFilters.length) return
 
     // console.log({ shapeFilters, length: this.boundaries.length })
 
     // loop on all boundaries and centroids
-    this.boundaryFilters = new Float32Array(this.boundaries.length)
-
     for (let i = 0; i < this.boundaries.length; i++) {
       for (const filter of shapeFilters) {
         const hideElement = !this.checkIsFiltered(i, filter)
@@ -396,12 +459,20 @@ export default class VueComponent extends Vue {
 
     let includeElement = false
 
-    if (Array.isArray(filter.value)) {
+    let filterValue = filter.value
+    if (typeof filterValue == 'string' && filterValue.indexOf(',') > -1) {
+      filterValue = filterValue
+        .split(',')
+        .map(v => v.trim())
+        .map(v => (isNaN(parseFloat(v)) ? v : parseFloat(v)))
+    }
+
+    if (Array.isArray(filterValue)) {
       // 1. filter is an array of categories
-      includeElement = filter.value.indexOf(actualValue) > -1
+      includeElement = filterValue.indexOf(actualValue) > -1
     } else {
-      // 2. filter is a string: exact value
-      includeElement = filter.value == actualValue
+      // 2. filter is a string: exact value or CSV
+      includeElement = filterValue == actualValue
     }
 
     // Invert if inverted
@@ -410,18 +481,18 @@ export default class VueComponent extends Vue {
     return includeElement
   }
 
-  private parseFilterDefinitions() {
+  private parseFilterDefinitions(filterDefs: any) {
     // no filters? go away
-    if (!this.vizDetails.filters) return []
+    if (!filterDefs) return []
 
     const filters = [] as FilterDefinition[]
 
     // User may have specified an array or an object:
     let filterSpecs: any[]
-    if (Array.isArray(this.vizDetails.filters)) {
-      filterSpecs = this.vizDetails.filters.map(f => Object.entries(f)[0])
+    if (Array.isArray(filterDefs)) {
+      filterSpecs = filterDefs.map(f => Object.entries(f)[0])
     } else {
-      filterSpecs = Object.entries(this.vizDetails.filters)
+      filterSpecs = Object.entries(filterDefs)
     }
 
     for (const filter of filterSpecs) {
@@ -582,6 +653,7 @@ export default class VueComponent extends Vue {
     lineWidth?: LineWidthDefinition
     radius?: CircleRadiusDefinition
     fillHeight?: FillHeightDefinition
+    filters?: FilterDefinition
   }) {
     console.log('props', props)
 
@@ -616,6 +688,11 @@ export default class VueComponent extends Vue {
         // a fully-build DatasetDefinition, so let's just handle that
         this.handleNewDataset(props.dataset)
       }
+
+      if (props['filters']) {
+        this.handleNewFilters(props.filters)
+      }
+
       console.log('DONE updating')
     } catch (e) {
       this.$store.commit('error', '' + e)
@@ -777,6 +854,22 @@ export default class VueComponent extends Vue {
 
   //   this.filterListener()
   // }
+
+  private handleNewFilters(filters: any) {
+    // Filter shapes
+    this.filterDefinitions = this.parseFilterDefinitions(filters)
+    this.filterShapesNow()
+
+    // Filter datasets
+    Object.keys(this.datasets).forEach((datasetKey, i) => {
+      if (i === 0) return // skip shapefile
+      // this.myDataManager.addFilterListener({ dataset: key }, this.processFiltersNow)
+      this.activateFiltersForDataset({ datasetKey })
+    })
+
+    // handle UI filter options
+    this.figureOutRemainingFilteringOptions()
+  }
 
   private handleNewFillColor(fill: FillColorDefinition) {
     const color = fill
@@ -1172,23 +1265,25 @@ export default class VueComponent extends Vue {
     // - Then apply those values (summed if necessary) to the boundaries.
 
     try {
-      // console.log('> processFiltersNow', datasetName)
+      console.log('> processFiltersNow', datasetName)
 
       // get dataset + join for this filename --> reverse lookup by filename
       const datasetKey = Object.entries(this.datasetKeyToFilename).filter(
         d => d[1] == datasetName
       )[0][0]
+
       const dataset = this.datasets[datasetKey]
+
       let join = this.vizDetails.datasets[datasetKey].join.split(':')
       if (join.length == 1) join.push(join[0])
 
-      // console.log(this.vizDetails.datasets[datasetKey])
-      // console.log({ datasetKey, dataset, join })
+      console.log(11, this.vizDetails.datasets[datasetKey])
+      console.log({ datasetKey, dataset, join })
 
       let { filteredRows } = await this.myDataManager.getFilteredDataset({
-        dataset: this.datasetFilename,
+        dataset: datasetName || '',
       })
-      // console.log(12, filteredRows)
+      console.log(12, filteredRows)
 
       if (!filteredRows) return
 
@@ -1583,6 +1678,7 @@ export default class VueComponent extends Vue {
     const filters = this.filterDefinitions.filter(f => f.dataset == props.datasetKey)
 
     for (const filter of filters) {
+      console.log(123, filter)
       this.myDataManager.setFilter(
         Object.assign(filter, { dataset: this.datasetKeyToFilename[props.datasetKey] })
       )
