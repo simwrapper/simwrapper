@@ -95,18 +95,30 @@ export default class VueComponent extends Vue {
   @Watch('vizConfiguration')
   private vizConfigChanged() {
     this.filters = {}
+    if (!this.vizConfiguration.filters) return
 
-    const config = this.vizConfiguration.filters
-    if (!config) return
+    // make local copy of filter config
+    let filterConfig = JSON.parse(JSON.stringify(this.vizConfiguration.filters))
 
-    for (const key of Object.keys(this.vizConfiguration.filters)) {
+    // some users write YAML as objects, others as arrays:
+    if (Array.isArray(filterConfig)) {
+      const entries = {}
+      filterConfig.forEach(item => Object.assign(entries, item))
+      filterConfig = entries
+    }
+
+    for (const key of Object.keys(filterConfig)) {
       const [dataset, column] = key.split('.')
+      if (column == undefined) {
+        this.$store.commit('error', `Filter key is not "dataset.column": ${key}`)
+        continue
+      }
 
       const filter: FilterDefinition = {
         dataset,
         column,
         operator: '==',
-        value: this.vizConfiguration.filters[key],
+        value: filterConfig[key],
       }
 
       if (column.endsWith('!')) {
