@@ -12,12 +12,14 @@ import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 import MapView from '@/plugins/shape-file/FancyPolygonMap.vue'
+import Flowmap from '@/plugins/flowmap/Flowmap.vue'
 
 // // EVERY plugin must also be exported here:
 const plugins = {
   AggregateOd,
   CalculationTable,
   CarrierViewer,
+  Flowmap,
   ImageView,
   LinksGl,
   SankeyDiagram,
