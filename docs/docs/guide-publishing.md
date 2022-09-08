@@ -34,7 +34,7 @@ Thus, you only need to watch the outbound data transfer to keep your site free. 
 
 Now that `flyctl` is set up on your machine you can launch your first site!
 
-1. Clone the git repo at `https://github.com/simwrapper/fly-io-site` which has the Dockerfile for SimWrapper ready to go
+1. Clone the git repo at `https://github.com/simwrapper/simwrapper-example-project` which has the Dockerfile for SimWrapper ready to go
 2. Copy your project folder -- everything you want published -- into the local `data` folder inside that repo
 3. Run `flyctl launch` and answer the questions:
    - Give your site a useful name or it will give you something random
@@ -45,6 +45,20 @@ Now that `flyctl` is set up on your machine you can launch your first site!
 That's it. It will take a few minutes to upload all your files and provision the site, and then... that's it; it's live at **your-site-name.fly.dev**
 
 There are ways to give it your own domain name, etc. See the [fly.io/docs](https://fly.io/docs) for all the details.
+
+### Password-protect your site
+
+To password-protect a SimWrapper site using standard HTTP Basic authentication, use the program `htpasswd` to generate a username/password file named `.htpasswd` and copy that file into the root of the built site using Docker. Github Pages does not support this; you need to use a real web host such as Fly.io etc. that honors basic authentication.
+
+`htpasswd` is installed by default on Mac OS and is part of `openssh` for other platforms.
+
+1. Use the program `htpasswd` to create username/password pairs you need:
+  - `htpasswd -c .htpasswd [username]` and then enter the desired password. This will create/overwrite the file `.htpasswd`
+  - If you need more than one user, drop the `-c` from the command and run again for each user: `htpasswd .htpasswd [anotheruser]`
+2. Add one line to the end of the Dockerfile, to copy the file into the root folder of the site: 
+  - `COPY .htpasswd  /`
+3. Now run `flyctl launch` as above.
+
 
 ## Other Docker-based sites
 
