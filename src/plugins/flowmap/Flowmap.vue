@@ -82,6 +82,8 @@ export default class VueComponent extends Vue {
     thumbnail: false,
   }
 
+  private myDataManager!: DashboardDataManager
+
   @Watch('$store.state.viewState') viewMoved() {
     if (!REACT_VIEW_HANDLES[this.viewId]) return
     REACT_VIEW_HANDLES[this.viewId]()
@@ -92,6 +94,10 @@ export default class VueComponent extends Vue {
       this.myState.yamlConfig = this.yamlConfig
 
       this.buildFileApi()
+
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
 
@@ -307,7 +313,7 @@ export default class VueComponent extends Vue {
 
   private async loadDataset() {
     try {
-      const dataset = await this.datamanager.getDataset(this.vizDetails)
+      const dataset = await this.myDataManager.getDataset(this.vizDetails)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
       console.log('dataset:', dataset)
 
