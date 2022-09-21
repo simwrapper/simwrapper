@@ -66,6 +66,7 @@ export default class VueComponent extends Vue {
     boundaries: '',
     boundariesJoinCol: '',
     boundariesLabels: '',
+    boundariesLabel: '',
     dataset: '',
     origin: '',
     destination: '',
@@ -93,7 +94,6 @@ export default class VueComponent extends Vue {
       this.buildFileApi()
 
       await this.getVizDetails()
-      console.log(this.vizDetails.center)
 
       if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
@@ -200,19 +200,17 @@ export default class VueComponent extends Vue {
   }
 
   private async loadBoundaries() {
-    console.log(this.vizDetails)
     try {
       if (this.vizDetails.boundaries.startsWith('http')) {
         console.log('in http')
         const boundaries = await fetch(this.vizDetails.boundaries).then(async r => await r.json())
         this.boundaries = boundaries.features
       } else {
-        console.log('in else)')
         const filepath = `${this.subfolder}/${this.vizDetails.boundaries}`
         const boundaries = await this.fileApi.getFileJson(
           `${this.subfolder}/${this.vizDetails.boundaries}`
         )
-        console.log(boundaries)
+
         this.boundaries = boundaries.features
       }
     } catch (e) {
@@ -224,18 +222,16 @@ export default class VueComponent extends Vue {
   }
 
   private calculateCentroids() {
+    console.log(this.vizDetails)
+
+    const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
     for (const feature of this.boundaries) {
       const centroid: any = turf.centerOfMass(feature as any)
 
-      let configType = this.configFromDashboard
-      if (this.yamlConfig) {
-        configType = this.yamlConfig
-      }
-      const boundaryLabelField = configType.boundariesLabels || configType.boundariesLabel
       if (feature.properties[boundaryLabelField]) {
         centroid.properties.label = feature.properties[boundaryLabelField]
       }
-      centroid.properties.id = feature.properties[boundaryLabelField]
+      centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
 
       this.centroids.push({
         id: `${centroid.properties.id}`,
@@ -311,20 +307,20 @@ export default class VueComponent extends Vue {
 
   private async loadDataset() {
     try {
-      let configType = this.configFromDashboard
-      if (this.yamlConfig) {
-        configType = this.yamlConfig
-      }
-
-      const dataset = await this.datamanager.getDataset(configType)
+      const dataset = await this.datamanager.getDataset(this.vizDetails)
       // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+      console.log('dataset:', dataset)
 
       const data = dataset.allRows || ({} as any)
+      console.log('data:', data)
 
       // assumes flow data has "origin,destination,count" columns
       const origin = data.origin.values
       const destination = data.destination.values
       const count = data.count.values
+      console.log(origin)
+      console.log(destination)
+      console.log(count)
 
       const flows = [] as any[]
       for (let i = 0; i < origin.length; i++) {
@@ -335,6 +331,7 @@ export default class VueComponent extends Vue {
         })
       }
       this.flows = flows
+      console.log(this.flows)
     } catch (e) {
       const message = '' + e
       console.log(message)
