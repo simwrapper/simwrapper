@@ -528,27 +528,27 @@ li.is-not-active b a {
   color: var(--text);
   padding: 1rem 0.5rem;
 
-  ::v-deep h1 {
+  :deep(h1) {
     font-size: 3rem;
     font-weight: bold;
   }
 
-  ::v-deep h2 {
+  :deep(h2) {
     font-size: 1.5rem;
     margin-top: 1rem;
   }
 
-  ::v-deep h3 {
+  :deep(h3) {
     font-size: 1.25rem;
     margin-top: 0.5rem;
   }
 
-  ::v-deep h4 {
+  :deep(h4) {
     margin-top: 0.5rem;
     font-size: 1.1rem;
   }
 
-  ::v-deep ul {
+  :deep(ul) {
     list-style: inside;
   }
 }
@@ -562,27 +562,27 @@ li.is-not-active b a {
   padding: 1rem 1rem;
   color: var(--text);
   border-top: 2px solid #88888815;
-  ::v-deep h1 {
+  :deep(h1) {
     font-size: 2rem;
     font-weight: bold;
   }
 
-  ::v-deep h2 {
+  :deep(h2) {
     font-size: 1.5rem;
     margin-top: 1rem;
   }
 
-  ::v-deep h3 {
+  :deep(h3) {
     font-size: 1.25rem;
     margin-top: 0.5rem;
   }
 
-  ::v-deep h4 {
+  :deep(h4) {
     margin-top: 0.5rem;
     font-size: 1.1rem;
   }
 
-  ::v-deep ul {
+  :deep(ul) {
     list-style: inside;
   }
 }

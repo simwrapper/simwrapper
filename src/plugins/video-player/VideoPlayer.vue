@@ -3,26 +3,30 @@
   h3(v-if="!thumbnail") {{ title }}
 
   .vid-container
-    video-player.vjs-default-skin.vjs-big-play-centered(
-      ref="videoPlayer"
-      :options="playerOptions"
-    )
-    //- v-if="movieSource"
+    video(:controls="controls" :loop='loop' :allowfullscreen='allowfullscreen' :autoplay="autoplay" :muted="muted")
+      source(v-for="(src, type) in sources" :src="src" :type="type" :key="type")
+      p(v-for="(src, type) in sources" :key="type") Video tag not supported. Download the video&nbsp;
+        a(:href="src" target="_blank") here
 
+    //- video-player.vjs-default-skin.vjs-big-play-centered(
+    //-   ref="videoPlayer"
+    //-   :options="playerOptions"
+    //- )
+    //- v-if="movieSource"
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import { videoPlayer } from 'vue-video-player'
+// import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
 import { FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-import '~/video.js/dist/video-js.min.css'
+// import '~/video.js/dist/video-js.min.css'
 
-@Component({ components: { videoPlayer } })
+@Component({ components: {} }) //  videoPlayer } })
 class MyComponent extends Vue {
   @Prop({ required: true }) private root!: string
   @Prop({ required: true }) private subfolder!: string
