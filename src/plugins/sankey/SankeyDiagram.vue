@@ -23,7 +23,7 @@ const i18n = {
 }
 
 import yaml from 'yaml'
-import { sankey, sankeyDiagram } from 'd3-sankey-diagram'
+import { sankey, sankeyDiagram } from '@simwrapper/d3-sankey-diagram'
 import { select } from 'd3-selection'
 import { scaleOrdinal } from 'd3-scale'
 import {
