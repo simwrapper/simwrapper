@@ -18,6 +18,7 @@ export default defineConfig({
     alias: {
       '@': '/src',
       '~': '/node_modules',
+      path: 'path-browserify',
     },
   },
   define: {
