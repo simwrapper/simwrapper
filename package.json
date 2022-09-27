@@ -110,6 +110,7 @@
     "@types/debounce": "^1.2.0",
     "@types/dompurify": "^2.3.3",
     "@types/geojson": "^7946.0.7",
+    "@types/jest": "^29.0.3",
     "@types/jsdom": "^16.2.13",
     "@types/lodash": "^4.14.182",
     "@types/marked": "^0.7.2",
