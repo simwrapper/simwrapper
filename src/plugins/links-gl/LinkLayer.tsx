@@ -141,7 +141,7 @@ export default function Component({
     },
     widthUnits: 'pixels',
     widthScale: widthDivisor,
-    widthMinPixels: 1,
+    widthMinPixels: 0.25,
     widthMaxPixels: 50,
     pickable: true,
     opacity: 1,
