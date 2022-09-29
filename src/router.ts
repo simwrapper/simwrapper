@@ -5,24 +5,24 @@ import globalStore from '@/store'
 
 Vue.use(VueRouter)
 
-const BASE = import.meta.env.BASE_URL
+const BASE_URL = import.meta.env.BASE_URL
 
 const routes = [
   {
-    path: BASE + 'gist/:id',
+    path: BASE_URL + 'gist/:id',
     component: () => import('@/views/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
   {
-    path: BASE + '*',
+    path: BASE_URL + '*',
     component: () => import('@/views/ScreenSplitter.vue'),
   },
   {
     // catch-all back to home page
     path: '*',
-    redirect: BASE,
+    redirect: BASE_URL,
   },
 ]
 
@@ -31,7 +31,7 @@ function vizPlugins(): any[] {
   const plugins = []
   for (const plugin of globalStore.state.visualizationTypes.values()) {
     plugins.push({
-      path: BASE + 'v/' + plugin.kebabName + '/:slug/*',
+      path: BASE_URL + 'v/' + plugin.kebabName + '/:slug/*',
       name: plugin.kebabName,
       component: plugin.component,
       props: (route: Route) => {

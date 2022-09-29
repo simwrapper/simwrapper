@@ -64,6 +64,8 @@ import TreeView from '@/components/TreeView.vue'
 import globalStore from '@/store'
 import runFinder from '@/js/RunFinder'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 interface Folder {
   root: string
   path: string
@@ -85,7 +87,7 @@ class MyComponent extends Vue {
 
   private rootNodes: any[] = []
 
-  private baseURL = import.meta.env.BASE_URL
+  private baseURL = BASE_URL
 
   private showWarnings = false
   private showDescription = false

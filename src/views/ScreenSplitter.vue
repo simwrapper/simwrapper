@@ -45,14 +45,14 @@ import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 @Component({
   i18n,
   components: Object.assign({ SplashPage, RunFinderPanel, TabbedDashboardView }, plugins),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
-
-  private baseURL = import.meta.env.BASE_URL
 
   private panels = [] as any
 
@@ -74,7 +74,7 @@ class MyComponent extends Vue {
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
-    if (to.path === this.baseURL) {
+    if (to.path === BASE_URL) {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
       this.panels = [
