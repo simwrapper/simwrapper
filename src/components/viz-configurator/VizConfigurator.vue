@@ -71,6 +71,7 @@ import LegendStore from '@/js/LegendStore'
 
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
+import WidthPanel from './Widths.vue'
 import LegendBox from './LegendBox.vue'
 import LineColorPanel from './LineColors.vue'
 import FillColorPanel from './FillColors.vue'
@@ -84,6 +85,7 @@ import FiltersPanel from './Filters.vue'
     AddDatasetsPanel,
     CircleRadiusPanel,
     ColorPanel,
+    WidthPanel,
     FillColorPanel,
     FillHeightPanel,
     LegendBox,

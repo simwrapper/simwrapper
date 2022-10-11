@@ -28,6 +28,7 @@
       :fileSystem="myState.fileSystem"
       :subfolder="myState.subfolder"
       :yamlConfig="yamlConfig"
+      :legendStore="legendStore"
       @update="changeConfiguration")
 
     .top-panel(v-if="vizDetails.title")
@@ -109,6 +110,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import LegendStore from '@/js/LegendStore'
 
 // import AttributeCalculator from './attributeCalculator.worker.ts?worker'
 
@@ -121,8 +123,8 @@ import {
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 
-import { ColorDefinition } from '@/components/viz-configurator/Colors.vue'
-import { WidthDefinition } from '@/components/viz-configurator/Widths.vue'
+import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
+import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
@@ -177,9 +179,9 @@ class MyPlugin extends Vue {
   }
 
   private YAMLrequirementsLinks = {
-    csvFile: '',
+    // csvFile: '',
     network: '',
-    projection: '',
+    // projection: '',
   }
 
   // this contains the display settings for this view; it is the View Model.
@@ -218,6 +220,8 @@ class MyPlugin extends Vue {
 
   private scaleWidth = 0
   private showTimeRange = false
+
+  private legendStore: LegendStore = new LegendStore()
 
   private geojsonData = {
     source: new Float32Array(),
@@ -469,8 +473,8 @@ class MyPlugin extends Vue {
    * is modified properly.
    */
   private changeConfiguration(props: {
-    color?: ColorDefinition
-    width?: WidthDefinition
+    color?: LineColorDefinition
+    width?: LineWidthDefinition
     dataset?: DatasetDefinition
   }) {
     // console.log(props)
@@ -508,9 +512,9 @@ class MyPlugin extends Vue {
     // }, 150)
   }
 
-  private currentWidthDefinition: WidthDefinition = { columnName: '' }
+  private currentWidthDefinition: LineWidthDefinition = { columnName: '' }
 
-  private handleNewWidth(width: WidthDefinition) {
+  private handleNewWidth(width: LineWidthDefinition) {
     // if definition hasn't changed, do nothing
     if (shallowEqualObjects(width, this.currentWidthDefinition)) {
       return
@@ -550,12 +554,12 @@ class MyPlugin extends Vue {
 
     if (this.csvWidth.dataTable !== selectedDataset) {
       this.csvWidth.dataTable = selectedDataset
-      this.csvWidth.activeColumn = columnName
+      this.csvWidth.activeColumn = columnName || ''
       // this.csvWidthBase.dataTable = selectedDataset
-      this.csvWidthBase.activeColumn = columnName
+      this.csvWidthBase.activeColumn = columnName || ''
     }
 
-    const dataColumn = selectedDataset[columnName]
+    const dataColumn = selectedDataset[columnName || '']
     if (!dataColumn) {
       const msg = `Width: column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
       console.error(msg)
@@ -570,13 +574,13 @@ class MyPlugin extends Vue {
     this.csvWidth = {
       datasetKey: dataset || this.csvWidth.datasetKey,
       dataTable: selectedDataset,
-      activeColumn: columnName,
+      activeColumn: columnName || '',
       csvRowFromLinkRow: dataset ? this.csvRowLookupFromLinkRow[dataset] : [],
     }
     this.generateWidthArray()
   }
 
-  private handleNewColor(color: ColorDefinition) {
+  private handleNewColor(color: LineColorDefinition) {
     this.fixedColors = color.fixedColors
 
     const columnName = color.columnName
@@ -933,7 +937,7 @@ class MyPlugin extends Vue {
     this.myState.statusMessage = ''
     this.setDataIsLoaded()
 
-    const color: ColorDefinition = {
+    const color: LineColorDefinition = {
       fixedColors: this.fixedColors,
       dataset: '',
       columnName: '',
@@ -1017,14 +1021,14 @@ class MyPlugin extends Vue {
 
     // WIDTHS
     if (dataset.datasetKey === this.csvWidth.datasetKey) {
-      const width: WidthDefinition = { ...this.vizDetails.display.width }
+      const width: LineWidthDefinition = { ...this.vizDetails.display.width }
       width.columnName = column
       config.width = width
     }
 
     // COLORS
     if (dataset.datasetKey === this.csvData.datasetKey) {
-      const color: ColorDefinition = { ...this.vizDetails.display.color }
+      const color: LineColorDefinition = { ...this.vizDetails.display.color }
       color.columnName = column
       config.color = color
     }

@@ -43,6 +43,8 @@
 // Typescript doesn't know the Chrome File System API
 declare const window: any
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const i18n = {
   messages: {
     en: {
@@ -95,8 +97,7 @@ class MyComponent extends Vue {
       const exists = fileSystems.find(f => f.slug == row.key)
       if (!exists) addLocalFilesystem(row.handle, row.key)
 
-      const BASE = import.meta.env.BASE_URL
-      this.$router.push(`${BASE}${row.key}/`)
+      this.$router.push(`${BASE_URL}${row.key}/`)
     } catch (e) {
       console.error('' + e)
     }
@@ -133,8 +134,7 @@ class MyComponent extends Vue {
       const FileSystemDirectoryHandle = window.showDirectoryPicker()
       const dir = await FileSystemDirectoryHandle
       const slug = addLocalFilesystem(dir, null) // no key yet
-      const BASE = import.meta.env.BASE_URL
-      this.$router.push(`${BASE}${slug}/`)
+      this.$router.push(`${BASE_URL}${slug}/`)
     } catch (e) {
       // shrug
     }

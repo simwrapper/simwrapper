@@ -45,14 +45,14 @@ import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 @Component({
   i18n,
   components: Object.assign({ SplashPage, RunFinderPanel, TabbedDashboardView }, plugins),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
-
-  private baseURL = import.meta.env.BASE_URL
 
   private panels = [] as any
 
@@ -74,7 +74,7 @@ class MyComponent extends Vue {
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {
-    if (to.path === this.baseURL) {
+    if (to.path === BASE_URL) {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
       this.panels = [
@@ -218,8 +218,6 @@ class MyComponent extends Vue {
   }
 
   private updateURL() {
-    const BASE = import.meta.env.BASE_URL
-
     if (this.panels.length === 1) {
       const props = this.panels[0].props
 
@@ -230,17 +228,17 @@ class MyComponent extends Vue {
       if (yaml.indexOf('/') > -1) {
         // a YAML from a config folder will have a path in it:
         const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
-        this.$router.replace(`${BASE}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
+        this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
       } else if (yaml) {
         // YAML config specified
-        this.$router.replace(`${BASE}${root}/${xsubfolder}/${yaml}`)
+        this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
       } else {
         // No config file, just the folder
-        this.$router.push(`${BASE}${root}/${xsubfolder}`)
+        this.$router.push(`${BASE_URL}${root}/${xsubfolder}`)
       }
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
-      this.$router.push(`${BASE}split/${base64}`)
+      this.$router.push(`${BASE_URL}split/${base64}`)
     }
   }
   private get showLeftBar() {

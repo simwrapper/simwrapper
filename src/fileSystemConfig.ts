@@ -2,6 +2,8 @@ import { get, set, clear } from 'idb-keyval'
 import { FileSystemConfig, FileSystemAPIHandle } from '@/Globals'
 import globalStore from '@/store'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 // The URL contains the websiteLiveHost, calculated at runtime
 const loc = window.location
 const webLiveHostname = loc.hostname
@@ -41,7 +43,7 @@ const fileSystems: FileSystemConfig[] = [
     name: 'Public Data Folder',
     slug: 'files',
     description: 'Data from /public/data folder',
-    baseURL: loc.origin + '/' + 'data',
+    baseURL: loc.origin + BASE_URL + 'data',
     hidden: true,
   },
 

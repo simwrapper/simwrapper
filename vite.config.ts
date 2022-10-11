@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue2'
+// import vue from '@vitejs/plugin-vue2'
+import { createVuePlugin } from 'vite-plugin-vue2'
 import markdownPlugin from 'vite-plugin-md'
 import pluginRewriteAll from 'vite-plugin-rewrite-all'
 
@@ -8,7 +9,7 @@ export default defineConfig({
   build: { sourcemap: true },
   plugins: [
     // vue
-    vue({ include: [/\.vue$/, /\.md$/] }),
+    createVuePlugin({ include: [/\.vue$/, /\.md$/] }),
     // markdown
     markdownPlugin(),
     // why do we need rewriteAll
@@ -18,6 +19,7 @@ export default defineConfig({
     alias: {
       '@': '/src',
       '~': '/node_modules',
+      path: 'path-browserify',
     },
   },
   define: {

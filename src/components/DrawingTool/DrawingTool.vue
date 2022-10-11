@@ -47,7 +47,7 @@ const i18n = {
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import proj4 from 'proj4'
-import ShapeWrite from 'shp-write'
+import ShapeWriter from 'shp-write'
 
 import LayerManager from '@/js/LayerManager'
 import globalStore from '@/store'
@@ -155,7 +155,7 @@ export default class VueComponent extends Vue {
       features: this.polygons,
     }
 
-    ShapeWrite.download(geojson, {
+    ShapeWriter.download(geojson, {
       folder: 'shapefile-wgs84',
       types: {
         point: 'points',
