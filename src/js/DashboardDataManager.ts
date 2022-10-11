@@ -395,6 +395,38 @@ export default class DashboardDataManager {
     this.notifyListeners(datasetId)
   }
 
+  private checkFilterValue(
+    spec: { conditional: string; invert: boolean; values: any[] },
+    elementValue: any
+  ) {
+    // lookup closure functions for < > <= >=
+    const conditionals: any = {
+      '<': () => {
+        return elementValue < spec.values[0]
+      },
+      '<=': () => {
+        return elementValue <= spec.values[0]
+      },
+      '>': () => {
+        return elementValue > spec.values[0]
+      },
+      '>=': () => {
+        return elementValue >= spec.values[0]
+      },
+    }
+
+    let isValueInFilterSpec: boolean
+
+    if (spec.conditional) {
+      isValueInFilterSpec = conditionals[spec.conditional]()
+    } else {
+      isValueInFilterSpec = spec.values.includes(elementValue)
+    }
+
+    if (spec.invert) return !isValueInFilterSpec
+    return isValueInFilterSpec
+  }
+
   private notifyListeners(datasetId: string) {
     const dataset = this.datasets[datasetId]
     for (const notifyListener of dataset.filterListeners) {
