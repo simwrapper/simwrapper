@@ -10,7 +10,7 @@ export default function Layer({
   props = {} as any,
   viewId = 0, // viewId: this must be unique;
 }) {
-  const { locations, flows, dark, elapsed } = props
+  const { locations, flows, dark, elapsed, vizDetails } = props
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({})
@@ -54,15 +54,15 @@ export default function Layer({
     data: props,
     id: 'my-flowmap-layer' + viewId,
     colorScheme: 'Teal',
-    adaptiveScalesEnabled: true,
-    animationEnabled: true,
-    clusteringEnabled: true,
-    clusteringAuto: true,
-    clusteringLevel: 20,
-    labelsEnabled: true,
-    locationLabelsEnabled: true,
-    darkMode: dark,
-    pickable: true,
+    adaptiveScalesEnabled: vizDetails.adaptiveScalesEnabled,
+    animationEnabled: vizDetails.animationEnabled,
+    clusteringEnabled: vizDetails.clusteringEnabled,
+    clusteringAuto: vizDetails.clusteringAuto,
+    clusteringLevel: vizDetails.clusteringLevel,
+    labelsEnabled: vizDetails.labelsEnabled,
+    locationLabelsEnabled: vizDetails.locationLabelsEnabled,
+    darkMode: vizDetails.darkMode,
+    pickable: vizDetails.pickable,
     // maxFlowThickness: 15,
     // maxLocationCircleSize: 20,
     opacity: 0.75,

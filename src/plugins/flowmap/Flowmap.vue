@@ -53,6 +53,7 @@ export default class VueComponent extends Vue {
       flows: this.flows,
       dark: this.$store.state.isDarkMode,
       elapsed: this.elapsed,
+      vizDetails: this.vizDetails,
     }
   }
 
@@ -71,6 +72,16 @@ export default class VueComponent extends Vue {
     origin: '',
     destination: '',
     flow: '',
+    colorScheme: '',
+    adaptiveScalesEnabled: true,
+    animationEnabled: true,
+    clusteringEnabled: true,
+    clusteringAuto: true,
+    clusteringLevel: null as number | null,
+    labelsEnabled: true,
+    locationLabelsEnabled: true,
+    darkMode: '',
+    pickable: true,
   }
 
   public myState = {
@@ -203,6 +214,7 @@ export default class VueComponent extends Vue {
       }
     }
     this.$store.commit('error', 'Could not load YAML: ' + filename)
+    console.log(this.vizDetails)
   }
 
   private async loadBoundaries() {
@@ -228,8 +240,6 @@ export default class VueComponent extends Vue {
   }
 
   private calculateCentroids() {
-    console.log(this.vizDetails)
-
     const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
     for (const feature of this.boundaries) {
       const centroid: any = turf.centerOfMass(feature as any)
@@ -324,9 +334,8 @@ export default class VueComponent extends Vue {
       const origin = data.origin.values
       const destination = data.destination.values
       const count = data.count.values
-      console.log(origin)
-      console.log(destination)
-      console.log(count)
+
+      console.log('in loadDataset')
 
       const flows = [] as any[]
       for (let i = 0; i < origin.length; i++) {
@@ -337,7 +346,6 @@ export default class VueComponent extends Vue {
         })
       }
       this.flows = flows
-      console.log(this.flows)
     } catch (e) {
       const message = '' + e
       console.log(message)
