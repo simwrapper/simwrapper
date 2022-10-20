@@ -12,6 +12,7 @@ import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VideoPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 import MapView from '@/plugins/shape-file/FancyPolygonMap.vue'
+import XyTime from '@/plugins/xy-time/XyTime.vue'
 
 // // EVERY plugin must also be exported here:
 const plugins = {
@@ -28,6 +29,7 @@ const plugins = {
   VehicleAnimation,
   VideoPlayer,
   XyHexagons,
+  XyTime,
 }
 
 export default plugins
