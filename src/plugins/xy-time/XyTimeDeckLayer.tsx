@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
 import { StaticMap } from 'react-map-gl'
 import { ScatterplotLayer } from '@deck.gl/layers'
+import { DataFilterExtension } from '@deck.gl/extensions'
 import colormap from 'colormap'
 
 import { MAPBOX_TOKEN } from '@/Globals'
@@ -16,21 +17,22 @@ const INITIAL_VIEW = {
 }
 
 export default function Layer({
-  pointLayers = [] as { coordinates: Float32Array; time: Float32Array }[],
+  pointLayers = [] as { coordinates: Float32Array; time: Float32Array; color: Uint8Array }[],
   dark = false,
   // onClick = {} as any,
 }) {
   // draw begins here
 
-  console.log(pointLayers.length, 'LAYERS')
   const initialViewState = Object.assign({}, INITIAL_VIEW)
 
-  // const colors = colormap({
-  //   colormap: 'chlorophyll', // colorRamp,
-  //   nshades: 10,
-  //   format: 'rba',
-  //   alpha: 1,
-  // }).map((c: number[]) => [c[0], c[1], c[2]])
+  const colors = colormap({
+    colormap: 'chlorophyll', // colorRamp,
+    nshades: 10,
+    format: 'rba',
+    alpha: 1,
+  }).map((c: number[]) => [c[0], c[1], c[2]])
+
+  // console.log({ colors })
 
   function getTooltip({ object }: any) {
     if (!object || !object.position || !object.position.length) {
@@ -58,40 +60,32 @@ export default function Layer({
     // onClick(target, event)
   }
 
-  let totalRows = 0
-
-  const layers = [] as any[]
-  for (let i = 0; i < pointLayers.length; i++) {
-    const points = pointLayers[i]
-    totalRows += points.time.length
-
-    layers.push(
+  // add a scatterplotlayer for each set of points in pointLayers
+  const layers = pointLayers.map(
+    (points, i) =>
       new ScatterplotLayer({
-        id: 'xyt-layer-' + i,
         data: {
           length: points.time.length,
           attributes: {
             getPosition: { value: points.coordinates, size: 2 },
+            getFilterValue: { value: points.time, size: 1 },
+            getFillColor: { value: points.color, size: 3 },
           },
         },
-        pickable: true,
-        opacity: 0.6,
-        stroked: false,
+        extensions: [new DataFilterExtension({ filterSize: 1 })],
+        id: 'xyt-layer-' + i,
         filled: true,
+        opacity: 1,
+        pickable: false,
         radiusScale: 1,
-        getRadius: 1, // (d: any) => 5, // Math.sqrt(d.exits),
-        getFillColor: [64, 0, 255], // (d: any) => [255, 140, 0],
-        // getLineColor: d => [0, 0, 0],
-        // lineWidthMinPixels: 1,
-        // updateTriggers: {
-        //   getPosition: points,
-        // },
-        parameters: { depthTest: true },
+        stroked: false,
+        getRadius: 4, // (d: any) => 5, // Math.sqrt(d.exits),
+        parameters: { depthTest: false },
+        filterRange: [20000, 23599],
+        // radiusUnits: 'pixels',
       })
-    )
-  }
+  )
 
-  console.log('MROWS', totalRows)
   return (
     <DeckGL
       layers={layers}

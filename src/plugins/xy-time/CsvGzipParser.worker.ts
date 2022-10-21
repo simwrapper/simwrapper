@@ -3,6 +3,7 @@
  */
 import pako from 'pako'
 import Papaparse from 'papaparse'
+import colormap from 'colormap'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -15,7 +16,7 @@ onmessage = function (e) {
 }
 // -----------------------------------------------------------
 
-const LAYER_SIZE = 256 * 1024
+const LAYER_SIZE = 1 * 1024 * 1024
 
 interface RowCache {
   [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
@@ -57,8 +58,16 @@ async function startLoading(props: {
 // --- helper functions ------------------------------------------------
 
 // Return a chunk of results after processing is complete.
-function postResults(layerData: { coordinates: Float32Array; time: Float32Array }) {
-  postMessage(layerData, [layerData.coordinates.buffer, layerData.time.buffer])
+function postResults(layerData: {
+  coordinates: Float32Array
+  time: Float32Array
+  color: Uint8Array
+}) {
+  postMessage(layerData, [
+    layerData.coordinates.buffer,
+    layerData.time.buffer,
+    layerData.color.buffer,
+  ])
 }
 
 async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig) {
@@ -98,10 +107,21 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
 }
 
 let layerData = {
-  coordinates: new Float32Array(LAYER_SIZE * 2),
   time: new Float32Array(LAYER_SIZE),
+  coordinates: new Float32Array(LAYER_SIZE * 2),
+  color: new Uint8Array(LAYER_SIZE * 3),
 }
+
 let offset = 0
+
+const colors = colormap({
+  colormap: 'viridis', // colorRamp,
+  nshades: 10,
+  format: 'rba',
+  alpha: 1,
+}).map((c: number[]) => [c[0], c[1], c[2]])
+
+console.log(JSON.stringify(colors))
 
 function appendResults(results: { data: any[] }) {
   const numRows = results.data.length
@@ -109,7 +129,6 @@ function appendResults(results: { data: any[] }) {
   const rowsToFill = Math.min(numRows, LAYER_SIZE - offset)
 
   // Fill the array as much as we can
-  console.log('rowsToFill:', rowsToFill)
   for (let i = 0; i < rowsToFill; i++) {
     const row = results.data[i] as any
 
@@ -117,29 +136,34 @@ function appendResults(results: { data: any[] }) {
     layerData.coordinates[(offset + i) * 2] = wgs84[0]
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
+    // choose color buckets
+    const bucket = Math.min(9, Math.floor((10 * row.value) / 0.05))
+    layerData.color.set(colors[bucket], 3 * (offset + i))
   }
 
   offset += rowsToFill
-  console.log('new offset', offset)
+  // console.log('new offset', offset)
+
   // Are we full?
   if (offset === LAYER_SIZE) {
-    console.log('FULL! Posting')
+    // console.log('FULL! Posting')
     postResults(layerData)
     offset = 0
     layerData = {
       coordinates: new Float32Array(LAYER_SIZE * 2),
       time: new Float32Array(LAYER_SIZE),
+      color: new Uint8Array(LAYER_SIZE * 3),
     }
   }
 
   // is there more to load?
-  console.log(rowsToFill, numRows)
+  // console.log(rowsToFill, numRows)
   if (rowsToFill < numRows) {
     const remainingData = { data: results.data.slice(rowsToFill) }
-    console.log('calling again', remainingData)
+    // console.log('calling again', remainingData)
     appendResults(remainingData)
-  } else {
-    console.log(numRows)
+    // } else {
+    //   console.log(numRows)
   }
 }
 
@@ -163,8 +187,9 @@ function step2fetchCSVdata(url: any) {
   // all done? post final arrays
   if (offset) {
     const subarray = {
-      coordinates: layerData.coordinates.subarray(0, offset),
       time: layerData.time.subarray(0, offset),
+      coordinates: layerData.coordinates.subarray(0, offset * 2),
+      color: layerData.color.subarray(0, offset * 3),
     }
     postResults(subarray)
   }

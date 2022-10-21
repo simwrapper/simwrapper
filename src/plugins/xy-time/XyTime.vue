@@ -157,7 +157,7 @@ class XyTime extends Vue {
     [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
   } = {}
 
-  private pointLayers: { coordinates: Float32Array; time: Float32Array }[] = []
+  private pointLayers: { color: Uint8Array; coordinates: Float32Array; time: Float32Array }[] = []
 
   // private points: { coordinates: Float32Array; time: Float32Array } = {
   //   coordinates: new Float32Array(0),
@@ -453,7 +453,7 @@ class XyTime extends Vue {
         this.gzipWorker.terminate()
         this.myState.statusMessage = ''
       } else {
-        console.log(event.data)
+        // console.log(event.data)
         totalRows += event.data.time.length
         this.myState.statusMessage = `Loading ${totalRows} rows...`
 
@@ -466,11 +466,6 @@ class XyTime extends Vue {
       fileSystem: this.myState.fileSystem,
       projection: this.vizDetails.projection,
     })
-  }
-
-  private dataIsLoaded(points: { coordinates: Float32Array; time: Float32Array }) {
-    console.log({ points })
-    // this.setMapCenter()
   }
 
   private async loadFiles() {
