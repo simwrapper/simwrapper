@@ -7,7 +7,7 @@
   )
 
   zoom-buttons(v-if="!thumbnail")
-  drawing-tool.drawing-tool(v-if="!thumbnail")
+  //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -363,19 +363,19 @@ class XyTime extends Vue {
     }
   }
 
-  private get textColor() {
-    const lightmode = {
-      text: '#3498db',
-      bg: '#eeeef480',
-    }
+  // private get textColor() {
+  //   const lightmode = {
+  //     text: '#3498db',
+  //     bg: '#eeeef480',
+  //   }
 
-    const darkmode = {
-      text: 'white',
-      bg: '#181518aa',
-    }
+  //   const darkmode = {
+  //     text: 'white',
+  //     bg: '#181518aa',
+  //   }
 
-    return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
-  }
+  //   return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+  // }
 
   private async setMapCenter() {
     const data = Object.values(this.rowCache)[0].raw
@@ -449,15 +449,29 @@ class XyTime extends Vue {
           desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
         })
       } else if (event.data.finished) {
-        console.log('ALLDONE')
-        this.gzipWorker.terminate()
+        console.log('ALL DONE')
         this.myState.statusMessage = ''
+        this.gzipWorker.terminate()
       } else {
-        // console.log(event.data)
-        totalRows += event.data.time.length
-        this.myState.statusMessage = `Loading ${totalRows} rows...`
+        // totalRows += event.data.time.length
+        // this.myState.statusMessage = `Loading ${totalRows} rows...`
+        // this.myState.statusMessage = `Cleaning up...`
+        const layers = [] as any[]
 
-        this.pointLayers.push(event.data)
+        const SHARD_SIZE = 1024 * 1024
+        const numShards = Math.ceil(event.data.time.length / SHARD_SIZE)
+        for (let shard = 0; shard < numShards; shard++) {
+          const start = shard * SHARD_SIZE
+          const end = SHARD_SIZE + start
+
+          layers.push({
+            time: event.data.time.subarray(start, end),
+            coordinates: event.data.coordinates.subarray(start * 2, end * 2),
+            color: event.data.color.subarray(start * 3, end * 3),
+          })
+        }
+        console.log({ layers })
+        this.pointLayers = layers
       }
     }
 

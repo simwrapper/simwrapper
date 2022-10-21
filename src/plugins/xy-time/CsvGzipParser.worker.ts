@@ -16,7 +16,7 @@ onmessage = function (e) {
 }
 // -----------------------------------------------------------
 
-const LAYER_SIZE = 1 * 1024 * 1024
+const LAYER_SIZE = 25 * 1024 * 1024
 
 interface RowCache {
   [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
@@ -52,6 +52,7 @@ async function startLoading(props: {
 
   const url = await step1PrepareFetch(props.filepath, props.fileSystem)
   step2fetchCSVdata(url)
+  // postMessage({ status: 'Drawing...' })
   postMessage({ finished: true })
 }
 
@@ -113,15 +114,15 @@ let layerData = {
 }
 
 let offset = 0
+let totalRowsRead = 0
 
+const NUM_BUCKETS = 12
 const colors = colormap({
   colormap: 'viridis', // colorRamp,
-  nshades: 10,
+  nshades: NUM_BUCKETS,
   format: 'rba',
   alpha: 1,
 }).map((c: number[]) => [c[0], c[1], c[2]])
-
-console.log(JSON.stringify(colors))
 
 function appendResults(results: { data: any[] }) {
   const numRows = results.data.length
@@ -137,11 +138,13 @@ function appendResults(results: { data: any[] }) {
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
     // choose color buckets
-    const bucket = Math.min(9, Math.floor((10 * row.value) / 0.05))
+    const bucket = Math.min(NUM_BUCKETS - 1, Math.floor((NUM_BUCKETS * row.value) / 0.05))
     layerData.color.set(colors[bucket], 3 * (offset + i))
   }
 
   offset += rowsToFill
+  totalRowsRead += rowsToFill
+  postMessage({ status: `Loading rows: ${totalRowsRead}...` })
   // console.log('new offset', offset)
 
   // Are we full?
@@ -168,7 +171,7 @@ function appendResults(results: { data: any[] }) {
 }
 
 function step2fetchCSVdata(url: any) {
-  console.log('here!', url)
+  console.log('fetching chunks from:', url)
   try {
     Papaparse.parse(url, {
       download: true,
@@ -193,8 +196,6 @@ function step2fetchCSVdata(url: any) {
     }
     postResults(subarray)
   }
-
-  // postMessage({ status: 'Converting coordinates...' })
 
   // postMessage({ status: 'Trimming results...' })
   // // now filter zero-cells out: some rows don't have coordinates, and they
