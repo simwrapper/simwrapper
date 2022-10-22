@@ -1,13 +1,22 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
+.viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-time-deck-layer.hex-layer(v-if="!thumbnail && isLoaded"
+  xy-time-deck-layer.map-layer(v-if="!thumbnail && isLoaded"
     :pointLayers="pointLayers"
+    :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
   )
 
   zoom-buttons(v-if="!thumbnail")
   //- drawing-tool.drawing-tool(v-if="!thumbnail")
+
+  vue-slider.time-slider(v-if="isLoaded"
+    v-bind="timeSliderOptions"
+    v-model="timeSliderValue"
+  )
+    //- @dragging="dragging"
+    //- @drag-start="dragStart"
+    //- @drag-end="dragEnd"
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -43,6 +52,7 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
+import * as timeConvert from 'convert-seconds'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -120,8 +130,35 @@ class XyTime extends Vue {
     center: null as any,
     zoom: 9,
   }
+
   private YAMLrequirementsXY = {
     file: '',
+  }
+
+  private timeStart = 0
+  private timeEnd = 100000
+  private timeFilter = [0, 3600]
+  private timeSliderValue = 0
+  private timeSliderOptions = {
+    min: 0,
+    max: 1000000,
+    value: 0,
+    clickable: false,
+    dotSize: 24,
+    duration: 0,
+    lazy: true,
+    tooltip: 'active',
+    'tooltip-placement': 'top',
+    'tooltip-formatter': (v: number) => {
+      return this.convertSecondsToClockTimeMinutes(v)
+    },
+  }
+
+  @Watch('timeSliderValue') handleTimeSlider() {
+    const seconds = this.timeSliderValue / 10
+    this.timeFilter = [seconds - 1800, seconds + 1800]
+    console.log(this.timeFilter)
+    this.myState.statusMessage = '' + this.timeFilter
   }
 
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
@@ -132,7 +169,6 @@ class XyTime extends Vue {
   private gzipWorker!: Worker
 
   private colorRamp = this.colorRamps[0]
-  private globalState = globalStore.state
 
   private vizDetails: VizDetail = {
     title: '',
@@ -152,10 +188,6 @@ class XyTime extends Vue {
     yamlConfig: '',
     thumbnail: false,
   }
-
-  private rowCache: {
-    [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
-  } = {}
 
   private pointLayers: { color: Uint8Array; coordinates: Float32Array; time: Float32Array }[] = []
 
@@ -363,72 +395,58 @@ class XyTime extends Vue {
     }
   }
 
-  // private get textColor() {
-  //   const lightmode = {
-  //     text: '#3498db',
-  //     bg: '#eeeef480',
+  // private async setMapCenter() {
+  //   const data = Object.values(this.rowCache)[0].raw
+
+  //   // If user gave us the center, use it
+  //   if (this.vizDetails.center) {
+  //     if (typeof this.vizDetails.center == 'string') {
+  //       this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+  //     }
+
+  //     this.$store.commit('setMapCamera', {
+  //       longitude: this.vizDetails.center[0],
+  //       latitude: this.vizDetails.center[1],
+  //       bearing: 0,
+  //       pitch: 0,
+  //       zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+  //       jump: false,
+  //     })
+  //     return
   //   }
 
-  //   const darkmode = {
-  //     text: 'white',
-  //     bg: '#181518aa',
+  //   // user didn't give us the center, so calculate it
+  //   if (!data.length) return
+
+  //   let samples = 0
+  //   let longitude = 0
+  //   let latitude = 0
+
+  //   const numLinks = data.length / 2
+
+  //   const gap = 4096
+  //   for (let i = 0; i < numLinks; i += gap) {
+  //     longitude += data[i * 2]
+  //     latitude += data[i * 2 + 1]
+  //     samples++
   //   }
 
-  //   return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+  //   longitude = longitude / samples
+  //   latitude = latitude / samples
+
+  //   const currentView = this.$store.state.viewState
+
+  //   if (longitude && latitude) {
+  //     this.$store.commit('setMapCamera', {
+  //       longitude,
+  //       latitude,
+  //       bearing: currentView.bearing,
+  //       pitch: currentView.pitch,
+  //       zoom: this.vizDetails.zoom || currentView.zoom,
+  //       jump: false,
+  //     })
+  //   }
   // }
-
-  private async setMapCenter() {
-    const data = Object.values(this.rowCache)[0].raw
-
-    // If user gave us the center, use it
-    if (this.vizDetails.center) {
-      if (typeof this.vizDetails.center == 'string') {
-        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-      }
-
-      this.$store.commit('setMapCamera', {
-        longitude: this.vizDetails.center[0],
-        latitude: this.vizDetails.center[1],
-        bearing: 0,
-        pitch: 0,
-        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-        jump: false,
-      })
-      return
-    }
-
-    // user didn't give us the center, so calculate it
-    if (!data.length) return
-
-    let samples = 0
-    let longitude = 0
-    let latitude = 0
-
-    const numLinks = data.length / 2
-
-    const gap = 4096
-    for (let i = 0; i < numLinks; i += gap) {
-      longitude += data[i * 2]
-      latitude += data[i * 2 + 1]
-      samples++
-    }
-
-    longitude = longitude / samples
-    latitude = latitude / samples
-
-    const currentView = this.$store.state.viewState
-
-    if (longitude && latitude) {
-      this.$store.commit('setMapCamera', {
-        longitude,
-        latitude,
-        bearing: currentView.bearing,
-        pitch: currentView.pitch,
-        zoom: this.vizDetails.zoom || currentView.zoom,
-        jump: false,
-      })
-    }
-  }
 
   private async parseCSVFile(filename: string) {
     if (!this.myState.fileSystem) return
@@ -499,6 +517,24 @@ class XyTime extends Vue {
       })
     }
   }
+
+  private getSecondsFromSlider(value: number) {
+    let seconds = ((this.timeEnd - this.timeStart) * value) / 1000000.0
+    if (seconds === this.timeEnd) seconds = this.timeEnd - 1
+    return seconds
+  }
+
+  private convertSecondsToClockTimeMinutes(index: number) {
+    const seconds = this.getSecondsFromSlider(index)
+
+    try {
+      const hms = timeConvert(seconds)
+      const minutes = ('00' + hms.minutes).slice(-2)
+      return `${hms.hours}:${minutes}`
+    } catch (e) {
+      return '00:00'
+    }
+  }
 }
 
 // !register plugin!
@@ -516,7 +552,7 @@ export default XyTime
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.xy-hexagons {
+.viz-plugin {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -529,7 +565,7 @@ export default XyTime
   z-index: -1;
 }
 
-.xy-hexagons.hide-thumbnail {
+.viz-plugin.hide-thumbnail {
   background: none;
   z-index: 0;
 }
@@ -557,107 +593,17 @@ export default XyTime
   }
 
   p {
-    margin: auto 0.5rem auto 0;
-    font-weight: normal;
-    padding: 0 0;
     color: var(--textFancy);
+    font-size: 1.2rem;
+    font-weight: normal;
+    line-height: 1.75rem;
+    margin: auto 0.5rem auto 0;
+    padding: 0 0;
   }
 }
 
-.speed-block {
-  margin-top: 1rem;
-}
-
-.legend-block {
-  margin-top: 2rem;
-}
-
-.speed-slider {
-  min-width: 6rem;
-}
-
-.status-message {
-  font-size: 1.5rem;
-  line-height: 1.75rem;
-  font-weight: bold;
-}
-
-.big {
-  padding: 0.5rem 0;
-  font-size: 1.5rem;
-  line-height: 1.7rem;
-  font-weight: bold;
-}
-
-.left-side {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  font-size: 0.8rem;
+.map-layer {
   pointer-events: auto;
-  margin: 0 0 0 0;
-}
-
-.control-panel {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem 0.5rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  padding: 0.5rem 0.5rem;
-  filter: drop-shadow(0px 2px 4px #22222233);
-}
-
-.is-dashboard {
-  position: static;
-  margin: 0 0;
-  padding: 0.25rem 0 0 0;
-  filter: unset;
-  background-color: unset;
-}
-
-.hex-layer {
-  pointer-events: auto;
-}
-
-.speed-label {
-  font-size: 0.8rem;
-  font-weight: bold;
-}
-
-.tooltip {
-  padding: 5rem 5rem;
-  background-color: #ccc;
-}
-
-.panel-items {
-  margin: 0.5rem 0.5rem;
-}
-
-.panel-item {
-  display: flex;
-  flex-direction: column;
-  margin-right: 1rem;
-}
-
-.right {
-  margin-left: auto;
-}
-
-input {
-  border: none;
-  background-color: #235;
-  color: #ccc;
-}
-
-.row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
 }
 
 .drawing-tool {
@@ -667,20 +613,18 @@ input {
   pointer-events: none;
 }
 
+.time-slider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 3rem 2rem;
+}
+
 @media only screen and (max-width: 640px) {
   .message {
     padding: 0.5rem 0.5rem;
-  }
-
-  .right-side {
-    font-size: 0.7rem;
-  }
-
-  .big {
-    padding: 0 0rem;
-    margin-top: 0.5rem;
-    font-size: 1.3rem;
-    line-height: 2rem;
   }
 }
 </style>
