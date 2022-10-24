@@ -118,7 +118,7 @@ let totalRowsRead = 0
 
 const NUM_BUCKETS = 12
 const colors = colormap({
-  colormap: 'viridis', // colorRamp,
+  colormap: 'greens', // colorRamp,
   nshades: NUM_BUCKETS,
   format: 'rba',
   alpha: 1,

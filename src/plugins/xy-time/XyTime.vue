@@ -10,10 +10,13 @@
   zoom-buttons(v-if="!thumbnail")
   //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
-  vue-slider.time-slider(v-if="isLoaded"
+  time-slider.time-slider(v-if="isLoaded"
     v-bind="timeSliderOptions"
     v-model="timeSliderValue"
   )
+
+  //- vue-slider.time-slider(v-if="isLoaded"
+  //- )
     //- @dragging="dragging"
     //- @drag-start="dragStart"
     //- @drag-end="dragEnd"
@@ -57,9 +60,10 @@ import * as timeConvert from 'convert-seconds'
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
+import XytDataParser from './XytDataParser.worker.ts?worker'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import TimeSlider from '@/components/TimeSlider.vue'
 import XyTimeDeckLayer from './XyTimeDeckLayer'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
@@ -99,6 +103,7 @@ interface VizDetail {
     DrawingTool,
     XyTimeDeckLayer,
     VueSlider,
+    TimeSlider,
     ToggleButton,
     ZoomButtons,
   } as any,
@@ -454,7 +459,7 @@ class XyTime extends Vue {
 
     let totalRows = 0
     // get the raw unzipped arraybuffer
-    this.gzipWorker = new CSVParserWorker()
+    this.gzipWorker = new XytDataParser()
 
     this.gzipWorker.onmessage = async (event: MessageEvent) => {
       if (event.data.status) {
@@ -618,8 +623,7 @@ export default XyTime
   bottom: 0;
   left: 0;
   right: 0;
-  width: 100%;
-  margin: 3rem 2rem;
+  margin: 3rem 1rem;
 }
 
 @media only screen and (max-width: 640px) {

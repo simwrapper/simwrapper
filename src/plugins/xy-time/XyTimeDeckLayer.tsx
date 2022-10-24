@@ -1,10 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import GL from '@luma.gl/constants'
 import { StaticMap } from 'react-map-gl'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
-import colormap from 'colormap'
 
 import { MAPBOX_TOKEN } from '@/Globals'
 import globalStore from '@/store'
@@ -41,15 +39,15 @@ export default function Layer({
         extensions: [new DataFilterExtension({ filterSize: 1 })],
         id: 'xyt-layer-' + i,
         filled: true,
+        filterRange: timeFilter.length ? timeFilter : null,
+        getRadius: 3, // (d: any) => 5, // Math.sqrt(d...),
         opacity: 1,
+        parameters: { depthTest: false },
         pickable: false,
         radiusScale: 1,
+        // radiusUnits: 'pixels',
         stroked: false,
         useDevicePixels: false,
-        getRadius: 4, // (d: any) => 5, // Math.sqrt(d.exits),
-        parameters: { depthTest: false },
-        filterRange: timeFilter.length ? timeFilter : null,
-        // radiusUnits: 'pixels',
         updateTriggers: {
           getPosition: pointLayers,
           getFillColor: pointLayers,
