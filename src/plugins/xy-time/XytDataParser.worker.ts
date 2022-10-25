@@ -33,9 +33,6 @@ interface Aggregations {
 let totalLines = 0
 let proj = 'EPSG:4326'
 
-const rowCache: RowCache = {}
-const columnLookup: number[] = []
-
 /**
  * Begin loading the file, and return status updates
  * as observables. When observable is complete, the
@@ -118,7 +115,7 @@ let totalRowsRead = 0
 
 const NUM_BUCKETS = 12
 const colors = colormap({
-  colormap: 'greens', // colorRamp,
+  colormap: 'viridis', // colorRamp,
   nshades: NUM_BUCKETS,
   format: 'rba',
   alpha: 1,

@@ -15,7 +15,14 @@ const INITIAL_VIEW = {
   bearing: 0,
 }
 
-export default function Layer({
+const dataFilter = new DataFilterExtension({
+  filterSize: 1,
+  // Enable for higher precision, e.g. 1 second granularity
+  // See DataFilterExtension documentation for how to pick precision
+  fp64: false,
+})
+
+export default function Component({
   pointLayers = [] as { coordinates: Float32Array; time: Float32Array; color: Uint8Array }[],
   timeFilter = [] as number[],
   dark = false,
@@ -36,7 +43,7 @@ export default function Layer({
             getFillColor: { value: points.color, size: 3 },
           },
         },
-        extensions: [new DataFilterExtension({ filterSize: 1 })],
+        extensions: [dataFilter],
         id: 'xyt-layer-' + i,
         filled: true,
         filterRange: timeFilter.length ? timeFilter : null,
@@ -69,7 +76,11 @@ export default function Layer({
       {
         /*
         // @ts-ignore */
-        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        <StaticMap
+          mapStyle={globalStore.getters.mapStyle}
+          preventStyleDiffing={true}
+          mapboxApiAccessToken={MAPBOX_TOKEN}
+        />
       }
     </DeckGL>
   )

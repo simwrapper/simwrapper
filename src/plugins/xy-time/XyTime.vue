@@ -11,15 +11,12 @@
   //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
   time-slider.time-slider(v-if="isLoaded"
-    v-bind="timeSliderOptions"
-    v-model="timeSliderValue"
-  )
+    :range="[0,86400]"
+    :values="[0,3600]"
+    :labels="timeLabels"
+    @values="handleTimeSliderValues"
 
-  //- vue-slider.time-slider(v-if="isLoaded"
-  //- )
-    //- @dragging="dragging"
-    //- @drag-start="dragStart"
-    //- @drag-end="dragEnd"
+  )
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -51,6 +48,7 @@ const i18n = {
     },
   },
 }
+
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -77,21 +75,12 @@ import {
   Status,
 } from '@/Globals'
 
-interface Aggregations {
-  [heading: string]: {
-    title: string
-    x: string
-    y: string
-  }[]
-}
-
 interface VizDetail {
   title: string
   description?: string
   file: string
   projection: any
   thumbnail?: string
-  elements?: string
   center: any
   zoom: number
 }
@@ -123,6 +112,25 @@ class XyTime extends Vue {
 
   @Prop({ required: false })
   private thumbnail!: boolean
+
+  private get mapProps() {
+    return {
+      pointLayers: this.pointLayers,
+      timeFilter: this.timeFilter,
+      dark: this.$store.state.isDarkMode,
+    }
+  }
+
+  private timeLabels: any[] = [0, 1]
+
+  private handleTimeSliderValues(timeValues: any[]) {
+    // console.log(timeValues)
+    this.timeFilter = timeValues
+    this.timeLabels = [
+      this.convertSecondsToClockTimeMinutes(timeValues[0]),
+      this.convertSecondsToClockTimeMinutes(timeValues[1]),
+    ]
+  }
 
   private standaloneYAMLconfig = {
     title: '',
@@ -220,7 +228,7 @@ class XyTime extends Vue {
     await this.loadFiles()
     // this.mapState.center = this.findCenter(this.rawRequests)
 
-    this.isLoaded = true
+    // this.isLoaded = true
   }
 
   private beforeDestroy() {
@@ -474,6 +482,7 @@ class XyTime extends Vue {
       } else if (event.data.finished) {
         console.log('ALL DONE')
         this.myState.statusMessage = ''
+        this.isLoaded = true
         this.gzipWorker.terminate()
       } else {
         // totalRows += event.data.time.length
@@ -530,7 +539,7 @@ class XyTime extends Vue {
   }
 
   private convertSecondsToClockTimeMinutes(index: number) {
-    const seconds = this.getSecondsFromSlider(index)
+    const seconds = index // this.getSecondsFromSlider(index)
 
     try {
       const hms = timeConvert(seconds)

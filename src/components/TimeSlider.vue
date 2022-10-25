@@ -1,8 +1,10 @@
 <template lang="pug">
 .time-slider-component(ref="slider" @mousemove="dragging")
   .active-region(:style="calculateActiveMargins"
-    @mousedown="dragStart" @mouseup="dragEnd" @mousemove="dragging"
+    @mousedown="dragStart" @mouseup.stop="dragEnd" @mousemove.stop="dragging"
   )
+    p.pleft {{ (labels && labels[0]) || '0' }}
+    p.pright {{ (labels && labels[1]) || '' }}
 
 </template>
 
@@ -19,31 +21,62 @@ enum DRAGTYPE {
 
 @Component({ components: {} })
 export default class VueComponent extends Vue {
-  // @Prop({ required: true }) data!: any[]
-  // @Prop({ required: true }) layout!: any
-  // @Prop({ required: true }) options!: any
+  @Prop({ required: false }) labels!: string[]
+  @Prop({ required: false }) range!: number[]
+  @Prop({ required: false }) values!: number[]
+
+  private state = {
+    componentWidth: 0,
+    dragStartX: 0,
+    dragType: DRAGTYPE.SLIDE,
+    isDragging: false,
+    isSetupComplete: false,
+    marginLeft: 0,
+    marginRight: 0,
+    valueLeft: 0,
+    valueRight: 1,
+    valueWidth: 1,
+    range: [0, 1],
+  }
 
   private mounted() {
-    //@ts-ignore
-    this.state.componentWidth = this?.$refs?.slider?.clientWidth
-
+    this.getDimensions()
+    this.setupInitialValues()
     window.addEventListener('mouseup', this.dragEnd)
+    window.addEventListener('resize', this.getDimensions)
   }
 
   private beforeDestroy() {
     window.removeEventListener('mouseup', this.dragEnd)
+    window.removeEventListener('resize', this.getDimensions)
   }
 
-  private state = {
-    isDragging: false,
-    dragType: DRAGTYPE.SLIDE,
-    valueLeft: 0.3,
-    valueRight: 0.4,
-    valueWidth: 0.1,
-    componentWidth: 0,
-    dragStartX: 0,
-    marginLeft: 0,
-    marginRight: 0,
+  private setupInitialValues() {
+    if (this.range) this.state.range = this.range
+
+    if (this.values) {
+      const totalRange = this.state.range[1] - this.state.range[0]
+      this.state.valueLeft = (this.values[0] - this.state.range[0]) / totalRange
+      this.state.valueRight = (this.values[1] - this.state.range[0]) / totalRange
+      this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+    }
+    this.state.isSetupComplete = true
+  }
+
+  @Watch('state.valueLeft')
+  @Watch('state.valueRight')
+  private emitValues() {
+    if (!this.state.isSetupComplete) return
+
+    const totalRange = this.state.range[1] - this.state.range[0]
+    const start = Math.round(this.state.valueLeft * totalRange)
+    const end = Math.round(this.state.valueRight * totalRange)
+    this.$emit('values', [start, end])
+  }
+
+  private getDimensions() {
+    //@ts-ignore - ref doesn't know about clientWidth
+    this.state.componentWidth = this.$refs.slider?.clientWidth || 0
   }
 
   private get calculateActiveMargins() {
@@ -59,16 +92,13 @@ export default class VueComponent extends Vue {
 
   private dragStart(e: MouseEvent) {
     this.state.isDragging = true
-    console.log(e.clientX)
     this.state.dragStartX = e.clientX
     const durationWidth =
       this.state.componentWidth - this.state.marginRight - this.state.marginLeft - 2 * BAR_WIDTH
 
-    console.log({ durationWidth, offset: e.offsetX })
     if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
     else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
     else if (e.offsetX > durationWidth) this.state.dragType = DRAGTYPE.END
-    console.log(this.state.dragType)
   }
 
   private dragging(e: MouseEvent) {
@@ -119,6 +149,7 @@ export default class VueComponent extends Vue {
 
   private dragEnd(e: any) {
     this.state.isDragging = false
+    // console.log(this.state)
   }
 }
 </script>
@@ -134,11 +165,20 @@ export default class VueComponent extends Vue {
 }
 
 .active-region {
-  cursor: pointer;
+  cursor: pointer; // ew-resize;
   background-color: #37547d;
   height: 100%;
   border-radius: 5px;
   border-left: 6px solid white;
   border-right: 6px solid white;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
+  padding: 2px 3px;
+  // font-weight: bold;
+}
+
+.pright {
+  margin-top: 5px;
+  text-align: right;
 }
 </style>
