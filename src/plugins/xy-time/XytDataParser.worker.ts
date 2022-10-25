@@ -60,11 +60,13 @@ function postResults(layerData: {
   coordinates: Float32Array
   time: Float32Array
   color: Uint8Array
+  value: Float32Array
 }) {
   postMessage(layerData, [
     layerData.coordinates.buffer,
     layerData.time.buffer,
     layerData.color.buffer,
+    layerData.value.buffer,
   ])
 }
 
@@ -108,6 +110,7 @@ let layerData = {
   time: new Float32Array(LAYER_SIZE),
   coordinates: new Float32Array(LAYER_SIZE * 2),
   color: new Uint8Array(LAYER_SIZE * 3),
+  value: new Float32Array(LAYER_SIZE),
 }
 
 let offset = 0
@@ -134,6 +137,8 @@ function appendResults(results: { data: any[] }) {
     layerData.coordinates[(offset + i) * 2] = wgs84[0]
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
+    layerData.value[offset + i] = row.value
+
     // choose color buckets
     const bucket = Math.min(NUM_BUCKETS - 1, Math.floor((NUM_BUCKETS * row.value) / 0.05))
     layerData.color.set(colors[bucket], 3 * (offset + i))
@@ -153,6 +158,7 @@ function appendResults(results: { data: any[] }) {
       coordinates: new Float32Array(LAYER_SIZE * 2),
       time: new Float32Array(LAYER_SIZE),
       color: new Uint8Array(LAYER_SIZE * 3),
+      value: new Float32Array(LAYER_SIZE),
     }
   }
 
@@ -190,6 +196,7 @@ function step2fetchCSVdata(url: any) {
       time: layerData.time.subarray(0, offset),
       coordinates: layerData.coordinates.subarray(0, offset * 2),
       color: layerData.color.subarray(0, offset * 3),
+      value: layerData.value.subarray(0, offset),
     }
     postResults(subarray)
   }

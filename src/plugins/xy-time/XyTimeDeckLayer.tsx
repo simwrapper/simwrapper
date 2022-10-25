@@ -3,6 +3,7 @@ import DeckGL from '@deck.gl/react'
 import { StaticMap } from 'react-map-gl'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
+import * as timeConvert from 'convert-seconds'
 
 import { REACT_VIEW_HANDLES, MAPBOX_TOKEN } from '@/Globals'
 import globalStore from '@/store'
@@ -17,10 +18,27 @@ const INITIAL_VIEW = {
   bearing: 0,
 }
 
+function convertSecondsToClockTimeMinutes(index: number) {
+  const seconds = index // this.getSecondsFromSlider(index)
+
+  try {
+    const hms = timeConvert(seconds)
+    const minutes = ('00' + hms.minutes).slice(-2)
+    return `${hms.hours}:${minutes}`
+  } catch (e) {
+    return '00:00'
+  }
+}
+
 // -------------------------------------------------------------------
 export default function Component({
   viewId = 0,
-  pointLayers = [] as { coordinates: Float32Array; time: Float32Array; color: Uint8Array }[],
+  pointLayers = [] as {
+    coordinates: Float32Array
+    time: Float32Array
+    color: Uint8Array
+    value: Float32Array
+  }[],
   timeFilter = [] as number[],
   dark = false,
 }) {
@@ -39,8 +57,18 @@ export default function Component({
     globalStore.commit('setMapCamera', view)
   }
 
-  function getTooltip({ index }: { index: number }) {
-    if (index < 0) return null
+  function getTooltip(element: any) {
+    if (element.index < 0) return null
+
+    console.log(element)
+
+    const layerId = element?.layer?.id
+    if (layerId === undefined) return null
+
+    const time = pointLayers[layerId].time[element.index]
+    const humanTime = convertSecondsToClockTimeMinutes(time)
+
+    const value = pointLayers[layerId].value[element.index]
 
     return {
       // html: `\
@@ -49,7 +77,17 @@ export default function Component({
       //   Number.isFinite(lng) ? lng.toFixed(4) : ''
       // }
       // `,
-      html: `<p>${index}</p>`,
+      html: `\
+      <table style="font-size: 0.9rem">
+      <tr>
+        <td>Value</td>
+        <td style="padding-left: 0.5rem;"><b>${value}</b></td>
+      </tr><tr>
+        <td style="text-align: right;">Time</td>
+        <td style="padding-left: 0.5rem;"><b>${humanTime}</b></td>
+      </tr>
+      </table>
+      `,
       style: dark
         ? { color: '#ccc', backgroundColor: '#2a3c4f' }
         : { color: '#223', backgroundColor: 'white' },
@@ -58,7 +96,7 @@ export default function Component({
 
   // add a scatterplotlayer for each set of points in pointLayers
   const layers = pointLayers.map(
-    (points, i) =>
+    (points, layerIndex) =>
       new ScatterplotLayer({
         data: {
           length: points.time.length,
@@ -68,9 +106,9 @@ export default function Component({
             getFillColor: { value: points.color, size: 3 },
           },
         },
-        autoHighlight: true,
+        autoHighlight: false,
         extensions: [dataFilter],
-        id: 'xyt-layer-' + i,
+        id: layerIndex,
         filled: true,
         filterRange: timeFilter.length ? timeFilter : null,
         getRadius: 3, // (d: any) => 5, // Math.sqrt(d...),
@@ -79,7 +117,6 @@ export default function Component({
         parameters: { depthTest: false },
         pickable: true,
         radiusScale: 1,
-        // radiusUnits: 'pixels',
         stroked: false,
         useDevicePixels: false,
         updateTriggers: {
@@ -95,10 +132,11 @@ export default function Component({
     <DeckGL
       layers={layers}
       controller={true}
-      useDevicePixels={true}
+      useDevicePixels={false}
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}
+      onClick={getTooltip}
       getTooltip={getTooltip}
     >
       {
