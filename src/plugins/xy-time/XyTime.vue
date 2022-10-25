@@ -9,7 +9,6 @@
   )
 
   zoom-buttons(v-if="!thumbnail")
-  //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
   time-slider.time-slider(v-if="isLoaded"
     :range="[0,86400]"
@@ -54,6 +53,7 @@ import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import * as timeConvert from 'convert-seconds'
+import colormap from 'colormap'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -75,6 +75,7 @@ import {
   Status,
   REACT_VIEW_HANDLES,
 } from '@/Globals'
+import { scaleThreshold } from 'd3-scale'
 
 interface VizDetail {
   title: string
@@ -84,6 +85,14 @@ interface VizDetail {
   thumbnail?: string
   center: any
   zoom: number
+}
+
+interface PointLayer {
+  color: Uint8Array
+  value: Float32Array
+  coordinates: Float32Array
+  time: Float32Array
+  timeRange: number[]
 }
 
 @Component({
@@ -197,7 +206,7 @@ class XyTime extends Vue {
     thumbnail: false,
   }
 
-  private pointLayers: { color: Uint8Array; coordinates: Float32Array; time: Float32Array }[] = []
+  private pointLayers: PointLayer[] = []
 
   private isLoaded = false
 
@@ -477,6 +486,7 @@ class XyTime extends Vue {
         })
       } else if (event.data.finished) {
         console.log('ALL DONE', totalRows)
+        this.setColors(event.data.range)
         this.myState.statusMessage = ''
         this.isLoaded = true
         this.gzipWorker.terminate()
@@ -490,6 +500,40 @@ class XyTime extends Vue {
       filepath: filename,
       fileSystem: this.myState.fileSystem,
       projection: this.vizDetails.projection,
+    })
+  }
+
+  private setColors(range: number[]) {
+    this.myState.statusMessage = 'Setting colors...'
+
+    const NUM_BUCKETS = 12
+    const EXPONENT = 5
+
+    const colors = colormap({
+      colormap: 'viridis',
+      nshades: NUM_BUCKETS,
+      format: 'rba',
+      alpha: 1,
+    }).map((c: number[]) => [c[0], c[1], c[2]])
+
+    const max = Math.pow(range[1], 1 / EXPONENT)
+
+    const breakpoints = [] as number[]
+    for (let i = 0; i < NUM_BUCKETS - 1; i++) {
+      const fraction = (max * i) / NUM_BUCKETS
+      const breakpoint = Math.pow(fraction, EXPONENT)
+      breakpoints.push(breakpoint)
+    }
+
+    console.log({ colors, breakpoints })
+
+    const d3ColorScale = scaleThreshold().range(colors).domain(breakpoints)
+
+    this.pointLayers.forEach(points => {
+      for (let i = 0; i < points.time.length; i++) {
+        const bucket: any = d3ColorScale(points.value[i])
+        if (bucket) points.color.set(bucket, 3 * i)
+      }
     })
   }
 

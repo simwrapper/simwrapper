@@ -43,11 +43,13 @@ export default class VueComponent extends Vue {
     this.getDimensions()
     this.setupInitialValues()
     window.addEventListener('mouseup', this.dragEnd)
+    window.addEventListener('mousemove', this.dragging)
     window.addEventListener('resize', this.getDimensions)
   }
 
   private beforeDestroy() {
     window.removeEventListener('mouseup', this.dragEnd)
+    window.removeEventListener('mousemove', this.dragging)
     window.removeEventListener('resize', this.getDimensions)
   }
 

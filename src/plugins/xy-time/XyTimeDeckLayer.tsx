@@ -11,9 +11,9 @@ import globalStore from '@/store'
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
 
 const INITIAL_VIEW = {
-  zoom: 9,
-  longitude: 13.4,
-  latitude: 52.5,
+  zoom: 11,
+  longitude: 13.38,
+  latitude: 52.51,
   pitch: 0,
   bearing: 0,
 }
@@ -38,6 +38,7 @@ export default function Component({
     time: Float32Array
     color: Uint8Array
     value: Float32Array
+    timeRange: number[]
   }[],
   timeFilter = [] as number[],
   dark = false,
@@ -87,37 +88,42 @@ export default function Component({
   }
 
   // add a scatterplotlayer for each set of points in pointLayers
-  const layers = pointLayers.map(
-    (points, layerIndex) =>
-      new ScatterplotLayer({
-        data: {
-          length: points.time.length,
-          attributes: {
-            getPosition: { value: points.coordinates, size: 2 },
-            getFilterValue: { value: points.time, size: 1 },
-            getFillColor: { value: points.color, size: 3 },
-          },
+  const layers = pointLayers.map((points, layerIndex) => {
+    // The entire layer can be invisible if all of its points
+    // are beyond the timeFilter range that is being shown.
+    const outOfRange = points.timeRange[0] > timeFilter[1] || points.timeRange[1] < timeFilter[0]
+
+    return new ScatterplotLayer({
+      data: {
+        length: points.time.length,
+        attributes: {
+          getPosition: { value: points.coordinates, size: 2 },
+          getFilterValue: { value: points.time, size: 1 },
+          getFillColor: { value: points.color, size: 3 },
         },
-        autoHighlight: false,
-        extensions: [dataFilter],
-        id: layerIndex,
-        filled: true,
-        filterRange: timeFilter.length ? timeFilter : null,
-        getRadius: 3, // (d: any) => 5, // Math.sqrt(d...),
-        highlightColor: [255, 0, 224],
-        opacity: 1,
-        parameters: { depthTest: false },
-        pickable: true,
-        radiusScale: 1,
-        stroked: false,
-        useDevicePixels: false,
-        updateTriggers: {
-          getPosition: pointLayers,
-          getFillColor: pointLayers,
-          getFilterValue: timeFilter,
-        },
-      })
-  )
+      },
+      autoHighlight: false,
+      extensions: [dataFilter],
+      id: layerIndex,
+      filled: true,
+      filterRange: timeFilter.length ? timeFilter : null,
+      getRadius: 4, // (d: any) => 5, // Math.sqrt(d...),
+      highlightColor: [255, 0, 224],
+      opacity: 1,
+      parameters: { depthTest: false },
+      pickable: true,
+      radiusScale: 1,
+      stroked: false,
+      useDevicePixels: false,
+      // hide layers that are outside the time window filter:
+      updateTriggers: {
+        getPosition: pointLayers,
+        getFillColor: pointLayers,
+        getFilterValue: timeFilter,
+      },
+      visible: !outOfRange,
+    })
+  })
 
   // initialViewState={initialViewState}
   return (

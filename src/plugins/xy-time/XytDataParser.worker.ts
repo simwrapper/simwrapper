@@ -1,18 +1,20 @@
 /**
- * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
+ * Load a *.xyt.csv file, parse it, and return a set of ArrayBuffers for display.
  */
 import pako from 'pako'
 import Papaparse from 'papaparse'
-import colormap from 'colormap'
 
 import { FileSystemConfig } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import Coords from '@/js/Coords'
 import { findMatchingGlobInFiles } from '@/js/util'
+import Coords from '@/js/Coords'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-const LAYER_SIZE = 1 * 1024 * 1024
+const LAYER_SIZE = 0.5 * 1024 * 1024
+
+const NUM_BUCKETS = 12
 
 let _proj = 'EPSG:4326'
+let _rangeOfValues = [Infinity, -Infinity]
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -29,20 +31,21 @@ async function startLoading(props: {
 
   const url = await step1PrepareFetch(props.filepath, props.fileSystem)
   step2fetchCSVdata(url)
-  postMessage({ finished: true })
+  postMessage({ finished: true, range: _rangeOfValues })
 }
 
-interface LayerData {
+interface PointData {
   time: Float32Array
   value: Float32Array
   color: Uint8Array
   coordinates: Float32Array
+  timeRange: number[]
 }
 
 // --- helper functions ------------------------------------------------
 
 // Return a chunk of results after processing is complete.
-function postResults(layerData: LayerData) {
+function postResults(layerData: PointData) {
   postMessage(layerData, [
     layerData.coordinates.buffer,
     layerData.time.buffer,
@@ -85,52 +88,57 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
   }
 }
 
-let layerData: LayerData = {
+let layerData: PointData = {
   time: new Float32Array(LAYER_SIZE),
   value: new Float32Array(LAYER_SIZE),
   coordinates: new Float32Array(LAYER_SIZE * 2),
   color: new Uint8Array(LAYER_SIZE * 3),
+  timeRange: [Infinity, -Infinity],
 }
+
+layerData.color.fill(128)
 
 let offset = 0
 let totalRowsRead = 0
-
-const NUM_BUCKETS = 12
-const colors = colormap({
-  colormap: 'viridis', // colorRamp,
-  nshades: NUM_BUCKETS,
-  format: 'rba',
-  alpha: 1,
-}).map((c: number[]) => [c[0], c[1], c[2]])
 
 function appendResults(results: { data: any[] }) {
   const numRows = results.data.length
 
   const rowsToFill = Math.min(numRows, LAYER_SIZE - offset)
 
+  const xy = [0, 0]
+
   // Fill the array as much as we can
   for (let i = 0; i < rowsToFill; i++) {
     const row = results.data[i] as any
-
-    const wgs84 = Coords.toLngLat(_proj, [row.x, row.y])
+    xy[0] = row.x
+    xy[1] = row.y
+    const wgs84 = Coords.toLngLat(_proj, xy)
     layerData.coordinates[(offset + i) * 2] = wgs84[0]
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
     layerData.value[offset + i] = row.value
 
     // choose color buckets
-    const bucket = Math.min(NUM_BUCKETS - 1, Math.floor((NUM_BUCKETS * row.value) / 0.05))
-    layerData.color.set(colors[bucket], 3 * (offset + i))
+    // const bucket = Math.min(NUM_BUCKETS - 1, Math.floor((NUM_BUCKETS * row.value) / 0.05))
+    // layerData.color.set(_colors[bucket], 3 * (offset + i))
   }
+
+  layerData.timeRange[0] = Math.min(layerData.time[0], layerData.timeRange[0])
+  layerData.timeRange[1] = Math.max(layerData.time[offset + rowsToFill - 1], layerData.timeRange[1])
+
+  _rangeOfValues = layerData.value.reduce((prev, value) => {
+    prev[0] = Math.min(prev[0], value)
+    prev[1] = Math.max(prev[1], value)
+    return prev
+  }, _rangeOfValues)
 
   offset += rowsToFill
   totalRowsRead += rowsToFill
   postMessage({ status: `Loading rows: ${totalRowsRead}...` })
-  // console.log('new offset', offset)
 
   // Are we full?
   if (offset === LAYER_SIZE) {
-    // console.log('FULL! Posting', offset)
     postResults(layerData)
     offset = 0
 
@@ -139,7 +147,9 @@ function appendResults(results: { data: any[] }) {
       time: new Float32Array(LAYER_SIZE),
       color: new Uint8Array(LAYER_SIZE * 3),
       value: new Float32Array(LAYER_SIZE),
+      timeRange: [Infinity, -Infinity],
     }
+    layerData.color.fill(128)
   }
 
   // is there more to load?
@@ -168,11 +178,12 @@ function step2fetchCSVdata(url: any) {
 
   // all done? post final arrays
   if (offset) {
-    const subarray: LayerData = {
+    const subarray: PointData = {
       time: layerData.time.subarray(0, offset),
       coordinates: layerData.coordinates.subarray(0, offset * 2),
       color: layerData.color.subarray(0, offset * 3),
       value: layerData.value.subarray(0, offset),
+      timeRange: layerData.timeRange,
     }
     // console.log('FINAL: Posting', offset)
     postResults(subarray)
