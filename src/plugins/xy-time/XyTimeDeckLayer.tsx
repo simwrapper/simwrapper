@@ -60,8 +60,6 @@ export default function Component({
   function getTooltip(element: any) {
     if (element.index < 0) return null
 
-    console.log(element)
-
     const layerId = element?.layer?.id
     if (layerId === undefined) return null
 
@@ -71,22 +69,16 @@ export default function Component({
     const value = pointLayers[layerId].value[element.index]
 
     return {
-      // html: `\
-      //   <b>${highlights.length ? 'Count' : metric}: ${count} </b><br/>
-      //   ${Number.isFinite(lat) ? lat.toFixed(4) : ''} / ${
-      //   Number.isFinite(lng) ? lng.toFixed(4) : ''
-      // }
-      // `,
       html: `\
-      <table style="font-size: 0.9rem">
-      <tr>
-        <td>Value</td>
-        <td style="padding-left: 0.5rem;"><b>${value}</b></td>
-      </tr><tr>
-        <td style="text-align: right;">Time</td>
-        <td style="padding-left: 0.5rem;"><b>${humanTime}</b></td>
-      </tr>
-      </table>
+        <table style="font-size: 0.9rem">
+        <tr>
+          <td>Value</td>
+          <td style="padding-left: 0.5rem;"><b>${value}</b></td>
+        </tr><tr>
+          <td style="text-align: right;">Time</td>
+          <td style="padding-left: 0.5rem;"><b>${humanTime}</b></td>
+        </tr>
+        </table>
       `,
       style: dark
         ? { color: '#ccc', backgroundColor: '#2a3c4f' }
@@ -132,7 +124,7 @@ export default function Component({
     <DeckGL
       layers={layers}
       controller={true}
-      useDevicePixels={false}
+      useDevicePixels={true}
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}

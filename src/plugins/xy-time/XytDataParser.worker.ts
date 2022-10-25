@@ -10,58 +10,39 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 import { findMatchingGlobInFiles } from '@/js/util'
 
+const LAYER_SIZE = 1 * 1024 * 1024
+
+let _proj = 'EPSG:4326'
+
 // -----------------------------------------------------------
 onmessage = function (e) {
   startLoading(e.data)
 }
 // -----------------------------------------------------------
 
-const LAYER_SIZE = 25 * 1024 * 1024
-
-interface RowCache {
-  [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
-}
-
-interface Aggregations {
-  [heading: string]: {
-    title: string
-    x: string
-    y: string
-  }[]
-}
-
-let totalLines = 0
-let proj = 'EPSG:4326'
-
-/**
- * Begin loading the file, and return status updates
- * as observables. When observable is complete, the
- * processing is finished and results can be obtained
- * by calling results().
- */
 async function startLoading(props: {
   filepath: string
   fileSystem: FileSystemConfig
-  aggregations: Aggregations
   projection: string
 }) {
-  proj = props.projection
+  _proj = props.projection
 
   const url = await step1PrepareFetch(props.filepath, props.fileSystem)
   step2fetchCSVdata(url)
-  // postMessage({ status: 'Drawing...' })
   postMessage({ finished: true })
+}
+
+interface LayerData {
+  time: Float32Array
+  value: Float32Array
+  color: Uint8Array
+  coordinates: Float32Array
 }
 
 // --- helper functions ------------------------------------------------
 
 // Return a chunk of results after processing is complete.
-function postResults(layerData: {
-  coordinates: Float32Array
-  time: Float32Array
-  color: Uint8Array
-  value: Float32Array
-}) {
+function postResults(layerData: LayerData) {
   postMessage(layerData, [
     layerData.coordinates.buffer,
     layerData.time.buffer,
@@ -71,8 +52,6 @@ function postResults(layerData: {
 }
 
 async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig) {
-  let unzipped
-
   postMessage({ status: `Loading ${filepath}...` })
 
   try {
@@ -106,11 +85,11 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
   }
 }
 
-let layerData = {
+let layerData: LayerData = {
   time: new Float32Array(LAYER_SIZE),
+  value: new Float32Array(LAYER_SIZE),
   coordinates: new Float32Array(LAYER_SIZE * 2),
   color: new Uint8Array(LAYER_SIZE * 3),
-  value: new Float32Array(LAYER_SIZE),
 }
 
 let offset = 0
@@ -133,7 +112,7 @@ function appendResults(results: { data: any[] }) {
   for (let i = 0; i < rowsToFill; i++) {
     const row = results.data[i] as any
 
-    const wgs84 = Coords.toLngLat(proj, [row.x, row.y])
+    const wgs84 = Coords.toLngLat(_proj, [row.x, row.y])
     layerData.coordinates[(offset + i) * 2] = wgs84[0]
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
@@ -151,9 +130,10 @@ function appendResults(results: { data: any[] }) {
 
   // Are we full?
   if (offset === LAYER_SIZE) {
-    // console.log('FULL! Posting')
+    // console.log('FULL! Posting', offset)
     postResults(layerData)
     offset = 0
+
     layerData = {
       coordinates: new Float32Array(LAYER_SIZE * 2),
       time: new Float32Array(LAYER_SIZE),
@@ -163,13 +143,9 @@ function appendResults(results: { data: any[] }) {
   }
 
   // is there more to load?
-  // console.log(rowsToFill, numRows)
   if (rowsToFill < numRows) {
     const remainingData = { data: results.data.slice(rowsToFill) }
-    // console.log('calling again', remainingData)
     appendResults(remainingData)
-    // } else {
-    //   console.log(numRows)
   }
 }
 
@@ -192,27 +168,15 @@ function step2fetchCSVdata(url: any) {
 
   // all done? post final arrays
   if (offset) {
-    const subarray = {
+    const subarray: LayerData = {
       time: layerData.time.subarray(0, offset),
       coordinates: layerData.coordinates.subarray(0, offset * 2),
       color: layerData.color.subarray(0, offset * 3),
       value: layerData.value.subarray(0, offset),
     }
+    // console.log('FINAL: Posting', offset)
     postResults(subarray)
   }
-
-  // postMessage({ status: 'Trimming results...' })
-  // // now filter zero-cells out: some rows don't have coordinates, and they
-  // // will mess up the total calculations
-  // for (const key of Object.keys(rowCache)) {
-  //   // this is dangerous: only works if BOTH the x and the y are zero; otherwise
-  //   // it will get out of sync and things will look crazy or crash HAHahahAHHAA
-
-  //   // rowCache[key].raw = rowCache[key].raw.filter(elem => elem !== 0) // filter zeroes
-  //   rowCache[key].length = rowCache[key].raw.length / 2
-  // }
-
-  // postResults(coordinates, time)
 }
 
 /**

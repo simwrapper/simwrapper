@@ -13,7 +13,7 @@
 
   time-slider.time-slider(v-if="isLoaded"
     :range="[0,86400]"
-    :values="[0,3600]"
+    :values="[0,3599]"
     :labels="timeLabels"
     @values="handleTimeSliderValues"
   )
@@ -145,7 +145,7 @@ class XyTime extends Vue {
 
   private timeStart = 0
   private timeEnd = 100000
-  private timeFilter = [0, 3600]
+  private timeFilter = [0, 3599]
   private timeSliderValue = 0
   private timeSliderOptions = {
     min: 0,
@@ -199,11 +199,6 @@ class XyTime extends Vue {
 
   private pointLayers: { color: Uint8Array; coordinates: Float32Array; time: Float32Array }[] = []
 
-  // private points: { coordinates: Float32Array; time: Float32Array } = {
-  //   coordinates: new Float32Array(0),
-  //   time: new Float32Array(0),
-  // }
-
   private isLoaded = false
 
   private async mounted() {
@@ -221,7 +216,7 @@ class XyTime extends Vue {
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    await this.loadFiles()
+    if (!this.isLoaded) await this.loadFiles()
     // this.mapState.center = this.findCenter(this.rawRequests)
 
     // this.isLoaded = true
@@ -481,30 +476,13 @@ class XyTime extends Vue {
           desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
         })
       } else if (event.data.finished) {
-        console.log('ALL DONE')
+        console.log('ALL DONE', totalRows)
         this.myState.statusMessage = ''
         this.isLoaded = true
         this.gzipWorker.terminate()
       } else {
-        // totalRows += event.data.time.length
-        // this.myState.statusMessage = `Loading ${totalRows} rows...`
-        // this.myState.statusMessage = `Cleaning up...`
-        const layers = [] as any[]
-
-        const SHARD_SIZE = 1024 * 1024
-        const numShards = Math.ceil(event.data.time.length / SHARD_SIZE)
-        for (let shard = 0; shard < numShards; shard++) {
-          const start = shard * SHARD_SIZE
-          const end = SHARD_SIZE + start
-
-          layers.push({
-            time: event.data.time.subarray(start, end),
-            coordinates: event.data.coordinates.subarray(start * 2, end * 2),
-            color: event.data.color.subarray(start * 3, end * 3),
-          })
-        }
-        console.log({ layers })
-        this.pointLayers = layers
+        totalRows += event.data.time.length
+        this.pointLayers.push(event.data)
       }
     }
 
