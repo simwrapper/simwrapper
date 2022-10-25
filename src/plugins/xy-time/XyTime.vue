@@ -1,7 +1,8 @@
 <template lang="pug">
 .viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-time-deck-layer.map-layer(v-if="!thumbnail && isLoaded"
+  xy-time-deck-layer.map-layer(v-if="!thumbnail"
+    :viewId="viewId"
     :pointLayers="pointLayers"
     :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
@@ -15,7 +16,6 @@
     :values="[0,3600]"
     :labels="timeLabels"
     @values="handleTimeSliderValues"
-
   )
 
   .message(v-if="!thumbnail && myState.statusMessage")
@@ -73,6 +73,7 @@ import {
   FileSystemConfig,
   VisualizationPlugin,
   Status,
+  REACT_VIEW_HANDLES,
 } from '@/Globals'
 
 interface VizDetail {
@@ -113,13 +114,7 @@ class XyTime extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
-  private get mapProps() {
-    return {
-      pointLayers: this.pointLayers,
-      timeFilter: this.timeFilter,
-      dark: this.$store.state.isDarkMode,
-    }
-  }
+  private viewId = ('xyt-id-' + Math.random()) as any
 
   private timeLabels: any[] = [0, 1]
 
@@ -212,6 +207,7 @@ class XyTime extends Vue {
   private isLoaded = false
 
   private async mounted() {
+    console.log('MOUNTED!')
     this.$store.commit('setFullScreen', !this.thumbnail)
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig
@@ -239,6 +235,11 @@ class XyTime extends Vue {
     }
 
     this.$store.commit('setFullScreen', false)
+  }
+
+  @Watch('$store.state.viewState') viewMoved() {
+    if (!REACT_VIEW_HANDLES[this.viewId]) return
+    REACT_VIEW_HANDLES[this.viewId]()
   }
 
   public buildFileApi() {
@@ -291,7 +292,7 @@ class XyTime extends Vue {
     if (hasYaml) {
       await this.loadStandaloneYAMLConfig()
     } else {
-      console.log('NO YAML WTF')
+      // console.log('NO YAML WTF')
       this.setConfigForRawCSV()
     }
   }
@@ -304,7 +305,7 @@ class XyTime extends Vue {
     //   if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
     // }
 
-    console.log(this.myState)
+    // console.log(this.myState)
 
     // output_trips:
     this.vizDetails = {
