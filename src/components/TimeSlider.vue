@@ -11,7 +11,7 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-const BAR_WIDTH = 6
+const GRAB_HANDLE_WIDTH = 6
 
 enum DRAGTYPE {
   SLIDE,
@@ -31,10 +31,8 @@ export default class VueComponent extends Vue {
     dragType: DRAGTYPE.SLIDE,
     isDragging: false,
     isSetupComplete: false,
-    marginLeft: 0,
-    marginRight: 0,
-    valueLeft: 0,
-    valueRight: 1,
+    normValueLeft: 0, // always normalized
+    normValueRight: 1, // always normalized
     valueWidth: 1,
     range: [0, 1],
     labels: ['', ''],
@@ -60,9 +58,9 @@ export default class VueComponent extends Vue {
 
       if (this.values) {
         const totalRange = this.state.range[1] - this.state.range[0]
-        this.state.valueLeft = (this.values[0] - this.state.range[0]) / totalRange
-        this.state.valueRight = (this.values[1] - this.state.range[0]) / totalRange
-        this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+        this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
+        this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
+        this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
       }
     } catch (e) {
       // divide by zero, oh well
@@ -71,18 +69,25 @@ export default class VueComponent extends Vue {
     }
   }
 
+  @Watch('values') updateValues() {
+    const totalRange = this.state.range[1] - this.state.range[0]
+    this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
+    this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
+    this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
+  }
+
   @Watch('labels') updateLabels() {
     this.state.labels = this.labels
   }
 
-  @Watch('state.valueLeft')
-  @Watch('state.valueRight')
+  @Watch('state.normValueLeft')
+  @Watch('state.normValueRight')
   private emitValues() {
     if (!this.state.isSetupComplete) return
 
     const totalRange = this.state.range[1] - this.state.range[0]
-    const start = Math.round(this.state.valueLeft * totalRange)
-    const end = Math.round(this.state.valueRight * totalRange)
+    const start = Math.round(this.state.normValueLeft * totalRange)
+    const end = Math.round(this.state.normValueRight * totalRange)
     this.$emit('values', [start, end])
   }
 
@@ -92,21 +97,30 @@ export default class VueComponent extends Vue {
   }
 
   private get calculateActiveMargins() {
-    const usableWidth = this.state.componentWidth - 2 * BAR_WIDTH
-    this.state.marginLeft = Math.floor(usableWidth * this.state.valueLeft)
-    this.state.marginRight = Math.floor(usableWidth * (1.0 - this.state.valueRight))
+    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+
+    const marginLeft = Math.floor(usableWidth * this.state.normValueLeft)
+    const marginRight = Math.floor(usableWidth * (1.0 - this.state.normValueRight))
 
     return {
-      marginLeft: `${this.state.marginLeft}px`,
-      marginRight: `${this.state.marginRight}px`,
+      marginLeft: `${marginLeft}px`,
+      marginRight: `${marginRight}px`,
     }
   }
 
   private dragStart(e: MouseEvent) {
+    this.$emit('drag')
     this.state.isDragging = true
     this.state.dragStartX = e.clientX
+
+    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+    const marginLeft = Math.floor(usableWidth * this.state.normValueLeft)
+    const marginRight = Math.floor(usableWidth * (1.0 - this.state.normValueRight))
+
     const durationWidth =
-      this.state.componentWidth - this.state.marginRight - this.state.marginLeft - 2 * BAR_WIDTH
+      this.state.componentWidth - marginRight - marginLeft - 2 * GRAB_HANDLE_WIDTH
+
+    console.log({ usableWidth, durationWidth, marginLeft, marginRight })
 
     if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
     else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
@@ -117,17 +131,18 @@ export default class VueComponent extends Vue {
     if (!this.state.isDragging) return
 
     const deltaX = e.clientX - this.state.dragStartX
-    const usableWidth = this.state.componentWidth - 2 * BAR_WIDTH
+    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
 
     // are we moving the time duration window
     if (DRAGTYPE.SLIDE == this.state.dragType) {
-      const newLeft = usableWidth * this.state.valueLeft + deltaX
-      this.state.valueLeft = Math.max(0, newLeft / usableWidth)
-      this.state.valueRight = this.state.valueLeft + this.state.valueWidth
+      const newLeft = usableWidth * this.state.normValueLeft + deltaX
 
-      if (this.state.valueRight > 1) {
-        this.state.valueRight = 1
-        this.state.valueLeft = this.state.valueRight - this.state.valueWidth
+      this.state.normValueLeft = Math.max(0, newLeft / usableWidth)
+      this.state.normValueRight = this.state.normValueLeft + this.state.valueWidth
+
+      if (this.state.normValueRight > 1) {
+        this.state.normValueRight = 1
+        this.state.normValueLeft = this.state.normValueRight - this.state.valueWidth
       }
 
       this.state.dragStartX = e.clientX
@@ -136,24 +151,24 @@ export default class VueComponent extends Vue {
 
     // are we moving the start-time
     if (DRAGTYPE.START == this.state.dragType) {
-      const newLeft = usableWidth * this.state.valueLeft + deltaX
-      this.state.valueLeft = Math.max(0, newLeft / usableWidth)
-      if (this.state.valueLeft > this.state.valueRight) {
-        this.state.valueRight = this.state.valueLeft
+      const newLeft = usableWidth * this.state.normValueLeft + deltaX
+      this.state.normValueLeft = Math.max(0, newLeft / usableWidth)
+      if (this.state.normValueLeft > this.state.normValueRight) {
+        this.state.normValueRight = this.state.normValueLeft
       }
-      this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+      this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
       this.state.dragStartX = e.clientX
       return
     }
 
     // are we moving the end-time
     if (DRAGTYPE.END == this.state.dragType) {
-      const newRight = usableWidth * this.state.valueRight + deltaX
-      this.state.valueRight = Math.min(1, newRight / usableWidth)
-      if (this.state.valueLeft > this.state.valueRight) {
-        this.state.valueLeft = this.state.valueRight
+      const newRight = usableWidth * this.state.normValueRight + deltaX
+      this.state.normValueRight = Math.min(1, newRight / usableWidth)
+      if (this.state.normValueLeft > this.state.normValueRight) {
+        this.state.normValueLeft = this.state.normValueRight
       }
-      this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+      this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
       this.state.dragStartX = e.clientX
       return
     }

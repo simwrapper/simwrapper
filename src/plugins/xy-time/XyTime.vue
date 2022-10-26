@@ -10,12 +10,18 @@
 
   zoom-buttons(v-if="!thumbnail")
 
-  time-slider.time-slider(v-if="isLoaded"
-    :range="[0,86400]"
-    :values="[0,3599]"
-    :labels="timeLabels"
-    @values="handleTimeSliderValues"
-  )
+  .time-slider(v-if="isLoaded")
+    time-slider(
+      :range="[0,86400]"
+      :values="timeFilter"
+      :labels="timeLabels"
+      @values="handleTimeSliderValues"
+      @drag="isAnimating=false"
+    )
+    b-button.play-button(size="is-small" type="is-link"
+      :style="{fontWeight: isAnimating ? '' : 'bold'}"
+      @click="toggleAnimation"
+      ) {{ isAnimating ? '| |' : '▶️' }}
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -125,8 +131,13 @@ class XyTime extends Vue {
   private viewId = ('xyt-id-' + Math.random()) as any
 
   private timeLabels: any[] = [0, 1]
+  private elapsed = 0
+  private startTime = 0
+  private isAnimating = false
+  private timeFilter = [0, 3599]
 
   private handleTimeSliderValues(timeValues: any[]) {
+    this.elapsed = timeValues[0]
     this.timeFilter = timeValues
     this.timeLabels = [
       this.convertSecondsToClockTimeMinutes(timeValues[0]),
@@ -148,32 +159,6 @@ class XyTime extends Vue {
 
   private YAMLrequirementsXY = {
     file: '',
-  }
-
-  private timeStart = 0
-  private timeEnd = 100000
-  private timeFilter = [0, 3599]
-  private timeSliderValue = 0
-  private timeSliderOptions = {
-    min: 0,
-    max: 1000000,
-    value: 0,
-    clickable: false,
-    dotSize: 24,
-    duration: 0,
-    lazy: true,
-    tooltip: 'active',
-    'tooltip-placement': 'top',
-    'tooltip-formatter': (v: number) => {
-      return this.convertSecondsToClockTimeMinutes(v)
-    },
-  }
-
-  @Watch('timeSliderValue') handleTimeSlider() {
-    const seconds = this.timeSliderValue / 10
-    this.timeFilter = [seconds - 1800, seconds + 1800]
-    console.log(this.timeFilter)
-    this.myState.statusMessage = '' + this.timeFilter
   }
 
   private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
@@ -208,6 +193,8 @@ class XyTime extends Vue {
 
   private isLoaded = false
 
+  private animator: any = null
+
   private async mounted() {
     console.log('MOUNTED!')
     this.$store.commit('setFullScreen', !this.thumbnail)
@@ -235,6 +222,8 @@ class XyTime extends Vue {
     } catch (e) {
       console.warn(e)
     }
+
+    if (this.animator) window.cancelAnimationFrame(this.animator)
 
     this.$store.commit('setFullScreen', false)
   }
@@ -411,59 +400,6 @@ class XyTime extends Vue {
     }
   }
 
-  // private async setMapCenter() {
-  //   const data = Object.values(this.rowCache)[0].raw
-
-  //   // If user gave us the center, use it
-  //   if (this.vizDetails.center) {
-  //     if (typeof this.vizDetails.center == 'string') {
-  //       this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-  //     }
-
-  //     this.$store.commit('setMapCamera', {
-  //       longitude: this.vizDetails.center[0],
-  //       latitude: this.vizDetails.center[1],
-  //       bearing: 0,
-  //       pitch: 0,
-  //       zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-  //       jump: false,
-  //     })
-  //     return
-  //   }
-
-  //   // user didn't give us the center, so calculate it
-  //   if (!data.length) return
-
-  //   let samples = 0
-  //   let longitude = 0
-  //   let latitude = 0
-
-  //   const numLinks = data.length / 2
-
-  //   const gap = 4096
-  //   for (let i = 0; i < numLinks; i += gap) {
-  //     longitude += data[i * 2]
-  //     latitude += data[i * 2 + 1]
-  //     samples++
-  //   }
-
-  //   longitude = longitude / samples
-  //   latitude = latitude / samples
-
-  //   const currentView = this.$store.state.viewState
-
-  //   if (longitude && latitude) {
-  //     this.$store.commit('setMapCamera', {
-  //       longitude,
-  //       latitude,
-  //       bearing: currentView.bearing,
-  //       pitch: currentView.pitch,
-  //       zoom: this.vizDetails.zoom || currentView.zoom,
-  //       jump: false,
-  //     })
-  //   }
-  // }
-
   private async parseCSVFile(filename: string) {
     if (!this.myState.fileSystem) return
     this.myState.statusMessage = 'Loading file...'
@@ -483,11 +419,7 @@ class XyTime extends Vue {
           desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
         })
       } else if (event.data.finished) {
-        console.log('ALL DONE', totalRows)
-        this.setColors(event.data.range)
-        this.myState.statusMessage = ''
-        this.isLoaded = true
-        this.gzipWorker.terminate()
+        this.finishedLoadingData(totalRows, event.data)
       } else {
         totalRows += event.data.time.length
         this.pointLayers.push(event.data)
@@ -501,14 +433,48 @@ class XyTime extends Vue {
     })
   }
 
+  private finishedLoadingData(totalRows: number, data: any) {
+    console.log('ALL DONE', totalRows)
+    this.setColors(data.range)
+    this.myState.statusMessage = ''
+    this.gzipWorker.terminate()
+    this.isLoaded = true
+  }
+
+  private animate() {
+    setTimeout(() => {
+      if (!this.isAnimating) return
+
+      this.elapsed = 5 * (Date.now() - this.startTime)
+
+      if (this.elapsed > 86400) {
+        this.startTime = Date.now()
+        this.elapsed = 0
+      }
+
+      const span = this.timeFilter[1] - this.timeFilter[0]
+      this.timeFilter = [this.elapsed, this.elapsed + span]
+
+      this.animator = window.requestAnimationFrame(this.animate)
+    }, 33.33333334)
+  }
+
+  private toggleAnimation() {
+    this.isAnimating = !this.isAnimating
+    if (this.isAnimating) {
+      this.startTime = Date.now() - this.elapsed / 5
+      this.animate()
+    }
+  }
+
   private setColors(range: number[]) {
     this.myState.statusMessage = 'Setting colors...'
 
     const NUM_BUCKETS = 12
-    const EXPONENT = 5 // log10
+    const EXPONENT = 4 // log5?
 
     const colors = colormap({
-      colormap: 'viridis',
+      colormap: 'electric',
       nshades: NUM_BUCKETS,
       format: 'rba',
       alpha: 1,
@@ -551,12 +517,6 @@ class XyTime extends Vue {
         desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
       })
     }
-  }
-
-  private getSecondsFromSlider(value: number) {
-    let seconds = ((this.timeEnd - this.timeStart) * value) / 1000000.0
-    if (seconds === this.timeEnd) seconds = this.timeEnd - 1
-    return seconds
   }
 
   private convertSecondsToClockTimeMinutes(index: number) {
@@ -651,7 +611,22 @@ export default XyTime
   bottom: 0;
   left: 0;
   right: 0;
-  margin: 3rem 1rem;
+  margin: 0 1rem 20px 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.time-slider button {
+  margin-top: 4px;
+  margin-right: auto;
+}
+
+.time-slider .play-button {
+  background-color: #37547d;
+}
+
+.time-slider .play-button:hover {
+  background-color: #173b6d;
 }
 
 @media only screen and (max-width: 640px) {

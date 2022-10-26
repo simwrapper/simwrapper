@@ -118,10 +118,6 @@ function appendResults(results: { data: any[] }) {
     layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
     layerData.time[offset + i] = row.time || row.t || 0
     layerData.value[offset + i] = row.value
-
-    // choose color buckets
-    // const bucket = Math.min(NUM_BUCKETS - 1, Math.floor((NUM_BUCKETS * row.value) / 0.05))
-    // layerData.color.set(_colors[bucket], 3 * (offset + i))
   }
 
   layerData.timeRange[0] = Math.min(layerData.time[0], layerData.timeRange[0])
@@ -135,7 +131,6 @@ function appendResults(results: { data: any[] }) {
 
   offset += rowsToFill
   totalRowsRead += rowsToFill
-  postMessage({ status: `Loading rows: ${totalRowsRead}...` })
 
   // Are we full?
   if (offset === LAYER_SIZE) {
@@ -156,6 +151,8 @@ function appendResults(results: { data: any[] }) {
   if (rowsToFill < numRows) {
     const remainingData = { data: results.data.slice(rowsToFill) }
     appendResults(remainingData)
+  } else {
+    postMessage({ status: `Loading rows: ${totalRowsRead}...` })
   }
 }
 

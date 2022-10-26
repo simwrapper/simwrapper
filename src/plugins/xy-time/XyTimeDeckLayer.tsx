@@ -107,7 +107,7 @@ export default function Component({
       id: layerIndex,
       filled: true,
       filterRange: timeFilter.length ? timeFilter : null,
-      getRadius: 4, // (d: any) => 5, // Math.sqrt(d...),
+      getRadius: 5, // (d: any) => Math.sqrt(d...),
       highlightColor: [255, 0, 224],
       opacity: 1,
       parameters: { depthTest: false },
