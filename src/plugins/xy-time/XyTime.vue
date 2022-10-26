@@ -52,7 +52,6 @@ import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
-import * as timeConvert from 'convert-seconds'
 import colormap from 'colormap'
 
 import util from '@/js/util'
@@ -128,7 +127,6 @@ class XyTime extends Vue {
   private timeLabels: any[] = [0, 1]
 
   private handleTimeSliderValues(timeValues: any[]) {
-    // console.log(timeValues)
     this.timeFilter = timeValues
     this.timeLabels = [
       this.convertSecondsToClockTimeMinutes(timeValues[0]),
@@ -507,7 +505,7 @@ class XyTime extends Vue {
     this.myState.statusMessage = 'Setting colors...'
 
     const NUM_BUCKETS = 12
-    const EXPONENT = 5
+    const EXPONENT = 5 // log10
 
     const colors = colormap({
       colormap: 'viridis',
@@ -562,15 +560,13 @@ class XyTime extends Vue {
   }
 
   private convertSecondsToClockTimeMinutes(index: number) {
-    const seconds = index // this.getSecondsFromSlider(index)
+    const h = Math.floor(index / 3600)
+    const m = Math.floor((index - h * 3600) / 60)
+    const s = index - h * 3600 - m * 60
 
-    try {
-      const hms = timeConvert(seconds)
-      const minutes = ('00' + hms.minutes).slice(-2)
-      return `${hms.hours}:${minutes}`
-    } catch (e) {
-      return '00:00'
-    }
+    const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
+
+    return `${hms.h}:${hms.m}`
   }
 }
 

@@ -3,8 +3,8 @@
   .active-region(:style="calculateActiveMargins"
     @mousedown="dragStart" @mouseup.stop="dragEnd" @mousemove.stop="dragging"
   )
-    p.pleft {{ (labels && labels[0]) || '0' }}
-    p.pright {{ (labels && labels[1]) || '' }}
+    p.pleft {{ state.labels[0] }}
+    p.pright {{ state.labels[1] }}
 
 </template>
 
@@ -37,6 +37,7 @@ export default class VueComponent extends Vue {
     valueRight: 1,
     valueWidth: 1,
     range: [0, 1],
+    labels: ['', ''],
   }
 
   private mounted() {
@@ -54,15 +55,24 @@ export default class VueComponent extends Vue {
   }
 
   private setupInitialValues() {
-    if (this.range) this.state.range = this.range
+    try {
+      if (this.range) this.state.range = this.range
 
-    if (this.values) {
-      const totalRange = this.state.range[1] - this.state.range[0]
-      this.state.valueLeft = (this.values[0] - this.state.range[0]) / totalRange
-      this.state.valueRight = (this.values[1] - this.state.range[0]) / totalRange
-      this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+      if (this.values) {
+        const totalRange = this.state.range[1] - this.state.range[0]
+        this.state.valueLeft = (this.values[0] - this.state.range[0]) / totalRange
+        this.state.valueRight = (this.values[1] - this.state.range[0]) / totalRange
+        this.state.valueWidth = this.state.valueRight - this.state.valueLeft
+      }
+    } catch (e) {
+      // divide by zero, oh well
+    } finally {
+      this.state.isSetupComplete = true
     }
-    this.state.isSetupComplete = true
+  }
+
+  @Watch('labels') updateLabels() {
+    this.state.labels = this.labels
   }
 
   @Watch('state.valueLeft')
@@ -151,7 +161,6 @@ export default class VueComponent extends Vue {
 
   private dragEnd(e: any) {
     this.state.isDragging = false
-    // console.log(this.state)
   }
 }
 </script>
@@ -168,6 +177,7 @@ export default class VueComponent extends Vue {
 
 .active-region {
   cursor: pointer; // ew-resize;
+  color: white;
   background-color: #37547d;
   height: 100%;
   border-radius: 5px;
