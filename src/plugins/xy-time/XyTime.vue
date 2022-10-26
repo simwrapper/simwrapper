@@ -10,6 +10,9 @@
 
   zoom-buttons(v-if="!thumbnail")
 
+  .legend-area(v-if="legendStore")
+    legend-box(:legendStore="legendStore")
+
   .time-slider(v-if="isLoaded")
     time-slider(
       :range="[0,86400]"
@@ -55,8 +58,6 @@ const i18n = {
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import VueSlider from 'vue-slider-component'
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
@@ -65,6 +66,7 @@ import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import XytDataParser from './XytDataParser.worker.ts?worker'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TimeSlider from '@/components/TimeSlider.vue'
 import XyTimeDeckLayer from './XyTimeDeckLayer'
@@ -81,6 +83,7 @@ import {
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 import { scaleThreshold } from 'd3-scale'
+import LegendStore from '@/js/LegendStore'
 
 interface VizDetail {
   title: string
@@ -105,11 +108,10 @@ interface PointLayer {
   components: {
     CollapsiblePanel,
     DrawingTool,
-    XyTimeDeckLayer,
-    VueSlider,
+    LegendBox,
     TimeSlider,
-    ToggleButton,
     ZoomButtons,
+    XyTimeDeckLayer,
   } as any,
 })
 class XyTime extends Vue {
@@ -135,6 +137,8 @@ class XyTime extends Vue {
   private startTime = 0
   private isAnimating = false
   private timeFilter = [0, 3599]
+
+  private legendStore: LegendStore | null = null
 
   private handleTimeSliderValues(timeValues: any[]) {
     this.elapsed = timeValues[0]
@@ -489,7 +493,7 @@ class XyTime extends Vue {
       breakpoints.push(breakpoint)
     }
 
-    console.log({ colors, breakpoints })
+    this.setLegend(colors, breakpoints)
 
     const d3ColorScale = scaleThreshold().range(colors).domain(breakpoints)
 
@@ -498,6 +502,23 @@ class XyTime extends Vue {
         const bucket: any = d3ColorScale(points.value[i])
         if (bucket) points.color.set(bucket, 3 * i)
       }
+    })
+  }
+
+  private setLegend(colors: any[], breakpoints: number[]) {
+    console.log({ colors, breakpoints })
+    this.legendStore = new LegendStore()
+    this.legendStore.setLegendSection({
+      section: 'Legend',
+      column: 'NOx: g/m',
+      values: colors
+        .map((rgb, index) => {
+          const value = index == colors.length - 1 ? breakpoints[index - 1] : breakpoints[index]
+          const formatted = Math.round(1e6 * value) / 1e6
+          const label = index == colors.length - 1 ? `> ${formatted}` : `${formatted}`
+          return { label, value: rgb }
+        })
+        .slice(1, colors.length),
     })
   }
 
@@ -604,6 +625,15 @@ export default XyTime
   top: 0;
   right: 0;
   pointer-events: none;
+}
+
+.legend-area {
+  position: absolute;
+  background-color: var(--bgPanel);
+  bottom: 0;
+  right: 0;
+  margin: auto 1rem 7rem auto;
+  border: 1px solid var(--bgPanel2);
 }
 
 .time-slider {
