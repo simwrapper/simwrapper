@@ -60,10 +60,10 @@ export default class VueComponent extends Vue {
   private vizDetails = {
     title: '',
     description: '',
-    zoom: null as number | null,
+    zoom: 9,
     center: null as any | null,
-    pitch: null as number | null,
-    bearing: null as number | null,
+    pitch: 0,
+    bearing: 0,
     boundaries: '',
     boundariesJoinCol: '',
     boundariesLabels: '',
@@ -72,16 +72,23 @@ export default class VueComponent extends Vue {
     origin: '',
     destination: '',
     flow: '',
-    colorScheme: '',
-    adaptiveScalesEnabled: true,
+    colorScheme: 'teal',
+    highlightColor: 'orange',
+    fadeEnabled: true,
+    fadeAmount: 50,
     animationEnabled: true,
     clusteringEnabled: true,
     clusteringAuto: true,
     clusteringLevel: null as number | null,
-    labelsEnabled: true,
     locationLabelsEnabled: true,
+    locationTotalsEnabled: true,
     darkMode: '',
     pickable: true,
+    opacity: null as number | null,
+    fadeOpacityEnabled: true,
+    outlineThickness: null as number | null,
+    showOnlyTopFlows: null as number | null,
+    maxTopFlowsDisplayNum: null as number | null,
   }
 
   public myState = {
@@ -213,7 +220,7 @@ export default class VueComponent extends Vue {
         console.error(`Also failed to load ${vizes[this.yamlConfig]}`)
       }
     }
-    this.$store.commit('error', 'Could not load YAML: ' + filename)
+
     console.log(this.vizDetails)
   }
 
