@@ -17,6 +17,7 @@ function App({ data = [], initialView = {} as any }) {
     stroked: false,
     filled: true,
     radiusScale: 2,
+    numColors: 2,
     radiusMinPixels: 1,
     radiusMaxPixels: 100,
     lineWidthMinPixels: 1,

@@ -22,7 +22,7 @@ import VueSlider from 'vue-slider-component'
 import 'vue-slider-component/theme/default.css'
 import { VuePlugin } from 'vuera'
 
-import ScatterPlot from '@/layers/ScatterPlotLayer'
+import ScatterPlot from '@/components/deckgl/ScatterPlotLayer'
 
 Vue.use(VuePlugin)
 
