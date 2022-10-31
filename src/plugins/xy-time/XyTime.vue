@@ -1,17 +1,37 @@
 <template lang="pug">
 .viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-time-deck-layer.map-layer(v-if="!thumbnail"
+  xy-time-deck-map.map-layer(v-if="!thumbnail"
     :viewId="viewId"
     :pointLayers="pointLayers"
     :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
+    :colors="this.colors"
+    :breakpoints="this.breakpoints"
   )
 
   zoom-buttons(v-if="!thumbnail")
 
-  .legend-area(v-if="legendStore")
-    legend-box(:legendStore="legendStore")
+  .bottom-right
+    .legend-area(v-if="legendStore")
+      legend-box(:legendStore="legendStore")
+
+    .configurator
+      .buckets
+        b-button.is-link(outlined size="is-small" @click="incBuckets(-1)") <
+        p(style="margin: 0 auto") {{ numBuckets }}
+        b-button.is-link(outlined size="is-small" @click="incBuckets(1)") >
+      .buckets
+        b-button.is-link(outlined size="is-small" @click="incPowerFunction(-1)") <
+        p(style="margin: 0 auto") {{ powerFunction }}
+        b-button.is-link(outlined size="is-small" @click="incPowerFunction(1)") >
+      .buckets.clip-slider
+        b-slider(v-model="clipData" :min="0" :max="100")
+      .buckets
+        b-checkbox(outlined size="is-small" v-model="isColorRampFlipped") Flip
+      .buckets
+        b-select.selector.ramp-selector(expanded v-model="colorRamp" size="is-small" @select="handleColorRamp")
+          option(v-for="column in colorRamps" :value="column" :label="column")
 
   .time-slider(v-if="isLoaded")
     time-slider(
@@ -64,12 +84,13 @@ import colormap from 'colormap'
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import XytDataParser from './XytDataParser.worker.ts?worker'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
-import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
+import LegendStore from '@/js/LegendStore'
 import TimeSlider from '@/components/TimeSlider.vue'
-import XyTimeDeckLayer from './XyTimeDeckLayer'
+import XyTimeDeckMap from './XyTimeDeckMap'
+import XytDataParser from './XytDataParser.worker.ts?worker'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import {
@@ -82,8 +103,6 @@ import {
   Status,
   REACT_VIEW_HANDLES,
 } from '@/Globals'
-import { scaleThreshold } from 'd3-scale'
-import LegendStore from '@/js/LegendStore'
 
 interface VizDetail {
   title: string
@@ -111,7 +130,7 @@ interface PointLayer {
     LegendBox,
     TimeSlider,
     ZoomButtons,
-    XyTimeDeckLayer,
+    XyTimeDeckMap,
   } as any,
 })
 class XyTime extends Vue {
@@ -137,6 +156,25 @@ class XyTime extends Vue {
   private startTime = 0
   private isAnimating = false
   private timeFilter = [0, 3599]
+
+  private colors: number[][] = [
+    [128, 128, 128],
+    [128, 128, 128],
+  ]
+  private breakpoints: number[] = [0.0]
+  private range = [Infinity, -Infinity]
+
+  private clipData = [0, 100]
+
+  @Watch('colorRamp')
+  private handleColorRamp() {
+    this.setColors()
+  }
+
+  @Watch('clipData')
+  private handleClipData() {
+    this.setColors()
+  }
 
   private legendStore: LegendStore | null = null
 
@@ -165,14 +203,19 @@ class XyTime extends Vue {
     file: '',
   }
 
-  private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
-  // private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
+  private colorRamps = [
+    'bathymetry',
+    'chlorophyll',
+    'electric',
+    'inferno',
+    'magma',
+    'par',
+    'viridis',
+  ]
+  private colorRamp = 'viridis'
 
-  // private aggregations: Aggregations = {}
   private columnLookup: number[] = []
   private gzipWorker!: Worker
-
-  private colorRamp = this.colorRamps[0]
 
   private vizDetails: VizDetail = {
     title: '',
@@ -216,8 +259,6 @@ class XyTime extends Vue {
 
     if (!this.isLoaded) await this.loadFiles()
     // this.mapState.center = this.findCenter(this.rawRequests)
-
-    // this.isLoaded = true
   }
 
   private beforeDestroy() {
@@ -439,10 +480,12 @@ class XyTime extends Vue {
 
   private finishedLoadingData(totalRows: number, data: any) {
     console.log('ALL DONE', totalRows)
-    this.setColors(data.range)
+    this.isLoaded = true
+    this.range = data.range
     this.myState.statusMessage = ''
     this.gzipWorker.terminate()
-    this.isLoaded = true
+
+    this.setColors()
   }
 
   private animate() {
@@ -460,7 +503,7 @@ class XyTime extends Vue {
       this.timeFilter = [this.elapsed, this.elapsed + span]
 
       this.animator = window.requestAnimationFrame(this.animate)
-    }, 33.33333334)
+    }, 16.6666666667)
   }
 
   private toggleAnimation() {
@@ -471,38 +514,65 @@ class XyTime extends Vue {
     }
   }
 
-  private setColors(range: number[]) {
-    this.myState.statusMessage = 'Setting colors...'
+  private isColorRampFlipped = false
 
-    const NUM_BUCKETS = 12
-    const EXPONENT = 4 // log5?
+  @Watch('isColorRampFlipped')
+  private flipColorRamp() {
+    this.setColors()
+  }
 
-    const colors = colormap({
-      colormap: 'electric',
-      nshades: NUM_BUCKETS,
+  private numBuckets = 7
+  private incBuckets(num: number) {
+    this.numBuckets += num
+    this.numBuckets = Math.max(2, Math.min(15, this.numBuckets))
+    this.setColors()
+  }
+
+  private powerFunction = 4
+  private incPowerFunction(num: number) {
+    this.powerFunction += num
+    this.powerFunction = Math.max(1, Math.min(10, this.powerFunction))
+    this.setColors()
+  }
+
+  private setColors() {
+    const EXPONENT = this.powerFunction // 4 // log-e? not steep enough
+
+    let colors256 = colormap({
+      colormap: this.colorRamp,
+      nshades: 256,
       format: 'rba',
       alpha: 1,
     }).map((c: number[]) => [c[0], c[1], c[2]])
 
-    const max = Math.pow(range[1], 1 / EXPONENT)
+    if (this.isColorRampFlipped) colors256 = colors256.reverse()
+
+    const step = 256 / (this.numBuckets - 1)
+    const colors = []
+    for (let i = 0; i < this.numBuckets - 1; i++) {
+      colors.push(colors256[Math.round(step * i)])
+    }
+    colors.push(colors256[255])
+
+    // figure out min and max
+    const max1 = Math.pow(this.range[1], 1 / EXPONENT)
+    const max2 = (max1 * this.clipData[1]) / 100.0
+    // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
+
+    console.log({ max1, max2 })
 
     const breakpoints = [] as number[]
-    for (let i = 0; i < NUM_BUCKETS - 1; i++) {
-      const fraction = (max * i) / NUM_BUCKETS
-      const breakpoint = Math.pow(fraction, EXPONENT)
+    for (let i = 1; i < this.numBuckets; i++) {
+      const raw = (max2 * i) / this.numBuckets
+      const breakpoint = Math.pow(raw, EXPONENT)
       breakpoints.push(breakpoint)
     }
 
-    this.setLegend(colors, breakpoints)
+    // only update legend if we have the full dataset already
+    if (this.isLoaded) this.setLegend(colors, breakpoints)
 
-    const d3ColorScale = scaleThreshold().range(colors).domain(breakpoints)
-
-    this.pointLayers.forEach(points => {
-      for (let i = 0; i < points.time.length; i++) {
-        const bucket: any = d3ColorScale(points.value[i])
-        if (bucket) points.color.set(bucket, 3 * i)
-      }
-    })
+    this.colors = colors
+    this.breakpoints = breakpoints
   }
 
   private setLegend(colors: any[], breakpoints: number[]) {
@@ -511,14 +581,13 @@ class XyTime extends Vue {
     this.legendStore.setLegendSection({
       section: 'Legend',
       column: 'NOx: g/m',
-      values: colors
-        .map((rgb, index) => {
-          const value = index == colors.length - 1 ? breakpoints[index - 1] : breakpoints[index]
-          const formatted = Math.round(1e6 * value) / 1e6
-          const label = index == colors.length - 1 ? `> ${formatted}` : `${formatted}`
-          return { label, value: rgb }
-        })
-        .slice(1, colors.length),
+      values: colors.map((rgb, index) => {
+        const breakpoint = breakpoints[index == 0 ? index : index - 1]
+        let label = '' + Math.round(1e6 * breakpoint) / 1e6
+        if (index == 0) label = '< ' + label
+        if (index == colors.length - 1) label = '> ' + label
+        return { label, value: rgb }
+      }),
     })
   }
 
@@ -627,12 +696,15 @@ export default XyTime
   pointer-events: none;
 }
 
-.legend-area {
+.bottom-right {
   position: absolute;
-  background-color: var(--bgPanel);
   bottom: 0;
   right: 0;
   margin: auto 1rem 7rem auto;
+}
+
+.legend-area {
+  background-color: var(--bgPanel);
   border: 1px solid var(--bgPanel2);
 }
 
@@ -657,6 +729,26 @@ export default XyTime
 
 .time-slider .play-button:hover {
   background-color: #173b6d;
+}
+
+.buckets {
+  color: var(--text);
+  padding: 4px 4px 4px 4px;
+  display: flex;
+}
+
+.ramp-selector {
+  background-color: var(--bgBold);
+}
+
+.configurator {
+  user-select: none;
+  background-color: var(--bgPanel);
+  margin-top: 2rem;
+}
+
+.clip-slider {
+  margin: 0 0.5rem;
 }
 
 @media only screen and (max-width: 640px) {

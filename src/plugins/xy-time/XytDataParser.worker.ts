@@ -11,8 +11,6 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const LAYER_SIZE = 0.5 * 1024 * 1024
 
-const NUM_BUCKETS = 12
-
 let _proj = 'EPSG:4326'
 let _rangeOfValues = [Infinity, -Infinity]
 
@@ -37,7 +35,6 @@ async function startLoading(props: {
 interface PointData {
   time: Float32Array
   value: Float32Array
-  color: Uint8Array
   coordinates: Float32Array
   timeRange: number[]
 }
@@ -49,7 +46,6 @@ function postResults(layerData: PointData) {
   postMessage(layerData, [
     layerData.coordinates.buffer,
     layerData.time.buffer,
-    layerData.color.buffer,
     layerData.value.buffer,
   ])
 }
@@ -77,7 +73,6 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
     }
 
     // got true filename, add prefixes and away we go
-
     const url = `${fileSystem.baseURL}/${expandedFilename}`
     console.log(url)
     return url
@@ -92,20 +87,15 @@ let layerData: PointData = {
   time: new Float32Array(LAYER_SIZE),
   value: new Float32Array(LAYER_SIZE),
   coordinates: new Float32Array(LAYER_SIZE * 2),
-  color: new Uint8Array(LAYER_SIZE * 3),
   timeRange: [Infinity, -Infinity],
 }
-
-layerData.color.fill(128)
 
 let offset = 0
 let totalRowsRead = 0
 
 function appendResults(results: { data: any[] }) {
   const numRows = results.data.length
-
   const rowsToFill = Math.min(numRows, LAYER_SIZE - offset)
-
   const xy = [0, 0]
 
   // Fill the array as much as we can
@@ -140,11 +130,9 @@ function appendResults(results: { data: any[] }) {
     layerData = {
       coordinates: new Float32Array(LAYER_SIZE * 2),
       time: new Float32Array(LAYER_SIZE),
-      color: new Uint8Array(LAYER_SIZE * 3),
       value: new Float32Array(LAYER_SIZE),
       timeRange: [Infinity, -Infinity],
     }
-    layerData.color.fill(128)
   }
 
   // is there more to load?
@@ -178,25 +166,10 @@ function step2fetchCSVdata(url: any) {
     const subarray: PointData = {
       time: layerData.time.subarray(0, offset),
       coordinates: layerData.coordinates.subarray(0, offset * 2),
-      color: layerData.color.subarray(0, offset * 3),
       value: layerData.value.subarray(0, offset),
       timeRange: layerData.timeRange,
     }
     // console.log('FINAL: Posting', offset)
     postResults(subarray)
   }
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various web browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: any): Uint8Array {
-  // GZIP always starts with a magic number, hex $1f8b
-  const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 0x1f && header[1] === 0x8b) {
-    return gUnzip(pako.inflate(buffer))
-  }
-  return buffer
 }
