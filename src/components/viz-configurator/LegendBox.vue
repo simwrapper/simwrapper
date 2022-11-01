@@ -97,7 +97,7 @@ export default class VueComponent extends Vue {
   padding: 0.5rem 0.75rem;
   height: 100%;
   min-height: 100%;
-  border: var(--borderThin);
+  // border: var(--borderThin);
 }
 
 .section-row {

@@ -22,7 +22,7 @@
             p(style="flex: 1;") Local folder {{ row.key.substring(2) }}: {{ row.handle.name}}
             i.fa.fa-times(@click.stop="clickedDelete(row)")
 
-          button.button.add-folder(@click="showChromeDirectory") Add folder...
+          button.button.add-folder(@click="showChromeDirectory") Browse folder...
           hr
 
         h2: b {{ $t('more-info') }}
@@ -187,6 +187,10 @@ a {
 .simwrapper-logo {
   width: 400px;
   margin: 0 auto 1rem auto;
+}
+
+.simwrapper-logo img {
+  width: 100%;
 }
 
 .main {

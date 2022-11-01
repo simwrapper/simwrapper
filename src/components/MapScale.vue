@@ -1,11 +1,11 @@
 <template lang="pug">
 .map-scale(v-show="showScale")
 
-  .meters(:style="{width: `${metric.pixels}px`}")
-    p {{metric.length}}&nbsp;{{metric.label}}
-
   .feet(:style="{width: `${miles.pixels}px`}")
     p {{miles.length}}&nbsp;{{miles.label}}
+
+  .meters(:style="{width: `${metric.pixels}px`}")
+    p {{metric.length}}&nbsp;{{metric.label}}
 
 </template>
 
@@ -125,7 +125,7 @@ export default class VueComponent extends Vue {
   flex-direction: column;
   overflow-x: hidden;
   pointer-events: none;
-  margin: 0.15rem 0.5rem 0 0;
+  margin-bottom: 2px;
 }
 
 p {
@@ -133,11 +133,10 @@ p {
   padding: 1px 4px;
   font-size: 0.8rem;
   color: var(--textBold);
-  opacity: 0.7;
   text-align: right;
 }
 
-.meters {
+.feet {
   margin-left: auto;
   background-color: var(--scaleBg);
   border-left: var(--scaleBorder);
@@ -145,7 +144,7 @@ p {
   border-bottom: var(--scaleBorder);
 }
 
-.feet {
+.meters {
   margin-left: auto;
   margin-top: -1px;
   background-color: var(--scaleBg);

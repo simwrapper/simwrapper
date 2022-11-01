@@ -119,10 +119,10 @@ export default class VueComponent extends Vue {
 
 .map-complications {
   position: absolute;
-  top: 4px;
-  right: 5px;
+  bottom: 48px;
+  right: 7px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column-reverse;
   pointer-events: none;
   cursor: pointer;
   zoom: -5;
@@ -132,6 +132,7 @@ export default class VueComponent extends Vue {
   margin-left: auto;
   pointer-events: auto;
   z-index: 2;
+  margin-bottom: 8px;
 }
 
 .button-single:last-child {
@@ -164,6 +165,10 @@ export default class VueComponent extends Vue {
   border-bottom-right-radius: 4px;
   height: 23px;
   margin-top: -1px;
+}
+
+.map-scale {
+  margin-top: auto;
 }
 
 @media only screen and (max-width: 640px) {

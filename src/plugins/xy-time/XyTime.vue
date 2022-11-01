@@ -759,6 +759,13 @@ export default XyTime
   top: 0;
   right: 0;
   z-index: 5;
+  border-left: 1px solid #66669940;
+  border-bottom: 1px solid #66669940;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+}
+
+* > .number {
+  background-color: yellow;
 }
 
 @media only screen and (max-width: 640px) {

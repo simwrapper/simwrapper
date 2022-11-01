@@ -1,6 +1,7 @@
 $mainFont: 'Titillium Web', 'Roboto', 'Open Sans', Avenir, Arial, Helvetica, sans-serif; // 'Titillium Web'
 $fancyFont: 'Titillium Web', 'Space Grotesk', 'Roboto Slab', Roboto, Avenir, Arial, Helvetica,
   sans-serif; // 'Titillium Web',
+$appTag: #65cd9e;
 $matsimBlue: #4b7cc4;
 $tuRed: #b40d1e;
 $steelGray: #2a3c4f;
@@ -12,7 +13,6 @@ $colorPurple: #6a1b9a;
 $colorYellow: #ffdf80;
 $paleBackground: #dbd9d7;
 $darkBackground: #181a1b;
-
 $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
 $sizeMobile: 30em;
@@ -44,6 +44,7 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --textFancy: #564c9d;
   --textPale: #777777;
   --textVeryPale: #bbbbcc;
+  --textPanel: #616672; // #576874;
   --link: #196096;
   --linkHover: #079f6f;
   --linkActive: #bbf1ca;
@@ -56,9 +57,10 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --splitPanel: #d4dbdd;
   --borderColor: #66666633;
   --borderZoomButtons: 1px solid var(--borderColor);
-  --logoOpacity: opacity(30%);
+  --logoOpacity: opacity(70%);
   --scaleBorder: 1px solid #7974a0;
-  --scaleBg: #ffffffaa;
+  --scaleBg: #ffffff;
+  --sliderThumb: #29d09a;
 }
 
 .dark-mode {
@@ -83,6 +85,7 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --textBold: white;
   --textFancy: #a5c4e2;
   --textPale: #aaaaaa;
+  --textPanel: #9caccf; // #8ca7e6; // #576874;
   --textVeryPale: #778;
   --link: #65d68f;
   --linkHover: #a8ffc8;
@@ -94,7 +97,7 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --splitPanel: #2e343f;
   --borderColor: #00000088;
   --borderZoomButtons: 1px solid #777;
-  --logoOpacity: opacity(30%);
-  --scaleBorder: 1px solid #607894; // #8fabca;
-  --scaleBg: #33333360;
+  --logoOpacity: opacity(60%);
+  --scaleBorder: 1px solid #728cab; // #8fabca;
+  --scaleBg: #283d50;
 }
