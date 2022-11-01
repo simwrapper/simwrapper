@@ -8,43 +8,44 @@
     :dark="this.$store.state.isDarkMode"
     :colors="this.colors"
     :breakpoints="this.breakpoints"
+    :radius="this.guiConfig.radius"
   )
 
   zoom-buttons(v-if="!thumbnail")
+
+  .top-right
+    .gui-config(:id="configId")
 
   .bottom-right
     .legend-area(v-if="legendStore")
       legend-box(:legendStore="legendStore")
 
-    .configurator
-      .buckets
-        b-button.is-link(outlined size="is-small" @click="incBuckets(-1)") <
-        p(style="margin: 0 auto") {{ numBuckets }}
-        b-button.is-link(outlined size="is-small" @click="incBuckets(1)") >
-      .buckets
-        b-button.is-link(outlined size="is-small" @click="incPowerFunction(-1)") <
-        p(style="margin: 0 auto") {{ powerFunction }}
-        b-button.is-link(outlined size="is-small" @click="incPowerFunction(1)") >
-      .buckets.clip-slider
-        b-slider(v-model="clipData" :min="0" :max="100")
-      .buckets
-        b-checkbox(outlined size="is-small" v-model="isColorRampFlipped") Flip
-      .buckets
-        b-select.selector.ramp-selector(expanded v-model="colorRamp" size="is-small" @select="handleColorRamp")
-          option(v-for="column in colorRamps" :value="column" :label="column")
+  time-slider.time-slider-area(v-if="isLoaded"
+    :range="timeRange"
+    :values="timeFilter"
+    :labels="timeLabels"
+    :isAnimating="isAnimating"
+    @values="handleTimeSliderValues"
+    @toggleAnimation="toggleAnimation"
+    @drag="isAnimating=false"
+  )
 
-  .time-slider(v-if="isLoaded")
-    time-slider(
-      :range="[0,86400]"
-      :values="timeFilter"
-      :labels="timeLabels"
-      @values="handleTimeSliderValues"
-      @drag="isAnimating=false"
-    )
-    b-button.play-button(size="is-small" type="is-link"
-      :style="{fontWeight: isAnimating ? '' : 'bold'}"
-      @click="toggleAnimation"
-      ) {{ isAnimating ? '| |' : '▶️' }}
+    //- .configurator
+    //-   .buckets
+    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(-1)") <
+    //-     p(style="margin: 0 auto") {{ numBuckets }}
+    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(1)") >
+    //-   .buckets
+    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(-1)") <
+    //-     p(style="margin: 0 auto") {{ powerFunction }}
+    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(1)") >
+    //-   .buckets.clip-slider
+    //-     b-slider(v-model="clipData" :min="0" :max="100")
+    //- .buckets
+    //-   b-checkbox(outlined size="is-small" v-model="isColorRampFlipped") Flip
+    //- .buckets
+    //-   b-select.selector.ramp-selector(expanded v-model="guiConfig.colorRamp" size="is-small" @select="handleColorRamp")
+    //-     option(v-for="column in guiConfig.colorRamps" :value="column" :label="column")
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -78,6 +79,7 @@ const i18n = {
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
@@ -149,7 +151,27 @@ class XyTime extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
+  private guiConfig = {
+    buckets: 7,
+    exponent: 4,
+    radius: 5,
+    'clip max': 100,
+    'color ramp': 'viridis',
+    colorRamps: [
+      'bathymetry',
+      'chlorophyll',
+      'electric',
+      'inferno',
+      'jet',
+      'magma',
+      'par',
+      'viridis',
+    ],
+    flip: false,
+  }
+
   private viewId = ('xyt-id-' + Math.random()) as any
+  private configId = ('gui-config-' + Math.random()) as any
 
   private timeLabels: any[] = [0, 1]
   private elapsed = 0
@@ -163,18 +185,7 @@ class XyTime extends Vue {
   ]
   private breakpoints: number[] = [0.0]
   private range = [Infinity, -Infinity]
-
-  private clipData = [0, 100]
-
-  @Watch('colorRamp')
-  private handleColorRamp() {
-    this.setColors()
-  }
-
-  @Watch('clipData')
-  private handleClipData() {
-    this.setColors()
-  }
+  private timeRange = [Infinity, -Infinity]
 
   private legendStore: LegendStore | null = null
 
@@ -202,17 +213,6 @@ class XyTime extends Vue {
   private YAMLrequirementsXY = {
     file: '',
   }
-
-  private colorRamps = [
-    'bathymetry',
-    'chlorophyll',
-    'electric',
-    'inferno',
-    'magma',
-    'par',
-    'viridis',
-  ]
-  private colorRamp = 'viridis'
 
   private columnLookup: number[] = []
   private gzipWorker!: Worker
@@ -255,15 +255,39 @@ class XyTime extends Vue {
 
     if (this.thumbnail) return
 
+    // ----------------------------------------------------
+    this.setupGui()
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
     // this.mapState.center = this.findCenter(this.rawRequests)
   }
 
+  private guiController?: GUI
+
+  private setupGui() {
+    this.guiController = new GUI({
+      title: 'Color Settings',
+      injectStyles: true,
+      width: 200,
+      container: document.getElementById(this.configId) || undefined,
+    })
+
+    const colors = this.guiController // .addFolder('Colors')
+    colors.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'radius', 1, 20, 1)
+    colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+    colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+
+    // const times = this.guiController.addFolder('Time')
+  }
+
   private beforeDestroy() {
     try {
       if (this.gzipWorker) this.gzipWorker.terminate()
+      if (this.guiController) this.guiController.destroy()
     } catch (e) {
       console.warn(e)
     }
@@ -334,14 +358,7 @@ class XyTime extends Vue {
   }
 
   private setConfigForRawCSV() {
-    let projection = 'EPSG:25833' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
-
-    // if (!this.myState.thumbnail) {
-    //   projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
-    //   if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
-    // }
-
-    // console.log(this.myState)
+    let projection = 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
 
     // output_trips:
     this.vizDetails = {
@@ -467,6 +484,10 @@ class XyTime extends Vue {
         this.finishedLoadingData(totalRows, event.data)
       } else {
         totalRows += event.data.time.length
+        this.timeRange = [
+          Math.min(this.timeRange[0], event.data.time[0]),
+          Math.max(this.timeRange[1], event.data.time[event.data.time.length - 1]),
+        ]
         this.pointLayers.push(event.data)
       }
     }
@@ -479,7 +500,7 @@ class XyTime extends Vue {
   }
 
   private finishedLoadingData(totalRows: number, data: any) {
-    console.log('ALL DONE', totalRows)
+    console.log('ALL DONE', totalRows, data.range, this.timeRange)
     this.isLoaded = true
     this.range = data.range
     this.myState.statusMessage = ''
@@ -494,7 +515,7 @@ class XyTime extends Vue {
 
       this.elapsed = 5 * (Date.now() - this.startTime)
 
-      if (this.elapsed > 86400) {
+      if (this.elapsed > this.timeRange[1]) {
         this.startTime = Date.now()
         this.elapsed = 0
       }
@@ -503,7 +524,7 @@ class XyTime extends Vue {
       this.timeFilter = [this.elapsed, this.elapsed + span]
 
       this.animator = window.requestAnimationFrame(this.animate)
-    }, 16.6666666667)
+    }, 16.66666667)
   }
 
   private toggleAnimation() {
@@ -514,56 +535,49 @@ class XyTime extends Vue {
     }
   }
 
-  private isColorRampFlipped = false
+  // private numBuckets = 7
+  // private incBuckets(num: number) {
+  //   this.numBuckets += num
+  //   this.numBuckets = Math.max(2, Math.min(15, this.numBuckets))
+  //   this.setColors()
+  // }
 
-  @Watch('isColorRampFlipped')
-  private flipColorRamp() {
-    this.setColors()
-  }
-
-  private numBuckets = 7
-  private incBuckets(num: number) {
-    this.numBuckets += num
-    this.numBuckets = Math.max(2, Math.min(15, this.numBuckets))
-    this.setColors()
-  }
-
-  private powerFunction = 4
-  private incPowerFunction(num: number) {
-    this.powerFunction += num
-    this.powerFunction = Math.max(1, Math.min(10, this.powerFunction))
-    this.setColors()
-  }
+  // private powerFunction = 4
+  // private incPowerFunction(num: number) {
+  //   this.powerFunction += num
+  //   this.powerFunction = Math.max(1, Math.min(10, this.powerFunction))
+  //   this.setColors()
+  // }
 
   private setColors() {
-    const EXPONENT = this.powerFunction // 4 // log-e? not steep enough
+    const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
 
     let colors256 = colormap({
-      colormap: this.colorRamp,
+      colormap: this.guiConfig['color ramp'],
       nshades: 256,
       format: 'rba',
       alpha: 1,
     }).map((c: number[]) => [c[0], c[1], c[2]])
 
-    if (this.isColorRampFlipped) colors256 = colors256.reverse()
+    if (this.guiConfig.flip) colors256 = colors256.reverse()
 
-    const step = 256 / (this.numBuckets - 1)
+    const step = 256 / (this.guiConfig.buckets - 1)
     const colors = []
-    for (let i = 0; i < this.numBuckets - 1; i++) {
+    for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
       colors.push(colors256[Math.round(step * i)])
     }
     colors.push(colors256[255])
 
     // figure out min and max
     const max1 = Math.pow(this.range[1], 1 / EXPONENT)
-    const max2 = (max1 * this.clipData[1]) / 100.0
+    const max2 = (max1 * this.guiConfig['clip max']) / 100.0
     // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
 
-    console.log({ max1, max2 })
+    // console.log({ max1, max2 })
 
     const breakpoints = [] as number[]
-    for (let i = 1; i < this.numBuckets; i++) {
-      const raw = (max2 * i) / this.numBuckets
+    for (let i = 1; i < this.guiConfig.buckets; i++) {
+      const raw = (max2 * i) / this.guiConfig.buckets
       const breakpoint = Math.pow(raw, EXPONENT)
       breakpoints.push(breakpoint)
     }
@@ -576,7 +590,7 @@ class XyTime extends Vue {
   }
 
   private setLegend(colors: any[], breakpoints: number[]) {
-    console.log({ colors, breakpoints })
+    // console.log({ colors, breakpoints })
     this.legendStore = new LegendStore()
     this.legendStore.setLegendSection({
       section: 'Legend',
@@ -700,7 +714,8 @@ export default XyTime
   position: absolute;
   bottom: 0;
   right: 0;
-  margin: auto 1rem 7rem auto;
+  margin: auto 7px 15rem auto;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
 }
 
 .legend-area {
@@ -708,27 +723,13 @@ export default XyTime
   border: 1px solid var(--bgPanel2);
 }
 
-.time-slider {
+.time-slider-area {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  margin: 0 1rem 20px 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.time-slider button {
-  margin-top: 4px;
-  margin-right: auto;
-}
-
-.time-slider .play-button {
-  background-color: #37547d;
-}
-
-.time-slider .play-button:hover {
-  background-color: #173b6d;
+  margin: 0 10rem 3rem 10rem;
+  filter: $filterShadow;
 }
 
 .buckets {
@@ -749,6 +750,15 @@ export default XyTime
 
 .clip-slider {
   margin: 0 0.5rem;
+}
+
+.top-right {
+  background-color: var(--bgPanel2);
+  color: white;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
 }
 
 @media only screen and (max-width: 640px) {

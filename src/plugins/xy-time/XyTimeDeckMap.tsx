@@ -47,6 +47,7 @@ export default function Component({
     [0.25, 0.25, 1],
   ] as number[][],
   breakpoints = [0.0] as number[],
+  radius = 5,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW) // globalStore.state.viewState)
@@ -116,7 +117,7 @@ export default function Component({
       id: layerIndex,
       filled: true,
       filterRange: timeFilter.length ? timeFilter : null,
-      getRadius: 5, // (d: any) => Math.sqrt(d...),
+      getRadius: radius, // 5 // (d: any) => Math.sqrt(d...),
       // getFillColor: [10, 50, 10],
       highlightColor: [255, 0, 224],
       opacity: 1,
@@ -124,12 +125,17 @@ export default function Component({
       pickable: true,
       radiusScale: 1,
       stroked: false,
-      useDevicePixels: false,
       updateTriggers: {
         getPosition: pointLayers,
         getFillColor: pointLayers,
         getFilterValue: timeFilter,
       },
+      // transitions: {
+      //   getFillColor: 500,
+      //   getColor: 500,
+      //   getValue: 500,
+      //   getFilterValue: 500,
+      // },
       // hide layers that are entirely outside the time window filter:
       visible: !outOfRange,
     })
