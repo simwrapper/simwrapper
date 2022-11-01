@@ -25,7 +25,7 @@ async function startLoading(props: {
   fileSystem: FileSystemConfig
   projection: string
 }) {
-  _proj = props.projection
+  if (props.projection) _proj = props.projection
 
   const url = await step1PrepareFetch(props.filepath, props.fileSystem)
   step2fetchCSVdata(url)
@@ -93,7 +93,17 @@ let layerData: PointData = {
 let offset = 0
 let totalRowsRead = 0
 
-function appendResults(results: { data: any[] }) {
+function appendResults(results: { data: any[]; comments: any[] }) {
+  // set EPSG if we have it in CSV file
+  for (const comment of results.comments) {
+    const epsg = comment.indexOf('EPSG:')
+    if (epsg > -1) {
+      _proj = comment.slice(epsg)
+      console.log(_proj, 'found in CSV comment')
+      break
+    }
+  }
+
   const numRows = results.data.length
   const rowsToFill = Math.min(numRows, LAYER_SIZE - offset)
   const xy = [0, 0]
@@ -137,7 +147,7 @@ function appendResults(results: { data: any[] }) {
 
   // is there more to load?
   if (rowsToFill < numRows) {
-    const remainingData = { data: results.data.slice(rowsToFill) }
+    const remainingData = { data: results.data.slice(rowsToFill), comments: [] }
     appendResults(remainingData)
   } else {
     postMessage({ status: `Loading rows: ${totalRowsRead}...` })
@@ -152,6 +162,7 @@ function step2fetchCSVdata(url: any) {
       header: true,
       skipEmptyLines: true,
       dynamicTyping: true,
+      comments: '#',
       chunk: appendResults,
     } as any)
     // }
