@@ -57,10 +57,11 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --splitPanel: #d4dbdd;
   --borderColor: #66666633;
   --borderZoomButtons: 1px solid var(--borderColor);
-  --logoOpacity: opacity(70%);
   --scaleBorder: 1px solid #7974a0;
   --scaleBg: #ffffff;
   --sliderThumb: #29d09a;
+  --opacityLogo: opacity(70%);
+  --opacityAttribution: opacity(70%);
 }
 
 .dark-mode {
@@ -97,7 +98,8 @@ $filterShadow: drop-shadow(0px 2px 4px #22222233);
   --splitPanel: #2e343f;
   --borderColor: #00000088;
   --borderZoomButtons: 1px solid #777;
-  --logoOpacity: opacity(60%);
   --scaleBorder: 1px solid #728cab; // #8fabca;
   --scaleBg: #283d50;
+  --opacityLogo: opacity(40%);
+  --opacityAttribution: opacity(60%);
 }

@@ -1,5 +1,5 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="id")
 
   xy-hex-deck-map.hex-layer(
     v-if="!thumbnail && isLoaded"
@@ -165,6 +165,8 @@ class XyHexagons extends Vue {
 
   //private radius = 250
   //private maxHeight = 0
+
+  private id = 'id-' + Math.random()
 
   private standaloneYAMLconfig = {
     title: '',
@@ -656,7 +658,24 @@ class XyHexagons extends Vue {
     }
   }
 
+  private setMapboxLogoPosition() {
+    try {
+      const deckmap = document.getElementById(this.id) as HTMLElement
+      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+
+      if (logo) {
+        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+        logo.style.right = right
+      }
+    } catch (e) {
+      console.error('' + e)
+      // too bad
+    }
+  }
+
   private async mounted() {
+    window.addEventListener('resize', this.setMapboxLogoPosition)
+
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -684,6 +703,8 @@ class XyHexagons extends Vue {
   }
 
   private beforeDestroy() {
+    window.removeEventListener('resize', this.setMapboxLogoPosition)
+
     try {
       if (this.gzipWorker) {
         this.gzipWorker.terminate()
@@ -733,6 +754,7 @@ class XyHexagons extends Vue {
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
     this.setMapCenter()
 
+    this.setMapboxLogoPosition()
     this.myState.statusMessage = ''
   }
 

@@ -513,17 +513,17 @@ a:hover {
 
 // MapLibre Logo
 .mapboxgl-ctrl-bottom-left {
-  filter: var(--logoOpacity);
+  filter: var(--opacityLogo);
   color: var(--bgBold);
   bottom: -5px;
   left: unset;
-  right: 280px;
+  right: 36px;
   z-index: 0;
 }
 
 // Mapbox Improve this Map attribution
 .mapboxgl-ctrl-bottom-right {
-  // filter: var(--logoOpacity);
+  filter: var(--opacityAttribution);
   right: 0rem;
   bottom: 0rem;
   left: unset;
@@ -627,10 +627,6 @@ a:hover {
 
   .footer {
     font-size: 0.7rem;
-  }
-
-  .mapboxgl-ctrl-bottom-left {
-    right: 36px;
   }
 }
 </style>

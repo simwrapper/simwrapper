@@ -8,7 +8,7 @@
 
   .status-bar(v-show="statusText") {{ statusText }}
 
-  .area-map(v-if="!thumbnail")
+  .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
     geojson-layer(v-if="!thumbnail"
       :viewId="layerId"
       :features="useCircles ? centroids : boundaries"
@@ -294,8 +294,24 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private setMapboxLogoPosition() {
+    try {
+      const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
+      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+
+      if (logo) {
+        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+        logo.style.right = right
+      }
+    } catch (e) {
+      console.error('' + e)
+      // too bad
+    }
+  }
+
   private async mounted() {
     try {
+      window.addEventListener('resize', this.setMapboxLogoPosition)
       this.buildFileApi()
 
       // EMBED MODE?
@@ -362,6 +378,8 @@ export default class VueComponent extends Vue {
   private boundaryFilters = new Float32Array(0)
 
   private beforeDestroy() {
+    window.removeEventListener('resize', this.setMapboxLogoPosition)
+
     this.legendStore.clear()
     this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
 
@@ -1423,6 +1441,8 @@ export default class VueComponent extends Vue {
           hasNoPolygons = false
         }
       })
+
+      this.setMapboxLogoPosition()
 
       // set feature properties as a data source
       await this.setFeaturePropertiesAsDataSource(filename, featureProperties, shapeConfig)

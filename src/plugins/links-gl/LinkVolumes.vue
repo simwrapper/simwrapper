@@ -3,7 +3,7 @@
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
 
-  .plot-container(v-if="!thumbnail")
+  .plot-container(v-if="!thumbnail" :id="`container-${linkLayerId}`")
     link-gl-layer.map-area(
         :viewId="linkLayerId"
         :links="geojsonData"
@@ -676,7 +676,23 @@ class MyPlugin extends Vue {
 
   private myDataManager!: DashboardDataManager
 
+  private setMapboxLogoPosition() {
+    try {
+      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+
+      if (logo) {
+        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+        logo.style.right = right
+      }
+    } catch (e) {
+      console.error('' + e)
+      // too bad
+    }
+  }
+
   private async mounted() {
+    window.addEventListener('resize', this.setMapboxLogoPosition)
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -724,7 +740,8 @@ class MyPlugin extends Vue {
       this.myState.statusMessage = ''
 
       this.$emit('isLoaded', true)
-      // this.setDataIsLoaded()
+
+      this.setMapboxLogoPosition()
 
       // then load CSVs in background
       this.loadCSVFiles()
@@ -739,6 +756,8 @@ class MyPlugin extends Vue {
   private beforeDestroy() {
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
+
+    window.removeEventListener('resize', this.setMapboxLogoPosition)
 
     if (this.networkWorker) this.networkWorker.terminate()
     for (const worker of this.dataLoaderWorkers) worker.terminate()
@@ -1099,7 +1118,7 @@ export default MyPlugin
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: auto 0.5rem 30px 7px;
+  margin: auto 0.5rem 2px 7px;
   filter: drop-shadow(0px 2px 4px #22222233);
 }
 

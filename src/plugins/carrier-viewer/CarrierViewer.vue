@@ -7,6 +7,7 @@
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
   tour-viz.anim(v-if="!thumbnail"
+                ref="deckmap"
                 :shipments="shownShipments"
                 :shownRoutes="shownRoutes"
                 :stopMidpoints="stopMidpoints"
@@ -247,7 +248,7 @@ class CarrierPlugin extends Vue {
       return
     }
 
-    this.shownShipments = this.shipments.filter((s) => s.$id === shipment.$id)
+    this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
     this.selectedShipment = shipment
   }
 
@@ -285,7 +286,7 @@ class CarrierPlugin extends Vue {
         inTour.push(activity.$shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find((s) => s.$id === activity.$shipmentId)
+        const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
         const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
         // skip duplicate pickups/dropoffs at this location
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
@@ -356,7 +357,7 @@ class CarrierPlugin extends Vue {
     let count = 0
 
     const sleep = (milliseconds: number) => {
-      return new Promise((resolve) => setTimeout(resolve, milliseconds))
+      return new Promise(resolve => setTimeout(resolve, milliseconds))
     }
 
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
@@ -563,7 +564,7 @@ class CarrierPlugin extends Vue {
     let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
     // if the obvious network file doesn't exist, just grab... the first network file:
     if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter((f) => f.indexOf('output_network') > -1)
+      const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
       if (allNetworks.length) network = allNetworks[0]
       else {
         this.myState.statusMessage = 'No road network found.'
@@ -670,7 +671,21 @@ class CarrierPlugin extends Vue {
     return this.globalState.isDarkMode ? darkmode : lightmode
   }
 
+  private setMapboxLogoPosition() {
+    try {
+      const deckmap = this.$refs.deckmap as any
+      const width = deckmap.$el.clientWidth
+      const logos = deckmap.$el.getElementsByClassName('mapboxgl-ctrl-bottom-left') as HTMLElement[]
+
+      if (logos.length == 1) logos[0].style.right = width > 640 ? '280px' : '36px'
+    } catch (e) {
+      // too bad
+    }
+  }
+
   private async mounted() {
+    window.addEventListener('resize', this.setMapboxLogoPosition)
+
     globalStore.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -694,6 +709,7 @@ class CarrierPlugin extends Vue {
     this.links = await this.loadNetwork()
 
     this.myState.statusMessage = ''
+    this.setMapboxLogoPosition()
   }
 
   private async loadCarriers() {
@@ -777,6 +793,7 @@ class CarrierPlugin extends Vue {
   private vehicleLookupString: { [id: string]: number } = {}
 
   private beforeDestroy() {
+    window.removeEventListener('resize', this.setMapboxLogoPosition)
     this.myState.isRunning = false
 
     if (this._networkHelper) this._networkHelper.destroy()
