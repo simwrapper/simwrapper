@@ -674,23 +674,24 @@ class NetworkLinkPlugin extends Vue {
 
   private myDataManager!: DashboardDataManager
 
-  private setMapboxLogoPosition() {
-    try {
-      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+  private resizer!: ResizeObserver
 
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    } catch (e) {
-      console.error('' + e)
-      // too bad
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
     }
   }
 
   private async mounted() {
-    window.addEventListener('resize', this.setMapboxLogoPosition)
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -712,6 +713,8 @@ class NetworkLinkPlugin extends Vue {
       this.buildThumbnail()
       return
     }
+
+    this.setupLogoMover()
 
     // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
@@ -737,7 +740,7 @@ class NetworkLinkPlugin extends Vue {
 
       this.myState.statusMessage = ''
 
-      this.setMapboxLogoPosition()
+      this.moveLogo()
 
       this.$emit('isLoaded', true)
 
@@ -754,8 +757,6 @@ class NetworkLinkPlugin extends Vue {
   private beforeDestroy() {
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
-
-    window.removeEventListener('resize', this.setMapboxLogoPosition)
 
     if (this.networkWorker) this.networkWorker.terminate()
     for (const worker of this.dataLoaderWorkers) worker.terminate()

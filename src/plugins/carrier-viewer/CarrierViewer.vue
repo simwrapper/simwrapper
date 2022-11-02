@@ -1,13 +1,12 @@
 <template lang="pug">
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+        :style='{"background": urlThumbnail}' oncontextmenu="return false" :id="`container-${linkLayerId}`")
 
   .nav(v-if="!thumbnail")
     //- p.big.xtitle {{ vizDetails.title }}
     p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
   tour-viz.anim(v-if="!thumbnail"
-                ref="deckmap"
                 :shipments="shownShipments"
                 :shownRoutes="shownRoutes"
                 :stopMidpoints="stopMidpoints"
@@ -671,21 +670,24 @@ class CarrierPlugin extends Vue {
     return this.globalState.isDarkMode ? darkmode : lightmode
   }
 
-  private setMapboxLogoPosition() {
-    try {
-      const deckmap = this.$refs.deckmap as any
-      const width = deckmap.$el.clientWidth
-      const logos = deckmap.$el.getElementsByClassName('mapboxgl-ctrl-bottom-left') as HTMLElement[]
+  private resizer!: ResizeObserver
 
-      if (logos.length == 1) logos[0].style.right = width > 640 ? '280px' : '36px'
-    } catch (e) {
-      // too bad
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
     }
   }
 
   private async mounted() {
-    window.addEventListener('resize', this.setMapboxLogoPosition)
-
     globalStore.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -699,6 +701,8 @@ class CarrierPlugin extends Vue {
 
     if (this.thumbnail) return
 
+    this.setupLogoMover()
+
     this.showHelp = false
     this.updateLegendColors()
 
@@ -709,7 +713,7 @@ class CarrierPlugin extends Vue {
     this.links = await this.loadNetwork()
 
     this.myState.statusMessage = ''
-    this.setMapboxLogoPosition()
+    this.moveLogo()
   }
 
   private async loadCarriers() {
@@ -793,7 +797,6 @@ class CarrierPlugin extends Vue {
   private vehicleLookupString: { [id: string]: number } = {}
 
   private beforeDestroy() {
-    window.removeEventListener('resize', this.setMapboxLogoPosition)
     this.myState.isRunning = false
 
     if (this._networkHelper) this._networkHelper.destroy()

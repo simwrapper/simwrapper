@@ -658,24 +658,24 @@ class XyHexagons extends Vue {
     }
   }
 
-  private setMapboxLogoPosition() {
-    try {
-      const deckmap = document.getElementById(this.id) as HTMLElement
-      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+  private resizer!: ResizeObserver
 
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    } catch (e) {
-      console.error('' + e)
-      // too bad
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
     }
   }
 
   private async mounted() {
-    window.addEventListener('resize', this.setMapboxLogoPosition)
-
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -686,6 +686,8 @@ class XyHexagons extends Vue {
     await this.getVizDetails()
 
     if (this.thumbnail) return
+
+    this.setupLogoMover()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
@@ -703,8 +705,6 @@ class XyHexagons extends Vue {
   }
 
   private beforeDestroy() {
-    window.removeEventListener('resize', this.setMapboxLogoPosition)
-
     try {
       if (this.gzipWorker) {
         this.gzipWorker.terminate()
@@ -754,7 +754,7 @@ class XyHexagons extends Vue {
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
     this.setMapCenter()
 
-    this.setMapboxLogoPosition()
+    this.moveLogo()
     this.myState.statusMessage = ''
   }
 

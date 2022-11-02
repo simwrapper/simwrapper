@@ -294,24 +294,25 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private setMapboxLogoPosition() {
-    try {
-      const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+  private resizer!: ResizeObserver
 
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
-      }
-    } catch (e) {
-      console.error('' + e)
-      // too bad
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
     }
   }
 
   private async mounted() {
     try {
-      window.addEventListener('resize', this.setMapboxLogoPosition)
       this.buildFileApi()
 
       // EMBED MODE?
@@ -327,6 +328,8 @@ export default class VueComponent extends Vue {
 
       this.buildThumbnail()
       if (this.thumbnail) return
+
+      this.setupLogoMover()
 
       if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
@@ -378,8 +381,6 @@ export default class VueComponent extends Vue {
   private boundaryFilters = new Float32Array(0)
 
   private beforeDestroy() {
-    window.removeEventListener('resize', this.setMapboxLogoPosition)
-
     this.legendStore.clear()
     this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
 
@@ -1442,7 +1443,7 @@ export default class VueComponent extends Vue {
         }
       })
 
-      this.setMapboxLogoPosition()
+      this.moveLogo()
 
       // set feature properties as a data source
       await this.setFeaturePropertiesAsDataSource(filename, featureProperties, shapeConfig)

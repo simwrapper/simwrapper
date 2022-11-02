@@ -2,7 +2,6 @@
 .viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
   xy-time-deck-map.map-layer(v-if="!thumbnail"
-    ref="deckmap"
     :viewId="viewId"
     :pointLayers="pointLayers"
     :timeFilter="timeFilter"
@@ -253,9 +252,9 @@ class XyTime extends Vue {
     await this.getVizDetails()
     await this.buildThumbnail()
 
-    window.addEventListener('resize', this.setMapboxLogoPosition)
-
     if (this.thumbnail) return
+
+    this.setupLogoMover()
 
     // ----------------------------------------------------
     this.setupGui()
@@ -266,6 +265,23 @@ class XyTime extends Vue {
   }
 
   private guiController?: GUI
+
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`${this.viewId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`${this.viewId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
 
   private setupGui() {
     this.guiController = new GUI({
@@ -287,8 +303,6 @@ class XyTime extends Vue {
   }
 
   private beforeDestroy() {
-    window.removeEventListener('resize', this.setMapboxLogoPosition)
-
     try {
       if (this.gzipWorker) this.gzipWorker.terminate()
       if (this.guiController) this.guiController.destroy()
@@ -299,18 +313,6 @@ class XyTime extends Vue {
     if (this.animator) window.cancelAnimationFrame(this.animator)
 
     this.$store.commit('setFullScreen', false)
-  }
-
-  private setMapboxLogoPosition() {
-    try {
-      const deckmap = this.$refs.deckmap as any
-      const width = deckmap.$el.clientWidth
-      const logos = deckmap.$el.getElementsByClassName('mapboxgl-ctrl-bottom-left') as HTMLElement[]
-
-      if (logos.length == 1) logos[0].style.right = width > 640 ? '280px' : '36px'
-    } catch (e) {
-      // too bad
-    }
   }
 
   @Watch('$store.state.viewState') viewMoved() {
@@ -523,7 +525,7 @@ class XyTime extends Vue {
     this.gzipWorker.terminate()
 
     this.setColors()
-    this.setMapboxLogoPosition()
+    this.moveLogo()
   }
 
   private animate() {
