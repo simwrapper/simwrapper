@@ -1099,7 +1099,7 @@ export default MyPlugin
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: auto 0.5rem 0rem 5px;
+  margin: auto 0.5rem 30px 7px;
   filter: drop-shadow(0px 2px 4px #22222233);
 }
 

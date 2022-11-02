@@ -333,7 +333,7 @@ export default class VueComponent extends Vue {
 .viz-configurator {
   position: absolute;
   top: 5px;
-  right: 5px;
+  right: 7px;
   bottom: 3.5rem;
   display: flex;
   flex-direction: row-reverse;

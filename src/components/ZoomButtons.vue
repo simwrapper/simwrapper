@@ -1,5 +1,5 @@
 <template lang="pug">
-.map-complications
+.map-complications(:style="cornerSettings")
 
   map-scale.map-scale
 
@@ -50,13 +50,22 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
 
-@Component({ i18n, components: { MapScale }, props: {} })
+enum Corner {
+  TOP,
+  BOTTOM,
+}
+
+@Component({ i18n, components: { MapScale } })
 export default class VueComponent extends Vue {
+  @Prop({ required: false }) corner!: string
+
   private zoomInFactor = 0.5
   private zoomOutFactor = 0.5
   private maxZoomIn = 20
   private maxZoomOut = 0
   private arrowRotation = 0
+
+  private location = Corner.TOP
 
   private smooth = [
     0.0125, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.975, 0.9875,
@@ -65,7 +74,34 @@ export default class VueComponent extends Vue {
 
   private globalState = globalStore.state
 
-  private mounted() {}
+  private mounted() {
+    // default zoom buttons are in bottom-right
+    if (this.corner && this.corner.startsWith('top')) this.location = Corner.TOP
+    if (this.corner && this.corner.startsWith('bottom')) this.location = Corner.BOTTOM
+  }
+
+  private get cornerSettings() {
+    let style = {
+      display: 'flex',
+      right: '7px',
+    }
+
+    if (this.location == Corner.TOP) {
+      style = Object.assign(style, {
+        flexDirection: 'row',
+        top: '5px',
+      })
+    }
+
+    if (this.location == Corner.BOTTOM) {
+      style = Object.assign(style, {
+        flexDirection: 'column-reverse',
+        bottom: '32px',
+      })
+    }
+
+    return style
+  }
 
   private setNorth() {
     const currentMapDirection = globalStore.state.viewState
@@ -119,16 +155,13 @@ export default class VueComponent extends Vue {
 
 .map-complications {
   position: absolute;
-  bottom: 48px;
-  right: 7px;
-  display: flex;
-  flex-direction: column-reverse;
   pointer-events: none;
   cursor: pointer;
   zoom: -5;
 }
 
 .zoom-buttons {
+  padding-left: 7px;
   margin-left: auto;
   pointer-events: auto;
   z-index: 2;
@@ -168,7 +201,7 @@ export default class VueComponent extends Vue {
 }
 
 .map-scale {
-  margin-top: auto;
+  margin-top: 1px;
 }
 
 @media only screen and (max-width: 640px) {

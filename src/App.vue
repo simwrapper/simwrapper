@@ -515,9 +515,9 @@ a:hover {
 .mapboxgl-ctrl-bottom-left {
   filter: var(--logoOpacity);
   color: var(--bgBold);
-  bottom: 1.25em;
-  right: 0.25rem;
+  bottom: -5px;
   left: unset;
+  right: 280px;
   z-index: 0;
 }
 
@@ -627,6 +627,10 @@ a:hover {
 
   .footer {
     font-size: 0.7rem;
+  }
+
+  .mapboxgl-ctrl-bottom-left {
+    right: 36px;
   }
 }
 </style>

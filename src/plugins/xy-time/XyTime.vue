@@ -11,9 +11,9 @@
     :radius="this.guiConfig.radius"
   )
 
-  zoom-buttons(v-if="!thumbnail")
+  zoom-buttons(v-if="!thumbnail" corner="bottom")
 
-  .top-right
+  .top-right(v-show="false")
     .gui-config(:id="configId")
 
   .bottom-right
@@ -725,10 +725,10 @@ export default XyTime
 
 .time-slider-area {
   position: absolute;
-  bottom: 0;
+  bottom: 2.5rem;
   left: 0;
   right: 0;
-  margin: 0 10rem 3rem 10rem;
+  margin: 0 10rem 0 10rem;
   filter: $filterShadow;
 }
 
