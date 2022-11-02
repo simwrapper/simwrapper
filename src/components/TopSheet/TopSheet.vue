@@ -175,6 +175,8 @@ h3.curate-heading {
   padding-right: 1rem;
   display: table-cell;
   font-size: 1.1rem;
+  line-height: 1.2rem;
+  padding-bottom: 0.4rem;
 }
 
 // .top-label {
