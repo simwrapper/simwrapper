@@ -144,7 +144,7 @@ const LOOKUP_COLUMN = '_LINK_OFFSET_'
     ZoomButtons,
   } as any,
 })
-class MyPlugin extends Vue {
+class NetworkLinkPlugin extends Vue {
   @Prop({ required: true }) root!: string
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: false }) yamlConfig!: string
@@ -364,8 +364,6 @@ class MyPlugin extends Vue {
     }
   }
   private async validateYAML() {
-    console.log('in yaml validation')
-
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     let configuration: any
@@ -739,9 +737,9 @@ class MyPlugin extends Vue {
 
       this.myState.statusMessage = ''
 
-      this.$emit('isLoaded', true)
-
       this.setMapboxLogoPosition()
+
+      this.$emit('isLoaded', true)
 
       // then load CSVs in background
       this.loadCSVFiles()
@@ -1065,10 +1063,10 @@ globalStore.commit('registerPlugin', {
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
   ],
-  component: MyPlugin,
+  component: NetworkLinkPlugin,
 } as VisualizationPlugin)
 
-export default MyPlugin
+export default NetworkLinkPlugin
 </script>
 
 <style scoped lang="scss">

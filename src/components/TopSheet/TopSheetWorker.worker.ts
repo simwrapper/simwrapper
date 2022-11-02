@@ -20,7 +20,7 @@ type TopsheetYaml = {
   title_en?: string
   title_de?: string
   files: {
-    [id: string]: { file: string; useLastRow?: boolean; xmlElements: string }
+    [id: string]: { file: string; useLastRow?: boolean; xmlElements?: string }
   }
   userEntries?: {
     [id: string]: { title?: string; title_en?: string; title_de?: string; value: any }
@@ -502,6 +502,11 @@ async function loadFiles() {
   for (const inputFile of Object.keys(_yaml.files)) {
     try {
       console.log('## Working on', inputFile)
+
+      // handle simple format key:filename
+      const details = _yaml.files[inputFile]
+      if (typeof details == 'string') _yaml.files[inputFile] = { file: details }
+
       // figure out which file to load
       const pattern = _yaml.files[inputFile].file
       let matchingFiles = findMatchingGlobInFiles(_files, pattern)

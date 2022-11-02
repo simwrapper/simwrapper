@@ -102,7 +102,7 @@ export default function Component({
     // if there is base data, it will also show values and diff vs. base for both color and width.
 
     try {
-      // tooltip color valuess------------
+      // tooltip color values ------------
       let tooltip = buildTooltipHtml(buildColumn, baseColumn, index)
 
       // tooltip widths------------
