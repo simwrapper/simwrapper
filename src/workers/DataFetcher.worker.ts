@@ -232,14 +232,13 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
     }
   }
 
-  // set up arrays
+  // Set up arrays ---------------------
 
-  // First we assume everything is a number. Then when we find out otherwise, we switch
-  // to a regular JS array as necessary
+  // First we assume everything is a number.
+  // Then if/when we find out otherwise, we will convert to a regular JS array as needed
   for (const column of headers) {
-    const values = new Float32Array(csv.data.length)
-    values.fill(NaN)
-    dataTable[column] = { name: column, values, type: DataType.NUMBER } // DONT KNOW TYPE YET
+    const values = new Float32Array(csv.data.length).fill(NaN)
+    dataTable[column] = { name: column, values, type: DataType.NUMBER } // Assume NUMBER for now
   }
 
   // copy data to column-based arrays
@@ -252,19 +251,20 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       const value = row[column]
 
       if (value !== '') {
-        const float = parseFloat(value) // number or NaN
-        if (!Number.isNaN(float)) {
-          // number:
+        // the moment we get a non-number, we must convert the Float32Array to a regular js Array.
+        if (Number.isFinite(value)) {
+          // yep it's a number:
           dataTable[column].values[rowCount] = value
         } else {
           // non-number. Store in js array, (but convert Float32Array to regular js array first, if needed)
           if (Array.isArray(dataTable[column].values)) {
             dataTable[column].values[rowCount] = value
           } else {
-            // need to convert the Float32Array to a normal javascript array which can contain strings & booleans
-            if (typeof value == 'string') dataTable[column].type = DataType.STRING
-            if (typeof value == 'boolean') dataTable[column].type = DataType.BOOLEAN
+            // it's our first non-number: convert the Float32Array to
+            // a normal javascript array, which can contain strings & booleans
             const regularArray = Array.from(dataTable[column].values.slice(0, rowCount))
+            if (typeof value === 'string') dataTable[column].type = DataType.STRING
+            if (typeof value === 'boolean') dataTable[column].type = DataType.BOOLEAN
             // append this value
             regularArray[rowCount] = value
             // switch the array out
