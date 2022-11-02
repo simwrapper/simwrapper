@@ -360,6 +360,9 @@ function getFileVariableReplacements(calc: string, expr: string) {
       calculationPrefix = '@'
     }
 
+    // old topsheets use {dataset.column} without any "@" to represent SUM.
+    if (calculationType === '') calculationType = 'sum'
+
     if (validFunctions.indexOf(calculationType) == -1) {
       postMessage({
         response: 'error',
