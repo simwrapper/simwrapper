@@ -1,5 +1,5 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="id")
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
   xy-hex-deck-map.hex-layer(
     v-if="!thumbnail && isLoaded"
