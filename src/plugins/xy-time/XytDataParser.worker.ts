@@ -82,9 +82,7 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
     }
 
     // got true filename, add prefixes and away we go
-    const url = `${fileSystem.baseURL}/${expandedFilename}`
-    console.log(url)
-    return url
+    return `${fileSystem.baseURL}/${expandedFilename}`
   } catch (e) {
     console.error('' + e)
     postMessage({ error: 'Error loading: ' + filepath })
@@ -99,7 +97,7 @@ let layerData: PointData = {
   timeRange: [Infinity, -Infinity],
 }
 
-function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
+function appendResults(results: { data: any[]; comments: any[] }) {
   // set EPSG if we have it in CSV file
   for (const comment of results.comments) {
     const epsg = comment.indexOf('EPSG:')
@@ -111,32 +109,42 @@ function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
   }
 
   // if we don't have a valid projection, squawk and ask user
-  if (_proj === 'EPSG:4326') {
-    const row = results.data[0]
-    const x = row.x || row.X || row.lon || row.longitude
-    const y = row.y || row.Y || row.lat || row.latitude
-    if (x > 180 || x < -180 || y < -90 || y > 90) {
-      console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
-      parser.abort()
-      postMessage({ needCRS: true })
-      return
+  try {
+    if (_proj === 'EPSG:4326') {
+      const row = results.data[0]
+      const x = row.x || row.X || row.lon || row.longitude
+      const y = row.y || row.Y || row.lat || row.latitude
+      if (x > 180 || x < -180 || y < -90 || y > 90) {
+        _reader?.cancel()
+        console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
+        postMessage({ needCRS: true })
+        return
+      }
     }
+  } catch (e) {
+    console.warn('Projection fail: ' + e)
   }
 
+  // Loop through everything
   const numRows = results.data.length
   const rowsToFill = Math.min(numRows, LAYER_SIZE - _offset)
   const xy = [0, 0]
 
-  // Fill the array as much as we can
   for (let i = 0; i < rowsToFill; i++) {
     const row = results.data[i] as any
-    xy[0] = row.x || row.X || row.lon || row.longitude
-    xy[1] = row.y || row.Y || row.lat || row.latitude
-    const wgs84 = Coords.toLngLat(_proj, xy)
-    layerData.coordinates[(_offset + i) * 2] = wgs84[0]
-    layerData.coordinates[(_offset + i) * 2 + 1] = wgs84[1]
-    layerData.time[_offset + i] = row.time || row.t || 0
-    layerData.value[_offset + i] = row.value || 0
+    try {
+      xy[0] = row.x || row.X || row.lon || row.longitude
+      xy[1] = row.y || row.Y || row.lat || row.latitude
+      const wgs84 = Coords.toLngLat(_proj, xy)
+
+      layerData.coordinates[(_offset + i) * 2] = wgs84[0]
+      layerData.coordinates[(_offset + i) * 2 + 1] = wgs84[1]
+      layerData.time[_offset + i] = row.time || row.t || 0
+      layerData.value[_offset + i] = row.value || 0
+    } catch (e) {
+      // bad row; don't increment i
+      console.warn('bad row: ', i, row)
+    }
   }
 
   layerData.timeRange[0] = Math.min(layerData.time[0], layerData.timeRange[0])
@@ -170,39 +178,96 @@ function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
   // is there more to load?
   if (rowsToFill < numRows) {
     const remainingData = { data: results.data.slice(rowsToFill), comments: [] }
-    appendResults(remainingData, parser)
+    appendResults(remainingData)
   } else {
     postMessage({ status: `Loading rows: ${_totalRowsRead}...` })
   }
 }
 
-function step2fetchCSVdata(url: any) {
+let _header = ''
+let _reader: ReadableStreamDefaultReader | undefined
+
+// this version reads a STREAM. crazy future!
+async function step2fetchCSVdata(url: any) {
+  let chunks = 0
+  let data = 0
+  _header = ''
+  _rangeOfValues = [Infinity, -Infinity]
+  _offset = 0
+  _totalRowsRead = 0
+
+  console.log('STARTING stream:', url)
+
   try {
-    Papaparse.parse(url, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      comments: '#',
-      chunk: appendResults,
-    } as any)
-    // }
+    await fetch(url).then(response => {
+      if (!response.ok) throw Error('Error loading' + url)
+
+      _reader = response.body?.getReader()
+      if (!_reader) return
+
+      const decoder = new TextDecoder()
+      let leftOvers = ''
+
+      function pump(): any {
+        return _reader?.read().then(({ done, value }) => {
+          // When there is no more data, close the stream
+          if (done) return
+
+          // Got a CHUNK!
+          chunks++
+          data += value.length
+
+          // reconstruct first line taking mid-line breaks into account
+          let text = _header + leftOvers + decoder.decode(value)
+
+          // append the header to every chunk -- save it if we don't have it yet
+          if (!_header) _header = constructHeader(text)
+
+          const lastLF = text.lastIndexOf('\n')
+          leftOvers = text.slice(lastLF + 1)
+          text = text.slice(0, lastLF)
+
+          const results = Papaparse.parse(text, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true,
+            comments: '#',
+            delimitersToGuess: [';', '\t', ',', ' '],
+          }) as any
+
+          appendResults(results)
+
+          // get the next chunk
+          return pump()
+        })
+      }
+      // Now start pumping data from the stream!
+      return pump()
+    })
   } catch (e) {
-    console.log('' + e)
-    postMessage({ error: 'ERROR parsing or projection coordinates' })
-    return
+    console.error('' + e)
+    postMessage({ error: '' + e })
   }
 
-  // all done? post final arrays
-  if (_offset) {
-    const subarray: PointData = {
-      time: layerData.time.subarray(0, _offset),
-      coordinates: layerData.coordinates.subarray(0, _offset * 2),
-      value: layerData.value.subarray(0, _offset),
-      timeRange: layerData.timeRange,
-    }
-    // console.log('FINAL: Posting', offset)
-    postResults(subarray)
-    postMessage({ finished: true, range: _rangeOfValues })
+  console.log('Total chunks:', chunks)
+  console.log('Total data:', data)
+
+  const subarray: PointData = {
+    time: layerData.time.subarray(0, _offset),
+    coordinates: layerData.coordinates.subarray(0, _offset * 2),
+    value: layerData.value.subarray(0, _offset),
+    timeRange: layerData.timeRange,
   }
+  // console.log('FINAL: Posting', offset)
+  postResults(subarray)
+  postMessage({ finished: true, range: _rangeOfValues })
+}
+
+function constructHeader(text: string) {
+  const topLines = text.slice(0, 4096).split('\n')
+  for (const line of topLines) {
+    if (line.startsWith('#')) continue
+    return line + '\n'
+  }
+  return ''
 }

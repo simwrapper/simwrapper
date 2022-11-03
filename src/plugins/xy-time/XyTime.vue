@@ -47,6 +47,7 @@ const i18n = {
       selection: 'Selection',
       areas: 'Areas',
       count: 'Count',
+      promptCRS: `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`,
     },
     de: {
       loading: 'Dateien laden...',
@@ -482,12 +483,11 @@ class XyTime extends Vue {
       } else if (event.data.finished) {
         this.finishedLoadingData(totalRows, event.data)
       } else if (event.data.needCRS) {
-        let userCRS =
-          prompt(
-            `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`
-          ) || 'EPSG:25833'
+        this.gzipWorker.terminate()
+        let userCRS = prompt('' + this.$t('promptCRS')) || 'EPSG:25833'
         if (Number.isFinite(parseInt(userCRS))) userCRS = `EPSG:${userCRS}`
-        this.gzipWorker.postMessage({ userCRS })
+        this.vizDetails.projection = userCRS
+        this.parseCSVFile(filename)
       } else {
         const rows = event.data.time.length
         // zoom map on first load
@@ -512,6 +512,7 @@ class XyTime extends Vue {
   private setFirstZoom(coordinates: any[], rows: number) {
     const longitude = 0.5 * (coordinates[0] + coordinates[rows * 2 - 2])
     const latitude = 0.5 * (coordinates[1] + coordinates[rows * 2 - 1])
+
     if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
       globalStore.commit(
         'setMapCamera',
