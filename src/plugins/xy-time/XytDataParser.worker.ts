@@ -1,7 +1,6 @@
 /**
  * Load a *.xyt.csv file, parse it, and return a set of ArrayBuffers for display.
  */
-import pako from 'pako'
 import Papaparse from 'papaparse'
 
 import { FileSystemConfig } from '@/Globals'
@@ -11,12 +10,23 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const LAYER_SIZE = 0.5 * 1024 * 1024
 
+let _url = ''
 let _proj = 'EPSG:4326'
 let _rangeOfValues = [Infinity, -Infinity]
+let _offset = 0
+let _totalRowsRead = 0
 
 // -----------------------------------------------------------
 onmessage = function (e) {
-  startLoading(e.data)
+  if (!e.data.userCRS) {
+    // initial launch
+    startLoading(e.data)
+  } else {
+    // restarting with a user-supplied CRS
+    _proj = e.data.userCRS
+    console.log('NEW CRS:', _proj)
+    step2fetchCSVdata(_url)
+  }
 }
 // -----------------------------------------------------------
 
@@ -27,9 +37,8 @@ async function startLoading(props: {
 }) {
   if (props.projection) _proj = props.projection
 
-  const url = await step1PrepareFetch(props.filepath, props.fileSystem)
-  step2fetchCSVdata(url)
-  postMessage({ finished: true, range: _rangeOfValues })
+  _url = await step1PrepareFetch(props.filepath, props.fileSystem)
+  step2fetchCSVdata(_url)
 }
 
 interface PointData {
@@ -90,10 +99,7 @@ let layerData: PointData = {
   timeRange: [Infinity, -Infinity],
 }
 
-let offset = 0
-let totalRowsRead = 0
-
-function appendResults(results: { data: any[]; comments: any[] }) {
+function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
   // set EPSG if we have it in CSV file
   for (const comment of results.comments) {
     const epsg = comment.indexOf('EPSG:')
@@ -104,8 +110,22 @@ function appendResults(results: { data: any[]; comments: any[] }) {
     }
   }
 
+  // if we don't have a valid projection, squawk and ask user
+  if (
+    _proj === 'EPSG:4326' &&
+    (results.data[0].x > 180 ||
+      results.data[0].x < -180 ||
+      results.data[0].y < -90 ||
+      results.data[0].y > 90)
+  ) {
+    console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
+    parser.abort()
+    postMessage({ needCRS: true })
+    return
+  }
+
   const numRows = results.data.length
-  const rowsToFill = Math.min(numRows, LAYER_SIZE - offset)
+  const rowsToFill = Math.min(numRows, LAYER_SIZE - _offset)
   const xy = [0, 0]
 
   // Fill the array as much as we can
@@ -114,14 +134,17 @@ function appendResults(results: { data: any[]; comments: any[] }) {
     xy[0] = row.x
     xy[1] = row.y
     const wgs84 = Coords.toLngLat(_proj, xy)
-    layerData.coordinates[(offset + i) * 2] = wgs84[0]
-    layerData.coordinates[(offset + i) * 2 + 1] = wgs84[1]
-    layerData.time[offset + i] = row.time || row.t || 0
-    layerData.value[offset + i] = row.value
+    layerData.coordinates[(_offset + i) * 2] = wgs84[0]
+    layerData.coordinates[(_offset + i) * 2 + 1] = wgs84[1]
+    layerData.time[_offset + i] = row.time || row.t || 0
+    layerData.value[_offset + i] = row.value
   }
 
   layerData.timeRange[0] = Math.min(layerData.time[0], layerData.timeRange[0])
-  layerData.timeRange[1] = Math.max(layerData.time[offset + rowsToFill - 1], layerData.timeRange[1])
+  layerData.timeRange[1] = Math.max(
+    layerData.time[_offset + rowsToFill - 1],
+    layerData.timeRange[1]
+  )
 
   _rangeOfValues = layerData.value.reduce((prev, value) => {
     prev[0] = Math.min(prev[0], value)
@@ -129,13 +152,13 @@ function appendResults(results: { data: any[]; comments: any[] }) {
     return prev
   }, _rangeOfValues)
 
-  offset += rowsToFill
-  totalRowsRead += rowsToFill
+  _offset += rowsToFill
+  _totalRowsRead += rowsToFill
 
   // Are we full?
-  if (offset === LAYER_SIZE) {
+  if (_offset === LAYER_SIZE) {
     postResults(layerData)
-    offset = 0
+    _offset = 0
 
     layerData = {
       coordinates: new Float32Array(LAYER_SIZE * 2),
@@ -148,14 +171,15 @@ function appendResults(results: { data: any[]; comments: any[] }) {
   // is there more to load?
   if (rowsToFill < numRows) {
     const remainingData = { data: results.data.slice(rowsToFill), comments: [] }
-    appendResults(remainingData)
+    appendResults(remainingData, parser)
   } else {
-    postMessage({ status: `Loading rows: ${totalRowsRead}...` })
+    postMessage({ status: `Loading rows: ${_totalRowsRead}...` })
   }
 }
 
 function step2fetchCSVdata(url: any) {
-  console.log('fetching chunks from:', url)
+  console.log('fetching in chunks from:', url)
+
   try {
     Papaparse.parse(url, {
       download: true,
@@ -168,19 +192,20 @@ function step2fetchCSVdata(url: any) {
     // }
   } catch (e) {
     console.log('' + e)
-    postMessage({ error: 'ERROR projection coordinates' })
+    postMessage({ error: 'ERROR parsing or projection coordinates' })
     return
   }
 
   // all done? post final arrays
-  if (offset) {
+  if (_offset) {
     const subarray: PointData = {
-      time: layerData.time.subarray(0, offset),
-      coordinates: layerData.coordinates.subarray(0, offset * 2),
-      value: layerData.value.subarray(0, offset),
+      time: layerData.time.subarray(0, _offset),
+      coordinates: layerData.coordinates.subarray(0, _offset * 2),
+      value: layerData.value.subarray(0, _offset),
       timeRange: layerData.timeRange,
     }
     // console.log('FINAL: Posting', offset)
     postResults(subarray)
+    postMessage({ finished: true, range: _rangeOfValues })
   }
 }

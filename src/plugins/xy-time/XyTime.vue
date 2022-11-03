@@ -1,5 +1,5 @@
 <template lang="pug">
-.viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
+.viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${viewId}`")
 
   xy-time-deck-map.map-layer(v-if="!thumbnail"
     :viewId="viewId"
@@ -270,7 +270,7 @@ class XyTime extends Vue {
 
   private setupLogoMover() {
     this.resizer = new ResizeObserver(this.moveLogo)
-    const deckmap = document.getElementById(`${this.viewId}`) as HTMLElement
+    const deckmap = document.getElementById(`id-${this.viewId}`) as HTMLElement
     this.resizer.observe(deckmap)
   }
 
@@ -500,6 +500,13 @@ class XyTime extends Vue {
         })
       } else if (event.data.finished) {
         this.finishedLoadingData(totalRows, event.data)
+      } else if (event.data.needCRS) {
+        let userCRS =
+          prompt(
+            `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`
+          ) || 'EPSG:31468'
+        if (Number.isFinite(parseInt(userCRS))) userCRS = `EPSG:${userCRS}`
+        this.gzipWorker.postMessage({ userCRS })
       } else {
         totalRows += event.data.time.length
         this.timeRange = [
@@ -521,6 +528,7 @@ class XyTime extends Vue {
     console.log('ALL DONE', totalRows, data.range, this.timeRange)
     this.isLoaded = true
     this.range = data.range
+    // if (!this.timeRange[1]) this.timeRange[1] = 1
     this.myState.statusMessage = ''
     this.gzipWorker.terminate()
 

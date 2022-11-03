@@ -1,5 +1,5 @@
 <template lang="pug">
-.time-slider-component
+.time-slider-component(v-if="state.hasNonZeroTimeRange")
   .label-area
     p.p1 {{ state.labels[0] }}
     p.p2(v-show="state.labels[1] !== undefined") &nbsp;-&nbsp;{{ state.labels[1] }}
@@ -45,6 +45,7 @@ export default class VueComponent extends Vue {
     valueWidth: 1,
     range: [0, 1],
     labels: ['', ''],
+    hasNonZeroTimeRange: true,
   }
 
   private mounted() {
@@ -67,9 +68,16 @@ export default class VueComponent extends Vue {
 
       if (this.values) {
         const totalRange = this.state.range[1] - this.state.range[0]
-        this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
-        this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
-        this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
+        if (totalRange === 0) {
+          this.state.hasNonZeroTimeRange = false
+          this.state.normValueLeft = 0
+          this.state.normValueRight = 1
+          this.state.valueWidth = 1
+        } else {
+          this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
+          this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
+          this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
+        }
       }
     } catch (e) {
       // divide by zero, oh well
