@@ -11,9 +11,9 @@ import globalStore from '@/store'
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
 
 const INITIAL_VIEW = {
-  zoom: 11,
-  longitude: 13.35,
-  latitude: 52.51,
+  zoom: 1,
+  longitude: -30,
+  latitude: 45,
   pitch: 0,
   bearing: 0,
 }

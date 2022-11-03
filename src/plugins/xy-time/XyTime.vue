@@ -13,7 +13,7 @@
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")
 
-  .top-right(v-show="false")
+  .top-right
     .gui-config(:id="configId")
 
   .bottom-right
@@ -29,23 +29,6 @@
     @toggleAnimation="toggleAnimation"
     @drag="isAnimating=false"
   )
-
-    //- .configurator
-    //-   .buckets
-    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(-1)") <
-    //-     p(style="margin: 0 auto") {{ numBuckets }}
-    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(1)") >
-    //-   .buckets
-    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(-1)") <
-    //-     p(style="margin: 0 auto") {{ powerFunction }}
-    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(1)") >
-    //-   .buckets.clip-slider
-    //-     b-slider(v-model="clipData" :min="0" :max="100")
-    //- .buckets
-    //-   b-checkbox(outlined size="is-small" v-model="isColorRampFlipped") Flip
-    //- .buckets
-    //-   b-select.selector.ramp-selector(expanded v-model="guiConfig.colorRamp" size="is-small" @select="handleColorRamp")
-    //-     option(v-for="column in guiConfig.colorRamps" :value="column" :label="column")
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -261,7 +244,6 @@ class XyTime extends Vue {
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
-    // this.mapState.center = this.findCenter(this.rawRequests)
   }
 
   private guiController?: GUI
@@ -495,7 +477,7 @@ class XyTime extends Vue {
         this.myState.statusMessage = event.data.error
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `Loading Error`,
+          msg: `XYT Loading Error`,
           desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
         })
       } else if (event.data.finished) {
@@ -504,14 +486,31 @@ class XyTime extends Vue {
         let userCRS =
           prompt(
             `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`
-          ) || 'EPSG:31468'
+          ) || 'EPSG:25833'
         if (Number.isFinite(parseInt(userCRS))) userCRS = `EPSG:${userCRS}`
         this.gzipWorker.postMessage({ userCRS })
       } else {
-        totalRows += event.data.time.length
+        const rows = event.data.time.length
+        // zoom map on first load
+        if (!totalRows) {
+          const longitude = 0.5 * (event.data.coordinates[0] + event.data.coordinates[rows * 2 - 2])
+          const latitude = 0.5 * (event.data.coordinates[1] + event.data.coordinates[rows * 2 - 1])
+          if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
+            globalStore.commit(
+              'setMapCamera',
+              Object.assign({}, globalStore.state.viewState, {
+                longitude,
+                latitude,
+                zoom: 11,
+              })
+            )
+          }
+        }
+        // save layer data
+        totalRows += rows
         this.timeRange = [
           Math.min(this.timeRange[0], event.data.time[0]),
-          Math.max(this.timeRange[1], event.data.time[event.data.time.length - 1]),
+          Math.max(this.timeRange[1], event.data.time[rows - 1]),
         ]
         this.pointLayers.push(event.data)
       }
@@ -562,20 +561,6 @@ class XyTime extends Vue {
     }
   }
 
-  // private numBuckets = 7
-  // private incBuckets(num: number) {
-  //   this.numBuckets += num
-  //   this.numBuckets = Math.max(2, Math.min(15, this.numBuckets))
-  //   this.setColors()
-  // }
-
-  // private powerFunction = 4
-  // private incPowerFunction(num: number) {
-  //   this.powerFunction += num
-  //   this.powerFunction = Math.max(1, Math.min(10, this.powerFunction))
-  //   this.setColors()
-  // }
-
   private setColors() {
     const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
 
@@ -621,7 +606,7 @@ class XyTime extends Vue {
     this.legendStore = new LegendStore()
     this.legendStore.setLegendSection({
       section: 'Legend',
-      column: 'NOx: g/m',
+      column: 'Legend',
       values: colors.map((rgb, index) => {
         const breakpoint = breakpoints[index == 0 ? index : index - 1]
         let label = '' + Math.round(1e6 * breakpoint) / 1e6
