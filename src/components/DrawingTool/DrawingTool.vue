@@ -306,7 +306,6 @@ export default class VueComponent extends Vue {
 }
 
 .draw-button {
-  // background-color: var(--bgPanel3);
   padding: 0px 4px;
   border: var(--borderZoomButtons);
   border-radius: 4px;
@@ -335,7 +334,7 @@ export default class VueComponent extends Vue {
   display: flex;
   flex-direction: column;
   top: 100px;
-  right: 4px;
+  right: 7px;
 }
 
 .buttons {

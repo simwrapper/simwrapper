@@ -20,7 +20,7 @@ type TopsheetYaml = {
   title_en?: string
   title_de?: string
   files: {
-    [id: string]: { file: string; useLastRow?: boolean; xmlElements: string }
+    [id: string]: { file: string; useLastRow?: boolean; xmlElements?: string }
   }
   userEntries?: {
     [id: string]: { title?: string; title_en?: string; title_de?: string; value: any }
@@ -50,6 +50,7 @@ onmessage = async function (message) {
 
 // global variables
 let _fileSystem: HTTPFileSystem
+let _originalFolder = ''
 let _subfolder = ''
 let _files: string[] = []
 let _boxValues: any = {}
@@ -127,6 +128,7 @@ async function runTopSheet(props: {
   // console.log('TopSheet thread worker starting')
 
   _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
+  _originalFolder = props.subfolder
   _subfolder = props.subfolder
   _files = props.files
   _yamlFile = props.yaml
@@ -358,6 +360,9 @@ function getFileVariableReplacements(calc: string, expr: string) {
       calculationPrefix = '@'
     }
 
+    // old topsheets use {dataset.column} without any "@" to represent SUM.
+    if (calculationType === '') calculationType = 'sum'
+
     if (validFunctions.indexOf(calculationType) == -1) {
       postMessage({
         response: 'error',
@@ -487,10 +492,24 @@ async function getYaml() {
   return yaml
 }
 
+// Normalize directory / get rid of '..' sections
+function eatDots(parts: string[]): string[] {
+  const dotdot = parts.indexOf('..')
+  if (dotdot <= 0) return parts
+  const spliced = parts.filter((part: string, i) => i !== dotdot - 1 && i !== dotdot)
+  return eatDots(spliced)
+}
+
 async function loadFiles() {
   let filename = ''
   for (const inputFile of Object.keys(_yaml.files)) {
     try {
+      console.log('## Working on', inputFile)
+
+      // handle simple format key:filename
+      const details = _yaml.files[inputFile]
+      if (typeof details == 'string') _yaml.files[inputFile] = { file: details }
+
       // figure out which file to load
       const pattern = _yaml.files[inputFile].file
       let matchingFiles = findMatchingGlobInFiles(_files, pattern)
@@ -499,12 +518,21 @@ async function loadFiles() {
         // not in this folder. Maybe we have a path
         const slash = pattern.indexOf('/')
         if (slash > -1) {
-          const mergedFolder = slash === 0 ? pattern : `${_subfolder}/${pattern}`
+          const mergedFolder = slash === 0 ? pattern : `${_originalFolder}/${pattern}`
           const dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
-          _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+
+          let cleanedSubfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
+
+          // eat dotdots from path, if we can
+          let parts = cleanedSubfolder.split('/').filter(p => !!p) // split and remove blanks
+          const noDots = eatDots(parts)
+          cleanedSubfolder = noDots.join('/')
+
           // fetch new list of files
-          const { files } = await _fileSystem.getDirectory(_subfolder)
+          const { files } = await _fileSystem.getDirectory(cleanedSubfolder)
           _files = files
+          _subfolder = cleanedSubfolder
+
           matchingFiles = findMatchingGlobInFiles(_files, dataset)
         } else {
           console.warn(`No files in THIS FOLDER matched pattern ${pattern}`)

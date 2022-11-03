@@ -320,6 +320,7 @@ a {
   flex: 1;
   color: #a19ebb;
   margin-right: 0.25rem;
+  padding: 0 0;
 }
 
 .commands .button:hover {

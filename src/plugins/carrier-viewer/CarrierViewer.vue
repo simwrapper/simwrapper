@@ -1,6 +1,6 @@
 <template lang="pug">
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+        :style='{"background": urlThumbnail}' oncontextmenu="return false" :id="`container-${linkLayerId}`")
 
   .nav(v-if="!thumbnail")
     //- p.big.xtitle {{ vizDetails.title }}
@@ -247,7 +247,7 @@ class CarrierPlugin extends Vue {
       return
     }
 
-    this.shownShipments = this.shipments.filter((s) => s.$id === shipment.$id)
+    this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
     this.selectedShipment = shipment
   }
 
@@ -285,7 +285,7 @@ class CarrierPlugin extends Vue {
         inTour.push(activity.$shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find((s) => s.$id === activity.$shipmentId)
+        const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
         const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
         // skip duplicate pickups/dropoffs at this location
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
@@ -356,7 +356,7 @@ class CarrierPlugin extends Vue {
     let count = 0
 
     const sleep = (milliseconds: number) => {
-      return new Promise((resolve) => setTimeout(resolve, milliseconds))
+      return new Promise(resolve => setTimeout(resolve, milliseconds))
     }
 
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
@@ -563,7 +563,7 @@ class CarrierPlugin extends Vue {
     let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
     // if the obvious network file doesn't exist, just grab... the first network file:
     if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter((f) => f.indexOf('output_network') > -1)
+      const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
       if (allNetworks.length) network = allNetworks[0]
       else {
         this.myState.statusMessage = 'No road network found.'
@@ -670,6 +670,23 @@ class CarrierPlugin extends Vue {
     return this.globalState.isDarkMode ? darkmode : lightmode
   }
 
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
+
   private async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
@@ -684,6 +701,8 @@ class CarrierPlugin extends Vue {
 
     if (this.thumbnail) return
 
+    this.setupLogoMover()
+
     this.showHelp = false
     this.updateLegendColors()
 
@@ -694,6 +713,7 @@ class CarrierPlugin extends Vue {
     this.links = await this.loadNetwork()
 
     this.myState.statusMessage = ''
+    this.moveLogo()
   }
 
   private async loadCarriers() {

@@ -1,10 +1,18 @@
 <template lang="pug">
-.time-slider-component(ref="slider" @mousemove="dragging")
-  .active-region(:style="calculateActiveMargins"
-    @mousedown="dragStart" @mouseup.stop="dragEnd" @mousemove.stop="dragging"
-  )
-    p.pleft {{ state.labels[0] }}
-    p.pright {{ state.labels[1] }}
+.time-slider-component
+  .label-area
+    p.p1 {{ state.labels[0] }}
+    p.p2(v-show="state.labels[1] !== undefined") &nbsp;-&nbsp;{{ state.labels[1] }}
+
+  .slider-area
+    button.button.play-button(size="is-small" type="is-link"
+      @click="$emit('toggleAnimation')"
+      ) {{ isAnimating ? '||' : '>' }}
+
+    .time-slider-dragger(ref="slider" @mousemove="dragging")
+      .active-region(:style="calculateActiveMargins"
+        @mousedown="dragStart" @mouseup.stop="dragEnd" @mousemove.stop="dragging"
+      )
 
 </template>
 
@@ -24,6 +32,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: false }) labels!: string[]
   @Prop({ required: false }) range!: number[]
   @Prop({ required: false }) values!: number[]
+  @Prop({ required: false }) isAnimating!: boolean
 
   private state = {
     componentWidth: 0,
@@ -98,9 +107,10 @@ export default class VueComponent extends Vue {
 
   private get calculateActiveMargins() {
     const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-
     const marginLeft = Math.floor(usableWidth * this.state.normValueLeft)
     const marginRight = Math.floor(usableWidth * (1.0 - this.state.normValueRight))
+
+    // console.log({ usableWidth, marginLeft, marginRight })
 
     return {
       marginLeft: `${marginLeft}px`,
@@ -184,28 +194,65 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .time-slider-component {
+  display: flex;
+  flex-direction: column;
+}
+
+.slider-area {
+  background-color: var(--bgPanel);
+  padding: 1rem 1rem;
+  display: flex;
+  flex-direction: row;
+}
+
+.time-slider-dragger {
   user-select: none;
-  height: 2.5rem;
-  background-color: #8888ff44;
-  border-radius: 5px;
+  height: 1.5rem;
+  background-color: #66669933;
+  border-radius: 4px;
+  max-width: 100%;
+  flex: 1;
+  overflow: hidden;
 }
 
 .active-region {
-  cursor: pointer; // ew-resize;
+  cursor: ew-resize;
   color: white;
-  background-color: #37547d;
+  background-color: var(--sliderThumb);
   height: 100%;
-  border-radius: 5px;
-  border-left: 6px solid white;
-  border-right: 6px solid white;
-  font-size: 0.9rem;
-  line-height: 0.9rem;
-  padding: 2px 3px;
-  // font-weight: bold;
+  border-radius: 4px;
+  border-left: 6px solid var(--linkHover);
+  border-right: 6px solid var(--linkHover);
+  font-size: 1rem;
+  line-height: 0.6rem;
 }
 
-.pright {
-  margin-top: 5px;
-  text-align: right;
+.label-area {
+  margin: 0 0;
+  font-size: 1.3rem;
+  font-weight: bold;
+  display: flex;
+  flex-direction: row;
+  margin-right: auto;
+}
+
+.p1 {
+  padding: 0 0;
+  padding-left: 1rem;
+  background-color: var(--bgPanel);
+}
+
+.p2 {
+  padding: 0 0;
+  padding-right: 1rem;
+  background-color: var(--bgPanel);
+}
+
+.play-button {
+  width: 2.4rem;
+  height: 1.5rem;
+  margin-right: 1rem;
+  font-weight: bold;
+  padding: 0 0;
 }
 </style>

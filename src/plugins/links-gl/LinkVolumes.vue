@@ -3,7 +3,7 @@
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
 
-  .plot-container(v-if="!thumbnail")
+  .plot-container(v-if="!thumbnail" :id="`container-${linkLayerId}`")
     link-gl-layer.map-area(
         :viewId="linkLayerId"
         :links="geojsonData"
@@ -144,7 +144,7 @@ const LOOKUP_COLUMN = '_LINK_OFFSET_'
     ZoomButtons,
   } as any,
 })
-class MyPlugin extends Vue {
+class NetworkLinkPlugin extends Vue {
   @Prop({ required: true }) root!: string
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: false }) yamlConfig!: string
@@ -364,8 +364,6 @@ class MyPlugin extends Vue {
     }
   }
   private async validateYAML() {
-    console.log('in yaml validation')
-
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     let configuration: any
@@ -676,6 +674,23 @@ class MyPlugin extends Vue {
 
   private myDataManager!: DashboardDataManager
 
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
+
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -698,6 +713,8 @@ class MyPlugin extends Vue {
       this.buildThumbnail()
       return
     }
+
+    this.setupLogoMover()
 
     // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
@@ -723,8 +740,9 @@ class MyPlugin extends Vue {
 
       this.myState.statusMessage = ''
 
+      this.moveLogo()
+
       this.$emit('isLoaded', true)
-      // this.setDataIsLoaded()
 
       // then load CSVs in background
       this.loadCSVFiles()
@@ -1046,10 +1064,10 @@ globalStore.commit('registerPlugin', {
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
   ],
-  component: MyPlugin,
+  component: NetworkLinkPlugin,
 } as VisualizationPlugin)
 
-export default MyPlugin
+export default NetworkLinkPlugin
 </script>
 
 <style scoped lang="scss">
@@ -1099,7 +1117,7 @@ export default MyPlugin
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  margin: auto 0.5rem 0rem 5px;
+  margin: auto 0.5rem 2px 7px;
   filter: drop-shadow(0px 2px 4px #22222233);
 }
 

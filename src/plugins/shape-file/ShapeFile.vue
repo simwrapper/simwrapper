@@ -2,7 +2,7 @@
 .gl-viz(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  polygon-layer.anim(v-if="!thumbnail && isLoaded" :props="mapProps")
+  polygon-layer.anim(:id="id" v-if="!thumbnail && isLoaded" :props="mapProps")
 
   zoom-buttons(v-if="!thumbnail")
   drawing-tool(v-if="!thumbnail")
@@ -265,7 +265,26 @@ class MyPlugin extends Vue {
     return [13.45, 52.53]
   }
 
+  private id = 'id-' + Math.random()
+
+  private setMapboxLogoPosition() {
+    console.log('hi')
+    try {
+      const deckmap = document.getElementById(this.id) as HTMLElement
+      const logo = deckmap.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+
+      if (logo) {
+        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+        logo.style.right = right
+      }
+    } catch (e) {
+      console.error('' + e)
+      // too bad
+    }
+  }
+
   private async mounted() {
+    window.addEventListener('resize', this.setMapboxLogoPosition)
     globalStore.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
@@ -291,6 +310,7 @@ class MyPlugin extends Vue {
   }
 
   private beforeDestroy() {
+    window.removeEventListener('resize', this.setMapboxLogoPosition)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }

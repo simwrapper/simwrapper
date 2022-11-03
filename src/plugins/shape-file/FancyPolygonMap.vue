@@ -8,7 +8,7 @@
 
   .status-bar(v-show="statusText") {{ statusText }}
 
-  .area-map(v-if="!thumbnail")
+  .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
     geojson-layer(v-if="!thumbnail"
       :viewId="layerId"
       :features="useCircles ? centroids : boundaries"
@@ -294,6 +294,23 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
+
   private async mounted() {
     try {
       this.buildFileApi()
@@ -311,6 +328,8 @@ export default class VueComponent extends Vue {
 
       this.buildThumbnail()
       if (this.thumbnail) return
+
+      this.setupLogoMover()
 
       if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
@@ -1423,6 +1442,8 @@ export default class VueComponent extends Vue {
           hasNoPolygons = false
         }
       })
+
+      this.moveLogo()
 
       // set feature properties as a data source
       await this.setFeaturePropertiesAsDataSource(filename, featureProperties, shapeConfig)

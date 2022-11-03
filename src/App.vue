@@ -30,7 +30,7 @@ const i18n = {
   },
 }
 import maplibregl from 'maplibre-gl'
-import Buefy from 'buefy'
+// import Buefy from 'buefy'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { get, set, clear } from 'idb-keyval'
 
@@ -161,10 +161,14 @@ export default App
 </script>
 
 <style lang="scss">
-@import '@/styles.scss';
-@import '~/buefy/dist/buefy.css';
+@import '~/the-new-css-reset/css/reset.css';
+// @import '~/bulma/css/bulma.min.css';
+@import '~/lil-gui/dist/lil-gui.min.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
 @import '~/vue-slider-component/theme/default.css';
+@import '~/buefy/dist/buefy.css';
+
+@import '@/styles.scss';
 
 html {
   box-sizing: border-box;
@@ -179,9 +183,10 @@ html {
 body,
 html {
   font-family: $mainFont;
-  margin: 0px 0px;
-  padding: 0px 0px;
+  // margin: 0px 0px;
+  // padding: 0px 0px;
   height: 100%;
+  // border: 0px;
   overscroll-behavior: contain;
 }
 
@@ -191,8 +196,16 @@ h3,
 h4,
 h5,
 h6 {
+  // margin: 0 0;
+  // padding: 0 0;
   font-family: $fancyFont;
 }
+
+b {
+  font-weight: bold;
+}
+
+// end null --------------------------------------
 
 html {
   overflow-y: auto;
@@ -279,7 +292,7 @@ canvas {
 }
 
 h2 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: bold;
 }
 
@@ -500,16 +513,17 @@ a:hover {
 
 // MapLibre Logo
 .mapboxgl-ctrl-bottom-left {
-  filter: var(--logoOpacity);
-  bottom: 1.25em;
-  right: 0.25rem;
+  filter: var(--opacityLogo);
+  color: var(--bgBold);
+  bottom: -5px;
   left: unset;
+  right: 36px;
   z-index: 0;
 }
 
 // Mapbox Improve this Map attribution
 .mapboxgl-ctrl-bottom-right {
-  filter: var(--logoOpacity);
+  filter: var(--opacityAttribution);
   right: 0rem;
   bottom: 0rem;
   left: unset;
@@ -571,6 +585,33 @@ a:hover {
 // sankey text colors don't break thru, sigh
 .node-title {
   fill: var(--text);
+}
+
+// tweak lil-gui configurator panels
+.lil-gui {
+  --background-color: var(--bgPanel); // #00000000;
+  --title-background-color: var(--bgPanel2);
+  --widget-color: var(--bgPanel2); //white; //  #44447780;
+  --font-family: $mainFont;
+  --text-color: var(--text); // unset; // #000000aa;
+  font-size: 12px;
+}
+
+.lil-gui.root > .title {
+  background-color: var(--bgPanel2); // $appTag; // #564c9d;
+  margin-bottom: 0;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text);
+}
+
+// these are here because bulma/buefy style the .number class
+.lil-gui * {
+  font-size: unset;
+  border-radius: unset;
+  background-color: unset;
+  text-align: unset;
+  height: unset;
 }
 
 @media only screen and (max-width: 640px) {

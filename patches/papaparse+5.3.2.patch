@@ -1,0 +1,109 @@
+diff --git a/node_modules/papaparse/package.json b/node_modules/papaparse/package.json
+--- a/node_modules/papaparse/package.json
++++ b/node_modules/papaparse/package.json
+@@ -35,7 +35,7 @@
+ 	},
+ 	"license": "MIT",
+ 	"main": "papaparse.js",
+-	"browser": "papaparse.min.js",
++	"browser": "papaparse.js",
+ 	"devDependencies": {
+ 		"chai": "^4.2.0",
+ 		"connect": "^3.3.3",
+diff --git a/node_modules/papaparse/papaparse.js b/node_modules/papaparse/papaparse.js
+index 1b9ea51..9df0d3f 100755
+--- a/node_modules/papaparse/papaparse.js
++++ b/node_modules/papaparse/papaparse.js
+@@ -58,6 +58,8 @@ License: MIT
+
+ 	var Papa = {};
+
++	var allComments = [];
++
+ 	Papa.parse = CsvToJson;
+ 	Papa.unparse = JsonToCsv;
+
+@@ -491,6 +493,7 @@ License: MIT
+ 		this._completeResults = {
+ 			data: [],
+ 			errors: [],
++			comments: [],
+ 			meta: {}
+ 		};
+ 		replaceConfig.call(this, config);
+@@ -512,7 +515,6 @@ License: MIT
+ 			this._partialLine = '';
+
+ 			var results = this._handle.parse(aggregate, this._baseIndex, !this._finished);
+-
+ 			if (this._handle.paused() || this._handle.aborted()) {
+ 				this._halted = true;
+ 				return;
+@@ -542,6 +544,7 @@ License: MIT
+ 			else if (isFunction(this._config.chunk) && !isFakeChunk)
+ 			{
+ 				this._config.chunk(results, this._handle);
++				allComments = []
+ 				if (this._handle.paused() || this._handle.aborted()) {
+ 					this._halted = true;
+ 					return;
+@@ -553,6 +556,7 @@ License: MIT
+ 			if (!this._config.step && !this._config.chunk) {
+ 				this._completeResults.data = this._completeResults.data.concat(results.data);
+ 				this._completeResults.errors = this._completeResults.errors.concat(results.errors);
++				this._completeResults.comments = this._completeResults.comments.concat(results.comments);
+ 				this._completeResults.meta = results.meta;
+ 			}
+
+@@ -1025,6 +1029,7 @@ License: MIT
+ 		var _results = {		// The last results returned from the parser
+ 			data: [],
+ 			errors: [],
++			comments: [],
+ 			meta: {}
+ 		};
+
+@@ -1467,8 +1472,10 @@ License: MIT
+ 						cursor += newline.length;
+ 					else if (ignoreLastRow)
+ 						return returnable();
+-					if (comments && row.substring(0, commentsLen) === comments)
++					if (comments && row.substring(0, commentsLen) === comments) {
++						allComments.push(row);
+ 						continue;
++					}
+ 					if (stepIsFunction)
+ 					{
+ 						data = [];
+@@ -1717,9 +1724,14 @@ License: MIT
+ 			/** Returns an object with the results, errors, and meta. */
+ 			function returnable(stopped)
+ 			{
++				// clone the comments array so we don't get repeats
++				const xcomments = JSON.parse(JSON.stringify(allComments))
++				// allComments = []
++
+ 				return {
+ 					data: data,
+ 					errors: errors,
++					comments: xcomments,
+ 					meta: {
+ 						delimiter: delim,
+ 						linebreak: newline,
+@@ -1779,7 +1791,7 @@ License: MIT
+ 		{
+ 			var abort = function() {
+ 				aborted = true;
+-				completeWorker(msg.workerId, { data: [], errors: [], meta: { aborted: true } });
++				completeWorker(msg.workerId, { data: [], comments: [], errors: [], meta: { aborted: true } });
+ 			};
+
+ 			var handle = {
+@@ -1795,6 +1807,7 @@ License: MIT
+ 					worker.userStep({
+ 						data: msg.results.data[i],
+ 						errors: msg.results.errors,
++						comments: msg.results.comments,
+ 						meta: msg.results.meta
+ 					}, handle);
+ 					if (aborted)

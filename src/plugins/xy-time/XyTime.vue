@@ -1,27 +1,51 @@
 <template lang="pug">
 .viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  xy-time-deck-layer.map-layer(v-if="!thumbnail"
+  xy-time-deck-map.map-layer(v-if="!thumbnail"
     :viewId="viewId"
     :pointLayers="pointLayers"
     :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
+    :colors="this.colors"
+    :breakpoints="this.breakpoints"
+    :radius="this.guiConfig.radius"
   )
 
-  zoom-buttons(v-if="!thumbnail")
+  zoom-buttons(v-if="!thumbnail" corner="bottom")
 
-  .time-slider(v-if="isLoaded")
-    time-slider(
-      :range="[0,86400]"
-      :values="timeFilter"
-      :labels="timeLabels"
-      @values="handleTimeSliderValues"
-      @drag="isAnimating=false"
-    )
-    b-button.play-button(size="is-small" type="is-link"
-      :style="{fontWeight: isAnimating ? '' : 'bold'}"
-      @click="toggleAnimation"
-      ) {{ isAnimating ? '| |' : '▶️' }}
+  .top-right(v-show="false")
+    .gui-config(:id="configId")
+
+  .bottom-right
+    .legend-area(v-if="legendStore")
+      legend-box(:legendStore="legendStore")
+
+  time-slider.time-slider-area(v-if="isLoaded"
+    :range="timeRange"
+    :values="timeFilter"
+    :labels="timeLabels"
+    :isAnimating="isAnimating"
+    @values="handleTimeSliderValues"
+    @toggleAnimation="toggleAnimation"
+    @drag="isAnimating=false"
+  )
+
+    //- .configurator
+    //-   .buckets
+    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(-1)") <
+    //-     p(style="margin: 0 auto") {{ numBuckets }}
+    //-     b-button.is-link(outlined size="is-small" @click="incBuckets(1)") >
+    //-   .buckets
+    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(-1)") <
+    //-     p(style="margin: 0 auto") {{ powerFunction }}
+    //-     b-button.is-link(outlined size="is-small" @click="incPowerFunction(1)") >
+    //-   .buckets.clip-slider
+    //-     b-slider(v-model="clipData" :min="0" :max="100")
+    //- .buckets
+    //-   b-checkbox(outlined size="is-small" v-model="isColorRampFlipped") Flip
+    //- .buckets
+    //-   b-select.selector.ramp-selector(expanded v-model="guiConfig.colorRamp" size="is-small" @select="handleColorRamp")
+    //-     option(v-for="column in guiConfig.colorRamps" :value="column" :label="column")
 
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
@@ -55,19 +79,20 @@ const i18n = {
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import VueSlider from 'vue-slider-component'
-import { ToggleButton } from 'vue-js-toggle-button'
+import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
 
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import XytDataParser from './XytDataParser.worker.ts?worker'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
+import LegendStore from '@/js/LegendStore'
 import TimeSlider from '@/components/TimeSlider.vue'
-import XyTimeDeckLayer from './XyTimeDeckLayer'
+import XyTimeDeckMap from './XyTimeDeckMap'
+import XytDataParser from './XytDataParser.worker.ts?worker'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import {
@@ -80,7 +105,6 @@ import {
   Status,
   REACT_VIEW_HANDLES,
 } from '@/Globals'
-import { scaleThreshold } from 'd3-scale'
 
 interface VizDetail {
   title: string
@@ -105,11 +129,10 @@ interface PointLayer {
   components: {
     CollapsiblePanel,
     DrawingTool,
-    XyTimeDeckLayer,
-    VueSlider,
+    LegendBox,
     TimeSlider,
-    ToggleButton,
     ZoomButtons,
+    XyTimeDeckMap,
   } as any,
 })
 class XyTime extends Vue {
@@ -128,13 +151,43 @@ class XyTime extends Vue {
   @Prop({ required: false })
   private thumbnail!: boolean
 
+  private guiConfig = {
+    buckets: 7,
+    exponent: 4,
+    radius: 5,
+    'clip max': 100,
+    'color ramp': 'viridis',
+    colorRamps: [
+      'bathymetry',
+      'chlorophyll',
+      'electric',
+      'inferno',
+      'jet',
+      'magma',
+      'par',
+      'viridis',
+    ],
+    flip: false,
+  }
+
   private viewId = ('xyt-id-' + Math.random()) as any
+  private configId = ('gui-config-' + Math.random()) as any
 
   private timeLabels: any[] = [0, 1]
   private elapsed = 0
   private startTime = 0
   private isAnimating = false
   private timeFilter = [0, 3599]
+
+  private colors: number[][] = [
+    [128, 128, 128],
+    [128, 128, 128],
+  ]
+  private breakpoints: number[] = [0.0]
+  private range = [Infinity, -Infinity]
+  private timeRange = [Infinity, -Infinity]
+
+  private legendStore: LegendStore | null = null
 
   private handleTimeSliderValues(timeValues: any[]) {
     this.elapsed = timeValues[0]
@@ -161,14 +214,8 @@ class XyTime extends Vue {
     file: '',
   }
 
-  private colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
-  // private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
-
-  // private aggregations: Aggregations = {}
   private columnLookup: number[] = []
   private gzipWorker!: Worker
-
-  private colorRamp = this.colorRamps[0]
 
   private vizDetails: VizDetail = {
     title: '',
@@ -196,7 +243,6 @@ class XyTime extends Vue {
   private animator: any = null
 
   private async mounted() {
-    console.log('MOUNTED!')
     this.$store.commit('setFullScreen', !this.thumbnail)
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig
@@ -208,17 +254,58 @@ class XyTime extends Vue {
 
     if (this.thumbnail) return
 
+    this.setupLogoMover()
+
+    // ----------------------------------------------------
+    this.setupGui()
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
     // this.mapState.center = this.findCenter(this.rawRequests)
+  }
 
-    // this.isLoaded = true
+  private guiController?: GUI
+
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`${this.viewId}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`${this.viewId}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
+
+  private setupGui() {
+    this.guiController = new GUI({
+      title: 'Color Settings',
+      injectStyles: true,
+      width: 200,
+      container: document.getElementById(this.configId) || undefined,
+    })
+
+    const colors = this.guiController // .addFolder('Colors')
+    colors.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
+    colors.add(this.guiConfig, 'radius', 1, 20, 1)
+    colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+    colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+
+    // const times = this.guiController.addFolder('Time')
   }
 
   private beforeDestroy() {
     try {
       if (this.gzipWorker) this.gzipWorker.terminate()
+      if (this.guiController) this.guiController.destroy()
     } catch (e) {
       console.warn(e)
     }
@@ -289,14 +376,7 @@ class XyTime extends Vue {
   }
 
   private setConfigForRawCSV() {
-    let projection = 'EPSG:25833' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
-
-    // if (!this.myState.thumbnail) {
-    //   projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
-    //   if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
-    // }
-
-    // console.log(this.myState)
+    let projection = 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
 
     // output_trips:
     this.vizDetails = {
@@ -422,6 +502,10 @@ class XyTime extends Vue {
         this.finishedLoadingData(totalRows, event.data)
       } else {
         totalRows += event.data.time.length
+        this.timeRange = [
+          Math.min(this.timeRange[0], event.data.time[0]),
+          Math.max(this.timeRange[1], event.data.time[event.data.time.length - 1]),
+        ]
         this.pointLayers.push(event.data)
       }
     }
@@ -434,11 +518,14 @@ class XyTime extends Vue {
   }
 
   private finishedLoadingData(totalRows: number, data: any) {
-    console.log('ALL DONE', totalRows)
-    this.setColors(data.range)
+    console.log('ALL DONE', totalRows, data.range, this.timeRange)
+    this.isLoaded = true
+    this.range = data.range
     this.myState.statusMessage = ''
     this.gzipWorker.terminate()
-    this.isLoaded = true
+
+    this.setColors()
+    this.moveLogo()
   }
 
   private animate() {
@@ -447,7 +534,7 @@ class XyTime extends Vue {
 
       this.elapsed = 5 * (Date.now() - this.startTime)
 
-      if (this.elapsed > 86400) {
+      if (this.elapsed > this.timeRange[1]) {
         this.startTime = Date.now()
         this.elapsed = 0
       }
@@ -456,7 +543,7 @@ class XyTime extends Vue {
       this.timeFilter = [this.elapsed, this.elapsed + span]
 
       this.animator = window.requestAnimationFrame(this.animate)
-    }, 33.33333334)
+    }, 16.66666667)
   }
 
   private toggleAnimation() {
@@ -467,37 +554,73 @@ class XyTime extends Vue {
     }
   }
 
-  private setColors(range: number[]) {
-    this.myState.statusMessage = 'Setting colors...'
+  // private numBuckets = 7
+  // private incBuckets(num: number) {
+  //   this.numBuckets += num
+  //   this.numBuckets = Math.max(2, Math.min(15, this.numBuckets))
+  //   this.setColors()
+  // }
 
-    const NUM_BUCKETS = 12
-    const EXPONENT = 4 // log5?
+  // private powerFunction = 4
+  // private incPowerFunction(num: number) {
+  //   this.powerFunction += num
+  //   this.powerFunction = Math.max(1, Math.min(10, this.powerFunction))
+  //   this.setColors()
+  // }
 
-    const colors = colormap({
-      colormap: 'electric',
-      nshades: NUM_BUCKETS,
+  private setColors() {
+    const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
+
+    let colors256 = colormap({
+      colormap: this.guiConfig['color ramp'],
+      nshades: 256,
       format: 'rba',
       alpha: 1,
     }).map((c: number[]) => [c[0], c[1], c[2]])
 
-    const max = Math.pow(range[1], 1 / EXPONENT)
+    if (this.guiConfig.flip) colors256 = colors256.reverse()
+
+    const step = 256 / (this.guiConfig.buckets - 1)
+    const colors = []
+    for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
+      colors.push(colors256[Math.round(step * i)])
+    }
+    colors.push(colors256[255])
+
+    // figure out min and max
+    const max1 = Math.pow(this.range[1], 1 / EXPONENT)
+    const max2 = (max1 * this.guiConfig['clip max']) / 100.0
+    // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
+
+    // console.log({ max1, max2 })
 
     const breakpoints = [] as number[]
-    for (let i = 0; i < NUM_BUCKETS - 1; i++) {
-      const fraction = (max * i) / NUM_BUCKETS
-      const breakpoint = Math.pow(fraction, EXPONENT)
+    for (let i = 1; i < this.guiConfig.buckets; i++) {
+      const raw = (max2 * i) / this.guiConfig.buckets
+      const breakpoint = Math.pow(raw, EXPONENT)
       breakpoints.push(breakpoint)
     }
 
-    console.log({ colors, breakpoints })
+    // only update legend if we have the full dataset already
+    if (this.isLoaded) this.setLegend(colors, breakpoints)
 
-    const d3ColorScale = scaleThreshold().range(colors).domain(breakpoints)
+    this.colors = colors
+    this.breakpoints = breakpoints
+  }
 
-    this.pointLayers.forEach(points => {
-      for (let i = 0; i < points.time.length; i++) {
-        const bucket: any = d3ColorScale(points.value[i])
-        if (bucket) points.color.set(bucket, 3 * i)
-      }
+  private setLegend(colors: any[], breakpoints: number[]) {
+    // console.log({ colors, breakpoints })
+    this.legendStore = new LegendStore()
+    this.legendStore.setLegendSection({
+      section: 'Legend',
+      column: 'NOx: g/m',
+      values: colors.map((rgb, index) => {
+        const breakpoint = breakpoints[index == 0 ? index : index - 1]
+        let label = '' + Math.round(1e6 * breakpoint) / 1e6
+        if (index == 0) label = '< ' + label
+        if (index == colors.length - 1) label = '> ' + label
+        return { label, value: rgb }
+      }),
     })
   }
 
@@ -606,27 +729,62 @@ export default XyTime
   pointer-events: none;
 }
 
-.time-slider {
+.bottom-right {
   position: absolute;
   bottom: 0;
+  right: 0;
+  margin: auto 7px 15rem auto;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+}
+
+.legend-area {
+  background-color: var(--bgPanel);
+  border: 1px solid var(--bgPanel2);
+}
+
+.time-slider-area {
+  position: absolute;
+  bottom: 2.5rem;
   left: 0;
   right: 0;
-  margin: 0 1rem 20px 1rem;
+  margin: 0 10rem 0 10rem;
+  filter: $filterShadow;
+}
+
+.buckets {
+  color: var(--text);
+  padding: 4px 4px 4px 4px;
   display: flex;
-  flex-direction: column;
 }
 
-.time-slider button {
-  margin-top: 4px;
-  margin-right: auto;
+.ramp-selector {
+  background-color: var(--bgBold);
 }
 
-.time-slider .play-button {
-  background-color: #37547d;
+.configurator {
+  user-select: none;
+  background-color: var(--bgPanel);
+  margin-top: 2rem;
 }
 
-.time-slider .play-button:hover {
-  background-color: #173b6d;
+.clip-slider {
+  margin: 0 0.5rem;
+}
+
+.top-right {
+  background-color: var(--bgPanel2);
+  color: white;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  border-left: 1px solid #66669940;
+  border-bottom: 1px solid #66669940;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+}
+
+* > .number {
+  background-color: yellow;
 }
 
 @media only screen and (max-width: 640px) {

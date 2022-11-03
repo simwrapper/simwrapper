@@ -101,8 +101,8 @@ export default class DashboardDataManager {
       if (!this.datasets[config.dataset]) {
         console.log('load:', config.dataset)
 
-        // allRows immediately returns a Promise<>, which we wait on so that
-        // multiple charts don't all try to fetch the dataset individually
+        // fetchDataset() immediately returns a Promise<>, which we wait on
+        // so that multiple charts don't all try to fetch the dataset individually
         this.datasets[config.dataset] = {
           dataset: this.fetchDataset(config),
           activeFilters: {},

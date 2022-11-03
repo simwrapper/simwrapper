@@ -1,5 +1,5 @@
 <template lang="pug">
-.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="id")
 
   xy-hex-deck-map.hex-layer(
     v-if="!thumbnail && isLoaded"
@@ -165,6 +165,8 @@ class XyHexagons extends Vue {
 
   //private radius = 250
   //private maxHeight = 0
+
+  private id = 'id-' + Math.random()
 
   private standaloneYAMLconfig = {
     title: '',
@@ -656,6 +658,23 @@ class XyHexagons extends Vue {
     }
   }
 
+  private resizer!: ResizeObserver
+
+  private setupLogoMover() {
+    this.resizer = new ResizeObserver(this.moveLogo)
+    const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
+    this.resizer.observe(deckmap)
+  }
+
+  private moveLogo() {
+    const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
+    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+    if (logo) {
+      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+      logo.style.right = right
+    }
+  }
+
   private async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -667,6 +686,8 @@ class XyHexagons extends Vue {
     await this.getVizDetails()
 
     if (this.thumbnail) return
+
+    this.setupLogoMover()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
@@ -733,6 +754,7 @@ class XyHexagons extends Vue {
     this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
     this.setMapCenter()
 
+    this.moveLogo()
     this.myState.statusMessage = ''
   }
 
