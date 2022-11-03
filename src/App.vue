@@ -162,7 +162,6 @@ export default App
 
 <style lang="scss">
 @import '~/the-new-css-reset/css/reset.css';
-// @import '~/bulma/css/bulma.min.css';
 @import '~/lil-gui/dist/lil-gui.min.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
 @import '~/vue-slider-component/theme/default.css';

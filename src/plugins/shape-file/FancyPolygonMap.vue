@@ -106,8 +106,8 @@
 
     .filter.right
       p Transparency
-      input.slider.is-small.is-fullwidth.is-primary(
-        id="sliderOpacity" min="0" max="100" v-model="sliderOpacity" step="2.5" type="range")
+      b-slider.slider.is-small.is-fullwidth.is-warning(
+        id="sliderOpacity" :min="0" :max="100" v-model="sliderOpacity" :tooltip="false" :step="2.5" type="range")
 
     .map-type-buttons(v-if="isAreaMode")
       img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
