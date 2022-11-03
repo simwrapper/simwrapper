@@ -16,7 +16,7 @@
       @zoom="showBackArrow(i, $event)"
     )
 
-    .control-buttons(v-if="!isEmbedded")
+    .control-buttons(v-if="showControlButtonsPanel(panel)")
       a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
         @click="onBack(i)" :title="$t('back')")
           i.fa.fa-icon.fa-arrow-left
@@ -61,6 +61,18 @@ class MyComponent extends Vue {
   private zoomed = false
 
   private isEmbedded = false
+
+  private showControlButtonsPanel(panel: any) {
+    // no buttons if we are in embedded mode
+    if (this.isEmbedded) return false
+
+    // no button panel if BOTH buttons would be hidden anyway
+    const showBackButton =
+      !this.zoomed && this.panelsWithNoBackButton.indexOf(panel.component) === -1
+    const showCloseButton = this.panels.length > 1 && !this.zoomed
+
+    return showBackButton || showCloseButton
+  }
 
   private showBackArrow(isZoomed: number, state: boolean) {
     this.zoomed = state
@@ -299,6 +311,7 @@ export default MyComponent
 }
 
 .control-buttons {
+  background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
   z-index: 250;
   grid-row: 1 / 2;
@@ -316,8 +329,8 @@ export default MyComponent
   }
 
   a:hover {
-    color: white;
-    background-color: rgb(204, 204, 204);
+    color: var(--textBold);
+    // background-color: rgb(204, 204, 204);
   }
 }
 
