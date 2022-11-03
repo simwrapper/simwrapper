@@ -1,5 +1,5 @@
 <template lang="pug">
-.time-slider-component(v-if="state.hasNonZeroTimeRange")
+.time-slider-component(v-if="hasNonZeroTimeRange" :id="`id-${id}`")
   .label-area
     p.p1 {{ state.labels[0] }}
     p.p2(v-show="state.labels[1] !== undefined") &nbsp;-&nbsp;{{ state.labels[1] }}
@@ -31,7 +31,7 @@ enum DRAGTYPE {
 export default class VueComponent extends Vue {
   @Prop({ required: false }) labels!: string[]
   @Prop({ required: false }) range!: number[]
-  @Prop({ required: false }) values!: number[]
+  @Prop({ required: false }) activeTimeExtent!: number[]
   @Prop({ required: false }) isAnimating!: boolean
 
   private state = {
@@ -40,72 +40,92 @@ export default class VueComponent extends Vue {
     dragType: DRAGTYPE.SLIDE,
     isDragging: false,
     isSetupComplete: false,
-    normValueLeft: 0, // always normalized
-    normValueRight: 1, // always normalized
-    valueWidth: 1,
-    range: [0, 1],
+    // always 0.0-1.0 :
+    leftPosition: 0,
+    rightPosition: 1,
+    // the datasetRange is the extent of the time values in the dataset, e.g. 0-86400
+    datasetRange: [0, 86400],
     labels: ['', ''],
-    hasNonZeroTimeRange: true,
+  }
+
+  private id = 'id-' + Math.random()
+
+  private get fullDatasetTimeSpan() {
+    return this.state.datasetRange[1] - this.state.datasetRange[0]
+  }
+
+  private get extentLeftToRight() {
+    return this.state.rightPosition - this.state.leftPosition
+  }
+
+  private get hasNonZeroTimeRange() {
+    // return false if the start and finish of the range are identical
+    return !!this.fullDatasetTimeSpan
+  }
+
+  private resizer!: ResizeObserver
+
+  private setupResizer() {
+    try {
+      this.resizer = new ResizeObserver(this.getDimensions)
+      const sliderElement = document.getElementById(`id-${this.id}`) as HTMLElement
+      this.resizer.observe(sliderElement)
+    } catch (e) {
+      console.error('' + e)
+    }
   }
 
   private mounted() {
     this.getDimensions()
     this.setupInitialValues()
+    this.setupResizer()
+
     window.addEventListener('mouseup', this.dragEnd)
     window.addEventListener('mousemove', this.dragging)
-    window.addEventListener('resize', this.getDimensions)
   }
 
   private beforeDestroy() {
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)
-    window.removeEventListener('resize', this.getDimensions)
   }
 
   private setupInitialValues() {
     try {
-      if (this.range) this.state.range = this.range
+      if (this.range) this.state.datasetRange = this.range
 
-      if (this.values) {
-        const totalRange = this.state.range[1] - this.state.range[0]
-        if (totalRange === 0) {
-          this.state.hasNonZeroTimeRange = false
-          this.state.normValueLeft = 0
-          this.state.normValueRight = 1
-          this.state.valueWidth = 1
-        } else {
-          this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
-          this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
-          this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
-        }
+      if (this.fullDatasetTimeSpan === 0) {
+        this.state.leftPosition = 0
+        this.state.rightPosition = 1
+      } else {
+        this.updateExtent()
       }
     } catch (e) {
+      console.error('' + e)
       // divide by zero, oh well
     } finally {
       this.state.isSetupComplete = true
     }
   }
 
-  @Watch('values') updateValues() {
-    const totalRange = this.state.range[1] - this.state.range[0]
-    this.state.normValueLeft = (this.values[0] - this.state.range[0]) / totalRange
-    this.state.normValueRight = (this.values[1] - this.state.range[0]) / totalRange
-    this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
+  @Watch('activeTimeExtent') updateExtent() {
+    this.state.leftPosition =
+      (this.activeTimeExtent[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+    this.state.rightPosition =
+      (this.activeTimeExtent[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
   }
 
   @Watch('labels') updateLabels() {
     this.state.labels = this.labels
   }
 
-  @Watch('state.normValueLeft')
-  @Watch('state.normValueRight')
+  @Watch('state.leftPosition')
+  @Watch('state.rightPosition')
   private emitValues() {
     if (!this.state.isSetupComplete) return
 
-    const totalRange = this.state.range[1] - this.state.range[0]
-    const start = Math.round(this.state.normValueLeft * totalRange)
-    const end = Math.round(this.state.normValueRight * totalRange)
-    this.$emit('values', [start, end])
+    const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
+    const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
+    this.$emit('timeExtent', [start, end])
   }
 
   private getDimensions() {
@@ -115,8 +135,8 @@ export default class VueComponent extends Vue {
 
   private get calculateActiveMargins() {
     const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-    const marginLeft = Math.floor(usableWidth * this.state.normValueLeft)
-    const marginRight = Math.floor(usableWidth * (1.0 - this.state.normValueRight))
+    const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
+    const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
 
     // console.log({ usableWidth, marginLeft, marginRight })
 
@@ -132,13 +152,13 @@ export default class VueComponent extends Vue {
     this.state.dragStartX = e.clientX
 
     const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-    const marginLeft = Math.floor(usableWidth * this.state.normValueLeft)
-    const marginRight = Math.floor(usableWidth * (1.0 - this.state.normValueRight))
+    const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
+    const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
 
     const durationWidth =
       this.state.componentWidth - marginRight - marginLeft - 2 * GRAB_HANDLE_WIDTH
 
-    console.log({ usableWidth, durationWidth, marginLeft, marginRight })
+    // console.log({ usableWidth, durationWidth, marginLeft, marginRight })
 
     if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
     else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
@@ -153,15 +173,24 @@ export default class VueComponent extends Vue {
 
     // are we moving the time duration window
     if (DRAGTYPE.SLIDE == this.state.dragType) {
-      const newLeft = usableWidth * this.state.normValueLeft + deltaX
+      const currentExtent = this.extentLeftToRight
+      let newLeft = (usableWidth * this.state.leftPosition + deltaX) / usableWidth
+      let newRight = newLeft + currentExtent
 
-      this.state.normValueLeft = Math.max(0, newLeft / usableWidth)
-      this.state.normValueRight = this.state.normValueLeft + this.state.valueWidth
-
-      if (this.state.normValueRight > 1) {
-        this.state.normValueRight = 1
-        this.state.normValueLeft = this.state.normValueRight - this.state.valueWidth
+      // don't scroll past the left edge
+      if (newLeft < 0) {
+        newLeft = 0
+        newRight = currentExtent
       }
+
+      // don't scroll past the right edge
+      if (newRight > 1) {
+        newRight = 1
+        newLeft = newRight - currentExtent
+      }
+
+      this.state.leftPosition = newLeft
+      this.state.rightPosition = newRight
 
       this.state.dragStartX = e.clientX
       return
@@ -169,24 +198,22 @@ export default class VueComponent extends Vue {
 
     // are we moving the start-time
     if (DRAGTYPE.START == this.state.dragType) {
-      const newLeft = usableWidth * this.state.normValueLeft + deltaX
-      this.state.normValueLeft = Math.max(0, newLeft / usableWidth)
-      if (this.state.normValueLeft > this.state.normValueRight) {
-        this.state.normValueRight = this.state.normValueLeft
+      const newLeft = usableWidth * this.state.leftPosition + deltaX
+      this.state.leftPosition = Math.max(0, newLeft / usableWidth)
+      if (this.state.leftPosition > this.state.rightPosition) {
+        this.state.rightPosition = this.state.leftPosition
       }
-      this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
       this.state.dragStartX = e.clientX
       return
     }
 
     // are we moving the end-time
     if (DRAGTYPE.END == this.state.dragType) {
-      const newRight = usableWidth * this.state.normValueRight + deltaX
-      this.state.normValueRight = Math.min(1, newRight / usableWidth)
-      if (this.state.normValueLeft > this.state.normValueRight) {
-        this.state.normValueLeft = this.state.normValueRight
+      const newRight = usableWidth * this.state.rightPosition + deltaX
+      this.state.rightPosition = Math.min(1, newRight / usableWidth)
+      if (this.state.leftPosition > this.state.rightPosition) {
+        this.state.leftPosition = this.state.rightPosition
       }
-      this.state.valueWidth = this.state.normValueRight - this.state.normValueLeft
       this.state.dragStartX = e.clientX
       return
     }

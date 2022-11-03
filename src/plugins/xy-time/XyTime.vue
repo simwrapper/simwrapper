@@ -22,10 +22,10 @@
 
   time-slider.time-slider-area(v-if="isLoaded"
     :range="timeRange"
-    :values="timeFilter"
+    :activeTimeExtent="timeFilter"
     :labels="timeLabels"
     :isAnimating="isAnimating"
-    @values="handleTimeSliderValues"
+    @timeExtent="handleTimeSliderValues"
     @toggleAnimation="toggleAnimation"
     @drag="isAnimating=false"
   )
@@ -157,7 +157,6 @@ class XyTime extends Vue {
   private configId = ('gui-config-' + Math.random()) as any
 
   private timeLabels: any[] = [0, 1]
-  private elapsed = 0
   private startTime = 0
   private isAnimating = false
   private timeFilter = [0, 3599]
@@ -173,7 +172,7 @@ class XyTime extends Vue {
   private legendStore: LegendStore | null = null
 
   private handleTimeSliderValues(timeValues: any[]) {
-    this.elapsed = timeValues[0]
+    this.animationElapsedTime = timeValues[0]
     this.timeFilter = timeValues
     this.timeLabels = [
       this.convertSecondsToClockTimeMinutes(timeValues[0]),
@@ -492,20 +491,7 @@ class XyTime extends Vue {
       } else {
         const rows = event.data.time.length
         // zoom map on first load
-        if (!totalRows) {
-          const longitude = 0.5 * (event.data.coordinates[0] + event.data.coordinates[rows * 2 - 2])
-          const latitude = 0.5 * (event.data.coordinates[1] + event.data.coordinates[rows * 2 - 1])
-          if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
-            globalStore.commit(
-              'setMapCamera',
-              Object.assign({}, globalStore.state.viewState, {
-                longitude,
-                latitude,
-                zoom: 11,
-              })
-            )
-          }
-        }
+        if (!totalRows) this.setFirstZoom(event.data.coordinates, rows)
         // save layer data
         totalRows += rows
         this.timeRange = [
@@ -523,40 +509,58 @@ class XyTime extends Vue {
     })
   }
 
+  private setFirstZoom(coordinates: any[], rows: number) {
+    const longitude = 0.5 * (coordinates[0] + coordinates[rows * 2 - 2])
+    const latitude = 0.5 * (coordinates[1] + coordinates[rows * 2 - 1])
+    if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
+      globalStore.commit(
+        'setMapCamera',
+        Object.assign({}, globalStore.state.viewState, { longitude, latitude, zoom: 10 })
+      )
+    }
+  }
+
   private finishedLoadingData(totalRows: number, data: any) {
-    console.log('ALL DONE', totalRows, data.range, this.timeRange)
+    console.log('ALL DONE', { totalRows, data: data.range, time: this.timeRange })
+    this.myState.statusMessage = ''
+    this.timeFilter = [this.timeRange[0], this.timeRange[0] + 3599]
     this.isLoaded = true
     this.range = data.range
     // if (!this.timeRange[1]) this.timeRange[1] = 1
-    this.myState.statusMessage = ''
     this.gzipWorker.terminate()
 
     this.setColors()
     this.moveLogo()
   }
 
+  private ANIMATE_SPEED = 4
+  private animationElapsedTime = 0
+
   private animate() {
     setTimeout(() => {
       if (!this.isAnimating) return
 
-      this.elapsed = 5 * (Date.now() - this.startTime)
+      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
 
-      if (this.elapsed > this.timeRange[1]) {
+      const animationClockTime = this.animationElapsedTime + this.timeRange[0]
+
+      if (animationClockTime > this.timeRange[1]) {
         this.startTime = Date.now()
-        this.elapsed = 0
+        this.animationElapsedTime = 0 // this.timeRange[0]
       }
 
       const span = this.timeFilter[1] - this.timeFilter[0]
-      this.timeFilter = [this.elapsed, this.elapsed + span]
+      this.timeFilter = [animationClockTime, animationClockTime + span]
 
       this.animator = window.requestAnimationFrame(this.animate)
-    }, 16.66666667)
+    }, 16.666666666667)
   }
 
   private toggleAnimation() {
     this.isAnimating = !this.isAnimating
     if (this.isAnimating) {
-      this.startTime = Date.now() - this.elapsed / 5
+      this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
+      this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
       this.animate()
     }
   }
@@ -602,7 +606,9 @@ class XyTime extends Vue {
   }
 
   private setLegend(colors: any[], breakpoints: number[]) {
-    // console.log({ colors, breakpoints })
+    // hide the legend if there is no data to show.
+    if (this.range[1] - this.range[0] === 0) return
+
     this.legendStore = new LegendStore()
     this.legendStore.setLegendSection({
       section: 'Legend',

@@ -111,17 +111,16 @@ function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
   }
 
   // if we don't have a valid projection, squawk and ask user
-  if (
-    _proj === 'EPSG:4326' &&
-    (results.data[0].x > 180 ||
-      results.data[0].x < -180 ||
-      results.data[0].y < -90 ||
-      results.data[0].y > 90)
-  ) {
-    console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
-    parser.abort()
-    postMessage({ needCRS: true })
-    return
+  if (_proj === 'EPSG:4326') {
+    const row = results.data[0]
+    const x = row.x || row.X || row.lon || row.longitude
+    const y = row.y || row.Y || row.lat || row.latitude
+    if (x > 180 || x < -180 || y < -90 || y > 90) {
+      console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
+      parser.abort()
+      postMessage({ needCRS: true })
+      return
+    }
   }
 
   const numRows = results.data.length
@@ -131,13 +130,13 @@ function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
   // Fill the array as much as we can
   for (let i = 0; i < rowsToFill; i++) {
     const row = results.data[i] as any
-    xy[0] = row.x
-    xy[1] = row.y
+    xy[0] = row.x || row.X || row.lon || row.longitude
+    xy[1] = row.y || row.Y || row.lat || row.latitude
     const wgs84 = Coords.toLngLat(_proj, xy)
     layerData.coordinates[(_offset + i) * 2] = wgs84[0]
     layerData.coordinates[(_offset + i) * 2 + 1] = wgs84[1]
     layerData.time[_offset + i] = row.time || row.t || 0
-    layerData.value[_offset + i] = row.value
+    layerData.value[_offset + i] = row.value || 0
   }
 
   layerData.timeRange[0] = Math.min(layerData.time[0], layerData.timeRange[0])
@@ -178,8 +177,6 @@ function appendResults(results: { data: any[]; comments: any[] }, parser: any) {
 }
 
 function step2fetchCSVdata(url: any) {
-  console.log('fetching in chunks from:', url)
-
   try {
     Papaparse.parse(url, {
       download: true,
