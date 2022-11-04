@@ -2,11 +2,12 @@
 .panel
 
   .top-panel
-    h4 Problems on this page
+    h4(:style="headerTextColor") Problems on this page
 
     .warnings
-      .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length")
-        p.no-error No errors or warnings for this page.
+      .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
+        p.check ☑️
+        p No issues for this page.
 
       .message-area(v-else)
         h3(v-if="state.statusErrors.length") Errors: {{state.statusErrors.length}}
@@ -22,14 +23,7 @@
 
 
   .bottom-panel
-    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all messages
-
-    .commands
-      button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-
-    p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ state.runFolderCount ? `Folders scanned: ${state.runFolderCount}` : '' }}
+    b-button.clear-button.is-white(expanded type="is-outlined" v-if="state.statusErrors.length || state.statusWarnings.length" @click="clearAllButtons()") Clear all messages
 
 </template>
 
@@ -44,28 +38,11 @@ const i18n = {
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
-import TreeView from '@/components/TreeView.vue'
 
-const BASE_URL = import.meta.env.BASE_URL
-
-interface Folder {
-  root: string
-  path: string
-  name: string
-  children: Folder[]
-  level: number
-}
-
-@Component({
-  i18n,
-  components: { TreeView },
-})
+@Component({ i18n, components: {} })
 class MyComponent extends Vue {
   private state = globalStore.state
 
-  private baseURL = BASE_URL
-
-  private showWarnings = true
   private showDescription = false
   private descriptionIndexListWarning: number[] = []
   private descriptionIndexListError: number[] = []
@@ -77,13 +54,15 @@ class MyComponent extends Vue {
     this.clearAllButtons()
   }
 
-  private clearAllButtons() {
-    this.$store.commit('clearAllErrors')
-    this.showWarnings = false
+  private get headerTextColor() {
+    let color = {}
+    if (this.state.statusWarnings.length) color = { color: '#fe8' }
+    if (this.state.statusErrors.length) color = { color: '#f88' }
+    return color
   }
 
-  private onWarning() {
-    this.showWarnings = !this.showWarnings
+  private clearAllButtons() {
+    this.$store.commit('clearAllErrors')
   }
 
   private toggleShowDescription(i: number, isError: boolean) {
@@ -112,10 +91,11 @@ export default MyComponent
 @import '@/styles.scss';
 
 .panel {
+  user-select: none;
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding-top: 0.25rem;
+  padding: 0.25rem 0;
 }
 
 h4 {
@@ -127,10 +107,10 @@ h4 {
 }
 
 .top-panel {
+  flex: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  flex: 1;
   margin: 0.25rem 0.5rem 0.5rem 0.5rem;
 }
 
@@ -168,7 +148,7 @@ a {
   display: flex;
   flex-direction: column;
   padding: 0rem 0rem;
-  margin: 0 auto 0 0.25rem;
+  margin: 0 0 0 0.25rem;
   text-align: left;
   font-size: 0.9rem;
 }
@@ -199,15 +179,15 @@ a {
   margin-left: 0px;
 }
 
-.no-error {
-  text-indent: 0;
-  margin-left: -20px;
+.no-error p {
+  user-select: none;
+  text-align: center;
 }
 
-.clear-button {
-  width: 100%;
+.check {
+  margin-top: 2rem;
   margin-bottom: 0.5rem;
-  margin-left: 0rem;
+  font-size: 2rem;
 }
 
 ::-webkit-scrollbar-corner {
@@ -215,15 +195,5 @@ a {
 }
 
 @media only screen and (max-width: 640px) {
-  .content {
-    padding: 2rem 1rem 8rem 1rem;
-    flex-direction: column-reverse;
-  }
-
-  .headline {
-    padding: 0rem 0rem 1rem 0rem;
-    font-size: 1.5rem;
-    line-height: 1.8rem;
-  }
 }
 </style>

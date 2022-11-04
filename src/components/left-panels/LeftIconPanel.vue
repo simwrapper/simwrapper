@@ -37,7 +37,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) activeSection!: string
 
   private topSections: Section[] = [
-    { name: 'Files', class: 'RunFinderPanel', icon: ICON_ARROW },
+    { name: 'Files', class: 'TabbedDashboardView', icon: ICON_ARROW },
     { name: 'Issues', class: 'ErrorPanel', icon: ICON_ARROW },
     // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
     // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
@@ -45,7 +45,7 @@ export default class VueComponent extends Vue {
 
   private bottomSections: Section[] = [
     // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
-    // { name: 'Settings', class: 'RunFinderPanel', icon: ICON_ARROW },
+    { name: 'Settings', class: 'SettingsPanel', icon: ICON_ARROW },
   ]
 
   public select(section: Section) {
@@ -92,7 +92,7 @@ export default class VueComponent extends Vue {
   margin-bottom: 12px;
   border-left: 3px solid #00000000;
   border-right: 3px solid #00000000;
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
 p {
@@ -104,6 +104,7 @@ p {
 .item img {
   width: 44px;
   margin: 0 auto;
+  transform: rotate(90deg);
 }
 
 .item:hover {

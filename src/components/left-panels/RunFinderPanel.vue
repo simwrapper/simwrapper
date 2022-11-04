@@ -4,14 +4,13 @@
   //-   img(src="@/assets/simwrapper-logo/SW_logo_icon_white.png")
   //-   h3 {{globalState.app }}
 
-  h4 Files
-
   .top-panel
-    .stuff-in-main-panel
-      .more-stuff
-        .root-files(v-for="node,i in rootNodes" :key="i")
-          h3: b {{ node.name }}
-          tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
+    h4 SimWrapper
+
+  .middle-panel
+    .root-files(v-for="node,i in rootNodes" :key="i")
+      h3: b {{ node.name }}
+      tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
 
   .bottom-panel
     //- h3 Search
@@ -21,13 +20,7 @@
 
     .commands
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" :title="$t('theme')"): i.fa.fa-adjust
-      button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" :title="$t('lang')"): i.fa.fa-globe
       button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" :title="$t('split')"): i.fa.fa-columns
-      //- button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      //- button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      //- button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-
 
 </template>
 
@@ -42,10 +35,9 @@ const i18n = {
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { debounce } from 'debounce'
 
-import TreeView from '@/components/TreeView.vue'
-
 import globalStore from '@/store'
 import runFinder from '@/js/RunFinder'
+import TreeView from './TreeView.vue'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -115,7 +107,7 @@ export default class MyComponent extends Vue {
   private hideTimer() {
     setTimeout(() => {
       const wait = Date.now() - this.timeLastChangeHappened
-      if (wait > 10000) {
+      if (wait > 5000) {
         this.timeLastChangeHappened = 0
       } else {
         this.hideTimer()
@@ -228,16 +220,14 @@ export default class MyComponent extends Vue {
   display: flex;
   flex-direction: column;
   height: 100%;
+  padding-top: 0.25rem;
+  user-select: none;
 }
 
 .top-panel {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  flex: 1;
-  margin-top: 0.25rem;
-  margin-left: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin: 0.25rem 0.5rem 1rem 0.5rem;
 }
 
 h4 {
@@ -248,24 +238,25 @@ h4 {
   margin-bottom: 0.5rem;
 }
 
-.stuff-in-main-panel {
-  padding: 0rem 0rem;
-  margin: 0 auto 0 0.5rem;
-}
-
-.more-stuff {
+.middle-panel {
+  flex: 1;
   display: flex;
+  width: 100%;
   flex-direction: column;
-  inline-size: 13rem;
+  margin-bottom: 0.5rem;
+  padding: 0 0.5rem 0rem 0.5rem;
+  overflow-y: auto;
   text-align: left;
+  user-select: none;
 
   h1 {
     letter-spacing: -1px;
   }
   h3 {
-    border-top: 1px solid #ccc;
-    margin-top: 2rem;
-    margin-left: -0.5rem;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #cccccc80;
+    margin-top: 0rem;
+    margin-bottom: 0.25rem;
   }
 
   p,
@@ -340,7 +331,8 @@ a {
 
 .things {
   font-size: 0.85rem;
-  margin-left: -1rem;
+  margin-left: -8px;
+  margin-bottom: 1rem;
 }
 
 .message-area {
@@ -364,15 +356,5 @@ a {
 }
 
 @media only screen and (max-width: 640px) {
-  .content {
-    padding: 2rem 1rem 8rem 1rem;
-    flex-direction: column-reverse;
-  }
-
-  .headline {
-    padding: 0rem 0rem 1rem 0rem;
-    font-size: 1.5rem;
-    line-height: 1.8rem;
-  }
 }
 </style>

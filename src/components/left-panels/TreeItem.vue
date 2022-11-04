@@ -27,26 +27,26 @@ export default Vue.component('tree-item', {
   props: {
     item: {} as any,
   },
-  data: function() {
+  data: function () {
     return {
       isOpen: true, // this.item.level < 2, // default to all-open
     }
   },
   computed: {
-    isFolder: function() {
+    isFolder: function () {
       const item = this.item as any
       return item.children && item.children.length
     },
   },
   methods: {
-    activate: function(element: any) {
+    activate: function (element: any) {
       const { root, xsubfolder } = element.target.attributes
       this.$emit('navigate', {
         component: 'FolderBrowser',
         props: { root: root.value, xsubfolder: xsubfolder.value },
       })
     },
-    toggle: function(element: any) {
+    toggle: function (element: any) {
       this.isOpen = !this.isOpen
     },
   },
@@ -78,7 +78,8 @@ li {
 }
 
 .leaf-label:hover {
-  background-color: #1292ce; // var(--bgHover);
+  // background-color: #1292ce; // var(--bgHover);
+  background-color: var(--bgTreeItem);
 }
 
 .leaf-label {

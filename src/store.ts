@@ -163,6 +163,18 @@ export default new Vuex.Store({
     resize(state) {
       state.resizeEvents += 1
     },
+    setTheme(state, value: string) {
+      state.colorScheme = state.colorScheme =
+        value == 'light' ? ColorScheme.LightMode : ColorScheme.DarkMode
+
+      console.log('NEW COLORS:', state.colorScheme)
+
+      state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
+
+      localStorage.setItem('colorscheme', state.colorScheme)
+      document.body.style.backgroundColor =
+        state.colorScheme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
+    },
     rotateColors(state) {
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode

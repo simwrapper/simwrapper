@@ -13,15 +13,14 @@
       component(:is="activeLeftSection.class"
         @navigate="onNavigate(0,$event)"
         @split="onSplit"
+        root="local"
+        xsubfolder="/"
       )
-      //- run-finder-panel(
-      //- )
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
       @mousemove.stop="dividerDragging"
     )
-
 
   .split-panel(v-for="panel,i in panels" :key="panel.key"
     :class="{'is-multipanel' : panels.length > 1}"
@@ -58,18 +57,28 @@ import micromatch from 'micromatch'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 
-import LeftIconPanel, { Section } from '@/components/LeftIconPanel.vue'
-import ErrorPanel from '@/components/ErrorPanel.vue'
-import RunFinderPanel from '@/components/RunFinderPanel.vue'
+import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
+import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
+import FolderBrowser from '@/components/left-panels/FolderBrowser.vue'
+import RunFinderPanel from '@/components/left-panels/RunFinderPanel.vue'
+import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
 
 const BASE_URL = import.meta.env.BASE_URL
-
+const DEFAULT_LEFT_WIDTH = 200
 @Component({
   i18n,
   components: Object.assign(
-    { LeftIconPanel, ErrorPanel, SplashPage, RunFinderPanel, TabbedDashboardView },
+    {
+      LeftIconPanel,
+      FolderBrowser,
+      ErrorPanel,
+      RunFinderPanel,
+      SettingsPanel,
+      SplashPage,
+      TabbedDashboardView,
+    },
     plugins
   ),
 })
@@ -85,13 +94,14 @@ class MyComponent extends Vue {
   private isEmbedded = false
 
   private activeLeftSection: Section = { name: 'Files', class: 'RunFinderPanel' }
-  private leftSectionWidth = 200
+  private leftSectionWidth = DEFAULT_LEFT_WIDTH
   private isDraggingDivider = 0
   private dragStartWidth = 0
 
   private setActiveLeftSection(section: Section) {
     this.activeLeftSection = section
     localStorage.setItem('activeLeftSection', JSON.stringify(section))
+    if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
   }
 
   private showControlButtonsPanel(panel: any) {
@@ -115,7 +125,8 @@ class MyComponent extends Vue {
     if ('embed' in this.$route.query) this.isEmbedded = true
 
     const width = localStorage.getItem('leftPanelWidth')
-    this.leftSectionWidth = width == null ? 200 : parseInt(width)
+    this.leftSectionWidth = width == null ? DEFAULT_LEFT_WIDTH : parseInt(width)
+    if (this.leftSectionWidth < 0) this.leftSectionWidth = 2
 
     const section = localStorage.getItem('activeLeftSection')
     if (section) {
@@ -331,7 +342,7 @@ class MyComponent extends Vue {
     if (!this.isDraggingDivider) return
 
     const deltaX = e.clientX - this.isDraggingDivider
-    this.leftSectionWidth = this.dragStartWidth + deltaX
+    this.leftSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
     localStorage.setItem('leftPanelWidth', `${this.leftSectionWidth}`)
   }
 }
@@ -354,6 +365,7 @@ export default MyComponent
 }
 
 .left-panel {
+  position: relative;
   display: flex;
   flex-direction: row;
 }
@@ -414,9 +426,16 @@ export default MyComponent
 }
 
 .left-panel-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
   width: 4px;
-  background-color: var(--bgDashboard);
+  height: 100%;
+  background-color: #00000000;
+  margin-right: -4px;
   transition: 0.25s background-color;
+  z-index: 1000;
 }
 
 .left-panel-divider:hover {
