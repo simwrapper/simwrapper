@@ -73,10 +73,10 @@ class App extends Vue {
   }
 
   private beforeDestroy() {
-    document.removeEventListener('keyup', this.toggleUIPanels)
+    document.removeEventListener('keydown', this.toggleUIPanels)
   }
 
-  private toggleUIPanels(event: any) {
+  private toggleUIPanels(event: KeyboardEvent) {
     // shift-alt-Q: left side QuickView panel
     if (event.altKey && event.shiftKey && event.keyCode === 81) {
       console.log('QUICKVIEW')
@@ -569,7 +569,7 @@ a:hover {
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: #88888888;
+  background: var(--bgScrollbar);
 }
 
 /* Handle on hover */

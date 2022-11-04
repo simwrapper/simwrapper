@@ -330,13 +330,11 @@ export default MyComponent
   left: 0;
   right: 0;
   background-color: var(--splitPanel);
-  user-select: none;
 }
 
 .left-panel {
   display: flex;
   flex-direction: row;
-  // background-color: #181822;
 }
 
 .is-multipanel {
@@ -345,7 +343,6 @@ export default MyComponent
 
 .split-panel {
   background-color: var(--bgBold);
-  // border: 1.5px solid var(--bgCream3);
   position: relative;
   flex: 1;
   display: grid;

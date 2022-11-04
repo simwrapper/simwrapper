@@ -50,8 +50,8 @@ export default class VueComponent extends Vue {
 
   @Watch('globalState.isDarkMode') updateTheme() {
     const colors = {
-      paper_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
-      plot_bgcolor: this.globalState.isDarkMode ? '#242627' : '#fff',
+      paper_bgcolor: this.globalState.isDarkMode ? '#1e2021' : '#fff',
+      plot_bgcolor: this.globalState.isDarkMode ? '#1e2021' : '#fff',
       font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
     }
     this.layout = Object.assign({}, this.layout, colors)

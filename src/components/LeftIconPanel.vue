@@ -62,7 +62,7 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .left-nav-panel {
-  background-color: #333333;
+  background-color: #333338;
   display: flex;
   flex-direction: column;
   user-select: none;
