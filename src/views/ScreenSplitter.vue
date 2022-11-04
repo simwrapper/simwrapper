@@ -1,16 +1,21 @@
 <template lang="pug">
-#split-screen(@mousemove="dividerDragging" @mouseup="dividerDragEnd")
-
+#split-screen(
+  @mousemove="dividerDragging"
+  @mouseup="dividerDragEnd"
+  :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
+)
   .left-panel(v-show="showLeftBar")
     left-icon-panel(
-      :activeSection="activeLeftSection"
+      :activeSection="activeLeftSection.name"
       @activate="setActiveLeftSection"
     )
     .left-panel-active-section(v-show="activeLeftSection" :style="activeSectionStyle")
-      run-finder-panel(
+      component(:is="activeLeftSection.class"
         @navigate="onNavigate(0,$event)"
         @split="onSplit"
       )
+      //- run-finder-panel(
+      //- )
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
@@ -53,7 +58,8 @@ import micromatch from 'micromatch'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 
-import LeftIconPanel from '@/components/LeftIconPanel.vue'
+import LeftIconPanel, { Section } from '@/components/LeftIconPanel.vue'
+import ErrorPanel from '@/components/ErrorPanel.vue'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
@@ -63,7 +69,7 @@ const BASE_URL = import.meta.env.BASE_URL
 @Component({
   i18n,
   components: Object.assign(
-    { LeftIconPanel, SplashPage, RunFinderPanel, TabbedDashboardView },
+    { LeftIconPanel, ErrorPanel, SplashPage, RunFinderPanel, TabbedDashboardView },
     plugins
   ),
 })
@@ -78,15 +84,16 @@ class MyComponent extends Vue {
 
   private isEmbedded = false
 
-  private activeLeftSection = 'Files'
+  private activeLeftSection: Section = { name: 'Files', class: 'RunFinderPanel' }
   private leftSectionWidth = 200
   private isDraggingDivider = 0
   private dragStartWidth = 0
 
-  private setActiveLeftSection(section: string) {
+  private setActiveLeftSection(section: Section) {
     this.activeLeftSection = section
-    localStorage.setItem('activeLeftSection', section)
+    localStorage.setItem('activeLeftSection', JSON.stringify(section))
   }
+
   private showControlButtonsPanel(panel: any) {
     // no buttons if we are in embedded mode
     if (this.isEmbedded) return false
@@ -111,9 +118,23 @@ class MyComponent extends Vue {
     this.leftSectionWidth = width == null ? 200 : parseInt(width)
 
     const section = localStorage.getItem('activeLeftSection')
-    this.activeLeftSection = section == null ? 'Files' : section
+    if (section) {
+      try {
+        this.activeLeftSection = JSON.parse(section)
+      } catch (e) {
+        this.activeLeftSection = { name: 'Files', class: 'RunFinderPanel' }
+      }
+    } else {
+      this.activeLeftSection = { name: 'Files', class: 'RunFinderPanel' }
+    }
 
     this.buildLayoutFromURL()
+  }
+
+  @Watch('$store.state.statusErrors') openErrorPage() {
+    if (this.$store.state.statusErrors.length) {
+      this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
+    }
   }
 
   @Watch('$route') routeChanged(to: Route, from: Route) {

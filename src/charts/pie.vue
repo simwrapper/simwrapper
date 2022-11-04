@@ -78,8 +78,6 @@ export default class VueComponent extends Vue {
   }
 
   private validateYAML() {
-    console.log('in pie validation')
-
     for (const key in this.YAMLrequirementsPie) {
       if (key in this.config === false) {
         this.$store.commit('setStatus', {

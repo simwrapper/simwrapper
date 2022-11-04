@@ -26,25 +26,31 @@ import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import ICON_ARROW from '@/assets/images/sw_north_arrow_dm.png'
 
+export interface Section {
+  name: string
+  class: string
+  icon?: string
+}
+
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) activeSection!: string
 
-  private topSections = [
+  private topSections: Section[] = [
     { name: 'Files', class: 'RunFinderPanel', icon: ICON_ARROW },
+    { name: 'Issues', class: 'ErrorPanel', icon: ICON_ARROW },
     // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
-    // { name: 'Issues', class: 'RunFinderPanel', icon: ICON_ARROW },
     // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
   ]
 
-  private bottomSections = [
+  private bottomSections: Section[] = [
     // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
     // { name: 'Settings', class: 'RunFinderPanel', icon: ICON_ARROW },
   ]
 
-  public select(section: any) {
+  public select(section: Section) {
     if (section.name === this.activeSection) this.$emit('activate', '')
-    else this.$emit('activate', section.name)
+    else this.$emit('activate', section)
   }
 
   public buttonStyle(section: any) {

@@ -1,50 +1,33 @@
 <template lang="pug">
-.run-finder-panel
-  router-link.logo(:to="baseURL")
-    img(src="@/assets/simwrapper-logo/SW_logo_icon_white.png")
-    h3 {{globalState.app }}
+.panel
+  //- router-link.logo(:to="baseURL")
+  //-   img(src="@/assets/simwrapper-logo/SW_logo_icon_white.png")
+  //-   h3 {{globalState.app }}
+
+  h4 Files
 
   .top-panel
     .stuff-in-main-panel
-      .more-stuff(v-if="!showWarnings")
+      .more-stuff
         .root-files(v-for="node,i in rootNodes" :key="i")
           h3: b {{ node.name }}
-
           tree-view.things(:initialData="node" @navigate="$emit('navigate', $event)")
-
-      .warnings(v-else)
-        .message-area(v-if="!state.statusErrors.length && !state.statusWarnings.length")
-          p.no-error There are no errors or warnings.
-
-        .message-area(v-else)
-          h3(v-if="state.statusErrors.length") {{state.statusErrors.length}} Error{{state.statusErrors.length !== 1 ? 's' : ''}}
-          .single-message(v-for="err,i in state.statusErrors")
-            li(v-html="err.msg" @click="toggleShowDescription(i, true)")
-            .description(v-if="descriptionIndexListError.includes(i)")
-              p(v-html="err.desc")
-          h3(v-if="state.statusWarnings.length") {{state.statusWarnings.length}} Warnings
-          .single-message(v-for="err,i in state.statusWarnings")
-            li(v-html="err.msg" @click="toggleShowDescription(i, false)")
-            .description(v-if="descriptionIndexListWarning.includes(i)")
-              p(v-html="err.desc")
-
 
   .bottom-panel
     //- h3 Search
     //- input.input(placeholder="Search text (TBA)")
-    button.button.clear-button.is-warning(v-if="state.statusErrors.length && showWarnings || state.statusWarnings.length && showWarnings" @click="clearAllButtons()") Clear all messages
 
+    p(v-if="timeLastChangeHappened" style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
 
     .commands
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onScan" :title="$t('sync')"): i.fa.fa-sync
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onDarkLight" :title="$t('theme')"): i.fa.fa-adjust
       button.button(:class="{'is-dark' : state.isDarkMode}" @click="onLanguage" :title="$t('lang')"): i.fa.fa-globe
-      button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
-      button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
       button.button(:class="{'is-dark' : state.isDarkMode}" style="margin-right: 0" @click="onSplit" :title="$t('split')"): i.fa.fa-columns
+      //- button.button(v-if="state.statusErrors.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: red; color: white; border-color: red" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      //- button.button(v-if="!state.statusErrors.length && state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" style="background-color: yellow; border-color: yellow" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
+      //- button.button(v-if="!state.statusErrors.length && !state.statusWarnings.length" :class="{'is-dark' : state.isDarkMode}" @click="onWarning" :title="$t('lang')"): i.fa.fa-exclamation-triangle
 
-    p(style="margin: 0.25rem 0.25rem 0.25rem 0.5rem") {{ globalState.runFolderCount ? `Folders scanned: ${globalState.runFolderCount}` : '' }}
 
 </template>
 
@@ -78,7 +61,7 @@ interface Folder {
   i18n,
   components: { TreeView },
 })
-class MyComponent extends Vue {
+export default class MyComponent extends Vue {
   private runTree: { [root: string]: Folder } = {}
   private runLookupByPath: { [path: string]: Folder } = {}
 
@@ -110,13 +93,13 @@ class MyComponent extends Vue {
     this.debounceRunFoldersChanged()
   }
 
-  @Watch('$store.state.statusErrors') openErrorPage() {
-    if (this.$store.state.statusErrors.length) this.showWarnings = true
-  }
+  // @Watch('$store.state.statusErrors') openErrorPage() {
+  //   if (this.$store.state.statusErrors.length) this.showWarnings = true
+  // }
 
-  @Watch('$store.state.statusWarnings') openWarningPage() {
-    if (this.$store.state.statusWarnings.length) this.showWarnings = true
-  }
+  // @Watch('$store.state.statusWarnings') openWarningPage() {
+  //   if (this.$store.state.statusWarnings.length) this.showWarnings = true
+  // }
 
   @Watch('state.isDarkMode') updateTheme() {
     console.log('Hi!', this.$store.state.statusWarnings)
@@ -126,6 +109,18 @@ class MyComponent extends Vue {
     if (this.$store.state.statusErrors.length) {
       this.showWarnings = true
     }
+  }
+
+  private timeLastChangeHappened = 0
+  private hideTimer() {
+    setTimeout(() => {
+      const wait = Date.now() - this.timeLastChangeHappened
+      if (wait > 10000) {
+        this.timeLastChangeHappened = 0
+      } else {
+        this.hideTimer()
+      }
+    }, 2000)
   }
 
   private async onRunFoldersChanged() {
@@ -140,6 +135,11 @@ class MyComponent extends Vue {
     }
 
     this.runTree = newTree
+
+    if (!this.timeLastChangeHappened && this.globalState.runFolderCount) {
+      this.timeLastChangeHappened = Date.now()
+      this.hideTimer()
+    }
   }
   private debounceRunFoldersChanged = debounce(this.onRunFoldersChanged, 100)
 
@@ -217,33 +217,14 @@ class MyComponent extends Vue {
     this.showWarnings = !this.showWarnings
   }
 
-  private toggleShowDescription(i: number, isError: boolean) {
-    this.isError = isError
-    if (isError) {
-      if (this.descriptionIndexListError.includes(i)) {
-        var index = this.descriptionIndexListError.indexOf(i)
-        this.descriptionIndexListError.splice(index, 1)
-      } else {
-        this.descriptionIndexListError.push(i)
-      }
-    } else {
-      if (this.descriptionIndexListWarning.includes(i)) {
-        var index = this.descriptionIndexListWarning.indexOf(i)
-        this.descriptionIndexListWarning.splice(index, 1)
-      } else {
-        this.descriptionIndexListWarning.push(i)
-      }
-    }
-  }
   private globalState = globalStore.state
 }
-export default MyComponent
 </script>
 
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.run-finder-panel {
+.panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -256,6 +237,14 @@ export default MyComponent
   flex: 1;
   margin-top: 0.25rem;
   margin-left: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+h4 {
+  background-color: #00000040;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
 }
 
@@ -305,7 +294,7 @@ a {
 .commands {
   display: flex;
   flex-direction: row;
-  // margin-right: -0.5rem;
+  margin-bottom: 4px;
 }
 
 .commands .button {
@@ -354,14 +343,6 @@ a {
   margin-left: -1rem;
 }
 
-.warnings {
-  display: flex;
-  flex-direction: column;
-  inline-size: 13rem;
-  text-align: left;
-  font-size: 0.9rem;
-}
-
 .message-area {
   text-indent: -20px;
   margin-left: 20px;
@@ -370,22 +351,6 @@ a {
 .single-message {
   list-style-position: outside;
   cursor: pointer;
-}
-
-.description {
-  width: 100%;
-  height: min-content;
-  background-color: rgb(95, 123, 167);
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
-  padding: 0 0.25rem;
-  text-indent: 0;
-  margin-left: 0px;
-}
-
-.no-error {
-  text-indent: 0;
-  margin-left: -20px;
 }
 
 .clear-button {

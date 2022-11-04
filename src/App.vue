@@ -300,6 +300,10 @@ h3 {
   font-weight: bold;
 }
 
+h4 {
+  font-size: 1.2rem;
+}
+
 #main-app {
   display: grid;
   color: var(--text);
