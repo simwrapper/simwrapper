@@ -302,14 +302,6 @@ a {
   margin-top: 1rem;
 }
 
-.main {
-  max-width: 64rem;
-}
-
-.main .top a {
-  font-size: 0.9rem;
-}
-
 .commands {
   display: flex;
   flex-direction: row;

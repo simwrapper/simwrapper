@@ -1,10 +1,22 @@
 <template lang="pug">
-#split-screen
+#split-screen(@mousemove="dividerDragging" @mouseup="dividerDragEnd")
 
-  run-finder-panel.split-panel.narrow(v-show="showLeftBar"
-    @navigate="onNavigate(0,$event)"
-    @split="onSplit"
-  )
+  .left-panel(v-show="showLeftBar")
+    left-icon-panel(
+      :activeSection="activeLeftSection"
+      @activate="setActiveLeftSection"
+    )
+    .left-panel-active-section(v-show="activeLeftSection" :style="activeSectionStyle")
+      run-finder-panel(
+        @navigate="onNavigate(0,$event)"
+        @split="onSplit"
+      )
+    .left-panel-divider(v-show="activeLeftSection"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
+    )
+
 
   .split-panel(v-for="panel,i in panels" :key="panel.key"
     :class="{'is-multipanel' : panels.length > 1}"
@@ -41,6 +53,7 @@ import micromatch from 'micromatch'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 
+import LeftIconPanel from '@/components/LeftIconPanel.vue'
 import RunFinderPanel from '@/components/RunFinderPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
@@ -49,7 +62,10 @@ const BASE_URL = import.meta.env.BASE_URL
 
 @Component({
   i18n,
-  components: Object.assign({ SplashPage, RunFinderPanel, TabbedDashboardView }, plugins),
+  components: Object.assign(
+    { LeftIconPanel, SplashPage, RunFinderPanel, TabbedDashboardView },
+    plugins
+  ),
 })
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
@@ -62,6 +78,15 @@ class MyComponent extends Vue {
 
   private isEmbedded = false
 
+  private activeLeftSection = 'Files'
+  private leftSectionWidth = 200
+  private isDraggingDivider = 0
+  private dragStartWidth = 0
+
+  private setActiveLeftSection(section: string) {
+    this.activeLeftSection = section
+    localStorage.setItem('activeLeftSection', section)
+  }
   private showControlButtonsPanel(panel: any) {
     // no buttons if we are in embedded mode
     if (this.isEmbedded) return false
@@ -81,6 +106,12 @@ class MyComponent extends Vue {
   private mounted() {
     // EMBEDDED MODE? We'll hide some chrome
     if ('embed' in this.$route.query) this.isEmbedded = true
+
+    const width = localStorage.getItem('leftPanelWidth')
+    this.leftSectionWidth = width == null ? 200 : parseInt(width)
+
+    const section = localStorage.getItem('activeLeftSection')
+    this.activeLeftSection = section == null ? 'Files' : section
 
     this.buildLayoutFromURL()
   }
@@ -253,8 +284,34 @@ class MyComponent extends Vue {
       this.$router.push(`${BASE_URL}split/${base64}`)
     }
   }
+
   private get showLeftBar() {
     return this.$store.state.isShowingLeftBar
+  }
+
+  private get activeSectionStyle() {
+    if (this.activeLeftSection) {
+      return {
+        width: `${this.leftSectionWidth}px`,
+      }
+    } else return { display: 'none' }
+  }
+
+  private dividerDragStart(e: MouseEvent) {
+    this.isDraggingDivider = e.clientX
+    this.dragStartWidth = this.leftSectionWidth
+  }
+
+  private dividerDragEnd(e: MouseEvent) {
+    this.isDraggingDivider = 0
+  }
+
+  private dividerDragging(e: MouseEvent) {
+    if (!this.isDraggingDivider) return
+
+    const deltaX = e.clientX - this.isDraggingDivider
+    this.leftSectionWidth = this.dragStartWidth + deltaX
+    localStorage.setItem('leftPanelWidth', `${this.leftSectionWidth}`)
   }
 }
 
@@ -273,6 +330,13 @@ export default MyComponent
   left: 0;
   right: 0;
   background-color: var(--splitPanel);
+  user-select: none;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: row;
+  // background-color: #181822;
 }
 
 .is-multipanel {
@@ -300,15 +364,12 @@ export default MyComponent
   height: 100%;
 }
 
-.narrow {
-  z-index: 1;
-  width: 16rem;
-  flex: unset;
-  margin-right: 0rem;
-  border-right: 1px solid #333;
-  background-color: var(--bgBrowser);
-  color: white;
-}
+// .narrow {
+//   z-index: 1;
+//   flex: unset;
+//   margin-right: 0rem;
+//   border-right: 1px solid #333;
+// }
 
 .control-buttons {
   background-color: var(--bgPanel);
@@ -330,8 +391,26 @@ export default MyComponent
 
   a:hover {
     color: var(--textBold);
-    // background-color: rgb(204, 204, 204);
+    background-color: var(--bgHover);
   }
+}
+
+.left-panel-divider {
+  width: 4px;
+  background-color: var(--bgDashboard);
+  transition: 0.25s background-color;
+}
+
+.left-panel-divider:hover {
+  background-color: var(--sliderThumb); // matsimBlue;
+  transition-delay: 0.25s;
+  cursor: ew-resize;
+}
+
+.left-panel-active-section {
+  background-color: var(--bgBrowser);
+  color: white;
+  width: 250px;
 }
 
 @media only screen and (max-width: 640px) {
