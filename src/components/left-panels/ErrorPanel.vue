@@ -2,7 +2,7 @@
 .panel
 
   .top-panel
-    h4(:style="headerTextColor") Problems on this page
+    h4(:style="headerTextColor") Issues
 
     .warnings
       .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
@@ -96,6 +96,7 @@ export default MyComponent
   flex-direction: column;
   height: 100%;
   padding: 0.25rem 0;
+  color: var(--text);
 }
 
 h4 {

@@ -147,6 +147,7 @@ export default MyComponent
   flex-direction: column;
   height: 100%;
   padding: 0.25rem 0;
+  color: var(--text);
 }
 
 h4 {

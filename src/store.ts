@@ -23,12 +23,12 @@ const initialViewState = () => ({
   bearing: 0,
   maxZoom: 24,
   longitude: 0, // -122.45,
-  latitude: 0, // 37.77,
+  latitude: 10, // 37.77,
   // zoom: 10.5,
   // longitude: 13.45,
   // latitude: 52.5,
   // zoom: 8,
-  zoom: 8,
+  zoom: 4,
 })
 
 export default new Vuex.Store({
@@ -42,7 +42,7 @@ export default new Vuex.Store({
     isFullScreen: false,
     isFullWidth: false,
     isShowingLeftBar: false,
-    isDarkMode: false,
+    isDarkMode: true,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as Warnings[],
@@ -50,7 +50,7 @@ export default new Vuex.Store({
     statusMessage: 'Loading',
     svnProjects: fileSystems,
     visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
-    colorScheme: ColorScheme.LightMode,
+    colorScheme: ColorScheme.DarkMode,
     locale: 'en',
     localFileHandles: [] as any[],
     runFolders: {} as { [root: string]: any[] },

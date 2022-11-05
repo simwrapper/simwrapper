@@ -37,7 +37,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) activeSection!: string
 
   private topSections: Section[] = [
-    { name: 'Files', class: 'TabbedDashboardView', icon: ICON_ARROW },
+    { name: 'Files', class: 'BrowserPanel', icon: ICON_ARROW },
     { name: 'Issues', class: 'ErrorPanel', icon: ICON_ARROW },
     // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
     // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },

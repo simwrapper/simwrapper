@@ -14,7 +14,8 @@
         @navigate="onNavigate(0,$event)"
         @split="onSplit"
         root="local"
-        xsubfolder="/"
+        xsubfolder="/mosaik-2"
+        :allConfigFiles="[]"
       )
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
@@ -59,11 +60,12 @@ import plugins from '@/plugins/pluginRegistry'
 
 import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
-import FolderBrowser from '@/components/left-panels/FolderBrowser.vue'
+import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
 import RunFinderPanel from '@/components/left-panels/RunFinderPanel.vue'
 import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
+import FolderBrowser from '@/views/FolderBrowser.vue'
 
 const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_LEFT_WIDTH = 200
@@ -72,6 +74,7 @@ const DEFAULT_LEFT_WIDTH = 200
   components: Object.assign(
     {
       LeftIconPanel,
+      BrowserPanel,
       FolderBrowser,
       ErrorPanel,
       RunFinderPanel,
@@ -93,7 +96,7 @@ class MyComponent extends Vue {
 
   private isEmbedded = false
 
-  private activeLeftSection: Section = { name: 'Files', class: 'RunFinderPanel' }
+  private activeLeftSection: Section = { name: 'Files', class: 'BrowserPanel' }
   private leftSectionWidth = DEFAULT_LEFT_WIDTH
   private isDraggingDivider = 0
   private dragStartWidth = 0
@@ -133,10 +136,10 @@ class MyComponent extends Vue {
       try {
         this.activeLeftSection = JSON.parse(section)
       } catch (e) {
-        this.activeLeftSection = { name: 'Files', class: 'RunFinderPanel' }
+        this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
       }
     } else {
-      this.activeLeftSection = { name: 'Files', class: 'RunFinderPanel' }
+      this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
     }
 
     this.buildLayoutFromURL()
