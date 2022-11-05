@@ -779,7 +779,7 @@ class XyHexagons extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'xy-hexagons',
+  kebabName: 'xy-hex',
   prettyName: 'XY Aggregator',
   description: 'Collects XY data into geographic hexagons',
   filePatterns: ['**/viz-xy*.y?(a)ml', '*output_trips.csv?(.gz)'],

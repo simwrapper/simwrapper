@@ -617,6 +617,34 @@ a:hover {
   height: unset;
 }
 
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex1 {
+  flex: 1;
+}
+.flex2 {
+  flex: 2;
+}
+.flex3 {
+  flex: 3;
+}
+.flex4 {
+  flex: 4;
+}
+.flex5 {
+  flex: 5;
+}
+
+.center {
+  text-align: center;
+}
+.right {
+  text-align: right;
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;

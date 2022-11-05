@@ -655,7 +655,7 @@ class XyTime extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'xy-time',
+  kebabName: 'x-y-t',
   prettyName: 'X/Y Time Viewer',
   description: 'Displays point data over time',
   filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],

@@ -270,12 +270,12 @@ class MyComponent extends Vue {
     if (newPanel.component === 'SplashPage') {
       this.panels[panelNumber] = { component: 'SplashPage', props: {}, key: Math.random() }
     } else {
-      this.panels[panelNumber] = Object.assign({ key: this.panels[panelNumber].key }, newPanel)
+      // this.panels[panelNumber] = Object.assign({ key: this.panels[panelNumber].key }, newPanel)
+      this.panels[panelNumber] = Object.assign({ key: Math.random() }, newPanel)
     }
 
     this.updateURL()
     this.buildLayoutFromURL()
-    // this.$forceUpdate()
   }
 
   private onClose(panel: number) {
@@ -290,7 +290,6 @@ class MyComponent extends Vue {
     delete this.panels[panel].props.yamlConfig
 
     this.updateURL()
-    // this.$forceUpdate()
   }
 
   private updateURL() {

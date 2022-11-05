@@ -7,12 +7,11 @@
     .xbreadcrumbs
       p(@click="clickedBreadcrumb({url: '//'})")
         i.fa.fa-home
-        | &nbsp;/&nbsp;
 
       .flex-row(v-if="root")
         p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
           @click="clickedBreadcrumb(crumb)"
-        ) {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;/&nbsp;' : ''}}
+        ) &nbsp;/ {{ crumb.label }}
 
   .middle-panel
       //- Starting point if not in a project root: list all existing roots
@@ -64,9 +63,9 @@
                         @click="clickedVisualization(index)")
 
                 .viz-frame
-                  p: b {{ viz.title }}
-                  p(:style="{'margin-left': 'auto'}") {{ viz.config }}
-                  p {{ viz.component }}
+                  p.v-title: b {{ viz.title }}
+                  p.v-filename {{ viz.config }}
+                  p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component }}
                   component.viz-frame-component(
                         v-show="false"
                         :is="viz.component"
@@ -99,7 +98,7 @@
                   p {{ viz.title }}
 
   .bottom-panel(v-if="!root")
-    b-button.btn-config-sources.is-warning(@click="configureSources") Configure data sources...
+    b-button.btn-config-sources.is-warning(type="is-outlined" @click="configureSources") Configure data sources...
 
     .flex-row.about-us
       p: a(href="https://vsp.berlin/en/" target="_blank") VSP Home
@@ -131,6 +130,19 @@ const i18n = {
     },
   },
 }
+
+const tabColors = {
+  'aggregate-od': '#E98B52',
+  'calc-table': '#2EA95B',
+  'carrier-viewer': '#c97A2C',
+  'link-view': '#6956d4',
+  'map-view': '#c94264',
+  'sankey-diag': '#D8A672',
+  'transit-view': '#3B6FE4',
+  'vehicle-anim': '#330033',
+  'x-y-t': '#381250',
+  'xy-hex': '#900564',
+} as any
 
 interface VizEntry {
   component: string
@@ -286,7 +298,6 @@ export default class VueComponent extends Vue {
     this.updateShortcuts()
 
     this.getRootAndRoute(this.$route.params.pathMatch)
-    this.updateRoute()
   }
 
   private setupHints() {
@@ -361,6 +372,8 @@ export default class VueComponent extends Vue {
     this.subfolder = subfolder
   }
 
+  private previousVizClicked = -1
+
   private clickedVisualization(vizNumber: number) {
     const viz = this.myState.vizes[vizNumber]
 
@@ -369,10 +382,15 @@ export default class VueComponent extends Vue {
 
     if (!this.myState.svnProject) return
 
+    // another special case: don't re-open the already-open viz!
+    if (vizNumber == this.previousVizClicked) return
+    this.previousVizClicked = vizNumber
+
+    const cleanSubfolder = this.myState.subfolder.replaceAll('//', '/')
     const props = {
       root: this.myState.svnProject.slug,
-      xsubfolder: this.myState.subfolder,
-      subfolder: this.myState.subfolder,
+      xsubfolder: cleanSubfolder,
+      subfolder: cleanSubfolder,
       yamlConfig: viz.config,
       thumbnail: false,
     }
@@ -388,6 +406,11 @@ export default class VueComponent extends Vue {
     this.$emit('activate', { name: 'Settings', class: 'SettingsPanel' })
   }
 
+  private getTabColor(kebabName: string) {
+    const color = tabColors[kebabName] || '#8778BB'
+    return { backgroundColor: color }
+  }
+
   @Watch('globalState.colorScheme') swapColors() {
     // medium-zoom freaks out if color theme is swapped.
     // so let's reload images just in case.
@@ -400,8 +423,8 @@ export default class VueComponent extends Vue {
   //   this.updateRoute()
   // }
 
-  @Watch('subfolder')
   @Watch('allConfigFiles')
+  @Watch('subfolder')
   private updateRoute() {
     if (!this.root) return
 
@@ -410,6 +433,7 @@ export default class VueComponent extends Vue {
     this.myState.svnProject = svnProject
     this.myState.subfolder = this.subfolder || ''
     this.myState.readme = ''
+    this.previousVizClicked = -1
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -560,6 +584,14 @@ export default class VueComponent extends Vue {
 
       this.myState.files = allVizes
     } catch (err) {
+      // First see if we can get the one-up folder
+      const parent = this.myState.subfolder.lastIndexOf('/')
+      if (parent > -1) {
+        // subfolder is @Watched, this triggers a reset:
+        this.subfolder = this.myState.subfolder.slice(0, parent)
+        return
+      }
+
       // Bad things happened! Tell user
       const e = err as any
       console.log('BAD PAGE')
@@ -773,9 +805,8 @@ h2 {
 
 .viz-grid-item {
   z-index: 1;
-  text-align: center;
   margin: 4px 0;
-  padding: 0 0;
+  // padding: 2px 2px;
   display: flex;
   flex-direction: column;
   cursor: pointer;
@@ -783,36 +814,6 @@ h2 {
   background-color: var(--bgMapPanel);
   // border: var(--borderThin);
   border-radius: 5px;
-}
-
-.viz-frame {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: row;
-
-  p {
-    margin: auto 0 0 0;
-    // background-color: var(--bgBold);
-    font-size: 1rem;
-    line-height: 1rem;
-    padding: 0.8rem 0.8rem;
-    color: var(--text);
-    word-wrap: break-word;
-    /* Required for text-overflow to do anything */
-    // text-overflow: ellipsis;
-    // white-space: nowrap;
-    // overflow: hidden;
-  }
-}
-
-.viz-frame:hover {
-  // box-shadow: var(--shadowMode);
-  background-color: var(--bgHover);
-  border-radius: 5px;
-  transition: background-color 0.02s ease-in-out;
 }
 
 .viz-frame-component {
@@ -910,7 +911,7 @@ h2 {
   flex-direction: column;
 
   p {
-    margin: auto 0 0 0;
+    margin: 0 0 0 0;
     background-color: var(--bgBold);
     font-size: 1rem;
     font-weight: bold;
@@ -1005,5 +1006,54 @@ h2 {
   a:hover {
     color: var(--linkHover);
   }
+}
+
+.viz-frame {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  overflow: hidden;
+  padding: 4px 0 0 4px;
+  border-radius: 4px;
+  p {
+    margin: 0 0 0 0;
+    // background-color: var(--bgBold);
+    font-size: 1rem;
+    line-height: 1rem;
+    padding: 0 0;
+    color: var(--text);
+    word-wrap: break-word;
+    /* Required for text-overflow to do anything */
+    // text-overflow: ellipsis;
+    // white-space: nowrap;
+    // overflow: hidden;
+  }
+}
+
+.viz-frame:hover {
+  // box-shadow: var(--shadowMode);
+  background-color: var(--bgHover);
+  border-radius: 5px;
+  transition: background-color 0.02s ease-in-out;
+}
+
+p.v-title {
+  // font-size: 1rem;
+}
+
+p.v-filename {
+  margin: 5px 0;
+}
+
+p.v-plugin {
+  text-align: right;
+  text-transform: uppercase;
+  margin-left: auto;
+  background-color: var(--bgCream3);
+  padding: 2px 3px;
+  border-radius: 0 0 4px 0;
+  // font-weight: bold;
 }
 </style>
