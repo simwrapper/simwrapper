@@ -32,6 +32,8 @@
           h5 {{ project.name }}
           p {{ project.description }}
 
+        p.config-sources: a(@click="configureSources") Add data sources...
+
       .curated-sections(v-else)
 
         h3.curate-heading {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
@@ -98,7 +100,6 @@
                   p {{ viz.title }}
 
   .bottom-panel(v-if="!root")
-    b-button.btn-config-sources.is-warning(type="is-outlined" @click="configureSources") Configure data sources...
 
     .flex-row.about-us
       p: a(href="https://vsp.berlin/en/" target="_blank") VSP Home
@@ -318,29 +319,18 @@ export default class VueComponent extends Vue {
   }
 
   private clickedBreadcrumb(crumb: { url: string }) {
-    // console.log(crumb)
     this.getRootAndRoute(crumb.url.slice(1)) // drop leading slash
   }
 
   private getRootAndRoute(pathMatch: string | undefined) {
-    // console.log(pathMatch)
-
     if (!pathMatch) {
-      console.log('NOPE')
+      // console.log('NOPE')
       return
     }
 
     // splash page:
     if (pathMatch === '/') {
-      console.log('ROOT')
       this.root = ''
-      // this.panels = [
-      //   {
-      //     component: 'SplashPage',
-      //     key: Math.random(),
-      //     props: {} as any,
-      //   },
-      // ]
       return
     }
 
@@ -990,8 +980,17 @@ h2 {
   margin: 1rem 0;
 }
 
-.btn-config-sources {
-  margin-bottom: 2rem;
+.config-sources {
+  margin-top: 0.5rem;
+  text-align: right;
+  a {
+    color: var(--text);
+  }
+}
+
+.config-sources a:hover {
+  cursor: pointer;
+  color: var(--linkHover);
 }
 
 .about-us {
@@ -1039,9 +1038,9 @@ h2 {
   transition: background-color 0.02s ease-in-out;
 }
 
-p.v-title {
-  // font-size: 1rem;
-}
+// p.v-title {
+//   // font-size: 1rem;
+// }
 
 p.v-filename {
   margin: 5px 0;
