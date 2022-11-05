@@ -13,9 +13,6 @@
       component(:is="activeLeftSection.class"
         @navigate="onNavigate(0,$event)"
         @split="onSplit"
-        root="local"
-        xsubfolder="/mosaik-2"
-        :allConfigFiles="[]"
       )
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
@@ -68,7 +65,7 @@ import SplashPage from '@/views/SplashPage.vue'
 import FolderBrowser from '@/views/FolderBrowser.vue'
 
 const BASE_URL = import.meta.env.BASE_URL
-const DEFAULT_LEFT_WIDTH = 200
+const DEFAULT_LEFT_WIDTH = 300
 @Component({
   i18n,
   components: Object.assign(
@@ -450,7 +447,8 @@ export default MyComponent
 .left-panel-active-section {
   background-color: var(--bgBrowser);
   color: white;
-  width: 250px;
+  width: 300px;
+  padding: 0 0.25rem;
 }
 
 @media only screen and (max-width: 640px) {

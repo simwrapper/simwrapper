@@ -1,9 +1,9 @@
 <template lang="pug">
 .tabbed-folder-view
-
-  .tabholder(v-show="!isZoomed" :class="{wiide}" :style="dashWidthCalculator")
-    .tabholdercontainer(:class="{wiide}")
-      .project-header(v-if="header" v-html="header" :class="{wiide}")
+ .centered-vessel(:class="{wiide}")
+  .tabholder(v-show="!isZoomed" :style="dashWidthCalculator")
+    .tabholdercontainer
+      .project-header(v-if="header" v-html="header")
       .breadcrumbs(v-else)
         h3 {{ pageHeader }}
         h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
@@ -436,6 +436,16 @@ export default class VueComponent extends Vue {
   overflow-y: auto;
 }
 
+.centered-vessel {
+  max-width: $dashboardWidth;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.centered-vessel.wiide {
+  max-width: unset;
+}
+
 .tabs {
   margin: 0 0rem;
 }
@@ -446,22 +456,17 @@ export default class VueComponent extends Vue {
 }
 
 .tabholder {
-  max-width: $dashboardWidth + 3;
-  margin: 0 auto;
+  // max-width: $dashboardWidth + 3;
+  // margin: 0 auto;
   z-index: 50;
   top: 0px;
   position: sticky;
   background-color: var(--bgDashboard);
 }
 
-.tabholder.wiide {
-  max-width: unset;
-}
-
 .tabholdercontainer {
   background-image: var(--bgDashboard);
-  // background-image: var(--bgTabBanner);
-  margin: 0 3rem;
+  // margin: 0 3rem;
 }
 
 .tabholdercontainer.wiide {

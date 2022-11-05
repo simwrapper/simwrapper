@@ -60,7 +60,7 @@ class App extends Vue {
       ? ColorScheme.DarkMode
       : ColorScheme.LightMode
 
-    if (theme === ColorScheme.DarkMode) this.$store.commit('rotateColors')
+    if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
     document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
     this.toggleFullScreen(true)

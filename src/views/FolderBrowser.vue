@@ -488,8 +488,8 @@ export default class VueComponent extends Vue {
 
 .vessel {
   margin: 0 auto;
-  padding: 0rem 1rem 2rem 1rem;
-  max-width: $sizeVessel;
+  padding: 0rem 0rem 2rem 0rem;
+  max-width: $dashboardWidth + 3;
 }
 
 .white {
@@ -617,7 +617,8 @@ h4 {
 }
 
 .fade {
-  opacity: 0.6;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .file-table {

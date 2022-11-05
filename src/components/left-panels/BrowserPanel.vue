@@ -4,20 +4,50 @@
   .top-panel
     h4 SimWrapper
     .xbreadcrumbs
-      p(v-for="crumb,i in globalState.breadcrumbs" :key="crumb.url") {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;/&nbsp;' : ''}}
+      p(@click="clickedBreadcrumb({url: '//'})")
+        i.fa.fa-home
+        | &nbsp;/&nbsp;
+      .has-root(v-if="root")
+        p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
+          @click="clickedBreadcrumb(crumb)"
+        ) {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;/&nbsp;' : ''}}
 
   .middle-panel
-      .curated-sections
+      //- Starting point if not in a project root: list all existing roots
+      .curated-sections(v-if="!root")
+        h3 Data Sources
+
+        .hint-clicks
+          p Explore a data source below, or add a new one
+
+        .project-root(v-for="project in allRoots"
+          @click="clickedOnFolder({root: project.slug})"
+        )
+          h5 {{ project.name }}
+          p {{ project.description }}
+
+
+      .curated-sections(v-else)
 
         //- file system folders
         h3.curate-heading(v-if="myState.folders.length") {{ $t('Folders') }}
 
+        //- h3
+        //-   p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url") {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;&raquo;&nbsp;' : ''}}
+
+        .hint-clicks
+          p
+            b Click
+            | &nbsp;a folder below to view it in the main panel.
+          p
+            b Double-click
+            | &nbsp;a folder to drill down in this panel.
+
         .curate-content(v-if="myState.folders.length")
           .folder-table
-            .folder(:class="{fade: myState.isLoading}"
-                    :key="folder.name"
-                    v-for="folder,i in myState.folders"
-                    @click="clickedOnFolder(folder, i)")
+            .folder(v-for="folder,i in myState.folders" :key="folder"
+                :class="{fade: myState.isLoading, upfolder: i == 0}"
+                @click="clickedOnFolder({folder, i})")
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               p {{ cleanName(folder) }}
 
@@ -120,20 +150,27 @@ import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+import FileSystemProjects from '@/components/FileSystemProjects.vue'
 
-const allComponents = Object.assign({ TopsheetsFinder }, plugins)
+const allComponents = Object.assign({ FileSystemProjects, TopsheetsFinder }, plugins)
 @Component({
   i18n,
   components: allComponents,
 })
 export default class VueComponent extends Vue {
   // @Prop({ required: false }) private xsubfolder!: string
-  @Prop({ required: true }) private root!: string
-  @Prop({ required: true }) private allConfigFiles!: YamlConfigs
+  // @Prop({ required: true }) private root!: string
+  // @Prop({ required: true }) private allConfigFiles!: YamlConfigs
 
   private globalState = globalStore.state
 
-  private xsubfolder = '/mosaik-2'
+  private subfolder = '/'
+  private root = ''
+  private allRoots = globalStore.state.svnProjects.filter(
+    source => !source.hidden && !source.slug.startsWith('fs')
+  )
+
+  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
 
   private mdRenderer = new markdown({
     html: true,
@@ -195,10 +232,10 @@ export default class VueComponent extends Vue {
     if (!this.myState.svnProject) return []
 
     const crumbs = [
-      // {
-      //   label: '🏠',
-      //   url: '/',
-      // },
+      {
+        label: 'SimWrapper',
+        url: '/',
+      },
       {
         label: this.myState.svnProject.slug,
         url: '/' + this.myState.svnProject.slug,
@@ -223,7 +260,63 @@ export default class VueComponent extends Vue {
   }
 
   private mounted() {
+    this.getRootAndRoute(this.$route.params.pathMatch)
     this.updateRoute()
+  }
+
+  private clickedBreadcrumb(crumb: { url: string }) {
+    // console.log(crumb)
+    this.getRootAndRoute(crumb.url.slice(1)) // drop leading slash
+  }
+
+  private getRootAndRoute(pathMatch: string | undefined) {
+    // console.log(pathMatch)
+
+    if (!pathMatch) {
+      console.log('NOPE')
+      return
+    }
+
+    // splash page:
+    if (pathMatch === '/') {
+      console.log('ROOT')
+      this.root = ''
+      // this.panels = [
+      //   {
+      //     component: 'SplashPage',
+      //     key: Math.random(),
+      //     props: {} as any,
+      //   },
+      // ]
+      return
+    }
+
+    // split panel:
+    if (pathMatch.startsWith('split/')) {
+      console.log('SPLIT')
+      // ?????
+      const payload = pathMatch.substring(6)
+      try {
+        // const content = atob(payload)
+        // const json = JSON.parse(content)
+        // this.panels = json
+      } catch (e) {
+        // couldn't do; you failed!
+        this.$router.replace('/')
+      }
+      return
+    }
+
+    // split out project root and subfolder
+    let root = pathMatch
+    let subfolder = ''
+    const slash = pathMatch.indexOf('/')
+    if (slash > -1) {
+      root = pathMatch.substring(0, slash)
+      subfolder = pathMatch.substring(slash + 1)
+    }
+    this.root = root
+    this.subfolder = subfolder
   }
 
   private clickedVisualization(vizNumber: number) {
@@ -255,14 +348,15 @@ export default class VueComponent extends Vue {
     this.fetchFolderContents()
   }
 
-  @Watch('xsubfolder')
+  @Watch('subfolder')
   @Watch('allConfigFiles')
   private updateRoute() {
-    console.log('NEW XSUBFOLDER')
+    if (!this.root) return
+
     const svnProject = this.getFileSystem(this.root)
 
     this.myState.svnProject = svnProject
-    this.myState.subfolder = this.xsubfolder || ''
+    this.myState.subfolder = this.subfolder || ''
     this.myState.readme = ''
 
     if (!this.myState.svnProject) return
@@ -444,16 +538,74 @@ export default class VueComponent extends Vue {
     }
   }
 
-  private clickedOnFolder(folder: string, i: number) {
+  // we have really weird double-clicks; we want the single click to pass thru
+  // after a long delay. so this is how we do it
+  private clicks = 0
+  private clickTimer: any
+
+  private clickedOnFolder(props: { folder: string; i: number; root: string }) {
+    if (this.myState.isLoading) return
+
+    const DBL_CLICK_DELAY = 450
+
+    this.clicks++
+    if (this.clicks === 1) {
+      // start timer to see if we get a second click
+      this.clickTimer = setTimeout(() => {
+        // do my thing here
+        this.handleSingleClickFolder(props)
+        this.clicks = 0
+      }, DBL_CLICK_DELAY)
+    } else {
+      // got a second click in time!
+      clearTimeout(this.clickTimer)
+      this.handleDoubleClickFolder(props)
+      // do my double-click thing here
+      this.clicks = 0
+    }
+  }
+
+  private handleDoubleClickFolder(props: { folder: string; i: number; root: string }) {
+    const { folder, root, i } = props
+
+    if (root) {
+      this.root = root
+      this.subfolder = ''
+      this.updateRoute()
+      return
+    }
+
     if (this.myState.isLoading) return
     if (!this.myState.svnProject) return
 
-    // up button is a non-navigate case:
+    // up button is a non-navigate case: might revisit this
     if (i == 0 && folder === 'UP') {
-      console.log('UP!')
-      this.xsubfolder = this.xsubfolder.slice(0, this.xsubfolder.lastIndexOf('/'))
+      if (this.subfolder === '/' || this.subfolder === '') {
+        this.root = ''
+      } else {
+        const lastSlash = this.subfolder.lastIndexOf('/')
+        this.subfolder = lastSlash > -1 ? this.subfolder.slice(0, lastSlash) : '/'
+      }
       return
     }
+
+    this.subfolder = `${this.subfolder}/${folder}`
+  }
+
+  private handleSingleClickFolder(xprops: { folder: string; i: number; root: string }) {
+    const { folder, root, i } = xprops
+
+    if (root) {
+      this.root = root
+      this.subfolder = ''
+      this.updateRoute()
+      return
+    }
+
+    if (this.myState.isLoading) return
+    if (!this.myState.svnProject) return
+
+    if (i == 0 && folder === 'UP') return
 
     const target =
       folder === '..'
@@ -493,10 +645,10 @@ export default class VueComponent extends Vue {
 
 h4 {
   background-color: #00000040;
-  text-transform: uppercase;
   text-align: center;
   padding: 0.25rem 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+  // text-transform: uppercase;
 }
 
 .middle-panel {
@@ -522,7 +674,7 @@ h4 {
 
   p,
   a {
-    font-size: 0.9rem;
+    font-size: 1rem;
     max-width: 100%;
     overflow-wrap: break-word;
   }
@@ -627,12 +779,13 @@ h2 {
   background-color: var(--bg);
   color: var(--text);
   margin: 1px 0;
-  padding: 1px 4px;
+  line-height: 1.05rem;
+  padding: 3px 4px;
   border-radius: 0;
   word-wrap: break-word;
 
   i {
-    margin-top: 2px;
+    margin-top: 1px;
   }
   p {
     margin-left: 4px;
@@ -645,36 +798,9 @@ h2 {
   transition: background-color 0.1s ease-in-out;
 }
 
-.project-bar {
-  display: flex;
-  margin-bottom: 1rem;
-  padding: 2rem 0 0 0;
-  z-index: 10000;
-}
-
-.project-bar p {
-  margin-top: -0.25rem;
-}
-
 .fade {
-  opacity: 0.6;
-}
-
-.file-table {
-  display: grid;
-  row-gap: 0rem;
-  column-gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-}
-
-.file {
-  word-break: break-all;
-  line-height: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.markdown {
-  padding: 1rem 0rem;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .curated-sections {
@@ -686,19 +812,6 @@ h2 {
   padding: 0rem 0rem;
   margin: 0rem 0rem;
 }
-
-.readme-header {
-  font-size: 1.1rem;
-  padding-bottom: 1rem;
-}
-
-// h3.curate-heading {
-//   font-size: 1.8rem;
-//   font-weight: bold;
-//   color: var(--textFancy);
-//   padding-top: 0.5rem;
-//   margin-top: 0rem;
-// }
 
 .curate-content {
   margin-bottom: 2rem;
@@ -761,7 +874,7 @@ h2 {
 }
 
 .xbreadcrumbs {
-  background-color: var(--bgCream2);
+  // background-color: var(--bgCream2);
   display: flex;
   flex-direction: row;
   padding: 2px 2px;
@@ -772,7 +885,46 @@ h2 {
   }
 }
 
+.upfolder {
+  background-color: var(--bgCream3);
+}
+
 .fa-arrow-up {
   margin-right: 2px;
+}
+
+.project-root {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+  padding: 0.5rem 0.5rem;
+  background-color: var(--bg);
+  border-left: 3px solid var(--sliderThumb);
+
+  h5 {
+    font-size: 1.3rem;
+    line-height: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    line-height: 1.2rem;
+  }
+}
+
+.project-root:hover {
+  cursor: pointer;
+  background-color: var(--bgHover);
+  transition: background-color 0.1s ease-in-out;
+}
+
+.hint-clicks {
+  margin: 0.5rem 0 0.75rem 0;
+}
+
+.has-root {
+  display: flex;
+  flex-direction: row;
 }
 </style>

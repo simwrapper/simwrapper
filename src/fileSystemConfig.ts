@@ -55,7 +55,7 @@ const fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
   {
-    name: 'Localhost',
+    name: 'local',
     slug: 'local',
     description: 'Files on this computer, shared using "simwrapper serve" tool',
     baseURL: 'http://localhost:8000',
