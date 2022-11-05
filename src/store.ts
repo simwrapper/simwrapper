@@ -53,6 +53,7 @@ export default new Vuex.Store({
     colorScheme: ColorScheme.DarkMode,
     locale: 'en',
     localFileHandles: [] as any[],
+    localURLShortcuts: {} as { [id: string]: FileSystemConfig },
     runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
@@ -196,6 +197,17 @@ export default new Vuex.Store({
     },
     setLocalFileSystem(state, value: any) {
       state.localFileHandles = value
+    },
+    setURLShortcuts(state, shortcuts: { [id: string]: FileSystemConfig }) {
+      state.localURLShortcuts = shortcuts
+      // do some fancy replacing in case user specifically overwrote things
+      const unique = state.svnProjects.filter(root => !(root.slug in shortcuts))
+      state.svnProjects = [...Object.values(shortcuts), ...unique]
+    },
+    removeURLShortcut(state, shortcut: string) {
+      delete state.localURLShortcuts[shortcut]
+      const trimmed = state.svnProjects.filter(root => root.slug !== shortcut)
+      state.svnProjects = trimmed
     },
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value

@@ -31,7 +31,7 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
   return system.slug
 }
 
-const fileSystems: FileSystemConfig[] = [
+let fileSystems: FileSystemConfig[] = [
   {
     name: webLiveHostname + ' live folders',
     slug: 'live',
@@ -116,6 +116,18 @@ for (let port = 8050; port < 8099; port++) {
     baseURL: websiteLiveHost + `:${port}/_f_`, // e.g. 'http://localhost:8050/_f_',
     hidden: true,
   })
+}
+
+// merge user shortcuts
+try {
+  const storedShortcuts = localStorage.getItem('projectShortcuts')
+  if (storedShortcuts) {
+    const shortcuts = JSON.parse(storedShortcuts) as any[]
+    const unique = fileSystems.filter(root => !(root.slug in shortcuts))
+    fileSystems = [...Object.values(shortcuts), ...unique]
+  }
+} catch (e) {
+  console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
 }
 
 export default fileSystems

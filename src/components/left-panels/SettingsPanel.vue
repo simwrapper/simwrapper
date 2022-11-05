@@ -6,7 +6,6 @@
 
   .middle-panel
 
-  .bottom-panel
     // theme ------------------
     .option
       h5 {{ $t('theme') }}
@@ -29,7 +28,20 @@
         outlined
         :style="isDE") DE
 
-      //- p {{ $t('translate') }}
+    .option
+      h5 {{ $t('dataSources') }}
+      .source.flex-row(v-for="root in shortcuts" :key="root.slug")
+        .desc.flex1
+          p: b {{ root.slug }}
+          p {{ root.description}}
+        b-button.btn-delete.is-small(
+          type="is-text"
+          @click="deleteShortcut(root.slug)"
+        ) X
+
+    .option
+      h5 {{ $t('addDataSources') }}
+      add-data-source.slide-right
 
 
 </template>
@@ -43,6 +55,8 @@ const i18n = {
       light: 'Light',
       dark: 'Dark',
       language: 'Language',
+      dataSources: 'Data Sources',
+      addDataSources: 'Add Data Source',
     },
     de: {
       translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
@@ -50,22 +64,56 @@ const i18n = {
       light: 'Hell',
       dark: 'Dunkel',
       language: 'Sprache',
+      dataSources: 'Datenquellen',
     },
   },
 }
 
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
+import AddDataSource from './AddDataSource.vue'
+
 import globalStore from '@/store'
 
-@Component({ i18n, components: {} })
+@Component({ i18n, components: { AddDataSource } })
 class MyComponent extends Vue {
   private state = globalStore.state
 
   private theme = ''
+  private shortcuts = [] as any[]
 
   private mounted() {
     this.theme = this.state.isDarkMode ? 'dark' : 'light'
+    this.setupShortcuts()
+  }
+
+  @Watch('state.svnProjects')
+  private setupShortcuts() {
+    try {
+      const storedShortcuts = localStorage.getItem('projectShortcuts')
+      if (storedShortcuts) {
+        const roots = JSON.parse(storedShortcuts) as any
+        this.shortcuts = Object.values(roots)
+      }
+    } catch (e) {
+      console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
+    }
+  }
+
+  private deleteShortcut(slug: string) {
+    try {
+      const storedShortcuts = localStorage.getItem('projectShortcuts')
+      if (storedShortcuts) {
+        const roots = JSON.parse(storedShortcuts) as any
+        delete roots[slug]
+
+        localStorage.setItem('projectShortcuts', JSON.stringify(roots))
+        globalStore.commit('removeURLShortcut', slug)
+        this.shortcuts = Object.values(roots)
+      }
+    } catch (e) {
+      console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
+    }
   }
 
   private get isLight() {
@@ -156,9 +204,12 @@ h4 {
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
 h5 {
+  color: var(--textBold);
+  font-weight: bold;
   margin-top: 0rem;
   margin-bottom: 0.25rem;
 }
@@ -166,11 +217,11 @@ h5 {
 .top-panel {
   display: flex;
   flex-direction: column;
-  margin: 0.25rem 0.5rem 1rem 0.5rem;
+  margin: 0.25rem 0.5rem 0rem 0.5rem;
 }
 
 .bottom-panel {
-  margin: auto auto 2rem auto;
+  margin: 1rem 0.5rem;
 }
 
 .settings-area {
@@ -200,7 +251,7 @@ h5 {
 }
 
 .option {
-  margin-top: 1.5rem;
+  margin-top: 2rem;
 
   h5 {
     text-transform: uppercase;
@@ -218,9 +269,32 @@ h5 {
   width: 100%;
   flex-direction: column;
   margin-bottom: 0.5rem;
-  padding: 0 0.75rem 0rem 0.75rem;
+  padding: 0 0.5rem 0rem 0.5rem;
   overflow-y: auto;
   user-select: none;
+}
+
+.slide-right {
+  padding-left: 1rem;
+}
+
+.source {
+  margin-left: 1rem;
+  margin-bottom: 3px;
+  background-color: var(--bgCream2);
+}
+
+.source .desc p {
+  margin: 0 0;
+  padding: 1px 4px;
+}
+
+.btn-delete {
+  padding: 0 0;
+  margin: 0 0;
+  color: #f66;
+  text-decoration: none;
+  font-weight: bold;
 }
 
 @media only screen and (max-width: 640px) {

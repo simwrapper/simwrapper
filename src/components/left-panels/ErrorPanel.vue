@@ -105,6 +105,7 @@ h4 {
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
+  font-weight: bold;
 }
 
 .top-panel {

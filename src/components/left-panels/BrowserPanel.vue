@@ -3,11 +3,13 @@
 
   .top-panel
     h4 SimWrapper
+
     .xbreadcrumbs
       p(@click="clickedBreadcrumb({url: '//'})")
         i.fa.fa-home
         | &nbsp;/&nbsp;
-      .has-root(v-if="root")
+
+      .flex-row(v-if="root")
         p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
           @click="clickedBreadcrumb(crumb)"
         ) {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;/&nbsp;' : ''}}
@@ -15,10 +17,15 @@
   .middle-panel
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
-        h3 Data Sources
 
-        .hint-clicks
-          p Explore a data source below, or add a new one
+        .flex-row(style="margin: 0.5rem auto 2rem auto;")
+          img(src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
+          h2(style="margin-left: 0.5rem") SimWrapper
+
+        .hint-clicks(style="margin-bottom: 1rem")
+          p Welcome to SimWrapper, the data exploration platform from Technische Universität Berlin. Explore a data source below, or add your own.
+
+        h3(style="margin-top: 1rem") Data Sources
 
         .project-root(v-for="project in allRoots"
           @click="clickedOnFolder({root: project.slug})"
@@ -26,30 +33,27 @@
           h5 {{ project.name }}
           p {{ project.description }}
 
-
       .curated-sections(v-else)
 
-        //- file system folders
-        h3.curate-heading(v-if="myState.folders.length") {{ $t('Folders') }}
-
-        //- h3
-        //-   p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url") {{ crumb.label }}{{ i < globalState.breadcrumbs.length - 1 ? '&nbsp;&raquo;&nbsp;' : ''}}
-
-        .hint-clicks
-          p
-            b Click
-            | &nbsp;a folder below to view it in the main panel.
-          p
-            b Double-click
-            | &nbsp;a folder to drill down in this panel.
+        h3.curate-heading {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
 
         .curate-content(v-if="myState.folders.length")
+          .hint-clicks(v-if="needDoubleClickHint")
+            p
+              b Click
+              | &nbsp;a folder to view it in the main area.
+            p
+              b Double-click
+              | &nbsp;a folder to drill down in this panel.
+
           .folder-table
             .folder(v-for="folder,i in myState.folders" :key="folder"
                 :class="{fade: myState.isLoading, upfolder: i == 0}"
                 @click="clickedOnFolder({folder, i})")
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               p {{ cleanName(folder) }}
+
+          p(v-if="myState.folders.length==1" style="font-size: 0.9rem; opacity: 0.7; margin: 0.5rem 0; text-align: right") No subfolders.
 
         //- MAPS: thumbnails of each viz map here
         .section-maps(v-if="Object.keys(vizMaps).length")
@@ -94,7 +98,13 @@
                         @title="updateTitle(index, $event)")
                   p {{ viz.title }}
 
-  .bottom-panel
+  .bottom-panel(v-if="!root")
+    b-button.btn-config-sources.is-warning(@click="configureSources") Configure data sources...
+
+    .flex-row.about-us
+      p: a(href="https://vsp.berlin/en/" target="_blank") VSP Home
+      p: a(@click="showPrivacy") Privacy
+      p: a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
 
 </template>
 
@@ -102,15 +112,17 @@
 const i18n = {
   messages: {
     en: {
-      Maps: 'Maps',
+      Maps: 'Panels',
       Images: 'Images',
       Analysis: 'Analysis',
       Files: 'Files',
       Folders: 'Folders',
       Topsheet: 'Topsheet',
+      privacy:
+        'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
     },
     de: {
-      Maps: 'Karten',
+      Maps: 'Panels',
       Images: 'Bilder',
       Analysis: 'Ergebnisse',
       Files: 'Dateien',
@@ -151,8 +163,9 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
+import AddDataSource from './AddDataSource.vue'
 
-const allComponents = Object.assign({ FileSystemProjects, TopsheetsFinder }, plugins)
+const allComponents = Object.assign({ AddDataSource, FileSystemProjects, TopsheetsFinder }, plugins)
 @Component({
   i18n,
   components: allComponents,
@@ -166,11 +179,20 @@ export default class VueComponent extends Vue {
 
   private subfolder = '/'
   private root = ''
-  private allRoots = globalStore.state.svnProjects.filter(
-    source => !source.hidden && !source.slug.startsWith('fs')
-  )
+
+  private needDoubleClickHint = true
 
   private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
+
+  private allRoots: FileSystemConfig[] = []
+
+  @Watch('globalState.svnProjects') updateShortcuts() {
+    const roots = this.globalState.svnProjects.filter(
+      source => !source.hidden && !source.slug.startsWith('fs')
+    )
+
+    this.allRoots = roots
+  }
 
   private mdRenderer = new markdown({
     html: true,
@@ -260,8 +282,28 @@ export default class VueComponent extends Vue {
   }
 
   private mounted() {
+    this.setupHints()
+    this.updateShortcuts()
+
     this.getRootAndRoute(this.$route.params.pathMatch)
     this.updateRoute()
+  }
+
+  private setupHints() {
+    // if user has seen the hints a few times, drop them
+    let hints: any = localStorage.getItem('needsClickHint')
+    if (hints) {
+      hints = JSON.parse(hints) as number
+    } else {
+      hints = 0
+    }
+
+    if (hints > 5) {
+      this.needDoubleClickHint = false
+    } else {
+      hints++
+      localStorage.setItem('needsClickHint', JSON.stringify(hints))
+    }
   }
 
   private clickedBreadcrumb(crumb: { url: string }) {
@@ -342,11 +384,21 @@ export default class VueComponent extends Vue {
     this.myState.vizes[viz].title = title
   }
 
+  private configureSources() {
+    this.$emit('activate', { name: 'Settings', class: 'SettingsPanel' })
+  }
+
   @Watch('globalState.colorScheme') swapColors() {
     // medium-zoom freaks out if color theme is swapped.
     // so let's reload images just in case.
     this.fetchFolderContents()
   }
+
+  // @Watch('$route') handleRouteChanged() {
+  //   console.log(77, this.$route)
+  //   this.getRootAndRoute(this.$route.params.pathMatch)
+  //   this.updateRoute()
+  // }
 
   @Watch('subfolder')
   @Watch('allConfigFiles')
@@ -566,6 +618,8 @@ export default class VueComponent extends Vue {
   }
 
   private handleDoubleClickFolder(props: { folder: string; i: number; root: string }) {
+    this.needDoubleClickHint = false
+
     const { folder, root, i } = props
 
     if (root) {
@@ -624,6 +678,10 @@ export default class VueComponent extends Vue {
       this.$emit('navigate', { component: 'TabbedDashboardView', props })
     }
   }
+
+  private showPrivacy() {
+    alert(this.$t('privacy'))
+  }
 }
 </script>
 
@@ -648,15 +706,17 @@ h4 {
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.25rem;
+  font-weight: bold;
   // text-transform: uppercase;
 }
 
-.middle-panel {
+.middle-panel,
+.bottom-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   // width: 100%;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0rem;
   padding: 0 0.5rem 0rem 0.5rem;
   overflow-y: auto;
   text-align: left;
@@ -682,6 +742,7 @@ h4 {
 
 .bottom-panel {
   padding: 0 0.5rem 0.25rem 0.5rem;
+  flex: unset;
 }
 
 .white {
@@ -768,7 +829,7 @@ h2 {
   column-gap: 0.25rem;
   grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
   list-style: none;
-  margin-bottom: 0px;
+  margin-top: 0.5rem;
   padding-left: 0px;
 }
 
@@ -880,7 +941,7 @@ h2 {
   padding: 2px 2px;
 
   p:hover {
-    color: cyan;
+    color: var(--linkHover);
     cursor: pointer;
   }
 }
@@ -919,12 +980,30 @@ h2 {
   transition: background-color 0.1s ease-in-out;
 }
 
-.hint-clicks {
-  margin: 0.5rem 0 0.75rem 0;
-}
-
-.has-root {
+.flex-row {
   display: flex;
   flex-direction: row;
+}
+
+.hint-clicks {
+  margin: 1rem 0;
+}
+
+.btn-config-sources {
+  margin-bottom: 2rem;
+}
+
+.about-us {
+  margin-left: auto;
+  p {
+    margin: 0.5rem 1rem 0.5rem 0;
+  }
+  a {
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+  a:hover {
+    color: var(--linkHover);
+  }
 }
 </style>

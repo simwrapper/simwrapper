@@ -13,6 +13,7 @@
       component(:is="activeLeftSection.class"
         @navigate="onNavigate(0,$event)"
         @split="onSplit"
+        @activate="setActiveLeftSection"
       )
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
