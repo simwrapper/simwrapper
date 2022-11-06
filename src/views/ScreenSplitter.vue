@@ -12,24 +12,35 @@
     .left-panel-active-section(v-show="activeLeftSection" :style="activeSectionStyle")
       component(:is="activeLeftSection.class"
         @navigate="onNavigate(0,$event)"
-        @split="onSplit"
         @activate="setActiveLeftSection"
       )
+      //- @split="onSplit('left')"
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
       @mousemove.stop="dividerDragging"
     )
 
-  .split-panel(v-for="panel,i in panels" :key="panel.key"
+  .split-panel(
+    v-for="panel,i in panels" :key="panel.key"
     :class="{'is-multipanel' : panels.length > 1}"
   )
-    component.fill-panel(
-      :is="panel.component"
-      v-bind="panel.props"
-      @navigate="onNavigate(i,$event)"
-      @zoom="showBackArrow(i, $event)"
+    .drag-container(
+      @drop="onDrop($event, i)"
+      @dragover.prevent
+      @dragenter.prevent
+      @dragover="stillDragging($event,i)"
+      @dragleave="dragEnd"
+      :ref="`dragContainer${i}`"
     )
+      component.map-tile(
+        v-bind="panel.props"
+        :is="panel.component"
+        @navigate="onNavigate(i,$event)"
+        @zoom="showBackArrow(i, $event)"
+      )
+      .drag-highlight(:style="buildDragHighlightStyle(i)")
+
 
     .control-buttons(v-if="showControlButtonsPanel(panel)")
       a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
@@ -86,7 +97,7 @@ const DEFAULT_LEFT_WIDTH = 300
 class MyComponent extends Vue {
   // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
 
-  private panels = [] as any
+  private panels = [] as any[]
 
   private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
@@ -167,8 +178,18 @@ class MyComponent extends Vue {
     }
   }
 
+  // private buildLayoutFromURL() {
+  //   this.buildLayoutFromURLWithThing('')
+  // }
+
   private buildLayoutFromURL() {
-    const pathMatch = this.$route.params.pathMatch
+    //   // build layout without config; figure it out from URL
+    //   this.buildLayout('')
+    // }
+
+    // private buildLayout(config: string) {
+    // if no config, use URL from route
+    const pathMatch = this.$route.params.pathMatch // config ||
     if (!pathMatch) {
       this.panels = [{ component: 'SplashPage', key: Math.random(), props: {} as any }]
       return
@@ -243,25 +264,121 @@ class MyComponent extends Vue {
     ]
   }
 
-  private onSplit() {
-    // front page
-    if (this.panels[0].component === 'SplashPage') {
-      return this.panels.push({
-        component: 'SplashPage',
-        props: {},
-        key: Math.random(),
-      })
-    }
+  private quadrant: any = null
+  private dragPanelNumber = -1
 
-    // all other cases
-    const leftPanel = this.panels[0]
+  private buildDragHighlightStyle(panelIndex: number) {
+    if (panelIndex !== this.dragPanelNumber || !this.quadrant) return {}
+
+    const backgroundColor = this.quadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
+    const area: any = { opacity: 1.0, backgroundColor }
+    Object.entries(this.quadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
+    return area
+  }
+
+  private stillDragging(event: DragEvent, index: number) {
+    this.dragPanelNumber = index
+
+    const ref = this.$refs[`dragContainer${index}`] as any[]
+
+    // parent is the SplitPanel, which knows its real coordinates
+    const panel = ref[0].parentElement
+    const pctX = (event.clientX - panel.offsetLeft) / panel.offsetWidth
+    const pctY = (event.clientY - panel.offsetTop) / panel.offsetHeight
+
+    let BORDER = 8
+
+    if (pctX < 0.3) {
+      this.quadrant = {
+        quadrant: 'left',
+        width: panel.offsetWidth / 2 - BORDER * 2,
+        height: panel.offsetHeight - BORDER * 2,
+        marginLeft: BORDER,
+        marginTop: BORDER,
+      }
+    } else if (pctX > 0.7) {
+      this.quadrant = {
+        quadrant: 'right',
+        width: panel.offsetWidth / 2 - BORDER * 2,
+        height: panel.offsetHeight - BORDER * 2,
+        marginLeft: panel.offsetWidth / 2 + BORDER,
+        marginTop: BORDER,
+      }
+    } else if (pctY < 0.4) {
+      this.quadrant = {
+        quadrant: 'top',
+        width: panel.offsetWidth - BORDER * 2,
+        height: panel.offsetHeight / 2 - BORDER * 2,
+        marginLeft: BORDER,
+        marginTop: BORDER,
+      }
+    } else if (pctY > 0.6) {
+      this.quadrant = {
+        quadrant: 'bottom',
+        width: panel.offsetWidth - BORDER * 2,
+        height: panel.offsetHeight / 2 - BORDER * 2,
+        marginLeft: BORDER,
+        marginTop: panel.offsetHeight / 2 + BORDER,
+      }
+    } else {
+      BORDER *= 5
+      const w = (panel.offsetWidth - BORDER * 2) * 0.8
+      const h = (panel.offsetHeight - BORDER * 2) * 0.8
+      this.quadrant = {
+        quadrant: 'center',
+        width: w,
+        height: h,
+        marginLeft: (panel.offsetWidth - w) / 2,
+        marginTop: (panel.offsetHeight - h) / 2,
+      }
+    }
+  }
+
+  private dragEnd() {
+    this.quadrant = null
+    this.dragPanelNumber = -1
+  }
+
+  private onDrop(event: DragEvent, index: number) {
+    if (!this.quadrant) return
+
+    const bundle = event.dataTransfer?.getData('bundle') as string
+    const j = JSON.parse(bundle)
+
+    const viz = { component: j.component, props: j }
+    this.onSplit({ index, quadrant: this.quadrant.quadrant, viz })
+    this.quadrant = null
+    this.dragPanelNumber = -1
+  }
+
+  private onSplit(props: {
+    index: number
+    quadrant: string
+    viz: { component: string; props: any }
+  }) {
+    const { index, quadrant, viz } = props
+
     const newPanel = {
-      component: leftPanel.component,
-      props: Object.assign({}, leftPanel.props),
+      component: viz.component,
+      props: viz.props,
       key: Math.random(),
     }
 
-    this.panels.unshift(newPanel)
+    switch (quadrant) {
+      case 'center':
+        this.panels[index] = newPanel
+        break
+      case 'left':
+        this.panels.splice(index, 0, newPanel)
+        break
+      case 'right':
+        this.panels.splice(index + 1, 0, newPanel)
+        break
+      default:
+        console.warn('TOP AND BOTTOM to be added later')
+        return
+    }
+
     this.updateURL()
     globalStore.commit('resize')
   }
@@ -308,8 +425,10 @@ class MyComponent extends Vue {
         // YAML config specified
         this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
       } else {
-        // No config file, just the folder
-        this.$router.push(`${BASE_URL}${root}/${xsubfolder}`)
+        // Just the folder, unless the props.config has the viz file
+        let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
+        if (props.config) finalUrl += `/${props.config}`
+        this.$router.push(finalUrl)
       }
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
@@ -375,15 +494,21 @@ export default MyComponent
 }
 
 .split-panel {
-  background-color: var(--bgBold);
   position: relative;
+  background-color: var(--bgBold);
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
 }
 
-.fill-panel {
+.map-tile {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  height: 100%;
+}
+
+.drag-container {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -392,14 +517,27 @@ export default MyComponent
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   height: 100%;
+
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
 }
 
-// .narrow {
-//   z-index: 1;
-//   flex: unset;
-//   margin-right: 0rem;
-//   border-right: 1px solid #333;
-// }
+.drag-highlight {
+  margin-left: 0px;
+  margin-top: 0px;
+  width: 100%;
+  height: 100%;
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  opacity: 0;
+  z-index: 50000;
+  border: 8px solid #00000000;
+  transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s,
+    margin-left 0.2s;
+  transition-timing-function: ease-in;
+  pointer-events: none;
+}
 
 .control-buttons {
   background-color: var(--bgPanel);
