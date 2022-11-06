@@ -34,14 +34,11 @@
         .desc.flex1
           p: b {{ root.slug }}
           p {{ root.description}}
-        b-button.btn-delete.is-small(
-          type="is-text"
-          @click="deleteShortcut(root.slug)"
-        ) X
+        .delete(@click="deleteShortcut(root.slug)")
 
     .option
       h5 {{ $t('addDataSources') }}
-      add-data-source.slide-right
+      add-data-source
 
 
 </template>
@@ -196,6 +193,7 @@ export default MyComponent
   height: 100%;
   padding: 0.25rem 0;
   color: var(--text);
+  font-size: 0.9rem;
 }
 
 h4 {
@@ -279,7 +277,7 @@ h5 {
 }
 
 .source {
-  margin-left: 1rem;
+  // margin-left: 1rem;
   margin-bottom: 3px;
   background-color: var(--bgCream2);
 }
@@ -289,12 +287,13 @@ h5 {
   padding: 1px 4px;
 }
 
-.btn-delete {
-  padding: 0 0;
-  margin: 0 0;
-  color: #f66;
-  text-decoration: none;
-  font-weight: bold;
+.delete {
+  opacity: 0.4;
+}
+
+.delete:hover {
+  opacity: 1;
+  background-color: red;
 }
 
 @media only screen and (max-width: 640px) {

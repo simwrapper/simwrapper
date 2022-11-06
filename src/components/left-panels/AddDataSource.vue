@@ -1,7 +1,6 @@
 <template lang="pug">
 .add-data
 
-
   .add
     .markdown(v-html="notes")
     .flex-row
@@ -30,12 +29,12 @@ import MarkdownIt from 'markdown-it'
 import globalStore from '@/store'
 
 const mdAddNotes = `
-Add a local shortcut for any resource that serves files directly over HTTP.
+Add a local shortcut for any URL-based resource.
 SimWrapper requires several server settings, including:
 
 - Open access (no login)
 - File and directory listings
--  CORS "Access-Control-Allow-Origin" header
+-  CORS "Access-Control-Allow-Origin"
 `
 
 @Component({ components: {}, props: {} })
@@ -95,11 +94,11 @@ export default class VueComponent extends Vue {
 </script>
 
 <style scoped lang="scss">
-// @import '@/styles.scss';
+@import '@/styles.scss';
 
 .add {
   gap: 0.25rem;
-  margin: 0.5rem 0 1rem 0;
+  margin: 0.5rem 0 0rem 0;
   color: white;
 
   b-field {

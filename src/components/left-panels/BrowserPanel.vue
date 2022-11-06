@@ -62,9 +62,9 @@
           .curate-content
             .viz-table
               .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
-                        @click="clickedVisualization(index)")
-
-                .viz-frame
+                        @click="clickedVisualization(index)"
+              )
+                .viz-frame(draggable @dragstart="dragStart($event, viz)")
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
                   p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component }}
@@ -102,7 +102,7 @@
   .bottom-panel(v-if="!root")
 
     .flex-row.about-us
-      p: a(href="https://vsp.berlin/en/" target="_blank") VSP Home
+      p: a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
       p: a(@click="showPrivacy") Privacy
       p: a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
 
@@ -112,22 +112,22 @@
 const i18n = {
   messages: {
     en: {
-      Maps: 'Panels',
+      Maps: 'Maps & Tiles',
       Images: 'Images',
       Analysis: 'Analysis',
       Files: 'Files',
       Folders: 'Folders',
-      Topsheet: 'Topsheet',
+      Topsheet: 'Table',
       privacy:
         'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
     },
     de: {
-      Maps: 'Panels',
+      Maps: 'Karten & Fliesen',
       Images: 'Bilder',
       Analysis: 'Ergebnisse',
       Files: 'Dateien',
       Folders: 'Ordner',
-      Topsheet: 'Topsheet',
+      Topsheet: 'Tabelle',
     },
   },
 }
@@ -701,6 +701,20 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private dragStart(event: DragEvent, item: any) {
+    const bundle = Object.assign({}, item, {
+      root: this.root,
+      subfolder: this.myState.subfolder,
+      xsubfolder: this.myState.subfolder,
+    }) as any
+
+    bundle.yamlConfig = bundle.config
+    delete bundle.config
+
+    const text = JSON.stringify(bundle) as any
+    event.dataTransfer?.setData('bundle', text)
+  }
+
   private showPrivacy() {
     alert(this.$t('privacy'))
   }
@@ -715,6 +729,7 @@ export default class VueComponent extends Vue {
   height: 100%;
   padding-top: 0.25rem;
   user-select: none;
+  font-size: 0.9rem;
 }
 
 .top-panel {
@@ -741,6 +756,7 @@ h4 {
   margin-bottom: 0rem;
   padding: 0 0.5rem 0rem 0.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
   text-align: left;
   user-select: none;
 
@@ -756,7 +772,6 @@ h4 {
 
   p,
   a {
-    font-size: 1rem;
     max-width: 100%;
     overflow-wrap: break-word;
   }
@@ -818,7 +833,7 @@ h2 {
   display: grid;
   row-gap: 0rem;
   column-gap: 0.25rem;
-  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
   list-style: none;
   margin-top: 0.5rem;
   padding-left: 0px;
@@ -903,7 +918,6 @@ h2 {
   p {
     margin: 0 0 0 0;
     background-color: var(--bgBold);
-    font-size: 1rem;
     font-weight: bold;
     line-height: 1.2rem;
     padding: 1rem 0.5rem;
@@ -954,14 +968,14 @@ h2 {
   border-left: 3px solid var(--sliderThumb);
 
   h5 {
-    font-size: 1.3rem;
-    line-height: 1.3rem;
+    font-size: 1rem;
+    line-height: 1rem;
     font-weight: bold;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
   }
 
   p {
-    line-height: 1.2rem;
+    line-height: 1.1rem;
   }
 }
 
@@ -978,6 +992,7 @@ h2 {
 
 .hint-clicks {
   margin: 1rem 0;
+  line-height: 1.2rem;
 }
 
 .config-sources {
@@ -994,7 +1009,8 @@ h2 {
 }
 
 .about-us {
-  margin-left: auto;
+  margin: 0 auto;
+  overflow-x: none;
   p {
     margin: 0.5rem 1rem 0.5rem 0;
   }
@@ -1018,8 +1034,6 @@ h2 {
   border-radius: 4px;
   p {
     margin: 0 0 0 0;
-    // background-color: var(--bgBold);
-    font-size: 1rem;
     line-height: 1rem;
     padding: 0 0;
     color: var(--text);
@@ -1053,6 +1067,5 @@ p.v-plugin {
   background-color: var(--bgCream3);
   padding: 2px 3px;
   border-radius: 0 0 4px 0;
-  // font-weight: bold;
 }
 </style>

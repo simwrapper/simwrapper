@@ -68,7 +68,7 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .left-nav-panel {
-  background-color: #333338;
+  background-color: #313135;
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -87,12 +87,12 @@ export default class VueComponent extends Vue {
 }
 
 .item {
-  width: 60px;
+  width: 56px;
   text-align: center;
   margin-bottom: 12px;
   border-left: 3px solid #00000000;
   border-right: 3px solid #00000000;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 p {
@@ -102,7 +102,7 @@ p {
 }
 
 .item img {
-  width: 44px;
+  width: 36px;
   margin: 0 auto;
   transform: rotate(90deg);
 }
