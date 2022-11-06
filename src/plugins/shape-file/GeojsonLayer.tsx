@@ -41,7 +41,13 @@ export default function Component({
   tooltip = [] as string[],
   featureFilter = new Float32Array(0),
 }) {
-  const mapRef = useRef<MapRef>() as any
+  const _mapRef = useRef<MapRef>() as any
+
+  // release _mapRef on unmount to avoid memory leak
+  useEffect(() => {
+    _mapRef.current = false
+  })
+
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
 
@@ -286,7 +292,10 @@ export default function Component({
       onAfterRender={async () => {
         if (screenshot > screenshotCount) {
           // console.log({ deckInstance })
-          await screenshots.savePNG(deckInstance.props.layers[0], mapRef?.current?.getMap()._canvas)
+          await screenshots.savePNG(
+            deckInstance.props.layers[0],
+            _mapRef?.current?.getMap()._canvas
+          )
           setScreenshot(screenshot) // update scrnshot count so we don't take 1000 screenshots by mistake :-/
         }
       }}
@@ -295,7 +304,7 @@ export default function Component({
         /*
         // @ts-ignore */
         <StaticMap
-          ref={mapRef}
+          ref={_mapRef}
           mapStyle={globalStore.getters.mapStyle}
           mapboxApiAccessToken={MAPBOX_TOKEN}
           preserveDrawingBuffer
