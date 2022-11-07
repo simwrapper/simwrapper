@@ -11,8 +11,9 @@
     )
     .left-panel-active-section(v-show="activeLeftSection" :style="activeSectionStyle")
       component(:is="activeLeftSection.class"
-        @navigate="onNavigate(0,$event)"
+        @navigate="onNavigate($event,0,0)"
         @activate="setActiveLeftSection"
+        @isDragging="handleDragStartStop"
       )
       //- @split="onSplit('left')"
     .left-panel-divider(v-show="activeLeftSection"
@@ -21,34 +22,51 @@
       @mousemove.stop="dividerDragging"
     )
 
-  .split-panel(
-    v-for="panel,i in panels" :key="panel.key"
-    :class="{'is-multipanel' : panels.length > 1}"
-  )
-    .drag-container(
-      @drop="onDrop($event, i)"
-      @dragover.prevent
-      @dragenter.prevent
-      @dragover="stillDragging($event,i)"
-      @dragleave="dragEnd"
-      :ref="`dragContainer${i}`"
+  .table-of-tiles(ref="tileTable")
+
+    .row-drop-target(:style="buildDragHighlightStyle(-1,-1)"
+        @drop="onDrop({event: $event, row: 'rowTop'})"
+        @dragover="stillDragging({event: $event, row: 'rowTop'})"
+        @dragover.prevent
+        @dragenter.prevent
+        @dragleave="dragEnd"
     )
-      component.map-tile(
-        v-bind="panel.props"
-        :is="panel.component"
-        @navigate="onNavigate(i,$event)"
-        @zoom="showBackArrow(i, $event)"
+
+    .tile-row(v-for="panelRow,y in panels" :key="y")
+
+      .drag-container(
+        v-for="panel,x in panelRow" :key="panel.key"
+        @drop="onDrop({event: $event,x,y})"
+        @dragover.prevent
+        @dragenter.prevent
+        @dragover="stillDragging({event: $event,x,y})"
+        @dragleave="dragEnd"
+        :ref="`dragContainer${x}-${y}`"
+        :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
       )
-      .drag-highlight(:style="buildDragHighlightStyle(i)")
+        component.map-tile(
+          v-bind="panel.props"
+          :is="panel.component"
+          @navigate="onNavigate($event,x,y)"
+          @zoom="showBackArrow($event,x,y)"
+        )
+        .drag-highlight(:style="buildDragHighlightStyle(x,y)")
 
+        .control-buttons(v-if="showControlButtonsPanel(panel)")
+          a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
+            @click="onBack(x,y)" :title="$t('back')")
+              i.fa.fa-icon.fa-arrow-left
+          a(v-if="isMultipanel && !zoomed" :title="$t('close')"
+            @click="onClose(x,y)")
+              i.fa.fa-icon.fa-times-circle
 
-    .control-buttons(v-if="showControlButtonsPanel(panel)")
-      a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
-        @click="onBack(i)" :title="$t('back')")
-          i.fa.fa-icon.fa-arrow-left
-      a(v-if="panels.length > 1 && !zoomed" :title="$t('close')"
-        @click="onClose(i)")
-          i.fa.fa-icon.fa-times-circle
+    .row-drop-target(:style="buildDragHighlightStyle(-2,-2)"
+        @drop="onDrop({event: $event, row: 'rowBottom'})"
+        @dragover="stillDragging({event: $event, row: 'rowBottom'})"
+        @dragover.prevent
+        @dragenter.prevent
+        @dragleave="dragEnd"
+    )
 
 </template>
 
@@ -95,9 +113,8 @@ const DEFAULT_LEFT_WIDTH = 300
   ),
 })
 class MyComponent extends Vue {
-  // the calls to $forceUpdate() below are because Vue does not watch deep array contents.
-
-  private panels = [] as any[]
+  // panels is an array of arrays: each row, with its vizes in order.
+  private panels = [] as any[][]
 
   private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
@@ -114,6 +131,11 @@ class MyComponent extends Vue {
     this.activeLeftSection = section
     localStorage.setItem('activeLeftSection', JSON.stringify(section))
     if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+  }
+
+  private get isMultipanel() {
+    if (this.panels.length > 1) return true
+    return this.panels[0].length > 1
   }
 
   private showControlButtonsPanel(panel: any) {
@@ -165,11 +187,13 @@ class MyComponent extends Vue {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
       this.panels = [
-        {
-          component: 'SplashPage',
-          key: Math.random(),
-          props: {} as any,
-        },
+        [
+          {
+            component: 'SplashPage',
+            key: Math.random(),
+            props: {} as any,
+          },
+        ],
       ]
     } else {
       this.buildLayoutFromURL()
@@ -178,36 +202,16 @@ class MyComponent extends Vue {
     }
   }
 
-  // private buildLayoutFromURL() {
-  //   this.buildLayoutFromURLWithThing('')
-  // }
-
   private buildLayoutFromURL() {
-    //   // build layout without config; figure it out from URL
-    //   this.buildLayout('')
-    // }
-
-    // private buildLayout(config: string) {
-    // if no config, use URL from route
-    const pathMatch = this.$route.params.pathMatch // config ||
-    if (!pathMatch) {
-      this.panels = [{ component: 'SplashPage', key: Math.random(), props: {} as any }]
-      return
-    }
+    const pathMatch = this.$route.params.pathMatch
 
     // splash page:
-    if (pathMatch === '/') {
-      this.panels = [
-        {
-          component: 'SplashPage',
-          key: Math.random(),
-          props: {} as any,
-        },
-      ]
+    if (!pathMatch || pathMatch === '/') {
+      this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
       return
     }
 
-    // split panel:
+    // split panel?
     if (pathMatch.startsWith('split/')) {
       const payload = pathMatch.substring(6)
       try {
@@ -235,18 +239,22 @@ class MyComponent extends Vue {
     for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
       if (micromatch(fileNameWithoutPath, vizPlugin.filePatterns).length) {
         // plugin matched!
-        const key = this.panels.length === 1 ? this.panels[0].key : Math.random()
+        let key = Math.random()
+        if (this.panels.length === 1 && this.panels[0].length === 1) key = this.panels[0][0].key
+
         this.panels = [
-          {
-            key,
-            component: vizPlugin.kebabName,
-            props: {
-              root,
-              subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
-              yamlConfig: fileNameWithoutPath[0],
-              thumbnail: false,
-            } as any,
-          },
+          [
+            {
+              key,
+              component: vizPlugin.kebabName,
+              props: {
+                root,
+                subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+                yamlConfig: fileNameWithoutPath[0],
+                thumbnail: false,
+              } as any,
+            },
+          ],
         ]
         this.$store.commit('setShowLeftBar', true)
         return
@@ -254,21 +262,47 @@ class MyComponent extends Vue {
     }
 
     // Last option: folder browser/dashboard panel
-    const key = this.panels.length === 1 ? this.panels[0].key : Math.random()
+    let key = Math.random()
+    if (this.panels.length === 1 && this.panels[0].length === 1) key = this.panels[0][0].key
+
     this.panels = [
-      {
-        key,
-        component: 'TabbedDashboardView',
-        props: { root, xsubfolder } as any,
-      },
+      [
+        {
+          key,
+          component: 'TabbedDashboardView',
+          props: { root, xsubfolder } as any,
+        },
+      ],
     ]
   }
 
   private quadrant: any = null
-  private dragPanelNumber = -1
+  private dragX = -1
+  private dragY = -1
+  private isDragHappening = false
 
-  private buildDragHighlightStyle(panelIndex: number) {
-    if (panelIndex !== this.dragPanelNumber || !this.quadrant) return {}
+  private handleDragStartStop(dragState: boolean) {
+    this.isDragHappening = dragState
+  }
+
+  private buildDragHighlightStyle(x: number, y: number) {
+    // top row
+    if (x == -1) {
+      const opacity = this.quadrant == 'rowTop' ? '1' : '0'
+      const pointerEvents = this.isDragHappening ? 'auto' : 'none'
+
+      return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
+    }
+
+    // bottom row
+    if (x == -2) {
+      const opacity = this.quadrant == 'rowBottom' ? '1' : '0'
+      const pointerEvents = this.isDragHappening ? 'auto' : 'none'
+      return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
+    }
+
+    // tiles
+    if (x !== this.dragX || y !== this.dragY || !this.quadrant) return {}
 
     const backgroundColor = this.quadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
     const area: any = { opacity: 1.0, backgroundColor }
@@ -276,14 +310,26 @@ class MyComponent extends Vue {
     return area
   }
 
-  private stillDragging(event: DragEvent, index: number) {
-    this.dragPanelNumber = index
+  private stillDragging(props: { event: DragEvent; x: number; y: number; row: string }) {
+    const { event, x, y, row } = props
 
-    const ref = this.$refs[`dragContainer${index}`] as any[]
+    // row is special
+    if (row) {
+      this.quadrant = row
+      return
+    }
 
-    // parent is the SplitPanel, which knows its real coordinates
-    const panel = ref[0].parentElement
-    const pctX = (event.clientX - panel.offsetLeft) / panel.offsetWidth
+    this.dragX = x
+    this.dragY = y
+
+    const ref = this.$refs[`dragContainer${x}-${y}`] as any[]
+
+    // only parent knows its true position
+    const table = this.$refs['tileTable'] as any
+    const navOffset = table.offsetLeft
+
+    const panel = ref[0]
+    const pctX = (event.clientX - panel.offsetLeft - navOffset) / panel.offsetWidth
     const pctY = (event.clientY - panel.offsetTop) / panel.offsetHeight
 
     let BORDER = 8
@@ -304,22 +350,22 @@ class MyComponent extends Vue {
         marginLeft: panel.offsetWidth / 2 + BORDER,
         marginTop: BORDER,
       }
-    } else if (pctY < 0.4) {
-      this.quadrant = {
-        quadrant: 'top',
-        width: panel.offsetWidth - BORDER * 2,
-        height: panel.offsetHeight / 2 - BORDER * 2,
-        marginLeft: BORDER,
-        marginTop: BORDER,
-      }
-    } else if (pctY > 0.6) {
-      this.quadrant = {
-        quadrant: 'bottom',
-        width: panel.offsetWidth - BORDER * 2,
-        height: panel.offsetHeight / 2 - BORDER * 2,
-        marginLeft: BORDER,
-        marginTop: panel.offsetHeight / 2 + BORDER,
-      }
+      // } else if (pctY < 0.4) {
+      //   this.quadrant = {
+      //     quadrant: 'top',
+      //     width: panel.offsetWidth - BORDER * 2,
+      //     height: panel.offsetHeight / 2 - BORDER * 2,
+      //     marginLeft: BORDER,
+      //     marginTop: BORDER,
+      //   }
+      // } else if (pctY > 0.6) {
+      //   this.quadrant = {
+      //     quadrant: 'bottom',
+      //     width: panel.offsetWidth - BORDER * 2,
+      //     height: panel.offsetHeight / 2 - BORDER * 2,
+      //     marginLeft: BORDER,
+      //     marginTop: panel.offsetHeight / 2 + BORDER,
+      //   }
     } else {
       BORDER *= 5
       const w = (panel.offsetWidth - BORDER * 2) * 0.8
@@ -336,27 +382,32 @@ class MyComponent extends Vue {
 
   private dragEnd() {
     this.quadrant = null
-    this.dragPanelNumber = -1
+    this.dragX = -1
+    this.dragY = -1
   }
 
-  private onDrop(event: DragEvent, index: number) {
+  private onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
     if (!this.quadrant) return
 
-    const bundle = event.dataTransfer?.getData('bundle') as string
-    const j = JSON.parse(bundle)
+    const { event, x, y, row } = props
 
-    const viz = { component: j.component, props: j }
-    this.onSplit({ index, quadrant: this.quadrant.quadrant, viz })
-    this.quadrant = null
-    this.dragPanelNumber = -1
+    const bundle = event.dataTransfer?.getData('bundle') as string
+    const componentConfig = JSON.parse(bundle)
+
+    const viz = { component: componentConfig.component, props: componentConfig }
+    this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
+
+    this.dragEnd()
   }
 
-  private onSplit(props: {
-    index: number
+  private async onSplit(props: {
+    x: number
+    y: number
+    row: string
     quadrant: string
     viz: { component: string; props: any }
   }) {
-    const { index, quadrant, viz } = props
+    const { x, y, row, quadrant, viz } = props
 
     const newPanel = {
       component: viz.component,
@@ -364,54 +415,78 @@ class MyComponent extends Vue {
       key: Math.random(),
     }
 
-    switch (quadrant) {
-      case 'center':
-        this.panels[index] = newPanel
-        break
-      case 'left':
-        this.panels.splice(index, 0, newPanel)
-        break
-      case 'right':
-        this.panels.splice(index + 1, 0, newPanel)
-        break
-      default:
-        console.warn('TOP AND BOTTOM to be added later')
-        return
+    if (row) {
+      switch (row) {
+        case 'rowTop':
+          // add new row at the top
+          this.panels.unshift([newPanel])
+          break
+        case 'rowBottom':
+          // add new row at the bottom
+          this.panels.push([newPanel])
+          break
+        default:
+          console.warn('HUH?', row)
+          break
+      }
+    } else {
+      switch (quadrant) {
+        case 'center':
+          this.panels[y][x] = newPanel
+          break
+        case 'left':
+          this.panels[y].splice(x, 0, newPanel)
+          break
+        case 'right':
+          this.panels[y].splice(x + 1, 0, newPanel)
+          break
+        default:
+          console.warn('TOP AND BOTTOM to be added later')
+          return
+      }
     }
 
     this.updateURL()
     globalStore.commit('resize')
   }
 
-  private onNavigate(panelNumber: number, newPanel: { component: string; props: any }) {
+  @Watch('panels', { deep: true }) panelsChanged() {
+    console.log('ZOOP!')
+    // this.buildLayoutFromURL()
+  }
+
+  private onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
     if (newPanel.component === 'SplashPage') {
-      this.panels[panelNumber] = { component: 'SplashPage', props: {}, key: Math.random() }
+      this.panels[y][x] = { component: 'SplashPage', props: {}, key: Math.random() }
     } else {
-      // this.panels[panelNumber] = Object.assign({ key: this.panels[panelNumber].key }, newPanel)
-      this.panels[panelNumber] = Object.assign({ key: Math.random() }, newPanel)
+      this.panels[y][x] = Object.assign({ key: Math.random() }, newPanel)
     }
 
     this.updateURL()
     this.buildLayoutFromURL()
   }
 
-  private onClose(panel: number) {
-    this.panels.splice(panel, 1) // at i:panel, remove 1 item
+  private onClose(x: number, y: number) {
+    // remove the panel
+    this.panels[y].splice(x, 1) // at column x of row y, remove 1 item
+    // if row is empty, remove it  too
+    if (!this.panels[y].length) this.panels.splice(y, 1) // remove row y
+
     this.updateURL()
     globalStore.commit('resize')
   }
 
-  private onBack(panel: number) {
-    this.panels[panel].component = 'TabbedDashboardView'
-    this.panels[panel].props.xsubfolder = this.panels[panel].props.subfolder
-    delete this.panels[panel].props.yamlConfig
+  private onBack(x: number, y: number) {
+    this.panels[y][x].component = 'TabbedDashboardView'
+    this.panels[y][x].props.xsubfolder = this.panels[y][x].props.subfolder
+    delete this.panels[y][x].props.yamlConfig
 
     this.updateURL()
   }
 
   private updateURL() {
-    if (this.panels.length === 1) {
-      const props = this.panels[0].props
+    if (this.panels.length === 1 && this.panels[0].length === 1) {
+      const props = this.panels[0][0].props
 
       const root = props.root || ''
       const xsubfolder = props.xsubfolder || props.subfolder || ''
@@ -433,6 +508,8 @@ class MyComponent extends Vue {
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
       this.$router.push(`${BASE_URL}split/${base64}`)
+
+      // console.log(JSON.stringify(this.panels))
     }
   }
 
@@ -489,35 +566,32 @@ export default MyComponent
   flex-direction: row;
 }
 
-.is-multipanel {
-  margin-right: 0.25rem;
+.table-of-tiles {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.split-panel {
+.tile-row {
   position: relative;
-  background-color: var(--bgBold);
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
+  display: flex;
+  flex-direction: row;
+  background-color: var(--bgBrowser);
 }
 
 .map-tile {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   height: 100%;
+  flex: 1;
 }
 
 .drag-container {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  grid-row: 1 / 2;
-  grid-column: 1 / 2;
+  position: relative;
+  flex: 1;
   height: 100%;
-
   display: grid;
   grid-template-rows: 1fr;
   grid-template-columns: 1fr;
@@ -540,7 +614,7 @@ export default MyComponent
 }
 
 .control-buttons {
-  background-color: var(--bgPanel);
+  // background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
   z-index: 250;
   grid-row: 1 / 2;
@@ -589,6 +663,12 @@ export default MyComponent
   padding: 0 0.25rem;
 }
 
-@media only screen and (max-width: 640px) {
+.row-drop-target {
+  position: absolute;
+  width: 100%;
+  height: 32px;
+  opacity: 0;
+  z-index: 60000;
+  transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s;
 }
 </style>

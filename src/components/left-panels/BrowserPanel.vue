@@ -64,7 +64,11 @@
               .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
                         @click="clickedVisualization(index)"
               )
-                .viz-frame(draggable @dragstart="dragStart($event, viz)")
+                .viz-frame(
+                  draggable
+                  @dragstart="dragStart($event, viz)"
+                  @dragend="dragEnd"
+                )
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
                   p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component }}
@@ -701,7 +705,13 @@ export default class VueComponent extends Vue {
     }
   }
 
+  private dragEnd() {
+    this.$emit('isDragging', false)
+  }
+
   private dragStart(event: DragEvent, item: any) {
+    this.$emit('isDragging', true)
+
     const bundle = Object.assign({}, item, {
       root: this.root,
       subfolder: this.myState.subfolder,
