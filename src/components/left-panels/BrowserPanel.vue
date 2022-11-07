@@ -25,16 +25,30 @@
         .hint-clicks(style="margin-bottom: 1rem")
           p Welcome to SimWrapper, the data exploration platform from Technische Universität Berlin. Explore a data source below, or add your own.
 
+        .is-chrome(v-if="isChrome")
+          h3 Local Folders:
+
+          p(v-if="!localFileHandles.length") Chrome/Edge can browse folders directly:
+          .project-root.local(v-for="row in localFileHandles" :key="row.key"
+            @click="clickedBrowseChromeLocalFolder(row)")
+
+            h5.remove-local(style="flex: 1;") {{ row.handle.name}}
+              i.fa.fa-times(@click.stop="clickedDelete(row)")
+            p Local folder
+
+          p.config-sources: a(@click="showChromeDirectory") Add local folder...
+
         h3(style="margin-top: 1rem") Data Sources
 
-        .project-root(v-for="project in allRoots"
+        .project-root(v-for="project in allRoots" :key="project.slug"
           @click="clickedOnFolder({root: project.slug})"
         )
           h5 {{ project.name }}
           p {{ project.description }}
 
-        p.config-sources: a(@click="configureSources") Add data sources...
+        p.config-sources: a(@click="configureSources") Edit data sources...
 
+      //- Starting point if in a project folder: -------------------------
       .curated-sections(v-else)
 
         h3.curate-heading {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
@@ -114,6 +128,10 @@
 </template>
 
 <script lang="ts">
+// Typescript doesn't know the Chrome File System API
+declare const window: any
+const BASE_URL = import.meta.env.BASE_URL
+
 const i18n = {
   messages: {
     en: {
@@ -170,15 +188,17 @@ interface IMyState {
 }
 
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { get, set, clear } from 'idb-keyval'
 import markdown from 'markdown-it'
 import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
-import plugins from '@/plugins/pluginRegistry'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
+import plugins from '@/plugins/pluginRegistry'
+import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import AddDataSource from './AddDataSource.vue'
@@ -277,7 +297,7 @@ export default class VueComponent extends Vue {
         url: '/',
       },
       {
-        label: this.myState.svnProject.slug,
+        label: this.myState.svnProject.name,
         url: '/' + this.myState.svnProject.slug,
       },
     ]
@@ -729,6 +749,60 @@ export default class VueComponent extends Vue {
   private showPrivacy() {
     alert(this.$t('privacy'))
   }
+
+  // -- BEGIN Chrome File System Access API support
+  private get isChrome() {
+    return !!window.showDirectoryPicker
+  }
+
+  private get localFileHandles() {
+    // sort a copy of the array so we don't get an infinite loop
+    return this.$store.state.localFileHandles
+      .concat()
+      .sort((a: any, b: any) =>
+        parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
+      )
+  }
+
+  private async clickedBrowseChromeLocalFolder(row: { key: string; handle: any }) {
+    try {
+      const status = await row.handle.requestPermission({ mode: 'read' })
+      console.log(row.handle, status)
+
+      if (status !== 'granted') return
+
+      // if first time, add its key to the fileSystemConfig
+      const exists = fileSystems.find(f => f.slug == row.key)
+      if (!exists) addLocalFilesystem(row.handle, row.key)
+
+      const props = { root: row.key } as any
+      this.clickedOnFolder(props)
+    } catch (e) {
+      console.error('' + e)
+    }
+  }
+
+  private async showChromeDirectory() {
+    try {
+      const FileSystemDirectoryHandle = window.showDirectoryPicker()
+      const dir = await FileSystemDirectoryHandle
+      const slug = addLocalFilesystem(dir, null) // no key yet
+      this.$router.push(`${BASE_URL}${slug}/`)
+    } catch (e) {
+      // shrug
+    }
+  }
+
+  private async clickedDelete(row: { key: string; handle: any }) {
+    const handles = this.$store.state.localFileHandles
+    // just filter out the key I guess?
+    const filtered = handles.filter((f: any) => f.key !== row.key)
+
+    // and save it everywhere
+    await set('fs', filtered)
+    this.$store.commit('setLocalFileSystem', filtered)
+  }
+  // - END Chrome File System Access API support
 }
 </script>
 
@@ -956,7 +1030,7 @@ h2 {
 .project-root {
   display: flex;
   flex-direction: column;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
   padding: 0.5rem 0.5rem;
   background-color: var(--bgMapPanel);
   border-left: 3px solid var(--sliderThumb);
@@ -971,6 +1045,10 @@ h2 {
   p {
     line-height: 1.1rem;
   }
+}
+
+.project-root.local {
+  border-left: 3px solid $matsimBlue;
 }
 
 .project-root:hover {
@@ -1066,6 +1144,11 @@ p.v-plugin {
 .trail {
   display: flex;
   width: 100%;
+
+  p:hover {
+    color: var(--linkHover);
+    cursor: pointer;
+  }
 }
 
 .x-breadcrumbs {
@@ -1084,5 +1167,31 @@ p.v-plugin {
     color: var(--linkHover);
     cursor: pointer;
   }
+}
+
+.add-folder {
+  margin-top: 1rem;
+}
+
+.fa-times {
+  opacity: 0;
+  float: right;
+  padding: 1px 1px;
+}
+
+.fa-times:hover {
+  color: red;
+}
+
+.fa-times:active {
+  color: darkred;
+}
+
+.project-root:hover .fa-times {
+  opacity: 0.15;
+}
+
+.project-root:hover .fa-times:hover {
+  opacity: 1;
 }
 </style>
