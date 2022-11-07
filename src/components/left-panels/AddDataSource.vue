@@ -14,7 +14,7 @@
       b-input.flex5(placeholder="optional" maxlength="255" v-model="noteField")
     .flex-row
       p.flex1 &nbsp;
-      b-button.is-warning(
+      b-button(
         :disabled="!isValidURL"
         :type="isValidURL ? '' : 'is-outlined'"
         @click="addURL"
@@ -99,7 +99,7 @@ export default class VueComponent extends Vue {
 .add {
   gap: 0.25rem;
   margin: 0.5rem 0 0rem 0;
-  color: white;
+  color: var(--text);
 
   b-field {
     color: white;

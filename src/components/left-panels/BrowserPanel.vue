@@ -2,8 +2,6 @@
 .panel
 
   .top-panel
-    h4 SimWrapper
-
     .xbreadcrumbs
       p(@click="clickedBreadcrumb({url: '//'})")
         i.fa.fa-home
@@ -13,13 +11,15 @@
           @click="clickedBreadcrumb(crumb)"
         ) &nbsp;/ {{ crumb.label }}
 
+    .logo.flex-row(v-if="!root" style="margin: 0.5rem auto 0.5rem auto;")
+      img(v-if="globalState.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
+      img(v-else src="@/assets/simwrapper-logo/SW_logo_icon_purple.png" width="24")
+      h2(style="margin-left: 0.5rem") SimWrapper
+
+
   .middle-panel
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
-
-        .flex-row(style="margin: 0.5rem auto 2rem auto;")
-          img(src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
-          h2(style="margin-left: 0.5rem") SimWrapper
 
         .hint-clicks(style="margin-bottom: 1rem")
           p Welcome to SimWrapper, the data exploration platform from Technische Universität Berlin. Explore a data source below, or add your own.
@@ -730,6 +730,7 @@ export default class VueComponent extends Vue {
   padding-top: 0.25rem;
   user-select: none;
   font-size: 0.9rem;
+  color: var(--text);
 }
 
 .top-panel {
@@ -825,14 +826,9 @@ h2 {
   background-color: var(--bgPanel);
 }
 
-.logo {
-  margin-left: auto;
-}
-
 .folder-table {
   display: grid;
-  row-gap: 0rem;
-  column-gap: 0.25rem;
+  gap: 2px;
   grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
   list-style: none;
   margin-top: 0.5rem;
@@ -843,9 +839,8 @@ h2 {
   cursor: pointer;
   display: flex;
   flex-direction: row;
-  background-color: var(--bg);
+  background-color: var(--bgMapPanel);
   color: var(--text);
-  margin: 1px 0;
   line-height: 1.05rem;
   padding: 3px 4px;
   border-radius: 0;
@@ -862,7 +857,7 @@ h2 {
 .folder:hover {
   background-color: var(--bgHover);
   // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
-  transition: background-color 0.1s ease-in-out;
+  transition: background-color 0.08s ease-in-out;
 }
 
 .fade {
@@ -940,7 +935,7 @@ h2 {
 }
 
 .xbreadcrumbs {
-  // background-color: var(--bgCream2);
+  // background-color: var(--bgBold);
   display: flex;
   flex-direction: row;
   padding: 2px 2px;
@@ -952,7 +947,7 @@ h2 {
 }
 
 .upfolder {
-  background-color: var(--bgCream3);
+  background-color: var(--bgBold);
 }
 
 .fa-arrow-up {
@@ -964,7 +959,7 @@ h2 {
   flex-direction: column;
   margin-top: 1rem;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bg);
+  background-color: var(--bgMapPanel);
   border-left: 3px solid var(--sliderThumb);
 
   h5 {
@@ -1046,7 +1041,6 @@ h2 {
 }
 
 .viz-frame:hover {
-  // box-shadow: var(--shadowMode);
   background-color: var(--bgHover);
   border-radius: 5px;
   transition: background-color 0.02s ease-in-out;
@@ -1064,6 +1058,7 @@ p.v-plugin {
   text-align: right;
   text-transform: uppercase;
   margin-left: auto;
+  color: white;
   background-color: var(--bgCream3);
   padding: 2px 3px;
   border-radius: 0 0 4px 0;

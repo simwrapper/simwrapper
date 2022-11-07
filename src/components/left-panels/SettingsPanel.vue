@@ -279,7 +279,7 @@ h5 {
 .source {
   // margin-left: 1rem;
   margin-bottom: 3px;
-  background-color: var(--bgCream2);
+  background-color: var(--bgCream4);
 }
 
 .source .desc p {
@@ -288,6 +288,7 @@ h5 {
 }
 
 .delete {
+  margin: 2px 2px;
   opacity: 0.4;
 }
 
