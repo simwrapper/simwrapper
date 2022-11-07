@@ -41,7 +41,7 @@ export default new Vuex.Store({
     dashboardWidth: '',
     isFullScreen: false,
     isFullWidth: false,
-    isShowingLeftBar: false,
+    isShowingLeftBar: true,
     isDarkMode: true,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',

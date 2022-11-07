@@ -2,14 +2,15 @@
 .panel
 
   .top-panel
-    .xbreadcrumbs
-      p(@click="clickedBreadcrumb({url: '//'})")
-        i.fa.fa-home
+    .trail
+      .x-home
+        p(@click="clickedBreadcrumb({url: '//'})")
+          i.fa.fa-home
 
-      .flex-row(v-if="root")
+      .x-breadcrumbs(v-if="root")
         p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
           @click="clickedBreadcrumb(crumb)"
-        ) &nbsp;/ {{ crumb.label }}
+        ) &nbsp;/&nbsp;{{ crumb.label }}
 
     .logo.flex-row(v-if="!root" style="margin: 0.5rem auto 0.5rem auto;")
       img(v-if="globalState.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
@@ -484,7 +485,7 @@ export default class VueComponent extends Vue {
       const matches = micromatch(this.myState.files, viz.filePatterns)
       for (const file of matches) {
         // add thumbnail for each matching file
-        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
       }
     }
   }
@@ -519,7 +520,7 @@ export default class VueComponent extends Vue {
         const matches = micromatch(this.myState.files, viz.filePatterns)
         for (const file of matches) {
           // add thumbnail for each matching file
-          this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+          this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
         }
       }
     }
@@ -944,18 +945,6 @@ h2 {
   background-color: var(--bgPanel);
 }
 
-.xbreadcrumbs {
-  // background-color: var(--bgBold);
-  display: flex;
-  flex-direction: row;
-  padding: 2px 2px;
-
-  p:hover {
-    color: var(--linkHover);
-    cursor: pointer;
-  }
-}
-
 .upfolder {
   background-color: var(--bgBold);
 }
@@ -1072,5 +1061,28 @@ p.v-plugin {
   background-color: var(--bgCream3);
   padding: 2px 3px;
   border-radius: 0 0 4px 0;
+}
+
+.trail {
+  display: flex;
+  width: 100%;
+}
+
+.x-breadcrumbs {
+  flex: 1;
+  display: flex;
+  flex-flow: row wrap;
+  line-height: 1.2rem;
+  max-width: 100%;
+  margin-top: 2px;
+
+  p {
+    width: max-content;
+  }
+
+  p:hover {
+    color: var(--linkHover);
+    cursor: pointer;
+  }
 }
 </style>

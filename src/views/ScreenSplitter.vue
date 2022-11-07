@@ -220,6 +220,7 @@ class MyComponent extends Vue {
         this.panels = json
       } catch (e) {
         // couldn't do
+        console.error('PARSING SPLIT' + e)
         this.$router.replace('/')
       }
       return
@@ -298,7 +299,7 @@ class MyComponent extends Vue {
     if (x == -2) {
       const opacity = this.quadrant == 'rowBottom' ? '1' : '0'
       const pointerEvents = this.isDragHappening ? 'auto' : 'none'
-      return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
+      return { bottom: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
     }
 
     // tiles
@@ -450,11 +451,6 @@ class MyComponent extends Vue {
     globalStore.commit('resize')
   }
 
-  @Watch('panels', { deep: true }) panelsChanged() {
-    console.log('ZOOP!')
-    // this.buildLayoutFromURL()
-  }
-
   private onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
     if (newPanel.component === 'SplashPage') {
       this.panels[y][x] = { component: 'SplashPage', props: {}, key: Math.random() }
@@ -500,7 +496,7 @@ class MyComponent extends Vue {
         // YAML config specified
         this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
       } else {
-        // Just the folder, unless the props.config has the viz file
+        // Just the folder and viz file itself
         let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
         if (props.config) finalUrl += `/${props.config}`
         this.$router.push(finalUrl)
@@ -508,8 +504,6 @@ class MyComponent extends Vue {
     } else {
       const base64 = btoa(JSON.stringify(this.panels))
       this.$router.push(`${BASE_URL}split/${base64}`)
-
-      // console.log(JSON.stringify(this.panels))
     }
   }
 

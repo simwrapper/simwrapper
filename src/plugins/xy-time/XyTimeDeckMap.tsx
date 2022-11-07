@@ -10,14 +10,6 @@ import globalStore from '@/store'
 
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
 
-const INITIAL_VIEW = {
-  zoom: 1,
-  longitude: -30,
-  latitude: 45,
-  pitch: 0,
-  bearing: 0,
-}
-
 function convertSecondsToClockTimeMinutes(index: number) {
   const seconds = index
 
@@ -50,8 +42,7 @@ export default function Component({
   radius = 5,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
-  const [viewState, setViewState] = useState(INITIAL_VIEW) // globalStore.state.viewState)
-  // const initialViewState = Object.assign({}, INITIAL_VIEW)
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)

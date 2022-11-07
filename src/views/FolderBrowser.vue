@@ -336,7 +336,7 @@ export default class VueComponent extends Vue {
       const matches = micromatch(this.myState.files, viz.filePatterns)
       for (const file of matches) {
         // add thumbnail for each matching file
-        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
       }
     }
   }
@@ -371,7 +371,7 @@ export default class VueComponent extends Vue {
         const matches = micromatch(this.myState.files, viz.filePatterns)
         for (const file of matches) {
           // add thumbnail for each matching file
-          this.myState.vizes.push({ component: viz.kebabName, config: file, title: '◆' })
+          this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
         }
       }
     }
