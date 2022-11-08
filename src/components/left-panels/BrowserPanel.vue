@@ -904,7 +904,7 @@ h2 {
   vertical-align: top;
   background-color: var(--bgMapPanel);
   // border: var(--borderThin);
-  border-radius: 5px;
+  border-radius: 2px;
 }
 
 .viz-frame-component {

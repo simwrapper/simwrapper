@@ -592,7 +592,7 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgCream3);
+  background-color: var(--bgMapPanel);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;

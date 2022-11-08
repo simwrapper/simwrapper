@@ -5,15 +5,23 @@
       :style="buttonStyle(section)"
       @click="select(section)"
     )
-      img(:src="section.icon" :draggable="false")
+      img.svg-icon(
+        :src="section.icon"
+        :draggable="false"
+        :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
+      )
       p {{ section.name }}
 
   .bottom
-    .item(v-for="section in bottomSections" :key="section.name"
+    button.item(v-for="section in bottomSections" :key="section.name"
       :style="buttonStyle(section)"
       @click="select(section)"
     )
-      img(:src="section.icon")
+      img.svg-icon(
+        :src="section.icon"
+        :draggable="false"
+        :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
+      )
       p {{ section.name }}
 
   //- .hide
@@ -24,28 +32,35 @@
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import ICON_ARROW from '@/assets/images/sw_north_arrow_dm.png'
+import ICON_FILES from '@/assets/icons/files.svg'
+import ICON_ISSUES from '@/assets/icons/issues.svg'
+import ICON_INFO from '@/assets/icons/info.svg'
+
+import globalStore from '@/store'
 
 export interface Section {
   name: string
   class: string
   icon?: string
+  colorize?: boolean
 }
 
 @Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true }) activeSection!: string
 
+  private state = globalStore.state
+
   private topSections: Section[] = [
-    { name: 'Files', class: 'BrowserPanel', icon: ICON_ARROW },
-    { name: 'Issues', class: 'ErrorPanel', icon: ICON_ARROW },
+    { name: 'Files', class: 'BrowserPanel', icon: ICON_FILES },
+    { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
     // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
     // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
   ]
 
   private bottomSections: Section[] = [
     // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
-    { name: 'Settings', class: 'SettingsPanel', icon: ICON_ARROW },
+    { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
   ]
 
   public select(section: Section) {
@@ -54,12 +69,28 @@ export default class VueComponent extends Vue {
   }
 
   public buttonStyle(section: any) {
-    if (this.activeSection !== section.name) return {}
+    const colorizedOpacity =
+      this.state.statusErrors.length || this.state.statusWarnings.length ? 0.8 : 0.4
+
+    if (this.activeSection !== section.name) {
+      return { opacity: section.colorize ? colorizedOpacity : 0.4 }
+    }
 
     return {
       opacity: 1.0,
       borderLeft: '3px solid white',
     }
+  }
+
+  private get issueColor() {
+    // red
+    if (this.state.statusErrors.length)
+      return 'invert(60%) sepia(100%) hue-rotate(310deg) saturate(8.5)'
+    // yellow
+    if (this.state.statusWarnings.length)
+      return 'invert(75%) sepia(100%) hue-rotate(15deg) saturate(5.5)'
+    // white
+    return 'invert(100%)'
   }
 }
 </script>
@@ -78,7 +109,7 @@ export default class VueComponent extends Vue {
   margin-bottom: auto;
   display: flex;
   flex-direction: column;
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
 .bottom {
@@ -87,9 +118,9 @@ export default class VueComponent extends Vue {
 }
 
 .item {
-  width: 56px;
+  width: 60px;
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   border-left: 3px solid #00000000;
   border-right: 3px solid #00000000;
   opacity: 0.4;
@@ -102,9 +133,8 @@ p {
 }
 
 .item img {
-  width: 36px;
-  margin: 0 auto;
-  transform: rotate(90deg);
+  margin: 5px 4px;
+  width: 26px;
 }
 
 .item:hover {
@@ -125,6 +155,7 @@ p {
   background-color: #555;
 }
 
-@media only screen and (max-width: 640px) {
+.svg-icon {
+  // filter: brightness(0) saturate(100%) invert(100%);
 }
 </style>
