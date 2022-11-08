@@ -118,6 +118,7 @@
                         @title="updateTitle(index, $event)")
                   p {{ viz.title }}
 
+
   .bottom-panel(v-if="!root")
 
     .flex-row.about-us
@@ -601,37 +602,42 @@ export default class VueComponent extends Vue {
     } catch (err) {
       // First see if we can get the one-up folder
       const parent = this.myState.subfolder.lastIndexOf('/')
+
       if (parent > -1) {
         // subfolder is @Watched, this triggers a reset:
         this.subfolder = this.myState.subfolder.slice(0, parent)
         return
+      } else {
+        // top level fail?
+        this.subfolder = ''
+        return
       }
 
       // Bad things happened! Tell user
-      const e = err as any
-      console.log('BAD PAGE')
-      console.log({ eeee: e })
+      // const e = err as any
+      // console.log('BAD PAGE')
+      // console.log({ eeee: e })
 
-      this.myState.folders = []
-      this.myState.files = []
+      // this.myState.folders = []
+      // this.myState.files = []
 
-      this.myState.errorStatus = '<h3>'
-      if (e.status) this.myState.errorStatus += `${e.status} `
-      if (e.statusText) this.myState.errorStatus += `${e.statusText}`
-      if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
-      this.myState.errorStatus += `</h3>`
-      if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
-      if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
-      if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
+      // this.myState.errorStatus = '<h3>'
+      // if (e.status) this.myState.errorStatus += `${e.status} `
+      // if (e.statusText) this.myState.errorStatus += `${e.statusText}`
+      // if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
+      // this.myState.errorStatus += `</h3>`
+      // if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
+      // if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
+      // if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
 
-      if (this.myState.svnProject) {
-        this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
-      }
+      // if (this.myState.svnProject) {
+      //   this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
+      // }
 
-      // maybe it failed because password?
-      if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.svnProject.slug)
-      }
+      // // maybe it failed because password?
+      // if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
+      //   globalStore.commit('requestLogin', this.myState.svnProject.slug)
+      // }
     } finally {
       this.myState.isLoading = false
     }

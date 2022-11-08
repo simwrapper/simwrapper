@@ -478,7 +478,7 @@ class XyTime extends Vue {
         this.$store.commit('setStatus', {
           type: Status.ERROR,
           msg: `XYT Loading Error`,
-          desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
+          desc: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
         })
       } else if (event.data.finished) {
         this.finishedLoadingData(totalRows, event.data)
