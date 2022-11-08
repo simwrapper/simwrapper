@@ -119,12 +119,11 @@
                   p {{ viz.title }}
 
 
-  .bottom-panel(v-if="!root")
-
-    .flex-row.about-us
-      p: a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
-      p: a(@click="showPrivacy") Privacy
-      p: a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
+  //- .bottom-panel(v-if="!root")
+    //- .flex-row.about-us
+    //-   p: a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
+    //-   p: a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
+    //-   p: a(@click="showPrivacy") Privacy
 
 </template>
 
@@ -750,10 +749,6 @@ export default class VueComponent extends Vue {
 
     const text = JSON.stringify(bundle) as any
     event.dataTransfer?.setData('bundle', text)
-  }
-
-  private showPrivacy() {
-    alert(this.$t('privacy'))
   }
 
   // -- BEGIN Chrome File System Access API support

@@ -50,7 +50,7 @@
           @navigate="onNavigate($event,x,y)"
           @zoom="showBackArrow($event,x,y)"
         )
-        .drag-highlight(:style="buildDragHighlightStyle(x,y)")
+        .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
         .control-buttons(v-if="showControlButtonsPanel(panel)")
           a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
@@ -60,7 +60,7 @@
             @click="onClose(x,y)")
               i.fa.fa-icon.fa-times-circle
 
-    .row-drop-target(:style="buildDragHighlightStyle(-2,-2)"
+    .row-drop-target(v-if="isDragHappening" :style="buildDragHighlightStyle(-2,-2)"
         @drop="onDrop({event: $event, row: 'rowBottom'})"
         @dragover="stillDragging({event: $event, row: 'rowBottom'})"
         @dragover.prevent
@@ -392,11 +392,15 @@ class MyComponent extends Vue {
 
     const { event, x, y, row } = props
 
-    const bundle = event.dataTransfer?.getData('bundle') as string
-    const componentConfig = JSON.parse(bundle)
+    try {
+      const bundle = event.dataTransfer?.getData('bundle') as string
+      const componentConfig = JSON.parse(bundle)
 
-    const viz = { component: componentConfig.component, props: componentConfig }
-    this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
+      const viz = { component: componentConfig.component, props: componentConfig }
+      this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
+    } catch (e) {
+      console.warn('' + e)
+    }
 
     this.dragEnd()
   }
