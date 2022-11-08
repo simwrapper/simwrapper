@@ -44,9 +44,10 @@
         :ref="`dragContainer${x}-${y}`"
         :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
       )
+        //- this is the actual viz component:
         component.map-tile(
-          v-bind="panel.props"
           :is="panel.component"
+          v-bind="panel.props"
           @navigate="onNavigate($event,x,y)"
           @zoom="showBackArrow($event,x,y)"
         )
@@ -119,7 +120,6 @@ class MyComponent extends Vue {
   private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
   private zoomed = false
-
   private isEmbedded = false
 
   private activeLeftSection: Section = { name: 'Files', class: 'BrowserPanel' }
@@ -582,8 +582,12 @@ export default MyComponent
 .map-tile {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  height: 100%;
-  flex: 1;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow-y: auto;
 }
 
 .drag-container {
