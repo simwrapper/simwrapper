@@ -2,9 +2,9 @@
 .map-layout(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
-     h3 {{ vizDetails.title }}
-     p {{ vizDetails.description }}
+  //- .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
+  //-    h3 {{ vizDetails.title }}
+  //-    p {{ vizDetails.description }}
 
   .status-bar(v-show="statusText") {{ statusText }}
 

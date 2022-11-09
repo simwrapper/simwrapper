@@ -252,7 +252,7 @@ export default class VueComponent extends Vue {
           : filename.substring(0, filename.indexOf('simwrapper-config.y'))
 
         // always reveal quickview bar unless told not to
-        console.log(555, yaml.hideLeftBar)
+        // console.log(555, yaml.hideLeftBar)
         if (yaml.hideLeftBar === true) this.$store.commit('setShowLeftBar', false)
         if (yaml.hideLeftBar === false) this.$store.commit('setShowLeftBar', true)
 

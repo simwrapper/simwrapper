@@ -2,11 +2,11 @@
 .gl-app(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .left-side
-    collapsible-panel(v-if="!thumbnail" direction="left" :locked="true")
-      .panel-items
-        h3 {{ vizDetails.title }}
-        p  {{ vizDetails.description }}
+  //- .left-side
+  //-   collapsible-panel(v-if="!thumbnail" direction="left" :locked="true")
+  //-     .panel-items
+  //-       h3 {{ vizDetails.title }}
+  //-       p  {{ vizDetails.description }}
 
   trip-viz.anim(v-if="!thumbnail"
                 :center="vizDetails.center"

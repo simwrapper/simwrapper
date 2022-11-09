@@ -13,31 +13,35 @@
 
   .middle-area
 
-    p Browse your files or example data from the left pane.
+    p
+      i.fa.fa-arrow-left
+      | &nbsp;&nbsp;Browse your files or example data from the left pane.
+
 
   .bottom-area
+    .legal
+      p
+        a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
+        a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
+        a(@click="showPrivacy") Privacy
+
     .bottom-content
 
-      .logos
-        a(v-for="logo in allLogos"
-          :href="logo.url"
-          :title="logo.name"
-          target="_blank"
-        )
-          img.img-logo(:src="logo.image")
+      //- .logos
+      //-   a(v-for="logo in allLogos"
+      //-     :href="logo.url"
+      //-     :title="logo.name"
+      //-     target="_blank"
+      //-   )
+      //-     img.img-logo(:src="logo.image")
 
-      .words
-        p.funding SimWrapper is open source: all code is available on&nbsp;
-          a(href="https://github.com/simwrapper/simwrapper") GitHub.
-          br
-          br
-          span Funding sponsored by TU Berlin and the ActivitySim Consortium, including these agencies.
+      //- .words
+      //-   p.funding SimWrapper is open source: all code is available on&nbsp;
+      //-     a(href="https://github.com/simwrapper/simwrapper") GitHub.
+      //-     br
+      //-     br
+      //-     span Funding sponsored by TU Berlin and the ActivitySim Consortium, including these agencies.
 
-        .legal
-          p
-            a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
-            a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
-            a(@click="showPrivacy") Privacy
 
 </template>
 
@@ -149,6 +153,8 @@ export default MyComponent
   max-width: 500px;
   margin: 0 auto auto auto;
   padding: 1.5rem 2rem;
+  font-size: 1.2rem;
+  color: var(--textFancy);
   background-color: var(--bgPanel2);
 }
 
@@ -208,10 +214,10 @@ h2.splash-readme {
 }
 
 .bottom-area {
-  background-color: #fff;
-  color: #222;
+  // background-color: #fff;
+  color: var(--text);
   padding: 1rem 0 0.5rem 0;
-  font-size: 0.9rem;
+  // font-size: 0.9rem;
   // border-top: 1px solid var(--bgBrowser);
 }
 
@@ -221,13 +227,13 @@ h2.splash-readme {
 }
 
 .legal {
-  margin-top: 1rem;
   p {
+    text-align: center;
     margin: 0.25rem 0 0 0;
   }
   a {
     margin-right: 0.75rem;
-    color: #222;
+    color: var(--text);
   }
   a:hover {
     color: #079f6f;

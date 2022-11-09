@@ -5,7 +5,7 @@
   .output-table(v-if="entries.length")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
-      input.input.is-small.cell.top-value(:style="row.style" v-model="row.value" @change="boxChanged")
+      b-input.b-input-tight.cell.top-value(:style="row.style" v-model="row.value" @change="boxChanged")
 
   .output-table(v-if="table.length" style="margin-top: 1rem")
     .row(v-for="row,i in table" :key="'row'+i")

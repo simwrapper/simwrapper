@@ -12,7 +12,10 @@
           @click="clickedBreadcrumb(crumb)"
         ) &nbsp;/&nbsp;{{ crumb.label }}
 
-    .logo.flex-row(v-if="!root" style="margin: 0.5rem auto 0.5rem auto;")
+    .logo.flex-row(v-if="!root"
+      style="margin: 0.5rem auto 0.5rem auto;"
+      @click="clickedLogo"
+    )
       img(v-if="globalState.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
       img(v-else src="@/assets/simwrapper-logo/SW_logo_icon_purple.png" width="24")
       h2(style="margin-left: 0.5rem") SimWrapper
@@ -164,7 +167,7 @@ const tabColors = {
   'sankey-diag': '#D8A672',
   'transit-view': '#3B6FE4',
   'vehicle-anim': '#330033',
-  'x-y-t': '#381250',
+  'x-y-t': '#583270',
   'xy-hex': '#900564',
 } as any
 
@@ -751,6 +754,10 @@ export default class VueComponent extends Vue {
     event.dataTransfer?.setData('bundle', text)
   }
 
+  private clickedLogo() {
+    this.$router.push('/')
+  }
+
   // -- BEGIN Chrome File System Access API support
   private get isChrome() {
     return !!window.showDirectoryPicker
@@ -1194,5 +1201,10 @@ p.v-plugin {
 
 .project-root:hover .fa-times:hover {
   opacity: 1;
+}
+
+.logo:hover {
+  color: var(--linkHover);
+  cursor: pointer;
 }
 </style>

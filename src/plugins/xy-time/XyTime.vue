@@ -285,6 +285,10 @@ class XyTime extends Vue {
   }
 
   private beforeDestroy() {
+    // MUST erase the React view handle to prevent gigantic memory leak!
+    REACT_VIEW_HANDLES[this.viewId] = undefined
+    delete REACT_VIEW_HANDLES[this.viewId]
+
     try {
       if (this.gzipWorker) this.gzipWorker.terminate()
       if (this.guiController) this.guiController.destroy()
@@ -298,8 +302,7 @@ class XyTime extends Vue {
   }
 
   @Watch('$store.state.viewState') viewMoved() {
-    if (!REACT_VIEW_HANDLES[this.viewId]) return
-    REACT_VIEW_HANDLES[this.viewId]()
+    if (REACT_VIEW_HANDLES[this.viewId]) REACT_VIEW_HANDLES[this.viewId]()
   }
 
   public buildFileApi() {
@@ -362,15 +365,14 @@ class XyTime extends Vue {
 
     // output_trips:
     this.vizDetails = {
-      title: 'Point Data',
+      title: 'Point Data: ' + this.myState.yamlConfig,
       description: this.myState.yamlConfig,
       file: this.myState.yamlConfig,
       projection,
       center: this.vizDetails.center,
       zoom: this.vizDetails.zoom,
     }
-    this.$emit('title', this.vizDetails.title)
-    // this.solveProjection()
+    this.$emit('title', this.vizDetails.title || this.vizDetails.file)
     return
   }
 
@@ -441,7 +443,7 @@ class XyTime extends Vue {
   private setVizDetails() {
     this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
 
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Point Data'
+    const t = this.vizDetails.title ? this.vizDetails.title : 'Point Data: ' + this.vizDetails.file
     this.$emit('title', t)
   }
 
@@ -747,7 +749,7 @@ export default XyTime
   bottom: 2.5rem;
   left: 0;
   right: 0;
-  margin: 0 10rem 0 10rem;
+  margin: 0 8rem 0 0.5rem;
   filter: $filterShadow;
 }
 

@@ -19,9 +19,9 @@
     direction="left")
 
     .panel-items
-      .panel-item(v-if="vizDetails.title")
-        h3 {{ vizDetails.title }}
-        p {{ vizDetails.description }}
+      //- .panel-item(v-if="vizDetails.title")
+      //-   h3 {{ vizDetails.title }}
+      //-   p {{ vizDetails.description }}
 
       .route-list(v-if="routesOnLink.length > 0")
         .route(v-for="route in routesOnLink"

@@ -14,9 +14,9 @@
   .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
     collapsible-panel(direction="left" :locked="true")
       //- show the header in upper/left if we are in single-view mode
-      .panel-items(v-if="!config")
-        p.big {{ vizDetails.title }}
-        p {{ vizDetails.description }}
+      //- .panel-items(v-if="!config")
+      //-   p.big {{ vizDetails.title }}
+      //-   p {{ vizDetails.description }}
 
       .panel-items(v-if="hexStats" style="color: #c0f;")
         p.big(style="margin-top: 2rem;") {{ $t('selection') }}:

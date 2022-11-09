@@ -34,6 +34,7 @@
 
     .tile-row(v-for="panelRow,y in panels" :key="y")
 
+      //- :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
       .drag-container(
         v-for="panel,x in panelRow" :key="panel.key"
         @drop="onDrop({event: $event,x,y})"
@@ -42,24 +43,50 @@
         @dragover="stillDragging({event: $event,x,y})"
         @dragleave="dragEnd"
         :ref="`dragContainer${x}-${y}`"
-        :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
+        :style="{'padding': '5px 5px'}"
       )
+        .tile-header.flex-row(v-if="panel.component !== 'SplashPage'")
+
+          .tile-labels
+            h3 {{ panel.title }}
+            p(v-if="panel.description") {{ panel.description }}
+
+          .tile-buttons
+            b-button.nav-button.is-small.is-white(
+              v-if="panel.info"
+              @click="handleToggleInfoClicked(panel)"
+            ): i.fa.fa-info-circle
+            //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
+
+            b-button.nav-button.is-small.is-white(
+              @click="toggleZoom(panel)"
+              :title="fullScreenCardId ? 'Restore':'Enlarge'"
+            ): i.fa.fa-expand
+
+            b-button.nav-button.is-small.is-white(
+              @click="onClose(x,y)"
+              title="Close"
+            ): i.fa.fa-times-circle
+
         //- this is the actual viz component:
         component.map-tile(
           :is="panel.component"
+          :style="getTileStyle(panel)"
           v-bind="panel.props"
           @navigate="onNavigate($event,x,y)"
           @zoom="showBackArrow($event,x,y)"
+          @title="setCardTitles(panel, $event)"
         )
+
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
-        .control-buttons(v-if="showControlButtonsPanel(panel)")
-          a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
-            @click="onBack(x,y)" :title="$t('back')")
-              i.fa.fa-icon.fa-arrow-left
-          a(v-if="isMultipanel && !zoomed" :title="$t('close')"
-            @click="onClose(x,y)")
-              i.fa.fa-icon.fa-times-circle
+        //- .control-buttons(v-if="showControlButtonsPanel(panel)")
+        //-   a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
+        //-     @click="onBack(x,y)" :title="$t('back')")
+        //-       i.fa.fa-icon.fa-arrow-left
+        //-   a(v-if="isMultipanel && !zoomed" :title="$t('close')"
+        //-     @click="onClose(x,y)")
+        //-       i.fa.fa-icon.fa-times-circle
 
     .row-drop-target(v-if="isDragHappening" :style="buildDragHighlightStyle(-2,-2)"
         @drop="onDrop({event: $event, row: 'rowBottom'})"
@@ -119,8 +146,12 @@ class MyComponent extends Vue {
 
   private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
 
+  // scrollbars for dashboards and kebab-case name of any plugins that need them:
+  private panelsWithScrollbars = ['TabbedDashboardView', 'FolderBrowser', 'calc-table']
+
   private zoomed = false
   private isEmbedded = false
+  private fullScreenCardId = ''
 
   private activeLeftSection: Section = { name: 'Files', class: 'BrowserPanel' }
   private leftSectionWidth = DEFAULT_LEFT_WIDTH
@@ -186,15 +217,7 @@ class MyComponent extends Vue {
     if (to.path === BASE_URL) {
       // root node is not a normal splitpane, so we instead replace
       // with a brand new clean startpage.
-      this.panels = [
-        [
-          {
-            component: 'SplashPage',
-            key: Math.random(),
-            props: {} as any,
-          },
-        ],
-      ]
+      this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
     } else {
       this.buildLayoutFromURL()
       globalStore.commit('resize')
@@ -248,6 +271,8 @@ class MyComponent extends Vue {
             {
               key,
               component: vizPlugin.kebabName,
+              title: '',
+              description: '',
               props: {
                 root,
                 subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
@@ -417,6 +442,8 @@ class MyComponent extends Vue {
     const newPanel = {
       component: viz.component,
       props: viz.props,
+      title: '',
+      description: '',
       key: Math.random(),
     }
 
@@ -471,6 +498,10 @@ class MyComponent extends Vue {
     this.panels[y].splice(x, 1) // at column x of row y, remove 1 item
     // if row is empty, remove it  too
     if (!this.panels[y].length) this.panels.splice(y, 1) // remove row y
+    // but if EVERYTHING is empty, show the blank page
+    if (!this.panels.length) {
+      this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
+    }
 
     this.updateURL()
     globalStore.commit('resize')
@@ -539,6 +570,53 @@ class MyComponent extends Vue {
     this.leftSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
     localStorage.setItem('leftPanelWidth', `${this.leftSectionWidth}`)
   }
+
+  private setCardTitles(card: any, event: any) {
+    console.log(card, event)
+
+    if (typeof event == 'string') {
+      if (event) card.title = event
+      card.description = ''
+    } else {
+      card.title = event.title
+      card.description = event.description || ''
+    }
+  }
+
+  private async handleToggleInfoClicked(card: any) {
+    console.log('CARD INFO?', card)
+  }
+
+  private async toggleZoom(card: any) {
+    // if (this.fullScreenCardId) {
+    //   this.fullScreenCardId = ''
+    // } else {
+    //   this.fullScreenCardId = card.id
+    // }
+    // this.$emit('zoom', this.fullScreenCardId)
+    // // allow vue to resize everything
+    // await this.$nextTick()
+    // // tell plotly to resize everything
+    // this.updateDimensions(card.id)
+  }
+
+  private updateDimensions(cardId: string) {
+    // const element = document.getElementById(cardId)
+    // if (element) {
+    //   const dimensions = { width: element.clientWidth, height: element.clientHeight }
+    //   if (this.resizers[cardId]) this.resizers[cardId](dimensions)
+    // }
+    // if (!this.isResizing) globalStore.commit('resize')
+  }
+
+  private getTileStyle(panel: any) {
+    const style = {
+      overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
+      // border: '0.5px solid #ffffff44',
+    }
+
+    return style
+  }
 }
 
 export default MyComponent
@@ -576,18 +654,18 @@ export default MyComponent
   flex: 1;
   display: flex;
   flex-direction: row;
-  background-color: var(--bgBrowser);
+  // background-color: var(--bgDashboard);
 }
 
 .map-tile {
-  grid-row: 1 / 2;
+  grid-row: 2 / 3;
   grid-column: 1 / 2;
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .drag-container {
@@ -595,11 +673,16 @@ export default MyComponent
   flex: 1;
   height: 100%;
   display: grid;
-  grid-template-rows: 1fr;
+  grid-template-rows: auto 1fr;
   grid-template-columns: 1fr;
 }
 
 .drag-highlight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   margin-left: 0px;
   margin-top: 0px;
   width: 100%;
@@ -668,9 +751,51 @@ export default MyComponent
 .row-drop-target {
   position: absolute;
   width: 100%;
-  height: 32px;
+  height: 48px;
   opacity: 0;
   z-index: 60000;
   transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s;
+}
+
+.tile-labels {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  h3 {
+    font-size: 1.1rem;
+    line-height: 1rem;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    color: var(--link);
+  }
+  p {
+    margin-top: -0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.tile-buttons {
+  display: flex;
+  flex-direction: row;
+  margin-left: auto;
+
+  button {
+    background-color: #00000000;
+    color: var(--link);
+    opacity: 0.5;
+  }
+  button:hover {
+    background-color: #ffffff20;
+    opacity: 1;
+  }
+}
+
+.nav-button:hover .fa-expand {
+  color: cyan;
+}
+
+.nav-button:hover .fa-times-circle {
+  color: red;
 }
 </style>

@@ -645,6 +645,11 @@ a:hover {
   text-align: right;
 }
 
+.b-input-tight input {
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;

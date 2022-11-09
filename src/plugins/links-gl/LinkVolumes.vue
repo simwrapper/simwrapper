@@ -31,10 +31,10 @@
       :legendStore="legendStore"
       @update="changeConfiguration")
 
-    .top-panel(v-if="vizDetails.title")
-      .panel-item
-        h3 {{ vizDetails.title }}
-        p {{ vizDetails.description }}
+    //- .top-panel(v-if="vizDetails.title")
+    //-   .panel-item
+    //-     h3 {{ vizDetails.title }}
+    //-     p {{ vizDetails.description }}
 
     .bottom-panel(v-if="!thumbnail")
       .status-message(v-if="myState.statusMessage")

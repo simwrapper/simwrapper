@@ -156,6 +156,6 @@ p {
 }
 
 .svg-icon {
-  // filter: brightness(0) saturate(100%) invert(100%);
+  // padding-top: 2px;
 }
 </style>

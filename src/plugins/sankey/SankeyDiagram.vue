@@ -1,9 +1,9 @@
 <template lang="pug">
 .sankey-container(:class="{'is-thumbnail': thumbnail}")
 
-  .labels(v-if="!thumbnail")
-    h3.center {{ vizDetails.title }}
-    h5.center {{ vizDetails.description }}
+  //- .labels(v-if="!thumbnail")
+  //-   h3.center {{ vizDetails.title }}
+  //-   h5.center {{ vizDetails.description }}
 
   svg.chart-area(:id="cleanConfigId" :class="{'is-thumbnail': thumbnail}")
 
