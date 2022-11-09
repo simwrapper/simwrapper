@@ -32,7 +32,9 @@
         @dragleave="dragEnd"
     )
 
-    .tile-row(v-for="panelRow,y in panels" :key="y")
+    .tile-row(v-for="panelRow,y in panels" :key="y"
+        v-show="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
+    )
 
       //- :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
       .drag-container(
@@ -43,30 +45,32 @@
         @dragover="stillDragging({event: $event,x,y})"
         @dragleave="dragEnd"
         :ref="`dragContainer${x}-${y}`"
-        :style="{'padding': '5px 5px'}"
+        :style="getContainerStyle(panel,x,y)"
       )
         .tile-header.flex-row(v-if="panel.component !== 'SplashPage'")
 
-          .tile-labels
-            h3 {{ panel.title }}
-            p(v-if="panel.description") {{ panel.description }}
-
           .tile-buttons
-            b-button.nav-button.is-small.is-white(
+            .nav-button.is-small.is-white(
+              @click="onClose(x,y)"
+              title="Close"
+            ): i.fa.fa-times-circle
+
+            .nav-button.is-small.is-white(
+              v-show="panels.length > 1 || panels[0].length > 1"
+              @click="toggleZoom(panel, x, y)"
+              :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
+            ): i.fa.fa-expand
+
+            .nav-button.is-small.is-white(
               v-if="panel.info"
               @click="handleToggleInfoClicked(panel)"
             ): i.fa.fa-info-circle
             //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
 
-            b-button.nav-button.is-small.is-white(
-              @click="toggleZoom(panel)"
-              :title="fullScreenCardId ? 'Restore':'Enlarge'"
-            ): i.fa.fa-expand
+          .tile-labels
+            h3 {{ panel.title }}
+            p(v-if="panel.description") {{ panel.description }}
 
-            b-button.nav-button.is-small.is-white(
-              @click="onClose(x,y)"
-              title="Close"
-            ): i.fa.fa-times-circle
 
         //- this is the actual viz component:
         component.map-tile(
@@ -151,7 +155,7 @@ class MyComponent extends Vue {
 
   private zoomed = false
   private isEmbedded = false
-  private fullScreenCardId = ''
+  private fullScreenPanel = { x: -1, y: -1 }
 
   private activeLeftSection: Section = { name: 'Files', class: 'BrowserPanel' }
   private leftSectionWidth = DEFAULT_LEFT_WIDTH
@@ -587,12 +591,14 @@ class MyComponent extends Vue {
     console.log('CARD INFO?', card)
   }
 
-  private async toggleZoom(card: any) {
-    // if (this.fullScreenCardId) {
-    //   this.fullScreenCardId = ''
-    // } else {
-    //   this.fullScreenCardId = card.id
-    // }
+  private async toggleZoom(card: any, x: number, y: number) {
+    console.log('ZOOM', card)
+    if (this.fullScreenPanel.x > -1) {
+      this.fullScreenPanel = { x: -1, y: -1 }
+    } else {
+      this.fullScreenPanel = { x, y }
+    }
+
     // this.$emit('zoom', this.fullScreenCardId)
     // // allow vue to resize everything
     // await this.$nextTick()
@@ -612,7 +618,45 @@ class MyComponent extends Vue {
   private getTileStyle(panel: any) {
     const style = {
       overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
+      padding: '5px 5px',
       // border: '0.5px solid #ffffff44',
+    }
+
+    return style
+  }
+
+  private getContainerStyle(panel: any, x: number, y: number) {
+    let style: any = {
+      padding: '5px 5px',
+    }
+
+    // // figure out height. If card has registered a resizer with changeDimensions(),
+    // // then it needs a default height (300)
+    // const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
+    // const height = card.height ? card.height * 60 : defaultHeight
+
+    // const flex = card.width || 1
+
+    // let style: any = {
+    //   flex: flex,
+    // }
+
+    // if (height) style.minHeight = `${height}px`
+
+    if (this.fullScreenPanel.x == -1) return style
+
+    // full screen ?
+    if (this.fullScreenPanel.x !== x) {
+      style.display = 'none'
+    } else {
+      style = {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        margin: '5px 5px',
+      }
     }
 
     return style
@@ -675,6 +719,7 @@ export default MyComponent
   display: grid;
   grid-template-rows: auto 1fr;
   grid-template-columns: 1fr;
+  background-color: var(--bgBrowser);
 }
 
 .drag-highlight {
@@ -778,24 +823,36 @@ export default MyComponent
 .tile-buttons {
   display: flex;
   flex-direction: row;
-  margin-left: auto;
+  margin-right: 5px;
 
-  button {
-    background-color: #00000000;
-    color: var(--textFancy);
-    opacity: 0.3;
-  }
-  button:hover {
-    background-color: #ffffff20;
-    opacity: 1;
+  background-color: #00000000;
+  color: var(--textFancy);
+}
+
+.nav-button {
+  opacity: 0.3;
+  margin-right: 0px;
+  i {
+    font-size: 0.8rem;
+    padding: 0px 6px;
   }
 }
 
+.nav-button:hover {
+  background-color: #ffffff20;
+  opacity: 1;
+  cursor: pointer;
+}
 .nav-button:hover .fa-expand {
   color: var(--linkHover);
 }
-
 .nav-button:hover .fa-times-circle {
   color: red;
+}
+
+.tile-header {
+  user-select: none;
+  background-color: var(--bgMapPanel);
+  padding: 1px 0px;
 }
 </style>
