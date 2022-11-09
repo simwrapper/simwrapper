@@ -394,8 +394,8 @@ class MyComponent extends Vue {
       //   }
     } else {
       BORDER *= 5
-      const w = (panel.offsetWidth - BORDER * 2) * 0.8
-      const h = (panel.offsetHeight - BORDER * 2) * 0.8
+      const w = (panel.offsetWidth - BORDER * 2) * 0.95
+      const h = (panel.offsetHeight - BORDER * 2) * 0.95
       this.quadrant = {
         quadrant: 'center',
         width: w,
@@ -572,7 +572,7 @@ class MyComponent extends Vue {
   }
 
   private setCardTitles(card: any, event: any) {
-    console.log(card, event)
+    // console.log(card, event)
 
     if (typeof event == 'string') {
       if (event) card.title = event
@@ -698,29 +698,29 @@ export default MyComponent
   pointer-events: none;
 }
 
-.control-buttons {
-  // background-color: var(--bgPanel);
-  padding: 0.25rem 0.5rem;
-  z-index: 250;
-  grid-row: 1 / 2;
-  grid-column: 1 / 2;
-  display: flex;
-  flex-direction: column;
-  margin: 0 auto auto 0;
+// .control-buttons {
+//   // background-color: var(--bgPanel);
+//   padding: 0.25rem 0.5rem;
+//   z-index: 250;
+//   grid-row: 1 / 2;
+//   grid-column: 1 / 2;
+//   display: flex;
+//   flex-direction: column;
+//   margin: 0 auto auto 0;
 
-  a {
-    color: var(--textVeryPale);
-    font-size: 0.9rem;
-    margin: 2px 0rem 0.1rem -4px;
-    padding: 2px 4px 1px 4px;
-    border-radius: 10px;
-  }
+//   a {
+//     color: var(--textVeryPale);
+//     font-size: 0.9rem;
+//     margin: 2px 0rem 0.1rem -4px;
+//     padding: 2px 4px 1px 4px;
+//     border-radius: 10px;
+//   }
 
-  a:hover {
-    color: var(--textBold);
-    background-color: var(--bgHover);
-  }
-}
+//   a:hover {
+//     color: var(--textBold);
+//     background-color: var(--bgHover);
+//   }
+// }
 
 .left-panel-divider {
   position: absolute;
@@ -767,7 +767,7 @@ export default MyComponent
     line-height: 1rem;
     margin-top: 4px;
     margin-bottom: 4px;
-    color: var(--link);
+    color: var(--textFancy);
   }
   p {
     margin-top: -0.5rem;
@@ -782,8 +782,8 @@ export default MyComponent
 
   button {
     background-color: #00000000;
-    color: var(--link);
-    opacity: 0.5;
+    color: var(--textFancy);
+    opacity: 0.3;
   }
   button:hover {
     background-color: #ffffff20;
@@ -792,7 +792,7 @@ export default MyComponent
 }
 
 .nav-button:hover .fa-expand {
-  color: cyan;
+  color: var(--linkHover);
 }
 
 .nav-button:hover .fa-times-circle {

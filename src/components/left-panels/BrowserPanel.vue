@@ -25,8 +25,9 @@
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
 
-        .hint-clicks(style="margin-bottom: 1rem")
-          p Welcome to SimWrapper, the data exploration platform from Technische Universität Berlin. Explore a data source below, or add your own.
+        .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
+          p Welcome to SimWrapper, the data exploration platform from TU Berlin.
+          p Explore a data source below, or add your own.
 
         .is-chrome(v-if="isChrome")
           h3 Local Folders:
@@ -57,14 +58,6 @@
         h3.curate-heading {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
 
         .curate-content(v-if="myState.folders.length")
-          .hint-clicks(v-if="needDoubleClickHint")
-            p
-              b Click
-              | &nbsp;a folder to view it in the main area.
-            p
-              b Double-click
-              | &nbsp;a folder to drill down in this panel.
-
           .folder-table
             .folder(v-for="folder,i in myState.folders" :key="folder"
                 :class="{fade: myState.isLoading, upfolder: i == 0}"
@@ -79,10 +72,12 @@
           h3.curate-heading {{ $t('Maps')}}
           .curate-content
             .viz-table
-              .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
-                        @click="clickedVisualization(index)"
+              .viz-grid-item(
+                v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
+                @click="clickedVisualization(index)"
               )
                 .viz-frame(
+                  :class="{highlighted: index === highlightedViz }"
                   draggable
                   @dragstart="dragStart($event, viz)"
                   @dragend="dragEnd"
@@ -90,6 +85,7 @@
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
                   p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component }}
+
                   component.viz-frame-component(
                         v-show="false"
                         :is="viz.component"
@@ -100,6 +96,15 @@
                         :fileApi="myState.svnRoot"
                         :style="{'pointer-events': 'none'}"
                         @title="updateTitle(index, $event)")
+
+            .hint-clicks(:style="{opacity : needDoubleClickHint ? 1 : 0}")
+              p
+                b Drag
+                | &nbsp;or&nbsp;
+                b double-click
+                | &nbsp;a tile
+                br
+                | to open it in the main panel
 
         //- IMAGES here
         .section-images(v-if="Object.keys(vizImages).length")
@@ -221,7 +226,7 @@ export default class VueComponent extends Vue {
   private subfolder = '/'
   private root = ''
 
-  private needDoubleClickHint = true
+  private needDoubleClickHint = false
 
   private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
 
@@ -338,7 +343,7 @@ export default class VueComponent extends Vue {
       hints = 0
     }
 
-    if (hints > 5) {
+    if (hints > 5000) {
       this.needDoubleClickHint = false
     } else {
       hints++
@@ -390,9 +395,9 @@ export default class VueComponent extends Vue {
     this.subfolder = subfolder
   }
 
-  private previousVizClicked = -1
+  private highlightedViz = -1
 
-  private clickedVisualization(vizNumber: number) {
+  private activateVisualization(vizNumber: number) {
     const viz = this.myState.vizes[vizNumber]
 
     // special case: images don't click thru
@@ -400,9 +405,7 @@ export default class VueComponent extends Vue {
 
     if (!this.myState.svnProject) return
 
-    // another special case: don't re-open the already-open viz!
-    if (vizNumber == this.previousVizClicked) return
-    this.previousVizClicked = vizNumber
+    this.highlightedViz = -1
 
     const cleanSubfolder = this.myState.subfolder.replaceAll('//', '/')
     const props = {
@@ -451,7 +454,7 @@ export default class VueComponent extends Vue {
     this.myState.svnProject = svnProject
     this.myState.subfolder = this.subfolder || ''
     this.myState.readme = ''
-    this.previousVizClicked = -1
+    this.highlightedViz = -1
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -650,29 +653,35 @@ export default class VueComponent extends Vue {
   private clicks = 0
   private clickTimer: any
 
-  private clickedOnFolder(props: { folder: string; i: number; root: string }) {
+  private clickedVisualization(index: number) {
+    // (props: { folder: string; i: number; root: string }) {
     if (this.myState.isLoading) return
 
     const DBL_CLICK_DELAY = 450
+
+    this.highlightedViz = index
 
     this.clicks++
     if (this.clicks === 1) {
       // start timer to see if we get a second click
       this.clickTimer = setTimeout(() => {
-        // do my thing here
-        this.handleSingleClickFolder(props)
+        // nothing to do, just un-double click
+        // this.handleSingleClickFolder(props)
+        this.needDoubleClickHint = true
         this.clicks = 0
+        // this.highlightedViz = -1
       }, DBL_CLICK_DELAY)
     } else {
       // got a second click in time!
       clearTimeout(this.clickTimer)
-      this.handleDoubleClickFolder(props)
+      this.needDoubleClickHint = false
+      this.activateVisualization(index)
       // do my double-click thing here
       this.clicks = 0
     }
   }
 
-  private handleDoubleClickFolder(props: { folder: string; i: number; root: string }) {
+  private clickedOnFolder(props: { folder: string; i: number; root: string }) {
     this.needDoubleClickHint = false
 
     const { folder, root, i } = props
@@ -1071,8 +1080,19 @@ h2 {
 }
 
 .hint-clicks {
-  margin: 1rem 0;
+  margin: 0.75rem 0 0 0;
   line-height: 1.2rem;
+  opacity: 0;
+  transition: opacity 0.2s ease-in;
+
+  p {
+    padding-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  b {
+    color: var(--textFancy);
+  }
 }
 
 .config-sources {
@@ -1128,7 +1148,11 @@ h2 {
 .viz-frame:hover {
   background-color: var(--bgHover);
   border-radius: 5px;
-  transition: background-color 0.02s ease-in-out;
+  transition: background-color 0.08s ease-in-out;
+}
+
+.highlighted {
+  background-color: var(--bgHover);
 }
 
 // p.v-title {
