@@ -3,9 +3,7 @@
 
   xy-hex-deck-map.hex-layer(
     v-if="!thumbnail && isLoaded"
-    :props="mapProps"
-    @hexClick="handleHexClick"
-    @emptyClick="handleEmptyClick"
+    v-bind="mapProps"
   )
 
   zoom-buttons(v-if="!thumbnail")
@@ -13,19 +11,14 @@
 
   .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
     collapsible-panel(direction="left" :locked="true")
-      //- show the header in upper/left if we are in single-view mode
-      //- .panel-items(v-if="!config")
-      //-   p.big {{ vizDetails.title }}
-      //-   p {{ vizDetails.description }}
-
       .panel-items(v-if="hexStats" style="color: #c0f;")
         p.big(style="margin-top: 2rem;") {{ $t('selection') }}:
         h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
         button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") {{ $t('showDetails') }}
 
-  .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage"
-    :class="{'is-dashboard': config !== undefined }"
-  )
+  .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
+        //- :class="{'is-dashboard': config !== undefined }"
+
         .panel-item(v-for="group in Object.keys(aggregations)" :key="group")
           p.speed-label {{ group }}
           button.button.is-small.aggregation-button(
@@ -86,10 +79,16 @@ import YAML from 'yaml'
 
 import util from '@/js/util'
 import globalStore from '@/store'
+import { REACT_VIEW_HANDLES } from '@/Globals'
+
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+
+import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
+// import XyHexDeckMap from './XyHexDeckMap.vue'
+import XyHexDeckMap from './XyHexLayer'
 
 import {
   ColorScheme,
@@ -100,9 +99,6 @@ import {
   VisualizationPlugin,
   Status,
 } from '@/Globals'
-
-import XyHexDeckMap from './XyHexDeckMap.vue'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 interface Aggregations {
   [heading: string]: {
@@ -124,6 +120,7 @@ interface VizDetail {
   maxHeight: number
   center: any
   zoom: number
+  mapIsIndependent?: boolean
 }
 
 @Component({
@@ -163,10 +160,11 @@ class XyHexagons extends Vue {
     }
   }
 
-  //private radius = 250
-  //private maxHeight = 0
+  @Watch('$store.state.viewState') viewMoved() {
+    if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
+  }
 
-  private id = 'id-' + Math.random()
+  private id = ('id-' + Math.random()) as any
 
   private standaloneYAMLconfig = {
     title: '',
@@ -179,6 +177,7 @@ class XyHexagons extends Vue {
     maxHeight: 0,
     center: null as any,
     zoom: 9,
+    mapIsIndependent: false,
   }
   private YAMLrequirementsXY = {
     file: '',
@@ -248,22 +247,31 @@ class XyHexagons extends Vue {
 
   private get mapProps() {
     return {
+      viewId: this.id,
       colorRamp: this.colorRamp,
       coverage: 0.65,
       dark: this.$store.state.isDarkMode,
       data: this.requests,
       extrude: this.extrudeTowers,
       highlights: this.highlightedTrips,
+      mapIsIndependent: this.vizDetails.mapIsIndependent,
       maxHeight: this.vizDetails.maxHeight,
       metric: this.buttonLabel,
       radius: this.vizDetails.radius,
-      upperPercentile: 100,
       selectedHexStats: this.hexStats,
+      upperPercentile: 100,
+      onClick: this.handleClick,
     }
   }
 
   private get extrudeTowers() {
     return this.vizDetails.maxHeight > 0
+  }
+
+  private handleClick(target: any, event: any) {
+    console.log({ target, event })
+    if (!target.layer) this.handleEmptyClick()
+    else this.handleHexClick(target, event)
   }
 
   private handleEmptyClick() {
@@ -540,10 +548,6 @@ class XyHexagons extends Vue {
     const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
     this.$emit('title', t)
   }
-  /* catch(err) {
-    const e = err as any
-    console.log('failed')
-  } */
 
   private async buildThumbnail() {
     if (!this.myState.fileApi) return
@@ -705,6 +709,10 @@ class XyHexagons extends Vue {
   }
 
   private beforeDestroy() {
+    // MUST erase the React view handle to prevent gigantic memory leak!
+    REACT_VIEW_HANDLES[this.id] = undefined
+    delete REACT_VIEW_HANDLES[this.id]
+
     try {
       if (this.gzipWorker) {
         this.gzipWorker.terminate()
@@ -751,9 +759,11 @@ class XyHexagons extends Vue {
   private dataIsLoaded({ rowCache, columnLookup }: any) {
     this.columnLookup = columnLookup
     this.rowCache = rowCache
-    this.requests = rowCache[this.activeAggregation.replaceAll('~', '')]
-    this.setMapCenter()
 
+    const agg = this.activeAggregation.replaceAll('~', '')
+    this.requests = this.rowCache[agg]
+
+    this.setMapCenter()
     this.moveLogo()
     this.myState.statusMessage = ''
   }

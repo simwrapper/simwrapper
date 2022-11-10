@@ -22,21 +22,10 @@
       legend-box.complication(:rows="legendRows")
       scale-box.complication(:rows="scaleRows")
 
-
-  collapsible-panel.left-panel(v-if="!this.config && !thumbnail && !loadingText"
-    :darkMode="isDarkMode" direction="left" :locked="true")
-
-    .info-header(style="padding: 0 0.5rem;")
-      h3 {{this.vizDetails.title ? this.vizDetails.title : 'O/D Flows'}}
-
-    .info-description(style="padding: 0 0.5rem;" v-if="this.vizDetails.description")
-      p.description {{ this.vizDetails.description }}
-
-  .widgets(v-if="!thumbnail && headers.length > 2" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
-    .widget-column
+  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+    .widget-column(v-if="this.headers.length > 2")
       h4.heading {{ $t('time')}}
-      label.checkbox(style="margin: 0 0.5rem 0 auto;")
-          input(type="checkbox" v-model="showTimeRange")
+      b-checkbox.checkbox(style="margin: 0 0 0 auto;" v-model="showTimeRange")
           | &nbsp;{{ $t('duration') }}
       time-slider.time-slider(
         :useRange='showTimeRange'
@@ -45,17 +34,15 @@
 
     .widget-column
       h4.heading {{ $t('circle')}}
-      label.checkbox
-        input(type="checkbox" v-model="showCentroids")
+      b-checkbox.checkbox(v-model="showCentroids")
         | &nbsp;{{ $t('showCentroids')}}
-      label.checkbox
-        input(type="checkbox" v-model="showCentroidLabels")
+      b-checkbox.checkbox(v-model="showCentroidLabels")
         | &nbsp;{{$t('showNumbers')}}
 
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
-      button.button(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
-      button.button(hint="hide" @click='clickedDestinations' :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
+      b-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
+      b-button.is-small(@click='clickedDestinations' hint="Hide" :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
 
 </template>
 
@@ -118,6 +105,7 @@ interface AggOdYaml {
   lineWidth?: number
   lineWidths?: number
   hideSmallerThan?: number
+  mapIsIndependent?: boolean
 }
 
 const TOTAL_MSG = 'Alle >>'
@@ -177,6 +165,7 @@ class MyComponent extends Vue {
     scaleFactor: 1,
     title: '',
     description: '',
+    mapIsIndependent: false,
   }
 
   private standaloneYAMLconfig = {
@@ -187,6 +176,7 @@ class MyComponent extends Vue {
     scaleFactor: 1,
     title: '',
     description: '',
+    mapIsIndependent: false,
   }
 
   private YAMLrequirementsOD = {
@@ -216,6 +206,8 @@ class MyComponent extends Vue {
 
   private geojson: any = {}
   private idColumn: string = ''
+
+  private mapIsIndependent = false
 
   private showTimeRange = false
   private showCentroids: boolean = true
@@ -279,6 +271,18 @@ class MyComponent extends Vue {
 
     this.setupMap()
     this.configureSettings()
+    this.setupResizer()
+  }
+
+  private resizer!: ResizeObserver
+
+  private setupResizer() {
+    this.resizer = new ResizeObserver(() => {
+      this.mymap.resize()
+    })
+
+    const viz = document.getElementById(this.containerId) as HTMLElement
+    this.resizer.observe(viz)
   }
 
   private isMapMoving = false
@@ -297,7 +301,7 @@ class MyComponent extends Vue {
     zoom,
     pitch,
   }: any) {
-    // ignore my own farts; they smell like roses
+    if (this.mapIsIndependent) return
     if (!this.mymap || this.isMapMoving || this.thumbnail) {
       this.isMapMoving = false
       return
@@ -362,7 +366,7 @@ class MyComponent extends Vue {
       pitch: this.mymap.getPitch(),
     }
 
-    this.$store.commit('setMapCamera', mapCamera)
+    if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
 
     if (!this.isMapMoving) this.isMapMoving = true
   }
@@ -409,6 +413,7 @@ class MyComponent extends Vue {
 
     this.scaleFactor = this.vizDetails.scaleFactor
     this.projection = this.vizDetails.projection
+    this.mapIsIndependent = !!this.vizDetails.mapIsIndependent
     this.idColumn = this.vizDetails.idColumn ? this.vizDetails.idColumn : 'id'
 
     nprogress.done()
@@ -1378,10 +1383,11 @@ h4 {
 }
 
 .mycomponent {
+  // position: absolute;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: 1fr auto;
-  position: relative;
+  // position: relative;
 }
 
 .status-blob {
@@ -1398,7 +1404,7 @@ h4 {
 .map-container {
   height: 100%;
   min-height: $thumbnailHeight;
-  background-color: #eee;
+  // background-color: #eee;
   grid-column: 1 / 3;
   grid-row: 1 / 3;
   display: flex;
@@ -1430,6 +1436,8 @@ h4 {
   display: flex;
   flex-direction: row;
   user-select: none;
+  background-color: var(--bgMapPanel);
+  grid-column: 1 / 3;
 }
 
 .widget-column {
@@ -1453,7 +1461,8 @@ h4 {
 .lower-left {
   width: 10rem;
   position: absolute;
-  bottom: 5.5rem;
+  left: 5px;
+  bottom: 2rem;
   right: 0.5rem;
   display: flex;
   flex-direction: column;
@@ -1534,6 +1543,15 @@ h4 {
   top: 0.3rem;
   right: 0.3rem;
   z-index: 1;
+}
+
+.checkbox {
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.checkbox:hover {
+  color: var(--textFancy);
 }
 
 @media only screen and (max-width: 640px) {

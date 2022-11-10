@@ -2,12 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
 import { StaticMap, InteractiveMap } from 'react-map-gl'
 import { ArcLayer } from '@deck.gl/layers'
-import HexagonLayer from './SelectableHexLayer'
+import { HexagonLayer } from '@deck.gl/aggregation-layers'
 import colormap from 'colormap'
 
-import { MAPBOX_TOKEN } from '@/Globals'
-import { pointToHexbin } from './HexagonAggregator'
 import globalStore from '@/store'
+import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+// import HexagonLayer from './SelectableHexLayer'
+// import { pointToHexbin } from './HexagonAggregator'
 
 const material = {
   ambient: 0.64,
@@ -25,22 +26,40 @@ const INITIAL_VIEW = {
 }
 
 export default function Layer({
-  data = [],
-  highlights = [],
-  dark = false,
-  radius = 100,
-  upperPercentile = 100,
-  coverage = 0.65,
-  extrude = true,
-  maxHeight = 200,
-  onClick = {} as any,
+  viewId = 0,
   colorRamp = 'chlorophyll',
+  coverage = 0.65,
+  dark = false,
+  data = { raw: new Float32Array(0), length: 0 },
+  extrude = true,
+  highlights = [],
+  mapIsIndependent = false,
+  maxHeight = 200,
   metric = 'Count',
+  radius = 100,
   selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
+  upperPercentile = 100,
+  onClick = {} as any,
 }) {
   // draw begins here
 
-  const initialViewState = Object.assign({}, INITIAL_VIEW)
+  // manage SimWrapper centralized viewState - for linked maps
+  const [viewState, setViewState] = useState(INITIAL_VIEW)
+
+  REACT_VIEW_HANDLES[viewId] = () => {
+    setViewState(globalStore.state.viewState)
+  }
+
+  function handleViewState(view: any) {
+    if (!view.latitude) return
+
+    if (!view.center) view.center = [0, 0]
+    view.center[0] = view.longitude
+    view.center[1] = view.latitude
+    setViewState(view)
+
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
+  }
 
   const colors = colormap({
     colormap: colorRamp,
@@ -75,6 +94,21 @@ export default function Layer({
     onClick(target, event)
   }
 
+  // is data filtered or not?
+  let rows = null
+  if (highlights.length) {
+    rows = highlights.map(row => row[1])
+  } else if (!data.length) {
+    rows = null
+  } else {
+    rows = {
+      length: data.length,
+      attributes: {
+        getPosition: { value: data.raw, size: 2 },
+      },
+    }
+  }
+
   const layers = [
     new ArcLayer({
       id: 'arc-layer',
@@ -90,19 +124,18 @@ export default function Layer({
     }),
     new HexagonLayer({
       id: 'hexlayer',
+      data: rows,
+      getPosition: highlights.length ? (d: any) => d : null,
       colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
       coverage,
-      data,
       autoHighlight: true,
       elevationRange: [0, maxHeight],
       elevationScale: data && data.length ? 50 : 0,
       extruded: extrude,
       selectedHexStats,
-      getPosition: (d: any) => d,
-      hexagonAggregator: pointToHexbin,
-      center: [initialViewState.longitude, initialViewState.latitude],
+      // hexagonAggregator: pointToHexbin,
       pickable: true,
-      opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
+      opacity: 0.7, // dark && highlights.length ? 0.6 : 0.8,
       radius,
       upperPercentile,
       material,
@@ -116,18 +149,21 @@ export default function Layer({
   return (
     <DeckGL
       layers={layers}
-      initialViewState={initialViewState}
       controller={true}
+      useDevicePixels={true}
+      viewState={viewState}
       getTooltip={getTooltip}
       onClick={handleClick}
-      onViewStateChange={(e: any) => {
-        globalStore.commit('setMapCamera', e.viewState)
-      }}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
         /*
         // @ts-ignore */
-        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        <StaticMap
+          mapStyle={globalStore.getters.mapStyle}
+          preventStyleDiffing={true}
+          mapboxApiAccessToken={MAPBOX_TOKEN}
+        />
       }
     </DeckGL>
   )

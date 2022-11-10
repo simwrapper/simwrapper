@@ -29,6 +29,7 @@ export default function Component({
   newWidths = new Float32Array(),
   dark = false,
   scaleWidth = 1,
+  mapIsIndependent = false,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -54,7 +55,8 @@ export default function Component({
   function handleViewState(view: any) {
     setViewState(view)
     view.center = [view.longitude, view.latitude]
-    globalStore.commit('setMapCamera', view)
+
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
   function precise(x: number) {
@@ -141,7 +143,7 @@ export default function Component({
     },
     widthUnits: 'pixels',
     widthScale: widthDivisor,
-    widthMinPixels: 0.25,
+    widthMinPixels: 0.5,
     widthMaxPixels: 50,
     pickable: true,
     opacity: 1,

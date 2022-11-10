@@ -48,6 +48,7 @@ export default function Component({
   ] as number[][],
   breakpoints = [0.0] as number[],
   radius = 5,
+  mapIsIndependent = false,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -58,9 +59,13 @@ export default function Component({
 
   function handleViewState(view: any) {
     if (!view.latitude) return
-    view.center = [view.longitude, view.latitude]
+
+    if (!view.center) view.center = [0, 0]
+    view.center[0] = view.longitude
+    view.center[1] = view.latitude
     setViewState(view)
-    globalStore.commit('setMapCamera', view)
+
+    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
   function getTooltip(element: any) {

@@ -9,6 +9,7 @@
     :colors="this.colors"
     :breakpoints="this.breakpoints"
     :radius="this.guiConfig.radius"
+    :mapIsIndependent="false"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")

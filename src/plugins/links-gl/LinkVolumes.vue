@@ -16,6 +16,7 @@
         :newColors="colorArray"
         :newWidths="widthArray"
         :scaleWidth="scaleWidth"
+        :mapIsIndependent="vizDetails.mapIsIndependent"
     )
 
     zoom-buttons(v-if="!thumbnail")
@@ -172,6 +173,7 @@ class NetworkLinkPlugin extends Vue {
     sum: false,
     nodes: '', // SFCTA nodes shapefile
     links: [] as string[], // SFCTA links DBF files
+    mapIsIndependent: false,
     display: {
       color: {} as any,
       width: {} as any,
@@ -206,6 +208,7 @@ class NetworkLinkPlugin extends Vue {
     sum: false,
     nodes: '', // SFCTA nodes shapefile
     links: [] as string[], // SFCTA links DBF files
+    mapIsIndependent: false,
     display: {
       color: {} as any,
       width: {} as any,
@@ -435,6 +438,8 @@ class NetworkLinkPlugin extends Vue {
   }
 
   @Watch('$store.state.viewState') viewMoved() {
+    if (this.vizDetails.mapIsIndependent) return
+
     if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
     REACT_VIEW_HANDLES[this.linkLayerId]()
   }
