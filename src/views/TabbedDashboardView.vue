@@ -440,11 +440,11 @@ export default class VueComponent extends Vue {
   overflow-y: auto;
 }
 
-.centered-vessel {
-  // max-width: $dashboardWidth;
-  // margin: 0 auto;
-  // padding: 0 2rem;
-}
+// .centered-vessel {
+//   // max-width: $dashboardWidth;
+//   // margin: 0 auto;
+//   // padding: 0 2rem;
+// }
 
 .centered-vessel.wiide {
   max-width: unset;

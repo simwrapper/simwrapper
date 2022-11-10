@@ -2,7 +2,7 @@
 .panel
 
   .top-panel
-    .trail
+    .trail(v-if="root")
       .x-home
         p(@click="clickedBreadcrumb({url: '//'})")
           i.fa.fa-home
@@ -13,7 +13,6 @@
         ) &nbsp;/&nbsp;{{ crumb.label }}
 
     .logo.flex-row(v-if="!root"
-      style="margin: 0.5rem auto 0.5rem auto;"
       @click="clickedLogo"
     )
       img(v-if="globalState.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
@@ -30,7 +29,7 @@
           p Explore a data source below, or add your own.
 
         .is-chrome(v-if="isChrome")
-          h3 Local Folders:
+          h3 Local Folders
 
           p(v-if="!localFileHandles.length") Chrome/Edge can browse folders directly:
           .project-root.local(v-for="row in localFileHandles" :key="row.key"
@@ -1252,6 +1251,10 @@ p.v-plugin {
 
 .project-root:hover .fa-times:hover {
   opacity: 1;
+}
+
+.logo {
+  margin: 1.5rem auto 0.5rem auto;
 }
 
 .logo:hover {
