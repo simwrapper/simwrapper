@@ -13,7 +13,7 @@
           .block
             a(href="/")
               img.vsp-logo(
-                src="@/assets/images/vsp-logo-left.png"
+                src="@/assets/images/logos/vsp-logo-300dpi.png"
                 alt="TU Berlin VSP Department")
 
           b-menu-list(label="Login Required")
