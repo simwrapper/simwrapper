@@ -4,20 +4,22 @@
   .tabholder(v-show="!isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
-      .breadcrumbs(v-else)
-        h3 {{ pageHeader }}
-        h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
+      //- .breadcrumbs(v-else)
+      //-   h3 {{ pageHeader }}
+      //-   h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
       //- .folder-readme(v-if="folderReadme"
       //-   :class="{'readme-centered': !this.header}"
       //-   v-html="folderReadme"
       //- )
 
-      .tabs.is-centered
-        b.up-link(:style="{marginLeft: wiide ? '1rem':'-0.75rem'}")
-          a(@click="goUpOneFolder()") ^ UP
 
-        ul(:style="{marginRight: wiide ? '4rem':'4rem'}")
+      .tabs.is-centered
+        //- b.up-link(:style="{marginLeft: wiide ? '1rem':'-0.75rem'}")
+        //-   a(@click="goUpOneFolder()") ^ UP
+
+        //- ul(:style="{marginRight: wiide ? '4rem':'4rem'}")
+        ul
           li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
@@ -96,6 +98,7 @@ export default class VueComponent extends Vue {
 
   private mounted() {
     this.updateRoute()
+    // this.$emit('title', 'Dashboard')
   }
 
   private get wiide() {
@@ -429,17 +432,18 @@ export default class VueComponent extends Vue {
 @import '@/styles.scss';
 
 .tabbed-folder-view {
-  margin: 0 0;
-  padding: 0 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
   background-color: var(--bgDashboard);
   flex-direction: column;
   overflow-y: auto;
 }
 
 .centered-vessel {
-  max-width: $dashboardWidth;
-  margin: 0 auto;
-  padding: 0 2rem;
+  // max-width: $dashboardWidth;
+  // margin: 0 auto;
+  // padding: 0 2rem;
 }
 
 .centered-vessel.wiide {

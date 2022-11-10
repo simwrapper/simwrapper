@@ -68,12 +68,13 @@
           p(v-if="myState.folders.length==1" style="font-size: 0.9rem; opacity: 0.7; margin: 0.5rem 0; text-align: right") No subfolders.
 
         //- MAPS: thumbnails of each viz map here
-        .section-maps(v-if="Object.keys(vizMaps).length")
+        .section-maps(v-if="vizMaps.size")
+
           h3.curate-heading {{ $t('Maps')}}
           .curate-content
             .viz-table
               .viz-grid-item(
-                v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
+                v-for="[index, viz] of vizMaps.entries()" :key="index"
                 @click="clickedVisualization(index)"
               )
                 .viz-frame(
@@ -143,7 +144,7 @@ const BASE_URL = import.meta.env.BASE_URL
 const i18n = {
   messages: {
     en: {
-      Maps: 'Maps & Tiles',
+      Maps: 'Maps & Dashboards',
       Images: 'Images',
       Analysis: 'Analysis',
       Files: 'Files',
@@ -164,6 +165,7 @@ const i18n = {
 }
 
 const tabColors = {
+  dashboard: '#44bb77',
   'aggregate-od': '#E98B52',
   'calc-table': '#2EA95B',
   'carrier-viewer': '#c97A2C',
@@ -270,12 +272,24 @@ export default class VueComponent extends Vue {
   }
 
   private get vizMaps() {
-    const maps: { [index: number]: any } = {}
+    const skipList = ['image-view', 'dashboard']
+    const maps = new Map()
+
+    // Dashboards first
+    if (this.hasDashboards) {
+      maps.set(-1, {
+        component: 'dashboard',
+        title: 'Dashboard Panel',
+      })
+    }
+
+    // Then vizes
     for (let i = 0; i < this.myState.vizes.length; i++) {
-      if (this.myState.vizes[i].component !== 'image-view') {
-        maps[i] = this.myState.vizes[i]
+      if (!skipList.includes(this.myState.vizes[i].component)) {
+        maps.set(i, this.myState.vizes[i])
       }
     }
+
     return maps
   }
 
@@ -395,17 +409,22 @@ export default class VueComponent extends Vue {
     this.subfolder = subfolder
   }
 
-  private highlightedViz = -1
+  // -2:none, -1: dashboard, 0-x: tile
+  private highlightedViz = -2
 
   private activateVisualization(vizNumber: number) {
-    const viz = this.myState.vizes[vizNumber]
+    // if this is not a valid viz, just open the file/dashboard browser
+    const viz = this.myState.vizes[vizNumber] || {
+      component: 'TabbedDashboardView',
+      title: 'Dashboard',
+    }
 
     // special case: images don't click thru
     if (viz.component === 'image-view') return
 
     if (!this.myState.svnProject) return
 
-    this.highlightedViz = -1
+    this.highlightedViz = -2
 
     const cleanSubfolder = this.myState.subfolder.replaceAll('//', '/')
     const props = {
@@ -454,7 +473,7 @@ export default class VueComponent extends Vue {
     this.myState.svnProject = svnProject
     this.myState.subfolder = this.subfolder || ''
     this.myState.readme = ''
-    this.highlightedViz = -1
+    this.highlightedViz = -2
 
     if (!this.myState.svnProject) return
     this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
@@ -646,6 +665,14 @@ export default class VueComponent extends Vue {
     } finally {
       this.myState.isLoading = false
     }
+  }
+
+  private get hasDashboards() {
+    const d = /^dashboard.*ml/
+    for (const viz of this.myState.files) {
+      if (d.test(viz)) return true
+    }
+    return false
   }
 
   // we have really weird double-clicks; we want the single click to pass thru

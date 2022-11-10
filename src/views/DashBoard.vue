@@ -347,7 +347,7 @@ export default class VueComponent extends Vue {
 
 .dashboard {
   margin: 0 0;
-  padding: 1rem 0rem 1rem 3rem;
+  padding: 1rem 0rem 1rem 1rem;
 
   .dashboard-content {
     max-width: $dashboardWidth;
@@ -384,7 +384,7 @@ export default class VueComponent extends Vue {
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
-  margin: 2rem 3rem 2rem 0;
+  margin: 2rem 2rem 2rem 0;
 
   .dash-card-headers {
     display: flex;
