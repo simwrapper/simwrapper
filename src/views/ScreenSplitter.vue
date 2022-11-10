@@ -7,15 +7,18 @@
   .left-panel(v-show="showLeftBar")
     left-icon-panel(
       :activeSection="activeLeftSection.name"
-      @activate="setActiveLeftSection"
+      @activate="setActiveLeftSection({section: $event, toggle:true})"
     )
-    .left-panel-active-section(v-show="activeLeftSection" :style="activeSectionStyle")
-      component(:is="activeLeftSection.class"
+
+    .left-panel-active-section(v-show="showActiveSection" :style="activeSectionStyle")
+      component(v-for="section of leftSections" :key="section"
+        :is="section"
+        v-show="section==activeLeftSection.class"
         @navigate="onNavigate($event,0,0)"
-        @activate="setActiveLeftSection"
+        @activate="setActiveLeftSection({section: $event, toggle:false})"
         @isDragging="handleDragStartStop"
       )
-      //- @split="onSplit('left')"
+
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
@@ -77,19 +80,10 @@
           :style="getTileStyle(panel)"
           v-bind="panel.props"
           @navigate="onNavigate($event,x,y)"
-          @zoom="showBackArrow($event,x,y)"
           @title="setCardTitles(panel, $event)"
         )
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
-
-        //- .control-buttons(v-if="showControlButtonsPanel(panel)")
-        //-   a(v-if="!zoomed && panelsWithNoBackButton.indexOf(panel.component) === -1"
-        //-     @click="onBack(x,y)" :title="$t('back')")
-        //-       i.fa.fa-icon.fa-arrow-left
-        //-   a(v-if="isMultipanel && !zoomed" :title="$t('close')"
-        //-     @click="onClose(x,y)")
-        //-       i.fa.fa-icon.fa-times-circle
 
     .row-drop-target(v-if="isDragHappening" :style="buildDragHighlightStyle(-2,-2)"
         @drop="onDrop({event: $event, row: 'rowBottom'})"
@@ -147,7 +141,7 @@ class MyComponent extends Vue {
   // panels is an array of arrays: each row, with its vizes in order.
   private panels = [] as any[][]
 
-  private panelsWithNoBackButton = ['TabbedDashboardView', 'SplashPage', 'FolderBrowser']
+  private leftSections = ['BrowserPanel', 'ErrorPanel', 'SettingsPanel']
 
   // scrollbars for dashboards and kebab-case name of any plugins that need them:
   private panelsWithScrollbars = ['TabbedDashboardView', 'FolderBrowser', 'calc-table']
@@ -161,31 +155,20 @@ class MyComponent extends Vue {
   private isDraggingDivider = 0
   private dragStartWidth = 0
 
-  private setActiveLeftSection(section: Section) {
-    this.activeLeftSection = section
-    localStorage.setItem('activeLeftSection', JSON.stringify(section))
-    if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+  private setActiveLeftSection(props: { toggle: boolean; section: Section }) {
+    if (this.showActiveSection && props.section.name === this.activeLeftSection.name) {
+      if (props.toggle) this.showActiveSection = false
+    } else {
+      this.showActiveSection = true
+      this.activeLeftSection = props.section
+      localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
+      if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+    }
   }
 
   private get isMultipanel() {
     if (this.panels.length > 1) return true
     return this.panels[0].length > 1
-  }
-
-  private showControlButtonsPanel(panel: any) {
-    // no buttons if we are in embedded mode
-    if (this.isEmbedded) return false
-
-    // no button panel if BOTH buttons would be hidden anyway
-    const showBackButton =
-      !this.zoomed && this.panelsWithNoBackButton.indexOf(panel.component) === -1
-    const showCloseButton = this.panels.length > 1 && !this.zoomed
-
-    return showBackButton || showCloseButton
-  }
-
-  private showBackArrow(isZoomed: number, state: boolean) {
-    this.zoomed = state
   }
 
   private mounted() {
@@ -424,7 +407,10 @@ class MyComponent extends Vue {
       const bundle = event.dataTransfer?.getData('bundle') as string
       const componentConfig = JSON.parse(bundle)
 
-      const viz = { component: componentConfig.component, props: componentConfig }
+      // dashboard is not a plugin, it is special
+      const component = componentConfig.component || 'TabbedDashboardView'
+
+      const viz = { component, props: componentConfig }
       this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
     } catch (e) {
       console.warn('' + e)
@@ -545,6 +531,8 @@ class MyComponent extends Vue {
     }
   }
 
+  private showActiveSection = true
+
   private get showLeftBar() {
     return this.$store.state.isShowingLeftBar
   }
@@ -615,8 +603,14 @@ class MyComponent extends Vue {
   }
 
   private getTileStyle(panel: any) {
+    console.log('zz', panel)
     const style = {
-      overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
+      // overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
+      flex: 1,
+      height: '100%',
+      top: 0,
+      bottom: 0,
+      position: 'absolute',
       // padding: '5px 5px',
       // border: '0.5px solid #ffffff44',
     }
@@ -676,7 +670,6 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: var(--splitPanel);
 }
 
 .left-panel {
@@ -697,7 +690,6 @@ export default MyComponent
   flex: 1;
   display: flex;
   flex-direction: row;
-  // background-color: var(--bgDashboard);
 }
 
 .map-tile {
@@ -789,7 +781,7 @@ export default MyComponent
   background-color: var(--bgBrowser);
   color: white;
   width: 300px;
-  padding: 0 0.25rem;
+  padding: 0 0rem 0 0.25rem;
 }
 
 .row-drop-target {
@@ -851,7 +843,7 @@ export default MyComponent
 
 .tile-header {
   user-select: none;
-  background-color: var(--bgMapPanel);
+  background-color: var(--bgDashboard);
   padding: 1px 0px;
 }
 </style>

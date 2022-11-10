@@ -64,8 +64,7 @@ export default class VueComponent extends Vue {
   ]
 
   public select(section: Section) {
-    if (section.name === this.activeSection) this.$emit('activate', '')
-    else this.$emit('activate', section)
+    this.$emit('activate', section)
   }
 
   public buttonStyle(section: any) {
@@ -155,7 +154,6 @@ p {
   background-color: #555;
 }
 
-.svg-icon {
-  // padding-top: 2px;
-}
+// .svg-icon {
+// }
 </style>

@@ -197,12 +197,13 @@ export default MyComponent
 }
 
 h4 {
-  background-color: #00000040;
+  background-color: #00000080;
   text-transform: uppercase;
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
   font-weight: bold;
+  color: #ddd;
 }
 
 h5 {

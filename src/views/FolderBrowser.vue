@@ -533,7 +533,7 @@ h4 {
   flex-direction: column;
   cursor: pointer;
   vertical-align: top;
-  background-color: var(--bgMapPanel);
+  background-color: var(--bgBrowser);
   // border: var(--borderThin);
   border-radius: 5px;
 }
@@ -592,7 +592,7 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgMapPanel);
+  background-color: var(--bgBrowser);
   margin: 0.25rem 0rem;
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -639,7 +639,7 @@ h4 {
 }
 
 .curated-sections {
-  margin-top: 2rem;
+  padding-top: 0rem;
   display: flex;
   flex-direction: column;
 }
@@ -700,7 +700,7 @@ h3.curate-heading {
 
   p {
     margin: auto 0 0 0;
-    background-color: var(--bgBold);
+    background-color: var(--bgDashboard);
     font-size: 1rem;
     font-weight: bold;
     line-height: 1.2rem;
@@ -721,5 +721,10 @@ h3.curate-heading {
 
 .viz-image-frame-component {
   background-color: var(--bgPanel);
+}
+
+.folder-browser {
+  background-color: var(--bgDashboard);
+  padding: 0 3rem;
 }
 </style>

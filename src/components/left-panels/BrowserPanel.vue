@@ -31,7 +31,7 @@
         .is-chrome(v-if="isChrome")
           h3 Local Folders
 
-          p(v-if="!localFileHandles.length") Chrome/Edge can browse folders directly:
+          p(v-if="!localFileHandles.length") Chrome & Edge can browse folders directly:
           .project-root.local(v-for="row in localFileHandles" :key="row.key"
             @click="clickedBrowseChromeLocalFolder(row)")
 
@@ -84,7 +84,7 @@
                 )
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
-                  p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component }}
+                  p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
 
                   component.viz-frame-component(
                         v-show="false"
@@ -164,7 +164,9 @@ const i18n = {
 }
 
 const tabColors = {
-  dashboard: '#44bb77',
+  // blank means dashboard:
+  '': '#44bb77',
+  // others are kebab-case:
   'aggregate-od': '#E98B52',
   'calc-table': '#2EA95B',
   'carrier-viewer': '#c97A2C',
@@ -277,7 +279,7 @@ export default class VueComponent extends Vue {
     // Dashboards first
     if (this.hasDashboards) {
       maps.set(-1, {
-        component: 'dashboard',
+        component: '',
         title: 'Dashboard Panel',
       })
     }
@@ -864,7 +866,7 @@ export default class VueComponent extends Vue {
 .top-panel {
   display: flex;
   flex-direction: column;
-  margin: 0.25rem 0.5rem 1rem 0.5rem;
+  margin: 0.25rem 1rem 1rem 1rem;
 }
 
 h4 {
@@ -883,7 +885,7 @@ h4 {
   flex-direction: column;
   // width: 100%;
   margin-bottom: 0rem;
-  padding: 0 0.5rem 0rem 0.5rem;
+  padding: 0 1rem;
   overflow-y: auto;
   overflow-x: hidden;
   text-align: left;
@@ -1202,7 +1204,7 @@ p.v-plugin {
 .trail {
   display: flex;
   width: 100%;
-
+  // color: var(--link);
   p:hover {
     color: var(--linkHover);
     cursor: pointer;

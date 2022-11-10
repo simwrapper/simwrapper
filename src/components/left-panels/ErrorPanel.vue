@@ -23,7 +23,11 @@
 
 
   .bottom-panel
-    b-button.clear-button.is-white(expanded type="is-outlined" v-if="state.statusErrors.length || state.statusWarnings.length" @click="clearAllButtons()") Clear all messages
+    b-button.clear-button(
+      v-if="state.statusErrors.length || state.statusWarnings.length"
+      expanded
+      @click="clearAllButtons()"
+    ) Clear all messages
 
 </template>
 
@@ -57,12 +61,13 @@ class MyComponent extends Vue {
   private get headerTextColor() {
     let color = {}
     if (this.state.statusWarnings.length) color = { color: '#fe8' }
-    if (this.state.statusErrors.length) color = { color: '#f88' }
+    if (this.state.statusErrors.length) color = { color: '#f66' }
     return color
   }
 
   private clearAllButtons() {
     this.$store.commit('clearAllErrors')
+    this.$emit('activate', { name: 'Files', class: 'BrowserPanel' })
   }
 
   private toggleShowDescription(i: number, isError: boolean) {
@@ -100,12 +105,13 @@ export default MyComponent
 }
 
 h4 {
-  background-color: #00000040;
+  background-color: #00000080;
   text-transform: uppercase;
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
   font-weight: bold;
+  color: #ddd;
 }
 
 .top-panel {
