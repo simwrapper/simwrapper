@@ -49,11 +49,16 @@
       )
         .tile-header.flex-row(v-if="panel.component !== 'SplashPage'")
 
+          .tile-labels
+            h3 {{ panel.title }}
+            p(v-if="panel.description") {{ panel.description }}
+
           .tile-buttons
             .nav-button.is-small.is-white(
-              @click="onClose(x,y)"
-              title="Close"
-            ): i.fa.fa-times-circle
+              v-if="panel.info"
+              @click="handleToggleInfoClicked(panel)"
+            ): i.fa.fa-info-circle
+            //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
 
             .nav-button.is-small.is-white(
               v-show="panels.length > 1 || panels[0].length > 1"
@@ -62,15 +67,9 @@
             ): i.fa.fa-expand
 
             .nav-button.is-small.is-white(
-              v-if="panel.info"
-              @click="handleToggleInfoClicked(panel)"
-            ): i.fa.fa-info-circle
-            //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
-
-          .tile-labels
-            h3 {{ panel.title }}
-            p(v-if="panel.description") {{ panel.description }}
-
+              @click="onClose(x,y)"
+              title="Close"
+            ): i.fa.fa-times-circle
 
         //- this is the actual viz component:
         component.map-tile(
@@ -618,7 +617,7 @@ class MyComponent extends Vue {
   private getTileStyle(panel: any) {
     const style = {
       overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
-      padding: '5px 5px',
+      // padding: '5px 5px',
       // border: '0.5px solid #ffffff44',
     }
 
@@ -807,11 +806,12 @@ export default MyComponent
   grid-column: 1 / 2;
   display: flex;
   flex-direction: column;
+  margin-left: 5px;
+
   h3 {
     font-size: 1.1rem;
     line-height: 1rem;
-    margin-top: 4px;
-    margin-bottom: 4px;
+    margin: 4px 0 5px 0;
     color: var(--textFancy);
   }
   p {
@@ -823,9 +823,8 @@ export default MyComponent
 .tile-buttons {
   display: flex;
   flex-direction: row;
-  margin-right: 5px;
-
-  background-color: #00000000;
+  // margin-right: 5px;
+  margin-left: auto;
   color: var(--textFancy);
 }
 
