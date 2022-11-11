@@ -25,7 +25,7 @@
       .curated-sections(v-if="!root")
 
         .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
-          p Welcome to SimWrapper, the data exploration platform from TU Berlin.
+          p Welcome to SimWrapper, the transport simulation data platform from TU Berlin.
           p Explore a data source below, or add your own.
 
         .is-chrome(v-if="isChrome")
@@ -395,6 +395,7 @@ export default class VueComponent extends Vue {
     }
 
     // split out project root and subfolder
+    // console.log(777, pathMatch, JSON.stringify(this.myState))
     let root = pathMatch
     let subfolder = ''
     const slash = pathMatch.indexOf('/')

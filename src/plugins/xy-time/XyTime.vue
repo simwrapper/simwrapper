@@ -142,16 +142,7 @@ class XyTime extends Vue {
     radius: 5,
     'clip max': 100,
     'color ramp': 'viridis',
-    colorRamps: [
-      'bathymetry',
-      'chlorophyll',
-      'electric',
-      'inferno',
-      'jet',
-      'magma',
-      'par',
-      'viridis',
-    ],
+    colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
     flip: false,
   }
 

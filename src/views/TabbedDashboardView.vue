@@ -435,7 +435,7 @@ export default class VueComponent extends Vue {
   position: absolute;
   top: 0;
   bottom: 0;
-  background-color: var(--bgDashboard);
+  background-color: var(--bgMapPanel);
   flex-direction: column;
   overflow-y: auto;
 }
@@ -456,7 +456,7 @@ export default class VueComponent extends Vue {
 
 .tabs ul {
   line-height: 0.8rem;
-  border-bottom-color: var(--bgDashboard);
+  border-bottom-color: var(--bgMapPanel);
   border-bottom-width: 5px;
 }
 
@@ -466,7 +466,7 @@ export default class VueComponent extends Vue {
   z-index: 50;
   top: 0px;
   position: sticky;
-  background-color: var(--bgDashboard);
+  background-color: var(--bgMapPanel);
 }
 
 .tabholdercontainer {

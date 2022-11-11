@@ -4,7 +4,7 @@
   .center-area
     login-panel.login-panel
     router-view.main-content
-    p(style="text-justify: center; margin: auto auto; font-size: 2rem;"): i • S i m W r a p p e r •
+    p.splash-label(v-if="showSplash") • SimWrapper •
 
   //.message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
@@ -51,6 +51,7 @@ let doThisOnceForLocalFiles = true
 @Component({ i18n, components: { LoginPanel } })
 class App extends Vue {
   private state = globalStore.state
+  private showSplash = true
 
   private async mounted() {
     // theme
@@ -70,10 +71,18 @@ class App extends Vue {
     if (doThisOnceForLocalFiles) await this.setupLocalFiles()
 
     document.addEventListener('keydown', this.toggleUIPanels)
+
+    // remove the splasher after a bit
+    this.splasher = setTimeout(() => {
+      this.showSplash = false
+    }, 5000)
   }
+
+  private splasher: any
 
   private beforeDestroy() {
     document.removeEventListener('keydown', this.toggleUIPanels)
+    window.clearTimeout(this.splasher)
   }
 
   private toggleUIPanels(event: KeyboardEvent) {
@@ -307,7 +316,7 @@ h4 {
 #main-app {
   display: grid;
   color: var(--text);
-  background-color: var(--bgCream);
+  background-color: var(--bgPanel2);
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
@@ -369,6 +378,14 @@ a:hover {
   flex-direction: row;
   position: relative;
   overflow: hidden;
+}
+
+p.splash-label {
+  text-justify: center;
+  margin: auto auto 2rem 2rem;
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #888;
 }
 
 .nav-sidebar {

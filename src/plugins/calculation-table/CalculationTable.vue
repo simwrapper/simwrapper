@@ -134,7 +134,7 @@ export default MyComponent
 .my-component {
   margin: 0 0;
   padding: 0 2rem;
-  background-color: var(--bgDashboard);
+  background-color: var(--bgMapPanel);
 }
 
 .header {
