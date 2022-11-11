@@ -42,9 +42,9 @@
                       @click="clickedVisualization(index)")
 
               .viz-frame
-                p: b {{ viz.title }}
-                p(:style="{'margin-left': 'auto'}") {{ viz.config }}
-                p {{ viz.component }}
+                p.v-title: b {{ viz.title }}
+                p.v-filename {{ viz.config }}
+                p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
                 component.viz-frame-component(
                       v-show="false"
                       :is="viz.component"
@@ -139,6 +139,22 @@ import plugins from '@/plugins/pluginRegistry'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+
+const tabColors = {
+  // blank means dashboard:
+  '': '#44bb77',
+  // others are kebab-case:
+  'aggregate-od': '#E98B52',
+  'calc-table': '#2EA95B',
+  'carrier-viewer': '#c97A2C',
+  'link-view': '#6956d4',
+  'map-view': '#c94264',
+  'sankey-diag': '#D8A672',
+  'transit-view': '#3B6FE4',
+  'vehicle-anim': '#330033',
+  'x-y-t': '#583270',
+  'xy-hex': '#900564',
+} as any
 
 const allComponents = Object.assign({ TopsheetsFinder }, plugins)
 @Component({
@@ -480,6 +496,11 @@ export default class VueComponent extends Vue {
       this.$emit('navigate', { component: 'TabbedDashboardView', props })
     }
   }
+
+  private getTabColor(kebabName: string) {
+    const color = tabColors[kebabName] || '#8778BB'
+    return { backgroundColor: color }
+  }
 }
 </script>
 
@@ -526,7 +547,7 @@ h4 {
 
 .viz-grid-item {
   z-index: 1;
-  text-align: center;
+  // text-align: center;
   margin: 4px 0;
   padding: 0 0;
   display: flex;
@@ -540,20 +561,17 @@ h4 {
 
 .viz-frame {
   position: relative;
+  display: flex;
+  flex-direction: column;
   z-index: 1;
   flex: 1;
-  // min-height: $thumbnailHeight;
-  // border-radius: 16px;
   overflow: hidden;
-  display: flex;
-  flex-direction: row;
-
+  padding: 5px 0 0 5px;
+  border-radius: 3px;
   p {
-    margin: auto 0 0 0;
-    // background-color: var(--bgBold);
-    font-size: 1rem;
+    margin: 0 0 0 0;
     line-height: 1rem;
-    padding: 0.8rem 0.8rem;
+    padding: 0 0;
     color: var(--text);
     word-wrap: break-word;
     /* Required for text-overflow to do anything */
@@ -726,5 +744,23 @@ h3.curate-heading {
 .folder-browser {
   background-color: var(--bgDashboard);
   padding: 0 3rem;
+}
+
+// p.v-title {
+//   // font-size: 1rem;
+// }
+
+p.v-filename {
+  margin: 5px 0;
+}
+
+p.v-plugin {
+  text-align: right;
+  text-transform: uppercase;
+  margin-left: auto;
+  color: white;
+  background-color: var(--bgCream3);
+  padding: 2px 3px;
+  border-radius: 0 0 4px 0;
 }
 </style>

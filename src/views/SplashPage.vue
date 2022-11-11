@@ -100,15 +100,11 @@ class MyComponent extends Vue {
   }
 
   private mounted() {
-    const crumbs = [
-      {
-        label: 'SimWrapper',
-        url: '/',
-      },
-    ]
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
+    // set initial breadcrumbs if we don't have any yet
+    if (!this.state.breadcrumbs.length) {
+      const crumbs = [{ label: 'SimWrapper', url: '/' }]
+      globalStore.commit('setBreadCrumbs', crumbs)
+    }
 
     // always start with nav bar when loading splashpage
     globalStore.commit('setShowLeftBar', true)

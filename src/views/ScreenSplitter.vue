@@ -207,7 +207,6 @@ class MyComponent extends Vue {
     } else {
       this.buildLayoutFromURL()
       globalStore.commit('resize')
-      // TODO clear error
     }
   }
 
@@ -485,11 +484,16 @@ class MyComponent extends Vue {
   private onClose(x: number, y: number) {
     // remove the panel
     this.panels[y].splice(x, 1) // at column x of row y, remove 1 item
-    // if row is empty, remove it  too
-    if (!this.panels[y].length) this.panels.splice(y, 1) // remove row y
-    // but if EVERYTHING is empty, show the blank page
-    if (!this.panels.length) {
-      this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
+
+    // if whole row is empty, deal with it
+    if (!this.panels[y].length) {
+      if (this.panels.length > 1) {
+        // remove row y if there are other rows
+        this.panels.splice(y, 1)
+      } else {
+        // if EVERYTHING is empty, show the blank page
+        this.panels[0].push({ component: 'SplashPage', key: Math.random(), props: {} as any })
+      }
     }
 
     this.updateURL()
@@ -603,19 +607,10 @@ class MyComponent extends Vue {
   }
 
   private getTileStyle(panel: any) {
-    console.log('zz', panel)
-    const style = {
-      // overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
-      flex: 1,
-      height: '100%',
-      top: 0,
-      bottom: 0,
-      position: 'absolute',
+    return {
+      overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
       // padding: '5px 5px',
-      // border: '0.5px solid #ffffff44',
     }
-
-    return style
   }
 
   private getContainerStyle(panel: any, x: number, y: number) {

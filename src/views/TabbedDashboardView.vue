@@ -455,8 +455,9 @@ export default class VueComponent extends Vue {
 }
 
 .tabs ul {
-  border-bottom-color: var(--bg);
-  border-bottom-width: 1px;
+  line-height: 0.8rem;
+  border-bottom-color: var(--bgDashboard);
+  border-bottom-width: 5px;
 }
 
 .tabholder {

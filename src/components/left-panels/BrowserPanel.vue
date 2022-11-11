@@ -128,10 +128,6 @@
 
 
   //- .bottom-panel(v-if="!root")
-    //- .flex-row.about-us
-    //-   p: a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;Home
-    //-   p: a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
-    //-   p: a(@click="showPrivacy") Privacy
 
 </template>
 
@@ -946,10 +942,8 @@ h2 {
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  vertical-align: top;
   background-color: var(--bgMapPanel);
-  // border: var(--borderThin);
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
 .viz-frame-component {
@@ -1136,21 +1130,6 @@ h2 {
   color: var(--linkHover);
 }
 
-.about-us {
-  margin: 0 auto;
-  overflow-x: none;
-  p {
-    margin: 0.5rem 1rem 0.5rem 0;
-  }
-  a {
-    font-size: 0.9rem;
-    color: var(--text);
-  }
-  a:hover {
-    color: var(--linkHover);
-  }
-}
-
 .viz-frame {
   display: flex;
   flex-direction: column;
@@ -1159,7 +1138,7 @@ h2 {
   flex: 1;
   overflow: hidden;
   padding: 4px 0 0 4px;
-  border-radius: 4px;
+  border-radius: 3px;
   p {
     margin: 0 0 0 0;
     line-height: 1rem;
@@ -1175,7 +1154,7 @@ h2 {
 
 .viz-frame:hover {
   background-color: var(--bgHover);
-  border-radius: 5px;
+  border-radius: 3px;
   transition: background-color 0.08s ease-in-out;
 }
 

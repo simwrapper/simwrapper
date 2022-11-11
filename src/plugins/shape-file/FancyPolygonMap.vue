@@ -1941,7 +1941,7 @@ globalStore.commit('registerPlugin', {
   display: flex;
   flex-direction: row;
   padding-top: 0.25rem;
-  background-color: var(--bgBold);
+  background-color: var(--bgDashboard);
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;
