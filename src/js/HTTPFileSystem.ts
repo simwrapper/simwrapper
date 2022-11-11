@@ -149,6 +149,18 @@ class SVNFileSystem {
     return response.blob()
   }
 
+  async getFileStream(scaryPath: string): Promise<ReadableStream> {
+    if (this.fsHandle) {
+      const stream = await this._getFileFromChromeFileSystem(scaryPath)
+        .then(response => response.blob())
+        .then(blob => blob.stream())
+      return stream as any
+    } else {
+      const stream = await this._getFileFetchResponse(scaryPath).then(response => response.body)
+      return stream as any
+    }
+  }
+
   async getDirectory(scaryPath: string): Promise<DirectoryEntry> {
     // This can throw lots of errors; we are not going to catch them
     // here so the code further up can deal with errors properly.
