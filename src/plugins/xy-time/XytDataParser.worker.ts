@@ -10,22 +10,43 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const LAYER_SIZE = 0.5 * 1024 * 1024
 
-let _url = ''
+interface PointData {
+  time: Float32Array
+  value: Float32Array
+  coordinates: Float32Array
+  timeRange: number[]
+}
+
+let layerData: PointData = {
+  time: new Float32Array(LAYER_SIZE),
+  value: new Float32Array(LAYER_SIZE),
+  coordinates: new Float32Array(LAYER_SIZE * 2),
+  timeRange: [Infinity, -Infinity],
+}
+
+let _filename = ''
 let _proj = 'EPSG:4326'
 let _rangeOfValues = [Infinity, -Infinity]
 let _offset = 0
 let _totalRowsRead = 0
+let _httpFileSystem: HTTPFileSystem
+let _readableStream: ReadableStream
+let _header = ''
+let _isCancelled = false
 
 // -----------------------------------------------------------
 onmessage = function (e) {
-  if (!e.data.userCRS) {
-    // initial launch
-    startLoading(e.data)
-  } else {
+  if (e.data.terminate) {
+    _isCancelled = true
+    console.log(666, 'cancelled')
+  } else if (e.data.userCRS) {
     // restarting with a user-supplied CRS
     _proj = e.data.userCRS
     console.log('NEW CRS:', _proj)
-    step2fetchCSVdata(_url)
+    step2fetchCSVdata(_filename)
+  } else {
+    // initial launch
+    startLoading(e.data)
   }
 }
 // -----------------------------------------------------------
@@ -37,15 +58,8 @@ async function startLoading(props: {
 }) {
   if (props.projection) _proj = props.projection
 
-  _url = await step1PrepareFetch(props.filepath, props.fileSystem)
-  step2fetchCSVdata(_url)
-}
-
-interface PointData {
-  time: Float32Array
-  value: Float32Array
-  coordinates: Float32Array
-  timeRange: number[]
+  _filename = await step1PrepareFetch(props.filepath, props.fileSystem)
+  step2fetchCSVdata(_filename)
 }
 
 // --- helper functions ------------------------------------------------
@@ -63,7 +77,7 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
   postMessage({ status: `Loading ${filepath}...` })
 
   try {
-    const httpFileSystem = new HTTPFileSystem(fileSystem)
+    _httpFileSystem = new HTTPFileSystem(fileSystem)
 
     // figure out which file to load with *? wildcards
     let expandedFilename = filepath
@@ -73,7 +87,7 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
       const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
 
       // fetch list of files in this folder
-      const { files } = await httpFileSystem.getDirectory(zSubfolder)
+      const { files } = await _httpFileSystem.getDirectory(zSubfolder)
       const matchingFiles = findMatchingGlobInFiles(files, zDataset)
       if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
       if (matchingFiles.length > 1)
@@ -81,8 +95,8 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
       expandedFilename = `${zSubfolder}/${matchingFiles[0]}`
     }
 
-    // got true filename, add prefixes and away we go
-    return `${fileSystem.baseURL}/${expandedFilename}`
+    // got true filename, away we go
+    return expandedFilename
   } catch (e) {
     console.error('' + e)
     postMessage({ error: 'Error loading: ' + filepath })
@@ -90,15 +104,9 @@ async function step1PrepareFetch(filepath: string, fileSystem: FileSystemConfig)
   }
 }
 
-let layerData: PointData = {
-  time: new Float32Array(LAYER_SIZE),
-  value: new Float32Array(LAYER_SIZE),
-  coordinates: new Float32Array(LAYER_SIZE * 2),
-  timeRange: [Infinity, -Infinity],
-}
-
 function appendResults(results: { data: any[]; comments: any[] }) {
   // set EPSG if we have it in CSV file
+
   for (const comment of results.comments) {
     const epsg = comment.indexOf('EPSG:')
     if (epsg > -1) {
@@ -115,7 +123,7 @@ function appendResults(results: { data: any[]; comments: any[] }) {
       const x = row.x || row.X || row.lon || row.longitude
       const y = row.y || row.Y || row.lat || row.latitude
       if (x > 180 || x < -180 || y < -90 || y > 90) {
-        _reader?.cancel()
+        _isCancelled = true
         console.log('DATA CHUNK RECEIVED -- BUT NO CRS!', results.data.length)
         postMessage({ needCRS: true })
         return
@@ -184,11 +192,8 @@ function appendResults(results: { data: any[]; comments: any[] }) {
   }
 }
 
-let _header = ''
-let _reader: ReadableStreamDefaultReader | undefined
-
 // this version reads a STREAM. crazy future!
-async function step2fetchCSVdata(url: any) {
+async function step2fetchCSVdata(filename: string) {
   let _numChunks = 0
   let data = 0
   _header = ''
@@ -199,12 +204,12 @@ async function step2fetchCSVdata(url: any) {
   let _decoder = new TextDecoder()
   let leftOvers = ''
 
-  console.log('STARTING stream:', url)
+  console.log('STARTING stream:', filename)
 
   // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
   const MAX_CHUNK_SIZE = 1024 * 1024 * 8
 
-  // const strategy = new ByteLengthQueuingStrategy({ highWaterMark: 1 })
+  // read one chunk at a time. This sends backpressure to the server
   const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
 
   // Let's try a writablestream, which the docs say creates
@@ -217,10 +222,10 @@ async function step2fetchCSVdata(url: any) {
         return new Promise((resolve, reject) => {
           _numChunks++
           data += entireChunk.length
-
           let startOffset = 0
 
           const parseIt = (smallChunk: Uint8Array) => {
+            if (_isCancelled) reject()
             // reconstruct first line taking mid-line breaks into account
             let text = _header + leftOvers + _decoder.decode(smallChunk)
 
@@ -239,10 +244,11 @@ async function step2fetchCSVdata(url: any) {
               delimitersToGuess: [';', '\t', ',', ' '],
             }) as any
 
-            appendResults(results)
+            if (_isCancelled) reject()
+            else appendResults(results)
           }
 
-          while (startOffset < entireChunk.length) {
+          while (!_isCancelled && startOffset < entireChunk.length) {
             const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
 
             if (subchunk.length) parseIt(subchunk)
@@ -264,10 +270,11 @@ async function step2fetchCSVdata(url: any) {
   )
 
   try {
-    await fetch(url).then(
-      // Stream results through the data pipe
-      response => response.body?.pipeTo(streamProcessorWithBackPressure)
-    )
+    // get the readable stream from the server
+    _readableStream = await _httpFileSystem.getFileStream(filename)
+
+    // stream results through the data pipe
+    await _readableStream.pipeTo(streamProcessorWithBackPressure)
   } catch (e) {
     console.error('' + e)
     postMessage({ error: '' + e })

@@ -149,7 +149,7 @@ const i18n = {
         'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
     },
     de: {
-      Maps: 'Karten & Fliesen',
+      Maps: 'Karten',
       Images: 'Bilder',
       Analysis: 'Ergebnisse',
       Files: 'Dateien',

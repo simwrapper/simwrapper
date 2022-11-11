@@ -282,7 +282,10 @@ class XyTime extends Vue {
     delete REACT_VIEW_HANDLES[this.viewId]
 
     try {
-      if (this.gzipWorker) this.gzipWorker.terminate()
+      if (this.gzipWorker) {
+        this.gzipWorker.postMessage({ terminate: true })
+        this.gzipWorker.terminate()
+      }
       if (this.guiController) this.guiController.destroy()
     } catch (e) {
       console.warn(e)
