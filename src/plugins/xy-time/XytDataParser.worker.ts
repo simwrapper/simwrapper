@@ -189,67 +189,91 @@ let _reader: ReadableStreamDefaultReader | undefined
 
 // this version reads a STREAM. crazy future!
 async function step2fetchCSVdata(url: any) {
-  let chunks = 0
+  let _numChunks = 0
   let data = 0
   _header = ''
   _rangeOfValues = [Infinity, -Infinity]
   _offset = 0
   _totalRowsRead = 0
 
+  let _decoder = new TextDecoder()
+  let leftOvers = ''
+
   console.log('STARTING stream:', url)
 
-  try {
-    await fetch(url).then(response => {
-      if (!response.ok) throw Error('Error loading' + url)
+  // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
+  const MAX_CHUNK_SIZE = 1024 * 1024 * 8
 
-      _reader = response.body?.getReader()
-      if (!_reader) return
+  // const strategy = new ByteLengthQueuingStrategy({ highWaterMark: 1 })
+  const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
 
-      const decoder = new TextDecoder()
-      let leftOvers = ''
+  // Let's try a writablestream, which the docs say creates
+  // backpressure automatically:
+  // https://developer.mozilla.org/en-US/docs/Web/API/WritableStream
+  const streamProcessorWithBackPressure = new WritableStream(
+    {
+      // Implement the sink
+      write(entireChunk: Uint8Array) {
+        return new Promise((resolve, reject) => {
+          _numChunks++
+          data += entireChunk.length
 
-      function pump(): any {
-        return _reader?.read().then(({ done, value }) => {
-          // When there is no more data, close the stream
-          if (done) return
+          let startOffset = 0
 
-          // Got a CHUNK!
-          chunks++
-          data += value.length
+          const parseIt = (smallChunk: Uint8Array) => {
+            // reconstruct first line taking mid-line breaks into account
+            let text = _header + leftOvers + _decoder.decode(smallChunk)
 
-          // reconstruct first line taking mid-line breaks into account
-          let text = _header + leftOvers + decoder.decode(value)
+            // append the header to every chunk -- save it if we don't have it yet
+            if (!_header) _header = constructHeader(text)
 
-          // append the header to every chunk -- save it if we don't have it yet
-          if (!_header) _header = constructHeader(text)
+            const lastLF = text.lastIndexOf('\n')
+            leftOvers = text.slice(lastLF + 1)
+            text = text.slice(0, lastLF)
 
-          const lastLF = text.lastIndexOf('\n')
-          leftOvers = text.slice(lastLF + 1)
-          text = text.slice(0, lastLF)
+            const results = Papaparse.parse(text, {
+              header: true,
+              skipEmptyLines: true,
+              dynamicTyping: true,
+              comments: '#',
+              delimitersToGuess: [';', '\t', ',', ' '],
+            }) as any
 
-          const results = Papaparse.parse(text, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: true,
-            comments: '#',
-            delimitersToGuess: [';', '\t', ',', ' '],
-          }) as any
+            appendResults(results)
+          }
 
-          appendResults(results)
+          while (startOffset < entireChunk.length) {
+            const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
 
-          // get the next chunk
-          return pump()
+            if (subchunk.length) parseIt(subchunk)
+            startOffset += MAX_CHUNK_SIZE
+          }
+
+          resolve()
         })
-      }
-      // Now start pumping data from the stream!
-      return pump()
-    })
+      },
+
+      close() {
+        console.log('STREAM FINISHED!')
+      },
+      abort(err) {
+        console.log('STREAM error:', err)
+      },
+    },
+    strategy
+  )
+
+  try {
+    await fetch(url).then(
+      // Stream results through the data pipe
+      response => response.body?.pipeTo(streamProcessorWithBackPressure)
+    )
   } catch (e) {
     console.error('' + e)
     postMessage({ error: '' + e })
   }
 
-  console.log('Total chunks:', chunks)
+  console.log('Total chunks:', _numChunks)
   console.log('Total data:', data)
 
   const subarray: PointData = {
