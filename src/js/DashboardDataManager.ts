@@ -194,11 +194,6 @@ export default class DashboardDataManager {
     }
   }
 
-  /**
-   *
-   * @param path Full path/filename to the network file
-   * @returns network (format TBA)
-   */
   public async getRoadNetwork(filename: string, subfolder: string, vizDetails: any) {
     const path = `/${subfolder}/${filename}`
 
