@@ -1102,7 +1102,7 @@ class MyComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'transit-view',
+  kebabName: 'transit',
   prettyName: 'Transit Demand',
   description: 'Transit passengers and ridership',
   // filePatterns: ['viz-pt-demand*.y?(a)ml', '*output_transitSchedule.xml?(.gz)'],

@@ -118,8 +118,8 @@ class MyComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'calc-table',
-  prettyName: 'Table',
+  kebabName: 'summary',
+  prettyName: 'Summary Table',
   description: 'Calculation table',
   filePatterns: ['(topsheet|table)*.y?(a)ml'],
   component: MyComponent,

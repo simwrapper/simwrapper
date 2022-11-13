@@ -1060,8 +1060,8 @@ class NetworkLinkPlugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'link-view',
-  prettyName: 'Links',
+  kebabName: 'network',
+  prettyName: 'Network Links',
   description: 'Network link attributes',
   filePatterns: [
     '**/*output_network.xml?(.gz)',

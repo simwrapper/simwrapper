@@ -161,18 +161,19 @@ const i18n = {
 
 const tabColors = {
   // blank means dashboard:
-  '': '#44bb77',
+  '': '#118860',
   // others are kebab-case:
   'aggregate-od': '#E98B52',
-  'calc-table': '#2EA95B',
-  'carrier-viewer': '#c97A2C',
-  'link-view': '#6956d4',
-  'map-view': '#c94264',
-  'sankey-diag': '#D8A672',
-  'transit-view': '#3B6FE4',
   'vehicle-anim': '#330033',
   'x-y-t': '#583270',
-  'xy-hex': '#900564',
+  carriers: '#c97A2C',
+  events: '#4400ff',
+  hexagons: '#900564',
+  map: '#c94264',
+  network: '#6956d4',
+  sankey: '#D8A672',
+  summary: '#2EA95B',
+  transit: '#3B6FE4',
 } as any
 
 interface VizEntry {
@@ -1173,7 +1174,7 @@ p.v-filename {
 
 p.v-plugin {
   text-align: right;
-  text-transform: uppercase;
+  text-transform: lowercase;
   margin-left: auto;
   color: white;
   background-color: var(--bgCream3);

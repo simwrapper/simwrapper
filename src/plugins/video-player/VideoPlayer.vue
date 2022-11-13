@@ -173,7 +173,7 @@ class MyComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'video-player',
+  kebabName: 'vid-player',
   prettyName: 'Video',
   description: '',
   filePatterns: ['*.mp4'],

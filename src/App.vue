@@ -4,7 +4,7 @@
   .center-area
     login-panel.login-panel
     router-view.main-content
-    p.splash-label(v-if="showSplash") • SimWrapper •
+    p.splash-label(v-if="showSplash") • Loading SimWrapper •
 
   //.message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
@@ -381,10 +381,10 @@ a:hover {
 }
 
 p.splash-label {
-  text-justify: center;
-  margin: auto auto 2rem 2rem;
-  font-size: 1.8rem;
-  font-weight: bold;
+  text-justify: right;
+  margin: auto 3rem 3rem auto;
+  font-size: 1.5rem;
+  // font-weight: bold;
   color: #888;
 }
 

@@ -304,7 +304,7 @@ class MyComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'sankey-diag',
+  kebabName: 'sankey',
   prettyName: 'Sankey Flow Diagram',
   description: 'Depicts flows between choices',
   filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],

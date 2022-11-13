@@ -763,7 +763,7 @@ class Plugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'event-view',
+  kebabName: 'events',
   prettyName: 'Event Viewer',
   description: 'MATSim event viewer',
   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml'],

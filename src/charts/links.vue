@@ -14,7 +14,7 @@ link-volumes.deck-map(
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
 import { FileSystemConfig } from '@/Globals'
-import LinkVolumes from '@/plugins/links-gl/LinkVolumes.vue'
+import LinkVolumes from '@/plugins/links-gl/NetworkLinks.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 @Component({ components: { LinkVolumes } })
