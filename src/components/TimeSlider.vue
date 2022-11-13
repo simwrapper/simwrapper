@@ -7,7 +7,7 @@
   .slider-area
     button.button.play-button(size="is-small" type="is-link"
       @click="$emit('toggleAnimation')"
-      ) {{ isAnimating ? '||' : '>' }}
+      ) {{ isAnimating ? '|&nbsp;|' : '>' }}
 
     .time-slider-dragger(ref="slider" @mousemove="dragging")
       .active-region(:style="calculateActiveMargins"
@@ -288,6 +288,8 @@ export default class VueComponent extends Vue {
   height: 1.5rem;
   margin-right: 1rem;
   font-weight: bold;
+  font-size: 0.8rem;
+  line-height: 0.8rem;
   padding: 0 0;
 }
 </style>

@@ -39,7 +39,6 @@
         v-show="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
     )
 
-      //- :style="{'padding': isMultipanel ? '3px 0px 3px 3px' : ''}"
       .drag-container(
         v-for="panel,x in panelRow" :key="panel.key"
         @drop="onDrop({event: $event,x,y})"
@@ -615,7 +614,7 @@ class MyComponent extends Vue {
 
   private getContainerStyle(panel: any, x: number, y: number) {
     let style: any = {
-      padding: '5px 5px',
+      padding: this.isMultipanel ? '5px 5px' : '0',
     }
 
     // // figure out height. If card has registered a resizer with changeDimensions(),

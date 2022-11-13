@@ -1,4 +1,5 @@
 // import plugins in the order you want them to appear on project pages
+import EventView from '@/plugins/event-viewer/EventViewerPlugin.vue'
 import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
 import VehicleView from '@/plugins/vehicle-animation/VehicleAnimation.vue'
 import CalcTable from '@/plugins/calculation-table/CalculationTable.vue'
@@ -18,6 +19,7 @@ const plugins = {
   AggregateOd,
   CalcTable,
   CarrierViewer,
+  EventView,
   ImageView,
   LinkView,
   MapView,

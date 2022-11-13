@@ -17,8 +17,11 @@ const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
 // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
 const MAX_CHUNK_SIZE = 1024 * 1024 * 8
 
-onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
-  readStream(filePath, fileSystem)
+// This is the number of dots per layer. Deck.gl advises < 1million
+const MAX_ARRAY_LENGTH = 1200127
+
+onmessage = async ({ data: { filePath, fileSystem } }: MessageEvent) => {
+  await readStream(filePath, fileSystem)
 }
 
 async function readStream(filePath: string, fileSystem: FileSystemConfig) {
@@ -44,22 +47,24 @@ let _leftOvers = ''
 let _decoder = new TextDecoder()
 let _eventTypes = [] as string[]
 
-const MAX_ARRAY_LENGTH = 734567
-
 let _currentTranch = [] as any[]
 let _currentTimes = new Float32Array(MAX_ARRAY_LENGTH).fill(NaN)
+
+// pathStart(xy),pathEnd(xy),timeStart,timeEnd = 6 numbers
+let _vehicleTrips = [] as any[]
+let _vehiclesOnLinks = {} as any
 
 const streamProcessorWithBackPressure = new WritableStream(
   {
     write(entireChunk: Uint8Array) {
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
         if (_isCancelled) reject()
 
         _numChunks++
         _dataLength += entireChunk.length
         let startOffset = 0
 
-        // console.log('got chunk', _numChunks)
+        console.log('got chunk', _numChunks)
 
         const parseIt = async (smallChunk: Uint8Array) => {
           if (_isCancelled) reject()
@@ -71,25 +76,36 @@ const streamProcessorWithBackPressure = new WritableStream(
           text = text.slice(0, lastLF)
 
           const lines = text.split('\n')
+          const events = await convertXMLtoEventArray(lines)
 
-          const events = await processLines(lines)
+          calculateVehicleTrips(events)
 
+          // push all the events (for now)
           _currentTranch.push(...events)
 
           if (_currentTranch.length > MAX_ARRAY_LENGTH) {
             const oneChunk = _currentTranch.slice(0, MAX_ARRAY_LENGTH)
             _currentTimes.set(oneChunk.map(m => m.time))
 
-            postMessage({ events: oneChunk, times: _currentTimes }, [_currentTimes.buffer])
+            postMessage(
+              {
+                events: oneChunk,
+                times: _currentTimes,
+                vehicleTrips: _vehicleTrips,
+              },
+              [_currentTimes.buffer]
+            )
+            // console.log(_vehicleTrips.length, 'vtrips')
             _currentTranch = _currentTranch.slice(MAX_ARRAY_LENGTH)
             _currentTimes = new Float32Array(MAX_ARRAY_LENGTH)
+            _vehicleTrips = []
           }
         }
 
         while (!_isCancelled && startOffset < entireChunk.length) {
           const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
 
-          if (subchunk.length) parseIt(subchunk)
+          if (subchunk.length) await parseIt(subchunk)
           startOffset += MAX_CHUNK_SIZE
         }
 
@@ -98,10 +114,24 @@ const streamProcessorWithBackPressure = new WritableStream(
     },
 
     close() {
-      console.log('STREAM FINISHED!')
+      // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
+      console.log('STREAM FINISHED! Orphans:', Object.keys(_vehiclesOnLinks).length)
+      console.log(
+        'final vehicle trips:',
+        _vehicleTrips.length,
+        _vehicleTrips[_vehicleTrips.length - 1]
+        // JSON.stringify(_vehicleTrips)
+      )
       _currentTimes.set(_currentTranch.map(m => m.time))
       _currentTimes = _currentTimes.subarray(0, _currentTranch.length)
-      postMessage({ events: _currentTranch, times: _currentTimes }, [_currentTimes.buffer])
+      postMessage(
+        {
+          events: _currentTranch,
+          times: _currentTimes,
+          vehicleTrips: _vehicleTrips,
+        },
+        [_currentTimes.buffer]
+      )
     },
     abort(err) {
       console.log('STREAM error:', err)
@@ -110,7 +140,40 @@ const streamProcessorWithBackPressure = new WritableStream(
   strategy
 )
 
-async function processLines(lines: string[]) {
+function calculateVehicleTrips(events: any[]) {
+  // splice out vehicle trips
+  for (const event of events) {
+    switch (event.type) {
+      case 'vehicle enters traffic':
+      case 'entered link':
+        _vehiclesOnLinks[event.vehicle] = event.time
+        break
+      case 'left link':
+        if (event.vehicle in _vehiclesOnLinks) {
+          _vehicleTrips.push({
+            link: event.link,
+            t0: _vehiclesOnLinks[event.vehicle],
+            t1: event.time,
+          })
+          _vehiclesOnLinks[event.vehicle] = event.time
+        }
+      case 'vehicle leaves traffic':
+        if (event.vehicle in _vehiclesOnLinks) {
+          _vehicleTrips.push({
+            link: event.link,
+            t0: _vehiclesOnLinks[event.vehicle],
+            t1: event.time,
+          })
+        }
+        delete _vehiclesOnLinks[event.vehicle]
+        break
+      default:
+        break
+    }
+  }
+}
+
+async function convertXMLtoEventArray(lines: string[]) {
   const events = []
 
   const isEvent = /<event /

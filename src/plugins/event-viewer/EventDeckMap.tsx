@@ -7,8 +7,16 @@ import * as timeConvert from 'convert-seconds'
 
 import { REACT_VIEW_HANDLES, MAPBOX_TOKEN } from '@/Globals'
 import ScatterplotColorBinsLayer from '@/plugins/xy-time/ScatterplotColorBinsLayer'
+import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import globalStore from '@/store'
 import { NetworkLinks } from '@/js/DashboardDataManager'
+
+const ICON_MAPPING = {
+  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
+  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
+  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
+  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+}
 
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
 
@@ -26,10 +34,12 @@ function convertSecondsToClockTimeMinutes(index: number) {
 
 const INITIAL_VIEW = {
   pitch: 0,
-  zoom: 7,
+  zoom: 8,
   bearing: 0,
-  longitude: 14.38,
-  latitude: 51.5,
+  longitude: 14,
+  latitude: 52.0,
+  // longitude: 14.38,
+  // latitude: 51.7,
 }
 
 // -------------------------------------------------------------------
@@ -47,6 +57,7 @@ export default function Component({
   breakpoints = [0.0] as number[],
   radius = 5,
   mapIsIndependent = false,
+  simulationTime = 20000,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -98,19 +109,16 @@ export default function Component({
     // }
   }
 
-  // add a scatterplotlayer for each set of points in pointLayers
-  const layers = eventLayers.map((layer, layerIndex) => {
+  // add a scatterplotlayer for each set of points in eventLayers
+  const pointLayers = eventLayers.map((layer, layerIndex) => {
     // The entire layer can be hidden if all of its points
     // are beyond the timeFilter range that is being shown.
     const outOfRange =
-      layer.events[0].time > timeFilter[1] ||
-      layer.events[layer.events.length - 1].time < timeFilter[0]
+      layer.times[0] > timeFilter[1] || layer.times[layer.times.length - 1] < timeFilter[0]
 
     return new ScatterplotLayer({
       data: {
-        // events: data.events,
-        // times: data.times,
-        length: layer.events.length,
+        length: layer.times.length,
         attributes: {
           getFilterValue: { value: layer.times, size: 1 },
           getPosition: { value: layer.positions, size: 2 },
@@ -123,13 +131,7 @@ export default function Component({
       id: 'hello' + layerIndex,
       filled: true,
       filterRange: timeFilter.length ? timeFilter : null,
-      // getFilterValue: (d: any) => d.time,
-      // getPosition: (d: any) => {
-      //   console.log(d)
-      //   const offset = 2 * linkIdLookup[d.events.link]
-      //   return [network.source[offset], network.source[offset + 1]]
-      // },
-      getRadius: 10,
+      getRadius: 20,
       getFillColor: [240, 128, 10],
       highlightColor: [255, 0, 224],
       opacity: 1,
@@ -153,10 +155,57 @@ export default function Component({
     })
   })
 
+  // add the vehicle motion layer in each eventLayer
+  const vehicleLayers = eventLayers.map((layer, layerIndex) => {
+    // The entire layer can be hidden if all of its points
+    // are beyond the timeFilter range that is being shown.
+    const outOfRange =
+      layer.vehicles.t0[0] > timeFilter[1] ||
+      layer.vehicles.t1[layer.vehicles.t1.length - 1] < timeFilter[0]
+
+    // console.log(outOfRange)
+    //@ts-ignore
+    return new MovingIconsLayer({
+      data: {
+        length: layer.vehicles.t0.length,
+        attributes: {
+          getTimeStart: { value: layer.vehicles.t0, size: 1 },
+          getTimeEnd: { value: layer.vehicles.t1, size: 1 },
+          getPathStart: { value: layer.vehicles.locO, size: 2 },
+          getPathEnd: { value: layer.vehicles.locD, size: 2 },
+        },
+      },
+      id: 'vehicles' + layerIndex,
+      // getIcon: (d: any) => 'vehicle',
+      getColor: [64, 96, 255], // (d: any) => props.colors[d.occ],
+      iconMoving: 'vehicle',
+      iconStill: 'diamond',
+      getSize: 18, // searchEnabled ? 56 : 44,
+      opacity: 1.0,
+      currentTime: simulationTime,
+      shadowEnabled: true,
+      iconAtlas: '/images/icon-atlas.png',
+      iconMapping: ICON_MAPPING,
+      sizeScale: 1,
+      billboard: false,
+      pickable: true,
+      depthTest: true,
+      autoHighlight: false,
+      highlightColor: [255, 0, 255],
+      // onHover: setHoverInfo,
+      parameters: {
+        depthTest: false,
+      },
+      visible: !outOfRange,
+    })
+  })
+
+  const allLayers = [...pointLayers, ...vehicleLayers]
+
   // initialViewState={initialViewState}
   return (
     <DeckGL
-      layers={layers}
+      layers={allLayers}
       controller={true}
       useDevicePixels={true}
       viewState={viewState}

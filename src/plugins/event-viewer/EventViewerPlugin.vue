@@ -1,7 +1,7 @@
 <template lang="pug">
-.viz-plugin(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${viewId}`")
+.viz-plugin(oncontextmenu="return false" :id="`id-${viewId}`")
 
-  event-map.map-layer(v-if="!thumbnail"
+  event-map.map-layer(v-if="!thumbnail && isLoaded"
     :viewId="viewId"
     :eventLayers="eventLayers"
     :network="network"
@@ -12,6 +12,7 @@
     :breakpoints="this.breakpoints"
     :radius="this.guiConfig.radius"
     :mapIsIndependent="false"
+    :simulationTime="timeFilter[1]"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")
@@ -214,10 +215,6 @@ class Plugin extends Vue {
     yamlConfig: '',
     thumbnail: false,
   }
-
-  // private pointLayers: PointLayer[] = []
-
-  private events: any[] = []
 
   private eventLayers: any[] = []
 
@@ -473,10 +470,17 @@ class Plugin extends Vue {
 
   private async streamEventFile(filename: string) {
     if (!this.myState.fileSystem) return
-    this.myState.statusMessage = 'Loading file...'
 
+    this.myState.statusMessage = 'Loading file...'
     let totalRows = 0
+    this.range = [Infinity, -Infinity]
+    this.timeRange = [Infinity, -Infinity]
+    this.animationElapsedTime = 0
+    this.timeFilter = [0, 3599]
+
     // get the raw unzipped arraybuffer
+    if (this.gzipWorker) this.gzipWorker.terminate()
+    this.eventLayers = []
     this.gzipWorker = new MATSimEventStreamer()
 
     this.gzipWorker.onmessage = async (event: MessageEvent) => {
@@ -492,12 +496,6 @@ class Plugin extends Vue {
         })
       } else if (message.finished) {
         this.finishedLoadingData(totalRows, message)
-      } else if (message.needCRS) {
-        this.gzipWorker.terminate()
-        let userCRS = prompt('' + this.$t('promptCRS')) || 'EPSG:25833'
-        if (Number.isFinite(parseInt(userCRS))) userCRS = `EPSG:${userCRS}`
-        this.vizDetails.projection = userCRS
-        this.streamEventFile(filename)
       } else {
         const events = message.events as any[]
 
@@ -505,9 +503,17 @@ class Plugin extends Vue {
 
         totalRows += events.length
         this.myState.statusMessage = 'Loading ' + totalRows + ' events'
+
+        // minmax all events
         this.timeRange = [
           Math.min(this.timeRange[0], events[0].time),
           Math.max(this.timeRange[1], events[events.length - 1].time),
+        ]
+
+        // minmax vehicle trips specifically
+        this.timeRange = [
+          Math.min(this.timeRange[0], message.vehicleTrips[0].t0),
+          Math.max(this.timeRange[1], message.vehicleTrips[message.vehicleTrips.length - 1].t1),
         ]
 
         // .filter(row => row.link)
@@ -518,31 +524,50 @@ class Plugin extends Vue {
           } as any
         })
 
+        // POSITIONS ----
         const positions = new Float32Array(2 * linkEvents.length).fill(NaN)
         for (let i = 0; i < linkEvents.length; i++) {
           const offset = 2 * this.linkIdLookup[linkEvents[i].link]
-
           positions[i * 2] = this.network.source[offset]
           positions[i * 2 + 1] = this.network.source[offset + 1]
         }
 
-        // for (const row of linkEvents) {
-        //   const linkOffset = 2 * this.linkIdLookup[row.link]
-        //   row.source = [this.network.source[linkOffset], this.network.source[linkOffset + 1]]
-        //   row.dest = this.network.dest.slice(linkOffset, linkOffset + 2)
-        //   // console.log(JSON.stringify(row.source))
-        // }
+        // VEHICLES -----------
+        const numTrips = message.vehicleTrips.length
+        const tripData = {
+          locO: new Float32Array(2 * numTrips).fill(NaN),
+          locD: new Float32Array(2 * numTrips).fill(NaN),
+          t0: new Float32Array(numTrips).fill(NaN),
+          t1: new Float32Array(numTrips).fill(NaN),
+        }
 
-        this.eventLayers.push({ events: linkEvents, positions, times: message.times })
+        for (let i = 0; i < numTrips; i++) {
+          const trip = message.vehicleTrips[i]
+          const offset = 2 * this.linkIdLookup[trip.link]
+          tripData.locO[i * 2 + 0] = this.network.source[0 + offset]
+          tripData.locO[i * 2 + 1] = this.network.source[1 + offset]
+          tripData.locD[i * 2 + 0] = this.network.dest[0 + offset]
+          tripData.locD[i * 2 + 1] = this.network.dest[1 + offset]
+          // enter/leave traffic happen in the middle of the link
+          if (i == 0) {
+            tripData.locO[i * 2 + 0] = 0.5 * (tripData.locO[i * 2 + 0] + tripData.locD[i * 2 + 0])
+            tripData.locO[i * 2 + 1] = 0.5 * (tripData.locO[i * 2 + 1] + tripData.locD[i * 2 + 1])
+          } else if (i == numTrips - 1) {
+            tripData.locD[i * 2 + 0] = 0.5 * (tripData.locO[i * 2 + 0] + tripData.locD[i * 2 + 0])
+            tripData.locD[i * 2 + 1] = 0.5 * (tripData.locO[i * 2 + 1] + tripData.locD[i * 2 + 1])
+          }
+          tripData.t0[i] = trip.t0
+          tripData.t1[i] = trip.t1
+        }
 
-        // const layerNum = this.eventLayers.length - 1
-        // // this.eventLayers[layerNum].push(...linkEvents)
+        // ALL DONE --------
 
-        // if (this.eventLayers[layerNum].length > 100000) {
-        //   // const z = [...this.eventLayers]
-        //   // this.eventLayers = z
-        //   console.log({ layers: this.eventLayers })
-        // }
+        this.eventLayers.push({
+          events: events.slice(1, 2), // linkEvents.slice(1, 2),
+          positions,
+          vehicles: tripData,
+          times: message.times,
+        })
 
         // zoom map on first load
         // if (!totalRows) this.setFirstZoom(message.coordinates, rows)
@@ -576,7 +601,7 @@ class Plugin extends Vue {
     this.isLoaded = true
     this.myState.statusMessage = ''
     this.gzipWorker.terminate()
-    console.log('DONE: layers', this.events.length)
+    console.log('DONE: layers', this.eventLayers.length)
     // this.eventLayers = [...this.eventLayers]
 
     return
@@ -595,25 +620,24 @@ class Plugin extends Vue {
 
   private ANIMATE_SPEED = 0.25
   private animationElapsedTime = 0
+  private animationClockTime = 0
 
   private animate() {
-    setTimeout(() => {
-      if (!this.isAnimating) return
+    if (!this.isAnimating) return
 
-      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
+    this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
 
-      const animationClockTime = this.animationElapsedTime + this.timeRange[0]
+    this.animationClockTime = this.animationElapsedTime + this.timeRange[0]
 
-      if (animationClockTime > this.timeRange[1]) {
-        this.startTime = Date.now()
-        this.animationElapsedTime = 0 // this.timeRange[0]
-      }
+    if (this.animationClockTime > this.timeRange[1]) {
+      this.startTime = Date.now()
+      this.animationElapsedTime = 0 // this.timeRange[0]
+    }
 
-      const span = this.timeFilter[1] - this.timeFilter[0]
-      this.timeFilter = [animationClockTime, animationClockTime + span]
+    const span = this.timeFilter[1] - this.timeFilter[0]
+    this.timeFilter = [this.animationClockTime, this.animationClockTime + span]
 
-      this.animator = window.requestAnimationFrame(this.animate)
-    }, 16.666666666667)
+    this.animator = window.requestAnimationFrame(this.animate)
   }
 
   private toggleAnimation() {
@@ -742,7 +766,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'event-view',
   prettyName: 'Event Viewer',
   description: 'MATSim event viewer',
-  filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+  filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml'],
   component: Plugin,
 } as VisualizationPlugin)
 
@@ -761,13 +785,7 @@ export default Plugin
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') center / cover no-repeat;
-  z-index: -1;
-}
-
-.viz-plugin.hide-thumbnail {
-  background: none;
-  z-index: 0;
+  background: var(--bgMapPanel);
 }
 
 .message {
@@ -776,12 +794,12 @@ export default Plugin
   bottom: 0;
   left: 0;
   width: 100%;
-  box-shadow: 0px 2px 10px #22222222;
   display: flex;
   flex-direction: row;
   margin: auto auto 0 0;
   background-color: var(--bgPanel);
-  padding: 0.5rem 1.5rem;
+  padding: 0rem 0.5rem;
+  border-radius: 0;
 
   a {
     color: white;
