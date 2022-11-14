@@ -11,6 +11,8 @@ import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import globalStore from '@/store'
 import { NetworkLinks } from '@/js/DashboardDataManager'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
   info: { x: 128, y: 0, width: 128, height: 128, mask: true },
@@ -184,7 +186,7 @@ export default function Component({
       opacity: 1.0,
       currentTime: simulationTime,
       shadowEnabled: true,
-      iconAtlas: '/images/icon-atlas.png',
+      iconAtlas: BASE_URL + '/images/icon-atlas.png',
       iconMapping: ICON_MAPPING,
       sizeScale: 1,
       billboard: false,

@@ -10,6 +10,8 @@ import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const ICON_MAPPING = {
   marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
   info: { x: 128, y: 0, width: 128, height: 128, mask: true },
@@ -187,7 +189,7 @@ export default function Component(props: {
         currentTime: simulationTime,
         shadowEnabled: false,
         noAlloc: true,
-        iconAtlas: '/images/icon-atlas.png',
+        iconAtlas: BASE_URL + '/images/icon-atlas.png',
         iconMapping: ICON_MAPPING,
         sizeScale: 0.5,
         billboard: false,

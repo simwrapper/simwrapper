@@ -9,6 +9,8 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
   infoPin: { x: 128, y: 0, width: 128, height: 128, mask: true },
@@ -246,7 +248,7 @@ export default function Component(props: {
       opacity: 1,
       shadowEnabled: true,
       noAlloc: false,
-      iconAtlas: '/images/icon-atlas-3.png',
+      iconAtlas: BASE_URL + '/images/icon-atlas-3.png',
       iconMapping: ICON_MAPPING,
       sizeScale: 1,
       billboard: true,
