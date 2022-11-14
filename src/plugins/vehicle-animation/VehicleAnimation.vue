@@ -205,6 +205,7 @@ class VehicleAnimation extends Vue {
     center: [13.45, 52.5],
     zoom: 10,
     mapIsIndependent: false,
+    theme: '',
   }
 
   public myState = {
@@ -331,6 +332,8 @@ class VehicleAnimation extends Vue {
     }
 
     // initial view
+    if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
+
     if (this.vizDetails.center) {
       this.$store.commit('setMapCamera', {
         longitude: this.vizDetails.center[0],
