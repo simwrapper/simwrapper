@@ -170,7 +170,7 @@ const tabColors = {
   events: '#4400ff',
   hexagons: '#900564',
   map: '#c94264',
-  network: '#6956d4',
+  network: '#894654',
   sankey: '#D8A672',
   summary: '#2EA95B',
   transit: '#3B6FE4',

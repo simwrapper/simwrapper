@@ -77,7 +77,7 @@
         component.map-tile(
           :is="panel.component"
           :style="getTileStyle(panel)"
-          v-bind="panel.props"
+          v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"
           @title="setCardTitles(panel, $event)"
         )
@@ -247,27 +247,33 @@ class MyComponent extends Vue {
     for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
       if (micromatch(fileNameWithoutPath, vizPlugin.filePatterns).length) {
         // plugin matched!
-        let key = Math.random()
-        if (this.panels.length === 1 && this.panels[0].length === 1) key = this.panels[0][0].key
 
-        this.panels = [
-          [
-            {
-              key,
-              component: vizPlugin.kebabName,
-              title: '',
-              description: '',
-              props: {
-                root,
-                subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
-                yamlConfig: fileNameWithoutPath[0],
-                thumbnail: false,
-              } as any,
-            },
-          ],
-        ]
+        if (this.panels.length === 1 && this.panels[0].length === 1) {
+          this.panels = [[this.panels[0][0]]]
+        } else {
+          let key = Math.random()
+          this.panels = [
+            [
+              {
+                key,
+                component: vizPlugin.kebabName,
+                title: '',
+                description: '',
+                props: {
+                  root,
+                  subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+                  yamlConfig: fileNameWithoutPath[0],
+                  thumbnail: false,
+                } as any,
+              },
+            ],
+          ]
+        }
+
         this.$store.commit('setShowLeftBar', true)
         return
+
+        this.panels = [[this.panels[0][0]]]
       }
     }
 
@@ -536,6 +542,12 @@ class MyComponent extends Vue {
 
   private showActiveSection = true
 
+  // remove title from properties to avoid weird tooltips on components
+  private cleanProps(props: any) {
+    const { title, ...propsWithoutTitle } = props
+    return propsWithoutTitle
+  }
+
   private get showLeftBar() {
     return this.$store.state.isShowingLeftBar
   }
@@ -566,8 +578,6 @@ class MyComponent extends Vue {
   }
 
   private setCardTitles(card: any, event: any) {
-    // console.log(card, event)
-
     if (typeof event == 'string') {
       if (event) card.title = event
       card.description = ''
