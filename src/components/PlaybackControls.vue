@@ -5,8 +5,8 @@
     v-bind="sliderOptions"
     size="is-large"
     @dragging="dragging"
-    @drag-start="dragStart"
-    @drag-end="dragEnd")
+    @dragstart="dragStart"
+    @dragend="dragEnd")
 
   .buttons
     .playpause(@click='toggleSimulation')

@@ -165,8 +165,7 @@ export default new Vuex.Store({
       state.resizeEvents += 1
     },
     setTheme(state, value: string) {
-      state.colorScheme = state.colorScheme =
-        value == 'light' ? ColorScheme.LightMode : ColorScheme.DarkMode
+      state.colorScheme = value == 'light' ? ColorScheme.LightMode : ColorScheme.DarkMode
 
       console.log('NEW COLORS:', state.colorScheme)
 

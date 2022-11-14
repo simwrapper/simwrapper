@@ -188,7 +188,7 @@ class VehicleAnimation extends Vue {
     vehicles: true,
     backgroundTraffic: true,
     routes: true,
-    requests: false,
+    requests: true,
   }
 
   private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map(key => {
@@ -207,10 +207,13 @@ class VehicleAnimation extends Vue {
     description: '',
     thumbnail: '',
     center: [13.45, 52.5],
-    zoom: 10,
+    zoom: 12,
+    bearing: 0,
+    pitch: 20,
     mapIsIndependent: false,
     events: '',
     eventBlobs: [] as string[],
+    theme: '',
   }
 
   public myState = {
@@ -254,7 +257,7 @@ class VehicleAnimation extends Vue {
 
   private globalState = globalStore.state
   private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-  private isLoaded = true
+  private isLoaded = false
   private showHelp = false
 
   private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
@@ -263,6 +266,17 @@ class VehicleAnimation extends Vue {
   private trafficLayers = [] as any[]
 
   private legendBits: any[] = []
+
+  private isEmbedded = false
+
+  private setEmbeddedMode() {
+    if ('embed' in this.$route.query) {
+      console.log('EMBEDDED MODE')
+      this.isEmbedded = true
+      this.$store.commit('setShowLeftBar', false)
+      this.$store.commit('setFullWidth', true)
+    }
+  }
 
   public buildFileApi() {
     const filesystem = this.getFileSystem(this.root)
@@ -317,6 +331,7 @@ class VehicleAnimation extends Vue {
   }
 
   private async getVizDetails() {
+    console.log('GETVIZ')
     if (!this.myState.fileApi) return
 
     // first get config
@@ -339,13 +354,15 @@ class VehicleAnimation extends Vue {
     }
 
     // initial view
+    if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
+
     if (this.vizDetails.center) {
       this.$store.commit('setMapCamera', {
         longitude: this.vizDetails.center[0],
         latitude: this.vizDetails.center[1],
-        zoom: this.vizDetails.zoom || 10,
-        pitch: 10,
-        bearing: 0,
+        zoom: this.vizDetails.zoom || 11,
+        pitch: this.vizDetails.pitch || 20,
+        bearing: this.vizDetails.bearing || 0,
       })
     }
 
@@ -354,6 +371,7 @@ class VehicleAnimation extends Vue {
     this.$emit('title', t)
 
     this.buildThumbnail()
+    this.isLoaded = true
   }
 
   private async buildThumbnail() {
@@ -496,6 +514,7 @@ class VehicleAnimation extends Vue {
   }
 
   private toggleSimulation() {
+    console.log('CLICK !!!')
     this.myState.isRunning = !this.myState.isRunning
     this.timeElapsedSinceLastFrame = Date.now()
 
@@ -514,6 +533,9 @@ class VehicleAnimation extends Vue {
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig
     this.myState.subfolder = this.subfolder
+
+    // EMBED MODE?
+    this.setEmbeddedMode()
 
     this.buildFileApi()
 
@@ -583,13 +605,6 @@ class VehicleAnimation extends Vue {
             },
           }
 
-          console.log('gotya', layer)
-          // const buffer =
-          // const blob = new Blob(event.data
-          // const text = new TextDecoder('utf-8').decode(event.data)
-          // console.log(text.slice(0, 1000))
-          // const layers = JSON.parse(text)
-          // console.log(55, { layers })
           this.trafficLayers.push(layer)
         }
         gzipFetcher.postMessage({

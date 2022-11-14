@@ -84,6 +84,11 @@ class MyComponent extends Vue {
     this.setupShortcuts()
   }
 
+  @Watch('globalStore.state.theme') themeChanged() {
+    console.log('ooop!', this.state.isDarkMode)
+    this.theme = this.state.isDarkMode ? 'dark' : 'light'
+  }
+
   @Watch('state.svnProjects')
   private setupShortcuts() {
     try {
