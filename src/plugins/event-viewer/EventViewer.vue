@@ -483,6 +483,8 @@ class Plugin extends Vue {
     this.eventLayers = []
     this.gzipWorker = new MATSimEventStreamer()
 
+    const formatter = Intl.NumberFormat()
+
     this.gzipWorker.onmessage = async (event: MessageEvent) => {
       const message = event.data
       if (message.status) {
@@ -502,7 +504,7 @@ class Plugin extends Vue {
         console.log(events.length)
 
         totalRows += events.length
-        this.myState.statusMessage = 'Loading ' + totalRows + ' events'
+        this.myState.statusMessage = 'Loading ' + formatter.format(totalRows) + ' events'
 
         // minmax all events
         this.timeRange = [
@@ -709,7 +711,6 @@ class Plugin extends Vue {
 
   private async loadNetwork() {
     // get network
-    console.log('1 loading network')
     let networkFilename = this.vizDetails.file.replace('events.xml', 'network.xml')
     const network = await this.myDataManager.getRoadNetwork(
       networkFilename,
@@ -724,7 +725,6 @@ class Plugin extends Vue {
       i++
     }
 
-    console.log(2, linkIdLookup['1'], { linkIdLookup, network })
     return { network, linkIdLookup }
   }
 
@@ -766,7 +766,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'events',
   prettyName: 'Event Viewer',
   description: 'MATSim event viewer',
-  filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml'],
+  filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
   component: Plugin,
 } as VisualizationPlugin)
 
