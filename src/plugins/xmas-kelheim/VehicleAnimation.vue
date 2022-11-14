@@ -14,15 +14,15 @@
                 :traces = "$options.traces"
                 :vehicleLookup = "vehicleLookup"
                 :viewId = "viewId"
-                :onClick = "handleClick")
+                :onClick = "handleClick"
+                :trafficLayers = "trafficLayers"
+  )
 
   zoom-buttons(v-if="!thumbnail")
 
-  //- isLoaded && !thumbnail")
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")
-      .big.clock
-        p {{ myState.clock }}
+      .big.clock: p {{ myState.clock }}
 
       .panel-items
         legend-colors.legend-block(v-if="legendItems.length"
@@ -108,6 +108,9 @@ import LegendColors from './LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import EventParser from './eventParser'
+import DashboardDataManager, { NetworkLinks } from '@/js/DashboardDataManager'
+import GzipFetcher from '@/workers/GzipFetcher.worker?worker'
 
 import {
   ColorScheme,
@@ -183,6 +186,7 @@ class VehicleAnimation extends Vue {
 
   SETTINGS: { [label: string]: boolean } = {
     vehicles: true,
+    backgroundTraffic: true,
     routes: true,
     requests: false,
   }
@@ -205,6 +209,8 @@ class VehicleAnimation extends Vue {
     center: [13.45, 52.5],
     zoom: 10,
     mapIsIndependent: false,
+    events: '',
+    eventBlobs: [] as string[],
   }
 
   public myState = {
@@ -253,6 +259,8 @@ class VehicleAnimation extends Vue {
 
   private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
   private speed = 1
+
+  private trafficLayers = [] as any[]
 
   private legendBits: any[] = []
 
@@ -543,6 +551,9 @@ class VehicleAnimation extends Vue {
     this.requestEnd = this.requests.dimension(d => d[6]) // arrival
     this.requestVehicle = this.requests.dimension(d => d[5])
 
+    // ALSO load traffic in the background
+    this.loadBackgroundTraffic()
+
     console.log('GO!')
     this.myState.statusMessage = ''
 
@@ -551,6 +562,76 @@ class VehicleAnimation extends Vue {
     this.myState.isRunning = true
     this.timeElapsedSinceLastFrame = Date.now()
     this.animate()
+  }
+
+  private async loadBackgroundTraffic() {
+    if (this.vizDetails.eventBlobs) {
+      for (const blobFilename of this.vizDetails.eventBlobs) {
+        const gzipFetcher = new GzipFetcher()
+
+        gzipFetcher.onmessage = (event: MessageEvent) => {
+          const floats = new Float32Array(event.data.buffer)
+          const size = floats.length / 6
+          const bytes = 4
+
+          const layer = {
+            vehicles: {
+              locO: new Float32Array(event.data.buffer, 0, size * 2),
+              locD: new Float32Array(event.data.buffer, bytes * size * 2, size * 2),
+              t0: new Float32Array(event.data.buffer, bytes * size * 4, size),
+              t1: new Float32Array(event.data.buffer, bytes * size * 5, size),
+            },
+          }
+
+          console.log('gotya', layer)
+          // const buffer =
+          // const blob = new Blob(event.data
+          // const text = new TextDecoder('utf-8').decode(event.data)
+          // console.log(text.slice(0, 1000))
+          // const layers = JSON.parse(text)
+          // console.log(55, { layers })
+          this.trafficLayers.push(layer)
+        }
+        gzipFetcher.postMessage({
+          filePath: this.myState.subfolder + '/' + blobFilename,
+          fileSystem: this.myState.fileSystem,
+        })
+      }
+    } else if (this.vizDetails.events) {
+      const parser = new EventParser({
+        fileSystem: this.myState.fileSystem as any,
+        dataManager: new DashboardDataManager(this.root, this.subfolder),
+        vizDetails: this.vizDetails,
+        subfolder: this.subfolder,
+        // boundBox: [
+        //   [11.2, 48.6],
+        //   [12.3, 49.1],
+        // ],
+      })
+      const layers = await parser.loadFiles()
+      this.trafficLayers = layers
+      this.exportJSON(layers)
+    }
+  }
+
+  private exportJSON(layers: any[]) {
+    for (const layer of layers) {
+      const blob = new Blob(
+        [layer.vehicles.locO, layer.vehicles.locD, layer.vehicles.t0, layer.vehicles.t1],
+        { type: 'octet/stream' }
+      )
+      const blobURL = URL.createObjectURL(blob)
+
+      let element = document.createElement('a')
+      element.setAttribute('href', blobURL)
+      element.setAttribute('download', 'events.blob')
+      element.style.display = 'none'
+      document.body.appendChild(element)
+
+      element.click()
+
+      document.body.removeChild(element)
+    }
   }
 
   private vehicleLookup: string[] = []
@@ -637,7 +718,7 @@ class VehicleAnimation extends Vue {
     if (this.myState.isRunning) {
       const elapsed = Date.now() - this.timeElapsedSinceLastFrame
       this.timeElapsedSinceLastFrame += elapsed
-      this.simulationTime += elapsed * this.speed * 0.06
+      this.simulationTime += elapsed * this.speed * 0.05
 
       this.updateDatasetFilters()
       this.setWallClock()
@@ -764,10 +845,10 @@ class VehicleAnimation extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'vehicle-view',
+  kebabName: 'xmas-kelheim',
   prettyName: 'Trip Viewer',
   description: 'Deck.gl based trip viewer',
-  filePatterns: ['**/viz-vehicles*.y?(a)ml'],
+  filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
   component: VehicleAnimation,
 } as VisualizationPlugin)
 

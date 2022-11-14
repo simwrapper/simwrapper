@@ -1,7 +1,9 @@
 <template lang="pug">
-#vue-component
-  vue-slider.slider(v-model="sliderValue"
+.slider-thingy
+  b-slider.slider(
+    v-model="sliderValue"
     v-bind="sliderOptions"
+    size="is-large"
     @dragging="dragging"
     @drag-start="dragStart"
     @drag-end="dragEnd")
@@ -15,10 +17,9 @@
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import VueSlider from 'vue-slider-component'
 import * as timeConvert from 'convert-seconds'
 
-@Component({ components: { VueSlider }, props: {} })
+@Component({ components: {}, props: {} })
 export default class VueComponent extends Vue {
   @Prop({ required: true })
   private isRunning!: boolean
@@ -38,12 +39,11 @@ export default class VueComponent extends Vue {
     min: 0,
     max: 1000000,
     clickable: false,
-    dotSize: 30,
     duration: 0,
     lazy: true,
-    tooltip: 'active',
+    tooltip: false,
     'tooltip-placement': 'top',
-    'tooltip-formatter': (v: number) => {
+    'custom-formatter': (v: number) => {
       return this.convertSecondsToClockTimeMinutes(v)
     },
   }
@@ -110,9 +110,10 @@ export default class VueComponent extends Vue {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-#vue-component {
+.slider-thingy {
   display: flex;
   flex-direction: row;
+  z-index: 1;
 }
 
 .slider {
@@ -148,7 +149,7 @@ export default class VueComponent extends Vue {
 }
 
 @media only screen and (max-width: 640px) {
-  #vue-component {
+  .slider-thingy {
     display: flex;
     flex-direction: row;
   }

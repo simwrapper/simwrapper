@@ -5,6 +5,7 @@ import DeckGL from '@deck.gl/react'
 
 import DrtRequestLayer from './DrtRequestLayer'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-layer'
+import MovingVehiclesLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import PathTraceLayer from '@/layers/PathTraceLayer'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
@@ -60,6 +61,7 @@ export default function Component(props: {
   vehicleLookup: string[]
   searchEnabled: boolean
   onClick: any
+  trafficLayers: any[]
 }) {
   const {
     simulationTime,
@@ -73,6 +75,7 @@ export default function Component(props: {
     searchEnabled,
     onClick,
     viewId,
+    trafficLayers,
   } = props
 
   const theme = DEFAULT_THEME
@@ -141,6 +144,55 @@ export default function Component(props: {
         <div>Passagiere: {object.occ} </div>
       </div>
     )
+  }
+
+  if (settingsShowLayers.backgroundTraffic) {
+    // add the vehicle motion layer in each traffic layer
+    trafficLayers.forEach((layer: any, layerIndex: number) => {
+      // The entire layer can be hidden if all of its points
+      // are beyond the timeFilter range that is being shown.
+      const outOfRange =
+        layer.vehicles.t0[0] > simulationTime ||
+        layer.vehicles.t1[layer.vehicles.t1.length - 1] < simulationTime
+
+      // console.log(outOfRange)
+      layers.push(
+        //@ts-ignore
+        new MovingVehiclesLayer({
+          data: {
+            length: layer.vehicles.t0.length,
+            attributes: {
+              getTimeStart: { value: layer.vehicles.t0, size: 1 },
+              getTimeEnd: { value: layer.vehicles.t1, size: 1 },
+              getPathStart: { value: layer.vehicles.locO, size: 2 },
+              getPathEnd: { value: layer.vehicles.locD, size: 2 },
+            },
+          },
+          id: 'vehicles' + layerIndex,
+          // getIcon: (d: any) => 'vehicle',
+          getColor: [64, 96, 255], // (d: any) => props.colors[d.occ],
+          iconMoving: 'vehicle',
+          iconStill: 'diamond',
+          getSize: 14, // searchEnabled ? 56 : 44,
+          opacity: 0.8,
+          currentTime: simulationTime,
+          shadowEnabled: true,
+          iconAtlas: '/images/icon-atlas.png',
+          iconMapping: ICON_MAPPING,
+          sizeScale: 1,
+          billboard: false,
+          pickable: true,
+          depthTest: true,
+          autoHighlight: false,
+          highlightColor: [255, 0, 255],
+          // onHover: setHoverInfo,
+          parameters: {
+            depthTest: false,
+          },
+          visible: !outOfRange,
+        })
+      )
+    })
   }
 
   if (settingsShowLayers.routes)

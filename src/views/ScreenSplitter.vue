@@ -272,8 +272,6 @@ class MyComponent extends Vue {
 
         this.$store.commit('setShowLeftBar', true)
         return
-
-        this.panels = [[this.panels[0][0]]]
       }
     }
 

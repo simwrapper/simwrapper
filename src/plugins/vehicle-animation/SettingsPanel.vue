@@ -1,0 +1,80 @@
+<template lang="pug">
+.settings-panel-content
+  h4 {{ $t('showhide')}}
+
+  .row(:key="label" v-for="label in Object.keys(items)")
+    toggle-button.toggle(
+      :width="40"
+      :value="items[label]"
+      :labels="false"
+      :color="{checked: '#4b7cc4', unchecked: '#222'}"
+      @change="$emit('click',label)")
+    label(v-html="$t(label)")
+
+</template>
+
+<script lang="ts">
+const i18n = {
+  messages: {
+    en: {
+      requests: 'DRT&nbsp;Requests',
+      passengers: 'Passengers',
+      search: 'Search',
+      showhide: 'Show/Hide',
+      vehicles: 'Vehicles',
+      routes: 'Routes',
+      speed: 'Speed',
+    },
+    de: {
+      requests: 'DRT&nbsp;Anfragen',
+      passengers: 'Passagiere',
+      search: 'Suche',
+      showhide: 'Ein-/Ausblenden',
+      vehicles: 'Fahrzeuge',
+      routes: 'Routen',
+      speed: 'Geschwindigkeit',
+    },
+  },
+}
+
+import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { ToggleButton } from 'vue-js-toggle-button'
+
+@Component({
+  i18n,
+  components: {
+    ToggleButton,
+  },
+})
+export default class VueComponent extends Vue {
+  @Prop({ required: true })
+  private items!: { [label: string]: boolean }
+}
+</script>
+
+<style scoped lang="scss">
+.settings-panel-content {
+  margin: 2rem 0.25rem 0 0.25rem;
+}
+
+h4 {
+  font-weight: bold;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.row {
+  display: 'grid';
+  grid-template-columns: 'auto 1fr';
+}
+
+label {
+  margin: auto 0 auto 0rem;
+  text-align: 'left';
+}
+
+.toggle {
+  margin-bottom: 0.25rem;
+  margin-right: 0.5rem;
+}
+</style>

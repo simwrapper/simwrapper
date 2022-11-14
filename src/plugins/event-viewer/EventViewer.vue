@@ -606,8 +606,6 @@ class Plugin extends Vue {
     console.log('DONE: layers', this.eventLayers.length)
     // this.eventLayers = [...this.eventLayers]
 
-    return
-
     console.log('ALL DONE', { totalRows, data: data.range, time: this.timeRange })
     this.myState.statusMessage = ''
     this.timeFilter = [this.timeRange[0], this.timeRange[0] + 3599]

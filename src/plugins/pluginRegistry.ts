@@ -1,4 +1,5 @@
 // import plugins in the order you want them to appear on project pages
+import XmasKelheim from '@/plugins/xmas-kelheim/VehicleAnimation.vue'
 import Events from '@/plugins/event-viewer/EventViewer.vue'
 import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
 import VehicleView from '@/plugins/vehicle-animation/VehicleAnimation.vue'
@@ -30,6 +31,7 @@ const plugins = {
   XYT,
   VidPlayer,
   ImageView,
+  XmasKelheim,
 }
 
 export default plugins
