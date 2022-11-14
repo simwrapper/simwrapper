@@ -535,23 +535,21 @@ class XyTime extends Vue {
   private animationElapsedTime = 0
 
   private animate() {
-    setTimeout(() => {
-      if (!this.isAnimating) return
+    if (!this.isAnimating) return
 
-      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
+    this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
 
-      const animationClockTime = this.animationElapsedTime + this.timeRange[0]
+    const animationClockTime = this.animationElapsedTime + this.timeRange[0]
 
-      if (animationClockTime > this.timeRange[1]) {
-        this.startTime = Date.now()
-        this.animationElapsedTime = 0 // this.timeRange[0]
-      }
+    if (animationClockTime > this.timeRange[1]) {
+      this.startTime = Date.now()
+      this.animationElapsedTime = 0 // this.timeRange[0]
+    }
 
-      const span = this.timeFilter[1] - this.timeFilter[0]
-      this.timeFilter = [animationClockTime, animationClockTime + span]
+    const span = this.timeFilter[1] - this.timeFilter[0]
+    this.timeFilter = [animationClockTime, animationClockTime + span]
 
-      this.animator = window.requestAnimationFrame(this.animate)
-    }, 16.666666666667)
+    this.animator = window.requestAnimationFrame(this.animate)
   }
 
   private toggleAnimation() {
