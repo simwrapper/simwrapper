@@ -439,8 +439,8 @@ class MyComponent extends Vue {
       if (key in configuration === false) {
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `YAML file missing required key: ${key}`,
-          desc: 'Check this.YAMLrequirementsXY for required keys',
+          msg: `${this.yamlConfig}: missing required key: ${key}`,
+          desc: '',
         })
       }
     }

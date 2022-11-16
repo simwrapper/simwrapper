@@ -35,8 +35,9 @@ export default class VueComponent extends Vue {
   private YAMLrequirementsLine = {
     dataset: '',
     x: '',
-    columns: '',
   }
+
+  private YAMLdeprecations = ['usedCol']
 
   private async mounted() {
     this.updateTheme()
@@ -84,8 +85,18 @@ export default class VueComponent extends Vue {
       if (key in this.config === false) {
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `YAML file missing required key: ${key}`,
-          desc: 'Check this.YAMLrequirementsXY for required keys',
+          msg: `line chart: missing required key: ${key}`,
+          desc: JSON.stringify(this.config),
+        })
+      }
+    }
+
+    for (const deprecated of this.YAMLdeprecations) {
+      if (this.config[deprecated]) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `line chart: deprecated field: ${deprecated}`,
+          desc: JSON.stringify(this.config),
         })
       }
     }
