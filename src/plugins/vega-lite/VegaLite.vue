@@ -193,11 +193,15 @@ class VegaComponent extends Vue {
       return
     }
 
-    // Let Vega load it - but first, reformulate the URL to point to the
-    // file store location if it is not a FQDN
+    // If it's not an HTTP URL, then we should fetch it ourselves and then
+    // hand it to Vega which will parse it .
     if (json.data.url && !json.data.url.startsWith('http')) {
-      const localUrl = `${this.myState.fileSystem?.baseURL}/${this.myState.subfolder}/${json.data.url}`
-      json.data.url = localUrl
+      const path = `/${this.myState.subfolder}/${json.data.url}`
+      const rawData = await this.myState.fileApi.getFileText(path)
+      json.data = {
+        values: rawData,
+        format: { type: 'csv' },
+      }
     }
 
     // just pass the config to Vega
