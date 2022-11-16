@@ -476,7 +476,7 @@ class Plugin extends Vue {
     this.range = [Infinity, -Infinity]
     this.timeRange = [Infinity, -Infinity]
     this.animationElapsedTime = 0
-    this.timeFilter = [0, 3599]
+    this.timeFilter = [0, 59]
 
     // get the raw unzipped arraybuffer
     if (this.gzipWorker) this.gzipWorker.terminate()
@@ -598,24 +598,21 @@ class Plugin extends Vue {
   }
 
   private finishedLoadingData(totalRows: number, data: any) {
-    console.log('FINAL time', this.timeRange)
-    this.timeFilter = [this.timeRange[0], this.timeRange[0] + 3599]
-    this.isLoaded = true
-    this.myState.statusMessage = ''
-    this.gzipWorker.terminate()
-    console.log('DONE: layers', this.eventLayers.length)
-    // this.eventLayers = [...this.eventLayers]
-
-    console.log('ALL DONE', { totalRows, data: data.range, time: this.timeRange })
-    this.myState.statusMessage = ''
-    this.timeFilter = [this.timeRange[0], this.timeRange[0] + 3599]
     this.isLoaded = true
     this.range = data.range
-    // if (!this.timeRange[1]) this.timeRange[1] = 1
+    this.myState.statusMessage = ''
+    this.timeFilter = [this.timeRange[0], this.timeRange[0] + 59]
     this.gzipWorker.terminate()
-
     this.setColors()
     this.moveLogo()
+    // this.eventLayers = [...this.eventLayers]
+
+    console.log('ALL DONE', {
+      totalRows,
+      data: data.range,
+      time: this.timeRange,
+      layers: this.eventLayers.length,
+    })
   }
 
   private ANIMATE_SPEED = 0.25

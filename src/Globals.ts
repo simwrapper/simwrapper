@@ -3,6 +3,9 @@ export const DEFAULT_PROJECTION = ''
 export const MAP_STYLES_ONLINE = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+  // light: 'mapbox://styles/mapbox/outdoors-v11',
+  // dark: 'mapbox://styles/mapbox/outdoors-v11',
+  // dark: 'mapbox://styles/mapbox/light-v10',
 }
 
 export const MAP_STYLES_OFFLINE = {

@@ -101,7 +101,7 @@ export default function Component(props: {
     setViewState(globalStore.state.viewState)
   }
 
-  const arcWidth = 1
+  const arcWidth = 2
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
   const layers: any = []
@@ -175,8 +175,8 @@ export default function Component(props: {
           getColor: [64, 96, 255], // (d: any) => props.colors[d.occ],
           iconMoving: 'vehicle',
           iconStill: 'diamond',
-          getSize: 14, // searchEnabled ? 56 : 44,
-          opacity: 0.8,
+          getSize: 16, // searchEnabled ? 56 : 44,
+          opacity: 1,
           currentTime: simulationTime,
           shadowEnabled: true,
           iconAtlas: BASE_URL + '/images/icon-atlas.png',
@@ -209,7 +209,7 @@ export default function Component(props: {
         getTimeStart: (d: any) => d.t0,
         getTimeEnd: (d: any) => d.t1,
         getColor: (d: any) => props.colors[d.occ],
-        getWidth: 1, // (d: any) => 3.0 * (d.occ + 1) - 1,
+        getWidth: 3, // (d: any) => 3.0 * (d.occ + 1) - 1,
         opacity: 0.8,
         widthMinPixels: 1,
         rounded: false,
@@ -236,7 +236,7 @@ export default function Component(props: {
         getColor: (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
         iconStill: 'diamond',
-        getSize: searchEnabled ? 72 : 64,
+        getSize: searchEnabled ? 128 : 128,
         opacity: 1.0,
         currentTime: simulationTime,
         shadowEnabled: false,
@@ -268,7 +268,7 @@ export default function Component(props: {
         getTimeStart: (d: any) => d[DRT_REQUEST.time],
         getTimeEnd: (d: any) => d[DRT_REQUEST.arrival],
         getSourceColor: [255, 0, 255],
-        getTargetColor: [200, 255, 255],
+        getTargetColor: [255, 0, 255],
         getWidth: arcWidth,
         opacity: 0.5,
         searchFlag: searchEnabled ? 1.0 : 0.0,

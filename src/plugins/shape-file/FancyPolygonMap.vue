@@ -1891,7 +1891,7 @@ export default class VueComponent extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'map',
+  kebabName: 'area-map',
   prettyName: 'Shapefile Viewer',
   description: 'Shapefile, Geojson, Network Viewer',
   filePatterns: [

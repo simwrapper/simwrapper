@@ -41,7 +41,7 @@ export default class VueComponent extends Vue {
     clickable: false,
     duration: 0,
     lazy: true,
-    tooltip: false,
+    tooltip: true,
     'tooltip-placement': 'top',
     'custom-formatter': (v: number) => {
       return this.convertSecondsToClockTimeMinutes(v)
