@@ -79,6 +79,7 @@ import readBlob from 'read-blob'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import YAML from 'yaml'
 
+import { findMatchingGlobInFiles } from '@/js/util'
 import Coords from '@/js/Coords'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendBox from './LegendBoxOD.vue'
@@ -452,24 +453,46 @@ class MyComponent extends Vue {
     this.$emit('title', t)
   }
 
+  private async findFilenameFromWildcard(path: string) {
+    if (!this.myState.fileApi) return ''
+
+    // get folder
+    let folder = path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
+
+    // get file path search pattern
+    const { files } = await this.myState.fileApi.getDirectory(folder)
+    let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
+    const match = findMatchingGlobInFiles(files, pattern)
+
+    if (match.length === 1) {
+      return `${folder}/${match[0]}`
+    } else {
+      throw Error('File not found: ' + path)
+    }
+  }
+
   private async loadFiles() {
     if (!this.myState.fileApi) return
 
     try {
       this.loadingText = 'Dateien laden...'
 
-      const odFlows = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/' + this.vizDetails.csvFile
+      const csvFilename = await this.findFilenameFromWildcard(
+        `${this.myState.subfolder}/${this.vizDetails.csvFile}`
       )
-      const blob = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + '/' + this.vizDetails.shpFile
+      const shpFilename = await this.findFilenameFromWildcard(
+        `${this.myState.subfolder}/${this.vizDetails.shpFile}`
       )
+      const dbfFilename = await this.findFilenameFromWildcard(
+        `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
+      )
+
+      const odFlows = await this.myState.fileApi.getFileText(csvFilename)
+
+      const blob = await this.myState.fileApi.getFileBlob(shpFilename)
       const shpFile = await readBlob.arraybuffer(blob)
 
-      const blob2 = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + '/' + this.vizDetails.dbfFile
-      )
-
+      const blob2 = await this.myState.fileApi.getFileBlob(dbfFilename)
       const dbfFile = await readBlob.arraybuffer(blob2)
 
       return { shpFile, dbfFile, odFlows }
