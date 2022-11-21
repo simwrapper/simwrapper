@@ -135,6 +135,7 @@
 // Typescript doesn't know the Chrome File System API
 declare const window: any
 const BASE_URL = import.meta.env.BASE_URL
+const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
 const i18n = {
   messages: {
@@ -462,11 +463,11 @@ export default class VueComponent extends Vue {
   //   this.updateRoute()
   // }
 
-  @Watch('allConfigFiles')
   @Watch('subfolder')
   private updateRoute() {
     if (!this.root) return
 
+    console.log(222, 'UPDATEROUTE()')
     const svnProject = this.getFileSystem(this.root)
 
     this.myState.svnProject = svnProject
@@ -602,6 +603,8 @@ export default class VueComponent extends Vue {
     this.myState.files = []
 
     try {
+      this.allConfigFiles = await this.findAllConfigsAndDashboards()
+      console.log(333, this.allConfigFiles)
       const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
       // hide dot folders
@@ -667,11 +670,12 @@ export default class VueComponent extends Vue {
   }
 
   private get hasDashboards() {
-    const d = /^dashboard.*ml/
-    for (const viz of this.myState.files) {
-      if (d.test(viz)) return true
-    }
-    return false
+    return Object.keys(this.allConfigFiles.dashboards).length
+    // const d = /^dashboard.*ml/
+    // for (const viz of this.myState.files) {
+    //   if (d.test(viz)) return true
+    // }
+    // return false
   }
 
   // we have really weird double-clicks; we want the single click to pass thru
@@ -791,6 +795,33 @@ export default class VueComponent extends Vue {
 
   private clickedLogo() {
     this.$router.push('/')
+  }
+
+  private async findAllConfigsAndDashboards() {
+    if (!this.myState.svnRoot) return { dashboards: {}, configs: {}, vizes: {}, topsheets: {} }
+
+    let loadErrorMessage = ''
+
+    try {
+      const { files } = await this.myState.svnRoot.getDirectory(this.subfolder)
+
+      // if folder has .nodashboards, then skip all dashboards!
+      let showDashboards = true
+      NO_DASHBOARDS.forEach(filename => {
+        if (files.indexOf(filename) > -1) {
+          showDashboards = false
+        }
+      })
+
+      const allConfigs = await this.myState.svnRoot.findAllYamlConfigs(this.subfolder)
+
+      // force hide dashboards if user has a .nodashboards file
+      if (!showDashboards) allConfigs.dashboards = {}
+      return allConfigs
+    } catch (e) {
+      console.error('' + e)
+      throw Error('' + e)
+    }
   }
 
   // -- BEGIN Chrome File System Access API support
