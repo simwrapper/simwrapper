@@ -13,24 +13,23 @@ fancy-polygon-map.deck-map(
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-
-import { FileSystemConfig } from '@/Globals'
 import FancyPolygonMap from '@/plugins/shape-file/FancyPolygonMap.vue'
-import DashboardDataManager from '@/js/DashboardDataManager'
 
-@Component({ components: { FancyPolygonMap } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-  @Prop({ required: false }) datamanager!: DashboardDataManager
-  @Prop({ required: false }) yamlConfig!: string
-
-  private isLoaded() {
-    this.$emit('isLoaded')
-  }
+export default {
+  name: 'AreaMapPanel',
+  components: { FancyPolygonMap },
+  props: {
+    config: Object,
+    datamanager: Object,
+    fileSystemConfig: Object,
+    subfolder: String,
+    yamlConfig: String,
+  },
+  methods: {
+    isLoaded() {
+      this.$emit('isLoaded')
+    },
+  },
 }
 </script>
 

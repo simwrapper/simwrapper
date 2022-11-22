@@ -5,29 +5,27 @@ aggregate-od.deck-map(
   :config="config"
   :thumbnail="false"
 )
-
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
 import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 
-@Component({ components: { AggregateOd } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
+export default defineComponent({
+  components: { AggregateOd },
+  props: {
+    config: { type: Object, required: true },
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+  },
 
-  private mounted() {
-    // console.log(this.fileSystemConfig)
-    // console.log('subfolder', this.subfolder)
-    // console.log('config', this.config)
+  mounted() {
     this.$emit('isLoaded')
-  }
-}
+  },
+})
 </script>
 
 <style scoped lang="scss">

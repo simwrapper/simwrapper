@@ -12,29 +12,32 @@ figure(class="video_container")
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({})
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-
-  private controls: string | null = null
-  private loop: string | null = null
-  private allowfullscreen: string | null = null
-  private autoplay: string | null = null
-  private muted: string | null = null
-  private sources: { [key: string]: string } = {}
-
-  // true for absolute URLs
-  private r: RegExp = new RegExp('^(?:[a-z]+:)?//', 'i')
-
-  private async mounted() {
+export default defineComponent({
+  name: 'VideoPanel',
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    files: { type: Array, required: true },
+    config: { type: Object as any, required: true },
+  },
+  data: () => {
+    return {
+      controls: '', // string | null = null,
+      loop: '', // string | null = null
+      allowfullscreen: '', // : string | null = null
+      autoplay: '', // string | null = null
+      muted: '', // string | null = null
+      sources: {} as { [key: string]: string },
+      r: new RegExp('^(?:[a-z]+:)?//', 'i'),
+    }
+  },
+  async mounted() {
     this.controls = this.config.controls
     this.loop = this.config.loop
     this.allowfullscreen = this.config.allowfullscreen
@@ -50,13 +53,12 @@ export default class VueComponent extends Vue {
       var url = this.config.sources[k]
 
       if (!this.r.test(url)) url = fileApi.cleanURL(`${this.subfolder}/${url}`)
-
       this.sources[k] = url
     }
 
     this.$emit('isLoaded')
-  }
-}
+  },
+})
 </script>
 
 <style scoped lang="scss">

@@ -7,7 +7,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import markdown from 'markdown-it'
 
 import { FileSystemConfig } from '@/Globals'
@@ -19,16 +20,20 @@ const mdRenderer = new markdown({
   typographer: true,
 })
 
-@Component({})
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-
-  private readmeContent = ''
-
-  private async mounted() {
+export default defineComponent({
+  name: 'TextPanel',
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    files: { type: Array, required: true },
+    config: { type: Object as any, required: true },
+  },
+  data: () => {
+    return {
+      readmeContent: '',
+    }
+  },
+  async mounted() {
     try {
       const fileApi = new HTTPFileSystem(this.fileSystemConfig)
 
@@ -44,8 +49,8 @@ export default class VueComponent extends Vue {
     }
 
     this.$emit('isLoaded')
-  }
-}
+  },
+})
 </script>
 
 <style scoped lang="scss">

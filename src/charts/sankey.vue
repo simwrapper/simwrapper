@@ -9,23 +9,24 @@ sankey-diagram.deck-map(
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
 import SankeyDiagram from '@/plugins/sankey/SankeyDiagram.vue'
 
-@Component({ components: { SankeyDiagram } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-  @Prop() cardId!: string
-
-  private mounted() {
+export default defineComponent({
+  name: 'SankeyDiagramPanel',
+  components: { SankeyDiagram },
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    config: { type: Object, required: true },
+  },
+  mounted() {
     this.$emit('isLoaded')
-  }
-}
+  },
+})
 </script>
 
 <style scoped lang="scss">
