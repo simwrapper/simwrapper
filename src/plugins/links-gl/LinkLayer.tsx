@@ -44,8 +44,12 @@ export default function Component({
   const isCategorical = colorRampType === 0 || buildColumn?.type == DataType.STRING
 
   // register setViewState in global view updater so we can respond to external map motion
-  REACT_VIEW_HANDLES[viewId] = () => {
-    setViewState(globalStore.state.viewState)
+  REACT_VIEW_HANDLES[viewId] = (view: any) => {
+    if (view) {
+      setViewState(view)
+    } else {
+      setViewState(globalStore.state.viewState)
+    }
   }
 
   function handleClick() {

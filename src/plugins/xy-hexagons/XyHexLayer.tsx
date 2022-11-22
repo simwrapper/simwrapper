@@ -25,6 +25,7 @@ const INITIAL_VIEW = {
   bearing: 0,
 }
 
+// LAYER --------------------------------------------------------
 export default function Layer({
   viewId = 0,
   colorRamp = 'chlorophyll',
@@ -41,13 +42,15 @@ export default function Layer({
   upperPercentile = 100,
   onClick = {} as any,
 }) {
-  // draw begins here
-
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
 
-  REACT_VIEW_HANDLES[viewId] = () => {
-    setViewState(globalStore.state.viewState)
+  REACT_VIEW_HANDLES[viewId] = (view: any) => {
+    if (view) {
+      setViewState(view)
+    } else {
+      setViewState(globalStore.state.viewState)
+    }
   }
 
   function handleViewState(view: any) {

@@ -642,6 +642,18 @@ class NetworkLinkPlugin extends Vue {
         zoom: this.vizDetails.zoom,
         jump: false,
       })
+
+      const view = {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+        jump: false, // move the map no matter what
+      }
+
+      // bounce our map
+      if (REACT_VIEW_HANDLES[this.linkLayerId]) REACT_VIEW_HANDLES[this.linkLayerId](view)
       return
     }
 
