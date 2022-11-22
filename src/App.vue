@@ -580,7 +580,7 @@ p.splash-label {
 // SCROLLBARS
 /* width */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 6px;
 }
 
 /* Track */

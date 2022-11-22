@@ -185,5 +185,6 @@ h3.curate-heading {
 .top-value {
   text-align: right;
   font-weight: bold;
+  word-break: break-all;
 }
 </style>

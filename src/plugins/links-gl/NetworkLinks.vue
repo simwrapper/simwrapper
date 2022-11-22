@@ -1139,12 +1139,12 @@ export default NetworkLinkPlugin
 }
 
 .status-message {
-  margin: 0 auto 0.5rem 0;
+  margin: 0 0;
   padding: 0.5rem 0.5rem;
   color: var(--textFancy);
   background-color: var(--bgPanel);
-  font-size: 1.5rem;
-  line-height: 1.8rem;
+  font-size: 1.2rem;
+  line-height: 1.5rem;
 }
 
 .right-side {

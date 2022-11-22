@@ -848,9 +848,9 @@ export default XyHexagons
   }
 
   p {
-    margin: auto 0.5rem auto 0;
+    font-size: 1.2rem;
+    line-height: 1.5rem;
     font-weight: normal;
-    padding: 0 0;
     color: var(--textFancy);
   }
 }
