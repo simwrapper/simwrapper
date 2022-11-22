@@ -1,17 +1,19 @@
 <template lang="pug">
-#dashboard.dashboard(:class="{wiide}")
+.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow }" :id="viewId")
   .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
-    .dashboard-header(v-if="!fullScreenCardId && (title + description)" :class="{wiide}")
+    .dashboard-header(v-if="!fullScreenCardId && (title + description)"
+      :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+    )
       h2 {{ title }}
       p {{ description }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i" :class="`row-${row.id}`")
+    .dash-row(v-for="row,i in rows" :key="i" :class="getRowClass(row)")
 
       //- each card here
       .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
         :style="getCardStyle(card)"
-        :class="{wiide}"
+        :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
       )
 
         //- card header/title
@@ -98,6 +100,7 @@ export default class VueComponent extends Vue {
   @Prop({ required: true }) private datamanager!: DashboardDataManager
   @Prop({ required: true }) private allConfigFiles!: YamlConfigs
 
+  private viewId = 'dashboard-' + Math.random()
   private fileSystemConfig!: FileSystemConfig
   private fileApi!: HTTPFileSystem
 
@@ -115,6 +118,7 @@ export default class VueComponent extends Vue {
 
   private async mounted() {
     window.addEventListener('resize', this.resizeAllCards)
+    this.setupNarrowPanelObserver()
 
     if (this.gist) {
       this.fileSystemConfig = {
@@ -160,7 +164,6 @@ export default class VueComponent extends Vue {
   @Watch('$store.state.resizeEvents')
   private async handleResize() {
     await this.$nextTick()
-
     this.resizeAllCards()
   }
 
@@ -339,6 +342,27 @@ export default class VueComponent extends Vue {
     this.opacity[card.id] = 1.0
     this.numberOfShownCards++
   }
+
+  private narrowPanelObserver!: ResizeObserver
+  private isPanelNarrow = false
+
+  private setupNarrowPanelObserver() {
+    const dashboard = document.getElementById(this.viewId) as HTMLElement
+    console.log(777, dashboard)
+    this.narrowPanelObserver = new ResizeObserver(this.handleResize2)
+    this.narrowPanelObserver.observe(dashboard)
+  }
+
+  private handleResize2() {
+    const dashboard = document.getElementById(this.viewId) as HTMLElement
+    this.isPanelNarrow = dashboard.clientWidth < 800
+  }
+
+  private getRowClass(row: any) {
+    const rowClass = { 'is-panel-narrow': this.isPanelNarrow } as any
+    rowClass[`${row}-${row.id}`] = true
+    return rowClass
+  }
 }
 </script>
 
@@ -453,21 +477,21 @@ export default class VueComponent extends Vue {
   overflow-y: hidden;
 }
 
-@media only screen and (max-width: 50em) {
-  .dashboard {
-    padding: 1rem 0rem 1rem 1rem;
-  }
+// Observe for narrowness instead of a media-query
+// since the panel might be narrow even if the window is wide.
+.dashboard.is-panel-narrow {
+  padding: 1rem 0rem 1rem 1rem;
+}
 
-  .dashboard-header {
-    margin: 1rem 1rem 1rem 0rem;
-  }
+.dashboard-header.is-panel-narrow {
+  margin: 1rem 1rem 1rem 0rem;
+}
 
-  .dash-row {
-    flex-direction: column;
-  }
+.dash-row.is-panel-narrow {
+  flex-direction: column;
+}
 
-  .dash-card-frame {
-    margin: 2rem 1rem 2rem 0;
-  }
+.dash-card-frame.is-panel-narrow {
+  margin: 2rem 1rem 2rem 0;
 }
 </style>
