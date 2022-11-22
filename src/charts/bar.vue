@@ -13,7 +13,7 @@ VuePlotly.myplot(
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 
-import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from '@/charts/allCharts'
@@ -88,8 +88,8 @@ export default class VueComponent extends Vue {
   @Watch('globalState.isDarkMode')
   updateTheme() {
     const colors = {
-      paper_bgcolor: this.globalState.isDarkMode ? '#141619' : '#fff',
-      plot_bgcolor: this.globalState.isDarkMode ? '#141619' : '#fff',
+      paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+      plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
       font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
     }
     this.layout = Object.assign({}, this.layout, colors)

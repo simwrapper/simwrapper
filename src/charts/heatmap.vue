@@ -13,7 +13,7 @@ import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { DataTable, FileSystemConfig, UI_FONT, Status } from '@/Globals'
+import { DataTable, FileSystemConfig, BG_COLOR_DASHBOARD, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from '@/charts/allCharts'
 
@@ -71,8 +71,8 @@ export default class VueComponent extends Vue {
 
   @Watch('globalState.isDarkMode') updateTheme() {
     const colors = {
-      paper_bgcolor: this.globalState.isDarkMode ? '#141619' : '#fff',
-      plot_bgcolor: this.globalState.isDarkMode ? '#141619' : '#fff',
+      paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+      plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
       font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
     }
     this.layout = Object.assign({}, this.layout, colors)

@@ -14,6 +14,11 @@ export const MAP_STYLES_OFFLINE = {
   dark: { version: 8, layers: [], sources: {} },
 }
 
+export const BG_COLOR_DASHBOARD = {
+  light: '#fafafa',
+  dark: '#181818',
+}
+
 export const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 

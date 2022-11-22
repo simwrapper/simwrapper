@@ -181,7 +181,7 @@ function buildOutputs() {
     const output = { title, value: _calculations[row.value], style: {} } as TableRow
 
     if (('' + _calculations[row.value]).startsWith('Error'))
-      output.style = { backgroundColor: 'yellow' }
+      output.style = { backgroundColor: '#ffff0080' }
 
     if (row.style) output.style = Object.assign({ style: output.style }, row.style)
 

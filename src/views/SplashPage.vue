@@ -128,7 +128,7 @@ export default MyComponent
 .splash-page {
   height: 100%;
   overflow-y: auto;
-  background-color: var(--bgPanel2);
+  background-color: var(--bgMapPanel);
   // background-image: linear-gradient(#a9accb, #85b5df, #238a8d);
   // background-image: linear-gradient(#238a8d, #33638d, #443c84);
   // background-image: linear-gradient(150deg, #440d54, #238a8d); //  #33638d, #443c84);
