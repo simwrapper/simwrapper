@@ -15,7 +15,7 @@ export const MAP_STYLES_OFFLINE = {
 }
 
 export const BG_COLOR_DASHBOARD = {
-  light: '#fafafa',
+  light: '#fff',
   dark: '#181818',
 }
 

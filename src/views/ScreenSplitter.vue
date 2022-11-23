@@ -851,7 +851,7 @@ export default MyComponent
 
 .tile-header {
   user-select: none;
-  background-color: var(--bgDashboard);
+  background-color: var(--bgDashboardHeader);
   padding: 1px 0px;
 }
 </style>
