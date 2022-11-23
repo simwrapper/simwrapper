@@ -90,7 +90,6 @@ async function updateCalculations(entries: { key: string; title: string; value: 
 }
 
 function getTitle(locale: string) {
-  console.log('getTitle locale', locale)
   let title = ''
 
   if (locale === 'en') title = _yaml.title_en || _yaml.title || _yaml.title_de || ''
@@ -144,7 +143,7 @@ async function runTopSheet(props: {
 
   // load all files
   await loadFiles()
-  console.log(_fileData)
+  // console.log(_fileData)
 
   // set up user entry boxes if first run
   if (!Object.keys(_boxValues).length) {
@@ -204,7 +203,7 @@ function getBoxValues(yaml: TopsheetYaml) {
 }
 
 function doAllCalculations() {
-  console.log('CALCULATIONS ---------------------')
+  // console.log('CALCULATIONS ---------------------')
 
   // Start with user entries!
   const calculations = Object.assign({}, _boxValues)
@@ -517,9 +516,9 @@ async function loadFiles() {
       if (matchingFiles.length == 0) {
         // not in this folder. Maybe we have a path
         const slash = pattern.indexOf('/')
-        if (slash > -1) {
-          const mergedFolder = slash === 0 ? pattern : `${_originalFolder}/${pattern}`
-          const dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
+        if (slash > -1 || pattern.includes('*')) {
+          const mergedFolder = `${_originalFolder}/${pattern}`
+          const dataset = mergedFolder.substring(mergedFolder.lastIndexOf('/') + 1)
 
           let cleanedSubfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
 

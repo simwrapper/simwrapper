@@ -42,7 +42,7 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      solverThread: {} as any,
+      solverThread: null as any,
       table: [] as TableRow[],
       entries: [] as { key: string; title: string; value: any }[],
       title: '',
@@ -190,6 +190,6 @@ h3.curate-heading {
 .top-value {
   text-align: right;
   font-weight: bold;
-  word-break: break-all;
+  // word-break: break-all;
 }
 </style>
