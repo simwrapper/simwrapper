@@ -182,7 +182,7 @@ class NetworkLinkPlugin extends Vue {
 
   private YAMLrequirementsLinks = {
     // csvFile: '',
-    network: '',
+    // network: '',
     // projection: '',
   }
 
