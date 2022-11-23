@@ -84,6 +84,9 @@ export default defineComponent({
     filterIds(): any {
       return Object.keys(this.filters)
     },
+    datasetChoices(): any {
+      return this.datasetLabels.filter(label => label !== 'XcsvBase').reverse()
+    },
   },
   methods: {
     clickedAddFilter() {
@@ -177,10 +180,6 @@ export default defineComponent({
 
       console.log(2, f)
       setTimeout(() => this.$emit('update', { filters: f }), 25)
-    },
-
-    get datasetChoices(): any {
-      return this.datasetLabels.filter(label => label !== 'XcsvBase').reverse()
     },
 
     numericColumnsInDataset(datasetId: string): string[] {
