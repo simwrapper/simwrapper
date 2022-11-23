@@ -421,17 +421,15 @@ class MyComponent extends Vue {
   }
 
   private validateYAML() {
-    console.log('in yaml validation 2')
-
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
     let configuration
 
     if (hasYaml) {
-      console.log('has yaml')
+      console.log('agg-od has yaml')
       configuration = this.standaloneYAMLconfig
     } else {
-      console.log('no yaml')
+      console.log('agg-od no yaml')
       configuration = this.config
     }
 
@@ -1508,7 +1506,7 @@ h4 {
 }
 
 .time-slider {
-  width: 12rem;
+  // width: 12rem;
 }
 
 .heading {
@@ -1519,7 +1517,9 @@ h4 {
 
 .subheading {
   text-align: left;
-  margin: 0 0 0rem 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1rem;
+  margin: 0.25rem 0 0rem 0.5rem;
 }
 
 .description {

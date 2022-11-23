@@ -1,61 +1,52 @@
 <template lang="pug">
-.time-slider-main-content
-  vue-slider.time-slider(v-bind="scaleSlider" v-model="sliderValue")
+b-slider.time-slider(v-if="options.data.length"
+  v-bind="options"
+  v-model="sliderValue"
+)
+  b-slider-tick(v-for="tick,i in options.data" :key="i" :value="i")
 </template>
 
 <script lang="ts">
-import * as timeConvert from 'convert-seconds'
-import vueSlider from 'vue-slider-component'
 import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-@Component({ components: { 'vue-slider': vueSlider } })
+@Component({ components: {} })
 export default class ScaleSlider extends Vue {
   @Prop({ required: true }) private stops!: any[]
   @Prop({ required: true }) private initialValue!: number
 
-  private sliderValue: number = 1
+  private sliderValue = 1
 
-  private scaleSlider = {
-    height: 6,
-    piecewise: true,
-    show: false,
-    'enable-cross': false,
-    minRange: 1,
-    contained: true,
-    sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    processStyle: {
-      backgroundColor: '#00bb5588',
-      borderColor: '#f05b72',
-    },
-    tooltip: 'always',
-    'tooltip-placement': 'bottom',
-    data: this.stops,
+  private options = {
+    // tooltip: false,
+    'tooltip-always': true,
+    min: 0,
+    size: 'is-small',
+    max: 100,
+    indicator: true,
+    data: [] as any[], //this.stops,
+    'custom-formatter': (val: any) => '' + this.options.data[val],
   }
 
   // VUE LIFECYCLE HOOKS
-  public created() {}
   public mounted() {
-    this.sliderValue = this.initialValue
-    this.scaleSlider.data = this.stops
+    this.sliderValue = this.stops.includes(this.initialValue)
+      ? this.stops.indexOf(this.initialValue)
+      : 0
+    this.options.max = this.stops.length - 1
+    this.options.data = this.stops
   }
 
   @Watch('sliderValue')
   private sliderChangedEvent(result: any) {
     // console.log(result)
-    this.$emit('change', result)
+    this.$emit('change', this.options.data[result])
   }
 }
 </script>
 
 <style scoped>
-@import '../../node_modules/vue-slider-component/theme/default.css';
-
-.time-slider-main-content {
-  padding: 0.5rem 0.8rem 2rem 0.5rem;
-}
-
 .time-slider {
-  margin-left: 0.5rem;
-  margin-bottom: 0.2rem;
+  max-width: 100%;
+  padding: 0 1rem;
 }
 </style>
