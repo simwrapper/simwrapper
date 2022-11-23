@@ -842,7 +842,7 @@ class CarrierPlugin extends Vue {
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
-  kebabName: 'carriers',
+  kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
   filePatterns: ['**/*output_carriers.xml*'],

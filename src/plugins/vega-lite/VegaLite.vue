@@ -200,7 +200,7 @@ class VegaComponent extends Vue {
       const rawData = await this.myState.fileApi.getFileText(path)
       json.data = {
         values: rawData,
-        format: { type: 'csv' },
+        format: { type: path.endsWith('json') ? 'json' : 'csv' },
       }
     }
 
@@ -295,6 +295,7 @@ export default VegaComponent
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
+  background-color: var(--bgDashboard);
 }
 
 .labels {

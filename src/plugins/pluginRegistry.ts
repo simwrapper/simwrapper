@@ -8,7 +8,7 @@ import Network from '@/plugins/links-gl/NetworkLinks.vue'
 import Transit from '@/plugins/transit-demand/TransitDemand.vue'
 import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
 import Sankey from '@/plugins/sankey/SankeyDiagram.vue'
-import VegaChart from '@/plugins/vega-lite/VegaLite.vue'
+import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VidPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
 import AreaMap from '@/plugins/shape-file/FancyPolygonMap.vue'
@@ -26,7 +26,7 @@ const plugins = {
   CarrierViewer,
   Hexagons,
   Sankey,
-  VegaChart,
+  VegaLite,
   VehicleView,
   XYT,
   VidPlayer,

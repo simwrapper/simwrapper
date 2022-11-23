@@ -821,7 +821,8 @@ export default defineComponent({
         return allConfigs
       } catch (e) {
         console.error('' + e)
-        throw Error('' + e)
+        return { dashboards: {}, configs: {}, vizes: {}, topsheets: {} }
+        // throw Error('' + e)
       }
     },
 
