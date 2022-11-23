@@ -1,6 +1,5 @@
 <template lang="pug">
 .add-data
-
   .add
     .markdown(v-html="notes")
     .flex-row
@@ -23,7 +22,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import MarkdownIt from 'markdown-it'
 
 import globalStore from '@/store'
@@ -37,60 +37,66 @@ SimWrapper requires several server settings, including:
 -  CORS "Access-Control-Allow-Origin"
 `
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  private labelField = ''
-  private urlField = ''
-  private noteField = ''
-
-  private mdParser = new MarkdownIt()
-  private notes = ''
-
-  private mounted() {
-    this.notes = this.mdParser.render(mdAddNotes)
-  }
-
-  private get isValidURL() {
-    if (!this.labelField) return false
-    if (!this.urlField) return false
-    if (!this.urlField.startsWith('http')) return false
-    return true
-  }
-
-  @Watch('labelField') fixField() {
-    this.labelField = this.labelField.toLowerCase().replaceAll(/[^a-z\-0-9@]*/g, '')
-  }
-
-  // @Watch('urlField') fixURLField() {
-  //   this.urlField = this.urlField.replaceAll(/[^a-z%\-0-9@]*/g, '')
-  // }
-
-  private addURL() {
-    this.fixField()
-    console.log('Adding', this.labelField, this.urlField)
-
-    const KEY = 'projectShortcuts'
-    try {
-      let existingRoot = localStorage.getItem(KEY) || ('{}' as any)
-
-      let roots = JSON.parse(existingRoot)
-
-      roots[this.labelField] = {
-        name: `${this.labelField}`,
-        slug: `${this.labelField}`,
-        description: this.noteField,
-        baseURL: this.urlField,
-      }
-
-      console.log('NEW ROOTS', roots)
-      localStorage.setItem(KEY, JSON.stringify(roots))
-      globalStore.commit('setURLShortcuts', roots)
-    } catch (e) {
-      // you failed
-      console.error('' + e)
+export default defineComponent({
+  name: 'AddDataSource',
+  props: {},
+  data: () => {
+    return {
+      labelField: '',
+      urlField: '',
+      noteField: '',
+      notes: '',
+      mdParser: new MarkdownIt(),
     }
-  }
-}
+  },
+  mounted() {
+    this.notes = this.mdParser.render(mdAddNotes)
+  },
+  watch: {
+    labelField() {
+      this.fixField()
+    },
+  },
+  computed: {
+    isValidURL() {
+      if (!this.labelField) return false
+      if (!this.urlField) return false
+      if (!this.urlField.startsWith('http')) return false
+      return true
+    },
+  },
+  methods: {
+    addURL() {
+      this.fixField()
+      console.log('Adding', this.labelField, this.urlField)
+
+      const KEY = 'projectShortcuts'
+      try {
+        let existingRoot = localStorage.getItem(KEY) || ('{}' as any)
+
+        let roots = JSON.parse(existingRoot)
+
+        roots[this.labelField] = {
+          name: `${this.labelField}`,
+          slug: `${this.labelField}`,
+          description: this.noteField,
+          baseURL: this.urlField,
+        }
+
+        console.log('NEW ROOTS', roots)
+        localStorage.setItem(KEY, JSON.stringify(roots))
+        globalStore.commit('setURLShortcuts', roots)
+      } catch (e) {
+        // you failed
+        console.error('' + e)
+      }
+    },
+
+    fixField() {
+      this.labelField = this.labelField.toLowerCase().replaceAll(/[^a-z\-0-9@]*/g, '')
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

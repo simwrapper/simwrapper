@@ -66,126 +66,133 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-
-import AddDataSource from './AddDataSource.vue'
+import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
+import AddDataSource from './AddDataSource.vue'
 
-@Component({ i18n, components: { AddDataSource } })
-class MyComponent extends Vue {
-  private state = globalStore.state
-
-  private theme = ''
-  private shortcuts = [] as any[]
-
-  private mounted() {
+export default defineComponent({
+  name: 'SettingsPanel',
+  components: { AddDataSource },
+  i18n,
+  data: () => {
+    return {
+      state: globalStore.state,
+      theme: '',
+      shortcuts: [] as any[],
+    }
+  },
+  mounted() {
     this.theme = this.state.isDarkMode ? 'dark' : 'light'
     this.setupShortcuts()
-  }
+  },
+  watch: {
+    'state.svnProjects'() {
+      this.setupShortcuts()
+    },
+    'globalStore.state.theme'() {
+      console.log('ooop!', this.state.isDarkMode)
+      this.theme = this.state.isDarkMode ? 'dark' : 'light'
+    },
+  },
+  computed: {
+    isLight(): any {
+      return this.theme == 'light'
+        ? {
+            backgroundColor: '#ffdd57',
+            color: '#222',
+            borderColor: '#aaa',
+          }
+        : {
+            backgroundColor: 'unset',
+            color: '#888',
+            borderColor: '#aaa',
+          }
+    },
 
-  @Watch('globalStore.state.theme') themeChanged() {
-    console.log('ooop!', this.state.isDarkMode)
-    this.theme = this.state.isDarkMode ? 'dark' : 'light'
-  }
+    isDark(): any {
+      return this.theme == 'dark'
+        ? {
+            backgroundColor: '#7957d5',
+            color: 'white',
+            borderColor: '#aaa',
+          }
+        : {
+            backgroundColor: 'unset',
+            color: '#888',
+            borderColor: '#aaa',
+          }
+    },
 
-  @Watch('state.svnProjects')
-  private setupShortcuts() {
-    try {
-      const storedShortcuts = localStorage.getItem('projectShortcuts')
-      if (storedShortcuts) {
-        const roots = JSON.parse(storedShortcuts) as any
-        this.shortcuts = Object.values(roots)
+    isEN(): any {
+      return this.state.locale == 'en'
+        ? {
+            backgroundColor: '#ffdd57',
+            color: '#222',
+            borderColor: '#aaa',
+          }
+        : {
+            backgroundColor: 'unset',
+            color: '#888',
+            borderColor: '#aaa',
+          }
+    },
+
+    isDE(): any {
+      return this.state.locale == 'de'
+        ? {
+            backgroundColor: '#ffdd57',
+            color: '#222',
+            borderColor: '#aaa',
+          }
+        : {
+            backgroundColor: 'unset',
+            color: '#888',
+            borderColor: '#aaa',
+          }
+    },
+  },
+  methods: {
+    setupShortcuts() {
+      try {
+        const storedShortcuts = localStorage.getItem('projectShortcuts')
+        if (storedShortcuts) {
+          const roots = JSON.parse(storedShortcuts) as any
+          this.shortcuts = Object.values(roots)
+        }
+      } catch (e) {
+        console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
       }
-    } catch (e) {
-      console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
-    }
-  }
+    },
 
-  private deleteShortcut(slug: string) {
-    try {
-      const storedShortcuts = localStorage.getItem('projectShortcuts')
-      if (storedShortcuts) {
-        const roots = JSON.parse(storedShortcuts) as any
-        delete roots[slug]
+    deleteShortcut(slug: string) {
+      try {
+        const storedShortcuts = localStorage.getItem('projectShortcuts')
+        if (storedShortcuts) {
+          const roots = JSON.parse(storedShortcuts) as any
+          delete roots[slug]
 
-        localStorage.setItem('projectShortcuts', JSON.stringify(roots))
-        globalStore.commit('removeURLShortcut', slug)
-        this.shortcuts = Object.values(roots)
+          localStorage.setItem('projectShortcuts', JSON.stringify(roots))
+          globalStore.commit('removeURLShortcut', slug)
+          this.shortcuts = Object.values(roots)
+        }
+      } catch (e) {
+        console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
       }
-    } catch (e) {
-      console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
-    }
-  }
+    },
 
-  private get isLight() {
-    return this.theme == 'light'
-      ? {
-          backgroundColor: '#ffdd57',
-          color: '#222',
-          borderColor: '#aaa',
-        }
-      : {
-          backgroundColor: 'unset',
-          color: '#888',
-          borderColor: '#aaa',
-        }
-  }
+    setTheme(theme: string) {
+      this.theme = theme
+      console.log(this.theme)
+      globalStore.commit('setTheme', theme)
+    },
 
-  private get isDark() {
-    return this.theme == 'dark'
-      ? {
-          backgroundColor: '#7957d5',
-          color: 'white',
-          borderColor: '#aaa',
-        }
-      : {
-          backgroundColor: 'unset',
-          color: '#888',
-          borderColor: '#aaa',
-        }
-  }
-
-  private get isEN() {
-    return this.state.locale == 'en'
-      ? {
-          backgroundColor: '#ffdd57',
-          color: '#222',
-          borderColor: '#aaa',
-        }
-      : {
-          backgroundColor: 'unset',
-          color: '#888',
-          borderColor: '#aaa',
-        }
-  }
-
-  private get isDE() {
-    return this.state.locale == 'de'
-      ? {
-          backgroundColor: '#ffdd57',
-          color: '#222',
-          borderColor: '#aaa',
-        }
-      : {
-          backgroundColor: 'unset',
-          color: '#888',
-          borderColor: '#aaa',
-        }
-  }
-
-  private setTheme(theme: string) {
-    this.theme = theme
-    console.log(this.theme)
-    globalStore.commit('setTheme', theme)
-  }
-
-  private setLanguage(lang: string) {
-    this.$store.commit('setLocale', lang)
-    this.$root.$i18n.locale = lang
-  }
-}
-export default MyComponent
+    setLanguage(lang: string) {
+      this.$store.commit('setLocale', lang)
+      this.$root.$i18n.locale = lang
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

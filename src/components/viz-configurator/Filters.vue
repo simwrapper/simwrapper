@@ -37,7 +37,9 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
 export type FilterDefinition = {
@@ -47,139 +49,151 @@ export type FilterDefinition = {
   value: string
 }
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: DataTable }
+export default defineComponent({
+  props: {
+    vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
+    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+  },
+  data: () => {
+    const OPERATORS = ['==', '!=', '<=', '>=', '<', '>']
 
-  private OPERATORS = ['==', '!=', '<=', '>=', '<', '>']
-
-  private filters: { [id: string]: FilterDefinition } = {}
-
-  private addDataColumn: string | null = null
-  private addOperator = this.OPERATORS[0]
-  private addValue = ''
-  private datasetLabels = [] as string[]
-
-  private get filterIds() {
-    return Object.keys(this.filters)
-  }
-
-  private mounted() {
+    return {
+      filters: {} as { [id: string]: FilterDefinition },
+      addDataColumn: null as string | null,
+      addOperator: OPERATORS[0],
+      addValue: '',
+      datasetLabels: [] as string[],
+    }
+  },
+  mounted() {
     this.datasetsAreLoaded()
     this.vizConfigChanged()
-  }
+  },
+  watch: {
+    filters() {
+      this.emitSpecification()
+    },
+    vizConfiguration() {
+      this.vizConfigChanged()
+    },
+    datasets() {
+      this.datasetsAreLoaded()
+    },
+  },
+  computed: {
+    filterIds(): any {
+      return Object.keys(this.filters)
+    },
+  },
+  methods: {
+    clickedAddFilter() {
+      let [dataset, column] = this.addDataColumn ? this.addDataColumn.split('@') : ['', '']
 
-  private clickedAddFilter() {
-    let [dataset, column] = this.addDataColumn ? this.addDataColumn.split('@') : ['', '']
-
-    // always call shapefile or network "shapes"
-    console.log(2, dataset, column, this.datasetLabels)
-    if (this.datasetLabels.indexOf(dataset) < 1) dataset = 'shapes'
-
-    const filter: FilterDefinition = {
-      dataset,
-      column,
-      operator: this.addOperator,
-      value: this.addValue,
-    }
-    this.filters[`${dataset}.${column}`] = filter
-    this.filters = Object.assign({}, this.filters)
-  }
-
-  private clickedRemoveFilter(f: string) {
-    delete this.filters[f]
-    this.filters = Object.assign({}, this.filters)
-  }
-
-  @Watch('vizConfiguration')
-  private vizConfigChanged() {
-    this.filters = {}
-    if (!this.vizConfiguration.filters) return
-
-    // make local copy of filter config
-    let filterConfig = JSON.parse(JSON.stringify(this.vizConfiguration.filters))
-
-    // some users write YAML as objects, others as arrays:
-    if (Array.isArray(filterConfig)) {
-      const entries = {}
-      filterConfig.forEach(item => Object.assign(entries, item))
-      filterConfig = entries
-    }
-
-    for (const key of Object.keys(filterConfig)) {
-      const [dataset, column] = key.split('.')
-      if (column == undefined) {
-        this.$store.commit('error', `Filter key is not "dataset.column": ${key}`)
-        continue
-      }
+      // always call shapefile or network "shapes"
+      console.log(2, dataset, column, this.datasetLabels)
+      if (this.datasetLabels.indexOf(dataset) < 1) dataset = 'shapes'
 
       const filter: FilterDefinition = {
         dataset,
         column,
-        operator: '==',
-        value: filterConfig[key],
+        operator: this.addOperator,
+        value: this.addValue,
+      }
+      this.filters[`${dataset}.${column}`] = filter
+      this.filters = Object.assign({}, this.filters)
+    },
+
+    clickedRemoveFilter(f: string) {
+      delete this.filters[f]
+      this.filters = Object.assign({}, this.filters)
+    },
+
+    vizConfigChanged() {
+      this.filters = {}
+      if (!this.vizConfiguration.filters) return
+
+      // make local copy of filter config
+      let filterConfig = JSON.parse(JSON.stringify(this.vizConfiguration.filters))
+
+      // some users write YAML as objects, others as arrays:
+      if (Array.isArray(filterConfig)) {
+        const entries = {}
+        filterConfig.forEach(item => Object.assign(entries, item))
+        filterConfig = entries
       }
 
-      if (column.endsWith('!')) {
-        filter.column = filter.column.substring(0, filter.column.length - 1)
-        filter.operator = '!='
-      }
-
-      for (const operator of ['<=', '>=', '<', '>']) {
-        if (typeof filter.value === 'string' && filter.value.startsWith(operator)) {
-          filter.value = filter.value.substring(operator.length).trim()
-          filter.operator = operator
-          break
+      for (const key of Object.keys(filterConfig)) {
+        const [dataset, column] = key.split('.')
+        if (column == undefined) {
+          this.$store.commit('error', `Filter key is not "dataset.column": ${key}`)
+          continue
         }
+
+        const filter: FilterDefinition = {
+          dataset,
+          column,
+          operator: '==',
+          value: filterConfig[key],
+        }
+
+        if (column.endsWith('!')) {
+          filter.column = filter.column.substring(0, filter.column.length - 1)
+          filter.operator = '!='
+        }
+
+        for (const operator of ['<=', '>=', '<', '>']) {
+          if (typeof filter.value === 'string' && filter.value.startsWith(operator)) {
+            filter.value = filter.value.substring(operator.length).trim()
+            filter.operator = operator
+            break
+          }
+        }
+
+        this.filters[`${filter.dataset}.${filter.column}`] = filter
       }
 
-      this.filters[`${filter.dataset}.${filter.column}`] = filter
-    }
+      this.datasetLabels = [...this.datasetLabels]
+    },
 
-    this.datasetLabels = [...this.datasetLabels]
-  }
+    datasetsAreLoaded() {
+      const datasetIds = Object.keys(this.datasets)
+      this.datasetLabels = datasetIds
+    },
 
-  @Watch('datasets')
-  private datasetsAreLoaded() {
-    const datasetIds = Object.keys(this.datasets)
-    this.datasetLabels = datasetIds
-  }
+    emitSpecification() {
+      const f = {} as any
 
-  @Watch('filters')
-  private emitSpecification() {
-    const f = {} as any
+      // convert the filters back to the format used in YAML
 
-    // convert the filters back to the format used in YAML
-
-    for (const key of Object.keys(this.filters)) {
-      const filter = Object.assign({}, this.filters[key])
-      let id = `${filter.dataset}.${filter.column}`
-      if (filter.operator === '!=') id += '!'
-      if (filter.operator.startsWith('<') || filter.operator.startsWith('>')) {
-        filter.value = `${filter.operator} ${filter.value}`
+      for (const key of Object.keys(this.filters)) {
+        const filter = Object.assign({}, this.filters[key])
+        let id = `${filter.dataset}.${filter.column}`
+        if (filter.operator === '!=') id += '!'
+        if (filter.operator.startsWith('<') || filter.operator.startsWith('>')) {
+          filter.value = `${filter.operator} ${filter.value}`
+        }
+        f[id] = filter.value
       }
-      f[id] = filter.value
-    }
 
-    console.log(2, f)
-    setTimeout(() => this.$emit('update', { filters: f }), 25)
-  }
+      console.log(2, f)
+      setTimeout(() => this.$emit('update', { filters: f }), 25)
+    },
 
-  private get datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'XcsvBase').reverse()
-  }
+    get datasetChoices(): any {
+      return this.datasetLabels.filter(label => label !== 'XcsvBase').reverse()
+    },
 
-  private numericColumnsInDataset(datasetId: string): string[] {
-    const dataset = this.datasets[datasetId]
-    if (!dataset) return []
-    const allColumns = Object.keys(dataset).filter(
-      colName => dataset[colName].type !== DataType.LOOKUP
-    )
+    numericColumnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
 
-    return allColumns
-  }
-}
+      return allColumns
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

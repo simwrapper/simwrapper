@@ -1,9 +1,10 @@
 <template lang="pug">
-VuePlotly.myplot(
+VuePlotly.yplot(
   :data="data"
   :layout="layout"
   :options="options"
   :id="id"
+  ref="plotly-element"
 )
 </template>
 
@@ -13,12 +14,13 @@ import type { PropType } from 'vue'
 
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
+
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from '@/charts/allCharts'
+import { buildCleanTitle } from './_allPanels'
 
 export default defineComponent({
-  name: 'BarChartPanel',
+  name: 'BubbleChartPanel',
   components: { VuePlotly },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -26,15 +28,16 @@ export default defineComponent({
     files: { type: Array, required: true },
     config: { type: Object as any, required: true },
     cardTitle: { type: String, required: true },
-    cardId: String,
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    cardId: String,
   },
   data: () => {
     return {
       globalState: globalStore.state,
+
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
-      id: ('scatter-' + Math.random()) as any,
+      id: 'bubble-' + Math.random(),
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
@@ -60,7 +63,9 @@ export default defineComponent({
           y: 1,
         },
       },
+
       data: [] as any[],
+
       options: {
         displaylogo: false,
         responsive: true,
@@ -80,7 +85,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'scatter-plot',
+          filename: 'bubble-chart',
           width: null,
           height: null,
         },
@@ -118,6 +123,7 @@ export default defineComponent({
 
     async loadData() {
       if (!this.files.length) return {}
+      if (!this.datamanager) return {}
 
       try {
         const dataset = await this.datamanager.getDataset(this.config)
@@ -154,50 +160,43 @@ export default defineComponent({
     // size circle
     // color is data
     updateChartSimple() {
-      var useOwnNames = false
+      const factor = this.config.factor || 1.0
+
+      var legendname = this.config.bubble
+      if (this.config.legendName) legendname = this.config.legendName
+      if (this.config.legendTitle) legendname = this.config.legendTitle
 
       const allRows = this.dataSet.allRows || ({} as any)
-      const columnNames = Object.keys(allRows)
 
-      if (!columnNames.length) {
+      if (Object.keys(allRows).length === 0) {
         this.data = []
         return
       }
 
-      const factor = this.config.factor || 1.0
-
-      // // old configs called it "usedCol" --> now "columns"
-      const columns = this.config.columns || this.config.usedCol || [this.config.y] || []
-
-      var legendname = columns
-      if (this.config.legendName) legendname = this.config.legendName
-      if (this.config.legendTitle) legendname = this.config.legendTitle
+      // bubble sizes
+      let bubble = allRows[this.config.bubble].values.map((v: any) => v * factor)
+      if (this.config.skipFirstRow) bubble = bubble.slice(1)
 
       let x = allRows[this.config.x].values || []
       if (this.config.skipFirstRow) x = x.slice(1)
 
-      const markerSize = this.config.markerSize || 3
+      let y = allRows[this.config.y].values
+      if (this.config.skipFirstRow) y = y.slice(1)
 
-      for (let i = 0; i < columns.length; i++) {
-        const col = columns[i]
-        const legendName = useOwnNames ? this.config.legendTitles[i] : col
-
-        let values = allRows[col].values
-        if (this.config.skipFirstRow) values = values.slice(1)
-
-        this.data.push({
+      this.data = [
+        {
           x: x,
-          y: values,
-          name: legendName,
+          y: y,
+          name: legendname,
           mode: 'markers',
           type: 'scatter',
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: true,
           showlegend: true,
-          marker: { size: markerSize },
-        })
-      }
+          marker: { size: bubble },
+        },
+      ]
     },
   },
 })

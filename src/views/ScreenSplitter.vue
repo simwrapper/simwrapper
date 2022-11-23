@@ -112,7 +112,6 @@ import plugins from '@/plugins/pluginRegistry'
 import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
-import RunFinderPanel from '@/components/left-panels/RunFinderPanel.vue'
 import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import TabbedDashboardView from '@/views/TabbedDashboardView.vue'
 import SplashPage from '@/views/SplashPage.vue'
@@ -128,7 +127,6 @@ const DEFAULT_LEFT_WIDTH = 300
       BrowserPanel,
       FolderBrowser,
       ErrorPanel,
-      RunFinderPanel,
       SettingsPanel,
       SplashPage,
       TabbedDashboardView,

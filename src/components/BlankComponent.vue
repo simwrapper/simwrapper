@@ -1,16 +1,24 @@
 <template lang="pug">
 #vue-component
-  h1 Blank
+  h1 Hello
 
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  // @Prop({ required: true }) viz!: Viz
-}
+export default defineComponent({
+  name: 'MyComponent',
+  components: {},
+  props: {},
+  data: () => {
+    return {}
+  },
+  mounted() {},
+  computed: {},
+  methods: {},
+})
 </script>
 
 <style scoped lang="scss">

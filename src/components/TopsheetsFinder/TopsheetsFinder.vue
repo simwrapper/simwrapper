@@ -17,42 +17,57 @@ const i18n = {
   },
 }
 
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-@Component({ i18n, components: { TopSheet } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private fileSystemConfig!: FileSystemConfig
+export default defineComponent({
+  name: 'TopsheetsFinder',
+  i18n,
+  components: { TopSheet },
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    files: { type: Array as PropType<string[]>, required: true },
+  },
 
-  @Prop({ required: true })
-  private subfolder!: string
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystemConfig)
+    },
+  },
 
-  @Prop({ required: true })
-  private files!: string[]
-
-  private fileSystem!: HTTPFileSystem
-  private allConfigFiles!: YamlConfigs
-  private topsheets: any[] = []
-
-  @Watch('subfolder')
-  @Watch('files')
-  private async filesUpdated() {
-    if (this.files.length) {
-      this.fileSystem = new HTTPFileSystem(this.fileSystemConfig)
-      this.topsheets = await this.findTopsheetsForThisFolder()
+  data: () => {
+    return {
+      allConfigFiles: {} as YamlConfigs,
+      topsheets: [] as any[],
     }
-  }
+  },
 
-  private async mounted() {}
+  watch: {
+    subfolder() {
+      this.filesUpdated()
+    },
+    files() {
+      this.filesUpdated()
+    },
+  },
 
-  private async findTopsheetsForThisFolder(): Promise<string[]> {
-    this.allConfigFiles = await this.fileSystem.findAllYamlConfigs(this.subfolder)
-    return Object.values(this.allConfigFiles.topsheets)
-  }
-}
+  methods: {
+    async findTopsheetsForThisFolder(): Promise<string[]> {
+      this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.subfolder)
+      return Object.values(this.allConfigFiles.topsheets)
+    },
+    async filesUpdated() {
+      if (this.files.length) {
+        this.topsheets = await this.findTopsheetsForThisFolder()
+      }
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

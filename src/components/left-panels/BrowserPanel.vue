@@ -196,7 +196,8 @@ interface IMyState {
   vizes: VizEntry[]
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import { get, set, clear } from 'idb-keyval'
 import markdown from 'markdown-it'
 import mediumZoom from 'medium-zoom'
@@ -212,355 +213,336 @@ import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import AddDataSource from './AddDataSource.vue'
 
-const allComponents = Object.assign({ AddDataSource, FileSystemProjects, TopsheetsFinder }, plugins)
-@Component({
+const components = Object.assign({ AddDataSource, FileSystemProjects, TopsheetsFinder }, plugins)
+
+export default defineComponent({
+  name: 'BrowserPanel',
   i18n,
-  components: allComponents,
-})
-export default class VueComponent extends Vue {
-  // @Prop({ required: false }) private xsubfolder!: string
-  // @Prop({ required: true }) private root!: string
-  // @Prop({ required: true }) private allConfigFiles!: YamlConfigs
-
-  private globalState = globalStore.state
-
-  private subfolder = '/'
-  private root = ''
-
-  private needDoubleClickHint = false
-
-  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
-
-  private allRoots: FileSystemConfig[] = []
-
-  @Watch('globalState.svnProjects') updateShortcuts() {
-    const roots = this.globalState.svnProjects.filter(
-      source => !source.hidden && !source.slug.startsWith('fs')
-    )
-
-    this.allRoots = roots
-  }
-
-  private mdRenderer = new markdown({
-    html: true,
-    linkify: true,
-    typographer: true,
-  })
-
-  private myState: IMyState = {
-    errorStatus: '',
-    folders: [],
-    files: [],
-    isLoading: false,
-    readme: '',
-    svnProject: null,
-    svnRoot: undefined,
-    subfolder: '',
-    vizes: [],
-    summary: false,
-  }
-
-  private get vizImages() {
-    const images: { [index: number]: any } = {}
-    for (let i = 0; i < this.myState.vizes.length; i++) {
-      if (this.myState.vizes[i].component === 'image-view') {
-        images[i] = this.myState.vizes[i]
-      }
+  components,
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      subfolder: '/',
+      root: '',
+      summaryYamlFilename: 'viz-summary.yml',
+      highlightedViz: -2, // -2:none, -1: dashboard, 0-x: tile
+      needDoubleClickHint: false,
+      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
+      allRoots: [] as FileSystemConfig[],
+      mdRenderer: new markdown({ html: true, linkify: true, typographer: true }),
+      myState: {
+        errorStatus: '',
+        folders: [],
+        files: [],
+        isLoading: false,
+        readme: '',
+        svnProject: null,
+        svnRoot: undefined,
+        subfolder: '',
+        vizes: [],
+        summary: false,
+      } as IMyState,
+      // we have really weird double-clicks; we want the single click to pass thru
+      // after a long delay. so this is how we do it
+      clicks: 0,
+      clickTimer: {} as any,
     }
-    return images
-  }
-
-  private get vizMaps() {
-    const skipList = ['image-view', 'dashboard']
-    const maps = new Map()
-
-    // Dashboards first
-    if (this.hasDashboards) {
-      maps.set(-1, {
-        component: '',
-        title: 'Dashboard Panel',
-      })
-    }
-
-    // Then vizes
-    for (let i = 0; i < this.myState.vizes.length; i++) {
-      if (!skipList.includes(this.myState.vizes[i].component)) {
-        maps.set(i, this.myState.vizes[i])
-      }
-    }
-
-    return maps
-  }
-
-  private cleanName(text: string) {
-    return decodeURIComponent(text)
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-
-    return svnProject[0]
-  }
-
-  private generateBreadcrumbs() {
-    if (!this.myState.svnProject) return []
-
-    const crumbs = [
-      {
-        label: 'SimWrapper',
-        url: '/',
-      },
-      {
-        label: this.myState.svnProject.name,
-        url: '/' + this.myState.svnProject.slug,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.svnProject.slug + buildFolder,
-      })
-    }
-
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-    return crumbs
-  }
-
-  private mounted() {
+  },
+  mounted() {
     this.setupHints()
     this.updateShortcuts()
-
     this.getRootAndRoute(this.$route.params.pathMatch)
-  }
+  },
 
-  private setupHints() {
-    // if user has seen the hints a few times, drop them
-    let hints: any = localStorage.getItem('needsClickHint')
-    if (hints) {
-      hints = JSON.parse(hints) as number
-    } else {
-      hints = 0
-    }
+  watch: {
+    'globalState.svnProjects'() {
+      this.updateShortcuts()
+    },
+    'globalState.colorScheme'() {
+      // medium-zoom freaks out if color theme is swapped.
+      // so let's reload images just in case.
+      this.fetchFolderContents()
+    },
+    subfolder() {
+      this.updateRoute()
+    },
+    'globalState.authAttempts'() {
+      this.authenticationChanged()
+    },
+    'myState.files'() {
+      this.filesChanged()
+    },
+  },
+  computed: {
+    hasDashboards(): boolean {
+      return !!Object.keys(this.allConfigFiles.dashboards).length
+      // const d = /^dashboard.*ml/
+      // for (const viz of this.myState.files) {
+      //   if (d.test(viz)) return true
+      // }
+      // return false
+    },
 
-    if (hints > 5000) {
-      this.needDoubleClickHint = false
-    } else {
-      hints++
-      localStorage.setItem('needsClickHint', JSON.stringify(hints))
-    }
-  }
-
-  private clickedBreadcrumb(crumb: { url: string }) {
-    this.getRootAndRoute(crumb.url.slice(1)) // drop leading slash
-  }
-
-  private getRootAndRoute(pathMatch: string | undefined) {
-    if (!pathMatch) {
-      // console.log('NOPE')
-      return
-    }
-
-    // splash page:
-    if (pathMatch === '/') {
-      this.root = ''
-      return
-    }
-
-    // split panel:
-    if (pathMatch.startsWith('split/')) {
-      console.log('SPLIT')
-      // ?????
-      const payload = pathMatch.substring(6)
-      try {
-        // const content = atob(payload)
-        // const json = JSON.parse(content)
-        // this.panels = json
-      } catch (e) {
-        // couldn't do; you failed!
-        this.$router.replace('/')
-      }
-      return
-    }
-
-    // split out project root and subfolder
-    // console.log(777, pathMatch, JSON.stringify(this.myState))
-    let root = pathMatch
-    let subfolder = ''
-    const slash = pathMatch.indexOf('/')
-    if (slash > -1) {
-      root = pathMatch.substring(0, slash)
-      subfolder = pathMatch.substring(slash + 1)
-    }
-    this.root = root
-    this.subfolder = subfolder
-  }
-
-  // -2:none, -1: dashboard, 0-x: tile
-  private highlightedViz = -2
-
-  private activateVisualization(vizNumber: number) {
-    // if this is not a valid viz, just open the file/dashboard browser
-    const viz = this.myState.vizes[vizNumber] || {
-      component: 'TabbedDashboardView',
-      title: 'Dashboard',
-    }
-
-    // special case: images don't click thru
-    if (viz.component === 'image-view') return
-
-    if (!this.myState.svnProject) return
-
-    this.highlightedViz = -2
-
-    const cleanSubfolder = this.myState.subfolder.replaceAll('//', '/')
-    const props = {
-      root: this.myState.svnProject.slug,
-      xsubfolder: cleanSubfolder,
-      subfolder: cleanSubfolder,
-      yamlConfig: viz.config,
-      thumbnail: false,
-    }
-
-    this.$emit('navigate', { component: viz.component, props })
-  }
-
-  private updateTitle(viz: number, title: string) {
-    this.myState.vizes[viz].title = title
-  }
-
-  private configureSources() {
-    this.$emit('activate', { name: 'Settings', class: 'SettingsPanel' })
-  }
-
-  private getTabColor(kebabName: string) {
-    const color = tabColors[kebabName] || '#8778BB'
-    return { backgroundColor: color }
-  }
-
-  @Watch('globalState.colorScheme') swapColors() {
-    // medium-zoom freaks out if color theme is swapped.
-    // so let's reload images just in case.
-    this.fetchFolderContents()
-  }
-
-  // @Watch('$route') handleRouteChanged() {
-  //   console.log(77, this.$route)
-  //   this.getRootAndRoute(this.$route.params.pathMatch)
-  //   this.updateRoute()
-  // }
-
-  @Watch('subfolder')
-  private updateRoute() {
-    if (!this.root) return
-
-    console.log(222, 'UPDATEROUTE()')
-    const svnProject = this.getFileSystem(this.root)
-
-    this.myState.svnProject = svnProject
-    this.myState.subfolder = this.subfolder || ''
-    this.myState.readme = ''
-    this.highlightedViz = -2
-
-    if (!this.myState.svnProject) return
-    this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
-
-    this.generateBreadcrumbs()
-
-    // this happens async
-    this.fetchFolderContents()
-  }
-
-  @Watch('globalState.authAttempts') authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    this.updateRoute()
-  }
-
-  @Watch('myState.files') async filesChanged() {
-    // clear visualizations
-    this.myState.vizes = []
-    if (this.myState.files.length === 0) return
-
-    this.showReadme()
-
-    this.myState.summary = this.myState.files.indexOf(this.summaryYamlFilename) !== -1
-
-    if (this.myState.summary) {
-      await this.buildCuratedSummaryView()
-    } else {
-      this.buildShowEverythingView()
-    }
-
-    // make sure page is rendered before we attach zoom semantics
-    await this.$nextTick()
-    mediumZoom('.medium-zoom', {
-      background: '#444450',
-    })
-  }
-
-  private async showReadme() {
-    this.myState.readme = ''
-    const readme = 'readme.md'
-    if (this.myState.files.map(f => f.toLocaleLowerCase()).indexOf(readme) > -1) {
-      if (!this.myState.svnRoot) return
-      const text = await this.myState.svnRoot.getFileText(this.myState.subfolder + '/' + readme)
-      this.myState.readme = this.mdRenderer.render(text)
-    }
-  }
-
-  private summaryYamlFilename = 'viz-summary.yml'
-
-  private buildShowEverythingView() {
-    // loop on each viz type
-    for (const viz of this.globalState.visualizationTypes.values()) {
-      // filter based on file matching
-      const matches = micromatch(this.myState.files, viz.filePatterns)
-      for (const file of matches) {
-        // add thumbnail for each matching file
-        this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
-      }
-    }
-  }
-
-  // Curate the view, if viz-summary.yml exists
-  private async buildCuratedSummaryView() {
-    if (!this.myState.svnRoot) return
-
-    const summaryYaml = yaml.parse(
-      await this.myState.svnRoot.getFileText(
-        this.myState.subfolder + '/' + this.summaryYamlFilename
-      )
-    )
-
-    // loop on each curated viz type
-    for (const vizName of summaryYaml.plugins) {
-      // load plugin user asked for
-      const viz = this.globalState.visualizationTypes.get(vizName)
-      if (!viz) continue
-
-      // curate file list if provided for this plugin
-      if (summaryYaml[viz.kebabName]) {
-        for (const pattern of summaryYaml[viz.kebabName]) {
-          // add thumbnail for each matching file
-          const matches = await this.findMatchingFiles(pattern)
-          for (const file of matches) {
-            this.myState.vizes.push({ component: viz.kebabName, config: file, title: file })
-          }
+    vizImages() {
+      const images: { [index: number]: any } = {}
+      for (let i = 0; i < this.myState.vizes.length; i++) {
+        if (this.myState.vizes[i].component === 'image-view') {
+          images[i] = this.myState.vizes[i]
         }
+      }
+      return images
+    },
+
+    vizMaps() {
+      const skipList = ['image-view', 'dashboard']
+      const maps = new Map()
+
+      // Dashboards first
+      if (this.hasDashboards) {
+        maps.set(-1, {
+          component: '',
+          title: 'Dashboard Panel',
+        })
+      }
+
+      // Then vizes
+      for (let i = 0; i < this.myState.vizes.length; i++) {
+        if (!skipList.includes(this.myState.vizes[i].component)) {
+          maps.set(i, this.myState.vizes[i])
+        }
+      }
+
+      return maps
+    },
+    isChrome() {
+      return !!window.showDirectoryPicker
+    },
+
+    localFileHandles(): any[] {
+      // sort a copy of the array so we don't get an infinite loop
+      return this.$store.state.localFileHandles
+        .concat()
+        .sort((a: any, b: any) =>
+          parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
+        )
+    },
+  },
+  methods: {
+    updateRoute() {
+      if (!this.root) return
+
+      console.log(222, 'UPDATEROUTE()')
+      const svnProject = this.getFileSystem(this.root)
+
+      this.myState.svnProject = svnProject
+      this.myState.subfolder = this.subfolder || ''
+      this.myState.readme = ''
+      this.highlightedViz = -2
+
+      if (!this.myState.svnProject) return
+      this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
+
+      this.generateBreadcrumbs()
+
+      // this happens async
+      this.fetchFolderContents()
+    },
+
+    authenticationChanged() {
+      console.log('AUTH CHANGED - Reload')
+      this.updateRoute()
+    },
+
+    async filesChanged() {
+      // clear visualizations
+      this.myState.vizes = []
+      if (this.myState.files.length === 0) return
+
+      this.showReadme()
+
+      this.myState.summary = this.myState.files.indexOf(this.summaryYamlFilename) !== -1
+
+      if (this.myState.summary) {
+        await this.buildCuratedSummaryView()
       } else {
+        this.buildShowEverythingView()
+      }
+
+      // make sure page is rendered before we attach zoom semantics
+      await this.$nextTick()
+      mediumZoom('.medium-zoom', {
+        background: '#444450',
+      })
+    },
+
+    updateShortcuts() {
+      const roots = this.globalState.svnProjects.filter(
+        source => !source.hidden && !source.slug.startsWith('fs')
+      )
+
+      this.allRoots = roots
+    },
+    cleanName(text: string) {
+      return decodeURIComponent(text)
+    },
+
+    getFileSystem(name: string) {
+      const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === name
+      )
+
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+
+      return svnProject[0]
+    },
+
+    generateBreadcrumbs() {
+      if (!this.myState.svnProject) return []
+
+      const crumbs = [
+        {
+          label: 'SimWrapper',
+          url: '/',
+        },
+        {
+          label: this.myState.svnProject.name,
+          url: '/' + this.myState.svnProject.slug,
+        },
+      ]
+
+      const subfolders = this.myState.subfolder.split('/')
+      let buildFolder = '/'
+      for (const folder of subfolders) {
+        if (!folder) continue
+
+        buildFolder += folder + '/'
+        crumbs.push({
+          label: folder,
+          url: '/' + this.myState.svnProject.slug + buildFolder,
+        })
+      }
+
+      // save them!
+      globalStore.commit('setBreadCrumbs', crumbs)
+      return crumbs
+    },
+
+    setupHints() {
+      // if user has seen the hints a few times, drop them
+      let hints: any = localStorage.getItem('needsClickHint')
+      if (hints) {
+        hints = JSON.parse(hints) as number
+      } else {
+        hints = 0
+      }
+
+      if (hints > 5000) {
+        this.needDoubleClickHint = false
+      } else {
+        hints++
+        localStorage.setItem('needsClickHint', JSON.stringify(hints))
+      }
+    },
+
+    clickedBreadcrumb(crumb: { url: string }) {
+      this.getRootAndRoute(crumb.url.slice(1)) // drop leading slash
+    },
+
+    getRootAndRoute(pathMatch: string | undefined) {
+      if (!pathMatch) {
+        // console.log('NOPE')
+        return
+      }
+
+      // splash page:
+      if (pathMatch === '/') {
+        this.root = ''
+        return
+      }
+
+      // split panel:
+      if (pathMatch.startsWith('split/')) {
+        console.log('SPLIT')
+        // ?????
+        const payload = pathMatch.substring(6)
+        try {
+          // const content = atob(payload)
+          // const json = JSON.parse(content)
+          // this.panels = json
+        } catch (e) {
+          // couldn't do; you failed!
+          this.$router.replace('/')
+        }
+        return
+      }
+
+      // split out project root and subfolder
+      // console.log(777, pathMatch, JSON.stringify(this.myState))
+      let root = pathMatch
+      let subfolder = ''
+      const slash = pathMatch.indexOf('/')
+      if (slash > -1) {
+        root = pathMatch.substring(0, slash)
+        subfolder = pathMatch.substring(slash + 1)
+      }
+      this.root = root
+      this.subfolder = subfolder
+    },
+
+    activateVisualization(vizNumber: number) {
+      // if this is not a valid viz, just open the file/dashboard browser
+      const viz = this.myState.vizes[vizNumber] || {
+        component: 'TabbedDashboardView',
+        title: 'Dashboard',
+      }
+
+      // special case: images don't click thru
+      if (viz.component === 'image-view') return
+
+      if (!this.myState.svnProject) return
+
+      this.highlightedViz = -2
+
+      const cleanSubfolder = this.myState.subfolder.replaceAll('//', '/')
+      const props = {
+        root: this.myState.svnProject.slug,
+        xsubfolder: cleanSubfolder,
+        subfolder: cleanSubfolder,
+        yamlConfig: viz.config,
+        thumbnail: false,
+      }
+
+      this.$emit('navigate', { component: viz.component, props })
+    },
+
+    updateTitle(viz: number, title: string) {
+      this.myState.vizes[viz].title = title
+    },
+
+    configureSources() {
+      this.$emit('activate', { name: 'Settings', class: 'SettingsPanel' })
+    },
+
+    getTabColor(kebabName: string) {
+      const color = tabColors[kebabName] || '#8778BB'
+      return { backgroundColor: color }
+    },
+    async showReadme() {
+      this.myState.readme = ''
+      const readme = 'readme.md'
+      if (this.myState.files.map(f => f.toLocaleLowerCase()).indexOf(readme) > -1) {
+        if (!this.myState.svnRoot) return
+        const text = await this.myState.svnRoot.getFileText(this.myState.subfolder + '/' + readme)
+        this.myState.readme = this.mdRenderer.render(text)
+      }
+    },
+
+    buildShowEverythingView() {
+      // loop on each viz type
+      for (const viz of this.globalState.visualizationTypes.values()) {
         // filter based on file matching
         const matches = micromatch(this.myState.files, viz.filePatterns)
         for (const file of matches) {
@@ -568,316 +550,324 @@ export default class VueComponent extends Vue {
           this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
         }
       }
-    }
-  }
+    },
 
-  private async findMatchingFiles(glob: string): Promise<string[]> {
-    // first see if file itself is in this folder
-    if (this.myState.files.indexOf(glob) > -1) return [glob]
+    // Curate the view, if viz-summary.yml exists
+    async buildCuratedSummaryView() {
+      if (!this.myState.svnRoot) return
 
-    // return globs in this folder
-    const matches = micromatch(this.myState.files, glob)
-    if (matches.length) return matches
-
-    // search subfolder for glob, for now just one subfolder down
-    if (!this.myState.svnRoot) return []
-    try {
-      const split = glob.split('/')
-      const subsubfolder = this.myState.subfolder + '/' + split[0]
-      console.log(subsubfolder)
-      const contents = await this.myState.svnRoot.getDirectory(subsubfolder)
-      const matches = micromatch(contents.files, split[1])
-      return matches.map(f => split[0] + '/' + f)
-    } catch (e) {
-      // oh well, we tried
-    }
-
-    return []
-  }
-
-  private async fetchFolderContents() {
-    if (!this.myState.svnRoot) return []
-
-    this.myState.isLoading = true
-    this.myState.errorStatus = ''
-    this.myState.files = []
-
-    try {
-      this.allConfigFiles = await this.findAllConfigsAndDashboards()
-      console.log(333, this.allConfigFiles)
-      const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
-
-      // hide dot folders
-      const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
-      const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
-
-      // Also show any project-level viz thumbnails from other folders
-      // (but, ensure that files in this folder supercede any project viz files
-      // with the same name)
-      const mergedFilesAndVizes = Object.assign({}, this.allConfigFiles.vizes)
-      for (const file of files) {
-        mergedFilesAndVizes[file] = file
-      }
-
-      const allVizes = Object.values(mergedFilesAndVizes)
-
-      this.myState.errorStatus = ''
-      this.myState.folders = ['UP'].concat(folders)
-
-      this.myState.files = allVizes
-    } catch (err) {
-      // First see if we can get the one-up folder
-      const parent = this.myState.subfolder.lastIndexOf('/')
-
-      if (parent > -1) {
-        // subfolder is @Watched, this triggers a reset:
-        this.subfolder = this.myState.subfolder.slice(0, parent)
-        return
-      } else {
-        // top level fail?
-        this.subfolder = ''
-        return
-      }
-
-      // Bad things happened! Tell user
-      // const e = err as any
-      // console.log('BAD PAGE')
-      // console.log({ eeee: e })
-
-      // this.myState.folders = []
-      // this.myState.files = []
-
-      // this.myState.errorStatus = '<h3>'
-      // if (e.status) this.myState.errorStatus += `${e.status} `
-      // if (e.statusText) this.myState.errorStatus += `${e.statusText}`
-      // if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
-      // this.myState.errorStatus += `</h3>`
-      // if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
-      // if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
-      // if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
-
-      // if (this.myState.svnProject) {
-      //   this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
-      // }
-
-      // // maybe it failed because password?
-      // if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
-      //   globalStore.commit('requestLogin', this.myState.svnProject.slug)
-      // }
-    } finally {
-      this.myState.isLoading = false
-    }
-  }
-
-  private get hasDashboards() {
-    return Object.keys(this.allConfigFiles.dashboards).length
-    // const d = /^dashboard.*ml/
-    // for (const viz of this.myState.files) {
-    //   if (d.test(viz)) return true
-    // }
-    // return false
-  }
-
-  // we have really weird double-clicks; we want the single click to pass thru
-  // after a long delay. so this is how we do it
-  private clicks = 0
-  private clickTimer: any
-
-  private clickedVisualization(index: number) {
-    // (props: { folder: string; i: number; root: string }) {
-    if (this.myState.isLoading) return
-
-    const DBL_CLICK_DELAY = 450
-
-    this.highlightedViz = index
-
-    this.clicks++
-    if (this.clicks === 1) {
-      // start timer to see if we get a second click
-      this.clickTimer = setTimeout(() => {
-        // nothing to do, just un-double click
-        // this.handleSingleClickFolder(props)
-        this.needDoubleClickHint = true
-        this.clicks = 0
-        // this.highlightedViz = -1
-      }, DBL_CLICK_DELAY)
-    } else {
-      // got a second click in time!
-      clearTimeout(this.clickTimer)
-      this.needDoubleClickHint = false
-      this.activateVisualization(index)
-      // do my double-click thing here
-      this.clicks = 0
-    }
-  }
-
-  private clickedOnFolder(props: { folder: string; i: number; root: string }) {
-    this.needDoubleClickHint = false
-
-    const { folder, root, i } = props
-
-    if (root) {
-      this.root = root
-      this.subfolder = ''
-      this.updateRoute()
-      return
-    }
-
-    if (this.myState.isLoading) return
-    if (!this.myState.svnProject) return
-
-    // up button is a non-navigate case: might revisit this
-    if (i == 0 && folder === 'UP') {
-      if (this.subfolder === '/' || this.subfolder === '') {
-        this.root = ''
-      } else {
-        const lastSlash = this.subfolder.lastIndexOf('/')
-        this.subfolder = lastSlash > -1 ? this.subfolder.slice(0, lastSlash) : '/'
-      }
-      return
-    }
-
-    this.subfolder = `${this.subfolder}/${folder}`
-  }
-
-  private handleSingleClickFolder(xprops: { folder: string; i: number; root: string }) {
-    const { folder, root, i } = xprops
-
-    if (root) {
-      this.root = root
-      this.subfolder = ''
-      this.updateRoute()
-      return
-    }
-
-    if (this.myState.isLoading) return
-    if (!this.myState.svnProject) return
-
-    if (i == 0 && folder === 'UP') return
-
-    const target =
-      folder === '..'
-        ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
-        : this.myState.subfolder + '/' + folder
-
-    const props = {
-      root: this.myState.svnProject.slug,
-      xsubfolder: target,
-    }
-
-    // if we are at top of hierarchy, jump to splashpage
-    if (!target && !this.myState.subfolder) {
-      this.$emit('navigate', { component: 'SplashPage', props: {} })
-    } else {
-      this.$emit('navigate', { component: 'TabbedDashboardView', props })
-    }
-  }
-
-  private dragEnd() {
-    this.$emit('isDragging', false)
-  }
-
-  private dragStart(event: DragEvent, item: any) {
-    this.$emit('isDragging', true)
-
-    const bundle = Object.assign({}, item, {
-      root: this.root,
-      subfolder: this.myState.subfolder,
-      xsubfolder: this.myState.subfolder,
-    }) as any
-
-    bundle.yamlConfig = bundle.config
-    delete bundle.config
-
-    const text = JSON.stringify(bundle) as any
-    event.dataTransfer?.setData('bundle', text)
-  }
-
-  private clickedLogo() {
-    this.$router.push('/')
-  }
-
-  private async findAllConfigsAndDashboards() {
-    if (!this.myState.svnRoot) return { dashboards: {}, configs: {}, vizes: {}, topsheets: {} }
-
-    let loadErrorMessage = ''
-
-    try {
-      const { files } = await this.myState.svnRoot.getDirectory(this.subfolder)
-
-      // if folder has .nodashboards, then skip all dashboards!
-      let showDashboards = true
-      NO_DASHBOARDS.forEach(filename => {
-        if (files.indexOf(filename) > -1) {
-          showDashboards = false
-        }
-      })
-
-      const allConfigs = await this.myState.svnRoot.findAllYamlConfigs(this.subfolder)
-
-      // force hide dashboards if user has a .nodashboards file
-      if (!showDashboards) allConfigs.dashboards = {}
-      return allConfigs
-    } catch (e) {
-      console.error('' + e)
-      throw Error('' + e)
-    }
-  }
-
-  // -- BEGIN Chrome File System Access API support
-  private get isChrome() {
-    return !!window.showDirectoryPicker
-  }
-
-  private get localFileHandles() {
-    // sort a copy of the array so we don't get an infinite loop
-    return this.$store.state.localFileHandles
-      .concat()
-      .sort((a: any, b: any) =>
-        parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
+      const summaryYaml = yaml.parse(
+        await this.myState.svnRoot.getFileText(
+          this.myState.subfolder + '/' + this.summaryYamlFilename
+        )
       )
-  }
 
-  private async clickedBrowseChromeLocalFolder(row: { key: string; handle: any }) {
-    try {
-      const status = await row.handle.requestPermission({ mode: 'read' })
-      console.log(row.handle, status)
+      // loop on each curated viz type
+      for (const vizName of summaryYaml.plugins) {
+        // load plugin user asked for
+        const viz = this.globalState.visualizationTypes.get(vizName)
+        if (!viz) continue
 
-      if (status !== 'granted') return
+        // curate file list if provided for this plugin
+        if (summaryYaml[viz.kebabName]) {
+          for (const pattern of summaryYaml[viz.kebabName]) {
+            // add thumbnail for each matching file
+            const matches = await this.findMatchingFiles(pattern)
+            for (const file of matches) {
+              this.myState.vizes.push({ component: viz.kebabName, config: file, title: file })
+            }
+          }
+        } else {
+          // filter based on file matching
+          const matches = micromatch(this.myState.files, viz.filePatterns)
+          for (const file of matches) {
+            // add thumbnail for each matching file
+            this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
+          }
+        }
+      }
+    },
 
-      // if first time, add its key to the fileSystemConfig
-      const exists = fileSystems.find(f => f.slug == row.key)
-      if (!exists) addLocalFilesystem(row.handle, row.key)
+    async findMatchingFiles(glob: string): Promise<string[]> {
+      // first see if file itself is in this folder
+      if (this.myState.files.indexOf(glob) > -1) return [glob]
 
-      const props = { root: row.key } as any
-      this.clickedOnFolder(props)
-    } catch (e) {
-      console.error('' + e)
-    }
-  }
+      // return globs in this folder
+      const matches = micromatch(this.myState.files, glob)
+      if (matches.length) return matches
 
-  private async showChromeDirectory() {
-    try {
-      const FileSystemDirectoryHandle = window.showDirectoryPicker()
-      const dir = await FileSystemDirectoryHandle
-      const slug = addLocalFilesystem(dir, null) // no key yet
-      this.$router.push(`${BASE_URL}${slug}/`)
-    } catch (e) {
-      // shrug
-    }
-  }
+      // search subfolder for glob, for now just one subfolder down
+      if (!this.myState.svnRoot) return []
+      try {
+        const split = glob.split('/')
+        const subsubfolder = this.myState.subfolder + '/' + split[0]
+        console.log(subsubfolder)
+        const contents = await this.myState.svnRoot.getDirectory(subsubfolder)
+        const matches = micromatch(contents.files, split[1])
+        return matches.map(f => split[0] + '/' + f)
+      } catch (e) {
+        // oh well, we tried
+      }
 
-  private async clickedDelete(row: { key: string; handle: any }) {
-    const handles = this.$store.state.localFileHandles
-    // just filter out the key I guess?
-    const filtered = handles.filter((f: any) => f.key !== row.key)
+      return []
+    },
 
-    // and save it everywhere
-    await set('fs', filtered)
-    this.$store.commit('setLocalFileSystem', filtered)
-  }
-  // - END Chrome File System Access API support
-}
+    async fetchFolderContents() {
+      if (!this.myState.svnRoot) return []
+
+      this.myState.isLoading = true
+      this.myState.errorStatus = ''
+      this.myState.files = []
+
+      try {
+        this.allConfigFiles = await this.findAllConfigsAndDashboards()
+        console.log(333, this.allConfigFiles)
+        const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
+
+        // hide dot folders
+        const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
+        const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+
+        // Also show any project-level viz thumbnails from other folders
+        // (but, ensure that files in this folder supercede any project viz files
+        // with the same name)
+        const mergedFilesAndVizes = Object.assign({}, this.allConfigFiles.vizes)
+        for (const file of files) {
+          mergedFilesAndVizes[file] = file
+        }
+
+        const allVizes = Object.values(mergedFilesAndVizes)
+
+        this.myState.errorStatus = ''
+        this.myState.folders = ['UP'].concat(folders)
+
+        this.myState.files = allVizes
+      } catch (err) {
+        // First see if we can get the one-up folder
+        const parent = this.myState.subfolder.lastIndexOf('/')
+
+        if (parent > -1) {
+          // subfolder is @Watched, this triggers a reset:
+          this.subfolder = this.myState.subfolder.slice(0, parent)
+          return
+        } else {
+          // top level fail?
+          this.subfolder = ''
+          return
+        }
+
+        // Bad things happened! Tell user
+        // const e = err as any
+        // console.log('BAD PAGE')
+        // console.log({ eeee: e })
+
+        // this.myState.folders = []
+        // this.myState.files = []
+
+        // this.myState.errorStatus = '<h3>'
+        // if (e.status) this.myState.errorStatus += `${e.status} `
+        // if (e.statusText) this.myState.errorStatus += `${e.statusText}`
+        // if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
+        // this.myState.errorStatus += `</h3>`
+        // if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
+        // if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
+        // if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
+
+        // if (this.myState.svnProject) {
+        //   this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
+        // }
+
+        // // maybe it failed because password?
+        // if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
+        //   globalStore.commit('requestLogin', this.myState.svnProject.slug)
+        // }
+      } finally {
+        this.myState.isLoading = false
+      }
+    },
+
+    clickedVisualization(index: number) {
+      // (props: { folder: string; i: number; root: string }) {
+      if (this.myState.isLoading) return
+
+      const DBL_CLICK_DELAY = 450
+
+      this.highlightedViz = index
+
+      this.clicks++
+      if (this.clicks === 1) {
+        // start timer to see if we get a second click
+        this.clickTimer = setTimeout(() => {
+          // nothing to do, just un-double click
+          // this.handleSingleClickFolder(props)
+          this.needDoubleClickHint = true
+          this.clicks = 0
+          // this.highlightedViz = -1
+        }, DBL_CLICK_DELAY)
+      } else {
+        // got a second click in time!
+        clearTimeout(this.clickTimer)
+        this.needDoubleClickHint = false
+        this.activateVisualization(index)
+        // do my double-click thing here
+        this.clicks = 0
+      }
+    },
+
+    clickedOnFolder(props: { folder: string; i: number; root: string }) {
+      this.needDoubleClickHint = false
+
+      const { folder, root, i } = props
+
+      if (root) {
+        this.root = root
+        this.subfolder = ''
+        this.updateRoute()
+        return
+      }
+
+      if (this.myState.isLoading) return
+      if (!this.myState.svnProject) return
+
+      // up button is a non-navigate case: might revisit this
+      if (i == 0 && folder === 'UP') {
+        if (this.subfolder === '/' || this.subfolder === '') {
+          this.root = ''
+        } else {
+          const lastSlash = this.subfolder.lastIndexOf('/')
+          this.subfolder = lastSlash > -1 ? this.subfolder.slice(0, lastSlash) : '/'
+        }
+        return
+      }
+
+      this.subfolder = `${this.subfolder}/${folder}`
+    },
+
+    handleSingleClickFolder(xprops: { folder: string; i: number; root: string }) {
+      const { folder, root, i } = xprops
+
+      if (root) {
+        this.root = root
+        this.subfolder = ''
+        this.updateRoute()
+        return
+      }
+
+      if (this.myState.isLoading) return
+      if (!this.myState.svnProject) return
+
+      if (i == 0 && folder === 'UP') return
+
+      const target =
+        folder === '..'
+          ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
+          : this.myState.subfolder + '/' + folder
+
+      const props = {
+        root: this.myState.svnProject.slug,
+        xsubfolder: target,
+      }
+
+      // if we are at top of hierarchy, jump to splashpage
+      if (!target && !this.myState.subfolder) {
+        this.$emit('navigate', { component: 'SplashPage', props: {} })
+      } else {
+        this.$emit('navigate', { component: 'TabbedDashboardView', props })
+      }
+    },
+
+    dragEnd() {
+      this.$emit('isDragging', false)
+    },
+
+    dragStart(event: DragEvent, item: any) {
+      this.$emit('isDragging', true)
+
+      const bundle = Object.assign({}, item, {
+        root: this.root,
+        subfolder: this.myState.subfolder,
+        xsubfolder: this.myState.subfolder,
+      }) as any
+
+      bundle.yamlConfig = bundle.config
+      delete bundle.config
+
+      const text = JSON.stringify(bundle) as any
+      event.dataTransfer?.setData('bundle', text)
+    },
+
+    clickedLogo() {
+      this.$router.push('/')
+    },
+
+    async findAllConfigsAndDashboards() {
+      if (!this.myState.svnRoot) return { dashboards: {}, configs: {}, vizes: {}, topsheets: {} }
+
+      let loadErrorMessage = ''
+
+      try {
+        const { files } = await this.myState.svnRoot.getDirectory(this.subfolder)
+
+        // if folder has .nodashboards, then skip all dashboards!
+        let showDashboards = true
+        NO_DASHBOARDS.forEach(filename => {
+          if (files.indexOf(filename) > -1) {
+            showDashboards = false
+          }
+        })
+
+        const allConfigs = await this.myState.svnRoot.findAllYamlConfigs(this.subfolder)
+
+        // force hide dashboards if user has a .nodashboards file
+        if (!showDashboards) allConfigs.dashboards = {}
+        return allConfigs
+      } catch (e) {
+        console.error('' + e)
+        throw Error('' + e)
+      }
+    },
+
+    async clickedBrowseChromeLocalFolder(row: { key: string; handle: any }) {
+      try {
+        const status = await row.handle.requestPermission({ mode: 'read' })
+        console.log(row.handle, status)
+
+        if (status !== 'granted') return
+
+        // if first time, add its key to the fileSystemConfig
+        const exists = fileSystems.find(f => f.slug == row.key)
+        if (!exists) addLocalFilesystem(row.handle, row.key)
+
+        const props = { root: row.key } as any
+        this.clickedOnFolder(props)
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
+    async showChromeDirectory() {
+      try {
+        const FileSystemDirectoryHandle = window.showDirectoryPicker()
+        const dir = await FileSystemDirectoryHandle
+        const slug = addLocalFilesystem(dir, null) // no key yet
+        this.$router.push(`${BASE_URL}${slug}/`)
+      } catch (e) {
+        // shrug
+      }
+    },
+
+    async clickedDelete(row: { key: string; handle: any }) {
+      const handles = this.$store.state.localFileHandles
+      // just filter out the key I guess?
+      const filtered = handles.filter((f: any) => f.key !== row.key)
+
+      // and save it everywhere
+      await set('fs', filtered)
+      this.$store.commit('setLocalFileSystem', filtered)
+    },
+    // - END Chrome File System Access API support
+  },
+})
 </script>
 
 <style scoped lang="scss">

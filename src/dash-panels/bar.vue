@@ -4,41 +4,46 @@ VuePlotly.myplot(
   :layout="layout"
   :options="options"
   :id="id"
+  :class="className"
 )
+
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
+import { buildCleanTitle } from './_allPanels'
 
-import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from '@/charts/allCharts'
 
 export default defineComponent({
-  name: 'LineChartPanel',
+  name: 'BarChartPanel',
   components: { VuePlotly },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
-    config: { type: Object as any, required: true },
+    config: { type: Object, required: true },
     cardTitle: { type: String, required: true },
     cardId: String,
-    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    datamanager: Object as PropType<DashboardDataManager>,
   },
   data: () => {
     return {
       globalState: globalStore.state,
+      id: 'bar-' + Math.random(),
+      plotID: Math.floor(Math.random() * 100000).toString(),
+      className: '',
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
-      id: ('line-' + Math.random()) as any,
-      YAMLrequirementsLine: { dataset: '', x: '' },
-      YAMLdeprecations: ['usedCol'],
+      YAMLrequirementsBar: { dataset: '', x: '', columns: '' },
       layout: {
+        barmode: 'overlay',
+        bargap: 0.08,
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
@@ -56,7 +61,6 @@ export default defineComponent({
           autorange: true,
           title: { text: '', standoff: 16 },
           animate: true,
-          rangemode: 'tozero',
         },
         legend: {
           orientation: 'v',
@@ -64,10 +68,12 @@ export default defineComponent({
           y: 1,
         },
       },
+
       data: [] as any[],
+
       options: {
-        displaylogo: false,
         responsive: true,
+        displaylogo: false,
         modeBarButtonsToRemove: [
           'pan2d',
           'zoom2d',
@@ -84,7 +90,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'line-chart',
+          filename: 'bar-chart',
           width: null,
           height: null,
         },
@@ -92,6 +98,7 @@ export default defineComponent({
     }
   },
   async mounted() {
+    this.updateLayout()
     this.updateTheme()
     this.dataSet = await this.loadData()
     this.updateChart()
@@ -100,16 +107,43 @@ export default defineComponent({
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+
+    this.checkWarningsAndErrors()
   },
+
   watch: {
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
   },
+
   methods: {
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
     },
+
+    beforeDestroy() {
+      try {
+        this.datamanager?.removeFilterListener(this.config as any, this.handleFilterChanged)
+      } catch (e) {}
+    },
+
+    checkWarningsAndErrors() {
+      // Check this plot for warnings and errors
+
+      var plotTitle = this.cardTitle
+      // warnings
+      // missing title
+      if (plotTitle.length == 0) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `The plot title is missing!`,
+          desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
+        })
+      }
+      // errors
+    },
+
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
@@ -119,76 +153,123 @@ export default defineComponent({
       this.layout = Object.assign({}, this.layout, colors)
     },
 
-    async loadData() {
-      if (!this.files.length) return {}
+    updateLayout() {
+      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
+    },
 
+    async handlePlotlyClick(click: any) {
       try {
-        this.validateYAML()
-        const dataset = await this.datamanager.getDataset(this.config)
-        // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        return dataset
+        const { x, y, data } = click.points[0]
+
+        const filter = this.config.groupBy
+        const value = x
+
+        // TODO this.datamanager.setFilter(this.config.dataset, filter, value)
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    async handleFilterChanged() {
+      if (!this.datamanager) return
+      try {
+        const { filteredRows } = (await this.datamanager.getFilteredDataset(
+          this.config as any
+        )) as any
+
+        // is filter UN-selected?
+        if (!filteredRows) {
+          this.data = [this.data[0]]
+          this.data[0].opacity = 1.0
+          return
+        }
+
+        const fullDataCopy = Object.assign({}, this.data[0])
+
+        fullDataCopy.x = filteredRows.x
+        fullDataCopy.y = filteredRows.y
+        fullDataCopy.opacity = 1.0
+        fullDataCopy.name = 'Filtered'
+        //@ts-ignore - let plotly manage bar colors EXCEPT the filter
+        fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
+
+        this.data = [this.data[0], fullDataCopy]
+        this.data[0].opacity = 0.3
+        this.data[0].name = 'All'
       } catch (e) {
         const message = '' + e
         console.log(message)
+        this.dataSet = {}
+      }
+    },
+
+    async loadData() {
+      if (!this.files.length) return {}
+      if (!this.datamanager) return {}
+
+      try {
+        this.validateYAML()
+        const allRows = await this.datamanager.getDataset(this.config as any)
+        // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+        return allRows
+      } catch (e) {
+        const message = '' + e
+        console.log(message)
+        // this.$store.commit('setStatus', { type: Status.ERROR, message })
       }
       return {}
     },
 
     validateYAML() {
-      console.log('in line validation')
+      console.log('in bars validation')
 
-      for (const key in this.YAMLrequirementsLine) {
+      for (const key in this.YAMLrequirementsBar) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `line chart: missing required key: ${key}`,
-            desc: JSON.stringify(this.config),
-          })
-        }
-      }
-
-      for (const deprecated of this.YAMLdeprecations) {
-        if (this.config[deprecated]) {
-          this.$store.commit('setStatus', {
-            type: Status.WARNING,
-            msg: `line chart: deprecated field: ${deprecated}`,
-            desc: JSON.stringify(this.config),
+            msg: `YAML file missing required key: ${key}`,
+            desc: 'Check this.YAMLrequirementsXY for required keys',
           })
         }
       }
     },
 
     updateChart() {
-      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
-      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
-
       try {
         if (this.config.groupBy) this.updateChartWithGroupBy()
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg,
-          desc: 'Add a desription...',
-        })
+        this.$store.commit('setStatus', { type: Status.ERROR, msg })
       }
     },
 
     updateChartWithGroupBy() {
-      // tba
+      this.className = this.plotID // stacked bug-fix hack
+
+      // TODO: re-implement grouping
+
+      // const { x, y } = this.dataRows
+
+      // this.data = [
+      //   {
+      //     x,
+      //     y,
+      //     name: this.config.groupBy,
+      //     type: 'bar',
+      //     textinfo: 'label+percent',
+      //     textposition: 'inside',
+      //     automargin: true,
+      //     opacity: 1.0,
+      //   },
+      // ]
     },
 
     updateChartSimple() {
-      let useOwnNames = false
+      let x: any[] = []
 
-      // old legendname field
-      if (this.config.legendName) this.config.legendTitles = this.config.legendName
-      if (this.config.legendName !== undefined) {
-        if (this.config.legendName.length == this.config.usedCol.length) {
-          useOwnNames = true
-        }
-      }
+      var useOwnNames = false
 
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
@@ -198,9 +279,6 @@ export default defineComponent({
         return
       }
 
-      let x = allRows[this.config.x].values || []
-      if (this.config.skipFirstRow) x = x.slice(1)
-
       // old configs called it "usedCol" --> now "columns"
       let columns = this.config.columns || this.config.usedCol
 
@@ -209,7 +287,30 @@ export default defineComponent({
         columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
-      const lines = [] as any[]
+      // old legendname field
+      if (this.config.legendName) this.config.legendTitles = this.config.legendName
+      if (this.config.legendTitles !== undefined) {
+        if (this.config.legendTitles.length === columns.length) {
+          useOwnNames = true
+        }
+      }
+
+      if (this.config.stacked) {
+        this.layout.barmode = 'stack'
+      } else {
+        this.layout.barmode = 'group'
+      }
+
+      if (this.config.stacked) this.className = this.plotID
+
+      const xColumn = allRows[this.config.x]
+
+      if (!xColumn) {
+        throw Error(`File ${this.config.dataset}: Could not find column ${this.config.x}`)
+      }
+
+      x = xColumn.values
+      if (this.config.skipFirstRow) x = x.slice(1)
 
       for (let i = 0; i < columns.length; i++) {
         const col = columns[i]
@@ -221,17 +322,17 @@ export default defineComponent({
         // are durations in 00:00:00 format?
         if (this.config.convertToSeconds) values = this.convertToSeconds(values)
 
-        lines.push({
+        this.data.push({
           x: x,
           y: values,
           name: legendName,
-          type: 'line',
+          type: 'bar',
           textinfo: 'label+percent',
           textposition: 'inside',
-          automargin: false,
+          automargin: true,
+          opacity: 1.0,
         })
       }
-      this.data = lines
     },
 
     convertToSeconds(values: any[]) {
@@ -247,6 +348,8 @@ export default defineComponent({
     },
   },
 })
+
+//
 </script>
 
 <style scoped lang="scss">

@@ -39,57 +39,61 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
 
-@Component({ i18n, components: {} })
-class MyComponent extends Vue {
-  private state = globalStore.state
-
-  private showDescription = false
-  private descriptionIndexListWarning: number[] = []
-  private descriptionIndexListError: number[] = []
-  private isError = false
-
-  private mounted() {}
-
-  @Watch('$route.path') test() {
-    this.clearAllButtons()
-  }
-
-  private get headerTextColor() {
-    let color = {}
-    if (this.state.statusWarnings.length) color = { color: '#fe8' }
-    if (this.state.statusErrors.length) color = { color: '#f66' }
-    return color
-  }
-
-  private clearAllButtons() {
-    this.$store.commit('clearAllErrors')
-    this.$emit('activate', { name: 'Files', class: 'BrowserPanel' })
-  }
-
-  private toggleShowDescription(i: number, isError: boolean) {
-    this.isError = isError
-    if (isError) {
-      if (this.descriptionIndexListError.includes(i)) {
-        var index = this.descriptionIndexListError.indexOf(i)
-        this.descriptionIndexListError.splice(index, 1)
-      } else {
-        this.descriptionIndexListError.push(i)
-      }
-    } else {
-      if (this.descriptionIndexListWarning.includes(i)) {
-        var index = this.descriptionIndexListWarning.indexOf(i)
-        this.descriptionIndexListWarning.splice(index, 1)
-      } else {
-        this.descriptionIndexListWarning.push(i)
-      }
+export default defineComponent({
+  name: 'ErrorPanel',
+  i18n,
+  data: () => {
+    return {
+      state: globalStore.state,
+      showDescription: false,
+      descriptionIndexListWarning: [] as number[],
+      descriptionIndexListError: [] as number[],
+      isError: false,
     }
-  }
-}
-export default MyComponent
+  },
+  watch: {
+    '$route.path'() {
+      this.clearAllButtons()
+    },
+  },
+  computed: {
+    headerTextColor() {
+      let color = {}
+      if (this.state.statusWarnings.length) color = { color: '#fe8' }
+      if (this.state.statusErrors.length) color = { color: '#f66' }
+      return color
+    },
+  },
+  methods: {
+    clearAllButtons() {
+      this.$store.commit('clearAllErrors')
+      this.$emit('activate', { name: 'Files', class: 'BrowserPanel' })
+    },
+
+    toggleShowDescription(i: number, isError: boolean) {
+      this.isError = isError
+      if (isError) {
+        if (this.descriptionIndexListError.includes(i)) {
+          var index = this.descriptionIndexListError.indexOf(i)
+          this.descriptionIndexListError.splice(index, 1)
+        } else {
+          this.descriptionIndexListError.push(i)
+        }
+      } else {
+        if (this.descriptionIndexListWarning.includes(i)) {
+          var index = this.descriptionIndexListWarning.indexOf(i)
+          this.descriptionIndexListWarning.splice(index, 1)
+        } else {
+          this.descriptionIndexListWarning.push(i)
+        }
+      }
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

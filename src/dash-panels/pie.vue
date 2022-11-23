@@ -1,10 +1,9 @@
 <template lang="pug">
-VuePlotly.yplot(
+VuePlotly.myplot(v-if="data[0].values.length"
   :data="data"
   :layout="layout"
   :options="options"
   :id="id"
-  ref="plotly-element"
 )
 </template>
 
@@ -14,13 +13,12 @@ import type { PropType } from 'vue'
 
 import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
-
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from '@/charts/allCharts'
+import { buildCleanTitle } from './_allPanels'
 
 export default defineComponent({
-  name: 'BubbleChartPanel',
+  name: 'PieChartPanel',
   components: { VuePlotly },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -28,16 +26,16 @@ export default defineComponent({
     files: { type: Array, required: true },
     config: { type: Object as any, required: true },
     cardTitle: { type: String, required: true },
-    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
     cardId: String,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
   data: () => {
     return {
       globalState: globalStore.state,
-
+      id: ('pie-' + Math.random()) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
-      id: 'bubble-' + Math.random(),
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      YAMLrequirementsPie: { dataset: '', useLastRow: '' },
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
@@ -58,14 +56,26 @@ export default defineComponent({
           animate: true,
         },
         legend: {
+          // yanchor: 'top',
+          // xanchor: 'center',
           orientation: 'v',
           x: 1,
           y: 1,
         },
       },
 
-      data: [] as any[],
-
+      data: [
+        {
+          sort: false, // to keep colors consistent across plots
+          labels: [] as any[],
+          values: [] as any[],
+          type: 'pie',
+          hole: 0.1,
+          textinfo: 'label+percent',
+          textposition: 'inside',
+          automargin: true,
+        },
+      ],
       options: {
         displaylogo: false,
         responsive: true,
@@ -85,7 +95,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'bubble-chart',
+          filename: 'pie-chart',
           width: null,
           height: null,
         },
@@ -123,12 +133,12 @@ export default defineComponent({
 
     async loadData() {
       if (!this.files.length) return {}
-      if (!this.datamanager) return {}
 
       try {
-        const dataset = await this.datamanager.getDataset(this.config)
+        this.validateYAML()
+        const data = await this.datamanager.getDataset(this.config)
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        return dataset
+        return data
       } catch (e) {
         const message = '' + e
         console.log(message)
@@ -136,10 +146,19 @@ export default defineComponent({
       return {}
     },
 
-    updateChart() {
-      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
-      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
+    validateYAML() {
+      for (const key in this.YAMLrequirementsPie) {
+        if (key in this.config === false) {
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `YAML file missing required key: ${key}`,
+            desc: 'Check this.YAMLrequirementsXY for required keys',
+          })
+        }
+      }
+    },
 
+    updateChart() {
       try {
         if (this.config.groupBy) this.updateChartWithGroupBy()
         else this.updateChartSimple()
@@ -157,46 +176,11 @@ export default defineComponent({
       // tba
     },
 
-    // size circle
-    // color is data
     updateChartSimple() {
-      const factor = this.config.factor || 1.0
+      const allRows = this.dataSet.allRows || {}
 
-      var legendname = this.config.bubble
-      if (this.config.legendName) legendname = this.config.legendName
-      if (this.config.legendTitle) legendname = this.config.legendTitle
-
-      const allRows = this.dataSet.allRows || ({} as any)
-
-      if (Object.keys(allRows).length === 0) {
-        this.data = []
-        return
-      }
-
-      // bubble sizes
-      let bubble = allRows[this.config.bubble].values.map((v: any) => v * factor)
-      if (this.config.skipFirstRow) bubble = bubble.slice(1)
-
-      let x = allRows[this.config.x].values || []
-      if (this.config.skipFirstRow) x = x.slice(1)
-
-      let y = allRows[this.config.y].values
-      if (this.config.skipFirstRow) y = y.slice(1)
-
-      this.data = [
-        {
-          x: x,
-          y: y,
-          name: legendname,
-          mode: 'markers',
-          type: 'scatter',
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-          showlegend: true,
-          marker: { size: bubble },
-        },
-      ]
+      this.data[0].labels = Object.keys(allRows)
+      this.data[0].values = Object.values(allRows)
     },
   },
 })

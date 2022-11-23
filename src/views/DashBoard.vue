@@ -72,7 +72,7 @@ import YAML from 'yaml'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
-import charts, { plotlyCharts } from '@/charts/allCharts'
+import charts, { plotlyCharts } from '@/dash-panels/_allPanels'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 import globalStore from '@/store'

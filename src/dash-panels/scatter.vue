@@ -1,5 +1,5 @@
 <template lang="pug">
-VuePlotly.myplot(v-if="data[0].values.length"
+VuePlotly.myplot(
   :data="data"
   :layout="layout"
   :options="options"
@@ -15,10 +15,10 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from '@/charts/allCharts'
+import { buildCleanTitle } from './_allPanels'
 
 export default defineComponent({
-  name: 'PieChartPanel',
+  name: 'BarChartPanel',
   components: { VuePlotly },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -32,10 +32,9 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      id: ('pie-' + Math.random()) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      YAMLrequirementsPie: { dataset: '', useLastRow: '' },
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
+      id: ('scatter-' + Math.random()) as any,
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
@@ -56,26 +55,12 @@ export default defineComponent({
           animate: true,
         },
         legend: {
-          // yanchor: 'top',
-          // xanchor: 'center',
           orientation: 'v',
           x: 1,
           y: 1,
         },
       },
-
-      data: [
-        {
-          sort: false, // to keep colors consistent across plots
-          labels: [] as any[],
-          values: [] as any[],
-          type: 'pie',
-          hole: 0.1,
-          textinfo: 'label+percent',
-          textposition: 'inside',
-          automargin: true,
-        },
-      ],
+      data: [] as any[],
       options: {
         displaylogo: false,
         responsive: true,
@@ -95,7 +80,7 @@ export default defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'pie-chart',
+          filename: 'scatter-plot',
           width: null,
           height: null,
         },
@@ -135,10 +120,9 @@ export default defineComponent({
       if (!this.files.length) return {}
 
       try {
-        this.validateYAML()
-        const data = await this.datamanager.getDataset(this.config)
+        const dataset = await this.datamanager.getDataset(this.config)
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        return data
+        return dataset
       } catch (e) {
         const message = '' + e
         console.log(message)
@@ -146,19 +130,10 @@ export default defineComponent({
       return {}
     },
 
-    validateYAML() {
-      for (const key in this.YAMLrequirementsPie) {
-        if (key in this.config === false) {
-          this.$store.commit('setStatus', {
-            type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
-          })
-        }
-      }
-    },
-
     updateChart() {
+      this.layout.xaxis.title.text = this.config.xAxisTitle || this.config.xAxisName || ''
+      this.layout.yaxis.title.text = this.config.yAxisTitle || this.config.yAxisName || ''
+
       try {
         if (this.config.groupBy) this.updateChartWithGroupBy()
         else this.updateChartSimple()
@@ -176,11 +151,53 @@ export default defineComponent({
       // tba
     },
 
+    // size circle
+    // color is data
     updateChartSimple() {
-      const allRows = this.dataSet.allRows || {}
+      var useOwnNames = false
 
-      this.data[0].labels = Object.keys(allRows)
-      this.data[0].values = Object.values(allRows)
+      const allRows = this.dataSet.allRows || ({} as any)
+      const columnNames = Object.keys(allRows)
+
+      if (!columnNames.length) {
+        this.data = []
+        return
+      }
+
+      const factor = this.config.factor || 1.0
+
+      // // old configs called it "usedCol" --> now "columns"
+      const columns = this.config.columns || this.config.usedCol || [this.config.y] || []
+
+      var legendname = columns
+      if (this.config.legendName) legendname = this.config.legendName
+      if (this.config.legendTitle) legendname = this.config.legendTitle
+
+      let x = allRows[this.config.x].values || []
+      if (this.config.skipFirstRow) x = x.slice(1)
+
+      const markerSize = this.config.markerSize || 3
+
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i]
+        const legendName = useOwnNames ? this.config.legendTitles[i] : col
+
+        let values = allRows[col].values
+        if (this.config.skipFirstRow) values = values.slice(1)
+
+        this.data.push({
+          x: x,
+          y: values,
+          name: legendName,
+          mode: 'markers',
+          type: 'scatter',
+          textinfo: 'label+percent',
+          textposition: 'inside',
+          automargin: true,
+          showlegend: true,
+          marker: { size: markerSize },
+        })
+      }
     },
   },
 })

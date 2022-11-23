@@ -16,7 +16,7 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import { DataTable, FileSystemConfig, BG_COLOR_DASHBOARD, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from '@/charts/allCharts'
+import { buildCleanTitle } from './_allPanels'
 
 export default defineComponent({
   name: 'HeatmapPanel',

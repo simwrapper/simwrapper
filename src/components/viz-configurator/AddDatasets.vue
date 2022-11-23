@@ -52,10 +52,11 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import { VizLayerConfiguration, FileSystemConfig, DataTable } from '@/Globals'
-import { gUnzip } from '@/js/util'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
+import { gUnzip } from '@/js/util'
+import { VizLayerConfiguration, FileSystemConfig, DataTable } from '@/Globals'
 import FileSelector from './FileSelector.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
@@ -66,71 +67,55 @@ export type DatasetDefinition = {
   dataTable: DataTable
 }
 
-@Component({ components: { FileSelector }, props: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystem!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop() vizConfiguration!: VizLayerConfiguration
-
-  private validDataTypes = ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT']
-  private validRegex = /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?$/
-
-  private fileChoice = ''
-  private filesInFolder = [] as string[]
-
-  private isLoading = false
-
-  private fileApi?: HTTPFileSystem
-
-  private clickedClose() {
-    this.$emit('update', {})
-  }
-
-  private async mounted() {
+export default defineComponent({
+  name: 'AddDatasetsPanel',
+  components: { FileSelector },
+  props: {
+    fileSystem: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    vizConfiguration: { type: Object as PropType<VizLayerConfiguration> },
+  },
+  data: () => {
+    return {
+      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT'],
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?$/,
+      fileChoice: '',
+      filesInFolder: [] as string[],
+      isLoading: false,
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
+  },
+  async mounted() {
     this.fileApi = new HTTPFileSystem(this.fileSystem)
 
     const { files } = await this.fileApi.getDirectory(this.subfolder)
     this.filesInFolder = files.filter(f => this.validRegex.test(f.toLocaleUpperCase())).sort()
-  }
+  },
 
-  @Watch('fileChoice')
-  private async fileChoiceChanged(file: string) {
-    if (!file) return
+  watch: {
+    fileChoice() {
+      console.warn('*** TODO: THIS HAPPENED')
+    },
+  },
+  methods: {
+    clickedClose() {
+      this.$emit('update', {})
+    },
 
-    this.isLoading = true
-    const dataTable = await this.fetchDataset(file)
+    async fileChoiceChanged(file: string) {
+      if (!file) return
 
-    // create a human-readable key for this file based on filename
-    let key = file
-    const pieces = this.validRegex.exec(file.toLocaleUpperCase())
-    if (pieces && pieces[0]) key = file.substring(0, file.length - pieces[0].length)
-
-    const dataset: DatasetDefinition = {
-      key,
-      dataTable,
-      filename: file,
-    }
-    this.$emit('update', { dataset })
-    this.isLoading = false
-  }
-
-  private handleFilesValidated(result: any, files: any) {
-    console.log('Validated result', result)
-  }
-
-  private async handleFilesChanged(files: any) {
-    this.isLoading = true
-
-    const list = Array.from(files) as any[]
-    for (const file of list) {
-      let result = (await this.loadDataUrl(file)) as any
-      const buffer = result.buffer || result
-      const dataTable = await this.processBuffer(file.name, buffer)
+      this.isLoading = true
+      const dataTable = await this.fetchDataset(file)
 
       // create a human-readable key for this file based on filename
-      let key = file.name
-      const pieces = this.validRegex.exec(key.toLocaleUpperCase())
-      if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
+      let key = file
+      const pieces = this.validRegex.exec(file.toLocaleUpperCase())
+      if (pieces && pieces[0]) key = file.substring(0, file.length - pieces[0].length)
 
       const dataset: DatasetDefinition = {
         key,
@@ -138,69 +123,97 @@ export default class VueComponent extends Vue {
         filename: file,
       }
       this.$emit('update', { dataset })
-    }
+      this.isLoading = false
+    },
 
-    this.isLoading = false
-  }
+    handleFilesValidated(result: any, files: any) {
+      console.log('Validated result', result)
+    },
 
-  private async processBuffer(name: string, buffer: ArrayBuffer) {
-    return new Promise<DataTable>((resolve, reject) => {
-      const thread = new DataFetcherWorker()
-      try {
-        thread.postMessage(
-          {
-            config: { dataset: name },
-            buffer,
-          },
-          [buffer]
-        )
+    async handleFilesChanged(files: any) {
+      this.isLoading = true
 
-        thread.onmessage = e => {
-          thread.terminate()
-          resolve(e.data)
+      const list = Array.from(files) as any[]
+      for (const file of list) {
+        let result = (await this.loadDataUrl(file)) as any
+        const buffer = result.buffer || result
+        const dataTable = await this.processBuffer(file.name, buffer)
+
+        // create a human-readable key for this file based on filename
+        let key = file.name
+        const pieces = this.validRegex.exec(key.toLocaleUpperCase())
+        if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
+
+        const dataset: DatasetDefinition = {
+          key,
+          dataTable,
+          filename: file,
         }
-      } catch (err) {
-        thread.terminate()
-        reject(err)
+        this.$emit('update', { dataset })
       }
-    })
-  }
 
-  async loadDataUrl(file: any) {
-    const url = await new Promise(resolve => {
-      const reader = new FileReader()
-      reader.readAsArrayBuffer(file)
-      reader.onload = (e: any) => {
-        const buffer = e.target.result
-        const unzipped = gUnzip(buffer)
-        resolve(unzipped)
-      }
-    })
-    return url
-  }
+      this.isLoading = false
+    },
 
-  private async fetchDataset(dataset: string) {
-    return new Promise<DataTable>((resolve, reject) => {
-      const thread = new DataFetcherWorker()
-      try {
-        thread.postMessage({
-          fileSystemConfig: this.fileSystem,
-          subfolder: this.subfolder,
-          files: this.filesInFolder,
-          config: { dataset },
-        })
+    async processBuffer(name: string, buffer: ArrayBuffer) {
+      return new Promise<DataTable>((resolve, reject) => {
+        const thread = new DataFetcherWorker()
+        try {
+          thread.postMessage(
+            {
+              config: { dataset: name },
+              buffer,
+            },
+            [buffer]
+          )
 
-        thread.onmessage = e => {
+          thread.onmessage = e => {
+            thread.terminate()
+            resolve(e.data)
+          }
+        } catch (err) {
           thread.terminate()
-          resolve(e.data)
+          reject(err)
         }
-      } catch (err) {
-        thread.terminate()
-        reject(err)
-      }
-    })
-  }
-}
+      })
+    },
+
+    async loadDataUrl(file: any) {
+      const url = await new Promise(resolve => {
+        const reader = new FileReader()
+        reader.readAsArrayBuffer(file)
+        reader.onload = (e: any) => {
+          const buffer = e.target.result
+          const unzipped = gUnzip(buffer)
+          resolve(unzipped)
+        }
+      })
+      return url
+    },
+
+    async fetchDataset(dataset: string) {
+      return new Promise<DataTable>((resolve, reject) => {
+        const thread = new DataFetcherWorker()
+        try {
+          thread.postMessage({
+            fileSystemConfig: this.fileSystem,
+            subfolder: this.subfolder,
+            files: this.filesInFolder,
+            config: { dataset },
+          })
+
+          thread.onmessage = e => {
+            thread.terminate()
+            resolve(e.data)
+          }
+        } catch (err) {
+          thread.terminate()
+          reject(err)
+        }
+      })
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

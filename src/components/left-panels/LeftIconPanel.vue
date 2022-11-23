@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
 import ICON_FILES from '@/assets/icons/files.svg'
 import ICON_ISSUES from '@/assets/icons/issues.svg'
@@ -45,53 +45,58 @@ export interface Section {
   colorize?: boolean
 }
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) activeSection!: string
-
-  private state = globalStore.state
-
-  private topSections: Section[] = [
-    { name: 'Files', class: 'BrowserPanel', icon: ICON_FILES },
-    { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
-    // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
-    // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
-  ]
-
-  private bottomSections: Section[] = [
-    // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
-    { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
-  ]
-
-  public select(section: Section) {
-    this.$emit('activate', section)
-  }
-
-  public buttonStyle(section: any) {
-    const colorizedOpacity =
-      this.state.statusErrors.length || this.state.statusWarnings.length ? 0.8 : 0.4
-
-    if (this.activeSection !== section.name) {
-      return { opacity: section.colorize ? colorizedOpacity : 0.4 }
-    }
-
+export default defineComponent({
+  name: 'LeftIconPanel',
+  props: {
+    activeSection: { type: String, required: true },
+  },
+  data: () => {
     return {
-      opacity: 1.0,
-      borderLeft: '3px solid white',
+      state: globalStore.state,
+      topSections: [
+        { name: 'Files', class: 'BrowserPanel', icon: ICON_FILES },
+        { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
+        // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
+        // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
+      ] as Section[],
+      bottomSections: [
+        { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
+        // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
+      ] as Section[],
     }
-  }
+  },
+  computed: {
+    issueColor() {
+      // red
+      if (this.state.statusErrors.length)
+        return 'invert(60%) sepia(100%) hue-rotate(310deg) saturate(8.5)'
+      // yellow
+      if (this.state.statusWarnings.length)
+        return 'invert(75%) sepia(100%) hue-rotate(15deg) saturate(5.5)'
+      // white
+      return 'invert(100%)'
+    },
+  },
+  methods: {
+    select(section: Section) {
+      this.$emit('activate', section)
+    },
 
-  private get issueColor() {
-    // red
-    if (this.state.statusErrors.length)
-      return 'invert(60%) sepia(100%) hue-rotate(310deg) saturate(8.5)'
-    // yellow
-    if (this.state.statusWarnings.length)
-      return 'invert(75%) sepia(100%) hue-rotate(15deg) saturate(5.5)'
-    // white
-    return 'invert(100%)'
-  }
-}
+    buttonStyle(section: any) {
+      const colorizedOpacity =
+        this.state.statusErrors.length || this.state.statusWarnings.length ? 0.8 : 0.4
+
+      if (this.activeSection !== section.name) {
+        return { opacity: section.colorize ? colorizedOpacity : 0.4 }
+      }
+
+      return {
+        opacity: 1.0,
+        borderLeft: '3px solid white',
+      }
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

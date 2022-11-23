@@ -4,7 +4,7 @@
     .widget
         b-select.selector(expanded v-model="dataColumn")
           option(label="None" value="")
-          optgroup(v-for="dataset in datasetChoices"
+          optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :value="`${dataset}/${column}`"
@@ -31,7 +31,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
 export type CircleRadiusDefinition = {
@@ -40,73 +41,88 @@ export type CircleRadiusDefinition = {
   scaleFactor?: number
 }
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: DataTable }
-
-  private transforms = ['none', 'sqrt', 'pow5']
-  private dataColumn = ''
-  private scaleFactor = '100'
-  private selectedTransform = this.transforms[0]
-
-  private datasetLabels = [] as string[]
-
-  private mounted() {
+export default defineComponent({
+  name: 'CircleRadiusConfig',
+  props: {
+    vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
+    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+  },
+  data: () => {
+    const transforms = ['none', 'sqrt', 'pow5']
+    return {
+      transforms,
+      dataColumn: '',
+      scaleFactor: '100',
+      selectedTransform: transforms[0],
+      datasetLabels: [] as string[],
+    }
+  },
+  mounted() {
     this.datasetsAreLoaded()
     this.vizConfigChanged()
-  }
+  },
+  watch: {
+    vizConfiguration() {
+      this.vizConfigChanged()
+    },
+    datasets() {
+      this.datasetsAreLoaded()
+    },
+    scaleFactor() {
+      this.emitWidthSpecification()
+    },
+    dataColumn() {
+      this.emitWidthSpecification()
+    },
+  },
+  methods: {
+    vizConfigChanged() {
+      const config = this.vizConfiguration.display?.radius
+      if (config?.columnName) {
+        const selectedColumn = `${config.dataset}/${config.columnName}`
+        this.dataColumn = selectedColumn
+        this.datasetLabels = [...this.datasetLabels]
+        this.scaleFactor = config.scaleFactor
+      }
+    },
 
-  @Watch('vizConfiguration')
-  private vizConfigChanged() {
-    const config = this.vizConfiguration.display?.radius
-    if (config?.columnName) {
-      const selectedColumn = `${config.dataset}/${config.columnName}`
-      this.dataColumn = selectedColumn
-      this.datasetLabels = [...this.datasetLabels]
-      this.scaleFactor = config.scaleFactor
-    }
-  }
+    datasetsAreLoaded() {
+      const datasetIds = Object.keys(this.datasets)
+      this.datasetLabels = datasetIds
+    },
 
-  @Watch('datasets')
-  private datasetsAreLoaded() {
-    const datasetIds = Object.keys(this.datasets)
-    this.datasetLabels = datasetIds
-  }
+    emitWidthSpecification() {
+      if (!this.dataColumn) return
 
-  @Watch('scaleFactor')
-  @Watch('dataColumn')
-  private emitWidthSpecification() {
-    if (!this.dataColumn) return
+      const slash = this.dataColumn.indexOf('/')
 
-    const slash = this.dataColumn.indexOf('/')
+      const dataset = this.dataColumn.substring(0, slash)
+      const columnName = this.dataColumn.substring(slash + 1)
 
-    const dataset = this.dataColumn.substring(0, slash)
-    const columnName = this.dataColumn.substring(slash + 1)
+      const radius: CircleRadiusDefinition = {
+        dataset,
+        columnName,
+        scaleFactor: parseFloat(this.scaleFactor),
+      }
 
-    const radius: CircleRadiusDefinition = {
-      dataset,
-      columnName,
-      scaleFactor: parseFloat(this.scaleFactor),
-    }
+      setTimeout(() => this.$emit('update', { radius }), 50)
+    },
 
-    setTimeout(() => this.$emit('update', { radius }), 50)
-  }
+    datasetChoices(): string[] {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
 
-  private get datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
-  }
+    numericColumnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
 
-  private numericColumnsInDataset(datasetId: string): string[] {
-    const dataset = this.datasets[datasetId]
-    if (!dataset) return []
-    const allColumns = Object.keys(dataset).filter(
-      colName => dataset[colName].type !== DataType.LOOKUP
-    )
-
-    return allColumns
-  }
-}
+      return allColumns
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

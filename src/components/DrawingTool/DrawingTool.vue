@@ -44,227 +44,223 @@ const i18n = {
     de: {},
   },
 }
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
 import proj4 from 'proj4'
 import ShapeWriter from 'shp-write'
 
 import LayerManager from '@/js/LayerManager'
 import globalStore from '@/store'
+import { TranslateResult } from 'vue-i18n'
 
-@Component({ i18n, components: {} })
-export default class VueComponent extends Vue {
-  private canExport = false
-  private points: any[] = []
+export default defineComponent({
+  name: 'DrawingTool',
+  i18n,
 
-  private hint = this.$t('hint')
-  private isDark = globalStore.state.isDarkMode
+  data: () => {
+    const points = [] as any
 
-  private showShapeDrawer = false
+    return {
+      canExport: false,
+      hint: '' as TranslateResult,
+      isDark: globalStore.state.isDarkMode,
+      points,
+      showShapeDrawer: false,
+      layerManager: new LayerManager(),
+      mapID: `map-id-${Math.floor(1e12 * Math.random())}`,
+      polygons: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [points] },
+          finished: false,
+        },
+      ],
+    }
+  },
 
-  @Watch('$store.state.isDarkMode') flipDarkMode() {
-    this.isDark = this.$store.state.isDarkMode
-  }
-
-  private toggleShapeDrawer() {
-    this.clearShapes()
+  mounted() {
+    this.hint = this.$t('hint')
+    this.setupLayerManager()
     this.updateLayers()
-    this.showShapeDrawer = !this.showShapeDrawer
-  }
+  },
 
-  private polygons = [
-    {
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [this.points],
-      },
-      finished: false,
+  beforeDestroy() {
+    this.layerManager.destroy()
+  },
+
+  watch: {
+    viewState() {
+      this.layerManager.deckInstance.setProps({ viewState: this.viewState })
     },
-  ]
+    'globalStore.state.isDarkMode'() {
+      this.isDark = this.$store.state.isDarkMode
+      this.layerManager.updateStyle()
+    },
+  },
+  computed: {
+    viewState(): any {
+      return this.$store.state.viewState
+    },
+  },
+  methods: {
+    toggleShapeDrawer() {
+      this.clearShapes()
+      this.updateLayers()
+      this.showShapeDrawer = !this.showShapeDrawer
+    },
 
-  private clearShapes() {
-    this.canExport = false
-    this.points = []
-    this.polygons = [
-      {
+    clearShapes() {
+      this.canExport = false
+      this.points = []
+      this.polygons = [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [this.points],
+          },
+          finished: false,
+        },
+      ]
+    },
+
+    setupLayerManager() {
+      this.layerManager.init({
+        container: `#${this.mapID}`,
+        viewState: this.$store.state.viewState,
+        pickingRadius: 3,
+        mapStyle: null, // globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
+        getCursor: ({ isDragging, isHovering }: any) =>
+          isDragging ? 'grabbing' : isHovering ? 'pointer' : 'crosshair',
+        onViewStateChange: ({ viewState }: any) => {
+          this.$store.commit('setMapCamera', viewState)
+        },
+        onClick: this.handleMapClick,
+      })
+    },
+
+    exportIt() {
+      // only export closed polygons
+      this.polygons = this.polygons.filter(p => p.finished)
+      this.points = []
+      this.updateLayers()
+
+      const geojson = {
+        type: 'FeatureCollection',
+        features: this.polygons,
+      }
+
+      ShapeWriter.download(geojson, {
+        folder: 'shapefile-wgs84',
+        types: {
+          point: 'points',
+          polygon: 'polygons',
+          line: 'lines',
+        },
+      })
+
+      this.startNewPolygon()
+    },
+
+    cancel() {
+      this.hint = this.$t('hint')
+      this.clearShapes()
+      this.updateLayers()
+      this.showShapeDrawer = false
+    },
+
+    handleMapClick(object: any, event: any) {
+      if (object.coordinate) {
+        if (event.rightButton) {
+          this.points.pop()
+        } else {
+          this.points.push(object.coordinate)
+          this.hint = this.$t('close-shape')
+        }
+
+        this.updateLayers()
+      }
+    },
+
+    startNewPolygon() {
+      this.points = []
+      this.polygons.push({
         type: 'Feature',
         geometry: {
           type: 'Polygon',
           coordinates: [this.points],
         },
         finished: false,
-      },
-    ]
-  }
+      })
+    },
 
-  private layerManager!: LayerManager
-  private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
+    handlePointClick(object: any) {
+      if (object.index === 0) {
+        // close this polygon
+        this.points.push(this.points[0])
+        this.polygons[this.polygons.length - 1].finished = true
 
-  private get viewState() {
-    return this.$store.state.viewState
-  }
+        // start new polygon!
+        this.startNewPolygon()
 
-  @Watch('viewState') viewMoved() {
-    this.layerManager.deckInstance.setProps({ viewState: this.viewState })
-  }
-
-  @Watch('globalStore.state.isDarkMode') swapTheme() {
-    this.layerManager.updateStyle()
-  }
-
-  // @Watch('props')
-  // private handlePropsChanged() {
-  //   if (this.layerManager) this.updateLayers()
-  // }
-
-  private mounted() {
-    this.setupLayerManager()
-    this.updateLayers()
-  }
-
-  private beforeDestroy() {
-    this.layerManager.destroy()
-  }
-
-  private setupLayerManager() {
-    this.layerManager = new LayerManager()
-
-    this.layerManager.init({
-      container: `#${this.mapID}`,
-      viewState: this.$store.state.viewState,
-      pickingRadius: 3,
-      mapStyle: null, // globalStore.state.isDarkMode ? MAP_STYLES.dark : MAP_STYLES.light,
-      getCursor: ({ isDragging, isHovering }: any) =>
-        isDragging ? 'grabbing' : isHovering ? 'pointer' : 'crosshair',
-      onViewStateChange: ({ viewState }: any) => {
-        this.$store.commit('setMapCamera', viewState)
-      },
-      onClick: this.handleMapClick,
-    })
-  }
-
-  private exportIt() {
-    // only export closed polygons
-    this.polygons = this.polygons.filter(p => p.finished)
-    this.points = []
-    this.updateLayers()
-
-    const geojson = {
-      type: 'FeatureCollection',
-      features: this.polygons,
-    }
-
-    ShapeWriter.download(geojson, {
-      folder: 'shapefile-wgs84',
-      types: {
-        point: 'points',
-        polygon: 'polygons',
-        line: 'lines',
-      },
-    })
-
-    this.startNewPolygon()
-  }
-
-  private cancel() {
-    this.hint = this.$t('hint')
-    this.clearShapes()
-    this.updateLayers()
-    this.showShapeDrawer = false
-  }
-
-  private handleMapClick(object: any, event: any) {
-    if (object.coordinate) {
-      if (event.rightButton) {
-        this.points.pop()
-      } else {
-        this.points.push(object.coordinate)
-        this.hint = this.$t('close-shape')
+        // enable export
+        this.canExport = true
+        this.hint = this.$t('more-shapes')
+        this.updateLayers()
       }
+      return true // stop event
+    },
 
-      this.updateLayers()
-    }
-  }
+    handleViewState(view: any) {
+      this.$store.commit('setMapCamera', view)
+    },
 
-  private startNewPolygon() {
-    this.points = []
-    this.polygons.push({
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [this.points],
-      },
-      finished: false,
-    })
-  }
+    updateLayers() {
+      // view isn't picking the changes up, let's force it
+      const shapes = this.polygons.slice(0)
+      const dots = this.points.slice(0)
 
-  private handlePointClick(object: any) {
-    if (object.index === 0) {
-      // close this polygon
-      this.points.push(this.points[0])
-      this.polygons[this.polygons.length - 1].finished = true
+      this.layerManager.removeLayer('draw-polygon-layer')
+      this.layerManager.addLayer(
+        new GeoJsonLayer({
+          id: 'draw-polygon-layer',
+          data: shapes,
+          pickable: false,
+          stroked: true,
+          filled: true,
+          extruded: false,
+          lineWidthMinPixels: 4,
+          getFillColor: [175, 160, 255, 80],
+          getLineColor: [255, 0, 200],
+          getLineWidth: 10,
+          parameters: {
+            depthTest: false,
+          },
+        })
+      )
 
-      // start new polygon!
-      this.startNewPolygon()
-
-      // enable export
-      this.canExport = true
-      this.hint = this.$t('more-shapes')
-      this.updateLayers()
-    }
-    return true // stop event
-  }
-
-  private handleViewState(view: any) {
-    this.$store.commit('setMapCamera', view)
-  }
-
-  private updateLayers() {
-    // view isn't picking the changes up, let's force it
-    const shapes = this.polygons.slice(0)
-    const dots = this.points.slice(0)
-
-    this.layerManager.removeLayer('draw-polygon-layer')
-    this.layerManager.addLayer(
-      new GeoJsonLayer({
-        id: 'draw-polygon-layer',
-        data: shapes,
-        pickable: false,
-        stroked: true,
-        filled: true,
-        extruded: false,
-        lineWidthMinPixels: 4,
-        getFillColor: [175, 160, 255, 80],
-        getLineColor: [255, 0, 200],
-        getLineWidth: 10,
-        parameters: {
-          depthTest: false,
-        },
-      })
-    )
-
-    this.layerManager.removeLayer('scatterplot-layer')
-    this.layerManager.addLayer(
-      new ScatterplotLayer({
-        id: 'scatterplot-layer',
-        data: dots,
-        getPosition: (d: any) => d,
-        pickable: true,
-        stroked: true,
-        filled: true,
-        // autoHighlight: true,
-        radiusMinPixels: 6,
-        radiusMaxPixels: 6,
-        lineWidthMinPixels: 2,
-        getFillColor: [255, 0, 200],
-        getLineColor: [255, 255, 255],
-        opacity: 1.0,
-        onClick: this.handlePointClick,
-      })
-    )
-  }
-}
+      this.layerManager.removeLayer('scatterplot-layer')
+      this.layerManager.addLayer(
+        new ScatterplotLayer({
+          id: 'scatterplot-layer',
+          data: dots,
+          getPosition: (d: any) => d,
+          pickable: true,
+          stroked: true,
+          filled: true,
+          // autoHighlight: true,
+          radiusMinPixels: 6,
+          radiusMaxPixels: 6,
+          lineWidthMinPixels: 2,
+          getFillColor: [255, 0, 200],
+          getLineColor: [255, 255, 255],
+          opacity: 1.0,
+          onClick: this.handlePointClick,
+        })
+      )
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

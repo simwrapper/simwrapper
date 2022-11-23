@@ -68,8 +68,8 @@ export default defineComponent({
     },
   },
 
-  methods: {
-    get mapProps(): any {
+  computed: {
+    mapProps(): any {
       return {
         locations: this.centroids,
         flows: this.flows,
@@ -77,7 +77,8 @@ export default defineComponent({
         elapsed: this.elapsed,
       }
     },
-
+  },
+  methods: {
     viewMoved() {
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()

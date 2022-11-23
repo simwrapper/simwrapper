@@ -14,7 +14,7 @@ import type { PropType } from 'vue'
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
-import { buildCleanTitle } from '@/charts/allCharts'
+import { buildCleanTitle } from './_allPanels'
 
 import globalStore from '@/store'
 
