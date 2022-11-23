@@ -551,7 +551,10 @@ async function loadFiles() {
       await parseVariousFileTypes(inputFile, filename, text)
     } catch (e) {
       console.error(e)
-      postMessage({ response: 'error', message: `${inputFile}: Error loading "${filename}"` })
+      postMessage({
+        response: 'error',
+        message: `${inputFile} : Error loading "${filename}" from "${_yamlFile}"`,
+      })
     }
   }
 }
