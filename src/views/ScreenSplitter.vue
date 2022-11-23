@@ -49,7 +49,7 @@
         :ref="`dragContainer${x}-${y}`"
         :style="getContainerStyle(panel,x,y)"
       )
-        .tile-header.flex-row(v-if="panel.component !== 'SplashPage'")
+        .tile-header.flex-row(v-if="getShowHeader(panel)")
 
           .tile-labels
             h3 {{ panel.title }}
@@ -73,7 +73,7 @@
               title="Close"
             ): i.fa.fa-times-circle
 
-        //- this is the actual viz component:
+        //- here is the actual viz component:
         component.map-tile(
           :is="panel.component"
           :style="getTileStyle(panel)"
@@ -507,6 +507,14 @@ class MyComponent extends Vue {
     delete this.panels[y][x].props.yamlConfig
 
     this.updateURL()
+  }
+
+  private getShowHeader(panel: any) {
+    // whether or not to show the panel header is a bit convoluted:
+    if (panel.component === 'SplashPage') return false
+    if (this.showLeftBar) return true
+    if (this.panels.length == 1 && this.panels[0].length == 1) return false
+    return true
   }
 
   private updateURL() {
