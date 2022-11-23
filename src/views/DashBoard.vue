@@ -348,14 +348,13 @@ export default class VueComponent extends Vue {
 
   private setupNarrowPanelObserver() {
     const dashboard = document.getElementById(this.viewId) as HTMLElement
-    console.log(777, dashboard)
     this.narrowPanelObserver = new ResizeObserver(this.handleResize2)
     this.narrowPanelObserver.observe(dashboard)
   }
 
   private handleResize2() {
     const dashboard = document.getElementById(this.viewId) as HTMLElement
-    this.isPanelNarrow = dashboard.clientWidth < 800
+    if (dashboard) this.isPanelNarrow = dashboard.clientWidth < 800
   }
 
   private getRowClass(row: any) {

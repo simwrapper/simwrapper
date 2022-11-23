@@ -331,7 +331,6 @@ export default defineComponent({
     updateRoute() {
       if (!this.root) return
 
-      console.log(222, 'UPDATEROUTE()')
       const svnProject = this.getFileSystem(this.root)
 
       this.myState.svnProject = svnProject
@@ -621,7 +620,6 @@ export default defineComponent({
 
       try {
         this.allConfigFiles = await this.findAllConfigsAndDashboards()
-        console.log(333, this.allConfigFiles)
         const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
         // hide dot folders
