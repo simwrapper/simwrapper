@@ -46,7 +46,7 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
 
@@ -55,99 +55,109 @@ enum Corner {
   BOTTOM,
 }
 
-@Component({ i18n, components: { MapScale } })
-export default class VueComponent extends Vue {
-  @Prop({ required: false }) corner!: string
-
-  private zoomInFactor = 0.5
-  private zoomOutFactor = 0.5
-  private maxZoomIn = 20
-  private maxZoomOut = 0
-  private arrowRotation = 0
-
-  private location = Corner.TOP
-
-  private smooth = [
-    0.0125, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.975, 0.9875,
-    1.0,
-  ]
-
-  private globalState = globalStore.state
-
-  private mounted() {
+export default defineComponent({
+  name: 'ZoomButtons',
+  i18n,
+  components: { MapScale },
+  props: {
+    corner: String,
+  },
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      zoomInFactor: 0.5,
+      zoomOutFactor: 0.5,
+      maxZoomIn: 20,
+      maxZoomOut: 0,
+      arrowRotation: 0,
+      location: Corner.TOP,
+      smooth: [
+        0.0125, 0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.975,
+        0.9875, 1.0,
+      ],
+    }
+  },
+  mounted() {
     // default zoom buttons are in bottom-right
     if (this.corner && this.corner.startsWith('top')) this.location = Corner.TOP
     if (this.corner && this.corner.startsWith('bottom')) this.location = Corner.BOTTOM
-  }
+  },
+  watch: {
+    'globalState.viewState.bearing'() {
+      this.updateNorthArrow()
+    },
+  },
+  computed: {
+    cornerSettings(): any {
+      let style = {
+        display: 'flex',
+        right: '7px',
+      }
 
-  private get cornerSettings() {
-    let style = {
-      display: 'flex',
-      right: '7px',
-    }
-
-    if (this.location == Corner.TOP) {
-      style = Object.assign(style, {
-        flexDirection: 'row',
-        top: '5px',
-      })
-    }
-
-    if (this.location == Corner.BOTTOM) {
-      style = Object.assign(style, {
-        flexDirection: 'column-reverse',
-        bottom: '32px',
-      })
-    }
-
-    return style
-  }
-
-  private setNorth() {
-    const currentMapDirection = globalStore.state.viewState
-    for (let i = 0; i < this.smooth.length; i++) {
-      setTimeout(() => {
-        const mergedMap = Object.assign({}, currentMapDirection, {
-          bearing: currentMapDirection.bearing - this.smooth[i] * currentMapDirection.bearing,
-          pitch: currentMapDirection.pitch - this.smooth[i] * currentMapDirection.pitch,
+      if (this.location == Corner.TOP) {
+        style = Object.assign(style, {
+          flexDirection: 'row',
+          top: '5px',
         })
-        globalStore.commit('setMapCamera', mergedMap)
-      }, 24 * i)
-    }
-  }
+      }
 
-  private zoomIn() {
-    let currentZoom = globalStore.state.viewState.zoom
-    if (currentZoom + this.zoomInFactor <= this.maxZoomIn) {
+      if (this.location == Corner.BOTTOM) {
+        style = Object.assign(style, {
+          flexDirection: 'column-reverse',
+          bottom: '32px',
+        })
+      }
+
+      return style
+    },
+  },
+  methods: {
+    setNorth() {
+      const currentMapDirection = globalStore.state.viewState
       for (let i = 0; i < this.smooth.length; i++) {
         setTimeout(() => {
-          const newDirection = { zoom: currentZoom + this.smooth[i] * this.zoomInFactor }
-          const currentMapDirection = globalStore.state.viewState
-          const mergedMap = Object.assign({}, currentMapDirection, newDirection)
+          const mergedMap = Object.assign({}, currentMapDirection, {
+            bearing: currentMapDirection.bearing - this.smooth[i] * currentMapDirection.bearing,
+            pitch: currentMapDirection.pitch - this.smooth[i] * currentMapDirection.pitch,
+          })
           globalStore.commit('setMapCamera', mergedMap)
-        }, 16.67 * i)
+        }, 24 * i)
       }
-    }
-  }
+    },
 
-  private zoomOut() {
-    var currentZoom = globalStore.state.viewState.zoom
-    if (currentZoom - this.zoomOutFactor >= this.maxZoomOut) {
-      for (let i = 0; i < this.smooth.length; i++) {
-        setTimeout(() => {
-          const newDirection = { zoom: currentZoom - this.smooth[i] * this.zoomInFactor }
-          const currentMapDirection = globalStore.state.viewState
-          const mergedMap = Object.assign({}, currentMapDirection, newDirection)
-          globalStore.commit('setMapCamera', mergedMap)
-        }, 16.67 * i)
+    zoomIn() {
+      let currentZoom = globalStore.state.viewState.zoom
+      if (currentZoom + this.zoomInFactor <= this.maxZoomIn) {
+        for (let i = 0; i < this.smooth.length; i++) {
+          setTimeout(() => {
+            const newDirection = { zoom: currentZoom + this.smooth[i] * this.zoomInFactor }
+            const currentMapDirection = globalStore.state.viewState
+            const mergedMap = Object.assign({}, currentMapDirection, newDirection)
+            globalStore.commit('setMapCamera', mergedMap)
+          }, 16.67 * i)
+        }
       }
-    }
-  }
+    },
 
-  @Watch('globalState.viewState.bearing') updateNorthArrow() {
-    this.arrowRotation = -1 * this.globalState.viewState.bearing
-  }
-}
+    zoomOut() {
+      var currentZoom = globalStore.state.viewState.zoom
+      if (currentZoom - this.zoomOutFactor >= this.maxZoomOut) {
+        for (let i = 0; i < this.smooth.length; i++) {
+          setTimeout(() => {
+            const newDirection = { zoom: currentZoom - this.smooth[i] * this.zoomInFactor }
+            const currentMapDirection = globalStore.state.viewState
+            const mergedMap = Object.assign({}, currentMapDirection, newDirection)
+            globalStore.commit('setMapCamera', mergedMap)
+          }, 16.67 * i)
+        }
+      }
+    },
+
+    updateNorthArrow() {
+      this.arrowRotation = -1 * this.globalState.viewState.bearing
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

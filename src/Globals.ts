@@ -122,7 +122,7 @@ export interface FileSystemConfig {
 }
 
 export interface VisualizationPlugin {
-  component: Vue.VueConstructor
+  component: any
   kebabName: string
   prettyName: string
   description?: string

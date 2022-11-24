@@ -62,7 +62,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import YAML from 'yaml'
 import { startCase } from 'lodash'
 
@@ -80,7 +81,8 @@ import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import FiltersPanel from './Filters.vue'
 
-@Component({
+export default defineComponent({
+  name: 'VizConfigurator',
   components: {
     AddDatasetsPanel,
     CircleRadiusPanel,
@@ -93,238 +95,240 @@ import FiltersPanel from './Filters.vue'
     LineWidthPanel,
     FiltersPanel,
   },
-  props: {},
-})
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) vizDetails: any
-  @Prop({ required: true }) datasets: any
-  @Prop({ required: true }) fileSystem!: HTTPFileSystem
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) yamlConfig!: string
-  @Prop({ required: false }) sections!: string[]
-  @Prop({ required: true }) legendStore!: LegendStore
-  @Prop({ required: false }) embedded!: boolean
-
-  private showPanels = false
-  private showLegend = false
-
-  private activeSection = this.sections ? this.sections[0] : 'color'
-
-  private mounted() {
-    if (this.embedded) this.showLegend = true
-  }
-
-  private getSections() {
-    if (this.sections) {
-      return this.sections.map(section => {
-        const camelCaseName = startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
-        return { component: camelCaseName, name: section.replaceAll('-', ' ') }
-      })
-    } else {
-      return [
-        { component: 'ColorPanel', name: 'color' },
-        { component: 'WidthPanel', name: 'width' },
-        // { component: 'FillPanel', name: 'fill' },
-      ]
-    }
-  }
-
-  private get vizConfiguration() {
+  props: {
+    vizDetails: { type: Object as any, required: true },
+    datasets: { type: Object as any, required: true },
+    fileSystem: { type: Object as PropType<HTTPFileSystem>, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: { type: String, required: true },
+    legendStore: { type: Object as PropType<LegendStore>, required: true },
+    sections: { type: Array as PropType<string[]> },
+    embedded: Boolean,
+  },
+  data: () => {
     return {
-      datasets: this.vizDetails.datasets,
-      display: this.vizDetails.display,
-      filters: this.vizDetails.filters,
+      showPanels: false,
+      showLegend: false,
+      activeSection: '',
+      showAddDatasets: false,
+      selectedExportAction: '',
+      layer: {
+        general: {
+          type: 'links',
+          dataset: 'network.geojson',
+          columns: {},
+        },
+        display: {
+          lineColor: {},
+          color: {},
+          lineWidth: {},
+          radius: {},
+          fill: {},
+          label: {},
+          fillHeight: {},
+        },
+      },
     }
-  }
-
-  private get fidgetSections() {
-    return Object.keys(this.layer.display)
-  }
-
-  private clickedShowHide() {
-    this.showPanels = !this.showPanels
-  }
-
-  private clickedLegendShowHide() {
-    this.showLegend = !this.showLegend
-  }
-
-  private clickedSection(section: string) {
-    if (section === this.activeSection) this.activeSection = ''
-    else this.activeSection = section
-  }
-
-  private async handleConfigChanged(props: any) {
-    this.showAddDatasets = false
-    await this.$nextTick()
-    this.$emit('update', props)
-  }
-
-  private layer = {
-    general: {
-      type: 'links',
-      dataset: 'network.geojson',
-      columns: {},
+  },
+  mounted() {
+    this.activeSection = this.sections ? this.sections[0] : 'color'
+    if (this.embedded) this.showLegend = true
+  },
+  computed: {
+    vizConfiguration(): any {
+      return {
+        datasets: this.vizDetails.datasets,
+        display: this.vizDetails.display,
+        filters: this.vizDetails.filters,
+      }
     },
-    display: {
-      lineColor: {},
-      color: {},
-      lineWidth: {},
-      radius: {},
-      fill: {},
-      label: {},
-      fillHeight: {},
+
+    fidgetSections(): any[] {
+      return Object.keys(this.layer.display)
     },
-  }
-
-  private showAddDatasets = false
-  private selectedExportAction = ''
-
-  private clickedAddData() {
-    this.showAddDatasets = true
-  }
-
-  private async clickedExport() {
-    await this.$nextTick()
-    if (this.selectedExportAction == 'yaml') {
-      this.exportYaml()
-    } else if (this.selectedExportAction == 'png') {
-      this.$emit('screenshot')
-    }
-    this.selectedExportAction = ''
-  }
-
-  private exportYaml() {
-    let suggestedFilename = 'viz-viztype-config.yaml'
-    const configFile = this.yamlConfig.toLocaleLowerCase()
-
-    if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
-      suggestedFilename = this.yamlConfig
-    }
-
-    if (configFile.endsWith('shp')) {
-      suggestedFilename = `viz-map-${configFile}.yaml`
-    }
-
-    const filename = prompt('Export filename:', suggestedFilename)
-    if (!filename) return
-
-    // make a copy so we don't screw up the viz when we edit, and also
-    // to put things in a specific order every time:
-    const config = {
-      title: this.vizDetails.title,
-      description: this.vizDetails.description,
-      zoom: Math.round(10 * this.$store.state.viewState.zoom) / 10,
-      pitch: Math.round(this.$store.state.viewState.pitch),
-      bearing: Math.round(this.$store.state.viewState.bearing),
-      center: [
-        Math.round(100 * this.$store.state.viewState.center[0]) / 100,
-        Math.round(100 * this.$store.state.viewState.center[1]) / 100,
-      ],
-      network: this.vizDetails.network || this.vizDetails.geojsonFile,
-      projection: this.vizDetails.projection,
-      showDifferences: this.vizDetails.showDifferences,
-      sampleRate: this.vizDetails.sampleRate,
-      shapes: this.vizDetails.shapes?.file || this.vizDetails.shapes,
-      datasets: { ...this.vizDetails.datasets },
-      display: { ...this.vizDetails.display },
-    } as any
-
-    // remove pitch and bearing if they're zero
-    if (!this.$store.state.viewState.bearing) delete config.bearing
-    if (!this.$store.state.viewState.pitch) delete config.pitch
-
-    // remove shapefile itself from list of datasets
-    const shapeFilename = config.shapes?.substring(1 + config.shapes.indexOf('/'))
-    if (config.datasets[shapeFilename]) delete config.datasets[shapeFilename]
-
-    // remove blank and false values
-    for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
-    if (config.display.color) {
-      delete config.display.color?.colorRamp?.style
-      delete config.display.color?.fixedColors
-    }
-    if (config.display.fill) {
-      if (config.display.fill.colorRamp) {
-        delete config.display.fill.colorRamp?.style
-        delete config.display.fill.fixedColors
-        if (!config.display.fill.colorRamp.reverse) {
-          delete config.display.fill.colorRamp.reverse
-        }
+  },
+  methods: {
+    getSections() {
+      if (this.sections) {
+        return this.sections.map(section => {
+          const camelCaseName =
+            startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
+          return { component: camelCaseName, name: section.replaceAll('-', ' ') }
+        })
       } else {
-        delete config.display.fill.filters
-        delete config.display.fill.dataset
-        delete config.display.fill.columnName
+        return [
+          { component: 'ColorPanel', name: 'color' },
+          { component: 'WidthPanel', name: 'width' },
+          // { component: 'FillPanel', name: 'fill' },
+        ]
       }
-    }
-    if (config.display.lineColor) {
-      if (config.display.lineColor.colorRamp) {
-        delete config.display.lineColor.colorRamp?.style
-        delete config.display.lineColor.fixedColors
-        if (!config.display.lineColor.colorRamp.reverse) {
-          delete config.display.lineColor.colorRamp.reverse
+    },
+
+    clickedShowHide() {
+      this.showPanels = !this.showPanels
+    },
+
+    clickedLegendShowHide() {
+      this.showLegend = !this.showLegend
+    },
+
+    clickedSection(section: string) {
+      if (section === this.activeSection) this.activeSection = ''
+      else this.activeSection = section
+    },
+
+    async handleConfigChanged(props: any) {
+      this.showAddDatasets = false
+      await this.$nextTick()
+      this.$emit('update', props)
+    },
+
+    clickedAddData() {
+      this.showAddDatasets = true
+    },
+
+    async clickedExport() {
+      await this.$nextTick()
+      if (this.selectedExportAction == 'yaml') {
+        this.exportYaml()
+      } else if (this.selectedExportAction == 'png') {
+        this.$emit('screenshot')
+      }
+      this.selectedExportAction = ''
+    },
+
+    exportYaml() {
+      let suggestedFilename = 'viz-viztype-config.yaml'
+      const configFile = this.yamlConfig.toLocaleLowerCase()
+
+      if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
+        suggestedFilename = this.yamlConfig
+      }
+
+      if (configFile.endsWith('shp')) {
+        suggestedFilename = `viz-map-${configFile}.yaml`
+      }
+
+      const filename = prompt('Export filename:', suggestedFilename)
+      if (!filename) return
+
+      // make a copy so we don't screw up the viz when we edit, and also
+      // to put things in a specific order every time:
+      const config = {
+        title: this.vizDetails.title,
+        description: this.vizDetails.description,
+        zoom: Math.round(10 * this.$store.state.viewState.zoom) / 10,
+        pitch: Math.round(this.$store.state.viewState.pitch),
+        bearing: Math.round(this.$store.state.viewState.bearing),
+        center: [
+          Math.round(100 * this.$store.state.viewState.center[0]) / 100,
+          Math.round(100 * this.$store.state.viewState.center[1]) / 100,
+        ],
+        network: this.vizDetails.network || this.vizDetails.geojsonFile,
+        projection: this.vizDetails.projection,
+        showDifferences: this.vizDetails.showDifferences,
+        sampleRate: this.vizDetails.sampleRate,
+        shapes: this.vizDetails.shapes?.file || this.vizDetails.shapes,
+        datasets: { ...this.vizDetails.datasets },
+        display: { ...this.vizDetails.display },
+      } as any
+
+      // remove pitch and bearing if they're zero
+      if (!this.$store.state.viewState.bearing) delete config.bearing
+      if (!this.$store.state.viewState.pitch) delete config.pitch
+
+      // remove shapefile itself from list of datasets
+      const shapeFilename = config.shapes?.substring(1 + config.shapes.indexOf('/'))
+      if (config.datasets[shapeFilename]) delete config.datasets[shapeFilename]
+
+      // remove blank and false values
+      for (const prop of Object.keys(config)) if (!config[prop]) delete config[prop]
+      if (config.display.color) {
+        delete config.display.color?.colorRamp?.style
+        delete config.display.color?.fixedColors
+      }
+      if (config.display.fill) {
+        if (config.display.fill.colorRamp) {
+          delete config.display.fill.colorRamp?.style
+          delete config.display.fill.fixedColors
+          if (!config.display.fill.colorRamp.reverse) {
+            delete config.display.fill.colorRamp.reverse
+          }
+        } else {
+          delete config.display.fill.filters
+          delete config.display.fill.dataset
+          delete config.display.fill.columnName
         }
-      } else {
-        delete config.display.lineColor.dataset
-        delete config.display.lineColor.columnName
       }
-    }
-
-    // diff mode
-    for (const panel of ['fill', 'lineColor', 'lineWidth']) {
-      const section = config.display[panel]
-      if (!section) continue
-
-      if (!section.normalize) delete section.normalize
-      if (!section.relative) delete section.relative
-
-      if (section.diffDatasets) {
-        section.diff = `${section.diffDatasets[0]} - ${section.diffDatasets[1]}`
-        delete section.dataset
-        delete section.diffDatasets
-        // reorder elements
-        const topElements = { diff: section.diff, columnName: section.columnName } as any
-        if (section.relative) topElements.relative = true
-        config.display[panel] = Object.assign(topElements, section)
-      }
-    }
-
-    // clean up datasets filenames
-    if (config.datasets) {
-      for (const [key, filenameOrObject] of Object.entries(config.datasets) as any[]) {
-        if (typeof filenameOrObject.file === 'object') {
-          config.datasets[key].file = filenameOrObject.file?.name || filenameOrObject.file || key
+      if (config.display.lineColor) {
+        if (config.display.lineColor.colorRamp) {
+          delete config.display.lineColor.colorRamp?.style
+          delete config.display.lineColor.fixedColors
+          if (!config.display.lineColor.colorRamp.reverse) {
+            delete config.display.lineColor.colorRamp.reverse
+          }
+        } else {
+          delete config.display.lineColor.dataset
+          delete config.display.lineColor.columnName
         }
       }
-    }
 
-    // delete empty display sections
-    for (const entries of Object.entries(config.display) as any[]) {
-      console.log(entries)
-      if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
-    }
+      // diff mode
+      for (const panel of ['fill', 'lineColor', 'lineWidth']) {
+        const section = config.display[panel]
+        if (!section) continue
 
-    // filters
-    if (this.vizDetails.filters) {
-      config.filters = Object.assign({}, this.vizDetails.filters)
-    }
+        if (!section.normalize) delete section.normalize
+        if (!section.relative) delete section.relative
 
-    const text = YAML.stringify(config, {
-      indent: 4,
-      simpleKeys: true,
-    })
+        if (section.diffDatasets) {
+          section.diff = `${section.diffDatasets[0]} - ${section.diffDatasets[1]}`
+          delete section.dataset
+          delete section.diffDatasets
+          // reorder elements
+          const topElements = { diff: section.diff, columnName: section.columnName } as any
+          if (section.relative) topElements.relative = true
+          config.display[panel] = Object.assign(topElements, section)
+        }
+      }
 
-    var element = document.createElement('a')
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
-    element.setAttribute('download', filename)
-    element.style.display = 'none'
-    document.body.appendChild(element)
+      // clean up datasets filenames
+      if (config.datasets) {
+        for (const [key, filenameOrObject] of Object.entries(config.datasets) as any[]) {
+          if (typeof filenameOrObject.file === 'object') {
+            config.datasets[key].file = filenameOrObject.file?.name || filenameOrObject.file || key
+          }
+        }
+      }
 
-    element.click()
+      // delete empty display sections
+      for (const entries of Object.entries(config.display) as any[]) {
+        console.log(entries)
+        if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
+      }
 
-    document.body.removeChild(element)
-  }
-}
+      // filters
+      if (this.vizDetails.filters) {
+        config.filters = Object.assign({}, this.vizDetails.filters)
+      }
+
+      const text = YAML.stringify(config, {
+        indent: 4,
+        simpleKeys: true,
+      })
+
+      var element = document.createElement('a')
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text))
+      element.setAttribute('download', filename)
+      element.style.display = 'none'
+      document.body.appendChild(element)
+
+      element.click()
+
+      document.body.removeChild(element)
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

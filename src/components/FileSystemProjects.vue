@@ -13,36 +13,40 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  private sources: FileSystemConfig[] = []
-
-  private mounted() {
+export default defineComponent({
+  name: 'FileSystemComponents',
+  data: () => {
+    return {
+      sources: [] as FileSystemConfig[],
+    }
+  },
+  mounted() {
     this.sources = globalStore.state.svnProjects.filter(
       source => !source.hidden && !source.slug.startsWith('fs')
     )
-  }
+  },
+  methods: {
+    openProjectPage(source: FileSystemConfig) {
+      const destination: any = Object.assign({}, source)
 
-  private openProjectPage(source: FileSystemConfig) {
-    const destination: any = Object.assign({}, source)
+      destination.component = 'TabbedDashboardView'
+      destination.props = {
+        root: source.slug,
+        xsubfolder: '',
+      }
+      this.$emit('navigate', destination)
+    },
 
-    destination.component = 'TabbedDashboardView'
-    destination.props = {
-      root: source.slug,
-      xsubfolder: '',
-    }
-    this.$emit('navigate', destination)
-  }
-
-  private openProjectTab(source: any) {
-    window.open(source, '_blank')
-  }
-}
+    openProjectTab(source: any) {
+      window.open(source, '_blank')
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

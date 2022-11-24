@@ -54,7 +54,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import debounce from 'debounce'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
@@ -68,181 +69,200 @@ export type LineWidthDefinition = {
   relative?: boolean
 }
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  @Prop() vizConfiguration!: VizLayerConfiguration
-  @Prop() datasets!: { [id: string]: DataTable }
+export default defineComponent({
+  name: 'LineWidthsConfig',
+  props: {
+    vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
+    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+  },
+  data: () => {
+    const transforms = ['none', 'sqrt', 'pow5']
 
-  private transforms = ['none', 'sqrt', 'pow5']
-  private dataColumn = ''
-  private scaleFactor = '1'
-  private selectedTransform = this.transforms[0]
-
-  private datasetLabels = [] as string[]
-  private diffDatasets: string[] = []
-  private diffRelative = false
-
-  private mounted() {
+    return {
+      dataColumn: '',
+      scaleFactor: '1',
+      selectedTransform: transforms[0],
+      datasetLabels: [] as string[],
+      diffDatasets: [] as string[],
+      diffRelative: false,
+      diffUISelection: '',
+      diffChoices: [] as any[],
+      isCurrentlyDiffMode: false,
+      debounceHandleScaleChanged: {} as any,
+    }
+  },
+  mounted() {
+    this.debounceHandleScaleChanged = debounce(this.handleScaleChanged, 500)
     this.datasetsAreLoaded()
     this.vizConfigChanged()
-  }
+  },
+  watch: {
+    vizConfiguration() {
+      this.vizConfigChanged()
+    },
+    dataColumn() {
+      this.emitSpecification()
+    },
+    diffDatasets() {
+      this.emitSpecification()
+    },
+    diffRelative() {
+      this.emitSpecification()
+    },
+    datasets() {
+      this.datasetsAreLoaded()
+    },
+    diffUISelection() {
+      this.diffSelectionChanged()
+    },
+    scaleFactor() {
+      this.debounceHandleScaleChanged()
+    },
+  },
+  methods: {
+    vizConfigChanged() {
+      const config = this.vizConfiguration.display?.lineWidth
 
-  @Watch('vizConfiguration')
-  private vizConfigChanged() {
-    const config = this.vizConfiguration.display?.lineWidth
+      this.setupDiffMode(config)
 
-    this.setupDiffMode(config)
+      if (config?.columnName) {
+        this.dataColumn = this.diffDatasets.length
+          ? `${this.diffDatasets[0]}/${config.columnName}`
+          : `${config.dataset}/${config.columnName}`
 
-    if (config?.columnName) {
-      this.dataColumn = this.diffDatasets.length
-        ? `${this.diffDatasets[0]}/${config.columnName}`
-        : `${config.dataset}/${config.columnName}`
+        this.datasetLabels = [...this.datasetLabels]
+        this.scaleFactor = config.scaleFactor
+      }
+    },
+    setupDiffMode(config: LineWidthDefinition) {
+      if (!config?.diff) return
 
-      this.datasetLabels = [...this.datasetLabels]
-      this.scaleFactor = config.scaleFactor
-    }
-  }
+      let diffPieces: string[] = []
 
-  private setupDiffMode(config: LineWidthDefinition) {
-    if (!config?.diff) return
+      if (config.diff.indexOf(' - ') > -1) {
+        diffPieces = config.diff.split(' - ').map(p => p.trim())
+      } else {
+        diffPieces = config.diff.split('-').map(p => p.trim())
+        if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+      }
 
-    let diffPieces: string[] = []
+      this.diffDatasets = diffPieces
+      this.diffRelative = !!config.relative
+      this.diffUISelection = `${diffPieces[0]} - ${diffPieces[1]}`
+    },
 
-    if (config.diff.indexOf(' - ') > -1) {
-      diffPieces = config.diff.split(' - ').map(p => p.trim())
-    } else {
-      diffPieces = config.diff.split('-').map(p => p.trim())
-      if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
-    }
+    datasetsAreLoaded() {
+      const datasetIds = Object.keys(this.datasets)
+      this.datasetLabels = datasetIds
+      this.updateDiffLabels()
 
-    this.diffDatasets = diffPieces
-    this.diffRelative = !!config.relative
-    this.diffUISelection = `${diffPieces[0]} - ${diffPieces[1]}`
-  }
+      // const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
+      // if (dataset && columnName) {
+      //   console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
+      //   this.dataColumn = `${dataset}/${columnName}`
+      //   if (!!scaleFactor) this.xscaleFactor = '' + scaleFactor
+      // } else if (datasetIds.length) {
+      //   const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
+      //   if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
+      // }
+    },
+    updateDiffLabels() {
+      const choices = []
 
-  @Watch('datasets')
-  private datasetsAreLoaded() {
-    const datasetIds = Object.keys(this.datasets)
-    this.datasetLabels = datasetIds
-    this.updateDiffLabels()
+      choices.push(['No', ''])
+      if (this.datasetLabels.length <= 1) return
 
-    // const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
-    // if (dataset && columnName) {
-    //   console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
-    //   this.dataColumn = `${dataset}/${columnName}`
-    //   if (!!scaleFactor) this.xscaleFactor = '' + scaleFactor
-    // } else if (datasetIds.length) {
-    //   const secondColumn = Object.keys(this.datasets[datasetIds[0]])[1]
-    //   if (secondColumn) this.dataColumn = `${datasetIds[0]}/${secondColumn}`
-    // }
-  }
+      // create all combinations of x-y and y-x
+      const nonShapefileDatasets = this.datasetLabels.slice(1)
+      let combos = nonShapefileDatasets.flatMap((v, i) =>
+        nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+      )
+      combos.forEach(combo => choices.push([combo, combo]))
 
-  private diffUISelection = ''
-  private diffChoices = [] as any[]
+      nonShapefileDatasets.reverse()
+      combos = nonShapefileDatasets.flatMap((v, i) =>
+        nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
+      )
+      combos.forEach(combo => choices.push([combo, combo]))
 
-  private updateDiffLabels() {
-    const choices = []
+      this.diffChoices = choices
+    },
 
-    choices.push(['No', ''])
-    if (this.datasetLabels.length <= 1) return
+    diffSelectionChanged() {
+      if (this.diffUISelection) {
+        const pieces = this.diffUISelection.split(' - ')
+        this.diffDatasets = pieces
+      } else {
+        this.diffDatasets = []
+        this.diffRelative = false
+      }
+      this.isCurrentlyDiffMode = !!this.diffUISelection
+    },
 
-    // create all combinations of x-y and y-x
-    const nonShapefileDatasets = this.datasetLabels.slice(1)
-    let combos = nonShapefileDatasets.flatMap((v, i) =>
-      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
-    )
-    combos.forEach(combo => choices.push([combo, combo]))
+    handleScaleChanged() {
+      this.emitSpecification()
+    },
 
-    nonShapefileDatasets.reverse()
-    combos = nonShapefileDatasets.flatMap((v, i) =>
-      nonShapefileDatasets.slice(i + 1).map(w => v + ' - ' + w)
-    )
-    combos.forEach(combo => choices.push([combo, combo]))
+    emitSpecification() {
+      // no width? ignore this
+      if (!this.dataColumn) return
 
-    this.diffChoices = choices
-  }
+      const slash = this.dataColumn.indexOf('/')
 
-  private isCurrentlyDiffMode = false
+      if (slash === -1) {
+        this.clickedSingle()
+        return
+      }
 
-  @Watch('diffUISelection')
-  private diffSelectionChanged() {
-    if (this.diffUISelection) {
-      const pieces = this.diffUISelection.split(' - ')
-      this.diffDatasets = pieces
-    } else {
-      this.diffDatasets = []
-      this.diffRelative = false
-    }
-    this.isCurrentlyDiffMode = !!this.diffUISelection
-  }
+      const dataset = this.dataColumn.substring(0, slash)
+      const columnName = this.dataColumn.substring(slash + 1)
 
-  @Watch('scaleFactor')
-  private handleScaleChanged = debounce(() => {
-    this.emitSpecification()
-  }, 500)
+      const lineWidth: LineWidthDefinition = {
+        dataset,
+        columnName,
+        scaleFactor: parseFloat(this.scaleFactor),
+      } as any
 
-  @Watch('dataColumn')
-  @Watch('diffDatasets')
-  @Watch('diffRelative')
-  private emitSpecification() {
-    // no width? ignore this
-    if (!this.dataColumn) return
+      if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
+      if (this.diffRelative) lineWidth.relative = true
 
-    const slash = this.dataColumn.indexOf('/')
+      setTimeout(() => this.$emit('update', { lineWidth }), 25)
+    },
 
-    if (slash === -1) {
-      this.clickedSingle()
-      return
-    }
+    clickedSingle() {
+      // console.log('SINGLE', this.dataColumn)
+      const lineWidth: LineWidthDefinition = {
+        dataset: '',
+        columnName: '',
+        scaleFactor: parseFloat(this.scaleFactor),
+      }
 
-    const dataset = this.dataColumn.substring(0, slash)
-    const columnName = this.dataColumn.substring(slash + 1)
+      const simpleWidth = /^@\d$/
+      if (simpleWidth.test(this.dataColumn)) {
+        lineWidth.dataset = this.dataColumn
+      }
 
-    const lineWidth: LineWidthDefinition = {
-      dataset,
-      columnName,
-      scaleFactor: parseFloat(this.scaleFactor),
-    } as any
+      // the link viewer is on main thread so lets make
+      // sure user gets some visual feedback
+      setTimeout(() => this.$emit('update', { lineWidth }), 25)
+    },
 
-    if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
-    if (this.diffRelative) lineWidth.relative = true
+    datasetChoices(): string[] {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
 
-    setTimeout(() => this.$emit('update', { lineWidth }), 25)
-  }
+    numericColumnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
 
-  private clickedSingle() {
-    // console.log('SINGLE', this.dataColumn)
-    const lineWidth: LineWidthDefinition = {
-      dataset: '',
-      columnName: '',
-      scaleFactor: parseFloat(this.scaleFactor),
-    }
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
 
-    const simpleWidth = /^@\d$/
-    if (simpleWidth.test(this.dataColumn)) {
-      lineWidth.dataset = this.dataColumn
-    }
-
-    // the link viewer is on main thread so lets make
-    // sure user gets some visual feedback
-    setTimeout(() => this.$emit('update', { lineWidth }), 25)
-  }
-
-  private datasetChoices(): string[] {
-    return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
-  }
-
-  private numericColumnsInDataset(datasetId: string): string[] {
-    const dataset = this.datasets[datasetId]
-    if (!dataset) return []
-
-    const allColumns = Object.keys(dataset).filter(
-      colName => dataset[colName].type !== DataType.LOOKUP
-    )
-
-    return allColumns
-  }
-}
+      return allColumns
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

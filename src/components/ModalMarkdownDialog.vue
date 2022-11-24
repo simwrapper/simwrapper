@@ -16,24 +16,29 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-import AnimationHelpText from '@/assets/animation-helptext.md'
+// import AnimationHelpText from '@/assets/animation-helptext.md'
 
-@Component({ components: { AnimationHelpText }, props: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) private title!: string
-  @Prop({ required: true }) private md!: string
-  @Prop({ required: true }) private buttons!: string[]
-
-  private html: string = ''
-
-  private mounted() {}
-
-  private clicked(msg: string) {
-    this.$emit('click', msg)
-  }
-}
+export default defineComponent({
+  name: 'ModalMarkdownDialog',
+  // components: { AnimationHelpText },
+  props: {
+    title: String,
+    md: String,
+    buttons: Array,
+  },
+  data: () => {
+    return {
+      html: '',
+    }
+  },
+  methods: {
+    clicked(msg: string) {
+      this.$emit('click', msg)
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

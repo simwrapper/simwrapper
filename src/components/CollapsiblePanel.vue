@@ -25,25 +25,29 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component
-export default class VueComponent extends Vue {
-  @Prop({ required: false })
-  private initialCollapsed!: boolean
-
-  @Prop({ required: true })
-  private direction!: string
-
-  @Prop({ required: false })
-  private locked!: boolean
-
-  private collapsed = this.initialCollapsed === undefined ? false : this.initialCollapsed
-
-  private handleClick() {
-    this.collapsed = !this.collapsed
-  }
-}
+export default defineComponent({
+  name: 'CollapsiblePanel',
+  props: {
+    initialCollapsed: Boolean,
+    direction: String,
+    locked: Boolean,
+  },
+  data: () => {
+    return {
+      collapsed: false,
+    }
+  },
+  mounted() {
+    this.collapsed = !!this.initialCollapsed
+  },
+  methods: {
+    handleClick() {
+      this.collapsed = !this.collapsed
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

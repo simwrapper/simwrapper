@@ -14,18 +14,17 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
 
-@Component({
-  components: {
-    ToggleButton,
+export default defineComponent({
+  name: 'SettingsPanelComponent',
+  components: { ToggleButton },
+  props: {
+    items: { type: Object as PropType<{ [label: string]: boolean }>, required: true },
   },
 })
-export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private items!: { [label: string]: boolean }
-}
 </script>
 
 <style scoped lang="scss">

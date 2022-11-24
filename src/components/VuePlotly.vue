@@ -3,20 +3,35 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import Plotly from 'plotly.js/dist/plotly-cartesian'
 
 let plotlyCounter = 0
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) data!: any[]
-  @Prop({ required: true }) layout!: any
-  @Prop({ required: true }) options!: any
-
-  private plotlyId = '__plotly__'
-
-  private async mounted() {
+export default defineComponent({
+  name: 'VuePlotlyComponent',
+  props: {
+    data: { type: Array, required: true },
+    layout: { type: Object, required: true },
+    options: { type: Object, required: true },
+  },
+  data: () => {
+    return {
+      plotlyId: '__plotly__',
+    }
+  },
+  watch: {
+    data() {
+      this.updatePlot()
+    },
+    layout() {
+      this.updatePlot()
+    },
+    options() {
+      this.updatePlot()
+    },
+  },
+  async mounted() {
     plotlyCounter += 1
     this.plotlyId = `plotly-${plotlyCounter}`
 
@@ -28,21 +43,18 @@ export default class VueComponent extends Vue {
     myPlot.on('plotly_click', (data: any) => {
       this.$emit('click', data)
     })
-  }
-
-  private handleClick(click: any) {
-    console.log(click)
-  }
-
-  @Watch('data')
-  @Watch('layout')
-  @Watch('options')
-  private updatePlot() {
-    try {
-      Plotly.react(this.plotlyId, this.data, this.layout, this.options)
-    } catch (e) {
-      // can error if layout changes before plot is plotted. Ignore.
-    }
-  }
-}
+  },
+  methods: {
+    handleClick(click: any) {
+      console.log(click)
+    },
+    updatePlot() {
+      try {
+        Plotly.react(this.plotlyId, this.data, this.layout, this.options)
+      } catch (e) {
+        // can error if layout changes before plot is plotted. Ignore.
+      }
+    },
+  },
+})
 </script>

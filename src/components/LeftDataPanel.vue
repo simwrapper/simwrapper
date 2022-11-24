@@ -15,27 +15,32 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component
-export default class LeftDataPanel extends Vue {
-  private isHidden = false
-  private isLeaving = false
-
-  @Prop({ type: String })
-  private title!: string
-
-  private toggleHidePanel() {
-    if (this.isHidden) this.isHidden = !this.isHidden
-    else {
-      this.isLeaving = true
-      setTimeout(() => {
-        this.isHidden = true
-        this.isLeaving = false
-      }, 300)
+export default defineComponent({
+  name: 'LeftDataPanel',
+  props: {
+    title: String,
+  },
+  data: () => {
+    return {
+      isHidden: false,
+      isLeaving: false,
     }
-  }
-}
+  },
+  methods: {
+    toggleHidePanel() {
+      if (this.isHidden) this.isHidden = !this.isHidden
+      else {
+        this.isLeaving = true
+        setTimeout(() => {
+          this.isHidden = true
+          this.isLeaving = false
+        }, 300)
+      }
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

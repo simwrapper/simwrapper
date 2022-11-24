@@ -1,5 +1,5 @@
 <template lang="pug">
-  .sidebar-page
+.sidebar-page
     section.sidebar-layout
       b-sidebar(
         type="is-light"
@@ -35,66 +35,71 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import globalStore from '@/store'
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  private globalState = globalStore.state
+export default defineComponent({
+  name: 'LoginPanel',
+  data: () => {
+    const projects = globalStore.state.svnProjects
 
-  private username = ''
-  private password = ''
-
-  private expandOnHover = true
-  private fullheight = true
-  private fullwidth = false
-  private mobile = 'reduce'
-  private reduce = false
-  private overlay = true
-  private right = false
-  private theme = 'is-light'
-  private projects = this.globalState.svnProjects
-  private subfolders = [{ name: 'hello' }]
-  private open = false
-
-  @Watch('globalState.needLoginForUrl') showLoginPanel() {
-    this.open = this.globalState.needLoginForUrl !== ''
-  }
-
-  @Watch('open') panelMayBeClosing() {
-    // clear the last login attempt on panel close
-    if (!this.open) globalStore.commit('requestLogin', '')
-  }
-
-  private get whichLogin() {
-    try {
-      const project = this.globalState.svnProjects.filter(
-        (p: any) => p.url === this.globalState.needLoginForUrl
-      )[0]
-      return project.name
-    } catch (e) {
-      // weird
+    return {
+      globalState: globalStore.state,
+      projects,
+      username: '',
+      password: '',
+      expandOnHover: true,
+      fullheight: true,
+      fullwidth: false,
+      mobile: 'reduce',
+      reduce: false,
+      overlay: true,
+      right: false,
+      theme: 'is-light',
+      subfolders: [{ name: 'hello' }],
+      open: false,
     }
-    return 'this site'
-  }
+  },
+  watch: {
+    'globalState.needLoginForUrl'() {
+      this.open = this.globalState.needLoginForUrl !== ''
+    },
 
-  private clickedLogin() {
-    // username/pw must never be stored in cookies or local storage.
-    // Just in memory.
-    globalStore.commit('setCredentials', {
-      url: this.globalState.needLoginForUrl,
-      username: this.username,
-      pw: this.password,
-    })
+    open() {
+      // clear the last login attempt on panel close
+      if (!this.open) globalStore.commit('requestLogin', '')
+    },
+  },
+  computed: {
+    whichLogin(): string {
+      try {
+        const project = this.globalState.svnProjects.filter(
+          (p: any) => p.url === this.globalState.needLoginForUrl
+        )[0]
+        return project.name
+      } catch (e) {
+        // weird
+      }
+      return 'this site'
+    },
+  },
+  methods: {
+    clickedLogin() {
+      // username/pw must never be stored in cookies or local storage.
+      // Just in memory.
+      globalStore.commit('setCredentials', {
+        url: this.globalState.needLoginForUrl,
+        username: this.username,
+        pw: this.password,
+      })
 
-    this.globalState.needLoginForUrl = ''
-  }
-}
+      this.globalState.needLoginForUrl = ''
+    },
+  },
+})
 </script>
 
-<style lang="scss" scoped></style>
-
-<style lang="scss">
+<style lang="scss" scoped>
 @import '@/styles.scss';
 
 .boop {

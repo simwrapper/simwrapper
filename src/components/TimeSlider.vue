@@ -17,7 +17,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 const GRAB_HANDLE_WIDTH = 6
 
@@ -27,202 +28,220 @@ enum DRAGTYPE {
   END,
 }
 
-@Component({ components: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: false }) labels!: string[]
-  @Prop({ required: false }) range!: number[]
-  @Prop({ required: false }) activeTimeExtent!: number[]
-  @Prop({ required: false }) isAnimating!: boolean
-
-  private state = {
-    componentWidth: 0,
-    dragStartX: 0,
-    dragType: DRAGTYPE.SLIDE,
-    isDragging: false,
-    isSetupComplete: false,
-    // always 0.0-1.0 :
-    leftPosition: 0,
-    rightPosition: 1,
-    // the datasetRange is the extent of the time values in the dataset, e.g. 0-86400
-    datasetRange: [0, 86400],
-    labels: ['', ''],
-  }
-
-  private id = 'id-' + Math.random()
-
-  private get fullDatasetTimeSpan() {
-    return this.state.datasetRange[1] - this.state.datasetRange[0]
-  }
-
-  private get extentLeftToRight() {
-    return this.state.rightPosition - this.state.leftPosition
-  }
-
-  private get hasNonZeroTimeRange() {
-    // return false if the start and finish of the range are identical
-    return !!this.fullDatasetTimeSpan
-  }
-
-  private resizer!: ResizeObserver
-
-  private setupResizer() {
-    try {
-      this.resizer = new ResizeObserver(this.getDimensions)
-      const sliderElement = document.getElementById(`id-${this.id}`) as HTMLElement
-      this.resizer.observe(sliderElement)
-    } catch (e) {
-      console.error('' + e)
+export default defineComponent({
+  name: 'TimeSlider',
+  props: {
+    labels: Array as PropType<string[]>,
+    range: Array as PropType<number[]>,
+    activeTimeExtent: Array as PropType<number[]>,
+    isAnimating: Boolean,
+  },
+  data: () => {
+    return {
+      state: {
+        componentWidth: 0,
+        dragStartX: 0,
+        dragType: DRAGTYPE.SLIDE,
+        isDragging: false,
+        isSetupComplete: false,
+        // always 0.0-1.0 :
+        leftPosition: 0,
+        rightPosition: 1,
+        // the datasetRange is the extent of the time values in the dataset, e.g. 0-86400
+        datasetRange: [0, 86400],
+        labels: ['', ''],
+      },
+      id: 'id-' + Math.random(),
+      resizer: null as ResizeObserver | null,
     }
-  }
+  },
+  computed: {
+    fullDatasetTimeSpan(): number {
+      return this.state.datasetRange[1] - this.state.datasetRange[0]
+    },
 
-  private mounted() {
+    extentLeftToRight(): number {
+      return this.state.rightPosition - this.state.leftPosition
+    },
+
+    hasNonZeroTimeRange(): boolean {
+      // return false if the start and finish of the range are identical
+      return !!this.fullDatasetTimeSpan
+    },
+    calculateActiveMargins(): any {
+      const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+      const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
+      const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
+
+      // console.log({ usableWidth, marginLeft, marginRight })
+
+      return {
+        marginLeft: `${marginLeft}px`,
+        marginRight: `${marginRight}px`,
+      }
+    },
+  },
+  mounted() {
     this.getDimensions()
     this.setupInitialValues()
     this.setupResizer()
 
     window.addEventListener('mouseup', this.dragEnd)
     window.addEventListener('mousemove', this.dragging)
-  }
+  },
 
-  private beforeDestroy() {
+  beforeDestroy() {
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)
-  }
+  },
+  watch: {
+    activeTimeExtent() {
+      this.updateExtent()
+    },
+    labels() {
+      this.updateLabels()
+    },
+    'state.leftPosition'() {
+      this.emitValues()
+    },
+    'state.rightPosition'() {
+      this.emitValues()
+    },
+  },
 
-  private setupInitialValues() {
-    try {
-      if (this.range) this.state.datasetRange = this.range
-
-      if (this.fullDatasetTimeSpan === 0) {
-        this.state.leftPosition = 0
-        this.state.rightPosition = 1
-      } else {
-        this.updateExtent()
+  methods: {
+    setupResizer() {
+      try {
+        this.resizer = new ResizeObserver(this.getDimensions)
+        const sliderElement = document.getElementById(`id-${this.id}`) as HTMLElement
+        this.resizer.observe(sliderElement)
+      } catch (e) {
+        console.error('' + e)
       }
-    } catch (e) {
-      console.error('' + e)
-      // divide by zero, oh well
-    } finally {
-      this.state.isSetupComplete = true
-    }
-  }
+    },
 
-  @Watch('activeTimeExtent') updateExtent() {
-    this.state.leftPosition =
-      (this.activeTimeExtent[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
-    this.state.rightPosition =
-      (this.activeTimeExtent[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
-  }
+    setupInitialValues() {
+      try {
+        if (this.range) this.state.datasetRange = this.range
 
-  @Watch('labels') updateLabels() {
-    this.state.labels = this.labels
-  }
-
-  @Watch('state.leftPosition')
-  @Watch('state.rightPosition')
-  private emitValues() {
-    if (!this.state.isSetupComplete) return
-
-    const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
-    const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
-    this.$emit('timeExtent', [start, end])
-  }
-
-  private getDimensions() {
-    //@ts-ignore - ref doesn't know about clientWidth
-    this.state.componentWidth = this.$refs.slider?.clientWidth || 0
-  }
-
-  private get calculateActiveMargins() {
-    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-    const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
-    const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
-
-    // console.log({ usableWidth, marginLeft, marginRight })
-
-    return {
-      marginLeft: `${marginLeft}px`,
-      marginRight: `${marginRight}px`,
-    }
-  }
-
-  private dragStart(e: MouseEvent) {
-    this.$emit('drag')
-    this.state.isDragging = true
-    this.state.dragStartX = e.clientX
-
-    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-    const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
-    const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
-
-    const durationWidth =
-      this.state.componentWidth - marginRight - marginLeft - 2 * GRAB_HANDLE_WIDTH
-
-    // console.log({ usableWidth, durationWidth, marginLeft, marginRight })
-
-    if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
-    else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
-    else if (e.offsetX > durationWidth) this.state.dragType = DRAGTYPE.END
-  }
-
-  private dragging(e: MouseEvent) {
-    if (!this.state.isDragging) return
-
-    const deltaX = e.clientX - this.state.dragStartX
-    const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
-
-    // are we moving the time duration window
-    if (DRAGTYPE.SLIDE == this.state.dragType) {
-      const currentExtent = this.extentLeftToRight
-      let newLeft = (usableWidth * this.state.leftPosition + deltaX) / usableWidth
-      let newRight = newLeft + currentExtent
-
-      // don't scroll past the left edge
-      if (newLeft < 0) {
-        newLeft = 0
-        newRight = currentExtent
+        if (this.fullDatasetTimeSpan === 0) {
+          this.state.leftPosition = 0
+          this.state.rightPosition = 1
+        } else {
+          this.updateExtent()
+        }
+      } catch (e) {
+        console.error('' + e)
+        // divide by zero, oh well
+      } finally {
+        this.state.isSetupComplete = true
       }
+    },
 
-      // don't scroll past the right edge
-      if (newRight > 1) {
-        newRight = 1
-        newLeft = newRight - currentExtent
-      }
+    updateExtent() {
+      if (!this.activeTimeExtent) return
 
-      this.state.leftPosition = newLeft
-      this.state.rightPosition = newRight
+      this.state.leftPosition =
+        (this.activeTimeExtent[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+      this.state.rightPosition =
+        (this.activeTimeExtent[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+    },
 
+    updateLabels() {
+      if (this.labels) this.state.labels = this.labels
+    },
+
+    emitValues() {
+      if (!this.state.isSetupComplete) return
+
+      const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
+      const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
+      this.$emit('timeExtent', [start, end])
+    },
+
+    getDimensions() {
+      //@ts-ignore - ref doesn't know about clientWidth
+      this.state.componentWidth = this.$refs.slider?.clientWidth || 0
+    },
+
+    dragStart(e: MouseEvent) {
+      this.$emit('drag')
+      this.state.isDragging = true
       this.state.dragStartX = e.clientX
-      return
-    }
 
-    // are we moving the start-time
-    if (DRAGTYPE.START == this.state.dragType) {
-      const newLeft = usableWidth * this.state.leftPosition + deltaX
-      this.state.leftPosition = Math.max(0, newLeft / usableWidth)
-      if (this.state.leftPosition > this.state.rightPosition) {
-        this.state.rightPosition = this.state.leftPosition
+      const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+      const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
+      const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
+
+      const durationWidth =
+        this.state.componentWidth - marginRight - marginLeft - 2 * GRAB_HANDLE_WIDTH
+
+      // console.log({ usableWidth, durationWidth, marginLeft, marginRight })
+
+      if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
+      else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
+      else if (e.offsetX > durationWidth) this.state.dragType = DRAGTYPE.END
+    },
+
+    dragging(e: MouseEvent) {
+      if (!this.state.isDragging) return
+
+      const deltaX = e.clientX - this.state.dragStartX
+      const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
+
+      // are we moving the time duration window
+      if (DRAGTYPE.SLIDE == this.state.dragType) {
+        const currentExtent = this.extentLeftToRight
+        let newLeft = (usableWidth * this.state.leftPosition + deltaX) / usableWidth
+        let newRight = newLeft + currentExtent
+
+        // don't scroll past the left edge
+        if (newLeft < 0) {
+          newLeft = 0
+          newRight = currentExtent
+        }
+
+        // don't scroll past the right edge
+        if (newRight > 1) {
+          newRight = 1
+          newLeft = newRight - currentExtent
+        }
+
+        this.state.leftPosition = newLeft
+        this.state.rightPosition = newRight
+
+        this.state.dragStartX = e.clientX
+        return
       }
-      this.state.dragStartX = e.clientX
-      return
-    }
 
-    // are we moving the end-time
-    if (DRAGTYPE.END == this.state.dragType) {
-      const newRight = usableWidth * this.state.rightPosition + deltaX
-      this.state.rightPosition = Math.min(1, newRight / usableWidth)
-      if (this.state.leftPosition > this.state.rightPosition) {
-        this.state.leftPosition = this.state.rightPosition
+      // are we moving the start-time
+      if (DRAGTYPE.START == this.state.dragType) {
+        const newLeft = usableWidth * this.state.leftPosition + deltaX
+        this.state.leftPosition = Math.max(0, newLeft / usableWidth)
+        if (this.state.leftPosition > this.state.rightPosition) {
+          this.state.rightPosition = this.state.leftPosition
+        }
+        this.state.dragStartX = e.clientX
+        return
       }
-      this.state.dragStartX = e.clientX
-      return
-    }
-  }
 
-  private dragEnd(e: any) {
-    this.state.isDragging = false
-  }
-}
+      // are we moving the end-time
+      if (DRAGTYPE.END == this.state.dragType) {
+        const newRight = usableWidth * this.state.rightPosition + deltaX
+        this.state.rightPosition = Math.min(1, newRight / usableWidth)
+        if (this.state.leftPosition > this.state.rightPosition) {
+          this.state.leftPosition = this.state.rightPosition
+        }
+        this.state.dragStartX = e.clientX
+        return
+      }
+    },
+
+    dragEnd(e: any) {
+      this.state.isDragging = false
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

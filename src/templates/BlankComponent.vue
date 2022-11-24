@@ -1,17 +1,39 @@
 <template lang="pug">
-#vue-component
+.my-vue-component
   h1 Blank
 
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component({ components: {}, props: {} })
-export default class VueComponent extends Vue {
-  // @Prop({ required: true })
-  // private viz!: Viz
-}
+export default defineComponent({
+  name: 'MyVueComponent',
+  components: {},
+  props: {
+    // prop1: String,
+    // prop2: Number,
+    // prop3: { type: Array, required: true}
+  },
+  data: () => {
+    // initialize state here
+    return {
+      // stateVariable1: true
+    }
+  },
+  computed: {
+    // getFullName():string { return firstName + lastname }
+  },
+  mounted() {
+    // vue lifecycle methods go here, not in methods section
+  },
+  watch: {
+    // 'variable1'() { doSomething() }
+  },
+  methods: {
+    // all methods here, with access to 'this'
+  },
+})
 </script>
 
 <style scoped lang="scss">
