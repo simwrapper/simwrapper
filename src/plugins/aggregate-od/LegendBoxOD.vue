@@ -14,13 +14,15 @@ const i18n = {
     de: { linewidth: 'Linienbreite:', legend: 'Legende:' },
   },
 }
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component({ i18n })
-export default class LegendBox extends Vue {
-  @Prop({ type: Array, required: true })
-  private rows!: any
-}
+export default defineComponent({
+  name: 'LegendBoxOD',
+  i18n,
+  props: {
+    rows: { type: Array, required: true },
+  },
+})
 </script>
 
 <style scoped lang="scss">

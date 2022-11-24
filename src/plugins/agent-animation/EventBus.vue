@@ -1,15 +1,15 @@
 <script lang="ts">
-import { Vue, Component } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component
-class EventBusClass extends Vue {
-  public SIMULATION_PERCENT: string = 'sim-percent'
-  public DRAG: string = 'sim-drag'
+const Component = defineComponent({
+  name: 'EventBusAnimation',
+  data: () => {
+    return {
+      SIMULATION_PERCENT: 'sim-percent',
+      DRAG: 'sim-drag',
+    }
+  },
+})
 
-  constructor() {
-    super()
-  }
-}
-
-export default new EventBusClass()
+export default new Component()
 </script>

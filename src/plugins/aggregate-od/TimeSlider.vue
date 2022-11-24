@@ -4,104 +4,105 @@
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue'
 import * as timeConvert from 'convert-seconds'
 import vueSlider from 'vue-slider-component'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
-@Component({ components: { 'vue-slider': vueSlider } })
-export default class TimeSlider extends Vue {
-  private TOTAL_MSG = 'All >>'
+export default defineComponent({
+  name: 'TimeSliderX',
+  components: { 'vue-slider': vueSlider },
+  props: {
+    initialTime: Number,
+    useRange: Boolean,
+    stops: { type: Array, required: true },
+  },
+  data: () => {
+    const TOTAL_MSG = 'All >>'
 
-  @Prop()
-  private initialTime!: number
+    return {
+      TOTAL_MSG,
+      sliderValue: TOTAL_MSG as any,
+      timeSlider: {
+        height: 6,
+        piecewise: true,
+        show: false,
+        'enable-cross': false,
+        minRange: 1,
+        marks: [] as any[],
+        contained: true,
+        sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
+        processStyle: {
+          backgroundColor: '#00bb5588',
+          borderColor: '#f05b72',
+        },
+        tooltip: 'always',
+        'tooltip-placement': 'bottom',
+        data: [] as any[],
+      },
+    }
+  },
+  computed: {
+    clockTime(): string {
+      return this.convertSecondsToClockTime(this.sliderValue)
+    },
+  },
+  watch: {
+    initialTime(seconds: number) {
+      this.sliderValue = seconds
+    },
 
-  @Prop()
-  private useRange!: false
+    useRange(useIt: boolean) {
+      if (useIt) {
+        this.sliderValue = [this.stops[0], this.stops[this.stops.length - 1]]
+      } else {
+        this.sliderValue = [this.stops[0]]
+      }
+      console.log('changed to: ' + this.sliderValue)
+    },
 
-  @Prop()
-  private stops!: any
-  private sliderValue: any = this.TOTAL_MSG
+    stops(newStops: any) {
+      console.log({ newStops })
+      this.timeSlider.data = newStops
+    },
 
-  private timeSlider = {
-    height: 6,
-    piecewise: true,
-    show: false,
-    'enable-cross': false,
-    minRange: 1,
-    marks: [
+    sliderValue() {
+      this.$emit('change', this.sliderValue)
+    },
+  },
+  mounted() {
+    this.timeSlider.data = this.stops
+    this.timeSlider.marks = [
       this.stops[0],
       this.stops[Math.floor(this.stops.length / 2)],
       this.stops[this.stops.length - 1],
-    ],
-    contained: true,
-    sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    processStyle: {
-      backgroundColor: '#00bb5588',
-      borderColor: '#f05b72',
+    ]
+  },
+  methods: {
+    dataFunction() {
+      return {
+        value: this.sliderValue,
+        data: this.stops,
+      }
     },
-    tooltip: 'always',
-    'tooltip-placement': 'bottom',
-    data: this.stops,
-  }
 
-  private get clockTime() {
-    return this.convertSecondsToClockTime(this.sliderValue)
-  }
+    convertSecondsToClockTimeMinutes(index: number) {
+      try {
+        const hms = timeConvert(index)
+        const minutes = ('00' + hms.minutes).slice(-2)
+        return `${hms.hours}:${minutes}`
+      } catch (e) {
+        return '0:00'
+      }
+    },
 
-  // VUE LIFECYCLE HOOKS
-  public created() {}
-  public mounted() {}
-
-  @Watch('initialTime')
-  private initialTimeChanged(seconds: number) {
-    this.sliderValue = seconds
-  }
-
-  @Watch('useRange')
-  private changeUseRange(useIt: boolean) {
-    if (useIt) {
-      this.sliderValue = [this.stops[0], this.stops[this.stops.length - 1]]
-    } else {
-      this.sliderValue = [this.stops[0]]
-    }
-    console.log('changed to: ' + this.sliderValue)
-  }
-
-  @Watch('stops')
-  private setStops(newStops: any) {
-    console.log({ newStops })
-    this.stops = newStops
-  }
-
-  @Watch('sliderValue')
-  private sliderChangedEvent(result: any) {
-    this.$emit('change', result)
-  }
-
-  private dataFunction() {
-    return {
-      value: this.sliderValue,
-      data: this.stops,
-    }
-  }
-
-  private convertSecondsToClockTimeMinutes(index: number) {
-    try {
+    convertSecondsToClockTime(index: number) {
       const hms = timeConvert(index)
       const minutes = ('00' + hms.minutes).slice(-2)
-      return `${hms.hours}:${minutes}`
-    } catch (e) {
-      return '0:00'
-    }
-  }
-
-  private convertSecondsToClockTime(index: number) {
-    const hms = timeConvert(index)
-    const minutes = ('00' + hms.minutes).slice(-2)
-    const seconds = ('00' + hms.seconds).slice(-2)
-    return `${hms.hours}:${minutes}:${seconds}`
-  }
-}
+      const seconds = ('00' + hms.seconds).slice(-2)
+      return `${hms.hours}:${minutes}:${seconds}`
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

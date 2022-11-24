@@ -46,7 +46,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -68,7 +68,8 @@ import {
 import { Route } from 'vue-router'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({
+const MyComponent = defineComponent({
+  name: 'AgentAnimation',
   components: {
     AnimationView,
     ModalMarkdownDialog,
@@ -76,247 +77,270 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
     VueSlider,
     ToggleButton,
   },
-})
-class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
-
-  @Prop({ required: false })
-  private subfolder!: string
-
-  @Prop({ required: false })
-  private yamlConfig!: string
-
-  @Prop({ required: false })
-  private thumbnail!: boolean
-
-  private vizDetails = {
-    network: '',
-    drtTrips: '',
-    projection: '',
-    title: '',
-    description: '',
-    thumbnail: '',
-  }
-
-  public myState = {
-    statusMessage: '',
-    clock: '00:00',
-    colorScheme: ColorScheme.DarkMode,
-    isRunning: false,
-    isShowingHelp: false,
-    fileApi: this.fileApi,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: false,
-  }
-
-  private globalState = globalStore.state
-  private isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
-  private isLoaded = false
-  private showHelp = false
-
-  private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
-  private speed = 1
-
-  private legendBits: any[] = []
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private async generateBreadcrumbs() {
-    if (!this.myState.fileSystem) return []
-
-    const crumbs = [
-      {
-        label: this.myState.fileSystem.name,
-        url: '/' + this.myState.fileSystem.slug,
+  props: {
+    fileApi: Object,
+    subfolder: String,
+    yamlConfig: String,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    return {
+      vizDetails: {
+        network: '',
+        drtTrips: '',
+        projection: '',
+        title: '',
+        description: '',
+        thumbnail: '',
       },
-    ]
+      myState: {
+        statusMessage: '',
+        clock: '00:00',
+        colorScheme: ColorScheme.DarkMode,
+        isRunning: false,
+        isShowingHelp: false,
+        fileApi: {} as any,
+        fileSystem: undefined as FileSystemConfig | undefined,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: false,
+      },
+      globalState: globalStore.state,
+      isDarkMode: false,
+      isLoaded: false,
+      showHelp: false,
 
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
+      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
+      speed: 1,
 
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + this.myState.fileSystem.slug + buildFolder,
-      })
+      legendBits: [] as any[],
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
     }
-
-    // get run title in there
-    try {
-      const metadata = await this.myState.fileApi.getFileText(
-        this.myState.subfolder + '/metadata.yml'
-      )
-      const details = yaml.parse(metadata)
-
-      if (details.title) {
-        const lastElement = crumbs.pop()
-        const url = lastElement ? lastElement.url : '/'
-        crumbs.push({ label: details.title, url })
+  },
+  computed: {
+    urlThumbnail(): any {
+      return this.thumbnailUrl
+    },
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
       }
-    } catch (e) {
-      // if something went wrong the UI will just show the folder name
-      // which is fine
-    }
-    crumbs.push({
-      label: this.vizDetails.title ? this.vizDetails.title : '',
-      url: '#',
-    })
 
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
-
-    return crumbs
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    // first get config
-    try {
-      // might be a project config:
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-      const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = yaml.parse(text)
-    } catch (e) {
-      console.log('failed')
-      // maybe it failed because password?
-      const err = e as any
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
       }
-    }
 
-    // title
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
-    this.$emit('title', t)
+      return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    },
+  },
+  watch: {
+    async 'globalState.authAttempts'() {
+      console.log('AUTH CHANGED - Reload')
+      if (!this.yamlConfig) this.buildRouteFromUrl()
+      await this.getVizDetails()
+    },
 
-    this.buildThumbnail()
-  }
+    'state.colorScheme'() {
+      this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
+      this.updateLegendColors()
+    },
+  },
 
-  private async buildThumbnail() {
-    // thumbnail
-    if (this.thumbnail && this.vizDetails.thumbnail) {
+  methods: {
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
+
+      // project filesystem
+      const filesystem = this.getFileSystem(params.project)
+      this.myState.fileApi = new HTTPFileSystem(filesystem)
+      this.myState.fileSystem = filesystem
+
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
+
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+    },
+
+    async generateBreadcrumbs() {
+      if (!this.myState.fileSystem) return []
+
+      const crumbs = [
+        {
+          label: this.myState.fileSystem.name,
+          url: '/' + this.myState.fileSystem.slug,
+        },
+      ]
+
+      const subfolders = this.myState.subfolder.split('/')
+      let buildFolder = '/'
+      for (const folder of subfolders) {
+        if (!folder) continue
+
+        buildFolder += folder + '/'
+        crumbs.push({
+          label: folder,
+          url: '/' + this.myState.fileSystem.slug + buildFolder,
+        })
+      }
+
+      // get run title in there
       try {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.thumbnail
+        const metadata = await this.myState.fileApi.getFileText(
+          this.myState.subfolder + '/metadata.yml'
         )
-        const buffer = await readBlob.arraybuffer(blob)
-        const base64 = this.arrayBufferToBase64(buffer)
-        if (base64)
-          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        const details = yaml.parse(metadata)
+
+        if (details.title) {
+          const lastElement = crumbs.pop()
+          const url = lastElement ? lastElement.url : '/'
+          crumbs.push({ label: details.title, url })
+        }
       } catch (e) {
-        console.error(e)
+        // if something went wrong the UI will just show the folder name
+        // which is fine
       }
-    }
-  }
+      crumbs.push({
+        label: this.vizDetails.title ? this.vizDetails.title : '',
+        url: '#',
+      })
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
+      // save them!
+      globalStore.commit('setBreadCrumbs', crumbs)
 
-  @Watch('state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.myState.colorScheme === ColorScheme.DarkMode
-    this.updateLegendColors()
-  }
+      return crumbs
+    },
 
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
+    getFileSystem(name: string) {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === name
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-  private updateLegendColors() {
-    const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
+    async getVizDetails() {
+      // first get config
+      try {
+        // might be a project config:
+        const filename =
+          this.myState.yamlConfig.indexOf('/') > -1
+            ? this.myState.yamlConfig
+            : this.myState.subfolder + '/' + this.myState.yamlConfig
 
-    this.legendBits = [
-      { label: 'susceptible', color: theme.susceptible },
-      { label: 'latently infected', color: theme.infectedButNotContagious },
-      { label: 'contagious', color: theme.contagious },
-      { label: 'symptomatic', color: theme.symptomatic },
-      { label: 'seriously ill', color: theme.seriouslyIll },
-      { label: 'critical', color: theme.critical },
-      { label: 'recovered', color: theme.recovered },
-    ]
-  }
+        const text = await this.myState.fileApi.getFileText(filename)
+        this.vizDetails = yaml.parse(text)
+      } catch (e) {
+        console.log('failed')
+        // maybe it failed because password?
+        const err = e as any
+        if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
+          globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+        }
+      }
 
-  private get textColor() {
-    const lightmode = {
-      text: '#3498db',
-      bg: '#eeeef480',
-    }
+      // title
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
+      this.$emit('title', t)
 
-    const darkmode = {
-      text: 'white',
-      bg: '#181518aa',
-    }
+      this.buildThumbnail()
+    },
 
-    return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
-  }
+    async buildThumbnail() {
+      // thumbnail
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.myState.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = this.arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
 
-  private toggleSimulation() {
-    this.myState.isRunning = !this.myState.isRunning
+    arrayBufferToBase64(buffer: any) {
+      var binary = ''
+      var bytes = new Uint8Array(buffer)
+      var len = bytes.byteLength
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      return window.btoa(binary)
+    },
 
-    // ok so, many times I mashed the play/pause wondering why things wouldn't
-    // start moving. Turns out a 0x speed is not very helpful! Help the user
-    // out and switch the speed up if they press play.
-    if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
-  }
+    updateLegendColors() {
+      const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
 
-  private async mounted() {
+      this.legendBits = [
+        { label: 'susceptible', color: theme.susceptible },
+        { label: 'latently infected', color: theme.infectedButNotContagious },
+        { label: 'contagious', color: theme.contagious },
+        { label: 'symptomatic', color: theme.symptomatic },
+        { label: 'seriously ill', color: theme.seriouslyIll },
+        { label: 'critical', color: theme.critical },
+        { label: 'recovered', color: theme.recovered },
+      ]
+    },
+
+    toggleSimulation() {
+      this.myState.isRunning = !this.myState.isRunning
+
+      // ok so, many times I mashed the play/pause wondering why things wouldn't
+      // start moving. Turns out a 0x speed is not very helpful! Help the user
+      // out and switch the speed up if they press play.
+      if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
+    },
+
+    clickedHelp() {
+      console.log('HEEELP!')
+      this.myState.isRunning = false
+      this.showHelp = true
+      this.myState.isShowingHelp = this.showHelp
+    },
+
+    clickedCloseHelp() {
+      this.showHelp = false
+      this.myState.isShowingHelp = this.showHelp
+      // only show the help once
+      // this.$store.commit('setSawAgentAnimationHelp', true)
+      this.myState.isRunning = true
+    },
+
+    toggleLoaded(loaded: boolean) {
+      this.isLoaded = loaded
+    },
+
+    rotateColors() {
+      this.myState.colorScheme =
+        this.myState.colorScheme === ColorScheme.DarkMode
+          ? ColorScheme.LightMode
+          : ColorScheme.DarkMode
+      localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
+    },
+  },
+  async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
-    this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
-    this.myState.subfolder = this.subfolder
+    this.myState.colorScheme === ColorScheme.DarkMode, (this.myState.thumbnail = this.thumbnail)
+    this.myState.yamlConfig = this.yamlConfig || ''
+    this.myState.subfolder = this.subfolder || ''
 
     if (!this.yamlConfig) this.buildRouteFromUrl()
 
@@ -330,41 +354,14 @@ class MyComponent extends Vue {
 
     // make nice colors
     this.updateLegendColors()
-  }
+  },
 
-  private beforeDestroy() {
+  beforeDestroy() {
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
     this.myState.isRunning = false
-  }
-
-  private clickedHelp() {
-    console.log('HEEELP!')
-    this.myState.isRunning = false
-    this.showHelp = true
-    this.myState.isShowingHelp = this.showHelp
-  }
-
-  private clickedCloseHelp() {
-    this.showHelp = false
-    this.myState.isShowingHelp = this.showHelp
-    // only show the help once
-    // this.$store.commit('setSawAgentAnimationHelp', true)
-    this.myState.isRunning = true
-  }
-
-  private toggleLoaded(loaded: boolean) {
-    this.isLoaded = loaded
-  }
-
-  private rotateColors() {
-    this.myState.colorScheme =
-      this.myState.colorScheme === ColorScheme.DarkMode
-        ? ColorScheme.LightMode
-        : ColorScheme.DarkMode
-    localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {

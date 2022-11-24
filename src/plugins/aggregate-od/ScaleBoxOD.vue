@@ -14,17 +14,15 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component({ i18n })
-export default class ScaleBox extends Vue {
-  @Prop({ type: Array, required: true })
-  private rows!: any
-
-  public created() {
-    // console.log(this.rows)
-  }
-}
+export default defineComponent({
+  name: 'LineFilterSlider',
+  i18n,
+  props: {
+    rows: { type: Array, required: true },
+  },
+})
 </script>
 
 <style scoped>

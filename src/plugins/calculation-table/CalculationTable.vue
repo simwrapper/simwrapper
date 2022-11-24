@@ -31,7 +31,7 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import YAML from 'yaml'
 
 import util from '@/js/util'
@@ -42,32 +42,67 @@ import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status, YamlConfigs
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
-@Component({
+const thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
+
+const Component = defineComponent({
+  name: 'CalculationTable',
   components: { TopSheet },
-})
-class MyComponent extends Vue {
-  @Prop({ required: true }) private root!: string
-  @Prop({ required: true }) private subfolder!: string
-  @Prop({ required: false }) private yamlConfig!: string
-  @Prop({ required: false }) private thumbnail!: boolean
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
+      files: [] as string[],
+      isLoaded: false,
+      vizDetails: {
+        title: '',
+        description: '',
+        thumbnail: '',
+      },
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-  private globalState = globalStore.state
+    urlThumbnail(): any {
+      return thumbnailUrl
+    },
+  },
+  methods: {
+    async getVizDetails() {
+      if (!this.fileApi) return
 
-  private fileApi!: HTTPFileSystem
-  private fileSystem!: FileSystemConfig
-
-  private vizDetails = {
-    title: '',
-    description: '',
-    thumbnail: '',
-  }
-
-  private isLoaded = false
-  private allConfigFiles: YamlConfigs = { dashboards: {}, topsheets: {}, vizes: {}, configs: {} }
-  private files: string[] = []
-
-  private async mounted() {
-    this.buildFileApi()
+      console.log(this.yamlConfig)
+      // first get config
+      try {
+        const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
+        this.vizDetails = YAML.parse(text)
+      } catch (e) {
+        console.error('failed')
+      }
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Table'
+      this.$emit('title', t)
+    },
+  },
+  async mounted() {
     await this.getVizDetails()
     this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.subfolder)
     const { files } = await this.fileApi.getDirectory(this.subfolder)
@@ -76,45 +111,8 @@ class MyComponent extends Vue {
     this.isLoaded = true
 
     if (this.thumbnail) return
-  }
-
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.fileApi = new HTTPFileSystem(filesystem)
-    this.fileSystem = filesystem
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    if (!this.fileApi) return
-
-    console.log(this.yamlConfig)
-    // first get config
-    try {
-      const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
-      this.vizDetails = YAML.parse(text)
-    } catch (e) {
-      console.error('failed')
-    }
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Table'
-    this.$emit('title', t)
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
@@ -122,10 +120,10 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Summary Table',
   description: 'Calculation table',
   filePatterns: ['(topsheet|table)*.y?(a)ml'],
-  component: MyComponent,
+  component: Component,
 } as VisualizationPlugin)
 
-export default MyComponent
+export default Component
 </script>
 
 <style scoped lang="scss">

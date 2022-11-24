@@ -67,6 +67,8 @@ const i18n = {
   },
 }
 
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import { debounce } from 'debounce'
@@ -76,7 +78,6 @@ import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import YAML from 'yaml'
 
 import { findMatchingGlobInFiles } from '@/js/util'
@@ -120,7 +121,8 @@ const INPUTS = {
   DBF_FILE: 'Shapefile .DBF',
 }
 
-@Component({
+const Component = defineComponent({
+  name: 'AggregateOD',
   i18n,
   components: {
     CollapsiblePanel,
@@ -131,140 +133,1238 @@ const INPUTS = {
     TimeSlider,
     ZoomButtons,
   },
-})
-class MyComponent extends Vue {
-  @Prop({ required: true })
-  private root!: string
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      myState: {
+        fileApi: undefined as HTTPFileSystem | undefined,
+        fileSystem: undefined as FileSystemConfig | undefined,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: false,
+      },
 
-  @Prop({ required: true })
-  private subfolder!: string
+      vizDetails: {
+        csvFile: '',
+        shpFile: '',
+        dbfFile: '',
+        projection: '',
+        scaleFactor: 1,
+        title: '',
+        description: '',
+        mapIsIndependent: false,
+      } as AggOdYaml,
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+      standaloneYAMLconfig: {
+        csvFile: '',
+        shpFile: '',
+        dbfFile: '',
+        projection: '',
+        scaleFactor: 1,
+        title: '',
+        description: '',
+        mapIsIndependent: false,
+      },
 
-  @Prop({ required: false })
-  private config!: any
+      YAMLrequirementsOD: {
+        shpFile: '',
+        dbfFile: '',
+        csvFile: '',
+        projection: '',
+        scaleFactor: 1,
+      },
 
-  @Prop({ required: false })
-  private thumbnail!: boolean
+      containerId: `c${Math.floor(1e12 * Math.random())}`,
+      mapId: '',
 
-  private globalState = globalStore.state
+      centroids: {} as any,
+      centroidSource: {} as any,
+      linkData: {} as any,
+      spiderLinkFeatureCollection: {} as any,
 
-  private myState = {
-    fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: false,
-  }
+      zoneData: {} as any, // [i][j][timePeriod] where [-1] of each is totals
+      dailyData: {} as any, // [i][j]
+      marginals: {} as any,
+      hoveredStateId: 0 as any,
 
-  private vizDetails: AggOdYaml = {
-    csvFile: '',
-    shpFile: '',
-    dbfFile: '',
-    projection: '',
-    scaleFactor: 1,
-    title: '',
-    description: '',
-    mapIsIndependent: false,
-  }
+      rowName: '',
+      colName: '',
+      headers: [] as string[],
 
-  private standaloneYAMLconfig = {
-    csvFile: '',
-    shpFile: '',
-    dbfFile: '',
-    projection: '',
-    scaleFactor: 1,
-    title: '',
-    description: '',
-    mapIsIndependent: false,
-  }
+      geojson: {} as any,
+      idColumn: '',
 
-  private YAMLrequirementsOD = {
-    shpFile: '',
-    dbfFile: '',
-    csvFile: '',
-    projection: '',
-    scaleFactor: 1,
-  }
+      mapIsIndependent: false,
 
-  private containerId = `c${Math.floor(1e12 * Math.random())}`
-  private mapId = ''
+      showTimeRange: false,
+      showCentroids: true,
+      showCentroidLabels: true,
 
-  private centroids: any = {}
-  private centroidSource: any = {}
-  private linkData: any = {}
-  private spiderLinkFeatureCollection: any = {}
+      isOrigin: true,
+      selectedCentroid: 0,
+      maxZonalTotal: 0,
 
-  private zoneData: any = {} // [i][j][timePeriod] where [-1] of each is totals
-  private dailyData: any = {} // [i][j]
-  private marginals: any = {}
-  private hoveredStateId: any = 0
+      loadingText: 'Aggregierte Quell-Ziel Muster',
+      mymap: {} as maplibregl.Map,
+      project: {} as any,
 
-  private rowName: string = ''
-  private colName: string = ''
-  private headers: string[] = []
+      scaleFactor: 1,
+      sliderValue: [1, 500],
+      scaleValues: SCALE_WIDTH,
+      currentScale: SCALE_WIDTH[0],
+      currentTimeBin: TOTAL_MSG,
 
-  private geojson: any = {}
-  private idColumn: string = ''
+      lineFilter: 0,
 
-  private mapIsIndependent = false
+      projection: '',
+      hoverId: null as any,
 
-  private showTimeRange = false
-  private showCentroids: boolean = true
-  private showCentroidLabels: boolean = true
+      _mapExtentXYXY: null as any,
+      _maximum: null as any,
 
-  private isOrigin: boolean = true
-  private selectedCentroid = 0
-  private maxZonalTotal: number = 0
+      dailyFrom: null as any,
+      dailyTo: null as any,
 
-  private loadingText: string = 'Aggregierte Quell-Ziel Muster'
-  private mymap!: maplibregl.Map
-  private project: any = {}
+      bounceTimeSlider: {},
+      bounceScaleSlider: {},
+      bounceLineFilter: {},
+      resizer: null as ResizeObserver | null,
+      isMapMoving: false,
+      isDarkMode: false,
+    }
+  },
+  computed: {
+    legendRows(): any[] {
+      return ['#00aa66', '#880033', '↓', '↑']
+    },
 
-  private scaleFactor: any = 1
-  private sliderValue: number[] = [1, 500]
-  private scaleValues = SCALE_WIDTH
-  private currentScale = SCALE_WIDTH[0]
-  private currentTimeBin = TOTAL_MSG
+    scaleRows(): any[] {
+      return [
+        Math.min(
+          Math.round((1200 * Math.pow(this.currentScale, -1) + 20) * Math.sqrt(this.scaleFactor)),
+          1000 * this.scaleFactor
+        ),
+      ]
+    },
+  },
+  methods: {
+    buildFileApi() {
+      const filesystem = this.getFileSystem(this.root)
+      this.myState.fileApi = new HTTPFileSystem(filesystem)
+      this.myState.fileSystem = filesystem
+    },
 
-  private lineFilter = 0
+    setupResizer() {
+      this.resizer = new ResizeObserver(() => {
+        this.mymap.resize()
+      })
 
-  private projection!: string
-  private hoverId: any
+      const viz = document.getElementById(this.containerId) as HTMLElement
+      this.resizer.observe(viz)
+    },
+    configureSettings() {
+      if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
+        this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
+      }
+      if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
+    },
+    handleMapMotion() {
+      const mapCamera = {
+        longitude: this.mymap.getCenter().lng,
+        latitude: this.mymap.getCenter().lat,
+        bearing: this.mymap.getBearing(),
+        zoom: this.mymap.getZoom(),
+        pitch: this.mymap.getPitch(),
+      }
 
-  private _mapExtentXYXY!: any
-  private _maximum!: number
+      if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
 
-  private dailyFrom: any
-  private dailyTo: any
+      if (!this.isMapMoving) this.isMapMoving = true
+    },
 
-  private bounceTimeSlider = debounce(this.changedTimeSlider, 100)
-  private bounceScaleSlider = debounce(this.changedScale, 50)
-  private bounceLineFilter = debounce(this.changedLineFilter, 250)
+    getFileSystem(name: string) {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === name
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-  }
+    async getVizDetails() {
+      if (!this.myState.fileApi) return
 
-  public async created() {
+      if (this.config) {
+        this.validateYAML()
+        this.vizDetails = Object.assign({}, this.config) as any
+      } else {
+        try {
+          // might be a project config:
+          const filename =
+            this.myState.yamlConfig.indexOf('/') > -1
+              ? this.myState.yamlConfig
+              : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+          const text = await this.myState.fileApi.getFileText(filename)
+          this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+          this.validateYAML()
+          this.setVizDetails()
+        } catch (err) {
+          const e = err as any
+          // maybe it failed because password?
+          if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
+            globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+          }
+        }
+      }
+
+      this.$emit('title', this.vizDetails.title)
+
+      this.scaleFactor = this.vizDetails.scaleFactor
+      this.projection = this.vizDetails.projection
+      this.mapIsIndependent = !!this.vizDetails.mapIsIndependent
+      this.idColumn = this.vizDetails.idColumn ? this.vizDetails.idColumn : 'id'
+
+      nprogress.done()
+    },
+
+    validateYAML() {
+      const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+
+      let configuration = {} as any
+
+      if (hasYaml) {
+        console.log('agg-od has yaml')
+        configuration = this.standaloneYAMLconfig
+      } else {
+        console.log('agg-od no yaml')
+        configuration = this.config
+      }
+
+      for (const key in this.YAMLrequirementsOD) {
+        if (key in configuration === false) {
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `${this.yamlConfig}: missing required key: ${key}`,
+            desc: '',
+          })
+        }
+      }
+    },
+
+    setVizDetails() {
+      this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Aggregate OD'
+      this.$emit('title', t)
+    },
+
+    async findFilenameFromWildcard(path: string) {
+      if (!this.myState.fileApi) return ''
+
+      // get folder
+      let folder =
+        path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
+
+      // get file path search pattern
+      const { files } = await this.myState.fileApi.getDirectory(folder)
+      let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
+      const match = findMatchingGlobInFiles(files, pattern)
+
+      if (match.length === 1) {
+        return `${folder}/${match[0]}`
+      } else {
+        throw Error('File not found: ' + path)
+      }
+    },
+
+    async loadFiles() {
+      if (!this.myState.fileApi) return
+
+      try {
+        this.loadingText = 'Dateien laden...'
+
+        const csvFilename = await this.findFilenameFromWildcard(
+          `${this.myState.subfolder}/${this.vizDetails.csvFile}`
+        )
+        const shpFilename = await this.findFilenameFromWildcard(
+          `${this.myState.subfolder}/${this.vizDetails.shpFile}`
+        )
+        const dbfFilename = await this.findFilenameFromWildcard(
+          `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
+        )
+
+        const odFlows = await this.myState.fileApi.getFileText(csvFilename)
+
+        const blob = await this.myState.fileApi.getFileBlob(shpFilename)
+        const shpFile = await readBlob.arraybuffer(blob)
+
+        const blob2 = await this.myState.fileApi.getFileBlob(dbfFilename)
+        const dbfFile = await readBlob.arraybuffer(blob2)
+
+        return { shpFile, dbfFile, odFlows }
+        //
+      } catch (e) {
+        const error = e as any
+        let msg = error.statusText || '' + error
+        if (error.url) msg += ': ' + error.url
+
+        console.error(msg)
+        this.loadingText = '' + e
+        this.$store.commit('error', msg)
+        return null
+      }
+    },
+
+    async setupMap() {
+      try {
+        this.mymap = new maplibregl.Map({
+          container: this.mapId,
+          style: globalStore.getters.mapStyle,
+          logoPosition: 'top-left',
+        })
+      } catch (e) {
+        console.error('HUH?')
+        return
+      }
+
+      try {
+        const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+        if (extent) {
+          const lnglat = JSON.parse(extent)
+
+          const mFac = this.isMobile() ? 0 : 1
+          const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
+
+          this.$store.commit('setMapCamera', {
+            longitude: 0.5 * (lnglat[0] + lnglat[2]),
+            latitude: 0.5 * (lnglat[1] + lnglat[3]),
+            zoom: 8,
+            pitch: 0,
+            bearing: 0,
+            jump: true, // initial map
+          })
+        }
+      } catch (e) {
+        // no consequence if json was weird, just drop it
+      }
+
+      this.mymap.on('click', this.handleEmptyClick)
+      // Start doing stuff AFTER the MapBox library has fully initialized
+      this.mymap.on('load', this.mapIsReady)
+      this.mymap.on('move', this.handleMapMotion)
+
+      // clean up display just when we're in thumbnail mode
+      if (this.thumbnail) {
+        let baubles = document.getElementsByClassName(
+          'mapboxgl-ctrl mapboxgl-ctrl-attrib mapboxgl-compact'
+        )
+        for (const elem of baubles) elem.setAttribute('style', 'display: none')
+
+        baubles = document.getElementsByClassName('mapboxgl-ctrl mapboxgl-ctrl-group')
+        for (const elem of baubles) elem.setAttribute('style', 'display: none')
+
+        baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
+        for (const elem of baubles) elem.setAttribute('style', 'display: none')
+      } else {
+        let baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
+        for (const elem of baubles) elem.setAttribute('style', 'margin-bottom: 3rem;')
+      }
+    },
+
+    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
+      this.fadeUnselectedLinks(-1)
+      this.selectedCentroid = 0
+
+      if (this.isMobile()) {
+        // do something
+      }
+    },
+
+    async mapIsReady() {
+      const files = await this.loadFiles()
+      if (files) {
+        this.geojson = await this.processShapefile(files)
+        await this.processHourlyData(files.odFlows)
+        this.marginals = await this.getDailyDataSummary()
+        this.buildCentroids(this.geojson)
+        this.convertRegionColors(this.geojson)
+        this.addGeojsonToMap(this.geojson)
+        this.setMapExtent()
+        this.buildSpiderLinks()
+        this.setupKeyListeners()
+      }
+
+      this.loadingText = ''
+      nprogress.done()
+    },
+
+    isMobile() {
+      const w = window
+      const d = document
+      const e = d.documentElement
+      const g = d.getElementsByTagName('body')[0]
+      const x = w.innerWidth || e.clientWidth || g.clientWidth
+      const y = w.innerHeight || e.clientHeight || g.clientHeight
+
+      return x < 640
+    },
+
+    createSpiderLinks() {
+      this.spiderLinkFeatureCollection = { type: 'FeatureCollection', features: [] }
+
+      for (const id of Object.keys(this.linkData)) {
+        const link: any = this.linkData[id]
+
+        if (link.daily <= this.lineFilter) continue
+
+        try {
+          const origCoord = this.centroids[link.orig].geometry.coordinates
+          const destCoord = this.centroids[link.dest].geometry.coordinates
+          const color = origCoord[1] - destCoord[1] > 0 ? '#00aa66' : '#880033'
+          const fade = 0.7
+          const properties: any = {
+            id: id,
+            orig: link.orig || 0,
+            dest: link.dest || 0,
+            daily: link.daily || 0,
+            color,
+            fade,
+          }
+          // Test this
+          properties[TOTAL_MSG] = link.daily
+          link.values.forEach((value: number, i: number) => {
+            properties[this.headers[i + 1]] = value ? value : 0
+          })
+
+          const feature: any = {
+            type: 'Feature',
+            properties,
+            geometry: {
+              type: 'LineString',
+              coordinates: [origCoord, destCoord],
+            },
+          }
+          this.spiderLinkFeatureCollection.features.push(feature)
+        } catch (e) {
+          // some dests aren't on map: z.b. 'other'
+        }
+      }
+    },
+
+    updateSpiderLinks() {
+      this.createSpiderLinks()
+
+      // avoiding mapbox typescript bug:
+      if (this.selectedCentroid) {
+        this.fadeUnselectedLinks(this.selectedCentroid)
+      } else {
+        const tsMap = this.mymap as any
+        tsMap.getSource('spider-source').setData(this.spiderLinkFeatureCollection)
+      }
+    },
+
+    buildSpiderLinks() {
+      if (!this.mymap.getSource('spider-source')) {
+        this.createSpiderLinks()
+        // console.log({ spiders: this.spiderLinkFeatureCollection })
+        this.mymap.addSource('spider-source', {
+          data: this.spiderLinkFeatureCollection,
+          type: 'geojson',
+        } as any)
+      }
+
+      if (this.mymap.getLayer('spider-layer')) this.mymap.removeLayer('spider-layer')
+      this.mymap.addLayer(
+        {
+          id: 'spider-layer',
+          source: 'spider-source',
+          type: 'line',
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': ['*', (1 / 500) * this.scaleFactor, ['get', 'daily']],
+            'line-offset': ['*', 0.5, ['get', 'daily']],
+            'line-opacity': ['get', 'fade'],
+          },
+        },
+        'centroid-layer'
+      )
+
+      this.changedScale(this.currentScale)
+
+      const parent = this
+      this.mymap.on('click', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
+        parent.clickedOnSpiderLink(e)
+      })
+
+      // turn "hover cursor" into a pointer, so user knows they can click.
+      this.mymap.on('mousemove', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
+        parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+      })
+
+      // and back to normal when they mouse away
+      this.mymap.on('mouseleave', 'spider-layer', function () {
+        parent.mymap.getCanvas().style.cursor = 'grab'
+      })
+    },
+
+    clickedOrigins() {
+      this.isOrigin = true
+      this.updateCentroidLabels()
+
+      this.convertRegionColors(this.geojson)
+
+      // avoiding mapbox typescript bug:
+      const tsMap = this.mymap as any
+      tsMap.getSource('shpsource').setData(this.geojson)
+    },
+
+    clickedDestinations() {
+      this.isOrigin = false
+      this.updateCentroidLabels()
+
+      this.convertRegionColors(this.geojson)
+
+      // avoiding mapbox typescript bug:
+      const tsMap = this.mymap as any
+      tsMap.getSource('shpsource').setData(this.geojson)
+    },
+
+    updateCentroidLabels() {
+      const labels = this.isOrigin ? '{dailyFrom}' : '{dailyTo}'
+      const radiusField = this.isOrigin ? 'widthFrom' : 'widthTo'
+
+      if (this.mymap.getLayer('centroid-layer')) this.mymap.removeLayer('centroid-layer')
+      if (this.mymap.getLayer('centroid-label-layer'))
+        this.mymap.removeLayer('centroid-label-layer')
+
+      if (this.showCentroids) {
+        this.mymap.addLayer({
+          layout: { visibility: this.thumbnail ? 'none' : 'visible' },
+          id: 'centroid-layer',
+          source: 'centroids',
+          type: 'circle',
+          paint: {
+            'circle-color': '#ec0',
+            'circle-radius': ['get', radiusField],
+            'circle-stroke-width': 3,
+            'circle-stroke-color': 'white',
+          },
+        })
+      }
+
+      if (this.showCentroidLabels) {
+        this.mymap.addLayer({
+          id: 'centroid-label-layer',
+          source: 'centroids',
+          type: 'symbol',
+          layout: {
+            'text-field': labels,
+            'text-size': 11,
+          },
+          paint: this.showCentroids ? {} : { 'text-halo-color': 'white', 'text-halo-width': 2 },
+        })
+      }
+    },
+
+    unselectAllCentroids() {
+      this.fadeUnselectedLinks(-1)
+      this.selectedCentroid = 0
+    },
+
+    clickedOnCentroid(e: any) {
+      // console.log({ CLICK: e })
+
+      e.originalEvent.stopPropagating = true
+
+      const centroid = e.features[0].properties
+      // console.log(centroid)
+
+      const id = centroid.id
+      // console.log('clicked on id', id)
+      // a second click on a centroid UNselects it.
+      if (id === this.selectedCentroid) {
+        this.unselectAllCentroids()
+        return
+      }
+
+      this.selectedCentroid = id
+
+      // console.log(this.marginals)
+      // console.log(this.marginals.rowTotal[id])
+      // console.log(this.marginals.colTotal[id])
+
+      this.fadeUnselectedLinks(id)
+    },
+
+    fadeUnselectedLinks(id: any) {
+      const tsMap = this.mymap as any
+
+      for (const feature of this.spiderLinkFeatureCollection.features) {
+        const endpoints = feature.properties.id.split(':')
+        let fade = endpoints[0] === String(id) || endpoints[1] === String(id) ? 0.7 : FADED
+        if (id === -1) fade = 0.7
+        feature.properties.fade = fade
+      }
+      tsMap.getSource('spider-source').setData(this.spiderLinkFeatureCollection)
+    },
+
+    clickedOnSpiderLink(e: any) {
+      if (e.originalEvent.stopPropagating) return
+
+      // console.log({ CLICK: e })
+
+      const props = e.features[0].properties
+      // console.log(props)
+
+      const trips = props.daily * this.scaleFactor
+      let revTrips = 0
+      const reverseDir = '' + props.dest + ':' + props.orig
+
+      if (this.linkData[reverseDir]) revTrips = this.linkData[reverseDir].daily * this.scaleFactor
+
+      const totalTrips = trips + revTrips
+
+      let html = `<h1>${totalTrips} Bidirectional Trips</h1><br/>`
+      html += `<p> -----------------------------</p>`
+      html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
+
+      new maplibregl.Popup({ closeOnClick: true })
+        .setLngLat(e.lngLat)
+        .setHTML(html)
+        .addTo(this.mymap)
+    },
+
+    convertRegionColors(geojson: FeatureCollection) {
+      for (const feature of geojson.features) {
+        if (!feature.properties) continue
+
+        const daily = this.isOrigin ? feature.properties.dailyFrom : feature.properties.dailyTo
+        const ratio = daily / this.maxZonalTotal
+
+        let blue = 128 + 127 * (1.0 - ratio)
+        if (!blue) blue = 255
+
+        feature.properties.blue = blue
+      }
+    },
+
+    handleCentroidsForTimeOfDayChange(timePeriod: any) {
+      const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+      for (const feature of this.geojson.features) {
+        const centroid: any = turf.centerOfMass(feature as any)
+
+        centroid.properties.id = feature.id
+
+        const values = this.calculateCentroidValuesForZone(timePeriod, feature)
+
+        centroid.properties.dailyFrom = values.from * this.scaleFactor
+        centroid.properties.dailyTo = values.to * this.scaleFactor
+
+        this.dailyFrom = centroid.properties.dailyFrom
+        this.dailyTo = centroid.properties.dailyTo
+
+        centroid.properties.widthFrom = Math.min(
+          35,
+          Math.max(
+            12,
+            Math.pow(this.dailyFrom / this.scaleFactor, 0.3) *
+              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
+          )
+        )
+        centroid.properties.widthTo = Math.min(
+          35,
+          Math.max(
+            12,
+            Math.pow(this.dailyTo / this.scaleFactor, 0.3) *
+              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
+          )
+        )
+
+        if (!feature.properties) feature.properties = {}
+
+        feature.properties.dailyFrom = values.from
+        feature.properties.dailyTo = values.to
+
+        if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
+          centroids.features.push(centroid)
+          if (feature.properties) this.centroids[feature.properties[this.idColumn]] = centroid
+        }
+      }
+
+      this.centroidSource = centroids
+
+      const tsMap = this.mymap as any
+      tsMap.getSource('centroids').setData(this.centroidSource)
+      this.updateCentroidLabels()
+    },
+
+    calculateCentroidValuesForZone(timePeriod: any, feature: any) {
+      let from = 0
+      let to = 0
+
+      // daily
+      if (timePeriod === 'Alle >>') {
+        //from = Math.round(this.marginals.rowTotal[feature.id])
+        //to = Math.round(this.marginals.colTotal[feature.id])
+        to = feature.properties.dailyTo
+        from = feature.properties.dailyFrom
+        return { from, to }
+      }
+
+      const fromMarginal = this.marginals.from[feature.id]
+      const toMarginal = this.marginals.to[feature.id]
+
+      // time range
+      if (Array.isArray(timePeriod)) {
+        let hourFrom = this.headers.indexOf(timePeriod[0]) - 1
+        if (hourFrom < 0) hourFrom = 0
+
+        const hourTo = this.headers.indexOf(timePeriod[1]) - 1
+
+        for (let i = hourFrom; i <= hourTo; i++) {
+          from += fromMarginal ? Math.round(fromMarginal[i]) : 0
+          to += toMarginal ? Math.round(toMarginal[i]) : 0
+        }
+        return { from, to }
+      }
+
+      // one time period
+      const hour = this.headers.indexOf(timePeriod) - 1
+
+      from = fromMarginal ? Math.round(fromMarginal[hour]) : 0
+      to = toMarginal ? Math.round(toMarginal[hour]) : 0
+
+      return { from, to }
+    },
+
+    buildCentroids(geojson: FeatureCollection) {
+      const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
+
+      for (const feature of geojson.features) {
+        if (!feature.id) continue
+
+        const centroid: any = turf.centerOfMass(feature as any)
+        centroid.properties.id = feature.id
+        centroid.id = feature.id
+
+        let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
+        let dailyTo = Math.round(this.marginals.colTotal[feature.id])
+
+        if (!dailyFrom) dailyFrom = 0
+        if (!dailyTo) dailyTo = 0
+
+        centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
+        centroid.properties.dailyTo = dailyTo * this.scaleFactor
+
+        this.dailyFrom = centroid.properties.dailyFrom
+        this.dailyTo = centroid.properties.dailyTo
+
+        centroid.properties.widthFrom = Math.min(
+          70,
+          Math.max(
+            12,
+            Math.sqrt(this.dailyFrom / this.scaleFactor) *
+              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
+          )
+        )
+        centroid.properties.widthTo = Math.min(
+          70,
+          Math.max(
+            12,
+            Math.sqrt(this.dailyTo / this.scaleFactor) *
+              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
+          )
+        )
+
+        if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
+        if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
+
+        if (!feature.properties) feature.properties = {}
+        feature.properties.dailyFrom = dailyFrom
+        feature.properties.dailyTo = dailyTo
+
+        if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
+          centroids.features.push(centroid)
+          if (feature.properties) this.centroids[feature.id] = centroid
+          this.updateMapExtent(centroid.geometry.coordinates)
+        }
+      }
+
+      this.centroidSource = centroids
+
+      // console.log({ CENTROIDS: this.centroids })
+      // console.log({ CENTROIDSOURCE: this.centroidSource })
+
+      if (!this.mymap.getSource('centroids')) {
+        this.mymap.addSource('centroids', {
+          data: this.centroidSource,
+          type: 'geojson',
+        } as any)
+      }
+      this.updateCentroidLabels()
+
+      const parent = this
+
+      this.mymap.on('click', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
+        parent.clickedOnCentroid(e)
+      })
+
+      // turn "hover cursor" into a pointer, so user knows they can click.
+      this.mymap.on('mousemove', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
+        parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+      })
+
+      // and back to normal when they mouse away
+      this.mymap.on('mouseleave', 'centroid-layer', function () {
+        parent.mymap.getCanvas().style.cursor = 'grab'
+      })
+    },
+
+    setMapExtent() {
+      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
+
+      const options = this.thumbnail
+        ? { animate: false }
+        : {
+            padding: { top: 25, bottom: 25, right: 100, left: 100 },
+            animate: false,
+          }
+      this.mymap.fitBounds(this._mapExtentXYXY, options)
+    },
+
+    setupKeyListeners() {
+      const parent = this
+      window.addEventListener('keyup', function (event) {
+        if (event.keyCode === 27) {
+          // ESC
+          parent.pressedEscape()
+        }
+      })
+      window.addEventListener('keydown', function (event) {
+        if (event.keyCode === 38) {
+          // UP
+          parent.pressedArrowKey(-1)
+        }
+        if (event.keyCode === 40) {
+          // DOWN
+          parent.pressedArrowKey(+1)
+        }
+      })
+    },
+
+    // To display only the centroids whose dailyTo and dailyFrom values are not
+    // both 0, the objects get the property 'isVisable'. When adding the geojson
+    // data to the map, it is filtered by this attribute.
+    processGeojson() {
+      for (let i = 0; i < this.geojson.features.length; i++) {
+        const data = this.geojson.features[i].properties
+        if (data.dailyFrom != 0 || data.dailyTo != 0) {
+          this.geojson.features[i].properties.isVisiable = true
+        } else {
+          this.geojson.features[i].properties.isVisiable = false
+        }
+      }
+    },
+
+    async processShapefile(files: any) {
+      this.loadingText = 'Verkehrsnetz bauarbeiten...'
+      const geojson = await shapefile.read(files.shpFile, files.dbfFile)
+
+      // if we have lots of features, then we should filter the LINES for performance
+      if (geojson.features.length > 150) this.lineFilter = 10
+
+      this.loadingText = 'Koordinaten berechnen...'
+
+      await forEachAsync(geojson.features, (feature: any) => {
+        // 'id' column used for lookup, unless idColumn is set in YAML
+        if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
+
+        // Save id somewhere helpful
+        if (feature.properties) feature.id = feature.properties[this.idColumn]
+
+        try {
+          if (feature.geometry.type === 'MultiPolygon') {
+            this.convertMultiPolygonCoordinatesToWGS84(feature)
+          } else {
+            this.convertPolygonCoordinatesToWGS84(feature)
+          }
+        } catch (e) {
+          console.error('ERR with feature: ' + feature)
+          console.error(e)
+        }
+      })
+      return geojson
+    },
+
+    convertPolygonCoordinatesToWGS84(polygon: any) {
+      for (const origCoords of polygon.geometry.coordinates) {
+        const newCoords: any = []
+        for (const p of origCoords) {
+          const lnglat = Coords.toLngLat(this.projection, p) as any
+          newCoords.push(lnglat)
+        }
+
+        // replace existing coords
+        origCoords.length = 0
+        origCoords.push(...newCoords)
+      }
+    },
+
+    origConvertMultiPolygonCoordinatesToWGS84(multipolygon: any) {
+      for (const origCoords of multipolygon.geometry.coordinates) {
+        const coordinates = origCoords[0] // multipolygons have an extra array[0] added
+
+        const newCoords: any = []
+        for (const p of coordinates) {
+          const lnglat = proj4(this.projection, 'WGS84', p) as any
+          newCoords.push(lnglat)
+        }
+
+        origCoords[0] = newCoords
+      }
+    },
+
+    convertMultiPolygonCoordinatesToWGS84(multipolygon: any) {
+      multipolygon.geometry.coordinates = this.recurseWGS84(multipolygon.geometry.coordinates)
+    },
+
+    recurseWGS84(coords: any[]): any {
+      const newCoords = []
+
+      for (let coordArray of coords) {
+        if (Array.isArray(coordArray[0])) {
+          newCoords.push(this.recurseWGS84(coordArray))
+        } else {
+          newCoords.push(proj4(this.projection, 'WGS84', coordArray))
+        }
+      }
+      return newCoords
+    },
+
+    async getDailyDataSummary() {
+      const rowTotal: any = {}
+      const colTotal: any = {}
+      const fromCentroid: any = {}
+      const toCentroid: any = {}
+
+      await forEachAsync(Object.keys(this.zoneData), (row: any) => {
+        // store number of time periods (no totals here)
+        fromCentroid[row] = Array(this.headers.length - 1).fill(0)
+
+        for (const col of Object.keys(this.zoneData[row])) {
+          // daily totals
+          if (!rowTotal[row]) rowTotal[row] = 0
+          if (!colTotal[col]) colTotal[col] = 0
+
+          if (this.dailyData[row][col]) {
+            rowTotal[row] += this.dailyData[row][col]
+            colTotal[col] += this.dailyData[row][col]
+          }
+
+          if (!toCentroid[col]) toCentroid[col] = Array(this.headers.length - 1).fill(0)
+
+          // time-of-day details
+          for (let i = 0; i < this.headers.length - 1; i++) {
+            // number of time periods
+            if (this.zoneData[row][col][i]) {
+              fromCentroid[row][i] += this.zoneData[row][col][i]
+              toCentroid[col][i] += this.zoneData[row][col][i]
+            }
+          }
+        }
+      })
+
+      for (const row in this.zoneData) {
+      }
+      return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
+    },
+
+    async processHourlyData(csvData: string) {
+      this.loadingText = 'Uhrzeitdaten entwicklen...'
+
+      const lines = csvData.split('\n')
+      const separator = lines[0].indexOf(';') > 0 ? ';' : ','
+
+      // data is in format: o,d, value[1], value[2], value[3]...
+      const headers = lines[0].split(separator).map(a => a.trim())
+      this.rowName = headers[0]
+      this.colName = headers[1]
+      this.headers = [TOTAL_MSG].concat(headers.slice(2))
+
+      if (!this.rowName || !this.colName) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: 'CSV data might be wrong format',
+          desc: 'First column has no name. Data MUST be orig,dest,values...',
+        })
+      }
+      // console.log(this.headers)
+
+      await forEachAsync(lines.slice(1), (row: any) => {
+        // skip header row
+        const columns = row.split(separator)
+        const values = columns.slice(2).map((a: any) => parseFloat(a))
+
+        // build zone matrix
+        const i = columns[0]
+        const j = columns[1]
+
+        if (!this.zoneData[i]) this.zoneData[i] = {}
+        this.zoneData[i][j] = values
+
+        // calculate daily/total values
+        const daily = values.reduce((a: any, b: any) => a + b, 0)
+
+        if (!this.dailyData[i]) this.dailyData[i] = {}
+        this.dailyData[i][j] = daily
+
+        // save total on the links too
+        if (daily !== 0) {
+          const rowName = String(columns[0]) + ':' + String(columns[1])
+          this.linkData[rowName] = { orig: columns[0], dest: columns[1], daily, values }
+        }
+      })
+
+      // console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
+    },
+
+    updateMapExtent(coordinates: any) {
+      this._mapExtentXYXY[0] = Math.min(this._mapExtentXYXY[0], coordinates[0])
+      this._mapExtentXYXY[1] = Math.min(this._mapExtentXYXY[1], coordinates[1])
+      this._mapExtentXYXY[2] = Math.max(this._mapExtentXYXY[2], coordinates[0])
+      this._mapExtentXYXY[3] = Math.max(this._mapExtentXYXY[3], coordinates[1])
+    },
+
+    addGeojsonToMap(geojson: any) {
+      this.processGeojson()
+      this.addGeojsonLayers(geojson)
+      this.addNeighborhoodHoverEffects()
+    },
+
+    addGeojsonLayers(geojson: any) {
+      if (!this.mymap.getSource('shpsource')) {
+        this.mymap.addSource('shpsource', {
+          data: geojson,
+          type: 'geojson',
+        } as any)
+      }
+
+      if (this.mymap.getLayer('shplayer-fill')) this.mymap.removeLayer('shplayer-fill')
+      this.mymap.addLayer(
+        {
+          id: 'shplayer-fill',
+          source: 'shpsource',
+          type: 'fill',
+          paint: {
+            'fill-color': ['rgb', ['get', 'blue'], ['get', 'blue'], 255],
+            'fill-opacity': 0.5,
+          },
+        },
+        'water'
+      )
+
+      if (this.mymap.getLayer('shplayer-border')) this.mymap.removeLayer('shplayer-border')
+      this.mymap.addLayer(
+        {
+          id: 'shplayer-border',
+          source: 'shpsource',
+          type: 'line',
+          paint: {
+            'line-color': '#66f',
+            'line-opacity': 0.5,
+            'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
+          },
+          filter: ['==', 'isVisiable', true],
+        },
+        'centroid-layer'
+      )
+    },
+
+    addNeighborhoodHoverEffects() {
+      const parent = this
+      this.mymap.on('mousemove', 'shplayer-fill', function (e: any) {
+        // typescript definitions and mapbox-gl are out of sync at the moment :-(
+        // so setFeatureState is missing
+        const tsMap = parent.mymap as any
+        if (e.features.length > 0) {
+          if (parent.hoveredStateId) {
+            tsMap.setFeatureState(
+              { source: 'shpsource', id: parent.hoveredStateId },
+              { hover: false }
+            )
+          }
+          parent.hoveredStateId = e.features[0].properties[parent.idColumn]
+          tsMap.setFeatureState({ source: 'shpsource', id: parent.hoveredStateId }, { hover: true })
+        }
+      })
+
+      // When the mouse leaves the state-fill layer, update the feature state of the
+      // previously hovered feature.
+      this.mymap.on('mouseleave', 'shplayer-fill', function () {
+        const tsMap = parent.mymap as any
+        if (parent.hoveredStateId) {
+          tsMap.setFeatureState(
+            { source: 'shpsource', id: parent.hoveredStateId },
+            { hover: false }
+          )
+        }
+        parent.hoveredStateId = null
+      })
+    },
+
+    offsetLineByMeters(line: any, metersToTheRight: number) {
+      try {
+        const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
+        return offsetLine
+      } catch (e) {
+        // offset can fail if points are exactly on top of each other; ignore.
+      }
+      return line
+    },
+
+    pressedEscape() {
+      this.unselectAllCentroids()
+    },
+
+    pressedArrowKey(delta: number) {},
+
+    changedTimeSlider(value: any) {
+      this.currentTimeBin = value
+
+      const widthFactor = (this.currentScale / 500) * this.scaleFactor
+
+      if (this.showTimeRange == false) {
+        this.mymap.setPaintProperty('spider-layer', 'line-width', [
+          '*',
+          widthFactor,
+          ['get', value],
+        ])
+        this.mymap.setPaintProperty('spider-layer', 'line-offset', [
+          '*',
+          0.5 * widthFactor,
+          ['get', value],
+        ])
+      } else {
+        const sumElements: any = ['+']
+
+        // build the summation expressions: e.g. ['+', ['get', '1'], ['get', '2']]
+        let include = false
+        for (const header of this.headers) {
+          if (header === value[0]) include = true
+
+          // don't double-count the total
+          if (header === TOTAL_MSG) continue
+
+          if (include) sumElements.push(['get', header])
+
+          if (header === value[1]) include = false
+        }
+
+        this.mymap.setPaintProperty('spider-layer', 'line-width', ['*', widthFactor, sumElements])
+        this.mymap.setPaintProperty('spider-layer', 'line-offset', [
+          '*',
+          0.5 * widthFactor,
+          sumElements,
+        ])
+      }
+
+      this.handleCentroidsForTimeOfDayChange(value)
+    },
+
+    changedScale(value: any) {
+      // console.log({ slider: value, timebin: this.currentTimeBin })
+      this.currentScale = value
+      this.changedTimeSlider(this.currentTimeBin)
+    },
+
+    changedLineFilter(value: any) {
+      if (value === 'Alle') this.lineFilter = Infinity
+      else this.lineFilter = value
+
+      this.updateSpiderLinks()
+    },
+  },
+  watch: {
+    '$store.state.viewState'(value: any) {
+      if (this.mapIsIndependent) return
+      if (!this.mymap || this.isMapMoving || this.thumbnail) {
+        this.isMapMoving = false
+        return
+      }
+
+      const { bearing, longitude, latitude, zoom, pitch } = value
+
+      // sometimes closing a view returns a null map, ignore it!
+      if (!zoom) return
+
+      this.mymap.off('move', this.handleMapMotion)
+
+      this.mymap.jumpTo({
+        bearing,
+        zoom,
+        center: [longitude, latitude],
+        pitch,
+      })
+
+      this.mymap.on('move', this.handleMapMotion)
+    },
+
+    '$store.state.colorScheme'() {
+      this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+      if (!this.mymap) return
+
+      this.mymap.setStyle(globalStore.getters.mapStyle)
+
+      this.mymap.on('style.load', () => {
+        this.buildCentroids(this.geojson)
+        this.buildSpiderLinks()
+        this.addGeojsonToMap(this.geojson)
+        // this.setupKeyListeners()
+      })
+    },
+
+    '$store.state.resizeEvents'() {
+      if (this.mymap) this.mymap.resize()
+    },
+
+    showTimeRange() {
+      console.log(this.showTimeRange)
+    },
+
+    showCentroids() {
+      this.updateCentroidLabels()
+    },
+
+    showCentroidLabels() {
+      this.updateCentroidLabels()
+    },
+  },
+  async created() {
     this._mapExtentXYXY = [180, 90, -180, -90]
     this._maximum = 0
-  }
-
-  public destroyed() {
-    globalStore.commit('setFullScreen', false)
-  }
-
-  public async mounted() {
+  },
+  async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
+    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
 
-    this.mapId = 'map-' + this.containerId
+    ;(this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)),
+      (this.bounceScaleSlider = debounce(this.changedScale, 50)),
+      (this.bounceLineFilter = debounce(this.changedLineFilter, 250)),
+      (this.mapId = 'map-' + this.containerId)
 
     this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
+    this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
 
     this.buildFileApi()
@@ -273,1112 +1373,12 @@ class MyComponent extends Vue {
     this.setupMap()
     this.configureSettings()
     this.setupResizer()
-  }
-
-  private resizer!: ResizeObserver
-
-  private setupResizer() {
-    this.resizer = new ResizeObserver(() => {
-      this.mymap.resize()
-    })
-
-    const viz = document.getElementById(this.containerId) as HTMLElement
-    this.resizer.observe(viz)
-  }
-
-  private isMapMoving = false
-
-  private configureSettings() {
-    if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
-      this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
-    }
-    if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
-  }
-
-  @Watch('$store.state.viewState') private mapMoved({
-    bearing,
-    longitude,
-    latitude,
-    zoom,
-    pitch,
-  }: any) {
-    if (this.mapIsIndependent) return
-    if (!this.mymap || this.isMapMoving || this.thumbnail) {
-      this.isMapMoving = false
-      return
-    }
-
-    // sometimes closing a view returns a null map, ignore it!
-    if (!zoom) return
-
-    this.mymap.off('move', this.handleMapMotion)
-
-    this.mymap.jumpTo({
-      bearing,
-      zoom,
-      center: [longitude, latitude],
-      pitch,
-    })
-
-    this.mymap.on('move', this.handleMapMotion)
-  }
-
-  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-
-  @Watch('$store.state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-    if (!this.mymap) return
-
-    this.mymap.setStyle(globalStore.getters.mapStyle)
-
-    this.mymap.on('style.load', () => {
-      this.buildCentroids(this.geojson)
-      this.buildSpiderLinks()
-      this.addGeojsonToMap(this.geojson)
-      // this.setupKeyListeners()
-    })
-  }
-
-  @Watch('$store.state.resizeEvents') handleResize() {
-    if (this.mymap) this.mymap.resize()
-  }
-
-  @Watch('showTimeRange')
-  private clickedRange(useRange: boolean) {
-    console.log(useRange)
-  }
-
-  @Watch('showCentroids')
-  private clickedShowCentroids() {
-    this.updateCentroidLabels()
-  }
-
-  @Watch('showCentroidLabels')
-  private clickedShowCentroidBubbles() {
-    this.updateCentroidLabels()
-  }
-
-  private handleMapMotion() {
-    const mapCamera = {
-      longitude: this.mymap.getCenter().lng,
-      latitude: this.mymap.getCenter().lat,
-      bearing: this.mymap.getBearing(),
-      zoom: this.mymap.getZoom(),
-      pitch: this.mymap.getPitch(),
-    }
-
-    if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
-
-    if (!this.isMapMoving) this.isMapMoving = true
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    if (!this.myState.fileApi) return
-
-    if (this.config) {
-      this.validateYAML()
-      this.vizDetails = Object.assign({}, this.config)
-    } else {
-      try {
-        // might be a project config:
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-        const text = await this.myState.fileApi.getFileText(filename)
-        this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
-        this.validateYAML()
-        this.setVizDetails()
-      } catch (err) {
-        const e = err as any
-        // maybe it failed because password?
-        if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.myState.fileSystem.slug)
-        }
-      }
-    }
-
-    this.$emit('title', this.vizDetails.title)
-
-    this.scaleFactor = this.vizDetails.scaleFactor
-    this.projection = this.vizDetails.projection
-    this.mapIsIndependent = !!this.vizDetails.mapIsIndependent
-    this.idColumn = this.vizDetails.idColumn ? this.vizDetails.idColumn : 'id'
-
-    nprogress.done()
-  }
-
-  private validateYAML() {
-    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
-
-    let configuration
-
-    if (hasYaml) {
-      console.log('agg-od has yaml')
-      configuration = this.standaloneYAMLconfig
-    } else {
-      console.log('agg-od no yaml')
-      configuration = this.config
-    }
-
-    for (const key in this.YAMLrequirementsOD) {
-      if (key in configuration === false) {
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: `${this.yamlConfig}: missing required key: ${key}`,
-          desc: '',
-        })
-      }
-    }
-  }
-
-  private setVizDetails() {
-    this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
-
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Aggregate OD'
-    this.$emit('title', t)
-  }
-
-  private async findFilenameFromWildcard(path: string) {
-    if (!this.myState.fileApi) return ''
-
-    // get folder
-    let folder = path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
-
-    // get file path search pattern
-    const { files } = await this.myState.fileApi.getDirectory(folder)
-    let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
-    const match = findMatchingGlobInFiles(files, pattern)
-
-    if (match.length === 1) {
-      return `${folder}/${match[0]}`
-    } else {
-      throw Error('File not found: ' + path)
-    }
-  }
-
-  private async loadFiles() {
-    if (!this.myState.fileApi) return
-
-    try {
-      this.loadingText = 'Dateien laden...'
-
-      const csvFilename = await this.findFilenameFromWildcard(
-        `${this.myState.subfolder}/${this.vizDetails.csvFile}`
-      )
-      const shpFilename = await this.findFilenameFromWildcard(
-        `${this.myState.subfolder}/${this.vizDetails.shpFile}`
-      )
-      const dbfFilename = await this.findFilenameFromWildcard(
-        `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
-      )
-
-      const odFlows = await this.myState.fileApi.getFileText(csvFilename)
-
-      const blob = await this.myState.fileApi.getFileBlob(shpFilename)
-      const shpFile = await readBlob.arraybuffer(blob)
-
-      const blob2 = await this.myState.fileApi.getFileBlob(dbfFilename)
-      const dbfFile = await readBlob.arraybuffer(blob2)
-
-      return { shpFile, dbfFile, odFlows }
-      //
-    } catch (e) {
-      const error = e as any
-      let msg = error.statusText || '' + error
-      if (error.url) msg += ': ' + error.url
-
-      console.error(msg)
-      this.loadingText = '' + e
-      this.$store.commit('error', msg)
-      return null
-    }
-  }
-
-  private get legendRows() {
-    return ['#00aa66', '#880033', '↓', '↑']
-  }
-
-  private async setupMap() {
-    try {
-      this.mymap = new maplibregl.Map({
-        container: this.mapId,
-        style: globalStore.getters.mapStyle,
-        logoPosition: 'top-left',
-      })
-    } catch (e) {
-      console.error('HUH?')
-      return
-    }
-
-    try {
-      const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
-      if (extent) {
-        const lnglat = JSON.parse(extent)
-
-        const mFac = this.isMobile() ? 0 : 1
-        const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
-
-        this.$store.commit('setMapCamera', {
-          longitude: 0.5 * (lnglat[0] + lnglat[2]),
-          latitude: 0.5 * (lnglat[1] + lnglat[3]),
-          zoom: 8,
-          pitch: 0,
-          bearing: 0,
-          jump: true, // initial map
-        })
-      }
-    } catch (e) {
-      // no consequence if json was weird, just drop it
-    }
-
-    this.mymap.on('click', this.handleEmptyClick)
-    // Start doing stuff AFTER the MapBox library has fully initialized
-    this.mymap.on('load', this.mapIsReady)
-    this.mymap.on('move', this.handleMapMotion)
-
-    // clean up display just when we're in thumbnail mode
-    if (this.thumbnail) {
-      let baubles = document.getElementsByClassName(
-        'mapboxgl-ctrl mapboxgl-ctrl-attrib mapboxgl-compact'
-      )
-      for (const elem of baubles) elem.setAttribute('style', 'display: none')
-
-      baubles = document.getElementsByClassName('mapboxgl-ctrl mapboxgl-ctrl-group')
-      for (const elem of baubles) elem.setAttribute('style', 'display: none')
-
-      baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-      for (const elem of baubles) elem.setAttribute('style', 'display: none')
-    } else {
-      let baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-      for (const elem of baubles) elem.setAttribute('style', 'margin-bottom: 3rem;')
-    }
-  }
-
-  private handleEmptyClick(e: mapboxgl.MapMouseEvent) {
-    this.fadeUnselectedLinks(-1)
-    this.selectedCentroid = 0
-
-    if (this.isMobile()) {
-      // do something
-    }
-  }
-
-  private async mapIsReady() {
-    const files = await this.loadFiles()
-    if (files) {
-      this.geojson = await this.processShapefile(files)
-      await this.processHourlyData(files.odFlows)
-      this.marginals = await this.getDailyDataSummary()
-      this.buildCentroids(this.geojson)
-      this.convertRegionColors(this.geojson)
-      this.addGeojsonToMap(this.geojson)
-      this.setMapExtent()
-      this.buildSpiderLinks()
-      this.setupKeyListeners()
-    }
-
-    this.loadingText = ''
-    nprogress.done()
-  }
-
-  private isMobile() {
-    const w = window
-    const d = document
-    const e = d.documentElement
-    const g = d.getElementsByTagName('body')[0]
-    const x = w.innerWidth || e.clientWidth || g.clientWidth
-    const y = w.innerHeight || e.clientHeight || g.clientHeight
-
-    return x < 640
-  }
-
-  private get scaleRows() {
-    return [
-      Math.min(
-        Math.round((1200 * Math.pow(this.currentScale, -1) + 20) * Math.sqrt(this.scaleFactor)),
-        1000 * this.scaleFactor
-      ),
-    ]
-  }
-
-  private createSpiderLinks() {
-    this.spiderLinkFeatureCollection = { type: 'FeatureCollection', features: [] }
-
-    for (const id of Object.keys(this.linkData)) {
-      const link: any = this.linkData[id]
-
-      if (link.daily <= this.lineFilter) continue
-
-      try {
-        const origCoord = this.centroids[link.orig].geometry.coordinates
-        const destCoord = this.centroids[link.dest].geometry.coordinates
-        const color = origCoord[1] - destCoord[1] > 0 ? '#00aa66' : '#880033'
-        const fade = 0.7
-        const properties: any = {
-          id: id,
-          orig: link.orig || 0,
-          dest: link.dest || 0,
-          daily: link.daily || 0,
-          color,
-          fade,
-        }
-        // Test this
-        properties[TOTAL_MSG] = link.daily
-        link.values.forEach((value: number, i: number) => {
-          properties[this.headers[i + 1]] = value ? value : 0
-        })
-
-        const feature: any = {
-          type: 'Feature',
-          properties,
-          geometry: {
-            type: 'LineString',
-            coordinates: [origCoord, destCoord],
-          },
-        }
-        this.spiderLinkFeatureCollection.features.push(feature)
-      } catch (e) {
-        // some dests aren't on map: z.b. 'other'
-      }
-    }
-  }
-
-  private updateSpiderLinks() {
-    this.createSpiderLinks()
-
-    // avoiding mapbox typescript bug:
-    if (this.selectedCentroid) {
-      this.fadeUnselectedLinks(this.selectedCentroid)
-    } else {
-      const tsMap = this.mymap as any
-      tsMap.getSource('spider-source').setData(this.spiderLinkFeatureCollection)
-    }
-  }
-
-  private buildSpiderLinks() {
-    if (!this.mymap.getSource('spider-source')) {
-      this.createSpiderLinks()
-      // console.log({ spiders: this.spiderLinkFeatureCollection })
-      this.mymap.addSource('spider-source', {
-        data: this.spiderLinkFeatureCollection,
-        type: 'geojson',
-      } as any)
-    }
-
-    if (this.mymap.getLayer('spider-layer')) this.mymap.removeLayer('spider-layer')
-    this.mymap.addLayer(
-      {
-        id: 'spider-layer',
-        source: 'spider-source',
-        type: 'line',
-        paint: {
-          'line-color': ['get', 'color'],
-          'line-width': ['*', (1 / 500) * this.scaleFactor, ['get', 'daily']],
-          'line-offset': ['*', 0.5, ['get', 'daily']],
-          'line-opacity': ['get', 'fade'],
-        },
-      },
-      'centroid-layer'
-    )
-
-    this.changedScale(this.currentScale)
-
-    const parent = this
-    this.mymap.on('click', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
-      parent.clickedOnSpiderLink(e)
-    })
-
-    // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'spider-layer', function (e: maplibregl.MapMouseEvent) {
-      parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
-    })
-
-    // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'spider-layer', function () {
-      parent.mymap.getCanvas().style.cursor = 'grab'
-    })
-  }
-
-  private clickedOrigins() {
-    this.isOrigin = true
-    this.updateCentroidLabels()
-
-    this.convertRegionColors(this.geojson)
-
-    // avoiding mapbox typescript bug:
-    const tsMap = this.mymap as any
-    tsMap.getSource('shpsource').setData(this.geojson)
-  }
-
-  private clickedDestinations() {
-    this.isOrigin = false
-    this.updateCentroidLabels()
-
-    this.convertRegionColors(this.geojson)
-
-    // avoiding mapbox typescript bug:
-    const tsMap = this.mymap as any
-    tsMap.getSource('shpsource').setData(this.geojson)
-  }
-
-  private updateCentroidLabels() {
-    const labels = this.isOrigin ? '{dailyFrom}' : '{dailyTo}'
-    const radiusField = this.isOrigin ? 'widthFrom' : 'widthTo'
-
-    if (this.mymap.getLayer('centroid-layer')) this.mymap.removeLayer('centroid-layer')
-    if (this.mymap.getLayer('centroid-label-layer')) this.mymap.removeLayer('centroid-label-layer')
-
-    if (this.showCentroids) {
-      this.mymap.addLayer({
-        layout: { visibility: this.thumbnail ? 'none' : 'visible' },
-        id: 'centroid-layer',
-        source: 'centroids',
-        type: 'circle',
-        paint: {
-          'circle-color': '#ec0',
-          'circle-radius': ['get', radiusField],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': 'white',
-        },
-      })
-    }
-
-    if (this.showCentroidLabels) {
-      this.mymap.addLayer({
-        id: 'centroid-label-layer',
-        source: 'centroids',
-        type: 'symbol',
-        layout: {
-          'text-field': labels,
-          'text-size': 11,
-        },
-        paint: this.showCentroids ? {} : { 'text-halo-color': 'white', 'text-halo-width': 2 },
-      })
-    }
-  }
-
-  private unselectAllCentroids() {
-    this.fadeUnselectedLinks(-1)
-    this.selectedCentroid = 0
-  }
-
-  private clickedOnCentroid(e: any) {
-    // console.log({ CLICK: e })
-
-    e.originalEvent.stopPropagating = true
-
-    const centroid = e.features[0].properties
-    // console.log(centroid)
-
-    const id = centroid.id
-    // console.log('clicked on id', id)
-    // a second click on a centroid UNselects it.
-    if (id === this.selectedCentroid) {
-      this.unselectAllCentroids()
-      return
-    }
-
-    this.selectedCentroid = id
-
-    // console.log(this.marginals)
-    // console.log(this.marginals.rowTotal[id])
-    // console.log(this.marginals.colTotal[id])
-
-    this.fadeUnselectedLinks(id)
-  }
-
-  private fadeUnselectedLinks(id: any) {
-    const tsMap = this.mymap as any
-
-    for (const feature of this.spiderLinkFeatureCollection.features) {
-      const endpoints = feature.properties.id.split(':')
-      let fade = endpoints[0] === String(id) || endpoints[1] === String(id) ? 0.7 : FADED
-      if (id === -1) fade = 0.7
-      feature.properties.fade = fade
-    }
-    tsMap.getSource('spider-source').setData(this.spiderLinkFeatureCollection)
-  }
-
-  private clickedOnSpiderLink(e: any) {
-    if (e.originalEvent.stopPropagating) return
-
-    // console.log({ CLICK: e })
-
-    const props = e.features[0].properties
-    // console.log(props)
-
-    const trips = props.daily * this.scaleFactor
-    let revTrips = 0
-    const reverseDir = '' + props.dest + ':' + props.orig
-
-    if (this.linkData[reverseDir]) revTrips = this.linkData[reverseDir].daily * this.scaleFactor
-
-    const totalTrips = trips + revTrips
-
-    let html = `<h1>${totalTrips} Bidirectional Trips</h1><br/>`
-    html += `<p> -----------------------------</p>`
-    html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
-
-    new maplibregl.Popup({ closeOnClick: true }).setLngLat(e.lngLat).setHTML(html).addTo(this.mymap)
-  }
-
-  private convertRegionColors(geojson: FeatureCollection) {
-    for (const feature of geojson.features) {
-      if (!feature.properties) continue
-
-      const daily = this.isOrigin ? feature.properties.dailyFrom : feature.properties.dailyTo
-      const ratio = daily / this.maxZonalTotal
-
-      let blue = 128 + 127 * (1.0 - ratio)
-      if (!blue) blue = 255
-
-      feature.properties.blue = blue
-    }
-  }
-
-  private handleCentroidsForTimeOfDayChange(timePeriod: any) {
-    const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
-
-    for (const feature of this.geojson.features) {
-      const centroid: any = turf.centerOfMass(feature as any)
-
-      centroid.properties.id = feature.id
-
-      const values = this.calculateCentroidValuesForZone(timePeriod, feature)
-
-      centroid.properties.dailyFrom = values.from * this.scaleFactor
-      centroid.properties.dailyTo = values.to * this.scaleFactor
-
-      this.dailyFrom = centroid.properties.dailyFrom
-      this.dailyTo = centroid.properties.dailyTo
-
-      centroid.properties.widthFrom = Math.min(
-        35,
-        Math.max(
-          12,
-          Math.pow(this.dailyFrom / this.scaleFactor, 0.3) *
-            (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-        )
-      )
-      centroid.properties.widthTo = Math.min(
-        35,
-        Math.max(
-          12,
-          Math.pow(this.dailyTo / this.scaleFactor, 0.3) *
-            (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-        )
-      )
-
-      if (!feature.properties) feature.properties = {}
-
-      feature.properties.dailyFrom = values.from
-      feature.properties.dailyTo = values.to
-
-      if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
-        centroids.features.push(centroid)
-        if (feature.properties) this.centroids[feature.properties[this.idColumn]] = centroid
-      }
-    }
-
-    this.centroidSource = centroids
-
-    const tsMap = this.mymap as any
-    tsMap.getSource('centroids').setData(this.centroidSource)
-    this.updateCentroidLabels()
-  }
-
-  private calculateCentroidValuesForZone(timePeriod: any, feature: any) {
-    let from = 0
-    let to = 0
-
-    // daily
-    if (timePeriod === 'Alle >>') {
-      //from = Math.round(this.marginals.rowTotal[feature.id])
-      //to = Math.round(this.marginals.colTotal[feature.id])
-      to = feature.properties.dailyTo
-      from = feature.properties.dailyFrom
-      return { from, to }
-    }
-
-    const fromMarginal = this.marginals.from[feature.id]
-    const toMarginal = this.marginals.to[feature.id]
-
-    // time range
-    if (Array.isArray(timePeriod)) {
-      let hourFrom = this.headers.indexOf(timePeriod[0]) - 1
-      if (hourFrom < 0) hourFrom = 0
-
-      const hourTo = this.headers.indexOf(timePeriod[1]) - 1
-
-      for (let i = hourFrom; i <= hourTo; i++) {
-        from += fromMarginal ? Math.round(fromMarginal[i]) : 0
-        to += toMarginal ? Math.round(toMarginal[i]) : 0
-      }
-      return { from, to }
-    }
-
-    // one time period
-    const hour = this.headers.indexOf(timePeriod) - 1
-
-    from = fromMarginal ? Math.round(fromMarginal[hour]) : 0
-    to = toMarginal ? Math.round(toMarginal[hour]) : 0
-
-    return { from, to }
-  }
-
-  private buildCentroids(geojson: FeatureCollection) {
-    const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
-
-    for (const feature of geojson.features) {
-      if (!feature.id) continue
-
-      const centroid: any = turf.centerOfMass(feature as any)
-      centroid.properties.id = feature.id
-      centroid.id = feature.id
-
-      let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
-      let dailyTo = Math.round(this.marginals.colTotal[feature.id])
-
-      if (!dailyFrom) dailyFrom = 0
-      if (!dailyTo) dailyTo = 0
-
-      centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
-      centroid.properties.dailyTo = dailyTo * this.scaleFactor
-
-      this.dailyFrom = centroid.properties.dailyFrom
-      this.dailyTo = centroid.properties.dailyTo
-
-      centroid.properties.widthFrom = Math.min(
-        70,
-        Math.max(
-          12,
-          Math.sqrt(this.dailyFrom / this.scaleFactor) *
-            (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-        )
-      )
-      centroid.properties.widthTo = Math.min(
-        70,
-        Math.max(
-          12,
-          Math.sqrt(this.dailyTo / this.scaleFactor) *
-            (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-        )
-      )
-
-      if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
-      if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
-
-      if (!feature.properties) feature.properties = {}
-      feature.properties.dailyFrom = dailyFrom
-      feature.properties.dailyTo = dailyTo
-
-      if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
-        centroids.features.push(centroid)
-        if (feature.properties) this.centroids[feature.id] = centroid
-        this.updateMapExtent(centroid.geometry.coordinates)
-      }
-    }
-
-    this.centroidSource = centroids
-
-    // console.log({ CENTROIDS: this.centroids })
-    // console.log({ CENTROIDSOURCE: this.centroidSource })
-
-    if (!this.mymap.getSource('centroids')) {
-      this.mymap.addSource('centroids', {
-        data: this.centroidSource,
-        type: 'geojson',
-      } as any)
-    }
-    this.updateCentroidLabels()
-
-    const parent = this
-
-    this.mymap.on('click', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-      parent.clickedOnCentroid(e)
-    })
-
-    // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-      parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
-    })
-
-    // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'centroid-layer', function () {
-      parent.mymap.getCanvas().style.cursor = 'grab'
-    })
-  }
-
-  private setMapExtent() {
-    localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-
-    const options = this.thumbnail
-      ? { animate: false }
-      : {
-          padding: { top: 25, bottom: 25, right: 100, left: 100 },
-          animate: false,
-        }
-    this.mymap.fitBounds(this._mapExtentXYXY, options)
-  }
-
-  private setupKeyListeners() {
-    const parent = this
-    window.addEventListener('keyup', function (event) {
-      if (event.keyCode === 27) {
-        // ESC
-        parent.pressedEscape()
-      }
-    })
-    window.addEventListener('keydown', function (event) {
-      if (event.keyCode === 38) {
-        // UP
-        parent.pressedArrowKey(-1)
-      }
-      if (event.keyCode === 40) {
-        // DOWN
-        parent.pressedArrowKey(+1)
-      }
-    })
-  }
-
-  // To display only the centroids whose dailyTo and dailyFrom values are not
-  // both 0, the objects get the property 'isVisable'. When adding the geojson
-  // data to the map, it is filtered by this attribute.
-  private processGeojson() {
-    for (let i = 0; i < this.geojson.features.length; i++) {
-      const data = this.geojson.features[i].properties
-      if (data.dailyFrom != 0 || data.dailyTo != 0) {
-        this.geojson.features[i].properties.isVisiable = true
-      } else {
-        this.geojson.features[i].properties.isVisiable = false
-      }
-    }
-  }
-
-  private async processShapefile(files: any) {
-    this.loadingText = 'Verkehrsnetz bauarbeiten...'
-    const geojson = await shapefile.read(files.shpFile, files.dbfFile)
-
-    // if we have lots of features, then we should filter the LINES for performance
-    if (geojson.features.length > 150) this.lineFilter = 10
-
-    this.loadingText = 'Koordinaten berechnen...'
-
-    await forEachAsync(geojson.features, (feature: any) => {
-      // 'id' column used for lookup, unless idColumn is set in YAML
-      if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
-
-      // Save id somewhere helpful
-      if (feature.properties) feature.id = feature.properties[this.idColumn]
-
-      try {
-        if (feature.geometry.type === 'MultiPolygon') {
-          this.convertMultiPolygonCoordinatesToWGS84(feature)
-        } else {
-          this.convertPolygonCoordinatesToWGS84(feature)
-        }
-      } catch (e) {
-        console.error('ERR with feature: ' + feature)
-        console.error(e)
-      }
-    })
-    return geojson
-  }
-
-  private convertPolygonCoordinatesToWGS84(polygon: any) {
-    for (const origCoords of polygon.geometry.coordinates) {
-      const newCoords: any = []
-      for (const p of origCoords) {
-        const lnglat = Coords.toLngLat(this.projection, p) as any
-        newCoords.push(lnglat)
-      }
-
-      // replace existing coords
-      origCoords.length = 0
-      origCoords.push(...newCoords)
-    }
-  }
-
-  private origConvertMultiPolygonCoordinatesToWGS84(multipolygon: any) {
-    for (const origCoords of multipolygon.geometry.coordinates) {
-      const coordinates = origCoords[0] // multipolygons have an extra array[0] added
-
-      const newCoords: any = []
-      for (const p of coordinates) {
-        const lnglat = proj4(this.projection, 'WGS84', p) as any
-        newCoords.push(lnglat)
-      }
-
-      origCoords[0] = newCoords
-    }
-  }
-
-  private convertMultiPolygonCoordinatesToWGS84(multipolygon: any) {
-    multipolygon.geometry.coordinates = this.recurseWGS84(multipolygon.geometry.coordinates)
-  }
-
-  private recurseWGS84(coords: any[]): any {
-    const newCoords = []
-
-    for (let coordArray of coords) {
-      if (Array.isArray(coordArray[0])) {
-        newCoords.push(this.recurseWGS84(coordArray))
-      } else {
-        newCoords.push(proj4(this.projection, 'WGS84', coordArray))
-      }
-    }
-    return newCoords
-  }
-
-  private async getDailyDataSummary() {
-    const rowTotal: any = {}
-    const colTotal: any = {}
-    const fromCentroid: any = {}
-    const toCentroid: any = {}
-
-    await forEachAsync(Object.keys(this.zoneData), (row: any) => {
-      // store number of time periods (no totals here)
-      fromCentroid[row] = Array(this.headers.length - 1).fill(0)
-
-      for (const col of Object.keys(this.zoneData[row])) {
-        // daily totals
-        if (!rowTotal[row]) rowTotal[row] = 0
-        if (!colTotal[col]) colTotal[col] = 0
-
-        if (this.dailyData[row][col]) {
-          rowTotal[row] += this.dailyData[row][col]
-          colTotal[col] += this.dailyData[row][col]
-        }
-
-        if (!toCentroid[col]) toCentroid[col] = Array(this.headers.length - 1).fill(0)
-
-        // time-of-day details
-        for (let i = 0; i < this.headers.length - 1; i++) {
-          // number of time periods
-          if (this.zoneData[row][col][i]) {
-            fromCentroid[row][i] += this.zoneData[row][col][i]
-            toCentroid[col][i] += this.zoneData[row][col][i]
-          }
-        }
-      }
-    })
-
-    for (const row in this.zoneData) {
-    }
-    return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
-  }
-
-  private async processHourlyData(csvData: string) {
-    this.loadingText = 'Uhrzeitdaten entwicklen...'
-
-    const lines = csvData.split('\n')
-    const separator = lines[0].indexOf(';') > 0 ? ';' : ','
-
-    // data is in format: o,d, value[1], value[2], value[3]...
-    const headers = lines[0].split(separator).map(a => a.trim())
-    this.rowName = headers[0]
-    this.colName = headers[1]
-    this.headers = [TOTAL_MSG].concat(headers.slice(2))
-
-    if (!this.rowName || !this.colName) {
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: 'CSV data might be wrong format',
-        desc: 'First column has no name. Data MUST be orig,dest,values...',
-      })
-    }
-    // console.log(this.headers)
-
-    await forEachAsync(lines.slice(1), (row: any) => {
-      // skip header row
-      const columns = row.split(separator)
-      const values = columns.slice(2).map((a: any) => parseFloat(a))
-
-      // build zone matrix
-      const i = columns[0]
-      const j = columns[1]
-
-      if (!this.zoneData[i]) this.zoneData[i] = {}
-      this.zoneData[i][j] = values
-
-      // calculate daily/total values
-      const daily = values.reduce((a: any, b: any) => a + b, 0)
-
-      if (!this.dailyData[i]) this.dailyData[i] = {}
-      this.dailyData[i][j] = daily
-
-      // save total on the links too
-      if (daily !== 0) {
-        const rowName = String(columns[0]) + ':' + String(columns[1])
-        this.linkData[rowName] = { orig: columns[0], dest: columns[1], daily, values }
-      }
-    })
-
-    // console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
-  }
-
-  private updateMapExtent(coordinates: any) {
-    this._mapExtentXYXY[0] = Math.min(this._mapExtentXYXY[0], coordinates[0])
-    this._mapExtentXYXY[1] = Math.min(this._mapExtentXYXY[1], coordinates[1])
-    this._mapExtentXYXY[2] = Math.max(this._mapExtentXYXY[2], coordinates[0])
-    this._mapExtentXYXY[3] = Math.max(this._mapExtentXYXY[3], coordinates[1])
-  }
-
-  private addGeojsonToMap(geojson: any) {
-    this.processGeojson()
-    this.addGeojsonLayers(geojson)
-    this.addNeighborhoodHoverEffects()
-  }
-
-  private addGeojsonLayers(geojson: any) {
-    if (!this.mymap.getSource('shpsource')) {
-      this.mymap.addSource('shpsource', {
-        data: geojson,
-        type: 'geojson',
-      } as any)
-    }
-
-    if (this.mymap.getLayer('shplayer-fill')) this.mymap.removeLayer('shplayer-fill')
-    this.mymap.addLayer(
-      {
-        id: 'shplayer-fill',
-        source: 'shpsource',
-        type: 'fill',
-        paint: {
-          'fill-color': ['rgb', ['get', 'blue'], ['get', 'blue'], 255],
-          'fill-opacity': 0.5,
-        },
-      },
-      'water'
-    )
-
-    if (this.mymap.getLayer('shplayer-border')) this.mymap.removeLayer('shplayer-border')
-    this.mymap.addLayer(
-      {
-        id: 'shplayer-border',
-        source: 'shpsource',
-        type: 'line',
-        paint: {
-          'line-color': '#66f',
-          'line-opacity': 0.5,
-          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
-        },
-        filter: ['==', 'isVisiable', true],
-      },
-      'centroid-layer'
-    )
-  }
-
-  private addNeighborhoodHoverEffects() {
-    const parent = this
-    this.mymap.on('mousemove', 'shplayer-fill', function (e: any) {
-      // typescript definitions and mapbox-gl are out of sync at the moment :-(
-      // so setFeatureState is missing
-      const tsMap = parent.mymap as any
-      if (e.features.length > 0) {
-        if (parent.hoveredStateId) {
-          tsMap.setFeatureState(
-            { source: 'shpsource', id: parent.hoveredStateId },
-            { hover: false }
-          )
-        }
-        parent.hoveredStateId = e.features[0].properties[parent.idColumn]
-        tsMap.setFeatureState({ source: 'shpsource', id: parent.hoveredStateId }, { hover: true })
-      }
-    })
-
-    // When the mouse leaves the state-fill layer, update the feature state of the
-    // previously hovered feature.
-    this.mymap.on('mouseleave', 'shplayer-fill', function () {
-      const tsMap = parent.mymap as any
-      if (parent.hoveredStateId) {
-        tsMap.setFeatureState({ source: 'shpsource', id: parent.hoveredStateId }, { hover: false })
-      }
-      parent.hoveredStateId = null
-    })
-  }
-
-  private offsetLineByMeters(line: any, metersToTheRight: number) {
-    try {
-      const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
-      return offsetLine
-    } catch (e) {
-      // offset can fail if points are exactly on top of each other; ignore.
-    }
-    return line
-  }
-
-  private pressedEscape() {
-    this.unselectAllCentroids()
-  }
-
-  private pressedArrowKey(delta: number) {}
-
-  private changedTimeSlider(value: any) {
-    this.currentTimeBin = value
-
-    const widthFactor = (this.currentScale / 500) * this.scaleFactor
-
-    if (this.showTimeRange == false) {
-      this.mymap.setPaintProperty('spider-layer', 'line-width', ['*', widthFactor, ['get', value]])
-      this.mymap.setPaintProperty('spider-layer', 'line-offset', [
-        '*',
-        0.5 * widthFactor,
-        ['get', value],
-      ])
-    } else {
-      const sumElements: any = ['+']
-
-      // build the summation expressions: e.g. ['+', ['get', '1'], ['get', '2']]
-      let include = false
-      for (const header of this.headers) {
-        if (header === value[0]) include = true
-
-        // don't double-count the total
-        if (header === TOTAL_MSG) continue
-
-        if (include) sumElements.push(['get', header])
-
-        if (header === value[1]) include = false
-      }
-
-      this.mymap.setPaintProperty('spider-layer', 'line-width', ['*', widthFactor, sumElements])
-      this.mymap.setPaintProperty('spider-layer', 'line-offset', [
-        '*',
-        0.5 * widthFactor,
-        sumElements,
-      ])
-    }
-
-    this.handleCentroidsForTimeOfDayChange(value)
-  }
-
-  private changedScale(value: any) {
-    // console.log({ slider: value, timebin: this.currentTimeBin })
-    this.currentScale = value
-    this.changedTimeSlider(this.currentTimeBin)
-  }
-
-  private changedLineFilter(value: any) {
-    if (value === 'Alle') this.lineFilter = Infinity
-    else this.lineFilter = value
-
-    this.updateSpiderLinks()
-  }
-}
+  },
+
+  destroyed() {
+    globalStore.commit('setFullScreen', false)
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
@@ -1386,10 +1386,10 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Origin/Destination Patterns',
   description: 'Depicts aggregate O/D flows between areas.',
   filePatterns: ['**/viz-od*.y?(a)ml'],
-  component: MyComponent,
+  component: Component,
 } as VisualizationPlugin)
 
-export default MyComponent
+export default Component
 </script>
 
 <style scoped lang="scss">
@@ -1505,9 +1505,9 @@ h4 {
   margin: 1px 0px;
 }
 
-.time-slider {
-  // width: 12rem;
-}
+// .time-slider {
+//   // width: 12rem;
+// }
 
 .heading {
   font-weight: bold;
