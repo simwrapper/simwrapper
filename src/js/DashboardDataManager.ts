@@ -36,9 +36,10 @@ interface configuration {
 export interface FilterDefinition {
   dataset: string
   column: string
+  value: any
   operator?: string
   invert?: boolean
-  value: any
+  range?: boolean
 }
 
 export interface NetworkLinks {
@@ -278,7 +279,7 @@ export default class DashboardDataManager {
   // }
 
   public setFilter(filter: FilterDefinition) {
-    const { dataset, column, value, invert } = filter
+    const { dataset, column, value, invert, range } = filter
 
     console.log('> setFilter', dataset, column, value)
     // Filter might be single or an array; make it an array.
@@ -292,7 +293,7 @@ export default class DashboardDataManager {
     if (!values.length) {
       delete allFilters[column]
     } else {
-      allFilters[column] = { values, invert }
+      allFilters[column] = { values, invert, range }
     }
     this.updateFilters(dataset) // this is async
   }
@@ -355,22 +356,26 @@ export default class DashboardDataManager {
       if (ltgt.test(spec.values[0])) {
         if (spec.values[0].startsWith('<=')) {
           spec.conditional = '<='
-          spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
+          // spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
+          spec.values[0] = spec.values[0].substring(2).trim()
         } else if (spec.values[0].startsWith('>=')) {
           spec.conditional = '>='
-          spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
+          // spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
+          spec.values[0] = spec.values[0].substring(2).trim()
         } else if (spec.values[0].startsWith('<')) {
           spec.conditional = '<'
-          spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
+          // spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
+          spec.values[0] = spec.values[0].substring(1).trim()
         } else if (spec.values[0].startsWith('>')) {
           spec.conditional = '>'
-          spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
+          // spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
+          spec.values[0] = spec.values[0].substring(1).trim()
         }
       } else {
         // handle case where we are testing equal/inequal and its a "numeric" string
         if (spec.values.length === 1 && typeof spec.values[0] === 'string') {
           const numericString = parseFloat(spec.values[0])
-          if (!Number.isNaN(numericString)) spec.values.push(numericString)
+          if (Number.isFinite(numericString)) spec.values.push(numericString)
         }
       }
 
@@ -385,7 +390,7 @@ export default class DashboardDataManager {
       }
     }
 
-    console.log('FILTROWS', filteredRows)
+    // console.log('FILTROWS', filteredRows)
     metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
   }
@@ -505,7 +510,7 @@ export default class DashboardDataManager {
 }
 
 export function checkFilterValue(
-  spec: { conditional: string; invert: boolean; values: any[] },
+  spec: { conditional: string; invert: boolean; values: any[]; range: boolean },
   elementValue: any
 ) {
   // lookup closure functions for < > <= >=
@@ -526,7 +531,9 @@ export function checkFilterValue(
 
   let isValueInFilterSpec: boolean
 
-  if (spec.conditional) {
+  if (spec.range) {
+    isValueInFilterSpec = elementValue >= spec.values[0] && elementValue <= spec.values[1]
+  } else if (spec.conditional) {
     isValueInFilterSpec = conditionals[spec.conditional]()
   } else {
     isValueInFilterSpec = spec.values.includes(elementValue)

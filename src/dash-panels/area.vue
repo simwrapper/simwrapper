@@ -12,7 +12,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import VuePlotly from '@/components/VuePlotly.vue'
-import DashboardDataManager from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import { buildCleanTitle } from './_allPanels'
 
@@ -134,9 +134,46 @@ export default defineComponent({
       try {
         this.validateYAML()
         const config = this.config as any
-        const dataset = await this.datamanager.getDataset(config)
-        // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        return dataset
+        let dataset = await this.datamanager.getDataset(config)
+
+        // no filter? we are done:
+        if (!config.filters) return dataset
+
+        // filter data before returning:
+        for (const [column, value] of Object.entries(config.filters)) {
+          const filter: FilterDefinition = {
+            dataset: config.dataset,
+            column: column,
+            value: value,
+            range: Array.isArray(value),
+          }
+          this.datamanager.setFilter(filter)
+        }
+
+        const filteredData = await new Promise<any>(resolve => {
+          this.datamanager?.addFilterListener(config, async () => {
+            const filteredData = await this.datamanager?.getFilteredDataset(config)
+
+            const rows = filteredData?.filteredRows as any[]
+            if (!rows || !rows.length) {
+              resolve({ allRows: {} })
+              return
+            }
+
+            const keys = Object.keys(rows[0])
+            const allRows = {} as any
+            keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
+            rows.forEach(row => {
+              keys.forEach(key => allRows[key].values.push(row[key]))
+            })
+
+            resolve({ allRows })
+          })
+        })
+
+        return filteredData
+        // return { allRows: filteredData.filteredRows }
+        // Object.assign(filter, { dataset: this.datasetKeyToFilename[props.datasetKey] }))
       } catch (e) {
         const message = '' + e
         console.log(message)
