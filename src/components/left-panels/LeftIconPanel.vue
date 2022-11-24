@@ -34,7 +34,8 @@ import { defineComponent } from 'vue'
 
 import ICON_FILES from '@/assets/icons/files.svg'
 import ICON_ISSUES from '@/assets/icons/issues.svg'
-import ICON_INFO from '@/assets/icons/info.svg'
+import ICON_INFO from '@/assets/icons/settings.svg'
+import ICON_DOCS from '@/assets/icons/readme.svg'
 
 import globalStore from '@/store'
 
@@ -43,6 +44,7 @@ export interface Section {
   class: string
   icon?: string
   colorize?: boolean
+  link?: string
 }
 
 export default defineComponent({
@@ -60,8 +62,8 @@ export default defineComponent({
         // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
       ] as Section[],
       bottomSections: [
+        { name: 'Docs', link: 'https://simwrapper.github.io/docs/intro', icon: ICON_DOCS },
         { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
-        // { name: 'Docs', class: 'RunFinderPanel', icon: ICON_ARROW },
       ] as Section[],
     }
   },
@@ -155,10 +157,6 @@ p {
 
 .button:hover,
 .button:active {
-  color: white;
   background-color: #555;
 }
-
-// .svg-icon {
-// }
 </style>

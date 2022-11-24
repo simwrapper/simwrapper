@@ -4,16 +4,17 @@
     .markdown(v-html="notes")
     .flex-row
       p.flex1: b Label
-      b-input.flex5(placeholder="e.g. server1" maxlength="32" v-model="labelField")
+      b-input.flex5(size="is-small" placeholder="e.g. server1" maxlength="32" v-model="labelField")
     .flex-row
       p.flex1: b URL
-      b-input.flex5(placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
+      b-input.flex5(size="is-small" placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
     .flex-row
       p.flex1: b Note
-      b-input.flex5(placeholder="optional" maxlength="255" v-model="noteField")
+      b-input.flex5(size="is-small" placeholder="optional" maxlength="255" v-model="noteField")
     .flex-row
       p.flex1 &nbsp;
-      b-button(
+      b-button.is-primary(
+        size="is-small"
         :disabled="!isValidURL"
         :type="isValidURL ? '' : 'is-outlined'"
         @click="addURL"
@@ -104,7 +105,7 @@ export default defineComponent({
 
 .add {
   gap: 0.25rem;
-  margin: 0.5rem 0 0rem 0;
+  margin: 0.5rem 0.25rem 0rem 0;
   color: var(--text);
 
   b-field {

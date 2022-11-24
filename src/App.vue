@@ -382,7 +382,7 @@ a:hover {
 
 p.splash-label {
   text-justify: right;
-  margin: auto 3rem 3rem auto;
+  margin: auto auto 3rem 3rem;
   font-size: 1.5rem;
   // font-weight: bold;
   color: #888;

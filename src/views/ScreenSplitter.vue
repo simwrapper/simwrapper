@@ -153,14 +153,22 @@ class MyComponent extends Vue {
   private dragStartWidth = 0
 
   private setActiveLeftSection(props: { toggle: boolean; section: Section }) {
+    // clicked same section as is already shown
     if (this.showActiveSection && props.section.name === this.activeLeftSection.name) {
       if (props.toggle) this.showActiveSection = false
-    } else {
-      this.showActiveSection = true
-      this.activeLeftSection = props.section
-      localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
-      if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+      return
     }
+
+    // if there's a link, open a tab
+    if (props.section.link) {
+      window.open(props.section.link, '_blank')
+      return
+    }
+
+    this.showActiveSection = true
+    this.activeLeftSection = props.section
+    localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
+    if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
   }
 
   private get isMultipanel() {
