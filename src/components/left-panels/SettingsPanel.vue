@@ -90,7 +90,7 @@ export default defineComponent({
     'state.svnProjects'() {
       this.setupShortcuts()
     },
-    'globalStore.state.theme'() {
+    'state.isDarkMode'() {
       console.log('ooop!', this.state.isDarkMode)
       this.theme = this.state.isDarkMode ? 'dark' : 'light'
     },

@@ -242,9 +242,10 @@ export default class VueComponent extends Vue {
       flex: flex,
     }
 
-    if (height) style.minHeight = `${height}px`
+    if (height) {
+      style.minHeight = `${height}px`
+    }
 
-    // full screen ?
     if (this.fullScreenCardId) {
       if (this.fullScreenCardId !== card.id) {
         style.display = 'none'
@@ -283,7 +284,7 @@ export default class VueComponent extends Vue {
     }
 
     // set header
-    this.updateLabels()
+    this.updateThemeAndLabels()
 
     // build rows
     let numCard = 1
@@ -313,9 +314,13 @@ export default class VueComponent extends Vue {
 
   private numberOfShownCards = 1
 
-  @Watch('$store.state.locale') updateLabels() {
+  @Watch('$store.state.locale') updateThemeAndLabels() {
     this.title = this.getDashboardLabel('title')
     this.description = this.getDashboardLabel('description')
+
+    if (this.yaml.header.theme) {
+      this.$store.commit('setTheme', this.yaml.header.theme)
+    }
   }
 
   private getDashboardLabel(element: 'title' | 'description') {
