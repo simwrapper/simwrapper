@@ -77,9 +77,9 @@ class VegaComponent extends Vue {
     let box = document.querySelector(`#${this.zippyId}`) as Element
     if (!box) return
 
-    let height = this.thumbnail ? 125 : box.clientHeight
-    if (!this.hasHardCodedHeight) this.vizDetails.height = height
+    if (this.thumbnail) this.vizDetails.height = 125
 
+    console.log(this.vizDetails)
     this.embedChart()
   }
 
@@ -311,7 +311,7 @@ export default VegaComponent
   grid-row: 2 / 3;
   max-height: 100%;
   height: 100%;
-  padding-right: 0.75rem;
+  padding-right: 0.25rem;
 }
 
 .vega-chart {
