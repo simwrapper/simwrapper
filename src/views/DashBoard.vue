@@ -360,6 +360,7 @@ export default class VueComponent extends Vue {
   private handleResize2() {
     const dashboard = document.getElementById(this.viewId) as HTMLElement
     if (dashboard) this.isPanelNarrow = dashboard.clientWidth < 800
+    this.$store.commit('resize')
   }
 
   private getRowClass(row: any) {

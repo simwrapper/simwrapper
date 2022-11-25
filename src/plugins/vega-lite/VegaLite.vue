@@ -26,6 +26,7 @@ class VegaComponent extends Vue {
   @Prop({ required: false }) private yamlConfig!: string
   @Prop({ required: false }) private config!: string
   @Prop({ required: true }) private thumbnail!: boolean
+  @Prop({ required: false }) private cardId!: string
 
   private globalState = globalStore.state
 
@@ -57,7 +58,9 @@ class VegaComponent extends Vue {
     this.myState.yamlConfig = this.config || this.yamlConfig // use whichever one was sent to us
     this.myState.subfolder = this.subfolder
 
-    console.log(this.myState.yamlConfig)
+    if (this.cardId) {
+      this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+    }
 
     await this.getVizDetails()
     this.embedChart()
@@ -70,13 +73,11 @@ class VegaComponent extends Vue {
 
   @Watch('globalState.resizeEvents')
   private changeDimensions() {
-    // if (!this.vizDetails) return
-
     // figure out dimensions, depending on if we are in a dashboard or not
     let box = document.querySelector(`#${this.zippyId}`) as Element
+    if (!box) return
 
     let height = this.thumbnail ? 125 : box.clientHeight
-
     if (!this.hasHardCodedHeight) this.vizDetails.height = height
 
     this.embedChart()
@@ -168,7 +169,6 @@ class VegaComponent extends Vue {
       this.loadingText = 'Loading chart...'
 
       // might be a project config:
-      console.log(this.myState.yamlConfig)
       const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
 
       json = await this.myState.fileApi.getFileJson(filename)

@@ -3,7 +3,9 @@ vega-lite.dash-element(
   :root="fileSystemConfig.slug"
   :subfolder="subfolder"
   :config="config.config"
+  :cardId="cardId"
   :thumbnail="false"
+  @dimension-resizer="$emit('dimension-resizer', $event)"
 )
 
 </template>
@@ -23,6 +25,7 @@ export default defineComponent({
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
     config: { type: Object, required: true },
+    cardId: { type: String, required: true },
   },
   mounted() {
     this.$emit('isLoaded')
