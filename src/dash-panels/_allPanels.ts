@@ -2,7 +2,7 @@
 // the name of the import will be the chart "type" in YAML.
 
 // resizable charts:
-import aggregate from './aggregate.vue'
+import aggregate from './aggregate-od.vue'
 import area from './area.vue'
 import bar from './bar.vue'
 import bubble from './bubble.vue'

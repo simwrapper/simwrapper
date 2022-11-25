@@ -16,6 +16,7 @@ import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
 import LinkVolumes from '@/plugins/links-gl/NetworkLinks.vue'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 export default defineComponent({
   name: 'LinksPanel',
@@ -25,6 +26,7 @@ export default defineComponent({
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
     config: { type: Object, required: true },
+    datamanager: Object as PropType<DashboardDataManager>,
   },
   mounted() {
     // this.$emit('isLoaded')

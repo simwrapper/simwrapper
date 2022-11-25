@@ -17,7 +17,7 @@ export default defineComponent({
   },
   data: () => {
     return {
-      plotlyId: '__plotly__',
+      plotlyId: '_plotly_',
     }
   },
   watch: {
@@ -48,10 +48,12 @@ export default defineComponent({
     handleClick(click: any) {
       console.log(click)
     },
-    updatePlot() {
+    async updatePlot() {
       try {
+        await this.$nextTick()
         Plotly.react(this.plotlyId, this.data, this.layout, this.options)
       } catch (e) {
+        console.warn('' + e)
         // can error if layout changes before plot is plotted. Ignore.
       }
     },

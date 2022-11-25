@@ -60,7 +60,7 @@ export default class DashboardDataManager {
     for (const worker of this.threads) worker.terminate()
   }
 
-  public async getFilteredDataset(config: { dataset: string }) {
+  public getFilteredDataset(config: { dataset: string }) {
     const filteredRows = this.datasets[config.dataset].filteredRows
     return { filteredRows }
   }
@@ -510,7 +510,7 @@ export default class DashboardDataManager {
 }
 
 export function checkFilterValue(
-  spec: { conditional: string; invert: boolean; values: any[]; range: boolean },
+  spec: { conditional: string; invert: boolean; values: any[]; range?: boolean },
   elementValue: any
 ) {
   // lookup closure functions for < > <= >=

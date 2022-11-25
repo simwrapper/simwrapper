@@ -27,7 +27,7 @@ export default defineComponent({
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
-    config: { type: Object, required: true },
+    config: { type: Object as any, required: true },
     cardTitle: { type: String, required: true },
     cardId: String,
     datamanager: Object as PropType<DashboardDataManager>,
@@ -39,7 +39,7 @@ export default defineComponent({
       plotID: Math.floor(Math.random() * 100000).toString(),
       className: '',
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsBar: { dataset: '', x: '', columns: '' },
       layout: {
         barmode: 'overlay',
@@ -110,6 +110,9 @@ export default defineComponent({
 
     this.checkWarningsAndErrors()
   },
+  beforeDestroy() {
+    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+  },
 
   watch: {
     'globalState.isDarkMode'() {
@@ -120,12 +123,6 @@ export default defineComponent({
   methods: {
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
-    },
-
-    beforeDestroy() {
-      try {
-        this.datamanager?.removeFilterListener(this.config as any, this.handleFilterChanged)
-      } catch (e) {}
     },
 
     checkWarningsAndErrors() {
@@ -174,9 +171,7 @@ export default defineComponent({
     async handleFilterChanged() {
       if (!this.datamanager) return
       try {
-        const { filteredRows } = (await this.datamanager.getFilteredDataset(
-          this.config as any
-        )) as any
+        const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
 
         // is filter UN-selected?
         if (!filteredRows) {
@@ -191,7 +186,7 @@ export default defineComponent({
         fullDataCopy.y = filteredRows.y
         fullDataCopy.opacity = 1.0
         fullDataCopy.name = 'Filtered'
-        //@ts-ignore - let plotly manage bar colors EXCEPT the filter
+        // let plotly manage bar colors EXCEPT the filter
         fullDataCopy.marker = { color: '#ffaf00' } // 3c6' }
 
         this.data = [this.data[0], fullDataCopy]
@@ -210,16 +205,17 @@ export default defineComponent({
 
       try {
         this.validateYAML()
-        const config = this.config as any
-        const dataset = await this.datamanager.getDataset(config)
+        let dataset = await this.datamanager.getDataset(this.config)
 
         // no filter? we are done:
-        if (!config.filters) return dataset
+        if (!this.config.filters) return dataset
 
         // filter data before returning:
-        for (const [column, value] of Object.entries(config.filters)) {
+        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+
+        for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
-            dataset: config.dataset,
+            dataset: this.config.dataset,
             column: column,
             value: value,
             range: Array.isArray(value),
@@ -227,34 +223,12 @@ export default defineComponent({
           this.datamanager.setFilter(filter)
         }
 
-        const filteredData = await new Promise<any>(resolve => {
-          this.datamanager?.addFilterListener(config, async () => {
-            const filteredData = await this.datamanager?.getFilteredDataset(config)
-
-            const rows = filteredData?.filteredRows as any[]
-            if (!rows || !rows.length) {
-              resolve({ allRows: {} })
-              return
-            }
-
-            const keys = Object.keys(rows[0])
-            const allRows = {} as any
-            keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
-            rows.forEach(row => {
-              keys.forEach(key => allRows[key].values.push(row[key]))
-            })
-
-            resolve({ allRows })
-          })
-        })
-
-        return filteredData
+        // empty for now; filtered data will come back later via handleFilterChanged async.
+        return { allRows: {} }
       } catch (e) {
-        const message = '' + e
-        console.log(message)
-        // this.$store.commit('setStatus', { type: Status.ERROR, message })
+        console.error('' + e)
       }
-      return {}
+      return { allRows: {} }
     },
 
     validateYAML() {
@@ -310,10 +284,7 @@ export default defineComponent({
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
 
-      if (!columnNames.length) {
-        this.data = []
-        return
-      }
+      if (!columnNames.length) return
 
       // old configs called it "usedCol" --> now "columns"
       let columns = this.config.columns || this.config.usedCol

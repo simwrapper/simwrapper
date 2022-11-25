@@ -34,7 +34,7 @@ export default defineComponent({
     return {
       globalState: globalStore.state,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any[] },
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       id: ('line-' + Math.random()) as any,
       YAMLrequirementsLine: { dataset: '', x: '' },
       YAMLdeprecations: ['usedCol'],
@@ -93,14 +93,18 @@ export default defineComponent({
   },
   async mounted() {
     this.updateTheme()
+    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
+
     this.dataSet = await this.loadData()
     this.updateChart()
-
-    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
   },
+  beforeDestroy() {
+    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+  },
+
   watch: {
     'globalState.isDarkMode'() {
       this.updateTheme()
@@ -110,6 +114,29 @@ export default defineComponent({
     changeDimensions(dimensions: { width: number; height: number }) {
       this.layout = Object.assign({}, this.layout, dimensions)
     },
+
+    handleFilterChanged() {
+      if (!this.datamanager) return
+
+      const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
+
+      if (!filteredRows || !filteredRows.length) {
+        this.dataSet = { allRows: {} }
+      } else {
+        const allRows = {} as any
+
+        const keys = Object.keys(filteredRows[0])
+        keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
+
+        filteredRows.forEach((row: any) => {
+          keys.forEach(key => allRows[key].values.push(row[key]))
+        })
+        this.dataSet = { allRows }
+      }
+
+      this.updateChart()
+    },
+
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
@@ -124,50 +151,29 @@ export default defineComponent({
 
       try {
         this.validateYAML()
-        const config = this.config as any
-        const dataset = await this.datamanager.getDataset(config)
+        let dataset = await this.datamanager.getDataset(this.config)
 
-        // no filter? we are done:
-        if (!config.filters) return dataset
+        // no filter? we are done
+        if (!this.config.filters) return dataset
 
         // filter data before returning:
-        for (const [column, value] of Object.entries(config.filters)) {
+        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+
+        for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
-            dataset: config.dataset,
+            dataset: this.config.dataset,
             column: column,
             value: value,
             range: Array.isArray(value),
           }
           this.datamanager.setFilter(filter)
         }
-
-        const filteredData = await new Promise<any>(resolve => {
-          this.datamanager?.addFilterListener(config, async () => {
-            const filteredData = await this.datamanager?.getFilteredDataset(config)
-
-            const rows = filteredData?.filteredRows as any[]
-            if (!rows || !rows.length) {
-              resolve({ allRows: {} })
-              return
-            }
-
-            const keys = Object.keys(rows[0])
-            const allRows = {} as any
-            keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
-            rows.forEach(row => {
-              keys.forEach(key => allRows[key].values.push(row[key]))
-            })
-
-            resolve({ allRows })
-          })
-        })
-
-        return filteredData
+        // empty for now; filtered data will come back later via handleFilterChanged async.
+        return { allRows: {} }
       } catch (e) {
-        const message = '' + e
-        console.log(message)
+        console.error('' + e)
       }
-      return {}
+      return { allRows: {} }
     },
 
     validateYAML() {
@@ -229,10 +235,7 @@ export default defineComponent({
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
 
-      if (!columnNames.length) {
-        this.data = []
-        return
-      }
+      if (!columnNames.length) return
 
       let x = allRows[this.config.x].values || []
       if (this.config.skipFirstRow) x = x.slice(1)
