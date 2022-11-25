@@ -100,7 +100,7 @@ export default defineComponent({
     datasets: { type: Object as any, required: true },
     fileSystem: { type: Object as PropType<HTTPFileSystem>, required: true },
     subfolder: { type: String, required: true },
-    yamlConfig: { type: String, required: true },
+    yamlConfig: { type: String },
     legendStore: { type: Object as PropType<LegendStore>, required: true },
     sections: { type: Array as PropType<string[]> },
     embedded: Boolean,
@@ -199,10 +199,10 @@ export default defineComponent({
 
     exportYaml() {
       let suggestedFilename = 'viz-viztype-config.yaml'
-      const configFile = this.yamlConfig.toLocaleLowerCase()
+      const configFile = this.yamlConfig?.toLocaleLowerCase() || ''
 
       if (configFile.endsWith('yaml') || configFile.endsWith('yml')) {
-        suggestedFilename = this.yamlConfig
+        suggestedFilename = this.yamlConfig || 'viz-viztype-config.yaml'
       }
 
       if (configFile.endsWith('shp')) {
