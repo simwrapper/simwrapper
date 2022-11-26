@@ -24,14 +24,17 @@ export default defineComponent({
   computed: {
     // getFullName():string { return firstName + lastname }
   },
-  mounted() {
-    // vue lifecycle methods go here, not in methods section
-  },
   watch: {
     // 'variable1'() { doSomething() }
   },
   methods: {
     // all methods here, with access to 'this'
+  },
+  // Vue lifecycle methods go here, not in methods section
+  // note, there is no colon after mounted because it is a single function,
+  // not an object full of property/methods
+  mounted() {
+    //
   },
 })
 </script>

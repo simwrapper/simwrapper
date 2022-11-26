@@ -39,8 +39,7 @@ export default defineComponent({
         lazy: true,
         tooltip: true,
         'tooltip-placement': 'top',
-        'custom-formatter': {},
-      },
+      } as any,
     }
   },
   mounted() {

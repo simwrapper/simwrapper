@@ -29,9 +29,9 @@ const i18n = {
     },
   },
 }
+
+import { defineComponent } from 'vue'
 import maplibregl from 'maplibre-gl'
-// import Buefy from 'buefy'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
@@ -48,12 +48,100 @@ writableMapBox.accessToken = MAPBOX_TOKEN
 
 let doThisOnceForLocalFiles = true
 
-@Component({ i18n, components: { LoginPanel } })
-class App extends Vue {
-  private state = globalStore.state
-  private showSplash = true
+export default defineComponent({
+  name: 'SimWrapper',
+  i18n,
+  components: { LoginPanel },
+  data: () => {
+    return {
+      state: globalStore.state,
+      showSplash: true,
+      splasher: {} as any,
+    }
+  },
+  computed: {
+    topNavLinks(): any[] {
+      // {name, description, need_password, svn, thumbnail, url }
+      // a '/' will be prepended
+      const home: any[] = [{ name: 'scout', url: '' }]
+      const topLinks = home.concat(this.state.svnProjects)
 
-  private async mounted() {
+      return topLinks
+    },
+    isDarkMode(): boolean {
+      return this.state.isDarkMode
+    },
+  },
+  methods: {
+    toggleUIPanels(event: KeyboardEvent) {
+      // shift-alt-Q: left side QuickView panel
+      if (event.altKey && event.shiftKey && event.keyCode === 81) {
+        console.log('QUICKVIEW')
+        this.$store.commit('toggleShowLeftBar')
+        this.$store.commit('resize')
+      }
+      // shift-alt-W: wide screen mode
+      if (event.altKey && event.shiftKey && event.keyCode === 87) {
+        console.log('WIIIDE')
+        this.$store.commit('toggleFullWidth')
+        this.$store.commit('resize')
+      }
+      return
+    },
+
+    // ------ Find Chrome Local File System roots ----
+    async setupLocalFiles() {
+      if (globalStore.state.localFileHandles.length) return
+
+      const lfsh = (await get('fs')) as { key: string; handle: any }[]
+      if (lfsh && lfsh.length) {
+        for (const entry of lfsh) {
+          addLocalFilesystem(entry.handle, entry.key)
+        }
+      }
+    },
+
+    /**
+     * Set Mapbox styles to be blank if we cannot reach the internet
+     */
+    setOnlineOrOfflineMode() {
+      const url = 'https://raw.githubusercontent.com/simwrapper/simwrapper/master/package.json'
+      fetch(url)
+        .then(response => {
+          console.log('online!!')
+        })
+        .catch(error => {
+          console.log('offline!')
+          this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
+        })
+    },
+
+    removeAllErrors() {
+      this.$store.commit('clearAllErrors')
+    },
+
+    toggleLocale() {
+      const newLocale = this.state.locale === 'en' ? 'de' : 'en'
+      this.$store.commit('setLocale', newLocale)
+      this.$root.$i18n.locale = newLocale
+    },
+
+    toggleTheme() {
+      this.$store.commit('rotateColors')
+    },
+
+    // @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
+    toggleFullScreen(isFullPage: boolean) {
+      if (isFullPage) {
+        document.body.classList.add('full-screen-page')
+        document.documentElement.style.overflowY = 'auto'
+      } else {
+        document.body.classList.remove('full-screen-page')
+        document.documentElement.style.overflowY = null as any
+      }
+    },
+  },
+  async mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -76,97 +164,12 @@ class App extends Vue {
     this.splasher = setTimeout(() => {
       this.showSplash = false
     }, 5000)
-  }
-
-  private splasher: any
-
-  private beforeDestroy() {
+  },
+  beforeDestroy() {
     document.removeEventListener('keydown', this.toggleUIPanels)
     window.clearTimeout(this.splasher)
-  }
-
-  private toggleUIPanels(event: KeyboardEvent) {
-    // shift-alt-Q: left side QuickView panel
-    if (event.altKey && event.shiftKey && event.keyCode === 81) {
-      console.log('QUICKVIEW')
-      this.$store.commit('toggleShowLeftBar')
-      this.$store.commit('resize')
-    }
-    // shift-alt-W: wide screen mode
-    if (event.altKey && event.shiftKey && event.keyCode === 87) {
-      console.log('WIIIDE')
-      this.$store.commit('toggleFullWidth')
-      this.$store.commit('resize')
-    }
-    return
-  }
-
-  // ------ Find Chrome Local File System roots ----
-  private async setupLocalFiles() {
-    if (globalStore.state.localFileHandles.length) return
-
-    const lfsh = (await get('fs')) as { key: string; handle: any }[]
-    if (lfsh && lfsh.length) {
-      for (const entry of lfsh) {
-        addLocalFilesystem(entry.handle, entry.key)
-      }
-    }
-  }
-
-  /**
-   * Set Mapbox styles to be blank if we cannot reach the internet
-   */
-  private setOnlineOrOfflineMode() {
-    const url = 'https://raw.githubusercontent.com/simwrapper/simwrapper/master/package.json'
-    fetch(url)
-      .then(response => {
-        console.log('online!!')
-      })
-      .catch(error => {
-        console.log('offline!')
-        this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
-      })
-  }
-
-  private get topNavLinks() {
-    // {name, description, need_password, svn, thumbnail, url }
-    // a '/' will be prepended
-    const home: any[] = [{ name: 'scout', url: '' }]
-    const topLinks = home.concat(this.state.svnProjects)
-
-    return topLinks
-  }
-
-  private removeAllErrors() {
-    this.$store.commit('clearAllErrors')
-  }
-
-  private toggleLocale() {
-    const newLocale = this.state.locale === 'en' ? 'de' : 'en'
-    this.$store.commit('setLocale', newLocale)
-    this.$root.$i18n.locale = newLocale
-  }
-
-  private toggleTheme() {
-    this.$store.commit('rotateColors')
-  }
-
-  private get isDarkMode() {
-    return this.state.colorScheme == ColorScheme.DarkMode
-  }
-
-  // @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
-  private toggleFullScreen(isFullPage: boolean) {
-    if (isFullPage) {
-      document.body.classList.add('full-screen-page')
-      document.documentElement.style.overflowY = 'auto'
-    } else {
-      document.body.classList.remove('full-screen-page')
-      document.documentElement.style.overflowY = null as any
-    }
-  }
-}
-export default App
+  },
+})
 </script>
 
 <style lang="scss">

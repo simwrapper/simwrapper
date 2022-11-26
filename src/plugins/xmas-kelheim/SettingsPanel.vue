@@ -39,19 +39,17 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
 
-@Component({
+export default defineComponent({
+  name: 'XmasSettingsPanel',
   i18n,
-  components: {
-    ToggleButton,
+  components: { ToggleButton },
+  props: {
+    items: { type: Object, required: true },
   },
 })
-export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private items!: { [label: string]: boolean }
-}
 </script>
 
 <style scoped lang="scss">

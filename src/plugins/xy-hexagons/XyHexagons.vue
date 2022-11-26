@@ -89,7 +89,6 @@ import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-// import XyHexDeckMap from './XyHexDeckMap.vue'
 import XyHexDeckMap from './XyHexLayer'
 
 import {

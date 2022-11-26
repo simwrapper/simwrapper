@@ -118,8 +118,8 @@ globalStore.commit('registerPlugin', {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.my-component {
-}
+// .my-component {
+// }
 
 @media only screen and (max-width: 640px) {
 }

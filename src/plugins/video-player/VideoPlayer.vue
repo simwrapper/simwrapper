@@ -17,7 +17,8 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+
 // import { videoPlayer } from 'vue-video-player'
 
 import globalStore from '@/store'
@@ -26,38 +27,43 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 // import '~/video.js/dist/video-js.min.css'
 
-@Component({ components: {} }) //  videoPlayer } })
-class MyComponent extends Vue {
-  @Prop({ required: true }) private root!: string
-  @Prop({ required: true }) private subfolder!: string
-  @Prop({ required: true }) private yamlConfig!: string
-  @Prop({ required: true }) private thumbnail!: boolean
+const MyComponent = defineComponent({
+  name: 'VideoPlayerPlugin',
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object,
+    thumbnail: Boolean,
+  },
 
-  private movieSource = ''
-  private title = ''
+  data: () => {
+    return {
+      movieSource: '',
+      title: '',
+      myState: {} as any,
+      fileApi: null as FileSystemConfig | null,
+      playerOptions: {
+        muted: false,
+        language: 'en',
+        playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
+        preload: 'metadata',
+        responsive: true,
+        fluid: false,
+        playsInline: true,
+        controls: true,
+        sources: [] as any[],
+      },
+    }
+  },
 
-  private fileApi?: FileSystemConfig
-
-  // videojs options
-  private playerOptions = {
-    muted: false,
-    language: 'en',
-    playbackRates: [0.5, 1.0, 1.5, 2.0, 5.0],
-    preload: 'metadata',
-    responsive: true,
-    fluid: !!this.thumbnail,
-    playsInline: true,
-    controls: true,
-    sources: [] as any[],
-  }
-
-  private myState: any = {}
-
-  public beforeDestroy() {
+  beforeDestroy() {
     if (!this.thumbnail) globalStore.commit('setFullScreen', false)
-  }
+  },
 
-  public mounted() {
+  mounted() {
+    this.fileApi = this.getFileSystem(this.root)
+
     this.myState = {
       subfolder: this.subfolder,
       yamlConfig: this.yamlConfig,
@@ -65,9 +71,8 @@ class MyComponent extends Vue {
       imageData: '',
     }
 
+    this.playerOptions.fluid = !!this.thumbnail
     if (!this.thumbnail) globalStore.commit('setFullScreen', true)
-
-    this.fileApi = this.getFileSystem(this.root)
 
     if (!this.yamlConfig) {
       this.buildRouteFromUrl()
@@ -78,98 +83,100 @@ class MyComponent extends Vue {
     }
 
     this.getVizDetails()
-  }
+  },
+  watch: {
+    yamlConfig() {
+      this.myState.yamlConfig = this.yamlConfig
+      this.getVizDetails()
+    },
 
-  @Watch('yamlConfig') changedYaml() {
-    this.myState.yamlConfig = this.yamlConfig
-    this.getVizDetails()
-  }
+    subfolder() {
+      this.myState.subfolder = this.subfolder
+      this.getVizDetails()
+    },
+  },
+  methods: {
+    buildMovieSource() {
+      this.movieSource = `${this.fileApi?.baseURL}/${this.myState.subfolder}/${this.myState.yamlConfig}`
 
-  @Watch('subfolder') changedSubfolder() {
-    this.myState.subfolder = this.subfolder
-    this.getVizDetails()
-  }
-
-  private buildMovieSource() {
-    this.movieSource = `${this.fileApi?.baseURL}/${this.myState.subfolder}/${this.myState.yamlConfig}`
-
-    this.playerOptions.sources.push({
-      type: 'video/mp4',
-      src: this.movieSource,
-    })
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private async buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    this.fileApi = this.getFileSystem(params.project)
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-
-    this.buildMovieSource()
-  }
-
-  private async generateBreadcrumbs() {
-    const filesystem = this.getFileSystem(this.$route.params.project)
-    if (!filesystem) return []
-
-    const crumbs = [
-      {
-        label: filesystem.name,
-        url: '/' + filesystem.slug,
-      },
-    ]
-
-    const subfolders = this.myState.subfolder.split('/')
-    let buildFolder = '/'
-    for (const folder of subfolders) {
-      if (!folder) continue
-
-      buildFolder += folder + '/'
-      crumbs.push({
-        label: folder,
-        url: '/' + filesystem.slug + buildFolder,
+      this.playerOptions.sources.push({
+        type: 'video/mp4',
+        src: this.movieSource,
       })
-    }
+    },
 
-    // save them!
-    globalStore.commit('setBreadCrumbs', crumbs)
+    getFileSystem(name: string) {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === name
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-    return crumbs
-  }
+    // this happens if viz is the full page, not a thumbnail on a project page
+    async buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
 
-  private async getVizDetails() {
-    this.title = this.myState.yamlConfig.replace(/_/g, ' ')
-    this.title = this.title.substring(0, this.title.lastIndexOf('.'))
+      // project filesystem
+      this.fileApi = this.getFileSystem(params.project)
 
-    if (this.title) {
-      this.$emit('title', this.title)
-    }
-  }
-}
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
+
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+
+      this.buildMovieSource()
+    },
+
+    async generateBreadcrumbs() {
+      const filesystem = this.getFileSystem(this.$route.params.project)
+      if (!filesystem) return []
+
+      const crumbs = [
+        {
+          label: filesystem.name,
+          url: '/' + filesystem.slug,
+        },
+      ]
+
+      const subfolders = this.myState.subfolder.split('/')
+      let buildFolder = '/'
+      for (const folder of subfolders) {
+        if (!folder) continue
+
+        buildFolder += folder + '/'
+        crumbs.push({
+          label: folder,
+          url: '/' + filesystem.slug + buildFolder,
+        })
+      }
+
+      // save them!
+      globalStore.commit('setBreadCrumbs', crumbs)
+
+      return crumbs
+    },
+
+    async getVizDetails() {
+      this.title = this.myState.yamlConfig.replace(/_/g, ' ')
+      this.title = this.title.substring(0, this.title.lastIndexOf('.'))
+
+      if (this.title) {
+        this.$emit('title', this.title)
+      }
+    },
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
