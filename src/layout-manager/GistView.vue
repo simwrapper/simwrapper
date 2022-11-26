@@ -7,35 +7,35 @@ dash-board(v-if="xsubfolder"
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
-import YAML from 'yaml'
+import { defineComponent } from 'vue'
 
 import { FileSystem, FileSystemConfig } from '@/Globals'
 import GIST from '@/js/gist'
-import DashBoard from '@/views/DashBoard.vue'
+import DashBoard from './DashBoard.vue'
 
-@Component({ components: { DashBoard }, props: {} })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) private id!: string
-
-  private fileSystemConfig!: FileSystemConfig
-
-  private yaml: any
-  private xsubfolder = ''
-
-  private async mounted() {
+export default defineComponent({
+  name: 'GistView',
+  components: { DashBoard },
+  props: {
+    id: { type: String, required: true },
+  },
+  data: () => {
+    return {
+      fileSystemConfig: null as FileSystemConfig | null,
+      yaml: {} as any,
+      xsubfolder: '',
+    }
+  },
+  async mounted() {
     try {
       // fetch the json/yaml!
       this.yaml = await GIST.load(this.id, this.$route.params)
       this.xsubfolder = this.yaml.config.folder
     } catch (e) {}
-  }
-}
+  },
+})
 </script>
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-@media only screen and (max-width: 50em) {
-}
 </style>

@@ -10,14 +10,14 @@ const BASE_URL = import.meta.env.BASE_URL
 const routes = [
   {
     path: BASE_URL + 'gist/:id',
-    component: () => import('@/views/GistView.vue'),
+    component: () => import('@/layout-manager/GistView.vue'),
     props: (route: Route) => ({
       id: route.params.id,
     }),
   },
   {
     path: BASE_URL + '*',
-    component: () => import('@/views/ScreenSplitter.vue'),
+    component: () => import('@/layout-manager/LayoutManager.vue'),
   },
   {
     // catch-all back to home page

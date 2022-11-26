@@ -61,7 +61,7 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
@@ -69,37 +69,50 @@ import InfoBottom from '@/assets/info-bottom.md'
 
 const BASE_URL = import.meta.url
 
-@Component({
+const logos = [
+  { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
+  { url: 'https://bmbf.de', image: 'bmbf-logo.png', name: 'German Federal BMBF' },
+  { url: 'https://tu.berlin', image: 'tu-logo.png', name: 'TU Berlin' },
+  { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
+  { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
+  { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
+  { url: 'https://www.mwcog.org/', image: 'mwcog.png', name: 'MWCOG' },
+  { url: 'https://www.oregon.gov/ODOT', image: 'oregondot.png', name: 'Oregon DOT' },
+  { url: 'https://atlantaregional.org/', image: 'arc.png', name: 'ARC' },
+  { url: 'https://www.transportation.ohio.gov/', image: 'ohiodot.png', name: 'Ohio DOT' },
+  { url: 'http://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
+  { url: 'http://semcog.org/', image: 'semcog.jpg', name: 'SEMCOG' },
+  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
+  { url: 'https://matsim.org/', image: 'matsim-logo-blue.png', name: 'MATSim' },
+]
+
+export default defineComponent({
+  name: 'SplashPage',
   i18n,
   components: { FileSystemProjects, InfoBottom },
-})
-class MyComponent extends Vue {
-  private state = globalStore.state
+  data: () => {
+    return {
+      state: globalStore.state,
+    }
+  },
+  computed: {
+    allLogos(): any[] {
+      return logos.map(p => {
+        return { url: p.url, image: new URL('../assets/images/logos/' + p.image, BASE_URL) }
+      })
+    },
+  },
+  methods: {
+    onNavigate(event: any) {
+      // pass it on up
+      this.$emit('navigate', event)
+    },
 
-  private logos = [
-    { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
-    { url: 'https://bmbf.de', image: 'bmbf-logo.png', name: 'German Federal BMBF' },
-    { url: 'https://tu.berlin', image: 'tu-logo.png', name: 'TU Berlin' },
-    { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
-    { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
-    { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
-    { url: 'https://www.mwcog.org/', image: 'mwcog.png', name: 'MWCOG' },
-    { url: 'https://www.oregon.gov/ODOT', image: 'oregondot.png', name: 'Oregon DOT' },
-    { url: 'https://atlantaregional.org/', image: 'arc.png', name: 'ARC' },
-    { url: 'https://www.transportation.ohio.gov/', image: 'ohiodot.png', name: 'Ohio DOT' },
-    { url: 'http://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
-    { url: 'http://semcog.org/', image: 'semcog.jpg', name: 'SEMCOG' },
-    { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
-    { url: 'https://matsim.org/', image: 'matsim-logo-blue.png', name: 'MATSim' },
-  ]
-
-  private get allLogos() {
-    return this.logos.map(p => {
-      return { url: p.url, image: new URL('../assets/images/logos/' + p.image, BASE_URL) }
-    })
-  }
-
-  private mounted() {
+    showPrivacy() {
+      alert(this.$t('privacy'))
+    },
+  },
+  mounted() {
     // set initial breadcrumbs if we don't have any yet
     if (!this.state.breadcrumbs.length) {
       const crumbs = [{ label: 'SimWrapper', url: '/' }]
@@ -108,18 +121,8 @@ class MyComponent extends Vue {
 
     // always start with nav bar when loading splashpage
     globalStore.commit('setShowLeftBar', true)
-  }
-
-  private onNavigate(event: any) {
-    // pass it on up
-    this.$emit('navigate', event)
-  }
-
-  private showPrivacy() {
-    alert(this.$t('privacy'))
-  }
-}
-export default MyComponent
+  },
+})
 </script>
 
 <style scoped lang="scss">
@@ -129,10 +132,6 @@ export default MyComponent
   height: 100%;
   overflow-y: auto;
   background-color: var(--bgMapPanel);
-  // background-image: linear-gradient(#a9accb, #85b5df, #238a8d);
-  // background-image: linear-gradient(#238a8d, #33638d, #443c84);
-  // background-image: linear-gradient(150deg, #440d54, #238a8d); //  #33638d, #443c84);
-  // background-image: linear-gradient(150deg, #23072c, #144e50); //  #33638d, #443c84);
   display: flex;
   flex-direction: column;
   padding: 1rem 1rem;
@@ -164,8 +163,6 @@ a {
 }
 
 .splash-readme {
-  // margin-top: 1rem;
-  // margin-bottom: 3rem;
   color: var(--textFancy);
 }
 
