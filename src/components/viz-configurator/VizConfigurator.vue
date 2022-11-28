@@ -80,6 +80,7 @@ import FillHeightPanel from './FillHeight.vue'
 import LineWidthPanel from './LineWidths.vue'
 import CircleRadiusPanel from './CircleRadius.vue'
 import FiltersPanel from './Filters.vue'
+import { FileSystemConfig } from '@/Globals'
 
 export default defineComponent({
   name: 'VizConfigurator',
@@ -98,7 +99,7 @@ export default defineComponent({
   props: {
     vizDetails: { type: Object as any, required: true },
     datasets: { type: Object as any, required: true },
-    fileSystem: { type: Object as PropType<HTTPFileSystem>, required: true },
+    fileSystem: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
     yamlConfig: { type: String },
     legendStore: { type: Object as PropType<LegendStore>, required: true },

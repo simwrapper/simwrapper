@@ -38,37 +38,49 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-
-@Component({
-  i18n,
-  components: {} as any,
-})
-class MyComponent extends Vue {
-  @Prop({ required: true }) private data1!: { title: string; columns: string[] }
-  @Prop({ required: true }) private data2!: { title: string; columns: string[] }
-
-  private selected1 = 0
-  private selected2 = 0
-
-  private get columns1() {
-    return [...this.data1.columns].sort()
-  }
-
-  private get columns2() {
-    return [...this.data2.columns].sort()
-  }
-
-  private clickedJoin() {
-    this.$emit('join', [this.columns1[this.selected1], this.columns2[this.selected2]])
-  }
-
-  private clickedCancel() {
-    this.$emit('join', [])
-  }
+interface DataSet {
+  title: string
+  columns: string[]
 }
 
-export default MyComponent
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
+export default defineComponent({
+  name: 'ModalJoinColumnPicker',
+  i18n,
+  props: {
+    data1: { type: Object as PropType<DataSet>, required: true },
+    data2: { type: Object as PropType<DataSet>, required: true },
+  },
+
+  data() {
+    return {
+      selected1: 0,
+      selected2: 0,
+    }
+  },
+
+  computed: {
+    columns1(): string[] {
+      return [...this.data1.columns].sort()
+    },
+
+    columns2(): string[] {
+      return [...this.data2.columns].sort()
+    },
+  },
+
+  methods: {
+    clickedJoin() {
+      this.$emit('join', [this.columns1[this.selected1], this.columns2[this.selected2]])
+    },
+
+    clickedCancel() {
+      this.$emit('join', [])
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

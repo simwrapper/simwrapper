@@ -92,7 +92,9 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
@@ -124,10 +126,8 @@ import {
 import TripViz from './TripViz'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
-
-@Component({
+const MyComponent = defineComponent({
+  name: 'VehicleAnimationPlugin',
   i18n,
   components: {
     CollapsiblePanel,
@@ -138,379 +138,546 @@ Vue.use(VuePlugin)
     PlaybackControls,
     ToggleButton,
     ZoomButtons,
-  } as any,
-})
-class VehicleAnimation extends Vue {
-  @Prop({ required: true })
-  private root!: string
+  },
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    const COLOR_OCCUPANCY = {
+      0: [140, 140, 160],
+      1: [85, 255, 85],
+      2: [255, 255, 85],
+      3: [240, 110, 30],
+      4: [192, 30, 50],
+    } as any
 
-  @Prop({ required: true })
-  private subfolder!: string
+    const SETTINGS = {
+      vehicles: true,
+      routes: true,
+      requests: false,
+    } as any
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+    return {
+      viewId: Math.random(),
+      COLOR_OCCUPANCY,
+      SETTINGS,
+      legendItems: Object.keys(COLOR_OCCUPANCY).map(key => {
+        return {
+          type: LegendItemType.line,
+          color: COLOR_OCCUPANCY[key],
+          value: key,
+          label: key,
+        }
+      }),
 
-  @Prop({ required: false })
-  private thumbnail!: boolean
+      legendRequests: [{ type: LegendItemType.line, color: [255, 0, 255], value: 0, label: '' }],
 
-  private viewId = Math.random()
+      vizDetails: {
+        network: '',
+        drtTrips: '',
+        projection: '',
+        title: '',
+        description: '',
+        thumbnail: '',
+        center: [13.45, 52.5],
+        zoom: 10,
+        mapIsIndependent: false,
+        theme: '',
+      },
 
-  // private COLOR_OCCUPANCY: any = {
-  //   0: [255, 255, 85],
-  //   1: [32, 96, 255],
-  //   2: [85, 255, 85],
-  //   3: [255, 85, 85],
-  //   4: [200, 0, 0],
-  //   // 5: [255, 150, 255],
-  // }
+      myState: {
+        statusMessage: '',
+        clock: '00:00',
+        colorScheme: ColorScheme.DarkMode,
+        isRunning: false,
+        isShowingHelp: false,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: false,
+        data: [] as any[],
+      },
 
-  // COLOR_OCCUPANCY_MATSIM_UNUSED: any = {
-  //     0: [255, 85, 255],
-  //     1: [255, 255, 85],
-  //     2: [85, 255, 85],
-  //     3: [85, 85, 255],
-  //     4: [255, 85, 85],
-  //     5: [255, 85, 0],
-  //   }
+      timeStart: 0,
+      timeEnd: 86400,
 
-  COLOR_OCCUPANCY: any = {
-    0: [140, 140, 160],
-    1: [85, 255, 85],
-    2: [255, 255, 85],
-    3: [240, 110, 30],
-    4: [192, 30, 50],
-  }
+      traces: crossfilter([]) as crossfilter.Crossfilter<any>,
+      traceStart: {} as crossfilter.Dimension<any, any>,
+      traceEnd: {} as crossfilter.Dimension<any, any>,
+      traceVehicle: {} as crossfilter.Dimension<any, any>,
 
-  SETTINGS: { [label: string]: boolean } = {
-    vehicles: true,
-    routes: true,
-    requests: false,
-  }
+      paths: crossfilter([]) as crossfilter.Crossfilter<any>,
+      pathStart: {} as crossfilter.Dimension<any, any>,
+      pathEnd: {} as crossfilter.Dimension<any, any>,
+      pathVehicle: {} as crossfilter.Dimension<any, any>,
 
-  private legendItems: LegendItem[] = Object.keys(this.COLOR_OCCUPANCY).map(key => {
-    return { type: LegendItemType.line, color: this.COLOR_OCCUPANCY[key], value: key, label: key }
-  })
+      requests: crossfilter([]) as crossfilter.Crossfilter<any>,
+      requestStart: {} as crossfilter.Dimension<any, any>,
+      requestEnd: {} as crossfilter.Dimension<any, any>,
+      requestVehicle: {} as crossfilter.Dimension<any, any>,
 
-  private legendRequests = [
-    { type: LegendItemType.line, color: [255, 0, 255], value: 0, label: '' },
-  ]
+      simulationTime: 6 * 3600, // 8 * 3600 + 10 * 60 + 10
 
-  private vizDetails = {
-    network: '',
-    drtTrips: '',
-    projection: '',
-    title: '',
-    description: '',
-    thumbnail: '',
-    center: [13.45, 52.5],
-    zoom: 10,
-    mapIsIndependent: false,
-    theme: '',
-  }
+      timeElapsedSinceLastFrame: 0,
 
-  public myState = {
-    statusMessage: '',
-    clock: '00:00',
-    colorScheme: ColorScheme.DarkMode,
-    isRunning: false,
-    isShowingHelp: false,
-    fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: false,
-    data: [] as any[],
-  }
+      searchTerm: '',
+      searchEnabled: false,
 
-  private timeStart = 0
-  private timeEnd = 86400
+      globalState: globalStore.state,
+      isDarkMode: globalStore.state.isDarkMode,
+      isLoaded: true,
+      showHelp: false,
 
-  private traces: crossfilter.Crossfilter<any> = crossfilter([])
-  private traceStart!: crossfilter.Dimension<any, any>
-  private traceEnd!: crossfilter.Dimension<any, any>
-  private traceVehicle!: crossfilter.Dimension<any, any>
+      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
+      speed: 1,
 
-  private paths: crossfilter.Crossfilter<any> = crossfilter([])
-  private pathStart!: crossfilter.Dimension<any, any>
-  private pathEnd!: crossfilter.Dimension<any, any>
-  private pathVehicle!: crossfilter.Dimension<any, any>
+      legendBits: [] as any[],
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
 
-  private requests: crossfilter.Crossfilter<any> = crossfilter([])
-  private requestStart!: crossfilter.Dimension<any, any>
-  private requestEnd!: crossfilter.Dimension<any, any>
-  private requestVehicle!: crossfilter.Dimension<any, any>
-
-  private simulationTime = 6 * 3600 // 8 * 3600 + 10 * 60 + 10
-
-  private timeElapsedSinceLastFrame = 0
-
-  private searchTerm: string = ''
-  private searchEnabled = false
-
-  private globalState = globalStore.state
-  private isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-  private isLoaded = true
-  private showHelp = false
-
-  private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
-  private speed = 1
-
-  private legendBits: any[] = []
-
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-    // console.log('built it', this.myState.fileApi)
-  }
-
-  private async handleSettingChange(label: string) {
-    console.log(label)
-    this.SETTINGS[label] = !this.SETTINGS[label]
-    this.updateDatasetFilters()
-    this.simulationTime += 1 // this will force a redraw
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
+      vehicleLookup: [] as string[],
+      vehicleLookupString: {} as { [id: string]: number },
+      isPausedDueToHiding: false,
     }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
 
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    if (!this.myState.fileApi) return
-
-    // first get config
-    try {
-      // might be a project config:
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-      const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
-    } catch (err) {
-      console.log('failed')
-      const e = err as any
-      // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-        globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
       }
-    }
+      return svnProject[0]
+    },
 
-    // initial view
-    if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
+    urlThumbnail(): string {
+      return this.thumbnailUrl
+    },
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
+      }
 
-    if (this.vizDetails.center) {
-      this.$store.commit('setMapCamera', {
-        longitude: this.vizDetails.center[0],
-        latitude: this.vizDetails.center[1],
-        zoom: this.vizDetails.zoom || 10,
-        pitch: 10,
-        bearing: 0,
-      })
-    }
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
+      }
 
-    // title
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
-    this.$emit('title', t)
+      return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    },
+  },
+  watch: {
+    '$store.state.viewState'() {
+      if (this.vizDetails.mapIsIndependent) return
 
-    this.buildThumbnail()
-  }
+      if (!REACT_VIEW_HANDLES[this.viewId]) return
+      REACT_VIEW_HANDLES[this.viewId]()
+    },
 
-  private async buildThumbnail() {
-    if (!this.myState.fileApi) return
-    if (this.thumbnail && this.vizDetails.thumbnail) {
+    async 'globalState.authAttempts'() {
+      console.log('AUTH CHANGED - Reload')
+      if (!this.yamlConfig) this.buildRouteFromUrl()
+      await this.getVizDetails()
+    },
+
+    'globalState.colorScheme'() {
+      this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
+      this.updateLegendColors()
+    },
+
+    searchTerm() {
+      const vehicleNumber = this.vehicleLookupString[this.searchTerm]
+      if (vehicleNumber > -1) {
+        console.log('vehicle', vehicleNumber)
+        this.pathVehicle?.filterExact(vehicleNumber)
+        this.traceVehicle?.filterExact(vehicleNumber)
+        this.requestVehicle?.filterExact(vehicleNumber)
+        this.requestStart.filterAll()
+        this.requestEnd.filterAll()
+        this.searchEnabled = true
+      } else {
+        console.log('nope')
+        this.pathVehicle?.filterAll()
+        this.traceVehicle?.filterAll()
+        this.requestVehicle?.filterAll()
+        this.searchEnabled = false
+      }
+      this.updateDatasetFilters()
+    },
+  },
+  methods: {
+    async handleSettingChange(label: string) {
+      console.log(label)
+      this.SETTINGS[label] = !this.SETTINGS[label]
+      this.updateDatasetFilters()
+      this.simulationTime += 1 // this will force a redraw
+    },
+
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
+
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
+
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+    },
+
+    async getVizDetails() {
+      // first get config
       try {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.thumbnail
-        )
-        const buffer = await readBlob.arraybuffer(blob)
-        const base64 = this.arrayBufferToBase64(buffer)
-        if (base64)
-          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        // might be a project config:
+        const filename =
+          this.myState.yamlConfig.indexOf('/') > -1
+            ? this.myState.yamlConfig
+            : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+        const text = await this.fileApi.getFileText(filename)
+        this.vizDetails = YAML.parse(text)
+      } catch (err) {
+        console.log('failed')
+        const e = err as any
+        // maybe it failed because password?
+        if (this.fileSystem.needPassword && e.status === 401) {
+          globalStore.commit('requestLogin', this.fileSystem.slug)
+        }
+      }
+
+      // initial view
+      if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
+
+      if (this.vizDetails.center) {
+        this.$store.commit('setMapCamera', {
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
+          zoom: this.vizDetails.zoom || 10,
+          pitch: 10,
+          bearing: 0,
+        })
+      }
+
+      // title
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
+      this.$emit('title', t)
+
+      this.buildThumbnail()
+    },
+
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = this.arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
+
+    handleClick(vehicleNumber: any) {
+      // null means empty area clicked: clear map.
+      if (vehicleNumber === null) {
+        this.searchTerm = ''
+        return
+      }
+
+      const vehId = this.vehicleLookup[vehicleNumber]
+      console.log(vehId)
+
+      // set -- or clear -- search box!
+      if (this.searchTerm === vehId) this.searchTerm = ''
+      else this.searchTerm = vehId
+    },
+
+    arrayBufferToBase64(buffer: any) {
+      var binary = ''
+      var bytes = new Uint8Array(buffer)
+      var len = bytes.byteLength
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      return window.btoa(binary)
+    },
+
+    updateLegendColors() {
+      // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
+      // this.legendBits = [
+      //   { label: 'susceptible', color: theme.susceptible },
+      //   { label: 'latently infected', color: theme.infectedButNotContagious },
+      //   { label: 'contagious', color: theme.contagious },
+      //   { label: 'symptomatic', color: theme.symptomatic },
+      //   { label: 'seriously ill', color: theme.seriouslyIll },
+      //   { label: 'critical', color: theme.critical },
+      //   { label: 'recovered', color: theme.recovered },
+      // ]
+    },
+
+    setWallClock() {
+      const hour = Math.floor(this.simulationTime / 3600)
+      const minute = Math.floor(this.simulationTime / 60) % 60
+      this.myState.clock = `${hour < 10 ? '0' : ''}${hour}${minute < 10 ? ':0' : ':'}${minute}`
+    },
+
+    setTime(seconds: number) {
+      this.simulationTime = seconds
+      this.setWallClock()
+
+      // only filter if search is disabled and we have data loaded already
+      if (this.traceStart && this.pathStart && this.requestStart) {
+        this.pathStart.filter([0, this.simulationTime])
+        this.pathEnd.filter([this.simulationTime, Infinity])
+
+        // scrub vehicles if search is disabled
+        if (!this.searchEnabled) {
+          this.traceStart.filter([0, this.simulationTime])
+          this.traceEnd.filter([this.simulationTime, Infinity])
+          this.requestStart.filter([0, this.simulationTime])
+          this.requestEnd.filter([this.simulationTime, Infinity])
+        }
+      }
+
+      //@ts-ignore
+      this.$options.paths = this.paths.allFiltered()
+      //@ts-ignore
+      this.$options.traces = this.traces.allFiltered()
+      //@ts-ignore
+      this.$options.drtRequests = this.requests.allFiltered()
+    },
+
+    toggleSimulation() {
+      this.myState.isRunning = !this.myState.isRunning
+      this.timeElapsedSinceLastFrame = Date.now()
+
+      // ok so, many times I mashed the play/pause wondering why things wouldn't
+      // start moving. Turns out a 0x speed is not very helpful! Help the user
+      // out and switch the speed up if they press play.
+      if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
+
+      // and begin!
+      if (this.myState.isRunning) this.animate()
+    },
+
+    async parseDrtRequests(requests: any[]) {
+      if (this.vehicleLookup.length) {
+        for (const request of requests) {
+          try {
+            request[5] = this.vehicleLookupString[request[5]]
+          } catch (e) {}
+        }
+      }
+
+      return crossfilter(requests)
+    },
+
+    async parseVehicles(trips: any[]) {
+      const allTrips: any[] = []
+      let vehNumber = -1
+
+      await coroutines.forEachAsync(trips, (trip: any) => {
+        const path = trip.path
+        const timestamps = trip.timestamps
+        const passengers = trip.passengers
+
+        // attach vehicle ID to each segment so we can click
+        vehNumber++
+        this.vehicleLookup[vehNumber] = trip.id
+        this.vehicleLookupString[trip.id] = vehNumber
+
+        for (let i = 0; i < trip.path.length - 1; i++) {
+          allTrips.push({
+            t0: timestamps[i],
+            t1: timestamps[i + 1],
+            p0: path[i],
+            p1: path[i + 1],
+            v: vehNumber,
+            occ: passengers[i],
+          })
+        }
+      })
+      return crossfilter(allTrips)
+    },
+
+    updateDatasetFilters() {
+      // dont' filter if we haven't loaded yet
+      if (!this.traceStart || !this.pathStart || !this.requestStart) return
+
+      // filter out all traces that havent started or already finished
+      if (this.SETTINGS.routes) {
+        if (this.searchEnabled) {
+          this.traceStart.filterAll()
+          this.traceEnd.filterAll()
+        } else {
+          this.traceStart.filter([0, this.simulationTime])
+          this.traceEnd.filter([this.simulationTime, Infinity])
+        }
+        //@ts-ignore
+        this.$options.traces = this.traces.allFiltered()
+      }
+
+      if (this.SETTINGS.vehicles) {
+        this.pathStart.filter([0, this.simulationTime])
+        this.pathEnd.filter([this.simulationTime, Infinity])
+        //@ts-ignore:
+        this.$options.paths = this.paths.allFiltered()
+      }
+
+      if (this.SETTINGS.requests) {
+        if (this.searchEnabled) {
+          this.requestStart.filterAll()
+          this.requestEnd.filterAll()
+        } else {
+          this.requestStart.filter([0, this.simulationTime])
+          this.requestEnd.filter([this.simulationTime, Infinity])
+        }
+        //@ts-ignore
+        this.$options.drtRequests = this.requests.allFiltered()
+      }
+    },
+
+    animate() {
+      if (this.myState.isRunning) {
+        const elapsed = Date.now() - this.timeElapsedSinceLastFrame
+        this.timeElapsedSinceLastFrame += elapsed
+        this.simulationTime += elapsed * this.speed * 0.06
+
+        this.updateDatasetFilters()
+        this.setWallClock()
+        window.requestAnimationFrame(this.animate)
+      }
+    },
+
+    handleVisibilityChange() {
+      if (this.isPausedDueToHiding && !document.hidden) {
+        console.log('unpausing')
+        this.isPausedDueToHiding = false
+        this.toggleSimulation()
+      } else if (this.myState.isRunning && document.hidden) {
+        console.log('pausing')
+        this.isPausedDueToHiding = true
+        this.toggleSimulation()
+      }
+    },
+
+    // convert path/timestamp info into path traces we can use
+    async parseRouteTraces(trips: any[]) {
+      let countTraces = 0
+      let vehNumber = -1
+
+      const traces: any = []
+
+      await coroutines.forEachAsync(trips, (vehicle: any) => {
+        vehNumber++
+
+        let time = vehicle.timestamps[0]
+        let nextTime = vehicle.timestamps[0]
+
+        let segments: any[] = []
+
+        for (let i = 1; i < vehicle.path.length; i++) {
+          nextTime = vehicle.timestamps[i]
+
+          // same point? start of new path.
+          if (
+            vehicle.path[i][0] === vehicle.path[i - 1][0] &&
+            vehicle.path[i][1] === vehicle.path[i - 1][1]
+          ) {
+            segments.forEach(segment => {
+              segment.t1 = vehicle.timestamps[i - 1]
+            })
+
+            traces.push(...segments)
+
+            segments = []
+            time = nextTime
+          } else {
+            segments.push({
+              t0: time,
+              p0: vehicle.path[i - 1],
+              p1: vehicle.path[i],
+              v: vehNumber,
+              occ: vehicle.passengers[i - 1],
+            })
+          }
+        }
+
+        // save final segments
+        segments.forEach(segment => {
+          segment.t1 = nextTime
+        })
+        traces.push(...segments)
+      })
+
+      return crossfilter(traces)
+    },
+
+    async loadFiles() {
+      let trips: any[] = []
+      let drtRequests: any = []
+
+      try {
+        if (this.vizDetails.drtTrips.endsWith('json')) {
+          const json = await this.fileApi.getFileJson(
+            this.myState.subfolder + '/' + this.vizDetails.drtTrips
+          )
+          trips = json.trips
+          drtRequests = json.drtRequests
+        } else if (this.vizDetails.drtTrips.endsWith('gz')) {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.drtTrips
+          )
+          const blobString = blob ? await blobToBinaryString(blob) : null
+          let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+          const json = JSON.parse(text)
+
+          trips = json.trips
+          drtRequests = json.drtRequests
+        }
       } catch (e) {
         console.error(e)
+        this.myState.statusMessage = '' + e
       }
-    }
-  }
+      return { trips, drtRequests }
+    },
 
-  @Watch('$store.state.viewState') viewMoved() {
-    if (this.vizDetails.mapIsIndependent) return
+    toggleLoaded(loaded: boolean) {
+      this.isLoaded = loaded
+    },
 
-    if (!REACT_VIEW_HANDLES[this.viewId]) return
-    REACT_VIEW_HANDLES[this.viewId]()
-  }
+    rotateColors() {
+      this.myState.colorScheme =
+        this.myState.colorScheme === ColorScheme.DarkMode
+          ? ColorScheme.LightMode
+          : ColorScheme.DarkMode
+      localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
+    },
+  },
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
-
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.globalState.colorScheme === ColorScheme.DarkMode
-    this.updateLegendColors()
-  }
-
-  @Watch('searchTerm') private handleSearch() {
-    const vehicleNumber = this.vehicleLookupString[this.searchTerm]
-    if (vehicleNumber > -1) {
-      console.log('vehicle', vehicleNumber)
-      this.pathVehicle?.filterExact(vehicleNumber)
-      this.traceVehicle?.filterExact(vehicleNumber)
-      this.requestVehicle?.filterExact(vehicleNumber)
-      this.requestStart.filterAll()
-      this.requestEnd.filterAll()
-      this.searchEnabled = true
-    } else {
-      console.log('nope')
-      this.pathVehicle?.filterAll()
-      this.traceVehicle?.filterAll()
-      this.requestVehicle?.filterAll()
-      this.searchEnabled = false
-    }
-    this.updateDatasetFilters()
-  }
-
-  private handleClick(vehicleNumber: any) {
-    // null means empty area clicked: clear map.
-    if (vehicleNumber === null) {
-      this.searchTerm = ''
-      return
-    }
-
-    const vehId = this.vehicleLookup[vehicleNumber]
-    console.log(vehId)
-
-    // set -- or clear -- search box!
-    if (this.searchTerm === vehId) this.searchTerm = ''
-    else this.searchTerm = vehId
-  }
-
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
-
-  private updateLegendColors() {
-    // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-    // this.legendBits = [
-    //   { label: 'susceptible', color: theme.susceptible },
-    //   { label: 'latently infected', color: theme.infectedButNotContagious },
-    //   { label: 'contagious', color: theme.contagious },
-    //   { label: 'symptomatic', color: theme.symptomatic },
-    //   { label: 'seriously ill', color: theme.seriouslyIll },
-    //   { label: 'critical', color: theme.critical },
-    //   { label: 'recovered', color: theme.recovered },
-    // ]
-  }
-
-  private get textColor() {
-    const lightmode = {
-      text: '#3498db',
-      bg: '#eeeef480',
-    }
-
-    const darkmode = {
-      text: 'white',
-      bg: '#181518aa',
-    }
-
-    return this.myState.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
-  }
-
-  private setWallClock() {
-    const hour = Math.floor(this.simulationTime / 3600)
-    const minute = Math.floor(this.simulationTime / 60) % 60
-    this.myState.clock = `${hour < 10 ? '0' : ''}${hour}${minute < 10 ? ':0' : ':'}${minute}`
-  }
-
-  private setTime(seconds: number) {
-    this.simulationTime = seconds
-    this.setWallClock()
-
-    // only filter if search is disabled and we have data loaded already
-    if (this.traceStart && this.pathStart && this.requestStart) {
-      this.pathStart.filter([0, this.simulationTime])
-      this.pathEnd.filter([this.simulationTime, Infinity])
-
-      // scrub vehicles if search is disabled
-      if (!this.searchEnabled) {
-        this.traceStart.filter([0, this.simulationTime])
-        this.traceEnd.filter([this.simulationTime, Infinity])
-        this.requestStart.filter([0, this.simulationTime])
-        this.requestEnd.filter([this.simulationTime, Infinity])
-      }
-    }
-
-    //@ts-ignore
-    this.$options.paths = this.paths.allFiltered()
-    //@ts-ignore
-    this.$options.traces = this.traces.allFiltered()
-    //@ts-ignore
-    this.$options.drtRequests = this.requests.allFiltered()
-  }
-
-  private toggleSimulation() {
-    this.myState.isRunning = !this.myState.isRunning
-    this.timeElapsedSinceLastFrame = Date.now()
-
-    // ok so, many times I mashed the play/pause wondering why things wouldn't
-    // start moving. Turns out a 0x speed is not very helpful! Help the user
-    // out and switch the speed up if they press play.
-    if (this.myState.isRunning && this.speed === 0.0) this.speed = 1.0
-
-    // and begin!
-    if (this.myState.isRunning) this.animate()
-  }
-
-  private async mounted() {
+  async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
+    this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.subfolder = this.subfolder
-
-    this.buildFileApi()
 
     await this.getVizDetails()
 
@@ -554,216 +721,15 @@ class VehicleAnimation extends Vue {
     this.myState.isRunning = true
     this.timeElapsedSinceLastFrame = Date.now()
     this.animate()
-  }
+  },
 
-  private vehicleLookup: string[] = []
-  private vehicleLookupString: { [id: string]: number } = {}
-
-  private async parseDrtRequests(requests: any[]) {
-    if (this.vehicleLookup.length) {
-      for (const request of requests) {
-        try {
-          request[5] = this.vehicleLookupString[request[5]]
-        } catch (e) {}
-      }
-    }
-
-    return crossfilter(requests)
-  }
-
-  private async parseVehicles(trips: any[]) {
-    const allTrips: any[] = []
-    let vehNumber = -1
-
-    await coroutines.forEachAsync(trips, (trip: any) => {
-      const path = trip.path
-      const timestamps = trip.timestamps
-      const passengers = trip.passengers
-
-      // attach vehicle ID to each segment so we can click
-      vehNumber++
-      this.vehicleLookup[vehNumber] = trip.id
-      this.vehicleLookupString[trip.id] = vehNumber
-
-      for (let i = 0; i < trip.path.length - 1; i++) {
-        allTrips.push({
-          t0: timestamps[i],
-          t1: timestamps[i + 1],
-          p0: path[i],
-          p1: path[i + 1],
-          v: vehNumber,
-          occ: passengers[i],
-        })
-      }
-    })
-    return crossfilter(allTrips)
-  }
-
-  private updateDatasetFilters() {
-    // dont' filter if we haven't loaded yet
-    if (!this.traceStart || !this.pathStart || !this.requestStart) return
-
-    // filter out all traces that havent started or already finished
-    if (this.SETTINGS.routes) {
-      if (this.searchEnabled) {
-        this.traceStart.filterAll()
-        this.traceEnd.filterAll()
-      } else {
-        this.traceStart.filter([0, this.simulationTime])
-        this.traceEnd.filter([this.simulationTime, Infinity])
-      }
-      //@ts-ignore
-      this.$options.traces = this.traces.allFiltered()
-    }
-
-    if (this.SETTINGS.vehicles) {
-      this.pathStart.filter([0, this.simulationTime])
-      this.pathEnd.filter([this.simulationTime, Infinity])
-      //@ts-ignore:
-      this.$options.paths = this.paths.allFiltered()
-    }
-
-    if (this.SETTINGS.requests) {
-      if (this.searchEnabled) {
-        this.requestStart.filterAll()
-        this.requestEnd.filterAll()
-      } else {
-        this.requestStart.filter([0, this.simulationTime])
-        this.requestEnd.filter([this.simulationTime, Infinity])
-      }
-      //@ts-ignore
-      this.$options.drtRequests = this.requests.allFiltered()
-    }
-  }
-
-  private animate() {
-    if (this.myState.isRunning) {
-      const elapsed = Date.now() - this.timeElapsedSinceLastFrame
-      this.timeElapsedSinceLastFrame += elapsed
-      this.simulationTime += elapsed * this.speed * 0.06
-
-      this.updateDatasetFilters()
-      this.setWallClock()
-      window.requestAnimationFrame(this.animate)
-    }
-  }
-
-  private isPausedDueToHiding = false
-
-  private handleVisibilityChange() {
-    if (this.isPausedDueToHiding && !document.hidden) {
-      console.log('unpausing')
-      this.isPausedDueToHiding = false
-      this.toggleSimulation()
-    } else if (this.myState.isRunning && document.hidden) {
-      console.log('pausing')
-      this.isPausedDueToHiding = true
-      this.toggleSimulation()
-    }
-  }
-
-  // convert path/timestamp info into path traces we can use
-  private async parseRouteTraces(trips: any[]) {
-    let countTraces = 0
-    let vehNumber = -1
-
-    const traces: any = []
-
-    await coroutines.forEachAsync(trips, (vehicle: any) => {
-      vehNumber++
-
-      let time = vehicle.timestamps[0]
-      let nextTime = vehicle.timestamps[0]
-
-      let segments: any[] = []
-
-      for (let i = 1; i < vehicle.path.length; i++) {
-        nextTime = vehicle.timestamps[i]
-
-        // same point? start of new path.
-        if (
-          vehicle.path[i][0] === vehicle.path[i - 1][0] &&
-          vehicle.path[i][1] === vehicle.path[i - 1][1]
-        ) {
-          segments.forEach(segment => {
-            segment.t1 = vehicle.timestamps[i - 1]
-          })
-
-          traces.push(...segments)
-
-          segments = []
-          time = nextTime
-        } else {
-          segments.push({
-            t0: time,
-            p0: vehicle.path[i - 1],
-            p1: vehicle.path[i],
-            v: vehNumber,
-            occ: vehicle.passengers[i - 1],
-          })
-        }
-      }
-
-      // save final segments
-      segments.forEach(segment => {
-        segment.t1 = nextTime
-      })
-      traces.push(...segments)
-    })
-
-    return crossfilter(traces)
-  }
-
-  private beforeDestroy() {
+  beforeDestroy() {
     document.removeEventListener('visibilityChange', this.handleVisibilityChange)
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
     this.myState.isRunning = false
-  }
-
-  private async loadFiles() {
-    if (!this.myState.fileApi) return { trips: [], drtRequests: {} }
-
-    let trips: any[] = []
-    let drtRequests: any = []
-
-    try {
-      if (this.vizDetails.drtTrips.endsWith('json')) {
-        const json = await this.myState.fileApi.getFileJson(
-          this.myState.subfolder + '/' + this.vizDetails.drtTrips
-        )
-        trips = json.trips
-        drtRequests = json.drtRequests
-      } else if (this.vizDetails.drtTrips.endsWith('gz')) {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.drtTrips
-        )
-        const blobString = blob ? await blobToBinaryString(blob) : null
-        let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-        const json = JSON.parse(text)
-
-        trips = json.trips
-        drtRequests = json.drtRequests
-      }
-    } catch (e) {
-      console.error(e)
-      this.myState.statusMessage = '' + e
-    }
-    return { trips, drtRequests }
-  }
-
-  private toggleLoaded(loaded: boolean) {
-    this.isLoaded = loaded
-  }
-
-  private rotateColors() {
-    this.myState.colorScheme =
-      this.myState.colorScheme === ColorScheme.DarkMode
-        ? ColorScheme.LightMode
-        : ColorScheme.DarkMode
-    localStorage.setItem('plugin/agent-animation/colorscheme', this.myState.colorScheme)
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
@@ -771,10 +737,10 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Trip Viewer',
   description: 'Deck.gl based trip viewer',
   filePatterns: ['**/viz-vehicles*.y?(a)ml'],
-  component: VehicleAnimation,
+  component: MyComponent,
 } as VisualizationPlugin)
 
-export default VehicleAnimation
+export default MyComponent
 </script>
 
 <style scoped lang="scss">

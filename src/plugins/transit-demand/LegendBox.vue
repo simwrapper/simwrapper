@@ -7,17 +7,14 @@
 </template>
 
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component
-export default class LegendBox extends Vue {
-  @Prop({ type: Array, required: true })
-  private rows!: any
-
-  public created() {
-    // console.log(this.rows)
-  }
-}
+export default defineComponent({
+  name: 'LegendBox',
+  props: {
+    rows: { type: Array, required: true },
+  },
+})
 </script>
 
 <style scoped lang="scss">

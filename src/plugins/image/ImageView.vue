@@ -8,7 +8,9 @@
 <script lang="ts">
 'use strict'
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 // import mediumZoom from 'medium-zoom'
 import readBlob from 'read-blob'
 
@@ -16,39 +18,90 @@ import globalStore from '@/store'
 import { ColorScheme, FileSystem, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-@Component({ components: {} })
-class MyComponent extends Vue {
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+const MyComponent = defineComponent({
+  name: 'ImageViewPlugin',
+  props: {
+    fileApi: { type: Object as PropType<FileSystem>, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      myState: {} as any,
+      matsimPngTitles: {
+        'modestats.png': 'Mode statistics',
+        'ph_modestats.png': 'Passenger hours traveled per mode',
+        'pkm_modestats.png': 'Passenger km traveled per mode',
+        'scorestats.png': 'Score statistics',
+        'stopwatch.png': 'Stopwatch: computation time',
+        'traveldistancestatslegs.png': 'Leg travel distance',
+        'traveldistancestatstrips.png': 'Trip travel distance',
+      } as { [id: string]: string },
+    }
+  },
+  computed: {
+    isDarkMode(): boolean {
+      return this.globalState.isDarkMode
+    },
+  },
+  methods: {
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
 
-  @Prop({ required: false })
-  private subfolder!: string
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+    },
 
-  @Prop({ required: false })
-  private thumbnail!: boolean
+    async getVizDetails() {
+      try {
+        const blob = await this.myState.fileApi.getFileBlob(
+          this.myState.subfolder + '/' + this.myState.yamlConfig
+        )
 
-  private globalState = globalStore.state
+        if (!blob) {
+          console.log('no blob! :-(')
+          return
+        }
 
-  private myState: any = {}
+        const dataUrl = await readBlob.dataurl(blob)
+        this.myState.imageData = dataUrl
 
-  private matsimPngTitles: { [key: string]: string } = {
-    'modestats.png': 'Mode statistics',
-    'ph_modestats.png': 'Passenger hours traveled per mode',
-    'pkm_modestats.png': 'Passenger km traveled per mode',
-    'scorestats.png': 'Score statistics',
-    'stopwatch.png': 'Stopwatch: computation time',
-    'traveldistancestatslegs.png': 'Leg travel distance',
-    'traveldistancestatstrips.png': 'Trip travel distance',
-  }
+        const config = this.yamlConfig as any
+        const newTitle = this.matsimPngTitles[config]
+          ? this.matsimPngTitles[config]
+          : this.yamlConfig
 
-  private get isDarkMode() {
-    return this.globalState.colorScheme == ColorScheme.DarkMode
-  }
+        this.$emit('title', newTitle)
+      } catch (e) {
+        console.error({ e })
+        return null
+      }
+    },
+  },
+  watch: {
+    yamlConfig() {
+      this.myState.yamlConfig = this.yamlConfig
+      this.getVizDetails()
+    },
 
-  public mounted() {
+    subfolder() {
+      this.myState.subfolder = this.subfolder
+      this.getVizDetails()
+    },
+  },
+  mounted() {
     this.myState = {
       fileApi: this.fileApi,
       subfolder: this.subfolder,
@@ -62,75 +115,8 @@ class MyComponent extends Vue {
     }
 
     this.getVizDetails()
-  }
-
-  @Watch('yamlConfig') changedYaml() {
-    this.myState.yamlConfig = this.yamlConfig
-    this.getVizDetails()
-  }
-
-  @Watch('subfolder') changedSubfolder() {
-    this.myState.subfolder = this.subfolder
-    this.getVizDetails()
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private async getVizDetails() {
-    try {
-      const blob = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + '/' + this.myState.yamlConfig
-      )
-
-      if (!blob) {
-        console.log('no blob! :-(')
-        return
-      }
-
-      const dataUrl = await readBlob.dataurl(blob)
-      this.myState.imageData = dataUrl
-
-      const newTitle = this.matsimPngTitles[this.yamlConfig]
-        ? this.matsimPngTitles[this.yamlConfig]
-        : this.yamlConfig
-
-      this.$emit('title', newTitle)
-    } catch (e) {
-      console.error({ e })
-      return null
-    }
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {

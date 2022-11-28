@@ -52,97 +52,106 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
 import { ColorScheme, DataTable, DataType, LookupDataset } from '@/Globals'
 
-@Component({ i18n, components: { TimeSlider } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) private csvData!: LookupDataset
-  @Prop({ required: true }) private scaleWidth!: number
-  @Prop({ required: true }) private showDiffs!: boolean
-  @Prop({ required: true }) private vizDetails!: { useSlider: boolean }
-
-  private isButtonActive = false
-  private isColorButtonActive = false
-
-  private scaleWidthValue = ''
-
-  private get activeColumn() {
-    return this.csvData.activeColumn
-  }
-
-  private getColumns() {
-    // TODO: drop first column always: it's the link-id...
-    const columns = Object.values(this.csvData.dataTable)
-      .slice(1)
-      .filter(f => f.name && f.type !== DataType.LOOKUP)
-      .map(f => f.name)
-    return columns
-  }
-
-  @Watch('scaleWidth') handleScaleWidth() {
-    this.scaleWidthValue = '' + this.scaleWidth
-  }
-
-  private mounted() {
-    this.scaleWidthValue = '' + this.scaleWidth
-  }
-
-  @Watch('scaleWidthValue') handleScaleChanged() {
-    // if (this.scaleWidth === parseFloat(this.scaleWidthValue)) return
-
-    if (isNaN(parseFloat(this.scaleWidthValue))) {
-      return
+export default defineComponent({
+  name: 'SelectorPanel',
+  i18n,
+  components: { TimeSlider },
+  props: {
+    csvData: { type: Object as PropType<LookupDataset>, required: true },
+    scaleWidth: { type: Number, required: true },
+    showDiffs: { type: Boolean, required: true },
+    vizDetails: { type: Object as PropType<{ useSlider: boolean }>, required: true },
+  },
+  data() {
+    return {
+      isButtonActive: false,
+      isColorButtonActive: false,
+      scaleWidthValue: '',
+      debounceScale: {} as any, // (vm: any) => debounce(vm.gotNewScale, 500),
+      handleTimeSliderChanged: {} as any,
     }
-    this.debounceScale()
-  }
+  },
+  computed: {
+    activeColumn(): string {
+      return this.csvData.activeColumn
+    },
+    buttonTitle(): string {
+      if (!this.activeColumn) return '' + this.$i18n.t('loading')
+      return this.activeColumn
+    },
+  },
+  watch: {
+    scaleWidth() {
+      this.scaleWidthValue = '' + this.scaleWidth
+    },
+    scaleWidthValue() {
+      // if (this.scaleWidth === parseFloat(this.scaleWidthValue)) return
 
-  private debounceScale = debounce(this.gotNewScale, 500)
-  private gotNewScale() {
-    // if (this.scaleWidth !== parseFloat(this.scaleWidthValue)) {
-    //   this.scaleWidthValue = '' + this.scaleWidth
-    // }
-    this.$emit('scale', parseFloat(this.scaleWidthValue))
-  }
+      if (isNaN(parseFloat(this.scaleWidthValue))) {
+        return
+      }
+      this.debounceScale()
+    },
+  },
+  methods: {
+    getColumns() {
+      // TODO: drop first column always: it's the link-id...
+      const columns = Object.values(this.csvData.dataTable)
+        .slice(1)
+        .filter(f => f.name && f.type !== DataType.LOOKUP)
+        .map(f => f.name)
+      return columns
+    },
+    gotNewScale() {
+      // if (this.scaleWidth !== parseFloat(this.scaleWidthValue)) {
+      //   this.scaleWidthValue = '' + this.scaleWidth
+      // }
+      this.$emit('scale', parseFloat(this.scaleWidthValue))
+    },
 
-  private handleTimeSliderChanged = debounce(this.changeTimeSlider, 250)
-  private changeTimeSlider(value: any) {
-    console.log('new slider!', value)
-    if (value.length && value.length === 1) value = value[0]
+    changeTimeSlider(value: any) {
+      console.log('new slider!', value)
+      if (value.length && value.length === 1) value = value[0]
 
-    this.$emit('slider', { dataset: this.csvData, column: value })
-  }
+      this.$emit('slider', { dataset: this.csvData, column: value })
+    },
 
-  private get buttonTitle() {
-    if (!this.activeColumn) return this.$i18n.t('loading')
-    return this.activeColumn
-  }
+    handleClickDropdown() {
+      this.isButtonActive = !this.isButtonActive
+    },
 
-  private handleClickDropdown() {
-    this.isButtonActive = !this.isButtonActive
-  }
+    handleColorRamp(colors: string) {
+      console.log(colors)
+      this.isColorButtonActive = false
+      this.$emit('colors', colors)
+    },
 
-  private handleColorRamp(colors: string) {
-    console.log(colors)
-    this.isColorButtonActive = false
-    this.$emit('colors', colors)
-  }
+    clearDropdown() {
+      console.log('boop')
+      this.isButtonActive = false
+    },
 
-  private clearDropdown() {
-    console.log('boop')
-    this.isButtonActive = false
-  }
-
-  private async handleSelectColumn(column: string) {
-    console.log('panel: selected', column)
-    this.isButtonActive = false
-    this.$emit('column', { dataset: this.csvData, column: column })
-  }
-}
+    async handleSelectColumn(column: string) {
+      console.log('panel: selected', column)
+      this.isButtonActive = false
+      this.$emit('column', { dataset: this.csvData, column: column })
+    },
+  },
+  mounted() {
+    this.debounceScale = debounce(this.gotNewScale, 500)
+    this.handleTimeSliderChanged = debounce(this.changeTimeSlider, 250)
+    this.scaleWidthValue = '' + this.scaleWidth
+  },
+})
 </script>
 
 <style scoped lang="scss">

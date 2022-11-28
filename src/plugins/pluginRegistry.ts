@@ -11,7 +11,7 @@ import Sankey from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VidPlayer from '@/plugins/video-player/VideoPlayer.vue'
 import ImageView from '@/plugins/image/ImageView.vue'
-import AreaMap from '@/plugins/shape-file/FancyPolygonMap.vue'
+import AreaMap from '@/plugins/shape-file/ShapeFile.vue'
 import Hexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 import XYT from '@/plugins/xy-time/XyTime.vue'
 

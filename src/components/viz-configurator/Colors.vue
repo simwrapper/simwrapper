@@ -159,7 +159,7 @@ export default defineComponent({
       const { dataset, columnName, colorRamp } = this.vizConfiguration.display.color
 
       if (dataset && columnName) {
-        console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
+        // console.log('SPECIFIED COLORS: ', dataset, columnName, colorRamp)
         this.dataColumn = `${dataset}/${columnName}`
 
         if (colorRamp) {

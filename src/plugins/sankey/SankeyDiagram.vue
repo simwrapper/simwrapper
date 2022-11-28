@@ -22,6 +22,8 @@ const i18n = {
   },
 }
 
+import { defineComponent } from 'vue'
+
 import yaml from 'yaml'
 import { sankey, sankeyDiagram } from '@simwrapper/d3-sankey-diagram'
 import { select } from 'd3-selection'
@@ -32,7 +34,6 @@ import {
 } from 'd3-scale-chromatic'
 
 import Papaparse from 'papaparse'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
@@ -44,43 +45,238 @@ interface SankeyYaml {
   description?: string
 }
 
-@Component({ i18n, components: {} })
-class MyComponent extends Vue {
-  @Prop({ required: true })
-  private root!: string
+const MyComponent = defineComponent({
+  name: 'SankeyPlugin',
+  i18n,
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    thumbnail: Boolean,
+    config: Object as any,
+  },
+  data() {
+    return {
+      globalState: globalStore.state,
+      vizDetails: { csv: '', title: '', description: '' } as SankeyYaml,
+      loadingText: '',
+      jsonChart: {} as any,
+      totalTrips: 0,
+      cleanConfigId: `sankey-${Math.random()}` as any,
+      onlyShowChanges: false,
+      csvData: [] as any[],
+      colorRamp: [] as string[],
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
 
-  @Prop({ required: true })
-  private subfolder!: string
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
+  },
+  watch: {
+    'globalState.resizeEvents'() {
+      this.changeDimensions()
+    },
 
-  @Prop({ required: true })
-  private thumbnail!: boolean
+    yamlConfig() {
+      this.getVizDetails()
+    },
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+    subfolder() {
+      this.getVizDetails()
+    },
 
-  @Prop({ required: false })
-  private config!: any
+    onlyShowChanges() {
+      this.jsonChart = this.processInputs()
+      this.doD3()
+    },
+  },
+  methods: {
+    changeDimensions() {
+      if (this.jsonChart?.nodes) this.doD3()
+    },
 
-  private globalState = globalStore.state
+    async getVizDetails() {
+      if (this.config) {
+        this.vizDetails = Object.assign({}, this.config)
+        this.$emit('title', this.vizDetails.title)
+        return
+      }
+      // might be a project config:
+      this.loadingText = 'Loading config...'
+      const config = this.yamlConfig ?? ''
+      const filename = config.indexOf('/') > -1 ? config : this.subfolder + '/' + config
 
-  private fileApi?: HTTPFileSystem
-  private fileSystem?: FileSystemConfig
+      const text = await this.fileApi.getFileText(filename)
+      this.vizDetails = yaml.parse(text)
 
-  private vizDetails: SankeyYaml = { csv: '', title: '', description: '' }
+      this.$emit('title', this.vizDetails.title)
+    },
 
-  private loadingText: string = ''
-  private jsonChart: any = {}
-  private totalTrips = 0
+    async loadFiles(): Promise<any[]> {
+      this.loadingText = 'Loading files...'
+      try {
+        const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
 
-  private cleanConfigId = 'sankey-' + Math.floor(1e12 * Math.random())
+        const content = Papaparse.parse(rawText, {
+          // using header:false because we don't care what
+          // the column names are: we expect "from,to,value" in cols 0,1,2.
+          header: false,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+        })
+        return content.data
+      } catch (err) {
+        const e = err as any
+        console.error({ e })
+        this.loadingText = '' + e
 
-  private onlyShowChanges = false
+        // maybe it failed because password?
+        if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
+          globalStore.commit('requestLogin', this.fileSystem.slug)
+        }
+      }
+      return []
+    },
 
-  private csvData: any[] = []
+    processInputs() {
+      this.loadingText = 'Building node graph...'
 
-  public async mounted() {
-    this.buildFileApi()
+      const fromNodes: any[] = []
+      const toNodes: any[] = []
+      const links: any[] = []
+      this.totalTrips = 0
 
+      try {
+        for (const cols of this.csvData.slice(1) as any[]) {
+          if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
+          if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
+
+          const value = cols[2]
+
+          if (value === 0) continue
+          if (value < 0) {
+            console.warn('Data contains NEGATIVE numbers!!!')
+            continue
+          }
+
+          // Don't include non-changes in the graph if we are hiding them
+          if (this.onlyShowChanges && cols[0] === cols[1]) continue
+
+          links.push([cols[0], cols[1], value])
+          this.totalTrips += value
+        }
+      } catch (err) {
+        const e = err as any
+        console.error(e)
+      }
+
+      // build js object
+      const fromOrder = [] as number[]
+      const toOrder = [] as number[]
+
+      const answer = {
+        nodes: [] as { id: any; title: string }[],
+        links: [] as { source: any; target: any; value: number }[],
+        // alignTypes: true,
+        ordering: [[fromOrder], [toOrder]],
+      }
+
+      const fromLookup: any = {}
+      const toLookup: any = {}
+
+      fromNodes.forEach((title: string, i: number) => {
+        answer.nodes.push({ id: i, title })
+        fromLookup[title] = i
+        fromOrder.push(i)
+      })
+
+      toNodes.forEach((title: string, i: number) => {
+        const offset = i + fromNodes.length
+        answer.nodes.push({ id: offset, title })
+        toLookup[title] = offset
+        toOrder.push(offset)
+      })
+
+      for (const link of links) {
+        answer.links.push({
+          source: fromLookup[link[0]],
+          target: toLookup[link[1]],
+          value: link[2],
+        })
+      }
+
+      const numColors = fromNodes.length
+      const colors = [...Array(numColors).keys()].map(i => {
+        const solidColor = interpolator(i / numColors)
+        const opacityColor = solidColor.replace(/rgb(.*)\)/, 'rgba$1, 0.7)')
+        return opacityColor
+      })
+
+      this.colorRamp = colors
+
+      return answer
+    },
+
+    getMaxLabelWidth() {
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      if (!context) return 120
+
+      context.font = '16px Arial'
+
+      let max = 0
+
+      for (const node of this.jsonChart.nodes) {
+        const text = node.title
+        const width = context.measureText(text).width
+        max = Math.max(max, width)
+      }
+
+      return max
+    },
+
+    doD3() {
+      const data = this.jsonChart
+      // data.alignTypes = true
+      // data.alignLinkTypes = true
+
+      // figure out dimensions, depending on if we are in a dashboard or not
+      let box = document.querySelector(`#${this.cleanConfigId}`) as Element
+      let width = box ? box.clientWidth : 100
+      let height = box ? box.clientHeight : 100
+
+      let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
+
+      const layout = sankey()
+        .nodeWidth(8)
+        .ordering(data.ordering)
+        .extent([
+          [labelWidth, 0],
+          [width - labelWidth, height],
+        ])
+
+      const diagram = sankeyDiagram().linkColor((link: any) => this.colorRamp[link.source.id])
+
+      select('#' + this.cleanConfigId)
+        .datum(layout(data))
+        .call(diagram)
+        .attr('preserveAspectRatio', 'xMinYMin meet')
+        .attr('viewBox', `0 0 ${width} ${height}`)
+    },
+  },
+  async mounted() {
     await this.getVizDetails()
     this.csvData = await this.loadFiles()
     this.jsonChart = this.processInputs()
@@ -88,219 +284,12 @@ class MyComponent extends Vue {
     window.addEventListener('resize', this.changeDimensions)
 
     this.doD3()
-  }
+  },
 
-  public beforeDestroy() {
+  beforeDestroy() {
     window.removeEventListener('resize', this.changeDimensions)
-  }
-
-  @Watch('yamlConfig') changedYaml() {
-    this.yamlConfig = this.yamlConfig
-    this.getVizDetails()
-  }
-
-  @Watch('subfolder') changedSubfolder() {
-    this.subfolder = this.subfolder
-    this.getVizDetails()
-  }
-
-  @Watch('globalState.resizeEvents')
-  private changeDimensions() {
-    if (this.jsonChart?.nodes) this.doD3()
-  }
-
-  @Watch('onlyShowChanges')
-  private handleShowChanges() {
-    this.jsonChart = this.processInputs()
-    this.doD3()
-  }
-
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.fileApi = new HTTPFileSystem(filesystem)
-    this.fileSystem = filesystem
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    if (this.config) {
-      this.vizDetails = Object.assign({}, this.config)
-      this.$emit('title', this.vizDetails.title)
-      return
-    }
-    // might be a project config:
-    this.loadingText = 'Loading config...'
-    const filename =
-      this.yamlConfig.indexOf('/') > -1 ? this.yamlConfig : this.subfolder + '/' + this.yamlConfig
-
-    if (!this.fileApi) return
-    const text = await this.fileApi.getFileText(filename)
-    this.vizDetails = yaml.parse(text)
-    this.$emit('title', this.vizDetails.title)
-  }
-
-  private async loadFiles(): Promise<any[]> {
-    if (!this.fileApi) return []
-
-    this.loadingText = 'Loading files...'
-    try {
-      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
-
-      const content = Papaparse.parse(rawText, {
-        // using header:false because we don't care what
-        // the column names are: we expect "from,to,value" in cols 0,1,2.
-        header: false,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-      })
-      return content.data
-    } catch (err) {
-      const e = err as any
-      console.error({ e })
-      this.loadingText = '' + e
-
-      // maybe it failed because password?
-      if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
-        globalStore.commit('requestLogin', this.fileSystem.slug)
-      }
-    }
-    return []
-  }
-
-  private processInputs() {
-    this.loadingText = 'Building node graph...'
-
-    const fromNodes: any[] = []
-    const toNodes: any[] = []
-    const links: any[] = []
-    this.totalTrips = 0
-
-    try {
-      for (const cols of this.csvData.slice(1) as any[]) {
-        if (!fromNodes.includes(cols[0])) fromNodes.push(cols[0])
-        if (!toNodes.includes(cols[1])) toNodes.push(cols[1])
-
-        const value = cols[2]
-
-        if (value === 0) continue
-        if (value < 0) {
-          console.warn('Data contains NEGATIVE numbers!!!')
-          continue
-        }
-
-        // Don't include non-changes in the graph if we are hiding them
-        if (this.onlyShowChanges && cols[0] === cols[1]) continue
-
-        links.push([cols[0], cols[1], value])
-        this.totalTrips += value
-      }
-    } catch (err) {
-      const e = err as any
-      console.error(e)
-    }
-
-    // build js object
-    const fromOrder = [] as number[]
-    const toOrder = [] as number[]
-
-    const answer = {
-      nodes: [] as { id: any; title: string }[],
-      links: [] as { source: any; target: any; value: number }[],
-      // alignTypes: true,
-      ordering: [[fromOrder], [toOrder]],
-    }
-
-    const fromLookup: any = {}
-    const toLookup: any = {}
-
-    fromNodes.forEach((title: string, i: number) => {
-      answer.nodes.push({ id: i, title })
-      fromLookup[title] = i
-      fromOrder.push(i)
-    })
-
-    toNodes.forEach((title: string, i: number) => {
-      const offset = i + fromNodes.length
-      answer.nodes.push({ id: offset, title })
-      toLookup[title] = offset
-      toOrder.push(offset)
-    })
-
-    for (const link of links) {
-      answer.links.push({ source: fromLookup[link[0]], target: toLookup[link[1]], value: link[2] })
-    }
-
-    const numColors = fromNodes.length
-    const colors = [...Array(numColors).keys()].map(i => {
-      const solidColor = interpolator(i / numColors)
-      const opacityColor = solidColor.replace(/rgb(.*)\)/, 'rgba$1, 0.7)')
-      return opacityColor
-    })
-
-    this.colorRamp = colors
-
-    return answer
-  }
-
-  private colorRamp: string[] = []
-
-  private getMaxLabelWidth() {
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    if (!context) return 120
-
-    context.font = '16px Arial'
-
-    let max = 0
-
-    for (const node of this.jsonChart.nodes) {
-      const text = node.title
-      const width = context.measureText(text).width
-      max = Math.max(max, width)
-    }
-
-    return max
-  }
-
-  private doD3() {
-    const data = this.jsonChart
-    // data.alignTypes = true
-    // data.alignLinkTypes = true
-
-    // figure out dimensions, depending on if we are in a dashboard or not
-    let box = document.querySelector(`#${this.cleanConfigId}`) as Element
-    let width = box ? box.clientWidth : 100
-    let height = box ? box.clientHeight : 100
-
-    let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
-
-    const layout = sankey()
-      .nodeWidth(8)
-      .ordering(data.ordering)
-      .extent([
-        [labelWidth, 0],
-        [width - labelWidth, height],
-      ])
-
-    const diagram = sankeyDiagram().linkColor((link: any) => this.colorRamp[link.source.id])
-
-    select('#' + this.cleanConfigId)
-      .datum(layout(data))
-      .call(diagram)
-      .attr('preserveAspectRatio', 'xMinYMin meet')
-      .attr('viewBox', `0 0 ${width} ${height}`)
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {

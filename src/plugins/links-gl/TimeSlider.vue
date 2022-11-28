@@ -4,38 +4,55 @@
 </template>
 
 <script lang="ts">
-import * as timeConvert from 'convert-seconds'
-import vueSlider from 'vue-slider-component'
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 
-@Component({ components: { 'vue-slider': vueSlider } })
-export default class TimeSlider extends Vue {
-  @Prop() private useRange!: false
-  @Prop({ required: true }) private stops!: any[]
-  @Prop({ required: false }) private dropdownValue!: string
+import VueSlider from 'vue-slider-component'
 
-  private sliderValue: any = ''
+export default defineComponent({
+  name: 'TimeSliderLinksGl',
+  components: { VueSlider },
+  props: {
+    useRange: Boolean,
+    stops: { type: Array, required: true },
+    dropdownValue: String,
+  },
+  data() {
+    return {
+      sliderValue: '' as any,
+      timeSlider: {
+        adsorb: true,
+        contained: true,
+        data: [] as any[],
+        'enable-cross': false,
+        height: 8,
+        piecewise: true,
+        show: false,
+        marks: [] as any[],
+        minRange: 1,
+        processStyle: { backgroundColor: '#00bb5588', borderColor: '#f05b72' },
+        sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
+        'tooltip-placement': 'bottom',
+      },
+    }
+  },
+  watch: {
+    dropdownValue(value) {
+      this.sliderValue = value
+    },
 
-  @Watch('dropdownValue') dropdownChanged(value: string) {
-    this.sliderValue = value
-  }
-
-  private timeSlider = {
-    adsorb: true,
-    contained: true,
-    data: [] as any[],
-    'enable-cross': false,
-    height: 8,
-    piecewise: true,
-    show: false,
-    marks: [] as any[],
-    minRange: 1,
-    processStyle: { backgroundColor: '#00bb5588', borderColor: '#f05b72' },
-    sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-    'tooltip-placement': 'bottom',
-  }
-
-  private mounted() {
+    useRange(useIt: boolean) {
+      if (useIt) {
+        this.sliderValue = [this.stops[0], this.stops[this.stops.length - 1]]
+      } else {
+        this.sliderValue = [this.stops[0]]
+      }
+      console.log('changed to: ' + this.sliderValue)
+    },
+    sliderValue(result: any) {
+      this.$emit('change', result)
+    },
+  },
+  mounted() {
     this.sliderValue = this.stops[0] || '...'
     this.timeSlider.data = this.stops
     this.timeSlider.marks = [
@@ -43,29 +60,8 @@ export default class TimeSlider extends Vue {
       this.stops[Math.floor(this.stops.length / 2)],
       this.stops[this.stops.length - 1],
     ] // this.stops.filter((stop, i) => i % 3 === 0)
-  }
-
-  @Watch('useRange')
-  private changeUseRange(useIt: boolean) {
-    if (useIt) {
-      this.sliderValue = [this.stops[0], this.stops[this.stops.length - 1]]
-    } else {
-      this.sliderValue = [this.stops[0]]
-    }
-    console.log('changed to: ' + this.sliderValue)
-  }
-
-  // @Watch('stops')
-  // private setStops(newStops: any) {
-  //   console.log({ newStops })
-  //   this.timeSlider.data = newStops
-  // }
-
-  @Watch('sliderValue')
-  private sliderChangedEvent(result: any) {
-    this.$emit('change', result)
-  }
-}
+  },
+})
 </script>
 
 <style scoped>

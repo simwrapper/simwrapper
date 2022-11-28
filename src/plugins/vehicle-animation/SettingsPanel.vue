@@ -21,35 +21,35 @@ const i18n = {
       passengers: 'Passengers',
       search: 'Search',
       showhide: 'Show/Hide',
-      vehicles: 'Vehicles',
+      vehicles: 'DRT Vehicles',
       routes: 'Routes',
       speed: 'Speed',
+      backgroundTraffic: 'All Traffic',
     },
     de: {
       requests: 'DRT&nbsp;Anfragen',
       passengers: 'Passagiere',
       search: 'Suche',
       showhide: 'Ein-/Ausblenden',
-      vehicles: 'Fahrzeuge',
+      vehicles: 'DRT Fahrzeuge',
       routes: 'Routen',
       speed: 'Geschwindigkeit',
+      backgroundTraffic: 'Alle Fahrzeuge',
     },
   },
 }
 
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
 
-@Component({
+export default defineComponent({
+  name: 'XmasSettingsPanel',
   i18n,
-  components: {
-    ToggleButton,
+  components: { ToggleButton },
+  props: {
+    items: { type: Object, required: true },
   },
 })
-export default class VueComponent extends Vue {
-  @Prop({ required: true })
-  private items!: { [label: string]: boolean }
-}
 </script>
 
 <style scoped lang="scss">

@@ -12,13 +12,15 @@
     .widget
       p Scaling
       b-field
-        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0" type="number")
+        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import debounce from 'debounce'
+
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
 export type WidthDefinition = {
@@ -33,7 +35,7 @@ export default defineComponent({
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
-  data: () => {
+  data: (self: any) => {
     const transforms = ['none', 'sqrt', 'pow5']
 
     return {
@@ -41,6 +43,7 @@ export default defineComponent({
       xscaleFactor: '100',
       selectedTransform: transforms[0],
       datasetLabels: [] as string[],
+      debounceHandleWidthChanged: debounce(self.emitWidthSpecification, 500),
     }
   },
   mounted() {
@@ -59,7 +62,7 @@ export default defineComponent({
       this.datasetsAreLoaded()
     },
     xscaleFactor() {
-      this.emitWidthSpecification()
+      this.debounceHandleWidthChanged()
     },
     dataColumn() {
       this.emitWidthSpecification()
@@ -79,7 +82,7 @@ export default defineComponent({
       const datasetIds = Object.keys(this.datasets)
       const { dataset, columnName, scaleFactor } = this.vizConfiguration.display.width
       if (dataset && columnName) {
-        console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
+        // console.log('SPECIFIED WIDTH: ', dataset, columnName, scaleFactor)
         this.dataColumn = `${dataset}/${columnName}`
         if (!!scaleFactor) this.xscaleFactor = '' + scaleFactor
       } else if (datasetIds.length) {

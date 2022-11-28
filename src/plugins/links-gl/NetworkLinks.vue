@@ -26,7 +26,7 @@
     viz-configurator(v-if="!thumbnail && isDataLoaded"
       :vizDetails="vizDetails"
       :datasets="datasets"
-      :fileSystem="myState.fileSystem"
+      :fileSystem="fileSystem"
       :subfolder="myState.subfolder"
       :yamlConfig="yamlConfig"
       :legendStore="legendStore"
@@ -91,7 +91,9 @@ const i18n = {
     },
   },
 }
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
 import { rgb } from 'd3-color'
 import { scaleThreshold, scaleOrdinal } from 'd3-scale'
@@ -102,8 +104,6 @@ import YAML from 'yaml'
 
 import globalStore from '@/store'
 import { DataTableColumn, DataTable, DataType, LookupDataset } from '@/Globals'
-import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import TimeSlider from './TimeSlider.vue'
 // import FilterPanel from './BadFilterPanel.vue'
 import SelectorPanel from './SelectorPanel.vue'
 import LinkGlLayer from './LinkLayer'
@@ -112,8 +112,6 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import LegendStore from '@/js/LegendStore'
-
-// import AttributeCalculator from './attributeCalculator.worker.ts?worker'
 
 import {
   ColorScheme,
@@ -131,595 +129,901 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 
 const LOOKUP_COLUMN = '_LINK_OFFSET_'
 
-@Component({
+const MyComponent = defineComponent({
+  name: 'NetworkLinksPlugin',
   i18n,
   components: {
-    CollapsiblePanel,
     SelectorPanel,
     DrawingTool,
-    // FilterPanel,
     LinkGlLayer,
-    TimeSlider,
     ToggleButton,
     VizConfigurator,
     ZoomButtons,
-  } as any,
-})
-class NetworkLinkPlugin extends Vue {
-  @Prop({ required: true }) root!: string
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: false }) yamlConfig!: string
-  @Prop({ required: false }) config!: any
-  @Prop({ required: false }) thumbnail!: boolean
-  @Prop({ required: false }) datamanager!: DashboardDataManager
+  },
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object as any,
+    thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager> },
+  },
+  data() {
+    return {
+      standaloneYAMLconfig: {
+        title: '',
+        description: '',
+        csvFile: '',
+        csvBase: '',
+        datasets: {} as { [id: string]: string },
+        useSlider: false,
+        showDifferences: false,
+        shpFile: '',
+        dbfFile: '',
+        network: '',
+        geojsonFile: '',
+        projection: '',
+        center: null as any,
+        zoom: 0,
+        widthFactor: null as any,
+        thumbnail: '',
+        sum: false,
+        nodes: '', // SFCTA nodes shapefile
+        links: [] as string[], // SFCTA links DBF files
+        mapIsIndependent: false,
+        display: {
+          color: {} as any,
+          width: {} as any,
+        },
+      },
 
-  private standaloneYAMLconfig = {
-    title: '',
-    description: '',
-    csvFile: '',
-    csvBase: '',
-    datasets: {} as { [id: string]: string },
-    useSlider: false,
-    showDifferences: false,
-    shpFile: '',
-    dbfFile: '',
-    network: '',
-    geojsonFile: '',
-    projection: '',
-    center: null as any,
-    zoom: 0,
-    widthFactor: null as any,
-    thumbnail: '',
-    sum: false,
-    nodes: '', // SFCTA nodes shapefile
-    links: [] as string[], // SFCTA links DBF files
-    mapIsIndependent: false,
-    display: {
-      color: {} as any,
-      width: {} as any,
+      YAMLrequirementsLinks: {
+        // csvFile: '',
+        // network: '',
+        // projection: '',
+      },
+
+      // this contains the display settings for this view; it is the View Model.
+      // use changeConfiguration to modify this for now (todo: move to state model)
+      vizDetails: {
+        title: '',
+        description: '',
+        csvFile: '',
+        csvBase: '',
+        datasets: {} as { [id: string]: string },
+        useSlider: false,
+        showDifferences: false,
+        shpFile: '',
+        dbfFile: '',
+        network: '',
+        geojsonFile: '',
+        projection: '',
+        center: null as any,
+        zoom: 0,
+        widthFactor: null as any,
+        thumbnail: '',
+        sum: false,
+        nodes: '', // SFCTA nodes shapefile
+        links: [] as string[], // SFCTA links DBF files
+        mapIsIndependent: false,
+        display: {
+          color: {} as any,
+          width: {} as any,
+        },
+      },
+
+      datasets: {} as { [id: string]: DataTable },
+      isButtonActiveColumn: false,
+      linkLayerId: `linklayer-${Math.random()}` as any,
+      scaleWidth: 0,
+      numLinks: 0,
+      showTimeRange: false,
+      legendStore: new LegendStore(),
+      geojsonData: {
+        source: new Float32Array(),
+        dest: new Float32Array(),
+        linkIds: [] as any[],
+      },
+      fixedColors: ['#4e79a7'],
+      myState: {
+        statusMessage: '',
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: false,
+      },
+
+      csvData: {
+        datasetKey: '',
+        activeColumn: '',
+        dataTable: {},
+        csvRowFromLinkRow: [],
+      } as LookupDataset,
+
+      csvBase: {
+        datasetKey: '',
+        activeColumn: '',
+        dataTable: {},
+        csvRowFromLinkRow: [],
+      } as LookupDataset,
+
+      csvWidth: {
+        datasetKey: '',
+        activeColumn: '',
+        dataTable: {},
+        csvRowFromLinkRow: [],
+      } as LookupDataset,
+
+      csvWidthBase: {
+        datasetKey: '',
+        activeColumn: '',
+        dataTable: {},
+        csvRowFromLinkRow: [],
+      } as LookupDataset,
+
+      // private linkOffsetLookup: { [id: string]: number } = {}
+      isDarkMode: this.$store.state.colorScheme === ColorScheme.DarkMode,
+      isDataLoaded: false,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+
+      currentWidthDefinition: { columnName: '' } as LineWidthDefinition,
+
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+
+      resizer: undefined as ResizeObserver | undefined,
+      networkWorker: undefined as Worker | undefined,
+      dataLoaderWorkers: [] as Worker[],
+      csvRowLookupFromLinkRow: {} as { [datasetId: string]: number[] },
+
+      colorArray: new Uint8Array(),
+      widthArray: new Float32Array(),
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
     },
-  }
 
-  private YAMLrequirementsLinks = {
-    // csvFile: '',
-    // network: '',
-    // projection: '',
-  }
-
-  // this contains the display settings for this view; it is the View Model.
-  // use changeConfiguration to modify this for now (todo: move to state model)
-  private vizDetails = {
-    title: '',
-    description: '',
-    csvFile: '',
-    csvBase: '',
-    datasets: {} as { [id: string]: string },
-    useSlider: false,
-    showDifferences: false,
-    shpFile: '',
-    dbfFile: '',
-    network: '',
-    geojsonFile: '',
-    projection: '',
-    center: null as any,
-    zoom: 0,
-    widthFactor: null as any,
-    thumbnail: '',
-    sum: false,
-    nodes: '', // SFCTA nodes shapefile
-    links: [] as string[], // SFCTA links DBF files
-    mapIsIndependent: false,
-    display: {
-      color: {} as any,
-      width: {} as any,
-    },
-  }
-
-  private datasets: { [id: string]: DataTable } = {}
-
-  private isButtonActiveColumn = false
-
-  private linkLayerId = Math.random()
-
-  private scaleWidth = 0
-  private showTimeRange = false
-
-  private legendStore: LegendStore = new LegendStore()
-
-  private geojsonData = {
-    source: new Float32Array(),
-    dest: new Float32Array(),
-    linkIds: [] as any[],
-  }
-
-  private fixedColors: string[] = ['#4e79a7']
-
-  // private timeFilterColumns: number[] = []
-
-  public myState = {
-    statusMessage: '',
-    fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: false,
-  }
-
-  private csvData: LookupDataset = {
-    datasetKey: '',
-    activeColumn: '',
-    dataTable: {},
-    csvRowFromLinkRow: [],
-  }
-  private csvBase: LookupDataset = {
-    datasetKey: '',
-    activeColumn: '',
-    dataTable: {},
-    csvRowFromLinkRow: [],
-  }
-  private csvWidth: LookupDataset = {
-    datasetKey: '',
-    activeColumn: '',
-    dataTable: {},
-    csvRowFromLinkRow: [],
-  }
-  private csvWidthBase: LookupDataset = {
-    datasetKey: '',
-    activeColumn: '',
-    dataTable: {},
-    csvRowFromLinkRow: [],
-  }
-
-  // private linkOffsetLookup: { [id: string]: number } = {}
-  private numLinks = 0
-
-  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-  private isDataLoaded = false
-
-  private setDataIsLoaded() {
-    this.isDataLoaded = true
-  }
-
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private get colorRampType() {
-    const rampType = this.vizDetails.display.color?.colorRamp?.style
-    if (rampType === undefined) return -1
-    return rampType
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    const filename = this.myState.yamlConfig
-
-    const emptyState = {
-      showDifferences: false,
-      datasets: {} as any,
-      display: { color: {} as any, width: {} as any },
-    }
-
-    // are we in a dashboard?
-    if (this.config) {
-      this.validateYAML()
-      this.vizDetails = Object.assign({}, emptyState, this.config)
-      return
-    }
-
-    // was a YAML file was passed in?
-    if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-      await this.loadStandaloneYamlConfig()
-    }
-
-    // is this a bare network file? - build vizDetails manually
-    if (/(shp|xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
-      const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
-
-      this.vizDetails = Object.assign({}, this.vizDetails, {
-        network: this.myState.yamlConfig,
-        title,
-        description: this.myState.subfolder,
-      })
-    }
-
-    const t = this.vizDetails.title ? this.vizDetails.title : filename || 'Network Links'
-    this.$emit('title', t)
-  }
-
-  private async loadStandaloneYamlConfig() {
-    if (!this.myState.fileApi) return {}
-
-    try {
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-      const text = await this.myState.fileApi.getFileText(filename)
-      this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
-      this.validateYAML()
-      this.setVizDetails()
-    } catch (err) {
-      console.error('failed')
-      const e = err as any
-      // maybe it failed because password?
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
       }
-    }
-  }
-  private async validateYAML() {
-    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+      return svnProject[0]
+    },
 
-    let configuration: any
+    urlThumbnail(): string {
+      return this.thumbnailUrl
+    },
 
-    if (hasYaml) {
-      console.log('has yaml')
-      configuration = this.standaloneYAMLconfig
-    } else {
-      console.log('no yaml')
-      configuration = this.config
-    }
+    colorRampType(): any {
+      const rampType = this.vizDetails.display.color?.colorRamp?.style
+      if (rampType === undefined) return -1
+      return rampType
+    },
 
-    for (const key in this.YAMLrequirementsLinks) {
-      if (key in configuration === false) {
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: `YAML file missing required key: ${key}`,
-          desc: 'Check this.YAMLrequirementsLinks for required keys',
+    buttonTitle(): string {
+      return this.csvData.activeColumn || 'Loading...'
+    },
+  },
+  watch: {
+    '$store.state.viewState'() {
+      if (this.vizDetails.mapIsIndependent) return
+
+      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+      REACT_VIEW_HANDLES[this.linkLayerId]()
+    },
+
+    '$store.state.colorScheme'() {
+      setTimeout(
+        () => (this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode),
+        100
+      )
+    },
+
+    'vizDetails.showDifferences'() {
+      this.generateWidthArray()
+      this.generateColorArray()
+    },
+  },
+  methods: {
+    setDataIsLoaded() {
+      this.isDataLoaded = true
+    },
+    async getVizDetails() {
+      const filename = this.myState.yamlConfig
+
+      const emptyState = {
+        showDifferences: false,
+        datasets: {} as any,
+        display: { color: {} as any, width: {} as any },
+      }
+
+      // are we in a dashboard?
+      if (this.config) {
+        this.validateYAML()
+        this.vizDetails = Object.assign({}, emptyState, this.config)
+        return
+      }
+
+      // was a YAML file was passed in?
+      if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+        await this.loadStandaloneYamlConfig()
+      }
+
+      // is this a bare network file? - build vizDetails manually
+      if (/(shp|xml|geojson|geo\.json)(|\.gz)$/.test(filename)) {
+        const title = 'Network: ' + this.myState.yamlConfig // .substring(0, 7 + this.myState.yamlConfig.indexOf('network'))
+
+        this.vizDetails = Object.assign({}, this.vizDetails, {
+          network: this.myState.yamlConfig,
+          title,
+          description: this.myState.subfolder,
         })
       }
-    }
 
-    if (configuration.zoom < 5 || configuration.zoom > 20) {
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: `Zoom is out of the recommended range `,
-        desc: 'Zoom levels should be between 5 and 20. ',
-      })
-    }
+      const t = this.vizDetails.title ? this.vizDetails.title : filename || 'Network Links'
+      this.$emit('title', t)
+    },
 
-    const hasGeoJson = !configuration.network && configuration.geojsonFile
-    if (hasGeoJson) {
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: `YAML field geojsonFile deprecated`,
-        desc: 'Use YAML field network instad. ',
-      })
-    }
-
-    if (!configuration.display) {
-      this.$store.commit('setStatus', {
-        type: Status.WARNING,
-        msg: `Display properties not set`,
-        desc: 'Standard values are used',
-      })
-    }
-  }
-
-  private setVizDetails() {
-    this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
-  }
-
-  private async buildThumbnail() {
-    if (!this.myState.fileApi) return
-
-    if (this.thumbnail && this.vizDetails.thumbnail) {
+    async loadStandaloneYamlConfig() {
       try {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.thumbnail
-        )
-        const buffer = await readBlob.arraybuffer(blob)
-        const base64 = this.arrayBufferToBase64(buffer)
-        if (base64)
-          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-      } catch (e) {
-        console.error(e)
+        const filename =
+          this.myState.yamlConfig.indexOf('/') > -1
+            ? this.myState.yamlConfig
+            : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+        const text = await this.fileApi.getFileText(filename)
+        this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+        this.validateYAML()
+        this.setVizDetails()
+      } catch (err) {
+        console.error('failed')
+        const e = err as any
+        // maybe it failed because password?
+        if (this.fileSystem.needPassword && e.status === 401) {
+          this.$store.commit('requestLogin', this.fileSystem.slug)
+        }
       }
-    }
-  }
+    },
 
-  @Watch('$store.state.viewState') viewMoved() {
-    if (this.vizDetails.mapIsIndependent) return
+    async validateYAML() {
+      const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
-    if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
-    REACT_VIEW_HANDLES[this.linkLayerId]()
-  }
+      let configuration: any
 
-  @Watch('$store.state.colorScheme') private swapTheme() {
-    setTimeout(
-      () => (this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode),
-      100
-    )
-  }
+      if (hasYaml) {
+        console.log('has yaml')
+        configuration = this.standaloneYAMLconfig
+      } else {
+        console.log('no yaml')
+        configuration = this.config
+      }
 
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
+      for (const key in this.YAMLrequirementsLinks) {
+        if (key in configuration === false) {
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `YAML file missing required key: ${key}`,
+            desc: 'Check this.YAMLrequirementsLinks for required keys',
+          })
+        }
+      }
 
-  private get buttonTitle() {
-    return this.csvData.activeColumn || 'Loading...'
-  }
+      if (configuration.zoom < 5 || configuration.zoom > 20) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Zoom is out of the recommended range `,
+          desc: 'Zoom levels should be between 5 and 20. ',
+        })
+      }
 
-  private toggleShowDiffs() {
-    this.vizDetails.showDifferences = !this.vizDetails.showDifferences
-  }
+      const hasGeoJson = !configuration.network && configuration.geojsonFile
+      if (hasGeoJson) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `YAML field geojsonFile deprecated`,
+          desc: 'Use YAML field network instad. ',
+        })
+      }
 
-  /**
-   * changeConfiguration: is the main entry point for changing the viz model.
-   * anything that wants to change colors, widths, data, anthing like that
-   * should all pass through this function so the underlying data model
-   * is modified properly.
-   */
-  private changeConfiguration(props: {
-    color?: LineColorDefinition
-    width?: LineWidthDefinition
-    dataset?: DatasetDefinition
-  }) {
-    // console.log(props)
+      if (!configuration.display) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Display properties not set`,
+          desc: 'Standard values are used',
+        })
+      }
+    },
 
-    if (props['color']) {
-      // if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
-      this.vizDetails = Object.assign({}, this.vizDetails)
-      this.vizDetails.display.color = props.color
-      this.handleNewColor(props.color)
-    }
-    if (props['width']) {
-      // if (JSON.stringify(props.width) === JSON.stringify(this.vizDetails.display.width)) return
-      this.vizDetails = Object.assign({}, this.vizDetails)
-      this.vizDetails.display.width = props.width
-      this.handleNewWidth(props.width)
-    }
-    if (props['dataset']) {
-      // vizdetails just had the string name, whereas props.dataset contains
-      // a fully-build DatasetDefinition, so let's just handle that
-      this.handleNewDataset(props.dataset)
-    }
-  }
+    setVizDetails() {
+      this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+    },
 
-  private handleNewFilter(columns: number[]) {
-    this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
-    this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = this.arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
 
-    // // this.timeFilterColumns = columns
-    // // give animation 150ms to run
-    // setTimeout(() => {
-    //   if (columns.length) {
-    //     this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
-    //     this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
-    //   }
-    // }, 150)
-  }
+    arrayBufferToBase64(buffer: any) {
+      var binary = ''
+      var bytes = new Uint8Array(buffer)
+      var len = bytes.byteLength
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      return window.btoa(binary)
+    },
 
-  private currentWidthDefinition: LineWidthDefinition = { columnName: '' }
+    toggleShowDiffs() {
+      this.vizDetails.showDifferences = !this.vizDetails.showDifferences
+    },
 
-  private handleNewWidth(width: LineWidthDefinition) {
-    // if definition hasn't changed, do nothing
-    if (shallowEqualObjects(width, this.currentWidthDefinition)) {
-      return
-    }
+    /**
+     * changeConfiguration: is the main entry point for changing the viz model.
+     * anything that wants to change colors, widths, data, anthing like that
+     * should all pass through this function so the underlying data model
+     * is modified properly.
+     */
+    changeConfiguration(props: {
+      color?: LineColorDefinition
+      width?: LineWidthDefinition
+      dataset?: DatasetDefinition
+    }) {
+      // console.log(props)
 
-    const { columnName, dataset, scaleFactor } = width
+      if (props['color']) {
+        // if (JSON.stringify(props.color) === JSON.stringify(this.vizDetails.display.color)) return
+        this.vizDetails = Object.assign({}, this.vizDetails)
+        this.vizDetails.display.color = props.color
+        this.handleNewColor(props.color)
+      }
+      if (props['width']) {
+        // if (JSON.stringify(props.width) === JSON.stringify(this.vizDetails.display.width)) return
+        this.vizDetails = Object.assign({}, this.vizDetails)
+        this.vizDetails.display.width = props.width
+        this.handleNewWidth(props.width)
+      }
+      if (props['dataset']) {
+        // vizdetails just had the string name, whereas props.dataset contains
+        // a fully-build DatasetDefinition, so let's just handle that
+        this.handleNewDataset(props.dataset)
+      }
+    },
 
-    // if dataset is set to None, just set scale to 0 and we're done
-    if (!dataset) {
-      this.scaleWidth = 0
-      return
-    }
+    handleNewFilter(columns: number[]) {
+      this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
+      this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
 
-    // change scaling factor without recalculating anything:
-    if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
+      // // this.timeFilterColumns = columns
+      // // give animation 150ms to run
+      // setTimeout(() => {
+      //   if (columns.length) {
+      //     this.csvData = Object.assign({}, this.csvData, { activeColumn: columns[0] })
+      //     this.csvWidth = Object.assign({}, this.csvWidth, { activeColumn: columns[0] })
+      //   }
+      // }, 150)
+    },
 
-    // if everything else is the same, don't recalculate anything
-    let recalculate = true
+    handleNewWidth(width: LineWidthDefinition) {
+      // if definition hasn't changed, do nothing
+      if (shallowEqualObjects(width, this.currentWidthDefinition)) {
+        return
+      }
 
-    if (!columnName) recalculate = false
+      const { columnName, dataset, scaleFactor } = width
 
-    if (
-      width.columnName === this.currentWidthDefinition.columnName &&
-      width.dataset === this.currentWidthDefinition.dataset
-    ) {
-      recalculate = false
-    }
+      // if dataset is set to None, just set scale to 0 and we're done
+      if (!dataset) {
+        this.scaleWidth = 0
+        return
+      }
 
-    // save settings
-    this.currentWidthDefinition = width
+      // change scaling factor without recalculating anything:
+      if (scaleFactor !== undefined) this.scaleWidth = scaleFactor
 
-    // this part takes longer to calculate. only do it if we have to
-    if (!recalculate) return
+      // if everything else is the same, don't recalculate anything
+      let recalculate = true
 
-    const selectedDataset = dataset ? this.datasets[dataset] : this.csvWidth.dataTable
-    if (!selectedDataset) return
+      if (!columnName) recalculate = false
 
-    if (this.csvWidth.dataTable !== selectedDataset) {
-      this.csvWidth.dataTable = selectedDataset
-      this.csvWidth.activeColumn = columnName || ''
-      // this.csvWidthBase.dataTable = selectedDataset
-      this.csvWidthBase.activeColumn = columnName || ''
-    }
+      if (
+        width.columnName === this.currentWidthDefinition.columnName &&
+        width.dataset === this.currentWidthDefinition.dataset
+      ) {
+        recalculate = false
+      }
 
-    const dataColumn = selectedDataset[columnName || '']
-    if (!dataColumn) {
-      const msg = `Width: column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
-      console.error(msg)
-      this.$store.commit('setStatus', {
-        type: Status.ERROR,
-        msg,
-      })
-      return
-    }
+      // save settings
+      this.currentWidthDefinition = width
 
-    // Tell Vue we have new data
-    this.csvWidth = {
-      datasetKey: dataset || this.csvWidth.datasetKey,
-      dataTable: selectedDataset,
-      activeColumn: columnName || '',
-      csvRowFromLinkRow: dataset ? this.csvRowLookupFromLinkRow[dataset] : [],
-    }
-    this.generateWidthArray()
-  }
+      // this part takes longer to calculate. only do it if we have to
+      if (!recalculate) return
 
-  private handleNewColor(color: LineColorDefinition) {
-    this.fixedColors = color.fixedColors
+      const selectedDataset = dataset ? this.datasets[dataset] : this.csvWidth.dataTable
+      if (!selectedDataset) return
 
-    const columnName = color.columnName
-    if (!columnName) {
-      this.generateColorArray()
-      return
-    }
+      if (this.csvWidth.dataTable !== selectedDataset) {
+        this.csvWidth.dataTable = selectedDataset
+        this.csvWidth.activeColumn = columnName || ''
+        // this.csvWidthBase.dataTable = selectedDataset
+        this.csvWidthBase.activeColumn = columnName || ''
+      }
 
-    const datasetKey = color.dataset
-    const selectedDataset = this.datasets[datasetKey]
-    if (!selectedDataset) return
+      const dataColumn = selectedDataset[columnName || '']
+      if (!dataColumn) {
+        const msg = `Width: column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
+        console.error(msg)
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg,
+        })
+        return
+      }
 
-    if (this.csvData.dataTable !== selectedDataset) {
-      this.csvData = {
-        datasetKey,
+      // Tell Vue we have new data
+      this.csvWidth = {
+        datasetKey: dataset || this.csvWidth.datasetKey,
         dataTable: selectedDataset,
-        activeColumn: '',
-        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
+        activeColumn: columnName || '',
+        csvRowFromLinkRow: dataset ? this.csvRowLookupFromLinkRow[dataset] : [],
       }
-    }
+      this.generateWidthArray()
+    },
 
-    const column = this.csvData.dataTable[columnName]
-    if (!column) {
-      const msg = `Color: Column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
-      console.error(msg)
-      this.$store.commit('setStatus', {
-        type: Status.ERROR,
-        msg,
+    handleNewColor(color: LineColorDefinition) {
+      this.fixedColors = color.fixedColors
+
+      const columnName = color.columnName
+      if (!columnName) {
+        this.generateColorArray()
+        return
+      }
+
+      const datasetKey = color.dataset
+      const selectedDataset = this.datasets[datasetKey]
+      if (!selectedDataset) return
+
+      if (this.csvData.dataTable !== selectedDataset) {
+        this.csvData = {
+          datasetKey,
+          dataTable: selectedDataset,
+          activeColumn: '',
+          csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetKey],
+        }
+      }
+
+      const column = this.csvData.dataTable[columnName]
+      if (!column) {
+        const msg = `Color: Column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
+        console.error(msg)
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg,
+        })
+        return
+      }
+
+      this.csvData.activeColumn = column.name
+      this.csvBase.activeColumn = column.name
+
+      this.isButtonActiveColumn = false
+      this.generateColorArray()
+    },
+
+    async setMapCenter() {
+      const data = this.geojsonData
+      if (this.vizDetails.center) {
+        if (typeof this.vizDetails.center == 'string') {
+          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+        }
+
+        if (!this.vizDetails.zoom) {
+          this.vizDetails.zoom = 9
+        }
+
+        this.$store.commit('setMapCamera', {
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
+          bearing: 0,
+          pitch: 0,
+          zoom: this.vizDetails.zoom,
+          jump: false,
+        })
+
+        const view = {
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
+          bearing: 0,
+          pitch: 0,
+          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+          jump: false, // move the map no matter what
+        }
+
+        // bounce our map
+        if (REACT_VIEW_HANDLES[this.linkLayerId]) REACT_VIEW_HANDLES[this.linkLayerId](view)
+        return
+      }
+
+      if (!data.source.length) return
+
+      let samples = 0
+      let longitude = 0
+      let latitude = 0
+
+      const numLinks = data.source.length / 2
+
+      const gap = 4096
+      for (let i = 0; i < numLinks; i += gap) {
+        longitude += data.source[i * 2]
+        latitude += data.source[i * 2 + 1]
+        samples++
+      }
+
+      longitude = longitude / samples
+      latitude = latitude / samples
+
+      console.log('center', longitude, latitude)
+
+      if (longitude && latitude) {
+        this.$store.commit('setMapCamera', {
+          longitude,
+          latitude,
+          bearing: 0,
+          pitch: 0,
+          zoom: 9,
+          jump: false,
+        })
+      }
+    },
+
+    setupLogoMover() {
+      this.resizer = new ResizeObserver(this.moveLogo)
+      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+      this.resizer.observe(deckmap)
+    },
+
+    moveLogo() {
+      const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
+      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
+      if (logo) {
+        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
+        logo.style.right = right
+      }
+    },
+
+    async loadNetwork(): Promise<any> {
+      if (!this.myDataManager) throw Error('links: no datamanager')
+
+      this.myState.statusMessage = 'Loading network...'
+
+      const filename = this.vizDetails.network || this.vizDetails.geojsonFile
+      try {
+        const network = await this.myDataManager.getRoadNetwork(
+          filename,
+          this.myState.subfolder,
+          this.vizDetails
+        )
+
+        this.numLinks = network.linkIds.length
+        this.geojsonData = network
+
+        this.setMapCenter() // this could be off main thread
+
+        this.myState.statusMessage = ''
+
+        this.moveLogo()
+
+        this.$emit('isLoaded', true)
+
+        // then load CSVs in background
+        this.loadCSVFiles()
+      } catch (e) {
+        this.$store.commit('error', '' + e)
+        this.$emit('isLoaded')
+      }
+    },
+
+    handleNewDataset(props: DatasetDefinition) {
+      console.log('NEW dataset', props)
+      const { key, dataTable, filename } = props
+
+      // We need a lookup so we can find the CSV row that matches each link row.
+      // A normal hashmap lookup is too slow, so we'll create an array containing
+      // the lookup on load (now); then it should be O(1) fast from that point forward.
+
+      // For now we assume the 1st CSV column always has the link ID
+      const columnNames = Object.keys(dataTable)
+      const assumedLinkIdIsFirstColumn = columnNames[0]
+      const linkIdColumn = dataTable[assumedLinkIdIsFirstColumn]
+
+      let tempMapLinkIdToCsvRow = {} as any
+      for (let csvRow = 0; csvRow < linkIdColumn.values.length; csvRow++) {
+        tempMapLinkIdToCsvRow[linkIdColumn.values[csvRow]] = csvRow
+      }
+
+      // Create a LOOKUP array which links this CSV data to the network links
+      // loop through all network links, we need the CSV row for each link.
+      const getCsvRowNumberFromLinkRowNumber: number[] = []
+      for (let linkRow = 0; linkRow < this.geojsonData.linkIds.length; linkRow++) {
+        const linkId = this.geojsonData.linkIds[linkRow]
+        const csvRow = tempMapLinkIdToCsvRow[linkId]
+        if (csvRow !== undefined) getCsvRowNumberFromLinkRowNumber[linkRow] = csvRow
+      }
+
+      // Save the lookup with the dataset.
+      this.csvRowLookupFromLinkRow[key] = getCsvRowNumberFromLinkRowNumber
+      tempMapLinkIdToCsvRow = {} // probably unnecessary but we def want this to be GC'ed
+
+      // all done!
+      if (filename) this.vizDetails.datasets[key] = filename
+      this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
+      this.handleDatasetisLoaded(key)
+    },
+
+    generateWidthArray() {
+      const numLinks = this.geojsonData.linkIds.length
+      const widths = new Float32Array(numLinks)
+
+      const widthValues = this.csvWidth?.dataTable[this.csvWidth.activeColumn]?.values
+      const baseValues = this.csvBase?.dataTable[this.csvBase.activeColumn]?.values
+
+      const width = (i: number) => {
+        const csvRow = this.csvWidth.csvRowFromLinkRow[i]
+        const value = widthValues[csvRow]
+
+        if (this.vizDetails.showDifferences) {
+          const baseRow = this.csvBase.csvRowFromLinkRow[i]
+          const baseValue = baseValues[baseRow]
+          const diff = Math.abs(value - baseValue)
+          return diff
+        } else {
+          return value
+        }
+      }
+
+      for (let i = 0; i < numLinks; i++) {
+        widths[i] = width(i)
+      }
+      this.widthArray = widths
+    },
+
+    generateColorArray() {
+      // deck.gl colors must be in rgb[] or rgba[] format
+      const colorsAsRGB: any = this.fixedColors.map(hexcolor => {
+        const c = rgb(hexcolor)
+        return [c.r, c.g, c.b, 255]
       })
-      return
-    }
 
-    this.csvData.activeColumn = column.name
-    this.csvBase.activeColumn = column.name
+      // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
+      // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
+      // An exponent reduces visual dominance of very large values at the high end of the scale
+      const exponent = 4.0
+      const domain = new Array(this.fixedColors.length - 1)
+        .fill(0)
+        .map((v, i) => Math.pow((1 / this.fixedColors.length) * (i + 1), exponent))
 
-    this.isButtonActiveColumn = false
-    this.generateColorArray()
-  }
+      // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
+      // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
+      // *range* is the list of colors;
+      // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
+      // *colorRampType* is 0 if a categorical color ramp is chosen
+      const buildData = this.csvData.dataTable
+      const baseData = this.csvBase.dataTable
+      const activeColumn = this.csvData.activeColumn
 
-  private async setMapCenter() {
-    const data = this.geojsonData
-    if (this.vizDetails.center) {
-      if (typeof this.vizDetails.center == 'string') {
-        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+      const buildColumn: DataTableColumn = buildData[activeColumn] || { values: [] }
+      const baseColumn: DataTableColumn = baseData[activeColumn] || { values: [] }
+
+      const isCategorical = this.colorRampType === 0 || buildColumn.type == DataType.STRING
+      const setColorBasedOnValue: any = isCategorical
+        ? scaleOrdinal().range(colorsAsRGB)
+        : scaleThreshold().range(colorsAsRGB).domain(domain)
+
+      const numLinks = this.geojsonData.linkIds.length
+      const colors = new Uint8Array(4 * numLinks)
+
+      const colorPaleGrey = globalStore.state.isDarkMode ? [80, 80, 80, 96] : [212, 212, 212, 40]
+      const colorInvisible = [0, 0, 0, 0]
+
+      const color = (i: number) => {
+        // if (!buildData[this.csvData.activeColumn]) return colorPaleGrey
+
+        const csvRow = this.csvData.csvRowFromLinkRow[i]
+        let value = buildData[this.csvData.activeColumn]?.values[csvRow]
+
+        if (this.fixedColors.length === 1) return colorsAsRGB[0]
+        if (!value && !this.vizDetails.showDifferences) return colorInvisible
+        if (isCategorical) return setColorBasedOnValue(value)
+
+        if (this.vizDetails.showDifferences) {
+          const baseRow = this.csvBase.csvRowFromLinkRow[i]
+          const baseValue = baseData[activeColumn].values[baseRow]
+          const diff = value - baseValue
+
+          if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
+
+          // red vs. blue
+          if (this.isDarkMode) {
+            return diff > 0 ? [255, 64, 64, 255] : [64, 96, 255, 255] // red vs. blue
+          } else {
+            return diff > 0 ? [255, 0, 0, 255] : [32, 64, 255, 255] // red vs. blue
+          }
+        } else {
+          // don't use log scale if numbers are below 1.0
+          let ratio = value / (buildColumn.max || 1.0)
+          // if (ratio < 0.0001) return colorPaleGrey
+          return setColorBasedOnValue(ratio)
+        }
       }
 
-      if (!this.vizDetails.zoom) {
-        this.vizDetails.zoom = 9
+      for (let i = 0; i < numLinks; i++) {
+        colors.set(color(i), i * 4)
       }
 
-      this.$store.commit('setMapCamera', {
-        longitude: this.vizDetails.center[0],
-        latitude: this.vizDetails.center[1],
-        bearing: 0,
-        pitch: 0,
-        zoom: this.vizDetails.zoom,
-        jump: false,
-      })
+      this.colorArray = colors
+    },
 
-      const view = {
-        longitude: this.vizDetails.center[0],
-        latitude: this.vizDetails.center[1],
-        bearing: 0,
-        pitch: 0,
-        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-        jump: false, // move the map no matter what
+    loadCSVFiles() {
+      this.myState.statusMessage = 'Loading datasets...'
+
+      // Old yaml format listed csvFile and csvBase explicitly.
+      // Merge those into vizDetails.datasets if they exist.
+      if (!this.vizDetails.datasets) this.vizDetails.datasets = {}
+      if (this.vizDetails.csvFile) this.vizDetails.datasets.csvFile = this.vizDetails.csvFile
+      if (this.vizDetails.csvBase) this.vizDetails.datasets.csvBase = this.vizDetails.csvBase
+
+      // Load files on workers, in parallel and off the main thread
+      // this will call finishedLoadingCSV() for each when it's done loading & parsing
+      const datasetsToLoad = Object.entries(this.vizDetails.datasets)
+
+      if (datasetsToLoad.length) {
+        for (const [key, filename] of datasetsToLoad) {
+          this.loadOneCSVFile(key, filename)
+        }
+      } else {
+        this.showSimpleNetworkWithNoDatasets()
+      }
+    },
+
+    showSimpleNetworkWithNoDatasets() {
+      // no datasets; we are just showing the bare network
+      this.csvData = {
+        datasetKey: '',
+        dataTable: {
+          [LOOKUP_COLUMN]: {
+            name: LOOKUP_COLUMN,
+            type: DataType.LOOKUP,
+            values: [],
+          },
+        },
+        activeColumn: LOOKUP_COLUMN,
+        csvRowFromLinkRow: [],
       }
 
-      // bounce our map
-      if (REACT_VIEW_HANDLES[this.linkLayerId]) REACT_VIEW_HANDLES[this.linkLayerId](view)
-      return
-    }
+      // there is no range(maxValue) in Javascript! :-(
+      const length = this.geojsonData.source.length / 2 // half because this contains x/y coordinates
+      const lookup = [...Array(length).keys()]
+      this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
 
-    if (!data.source.length) return
+      this.myState.statusMessage = ''
+      this.setDataIsLoaded()
 
-    let samples = 0
-    let longitude = 0
-    let latitude = 0
+      const color: LineColorDefinition = {
+        fixedColors: this.fixedColors,
+        dataset: '',
+        columnName: '',
+      }
+      this.changeConfiguration({ color })
+    },
 
-    const numLinks = data.source.length / 2
+    handleDatasetisLoaded(datasetId: string) {
+      const datasetKeys = Object.keys(this.datasets)
 
-    const gap = 4096
-    for (let i = 0; i < numLinks; i += gap) {
-      longitude += data.source[i * 2]
-      latitude += data.source[i * 2 + 1]
-      samples++
-    }
+      if (datasetId === 'csvBase' || datasetId === 'base') {
+        // is base dataset:
+        this.csvBase = {
+          datasetKey: datasetId,
+          dataTable: this.datasets[datasetId],
+          csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+          activeColumn: '',
+        }
+        this.csvWidthBase = {
+          datasetKey: datasetId,
+          dataTable: this.datasets[datasetId],
+          csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+          activeColumn: '',
+        }
+      } else if (this.csvData.activeColumn === '') {
+        // is first non-base dataset:
+        // set a default view, if user didn't pass anything in
+        if (!this.vizDetails.display.color && !this.vizDetails.display.width) {
+          const firstColumnName = Object.values(this.datasets[datasetId])[0].name
+          this.csvData = {
+            datasetKey: datasetId,
+            dataTable: this.datasets[datasetId],
+            csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
+            activeColumn: firstColumnName,
+          }
+        }
+      }
 
-    longitude = longitude / samples
-    latitude = latitude / samples
+      // last dataset
+      if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
+        this.setDataIsLoaded()
+        this.myState.statusMessage = ''
+        console.log({ DATASETS: this.datasets })
+      }
+    },
 
-    console.log('center', longitude, latitude)
+    async loadOneCSVFile(key: string, filename: string) {
+      try {
+        const dataset = await this.myDataManager.getDataset({ dataset: filename })
+        const dataTable = dataset.allRows
 
-    if (longitude && latitude) {
-      this.$store.commit('setMapCamera', {
-        longitude,
-        latitude,
-        bearing: 0,
-        pitch: 0,
-        zoom: 9,
-        jump: false,
-      })
-    }
-  }
+        console.log('loaded', key)
+        this.myState.statusMessage = 'Analyzing...'
 
-  private myDataManager!: DashboardDataManager
+        // remove columns without names; we can't use them
+        const cleanTable: DataTable = {}
+        for (const key of Object.keys(dataTable)) {
+          if (key) cleanTable[key] = dataTable[key]
+        }
 
-  private resizer!: ResizeObserver
+        this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
+        this.handleNewDataset({ key, dataTable: cleanTable })
+      } catch (e) {
+        this.$store.commit('error', 'Could not load ' + filename)
+        this.$emit('isLoaded')
+      }
+    },
 
-  private setupLogoMover() {
-    this.resizer = new ResizeObserver(this.moveLogo)
-    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-    this.resizer.observe(deckmap)
-  }
+    handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {
+      const { dataset, column } = value
 
-  private moveLogo() {
-    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-    if (logo) {
-      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-      logo.style.right = right
-    }
-  }
+      // selector is attached to a dataset. Both color and width could be
+      // impacted, if they are attached to that dataset.
 
-  private async mounted() {
+      const config: any = {}
+
+      // WIDTHS
+      if (dataset.datasetKey === this.csvWidth.datasetKey) {
+        const width: LineWidthDefinition = { ...this.vizDetails.display.width }
+        width.columnName = column
+        config.width = width
+      }
+
+      // COLORS
+      if (dataset.datasetKey === this.csvData.datasetKey) {
+        const color: LineColorDefinition = { ...this.vizDetails.display.color }
+        color.columnName = column
+        config.color = color
+      }
+
+      this.changeConfiguration(config)
+    },
+  },
+  async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
+    this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.subfolder = this.subfolder
-
-    this.buildFileApi()
-
-    // DataManager might be passed in from the dashboard; or we might be
-    // in single-view mode, in which case we need to create one for ourselves
-    this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
     await this.getVizDetails()
 
@@ -735,43 +1039,9 @@ class NetworkLinkPlugin extends Vue {
 
     // load network; when it is done it will call the loadCSVs afterwards.
     this.loadNetwork()
-  }
+  },
 
-  private networkWorker?: Worker
-
-  private async loadNetwork(): Promise<any> {
-    this.myState.statusMessage = 'Loading network...'
-
-    const filename = this.vizDetails.network || this.vizDetails.geojsonFile
-    try {
-      const network = await this.myDataManager.getRoadNetwork(
-        filename,
-        this.myState.subfolder,
-        this.vizDetails
-      )
-
-      this.numLinks = network.linkIds.length
-      this.geojsonData = network
-
-      this.setMapCenter() // this could be off main thread
-
-      this.myState.statusMessage = ''
-
-      this.moveLogo()
-
-      this.$emit('isLoaded', true)
-
-      // then load CSVs in background
-      this.loadCSVFiles()
-    } catch (e) {
-      this.$store.commit('error', '' + e)
-      this.$emit('isLoaded')
-    }
-  }
-
-  private dataLoaderWorkers: Worker[] = []
-
-  private beforeDestroy() {
+  beforeDestroy() {
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
 
@@ -779,296 +1049,8 @@ class NetworkLinkPlugin extends Vue {
     for (const worker of this.dataLoaderWorkers) worker.terminate()
 
     this.$store.commit('setFullScreen', false)
-  }
-
-  private csvRowLookupFromLinkRow: { [datasetId: string]: number[] } = {}
-
-  private handleNewDataset(props: DatasetDefinition) {
-    console.log('NEW dataset', props)
-    const { key, dataTable, filename } = props
-
-    // We need a lookup so we can find the CSV row that matches each link row.
-    // A normal hashmap lookup is too slow, so we'll create an array containing
-    // the lookup on load (now); then it should be O(1) fast from that point forward.
-
-    // For now we assume the 1st CSV column always has the link ID
-    const columnNames = Object.keys(dataTable)
-    const assumedLinkIdIsFirstColumn = columnNames[0]
-    const linkIdColumn = dataTable[assumedLinkIdIsFirstColumn]
-
-    let tempMapLinkIdToCsvRow = {} as any
-    for (let csvRow = 0; csvRow < linkIdColumn.values.length; csvRow++) {
-      tempMapLinkIdToCsvRow[linkIdColumn.values[csvRow]] = csvRow
-    }
-
-    // Create a LOOKUP array which links this CSV data to the network links
-    // loop through all network links, we need the CSV row for each link.
-    const getCsvRowNumberFromLinkRowNumber: number[] = []
-    for (let linkRow = 0; linkRow < this.geojsonData.linkIds.length; linkRow++) {
-      const linkId = this.geojsonData.linkIds[linkRow]
-      const csvRow = tempMapLinkIdToCsvRow[linkId]
-      if (csvRow !== undefined) getCsvRowNumberFromLinkRowNumber[linkRow] = csvRow
-    }
-
-    // Save the lookup with the dataset.
-    this.csvRowLookupFromLinkRow[key] = getCsvRowNumberFromLinkRowNumber
-    tempMapLinkIdToCsvRow = {} // probably unnecessary but we def want this to be GC'ed
-
-    // all done!
-    if (filename) this.vizDetails.datasets[key] = filename
-    this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
-    this.handleDatasetisLoaded(key)
-  }
-
-  @Watch('vizDetails.showDifferences')
-  private generateWidthArray() {
-    const numLinks = this.geojsonData.linkIds.length
-    const widths = new Float32Array(numLinks)
-
-    const widthValues = this.csvWidth?.dataTable[this.csvWidth.activeColumn]?.values
-    const baseValues = this.csvBase?.dataTable[this.csvBase.activeColumn]?.values
-
-    const width = (i: number) => {
-      const csvRow = this.csvWidth.csvRowFromLinkRow[i]
-      const value = widthValues[csvRow]
-
-      if (this.vizDetails.showDifferences) {
-        const baseRow = this.csvBase.csvRowFromLinkRow[i]
-        const baseValue = baseValues[baseRow]
-        const diff = Math.abs(value - baseValue)
-        return diff
-      } else {
-        return value
-      }
-    }
-
-    for (let i = 0; i < numLinks; i++) {
-      widths[i] = width(i)
-    }
-    this.widthArray = widths
-  }
-
-  @Watch('vizDetails.showDifferences')
-  private generateColorArray() {
-    // deck.gl colors must be in rgb[] or rgba[] format
-    const colorsAsRGB: any = this.fixedColors.map(hexcolor => {
-      const c = rgb(hexcolor)
-      return [c.r, c.g, c.b, 255]
-    })
-
-    // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
-    // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
-    // An exponent reduces visual dominance of very large values at the high end of the scale
-    const exponent = 4.0
-    const domain = new Array(this.fixedColors.length - 1)
-      .fill(0)
-      .map((v, i) => Math.pow((1 / this.fixedColors.length) * (i + 1), exponent))
-
-    // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
-    // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
-    // *range* is the list of colors;
-    // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
-    // *colorRampType* is 0 if a categorical color ramp is chosen
-    const buildData = this.csvData.dataTable
-    const baseData = this.csvBase.dataTable
-    const activeColumn = this.csvData.activeColumn
-
-    const buildColumn: DataTableColumn = buildData[activeColumn] || { values: [] }
-    const baseColumn: DataTableColumn = baseData[activeColumn] || { values: [] }
-
-    const isCategorical = this.colorRampType === 0 || buildColumn.type == DataType.STRING
-    const setColorBasedOnValue: any = isCategorical
-      ? scaleOrdinal().range(colorsAsRGB)
-      : scaleThreshold().range(colorsAsRGB).domain(domain)
-
-    const numLinks = this.geojsonData.linkIds.length
-    const colors = new Uint8Array(4 * numLinks)
-
-    const colorPaleGrey = globalStore.state.isDarkMode ? [80, 80, 80, 96] : [212, 212, 212, 40]
-    const colorInvisible = [0, 0, 0, 0]
-
-    const color = (i: number) => {
-      // if (!buildData[this.csvData.activeColumn]) return colorPaleGrey
-
-      const csvRow = this.csvData.csvRowFromLinkRow[i]
-      let value = buildData[this.csvData.activeColumn]?.values[csvRow]
-
-      if (this.fixedColors.length === 1) return colorsAsRGB[0]
-      if (!value && !this.vizDetails.showDifferences) return colorInvisible
-      if (isCategorical) return setColorBasedOnValue(value)
-
-      if (this.vizDetails.showDifferences) {
-        const baseRow = this.csvBase.csvRowFromLinkRow[i]
-        const baseValue = baseData[activeColumn].values[baseRow]
-        const diff = value - baseValue
-
-        if (diff === 0) return colorPaleGrey // setColorBasedOnValue(0.5)
-
-        // red vs. blue
-        if (this.isDarkMode) {
-          return diff > 0 ? [255, 64, 64, 255] : [64, 96, 255, 255] // red vs. blue
-        } else {
-          return diff > 0 ? [255, 0, 0, 255] : [32, 64, 255, 255] // red vs. blue
-        }
-      } else {
-        // don't use log scale if numbers are below 1.0
-        let ratio = value / (buildColumn.max || 1.0)
-        // if (ratio < 0.0001) return colorPaleGrey
-        return setColorBasedOnValue(ratio)
-      }
-    }
-
-    for (let i = 0; i < numLinks; i++) {
-      colors.set(color(i), i * 4)
-    }
-
-    this.colorArray = colors
-  }
-
-  private loadCSVFiles() {
-    this.myState.statusMessage = 'Loading datasets...'
-
-    // Old yaml format listed csvFile and csvBase explicitly.
-    // Merge those into vizDetails.datasets if they exist.
-    if (!this.vizDetails.datasets) this.vizDetails.datasets = {}
-    if (this.vizDetails.csvFile) this.vizDetails.datasets.csvFile = this.vizDetails.csvFile
-    if (this.vizDetails.csvBase) this.vizDetails.datasets.csvBase = this.vizDetails.csvBase
-
-    // Load files on workers, in parallel and off the main thread
-    // this will call finishedLoadingCSV() for each when it's done loading & parsing
-    const datasetsToLoad = Object.entries(this.vizDetails.datasets)
-
-    if (datasetsToLoad.length) {
-      for (const [key, filename] of datasetsToLoad) {
-        this.loadOneCSVFile(key, filename)
-      }
-    } else {
-      this.showSimpleNetworkWithNoDatasets()
-    }
-  }
-
-  private showSimpleNetworkWithNoDatasets() {
-    // no datasets; we are just showing the bare network
-    this.csvData = {
-      datasetKey: '',
-      dataTable: {
-        [LOOKUP_COLUMN]: {
-          name: LOOKUP_COLUMN,
-          type: DataType.LOOKUP,
-          values: [],
-        },
-      },
-      activeColumn: LOOKUP_COLUMN,
-      csvRowFromLinkRow: [],
-    }
-
-    // there is no range(maxValue) in Javascript! :-(
-    const length = this.geojsonData.source.length / 2 // half because this contains x/y coordinates
-    const lookup = [...Array(length).keys()]
-    this.csvData.dataTable[LOOKUP_COLUMN].values = lookup
-
-    this.myState.statusMessage = ''
-    this.setDataIsLoaded()
-
-    const color: LineColorDefinition = {
-      fixedColors: this.fixedColors,
-      dataset: '',
-      columnName: '',
-    }
-    this.changeConfiguration({ color })
-  }
-
-  private handleDatasetisLoaded(datasetId: string) {
-    const datasetKeys = Object.keys(this.datasets)
-
-    if (datasetId === 'csvBase' || datasetId === 'base') {
-      // is base dataset:
-      this.csvBase = {
-        datasetKey: datasetId,
-        dataTable: this.datasets[datasetId],
-        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
-        activeColumn: '',
-      }
-      this.csvWidthBase = {
-        datasetKey: datasetId,
-        dataTable: this.datasets[datasetId],
-        csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
-        activeColumn: '',
-      }
-    } else if (this.csvData.activeColumn === '') {
-      // is first non-base dataset:
-      // set a default view, if user didn't pass anything in
-      if (!this.vizDetails.display.color && !this.vizDetails.display.width) {
-        const firstColumnName = Object.values(this.datasets[datasetId])[0].name
-        this.csvData = {
-          datasetKey: datasetId,
-          dataTable: this.datasets[datasetId],
-          csvRowFromLinkRow: this.csvRowLookupFromLinkRow[datasetId],
-          activeColumn: firstColumnName,
-        }
-      }
-    }
-
-    // last dataset
-    if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
-      this.setDataIsLoaded()
-      this.myState.statusMessage = ''
-      console.log({ DATASETS: this.datasets })
-    }
-  }
-
-  private colorArray: Uint8Array = new Uint8Array()
-  private widthArray: Float32Array = new Float32Array()
-
-  private async loadOneCSVFile(key: string, filename: string) {
-    if (!this.myState.fileApi) return
-
-    try {
-      const dataset = await this.myDataManager.getDataset({ dataset: filename })
-      const dataTable = dataset.allRows
-
-      console.log('loaded', key)
-      this.myState.statusMessage = 'Analyzing...'
-
-      // remove columns without names; we can't use them
-      const cleanTable: DataTable = {}
-      for (const key of Object.keys(dataTable)) {
-        if (key) cleanTable[key] = dataTable[key]
-      }
-
-      this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
-      this.handleNewDataset({ key, dataTable: cleanTable })
-    } catch (e) {
-      this.$store.commit('error', 'Could not load ' + filename)
-      this.$emit('isLoaded')
-    }
-  }
-
-  private handleNewDataColumn(value: { dataset: LookupDataset; column: string }) {
-    const { dataset, column } = value
-
-    // selector is attached to a dataset. Both color and width could be
-    // impacted, if they are attached to that dataset.
-
-    const config: any = {}
-
-    // WIDTHS
-    if (dataset.datasetKey === this.csvWidth.datasetKey) {
-      const width: LineWidthDefinition = { ...this.vizDetails.display.width }
-      width.columnName = column
-      config.width = width
-    }
-
-    // COLORS
-    if (dataset.datasetKey === this.csvData.datasetKey) {
-      const color: LineColorDefinition = { ...this.vizDetails.display.color }
-      color.columnName = column
-      config.color = color
-    }
-
-    this.changeConfiguration(config)
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
@@ -1081,10 +1063,10 @@ globalStore.commit('registerPlugin', {
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
   ],
-  component: NetworkLinkPlugin,
+  component: MyComponent,
 } as VisualizationPlugin)
 
-export default NetworkLinkPlugin
+export default MyComponent
 </script>
 
 <style scoped lang="scss">

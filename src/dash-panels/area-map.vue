@@ -1,6 +1,5 @@
 <template lang="pug">
-fancy-polygon-map.deck-map(
-  :fsConfig="fileSystemConfig"
+shape-file.deck-map(
   :root="fileSystemConfig.slug"
   :subfolder="subfolder"
   :configFromDashboard="config"
@@ -9,15 +8,16 @@ fancy-polygon-map.deck-map(
   :yamlConfig="'config'"
   @isLoaded="isLoaded"
 )
+//- :fsConfig="fileSystemConfig"
 
 </template>
 
 <script lang="ts">
-import FancyPolygonMap from '@/plugins/shape-file/FancyPolygonMap.vue'
+import ShapeFile from '@/plugins/shape-file/ShapeFile.vue'
 
 export default {
   name: 'AreaMapPanel',
-  components: { FancyPolygonMap },
+  components: { ShapeFile },
   props: {
     config: Object,
     datamanager: Object,

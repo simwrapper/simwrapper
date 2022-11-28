@@ -158,11 +158,12 @@ export default function Component({
       getSourcePosition: [links.source],
       getTargetPosition: [links.dest],
       getColor: [newColors, dark],
-      getWidth: [newWidths, scaleWidth],
+      getWidth: [newWidths],
     },
     transitions: {
-      getColor: 200,
-      getWidth: 200,
+      getColor: 250,
+      getWidth: 250,
+      widthScale: 250,
     },
     parameters: {
       depthTest: false,

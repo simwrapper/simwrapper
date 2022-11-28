@@ -90,8 +90,6 @@ export default defineComponent({
     },
   },
   async mounted() {
-    this.fileApi = new HTTPFileSystem(this.fileSystem)
-
     const { files } = await this.fileApi.getDirectory(this.subfolder)
     this.filesInFolder = files.filter(f => this.validRegex.test(f.toLocaleUpperCase())).sort()
   },

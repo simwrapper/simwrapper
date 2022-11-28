@@ -63,7 +63,9 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
@@ -97,80 +99,942 @@ class Departure {
   public routes: Set<string> = new Set()
 }
 
-@Component({
+const MyComponent = defineComponent({
+  name: 'TransitViewer',
   i18n,
   components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool, ZoomButtons },
-})
-class MyComponent extends Vue {
-  @Prop({ required: true })
-  private root!: string
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: { type: Object as any },
+    thumbnail: Boolean,
+  },
+  data() {
+    const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
-  @Prop({ required: false })
-  private fileApi!: FileSystem
+    return {
+      mapPopup: new Popup({
+        closeButton: false,
+        closeOnClick: false,
+      }),
+      buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
+      metrics: metrics,
+      activeMetric: metrics[0].field as any,
+      vizDetails: {
+        transitSchedule: '',
+        network: '',
+        demand: '',
+        projection: '',
+        title: '',
+        description: '',
+      },
+      myState: {
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: true,
+      },
+      isDarkMode: globalStore.state.isDarkMode,
+      loadingText: 'MATSim Transit Inspector',
+      mymap: {} as any,
+      mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
+      project: {} as any,
+      projection: DEFAULT_PROJECTION,
+      routesOnLink: [] as any[],
+      selectedRoute: {} as any,
+      stopMarkers: [] as any[],
+      isMapMoving: false,
 
-  @Prop({ required: false })
-  private subfolder!: string
+      _attachedRouteLayers: [] as string[],
+      _departures: {} as { [linkID: string]: Departure },
+      _linkData: null as any,
+      _mapExtentXYXY: null as any,
+      _maximum: -Infinity,
+      _network: {} as Network,
+      _routeData: {} as { [index: string]: RouteDetails },
+      _stopFacilities: {} as { [index: string]: NetworkNode },
+      _transitLines: {} as { [index: string]: TransitLine },
+      _roadFetcher: null as any,
+      _transitFetcher: null as any,
+      _transitHelper: null as any,
+      _transitLinks: null as any,
+      _geoTransitLinks: null as any,
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+      resolvers: {} as { [id: number]: any },
+      resolverId: 0,
+      xmlWorker: null as null | Worker,
+      cfDemand: null as crossfilter.Crossfilter<any> | null,
+      cfDemandLink: null as crossfilter.Dimension<any, any> | null,
+      hoverWait: false,
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
 
-  @Prop({ required: false })
-  private config!: any
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-  @Prop({ required: false })
-  private thumbnail!: boolean
+    legendRows(): string[][] {
+      return [
+        ['#a03919', 'Rail'],
+        ['#448', 'Bus'],
+      ]
+    },
+  },
 
-  private mapPopup = new Popup({
-    closeButton: false,
-    closeOnClick: false,
-  })
+  watch: {
+    '$store.state.resizeEvents'() {
+      if (this.mymap) this.mymap.resize()
+    },
 
-  private buttonColors = ['#5E8AAE', '#BF7230', '#269367', '#9C439C']
-  private metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
-  private activeMetric: any = this.metrics[0].field
+    '$store.state.viewState'({ bearing, longitude, latitude, zoom, pitch }: any) {
+      // ignore my own farts; they smell like roses
+      if (!this.mymap || this.isMapMoving) {
+        this.isMapMoving = false
+        return
+      }
 
-  private vizDetails = {
-    transitSchedule: '',
-    network: '',
-    demand: '',
-    projection: '',
-    title: '',
-    description: '',
-  }
+      // sometimes closing a view returns a null map, ignore it!
+      if (!zoom) return
 
-  private myState = {
-    fileApi: this.fileApi,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: true,
-  }
+      this.mymap.off('move', this.handleMapMotion)
 
-  private isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+      this.mymap.jumpTo({
+        bearing,
+        zoom,
+        center: [longitude, latitude],
+        pitch,
+      })
 
-  private loadingText: string = 'MATSim Transit Inspector'
-  private mymap!: maplibregl.Map
-  private mapID = `map-id-${Math.floor(1e12 * Math.random())}`
-  private project: any = {}
-  private projection: string = DEFAULT_PROJECTION
-  private routesOnLink: any = []
-  private selectedRoute: any = {}
-  private stopMarkers: any[] = []
+      this.mymap.on('move', this.handleMapMotion)
 
-  private _attachedRouteLayers!: string[]
-  private _departures!: { [linkID: string]: Departure }
-  private _linkData!: any
-  private _mapExtentXYXY!: any
-  private _maximum!: number
-  private _network!: Network
-  private _routeData!: { [index: string]: RouteDetails }
-  private _stopFacilities!: { [index: string]: NetworkNode }
-  private _transitLines!: { [index: string]: TransitLine }
-  private _roadFetcher!: any
-  private _transitFetcher!: any
-  private _transitHelper?: any
+      if (this.stopMarkers.length > 0) this.showTransitStops()
+    },
 
-  public created() {
+    '$store.state.colorScheme'() {
+      this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
+      if (!this.mymap) return
+
+      this.removeAttachedRoutes()
+
+      this.mymap.setStyle(globalStore.getters.mapStyle)
+
+      this.mymap.on('style.load', () => {
+        if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
+        this.highlightAllAttachedRoutes()
+        if (this.selectedRoute) this.showTransitRoute(this.selectedRoute.id)
+      })
+    },
+  },
+
+  methods: {
+    async getVizDetails() {
+      // are we in a dashboard?
+      if (this.config) {
+        this.vizDetails = Object.assign({}, this.config)
+        return
+      }
+
+      // if a YAML file was passed in, just use it
+      if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
+        this.loadYamlConfig()
+        return
+      }
+
+      // Build the config based on folder contents
+      const title = this.myState.yamlConfig.substring(
+        0,
+        15 + this.myState.yamlConfig.indexOf('transitSchedule')
+      )
+
+      this.vizDetails = {
+        transitSchedule: this.myState.yamlConfig,
+        network: '',
+        title,
+        description: '',
+        demand: '',
+        projection: '',
+      }
+
+      this.$emit('title', title)
+    },
+
+    async prepareView() {
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+
+      // Road network: first try the most obvious network filename:
+      let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+
+      // if the obvious network file doesn't exist, just grab... the first network file:
+      if (files.indexOf(network) == -1) {
+        const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
+        if (allNetworks.length) network = allNetworks[0]
+        else {
+          this.loadingText = 'No road network found.'
+          network = ''
+        }
+      }
+
+      // Departures: use them if we are in an output folder (and they exist)
+      let demandFiles = [] as string[]
+      if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
+        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+      }
+
+      // Coordinates:
+      const projection = await this.guessProjection(files)
+      console.log(projection)
+
+      // Save everything
+      this.vizDetails.network = network
+      this.vizDetails.projection = projection
+      if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
+
+      this.projection = this.vizDetails.projection
+    },
+
+    async guessProjection(files: string[]): Promise<string> {
+      // 0. If it's in config, use it
+      if (this.config?.projection) return this.config.projection
+
+      // 1. if we have it in storage already, use it
+      const storagePath = `${this.root}/${this.subfolder}`
+      let savedConfig = localStorage.getItem(storagePath) as any
+
+      const goodEPSG = /EPSG:.\d/
+
+      if (savedConfig) {
+        try {
+          const config = JSON.parse(savedConfig)
+
+          if (goodEPSG.test(config.networkProjection)) {
+            return config.networkProjection
+          } else {
+            savedConfig = {}
+          }
+        } catch (e) {
+          console.error('bad saved config in storage', savedConfig)
+          savedConfig = {}
+          // fail! ok try something else
+        }
+      }
+
+      // 2. try to get it from config
+      const outputConfigs = files.filter(
+        f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
+      )
+      if (outputConfigs.length && this.fileSystem) {
+        console.log('trying to find CRS in', outputConfigs[0])
+
+        for (const xmlConfigFileName of outputConfigs) {
+          try {
+            const configXML: any = await this.fetchXML({
+              slug: this.fileSystem.slug,
+              filePath: this.myState.subfolder + '/' + xmlConfigFileName,
+            })
+
+            const global = configXML.config.module.filter((f: any) => f.$name === 'global')[0]
+            const crs = global.param.filter((p: any) => p.$name === 'coordinateSystem')[0]
+
+            const crsValue = crs.$value
+
+            // save it
+            savedConfig = savedConfig || {}
+            savedConfig.networkProjection = crsValue
+            localStorage.setItem(storagePath, JSON.stringify(savedConfig))
+            return crsValue
+          } catch (e) {
+            console.warn('Failed parsing', xmlConfigFileName)
+          }
+        }
+      }
+
+      // 3. ask the user
+      let entry = prompt('Need coordinate EPSG number:', '') || ''
+
+      // if user cancelled, give up
+      if (!entry) return ''
+      // if user gave bad answer, try again
+      if (isNaN(parseInt(entry, 10)) && !goodEPSG.test(entry)) return this.guessProjection(files)
+
+      // hopefully user gave a good EPSG number
+      if (!entry.startsWith('EPSG:')) entry = 'EPSG:' + entry
+
+      const networkProjection = entry
+      localStorage.setItem(storagePath, JSON.stringify({ networkProjection }))
+      return networkProjection
+    },
+
+    async loadYamlConfig() {
+      // first get config
+      try {
+        // might be a project config:
+        const filename =
+          this.myState.yamlConfig.indexOf('/') > -1
+            ? this.myState.yamlConfig
+            : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+        const text = await this.fileApi.getFileText(filename)
+        this.vizDetails = yaml.parse(text)
+      } catch (e) {
+        // maybe it failed because password?
+        const err = e as any
+        if (this.fileSystem && this.fileSystem.needPassword && err.status === 401) {
+          this.$store.commit('requestLogin', this.fileSystem.slug)
+        }
+      }
+
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Transit Ridership'
+      this.$emit('title', t)
+
+      this.projection = this.vizDetails.projection
+
+      nprogress.done()
+    },
+
+    isMobile() {
+      const w = window
+      const d = document
+      const e = d.documentElement
+      const g = d.getElementsByTagName('body')[0]
+      const x = w.innerWidth || e.clientWidth || g.clientWidth
+      const y = w.innerHeight || e.clientHeight || g.clientHeight
+      return x < 640
+    },
+
+    setupMap() {
+      try {
+        this.mymap = new maplibregl.Map({
+          bearing: 0,
+          container: this.mapID,
+          logoPosition: 'bottom-left',
+          style: globalStore.getters.mapStyle,
+          pitch: 0,
+        })
+
+        const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+
+        if (extent) {
+          const lnglat = JSON.parse(extent)
+
+          const mFac = this.isMobile() ? 0 : 1
+          const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
+
+          this.mymap.fitBounds(lnglat, {
+            animate: false,
+            padding,
+          })
+        }
+        // Start doing stuff AFTER the MapBox library has fully initialized
+        this.mymap.on('load', this.mapIsReady)
+        this.mymap.on('move', this.handleMapMotion)
+        this.mymap.on('click', this.handleEmptyClick)
+
+        this.mymap.keyboard.disable() // so arrow keys don't pan
+      } catch (e) {
+        console.error({ e })
+        // no worries
+      }
+    },
+
+    handleClickedMetric(metric: { field: string }) {
+      console.log('transit metric:', metric.field)
+
+      this.activeMetric = metric.field
+
+      let widthExpression: any = 3
+
+      switch (metric.field) {
+        case 'departures':
+          widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
+          break
+
+        case 'pax':
+          widthExpression = ['max', 2, ['*', 0.003, ['get', 'pax']]]
+          break
+
+        case 'loadfac':
+          widthExpression = ['max', 2, ['*', 200, ['get', 'loadfac']]]
+          break
+      }
+
+      this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
+    },
+
+    handleMapMotion() {
+      const mapCamera = {
+        longitude: this.mymap.getCenter().lng,
+        latitude: this.mymap.getCenter().lat,
+        bearing: this.mymap.getBearing(),
+        zoom: this.mymap.getZoom(),
+        pitch: this.mymap.getPitch(),
+      }
+
+      if (!this.isMapMoving) this.$store.commit('setMapCamera', mapCamera)
+      this.isMapMoving = true
+
+      if (this.stopMarkers.length > 0) this.showTransitStops()
+    },
+
+    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
+      this.removeStopMarkers()
+      this.removeSelectedRoute()
+      this.removeAttachedRoutes()
+      this.routesOnLink = []
+    },
+
+    showRouteDetails(routeID: string) {
+      if (!routeID && !this.selectedRoute) return
+
+      console.log({ routeID })
+
+      if (routeID) this.showTransitRoute(routeID)
+      else this.showTransitRoute(this.selectedRoute.id)
+
+      this.showTransitStops()
+    },
+
+    async mapIsReady() {
+      const networks = await this.loadNetworks()
+      console.log({ networks })
+      if (networks) this.processInputs(networks)
+
+      this.setupKeyListeners()
+    },
+
+    setupKeyListeners() {
+      // const parent = this
+      window.addEventListener('keyup', event => {
+        if (event.keyCode === 27) {
+          // ESC
+          this.pressedEscape()
+        }
+      })
+      window.addEventListener('keydown', event => {
+        if (event.keyCode === 38) {
+          this.pressedArrowKey(-1) // UP
+        }
+        if (event.keyCode === 40) {
+          this.pressedArrowKey(+1) // DOWN
+        }
+      })
+    },
+
+    fetchXML(props: { slug: string; filePath: string; options?: any }) {
+      if (!this.xmlWorker) {
+        this.xmlWorker = new NewXmlFetcher()
+        this.xmlWorker.onmessage = (message: MessageEvent) => {
+          // message.data will have .id and either .error or .xml
+          const { resolve, reject } = this.resolvers[message.data.id]
+          if (message.data.error) reject(message.data.error)
+          resolve(message.data.xml)
+        }
+      }
+
+      // save the promise by id so we can look it up when we get messages
+      const id = this.resolverId++
+
+      this.xmlWorker.postMessage(Object.assign({ id, fileSystem: this.fileSystem }, props))
+
+      const promise = new Promise((resolve, reject) => {
+        this.resolvers[id] = { resolve, reject }
+      })
+      return promise
+    },
+
+    async loadNetworks() {
+      try {
+        if (!this.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule) return
+
+        this.loadingText = 'Loading networks...'
+
+        // this._xmlWorkers.push(worker) // save it so we can terminate if we have to
+
+        const roads = this.fetchXML({
+          slug: this.fileSystem.slug,
+          filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+          options: { attributeNamePrefix: '' },
+        })
+        const transit = this.fetchXML({
+          slug: this.fileSystem.slug,
+          filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
+          options: {
+            attributeNamePrefix: '',
+            alwaysArray: [
+              'transitSchedule.transitLine.transitRoute',
+              'transitSchedule.transitLine.transitRoute.departures.departure',
+            ],
+          },
+        })
+
+        // and wait for them to all complete
+        const results = await Promise.all([roads, transit])
+        return { roadXML: results[0], transitXML: results[1], ridership: [] }
+      } catch (e) {
+        console.error('TRANSIT:', e)
+        // this.loadingText = '' + e
+        return null
+      }
+    },
+
+    loadDemandData(filename: string): Promise<any[]> {
+      const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
+        if (!filename) resolve([])
+        this.loadingText = 'Loading demand...'
+        const worker = new GzipWorker() as Worker
+
+        worker.onmessage = (event: MessageEvent) => {
+          this.loadingText = 'Processing demand...'
+          const csvData = new TextDecoder('utf-8').decode(event.data)
+          Papaparse.parse(csvData, {
+            // preview: 10000,
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: true,
+            worker: true,
+            complete: results => {
+              resolve(this.processDemand(results))
+            },
+          })
+        }
+
+        worker.postMessage({
+          filePath: this.myState.subfolder + '/' + filename,
+          fileSystem: this.fileSystem,
+        })
+      })
+      return promise
+    },
+
+    processDemand(results: Papaparse.ParseResult<unknown>) {
+      // todo: make sure meta contains fields we need!
+      this.loadingText = 'Processing demand data...'
+
+      // build crossfilter
+      console.log('BUILD crossfilter')
+      this.cfDemand = crossfilter(results.data)
+      this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
+
+      // build link-level passenger ridership
+      console.log('COUNTING RIDERSHIP')
+
+      const linkPassengersById = {} as any
+      const group = this.cfDemandLink.group()
+      group
+        .reduceSum((d: any) => d.passengersAtArrival)
+        .all()
+        .map(link => {
+          linkPassengersById[link.key as any] = link.value
+        })
+
+      // and pax load-factors
+      const capacity = {} as any
+      group
+        .reduceSum((d: any) => d.totalVehicleCapacity)
+        .all()
+        .map(link => {
+          capacity[link.key as any] = link.value
+        })
+
+      // update passenger value in the transit-link geojson.
+      for (const transitLink of this._transitLinks.features) {
+        transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
+        transitLink.properties['cap'] = capacity[transitLink.properties.id]
+        transitLink.properties['loadfac'] =
+          Math.round(
+            (1000 * linkPassengersById[transitLink.properties.id]) /
+              capacity[transitLink.properties.id]
+          ) / 1000
+      }
+
+      this.metrics = this.metrics.concat([
+        { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
+        { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
+      ])
+
+      const source = this.mymap.getSource('transit-source') as GeoJSONSource
+      source.setData(this._transitLinks)
+
+      this.loadingText = ''
+      return []
+    },
+
+    async processInputs(networks: NetworkInputs) {
+      this.loadingText = 'Preparing...'
+      // spawn transit helper web worker
+      this._transitHelper = new TransitSupplyWorker()
+
+      this._transitHelper.onmessage = async (buffer: MessageEvent) => {
+        this.receivedProcessedTransit(buffer)
+      }
+
+      this._transitHelper.postMessage({
+        xml: networks,
+        projection: this.projection,
+      })
+    },
+
+    async receivedProcessedTransit(buffer: MessageEvent) {
+      if (buffer.data.status) {
+        this.loadingText = buffer.data.status
+        return
+      }
+      const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
+      this._network = network
+      this._routeData = routeData
+      this._stopFacilities = stopFacilities
+      this._transitLines = transitLines
+      this._mapExtentXYXY = mapExtent
+
+      this._transitHelper.terminate()
+
+      this.loadingText = 'Summarizing departures...'
+
+      await this.processDepartures()
+
+      // Build the links layer and add it
+      this._transitLinks = await this.constructDepartureFrequencyGeoJson()
+      this.addTransitToMap(this._transitLinks)
+
+      this.handleClickedMetric({ field: 'departures' })
+
+      localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
+      this.mymap.fitBounds(this._mapExtentXYXY, {
+        animate: false,
+      })
+
+      if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
+
+      this.loadingText = ''
+      nprogress.done()
+    },
+
+    async processDepartures() {
+      this.loadingText = 'Processing departures...'
+
+      for (const id in this._transitLines) {
+        if (this._transitLines.hasOwnProperty(id)) {
+          const transitLine = this._transitLines[id]
+          for (const route of transitLine.transitRoutes) {
+            for (const linkID of route.route) {
+              if (!(linkID in this._departures))
+                this._departures[linkID] = { total: 0, routes: new Set() }
+
+              this._departures[linkID].total += route.departures
+              this._departures[linkID].routes.add(route.id)
+
+              this._maximum = Math.max(this._maximum, this._departures[linkID].total)
+            }
+          }
+        }
+      }
+    },
+
+    addTransitToMap(geodata: any) {
+      this._geoTransitLinks = geodata
+
+      this.mymap.addSource('transit-source', {
+        data: geodata,
+        type: 'geojson',
+      } as any)
+
+      this.mymap.addLayer({
+        id: 'transit-link',
+        source: 'transit-source',
+        type: 'line',
+        paint: {
+          'line-opacity': 1.0,
+          'line-width': 1,
+          'line-color': ['get', 'color'],
+        },
+      })
+
+      this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
+        this.clickedOnTransitLink(e)
+      })
+
+      // turn "hover cursor" into a pointer, so user knows they can click.
+      this.mymap.on('mousemove', 'transit-link', (e: maplibregl.MapLayerMouseEvent) => {
+        this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+        this.hoveredOnElement(e)
+      })
+
+      // and back to normal when they mouse away
+      this.mymap.on('mouseleave', 'transit-link', () => {
+        this.mymap.getCanvas().style.cursor = 'grab'
+        this.mapPopup.remove()
+      })
+    },
+
+    hoveredOnElement(event: any) {
+      const props = event.features[0].properties
+
+      let content = '<div class="map-popup">'
+
+      for (const metric of this.metrics) {
+        let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
+        label = label.replaceAll(' ', '&nbsp;')
+
+        if (!isNaN(props[metric.field]))
+          content += `
+          <div style="display: flex">
+            <div>${label}:&nbsp;&nbsp;</div>
+            <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
+          </div>`
+      }
+
+      content += '<div>'
+      this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
+    },
+
+    async constructDepartureFrequencyGeoJson() {
+      const geojson = []
+
+      for (const linkID in this._departures) {
+        if (this._departures.hasOwnProperty(linkID)) {
+          const link = this._network.links[linkID]
+          const coordinates = [
+            [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
+            [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
+          ]
+
+          const departures = this._departures[linkID].total
+
+          // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
+          const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
+          const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
+
+          let isRail = true
+          for (const route of this._departures[linkID].routes) {
+            if (this._routeData[route].transportMode === 'bus') {
+              isRail = false
+            }
+          }
+
+          let line = {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: coordinates,
+            },
+            properties: {
+              color: isRail ? '#a03919' : _colorScale[colorBin],
+              colorBin: colorBin,
+              departures: departures,
+              // pax: 0,
+              // loadfac: 0,
+              // cap: 0,
+              id: linkID,
+              isRail: isRail,
+              from: link.from, // _stopFacilities[fromNode].name || fromNode,
+              to: link.to, // _stopFacilities[toNode].name || toNode,
+            },
+          }
+
+          line = this.offsetLineByMeters(line, 15)
+          geojson.push(line)
+        }
+      }
+
+      geojson.sort(function (a: any, b: any) {
+        if (a.isRail && !b.isRail) return -1
+        if (b.isRail && !a.isRail) return 1
+        return 0
+      })
+
+      return { type: 'FeatureCollection', features: geojson }
+    },
+
+    offsetLineByMeters(line: any, metersToTheRight: number) {
+      try {
+        const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
+        return offsetLine
+      } catch (e) {
+        // offset can fail if points are exactly on top of each other; ignore.
+      }
+      return line
+    },
+
+    removeStopMarkers() {
+      this.stopMarkers = []
+    },
+
+    async showTransitStops() {
+      this.removeStopMarkers()
+
+      const route = this.selectedRoute
+      const stopSizeClass = 'stopmarker' // this.mymap.getZoom() > SHOW_STOPS_AT_ZOOM_LEVEL ? 'stop-marker-big' : 'stop-marker'
+      const mapBearing = this.mymap.getBearing()
+
+      let bearing
+
+      for (const [i, stop] of route.routeProfile.entries()) {
+        const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
+        // recalc bearing for every node except the last
+        if (i < route.routeProfile.length - 1) {
+          const point1 = turf.point([coord[0], coord[1]])
+          const point2 = turf.point([
+            this._stopFacilities[route.routeProfile[i + 1].refId].x,
+            this._stopFacilities[route.routeProfile[i + 1].refId].y,
+          ])
+          bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
+        }
+
+        const xy = this.mymap.project([coord[0], coord[1]])
+
+        // every marker has a latlng coord and a bearing
+        const marker = { i, bearing, xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) } }
+        this.stopMarkers.push(marker)
+      }
+    },
+
+    showTransitRoute(routeID: string) {
+      if (!routeID) return
+
+      const route = this._routeData[routeID]
+      console.log({ selectedRoute: route })
+
+      this.selectedRoute = route
+
+      const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
+      if (source) {
+        source.setData(route.geojson)
+      } else {
+        this.mymap.addSource('selected-route-data', {
+          data: route.geojson,
+          type: 'geojson',
+        })
+      }
+
+      if (!this.mymap.getLayer('selected-route')) {
+        this.mymap.addLayer({
+          id: 'selected-route',
+          source: 'selected-route-data',
+          type: 'line',
+          paint: {
+            'line-opacity': 1.0,
+            'line-width': 5, // ['get', 'width'],
+            'line-color': '#097c43', // ['get', 'color'],
+          },
+        })
+      }
+    },
+
+    removeSelectedRoute() {
+      if (this.selectedRoute) {
+        this.mymap.removeLayer('selected-route')
+        this.selectedRoute = null
+      }
+    },
+
+    clickedOnTransitLink(e: any) {
+      this.removeStopMarkers()
+      this.removeSelectedRoute()
+
+      // the browser delivers some details that we need, in the fn argument 'e'
+      const props = e.features[0].properties
+      const routeIDs = this._departures[props.id].routes
+
+      this.calculatePassengerVolumes(props.id)
+
+      const routes = []
+      for (const id of routeIDs) {
+        routes.push(this._routeData[id])
+      }
+
+      // sort by highest departures first
+      routes.sort(function (a, b) {
+        return a.departures > b.departures ? -1 : 1
+      })
+
+      this.routesOnLink = routes
+      this.highlightAllAttachedRoutes()
+
+      // highlight the first route, if there is one
+      if (routes.length > 0) this.showRouteDetails(routes[0].id)
+    },
+
+    calculatePassengerVolumes(id: string) {
+      if (!this.cfDemandLink || !this.cfDemand) return
+
+      this.cfDemandLink.filter(id)
+
+      const allLinks = this.cfDemand.allFiltered()
+      let sum = 0
+
+      allLinks.map(d => {
+        sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
+      })
+
+      console.log({ sum, allLinks })
+    },
+
+    removeAttachedRoutes() {
+      for (const layerID of this._attachedRouteLayers) {
+        try {
+          this.mymap.removeLayer('route-' + layerID)
+          this.mymap.removeSource('source-route-' + layerID)
+        } catch (e) {
+          //meh
+        }
+      }
+      this._attachedRouteLayers = []
+    },
+
+    highlightAllAttachedRoutes() {
+      this.removeAttachedRoutes()
+
+      for (const route of this.routesOnLink) {
+        this.mymap.addSource('source-route-' + route.id, {
+          data: route.geojson,
+          type: 'geojson',
+        })
+        this.mymap.addLayer({
+          id: 'route-' + route.id,
+          source: 'source-route-' + route.id,
+          type: 'line',
+          paint: {
+            'line-opacity': 0.7,
+            'line-width': 8, // ['get', 'width'],
+            'line-color': '#ccff33', // ['get', 'color'],
+          },
+        })
+        this._attachedRouteLayers.push(route.id)
+      }
+    },
+
+    pressedEscape() {
+      this.removeSelectedRoute()
+      this.removeStopMarkers()
+      this.removeAttachedRoutes()
+
+      this.selectedRoute = null
+      this.routesOnLink = []
+    },
+
+    pressedArrowKey(delta: number) {
+      if (!this.selectedRoute) return
+
+      let i = this.routesOnLink.indexOf(this.selectedRoute)
+      i = i + delta
+
+      if (i < 0 || i >= this.routesOnLink.length) return
+
+      this.showRouteDetails(this.routesOnLink[i].id)
+    },
+  },
+
+  created() {
     this._attachedRouteLayers = []
     this._departures = {}
     this._mapExtentXYXY = [180, 90, -180, -90]
@@ -180,17 +1044,15 @@ class MyComponent extends Vue {
     this._stopFacilities = {}
     this._transitLines = {}
     this.selectedRoute = null
-  }
+  },
 
-  public async mounted() {
+  async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     // populate props after we attach, not before!
     this.myState.subfolder = this.subfolder
-    this.myState.yamlConfig = this.yamlConfig
+    this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.thumbnail = this.thumbnail
-
-    if (!this.fileApi) this.buildFileApi()
 
     await this.getVizDetails()
 
@@ -198,907 +1060,19 @@ class MyComponent extends Vue {
 
     await this.prepareView()
     this.setupMap()
-  }
+  },
 
-  public destroyed() {
-    this.$store.commit('setFullScreen', false)
-  }
-
-  private isMapMoving = false
-
-  @Watch('$store.state.resizeEvents') handleResize() {
-    if (this.mymap) this.mymap.resize()
-  }
-
-  @Watch('$store.state.viewState') private mapMoved({
-    bearing,
-    longitude,
-    latitude,
-    zoom,
-    pitch,
-  }: any) {
-    // ignore my own farts; they smell like roses
-    if (!this.mymap || this.isMapMoving) {
-      this.isMapMoving = false
-      return
-    }
-
-    // sometimes closing a view returns a null map, ignore it!
-    if (!zoom) return
-
-    this.mymap.off('move', this.handleMapMotion)
-
-    this.mymap.jumpTo({
-      bearing,
-      zoom,
-      center: [longitude, latitude],
-      pitch,
-    })
-
-    this.mymap.on('move', this.handleMapMotion)
-
-    if (this.stopMarkers.length > 0) this.showTransitStops()
-  }
-
-  @Watch('$store.state.colorScheme') private swapTheme() {
-    this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-    if (!this.mymap) return
-
-    this.removeAttachedRoutes()
-
-    this.mymap.setStyle(globalStore.getters.mapStyle)
-
-    this.mymap.on('style.load', () => {
-      if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
-      this.highlightAllAttachedRoutes()
-      if (this.selectedRoute) this.showTransitRoute(this.selectedRoute.id)
-    })
-  }
-
-  public beforeDestroy() {
+  beforeDestroy() {
     if (this.xmlWorker) this.xmlWorker.terminate()
     if (this._roadFetcher) this._roadFetcher.destroy()
     if (this._transitFetcher) this._transitFetcher.destroy()
     if (this._transitHelper) this._transitHelper.terminate()
-  }
-
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    // are we in a dashboard?
-    if (this.config) {
-      this.vizDetails = Object.assign({}, this.config)
-      return
-    }
-
-    // if a YAML file was passed in, just use it
-    if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
-      this.loadYamlConfig()
-      return
-    }
-
-    // Build the config based on folder contents
-    const title = this.myState.yamlConfig.substring(
-      0,
-      15 + this.myState.yamlConfig.indexOf('transitSchedule')
-    )
-
-    this.vizDetails = {
-      transitSchedule: this.myState.yamlConfig,
-      network: '',
-      title,
-      description: '',
-      demand: '',
-      projection: '',
-    }
-
-    this.$emit('title', title)
-  }
-
-  private async prepareView() {
-    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
-
-    // Road network: first try the most obvious network filename:
-    let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
-
-    // if the obvious network file doesn't exist, just grab... the first network file:
-    if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter(f => f.endsWith('network.xml.gz'))
-      if (allNetworks.length) network = allNetworks[0]
-      else {
-        this.loadingText = 'No road network found.'
-        network = ''
-      }
-    }
-
-    // Departures: use them if we are in an output folder (and they exist)
-    let demandFiles = [] as string[]
-    if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-      demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
-    }
-
-    // Coordinates:
-    const projection = await this.guessProjection(files)
-    console.log(projection)
-
-    // Save everything
-    this.vizDetails.network = network
-    this.vizDetails.projection = projection
-    if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
-
-    this.projection = this.vizDetails.projection
-  }
-
-  private async guessProjection(files: string[]): Promise<string> {
-    // 0. If it's in config, use it
-    if (this.config?.projection) return this.config.projection
-
-    // 1. if we have it in storage already, use it
-    const storagePath = `${this.root}/${this.subfolder}`
-    let savedConfig = localStorage.getItem(storagePath) as any
-
-    const goodEPSG = /EPSG:.\d/
-
-    if (savedConfig) {
-      try {
-        const config = JSON.parse(savedConfig)
-
-        if (goodEPSG.test(config.networkProjection)) {
-          return config.networkProjection
-        } else {
-          savedConfig = {}
-        }
-      } catch (e) {
-        console.error('bad saved config in storage', savedConfig)
-        savedConfig = {}
-        // fail! ok try something else
-      }
-    }
-
-    // 2. try to get it from config
-    const outputConfigs = files.filter(
-      f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
-    )
-    if (outputConfigs.length && this.myState.fileSystem) {
-      console.log('trying to find CRS in', outputConfigs[0])
-
-      for (const xmlConfigFileName of outputConfigs) {
-        try {
-          const configXML: any = await this.fetchXML({
-            fileApi: this.myState.fileSystem.slug,
-            filePath: this.myState.subfolder + '/' + xmlConfigFileName,
-          })
-
-          const global = configXML.config.module.filter((f: any) => f.$name === 'global')[0]
-          const crs = global.param.filter((p: any) => p.$name === 'coordinateSystem')[0]
-
-          const crsValue = crs.$value
-
-          // save it
-          savedConfig = savedConfig || {}
-          savedConfig.networkProjection = crsValue
-          localStorage.setItem(storagePath, JSON.stringify(savedConfig))
-          return crsValue
-        } catch (e) {
-          console.warn('Failed parsing', xmlConfigFileName)
-        }
-      }
-    }
-
-    // 3. ask the user
-    let entry = prompt('Need coordinate EPSG number:', '') || ''
-
-    // if user cancelled, give up
-    if (!entry) return ''
-    // if user gave bad answer, try again
-    if (isNaN(parseInt(entry, 10)) && !goodEPSG.test(entry)) return this.guessProjection(files)
-
-    // hopefully user gave a good EPSG number
-    if (!entry.startsWith('EPSG:')) entry = 'EPSG:' + entry
-
-    const networkProjection = entry
-    localStorage.setItem(storagePath, JSON.stringify({ networkProjection }))
-    return networkProjection
-  }
-
-  private async loadYamlConfig() {
-    // first get config
-    try {
-      // might be a project config:
-      const filename =
-        this.myState.yamlConfig.indexOf('/') > -1
-          ? this.myState.yamlConfig
-          : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-      const text = await this.myState.fileApi.getFileText(filename)
-      this.vizDetails = yaml.parse(text)
-    } catch (e) {
-      // maybe it failed because password?
-      const err = e as any
-      if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
-        this.$store.commit('requestLogin', this.myState.fileSystem.slug)
-      }
-    }
-
-    const t = this.vizDetails.title ? this.vizDetails.title : 'Transit Ridership'
-    this.$emit('title', t)
-
-    this.projection = this.vizDetails.projection
-
-    nprogress.done()
-  }
-
-  private get legendRows() {
-    return [
-      ['#a03919', 'Rail'],
-      ['#448', 'Bus'],
-    ]
-  }
-
-  private isMobile() {
-    const w = window
-    const d = document
-    const e = d.documentElement
-    const g = d.getElementsByTagName('body')[0]
-    const x = w.innerWidth || e.clientWidth || g.clientWidth
-    const y = w.innerHeight || e.clientHeight || g.clientHeight
-
-    return x < 640
-  }
-
-  private setupMap() {
-    try {
-      this.mymap = new maplibregl.Map({
-        bearing: 0,
-        container: this.mapID,
-        logoPosition: 'bottom-left',
-        style: globalStore.getters.mapStyle,
-        pitch: 0,
-      })
-
-      const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
-
-      if (extent) {
-        const lnglat = JSON.parse(extent)
-
-        const mFac = this.isMobile() ? 0 : 1
-        const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-
-        this.mymap.fitBounds(lnglat, {
-          animate: false,
-          padding,
-        })
-      }
-    } catch (E) {
-      console.error({ E })
-      // no worries
-    }
-
-    // Start doing stuff AFTER the MapBox library has fully initialized
-    this.mymap.on('load', this.mapIsReady)
-    this.mymap.on('move', this.handleMapMotion)
-    this.mymap.on('click', this.handleEmptyClick)
-
-    this.mymap.keyboard.disable() // so arrow keys don't pan
-  }
-
-  private handleClickedMetric(metric: { field: string }) {
-    console.log('transit metric:', metric.field)
-
-    this.activeMetric = metric.field
-
-    let widthExpression: any = 3
-
-    switch (metric.field) {
-      case 'departures':
-        widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
-        break
-
-      case 'pax':
-        widthExpression = ['max', 2, ['*', 0.003, ['get', 'pax']]]
-        break
-
-      case 'loadfac':
-        widthExpression = ['max', 2, ['*', 200, ['get', 'loadfac']]]
-        break
-    }
-
-    this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
-  }
-
-  private handleMapMotion() {
-    const mapCamera = {
-      longitude: this.mymap.getCenter().lng,
-      latitude: this.mymap.getCenter().lat,
-      bearing: this.mymap.getBearing(),
-      zoom: this.mymap.getZoom(),
-      pitch: this.mymap.getPitch(),
-    }
-
-    if (!this.isMapMoving) this.$store.commit('setMapCamera', mapCamera)
-    this.isMapMoving = true
-
-    if (this.stopMarkers.length > 0) this.showTransitStops()
-  }
-
-  private handleEmptyClick(e: mapboxgl.MapMouseEvent) {
-    this.removeStopMarkers()
-    this.removeSelectedRoute()
-    this.removeAttachedRoutes()
-    this.routesOnLink = []
-  }
-
-  private showRouteDetails(routeID: string) {
-    if (!routeID && !this.selectedRoute) return
-
-    console.log({ routeID })
-
-    if (routeID) this.showTransitRoute(routeID)
-    else this.showTransitRoute(this.selectedRoute.id)
-
-    this.showTransitStops()
-  }
-
-  private async mapIsReady() {
-    const networks = await this.loadNetworks()
-    console.log({ networks })
-    if (networks) this.processInputs(networks)
-
-    this.setupKeyListeners()
-  }
-
-  private setupKeyListeners() {
-    // const parent = this
-    window.addEventListener('keyup', event => {
-      if (event.keyCode === 27) {
-        // ESC
-        this.pressedEscape()
-      }
-    })
-    window.addEventListener('keydown', event => {
-      if (event.keyCode === 38) {
-        this.pressedArrowKey(-1) // UP
-      }
-      if (event.keyCode === 40) {
-        this.pressedArrowKey(+1) // DOWN
-      }
-    })
-  }
-
-  private resolvers: { [id: number]: any } = {}
-  private resolverId = 0
-  private xmlWorker?: Worker
-
-  private fetchXML(props: { fileApi: string; filePath: string; options?: any }) {
-    if (!this.xmlWorker) {
-      this.xmlWorker = new NewXmlFetcher()
-      this.xmlWorker.onmessage = (message: MessageEvent) => {
-        // message.data will have .id and either .error or .xml
-        const { resolve, reject } = this.resolvers[message.data.id]
-        if (message.data.error) reject(message.data.error)
-        resolve(message.data.xml)
-      }
-    }
-
-    // save the promise by id so we can look it up when we get messages
-    const id = this.resolverId++
-
-    const fileSystem = this.getFileSystem(props.fileApi)
-    this.xmlWorker.postMessage(Object.assign({ id, fileSystem }, props))
-
-    const promise = new Promise((resolve, reject) => {
-      this.resolvers[id] = { resolve, reject }
-    })
-    return promise
-  }
-
-  private async loadNetworks() {
-    try {
-      if (!this.myState.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule)
-        return
-
-      this.loadingText = 'Loading networks...'
-
-      // this._xmlWorkers.push(worker) // save it so we can terminate if we have to
-
-      const roads = this.fetchXML({
-        fileApi: this.myState.fileSystem.slug,
-        filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-        options: { attributeNamePrefix: '' },
-      })
-      const transit = this.fetchXML({
-        fileApi: this.myState.fileSystem.slug,
-        filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
-        options: {
-          attributeNamePrefix: '',
-          alwaysArray: [
-            'transitSchedule.transitLine.transitRoute',
-            'transitSchedule.transitLine.transitRoute.departures.departure',
-          ],
-        },
-      })
-
-      // and wait for them to all complete
-      const results = await Promise.all([roads, transit])
-      return { roadXML: results[0], transitXML: results[1], ridership: [] }
-    } catch (e) {
-      console.error('TRANSIT:', e)
-      // this.loadingText = '' + e
-      return null
-    }
-  }
-
-  private loadDemandData(filename: string): Promise<any[]> {
-    const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
-      if (!filename) resolve([])
-      this.loadingText = 'Loading demand...'
-      const worker = new GzipWorker() as Worker
-
-      worker.onmessage = (event: MessageEvent) => {
-        this.loadingText = 'Processing demand...'
-        const csvData = new TextDecoder('utf-8').decode(event.data)
-        Papaparse.parse(csvData, {
-          // preview: 10000,
-          header: true,
-          skipEmptyLines: true,
-          dynamicTyping: true,
-          worker: true,
-          complete: results => {
-            resolve(this.processDemand(results))
-          },
-        })
-      }
-
-      worker.postMessage({
-        filePath: this.myState.subfolder + '/' + filename,
-        fileSystem: this.myState.fileSystem,
-      })
-    })
-    return promise
-  }
-
-  private cfDemand: crossfilter.Crossfilter<any> | null = null
-  private cfDemandLink: crossfilter.Dimension<any, any> | null = null
-
-  private processDemand(results: Papaparse.ParseResult<unknown>) {
-    // todo: make sure meta contains fields we need!
-    this.loadingText = 'Processing demand data...'
-
-    // build crossfilter
-    console.log('BUILD crossfilter')
-    this.cfDemand = crossfilter(results.data)
-    this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
-
-    // build link-level passenger ridership
-    console.log('COUNTING RIDERSHIP')
-
-    const linkPassengersById = {} as any
-    const group = this.cfDemandLink.group()
-    group
-      .reduceSum((d: any) => d.passengersAtArrival)
-      .all()
-      .map(link => {
-        linkPassengersById[link.key as any] = link.value
-      })
-
-    // and pax load-factors
-    const capacity = {} as any
-    group
-      .reduceSum((d: any) => d.totalVehicleCapacity)
-      .all()
-      .map(link => {
-        capacity[link.key as any] = link.value
-      })
-
-    // update passenger value in the transit-link geojson.
-    for (const transitLink of this._transitLinks.features) {
-      transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
-      transitLink.properties['cap'] = capacity[transitLink.properties.id]
-      transitLink.properties['loadfac'] =
-        Math.round(
-          (1000 * linkPassengersById[transitLink.properties.id]) /
-            capacity[transitLink.properties.id]
-        ) / 1000
-    }
-
-    this.metrics = this.metrics.concat([
-      { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
-      { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
-    ])
-
-    const source = this.mymap.getSource('transit-source') as GeoJSONSource
-    source.setData(this._transitLinks)
-
-    this.loadingText = ''
-    return []
-  }
-
-  private async processInputs(networks: NetworkInputs) {
-    this.loadingText = 'Preparing...'
-    // spawn transit helper web worker
-    this._transitHelper = new TransitSupplyWorker()
-
-    this._transitHelper.onmessage = async (buffer: MessageEvent) => {
-      this.receivedProcessedTransit(buffer)
-    }
-
-    this._transitHelper.postMessage({
-      xml: networks,
-      projection: this.projection,
-    })
-  }
-
-  private async receivedProcessedTransit(buffer: MessageEvent) {
-    if (buffer.data.status) {
-      this.loadingText = buffer.data.status
-      return
-    }
-    const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
-    this._network = network
-    this._routeData = routeData
-    this._stopFacilities = stopFacilities
-    this._transitLines = transitLines
-    this._mapExtentXYXY = mapExtent
-
-    this._transitHelper.terminate()
-
-    this.loadingText = 'Summarizing departures...'
-
-    await this.processDepartures()
-
-    // Build the links layer and add it
-    this._transitLinks = await this.constructDepartureFrequencyGeoJson()
-    this.addTransitToMap(this._transitLinks)
-
-    this.handleClickedMetric({ field: 'departures' })
-
-    localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-    this.mymap.fitBounds(this._mapExtentXYXY, {
-      animate: false,
-    })
-
-    if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
-
-    this.loadingText = ''
-    nprogress.done()
-  }
-
-  private _transitLinks: any
-
-  private async processDepartures() {
-    this.loadingText = 'Processing departures...'
-
-    for (const id in this._transitLines) {
-      if (this._transitLines.hasOwnProperty(id)) {
-        const transitLine = this._transitLines[id]
-        for (const route of transitLine.transitRoutes) {
-          for (const linkID of route.route) {
-            if (!(linkID in this._departures))
-              this._departures[linkID] = { total: 0, routes: new Set() }
-
-            this._departures[linkID].total += route.departures
-            this._departures[linkID].routes.add(route.id)
-
-            this._maximum = Math.max(this._maximum, this._departures[linkID].total)
-          }
-        }
-      }
-    }
-  }
-
-  private _geoTransitLinks: any
-
-  private addTransitToMap(geodata: any) {
-    this._geoTransitLinks = geodata
-
-    this.mymap.addSource('transit-source', {
-      data: geodata,
-      type: 'geojson',
-    } as any)
-
-    this.mymap.addLayer({
-      id: 'transit-link',
-      source: 'transit-source',
-      type: 'line',
-      paint: {
-        'line-opacity': 1.0,
-        'line-width': 1,
-        'line-color': ['get', 'color'],
-      },
-    })
-
-    this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
-      this.clickedOnTransitLink(e)
-    })
-
-    // turn "hover cursor" into a pointer, so user knows they can click.
-    this.mymap.on('mousemove', 'transit-link', (e: maplibregl.MapLayerMouseEvent) => {
-      this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
-      this.hoveredOnElement(e)
-    })
-
-    // and back to normal when they mouse away
-    this.mymap.on('mouseleave', 'transit-link', () => {
-      this.mymap.getCanvas().style.cursor = 'grab'
-      this.mapPopup.remove()
-    })
-  }
-
-  private hoverWait = false
-
-  private hoveredOnElement(event: any) {
-    const props = event.features[0].properties
-
-    let content = '<div class="map-popup">'
-
-    for (const metric of this.metrics) {
-      let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
-      label = label.replaceAll(' ', '&nbsp;')
-
-      if (!isNaN(props[metric.field]))
-        content += `
-          <div style="display: flex">
-            <div>${label}:&nbsp;&nbsp;</div>
-            <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
-          </div>`
-    }
-
-    content += '<div>'
-    this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
-  }
-
-  private async constructDepartureFrequencyGeoJson() {
-    const geojson = []
-
-    for (const linkID in this._departures) {
-      if (this._departures.hasOwnProperty(linkID)) {
-        const link = this._network.links[linkID]
-        const coordinates = [
-          [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
-          [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
-        ]
-
-        const departures = this._departures[linkID].total
-
-        // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
-        const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
-        const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
-
-        let isRail = true
-        for (const route of this._departures[linkID].routes) {
-          if (this._routeData[route].transportMode === 'bus') {
-            isRail = false
-          }
-        }
-
-        let line = {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: coordinates,
-          },
-          properties: {
-            color: isRail ? '#a03919' : _colorScale[colorBin],
-            colorBin: colorBin,
-            departures: departures,
-            // pax: 0,
-            // loadfac: 0,
-            // cap: 0,
-            id: linkID,
-            isRail: isRail,
-            from: link.from, // _stopFacilities[fromNode].name || fromNode,
-            to: link.to, // _stopFacilities[toNode].name || toNode,
-          },
-        }
-
-        line = this.offsetLineByMeters(line, 15)
-        geojson.push(line)
-      }
-    }
-
-    geojson.sort(function (a: any, b: any) {
-      if (a.isRail && !b.isRail) return -1
-      if (b.isRail && !a.isRail) return 1
-      return 0
-    })
-
-    return { type: 'FeatureCollection', features: geojson }
-  }
-
-  private offsetLineByMeters(line: any, metersToTheRight: number) {
-    try {
-      const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
-      return offsetLine
-    } catch (e) {
-      // offset can fail if points are exactly on top of each other; ignore.
-    }
-    return line
-  }
-
-  private removeStopMarkers() {
-    this.stopMarkers = []
-  }
-
-  private async showTransitStops() {
-    this.removeStopMarkers()
-
-    const route = this.selectedRoute
-    const stopSizeClass = 'stopmarker' // this.mymap.getZoom() > SHOW_STOPS_AT_ZOOM_LEVEL ? 'stop-marker-big' : 'stop-marker'
-    const mapBearing = this.mymap.getBearing()
-
-    let bearing
-
-    for (const [i, stop] of route.routeProfile.entries()) {
-      const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
-      // recalc bearing for every node except the last
-      if (i < route.routeProfile.length - 1) {
-        const point1 = turf.point([coord[0], coord[1]])
-        const point2 = turf.point([
-          this._stopFacilities[route.routeProfile[i + 1].refId].x,
-          this._stopFacilities[route.routeProfile[i + 1].refId].y,
-        ])
-        bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
-      }
-
-      const xy = this.mymap.project([coord[0], coord[1]])
-
-      // every marker has a latlng coord and a bearing
-      const marker = { i, bearing, xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) } }
-      this.stopMarkers.push(marker)
-    }
-  }
-
-  private showTransitRoute(routeID: string) {
-    if (!routeID) return
-
-    const route = this._routeData[routeID]
-    console.log({ selectedRoute: route })
-
-    this.selectedRoute = route
-
-    const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
-    if (source) {
-      source.setData(route.geojson)
-    } else {
-      this.mymap.addSource('selected-route-data', {
-        data: route.geojson,
-        type: 'geojson',
-      })
-    }
-
-    if (!this.mymap.getLayer('selected-route')) {
-      this.mymap.addLayer({
-        id: 'selected-route',
-        source: 'selected-route-data',
-        type: 'line',
-        paint: {
-          'line-opacity': 1.0,
-          'line-width': 5, // ['get', 'width'],
-          'line-color': '#097c43', // ['get', 'color'],
-        },
-      })
-    }
-  }
-
-  private removeSelectedRoute() {
-    if (this.selectedRoute) {
-      this.mymap.removeLayer('selected-route')
-      this.selectedRoute = null
-    }
-  }
-
-  private clickedOnTransitLink(e: any) {
-    this.removeStopMarkers()
-    this.removeSelectedRoute()
-
-    // the browser delivers some details that we need, in the fn argument 'e'
-    const props = e.features[0].properties
-    const routeIDs = this._departures[props.id].routes
-
-    this.calculatePassengerVolumes(props.id)
-
-    const routes = []
-    for (const id of routeIDs) {
-      routes.push(this._routeData[id])
-    }
-
-    // sort by highest departures first
-    routes.sort(function (a, b) {
-      return a.departures > b.departures ? -1 : 1
-    })
-
-    this.routesOnLink = routes
-    this.highlightAllAttachedRoutes()
-
-    // highlight the first route, if there is one
-    if (routes.length > 0) this.showRouteDetails(routes[0].id)
-  }
-
-  private calculatePassengerVolumes(id: string) {
-    if (!this.cfDemandLink || !this.cfDemand) return
-
-    this.cfDemandLink.filter(id)
-
-    const allLinks = this.cfDemand.allFiltered()
-    let sum = 0
-
-    allLinks.map(d => {
-      sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
-    })
-
-    console.log({ sum, allLinks })
-  }
-
-  private removeAttachedRoutes() {
-    for (const layerID of this._attachedRouteLayers) {
-      try {
-        this.mymap.removeLayer('route-' + layerID)
-        this.mymap.removeSource('source-route-' + layerID)
-      } catch (e) {
-        //meh
-      }
-    }
-    this._attachedRouteLayers = []
-  }
-
-  private highlightAllAttachedRoutes() {
-    this.removeAttachedRoutes()
-
-    for (const route of this.routesOnLink) {
-      this.mymap.addSource('source-route-' + route.id, {
-        data: route.geojson,
-        type: 'geojson',
-      })
-      this.mymap.addLayer({
-        id: 'route-' + route.id,
-        source: 'source-route-' + route.id,
-        type: 'line',
-        paint: {
-          'line-opacity': 0.7,
-          'line-width': 8, // ['get', 'width'],
-          'line-color': '#ccff33', // ['get', 'color'],
-        },
-      })
-      this._attachedRouteLayers.push(route.id)
-    }
-  }
-
-  private pressedEscape() {
-    this.removeSelectedRoute()
-    this.removeStopMarkers()
-    this.removeAttachedRoutes()
-
-    this.selectedRoute = null
-    this.routesOnLink = []
-  }
-
-  private pressedArrowKey(delta: number) {
-    if (!this.selectedRoute) return
-
-    let i = this.routesOnLink.indexOf(this.selectedRoute)
-    i = i + delta
-
-    if (i < 0 || i >= this.routesOnLink.length) return
-
-    this.showRouteDetails(this.routesOnLink[i].id)
-  }
-}
+  },
+
+  destroyed() {
+    this.$store.commit('setFullScreen', false)
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {

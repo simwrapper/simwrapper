@@ -17,7 +17,7 @@ import nprogress from 'nprogress'
 import vegaEmbed from 'vega-embed'
 
 import globalStore from '@/store'
-import { FileSystemConfig, VisualizationPlugin } from '../../Globals'
+import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
@@ -26,7 +26,7 @@ const MyComponent = defineComponent({
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     yamlConfig: String,
-    config: Object,
+    config: String,
     thumbnail: Boolean,
     cardId: String,
   },
