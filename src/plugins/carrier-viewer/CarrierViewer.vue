@@ -8,7 +8,7 @@
 
   tour-viz.anim(v-if="!thumbnail"
                 :shipments="shownShipments"
-                :shownRoutes="shownRoutes"
+                :currentTour="currentTour"
                 :stopMidpoints="stopMidpoints"
                 :paths="[]"
                 :drtRequests="[]"
@@ -22,11 +22,7 @@
 
   ZoomButtons(v-if="!thumbnail")
 
-  collapsible-panel.left-side(v-if="detailContent" direction="left" :locked="true")
-    h3 Raw Details
-    .panel-items
-      .detail-list
-        pre {{detailContent}}
+
 
   collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
 
@@ -48,9 +44,9 @@
                 i.far(:class="toggleTours ? 'fa-minus-square' : 'fa-plus-square'")
                 span {{ $t('tours')}}: {{ tours.length}}
 
-              .leaf.tour(v-for="tour,i in toggleTours ? tours:[]" :key="i"
+              .leaf.tour(v-for="tour,i in visibleTours" :key="i"
                           @click="handleSelectTour(tour)"
-                          :class="{selected: tour==selectedTour}") {{ `${tour.vehicleId}` }}
+                          :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
 
             .carrier-section(v-if="vehicles.length")
               .carrier-title(@click="toggleVehicles = !toggleVehicles")
@@ -140,6 +136,7 @@ import {
 } from '@/Globals'
 
 import { VuePlugin } from 'vuera'
+import { any } from 'micromatch'
 Vue.use(VuePlugin)
 
 naturalSort.insensitive = true
@@ -224,12 +221,14 @@ class CarrierPlugin extends Vue {
   private services: any[] = []
   private stopMidpoints: any[] = []
   private tours: any[] = []
-  private shownRoutes: any[] = []
+  private currentTour: any[] = []
+  private allShownTours: any[] = []
+  private currentLegOfTour: any[] = []
   private shownShipments: any[] = []
   private shipmentIdsInTour: any[] = []
 
   private selectedCarrier = ''
-  private selectedTour: any = null
+  private selectedTours: any[] = []
   private selectedShipment: any = null
 
   public buildFileApi() {
@@ -247,7 +246,7 @@ class CarrierPlugin extends Vue {
       return
     }
 
-    this.shownShipments = this.shipments.filter((s) => s.$id === shipment.$id)
+    this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
     this.selectedShipment = shipment
   }
 
@@ -258,21 +257,20 @@ class CarrierPlugin extends Vue {
 
     this.currentlyAnimating = tour
 
-    this.shownRoutes = []
-    this.shownShipments = []
-    this.selectedShipment = null
-    this.shipmentIdsInTour = []
-    this.stopMidpoints = []
+    //XXXX WHAT ARE THESE
+    //this.shownShipments = []
+    //this.selectedShipment = null
+    //this.shipmentIdsInTour = []
+    //this.stopMidpoints = []
 
-    if (this.selectedTour === tour) {
-      this.selectedTour = null
-      this.detailContent = ''
+    //this unselects tour if user clicks the same tour again
+    if (this.selectedTours.includes(tour)) {
+      this.selectedTours = this.selectedTours.filter(element => element !== tour)
       return
     }
 
-    this.selectedTour = tour
-
-    this.detailContent = JSON.stringify(tour, null, 4)
+    this.selectedTours.push(tour)
+    console.log(this.selectedTours)
 
     // find shipment components
     const inTour: any[] = []
@@ -285,7 +283,7 @@ class CarrierPlugin extends Vue {
         inTour.push(activity.$shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find((s) => s.$id === activity.$shipmentId)
+        const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
         const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
         // skip duplicate pickups/dropoffs at this location
         if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
@@ -340,37 +338,62 @@ class CarrierPlugin extends Vue {
       if (label === '0') label = '*'
 
       stopMidpoints[sCount].label = label
+      console.log(stopMidpoints)
     }
 
     this.shipmentIdsInTour = inTour
     // this.stopMidpoints = stopMidpoints
 
     // always pick the same "random" colors
-
     const colors = colorMap({
       colormap: 'summer',
       nshades: Math.max(9, tour.routes.length),
       format: 'rba',
     }).map((a: any) => a.slice(0, 3))
 
-    let count = 0
+    let count_route = 0
+    let count_tour = 0
 
     const sleep = (milliseconds: number) => {
-      return new Promise((resolve) => setTimeout(resolve, milliseconds))
+      return new Promise(resolve => setTimeout(resolve, milliseconds))
     }
 
+    // sets the drawing speed of the legs of the tour, if the tour has a lot of legs they are drawn more quickly
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
-    for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopMidpoints, colors, count)
-      count++
-      await sleep(animationSpeed)
+
+    // route refers to the specific path of the leg of the tour
+    if (this.selectedTours.length == 1) {
+      this.currentTour = []
+      for (const route of tour.routes) {
+        this.addRouteToMap(tour, route, stopMidpoints, colors, count_route, count_tour)
+        count_route++
+        //await sleep(animationSpeed)
+      }
+    } else {
+      this.allShownTours.push(this.currentTour)
+      for (const t of this.selectedTours) {
+        for (const route of t.routes) {
+          this.addRouteToMap(t, route, stopMidpoints, colors, count_route, count_tour)
+          count_route++
+          //await sleep(animationSpeed)
+        }
+        count_tour++
+      }
     }
     this.stopMidpoints = stopMidpoints
-    // console.log({ shownRoutes: this.shownRoutes })
+
+    // console.log({ shownTours: this.shownTours })
   }
 
-  private addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
-    if (this.currentlyAnimating !== tour) return
+  private addRouteToMap(
+    tour: any,
+    route: any,
+    stopLocations: any[],
+    colors: any,
+    count_route: number,
+    count_tour: number
+  ) {
+    //if (this.currentlyAnimating !== tour) return
 
     // starting point from xy:[0,1]
     const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
@@ -387,8 +410,19 @@ class CarrierPlugin extends Vue {
       points.push([this.links[link][2], this.links[link][3]])
     }
 
-    this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
-    this.stopMidpoints = stopLocations.slice(0, count)
+    this.stopMidpoints = stopLocations.slice(0, count_route)
+
+    if (this.selectedTours.length == 1) {
+      this.currentLegOfTour = this.currentLegOfTour.concat([
+        { count_route, points, color: colors[count_route] },
+      ])
+      this.currentTour = this.currentLegOfTour
+    } else {
+      this.currentLegOfTour = this.currentLegOfTour.concat([
+        { count_route, points, color: colors[count_tour] },
+      ])
+      this.currentTour.push(this.currentLegOfTour)
+    }
   }
 
   private handleSelectCarrier(carrier: any) {
@@ -401,7 +435,7 @@ class CarrierPlugin extends Vue {
     this.shipments = []
     this.services = []
     this.tours = []
-    this.shownRoutes = []
+    this.currentLegOfTour = []
     this.shownShipments = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
@@ -520,6 +554,12 @@ class CarrierPlugin extends Vue {
     return svnProject[0]
   }
 
+  private get visibleTours() {
+    if (this.toggleTours) return this.tours
+
+    return []
+  }
+
   private async getVizDetails() {
     if (!this.myState.fileApi) return
 
@@ -563,7 +603,7 @@ class CarrierPlugin extends Vue {
     let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
     // if the obvious network file doesn't exist, just grab... the first network file:
     if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter((f) => f.indexOf('output_network') > -1)
+      const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
       if (allNetworks.length) network = allNetworks[0]
       else {
         this.myState.statusMessage = 'No road network found.'

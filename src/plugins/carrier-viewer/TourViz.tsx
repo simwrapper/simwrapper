@@ -57,7 +57,7 @@ const DRT_REQUEST = {
 
 export default function Component(props: {
   shipments: any[]
-  shownRoutes: any[]
+  currentTour: any[]
   stopMidpoints: any[]
   paths: any[]
   drtRequests: any[]
@@ -73,7 +73,7 @@ export default function Component(props: {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
-  const { dark, shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
+  const { dark, shipments, currentTour, stopMidpoints, center, searchEnabled, onClick } = props
 
   const theme = DEFAULT_THEME
 
@@ -214,7 +214,7 @@ export default function Component(props: {
     //@ts-ignore:
     new PathOffsetLayer({
       id: 'deliveryroutes',
-      data: shownRoutes,
+      data: currentTour,
       getPath: (d: any) => d.points,
       getColor: (d: any) => d.color,
       getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
