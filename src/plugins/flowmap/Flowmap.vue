@@ -4,12 +4,20 @@
     :viewId="viewId"
     :props="mapProps"
   )
+  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
+     h3 {{ vizDetails.title }}
+     p {{ vizDetails.description }}
+
+  zoom-buttons(v-if="isLoaded && !thumbnail")
+
 
 </template>
 
 <script lang="ts">
 import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
 import * as turf from '@turf/turf'
+import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES, VisualizationPlugin } from '@/Globals'
 import FlowMapLayer from '@/layers/FlowMapLayer'
@@ -22,7 +30,7 @@ import { VuePlugin } from 'vuera'
 import { NumberKeyframeTrack } from 'three'
 Vue.use(VuePlugin)
 
-@Component({ components: { FlowMapLayer } as any })
+@Component({ components: { FlowMapLayer, VizConfigurator, ZoomButtons } as any })
 export default class VueComponent extends Vue {
   @Prop({ required: false }) fsConfig!: FileSystemConfig
   @Prop({ required: true }) root!: string
@@ -390,6 +398,16 @@ globalStore.commit('registerPlugin', {
   right: 0;
   display: flex;
   flex-direction: column;
+}
+
+.title-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0 1rem 0.25rem 2rem;
+  background-color: var(--bgPanel);
+  filter: $filterShadow;
+  z-index: 2;
 }
 
 .map-layer {
