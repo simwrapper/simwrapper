@@ -251,6 +251,7 @@ export default defineComponent({
   mounted() {
     this.setupHints()
     this.updateShortcuts()
+    console.log(111, this.$route)
     this.getRootAndRoute(this.$route.params.pathMatch)
   },
 
@@ -450,12 +451,17 @@ export default defineComponent({
       this.getRootAndRoute(crumb.url.slice(1)) // drop leading slash
     },
 
-    getRootAndRoute(pathMatch: string | undefined) {
-      if (!pathMatch) {
+    getRootAndRoute(path: string | string[] | undefined) {
+      console.log(777, path)
+      if (!path) {
         // console.log('NOPE')
         return
       }
 
+      // Curse you Vue-Router 4! Now pathMatch is an array, not a path
+      let pathMatch = Array.isArray(path) ? path.filter(p => !!p).join('/') : path
+
+      console.log(888, pathMatch)
       // splash page:
       if (pathMatch === '/') {
         this.root = ''

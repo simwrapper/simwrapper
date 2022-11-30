@@ -1,10 +1,10 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-  xy-hex-deck-map.hex-layer(
-    v-if="!thumbnail && isLoaded"
-    v-bind="mapProps"
-  )
+  //- xy-hex-deck-map.hex-layer(
+  //-   v-if="!thumbnail && isLoaded"
+  //-   v-bind="mapProps"
+  //- )
 
   zoom-buttons(v-if="!thumbnail")
   drawing-tool.drawing-tool(v-if="!thumbnail")
@@ -76,7 +76,6 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import VueSlider from 'vue-slider-component'
-import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 
 import util from '@/js/util'
@@ -85,7 +84,7 @@ import { REACT_VIEW_HANDLES } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-import CSVParserWorker from './CsvGzipParser.worker.ts?worker'
+import CSVParserWorker from '@/plugins/xy-hexagons/CsvGzipParser.worker.ts?worker'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -132,7 +131,6 @@ const MyComponent = defineComponent({
     DrawingTool,
     XyHexDeckMap,
     VueSlider,
-    ToggleButton,
     ZoomButtons,
   },
   props: {
@@ -646,9 +644,10 @@ const MyComponent = defineComponent({
     async parseCSVFile(filename: string) {
       this.myState.statusMessage = 'Loading file...'
 
-      // get the raw unzipped arraybuffer
+      // get the raw unzipped arraybuffer from the web worker
       this.gzipWorker = new CSVParserWorker()
 
+      console.log(9999, CSVParserWorker)
       this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
         if (buffer.data.status) {
           this.myState.statusMessage = buffer.data.status
@@ -666,12 +665,14 @@ const MyComponent = defineComponent({
         }
       }
 
-      this.gzipWorker.postMessage({
+      const message = {
         filepath: filename,
         fileSystem: this.fileSystem,
         aggregations: this.vizDetails.aggregations,
         projection: this.vizDetails.projection,
-      })
+      }
+      console.log(222, message)
+      this.gzipWorker.postMessage(message)
     },
 
     dataIsLoaded({ rowCache, columnLookup }: any) {
@@ -713,20 +714,18 @@ const MyComponent = defineComponent({
 
     await this.getVizDetails()
 
+    this.buildThumbnail()
+
     if (this.thumbnail) return
 
+    this.myState.statusMessage = `${this.$t('loading')}`
     this.setupLogoMover()
-
-    this.myState.statusMessage = `${this.$i18n.t('loading')}`
-
     this.aggregations = this.vizDetails.aggregations
 
     // console.log('loading files')
     await this.loadFiles()
 
     // this.mapState.center = this.findCenter(this.rawRequests)
-
-    this.buildThumbnail()
 
     this.isLoaded = true
     this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data

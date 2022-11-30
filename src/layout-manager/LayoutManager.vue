@@ -104,7 +104,6 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 
-import { Route } from 'vue-router'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
@@ -118,6 +117,7 @@ import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.v
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
 import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
+import { RouteLocation } from 'vue-router'
 
 const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_LEFT_WIDTH = 300
@@ -183,7 +183,7 @@ export default defineComponent({
       }
     },
 
-    $route(to: Route, from: Route) {
+    $route(to: RouteLocation, from: RouteLocation) {
       if (to.path === BASE_URL) {
         // root node is not a normal splitpane, so we instead replace
         // with a brand new clean startpage.
@@ -215,13 +215,15 @@ export default defineComponent({
     },
 
     buildLayoutFromURL() {
-      const pathMatch = this.$route.params.pathMatch
-
+      let pathMatch = this.$route.params.pathMatch
+      console.log(1111, pathMatch)
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
         return
       }
+
+      if (Array.isArray(pathMatch)) pathMatch = pathMatch.filter(p => !!p).join('/')
 
       // split panel?
       if (pathMatch.startsWith('split/')) {

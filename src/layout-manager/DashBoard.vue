@@ -66,7 +66,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import YAML from 'yaml'
@@ -288,8 +288,8 @@ export default defineComponent({
           card.number = numCard
 
           // Vue 2 is weird about new properties: use Vue.set() instead
-          Vue.set(this.opacity, card.id, 0.5)
-          Vue.set(this.infoToggle, card.id, false)
+          this.opacity[card.id] = 0.5
+          this.infoToggle[card.id] = false
 
           numCard++
         })

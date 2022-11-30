@@ -2,7 +2,7 @@
 .width-panel
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
@@ -13,15 +13,15 @@
   .widgets
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
   //- .widgets
   //-   .widget
   //-     p Transform
-  //-     b-field.has-addons
+  //-     o-field.has-addons
   //-       p.control(v-for="transform of transforms" :key="transform")
-  //-         b-button.is-small(
+  //-         o-button.is-small(
   //-           :disabled="!dataColumn"
   //-           :class="{'is-warning': dataColumn && transform==selectedTransform}"
   //-           @click="selectedTransform=transform"

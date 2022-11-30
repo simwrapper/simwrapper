@@ -102,9 +102,8 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
 import VueSlider from 'vue-slider-component'
-import { ToggleButton } from 'vue-js-toggle-button'
+import ToggleButton from 'vue3-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'

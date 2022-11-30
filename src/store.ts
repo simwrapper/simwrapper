@@ -1,7 +1,4 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
-
-Vue.use(Vuex)
+import { createStore } from 'vuex'
 
 import {
   BreadCrumb,
@@ -31,42 +28,44 @@ const initialViewState = () => ({
   zoom: 5,
 })
 
-export default new Vuex.Store({
-  state: {
-    app: 'SimWrapper',
-    debug: false,
-    authAttempts: 0,
-    breadcrumbs: [] as BreadCrumb[],
-    credentials: { fake: 'fake' } as { [url: string]: string },
-    dashboardWidth: '',
-    isFullScreen: false,
-    isFullWidth: false,
-    isShowingLeftBar: true,
-    isDarkMode: true,
-    mapStyles: MAP_STYLES_ONLINE,
-    needLoginForUrl: '',
-    statusErrors: [] as Warnings[],
-    statusWarnings: [] as Warnings[],
-    statusMessage: 'Loading',
-    svnProjects: fileSystems,
-    visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
-    colorScheme: ColorScheme.DarkMode,
-    locale: 'en',
-    localFileHandles: [] as any[],
-    localURLShortcuts: {} as { [id: string]: FileSystemConfig },
-    runFolders: {} as { [root: string]: any[] },
-    runFolderCount: 0,
-    resizeEvents: 0,
-    viewState: initialViewState() as {
-      longitude: number
-      latitude: number
-      bearing: number
-      pitch: number
-      zoom: number
-      center?: number[]
-      jump?: boolean
-      initial?: boolean
-    },
+export default createStore({
+  state() {
+    return {
+      app: 'SimWrapper',
+      debug: false,
+      authAttempts: 0,
+      breadcrumbs: [] as BreadCrumb[],
+      credentials: { fake: 'fake' } as { [url: string]: string },
+      dashboardWidth: '',
+      isFullScreen: false,
+      isFullWidth: false,
+      isShowingLeftBar: true,
+      isDarkMode: true,
+      mapStyles: MAP_STYLES_ONLINE,
+      needLoginForUrl: '',
+      statusErrors: [] as Warnings[],
+      statusWarnings: [] as Warnings[],
+      statusMessage: 'Loading',
+      svnProjects: fileSystems,
+      visualizationTypes: new Map() as Map<string, VisualizationPlugin>,
+      colorScheme: ColorScheme.DarkMode,
+      locale: 'en',
+      localFileHandles: [] as any[],
+      localURLShortcuts: {} as { [id: string]: FileSystemConfig },
+      runFolders: {} as { [root: string]: any[] },
+      runFolderCount: 0,
+      resizeEvents: 0,
+      viewState: initialViewState() as {
+        longitude: number
+        latitude: number
+        bearing: number
+        pitch: number
+        zoom: number
+        center?: number[]
+        jump?: boolean
+        initial?: boolean
+      },
+    }
   },
 
   mutations: {

@@ -2,7 +2,7 @@
 .width-panel
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
 
           option(label="None" value="@0")
           option(label="1px" value="@1")
@@ -17,15 +17,15 @@
   .widgets
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
   //- DIFF MODE
   .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
     .widgets
       .widget(style="flex: 3")
         p.tight Compare datasets
-        b-select.selector(
+        o-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
           v-model="diffUISelection"
@@ -34,7 +34,7 @@
 
       //- .widget
       //-   p % Diff
-      //-   b-checkbox.hello(
+      //-   o-checkbox.hello(
       //-     :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
       //-     v-model="diffRelative"
       //-   )
@@ -42,9 +42,9 @@
   //- .widgets
   //-   .widget
   //-     p Transform
-  //-     b-field.has-addons
+  //-     o-field.has-addons
   //-       p.control(v-for="transform of transforms" :key="transform")
-  //-         b-button.is-small(
+  //-         o-button.is-small(
   //-           :disabled="!dataColumn"
   //-           :class="{'is-warning': dataColumn && transform==selectedTransform}"
   //-           @click="selectedTransform=transform"

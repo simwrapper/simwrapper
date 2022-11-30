@@ -15,7 +15,7 @@
 
   .widgets
     .widget.boop
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="New filter...")
+      o-select.tight.selector(expanded v-model="addDataColumn" placeholder="New filter...")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"
@@ -23,10 +23,10 @@
                 :label="column")
 
       .filter-details2(v-if="addDataColumn")
-        b-select.operator(expanded v-model="addOperator" width=5)
+        o-select.operator(expanded v-model="addOperator" width=5)
           option(v-for="operator in OPERATORS" :value="operator" :label="operator")
-        b-field
-          b-input(v-model="addValue" placeholder="1.0")
+        o-field
+          o-input(v-model="addValue" placeholder="1.0")
 
       button.button.add-button.is-small.is-primary(
         v-if="addDataColumn"

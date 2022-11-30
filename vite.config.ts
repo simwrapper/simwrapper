@@ -1,29 +1,28 @@
 import { defineConfig } from 'vite'
-// import vue from '@vitejs/plugin-vue2'
-import { createVuePlugin } from 'vite-plugin-vue2'
-import markdownPlugin from 'vite-plugin-md'
+import vue from '@vitejs/plugin-vue'
+
+// import markdown from 'vite-plugin-md'
 import pluginRewriteAll from 'vite-plugin-rewrite-all'
 
 export default defineConfig({
   base: '/',
-  build: { sourcemap: true },
-  plugins: [
-    // vue
-    createVuePlugin({ include: [/\.vue$/, /\.md$/] }),
-    // markdown
-    markdownPlugin(),
-    // why do we need rewriteAll
-    pluginRewriteAll(),
-  ],
+  // build: { sourcemap: true },
+  plugins: [vue(), pluginRewriteAll()],
   resolve: {
     alias: {
-      '@': '/src',
-      '~': '/node_modules',
+      // '@': path.resolve(__dirname, './src'),
+      '@': '/src', // fileURLToPath(new URL('./src', import.meta.url)),
+      '~': '/node_modules', // fileURLToPath(new URL('./dist', import.meta.url)),
       path: 'path-browserify',
     },
   },
   define: {
     'process.platform': null,
     'process.env': [],
+
+    // for vue-i18n:
+    __VUE_I18N_FULL_INSTALL__: true,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_PROD_DEVTOOLS__: false,
   },
 })

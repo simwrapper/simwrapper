@@ -14,7 +14,7 @@
   .widgets
     .widget
       b Choose a dataset from files in this folder:
-      b-select.selector(expanded v-model="fileChoice")
+      o-select.selector(expanded v-model="fileChoice")
         option(value="" label="Select file...")
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 

@@ -21,9 +21,10 @@ li
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
+import { defineComponent } from 'vue'
 
-export default Vue.component('tree-item', {
+export default defineComponent({
+  name: 'tree-item',
   props: {
     item: {} as any,
   },

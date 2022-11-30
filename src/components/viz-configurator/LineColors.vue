@@ -2,7 +2,7 @@
 .color-ramp-picker
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="No lines" value="^")
           option(label="Single color" value="@")
           optgroup(v-for="dataset in datasetChoices()"
@@ -21,7 +21,7 @@
     .widgets
       .widget(style="flex: 3")
         p.tight Compare datasets
-        b-select.selector(
+        o-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
           v-model="diffUISelection"
@@ -30,7 +30,7 @@
 
       .widget
         p % Diff
-        b-checkbox.hello(
+        o-checkbox.hello(
           :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
           v-model="diffRelative"
         )
@@ -40,7 +40,7 @@
     .widgets
       .widget(style="flex: 3")
         p Steps
-        b-input(v-model="steps"
+        o-input(v-model="steps"
             placeholder="Number"
             type="number"
             min="2"
@@ -48,7 +48,7 @@
 
       .widget
         p Flip
-        b-checkbox.hello(v-model="flip")
+        o-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
       @click="pickColor(choice)"

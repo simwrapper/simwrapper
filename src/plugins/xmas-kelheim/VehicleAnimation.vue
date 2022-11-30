@@ -93,7 +93,7 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
+import ToggleButton from 'vue3-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'

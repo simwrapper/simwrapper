@@ -5,10 +5,11 @@ ul
 </template>
 
 <script lang="ts">
-import Vue from 'vue'
+import { defineComponent } from 'vue'
 import TreeItem from './TreeItem.vue'
 
-export default Vue.component('tree-view', {
+export default defineComponent({
+  name: 'tree-view',
   props: {
     initialData: {},
   },
@@ -28,7 +29,7 @@ export default Vue.component('tree-view', {
       })
     },
     makeFolder: function (item: any) {
-      Vue.set(item, 'children', [])
+      item['children'] = []
       this.addItem(item)
     },
     addItem: function (item: any) {

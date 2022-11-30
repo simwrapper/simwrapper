@@ -11,6 +11,7 @@
     //- h2: b {{ $t('more-info') }}
     //- info-bottom.splash-readme
 
+
   .middle-area
 
     p
@@ -47,16 +48,17 @@
 
 <script lang="ts">
 const i18n = {
+  legacy: false,
   messages: {
     en: {
       'more-info': 'Documentation:',
-      tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.',
+      tagLine: 'the simulation browser and data visualizer from VSP&nbsp;TU&nbsp;Berlin.',
       privacy:
         'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
     },
     de: {
       'more-info': 'Für weitere Informationen:',
-      tagLine: 'Der Modellergebnis-Browser der TU Berlin.',
+      tagLine: 'Der Modellergebnis-Browser der VSP&nbsp;TU&nbsp;Berlin.',
     },
   },
 }
@@ -65,7 +67,7 @@ import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-import InfoBottom from '@/assets/info-bottom.md'
+// import InfoBottom from '@/assets/info-bottom.md?raw'
 
 const BASE_URL = import.meta.url
 
@@ -89,12 +91,14 @@ const logos = [
 export default defineComponent({
   name: 'SplashPage',
   i18n,
-  components: { FileSystemProjects, InfoBottom },
+  components: { FileSystemProjects },
+
   data: () => {
     return {
       state: globalStore.state,
     }
   },
+
   computed: {
     allLogos(): any[] {
       return logos.map(p => {
@@ -102,16 +106,19 @@ export default defineComponent({
       })
     },
   },
+
   methods: {
     onNavigate(event: any) {
-      // pass it on up
       this.$emit('navigate', event)
     },
 
     showPrivacy() {
+      const z = this.$t('privacy')
+      console.log('' + z)
       alert(this.$t('privacy'))
     },
   },
+
   mounted() {
     // set initial breadcrumbs if we don't have any yet
     if (!this.state.breadcrumbs.length) {

@@ -16,19 +16,19 @@
                 src="@/assets/images/logos/vsp-logo-300dpi.png"
                 alt="TU Berlin VSP Department")
 
-          b-menu-list(label="Login Required")
+          o-menu-list(label="Login Required")
 
           p.my-label {{ whichLogin }}: access to this site requires a login.
 
-          b-menu-list(label="Username")
-          b-input(v-model="username" placeholder="VSP username" maxlength=30)
+          o-menu-list(label="Username")
+          o-input(v-model="username" placeholder="VSP username" maxlength=30)
 
-          b-menu-list(label="Password")
-          b-input(type="password"
+          o-menu-list(label="Password")
+          o-input(type="password"
             v-model="password"
             password-reveal)
 
-          b-button.my-space.is-primary(
+          o-button.my-space.is-primary(
             @click="clickedLogin"
             :disabled="!username || !password") Login
 

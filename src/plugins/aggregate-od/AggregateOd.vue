@@ -25,7 +25,7 @@
   .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
     .widget-column(v-if="this.headers.length > 2")
       h4.heading {{ $t('time')}}
-      b-checkbox.checkbox(style="margin: 0 0 0 auto;" v-model="showTimeRange")
+      o-checkbox.checkbox(style="margin: 0 0 0 auto;" v-model="showTimeRange")
           | &nbsp;{{ $t('duration') }}
       time-slider.time-slider(
         :useRange='showTimeRange'
@@ -34,15 +34,15 @@
 
     .widget-column
       h4.heading {{ $t('circle')}}
-      b-checkbox.checkbox(v-model="showCentroids")
+      o-checkbox.checkbox(v-model="showCentroids")
         | &nbsp;{{ $t('showCentroids')}}
-      b-checkbox.checkbox(v-model="showCentroidLabels")
+      o-checkbox.checkbox(v-model="showCentroidLabels")
         | &nbsp;{{$t('showNumbers')}}
 
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
-      b-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
-      b-button.is-small(@click='clickedDestinations' hint="Hide" :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
+      o-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
+      o-button.is-small(@click='clickedDestinations' hint="Hide" :class='{"is-link": !isOrigin,"is-active": !isOrigin}') {{$t('dest')}}
 
 </template>
 
@@ -1357,7 +1357,6 @@ const Component = defineComponent({
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-
     ;(this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)),
       (this.bounceScaleSlider = debounce(this.changedScale, 50)),
       (this.bounceLineFilter = debounce(this.changedLineFilter, 250)),

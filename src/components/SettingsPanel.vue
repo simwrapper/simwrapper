@@ -16,7 +16,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
+import ToggleButton from 'vue3-toggle-button'
 
 export default defineComponent({
   name: 'SettingsPanelComponent',

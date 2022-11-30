@@ -2,7 +2,7 @@
 .width-panel
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
@@ -11,8 +11,8 @@
   .widgets
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
 
 </template>
 

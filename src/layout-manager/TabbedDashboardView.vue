@@ -49,7 +49,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 
 import markdown from 'markdown-it'
 import micromatch from 'micromatch'
@@ -58,6 +58,7 @@ import YAML from 'yaml'
 
 import DashBoard from './DashBoard.vue'
 import FolderBrowser from './FolderBrowser.vue'
+import SplashPage from './SplashPage.vue'
 
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -73,14 +74,14 @@ const mdRenderer = new markdown({
 
 export default defineComponent({
   name: 'TabbedDashboardView',
-  components: { DashBoard, FolderBrowser },
+  components: { DashBoard, FolderBrowser, SplashPage },
   props: {
     root: { type: String, required: true },
     xsubfolder: { type: String, required: true },
   },
   data: () => {
     return {
-      dashboards: [] as any[],
+      dashboards: {} as any,
       dashboardDataManager: null as DashboardDataManager | null,
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
       isZoomed: false,
@@ -183,7 +184,7 @@ export default defineComponent({
         if (showDashboards) {
           for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
             // add the tab now
-            Vue.set(this.dashboards, fullPath, { header: { tab: '...' } })
+            this.dashboards[fullPath as any] = { header: { tab: '...' } }
             // load the details (title)
             const showThisDashboard = await this.initDashboard(fullPath)
             // and now remove it if it isn't triggered. Yes this order is correct
@@ -192,7 +193,7 @@ export default defineComponent({
         }
 
         // Add FileBrowser as "Files" tab
-        Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
+        this.dashboards['FILE__BROWSER' as any] = { header: { tab: 'Files' } }
 
         // // Start on correct tab
         if (this.$route.query.tab) {

@@ -21,18 +21,18 @@
     .configuration-panels(v-show="showPanels && !showAddDatasets")
       .section-panel
         .actions
-          b-dropdown(v-model="selectedExportAction"
+          o-dropdown(v-model="selectedExportAction"
             aria-role="list" position="is-bottom-left" :close-on-click="true"
             @change="clickedExport"
           )
               template(#trigger="{ active }")
-                b-button.is-small.is-white.export-button()
+                o-button.is-small.is-white.export-button()
                   i.fa.fa-sm.fa-share
                   | &nbsp;Export
-              b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+              o-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
+              o-dropdown-item(value="png" aria-role="listitem") Take screenshot
 
-          b-button.is-small.is-white.export-button(@click="clickedAddData")
+          o-button.is-small.is-white.export-button(@click="clickedAddData")
             i.fa.fa-sm.fa-plus
             | &nbsp;Add Data
 

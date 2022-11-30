@@ -49,22 +49,22 @@
     //- //- Column picker
     //- .filter(:disabled="!datasetValuesColumnOptions.length")
     //-   p Display
-    //-   b-dropdown(v-model="datasetValuesColumn"
+    //-   o-dropdown(v-model="datasetValuesColumn"
     //-     aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
     //-     :scrollable="datasetValuesColumnOptions.length > 10"
     //-     max-height="250"
     //-     @change="handleUserSelectedNewMetric"
     //-   )
     //-     template(#trigger="{ active }")
-    //-       b-button.is-warning(:label="datasetValuesColumn" :icon-right="active ? 'menu-up' : 'menu-down'")
+    //-       o-button.is-warning(:label="datasetValuesColumn" :icon-right="active ? 'menu-up' : 'menu-down'")
 
-    //-     b-dropdown-item(v-for="option in datasetValuesColumnOptions"
+    //-     o-dropdown-item(v-for="option in datasetValuesColumnOptions"
     //-       :key="option" :value="option" aria-role="listitem") {{ option }}
 
     //- Filter pickers
     .filter(v-for="filter in Object.keys(filters)")
       p {{ filter }}
-      b-dropdown(
+      o-dropdown(
         v-model="filters[filter].active"
         :scrollable="filters[filter].active.length > 10"
         max-height="250"
@@ -73,30 +73,30 @@
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
       )
         template(#trigger="{ active }")
-          b-button.is-primary(
+          o-button.is-primary(
             :type="filters[filter].active.length ? '' : 'is-outlined'"
             :label="filterLabel(filter)"
             :icon-right="active ? 'menu-up' : 'menu-down'"
           )
 
-        b-dropdown-item(v-for="option in filters[filter].options"
+        o-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
     //- //- Filter ADDers
     //- .filter(v-if="availableFilterColumns.length")
     //-   p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
-    //-   b-dropdown(v-model="chosenNewFilterColumn"
+    //-   o-dropdown(v-model="chosenNewFilterColumn"
     //-     @change="handleUserCreatedNewFilter"
     //-     :scrollable="availableFilterColumns.length > 10"
     //-     max-height="250"
     //-     aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
     //-   )
     //-     template(#trigger="{ active }")
-    //-       b-button.is-primary.is-outlined(
+    //-       o-button.is-primary.is-outlined(
     //-         label="+"
     //-       )
 
-    //-     b-dropdown-item(v-for="option in availableFilterColumns"
+    //-     o-dropdown-item(v-for="option in availableFilterColumns"
     //-       :key="option" :value="option" aria-role="listitem"
     //-     ) {{ option }}
 

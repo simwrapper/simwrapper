@@ -4,16 +4,16 @@
     .markdown(v-html="notes")
     .flex-row
       p.flex1: b Label
-      b-input.flex5(size="is-small" placeholder="e.g. server1" maxlength="32" v-model="labelField")
+      o-input.flex5(size="is-small" placeholder="e.g. server1" maxlength="32" v-model="labelField")
     .flex-row
       p.flex1: b URL
-      b-input.flex5(size="is-small" placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
+      o-input.flex5(size="is-small" placeholder="http://localhost:8001" maxlength="512" v-model="urlField")
     .flex-row
       p.flex1: b Note
-      b-input.flex5(size="is-small" placeholder="optional" maxlength="255" v-model="noteField")
+      o-input.flex5(size="is-small" placeholder="optional" maxlength="255" v-model="noteField")
     .flex-row
       p.flex1 &nbsp;
-      b-button.is-primary(
+      o-button.is-primary(
         size="is-small"
         :disabled="!isValidURL"
         :type="isValidURL ? '' : 'is-outlined'"
@@ -108,7 +108,7 @@ export default defineComponent({
   margin: 0.5rem 0.25rem 0rem 0;
   color: var(--text);
 
-  b-field {
+  o-field {
     color: white;
   }
 }
@@ -127,7 +127,7 @@ export default defineComponent({
   line-height: 1.3rem;
 }
 
-b-button {
+o-button {
   text-align: right;
 }
 

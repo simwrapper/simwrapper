@@ -2,7 +2,7 @@
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
   .center-area
-    login-panel.login-panel
+    //- login-panel.login-panel
     router-view.main-content
     p.splash-label(v-if="showSplash") • Loading SimWrapper •
 
@@ -38,7 +38,7 @@ import globalStore from '@/store'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
-import LoginPanel from '@/components/LoginPanel.vue'
+// import LoginPanel from '@/components/LoginPanel.vue'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript
@@ -51,7 +51,7 @@ let doThisOnceForLocalFiles = true
 export default defineComponent({
   name: 'SimWrapper',
   i18n,
-  components: { LoginPanel },
+  // components: { LoginPanel },
   data: () => {
     return {
       state: globalStore.state,
@@ -64,7 +64,7 @@ export default defineComponent({
       // {name, description, need_password, svn, thumbnail, url }
       // a '/' will be prepended
       const home: any[] = [{ name: 'scout', url: '' }]
-      const topLinks = home.concat(this.state.svnProjects)
+      const topLinks = [] as any[] //  home.concat(this.state.svnProjects)
 
       return topLinks
     },
@@ -120,16 +120,6 @@ export default defineComponent({
       this.$store.commit('clearAllErrors')
     },
 
-    toggleLocale() {
-      const newLocale = this.state.locale === 'en' ? 'de' : 'en'
-      this.$store.commit('setLocale', newLocale)
-      this.$root.$i18n.locale = newLocale
-    },
-
-    toggleTheme() {
-      this.$store.commit('rotateColors')
-    },
-
     // @Watch('state.isFullScreen') toggleFullScreen(isFullPage: boolean) {
     toggleFullScreen(isFullPage: boolean) {
       if (isFullPage) {
@@ -177,7 +167,7 @@ export default defineComponent({
 @import '~/lil-gui/dist/lil-gui.min.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
 @import '~/vue-slider-component/theme/default.css';
-@import '~/buefy/dist/buefy.css';
+@import '~/@oruga-ui/oruga-next/dist/oruga-full.css';
 
 @import '@/styles.scss';
 
@@ -314,6 +304,14 @@ h3 {
 
 h4 {
   font-size: 1.15rem;
+}
+
+#app {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 #main-app {
@@ -665,7 +663,7 @@ p.splash-label {
   text-align: right;
 }
 
-.b-input-tight input {
+.o-input-tight input {
   padding: 0 0.25rem;
   font-size: 0.9rem;
 }

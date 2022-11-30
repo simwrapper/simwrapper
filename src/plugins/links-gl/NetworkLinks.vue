@@ -94,7 +94,7 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { ToggleButton } from 'vue-js-toggle-button'
+import ToggleButton from 'vue3-toggle-button'
 import { rgb } from 'd3-color'
 import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { shallowEqualObjects } from 'shallow-equal'

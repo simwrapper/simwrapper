@@ -25,7 +25,7 @@
       p {{ section.name }}
 
   //- .hide
-  //-   b-button.button(size="is-small" expanded) <<
+  //-   o-button.button(size="is-small" expanded) <<
 
 </template>
 

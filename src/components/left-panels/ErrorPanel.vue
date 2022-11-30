@@ -23,7 +23,7 @@
 
 
   .bottom-panel
-    b-button.clear-button(
+    o-button.clear-button(
       v-if="state.statusErrors.length || state.statusWarnings.length"
       expanded
       @click="clearAllButtons()"

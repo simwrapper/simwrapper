@@ -9,22 +9,22 @@
     // theme ------------------
     .option
       h5 {{ $t('theme') }}
-      b-button.button.is-white(@click="setTheme('light')"
+      o-button.button.is-white(@click="setTheme('light')"
         outlined
         :style="isLight") {{ $t('light') }}
 
-      b-button.button.is-gray(@click="setTheme('dark')"
+      o-button.button.is-gray(@click="setTheme('dark')"
         outlined
         :style="isDark") {{ $t('dark') }}
 
     // language ---------------
     .option
       h5 {{ $t('language') }}
-      b-button.button.is-white(@click="setLanguage('en')"
+      o-button.button.is-white(@click="setLanguage('en')"
         outlined
         :style="isEN") EN
 
-      b-button.button.is-gray(@click="setLanguage('de')"
+      o-button.button.is-gray(@click="setLanguage('de')"
         outlined
         :style="isDE") DE
 

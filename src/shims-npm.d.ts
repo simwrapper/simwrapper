@@ -1,36 +1,4 @@
-declare module '*.vue' {
-  import Vue from 'vue'
-  export default Vue
-}
-
-declare module '*.vert' {
-  const content: string
-  export default content
-}
-
-declare module '*.frag' {
-  const content: string
-  export default content
-}
-
-// import markdown files directly, they become vue components using vue-plugin-md
-declare module '*.md' {
-  import { ComponentOptions } from 'vue'
-  const Component: ComponentOptions
-  export default Component
-}
-
-// this allows import of raw text files using raw-loader
-// e.g: import myTxt from 'raw-loader!./mytextfile.txt'
-declare module 'raw-loader!*' {
-  const content: string
-  export default content
-}
-
-declare module 'yaml-loader!*' {
-  const content: any
-  export default content
-}
+/// <reference types="vite/client" />
 
 declare module 'bulma-slider'
 declare module 'colormap'
@@ -38,6 +6,7 @@ declare module 'convert-seconds'
 declare module 'd3-color'
 declare module 'epsg'
 declare module 'javascript-natural-sort'
+declare module 'markdown-it'
 declare module 'plotly.js/dist/plotly-cartesian'
 declare module 'read-blob'
 declare module 'reproject'

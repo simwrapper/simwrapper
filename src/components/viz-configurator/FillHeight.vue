@@ -2,7 +2,7 @@
 .width-panel
   .widgets
     .widget
-        b-select.selector(expanded v-model="dataColumn")
+        o-select.selector(expanded v-model="dataColumn")
           option(label="None" value="^")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
@@ -15,7 +15,7 @@
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
         p.tight Normalize by
-        b-select.selector(expanded v-model="normalSelection")
+        o-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
@@ -23,8 +23,8 @@
   .widgets
     .widget
       p Scaling
-      b-field
-        b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
+      o-field
+        o-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
 </template>
 
