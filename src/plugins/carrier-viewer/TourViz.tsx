@@ -57,8 +57,8 @@ const DRT_REQUEST = {
 
 export default function Component(props: {
   shipments: any[]
-  currentTour: any[]
-  stopMidpoints: any[]
+  legs: any[]
+  stopActivities: any[]
   paths: any[]
   drtRequests: any[]
   traces: any[]
@@ -73,7 +73,7 @@ export default function Component(props: {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
 
-  const { dark, shipments, currentTour, stopMidpoints, center, searchEnabled, onClick } = props
+  const { dark, shipments, legs, stopActivities, center, searchEnabled, onClick } = props
 
   const theme = DEFAULT_THEME
 
@@ -188,7 +188,7 @@ export default function Component(props: {
     //@ts-ignore:
     new PathLayer({
       id: 'shipmentLocationDashedLine',
-      data: stopMidpoints,
+      data: stopActivities,
       getPath: (d: any) => [d.ptFrom, d.ptTo],
       getColor: [192, 192, 192],
       getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -214,7 +214,7 @@ export default function Component(props: {
     //@ts-ignore:
     new PathOffsetLayer({
       id: 'deliveryroutes',
-      data: currentTour,
+      data: legs,
       getPath: (d: any) => d.points,
       getColor: (d: any) => d.color,
       getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
@@ -238,7 +238,7 @@ export default function Component(props: {
     //@ts-ignore
     new IconLayer({
       id: 'dest-circles',
-      data: stopMidpoints,
+      data: stopActivities,
       getIcon: (d: any) => 'circle',
       getColor: (d: any) => (d.count ? [255, 255, 255] : [255, 255, 0]), // [64, 255, 64]), // d.color,
       getPosition: (d: any) => d.midpoint,
@@ -262,7 +262,7 @@ export default function Component(props: {
     //@ts-ignore
     new TextLayer({
       id: 'dest-labels',
-      data: stopMidpoints,
+      data: stopActivities,
       backgroundColor: [255, 255, 255],
       getColor: [0, 0, 0],
       getPosition: (d: any) => d.midpoint,

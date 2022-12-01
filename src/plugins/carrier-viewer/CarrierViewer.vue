@@ -8,8 +8,8 @@
 
   tour-viz.anim(v-if="!thumbnail"
                 :shipments="shownShipments"
-                :currentTour="currentTour"
-                :stopMidpoints="stopMidpoints"
+                :legs="shownLegs"
+                :stopActivities="stopActivities"
                 :paths="[]"
                 :drtRequests="[]"
                 :dark="globalState.isDarkMode"
@@ -21,8 +21,6 @@
                 :onClick="handleClick")
 
   ZoomButtons(v-if="!thumbnail")
-
-
 
   collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
 
@@ -135,10 +133,6 @@ import {
   ColorScheme,
 } from '@/Globals'
 
-import { VuePlugin } from 'vuera'
-import { any } from 'micromatch'
-Vue.use(VuePlugin)
-
 naturalSort.insensitive = true
 
 @Component({
@@ -219,11 +213,9 @@ class CarrierPlugin extends Vue {
   private vehicles: any[] = []
   private shipments: any[] = []
   private services: any[] = []
-  private stopMidpoints: any[] = []
+  private stopActivities: any[] = []
   private tours: any[] = []
-  private currentTour: any[] = []
-  private allShownTours: any[] = []
-  private currentLegOfTour: any[] = []
+  private shownLegs: { count: number; points: number[][]; tour: any; color: number[] }[] = []
   private shownShipments: any[] = []
   private shipmentIdsInTour: any[] = []
 
@@ -252,63 +244,42 @@ class CarrierPlugin extends Vue {
 
   private currentlyAnimating: any = {}
 
-  private async handleSelectTour(tour: any) {
-    console.log({ tour })
-
-    this.currentlyAnimating = tour
-
-    //XXXX WHAT ARE THESE
-    //this.shownShipments = []
-    //this.selectedShipment = null
-    //this.shipmentIdsInTour = []
-    //this.stopMidpoints = []
-
-    //this unselects tour if user clicks the same tour again
-    if (this.selectedTours.includes(tour)) {
-      this.selectedTours = this.selectedTours.filter(element => element !== tour)
-      return
-    }
-
-    this.selectedTours.push(tour)
-    console.log(this.selectedTours)
-
+  private findShipmentsInTour(tour: any): {
+    shipmentIdsInTour: any[]
+    stopActivities: any[]
+  } {
     // find shipment components
-    const inTour: any[] = []
-    const stopMidpoints: any[] = []
+    const shipmentIdsInTour: any[] = []
+    const stopActivities: any[] = []
 
     let stopCount = 0
 
     for (const activity of tour.plan) {
       if (activity.$shipmentId) {
-        inTour.push(activity.$shipmentId)
+        shipmentIdsInTour.push(activity.$shipmentId)
 
         // build list of stop locations -- this is inefficient, should use a map not an array
         const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
         const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
-        // skip duplicate pickups/dropoffs at this location
-        if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
+
+        // ignore duplicate pickups/dropoffs at this location
+        if (stopActivities.length && stopActivities[stopActivities.length - 1].link === link) {
           continue
         }
+
         const ptFrom = [this.links[link][0], this.links[link][1]]
         const ptTo = [this.links[link][2], this.links[link][3]]
 
-        const midpoint = [
-          0.5 * (this.links[link][0] + this.links[link][2]),
-          0.5 * (this.links[link][1] + this.links[link][3]),
-        ]
+        const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
 
-        const details = Object.assign({}, shipment)
-        delete details.from
-        delete details.fromX
-        delete details.fromY
-        delete details.to
-        delete details.toX
-        delete details.toY
-        delete details.id
+        // get details: remove coords, IDs, that we don't need to show the user in UI.
+        const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
 
-        stopMidpoints.push({
+        const actType = activity.$type === 'pickup' ? this.$t('pickup') : this.$t('delivery')
+
+        stopActivities.push({
           id: shipment.$id,
-          type: activity.$type === 'pickup' ? this.$t('pickup') : this.$t('delivery'),
+          type: actType,
           count: stopCount++,
           link,
           midpoint,
@@ -316,113 +287,114 @@ class CarrierPlugin extends Vue {
           details,
           ptFrom,
           ptTo,
+          tour,
         })
       }
     }
 
     // set stop labels: use commas to separate stop numbers if they're identical
-    for (let sCount = 0; sCount < stopMidpoints.length; sCount++) {
+    for (let sCount = 0; sCount < stopActivities.length; sCount++) {
       let label = ''
       for (let i = 0; i < sCount; i++) {
         if (
-          stopMidpoints[sCount].midpoint[0] === stopMidpoints[i].midpoint[0] &&
-          stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
+          stopActivities[sCount].midpoint[0] === stopActivities[i].midpoint[0] &&
+          stopActivities[sCount].midpoint[1] === stopActivities[i].midpoint[1]
         ) {
           label += `,${i}`
           if (label === ',0') label = ',*'
-          stopMidpoints[sCount].label = ''
+          stopActivities[sCount].label = ''
         }
       }
       label = label + `,${sCount}`
       label = label.slice(1)
       if (label === '0') label = '*'
 
-      stopMidpoints[sCount].label = label
-      console.log(stopMidpoints)
+      stopActivities[sCount].label = label
+    }
+    console.log({ shipmentIdsInTour, stopActivities })
+
+    return { shipmentIdsInTour, stopActivities }
+  }
+
+  // -----------------------------------------------------------------------
+
+  private async handleSelectTour(tour: any) {
+    console.log({ tour })
+
+    this.currentlyAnimating = tour
+
+    //this unselects tour if user clicks an already-selected tour again
+    if (this.selectedTours.includes(tour)) {
+      this.selectedTours = this.selectedTours.filter(element => element !== tour)
+      this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
+      this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
+      return
     }
 
-    this.shipmentIdsInTour = inTour
-    // this.stopMidpoints = stopMidpoints
+    this.selectedTours.push(tour)
+    console.log(this.selectedTours)
 
-    // always pick the same "random" colors
-    const colors = colorMap({
-      colormap: 'summer',
-      nshades: Math.max(9, tour.routes.length),
-      format: 'rba',
-    }).map((a: any) => a.slice(0, 3))
+    const { shipmentIdsInTour, stopActivities } = this.findShipmentsInTour(tour)
+
+    this.shipmentIdsInTour = shipmentIdsInTour
 
     let count_route = 0
     let count_tour = 0
 
-    const sleep = (milliseconds: number) => {
-      return new Promise(resolve => setTimeout(resolve, milliseconds))
-    }
-
     // sets the drawing speed of the legs of the tour, if the tour has a lot of legs they are drawn more quickly
     const animationSpeed = tour.routes.length > 20 ? 25 : 50
 
-    // route refers to the specific path of the leg of the tour
-    if (this.selectedTours.length == 1) {
-      this.currentTour = []
-      for (const route of tour.routes) {
-        this.addRouteToMap(tour, route, stopMidpoints, colors, count_route, count_tour)
-        count_route++
-        //await sleep(animationSpeed)
-      }
-    } else {
-      this.allShownTours.push(this.currentTour)
-      for (const t of this.selectedTours) {
-        for (const route of t.routes) {
-          this.addRouteToMap(t, route, stopMidpoints, colors, count_route, count_tour)
-          count_route++
-          //await sleep(animationSpeed)
-        }
-        count_tour++
-      }
-    }
-    this.stopMidpoints = stopMidpoints
+    // always pick the same "random" colors
+    const rgb = colorMap({
+      colormap: 'rainbow-soft',
+      nshades: 12,
+      format: 'rba',
+    })
+      .map((a: any) => a.slice(0, 3))
+      .reverse()
 
-    // console.log({ shownTours: this.shownTours })
+    // Add all legs from all routes of this tour to the map
+    for (const route of tour.routes) {
+      this.addRouteToMap(tour, route, stopActivities, rgb, count_route, count_tour)
+      count_route++
+    }
+    count_tour++
+
+    // add final stop locations at the very end
+    this.stopActivities = stopActivities
   }
 
   private addRouteToMap(
     tour: any,
     route: any,
     stopLocations: any[],
-    colors: any,
+    rgbColors: any,
     count_route: number,
     count_tour: number
   ) {
-    //if (this.currentlyAnimating !== tour) return
+    if (this.currentlyAnimating !== tour) return
 
     // starting point from xy:[0,1]
     const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
     for (const link of route) {
       const fromXY = [this.links[link][0], this.links[link][1]]
-      // add from point if it isn't a duplicate
+
+      // add from-point if it isn't a duplicate
       if (
         fromXY[0] !== points[points.length - 1][0] ||
         fromXY[1] !== points[points.length - 1][1]
       ) {
         points.push(fromXY)
       }
-      // always push toXY: xy:[2,3]
+
+      // always add to-point: xy:[2,3]
       points.push([this.links[link][2], this.links[link][3]])
     }
 
-    this.stopMidpoints = stopLocations.slice(0, count_route)
-
-    if (this.selectedTours.length == 1) {
-      this.currentLegOfTour = this.currentLegOfTour.concat([
-        { count_route, points, color: colors[count_route] },
-      ])
-      this.currentTour = this.currentLegOfTour
-    } else {
-      this.currentLegOfTour = this.currentLegOfTour.concat([
-        { count_route, points, color: colors[count_tour] },
-      ])
-      this.currentTour.push(this.currentLegOfTour)
-    }
+    this.shownLegs = this.shownLegs.concat([
+      { tour, count: count_route, points, color: rgbColors[tour.tourNumber % rgbColors.length] },
+    ])
+    this.stopActivities = stopLocations.slice(0, count_route)
   }
 
   private handleSelectCarrier(carrier: any) {
@@ -435,11 +407,11 @@ class CarrierPlugin extends Vue {
     this.shipments = []
     this.services = []
     this.tours = []
-    this.currentLegOfTour = []
     this.shownShipments = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
-    this.stopMidpoints = []
+    this.stopActivities = []
+    this.shownLegs = []
 
     // unselect carrier
     if (this.selectedCarrier === id) {
@@ -468,7 +440,7 @@ class CarrierPlugin extends Vue {
   private processTours(carrier: any) {
     if (!carrier.plan?.tour?.length) return []
 
-    const tours: any[] = carrier.plan.tour.map((tour: any) => {
+    const tours: any[] = carrier.plan.tour.map((tour: any, i: number) => {
       // reconstitute the plan. Our XML library builds
       // two arrays: one for acts and one for legs.
       // We need them stitched back together in the correct order.
@@ -489,10 +461,15 @@ class CarrierPlugin extends Vue {
         vehicleId: tour.$vehicleId,
         plan,
         routes,
+        tourNumber: 0,
       }
     })
 
     tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
+
+    // now assign them numbers based on their sorted order
+    tours.forEach((tour, i) => (tour.tourNumber = i))
+
     return tours
   }
 
