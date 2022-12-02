@@ -2,80 +2,53 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
+import { ArcLayer, ScatterplotLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
+// -------------------------------------------------------------
+// Tour viz has several layers, top to bottom:
+//
+// - shipments (arc layer, orig->destination)
+// - destination text on top of circles
+// - destination circles
+// - delivery legs (path layer, each leg is its own path)
+// - shipment link (dashed line on stopActivity link itself)
+
+interface Shipment {
+  $id: string
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+}
+
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  infoPin: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  box: { x: 128, y: 128, width: 128, height: 128, mask: false },
-  vehicle: { x: 0, y: 128, width: 128, height: 128, mask: false },
-}
-
-const ambientLight = new AmbientLight({
-  color: [255, 255, 255],
-  intensity: 1.0,
-})
-
-const pointLight = new PointLight({
-  color: [255, 255, 255],
-  intensity: 2.0,
-  position: [-74.05, 40.7, 8000],
-})
-
-const lightingEffect = new LightingEffect({ ambientLight, pointLight })
-
-const DEFAULT_THEME = {
-  vehicleColor: [200, 130, 250],
-  trailColor0: [235, 235, 25],
-  trailColor1: [23, 184, 190],
-  effects: [lightingEffect],
-}
-
-const INITIAL_VIEW_STATE = {
-  latitude: 52.5,
-  longitude: 13.4,
-  zoom: 9,
-  pitch: 15,
-  minZoom: 1,
-  maxZoom: 23,
-}
-
-const DRT_REQUEST = {
-  time: 0,
-  fromX: 1,
-  fromY: 2,
-  toX: 3,
-  toY: 4,
-  veh: 5,
-  arrival: 6,
 }
 
 export default function Component(props: {
-  shipments: any[]
+  shipments: Shipment[]
   legs: any[]
   stopActivities: any[]
-  paths: any[]
-  drtRequests: any[]
-  traces: any[]
   colors: any
   center: [number, number]
-  vehicleLookup: string[]
-  searchEnabled: boolean
   onClick: any
   viewId: number
+  simplifyTours: boolean
   dark: boolean
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
+  const [pickupsAndDeliveries, setPickupsAndDeliveries] = useState({
+    pickups: [] as any[],
+    deliveries: [] as any[],
+  })
 
-  const { dark, shipments, legs, stopActivities, center, searchEnabled, onClick } = props
-
-  const theme = DEFAULT_THEME
+  const { dark, shipments, legs, simplifyTours, stopActivities, center, onClick } = props
 
   const layers: any = []
 
@@ -84,6 +57,19 @@ export default function Component(props: {
   REACT_VIEW_HANDLES[props.viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
+
+  // update pickups and deliveries only when shipments change ----------------------
+  useEffect(() => {
+    console.log('runs whenever shipments changes')
+    const pickups = new Set()
+    const deliveries = new Set()
+    shipments.forEach(shipment => {
+      console.log(shipment)
+      pickups.add([shipment.fromX, shipment.fromY])
+      deliveries.add([shipment.toX, shipment.toY])
+    })
+    setPickupsAndDeliveries({ pickups: [...pickups], deliveries: [...deliveries] })
+  }, [shipments])
 
   function handleClick() {
     console.log(hoverInfo)
@@ -172,7 +158,7 @@ export default function Component(props: {
               return (
                 <tr key={a}>
                   <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
-                    {a}:
+                    {a.slice(1)}:
                   </td>
                   <td style={{ paddingTop: '0.2rem' }}>{object.details[a]}</td>
                 </tr>
@@ -201,37 +187,53 @@ export default function Component(props: {
       autoHighlight: false,
       highlightColor: [255, 255, 255], // [64, 255, 64],
       // onHover: setHoverInfo,
-      parameters: {
-        depthTest: false,
-      },
+      parameters: { depthTest: false },
       getDashArray: [3, 2],
       dashJustified: true,
       extensions: [new PathStyleExtension({ dash: true })],
     })
   )
 
-  layers.push(
-    //@ts-ignore:
-    new PathOffsetLayer({
-      id: 'deliveryroutes',
-      data: legs,
-      getPath: (d: any) => d.points,
-      getColor: (d: any) => d.color,
-      getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
-      opacity: 1,
-      widthMinPixels: 12,
-      rounded: true,
-      shadowEnabled: false,
-      // searchFlag: searchEnabled ? 1.0 : 0.0,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 255, 255], // [64, 255, 64],
-      onHover: setHoverInfo,
-      parameters: {
-        depthTest: false,
-      },
-    })
-  )
+  if (simplifyTours) {
+    layers.push(
+      //@ts-ignore:
+      new ArcLayer({
+        id: 'leg-arcs',
+        data: legs,
+        getSourcePosition: (d: any) => d.points[0],
+        getTargetPosition: (d: any) => d.points[d.points.length - 1],
+        getHeight: 0.25,
+        getSourceColor: [200, 32, 224],
+        getTargetColor: [200, 32, 224],
+        getWidth: 2.0,
+        opacity: 0.75,
+        parameters: { depthTest: false },
+      })
+    )
+  } else {
+    layers.push(
+      //@ts-ignore:
+      new PathOffsetLayer({
+        id: 'deliveryroutes',
+        data: legs,
+        getPath: (d: any) => d.points,
+        getColor: (d: any) => d.color,
+        getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+        opacity: 1,
+        widthMinPixels: 6,
+        rounded: true,
+        shadowEnabled: false,
+        // searchFlag: searchEnabled ? 1.0 : 0.0,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255], // [64, 255, 64],
+        onHover: setHoverInfo,
+        parameters: {
+          depthTest: false,
+        },
+      })
+    )
+  }
 
   // destination circles
   layers.push(
@@ -240,9 +242,9 @@ export default function Component(props: {
       id: 'dest-circles',
       data: stopActivities,
       getIcon: (d: any) => 'circle',
-      getColor: (d: any) => (d.count ? [255, 255, 255] : [255, 255, 0]), // [64, 255, 64]), // d.color,
+      getColor: (d: any) => (d.count ? [255, 255, 255] : [128, 255, 255]), // [64, 255, 64]), // d.color,
       getPosition: (d: any) => d.midpoint,
-      getSize: (d: any) => (d.count ? 38 : 64),
+      getSize: (d: any) => (d.count ? 30 : 50),
       opacity: 1,
       shadowEnabled: true,
       noAlloc: false,
@@ -268,7 +270,7 @@ export default function Component(props: {
       getPosition: (d: any) => d.midpoint,
       getText: (d: any) => `${d.label}`,
       getTextAnchor: 'middle',
-      getSize: 18,
+      getSize: 12,
       opacity: 1.0,
       noAlloc: false,
       sizeScale: 1,
@@ -277,6 +279,39 @@ export default function Component(props: {
     })
   )
 
+  // pickups and deliveries
+
+  layers.push(
+    //@ts-ignore:
+    new ScatterplotLayer({
+      id: 'deliveries',
+      data: pickupsAndDeliveries.deliveries,
+      // filled: true,
+      getPosition: (d: any) => d,
+      getColor: [0, 192, 0],
+      getRadius: 4,
+      opacity: 0.9,
+      parameters: { depthTest: false },
+      radiusUnits: 'pixels',
+    })
+  )
+  layers.push(
+    //@ts-ignore:
+    new ScatterplotLayer({
+      id: 'pickups',
+      data: pickupsAndDeliveries.pickups,
+      // filled: true,
+      getPosition: (d: any) => d,
+      getColor: [240, 96, 0],
+      getRadius: 4,
+      opacity: 0.9,
+      parameters: { depthTest: false },
+      radiusUnits: 'pixels',
+    })
+  )
+
+  const transparency = shipments.length > 1 ? 32 : 255
+
   layers.push(
     //@ts-ignore:
     new ArcLayer({
@@ -284,21 +319,17 @@ export default function Component(props: {
       data: shipments,
       getSourcePosition: (d: any) => [d.fromX, d.fromY],
       getTargetPosition: (d: any) => [d.toX, d.toY],
-      getSourceColor: [255, 0, 255],
-      getTargetColor: [200, 255, 255],
+      getSourceColor: [240, 96, 0, transparency],
+      getTargetColor: [0, 228, 128, 192],
       getWidth: 2.0,
       opacity: 0.75,
-      // searchFlag: searchEnabled ? 1.0 : 0.0,
-      parameters: {
-        depthTest: false,
-      },
+      parameters: { depthTest: false },
     })
   )
 
   return (
     <DeckGL
       layers={layers}
-      effects={theme.effects}
       pickingRadius={5}
       controller={true}
       getCursor={() => 'pointer'}

@@ -2,73 +2,68 @@
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .nav(v-if="!thumbnail")
-    //- p.big.xtitle {{ vizDetails.title }}
-    p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
+  .main-panel
+    tour-viz.anim(v-if="!thumbnail"
+                  :shipments="shownShipments"
+                  :legs="shownLegs"
+                  :stopActivities="stopActivities"
+                  :dark="globalState.isDarkMode"
+                  :center="vizDetails.center"
+                  :searchEnabled="searchEnabled"
+                  :viewId="linkLayerId"
+                  :simplifyTours="simplifyTours"
+                  :onClick="handleClick")
+    ZoomButtons(v-if="!thumbnail")
 
-  tour-viz.anim(v-if="!thumbnail"
-                :shipments="shownShipments"
-                :legs="shownLegs"
-                :stopActivities="stopActivities"
-                :paths="[]"
-                :drtRequests="[]"
-                :dark="globalState.isDarkMode"
-                :traces="[]"
-                :center="vizDetails.center"
-                :searchEnabled="searchEnabled"
-                :vehicleLookup="vehicleLookup"
-                :viewId="linkLayerId"
-                :onClick="handleClick")
+  .right-panel(v-if="!thumbnail" :darkMode="true")
 
-  ZoomButtons(v-if="!thumbnail")
 
-  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
-
-    .panel-items
-
-      h3(v-if="carriers.length") {{ $t('carriers')}}
+      h4(v-if="carriers.length") {{ $t('carriers')}}
 
       .carrier-list
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
                 :class="{selected: carrier.$id===selectedCarrier}")
           .carrier-title(@click="handleSelectCarrier(carrier)")
-            i.far(:class="carrier.$id===selectedCarrier ? 'fa-minus-square' : 'fa-plus-square'")
             span {{ carrier.$id }}
 
-          .carrier-details(v-if="carrier.$id===selectedCarrier")
+      h4 {{ selectedCarrier || 'Details' }}
 
-            .carrier-section(v-if="tours.length")
-              .carrier-title(@click="toggleTours = !toggleTours")
-                i.far(:class="toggleTours ? 'fa-minus-square' : 'fa-plus-square'")
-                span {{ $t('tours')}}: {{ tours.length}}
 
-              .leaf.tour(v-for="tour,i in visibleTours" :key="i"
-                          @click="handleSelectTour(tour)"
-                          :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
+      b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
 
-            .carrier-section(v-if="vehicles.length")
-              .carrier-title(@click="toggleVehicles = !toggleVehicles")
-                i.far(:class="toggleVehicles ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('vehicles')}}: {{ vehicles.length}}
+        b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+          span {{ $t('shipments') }}
+        b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
+          span {{ $t('tours') }}
+        b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
+          span {{ $t('vehicles') }}
+        b-radio-button(v-if="this.services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+          span {{ $t('services') }}
 
-              .leaf.tour(v-for="veh in toggleVehicles ? vehicles:[]" :key="veh") {{ veh }}
+      .detail-area
+        .shipments(v-if="activeTab=='shipments'")
+            span {{ $t('shipments')}}: {{ shipments.length}}
+            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
+                @click="handleSelectShipment(shipment)"
+                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
+            ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
 
-            .carrier-section(v-if="shipments.length")
-              .carrier-title(@click="toggleShipments = !toggleShipments")
-                i.far(:class="toggleShipments ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('shipments')}}: {{ shipments.length}}
+        .tours(v-if="activeTab=='tours'")
+            span {{ $t('tours')}}: {{ tours.length}}
+            .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
+                @click="handleSelectTour(tour)"
+                :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
 
-              .leaf.tour(v-for="shipment in toggleShipments ? shipments:[]" :key="shipment.$id"
-                              @click="handleSelectShipment(shipment)"
-                              :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
-              ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
+        .vehicles(v-if="activeTab=='vehicles'")
+            span {{ $t('vehicles')}}: {{ vehicles.length}}
+            .leaf.tour(v-for="veh,i in vehicles" :key="`${i}-${veh}`") {{ veh }}
 
-            .carrier-section(v-if="services.length")
-              .carrier-title(@click="toggleServices = !toggleServices")
-                i.far(:class="toggleServices ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('services')}}: {{ services.length}}
+        .services(v-if="activeTab=='services'")
+            span {{ $t('services')}}: {{ services.length}}
+            .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
-              .leaf.tour(v-for="service in toggleServices ? services:[]" :key="service.$id") {{ `${service.$id}` }}
+      .switches
+        b-switch(v-model="simplifyTours") Simplify Tours
 
 </template>
 
@@ -167,6 +162,8 @@ class CarrierPlugin extends Vue {
 
   private linkLayerId = Math.random()
 
+  private simplifyTours = false
+
   private vizDetails = {
     network: '',
     carriers: '',
@@ -194,6 +191,7 @@ class CarrierPlugin extends Vue {
   private globalState = globalStore.state
   private isLoaded = true
   private showHelp = false
+  private activeTab = 'shipments'
 
   private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
   private speed = 1
@@ -235,6 +233,14 @@ class CarrierPlugin extends Vue {
     if (this.selectedShipment === shipment) {
       this.selectedShipment = null
       this.shownShipments = []
+
+      // if everything is deselected, reset view
+      if (!this.selectedTours.length) {
+        const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
+        this.selectedCarrier = ''
+        this.handleSelectCarrier(carrier[0])
+      }
+
       return
     }
 
@@ -323,11 +329,21 @@ class CarrierPlugin extends Vue {
 
     this.currentlyAnimating = tour
 
+    this.shownShipments = []
+
     //this unselects tour if user clicks an already-selected tour again
     if (this.selectedTours.includes(tour)) {
       this.selectedTours = this.selectedTours.filter(element => element !== tour)
       this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
       this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
+
+      // if everything is deselected, reset view
+      if (!this.selectedTours.length) {
+        const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
+        this.selectedCarrier = ''
+        this.handleSelectCarrier(carrier[0])
+      }
+
       return
     }
 
@@ -346,12 +362,13 @@ class CarrierPlugin extends Vue {
 
     // always pick the same "random" colors
     const rgb = colorMap({
-      colormap: 'rainbow-soft',
+      colormap: 'hsv',
       nshades: 12,
       format: 'rba',
     })
       .map((a: any) => a.slice(0, 3))
       .reverse()
+      .slice(2)
 
     // Add all legs from all routes of this tour to the map
     for (const route of tour.routes) {
@@ -435,6 +452,9 @@ class CarrierPlugin extends Vue {
     // console.log(this.services)
 
     this.tours = this.processTours(carrier)
+
+    // select all shipments
+    this.shownShipments = this.shipments
   }
 
   private processTours(carrier: any) {
@@ -529,12 +549,6 @@ class CarrierPlugin extends Vue {
       throw Error
     }
     return svnProject[0]
-  }
-
-  private get visibleTours() {
-    if (this.toggleTours) return this.tours
-
-    return []
   }
 
   private async getVizDetails() {
@@ -861,32 +875,53 @@ export default CarrierPlugin
 
 /* And this works on Chrome/Edge/Safari */
 *::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 *::-webkit-scrollbar-track {
   background: var(--bgPanel3);
 }
 *::-webkit-scrollbar-thumb {
   background-color: var(--textVeryPale);
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .carrier-viewer {
-  display: grid;
+  display: flex;
   pointer-events: none;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    'title      rightside'
-    'leftside   rightside'
-    'playback   clock';
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
 .carrier-viewer.hide-thumbnail {
   background: none;
+}
+
+.main-panel {
+  flex: 1;
+  position: relative;
+}
+
+h4 {
+  border-top: 1px solid #bbb;
+  margin: 1rem 0.25rem 0.5rem 0.25rem;
+  padding-top: 0.25rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.right-panel {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  background-color: var(--bgPanel);
+  width: 20rem;
+  max-width: 20rem;
 }
 
 .nav {
@@ -936,38 +971,14 @@ export default CarrierPlugin
   font-weight: bold;
 }
 
-.left-side {
-  position: absolute;
-  top: 70%;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  color: var(--text);
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  filter: $filterShadow;
-}
-
-.right-side {
-  position: absolute;
-  top: 0rem;
-  bottom: 0rem;
-  right: 0;
-  margin: 10rem 0 3.5rem 0;
-  color: var(--text);
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  pointer-events: auto;
-}
-
 .anim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background-color: #181919;
   z-index: 0;
-  grid-column: 1 / 3;
-  grid-row: 1 / 7;
   pointer-events: auto;
 }
 
@@ -1000,6 +1011,8 @@ export default CarrierPlugin
   flex-direction: column;
   margin: 0 0;
   max-height: 100%;
+  height: 100%;
+  width: 100%;
 }
 
 .panel-items h3 {
@@ -1073,6 +1086,15 @@ input {
   cursor: pointer;
 }
 
+.detail-area {
+  user-select: none;
+  position: relative;
+  flex: 1;
+  overflow-x: hidden;
+  cursor: pointer;
+  margin: 0 0.25rem;
+}
+
 .carrier-section {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
@@ -1102,9 +1124,9 @@ input {
 }
 
 .tour.selected {
-  background-color: white;
+  background-color: var(--textFancy);
   font-weight: bold;
-  color: $matsimBlue;
+  color: var(--bgPanel3);
 }
 
 .shipment-in-tour {
@@ -1123,6 +1145,14 @@ input {
   line-height: 0.8rem;
   background-color: var(--bgPanel);
   color: var(--text);
+}
+
+.switches {
+  margin: 0.5rem 0.25rem 0.25rem auto;
+}
+
+.detail-buttons {
+  margin: 0 0.25rem 0.5rem 0.25rem;
 }
 
 @media only screen and (max-width: 640px) {
