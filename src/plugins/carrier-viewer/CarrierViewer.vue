@@ -4,14 +4,14 @@
 
   .main-panel
     tour-viz.anim(v-if="!thumbnail"
+                  :activeTab="activeTab"
                   :shipments="shownShipments"
                   :legs="shownLegs"
                   :stopActivities="stopActivities"
                   :dark="globalState.isDarkMode"
                   :center="vizDetails.center"
-                  :searchEnabled="searchEnabled"
                   :viewId="linkLayerId"
-                  :simplifyTours="simplifyTours"
+                  :settings="vizSettings"
                   :onClick="handleClick")
     ZoomButtons(v-if="!thumbnail")
 
@@ -22,11 +22,12 @@
 
       .carrier-list
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
-                :class="{selected: carrier.$id===selectedCarrier}")
-          .carrier-title(@click="handleSelectCarrier(carrier)")
-            span {{ carrier.$id }}
+                :class="{selected: carrier.$id===selectedCarrier}"
+                @click="handleSelectCarrier(carrier)"
+        )
+          .carrier-title {{ carrier.$id }}
 
-      h4 {{ selectedCarrier || 'Details' }}
+      h4 {{ selectedCarrier || 'Explore' }}
 
 
       b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
@@ -63,7 +64,8 @@
             .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
       .switches
-        b-switch(v-model="simplifyTours") Simplify Tours
+        b-switch(v-model="vizSettings.scaleShipmentSizes") Scale by Size
+        b-switch(v-model="vizSettings.simplifyTours") Simplify Tours
 
 </template>
 
@@ -162,7 +164,10 @@ class CarrierPlugin extends Vue {
 
   private linkLayerId = Math.random()
 
-  private simplifyTours = false
+  private vizSettings = {
+    simplifyTours: false,
+    scaleShipmentSizes: true,
+  }
 
   private vizDetails = {
     network: '',
@@ -248,8 +253,6 @@ class CarrierPlugin extends Vue {
     this.selectedShipment = shipment
   }
 
-  private currentlyAnimating: any = {}
-
   private findShipmentsInTour(tour: any): {
     shipmentIdsInTour: any[]
     stopActivities: any[]
@@ -323,13 +326,25 @@ class CarrierPlugin extends Vue {
   }
 
   // -----------------------------------------------------------------------
+  private selectAllTours() {
+    for (const t of this.tours) {
+      let count_route = 0
+      for (const route of t.routes) this.addRouteToMap(t, route, [], count_route++)
+    }
+  }
+
+  // always pick the same "random" colors
+  private rgb = colorMap({
+    colormap: 'hsv',
+    nshades: 12,
+    format: 'rba',
+  })
+    .map((a: any) => a.slice(0, 3))
+    .reverse()
+    .slice(2)
 
   private async handleSelectTour(tour: any) {
     console.log({ tour })
-
-    this.currentlyAnimating = tour
-
-    this.shownShipments = []
 
     //this unselects tour if user clicks an already-selected tour again
     if (this.selectedTours.includes(tour)) {
@@ -337,14 +352,17 @@ class CarrierPlugin extends Vue {
       this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
       this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
 
-      // if everything is deselected, reset view
-      if (!this.selectedTours.length) {
-        const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
-        this.selectedCarrier = ''
-        this.handleSelectCarrier(carrier[0])
-      }
+      // if everything is deselected, EVERYTHING is selected! :-O
+      if (!this.selectedTours.length) this.selectAllTours()
 
       return
+    }
+
+    // if this is the first selected tour, remove everything else first
+    if (!this.selectedTours.length) {
+      this.selectedTours = []
+      this.shownLegs = []
+      this.stopActivities = []
     }
 
     this.selectedTours.push(tour)
@@ -354,43 +372,17 @@ class CarrierPlugin extends Vue {
 
     this.shipmentIdsInTour = shipmentIdsInTour
 
-    let count_route = 0
-    let count_tour = 0
-
-    // sets the drawing speed of the legs of the tour, if the tour has a lot of legs they are drawn more quickly
-    const animationSpeed = tour.routes.length > 20 ? 25 : 50
-
-    // always pick the same "random" colors
-    const rgb = colorMap({
-      colormap: 'hsv',
-      nshades: 12,
-      format: 'rba',
-    })
-      .map((a: any) => a.slice(0, 3))
-      .reverse()
-      .slice(2)
-
     // Add all legs from all routes of this tour to the map
+    let count_route = 0
     for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopActivities, rgb, count_route, count_tour)
-      count_route++
+      this.addRouteToMap(tour, route, stopActivities, count_route++)
     }
-    count_tour++
 
     // add final stop locations at the very end
     this.stopActivities = stopActivities
   }
 
-  private addRouteToMap(
-    tour: any,
-    route: any,
-    stopLocations: any[],
-    rgbColors: any,
-    count_route: number,
-    count_tour: number
-  ) {
-    if (this.currentlyAnimating !== tour) return
-
+  private addRouteToMap(tour: any, route: any, stopLocations: any[], count_route: number) {
     // starting point from xy:[0,1]
     const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
     for (const link of route) {
@@ -409,14 +401,13 @@ class CarrierPlugin extends Vue {
     }
 
     this.shownLegs = this.shownLegs.concat([
-      { tour, count: count_route, points, color: rgbColors[tour.tourNumber % rgbColors.length] },
+      { tour, count: count_route, points, color: this.rgb[tour.tourNumber % this.rgb.length] },
     ])
     this.stopActivities = stopLocations.slice(0, count_route)
   }
 
   private handleSelectCarrier(carrier: any) {
     console.log('carrier', carrier)
-    this.currentlyAnimating = null
 
     const id = carrier.$id
 
@@ -453,8 +444,9 @@ class CarrierPlugin extends Vue {
 
     this.tours = this.processTours(carrier)
 
-    // select all shipments
+    // select all everything
     this.shownShipments = this.shipments
+    this.selectAllTours()
   }
 
   private processTours(carrier: any) {
@@ -648,6 +640,24 @@ class CarrierPlugin extends Vue {
 
   @Watch('globalState.isDarkMode') private swapTheme() {
     this.updateLegendColors()
+  }
+
+  @Watch('activeTab') switchedTab() {
+    console.log('new tab:', this.activeTab)
+    // switch (this.activeTab) {
+    //   case 'shipments':
+    //     this.shownLegs = []
+    //     break
+    //   case 'tours':
+    //     this.shownShipments = []
+    //     break
+    //   case 'vehicles':
+    //     break
+    //   case 'services':
+    //     break
+    //   default:
+    //     break
+    // }
   }
 
   private handleClick(vehicleNumber: any) {
@@ -920,8 +930,8 @@ h4 {
   font-size: 0.8rem;
   pointer-events: auto;
   background-color: var(--bgPanel);
-  width: 20rem;
-  max-width: 20rem;
+  width: 18rem;
+  max-width: 18rem;
 }
 
 .nav {
@@ -1148,7 +1158,7 @@ input {
 }
 
 .switches {
-  margin: 0.5rem 0.25rem 0.25rem auto;
+  margin: 0.5rem auto 0.25rem auto;
 }
 
 .detail-buttons {
