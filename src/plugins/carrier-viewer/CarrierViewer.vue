@@ -215,12 +215,21 @@ class CarrierPlugin extends Vue {
   private carriers: any[] = []
   private vehicles: any[] = []
   private shipments: any[] = []
+  private shipmentLookup = {} as any // keyed on $id
   private services: any[] = []
   private stopActivities: any[] = []
   private tours: any[] = []
-  private shownLegs: { count: number; points: number[][]; tour: any; color: number[] }[] = []
+
   private shownShipments: any[] = []
   private shipmentIdsInTour: any[] = []
+  private shownLegs: {
+    count: number
+    shipmentsOnBoard: string[]
+    totalSize: number
+    points: number[][]
+    tour: any
+    color: number[]
+  }[] = []
 
   private selectedCarrier = ''
   private selectedTours: any[] = []
@@ -329,13 +338,13 @@ class CarrierPlugin extends Vue {
   private selectAllTours() {
     for (const t of this.tours) {
       let count_route = 0
-      for (const route of t.routes) this.addRouteToMap(t, route, [], count_route++)
+      for (const leg of t.legs) this.addRouteToMap(t, leg, [], count_route++)
     }
   }
 
   // always pick the same "random" colors
   private rgb = colorMap({
-    colormap: 'hsv',
+    colormap: 'phase',
     nshades: 12,
     format: 'rba',
   })
@@ -374,18 +383,23 @@ class CarrierPlugin extends Vue {
 
     // Add all legs from all routes of this tour to the map
     let count_route = 0
-    for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopActivities, count_route++)
+    for (const leg of tour.legs) {
+      this.addRouteToMap(tour, leg, stopActivities, count_route++)
     }
 
     // add final stop locations at the very end
     this.stopActivities = stopActivities
   }
 
-  private addRouteToMap(tour: any, route: any, stopLocations: any[], count_route: number) {
+  private addRouteToMap(
+    tour: any,
+    leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
+    stopLocations: any[],
+    count_route: number
+  ) {
     // starting point from xy:[0,1]
-    const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
-    for (const link of route) {
+    const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+    for (const link of leg.links) {
       const fromXY = [this.links[link][0], this.links[link][1]]
 
       // add from-point if it isn't a duplicate
@@ -401,8 +415,16 @@ class CarrierPlugin extends Vue {
     }
 
     this.shownLegs = this.shownLegs.concat([
-      { tour, count: count_route, points, color: this.rgb[tour.tourNumber % this.rgb.length] },
+      {
+        tour,
+        shipmentsOnBoard: leg.shipmentsOnBoard,
+        totalSize: leg.totalSize,
+        count: count_route,
+        points,
+        color: this.rgb[tour.tourNumber % this.rgb.length],
+      },
     ])
+
     this.stopActivities = stopLocations.slice(0, count_route)
   }
 
@@ -457,24 +479,45 @@ class CarrierPlugin extends Vue {
       // two arrays: one for acts and one for legs.
       // We need them stitched back together in the correct order.
       const plan = [tour.act[0]]
+      const shipmentsOnBoard = new Set()
+
       for (let i = 1; i < tour.act.length; i++) {
+        // insert list of shipments onboard
+        tour.leg[i - 1].shipmentsOnBoard = [...shipmentsOnBoard]
         plan.push(tour.leg[i - 1])
         plan.push(tour.act[i])
+
+        // account for pickups/deliveries
+        if (tour.act[i].$type == 'pickup' && tour.act[i].$shipmentId)
+          shipmentsOnBoard.add(tour.act[i].$shipmentId)
+        if (tour.act[i].$type == 'delivery' && tour.act[i].$shipmentId)
+          shipmentsOnBoard.delete(tour.act[i].$shipmentId)
       }
 
       // Parse any route strings "123434 234143 14241"
-      const routes = tour.leg
+      const legs = tour.leg
         .filter((leg: any) => leg.route && leg.route.length)
         .map((leg: any) => {
-          return leg.route ? leg.route.split(' ') : []
+          // store shipment object, not id
+          const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
+          const totalSize = shipmentsOnBoard.reduce(
+            (prev: number, curr: any) => prev + parseFloat(curr.$size),
+            0
+          )
+          return {
+            shipmentsOnBoard,
+            totalSize,
+            links: leg.route ? leg.route.split(' ') : [],
+          }
         })
 
-      return {
+      const p = {
         vehicleId: tour.$vehicleId,
         plan,
-        routes,
+        legs, // legs.links and legs.shipmentsOnBoard
         tourNumber: 0,
       }
+      return p
     })
 
     tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
@@ -489,7 +532,7 @@ class CarrierPlugin extends Vue {
     if (!carrier.shipments?.shipment?.length) return []
 
     const shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
+    this.shipmentLookup = {} as any
     try {
       for (const shipment of shipments) {
         // shipment has link id, so we go from link.from to link.to
@@ -497,6 +540,8 @@ class CarrierPlugin extends Vue {
         shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
         shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
         shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
+
+        this.shipmentLookup[shipment.$id] = shipment
       }
     } catch (e) {
       // if xy are missing, skip this -- just means network isn't loaded yet.

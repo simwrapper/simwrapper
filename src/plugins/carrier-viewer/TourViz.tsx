@@ -96,12 +96,13 @@ export default function Component(props: {
       return null
     }
 
+    // tooltip: legs
     if (object.color) {
       return (
         <div
           className="tooltip"
           style={{
-            fontSize: '0.7rem',
+            fontSize: '0.8rem',
             backgroundColor: '#334455ee',
             boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
             color: '#eee',
@@ -112,6 +113,10 @@ export default function Component(props: {
           }}
         >
           Leg {object.count + 1}
+          <br />
+          Shipments on board: {object.shipmentsOnBoard.length}
+          <br />
+          Total size: {object.totalSize}
         </div>
       )
     }
@@ -205,12 +210,16 @@ export default function Component(props: {
           data: legs,
           getSourcePosition: (d: any) => d.points[0],
           getTargetPosition: (d: any) => d.points[d.points.length - 1],
-          getHeight: 0.25,
-          getSourceColor: [200, 32, 224],
-          getTargetColor: [200, 32, 224],
-          getWidth: 2.0,
+          getHeight: 0.3,
+          getSourceColor: (d: any) => d.color, // [200, 32, 224],
+          getTargetColor: (d: any) => d.color, // [200, 32, 224],
+          getWidth: scaleShipmentSizes ? (d: any) => d.totalSize / 2 : 4,
+          widthMinPixels: 2,
+          widthUnits: 'pixels',
           opacity: 0.75,
           parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleShipmentSizes] },
+          transitions: { getWidth: 200 },
         })
       )
     } else {
@@ -221,9 +230,11 @@ export default function Component(props: {
           data: legs,
           getPath: (d: any) => d.points,
           getColor: (d: any) => d.color,
+          getWidth: scaleShipmentSizes ? (d: any) => d.totalSize : 5,
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
-          widthMinPixels: 6,
+          widthMinPixels: 2,
+          widthUnits: 'pixels',
           rounded: true,
           shadowEnabled: false,
           // searchFlag: searchEnabled ? 1.0 : 0.0,
@@ -231,9 +242,9 @@ export default function Component(props: {
           autoHighlight: true,
           highlightColor: [255, 255, 255], // [64, 255, 64],
           onHover: setHoverInfo,
-          parameters: {
-            depthTest: false,
-          },
+          parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleShipmentSizes] },
+          transitions: { getWidth: 200 },
         })
       )
     }
@@ -327,13 +338,13 @@ export default function Component(props: {
         getTargetColor: [240, 0, 60, 224],
         getWidth: scaleShipmentSizes ? (d: any) => parseInt(d.$size) || 1.0 : 1,
         widthUnits: 'pixels',
+        getHeight: 0.5,
         opacity: 0.9,
         parameters: { depthTest: false },
         widthScale: 0.5,
         widthMinPixels: 1,
-        updateTriggers: {
-          getWidth: [scaleShipmentSizes],
-        },
+        updateTriggers: { getWidth: [scaleShipmentSizes] },
+        transitions: { getWidth: 200 },
       })
     )
   }
