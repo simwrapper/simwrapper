@@ -17,8 +17,7 @@
 
   .right-panel(v-if="!thumbnail" :darkMode="true")
 
-
-      h4(v-if="carriers.length") {{ $t('carriers')}}
+      h3(style="margin-left: 0.25rem" v-if="carriers.length") {{ $t('carriers')}}
 
       .carrier-list
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
@@ -27,7 +26,7 @@
         )
           .carrier-title {{ carrier.$id }}
 
-      h4 {{ selectedCarrier || 'Explore' }}
+      h4 {{ selectedCarrier || 'Details' }}
 
 
       b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
@@ -63,9 +62,11 @@
             span {{ $t('services')}}: {{ services.length}}
             .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
+      p &nbsp;{{$t('scaleSize')}}
       .switches
-        b-switch(v-model="vizSettings.scaleShipmentSizes") Scale by Size
-        b-switch(v-model="vizSettings.simplifyTours") Simplify Tours
+        b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+        b-switch(v-model="vizSettings.simplifyTours")
+          span(v-html="$t('flatten')")
 
 </template>
 
@@ -80,6 +81,9 @@ const i18n = {
       tours: 'TOURS',
       pickup: 'Pickup',
       delivery: 'Delivery',
+      flatten: 'Simplify&nbsp;tours',
+      scaleSize: 'Scale widths',
+      scaleFactor: 'Width',
     },
     de: {
       carriers: 'Unternehmen',
@@ -167,6 +171,7 @@ class CarrierPlugin extends Vue {
   private vizSettings = {
     simplifyTours: false,
     scaleShipmentSizes: true,
+    scaleFactor: 0, // 0 means don't scale at all
   }
 
   private vizDetails = {
@@ -345,12 +350,11 @@ class CarrierPlugin extends Vue {
   // always pick the same "random" colors
   private rgb = colorMap({
     colormap: 'phase',
-    nshades: 12,
+    nshades: 9,
     format: 'rba',
   })
     .map((a: any) => a.slice(0, 3))
     .reverse()
-    .slice(2)
 
   private async handleSelectTour(tour: any) {
     console.log({ tour })
@@ -399,6 +403,7 @@ class CarrierPlugin extends Vue {
   ) {
     // starting point from xy:[0,1]
     const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+
     for (const link of leg.links) {
       const fromXY = [this.links[link][0], this.links[link][1]]
 
@@ -501,7 +506,7 @@ class CarrierPlugin extends Vue {
           // store shipment object, not id
           const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
           const totalSize = shipmentsOnBoard.reduce(
-            (prev: number, curr: any) => prev + parseFloat(curr.$size),
+            (prev: number, curr: any) => prev + parseFloat(curr?.$size || 0),
             0
           )
           return {
@@ -514,7 +519,7 @@ class CarrierPlugin extends Vue {
       const p = {
         vehicleId: tour.$vehicleId,
         plan,
-        legs, // legs.links and legs.shipmentsOnBoard
+        legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
         tourNumber: 0,
       }
       return p
@@ -529,10 +534,10 @@ class CarrierPlugin extends Vue {
   }
 
   private processShipments(carrier: any) {
+    this.shipmentLookup = {} as any
     if (!carrier.shipments?.shipment?.length) return []
 
     const shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-    this.shipmentLookup = {} as any
     try {
       for (const shipment of shipments) {
         // shipment has link id, so we go from link.from to link.to
@@ -685,24 +690,6 @@ class CarrierPlugin extends Vue {
 
   @Watch('globalState.isDarkMode') private swapTheme() {
     this.updateLegendColors()
-  }
-
-  @Watch('activeTab') switchedTab() {
-    console.log('new tab:', this.activeTab)
-    // switch (this.activeTab) {
-    //   case 'shipments':
-    //     this.shownLegs = []
-    //     break
-    //   case 'tours':
-    //     this.shownShipments = []
-    //     break
-    //   case 'vehicles':
-    //     break
-    //   case 'services':
-    //     break
-    //   default:
-    //     break
-    // }
   }
 
   private handleClick(vehicleNumber: any) {
@@ -911,7 +898,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
-  filePatterns: ['**/*output_carriers.xml*'],
+  filePatterns: ['**/*output_carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
   component: CarrierPlugin,
 } as VisualizationPlugin)
 
@@ -969,6 +956,7 @@ h4 {
 }
 
 .right-panel {
+  z-index: 2;
   color: var(--text);
   display: flex;
   flex-direction: column;
@@ -977,6 +965,7 @@ h4 {
   background-color: var(--bgPanel);
   width: 18rem;
   max-width: 18rem;
+  padding: 0 0.25rem;
 }
 
 .nav {
@@ -1059,6 +1048,7 @@ h4 {
 .tooltip {
   padding: 5rem 5rem;
   background-color: #ccc;
+  z-index: -1;
 }
 
 .panel-items {
@@ -1147,7 +1137,8 @@ input {
   flex: 1;
   overflow-x: hidden;
   cursor: pointer;
-  margin: 0 0.25rem;
+  margin: 0 0.25rem 0.25rem 0.25rem;
+  border-bottom: 1px solid #555;
 }
 
 .carrier-section {
@@ -1203,7 +1194,13 @@ input {
 }
 
 .switches {
-  margin: 0.5rem auto 0.25rem auto;
+  display: flex;
+  margin: -0.5rem 0 0 0.5rem;
+}
+
+.slider {
+  flex: 1;
+  margin-right: 0.75rem;
 }
 
 .detail-buttons {

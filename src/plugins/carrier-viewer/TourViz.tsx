@@ -50,8 +50,10 @@ export default function Component(props: {
   })
 
   const { dark, activeTab, shipments, legs, settings, stopActivities, center, onClick } = props
+  const { simplifyTours, scaleFactor } = settings
 
-  const { simplifyTours, scaleShipmentSizes } = settings
+  // range is (1/) 16384 - 0.000001
+  let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
 
   const layers: any = []
 
@@ -112,10 +114,10 @@ export default function Component(props: {
             top: y - 30,
           }}
         >
-          Leg {object.count + 1}
+          <b>{object.tour.vehicleId}</b>
           <br />
-          Shipments on board: {object.shipmentsOnBoard.length}
-          <br />
+          Leg # {object.count + 1} <br />
+          Shipments on board: {object.shipmentsOnBoard.length} <br />
           Total size: {object.totalSize}
         </div>
       )
@@ -190,7 +192,6 @@ export default function Component(props: {
         widthMinPixels: 4,
         rounded: true,
         shadowEnabled: false,
-        // searchFlag: searchEnabled ? 1.0 : 0.0,
         pickable: false,
         autoHighlight: false,
         highlightColor: [255, 255, 255], // [64, 255, 64],
@@ -210,15 +211,17 @@ export default function Component(props: {
           data: legs,
           getSourcePosition: (d: any) => d.points[0],
           getTargetPosition: (d: any) => d.points[d.points.length - 1],
-          getHeight: 0.3,
           getSourceColor: (d: any) => d.color, // [200, 32, 224],
           getTargetColor: (d: any) => d.color, // [200, 32, 224],
-          getWidth: scaleShipmentSizes ? (d: any) => d.totalSize / 2 : 4,
+          getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
+          getHeight: 0.3,
           widthMinPixels: 2,
+          widthMaxPixels: 200,
           widthUnits: 'pixels',
-          opacity: 0.75,
+          widthScale: widthScale,
+          opacity: 0.9,
           parameters: { depthTest: false },
-          updateTriggers: { getWidth: [scaleShipmentSizes] },
+          updateTriggers: { getWidth: [scaleFactor] },
           transitions: { getWidth: 200 },
         })
       )
@@ -230,20 +233,21 @@ export default function Component(props: {
           data: legs,
           getPath: (d: any) => d.points,
           getColor: (d: any) => d.color,
-          getWidth: scaleShipmentSizes ? (d: any) => d.totalSize : 5,
+          getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
-          widthMinPixels: 2,
+          widthMinPixels: 3,
+          widthMaxPixels: 200,
           widthUnits: 'pixels',
+          widthScale: widthScale,
           rounded: true,
           shadowEnabled: false,
-          // searchFlag: searchEnabled ? 1.0 : 0.0,
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255], // [64, 255, 64],
           onHover: setHoverInfo,
           parameters: { depthTest: false },
-          updateTriggers: { getWidth: [scaleShipmentSizes] },
+          updateTriggers: { getWidth: [scaleFactor] },
           transitions: { getWidth: 200 },
         })
       )
@@ -301,7 +305,6 @@ export default function Component(props: {
       new ScatterplotLayer({
         id: 'deliveries',
         data: pickupsAndDeliveries.deliveries,
-        // filled: true,
         getPosition: (d: any) => d,
         getColor: [240, 0, 60],
         getRadius: 3,
@@ -315,7 +318,6 @@ export default function Component(props: {
       new ScatterplotLayer({
         id: 'pickups',
         data: pickupsAndDeliveries.pickups,
-        // filled: true,
         getPosition: (d: any) => d,
         getColor: [0, 150, 255],
         getRadius: 2,
@@ -336,14 +338,15 @@ export default function Component(props: {
         getTargetPosition: (d: any) => [d.toX, d.toY],
         getSourceColor: [0, 228, 255, opacity],
         getTargetColor: [240, 0, 60, 224],
-        getWidth: scaleShipmentSizes ? (d: any) => parseInt(d.$size) || 1.0 : 1,
+        getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
         widthUnits: 'pixels',
         getHeight: 0.5,
         opacity: 0.9,
         parameters: { depthTest: false },
-        widthScale: 0.5,
+        widthScale: widthScale,
         widthMinPixels: 1,
-        updateTriggers: { getWidth: [scaleShipmentSizes] },
+        widthMaxPixels: 100,
+        updateTriggers: { getWidth: [scaleFactor] },
         transitions: { getWidth: 200 },
       })
     )
