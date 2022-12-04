@@ -298,10 +298,11 @@ class CarrierPlugin extends Vue {
     let stopCount = 0
 
     // figure out depot location as starting point
-    let vehicle = this.vehicles.filter(v => v.$vehicleId == tour.$vehicleId)[0]
+    let vehicle = this.vehicles.filter(v => v.$id === tour.vehicleId)[0]
+
     const depotLink = this.links[vehicle.$depotLinkId]
     let linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
-    let prevLocation = depotLink
+    let prevLocation = vehicle.$depotLinkId
 
     // store starting location
     locations['L' + vehicle.$depotLinkId] = {
@@ -323,8 +324,7 @@ class CarrierPlugin extends Vue {
       const shipment = this.shipmentLookup[activity.$shipmentId]
       if (!shipment) continue
 
-      const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
-
+      const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
       const ptFrom = [this.links[link][0], this.links[link][1]]
       const ptTo = [this.links[link][2], this.links[link][3]]
       const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
@@ -350,20 +350,20 @@ class CarrierPlugin extends Vue {
       // where to store it? same or new location?
       if (link == prevLocation) {
         // same as last activity
-        locations['L' + link].visits[locations['L' + link].visits.length - 1][activity.$type].push(
+        locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][activity.$type].push(
           act
         )
-      } else if (link in locations) {
+      } else if (`L${link}` in locations) {
         // previously-visited location
         const visit = { pickup: [], delivery: [], service: [] } as any
         visit[activity.$type].push(act)
-        locations['L' + link].visits.push(visit)
+        locations[`L${link}`].visits.push(visit)
       } else {
         // never been here before
         const visit = { pickup: [], delivery: [], service: [] } as any
         visit[activity.$type].push(act)
 
-        locations['L' + link] = {
+        locations[`L${link}`] = {
           link: vehicle.$depotLinkId,
           midpoint: midpoint,
           visits: [visit],
@@ -377,10 +377,10 @@ class CarrierPlugin extends Vue {
       prevLocation = link
     }
 
-    // now convert to an array, insertion order is the default so we are ok
+    // convert to an array, insertion order is the default now so we are ok
     const stopActivities = Object.values(locations)
 
-    // set stop labels: use commas to separate stop numbers if they're identical
+    // set stop labels: use count for all but the first one
     for (let sCount = 0; sCount < stopActivities.length; sCount++) {
       stopActivities[sCount].label = `${sCount}`
     }
@@ -423,7 +423,7 @@ class CarrierPlugin extends Vue {
     for (const tour of this.tours) {
       //  all legs
       tour.legs.forEach((leg: any, count_route: number) =>
-        this.addRouteToMap(tour, leg, [], count_route++)
+        this.addRouteToMap(tour, leg, count_route++)
       )
 
       // all activities
@@ -455,7 +455,6 @@ class CarrierPlugin extends Vue {
 
       // if everything is deselected, EVERYTHING is selected! :-O
       if (!this.selectedTours.length) this.selectAllTours()
-
       return
     }
 
@@ -470,13 +469,12 @@ class CarrierPlugin extends Vue {
     this.selectedTours.push(tour)
 
     const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
-
     this.shipmentIdsInTour = shipmentIdsInTour
 
     // Add all legs from all routes of this tour to the map
     let count_route = 0
     for (const leg of tour.legs) {
-      this.addRouteToMap(tour, leg, stopActivities, count_route++)
+      this.addRouteToMap(tour, leg, count_route++)
     }
 
     // add final stop locations at the very end
@@ -486,7 +484,6 @@ class CarrierPlugin extends Vue {
   private addRouteToMap(
     tour: any,
     leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
-    stopLocations: any[],
     count_route: number
   ) {
     // starting point from xy:[0,1]
