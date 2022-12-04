@@ -56,7 +56,7 @@
 
         .vehicles(v-if="activeTab=='vehicles'")
             span {{ $t('vehicles')}}: {{ vehicles.length}}
-            .leaf.tour(v-for="veh,i in vehicles" :key="`${i}-${veh}`") {{ veh }}
+            .leaf.tour(v-for="veh,i in vehicles" :key="`${i}-${veh.$id}`") {{ veh.$id }}
 
         .services(v-if="activeTab=='services'")
             span {{ $t('services')}}: {{ services.length}}
@@ -135,6 +135,20 @@ import {
 } from '@/Globals'
 
 naturalSort.insensitive = true
+
+// An ActivityLocation is a stop on an activity tour.
+// A location can have multiple visits! V
+// Visits can have multiple pickups/dropoffs.
+interface ActivityLocation {
+  link: string
+  midpoint: number[]
+  visits: any[]
+  label: string
+  tour: any
+  details?: any
+  // ptFrom: number[]
+  // ptTo: number[]
+}
 
 @Component({
   i18n,
@@ -267,73 +281,114 @@ class CarrierPlugin extends Vue {
     this.selectedShipment = shipment
   }
 
-  private findShipmentsInTour(tour: any): {
+  private processActivitiesInTour(tour: any): {
     shipmentIdsInTour: any[]
-    stopActivities: any[]
+    stopActivities: ActivityLocation[]
   } {
-    // find shipment components
     const shipmentIdsInTour: any[] = []
-    const stopActivities: any[] = []
+
+    const locations: { [link: string]: ActivityLocation } = {}
 
     let stopCount = 0
 
-    for (const activity of tour.plan) {
-      if (activity.$shipmentId) {
-        shipmentIdsInTour.push(activity.$shipmentId)
+    // figure out depot location as starting point
+    let vehicle = this.vehicles.filter(v => v.$vehicleId == tour.$vehicleId)[0]
+    const depotLink = this.links[vehicle.$depotLinkId]
+    let linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
+    let prevLocation = depotLink
 
-        // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
-        const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
-
-        // ignore duplicate pickups/dropoffs at this location
-        if (stopActivities.length && stopActivities[stopActivities.length - 1].link === link) {
-          continue
-        }
-
-        const ptFrom = [this.links[link][0], this.links[link][1]]
-        const ptTo = [this.links[link][2], this.links[link][3]]
-
-        const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
-
-        // get details: remove coords, IDs, that we don't need to show the user in UI.
-        const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
-
-        const actType = activity.$type === 'pickup' ? this.$t('pickup') : this.$t('delivery')
-
-        stopActivities.push({
-          id: shipment.$id,
-          type: actType,
-          count: stopCount++,
-          link,
-          midpoint,
-          label: '',
-          details,
-          ptFrom,
-          ptTo,
-          tour,
-        })
-      }
+    // store starting location
+    locations['L' + vehicle.$depotLinkId] = {
+      link: vehicle.$depotLinkId,
+      midpoint: linkMidpoint,
+      visits: [{ pickup: [], delivery: [], service: [] }],
+      label: '',
+      tour,
+      details: {},
     }
+
+    for (const activity of tour.plan) {
+      if (!activity.$shipmentId) continue
+
+      shipmentIdsInTour.push(activity.$shipmentId)
+
+      const shipment = this.shipmentLookup[activity.$shipmentId]
+      if (!shipment) continue
+
+      const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
+
+      const ptFrom = [this.links[link][0], this.links[link][1]]
+      const ptTo = [this.links[link][2], this.links[link][3]]
+      const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+      // pickup,delivery,service - translated for UI
+      const actType = this.$t(activity.$type)
+      // get details: remove coords, IDs, that we don't need to show the user in UI.
+      const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
+
+      const act = {
+        id: shipment.$id,
+        type: actType,
+        count: stopCount++,
+        link,
+        midpoint,
+        label: '',
+        details,
+        ptFrom,
+        ptTo,
+        tour,
+      }
+
+      // where to store it? same or new location?
+      if (link == prevLocation) {
+        // same as last activity
+        locations['L' + link].visits[locations['L' + link].visits.length - 1][activity.$type].push(
+          act
+        )
+      } else if (link in locations) {
+        // previously-visited location
+        const visit = { pickup: [], delivery: [], service: [] } as any
+        visit[activity.$type].push(act)
+        locations['L' + link].visits.push(visit)
+      } else {
+        // never been here before
+        const visit = { pickup: [], delivery: [], service: [] } as any
+        visit[activity.$type].push(act)
+
+        locations['L' + link] = {
+          link: vehicle.$depotLinkId,
+          midpoint: midpoint,
+          visits: [visit],
+          label: '',
+          tour,
+          details,
+        }
+      }
+      prevLocation = link
+    }
+
+    // now convert to an array, insertion order is the default so we are ok
+    const stopActivities = Object.values(locations)
 
     // set stop labels: use commas to separate stop numbers if they're identical
     for (let sCount = 0; sCount < stopActivities.length; sCount++) {
-      let label = ''
-      for (let i = 0; i < sCount; i++) {
-        if (
-          stopActivities[sCount].midpoint[0] === stopActivities[i].midpoint[0] &&
-          stopActivities[sCount].midpoint[1] === stopActivities[i].midpoint[1]
-        ) {
-          label += `,${i}`
-          if (label === ',0') label = ',*'
-          stopActivities[sCount].label = ''
-        }
-      }
-      label = label + `,${sCount}`
-      label = label.slice(1)
-      if (label === '0') label = '*'
-
+      let label = '' + sCount
       stopActivities[sCount].label = label
+      // for (let i = 0; i < sCount; i++) {
+      //   if (
+      //     stopActivities[sCount].midpoint[0] === stopActivities[i].midpoint[0] &&
+      //     stopActivities[sCount].midpoint[1] === stopActivities[i].midpoint[1]
+      //   ) {
+      //     label += `,${i}`
+      //     if (label === ',0') label = ',*'
+      //     stopActivities[sCount].label = ''
+      //   }
+      // }
+      // label = label + `,${sCount}`
+      // label = label.slice(1)
+      // if (label === '0') label = '*'
     }
+    stopActivities[0].label = 'Depot'
     console.log({ shipmentIdsInTour, stopActivities })
 
     return { shipmentIdsInTour, stopActivities }
@@ -381,7 +436,7 @@ class CarrierPlugin extends Vue {
     this.selectedTours.push(tour)
     console.log(this.selectedTours)
 
-    const { shipmentIdsInTour, stopActivities } = this.findShipmentsInTour(tour)
+    const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
 
     this.shipmentIdsInTour = shipmentIdsInTour
 
@@ -405,13 +460,11 @@ class CarrierPlugin extends Vue {
     const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
 
     for (const link of leg.links) {
+      const lastPoint = points[points.length - 1]
       const fromXY = [this.links[link][0], this.links[link][1]]
 
       // add from-point if it isn't a duplicate
-      if (
-        fromXY[0] !== points[points.length - 1][0] ||
-        fromXY[1] !== points[points.length - 1][1]
-      ) {
+      if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
         points.push(fromXY)
       }
 
@@ -426,11 +479,9 @@ class CarrierPlugin extends Vue {
         totalSize: leg.totalSize,
         count: count_route,
         points,
-        color: this.rgb[tour.tourNumber % this.rgb.length],
+        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
       },
     ])
-
-    this.stopActivities = stopLocations.slice(0, count_route)
   }
 
   private handleSelectCarrier(carrier: any) {
@@ -457,7 +508,7 @@ class CarrierPlugin extends Vue {
     this.selectedCarrier = id
 
     // vehicles
-    let vehicles = carrier.capabilities.vehicles.vehicle?.map((veh: any) => veh.$id) || []
+    let vehicles = carrier.capabilities.vehicles.vehicle || []
     this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
 
     this.shipments = this.processShipments(carrier)
@@ -860,7 +911,6 @@ class CarrierPlugin extends Vue {
 
   private async loadFileOrGzippedFile(name: string) {
     if (!this.myState.fileApi) return
-    console.log('loading', name)
 
     let content = ''
 
