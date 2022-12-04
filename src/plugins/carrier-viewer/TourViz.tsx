@@ -41,21 +41,35 @@ export default function Component(props: {
   shipments: Shipment[]
   legs: any[]
   stopActivities: any[]
+  depots: { link: string; midpoint: number[]; coords: number[] }[]
   colors: any
   center: [number, number]
   onClick: any
   viewId: number
   settings: any
   dark: boolean
+  numSelectedTours: number
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
   const [pickupsAndDeliveries, setPickupsAndDeliveries] = useState({
+    type: 'activity',
     pickups: [] as any[],
     deliveries: [] as any[],
   })
 
-  const { dark, activeTab, shipments, legs, settings, stopActivities, center, onClick } = props
+  const {
+    dark,
+    activeTab,
+    numSelectedTours,
+    shipments,
+    depots,
+    legs,
+    settings,
+    stopActivities,
+    center,
+    onClick,
+  } = props
   const { simplifyTours, scaleFactor } = settings
 
   // range is (1/) 16384 - 0.000001
@@ -71,23 +85,35 @@ export default function Component(props: {
 
   // update pickups and deliveries only when shipments change ----------------------
   useEffect(() => {
-    // console.log('runs whenever shipments changes')
-    const pickups = new Set()
-    const deliveries = new Set()
+    const pickups: { [xy: string]: { type: string; coord: number[]; shipmentIds: string[] } } = {}
+    const deliveries: { [xy: string]: { type: string; coord: number[]; shipmentIds: string[] } } =
+      {}
+
     shipments.forEach(shipment => {
-      pickups.add([shipment.fromX, shipment.fromY])
-      deliveries.add([shipment.toX, shipment.toY])
+      let xy = `${shipment.fromX}-${shipment.fromY}`
+      if (!pickups[xy])
+        pickups[xy] = { type: 'pickup', shipmentIds: [], coord: [shipment.fromX, shipment.fromY] }
+      pickups[xy].shipmentIds.push(shipment.$id)
+
+      xy = `${shipment.toX}-${shipment.toY}`
+      if (!deliveries[xy])
+        deliveries[xy] = { type: 'delivery', shipmentIds: [], coord: [shipment.toX, shipment.toY] }
+      deliveries[xy].shipmentIds.push(shipment.$id)
     })
-    setPickupsAndDeliveries({ pickups: [...pickups], deliveries: [...deliveries] })
+
+    setPickupsAndDeliveries({
+      type: 'activity',
+      pickups: Object.values(pickups),
+      deliveries: Object.values(deliveries),
+    })
   }, [shipments])
 
-  function handleClick() {
-    // console.log(hoverInfo)
-    // send null as message that blank area was clicked
-    if (!hoverInfo.object) {
+  function handleClick(event: any) {
+    if (!event.object) {
+      // no object: send null as message that blank area was clicked
       onClick(null)
     } else {
-      onClick(hoverInfo.object.v)
+      onClick(event.object)
     }
   }
 
@@ -99,12 +125,46 @@ export default function Component(props: {
 
   function renderTooltip(hoverInfo: any) {
     const { object } = hoverInfo
-
     if (!object) return null
 
-    if (object.color) return renderLegTooltip(hoverInfo)
+    // console.log(555, object)
 
+    if (object?.type == 'pickup') return renderActivityTooltip(hoverInfo, 'pickup')
+    if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
+    if (object?.color) return renderLegTooltip(hoverInfo)
+    if (object?.type == 'depot') return null
     return renderStopTooltip(hoverInfo)
+  }
+
+  function renderActivityTooltip(hoverInfo: any, activity: string) {
+    const { object, x, y } = hoverInfo
+
+    return (
+      <div
+        className="tooltip"
+        style={{
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          opacity: 0.9,
+          left: x + 20,
+          top: y + 20,
+        }}
+      >
+        <table style={{ maxWidth: '30rem', fontSize: '0.8rem' }}>
+          <tbody>
+            <tr>
+              <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
+                {activity}:
+              </td>
+              <td style={{ paddingTop: '0.2rem' }}>{object.shipmentIds.join(', ')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )
   }
 
   function renderLegTooltip(hoverInfo: any) {
@@ -126,7 +186,7 @@ export default function Component(props: {
       >
         <b>{object?.tour?.vehicleId}</b>
         <br />
-        Leg # {object?.count} <br />
+        Leg # {1 + object?.count} <br />
         Shipments on board: {object?.shipmentsOnBoard?.length} <br />
         Total size: {object?.totalSize}
       </div>
@@ -179,7 +239,7 @@ export default function Component(props: {
           <tbody>
             {Object.keys(overview).map((a: any) => {
               return (
-                <tr>
+                <tr key={a}>
                   <td style={{ textAlign: 'right', paddingRight: '0.5rem' }}>{a}:</td>
                   <td style={{ fontWeight: 'bold' }}> {overview[a]}</td>
                 </tr>
@@ -219,6 +279,8 @@ export default function Component(props: {
     )
   }
 
+  function clickedDepot() {}
+
   if (activeTab == 'tours') {
     layers.push(
       //@ts-ignore:
@@ -229,7 +291,7 @@ export default function Component(props: {
         getColor: [192, 192, 192],
         getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
         opacity: 1,
-        widthMinPixels: 4,
+        widthMinPixels: 3,
         rounded: true,
         shadowEnabled: false,
         pickable: false,
@@ -254,7 +316,7 @@ export default function Component(props: {
           getSourceColor: (d: any) => d.color, // [200, 32, 224],
           getTargetColor: (d: any) => d.color, // [200, 32, 224],
           getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
-          getHeight: 0.3,
+          getHeight: 0.5,
           widthMinPixels: 2,
           widthMaxPixels: 200,
           widthUnits: 'pixels',
@@ -262,7 +324,7 @@ export default function Component(props: {
           opacity: 0.9,
           parameters: { depthTest: false },
           updateTriggers: { getWidth: [scaleFactor] },
-          transitions: { getWidth: 200 },
+          transitions: { getWidth: 150 },
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255], // [64, 255, 64],
@@ -292,36 +354,10 @@ export default function Component(props: {
           onHover: setHoverInfo,
           parameters: { depthTest: false },
           updateTriggers: { getWidth: [scaleFactor] },
-          transitions: { getWidth: 200 },
+          transitions: { getWidth: 150 },
         })
       )
     }
-
-    // destination circles
-    layers.push(
-      //@ts-ignore
-      new ScatterplotLayer({
-        id: 'dest-circles',
-        data: stopActivities,
-        // getColor: (d: any) => (d.count ? [255, 255, 255] : [128, 255, 255]), // [64, 255, 64]), // d.color,
-        // pickup:cyan, delivery:red, service:purple
-        getPosition: (d: any) => d.midpoint,
-        getRadius: (d: any) => (d.count ? 12 : 20),
-        radiusUnits: 'pixels',
-        opacity: 0.8,
-        shadowEnabled: true,
-        noAlloc: false,
-        iconAtlas: '/images/icon-atlas-3.png',
-        iconMapping: ICON_MAPPING,
-        sizeScale: 1,
-        billboard: false,
-        pickable: true,
-        autoHighlight: true,
-        highlightColor: [255, 0, 255],
-        onHover: setHoverInfo,
-        visible: false,
-      })
-    )
 
     // destination labels
     layers.push(
@@ -331,14 +367,8 @@ export default function Component(props: {
         data: stopActivities,
         // backgroundColor: [255, 255, 255, 0],
         background: true,
-        backgroundPadding: [3, 2, 3, 1],
+        backgroundPadding: numSelectedTours == 0 ? [2, 1, 2, 1] : [3, 2, 3, 1],
         getColor: [255, 255, 255],
-        // getBackgroundColor: (d: any) =>
-        //   d.type == 'Pickup'
-        //     ? ActivityColor.pickup
-        //     : d.type == 'Delivery'
-        //     ? ActivityColor.delivery
-        //     : ActivityColor.service,
         getBackgroundColor: (d: any) => {
           const pickups = d.visits.reduce(
             (prev: number, visit: any) => prev + visit.pickup.length,
@@ -354,11 +384,11 @@ export default function Component(props: {
           return [240, 130, 0]
         },
         getPosition: (d: any) => d.midpoint,
-        getText: (d: any) => `${d.label}`,
+        getText: (d: any) => (numSelectedTours == 0 ? ' ' : `${d.label}`),
         getTextAnchor: 'middle',
         getAlignmentBaseline: 'center',
-        getSize: 11,
-        opacity: 0.5,
+        getSize: numSelectedTours == 0 ? 4 : 11,
+        opacity: 1,
         noAlloc: false,
         billboard: true,
         sizeScale: 1,
@@ -377,12 +407,14 @@ export default function Component(props: {
       new ScatterplotLayer({
         id: 'deliveries',
         data: pickupsAndDeliveries.deliveries,
-        getPosition: (d: any) => d,
+        getPosition: (d: any) => d.coord,
         getColor: ActivityColor.delivery,
         getRadius: 3,
         opacity: 0.9,
         parameters: { depthTest: false },
+        pickable: true,
         radiusUnits: 'pixels',
+        onHover: setHoverInfo,
       })
     )
     layers.push(
@@ -390,12 +422,14 @@ export default function Component(props: {
       new ScatterplotLayer({
         id: 'pickups',
         data: pickupsAndDeliveries.pickups,
-        getPosition: (d: any) => d,
+        getPosition: (d: any) => d.coord,
         getColor: ActivityColor.pickup,
         getRadius: 2,
         opacity: 0.9,
         parameters: { depthTest: false },
+        pickable: true,
         radiusUnits: 'pixels',
+        onHover: setHoverInfo,
       })
     )
 
@@ -424,10 +458,36 @@ export default function Component(props: {
     )
   }
 
+  // DEPOTS ------
+  layers.push(
+    //@ts-ignore:
+    new TextLayer({
+      id: 'depots',
+      data: depots,
+      background: true,
+      backgroundPadding: [3, 2, 3, 1],
+      getColor: [255, 255, 255],
+      getBackgroundColor: [0, 150, 240],
+      getPosition: (d: any) => d.midpoint,
+      getText: (d: any) => 'Depot',
+      getTextAnchor: 'middle',
+      getAlignmentBaseline: 'center',
+      getSize: 11,
+      opacity: 1,
+      noAlloc: false,
+      billboard: true,
+      sizeScale: 1,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [255, 255, 255],
+      onHover: setHoverInfo,
+    })
+  )
+
   return (
     <DeckGL
       layers={layers}
-      pickingRadius={5}
+      pickingRadius={3}
       controller={true}
       getCursor={() => 'pointer'}
       onClick={handleClick}

@@ -6,12 +6,14 @@
     tour-viz.anim(v-if="!thumbnail"
                   :activeTab="activeTab"
                   :shipments="shownShipments"
+                  :depots="shownDepots"
                   :legs="shownLegs"
                   :stopActivities="stopActivities"
                   :dark="globalState.isDarkMode"
                   :center="vizDetails.center"
                   :viewId="linkLayerId"
                   :settings="vizSettings"
+                  :numSelectedTours="selectedTours.length"
                   :onClick="handleClick")
     ZoomButtons(v-if="!thumbnail")
 
@@ -119,7 +121,6 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { parseXML } from '@/js/util'
 
 import NetworkHelper from '@/workers/NetworkHelper'
-
 import TourViz from './TourViz'
 
 import {
@@ -136,8 +137,8 @@ import {
 
 naturalSort.insensitive = true
 
-// An ActivityLocation is a stop on an activity tour.
-// A location can have multiple visits! V
+// An ActivityLocation is a link on which activities occur.
+// A location can have multiple visits on a tour!
 // Visits can have multiple pickups/dropoffs.
 interface ActivityLocation {
   link: string
@@ -146,8 +147,8 @@ interface ActivityLocation {
   label: string
   tour: any
   details?: any
-  // ptFrom: number[]
-  // ptTo: number[]
+  ptFrom: number[]
+  ptTo: number[]
 }
 
 @Component({
@@ -241,6 +242,10 @@ class CarrierPlugin extends Vue {
 
   private shownShipments: any[] = []
   private shipmentIdsInTour: any[] = []
+
+  private depots = [] as any
+  private shownDepots = [] as any
+
   private shownLegs: {
     count: number
     shipmentsOnBoard: string[]
@@ -248,6 +253,7 @@ class CarrierPlugin extends Vue {
     points: number[][]
     tour: any
     color: number[]
+    type: string
   }[] = []
 
   private selectedCarrier = ''
@@ -305,6 +311,8 @@ class CarrierPlugin extends Vue {
       label: '',
       tour,
       details: {},
+      ptFrom: [depotLink[0], depotLink[1]],
+      ptTo: [depotLink[2], depotLink[3]],
     }
 
     for (const activity of tour.plan) {
@@ -362,6 +370,8 @@ class CarrierPlugin extends Vue {
           label: '',
           tour,
           details,
+          ptFrom,
+          ptTo,
         }
       }
       prevLocation = link
@@ -372,33 +382,56 @@ class CarrierPlugin extends Vue {
 
     // set stop labels: use commas to separate stop numbers if they're identical
     for (let sCount = 0; sCount < stopActivities.length; sCount++) {
-      let label = '' + sCount
-      stopActivities[sCount].label = label
-      // for (let i = 0; i < sCount; i++) {
-      //   if (
-      //     stopActivities[sCount].midpoint[0] === stopActivities[i].midpoint[0] &&
-      //     stopActivities[sCount].midpoint[1] === stopActivities[i].midpoint[1]
-      //   ) {
-      //     label += `,${i}`
-      //     if (label === ',0') label = ',*'
-      //     stopActivities[sCount].label = ''
-      //   }
-      // }
-      // label = label + `,${sCount}`
-      // label = label.slice(1)
-      // if (label === '0') label = '*'
+      stopActivities[sCount].label = `${sCount}`
     }
     stopActivities[0].label = 'Depot'
-    console.log({ shipmentIdsInTour, stopActivities })
 
+    // console.log({ shipmentIdsInTour, stopActivities })
     return { shipmentIdsInTour, stopActivities }
+  }
+
+  private setupDepots() {
+    const depots: { [link: string]: any } = {}
+
+    this.vehicles.forEach((v: any) => {
+      const linkId = v.$depotLinkId
+      let depotLink = this.links[linkId]
+      if (!depots[linkId]) {
+        depots[linkId] = {
+          type: 'depot',
+          link: v.$depotLinkId,
+          midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
+          coords: this.links[v.$depotLinkId],
+          vehicles: {} as any,
+        }
+      }
+      depots[linkId].vehicles[v.$id] = v
+    })
+
+    this.depots = Object.values(depots)
+    this.shownDepots = this.depots.slice(0)
   }
 
   // -----------------------------------------------------------------------
   private selectAllTours() {
-    for (const t of this.tours) {
-      let count_route = 0
-      for (const leg of t.legs) this.addRouteToMap(t, leg, [], count_route++)
+    this.selectedTours = []
+    this.shownLegs = []
+    this.stopActivities = []
+    this.shownDepots = []
+    this.shownShipments = this.shipments.slice(0)
+
+    for (const tour of this.tours) {
+      //  all legs
+      tour.legs.forEach((leg: any, count_route: number) =>
+        this.addRouteToMap(tour, leg, [], count_route++)
+      )
+
+      // all activities
+      const z = this.processActivitiesInTour(tour)
+      this.stopActivities = this.stopActivities.concat(z.stopActivities)
+
+      // all depots
+      this.setupDepots()
     }
   }
 
@@ -431,10 +464,10 @@ class CarrierPlugin extends Vue {
       this.selectedTours = []
       this.shownLegs = []
       this.stopActivities = []
+      this.shownDepots = []
     }
 
     this.selectedTours.push(tour)
-    console.log(this.selectedTours)
 
     const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
 
@@ -480,6 +513,7 @@ class CarrierPlugin extends Vue {
         count: count_route,
         points,
         color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
+        type: 'leg',
       },
     ])
   }
@@ -494,6 +528,7 @@ class CarrierPlugin extends Vue {
     this.services = []
     this.tours = []
     this.shownShipments = []
+    this.shownDepots = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
     this.stopActivities = []
@@ -511,6 +546,10 @@ class CarrierPlugin extends Vue {
     let vehicles = carrier.capabilities.vehicles.vehicle || []
     this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
 
+    // depots
+    this.setupDepots()
+
+    // shipments
     this.shipments = this.processShipments(carrier)
 
     if (carrier.services?.service?.length)
@@ -743,18 +782,37 @@ class CarrierPlugin extends Vue {
     this.updateLegendColors()
   }
 
-  private handleClick(vehicleNumber: any) {
-    // null means empty area clicked: clear map.
-    if (vehicleNumber === null) {
-      this.searchTerm = ''
-      return
+  private handleClick(object: any) {
+    console.log('CLICK!', object)
+    if (!object) this.clickedEmptyMap()
+    if (object?.type == 'depot') this.clickedDepot(object)
+    if (object?.type == 'leg') this.clickedLeg(object)
+  }
+
+  private clickedDepot(object: any) {
+    const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
+    console.log({ vehiclesAtThisDepot })
+    this.selectedTours = []
+    this.shownShipments = []
+
+    for (const tour of this.tours) {
+      if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
+        this.handleSelectTour(tour)
+        // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
+        // We can use this to filter the shipments
+        this.shipmentIdsInTour.forEach(id => {
+          this.shownShipments.push(this.shipmentLookup[id])
+        })
+      }
     }
+  }
 
-    const vehId = this.vehicleLookup[vehicleNumber]
+  private clickedLeg(object: any) {
+    if (object?.tour) this.handleSelectTour(object?.tour)
+  }
 
-    // set -- or clear -- search box!
-    if (this.searchTerm === vehId) this.searchTerm = ''
-    else this.searchTerm = vehId
+  private clickedEmptyMap() {
+    this.selectAllTours()
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -767,18 +825,7 @@ class CarrierPlugin extends Vue {
     return window.btoa(binary)
   }
 
-  private updateLegendColors() {
-    // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-    // this.legendBits = [
-    //   { label: 'susceptible', color: theme.susceptible },
-    //   { label: 'latently infected', color: theme.infectedButNotContagious },
-    //   { label: 'contagious', color: theme.contagious },
-    //   { label: 'symptomatic', color: theme.symptomatic },
-    //   { label: 'seriously ill', color: theme.seriouslyIll },
-    //   { label: 'critical', color: theme.critical },
-    //   { label: 'recovered', color: theme.recovered },
-    // ]
-  }
+  private updateLegendColors() {}
 
   private get textColor() {
     const lightmode = {
