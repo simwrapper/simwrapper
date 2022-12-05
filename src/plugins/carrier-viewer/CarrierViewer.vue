@@ -1,80 +1,74 @@
 <template lang="pug">
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false" :id="`container-${linkLayerId}`")
+        :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .nav(v-if="!thumbnail")
-    //- p.big.xtitle {{ vizDetails.title }}
-    p.big.time(v-if="myState.statusMessage") {{ myState.statusMessage }}
+  .main-panel
+    tour-viz.anim(v-if="!thumbnail"
+                  :activeTab="activeTab"
+                  :shipments="shownShipments"
+                  :depots="shownDepots"
+                  :legs="shownLegs"
+                  :stopActivities="stopActivities"
+                  :dark="globalState.isDarkMode"
+                  :center="vizDetails.center"
+                  :viewId="linkLayerId"
+                  :settings="vizSettings"
+                  :numSelectedTours="selectedTours.length"
+                  :onClick="handleClick")
+    ZoomButtons(v-if="!thumbnail")
 
-  tour-viz.anim(v-if="!thumbnail"
-                :shipments="shownShipments"
-                :shownRoutes="shownRoutes"
-                :stopMidpoints="stopMidpoints"
-                :paths="[]"
-                :drtRequests="[]"
-                :dark="globalState.isDarkMode"
-                :traces="[]"
-                :center="vizDetails.center"
-                :searchEnabled="searchEnabled"
-                :vehicleLookup="vehicleLookup"
-                :viewId="linkLayerId"
-                :onClick="handleClick")
+  .right-panel(v-if="!thumbnail" :darkMode="true")
 
-  ZoomButtons(v-if="!thumbnail")
-
-  collapsible-panel.left-side(v-if="detailContent" direction="left" :locked="true")
-    h3 Raw Details
-    .panel-items
-      .detail-list
-        pre {{detailContent}}
-
-  collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" direction="right")
-
-    .panel-items
-
-      h3(v-if="carriers.length") {{ $t('carriers')}}
+      h3(style="margin-left: 0.25rem" v-if="carriers.length") {{ $t('carriers')}}
 
       .carrier-list
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
-                :class="{selected: carrier.$id===selectedCarrier}")
-          .carrier-title(@click="handleSelectCarrier(carrier)")
-            i.far(:class="carrier.$id===selectedCarrier ? 'fa-minus-square' : 'fa-plus-square'")
-            span {{ carrier.$id }}
+                :class="{selected: carrier.$id===selectedCarrier}"
+                @click="handleSelectCarrier(carrier)"
+        )
+          .carrier-title {{ carrier.$id }}
 
-          .carrier-details(v-if="carrier.$id===selectedCarrier")
+      h4 {{ selectedCarrier || 'Details' }}
 
-            .carrier-section(v-if="tours.length")
-              .carrier-title(@click="toggleTours = !toggleTours")
-                i.far(:class="toggleTours ? 'fa-minus-square' : 'fa-plus-square'")
-                span {{ $t('tours')}}: {{ tours.length}}
 
-              .leaf.tour(v-for="tour,i in toggleTours ? tours:[]" :key="i"
-                          @click="handleSelectTour(tour)"
-                          :class="{selected: tour==selectedTour}") {{ `${tour.vehicleId}` }}
+      b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
 
-            .carrier-section(v-if="vehicles.length")
-              .carrier-title(@click="toggleVehicles = !toggleVehicles")
-                i.far(:class="toggleVehicles ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('vehicles')}}: {{ vehicles.length}}
+        b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+          span {{ $t('shipments') }}
+        b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
+          span {{ $t('tours') }}
+        b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
+          span {{ $t('vehicles') }}
+        b-radio-button(v-if="this.services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+          span {{ $t('services') }}
 
-              .leaf.tour(v-for="veh in toggleVehicles ? vehicles:[]" :key="veh") {{ veh }}
+      .detail-area
+        .shipments(v-if="activeTab=='shipments'")
+            span {{ $t('shipments')}}: {{ shipments.length}}
+            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
+                @click="handleSelectShipment(shipment)"
+                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
+            ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
 
-            .carrier-section(v-if="shipments.length")
-              .carrier-title(@click="toggleShipments = !toggleShipments")
-                i.far(:class="toggleShipments ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('shipments')}}: {{ shipments.length}}
+        .tours(v-if="activeTab=='tours'")
+            span {{ $t('tours')}}: {{ tours.length}}
+            .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
+                @click="handleSelectTour(tour)"
+                :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
 
-              .leaf.tour(v-for="shipment in toggleShipments ? shipments:[]" :key="shipment.$id"
-                              @click="handleSelectShipment(shipment)"
-                              :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
-              ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
+        .vehicles(v-if="activeTab=='vehicles'")
+            span {{ $t('vehicles')}}: {{ vehicles.length}}
+            .leaf.tour(v-for="veh,i in vehicles" :key="`${i}-${veh.$id}`") {{ veh.$id }}
 
-            .carrier-section(v-if="services.length")
-              .carrier-title(@click="toggleServices = !toggleServices")
-                i.far(:class="toggleServices ? 'fa-minus-square' : 'fa-plus-square'")
-                span  {{ $t('services')}}: {{ services.length}}
+        .services(v-if="activeTab=='services'")
+            span {{ $t('services')}}: {{ services.length}}
+            .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
-              .leaf.tour(v-for="service in toggleServices ? services:[]" :key="service.$id") {{ `${service.$id}` }}
+      p &nbsp;{{$t('scaleSize')}}
+      .switches
+        b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+        b-switch(v-model="vizSettings.simplifyTours")
+          span(v-html="$t('flatten')")
 
 </template>
 
@@ -89,6 +83,9 @@ const i18n = {
       tours: 'TOURS',
       pickup: 'Pickup',
       delivery: 'Delivery',
+      flatten: 'Simplify&nbsp;tours',
+      scaleSize: 'Scale widths',
+      scaleFactor: 'Width',
     },
     de: {
       carriers: 'Unternehmen',
@@ -123,7 +120,7 @@ import SettingsPanel from '@/components/SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { parseXML } from '@/js/util'
 
-import NetworkHelper from '@/workers/NetworkHelper'
+import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import TourViz from './TourViz'
 
@@ -139,10 +136,27 @@ import {
   ColorScheme,
 } from '@/Globals'
 
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
+interface NetworkLinks {
+  source: Float32Array
+  dest: Float32Array
+  linkIds: any[]
+}
 
 naturalSort.insensitive = true
+
+// An ActivityLocation is a link on which activities occur.
+// A location can have multiple visits on a tour!
+// Visits can have multiple pickups/dropoffs.
+interface ActivityLocation {
+  link: string
+  midpoint: number[]
+  visits: any[]
+  label: string
+  tour: any
+  details?: any
+  ptFrom: number[]
+  ptTo: number[]
+}
 
 @Component({
   i18n,
@@ -176,6 +190,12 @@ class CarrierPlugin extends Vue {
 
   private linkLayerId = Math.random()
 
+  private vizSettings = {
+    simplifyTours: false,
+    scaleShipmentSizes: true,
+    scaleFactor: 0, // 0 means don't scale at all
+  }
+
   private vizDetails = {
     network: '',
     carriers: '',
@@ -203,6 +223,7 @@ class CarrierPlugin extends Vue {
   private globalState = globalStore.state
   private isLoaded = true
   private showHelp = false
+  private activeTab = 'shipments'
 
   private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
   private speed = 1
@@ -221,15 +242,29 @@ class CarrierPlugin extends Vue {
   private carriers: any[] = []
   private vehicles: any[] = []
   private shipments: any[] = []
+  private shipmentLookup = {} as any // keyed on $id
   private services: any[] = []
-  private stopMidpoints: any[] = []
+  private stopActivities: any[] = []
   private tours: any[] = []
-  private shownRoutes: any[] = []
+
   private shownShipments: any[] = []
   private shipmentIdsInTour: any[] = []
 
+  private depots = [] as any
+  private shownDepots = [] as any
+
+  private shownLegs: {
+    count: number
+    shipmentsOnBoard: string[]
+    totalSize: number
+    points: number[][]
+    tour: any
+    color: number[]
+    type: string
+  }[] = []
+
   private selectedCarrier = ''
-  private selectedTour: any = null
+  private selectedTours: any[] = []
   private selectedShipment: any = null
 
   public buildFileApi() {
@@ -244,6 +279,14 @@ class CarrierPlugin extends Vue {
     if (this.selectedShipment === shipment) {
       this.selectedShipment = null
       this.shownShipments = []
+
+      // if everything is deselected, reset view
+      if (!this.selectedTours.length) {
+        const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
+        this.selectedCarrier = ''
+        this.handleSelectCarrier(carrier[0])
+      }
+
       return
     }
 
@@ -251,149 +294,239 @@ class CarrierPlugin extends Vue {
     this.selectedShipment = shipment
   }
 
-  private currentlyAnimating: any = {}
+  private processActivitiesInTour(tour: any): {
+    shipmentIdsInTour: any[]
+    stopActivities: ActivityLocation[]
+  } {
+    const shipmentIdsInTour: any[] = []
+    let stopCount = 0
+
+    // link ID is the lookup key for activity locations.
+    // BUT, since link-IDs are often numbers, we must always
+    // prepend an "L" to the link-id so that the key order
+    // is stable and based on insertion order.
+    const locations: { [link: string]: ActivityLocation } = {}
+
+    // figure out depot location as our starting point
+    let vehicle = this.vehicles.filter(v => v.$id === tour.vehicleId)[0]
+
+    const depotLink = this.links[vehicle.$depotLinkId]
+    let linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
+    let prevLocation = vehicle.$depotLinkId
+
+    // store starting location
+    locations[`L${vehicle.$depotLinkId}`] = {
+      link: vehicle.$depotLinkId,
+      midpoint: linkMidpoint,
+      visits: [{ pickup: [], delivery: [], service: [] }],
+      label: '',
+      tour,
+      details: {},
+      ptFrom: [depotLink[0], depotLink[1]],
+      ptTo: [depotLink[2], depotLink[3]],
+    }
+
+    for (const activity of tour.plan) {
+      if (!activity.$shipmentId) continue
+
+      shipmentIdsInTour.push(activity.$shipmentId)
+
+      const shipment = this.shipmentLookup[activity.$shipmentId]
+      if (!shipment) continue
+
+      const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
+      const ptFrom = [this.links[link][0], this.links[link][1]]
+      const ptTo = [this.links[link][2], this.links[link][3]]
+      const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+      // pickup,delivery,service - translated for UI
+      const actType = this.$t(activity.$type)
+      // get details: remove coords, IDs, that we don't need to show the user in UI.
+      const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
+
+      const act = {
+        id: shipment.$id,
+        type: actType,
+        count: stopCount++,
+        link,
+        midpoint,
+        label: '',
+        tour,
+        details,
+        ptFrom,
+        ptTo,
+      }
+
+      // where to store it? same or new location?
+      if (link == prevLocation) {
+        // same loc as last activity
+        locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][activity.$type].push(
+          act
+        )
+      } else if (`L${link}` in locations) {
+        // previously-visited location. Start a new visit!
+        const visit = { pickup: [], delivery: [], service: [] } as any
+        visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
+        locations[`L${link}`].visits.push(visit)
+      } else {
+        // never been here before
+        const visit = { pickup: [], delivery: [], service: [] } as any
+        visit[activity.$type].push(act)
+        locations[`L${link}`] = {
+          link,
+          midpoint,
+          label: '',
+          tour,
+          details,
+          ptFrom,
+          ptTo,
+          visits: [visit],
+        }
+      }
+      prevLocation = link
+    }
+
+    // convert to an array, insertion order is stable value order
+    const stopActivities = Object.values(locations)
+
+    // set stop labels: use count for all but the first one
+    for (let sCount = 0; sCount < stopActivities.length; sCount++) {
+      stopActivities[sCount].label = `${sCount}`
+    }
+    stopActivities[0].label = 'Depot'
+
+    // console.log({ shipmentIdsInTour, stopActivities })
+    return { shipmentIdsInTour, stopActivities }
+  }
+
+  private setupDepots() {
+    const depots: { [link: string]: any } = {}
+
+    this.vehicles.forEach((v: any) => {
+      const linkId = v.$depotLinkId
+      let depotLink = this.links[linkId]
+
+      if (!depots[linkId]) {
+        depots[linkId] = {
+          type: 'depot',
+          link: v.$depotLinkId,
+          midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
+          coords: this.links[v.$depotLinkId],
+          vehicles: {} as any,
+        }
+      }
+      depots[linkId].vehicles[v.$id] = v
+    })
+
+    this.depots = Object.values(depots)
+    this.shownDepots = this.depots.slice(0)
+  }
+
+  // -----------------------------------------------------------------------
+  private selectAllTours() {
+    this.selectedTours = []
+    this.shownLegs = []
+    this.stopActivities = []
+    this.shownDepots = []
+    this.shownShipments = this.shipments.slice(0)
+
+    for (const tour of this.tours) {
+      //  all legs
+      tour.legs.forEach((leg: any, count_route: number) =>
+        this.addRouteToMap(tour, leg, count_route++)
+      )
+
+      // all activities
+      const z = this.processActivitiesInTour(tour)
+      this.stopActivities = this.stopActivities.concat(z.stopActivities)
+
+      // all depots
+      this.setupDepots()
+    }
+  }
+
+  // always pick the same "random" colors
+  private rgb = colorMap({
+    colormap: 'phase',
+    nshades: 9,
+    format: 'rba',
+  })
+    .map((a: any) => a.slice(0, 3))
+    .reverse()
 
   private async handleSelectTour(tour: any) {
     console.log({ tour })
 
-    this.currentlyAnimating = tour
+    //this unselects tour if user clicks an already-selected tour again
+    if (this.selectedTours.includes(tour)) {
+      this.selectedTours = this.selectedTours.filter(element => element !== tour)
+      this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
+      this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
 
-    this.shownRoutes = []
-    this.shownShipments = []
-    this.selectedShipment = null
-    this.shipmentIdsInTour = []
-    this.stopMidpoints = []
-
-    if (this.selectedTour === tour) {
-      this.selectedTour = null
-      this.detailContent = ''
+      // if everything is deselected, EVERYTHING is selected! :-O
+      if (!this.selectedTours.length) this.selectAllTours()
       return
     }
 
-    this.selectedTour = tour
-
-    this.detailContent = JSON.stringify(tour, null, 4)
-
-    // find shipment components
-    const inTour: any[] = []
-    const stopMidpoints: any[] = []
-
-    let stopCount = 0
-
-    for (const activity of tour.plan) {
-      if (activity.$shipmentId) {
-        inTour.push(activity.$shipmentId)
-
-        // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find(s => s.$id === activity.$shipmentId)
-        const link = activity.$type === 'pickup' ? shipment.$from : shipment.$to
-        // skip duplicate pickups/dropoffs at this location
-        if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
-          continue
-        }
-        const ptFrom = [this.links[link][0], this.links[link][1]]
-        const ptTo = [this.links[link][2], this.links[link][3]]
-
-        const midpoint = [
-          0.5 * (this.links[link][0] + this.links[link][2]),
-          0.5 * (this.links[link][1] + this.links[link][3]),
-        ]
-
-        const details = Object.assign({}, shipment)
-        delete details.from
-        delete details.fromX
-        delete details.fromY
-        delete details.to
-        delete details.toX
-        delete details.toY
-        delete details.id
-
-        stopMidpoints.push({
-          id: shipment.$id,
-          type: activity.$type === 'pickup' ? this.$t('pickup') : this.$t('delivery'),
-          count: stopCount++,
-          link,
-          midpoint,
-          label: '',
-          details,
-          ptFrom,
-          ptTo,
-        })
-      }
+    // if this is the first selected tour, remove everything else first
+    if (!this.selectedTours.length) {
+      this.selectedTours = []
+      this.shownLegs = []
+      this.stopActivities = []
+      this.shownDepots = []
     }
 
-    // set stop labels: use commas to separate stop numbers if they're identical
-    for (let sCount = 0; sCount < stopMidpoints.length; sCount++) {
-      let label = ''
-      for (let i = 0; i < sCount; i++) {
-        if (
-          stopMidpoints[sCount].midpoint[0] === stopMidpoints[i].midpoint[0] &&
-          stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
-        ) {
-          label += `,${i}`
-          if (label === ',0') label = ',*'
-          stopMidpoints[sCount].label = ''
-        }
-      }
-      label = label + `,${sCount}`
-      label = label.slice(1)
-      if (label === '0') label = '*'
+    this.selectedTours.push(tour)
 
-      stopMidpoints[sCount].label = label
+    const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
+    this.shipmentIdsInTour = shipmentIdsInTour
+
+    // Add all legs from all routes of this tour to the map
+    let count_route = 0
+    for (const leg of tour.legs) {
+      this.addRouteToMap(tour, leg, count_route++)
     }
 
-    this.shipmentIdsInTour = inTour
-    // this.stopMidpoints = stopMidpoints
-
-    // always pick the same "random" colors
-
-    const colors = colorMap({
-      colormap: 'summer',
-      nshades: Math.max(9, tour.routes.length),
-      format: 'rba',
-    }).map((a: any) => a.slice(0, 3))
-
-    let count = 0
-
-    const sleep = (milliseconds: number) => {
-      return new Promise(resolve => setTimeout(resolve, milliseconds))
-    }
-
-    const animationSpeed = tour.routes.length > 20 ? 25 : 50
-    for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopMidpoints, colors, count)
-      count++
-      await sleep(animationSpeed)
-    }
-    this.stopMidpoints = stopMidpoints
-    // console.log({ shownRoutes: this.shownRoutes })
+    // add final stop locations at the very end
+    this.stopActivities = stopActivities
   }
 
-  private addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
-    if (this.currentlyAnimating !== tour) return
-
+  private addRouteToMap(
+    tour: any,
+    leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
+    count_route: number
+  ) {
     // starting point from xy:[0,1]
-    const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
-    for (const link of route) {
+    const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+
+    for (const link of leg.links) {
+      const lastPoint = points[points.length - 1]
       const fromXY = [this.links[link][0], this.links[link][1]]
-      // add from point if it isn't a duplicate
-      if (
-        fromXY[0] !== points[points.length - 1][0] ||
-        fromXY[1] !== points[points.length - 1][1]
-      ) {
+
+      // add from-point if it isn't a duplicate
+      if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
         points.push(fromXY)
       }
-      // always push toXY: xy:[2,3]
+
+      // always add to-point: xy:[2,3]
       points.push([this.links[link][2], this.links[link][3]])
     }
 
-    this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
-    this.stopMidpoints = stopLocations.slice(0, count)
+    this.shownLegs = this.shownLegs.concat([
+      {
+        tour,
+        shipmentsOnBoard: leg.shipmentsOnBoard,
+        totalSize: leg.totalSize,
+        count: count_route,
+        points,
+        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
+        type: 'leg',
+      },
+    ])
   }
 
   private handleSelectCarrier(carrier: any) {
     console.log('carrier', carrier)
-    this.currentlyAnimating = null
 
     const id = carrier.$id
 
@@ -401,11 +534,12 @@ class CarrierPlugin extends Vue {
     this.shipments = []
     this.services = []
     this.tours = []
-    this.shownRoutes = []
     this.shownShipments = []
+    this.shownDepots = []
     this.selectedShipment = null
     this.shipmentIdsInTour = []
-    this.stopMidpoints = []
+    this.stopActivities = []
+    this.shownLegs = []
 
     // unselect carrier
     if (this.selectedCarrier === id) {
@@ -416,9 +550,13 @@ class CarrierPlugin extends Vue {
     this.selectedCarrier = id
 
     // vehicles
-    let vehicles = carrier.capabilities.vehicles.vehicle?.map((veh: any) => veh.$id) || []
+    let vehicles = carrier.capabilities.vehicles.vehicle || []
     this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
 
+    // depots
+    this.setupDepots()
+
+    // shipments
     this.shipments = this.processShipments(carrier)
 
     if (carrier.services?.service?.length)
@@ -429,44 +567,74 @@ class CarrierPlugin extends Vue {
     // console.log(this.services)
 
     this.tours = this.processTours(carrier)
+
+    // select all everything
+    this.shownShipments = this.shipments
+    this.selectAllTours()
   }
 
   private processTours(carrier: any) {
     if (!carrier.plan?.tour?.length) return []
 
-    const tours: any[] = carrier.plan.tour.map((tour: any) => {
+    const tours: any[] = carrier.plan.tour.map((tour: any, i: number) => {
       // reconstitute the plan. Our XML library builds
       // two arrays: one for acts and one for legs.
       // We need them stitched back together in the correct order.
       const plan = [tour.act[0]]
+      const shipmentsOnBoard = new Set()
+
       for (let i = 1; i < tour.act.length; i++) {
+        // insert list of shipments onboard
+        tour.leg[i - 1].shipmentsOnBoard = [...shipmentsOnBoard]
         plan.push(tour.leg[i - 1])
         plan.push(tour.act[i])
+
+        // account for pickups/deliveries
+        if (tour.act[i].$type == 'pickup' && tour.act[i].$shipmentId)
+          shipmentsOnBoard.add(tour.act[i].$shipmentId)
+        if (tour.act[i].$type == 'delivery' && tour.act[i].$shipmentId)
+          shipmentsOnBoard.delete(tour.act[i].$shipmentId)
       }
 
       // Parse any route strings "123434 234143 14241"
-      const routes = tour.leg
+      const legs = tour.leg
         .filter((leg: any) => leg.route && leg.route.length)
         .map((leg: any) => {
-          return leg.route ? leg.route.split(' ') : []
+          // store shipment object, not id
+          const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
+          const totalSize = shipmentsOnBoard.reduce(
+            (prev: number, curr: any) => prev + parseFloat(curr?.$size || 0),
+            0
+          )
+          return {
+            shipmentsOnBoard,
+            totalSize,
+            links: leg.route ? leg.route.split(' ') : [],
+          }
         })
 
-      return {
+      const p = {
         vehicleId: tour.$vehicleId,
         plan,
-        routes,
+        legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
+        tourNumber: 0,
       }
+      return p
     })
 
     tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
+
+    // now assign them numbers based on their sorted order
+    tours.forEach((tour, i) => (tour.tourNumber = i))
+
     return tours
   }
 
   private processShipments(carrier: any) {
+    this.shipmentLookup = {} as any
     if (!carrier.shipments?.shipment?.length) return []
 
     const shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
     try {
       for (const shipment of shipments) {
         // shipment has link id, so we go from link.from to link.to
@@ -474,6 +642,8 @@ class CarrierPlugin extends Vue {
         shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
         shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
         shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
+
+        this.shipmentLookup[shipment.$id] = shipment
       }
     } catch (e) {
       // if xy are missing, skip this -- just means network isn't loaded yet.
@@ -619,18 +789,37 @@ class CarrierPlugin extends Vue {
     this.updateLegendColors()
   }
 
-  private handleClick(vehicleNumber: any) {
-    // null means empty area clicked: clear map.
-    if (vehicleNumber === null) {
-      this.searchTerm = ''
-      return
+  private handleClick(object: any) {
+    console.log('CLICK!', object)
+    if (!object) this.clickedEmptyMap()
+    if (object?.type == 'depot') this.clickedDepot(object)
+    if (object?.type == 'leg') this.clickedLeg(object)
+  }
+
+  private clickedDepot(object: any) {
+    const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
+    console.log({ vehiclesAtThisDepot })
+    this.selectedTours = []
+    this.shownShipments = []
+
+    for (const tour of this.tours) {
+      if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
+        this.handleSelectTour(tour)
+        // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
+        // We can use this to filter the shipments
+        this.shipmentIdsInTour.forEach(id => {
+          this.shownShipments.push(this.shipmentLookup[id])
+        })
+      }
     }
+  }
 
-    const vehId = this.vehicleLookup[vehicleNumber]
+  private clickedLeg(object: any) {
+    if (object?.tour) this.handleSelectTour(object?.tour)
+  }
 
-    // set -- or clear -- search box!
-    if (this.searchTerm === vehId) this.searchTerm = ''
-    else this.searchTerm = vehId
+  private clickedEmptyMap() {
+    this.selectAllTours()
   }
 
   private arrayBufferToBase64(buffer: any) {
@@ -643,18 +832,7 @@ class CarrierPlugin extends Vue {
     return window.btoa(binary)
   }
 
-  private updateLegendColors() {
-    // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-    // this.legendBits = [
-    //   { label: 'susceptible', color: theme.susceptible },
-    //   { label: 'latently infected', color: theme.infectedButNotContagious },
-    //   { label: 'contagious', color: theme.contagious },
-    //   { label: 'symptomatic', color: theme.symptomatic },
-    //   { label: 'seriously ill', color: theme.seriouslyIll },
-    //   { label: 'critical', color: theme.critical },
-    //   { label: 'recovered', color: theme.recovered },
-    // ]
-  }
+  private updateLegendColors() {}
 
   private get textColor() {
     const lightmode = {
@@ -668,23 +846,6 @@ class CarrierPlugin extends Vue {
     }
 
     return this.globalState.isDarkMode ? darkmode : lightmode
-  }
-
-  private resizer!: ResizeObserver
-
-  private setupLogoMover() {
-    this.resizer = new ResizeObserver(this.moveLogo)
-    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-    this.resizer.observe(deckmap)
-  }
-
-  private moveLogo() {
-    const deckmap = document.getElementById(`container-${this.linkLayerId}`) as HTMLElement
-    const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-    if (logo) {
-      const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-      logo.style.right = right
-    }
   }
 
   private async mounted() {
@@ -701,8 +862,6 @@ class CarrierPlugin extends Vue {
 
     if (this.thumbnail) return
 
-    this.setupLogoMover()
-
     this.showHelp = false
     this.updateLegendColors()
 
@@ -713,7 +872,6 @@ class CarrierPlugin extends Vue {
     this.links = await this.loadNetwork()
 
     this.myState.statusMessage = ''
-    this.moveLogo()
   }
 
   private async loadCarriers() {
@@ -743,13 +901,23 @@ class CarrierPlugin extends Vue {
     this.myState.statusMessage = 'Loading network'
 
     if (this.vizDetails.network.indexOf('.xml.') > -1) {
-      // matsim xml file
-      const networkXML = await this.loadFileOrGzippedFile(this.vizDetails.network)
-      if (!networkXML) return
+      // load matsim xml file
+      const path = `${this.myState.subfolder}/${this.vizDetails.network}`
+      const net = await this.fetchNetwork(path, {})
 
-      const network: any = await parseXML(networkXML)
-      const convertedNetwork = await this.convertRoadNetwork(network)
-      return convertedNetwork
+      // build direct lookup of x/y from link-id
+      this.myState.statusMessage = 'Building network link table'
+      const links: { [id: string]: number[] } = {}
+
+      net.linkIds.forEach((linkId: string, i: number) => {
+        links[linkId] = [
+          net.source[i * 2],
+          net.source[i * 2 + 1],
+          net.dest[i * 2],
+          net.dest[i * 2 + 1],
+        ]
+      })
+      return links
     } else {
       // pre-converted output from create_network.py
       const blob = await this.myState.fileApi.getFileBlob(
@@ -762,35 +930,42 @@ class CarrierPlugin extends Vue {
     }
   }
 
-  private _networkHelper?: NetworkHelper
+  private async fetchNetwork(path: string, vizDetails: any) {
+    return new Promise<NetworkLinks>((resolve, reject) => {
+      const thread = new RoadNetworkLoader()
+      try {
+        thread.postMessage({
+          filePath: path,
+          fileSystem: this.myState.fileSystem,
+          vizDetails,
+        })
 
-  private async convertRoadNetwork(network: string) {
-    this.myState.statusMessage = 'Projecting network...'
-    this.vizDetails.projection = 'EPSG:31468'
+        thread.onmessage = e => {
+          // perhaps network has no CRS and we need to ask user
+          if (e.data.promptUserForCRS) {
+            let crs =
+              prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+            if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
 
-    this._networkHelper = await NetworkHelper.create({
-      xml: network,
-      projection: this.vizDetails.projection,
+            thread.postMessage({ crs })
+            return
+          }
+
+          // normal exit
+          thread.terminate()
+
+          if (e.data.error) {
+            console.error(e.data.error)
+            reject(e.data.error)
+          }
+          resolve(e.data.links)
+        }
+      } catch (err) {
+        thread.terminate()
+        console.error(err)
+        reject(err)
+      }
     })
-
-    this.myState.statusMessage = 'Crunching road network...'
-    await this._networkHelper.createNodesAndLinks()
-
-    this.myState.statusMessage = 'Converting coordinates...'
-    const result: any = await this._networkHelper.convertCoordinates()
-
-    this._networkHelper.destroy()
-
-    // last step: build lookup of x/y directly in links
-    this.myState.statusMessage = 'Merging links and nodes'
-    const nodes = result.network.nodes
-    const links: any = {}
-
-    for (const id of Object.keys(result.network.links)) {
-      const link = result.network.links[id]
-      links[id] = [nodes[link.from].x, nodes[link.from].y, nodes[link.to].x, nodes[link.to].y]
-    }
-    return links
   }
 
   private vehicleLookup: string[] = []
@@ -799,15 +974,12 @@ class CarrierPlugin extends Vue {
   private beforeDestroy() {
     this.myState.isRunning = false
 
-    if (this._networkHelper) this._networkHelper.destroy()
-
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
   }
 
   private async loadFileOrGzippedFile(name: string) {
     if (!this.myState.fileApi) return
-    console.log('loading', name)
 
     let content = ''
 
@@ -845,7 +1017,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'carrier-viewer',
   prettyName: 'Carrier Viewer',
   description: 'For freight etc!',
-  filePatterns: ['**/*output_carriers.xml*'],
+  filePatterns: ['**/*output_carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
   component: CarrierPlugin,
 } as VisualizationPlugin)
 
@@ -864,32 +1036,55 @@ export default CarrierPlugin
 
 /* And this works on Chrome/Edge/Safari */
 *::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 *::-webkit-scrollbar-track {
   background: var(--bgPanel3);
 }
 *::-webkit-scrollbar-thumb {
   background-color: var(--textVeryPale);
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .carrier-viewer {
-  display: grid;
+  display: flex;
   pointer-events: none;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    'title      rightside'
-    'leftside   rightside'
-    'playback   clock';
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
 .carrier-viewer.hide-thumbnail {
   background: none;
+}
+
+.main-panel {
+  flex: 1;
+  position: relative;
+}
+
+h4 {
+  border-top: 1px solid #bbb;
+  margin: 1rem 0.25rem 0.5rem 0.25rem;
+  padding-top: 0.25rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.right-panel {
+  z-index: 2;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  background-color: var(--bgPanel);
+  width: 18rem;
+  max-width: 18rem;
+  padding: 0 0.25rem;
 }
 
 .nav {
@@ -939,38 +1134,14 @@ export default CarrierPlugin
   font-weight: bold;
 }
 
-.left-side {
-  position: absolute;
-  top: 70%;
-  bottom: 0.5rem;
-  left: 0.5rem;
-  color: var(--text);
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  filter: $filterShadow;
-}
-
-.right-side {
-  position: absolute;
-  top: 0rem;
-  bottom: 0rem;
-  right: 0;
-  margin: 10rem 0 3.5rem 0;
-  color: var(--text);
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  pointer-events: auto;
-}
-
 .anim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background-color: #181919;
   z-index: 0;
-  grid-column: 1 / 3;
-  grid-row: 1 / 7;
   pointer-events: auto;
 }
 
@@ -996,6 +1167,7 @@ export default CarrierPlugin
 .tooltip {
   padding: 5rem 5rem;
   background-color: #ccc;
+  z-index: -1;
 }
 
 .panel-items {
@@ -1003,6 +1175,8 @@ export default CarrierPlugin
   flex-direction: column;
   margin: 0 0;
   max-height: 100%;
+  height: 100%;
+  width: 100%;
 }
 
 .panel-items h3 {
@@ -1076,6 +1250,16 @@ input {
   cursor: pointer;
 }
 
+.detail-area {
+  user-select: none;
+  position: relative;
+  flex: 1;
+  overflow-x: hidden;
+  cursor: pointer;
+  margin: 0 0.25rem 0.25rem 0.25rem;
+  border-bottom: 1px solid #555;
+}
+
 .carrier-section {
   margin-top: 0.25rem;
   margin-bottom: 0.25rem;
@@ -1105,9 +1289,9 @@ input {
 }
 
 .tour.selected {
-  background-color: white;
+  background-color: var(--textFancy);
   font-weight: bold;
-  color: $matsimBlue;
+  color: var(--bgPanel3);
 }
 
 .shipment-in-tour {
@@ -1126,6 +1310,20 @@ input {
   line-height: 0.8rem;
   background-color: var(--bgPanel);
   color: var(--text);
+}
+
+.switches {
+  display: flex;
+  margin: -0.5rem 0 0 0.5rem;
+}
+
+.slider {
+  flex: 1;
+  margin-right: 0.75rem;
+}
+
+.detail-buttons {
+  margin: 0 0.25rem 0.5rem 0.25rem;
 }
 
 @media only screen and (max-width: 640px) {

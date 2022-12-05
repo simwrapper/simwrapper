@@ -2,82 +2,78 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { StaticMap } from 'react-map-gl'
 import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
+import { ArcLayer, ScatterplotLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
-const BASE_URL = import.meta.env.BASE_URL
+// -------------------------------------------------------------
+// Tour viz has several layers, top to bottom:
+//
+// - shipments (arc layer, orig->destination)
+// - destination text on top of circles
+// - destination circles
+// - delivery legs (path layer, each leg is its own path)
+// - shipment link (dashed line on stopActivity link itself)
+
+interface Shipment {
+  $id: string
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+}
 
 const ICON_MAPPING = {
   circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  infoPin: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  box: { x: 128, y: 128, width: 128, height: 128, mask: false },
-  vehicle: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
 
-const ambientLight = new AmbientLight({
-  color: [255, 255, 255],
-  intensity: 1.0,
-})
-
-const pointLight = new PointLight({
-  color: [255, 255, 255],
-  intensity: 2.0,
-  position: [-74.05, 40.7, 8000],
-})
-
-const lightingEffect = new LightingEffect({ ambientLight, pointLight })
-
-const DEFAULT_THEME = {
-  vehicleColor: [200, 130, 250],
-  trailColor0: [235, 235, 25],
-  trailColor1: [23, 184, 190],
-  effects: [lightingEffect],
-}
-
-const INITIAL_VIEW_STATE = {
-  latitude: 52.5,
-  longitude: 13.4,
-  zoom: 9,
-  pitch: 15,
-  minZoom: 1,
-  maxZoom: 23,
-}
-
-const DRT_REQUEST = {
-  time: 0,
-  fromX: 1,
-  fromY: 2,
-  toX: 3,
-  toY: 4,
-  veh: 5,
-  arrival: 6,
+const ActivityColor = {
+  pickup: [0, 150, 255],
+  delivery: [240, 0, 60],
+  service: [255, 64, 255],
 }
 
 export default function Component(props: {
-  shipments: any[]
-  shownRoutes: any[]
-  stopMidpoints: any[]
-  paths: any[]
-  drtRequests: any[]
-  traces: any[]
+  activeTab: string
+  shipments: Shipment[]
+  legs: any[]
+  stopActivities: any[]
+  depots: { link: string; midpoint: number[]; coords: number[] }[]
   colors: any
   center: [number, number]
-  vehicleLookup: string[]
-  searchEnabled: boolean
   onClick: any
   viewId: number
+  settings: any
   dark: boolean
+  numSelectedTours: number
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
+  const [pickupsAndDeliveries, setPickupsAndDeliveries] = useState({
+    type: 'activity',
+    pickups: [] as any[],
+    deliveries: [] as any[],
+  })
 
-  const { dark, shipments, shownRoutes, stopMidpoints, center, searchEnabled, onClick } = props
+  const {
+    dark,
+    activeTab,
+    numSelectedTours,
+    shipments,
+    depots,
+    legs,
+    settings,
+    stopActivities,
+    center,
+    onClick,
+  } = props
+  const { simplifyTours, scaleFactor } = settings
 
-  const theme = DEFAULT_THEME
+  // range is (1/) 16384 - 0.000001
+  let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
 
   const layers: any = []
 
@@ -87,13 +83,37 @@ export default function Component(props: {
     setViewState(globalStore.state.viewState)
   }
 
-  function handleClick() {
-    console.log(hoverInfo)
-    // send null as message that blank area was clicked
-    if (!hoverInfo.object) {
+  // update pickups and deliveries only when shipments change ----------------------
+  useEffect(() => {
+    const pickups: { [xy: string]: { type: string; coord: number[]; shipmentIds: string[] } } = {}
+    const deliveries: { [xy: string]: { type: string; coord: number[]; shipmentIds: string[] } } =
+      {}
+
+    shipments.forEach(shipment => {
+      let xy = `${shipment.fromX}-${shipment.fromY}`
+      if (!pickups[xy])
+        pickups[xy] = { type: 'pickup', shipmentIds: [], coord: [shipment.fromX, shipment.fromY] }
+      pickups[xy].shipmentIds.push(shipment.$id)
+
+      xy = `${shipment.toX}-${shipment.toY}`
+      if (!deliveries[xy])
+        deliveries[xy] = { type: 'delivery', shipmentIds: [], coord: [shipment.toX, shipment.toY] }
+      deliveries[xy].shipmentIds.push(shipment.$id)
+    })
+
+    setPickupsAndDeliveries({
+      type: 'activity',
+      pickups: Object.values(pickups),
+      deliveries: Object.values(deliveries),
+    })
+  }, [shipments])
+
+  function handleClick(event: any) {
+    if (!event.object) {
+      // no object: send null as message that blank area was clicked
       onClick(null)
     } else {
-      onClick(hoverInfo.object.v)
+      onClick(event.object)
     }
   }
 
@@ -103,32 +123,92 @@ export default function Component(props: {
     globalStore.commit('setMapCamera', view)
   }
 
-  function renderTooltip({ hoverInfo }: any) {
+  function renderTooltip(hoverInfo: any) {
+    const { object } = hoverInfo
+    if (!object) return null
+
+    // console.log(555, object)
+
+    if (object?.type == 'pickup') return renderActivityTooltip(hoverInfo, 'pickup')
+    if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
+    if (object?.color) return renderLegTooltip(hoverInfo)
+    if (object?.type == 'depot') return null
+    return renderStopTooltip(hoverInfo)
+  }
+
+  function renderActivityTooltip(hoverInfo: any, activity: string) {
     const { object, x, y } = hoverInfo
 
-    if (!object) {
-      return null
-    }
+    return (
+      <div
+        className="tooltip"
+        style={{
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          opacity: 0.9,
+          left: x + 20,
+          top: y + 20,
+        }}
+      >
+        <table style={{ maxWidth: '30rem', fontSize: '0.8rem' }}>
+          <tbody>
+            <tr>
+              <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
+                {activity}:
+              </td>
+              <td style={{ paddingTop: '0.2rem' }}>{object.shipmentIds.join(', ')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 
-    if (object.color) {
-      return (
-        <div
-          className="tooltip"
-          style={{
-            fontSize: '0.7rem',
-            backgroundColor: '#334455ee',
-            boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
-            color: '#eee',
-            padding: '0.5rem 0.5rem',
-            position: 'absolute',
-            left: x + 20,
-            top: y - 30,
-          }}
-        >
-          Leg {object.count + 1}
-        </div>
-      )
-    }
+  function renderLegTooltip(hoverInfo: any) {
+    const { object, x, y } = hoverInfo
+
+    return (
+      <div
+        className="tooltip"
+        style={{
+          fontSize: '0.8rem',
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          left: x + 20,
+          top: y - 30,
+        }}
+      >
+        <b>{object?.tour?.vehicleId}</b>
+        <br />
+        Leg # {1 + object?.count} <br />
+        Shipments on board: {object?.shipmentsOnBoard?.length} <br />
+        Total size: {object?.totalSize}
+      </div>
+    )
+  }
+
+  function renderStopTooltip(hoverInfo: any) {
+    const { object, x, y } = hoverInfo
+
+    // collect some info
+    const visits = object.visits.length
+    const pickups = object.visits.reduce(
+      (prev: number, visit: any) => prev + visit.pickup.length,
+      0
+    )
+    const deliveries = object.visits.reduce(
+      (prev: number, visit: any) => prev + visit.delivery.length,
+      0
+    )
+
+    const numPickupsAndDeliveries = pickups + deliveries
+    const overview = { visits, pickups, deliveries } as any
 
     // delivery stop has complicated position stuff
     const tipHeight = Object.keys(object).length * 20 + 32 // good guess
@@ -157,7 +237,16 @@ export default function Component(props: {
           }}
         >
           <tbody>
-            <tr>
+            {Object.keys(overview).map((a: any) => {
+              return (
+                <tr key={a}>
+                  <td style={{ textAlign: 'right', paddingRight: '0.5rem' }}>{a}:</td>
+                  <td style={{ fontWeight: 'bold' }}> {overview[a]}</td>
+                </tr>
+              )
+            })}
+
+            {/* <tr>
               <td
                 style={{
                   fontSize: '1rem',
@@ -169,139 +258,234 @@ export default function Component(props: {
                 {object.type} {object.count}:
               </td>
               <td style={{ fontSize: '1rem', fontWeight: 'bold' }}> {object.id}</td>
-            </tr>
-            {Object.keys(object.details).map((a: any) => {
-              return (
-                <tr key={a}>
-                  <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
-                    {a}:
-                  </td>
-                  <td style={{ paddingTop: '0.2rem' }}>{object.details[a]}</td>
-                </tr>
-              )
-            })}
+            </tr> */}
+
+            {numPickupsAndDeliveries == 1 &&
+              Object.keys(object.details).map((a: any) => {
+                return (
+                  <tr key={a}>
+                    <td
+                      style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}
+                    >
+                      {a.slice(1)}:
+                    </td>
+                    <td style={{ paddingTop: '0.2rem' }}>{object.details[a]}</td>
+                  </tr>
+                )
+              })}
           </tbody>
         </table>
       </div>
     )
   }
 
+  function clickedDepot() {}
+
+  if (activeTab == 'tours') {
+    layers.push(
+      //@ts-ignore:
+      new PathLayer({
+        id: 'shipmentLocationDashedLine',
+        data: stopActivities,
+        getPath: (d: any) => [d.ptFrom, d.ptTo],
+        getColor: [192, 192, 192],
+        getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+        opacity: 1,
+        widthMinPixels: 3,
+        rounded: true,
+        shadowEnabled: false,
+        pickable: false,
+        autoHighlight: false,
+        highlightColor: [255, 255, 255],
+        parameters: { depthTest: false },
+        getDashArray: [3, 2],
+        dashJustified: true,
+        extensions: [new PathStyleExtension({ dash: true })],
+      })
+    )
+
+    if (simplifyTours) {
+      layers.push(
+        //@ts-ignore:
+        new ArcLayer({
+          id: 'leg-arcs',
+          data: legs,
+          getSourcePosition: (d: any) => d.points[0],
+          getTargetPosition: (d: any) => d.points[d.points.length - 1],
+          getSourceColor: (d: any) => d.color, // [200, 32, 224],
+          getTargetColor: (d: any) => d.color, // [200, 32, 224],
+          getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
+          getHeight: 0.5,
+          widthMinPixels: 2,
+          widthMaxPixels: 200,
+          widthUnits: 'pixels',
+          widthScale: widthScale,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 150 },
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255], // [64, 255, 64],
+          onHover: setHoverInfo,
+        })
+      )
+    } else {
+      layers.push(
+        //@ts-ignore:
+        new PathOffsetLayer({
+          id: 'deliveryroutes',
+          data: legs,
+          getPath: (d: any) => d.points,
+          getColor: (d: any) => d.color,
+          getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
+          getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+          opacity: 1,
+          widthMinPixels: 3,
+          widthMaxPixels: 200,
+          widthUnits: 'pixels',
+          widthScale: widthScale,
+          rounded: true,
+          shadowEnabled: false,
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255], // [64, 255, 64],
+          onHover: setHoverInfo,
+          parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 150 },
+        })
+      )
+    }
+
+    // destination labels
+    layers.push(
+      //@ts-ignore
+      new TextLayer({
+        id: 'dest-labels',
+        data: stopActivities,
+        background: true,
+        backgroundPadding: numSelectedTours == 0 ? [2, 1, 2, 1] : [3, 2, 3, 1],
+        getColor: [255, 255, 255],
+        getBackgroundColor: (d: any) => {
+          const pickups = d.visits.reduce(
+            (prev: number, visit: any) => prev + visit.pickup.length,
+            0
+          )
+          const deliveries = d.visits.reduce(
+            (prev: number, visit: any) => prev + visit.delivery.length,
+            0
+          )
+          if (pickups && deliveries) return [0, 0, 255]
+          if (pickups) return ActivityColor.pickup
+          if (deliveries) return ActivityColor.delivery
+          return [240, 130, 0]
+        },
+        getPosition: (d: any) => d.midpoint,
+        getText: (d: any) => (numSelectedTours == 0 ? ' ' : `${d.label}`),
+        getTextAnchor: 'middle',
+        getAlignmentBaseline: 'center',
+        getSize: numSelectedTours == 0 ? 4 : 11,
+        opacity: 1,
+        noAlloc: false,
+        billboard: true,
+        sizeScale: 1,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255],
+        onHover: setHoverInfo,
+      })
+    )
+  }
+
+  // shipment panel
+  if (activeTab == 'shipments') {
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'deliveries',
+        data: pickupsAndDeliveries.deliveries,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.delivery,
+        getRadius: 3,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'pickups',
+        data: pickupsAndDeliveries.pickups,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.pickup,
+        getRadius: 2,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
+
+    const opacity = shipments.length > 1 ? 32 : 255
+
+    layers.push(
+      //@ts-ignore:
+      new ArcLayer({
+        id: 'shipments',
+        data: shipments,
+        getSourcePosition: (d: any) => [d.fromX, d.fromY],
+        getTargetPosition: (d: any) => [d.toX, d.toY],
+        getSourceColor: [0, 228, 255, opacity],
+        getTargetColor: [240, 0, 60, 224],
+        getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
+        widthUnits: 'pixels',
+        getHeight: 0.5,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        widthScale: widthScale,
+        widthMinPixels: 1,
+        widthMaxPixels: 100,
+        updateTriggers: { getWidth: [scaleFactor] },
+        transitions: { getWidth: 200 },
+      })
+    )
+  }
+
+  // DEPOTS ------
   layers.push(
     //@ts-ignore:
-    new PathLayer({
-      id: 'shipmentLocationDashedLine',
-      data: stopMidpoints,
-      getPath: (d: any) => [d.ptFrom, d.ptTo],
-      getColor: [192, 192, 192],
-      getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
-      opacity: 1,
-      widthMinPixels: 4,
-      rounded: true,
-      shadowEnabled: false,
-      // searchFlag: searchEnabled ? 1.0 : 0.0,
-      pickable: false,
-      autoHighlight: false,
-      highlightColor: [255, 255, 255], // [64, 255, 64],
-      // onHover: setHoverInfo,
-      parameters: {
-        depthTest: false,
-      },
-      getDashArray: [3, 2],
-      dashJustified: true,
-      extensions: [new PathStyleExtension({ dash: true })],
-    })
-  )
-
-  layers.push(
-    //@ts-ignore:
-    new PathOffsetLayer({
-      id: 'deliveryroutes',
-      data: shownRoutes,
-      getPath: (d: any) => d.points,
-      getColor: (d: any) => d.color,
-      getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
-      opacity: 1,
-      widthMinPixels: 12,
-      rounded: true,
-      shadowEnabled: false,
-      // searchFlag: searchEnabled ? 1.0 : 0.0,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 255, 255], // [64, 255, 64],
-      onHover: setHoverInfo,
-      parameters: {
-        depthTest: false,
-      },
-    })
-  )
-
-  // destination circles
-  layers.push(
-    //@ts-ignore
-    new IconLayer({
-      id: 'dest-circles',
-      data: stopMidpoints,
-      getIcon: (d: any) => 'circle',
-      getColor: (d: any) => (d.count ? [255, 255, 255] : [255, 255, 0]), // [64, 255, 64]), // d.color,
-      getPosition: (d: any) => d.midpoint,
-      getSize: (d: any) => (d.count ? 38 : 64),
-      opacity: 1,
-      shadowEnabled: true,
-      noAlloc: false,
-      iconAtlas: BASE_URL + '/images/icon-atlas-3.png',
-      iconMapping: ICON_MAPPING,
-      sizeScale: 1,
-      billboard: true,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 0, 255],
-      onHover: setHoverInfo,
-    })
-  )
-
-  // destination labels
-  layers.push(
-    //@ts-ignore
     new TextLayer({
-      id: 'dest-labels',
-      data: stopMidpoints,
-      backgroundColor: [255, 255, 255],
-      getColor: [0, 0, 0],
+      id: 'depots',
+      data: depots,
+      background: true,
+      backgroundPadding: [3, 2, 3, 1],
+      getColor: [255, 255, 255],
+      getBackgroundColor: [0, 150, 240],
       getPosition: (d: any) => d.midpoint,
-      getText: (d: any) => `${d.label}`,
+      getText: (d: any) => 'Depot',
       getTextAnchor: 'middle',
-      getSize: 18,
-      opacity: 1.0,
+      getAlignmentBaseline: 'center',
+      getSize: 11,
+      opacity: 1,
       noAlloc: false,
+      billboard: true,
       sizeScale: 1,
-      pickable: false,
-      autoHighlight: false,
-    })
-  )
-
-  layers.push(
-    //@ts-ignore:
-    new ArcLayer({
-      id: 'shipments',
-      data: shipments,
-      getSourcePosition: (d: any) => [d.fromX, d.fromY],
-      getTargetPosition: (d: any) => [d.toX, d.toY],
-      getSourceColor: [255, 0, 255],
-      getTargetColor: [200, 255, 255],
-      getWidth: 2.0,
-      opacity: 0.75,
-      // searchFlag: searchEnabled ? 1.0 : 0.0,
-      parameters: {
-        depthTest: false,
-      },
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [255, 255, 255],
+      onHover: setHoverInfo,
     })
   )
 
   return (
     <DeckGL
       layers={layers}
-      effects={theme.effects}
-      pickingRadius={5}
+      pickingRadius={3}
       controller={true}
       getCursor={() => 'pointer'}
       onClick={handleClick}
@@ -313,7 +497,7 @@ export default function Component(props: {
         // @ts-ignore */
         <StaticMap mapboxApiAccessToken={MAPBOX_TOKEN} mapStyle={globalStore.getters.mapStyle} />
       }
-      {renderTooltip({ hoverInfo })}
+      {renderTooltip(hoverInfo)}
     </DeckGL>
   )
 }

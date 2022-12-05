@@ -16,29 +16,9 @@
       :class="{active: selectedSingleColor == swatch }"
       @click="clickedSingleColor(swatch)")
 
-  //- DIFF MODE
-  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
-    .widgets
-      .widget(style="flex: 3")
-        p.tight Compare datasets
-        b-select.selector(
-          :disabled="!dataColumn || diffChoices.length<2"
-          expanded
-          v-model="diffUISelection"
-        )
-          option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
-
-      .widget
-        p % Diff
-        b-checkbox.hello(
-          :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
-          v-model="diffRelative"
-        )
-
-
   .more(v-show="dataColumn && dataColumn.length >= 2")
     .widgets
-      .widget(style="flex: 3")
+      .widget
         p Steps
         b-input(v-model="steps"
             placeholder="Number"
@@ -47,7 +27,7 @@
             max="15")
 
       .widget
-        p Flip
+        p Reverse
         b-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
@@ -454,17 +434,17 @@ export default defineComponent({
   padding: 1px 1px;
   border-radius: 3px;
   margin-right: 0.75rem;
-  border: 2px solid #00000000;
+  border: 3px solid #00000000;
 }
 
 .color-ramp.active {
-  border: 2px solid #6361dd;
+  border: 3px solid #6361dd;
 }
 
 .colorbar {
   display: flex;
   flex-direction: row;
-  height: 9px;
+  height: 12px;
 }
 
 .color-ramp:hover {
@@ -492,12 +472,7 @@ export default defineComponent({
   border-color: #99c;
   cursor: pointer;
 }
-
 .single-color.active {
   border-color: black;
-}
-
-.tight {
-  margin: 0 0 -10px 1px;
 }
 </style>

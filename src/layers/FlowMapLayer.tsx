@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { StaticMap } from 'react-map-gl'
-import FlowMapLayer from '@flowmap.gl/core'
+import { FlowMapLayer } from '@flowmap.gl/layers'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
@@ -10,7 +10,7 @@ export default function Layer({
   props = {} as any,
   viewId = 0, // viewId: this must be unique;
 }) {
-  const { locations, flows, dark, elapsed } = props
+  const { locations, flows, dark, elapsed, vizDetails } = props
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({})
@@ -35,26 +35,53 @@ export default function Layer({
     globalStore.commit('setMapCamera', view)
   }
 
+  // const data = {
+  //   locations: [
+  //     { id: 'SF', lat: 37, lon: -122 },
+  //     { id: 'NYC', lat: 42, lon: -108 },
+  //     { id: 'Chicago', lat: 45, lon: -115 },
+  //   ],
+  //   flows: [
+  //     { o: 'SF', d: 'NYC', v: 100 },
+  //     { o: 'SF', d: 'Chicago', v: 50 },
+  //     { o: 'NYC', d: 'SF', v: 210 },
+  //     { o: 'NYC', d: 'Chicago', v: 30 },
+  //     { o: 'Chicago', d: 'NYC', v: 75 },
+  //     { o: 'Chicago', d: 'SF', v: 85 },
+  //   ],
+  // }
   const layer = new FlowMapLayer({
-    id: 'my-flowmap-layer',
-    locations,
-    flows,
-    getFlowOriginId: flow => flow.o,
-    getFlowDestId: flow => flow.d,
-    getFlowMagnitude: flow => flow.v || null,
-    getLocationId: (location: any) => location.id,
-    getLocationCentroid: (location: any) => [location.lon, location.lat],
+    data: props,
+    id: 'my-flowmap-layer' + viewId,
+    colorScheme: vizDetails.colorScheme,
+    highlightColor: vizDetails.highlightColor,
+    adaptiveScalesEnabled: true,
+    animationEnabled: vizDetails.animationEnabled,
+    clusteringEnabled: vizDetails.clusteringEnabled,
+    clusteringAuto: vizDetails.clusteringAuto,
+    clusteringLevel: vizDetails.clusteringLevel,
+    //labelsEnabled: vizDetails.labelsEnabled,
+    locationLabelsEnabled: vizDetails.locationLabelsEnabled,
+    locationTotalsEnabled: vizDetails.locationTotalsEnabled,
+    darkMode: vizDetails.darkMode,
+    pickable: vizDetails.pickable,
+    // maxFlowThickness: 15,
+    // maxLocationCircleSize: 20,
+    opacity: vizDetails.opacity,
+    //outlineThickness: vizDetails.outlineThickness,
+    //showOnlyTopFlows: vizDetails.showOnlyTopFlows,
+    maxTopFlowsDisplayNum: vizDetails.maxTopFlowsDisplayNum,
     onHover: handleHover,
-    // animate: true,
-    // animationCurrentTime: elapsed,
-    // showTotals: true,
-    // selectedLocationIds: ['10'], //  '5', '10', '20'],
-    pickable: true,
-    maxFlowThickness: 15,
-    maxLocationCircleSize: 20,
-    // opacity: 0.5,
-    outlineThickness: -1,
-    showOnlyTopFlows: 2000,
+    getLocationId: (location: any) => location.id,
+    getLocationLat: (location: any) => location.lat,
+    getLocationLon: (location: any) => location.lon,
+    getLocationName: (location: any) => location.id,
+    getFlowOriginId: (flow: any) => flow.o,
+    getFlowDestId: (flow: any) => flow.d,
+    getFlowMagnitude: (flow: any) => flow.v || null,
+    fadeEnabled: true,
+    fadeAmount: 3,
+    fadeOpacityEnabled: true,
   })
 
   return (
@@ -64,7 +91,7 @@ export default function Layer({
       layers={[layer]}
       controller={true}
       viewState={viewState}
-      pickingRadius={5}
+      pickingRadius={4}
       getCursor={() => 'pointer'}
       onClick={handleClick}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
