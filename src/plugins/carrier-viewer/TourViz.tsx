@@ -296,8 +296,7 @@ export default function Component(props: {
         shadowEnabled: false,
         pickable: false,
         autoHighlight: false,
-        highlightColor: [255, 255, 255], // [64, 255, 64],
-        // onHover: setHoverInfo,
+        highlightColor: [255, 255, 255],
         parameters: { depthTest: false },
         getDashArray: [3, 2],
         dashJustified: true,
@@ -365,7 +364,6 @@ export default function Component(props: {
       new TextLayer({
         id: 'dest-labels',
         data: stopActivities,
-        // backgroundColor: [255, 255, 255, 0],
         background: true,
         backgroundPadding: numSelectedTours == 0 ? [2, 1, 2, 1] : [3, 2, 3, 1],
         getColor: [255, 255, 255],

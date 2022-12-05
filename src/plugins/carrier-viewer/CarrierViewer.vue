@@ -292,12 +292,15 @@ class CarrierPlugin extends Vue {
     stopActivities: ActivityLocation[]
   } {
     const shipmentIdsInTour: any[] = []
-
-    const locations: { [link: string]: ActivityLocation } = {}
-
     let stopCount = 0
 
-    // figure out depot location as starting point
+    // link ID is the lookup key for activity locations.
+    // BUT, since link-IDs are often numbers, we must always
+    // prepend an "L" to the link-id so that the key order
+    // is stable and based on insertion order.
+    const locations: { [link: string]: ActivityLocation } = {}
+
+    // figure out depot location as our starting point
     let vehicle = this.vehicles.filter(v => v.$id === tour.vehicleId)[0]
 
     const depotLink = this.links[vehicle.$depotLinkId]
@@ -305,7 +308,7 @@ class CarrierPlugin extends Vue {
     let prevLocation = vehicle.$depotLinkId
 
     // store starting location
-    locations['L' + vehicle.$depotLinkId] = {
+    locations[`L${vehicle.$depotLinkId}`] = {
       link: vehicle.$depotLinkId,
       midpoint: linkMidpoint,
       visits: [{ pickup: [], delivery: [], service: [] }],
@@ -341,43 +344,42 @@ class CarrierPlugin extends Vue {
         link,
         midpoint,
         label: '',
+        tour,
         details,
         ptFrom,
         ptTo,
-        tour,
       }
 
       // where to store it? same or new location?
       if (link == prevLocation) {
-        // same as last activity
+        // same loc as last activity
         locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][activity.$type].push(
           act
         )
       } else if (`L${link}` in locations) {
-        // previously-visited location
+        // previously-visited location. Start a new visit!
         const visit = { pickup: [], delivery: [], service: [] } as any
-        visit[activity.$type].push(act)
+        visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
         locations[`L${link}`].visits.push(visit)
       } else {
         // never been here before
         const visit = { pickup: [], delivery: [], service: [] } as any
         visit[activity.$type].push(act)
-
         locations[`L${link}`] = {
-          link: vehicle.$depotLinkId,
-          midpoint: midpoint,
-          visits: [visit],
+          link,
+          midpoint,
           label: '',
           tour,
           details,
           ptFrom,
           ptTo,
+          visits: [visit],
         }
       }
       prevLocation = link
     }
 
-    // convert to an array, insertion order is the default now so we are ok
+    // convert to an array, insertion order is stable value order
     const stopActivities = Object.values(locations)
 
     // set stop labels: use count for all but the first one
