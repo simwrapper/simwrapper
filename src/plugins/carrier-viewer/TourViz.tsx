@@ -365,7 +365,7 @@ export default function Component(props: {
         id: 'dest-labels',
         data: stopActivities,
         background: true,
-        backgroundPadding: numSelectedTours == 0 ? [2, 1, 2, 1] : [3, 2, 3, 1],
+        backgroundPadding: numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
         getColor: [255, 255, 255],
         getBackgroundColor: (d: any) => {
           const pickups = d.visits.reduce(
@@ -382,10 +382,11 @@ export default function Component(props: {
           return [240, 130, 0]
         },
         getPosition: (d: any) => d.midpoint,
-        getText: (d: any) => (numSelectedTours == 0 ? ' ' : `${d.label}`),
+        getText: (d: any) =>
+          d.label == 'Depot' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
+        getSize: (d: any) => (d.label == 'Depot' ? 11 : numSelectedTours !== 1 ? 4 : 11),
         getTextAnchor: 'middle',
         getAlignmentBaseline: 'center',
-        getSize: numSelectedTours == 0 ? 4 : 11,
         opacity: 1,
         noAlloc: false,
         billboard: true,

@@ -487,8 +487,8 @@ class CarrierPlugin extends Vue {
       this.addRouteToMap(tour, leg, count_route++)
     }
 
-    // add final stop locations at the very end
-    this.stopActivities = stopActivities
+    // add stop activity locations at the very end
+    this.stopActivities = this.stopActivities.concat(stopActivities)
   }
 
   private addRouteToMap(
