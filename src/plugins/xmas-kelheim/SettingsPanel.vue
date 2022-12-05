@@ -2,14 +2,15 @@
 .settings-panel-content
   h4 {{ $t('showhide')}}
 
-  .row(:key="label" v-for="label in Object.keys(items)")
-    toggle-button.toggle(
-      :width="40"
-      :value="items[label]"
-      :labels="false"
-      :color="{checked: '#4b7cc4', unchecked: '#222'}"
-      @change="$emit('click',label)")
-    label(v-html="$t(label)")
+  .items
+    .row(:key="label" v-for="label in Object.keys(items)")
+      toggle-button.toggle(
+        :width="40"
+        :value="items[label]"
+        :labels="false"
+        :color="{checked: '#4b7cc4', unchecked: '#222'}"
+        @change="$emit('click',label)")
+      label(v-html="$t(label)")
 
 </template>
 
@@ -64,8 +65,8 @@ h4 {
 }
 
 .row {
-  display: 'grid';
-  grid-template-columns: 'auto 1fr';
+  display: 'block';
+  flex-direction: 'column';
 }
 
 label {
@@ -76,5 +77,18 @@ label {
 .toggle {
   margin-bottom: 0.25rem;
   margin-right: 0.5rem;
+}
+
+@media only screen and (max-width: 640px) {
+  .items {
+    display: flex;
+  }
+  .items .row {
+    flex: 1;
+  }
+
+  .settings-panel-content {
+    margin-top: 0;
+  }
 }
 </style>

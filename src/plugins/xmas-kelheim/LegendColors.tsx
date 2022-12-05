@@ -6,9 +6,13 @@ export default function Component(props: {
   description?: string
   values: number[]
   items: LegendItem[]
+  mobile: boolean
 }) {
+  const regStyle = { display: 'flex' } as any
+  const mobileStyle = { boxSizing: 'border-box', float: 'left', marginRight: '0.5rem' } as any
+
   const listItems = props.items.map(item => (
-    <li key={item.value + item.value[0]} style={{ display: 'flex' }}>
+    <li key={item.value + item.value[0]} style={props.mobile ? mobileStyle : regStyle}>
       {item.label && (
         <div
           style={{
@@ -21,7 +25,7 @@ export default function Component(props: {
       )}
       <div
         style={{
-          width: '100%',
+          width: props.mobile ? '3rem' : '100%',
           height: `3px`,
           marginTop: '0.5rem',
           backgroundColor: `rgb(${item.color})`,

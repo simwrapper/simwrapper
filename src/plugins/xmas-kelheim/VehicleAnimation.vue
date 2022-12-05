@@ -20,6 +20,12 @@
 
   zoom-buttons(v-if="!thumbnail")
 
+  .bottom-controls-mobile
+    .big.clock: p {{ myState.clock }}
+    legend-colors.legend-block(v-if="legendItems.length" :mobile="true"
+          :title="`${$t('passengers')}:`" :items="legendItems")
+    settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
+
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")
       .big.clock: p {{ myState.clock }}
@@ -28,16 +34,7 @@
         legend-colors.legend-block(v-if="legendItems.length"
           :title="`${$t('passengers')}:`" :items="legendItems")
 
-        legend-colors.legend-block(:title="`${$t('requests')}:`" :items="legendRequests")
-
-        .search-panel
-          p.speed-label(:style="{margin: '1rem 0 0 0'}") {{ $t('search') }}
-          form(autocomplete="off")
-          .field
-            p.control.has-icons-left
-              input.input.is-small(type="email" :placeholder="`${$t('search')}...`" v-model="searchTerm")
-              span.icon.is-small.is-left
-                i.fas.fa-search
+        legend-colors.legend-block(:title="`${$t('requests')}:`" :items="legendRequests" :mobile="false")
 
         settings-panel.settings-area(:items="SETTINGS" @click="handleSettingChange")
 
@@ -184,7 +181,7 @@ const MyComponent = defineComponent({
       1: [20, 224, 224],
       2: [240, 240, 40],
       3: [240, 110, 30],
-      4: [192, 30, 50],
+      // 4: [192, 30, 50],
     } as any
 
     return {
@@ -836,8 +833,9 @@ export default MyComponent
   grid-template-rows: auto auto 1fr auto;
   grid-template-areas:
     'title         clock'
-    '.           rightside'
-    'playback    rightside';
+    '.         rightside'
+    'playback  rightside'
+    'mobile      mobile';
 }
 
 .gl-app.hide-thumbnail {
@@ -924,12 +922,13 @@ export default MyComponent
   pointer-events: auto;
   font-size: 0.8rem;
   padding: 0.25rem 0;
-  margin: 1.5rem 0rem 0 0;
+  margin: 0.5rem 0rem 0 0;
 }
 
 .anim {
+  position: relative;
   grid-column: 1 / 3;
-  grid-row: 1 / 7;
+  grid-row: 1 / 4;
   pointer-events: auto;
 }
 
@@ -978,7 +977,27 @@ input {
   z-index: 1;
 }
 
+.bottom-controls-mobile {
+  display: none;
+  z-index: 2;
+  grid-column: 1 / 4;
+  grid-row: 4 / 5;
+  padding: 0 0.5rem;
+}
+
 @media only screen and (max-width: 640px) {
+  .right-side {
+    display: none;
+  }
+
+  .bottom-controls-mobile {
+    display: inherit;
+  }
+
+  .legend-block {
+    margin-top: 0;
+  }
+
   .nav {
     padding: 0.5rem 0.5rem;
   }
@@ -1008,6 +1027,10 @@ input {
   }
   .playback-stuff {
     padding-right: 1rem;
+  }
+
+  .bottom-area {
+    margin-bottom: 32px;
   }
 }
 </style>
