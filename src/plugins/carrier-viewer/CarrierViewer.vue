@@ -196,7 +196,7 @@ class CarrierPlugin extends Vue {
     title: '',
     description: '',
     thumbnail: '',
-    center: [13.4, 52.5],
+    center: null as any,
   }
 
   public myState = {
@@ -224,6 +224,7 @@ class CarrierPlugin extends Vue {
   private legendBits: any[] = []
 
   private links: any = {}
+  //private nodes: any = {}
 
   private toggleTours = true
   private toggleVehicles = true
@@ -231,6 +232,8 @@ class CarrierPlugin extends Vue {
   private toggleServices = true
 
   private detailContent = ''
+
+  private data: any
 
   private carriers: any[] = []
   private vehicles: any[] = []
@@ -733,12 +736,22 @@ class CarrierPlugin extends Vue {
       }
     }
 
+    if (this.vizDetails.center) {
+      console.log('yes, center!')
+      if (typeof this.vizDetails.center == 'string') {
+        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+      }
+    } else if (!this.vizDetails.center) {
+      console.log('no center..')
+      await this.setMapCenter()
+    }
+
     this.vizDetails = {
       network,
       carriers: this.yamlConfig,
       title,
       description: '',
-      center: [],
+      center: this.vizDetails.center,
       projection: '',
       thumbnail: '',
     }
@@ -747,6 +760,41 @@ class CarrierPlugin extends Vue {
     this.$emit('title', t)
 
     this.buildThumbnail()
+  }
+
+  private async setMapCenter() {
+    this.data = Object.entries(this.links)
+    console.log(this.data)
+
+    if (!this.data.length) return
+
+    let samples = 0
+    let longitude = 0
+    let latitude = 0
+
+    const numLinks = 10000 //this.data.length / 2
+
+    const gap = 4096
+    for (let i = 0; i < numLinks; i += gap) {
+      longitude += this.data[i * 2][1][0]
+      latitude += this.data[i * 2 + 1][1][1]
+      samples++
+    }
+
+    longitude = longitude / samples
+    latitude = latitude / samples
+
+    console.log(longitude)
+    console.log(latitude)
+
+    if (longitude && latitude) {
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        //zoom: this.vizDetails.zoom || currentView.zoom,
+        jump: false,
+      })
+    }
   }
 
   private async buildThumbnail() {
@@ -860,8 +908,10 @@ class CarrierPlugin extends Vue {
     this.myState.statusMessage = 'Loading carriers...'
 
     this.carriers = await this.loadCarriers()
+
     await this.$nextTick() // update UI update before network load begins
     this.links = await this.loadNetwork()
+    this.setMapCenter()
 
     this.myState.statusMessage = ''
   }
@@ -899,6 +949,7 @@ class CarrierPlugin extends Vue {
 
       const network: any = await parseXML(networkXML)
       const convertedNetwork = await this.convertRoadNetwork(network)
+      console.log(convertedNetwork)
       return convertedNetwork
     } else {
       // pre-converted output from create_network.py
@@ -908,6 +959,7 @@ class CarrierPlugin extends Vue {
       const blobString = blob ? await blobToBinaryString(blob) : null
       let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
       const convertedNetwork = JSON.parse(text)
+      console.log(convertedNetwork)
       return convertedNetwork
     }
   }
