@@ -450,8 +450,6 @@ class CarrierPlugin extends Vue {
     .reverse()
 
   private async handleSelectTour(tour: any) {
-    console.log({ tour })
-
     //this unselects tour if user clicks an already-selected tour again
     if (this.selectedTours.includes(tour)) {
       this.selectedTours = this.selectedTours.filter(element => element !== tour)
@@ -521,8 +519,6 @@ class CarrierPlugin extends Vue {
   }
 
   private handleSelectCarrier(carrier: any) {
-    console.log('carrier', carrier)
-
     const id = carrier.$id
 
     this.vehicles = []
@@ -558,8 +554,6 @@ class CarrierPlugin extends Vue {
       this.services = carrier.services.service
         .map((s: any) => s.$)
         .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
-    // console.log(this.services)
 
     this.tours = this.processTours(carrier)
 
@@ -736,16 +730,6 @@ class CarrierPlugin extends Vue {
       }
     }
 
-    if (this.vizDetails.center) {
-      console.log('yes, center!')
-      if (typeof this.vizDetails.center == 'string') {
-        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-      }
-    } else if (!this.vizDetails.center) {
-      console.log('no center..')
-      await this.setMapCenter()
-    }
-
     this.vizDetails = {
       network,
       carriers: this.yamlConfig,
@@ -763,35 +747,40 @@ class CarrierPlugin extends Vue {
   }
 
   private async setMapCenter() {
-    this.data = Object.entries(this.links)
-    console.log(this.data)
-
-    if (!this.data.length) return
-
     let samples = 0
     let longitude = 0
     let latitude = 0
 
-    const numLinks = 10000 //this.data.length / 2
+    if (this.vizDetails.center) {
+      if (typeof this.vizDetails.center == 'string') {
+        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+      }
+      longitude = this.vizDetails.center[0]
+      latitude = this.vizDetails.center[1]
+    } else if (!this.vizDetails.center) {
+      this.data = Object.entries(this.links)
 
-    const gap = 4096
-    for (let i = 0; i < numLinks; i += gap) {
-      longitude += this.data[i * 2][1][0]
-      latitude += this.data[i * 2 + 1][1][1]
-      samples++
+      if (!this.data.length) return
+
+      const numLinks = this.data.length / 2
+
+      const gap = 4096
+      for (let i = 0; i < numLinks; i += gap) {
+        longitude += this.data[i * 2][1][0]
+        latitude += this.data[i * 2 + 1][1][1]
+        samples++
+      }
+
+      longitude = longitude / samples
+      latitude = latitude / samples
     }
-
-    longitude = longitude / samples
-    latitude = latitude / samples
-
-    console.log(longitude)
-    console.log(latitude)
-
     if (longitude && latitude) {
       this.$store.commit('setMapCamera', {
         longitude,
         latitude,
-        //zoom: this.vizDetails.zoom || currentView.zoom,
+        zoom: 9,
+        bearing: 0,
+        pitch: 0,
         jump: false,
       })
     }
@@ -949,7 +938,7 @@ class CarrierPlugin extends Vue {
 
       const network: any = await parseXML(networkXML)
       const convertedNetwork = await this.convertRoadNetwork(network)
-      console.log(convertedNetwork)
+
       return convertedNetwork
     } else {
       // pre-converted output from create_network.py
@@ -959,7 +948,7 @@ class CarrierPlugin extends Vue {
       const blobString = blob ? await blobToBinaryString(blob) : null
       let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
       const convertedNetwork = JSON.parse(text)
-      console.log(convertedNetwork)
+
       return convertedNetwork
     }
   }
