@@ -64,11 +64,15 @@
             span {{ $t('services')}}: {{ services.length}}
             .leaf.tour(v-for="service,i in services" :key="`${i}-${service.$id}`") {{ `${service.$id}` }}
 
-      p &nbsp;{{$t('scaleSize')}}
-      .switches
-        b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
-        b-switch(v-model="vizSettings.simplifyTours")
-          span(v-html="$t('flatten')")
+      .switchbox
+        .switches
+          p {{$t('scaleSize')}}
+          b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+        .switches
+          b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
+            span(v-html="$t('shipmentDots')")
+          b-switch(v-model="vizSettings.simplifyTours")
+            span(v-html="$t('flatten')")
 
 </template>
 
@@ -83,8 +87,9 @@ const i18n = {
       tours: 'TOURS',
       pickup: 'Pickup',
       delivery: 'Delivery',
-      flatten: 'Simplify&nbsp;tours',
-      scaleSize: 'Scale widths',
+      flatten: 'Simple&nbsp;tours',
+      shipmentDots: 'Show shipments',
+      scaleSize: 'Widths',
       scaleFactor: 'Width',
     },
     de: {
@@ -99,8 +104,9 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
-import VueSlider from 'vue-slider-component'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
@@ -112,11 +118,8 @@ import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-import DetailsPanel from './DetailsPanel.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
-import PlaybackControls from '@/components/PlaybackControls.vue'
-import SettingsPanel from '@/components/SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { parseXML } from '@/js/util'
 
@@ -158,224 +161,248 @@ interface ActivityLocation {
   ptTo: number[]
 }
 
-@Component({
+const CarrierPlugin = defineComponent({
+  name: 'CarrierPlugin',
   i18n,
   components: {
     CollapsiblePanel,
-    DetailsPanel,
     LegendColors,
-    PlaybackControls,
-    SettingsPanel,
     ToggleButton,
     TourViz,
-    VueSlider,
     ZoomButtons,
-  } as any,
-})
-class CarrierPlugin extends Vue {
-  @Prop({ required: true })
-  private root!: string
+  },
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object as any,
+    thumbnail: Boolean,
+  },
+  data: () => {
+    return {
+      linkLayerId: Math.random(),
 
-  @Prop({ required: true })
-  private subfolder!: string
+      vizSettings: {
+        simplifyTours: false,
+        scaleShipmentSizes: true,
+        shipmentDotsOnTourMap: true,
+        scaleFactor: 0, // 0 means don't scale at all
+      },
 
-  @Prop({ required: false })
-  private yamlConfig!: string
+      vizDetails: {
+        network: '',
+        carriers: '',
+        projection: '',
+        title: '',
+        description: '',
+        thumbnail: '',
+        center: null as any,
+      },
 
-  @Prop({ required: false })
-  private config!: any
+      myState: {
+        statusMessage: '',
+        isRunning: false,
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: true,
+        data: [] as any[],
+      },
 
-  @Prop({ required: false })
-  private thumbnail!: boolean
+      searchTerm: '',
+      searchEnabled: false,
 
-  private linkLayerId = Math.random()
+      globalState: globalStore.state,
+      isLoaded: true,
+      showHelp: false,
+      activeTab: 'shipments',
 
-  private vizSettings = {
-    simplifyTours: false,
-    scaleShipmentSizes: true,
-    scaleFactor: 0, // 0 means don't scale at all
-  }
+      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
+      speed: 1,
 
-  private vizDetails = {
-    network: '',
-    carriers: '',
-    projection: '',
-    title: '',
-    description: '',
-    thumbnail: '',
-    center: null as any,
-  }
+      legendBits: [] as any[],
 
-  public myState = {
-    statusMessage: '',
-    isRunning: false,
-    fileApi: undefined as HTTPFileSystem | undefined,
-    fileSystem: undefined as FileSystemConfig | undefined,
-    subfolder: '',
-    yamlConfig: '',
-    thumbnail: true,
-    data: [] as any[],
-  }
+      links: {} as any,
 
-  private searchTerm: string = ''
-  private searchEnabled = false
+      toggleTours: true,
+      toggleVehicles: true,
+      toggleShipments: true,
+      toggleServices: true,
 
-  private globalState = globalStore.state
-  private isLoaded = true
-  private showHelp = false
-  private activeTab = 'shipments'
+      detailContent: '',
 
-  private speedStops = [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10]
-  private speed = 1
+      data: null as any,
 
-  private legendBits: any[] = []
+      carriers: [] as any[],
+      vehicles: [] as any[],
+      shipments: [] as any[],
+      shipmentLookup: {} as any, // keyed on $id
+      services: [] as any[],
+      stopActivities: [] as any[],
+      tours: [] as any[],
 
-  private links: any = {}
-  //private nodes: any = {}
+      shownShipments: [] as any[],
+      shipmentIdsInTour: [] as any[],
 
-  private toggleTours = true
-  private toggleVehicles = true
-  private toggleShipments = true
-  private toggleServices = true
+      depots: [] as any,
+      shownDepots: [] as any,
 
-  private detailContent = ''
+      shownLegs: [] as {
+        count: number
+        shipmentsOnBoard: string[]
+        totalSize: number
+        points: number[][]
+        tour: any
+        color: number[]
+        type: string
+      }[],
 
-  private data: any
+      selectedCarrier: '',
+      selectedTours: [] as any,
+      selectedShipment: null as any,
 
-  private carriers: any[] = []
-  private vehicles: any[] = []
-  private shipments: any[] = []
-  private shipmentLookup = {} as any // keyed on $id
-  private services: any[] = []
-  private stopActivities: any[] = []
-  private tours: any[] = []
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
 
-  private shownShipments: any[] = []
-  private shipmentIdsInTour: any[] = []
+      vehicleLookup: [] as string[],
+      vehicleLookupString: {} as { [id: string]: number },
 
-  private depots = [] as any
-  private shownDepots = [] as any
+      // always pick the same "random" colors
+      rgb: colorMap({
+        colormap: 'phase',
+        nshades: 9,
+        format: 'rba',
+      })
+        .map((a: any) => a.slice(0, 3))
+        .reverse(),
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem)
+    },
 
-  private shownLegs: {
-    count: number
-    shipmentsOnBoard: string[]
-    totalSize: number
-    points: number[][]
-    tour: any
-    color: number[]
-    type: string
-  }[] = []
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
 
-  private selectedCarrier = ''
-  private selectedTours: any[] = []
-  private selectedShipment: any = null
+    urlThumbnail(): string {
+      return this.thumbnailUrl
+    },
 
-  public buildFileApi() {
-    const filesystem = this.getFileSystem(this.root)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-  }
-
-  private handleSelectShipment(shipment: any) {
-    console.log({ shipment })
-
-    if (this.selectedShipment === shipment) {
-      this.selectedShipment = null
-      this.shownShipments = []
-
-      // if everything is deselected, reset view
-      if (!this.selectedTours.length) {
-        const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
-        this.selectedCarrier = ''
-        this.handleSelectCarrier(carrier[0])
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
       }
 
-      return
-    }
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
+      }
 
-    this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
-    this.selectedShipment = shipment
-  }
+      return this.globalState.isDarkMode ? darkmode : lightmode
+    },
+  },
 
-  private processActivitiesInTour(tour: any): {
-    shipmentIdsInTour: any[]
-    stopActivities: ActivityLocation[]
-  } {
-    const shipmentIdsInTour: any[] = []
-    let stopCount = 0
+  watch: {
+    '$store.state.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
+      REACT_VIEW_HANDLES[this.linkLayerId]()
+    },
 
-    // link ID is the lookup key for activity locations.
-    // BUT, since link-IDs are often numbers, we must always
-    // prepend an "L" to the link-id so that the key order
-    // is stable and based on insertion order.
-    const locations: { [link: string]: ActivityLocation } = {}
+    'globalState.isDarkMode'() {
+      this.updateLegendColors()
+    },
 
-    // figure out depot location as our starting point
-    let vehicle = this.vehicles.filter(v => v.$id === tour.vehicleId)[0]
+    async 'globalState.authAttempts'() {
+      console.log('AUTH CHANGED - Reload')
+      if (!this.yamlConfig) this.buildRouteFromUrl()
+      await this.getVizDetails()
+    },
+  },
 
-    const depotLink = this.links[vehicle.$depotLinkId]
-    let linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
-    let prevLocation = vehicle.$depotLinkId
+  methods: {
+    handleSelectShipment(shipment: any) {
+      console.log({ shipment })
 
-    // store starting location
-    locations[`L${vehicle.$depotLinkId}`] = {
-      link: vehicle.$depotLinkId,
-      midpoint: linkMidpoint,
-      visits: [{ pickup: [], delivery: [], service: [] }],
-      label: '',
-      tour,
-      details: {},
-      ptFrom: [depotLink[0], depotLink[1]],
-      ptTo: [depotLink[2], depotLink[3]],
-    }
+      if (this.selectedShipment === shipment) {
+        this.selectedShipment = null
+        this.shownShipments = []
 
-    for (const activity of tour.plan) {
-      if (!activity.$shipmentId) continue
+        // if everything is deselected, reset view
+        if (!this.selectedTours.length) {
+          const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
+          this.selectedCarrier = ''
+          this.handleSelectCarrier(carrier[0])
+        }
 
-      shipmentIdsInTour.push(activity.$shipmentId)
+        return
+      }
 
-      const shipment = this.shipmentLookup[activity.$shipmentId]
-      if (!shipment) continue
+      this.shownShipments = this.shipments.filter(s => s.$id === shipment.$id)
+      this.selectedShipment = shipment
+    },
 
-      const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
-      const ptFrom = [this.links[link][0], this.links[link][1]]
-      const ptTo = [this.links[link][2], this.links[link][3]]
-      const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+    processActivitiesInTour(tour: any): {
+      shipmentIdsInTour: any[]
+      stopActivities: ActivityLocation[]
+    } {
+      const shipmentIdsInTour: any[] = []
+      let stopCount = 0
 
-      // pickup,delivery,service - translated for UI
-      const actType = this.$t(activity.$type)
-      // get details: remove coords, IDs, that we don't need to show the user in UI.
-      const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
+      // link ID is the lookup key for activity locations.
+      // BUT, since link-IDs are often numbers, we must always
+      // prepend an "L" to the link-id so that the key order
+      // is stable and based on insertion order.
+      const locations: { [link: string]: ActivityLocation } = {}
 
-      const act = {
-        id: shipment.$id,
-        type: actType,
-        count: stopCount++,
-        link,
-        midpoint,
+      // figure out depot location as our starting point
+      let vehicle = this.vehicles.filter(v => v.$id === tour.vehicleId)[0]
+
+      const depotLink = this.links[vehicle.$depotLinkId]
+      let linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
+      let prevLocation = vehicle.$depotLinkId
+
+      // store starting location
+      locations[`L${vehicle.$depotLinkId}`] = {
+        link: vehicle.$depotLinkId,
+        midpoint: linkMidpoint,
+        visits: [{ pickup: [], delivery: [], service: [] }],
         label: '',
         tour,
-        details,
-        ptFrom,
-        ptTo,
+        details: {},
+        ptFrom: [depotLink[0], depotLink[1]],
+        ptTo: [depotLink[2], depotLink[3]],
       }
 
-      // where to store it? same or new location?
-      if (link == prevLocation) {
-        // same loc as last activity
-        locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][activity.$type].push(
-          act
-        )
-      } else if (`L${link}` in locations) {
-        // previously-visited location. Start a new visit!
-        const visit = { pickup: [], delivery: [], service: [] } as any
-        visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
-        locations[`L${link}`].visits.push(visit)
-      } else {
-        // never been here before
-        const visit = { pickup: [], delivery: [], service: [] } as any
-        visit[activity.$type].push(act)
-        locations[`L${link}`] = {
+      for (const activity of tour.plan) {
+        if (!activity.$shipmentId) continue
+
+        shipmentIdsInTour.push(activity.$shipmentId)
+
+        const shipment = this.shipmentLookup[activity.$shipmentId]
+        if (!shipment) continue
+
+        const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
+        const ptFrom = [this.links[link][0], this.links[link][1]]
+        const ptTo = [this.links[link][2], this.links[link][3]]
+        const midpoint = [0.5 * (ptFrom[0] + ptTo[0]), 0.5 * (ptFrom[1] + ptTo[1])]
+
+        // pickup,delivery,service - translated for UI
+        const actType = this.$t(activity.$type)
+        // get details: remove coords, IDs, that we don't need to show the user in UI.
+        const { from, fromX, fromY, to, toX, toY, id, ...details } = shipment
+
+        const act = {
+          id: shipment.$id,
+          type: actType,
+          count: stopCount++,
           link,
           midpoint,
           label: '',
@@ -383,516 +410,605 @@ class CarrierPlugin extends Vue {
           details,
           ptFrom,
           ptTo,
-          visits: [visit],
         }
-      }
-      prevLocation = link
-    }
 
-    // convert to an array, insertion order is stable value order
-    const stopActivities = Object.values(locations)
-
-    // set stop labels: use count for all but the first one
-    for (let sCount = 0; sCount < stopActivities.length; sCount++) {
-      stopActivities[sCount].label = `${sCount}`
-    }
-    stopActivities[0].label = 'Depot'
-
-    // console.log({ shipmentIdsInTour, stopActivities })
-    return { shipmentIdsInTour, stopActivities }
-  }
-
-  private setupDepots() {
-    const depots: { [link: string]: any } = {}
-
-    this.vehicles.forEach((v: any) => {
-      const linkId = v.$depotLinkId
-      let depotLink = this.links[linkId]
-
-      if (!depots[linkId]) {
-        depots[linkId] = {
-          type: 'depot',
-          link: v.$depotLinkId,
-          midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
-          coords: this.links[v.$depotLinkId],
-          vehicles: {} as any,
+        // where to store it? same or new location?
+        if (link == prevLocation) {
+          // same loc as last activity
+          locations[`L${link}`].visits[locations[`L${link}`].visits.length - 1][
+            activity.$type
+          ].push(act)
+        } else if (`L${link}` in locations) {
+          // previously-visited location. Start a new visit!
+          const visit = { pickup: [], delivery: [], service: [] } as any
+          visit[activity.$type].push(act) // so gets saved in either pickup[] or delivery[]
+          locations[`L${link}`].visits.push(visit)
+        } else {
+          // never been here before
+          const visit = { pickup: [], delivery: [], service: [] } as any
+          visit[activity.$type].push(act)
+          locations[`L${link}`] = {
+            link,
+            midpoint,
+            label: '',
+            tour,
+            details,
+            ptFrom,
+            ptTo,
+            visits: [visit],
+          }
         }
+        prevLocation = link
       }
-      depots[linkId].vehicles[v.$id] = v
-    })
 
-    this.depots = Object.values(depots)
-    this.shownDepots = this.depots.slice(0)
-  }
+      // convert to an array, insertion order is stable value order
+      const stopActivities = Object.values(locations)
 
-  // -----------------------------------------------------------------------
-  private selectAllTours() {
-    this.selectedTours = []
-    this.shownLegs = []
-    this.stopActivities = []
-    this.shownDepots = []
-    this.shownShipments = this.shipments.slice(0)
+      // set stop labels: use count for all but the first one
+      for (let sCount = 0; sCount < stopActivities.length; sCount++) {
+        stopActivities[sCount].label = `${sCount}`
+      }
+      stopActivities[0].label = 'Depot'
 
-    for (const tour of this.tours) {
-      //  all legs
-      tour.legs.forEach((leg: any, count_route: number) =>
-        this.addRouteToMap(tour, leg, count_route++)
-      )
+      // console.log({ shipmentIdsInTour, stopActivities })
+      return { shipmentIdsInTour, stopActivities }
+    },
 
-      // all activities
-      const z = this.processActivitiesInTour(tour)
-      this.stopActivities = this.stopActivities.concat(z.stopActivities)
+    setupDepots() {
+      const depots: { [link: string]: any } = {}
 
-      // all depots
-      this.setupDepots()
-    }
-  }
+      this.vehicles.forEach((v: any) => {
+        const linkId = v.$depotLinkId
+        let depotLink = this.links[linkId]
 
-  // always pick the same "random" colors
-  private rgb = colorMap({
-    colormap: 'phase',
-    nshades: 9,
-    format: 'rba',
-  })
-    .map((a: any) => a.slice(0, 3))
-    .reverse()
+        if (!depots[linkId]) {
+          depots[linkId] = {
+            type: 'depot',
+            link: v.$depotLinkId,
+            midpoint: [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])],
+            coords: this.links[v.$depotLinkId],
+            vehicles: {} as any,
+          }
+        }
+        depots[linkId].vehicles[v.$id] = v
+      })
 
-  private async handleSelectTour(tour: any) {
-    //this unselects tour if user clicks an already-selected tour again
-    if (this.selectedTours.includes(tour)) {
-      this.selectedTours = this.selectedTours.filter(element => element !== tour)
-      this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
-      this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
+      this.depots = Object.values(depots)
+      this.shownDepots = this.depots.slice(0)
+    },
 
-      // if everything is deselected, EVERYTHING is selected! :-O
-      if (!this.selectedTours.length) this.selectAllTours()
-      return
-    }
-
-    // if this is the first selected tour, remove everything else first
-    if (!this.selectedTours.length) {
+    // -----------------------------------------------------------------------
+    selectAllTours() {
       this.selectedTours = []
       this.shownLegs = []
       this.stopActivities = []
       this.shownDepots = []
-    }
+      this.shownShipments = this.shipments.slice(0)
 
-    this.selectedTours.push(tour)
-
-    const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
-    this.shipmentIdsInTour = shipmentIdsInTour
-
-    // Add all legs from all routes of this tour to the map
-    let count_route = 0
-    for (const leg of tour.legs) {
-      this.addRouteToMap(tour, leg, count_route++)
-    }
-
-    // add stop activity locations at the very end
-    this.stopActivities = this.stopActivities.concat(stopActivities)
-  }
-
-  private addRouteToMap(
-    tour: any,
-    leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
-    count_route: number
-  ) {
-    // starting point from xy:[0,1]
-    const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
-
-    for (const link of leg.links) {
-      const lastPoint = points[points.length - 1]
-      const fromXY = [this.links[link][0], this.links[link][1]]
-
-      // add from-point if it isn't a duplicate
-      if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
-        points.push(fromXY)
-      }
-
-      // always add to-point: xy:[2,3]
-      points.push([this.links[link][2], this.links[link][3]])
-    }
-
-    this.shownLegs = this.shownLegs.concat([
-      {
-        tour,
-        shipmentsOnBoard: leg.shipmentsOnBoard,
-        totalSize: leg.totalSize,
-        count: count_route,
-        points,
-        color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
-        type: 'leg',
-      },
-    ])
-  }
-
-  private handleSelectCarrier(carrier: any) {
-    const id = carrier.$id
-
-    this.vehicles = []
-    this.shipments = []
-    this.services = []
-    this.tours = []
-    this.shownShipments = []
-    this.shownDepots = []
-    this.selectedShipment = null
-    this.shipmentIdsInTour = []
-    this.stopActivities = []
-    this.shownLegs = []
-
-    // unselect carrier
-    if (this.selectedCarrier === id) {
-      this.selectedCarrier = ''
-      return
-    }
-
-    this.selectedCarrier = id
-
-    // vehicles
-    let vehicles = carrier.capabilities.vehicles.vehicle || []
-    this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
-
-    // depots
-    this.setupDepots()
-
-    // shipments
-    this.shipments = this.processShipments(carrier)
-
-    if (carrier.services?.service?.length)
-      this.services = carrier.services.service
-        .map((s: any) => s.$)
-        .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-
-    this.tours = this.processTours(carrier)
-
-    // select all everything
-    this.shownShipments = this.shipments
-    this.selectAllTours()
-  }
-
-  private processTours(carrier: any) {
-    if (!carrier.plan?.tour?.length) return []
-
-    const tours: any[] = carrier.plan.tour.map((tour: any, i: number) => {
-      // reconstitute the plan. Our XML library builds
-      // two arrays: one for acts and one for legs.
-      // We need them stitched back together in the correct order.
-      const plan = [tour.act[0]]
-      const shipmentsOnBoard = new Set()
-
-      for (let i = 1; i < tour.act.length; i++) {
-        // insert list of shipments onboard
-        tour.leg[i - 1].shipmentsOnBoard = [...shipmentsOnBoard]
-        plan.push(tour.leg[i - 1])
-        plan.push(tour.act[i])
-
-        // account for pickups/deliveries
-        if (tour.act[i].$type == 'pickup' && tour.act[i].$shipmentId)
-          shipmentsOnBoard.add(tour.act[i].$shipmentId)
-        if (tour.act[i].$type == 'delivery' && tour.act[i].$shipmentId)
-          shipmentsOnBoard.delete(tour.act[i].$shipmentId)
-      }
-
-      // Parse any route strings "123434 234143 14241"
-      const legs = tour.leg
-        .filter((leg: any) => leg.route && leg.route.length)
-        .map((leg: any) => {
-          // store shipment object, not id
-          const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
-          const totalSize = shipmentsOnBoard.reduce(
-            (prev: number, curr: any) => prev + parseFloat(curr?.$size || 0),
-            0
-          )
-          return {
-            shipmentsOnBoard,
-            totalSize,
-            links: leg.route ? leg.route.split(' ') : [],
-          }
-        })
-
-      const p = {
-        vehicleId: tour.$vehicleId,
-        plan,
-        legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
-        tourNumber: 0,
-      }
-      return p
-    })
-
-    tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
-
-    // now assign them numbers based on their sorted order
-    tours.forEach((tour, i) => (tour.tourNumber = i))
-
-    return tours
-  }
-
-  private processShipments(carrier: any) {
-    this.shipmentLookup = {} as any
-    if (!carrier.shipments?.shipment?.length) return []
-
-    const shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-    try {
-      for (const shipment of shipments) {
-        // shipment has link id, so we go from link.from to link.to
-        shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
-        shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
-        shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
-        shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
-
-        this.shipmentLookup[shipment.$id] = shipment
-      }
-    } catch (e) {
-      // if xy are missing, skip this -- just means network isn't loaded yet.
-    }
-
-    return shipments
-  }
-
-  // this happens if viz is the full page, not a thumbnail on a project page
-  private buildRouteFromUrl() {
-    const params = this.$route.params
-    if (!params.project || !params.pathMatch) {
-      console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-      return
-    }
-
-    // project filesystem
-    const filesystem = this.getFileSystem(params.project)
-    this.myState.fileApi = new HTTPFileSystem(filesystem)
-    this.myState.fileSystem = filesystem
-
-    // subfolder and config file
-    const sep = 1 + params.pathMatch.lastIndexOf('/')
-    const subfolder = params.pathMatch.substring(0, sep)
-    const config = params.pathMatch.substring(sep)
-
-    this.myState.subfolder = subfolder
-    this.myState.yamlConfig = config
-  }
-
-  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
-  private get urlThumbnail() {
-    return this.thumbnailUrl
-  }
-
-  private getFileSystem(name: string) {
-    const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-      (a: FileSystemConfig) => a.slug === name
-    )
-    if (svnProject.length === 0) {
-      console.log('no such project')
-      throw Error
-    }
-    return svnProject[0]
-  }
-
-  private async getVizDetails() {
-    if (!this.myState.fileApi) return
-
-    // are we in a dashboard?
-    if (this.config) {
-      this.vizDetails = Object.assign({}, this.config)
-      return
-    }
-
-    // if a YAML file was passed in, just use it
-    if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
-      try {
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
-
-        const text = await this.myState.fileApi.getFileText(filename)
-        this.vizDetails = YAML.parse(text)
-        return
-      } catch (e) {
-        console.log('failed')
-        // maybe it failed because password?
-        const err = e as any
-        if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
-          globalStore.commit('requestLogin', this.myState.fileSystem.slug)
-        }
-        return
-      }
-    }
-
-    // Fine, build the config based on folder contents -------------------------
-    const title = this.myState.yamlConfig.substring(
-      0,
-      15 + this.myState.yamlConfig.indexOf('carriers')
-    )
-
-    // Road network: first try the most obvious network filename:
-    const { files } = await this.myState.fileApi.getDirectory(this.myState.subfolder)
-
-    let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
-    // if the obvious network file doesn't exist, just grab... the first network file:
-    if (files.indexOf(network) == -1) {
-      const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
-      if (allNetworks.length) network = allNetworks[0]
-      else {
-        this.myState.statusMessage = 'No road network found.'
-        network = ''
-      }
-    }
-
-    this.vizDetails = {
-      network,
-      carriers: this.yamlConfig,
-      title,
-      description: '',
-      center: this.vizDetails.center,
-      projection: '',
-      thumbnail: '',
-    }
-
-    const t = 'Carrier Explorer'
-    this.$emit('title', t)
-
-    this.buildThumbnail()
-  }
-
-  private async setMapCenter() {
-    let samples = 0
-    let longitude = 0
-    let latitude = 0
-
-    if (this.vizDetails.center) {
-      if (typeof this.vizDetails.center == 'string') {
-        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-      }
-      longitude = this.vizDetails.center[0]
-      latitude = this.vizDetails.center[1]
-    } else if (!this.vizDetails.center) {
-      this.data = Object.entries(this.links)
-
-      if (!this.data.length) return
-
-      const numLinks = this.data.length / 2
-
-      const gap = 4096
-      for (let i = 0; i < numLinks; i += gap) {
-        longitude += this.data[i * 2][1][0]
-        latitude += this.data[i * 2 + 1][1][1]
-        samples++
-      }
-
-      longitude = longitude / samples
-      latitude = latitude / samples
-    }
-    if (longitude && latitude) {
-      this.$store.commit('setMapCamera', {
-        longitude,
-        latitude,
-        zoom: 9,
-        bearing: 0,
-        pitch: 0,
-        jump: false,
-      })
-    }
-  }
-
-  private async buildThumbnail() {
-    if (!this.myState.fileApi) return
-    if (this.thumbnail && this.vizDetails.thumbnail) {
-      try {
-        const blob = await this.myState.fileApi.getFileBlob(
-          this.myState.subfolder + '/' + this.vizDetails.thumbnail
+      for (const tour of this.tours) {
+        //  all legs
+        tour.legs.forEach((leg: any, count_route: number) =>
+          this.addRouteToMap(tour, leg, count_route++)
         )
-        const buffer = await readBlob.arraybuffer(blob)
-        const base64 = this.arrayBufferToBase64(buffer)
-        if (base64)
-          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
-      } catch (e) {
-        console.error(e)
+
+        // all activities
+        const z = this.processActivitiesInTour(tour)
+        this.stopActivities = this.stopActivities.concat(z.stopActivities)
+
+        // all depots
+        this.setupDepots()
       }
-    }
-  }
+    },
 
-  @Watch('$store.state.viewState') viewMoved() {
-    if (!REACT_VIEW_HANDLES[this.linkLayerId]) return
-    REACT_VIEW_HANDLES[this.linkLayerId]()
-  }
+    async handleSelectTour(tour: any) {
+      //this unselects tour if user clicks an already-selected tour again
+      if (this.selectedTours.includes(tour)) {
+        this.selectedTours = this.selectedTours.filter((element: any) => element !== tour)
+        this.shownLegs = this.shownLegs.filter(leg => leg.tour !== tour)
+        this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
 
-  @Watch('globalState.authAttempts') private async authenticationChanged() {
-    console.log('AUTH CHANGED - Reload')
-    if (!this.yamlConfig) this.buildRouteFromUrl()
-    await this.getVizDetails()
-  }
+        // if everything is deselected, EVERYTHING is selected! :-O
+        if (!this.selectedTours.length) this.selectAllTours()
+        return
+      }
 
-  @Watch('globalState.isDarkMode') private swapTheme() {
-    this.updateLegendColors()
-  }
+      // if this is the first selected tour, remove everything else first
+      if (!this.selectedTours.length) {
+        this.selectedTours = []
+        this.shownLegs = []
+        this.stopActivities = []
+        this.shownDepots = []
+      }
 
-  private handleClick(object: any) {
-    console.log('CLICK!', object)
-    if (!object) this.clickedEmptyMap()
-    if (object?.type == 'depot') this.clickedDepot(object)
-    if (object?.type == 'leg') this.clickedLeg(object)
-  }
+      this.selectedTours.push(tour)
 
-  private clickedDepot(object: any) {
-    const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
-    console.log({ vehiclesAtThisDepot })
-    this.selectedTours = []
-    this.shownShipments = []
+      const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
+      this.shipmentIdsInTour = shipmentIdsInTour
 
-    for (const tour of this.tours) {
-      if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
-        this.handleSelectTour(tour)
-        // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
-        // We can use this to filter the shipments
-        this.shipmentIdsInTour.forEach(id => {
-          this.shownShipments.push(this.shipmentLookup[id])
+      // Add all legs from all routes of this tour to the map
+      let count_route = 0
+      for (const leg of tour.legs) {
+        this.addRouteToMap(tour, leg, count_route++)
+      }
+
+      // add stop activity locations at the very end
+      this.stopActivities = this.stopActivities.concat(stopActivities)
+    },
+
+    addRouteToMap(
+      tour: any,
+      leg: { links: any[]; shipmentsOnBoard: string[]; totalSize: number },
+      count_route: number
+    ) {
+      // starting point from xy:[0,1]
+      const points = [[this.links[leg.links[0]][0], this.links[leg.links[0]][1]]]
+
+      for (const link of leg.links) {
+        const lastPoint = points[points.length - 1]
+        const fromXY = [this.links[link][0], this.links[link][1]]
+
+        // add from-point if it isn't a duplicate
+        if (fromXY[0] !== lastPoint[0] || fromXY[1] !== lastPoint[1]) {
+          points.push(fromXY)
+        }
+
+        // always add to-point: xy:[2,3]
+        points.push([this.links[link][2], this.links[link][3]])
+      }
+
+      this.shownLegs = this.shownLegs.concat([
+        {
+          tour,
+          shipmentsOnBoard: leg.shipmentsOnBoard,
+          totalSize: leg.totalSize,
+          count: count_route,
+          points,
+          color: this.rgb[(3 + tour.tourNumber) % this.rgb.length],
+          type: 'leg',
+        },
+      ])
+    },
+
+    handleSelectCarrier(carrier: any) {
+      const id = carrier.$id
+
+      this.vehicles = []
+      this.shipments = []
+      this.services = []
+      this.tours = []
+      this.shownShipments = []
+      this.shownDepots = []
+      this.selectedShipment = null
+      this.shipmentIdsInTour = []
+      this.stopActivities = []
+      this.shownLegs = []
+
+      // unselect carrier
+      if (this.selectedCarrier === id) {
+        this.selectedCarrier = ''
+        return
+      }
+
+      this.selectedCarrier = id
+
+      // vehicles
+      let vehicles = carrier.capabilities.vehicles.vehicle || []
+      this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
+
+      // depots
+      this.setupDepots()
+
+      // shipments
+      this.shipments = this.processShipments(carrier)
+
+      if (carrier.services?.service?.length)
+        this.services = carrier.services.service
+          .map((s: any) => s.$)
+          .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+
+      this.tours = this.processTours(carrier)
+
+      // select all everything
+      this.shownShipments = this.shipments
+      this.selectAllTours()
+    },
+
+    processTours(carrier: any) {
+      if (!carrier.plan?.tour?.length) return []
+
+      const tours: any[] = carrier.plan.tour.map((tour: any, i: number) => {
+        // reconstitute the plan. Our XML library builds
+        // two arrays: one for acts and one for legs.
+        // We need them stitched back together in the correct order.
+        const plan = [tour.act[0]]
+        const shipmentsOnBoard = new Set()
+
+        for (let i = 1; i < tour.act.length; i++) {
+          // insert list of shipments onboard
+          tour.leg[i - 1].shipmentsOnBoard = [...shipmentsOnBoard]
+          plan.push(tour.leg[i - 1])
+          plan.push(tour.act[i])
+
+          // account for pickups/deliveries
+          if (tour.act[i].$type == 'pickup' && tour.act[i].$shipmentId)
+            shipmentsOnBoard.add(tour.act[i].$shipmentId)
+          if (tour.act[i].$type == 'delivery' && tour.act[i].$shipmentId)
+            shipmentsOnBoard.delete(tour.act[i].$shipmentId)
+        }
+
+        // Parse any route strings "123434 234143 14241"
+        const legs = tour.leg
+          .filter((leg: any) => leg.route && leg.route.length)
+          .map((leg: any) => {
+            // store shipment object, not id
+            const shipmentsOnBoard = leg.shipmentsOnBoard.map((id: any) => this.shipmentLookup[id])
+            const totalSize = shipmentsOnBoard.reduce(
+              (prev: number, curr: any) => prev + parseFloat(curr?.$size || 0),
+              0
+            )
+            return {
+              shipmentsOnBoard,
+              totalSize,
+              links: leg.route ? leg.route.split(' ') : [],
+            }
+          })
+
+        const p = {
+          vehicleId: tour.$vehicleId,
+          plan,
+          legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
+          tourNumber: 0,
+        }
+        return p
+      })
+
+      tours.sort((a: any, b: any) => naturalSort(a.vehicleId, b.vehicleId))
+
+      // now assign them numbers based on their sorted order
+      tours.forEach((tour, i) => (tour.tourNumber = i))
+
+      return tours
+    },
+
+    processShipments(carrier: any) {
+      this.shipmentLookup = {} as any
+      if (!carrier.shipments?.shipment?.length) return []
+
+      const shipments = carrier.shipments.shipment.sort((a: any, b: any) =>
+        naturalSort(a.$id, b.$id)
+      )
+      try {
+        for (const shipment of shipments) {
+          // shipment has link id, so we go from link.from to link.to
+          shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
+          shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
+          shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
+          shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
+
+          this.shipmentLookup[shipment.$id] = shipment
+        }
+      } catch (e) {
+        // if xy are missing, skip this -- just means network isn't loaded yet.
+      }
+
+      return shipments
+    },
+
+    // this happens if viz is the full page, not a thumbnail on a project page
+    buildRouteFromUrl() {
+      const params = this.$route.params
+      if (!params.project || !params.pathMatch) {
+        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
+        return
+      }
+
+      // subfolder and config file
+      const sep = 1 + params.pathMatch.lastIndexOf('/')
+      const subfolder = params.pathMatch.substring(0, sep)
+      const config = params.pathMatch.substring(sep)
+
+      this.myState.subfolder = subfolder
+      this.myState.yamlConfig = config
+    },
+
+    async getVizDetails() {
+      // are we in a dashboard?
+      if (this.config) {
+        this.vizDetails = Object.assign({}, this.config)
+        return
+      }
+
+      // if a YAML file was passed in, just use it
+      if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
+        try {
+          const filename =
+            this.myState.yamlConfig.indexOf('/') > -1
+              ? this.myState.yamlConfig
+              : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+          const text = await this.fileApi.getFileText(filename)
+          this.vizDetails = YAML.parse(text)
+          return
+        } catch (e) {
+          console.log('failed')
+          // maybe it failed because password?
+          const err = e as any
+          if (this.fileSystem.needPassword && err.status === 401) {
+            globalStore.commit('requestLogin', this.fileSystem.slug)
+          }
+          return
+        }
+      }
+
+      // Fine, build the config based on folder contents -------------------------
+      const title = this.myState.yamlConfig.substring(
+        0,
+        15 + this.myState.yamlConfig.indexOf('carriers')
+      )
+
+      // Road network: first try the most obvious network filename:
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+
+      let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
+      // if the obvious network file doesn't exist, just grab... the first network file:
+      if (files.indexOf(network) == -1) {
+        const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
+        if (allNetworks.length) network = allNetworks[0]
+        else {
+          this.myState.statusMessage = 'No road network found.'
+          network = ''
+        }
+      }
+
+      this.vizDetails = {
+        network,
+        carriers: this.yamlConfig as any,
+        title,
+        description: '',
+        center: this.vizDetails.center,
+        projection: '',
+        thumbnail: '',
+      }
+
+      const t = 'Carrier Explorer'
+      this.$emit('title', t)
+
+      this.buildThumbnail()
+    },
+
+    async setMapCenter() {
+      let samples = 0
+      let longitude = 0
+      let latitude = 0
+
+      if (this.vizDetails.center) {
+        if (typeof this.vizDetails.center == 'string') {
+          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+        }
+        longitude = this.vizDetails.center[0]
+        latitude = this.vizDetails.center[1]
+      } else if (!this.vizDetails.center) {
+        this.data = Object.entries(this.links)
+
+        if (!this.data.length) return
+
+        const numLinks = this.data.length / 2
+
+        const gap = 4096
+        for (let i = 0; i < numLinks; i += gap) {
+          longitude += this.data[i * 2][1][0]
+          latitude += this.data[i * 2 + 1][1][1]
+          samples++
+        }
+
+        longitude = longitude / samples
+        latitude = latitude / samples
+      }
+      if (longitude && latitude) {
+        this.$store.commit('setMapCamera', {
+          longitude,
+          latitude,
+          zoom: 9,
+          bearing: 0,
+          pitch: 0,
+          jump: false,
         })
       }
-    }
-  }
+    },
 
-  private clickedLeg(object: any) {
-    if (object?.tour) this.handleSelectTour(object?.tour)
-  }
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await readBlob.arraybuffer(blob)
+          const base64 = this.arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
 
-  private clickedEmptyMap() {
-    this.selectAllTours()
-  }
+    handleClick(object: any) {
+      console.log('CLICK!', object)
+      if (!object) this.clickedEmptyMap()
+      if (object?.type == 'depot') this.clickedDepot(object)
+      if (object?.type == 'leg') this.clickedLeg(object)
+    },
 
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
+    clickedDepot(object: any) {
+      const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
+      console.log({ vehiclesAtThisDepot })
+      this.selectedTours = []
+      this.shownShipments = []
 
-  private updateLegendColors() {}
+      for (const tour of this.tours) {
+        if (vehiclesAtThisDepot.includes(tour.vehicleId)) {
+          this.handleSelectTour(tour)
+          // ^^ has side-effect: shipmentsInTour now has the list of shipmentIds
+          // We can use this to filter the shipments
+          this.shipmentIdsInTour.forEach(id => {
+            this.shownShipments.push(this.shipmentLookup[id])
+          })
+        }
+      }
+    },
 
-  private get textColor() {
-    const lightmode = {
-      text: '#3498db',
-      bg: '#eeeef480',
-    }
+    clickedLeg(object: any) {
+      if (object?.tour) this.handleSelectTour(object?.tour)
+    },
 
-    const darkmode = {
-      text: 'white',
-      bg: '#181518aa',
-    }
+    clickedEmptyMap() {
+      this.selectAllTours()
+    },
 
-    return this.globalState.isDarkMode ? darkmode : lightmode
-  }
+    arrayBufferToBase64(buffer: any) {
+      var binary = ''
+      var bytes = new Uint8Array(buffer)
+      var len = bytes.byteLength
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      return window.btoa(binary)
+    },
 
-  private async mounted() {
+    updateLegendColors() {},
+
+    async loadCarriers() {
+      // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
+
+      const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
+      if (!carriersXML) return
+
+      const root: any = await parseXML(carriersXML, {
+        // these elements should always be arrays, even if there's just one element:
+        alwaysArray: [
+          'carriers.carrier',
+          'carriers.carrier.capabilities.vehicles.vehicle',
+          'carriers.carrier.plan.tour',
+          'carriers.carrier.shipments.shipment',
+          'carriers.carrier.services.service',
+        ],
+      })
+
+      // sort by '$id' attribute
+      const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+      return carrierList
+    },
+
+    async loadNetwork() {
+      this.myState.statusMessage = 'Loading network'
+
+      if (this.vizDetails.network.indexOf('.xml.') > -1) {
+        // load matsim xml file
+        const path = `${this.myState.subfolder}/${this.vizDetails.network}`
+        const net = await this.fetchNetwork(path, {})
+
+        // build direct lookup of x/y from link-id
+        this.myState.statusMessage = 'Building network link table'
+        const links: { [id: string]: number[] } = {}
+
+        net.linkIds.forEach((linkId: string, i: number) => {
+          links[linkId] = [
+            net.source[i * 2],
+            net.source[i * 2 + 1],
+            net.dest[i * 2],
+            net.dest[i * 2 + 1],
+          ]
+        })
+        return links
+      } else {
+        // pre-converted output from create_network.py
+        const blob = await this.fileApi.getFileBlob(
+          this.myState.subfolder + '/' + this.vizDetails.network
+        )
+        const blobString = blob ? await blobToBinaryString(blob) : null
+        let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+        const convertedNetwork = JSON.parse(text)
+
+        return convertedNetwork
+      }
+    },
+
+    async fetchNetwork(path: string, vizDetails: any) {
+      return new Promise<NetworkLinks>((resolve, reject) => {
+        const thread = new RoadNetworkLoader()
+        try {
+          thread.postMessage({
+            filePath: path,
+            fileSystem: this.fileSystem,
+            vizDetails,
+          })
+
+          thread.onmessage = e => {
+            // perhaps network has no CRS and we need to ask user
+            if (e.data.promptUserForCRS) {
+              let crs =
+                prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+              if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
+
+              thread.postMessage({ crs })
+              return
+            }
+
+            // normal exit
+            thread.terminate()
+
+            if (e.data.error) {
+              console.error(e.data.error)
+              reject(e.data.error)
+            }
+            resolve(e.data.links)
+          }
+        } catch (err) {
+          thread.terminate()
+          console.error(err)
+          reject(err)
+        }
+      })
+    },
+
+    toggleLoaded(loaded: boolean) {
+      this.isLoaded = loaded
+    },
+
+    rotateColors() {
+      localStorage.setItem(
+        'plugin/agent-animation/colorscheme',
+        this.globalState.isDarkMode ? ColorScheme.DarkMode : ColorScheme.LightMode
+      )
+    },
+
+    async loadFileOrGzippedFile(name: string) {
+      if (!this.fileApi) return
+
+      let content = ''
+
+      // network
+      try {
+        if (name.endsWith('xml')) {
+          content = await this.fileApi.getFileText(this.myState.subfolder + '/' + name)
+        } else if (name.endsWith('gz')) {
+          const blob = await this.fileApi.getFileBlob(this.myState.subfolder + '/' + name)
+          const blobString = blob ? await blobToBinaryString(blob) : null
+          content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+        }
+      } catch (e) {
+        const error = name + ': ' + e
+        console.error(e)
+        this.myState.statusMessage = error
+      }
+      return content
+    },
+  },
+  async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
 
     this.myState.thumbnail = this.thumbnail
-    this.myState.yamlConfig = this.yamlConfig
     this.myState.subfolder = this.subfolder
-
-    this.buildFileApi()
 
     if (!this.yamlConfig) this.buildRouteFromUrl()
     await this.getVizDetails()
@@ -911,146 +1027,15 @@ class CarrierPlugin extends Vue {
     this.setMapCenter()
 
     this.myState.statusMessage = ''
-  }
+  },
 
-  private async loadCarriers() {
-    // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
-
-    const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
-    if (!carriersXML) return
-
-    const root: any = await parseXML(carriersXML, {
-      // these elements should always be arrays, even if there's just one element:
-      alwaysArray: [
-        'carriers.carrier',
-        'carriers.carrier.capabilities.vehicles.vehicle',
-        'carriers.carrier.plan.tour',
-        'carriers.carrier.shipments.shipment',
-        'carriers.carrier.services.service',
-      ],
-    })
-
-    // sort by '$id' attribute
-    const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-    return carrierList
-  }
-
-  private async loadNetwork() {
-    if (!this.myState.fileApi) return
-    this.myState.statusMessage = 'Loading network'
-
-    if (this.vizDetails.network.indexOf('.xml.') > -1) {
-      // load matsim xml file
-      const path = `${this.myState.subfolder}/${this.vizDetails.network}`
-      const net = await this.fetchNetwork(path, {})
-
-      // build direct lookup of x/y from link-id
-      this.myState.statusMessage = 'Building network link table'
-      const links: { [id: string]: number[] } = {}
-
-      net.linkIds.forEach((linkId: string, i: number) => {
-        links[linkId] = [
-          net.source[i * 2],
-          net.source[i * 2 + 1],
-          net.dest[i * 2],
-          net.dest[i * 2 + 1],
-        ]
-      })
-      return links
-    } else {
-      // pre-converted output from create_network.py
-      const blob = await this.myState.fileApi.getFileBlob(
-        this.myState.subfolder + '/' + this.vizDetails.network
-      )
-      const blobString = blob ? await blobToBinaryString(blob) : null
-      let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-      const convertedNetwork = JSON.parse(text)
-
-      return convertedNetwork
-    }
-  }
-
-  private async fetchNetwork(path: string, vizDetails: any) {
-    return new Promise<NetworkLinks>((resolve, reject) => {
-      const thread = new RoadNetworkLoader()
-      try {
-        thread.postMessage({
-          filePath: path,
-          fileSystem: this.myState.fileSystem,
-          vizDetails,
-        })
-
-        thread.onmessage = e => {
-          // perhaps network has no CRS and we need to ask user
-          if (e.data.promptUserForCRS) {
-            let crs =
-              prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
-            if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
-
-            thread.postMessage({ crs })
-            return
-          }
-
-          // normal exit
-          thread.terminate()
-
-          if (e.data.error) {
-            console.error(e.data.error)
-            reject(e.data.error)
-          }
-          resolve(e.data.links)
-        }
-      } catch (err) {
-        thread.terminate()
-        console.error(err)
-        reject(err)
-      }
-    })
-  }
-
-  private vehicleLookup: string[] = []
-  private vehicleLookupString: { [id: string]: number } = {}
-
-  private beforeDestroy() {
+  beforeDestroy() {
     this.myState.isRunning = false
 
     globalStore.commit('setFullScreen', false)
     this.$store.commit('setFullScreen', false)
-  }
-
-  private async loadFileOrGzippedFile(name: string) {
-    if (!this.myState.fileApi) return
-
-    let content = ''
-
-    // network
-    try {
-      if (name.endsWith('xml')) {
-        content = await this.myState.fileApi.getFileText(this.myState.subfolder + '/' + name)
-      } else if (name.endsWith('gz')) {
-        const blob = await this.myState.fileApi.getFileBlob(this.myState.subfolder + '/' + name)
-        const blobString = blob ? await blobToBinaryString(blob) : null
-        content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-      }
-    } catch (e) {
-      const error = name + ': ' + e
-      console.error(e)
-      this.myState.statusMessage = error
-    }
-    return content
-  }
-
-  private toggleLoaded(loaded: boolean) {
-    this.isLoaded = loaded
-  }
-
-  private rotateColors() {
-    localStorage.setItem(
-      'plugin/agent-animation/colorscheme',
-      this.globalState.isDarkMode ? ColorScheme.DarkMode : ColorScheme.LightMode
-    )
-  }
-}
+  },
+})
 
 // !register plugin!
 globalStore.commit('registerPlugin', {
@@ -1297,7 +1282,7 @@ input {
   overflow-x: hidden;
   cursor: pointer;
   margin: 0 0.25rem 0.25rem 0.25rem;
-  border-bottom: 1px solid #555;
+  // border-bottom: 1px solid #555;
 }
 
 .carrier-section {
@@ -1354,15 +1339,24 @@ input {
 
 .switches {
   display: flex;
-  margin: -0.5rem 0 0 0.5rem;
+  // margin: 0.25rem 0.25rem;
+
+  p {
+    flex: 1;
+    margin: auto 0;
+  }
 }
 
 .slider {
-  flex: 1;
-  margin-right: 0.75rem;
+  flex: 4;
+  margin-right: 0 1rem;
 }
 
 .detail-buttons {
+  margin: 0 0.25rem 0.5rem 0.25rem;
+}
+
+.switchbox {
   margin: 0 0.25rem 0.5rem 0.25rem;
 }
 

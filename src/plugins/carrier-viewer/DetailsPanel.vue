@@ -68,7 +68,7 @@ const i18n = {
   },
 }
 
-import { Vue, Component, Prop, Watch } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import naturalSort from 'javascript-natural-sort'
@@ -84,7 +84,8 @@ import { ColorScheme, LIGHT_MODE, DARK_MODE } from '@/Globals'
 
 naturalSort.insensitive = true
 
-@Component({
+export default defineComponent({
+  name: 'CarrierDetailPanel',
   i18n,
   components: {
     CollapsiblePanel,
@@ -93,348 +94,352 @@ naturalSort.insensitive = true
     SettingsPanel,
     ToggleButton,
     VueSlider,
-  } as any,
-})
-export default class DetailsPanel extends Vue {
-  private colorScheme = ColorScheme.DarkMode
+  },
+  data: () => {
+    return {
+      colorScheme: ColorScheme.DarkMode,
 
-  private searchTerm: string = ''
-  private searchEnabled = false
+      searchTerm: '',
+      searchEnabled: false,
 
-  private globalState = globalStore.state
-  private isDarkMode = this.colorScheme === ColorScheme.DarkMode
-  private isLoaded = true
-  private showHelp = false
+      globalState: globalStore.state,
+      isDarkMode: globalStore.state.isDarkMode,
+      isLoaded: true,
+      showHelp: false,
 
-  private speed = 1
+      speed: 1,
 
-  private legendBits: any[] = []
+      legendBits: [] as any[],
 
-  private links: any = {}
+      links: {} as any,
 
-  private toggleTours = true
-  private toggleVehicles = true
-  private toggleShipments = true
-  private toggleServices = true
+      toggleTours: true,
+      toggleVehicles: true,
+      toggleShipments: true,
+      toggleServices: true,
 
-  private carriers: any[] = []
-  private vehicles: any[] = []
-  private shipments: any[] = []
-  private services: any[] = []
-  private stopMidpoints: any[] = []
-  private tours: any[] = []
-  private shownRoutes: any[] = []
-  private shownShipments: any[] = []
-  private shipmentIdsInTour: any[] = []
+      carriers: [] as any[],
+      vehicles: [] as any[],
+      shipments: [] as any[],
+      services: [] as any[],
+      stopMidpoints: [] as any[],
+      tours: [] as any[],
+      shownRoutes: [] as any[],
+      shownShipments: [] as any[],
+      shipmentIdsInTour: [] as any[],
 
-  private selectedCarrier = ''
-  private selectedTour: any = null
-  private selectedShipment: any = null
+      selectedCarrier: '',
+      selectedTour: null as any,
+      selectedShipment: null as any,
 
-  private handleSelectShipment(shipment: any) {
-    console.log({ shipment })
+      currentlyAnimating: {} as any,
+      vehicleLookup: [] as string[],
+      vehicleLookupString: {} as { [id: string]: number },
+    }
+  },
+  computed: {
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
+      }
 
-    if (this.selectedShipment === shipment) {
-      this.selectedShipment = null
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
+      }
+
+      return this.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    },
+  },
+
+  watch: {
+    'globalState.colorScheme'() {
+      this.isDarkMode = this.colorScheme === ColorScheme.DarkMode
+    },
+  },
+
+  methods: {
+    handleSelectShipment(shipment: any) {
+      console.log({ shipment })
+
+      if (this.selectedShipment === shipment) {
+        this.selectedShipment = null
+        this.shownShipments = []
+        return
+      }
+
+      this.shownShipments = this.shipments.filter(s => s.id === shipment.id)
+      this.selectedShipment = shipment
+    },
+
+    async handleSelectTour(tour: any) {
+      console.log({ tour })
+
+      this.currentlyAnimating = tour
+
+      this.shownRoutes = []
       this.shownShipments = []
-      return
-    }
+      this.selectedShipment = null
+      this.shipmentIdsInTour = []
+      this.stopMidpoints = []
 
-    this.shownShipments = this.shipments.filter((s) => s.id === shipment.id)
-    this.selectedShipment = shipment
-  }
-
-  private currentlyAnimating: any = {}
-
-  private async handleSelectTour(tour: any) {
-    console.log({ tour })
-
-    this.currentlyAnimating = tour
-
-    this.shownRoutes = []
-    this.shownShipments = []
-    this.selectedShipment = null
-    this.shipmentIdsInTour = []
-    this.stopMidpoints = []
-
-    if (this.selectedTour === tour) {
-      this.selectedTour = null
-      return
-    }
-
-    this.selectedTour = tour
-
-    // find shipment components
-    const inTour: any[] = []
-    const stopMidpoints: any[] = []
-
-    let stopCount = 0
-
-    for (const activity of tour.plan) {
-      if (activity.shipmentId) {
-        inTour.push(activity.shipmentId)
-
-        // build list of stop locations -- this is inefficient, should use a map not an array
-        const shipment = this.shipments.find((s) => s.id === activity.shipmentId)
-        const link = activity.type === 'pickup' ? shipment.from : shipment.to
-        // skip duplicate pickups/dropoffs at this location
-        if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
-          continue
-        }
-        const ptFrom = [this.links[link][0], this.links[link][1]]
-        const ptTo = [this.links[link][2], this.links[link][3]]
-
-        const midpoint = [
-          0.5 * (this.links[link][0] + this.links[link][2]),
-          0.5 * (this.links[link][1] + this.links[link][3]),
-        ]
-
-        const details = Object.assign({}, shipment)
-        delete details.from
-        delete details.fromX
-        delete details.fromY
-        delete details.to
-        delete details.toX
-        delete details.toY
-        delete details.id
-
-        stopMidpoints.push({
-          id: shipment.id,
-          count: stopCount++,
-          link,
-          midpoint,
-          label: '',
-          details,
-          ptFrom,
-          ptTo,
-        })
+      if (this.selectedTour === tour) {
+        this.selectedTour = null
+        return
       }
-    }
 
-    // set stop labels: use commas to separate stop numbers if they're identical
-    for (let sCount = 0; sCount < stopMidpoints.length; sCount++) {
-      let label = ''
-      for (let i = 0; i < sCount; i++) {
+      this.selectedTour = tour
+
+      // find shipment components
+      const inTour: any[] = []
+      const stopMidpoints: any[] = []
+
+      let stopCount = 0
+
+      for (const activity of tour.plan) {
+        if (activity.shipmentId) {
+          inTour.push(activity.shipmentId)
+
+          // build list of stop locations -- this is inefficient, should use a map not an array
+          const shipment = this.shipments.find(s => s.id === activity.shipmentId)
+          const link = activity.type === 'pickup' ? shipment.from : shipment.to
+          // skip duplicate pickups/dropoffs at this location
+          if (stopMidpoints.length && stopMidpoints[stopMidpoints.length - 1].link === link) {
+            continue
+          }
+          const ptFrom = [this.links[link][0], this.links[link][1]]
+          const ptTo = [this.links[link][2], this.links[link][3]]
+
+          const midpoint = [
+            0.5 * (this.links[link][0] + this.links[link][2]),
+            0.5 * (this.links[link][1] + this.links[link][3]),
+          ]
+
+          const details = Object.assign({}, shipment)
+          delete details.from
+          delete details.fromX
+          delete details.fromY
+          delete details.to
+          delete details.toX
+          delete details.toY
+          delete details.id
+
+          stopMidpoints.push({
+            id: shipment.id,
+            count: stopCount++,
+            link,
+            midpoint,
+            label: '',
+            details,
+            ptFrom,
+            ptTo,
+          })
+        }
+      }
+
+      // set stop labels: use commas to separate stop numbers if they're identical
+      for (let sCount = 0; sCount < stopMidpoints.length; sCount++) {
+        let label = ''
+        for (let i = 0; i < sCount; i++) {
+          if (
+            stopMidpoints[sCount].midpoint[0] === stopMidpoints[i].midpoint[0] &&
+            stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
+          ) {
+            label += `,${i}`
+            if (label === ',0') label = ',*'
+            stopMidpoints[sCount].label = ''
+          }
+        }
+        label = label + `,${sCount}`
+        label = label.slice(1)
+        if (label === '0') label = '*'
+
+        stopMidpoints[sCount].label = label
+      }
+
+      this.shipmentIdsInTour = inTour
+      // this.stopMidpoints = stopMidpoints
+
+      // always pick the same "random" colors
+
+      const colors = colorMap({
+        colormap: 'summer',
+        nshades: Math.max(9, tour.routes.length),
+        format: 'rba',
+      }).map((a: any) => a.slice(0, 3))
+
+      let count = 0
+
+      const sleep = (milliseconds: number) => {
+        return new Promise(resolve => setTimeout(resolve, milliseconds))
+      }
+
+      const animationSpeed = tour.routes.length > 20 ? 25 : 50
+      for (const route of tour.routes) {
+        this.addRouteToMap(tour, route, stopMidpoints, colors, count)
+        count++
+        await sleep(animationSpeed)
+      }
+      this.stopMidpoints = stopMidpoints
+      // console.log({ shownRoutes: this.shownRoutes })
+    },
+
+    addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
+      if (this.currentlyAnimating !== tour) return
+
+      // starting point from xy:[0,1]
+      const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
+      for (const link of route) {
+        const fromXY = [this.links[link][0], this.links[link][1]]
+        // add from point if it isn't a duplicate
         if (
-          stopMidpoints[sCount].midpoint[0] === stopMidpoints[i].midpoint[0] &&
-          stopMidpoints[sCount].midpoint[1] === stopMidpoints[i].midpoint[1]
+          fromXY[0] !== points[points.length - 1][0] ||
+          fromXY[1] !== points[points.length - 1][1]
         ) {
-          label += `,${i}`
-          if (label === ',0') label = ',*'
-          stopMidpoints[sCount].label = ''
+          points.push(fromXY)
         }
+        // always push toXY: xy:[2,3]
+        points.push([this.links[link][2], this.links[link][3]])
       }
-      label = label + `,${sCount}`
-      label = label.slice(1)
-      if (label === '0') label = '*'
 
-      stopMidpoints[sCount].label = label
-    }
+      this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
+      this.stopMidpoints = stopLocations.slice(0, count)
+    },
 
-    this.shipmentIdsInTour = inTour
-    // this.stopMidpoints = stopMidpoints
+    handleSelectCarrier(carrier: any) {
+      console.log('carrier', carrier)
+      this.currentlyAnimating = null
 
-    // always pick the same "random" colors
+      const id = carrier.$.id
 
-    const colors = colorMap({
-      colormap: 'summer',
-      nshades: Math.max(9, tour.routes.length),
-      format: 'rba',
-    }).map((a: any) => a.slice(0, 3))
+      this.vehicles = []
+      this.shipments = []
+      this.services = []
+      this.tours = []
+      this.shownRoutes = []
+      this.shownShipments = []
+      this.selectedShipment = null
+      this.shipmentIdsInTour = []
+      this.stopMidpoints = []
 
-    let count = 0
-
-    const sleep = (milliseconds: number) => {
-      return new Promise((resolve) => setTimeout(resolve, milliseconds))
-    }
-
-    const animationSpeed = tour.routes.length > 20 ? 25 : 50
-    for (const route of tour.routes) {
-      this.addRouteToMap(tour, route, stopMidpoints, colors, count)
-      count++
-      await sleep(animationSpeed)
-    }
-    this.stopMidpoints = stopMidpoints
-    // console.log({ shownRoutes: this.shownRoutes })
-  }
-
-  private addRouteToMap(tour: any, route: any, stopLocations: any[], colors: any, count: number) {
-    if (this.currentlyAnimating !== tour) return
-
-    // starting point from xy:[0,1]
-    const points = [[this.links[route[0]][0], this.links[route[0]][1]]]
-    for (const link of route) {
-      const fromXY = [this.links[link][0], this.links[link][1]]
-      // add from point if it isn't a duplicate
-      if (
-        fromXY[0] !== points[points.length - 1][0] ||
-        fromXY[1] !== points[points.length - 1][1]
-      ) {
-        points.push(fromXY)
+      // unselect carrier
+      if (this.selectedCarrier === carrier.$.id) {
+        this.selectedCarrier = ''
+        return
       }
-      // always push toXY: xy:[2,3]
-      points.push([this.links[link][2], this.links[link][3]])
-    }
 
-    this.shownRoutes = this.shownRoutes.concat([{ count, points, color: colors[count] }])
-    this.stopMidpoints = stopLocations.slice(0, count)
-  }
+      this.selectedCarrier = carrier.$.id
 
-  private handleSelectCarrier(carrier: any) {
-    console.log('carrier', carrier)
-    this.currentlyAnimating = null
+      if (carrier.capabilities[0]?.vehicles[0]?.vehicle)
+        this.vehicles = carrier.capabilities[0].vehicles[0].vehicle
+          .map((v: any) => v.$.id)
+          .sort((a: any, b: any) => naturalSort(a, b))
+      // console.log(this.vehicles)
 
-    const id = carrier.$.id
+      this.shipments = this.processShipments(carrier)
 
-    this.vehicles = []
-    this.shipments = []
-    this.services = []
-    this.tours = []
-    this.shownRoutes = []
-    this.shownShipments = []
-    this.selectedShipment = null
-    this.shipmentIdsInTour = []
-    this.stopMidpoints = []
+      if (carrier.services[0]?.service)
+        this.services = carrier.services[0].service
+          .map((s: any) => s.$)
+          .sort((a: any, b: any) => naturalSort(a.$.id, b.$.id))
 
-    // unselect carrier
-    if (this.selectedCarrier === carrier.$.id) {
-      this.selectedCarrier = ''
-      return
-    }
+      // console.log(this.services)
 
-    this.selectedCarrier = carrier.$.id
+      this.tours = this.processTours(carrier)
+    },
 
-    if (carrier.capabilities[0]?.vehicles[0]?.vehicle)
-      this.vehicles = carrier.capabilities[0].vehicles[0].vehicle
-        .map((v: any) => v.$.id)
-        .sort((a: any, b: any) => naturalSort(a, b))
-    // console.log(this.vehicles)
+    processTours(carrier: any) {
+      if (!carrier.plan[0]?.tour) return []
 
-    this.shipments = this.processShipments(carrier)
+      // console.log({ tour: carrier.plan[0].tour })
 
-    if (carrier.services[0]?.service)
-      this.services = carrier.services[0].service
-        .map((s: any) => s.$)
-        .sort((a: any, b: any) => naturalSort(a.$.id, b.$.id))
+      const tours = carrier.plan[0].tour.map((t: any) => {
+        const plan = t.$$.map((elem: any) => {
+          return Object.assign(elem.$, { $: elem['#name'], route: elem.route })
+        })
 
-    // console.log(this.services)
+        const routes = plan
+          .filter((p: any) => p.$ === 'leg' && p.route[0].length)
+          .map((p: any) => p.route[0].split(' '))
 
-    this.tours = this.processTours(carrier)
-  }
-
-  private processTours(carrier: any) {
-    if (!carrier.plan[0]?.tour) return []
-
-    // console.log({ tour: carrier.plan[0].tour })
-
-    const tours = carrier.plan[0].tour.map((t: any) => {
-      const plan = t.$$.map((elem: any) => {
-        return Object.assign(elem.$, { $: elem['#name'], route: elem.route })
+        return {
+          id: t.$.vehicleId,
+          plan,
+          routes,
+        }
       })
 
-      const routes = plan
-        .filter((p: any) => p.$ === 'leg' && p.route[0].length)
-        .map((p: any) => p.route[0].split(' '))
+      tours.sort((a: any, b: any) => naturalSort(a.id, b.id))
 
-      return {
-        id: t.$.vehicleId,
-        plan,
-        routes,
+      // console.log(tours)
+      return tours
+    },
+
+    processShipments(carrier: any) {
+      if (!carrier.shipments) return []
+
+      let shipments: any[] = []
+      if (carrier.shipments[0]?.shipment)
+        shipments = carrier.shipments[0].shipment
+          .map((s: any) => s.$)
+          .sort((a: any, b: any) => naturalSort(a.id, b.id))
+
+      try {
+        for (const shipment of shipments) {
+          // shipment has link id, so we go from link.from to link.to
+          shipment.fromX = 0.5 * (this.links[shipment.from][0] + this.links[shipment.from][2])
+          shipment.fromY = 0.5 * (this.links[shipment.from][1] + this.links[shipment.from][3])
+          shipment.toX = 0.5 * (this.links[shipment.to][0] + this.links[shipment.to][2])
+          shipment.toY = 0.5 * (this.links[shipment.to][1] + this.links[shipment.to][3])
+        }
+      } catch (e) {
+        // if xy are missing, skip this -- just means network isn't loaded yet.
       }
-    })
 
-    tours.sort((a: any, b: any) => naturalSort(a.id, b.id))
+      // console.log({ shipments })
+      return shipments
+    },
 
-    // console.log(tours)
-    return tours
-  }
-
-  private processShipments(carrier: any) {
-    if (!carrier.shipments) return []
-
-    let shipments: any[] = []
-    if (carrier.shipments[0]?.shipment)
-      shipments = carrier.shipments[0].shipment
-        .map((s: any) => s.$)
-        .sort((a: any, b: any) => naturalSort(a.id, b.id))
-
-    try {
-      for (const shipment of shipments) {
-        // shipment has link id, so we go from link.from to link.to
-        shipment.fromX = 0.5 * (this.links[shipment.from][0] + this.links[shipment.from][2])
-        shipment.fromY = 0.5 * (this.links[shipment.from][1] + this.links[shipment.from][3])
-        shipment.toX = 0.5 * (this.links[shipment.to][0] + this.links[shipment.to][2])
-        shipment.toY = 0.5 * (this.links[shipment.to][1] + this.links[shipment.to][3])
+    handleClick(vehicleNumber: any) {
+      // null means empty area clicked: clear map.
+      if (vehicleNumber === null) {
+        this.searchTerm = ''
+        return
       }
-    } catch (e) {
-      // if xy are missing, skip this -- just means network isn't loaded yet.
-    }
 
-    // console.log({ shipments })
-    return shipments
-  }
+      const vehId = this.vehicleLookup[vehicleNumber]
+      console.log(vehId)
 
-  @Watch('globalState.colorScheme') private swapTheme() {
-    this.isDarkMode = this.colorScheme === ColorScheme.DarkMode
-  }
+      // set -- or clear -- search box!
+      if (this.searchTerm === vehId) this.searchTerm = ''
+      else this.searchTerm = vehId
+    },
 
-  private handleClick(vehicleNumber: any) {
-    // null means empty area clicked: clear map.
-    if (vehicleNumber === null) {
-      this.searchTerm = ''
-      return
-    }
+    arrayBufferToBase64(buffer: any) {
+      var binary = ''
+      var bytes = new Uint8Array(buffer)
+      var len = bytes.byteLength
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+      }
+      return window.btoa(binary)
+    },
 
-    const vehId = this.vehicleLookup[vehicleNumber]
-    console.log(vehId)
-
-    // set -- or clear -- search box!
-    if (this.searchTerm === vehId) this.searchTerm = ''
-    else this.searchTerm = vehId
-  }
-
-  private arrayBufferToBase64(buffer: any) {
-    var binary = ''
-    var bytes = new Uint8Array(buffer)
-    var len = bytes.byteLength
-    for (var i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i])
-    }
-    return window.btoa(binary)
-  }
-
-  private updateLegendColors() {
-    // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
-    // this.legendBits = [
-    //   { label: 'susceptible', color: theme.susceptible },
-    //   { label: 'latently infected', color: theme.infectedButNotContagious },
-    //   { label: 'contagious', color: theme.contagious },
-    //   { label: 'symptomatic', color: theme.symptomatic },
-    //   { label: 'seriously ill', color: theme.seriouslyIll },
-    //   { label: 'critical', color: theme.critical },
-    //   { label: 'recovered', color: theme.recovered },
-    // ]
-  }
-
-  private get textColor() {
-    const lightmode = {
-      text: '#3498db',
-      bg: '#eeeef480',
-    }
-
-    const darkmode = {
-      text: 'white',
-      bg: '#181518aa',
-    }
-
-    return this.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
-  }
-
-  private async mounted() {}
-
-  private vehicleLookup: string[] = []
-  private vehicleLookupString: { [id: string]: number } = {}
-}
+    updateLegendColors() {
+      // const theme = this.myState.colorScheme == ColorScheme.LightMode ? LIGHT_MODE : DARK_MODE
+      // this.legendBits = [
+      //   { label: 'susceptible', color: theme.susceptible },
+      //   { label: 'latently infected', color: theme.infectedButNotContagious },
+      //   { label: 'contagious', color: theme.contagious },
+      //   { label: 'symptomatic', color: theme.symptomatic },
+      //   { label: 'seriously ill', color: theme.seriouslyIll },
+      //   { label: 'critical', color: theme.critical },
+      //   { label: 'recovered', color: theme.recovered },
+      // ]
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">

@@ -70,9 +70,11 @@ export default function Component(props: {
     center,
     onClick,
   } = props
-  const { simplifyTours, scaleFactor } = settings
+
+  const { simplifyTours, scaleFactor, shipmentDotsOnTourMap } = settings
 
   // range is (1/) 16384 - 0.000001
+  // slider is 0-100, which we invert and scale to [14 to -6], then 2^value is scaleFactor.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
 
   const layers: any = []
@@ -288,7 +290,7 @@ export default function Component(props: {
         id: 'shipmentLocationDashedLine',
         data: stopActivities,
         getPath: (d: any) => [d.ptFrom, d.ptTo],
-        getColor: [192, 192, 192],
+        getColor: [128, 128, 128],
         getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
         opacity: 1,
         widthMinPixels: 3,
@@ -395,6 +397,7 @@ export default function Component(props: {
         autoHighlight: true,
         highlightColor: [255, 255, 255],
         onHover: setHoverInfo,
+        visible: shipmentDotsOnTourMap,
       })
     )
   }
