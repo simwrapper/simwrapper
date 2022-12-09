@@ -67,7 +67,7 @@ import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import InfoBottom from '@/assets/info-bottom.md'
 
-const BASE_URL = import.meta.url
+const BASE_URL = import.meta.env.BASE_URL
 
 const logos = [
   { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
@@ -98,7 +98,7 @@ export default defineComponent({
   computed: {
     allLogos(): any[] {
       return logos.map(p => {
-        return { url: p.url, image: new URL('../assets/images/logos/' + p.image, BASE_URL) }
+        return { url: p.url, image: `${BASE_URL}/images/logos/${p.image}` }
       })
     },
   },
