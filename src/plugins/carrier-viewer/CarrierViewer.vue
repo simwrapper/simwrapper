@@ -2,7 +2,9 @@
 .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
+
   .main-panel
+    .xmessage(v-if="this.myState.statusMessage") {{ this.myState.statusMessage }}
     tour-viz.anim(v-if="!thumbnail"
                   :activeTab="activeTab"
                   :shipments="shownShipments"
@@ -221,7 +223,7 @@ const CarrierPlugin = defineComponent({
 
       legendBits: [] as any[],
 
-      links: {} as any,
+      links: null as any,
 
       toggleTours: true,
       toggleVehicles: true,
@@ -257,7 +259,7 @@ const CarrierPlugin = defineComponent({
       }[],
 
       selectedCarrier: '',
-      selectedTours: [] as any,
+      selectedTours: [] as any[],
       selectedShipment: null as any,
 
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
@@ -461,6 +463,8 @@ const CarrierPlugin = defineComponent({
         const linkId = v.$depotLinkId
         let depotLink = this.links[linkId]
 
+        if (!depotLink) return
+
         if (!depots[linkId]) {
           depots[linkId] = {
             type: 'depot',
@@ -570,6 +574,8 @@ const CarrierPlugin = defineComponent({
     },
 
     handleSelectCarrier(carrier: any) {
+      if (!this.links) return
+
       const id = carrier.$id
 
       this.vehicles = []
@@ -719,12 +725,12 @@ const CarrierPlugin = defineComponent({
       }
 
       // if a YAML file was passed in, just use it
-      if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
+      if (this.yamlConfig?.endsWith('yaml') || this.yamlConfig?.endsWith('yml')) {
         try {
           const filename =
-            this.myState.yamlConfig.indexOf('/') > -1
-              ? this.myState.yamlConfig
-              : this.myState.subfolder + '/' + this.myState.yamlConfig
+            this.yamlConfig.indexOf('/') > -1
+              ? this.yamlConfig
+              : this.subfolder + '/' + this.yamlConfig
 
           const text = await this.fileApi.getFileText(filename)
           this.vizDetails = YAML.parse(text)
@@ -881,7 +887,7 @@ const CarrierPlugin = defineComponent({
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
 
       const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
-      if (!carriersXML) return
+      if (!carriersXML) return []
 
       const root: any = await parseXML(carriersXML, {
         // these elements should always be arrays, even if there's just one element:
@@ -983,8 +989,6 @@ const CarrierPlugin = defineComponent({
     },
 
     async loadFileOrGzippedFile(name: string) {
-      if (!this.fileApi) return
-
       let content = ''
 
       // network
@@ -1001,6 +1005,7 @@ const CarrierPlugin = defineComponent({
         console.error(e)
         this.myState.statusMessage = error
       }
+
       return content
     },
   },
@@ -1358,6 +1363,16 @@ input {
 
 .switchbox {
   margin: 0 0.25rem 0.5rem 0.25rem;
+}
+
+.xmessage {
+  z-index: 10;
+  background-color: var(--bgPanel2);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem 0.5rem;
 }
 
 @media only screen and (max-width: 640px) {
