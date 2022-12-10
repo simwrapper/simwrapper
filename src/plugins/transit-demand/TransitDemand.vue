@@ -136,7 +136,7 @@ const MyComponent = defineComponent({
       },
       isDarkMode: globalStore.state.isDarkMode,
       loadingText: 'MATSim Transit Inspector',
-      mymap: {} as any,
+      mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
       project: {} as any,
       projection: DEFAULT_PROJECTION,
