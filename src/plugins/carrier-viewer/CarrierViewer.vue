@@ -1,11 +1,11 @@
 <template lang="pug">
-.carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+.tcarrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
+                :style='{"background": urlThumbnail}'
+                oncontextmenu="return false")
 
-
-  .main-panel
-    .xmessage(v-if="this.myState.statusMessage") {{ this.myState.statusMessage }}
-    tour-viz.anim(v-if="!thumbnail"
+  .container-1
+    .main-panel
+      tour-viz.anim(v-if="!thumbnail"
                   :activeTab="activeTab"
                   :shipments="shownShipments"
                   :depots="shownDepots"
@@ -17,17 +17,16 @@
                   :settings="vizSettings"
                   :numSelectedTours="selectedTours.length"
                   :onClick="handleClick")
-    ZoomButtons(v-if="!thumbnail")
+      ZoomButtons(v-if="!thumbnail")
+      .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
-  .right-panel(v-if="!thumbnail" :darkMode="true")
-
-      h3(style="margin-left: 0.25rem" v-if="carriers.length") {{ $t('carriers')}}
+    .right-panel(v-if="!thumbnail" :darkMode="true")
+      h3(style="margin-left: 0.25rem" v-if="carriers.length") {{ $t('carriers') }}
 
       .carrier-list
         .carrier(v-for="carrier in carriers" :key="carrier.$id"
-                :class="{selected: carrier.$id===selectedCarrier}"
-                @click="handleSelectCarrier(carrier)"
-        )
+                 :class="{selected: carrier.$id===selectedCarrier}"
+                 @click="handleSelectCarrier(carrier)")
           .carrier-title {{ carrier.$id }}
 
       h4 {{ selectedCarrier || 'Details' }}
@@ -41,7 +40,7 @@
           span {{ $t('tours') }}
         b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
           span {{ $t('vehicles') }}
-        b-radio-button(v-if="this.services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+        b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
           span {{ $t('services') }}
 
       .detail-area
@@ -119,11 +118,10 @@ import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
-import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { parseXML } from '@/js/util'
+import { parseXML, findMatchingGlobInFiles } from '@/js/util'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
@@ -167,7 +165,6 @@ const CarrierPlugin = defineComponent({
   name: 'CarrierPlugin',
   i18n,
   components: {
-    CollapsiblePanel,
     LegendColors,
     ToggleButton,
     TourViz,
@@ -965,6 +962,7 @@ const CarrierPlugin = defineComponent({
 
             if (e.data.error) {
               console.error(e.data.error)
+              globalStore.commit('error', e.data.error)
               reject(e.data.error)
             }
             resolve(e.data.links)
@@ -989,24 +987,40 @@ const CarrierPlugin = defineComponent({
     },
 
     async loadFileOrGzippedFile(name: string) {
-      let content = ''
+      let filepath = `${this.subfolder}/${name}`
 
-      // network
       try {
-        if (name.endsWith('xml')) {
-          content = await this.fileApi.getFileText(this.myState.subfolder + '/' + name)
-        } else if (name.endsWith('gz')) {
-          const blob = await this.fileApi.getFileBlob(this.myState.subfolder + '/' + name)
+        // figure out which file to load with *? wildcards
+        if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
+          const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
+          const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
+
+          // fetch list of files in this folder
+          const { files } = await this.fileApi.getDirectory(zSubfolder)
+          const matchingFiles = findMatchingGlobInFiles(files, zDataset)
+          if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+          if (matchingFiles.length > 1)
+            throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
+          filepath = `${zSubfolder}/${matchingFiles[0]}`
+        }
+
+        let content = ''
+
+        if (filepath.endsWith('xml')) {
+          content = await this.fileApi.getFileText(filepath)
+        } else if (filepath.endsWith('gz')) {
+          const blob = await this.fileApi.getFileBlob(filepath)
           const blobString = blob ? await blobToBinaryString(blob) : null
           content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
         }
+        return content
       } catch (e) {
-        const error = name + ': ' + e
+        globalStore.commit('error', '' + e)
+        const error = filepath + ': ' + e
         console.error(e)
         this.myState.statusMessage = error
+        return ''
       }
-
-      return content
     },
   },
   async mounted() {
@@ -1076,15 +1090,16 @@ export default CarrierPlugin
   border-radius: 6px;
 }
 
-.carrier-viewer {
-  display: flex;
+.tcarrier-viewer {
+  position: relative;
+  height: 100%;
   pointer-events: none;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
-  position: absolute;
-  top: 0;
-  bottom: 0;
+}
+
+.container-1 {
+  display: flex;
+  height: 100%;
 }
 
 .carrier-viewer.hide-thumbnail {
@@ -1092,8 +1107,8 @@ export default CarrierPlugin
 }
 
 .main-panel {
-  flex: 1;
   position: relative;
+  flex: 1;
 }
 
 h4 {
@@ -1105,13 +1120,12 @@ h4 {
 }
 
 .right-panel {
-  z-index: 2;
   color: var(--text);
   display: flex;
   flex-direction: column;
   font-size: 0.8rem;
   pointer-events: auto;
-  background-color: var(--bgPanel);
+  background-color: var(--bgPanel3);
   width: 18rem;
   max-width: 18rem;
   padding: 0 0.25rem;
@@ -1165,13 +1179,7 @@ h4 {
 }
 
 .anim {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: #181919;
-  z-index: 0;
+  // background-color: #181919;
   pointer-events: auto;
 }
 
@@ -1209,8 +1217,9 @@ h4 {
   width: 100%;
 }
 
-.panel-items h3 {
-  padding: 0 0.5rem;
+h3 {
+  font-size: 1.2rem;
+  padding: 0;
 }
 
 input {
@@ -1273,7 +1282,6 @@ input {
 
 .carrier-list {
   user-select: none;
-  position: relative;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -1282,7 +1290,6 @@ input {
 
 .detail-area {
   user-select: none;
-  position: relative;
   flex: 1;
   overflow-x: hidden;
   cursor: pointer;
@@ -1368,10 +1375,6 @@ input {
 .xmessage {
   z-index: 10;
   background-color: var(--bgPanel2);
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   padding: 0.5rem 0.5rem;
 }
 
