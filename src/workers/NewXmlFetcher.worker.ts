@@ -3,25 +3,45 @@ import { parseXML } from '@/js/util'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
+import { findMatchingGlobInFiles } from '@/js/util'
+
+let _id = ''
 
 onmessage = async function (e) {
-  const id = e.data.id
+  _id = e.data.id
   const xml = await fetchXML(e.data.fileSystem, e.data.filePath, e.data.options)
 
-  postMessage({ xml, id })
+  postMessage({ xml, id: _id })
 }
 
-async function fetchXML(fileSystem: FileSystemConfig, filePath: string, options: any) {
-  const httpFileSystem = new HTTPFileSystem(fileSystem)
+async function fetchXML(fileSystem: FileSystemConfig, filepath: string, options: any) {
+  try {
+    const httpFileSystem = new HTTPFileSystem(fileSystem)
 
-  const blob = await httpFileSystem.getFileBlob(filePath)
-  if (!blob) throwError('BLOB IS NULL')
+    // figure out which file to load with *? wildcards
+    let expandedFilename = filepath
+    if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
+      const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
+      const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
 
-  const data = await getDataFromBlob(blob)
+      // fetch list of files in this folder
+      const { files } = await httpFileSystem.getDirectory(zSubfolder)
+      const matchingFiles = findMatchingGlobInFiles(files, zDataset)
+      if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+      if (matchingFiles.length > 1)
+        throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
+      expandedFilename = `${zSubfolder}/${matchingFiles[0]}`
+    }
 
-  const xml = parseXML(data, options)
+    const blob = await httpFileSystem.getFileBlob(expandedFilename)
+    if (!blob) throwError('BLOB IS NULL')
 
-  return xml
+    const data = await getDataFromBlob(blob)
+    const xml = parseXML(data, options)
+    return xml
+  } catch (e) {
+    throwError('Error loading ' + filepath)
+  }
 }
 
 async function getDataFromBlob(blob: Blob) {
@@ -48,7 +68,7 @@ function gUnzip(buffer: any): any {
 }
 
 function throwError(message: string) {
-  postMessage({ error: message })
+  postMessage({ error: message, id: _id })
   close()
 }
 

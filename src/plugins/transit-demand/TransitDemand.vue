@@ -15,7 +15,7 @@
 
   collapsible-panel.left-side(v-if="!thumbnail"
     :darkMode="isDarkMode"
-    locked="true"
+    :locked="true"
     direction="left")
 
     .panel-items
@@ -339,6 +339,7 @@ const MyComponent = defineComponent({
         for (const xmlConfigFileName of outputConfigs) {
           try {
             const configXML: any = await this.fetchXML({
+              worker: null,
               slug: this.fileSystem.slug,
               filePath: this.myState.subfolder + '/' + xmlConfigFileName,
             })
@@ -530,13 +531,18 @@ const MyComponent = defineComponent({
       })
     },
 
-    fetchXML(props: { slug: string; filePath: string; options?: any }) {
-      if (!this.xmlWorker) {
-        this.xmlWorker = new NewXmlFetcher()
-        this.xmlWorker.onmessage = (message: MessageEvent) => {
+    fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {
+      if (props.worker) props.worker.terminate()
+
+      let xmlWorker = props.worker || ({} as any)
+      {
+        xmlWorker = new NewXmlFetcher()
+        xmlWorker.onmessage = (message: MessageEvent) => {
           // message.data will have .id and either .error or .xml
           const { resolve, reject } = this.resolvers[message.data.id]
+
           if (message.data.error) reject(message.data.error)
+
           resolve(message.data.xml)
         }
       }
@@ -544,7 +550,7 @@ const MyComponent = defineComponent({
       // save the promise by id so we can look it up when we get messages
       const id = this.resolverId++
 
-      this.xmlWorker.postMessage(Object.assign({ id, fileSystem: this.fileSystem }, props))
+      xmlWorker.postMessage(Object.assign({ id, fileSystem: this.fileSystem }, props))
 
       const promise = new Promise((resolve, reject) => {
         this.resolvers[id] = { resolve, reject }
@@ -561,11 +567,14 @@ const MyComponent = defineComponent({
         // this._xmlWorkers.push(worker) // save it so we can terminate if we have to
 
         const roads = this.fetchXML({
+          worker: this._roadFetcher,
           slug: this.fileSystem.slug,
           filePath: this.myState.subfolder + '/' + this.vizDetails.network,
           options: { attributeNamePrefix: '' },
         })
+
         const transit = this.fetchXML({
+          worker: this._transitFetcher,
           slug: this.fileSystem.slug,
           filePath: this.myState.subfolder + '/' + this.vizDetails.transitSchedule,
           options: {
@@ -582,7 +591,8 @@ const MyComponent = defineComponent({
         return { roadXML: results[0], transitXML: results[1], ridership: [] }
       } catch (e) {
         console.error('TRANSIT:', e)
-        // this.loadingText = '' + e
+        this.loadingText = '' + e
+        globalStore.commit('error', 'Transit: ' + e)
         return null
       }
     },
