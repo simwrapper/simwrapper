@@ -28,7 +28,7 @@ const initialViewState = () => ({
   // longitude: 13.45,
   // latitude: 52.5,
   // zoom: 8,
-  zoom: 8,
+  zoom: 7,
 })
 
 export default new Vuex.Store({

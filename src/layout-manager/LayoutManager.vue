@@ -10,19 +10,21 @@
       @activate="setActiveLeftSection({section: $event, toggle:true})"
     )
 
-    .left-panel-active-section(v-show="showActiveSection" :style="activeSectionStyle")
+    .left-panel-active-section(v-show="isShowingActiveSection"
+                               :style="activeSectionStyle"
+    )
       component(v-for="section of leftSections" :key="section"
-        :is="section"
-        v-show="section==activeLeftSection.class"
-        @navigate="onNavigate($event,0,0)"
-        @activate="setActiveLeftSection({section: $event, toggle:false})"
-        @isDragging="handleDragStartStop"
+                :is="section"
+                v-show="section==activeLeftSection.class"
+                @navigate="onNavigate($event,0,0)"
+                @activate="setActiveLeftSection({section: $event, toggle:false})"
+                @isDragging="handleDragStartStop"
       )
 
     .left-panel-divider(v-show="activeLeftSection"
-      @mousedown="dividerDragStart"
-      @mouseup="dividerDragEnd"
-      @mousemove.stop="dividerDragging"
+                        @mousedown="dividerDragStart"
+                        @mouseup="dividerDragEnd"
+                        @mousemove.stop="dividerDragging"
     )
 
   .table-of-tiles(ref="tileTable")
@@ -80,16 +82,17 @@
           v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"
           @title="setCardTitles(panel, $event)"
+          @activate="setActiveLeftSection({section: $event, toggle:true})"
         )
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
     .row-drop-target(v-if="isDragHappening" :style="buildDragHighlightStyle(-2,-2)"
-        @drop="onDrop({event: $event, row: 'rowBottom'})"
-        @dragover="stillDragging({event: $event, row: 'rowBottom'})"
-        @dragover.prevent
-        @dragenter.prevent
-        @dragleave="dragEnd"
+                    @drop="onDrop({event: $event, row: 'rowBottom'})"
+                    @dragover="stillDragging({event: $event, row: 'rowBottom'})"
+                    @dragover.prevent
+                    @dragenter.prevent
+                    @dragleave="dragEnd"
     )
 
 </template>
@@ -155,7 +158,7 @@ export default defineComponent({
       dragX: -1,
       dragY: -1,
       isDragHappening: false,
-      showActiveSection: true,
+      isShowingActiveSection: false,
     }
   },
   computed: {
@@ -197,8 +200,8 @@ export default defineComponent({
   methods: {
     setActiveLeftSection(props: { toggle: boolean; section: Section }) {
       // clicked same section as is already shown
-      if (this.showActiveSection && props.section.name === this.activeLeftSection.name) {
-        if (props.toggle) this.showActiveSection = false
+      if (this.isShowingActiveSection && props.section.name === this.activeLeftSection.name) {
+        if (props.toggle) this.isShowingActiveSection = false
         return
       }
 
@@ -208,7 +211,7 @@ export default defineComponent({
         return
       }
 
-      this.showActiveSection = true
+      this.isShowingActiveSection = true
       this.activeLeftSection = props.section
       localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
       if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
@@ -275,7 +278,7 @@ export default defineComponent({
             ]
           }
 
-          this.$store.commit('setShowLeftBar', true)
+          this.$store.commit('setShowLeftBar', false)
           return
         }
       }

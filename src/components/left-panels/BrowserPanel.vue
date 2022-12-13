@@ -2,6 +2,8 @@
 .panel
 
   .top-panel
+    h4 Files
+
     .trail(v-if="root")
       .x-home
         p(@click="clickedBreadcrumb({url: '//'})")
@@ -12,21 +14,12 @@
           @click="clickedBreadcrumb(crumb)"
         ) &nbsp;/&nbsp;{{ crumb.label }}
 
-    .logo.flex-row(v-if="!root"
-      @click="clickedLogo"
-    )
-      img(v-if="globalState.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_icon_yellow.png" width="24")
-      img(v-else src="@/assets/simwrapper-logo/SW_logo_icon_purple.png" width="24")
-      h2(style="margin-left: 0.5rem") SimWrapper
-
-
   .middle-panel
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
 
         .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
-          p Welcome to SimWrapper, the transport simulation data platform from TU Berlin.
-          p Explore a data source below, or add your own.
+          p You can browse to another folder from here. Drag panels into the main window area to open them side-by-side.
 
         .is-chrome(v-if="isChrome")
           h3 Local Folders
@@ -381,6 +374,7 @@ export default defineComponent({
 
       this.allRoots = roots
     },
+
     cleanName(text: string) {
       return decodeURIComponent(text)
     },
@@ -888,12 +882,14 @@ export default defineComponent({
 }
 
 h4 {
-  background-color: #00000040;
+  background-color: #00000080;
+  text-transform: uppercase;
   text-align: center;
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.25rem;
   font-weight: bold;
-  // text-transform: uppercase;
+  text-transform: uppercase;
+  color: #ddd;
 }
 
 .middle-panel,
@@ -1124,7 +1120,7 @@ h2 {
 }
 
 .hint-clicks {
-  margin: 0.75rem 0 0 0;
+  margin: 0 0 0 0;
   line-height: 1.2rem;
   opacity: 0;
   transition: opacity 0.2s ease-in;
