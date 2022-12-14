@@ -226,7 +226,7 @@ export default defineComponent({
       // no configs mean no setup is necessary
       if (!Object.keys(this.allConfigFiles.configs).length) {
         // no config, so show navbar and be done
-        this.$store.commit('setShowLeftBar', true)
+        // this.$store.commit('setShowLeftBar', true)
         return
       }
 
@@ -420,10 +420,17 @@ export default defineComponent({
         // meh
       }
     },
+
+    setTitle() {
+      const folder = this.xsubfolder.startsWith('/') ? this.xsubfolder.slice(1) : this.xsubfolder
+      const title = `${this.root}/${folder}`
+      this.$emit('title', title)
+    },
   },
   mounted() {
     this.updateRoute()
-    // this.$emit('title', 'Dashboard')
+
+    this.setTitle()
   },
   beforeDestroy() {
     if (this.dashboardDataManager) this.dashboardDataManager.clearCache()

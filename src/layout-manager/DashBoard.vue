@@ -156,6 +156,7 @@ export default defineComponent({
       card.title = event
       card.description = ''
     },
+
     resizeAllCards() {
       this.isResizing = true
       for (const row of this.rows) {

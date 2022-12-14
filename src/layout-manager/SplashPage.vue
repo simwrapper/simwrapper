@@ -50,7 +50,7 @@
           p
               a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;TU&nbsp;Berlin
               a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
-              a(@click="showPrivacy") Privacy
+              a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
 
     .links-and-logos
       .logos
@@ -124,7 +124,7 @@ export default defineComponent({
   computed: {
     allLogos(): any[] {
       return logos.map(p => {
-        return { url: p.url, image: `${BASE_URL}/images/logos/${p.image}` }
+        return { url: p.url, image: `${BASE_URL}images/logos/${p.image}` }
       })
     },
 
@@ -147,10 +147,6 @@ export default defineComponent({
       this.$emit('navigate', event)
     },
 
-    showPrivacy() {
-      alert(this.$t('privacy'))
-    },
-
     updateShortcuts() {
       const roots = this.state.svnProjects.filter(
         source => !source.hidden && !source.slug.startsWith('fs')
@@ -164,11 +160,11 @@ export default defineComponent({
     },
 
     clickedOnFolder(props: { folder: string; i: number; root: string }) {
-      console.log(props)
       const { folder, root, i } = props
 
-      let destination = root
+      let destination = `${root}`
       if (folder) destination += `/${folder}`
+
       this.$router.push(destination)
     },
 
@@ -219,7 +215,7 @@ export default defineComponent({
     }
 
     // always start with nav bar when loading splashpage
-    globalStore.commit('setShowLeftBar', true)
+    // globalStore.commit('setShowLeftBar', true)
 
     this.updateShortcuts()
   },

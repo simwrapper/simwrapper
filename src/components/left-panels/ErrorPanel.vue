@@ -71,7 +71,9 @@ export default defineComponent({
   methods: {
     clearAllButtons() {
       this.$store.commit('clearAllErrors')
-      this.$emit('activate', { name: 'Files', class: 'BrowserPanel' })
+
+      // if error panel is actually open and visible, switch to file panel
+      this.$emit('activate', { name: 'Files', class: 'BrowserPanel', onlyIfVisible: true })
     },
 
     toggleShowDescription(i: number, isError: boolean) {

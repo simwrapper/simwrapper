@@ -233,7 +233,6 @@ const MyComponent = defineComponent({
     },
 
     mapProps(): any {
-      console.log(11111)
       return {
         viewId: this.id,
         colorRamp: this.colorRamp,
@@ -606,7 +605,7 @@ const MyComponent = defineComponent({
 
       const numLinks = data.length / 2
 
-      const gap = 4096
+      const gap = 512
       for (let i = 0; i < numLinks; i += gap) {
         longitude += data[i * 2]
         latitude += data[i * 2 + 1]
@@ -629,6 +628,7 @@ const MyComponent = defineComponent({
         })
       }
     },
+
     setupLogoMover() {
       this.resizer = new ResizeObserver(this.moveLogo)
       const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
@@ -643,6 +643,7 @@ const MyComponent = defineComponent({
         logo.style.right = right
       }
     },
+
     async parseCSVFile(filename: string) {
       this.myState.statusMessage = 'Loading file...'
 
@@ -718,7 +719,6 @@ const MyComponent = defineComponent({
     this.setupLogoMover()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
-
     this.aggregations = this.vizDetails.aggregations
 
     // console.log('loading files')

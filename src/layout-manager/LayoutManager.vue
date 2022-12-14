@@ -54,7 +54,7 @@
         .tile-header.flex-row(v-if="getShowHeader(panel)")
 
           .tile-labels
-            h3 {{ panel.title }}
+            h3(:style="{textAlign: isMultipanel ? 'left' : 'center'}") {{ panel.title }}
             p(v-if="panel.description") {{ panel.description }}
 
           .tile-buttons
@@ -199,6 +199,9 @@ export default defineComponent({
   },
   methods: {
     setActiveLeftSection(props: { toggle: boolean; section: Section }) {
+      // don't open the left bar if it's optional, meaning it's currently closed
+      if (props.section.onlyIfVisible && !this.isShowingActiveSection) return
+
       // clicked same section as is already shown
       if (this.isShowingActiveSection && props.section.name === this.activeLeftSection.name) {
         if (props.toggle) this.isShowingActiveSection = false
@@ -218,7 +221,8 @@ export default defineComponent({
     },
 
     buildLayoutFromURL() {
-      const pathMatch = this.$route.params.pathMatch
+      let pathMatch = this.$route.params.pathMatch
+      if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
       // splash page:
       if (!pathMatch || pathMatch === '/') {
@@ -278,7 +282,7 @@ export default defineComponent({
             ]
           }
 
-          this.$store.commit('setShowLeftBar', false)
+          // this.$store.commit('setShowLeftBar', false)
           return
         }
       }
@@ -287,10 +291,14 @@ export default defineComponent({
       let key = Math.random()
       if (this.panels.length === 1 && this.panels[0].length === 1) key = this.panels[0][0].key
 
+      const folder = xsubfolder.startsWith('/') ? xsubfolder.slice(1) : xsubfolder
+      const title = `${root}/${folder}`
+
       this.panels = [
         [
           {
             key,
+            title,
             component: 'TabbedDashboardView',
             props: { root, xsubfolder } as any,
           },
@@ -497,8 +505,11 @@ export default defineComponent({
           // remove row y if there are other rows
           this.panels.splice(y, 1)
         } else {
-          // if EVERYTHING is empty, show the blank page
-          this.panels[0].push({ component: 'SplashPage', key: Math.random(), props: {} as any })
+          // if EVERYTHING is empty, show the previous page
+          // (does this work if there is no "previous" page, i.e. user got here from a direct url?)
+
+          this.$router.back()
+          // this.panels[0].push({ component: 'SplashPage', key: Math.random(), props: {} as any })
         }
       }
 
@@ -813,6 +824,7 @@ export default defineComponent({
 }
 
 .tile-labels {
+  flex: 1;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
   display: flex;

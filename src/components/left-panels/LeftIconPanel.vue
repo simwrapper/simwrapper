@@ -45,6 +45,7 @@ export interface Section {
   icon?: string
   colorize?: boolean
   link?: string
+  onlyIfVisible?: boolean
 }
 
 export default defineComponent({
