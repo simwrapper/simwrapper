@@ -105,7 +105,7 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
+import Vue, { defineComponent } from 'vue'
 
 import { Route } from 'vue-router'
 import micromatch from 'micromatch'
@@ -121,6 +121,7 @@ import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.v
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
 import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
+import { FileSystemConfig } from '@/Globals'
 
 const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_LEFT_WIDTH = 300
@@ -245,7 +246,7 @@ export default defineComponent({
         return
       }
 
-      // split out project root and subfolder
+      // figure out project root and subfolder
       let root = pathMatch
       let xsubfolder = ''
       const slash = pathMatch.indexOf('/')
@@ -291,8 +292,15 @@ export default defineComponent({
       let key = Math.random()
       if (this.panels.length === 1 && this.panels[0].length === 1) key = this.panels[0][0].key
 
+      // figure out filesystem
+      const svnProjects: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: any) => a.slug === root
+      )
+      if (!svnProjects.length) throw Error('no such project')
+      const fileSystem = svnProjects[0]
+
       const folder = xsubfolder.startsWith('/') ? xsubfolder.slice(1) : xsubfolder
-      const title = `${root}/${folder}`
+      const title = `${fileSystem.name}: ${folder}`
 
       this.panels = [
         [
@@ -507,9 +515,10 @@ export default defineComponent({
         } else {
           // if EVERYTHING is empty, show the previous page
           // (does this work if there is no "previous" page, i.e. user got here from a direct url?)
+          // doesn't work!
+          // this.$router.back()
 
-          this.$router.back()
-          // this.panels[0].push({ component: 'SplashPage', key: Math.random(), props: {} as any })
+          this.panels[0].push({ component: 'SplashPage', key: Math.random(), props: {} as any })
         }
       }
 
@@ -547,7 +556,7 @@ export default defineComponent({
           this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
         } else if (yaml) {
           // YAML config specified
-          this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
+          this.$router.push(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
         } else {
           // Just the folder and viz file itself
           let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
@@ -585,7 +594,8 @@ export default defineComponent({
 
     setCardTitles(card: any, event: any) {
       if (typeof event == 'string') {
-        if (event) card.title = event
+        // card.title = event // this isn't working, use Vue.set() instead
+        Vue.set(card, 'title', event)
         card.description = ''
       } else {
         card.title = event.title

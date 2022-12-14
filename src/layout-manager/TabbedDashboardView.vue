@@ -13,9 +13,9 @@
       //-   v-html="folderReadme"
       //- )
 
-
       .tabs.is-centered
-        ul
+
+        ul(style="margin-right: 1rem")
           li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
@@ -38,6 +38,7 @@
     :xsubfolder="xsubfolder"
     :allConfigFiles="allConfigFiles"
     @navigate="onNavigate"
+    @up="goUpOneFolder()"
   )
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
@@ -423,7 +424,8 @@ export default defineComponent({
 
     setTitle() {
       const folder = this.xsubfolder.startsWith('/') ? this.xsubfolder.slice(1) : this.xsubfolder
-      const title = `${this.root}/${folder}`
+      const title = `${this.fileSystem.name}: ${folder}`
+
       this.$emit('title', title)
     },
   },

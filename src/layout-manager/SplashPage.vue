@@ -28,7 +28,7 @@
 
           p.config-sources: a(@click="showChromeDirectory") Add local folder...
 
-        h3(style="margin-top: 1rem") Data Sources
+        h3(style="margin-top: 1rem") Browse Data Sources
 
         .roots
           .project-root(v-for="project in allRoots" :key="project.slug"
@@ -265,14 +265,13 @@ a {
 }
 
 .simwrapper-logo {
-  max-width: 228px;
-  margin-left: auto;
+  max-width: 275px;
+  // margin: 0 auto;
 }
 
 .logos {
   display: grid;
   gap: 1.5rem;
-  flex: 1;
   grid-template-columns: repeat(auto-fill, 6.5rem);
   padding: 1rem 0rem;
   margin: 0 auto;
@@ -331,10 +330,10 @@ h2.splash-readme {
   }
   a {
     margin-right: 0.75rem;
-    color: #119175;
+    color: var(--link);
   }
   a:hover {
-    color: #3d95d8;
+    color: var(--linkHover);
   }
 }
 
@@ -349,6 +348,9 @@ h2.splash-readme {
   padding: 0.5rem 0.5rem;
   background-color: var(--bgMapPanel);
   border-left: 3px solid var(--sliderThumb);
+  border-right: 1px solid #8888aa00;
+  border-top: 1px solid #8888aa00;
+  border-bottom: 1px solid #8888aa00;
 
   h5 {
     font-size: 1rem;
@@ -370,6 +372,9 @@ h2.splash-readme {
   cursor: pointer;
   background-color: var(--bgHover);
   transition: background-color 0.1s ease-in-out;
+  border-right: 1px solid #66666640;
+  border-top: 1px solid #66666640;
+  border-bottom: 1px solid #66666640;
 }
 
 .fa-times {
@@ -396,9 +401,9 @@ h2.splash-readme {
 
 .config-sources {
   margin-top: 0.5rem;
-  text-align: right;
+  // text-align: right;
   a {
-    color: var(--text);
+    color: var(--link);
   }
 }
 
@@ -409,8 +414,8 @@ h2.splash-readme {
 
 .roots {
   display: grid;
-  gap: 0.5rem 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0rem 0.5rem;
+  grid-template-columns: repeat(auto-fit, 18rem);
   list-style: none;
 }
 

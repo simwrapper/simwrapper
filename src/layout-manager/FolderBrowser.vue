@@ -13,8 +13,10 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
+      b.up-link: a(@click="$emit('up')") ^ UP
+
       //- this is the content of readme.md, if it exists
-      .readme-header
+      .readme-header.markdown
         .curate-content.markdown(
           v-if="myState.readme"
           v-html="myState.readme"
@@ -750,7 +752,7 @@ h3.curate-heading {
 }
 
 .folder-browser {
-  background-color: var(--bgDashboard);
+  background-color: var(--bgMapPanel);
   padding: 0 3rem;
 }
 

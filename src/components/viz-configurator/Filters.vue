@@ -93,7 +93,7 @@ export default defineComponent({
       let [dataset, column] = this.addDataColumn ? this.addDataColumn.split('@') : ['', '']
 
       // always call shapefile or network "shapes"
-      console.log(2, dataset, column, this.datasetLabels)
+      // console.log(2, dataset, column, this.datasetLabels)
       if (this.datasetLabels.indexOf(dataset) < 1) dataset = 'shapes'
 
       const filter: FilterDefinition = {
@@ -178,7 +178,7 @@ export default defineComponent({
         f[id] = filter.value
       }
 
-      console.log(2, f)
+      // console.log(2, f)
       setTimeout(() => this.$emit('update', { filters: f }), 25)
     },
 
