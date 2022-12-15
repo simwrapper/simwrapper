@@ -1,5 +1,5 @@
 <template lang="pug">
-.tcarrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
+.carrier-viewer(:class="{'hide-thumbnail': !thumbnail}"
                 :style='{"background": urlThumbnail}'
                 oncontextmenu="return false")
 
@@ -1090,9 +1090,10 @@ export default CarrierPlugin
   border-radius: 6px;
 }
 
-.tcarrier-viewer {
-  position: relative;
-  height: 100%;
+.carrier-viewer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   pointer-events: none;
   min-height: $thumbnailHeight;
 }
