@@ -84,3 +84,7 @@ Travis-CI is configured to automatically build the site with **every push to mas
 ## Thank you!
 
 Good luck and thanks for the help! -- [Billy](https://github.com/billyc)
+
+## Version 2!
+
+Lots of recent changes including some config file breaking-changes, so it's time to bump the major version number!
