@@ -1,16 +1,45 @@
 <template lang="pug">
-.map-layout
-  flow-map-layer.map-layer(v-if="centroids.length"
-    :viewId="viewId"
-    :props="mapProps"
-  )
-  .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
-     h3 {{ vizDetails.title }}
-     p {{ vizDetails.description }}
+ .flowmap(:class="{'hide-thumbnail': !thumbnail}"
+        :style='{"background": urlThumbnail}'
+        oncontextmenu="return false")
 
-  zoom-buttons(v-if="isLoaded && !thumbnail")
+    .map-layout
+       flow-map-layer.map-layer(v-if="centroids.length"
+        :viewId="viewId"
+        :props="mapProps"
+        )
+
+  
+    .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
+      h3 {{ vizDetails.title }}
+      p {{ vizDetails.description }}
+
+    zoom-buttons(v-if="!thumbnail")
+
+    .bottom-panel(v-if="!thumbnail")
+      
+       
+        b-checkbox.hello(
+              v-model="vizDetails.animationEnabled"
+            )
+        p Animation
+      
+        
+        b-checkbox.hello(
+              v-model="vizDetails.locationLabelsEnabled"
+            )
+        p Labels
+        
+        b-checkbox.hello(
+              v-model="vizDetails.clustering"
+            )
+        p Clustering
+      
+
+        
 
 
+  
 </template>
 
 <script lang="ts">
@@ -25,9 +54,11 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
+import util from '@/js/util'
 
 import { VuePlugin } from 'vuera'
 import { NumberKeyframeTrack } from 'three'
+import { watch } from 'vue'
 Vue.use(VuePlugin)
 
 @Component({ components: { FlowMapLayer, VizConfigurator, ZoomButtons } as any })
@@ -68,6 +99,7 @@ export default class VueComponent extends Vue {
   private vizDetails = {
     title: '',
     description: '',
+    thumbnail: '',
     zoom: 9,
     center: null as any | null,
     pitch: 0,
@@ -85,16 +117,14 @@ export default class VueComponent extends Vue {
     fadeEnabled: true,
     fadeAmount: 50,
     animationEnabled: true,
-    clusteringEnabled: true,
-    clusteringAuto: true,
+    clustering: true,
     clusteringLevel: null as number | null,
     locationLabelsEnabled: true,
     locationTotalsEnabled: true,
-    darkMode: '',
     pickable: true,
     opacity: null as number | null,
     fadeOpacityEnabled: true,
-    outlineThickness: null as number | null,
+    outlineThickness: 0 as number | null,
     showOnlyTopFlows: null as number | null,
     maxTopFlowsDisplayNum: null as number | null,
   }
@@ -117,6 +147,9 @@ export default class VueComponent extends Vue {
 
   private async mounted() {
     try {
+      this.$store.commit('setFullScreen', !this.thumbnail)
+
+      this.myState.thumbnail = this.thumbnail
       this.myState.yamlConfig = this.yamlConfig
 
       this.buildFileApi()
@@ -126,6 +159,10 @@ export default class VueComponent extends Vue {
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
+      if (this.thumbnail) {
+        this.buildThumbnail()
+        return
+      }
 
       if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
         this.$store.commit('setMapCamera', {
@@ -183,6 +220,11 @@ export default class VueComponent extends Vue {
     this.fileSystemConfig = filesystem
   }
 
+  private thumbnailUrl = "url('assets/thumbnail.jpg') no-repeat;"
+  private get urlThumbnail() {
+    return this.thumbnailUrl
+  }
+
   private async getVizDetails() {
     if (this.configFromDashboard) {
       console.log('we have a dashboard')
@@ -190,11 +232,28 @@ export default class VueComponent extends Vue {
       this.vizDetails = Object.assign({}, this.configFromDashboard)
       return
     }
-    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
 
+    const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
     if (hasYaml) {
       console.log('has yaml')
       await this.loadStandaloneYAMLConfig()
+    }
+  }
+
+  private async buildThumbnail() {
+    if (!this.myState.fileApi) return
+    if (this.thumbnail && this.vizDetails.thumbnail) {
+      try {
+        const blob = await this.myState.fileApi.getFileBlob(
+          this.myState.subfolder + '/' + this.vizDetails.thumbnail
+        )
+        const buffer = await blob.arrayBuffer()
+        const base64 = util.arrayBufferToBase64(buffer)
+        if (base64)
+          this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+      } catch (e) {
+        console.error(e)
+      }
     }
   }
 
@@ -390,6 +449,24 @@ globalStore.commit('registerPlugin', {
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+.flowmap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: $thumbnailHeight;
+  background: url('assets/thumbnail.jpg') center / cover no-repeat;
+  z-index: -1;
+}
+
+.flowmap.hide-thumbnail {
+  background: none;
+  z-index: 0;
+}
+
 .map-layout {
   position: absolute;
   top: 0;
@@ -410,8 +487,52 @@ globalStore.commit('registerPlugin', {
   z-index: 2;
 }
 
+.bottom-panel {
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
+  display: flex;
+  flex-direction: row;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  margin: auto auto 0rem 0rem;
+  padding: 0.25rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
+  background-color: var(--bgPanel);
+  p {
+    margin-right: 1rem;
+  }
+}
+
+.panel-items {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.5rem;
+  margin-bottom: 5px;
+  width: 16rem;
+  background-color: var(--bgPanel);
+  border-radius: 3px;
+  overflow: visible;
+  // overflow-x: hidden;
+}
+
+.panel-item {
+  h3 {
+    line-height: 1.7rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+  }
+}
+
 .map-layer {
   flex: 1;
+}
+
+.hello {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 0;
 }
 
 @media only screen and (max-width: 640px) {
