@@ -1,27 +1,31 @@
 <template lang="pug">
 .map-layout(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}' oncontextmenu="return false")
+            :style='{"background": urlThumbnail}'
+            oncontextmenu="return false")
 
   .status-bar(v-show="statusText") {{ statusText }}
 
   .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
-    geojson-layer(v-if="!thumbnail"
+
+    geojson-layer(
       :viewId="layerId"
-      :features="useCircles ? centroids : boundaries"
-      :featureFilter="boundaryFilters"
+      :fillColors="dataFillColors"
+      :featureDataTable="boundaryDataTable"
       :lineColors="dataLineColors"
       :lineWidths="dataLineWidths"
-      :fillColors="dataFillColors"
       :fillHeights="dataFillHeights"
+      :screenshot="triggerScreenshot"
       :calculatedValues="dataCalculatedValues"
       :calculatedValueLabel="dataCalculatedValueLabel"
+      :featureFilter="boundaryFilters"
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
-      :screenshot="triggerScreenshot"
-      :featureDataTable="boundaryDataTable"
       :tooltip="vizDetails.tooltip"
     )
-    viz-configurator(v-if="isLoaded && !thumbnail"
+    //- :features="useCircles ? centroids: boundaries"
+    //- boundaryDataTable"
+
+    viz-configurator(v-if="isLoaded"
       :embedded="isEmbedded"
       :sections="configuratorSections"
       :fileSystem="fileSystem"
@@ -114,8 +118,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
 import { group, zip, sum } from 'd3-array'
+
 import EPSGdefinitions from 'epsg'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
@@ -135,8 +139,10 @@ import {
   REACT_VIEW_HANDLES,
 } from '@/Globals'
 
-import ColorWidthSymbologizer from '@/js/ColorWidthSymbologizer'
 import GeojsonLayer from './GeojsonLayer'
+// import GeojsonLayer from './GeojsonVueLayer.vue'
+
+import ColorWidthSymbologizer from '@/js/ColorWidthSymbologizer'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -162,16 +168,23 @@ interface FilterDetails {
 
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
-  components: { ModalJoinColumnPicker, GeojsonLayer, VizConfigurator, ZoomButtons },
+  components: {
+    GeojsonLayer,
+    ModalJoinColumnPicker,
+    VizConfigurator,
+    ZoomButtons,
+  },
+
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     datamanager: { type: Object as PropType<DashboardDataManager> },
     configFromDashboard: { type: Object as any },
-    // fsConfig: { type: Object as PropType<FileSystemConfig> },
     yamlConfig: String,
     thumbnail: Boolean,
+    // fsConfig: { type: Object as PropType<FileSystemConfig> },
   },
+
   data() {
     return {
       boundaries: [] as any[],
@@ -190,6 +203,7 @@ const MyComponent = defineComponent({
       dataCalculatedValues: null as Float32Array | null,
       dataCalculatedValueLabel: '',
 
+      globalState: globalStore.state,
       layerId: Math.random(),
 
       activeColumn: '',
@@ -264,6 +278,7 @@ const MyComponent = defineComponent({
       datasets: {} as { [id: string]: DataTable },
     }
   },
+
   computed: {
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystem)
@@ -295,13 +310,14 @@ const MyComponent = defineComponent({
 
       return filename
     },
+
     urlThumbnail(): string {
       return this.thumbnailUrl
     },
   },
 
   watch: {
-    '$store.state.viewState'() {
+    'globalState.viewState'() {
       if (!REACT_VIEW_HANDLES[this.layerId]) return
       REACT_VIEW_HANDLES[this.layerId]()
     },
@@ -602,7 +618,7 @@ const MyComponent = defineComponent({
       fillHeight?: FillHeightDefinition
       filters?: FilterDefinition
     }) {
-      console.log('props', props)
+      // console.log('props', props)
 
       try {
         if (props['fill']) {
@@ -640,7 +656,7 @@ const MyComponent = defineComponent({
           this.handleNewFilters(props.filters)
         }
 
-        console.log('DONE updating')
+        // console.log('DONE updating')
       } catch (e) {
         this.$store.commit('error', '' + e)
       }
@@ -820,6 +836,7 @@ const MyComponent = defineComponent({
     },
 
     handleNewFillColor(fill: FillColorDefinition) {
+      // console.log('FILL COLOR')
       const color = fill
       this.fixedColors = color.fixedColors
 
@@ -832,7 +849,7 @@ const MyComponent = defineComponent({
         const dataset2 = this.datasets[key2]
         const relative = !!color.relative
 
-        console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
+        // console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
 
         if (dataset1 && dataset2) {
           const lookup1 = dataset1['@']
@@ -856,7 +873,25 @@ const MyComponent = defineComponent({
               relative,
             }
           )
+
           this.dataFillColors = array
+
+          // // Because we're using binary data we need to stretch the color array out, one element
+          // // for each VERTEX, not each boundary! Blechh!
+          // const rgb = new Uint8Array((3 * this.polygons.vertices.length) / 2) as any
+          // let offset = 0
+          // this.polygons.startIndices.forEach((numVertices, index) => {
+          //   const rgb = array.slice(index * 3, index * 3 + 3)
+          //   for (let i = 0; i < numVertices; i++) {
+          //     const vNumber = offset + index
+          //     rgb[vNumber * 3] = rgb[0]
+          //     rgb[vNumber * 3 + 1] = rgb[1]
+          //     rgb[vNumber * 3 + 2] = rgb[2]
+          //   }
+          //   offset += numVertices
+          // })
+          // this.dataFillColors = rgb
+
           this.dataCalculatedValues = calculatedValues
           this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 
@@ -908,6 +943,33 @@ const MyComponent = defineComponent({
           )
 
           this.dataFillColors = array
+
+          // // Because we're using binary data we need to stretch the color array out, one element
+          // // for each VERTEX, not each boundary! Blechh!
+          // // this.dataFillColors = array
+          // console.log('array is', array.length / 3)
+          // console.log('startindices is', this.polygons.startIndices.length)
+          // console.log('vertices is', this.polygons.vertices.length / 2)
+
+          // // console.log(this.polygons.startIndices)
+          // const tesselatedColors = new Uint8Array((this.polygons.vertices.length / 2) * 3)
+
+          // let start = 0
+          // this.polygons.startIndices.forEach((vertices, index) => {
+          //   if (index == 0) return
+          //   const lookup = (index - 1) * 3
+          //   const finish = vertices
+          //   for (let offset = start; offset < finish; offset++) {
+          //     const element = offset * 3
+          //     tesselatedColors[element] = array[lookup]
+          //     tesselatedColors[element + 1] = array[lookup + 1]
+          //     tesselatedColors[element + 2] = array[lookup + 2]
+          //   }
+          //   start = finish
+          // })
+          // this.dataFillColors = tesselatedColors
+          // console.log(111, tesselatedColors)
+
           this.dataCalculatedValues = calculatedValues
 
           this.legendStore.setLegendSection({
@@ -938,7 +1000,7 @@ const MyComponent = defineComponent({
           const dataset2 = this.datasets[key2]
           const relative = !!color.relative
 
-          console.log('000 DIFF', relative, key1, key2, dataset1, dataset2)
+          // console.log('000 DIFF', relative, key1, key2, dataset1, dataset2)
 
           if (dataset1 && dataset2) {
             const lookup1 = dataset1['@']
@@ -1037,7 +1099,7 @@ const MyComponent = defineComponent({
         const key2 = width.diffDatasets[1] || ''
         const dataset2 = this.datasets[key2]
 
-        console.log({ key1, key2, dataset1, dataset2 })
+        // console.log({ key1, key2, dataset1, dataset2 })
 
         if (dataset1 && dataset2) {
           const lookup1 = dataset1['@']
@@ -1230,13 +1292,13 @@ const MyComponent = defineComponent({
         let join = this.vizDetails.datasets[datasetKey].join.split(':')
         if (join.length == 1) join.push(join[0])
 
-        console.log(11, this.vizDetails.datasets[datasetKey])
-        console.log({ datasetKey, dataset, join })
+        // console.log(11, this.vizDetails.datasets[datasetKey])
+        // console.log({ datasetKey, dataset, join })
 
         let { filteredRows } = await this.myDataManager.getFilteredDataset({
           dataset: datasetName || '',
         })
-        console.log(12, filteredRows)
+        // console.log(12, filteredRows)
 
         if (!filteredRows) return
 
@@ -1324,6 +1386,8 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundaries() {
+      let now = Date.now()
+
       const shapeConfig =
         this.config.boundaries || this.config.shapes || this.config.geojsonv || this.config.network
 
@@ -1383,7 +1447,7 @@ const MyComponent = defineComponent({
         this.moveLogo()
 
         // set feature properties as a data source
-        await this.setFeaturePropertiesAsDataSource(filename, featureProperties, shapeConfig)
+        await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
 
         // turn ON line borders if it's NOT a big dataset (user can re-enable)
         if (!hasNoLines || boundaries.length < 5000) {
@@ -1396,7 +1460,36 @@ const MyComponent = defineComponent({
         // generate centroids if we have polygons
         if (!hasNoPolygons) this.generateCentroidsAndMapCenter()
 
+        // // create binary representation of boundaries
+        // // see https://deck.gl/docs/api-reference/layers/solid-polygon-layer
+        // const vertices = new Float32Array(boundaries.map(d => d.geometry.coordinates[0]).flat(2))
+        // const startIndices = new Uint32Array(
+        //   boundaries.reduce(
+        //     (acc, d) => {
+        //       const lastIndex = acc[acc.length - 1]
+        //       acc.push(lastIndex + d.geometry.coordinates[0].length)
+        //       return acc
+        //     },
+        //     [0]
+        //   )
+        // )
+
+        // console.log('5 vertexicate took', (Date.now() - now) / 1000)
+        // now = Date.now()
+
+        // console.log(`6 total vertices: ${vertices.length / 2}`)
+        // console.log(`7 total indices: ${startIndices.length}`)
+        // console.log(`8 number of shapes: ${boundaries.length}`)
+
+        // this.polygons = { vertices, startIndices, pLength: boundaries.length }
+
         this.boundaries = boundaries
+        // this.$store.commit('setCache', { key: this.layerId, value: this.boundaries })
+
+        // set features INSIDE react component
+        if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+          REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+        }
       } catch (e) {
         console.error(e)
         this.$store.commit('error', '' + e)
@@ -1473,7 +1566,6 @@ const MyComponent = defineComponent({
           bearing: 0,
           pitch: 0,
           zoom: 9,
-          initial: true,
         })
         this.needsInitialMapExtent = false
       }
@@ -1736,8 +1828,8 @@ const MyComponent = defineComponent({
       // We need to make a lookup of the values by ID, and then
       // insert those values into the boundaries geojson.
 
-      console.log(this.config)
-      console.log(this.datasets)
+      // console.log(this.config)
+      // console.log(this.datasets)
       if (!this.config.display || !this.config.datasets) return
 
       let joinShapesBy = 'id'
@@ -1821,6 +1913,25 @@ const MyComponent = defineComponent({
       )
       this.activeColumn = 'value'
     },
+
+    clearData() {
+      // these lines change the properties of these objects
+      // WITHOUT reassigning them to new objects; this is
+      // essential for the garbage-collection to work properly.
+      // Otherwise we get a 500Mb memory leak on every view :-D
+      this.boundaries = []
+      this.centroids = []
+      this.boundaryDataTable = {}
+      this.boundaryFilters = new Float32Array(0)
+      this.datasets = {}
+      this.dataFillColors = '#888'
+      this.dataLineColors = ''
+      this.dataLineWidths = 1
+      this.dataPointRadii = 5
+      this.dataFillHeights = 0
+      this.dataCalculatedValues = null
+      this.dataCalculatedValueLabel = ''
+    },
   },
 
   async mounted() {
@@ -1828,16 +1939,16 @@ const MyComponent = defineComponent({
       // EMBED MODE?
       this.setEmbeddedMode()
 
+      this.clearData()
       await this.getVizDetails()
-
-      this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
-
       this.buildThumbnail()
+
       if (this.thumbnail) return
 
+      this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
       this.setupLogoMover()
 
-      if (this.needsInitialMapExtent && (this.vizDetails.center || this.vizDetails.zoom)) {
+      if (this.needsInitialMapExtent && this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
           zoom: this.vizDetails.zoom || 9,
@@ -1885,11 +1996,22 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
-    this.legendStore.clear()
-    this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
-
-    // MUST delete the React view handle to prevent gigantic memory leak!
+    // MUST delete the React view handles to prevent gigantic memory leaks!
     delete REACT_VIEW_HANDLES[this.layerId]
+
+    this.$store.commit('removeCache', this.layerId)
+
+    if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+      REACT_VIEW_HANDLES[1000 + this.layerId]([])
+      delete REACT_VIEW_HANDLES[1000 + this.layerId]
+    }
+
+    this.clearData()
+    this.legendStore.clear()
+    this.resizer?.disconnect()
+
+    this.myDataManager.removeFilterListener(this.config, this.processFiltersNow)
+    // this.myDataManager.clearCache()
     this.$store.commit('setFullScreen', false)
   },
 })

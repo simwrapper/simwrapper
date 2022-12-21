@@ -153,7 +153,7 @@ export default function Layer({
     <DeckGL
       layers={layers}
       controller={true}
-      useDevicePixels={true}
+      useDevicePixels={false}
       viewState={viewState}
       getTooltip={getTooltip}
       onClick={handleClick}

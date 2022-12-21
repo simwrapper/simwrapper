@@ -9,15 +9,11 @@ import { format } from 'mathjs'
 import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
-import { OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
-import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
-
 import screenshots from '@/js/screenshots'
 
-// GeoJsonLayer.defaultProps = {
-//   bearing: 0,
-//   offsetDirection: OFFSET_DIRECTION.RIGHT,
-// }
+import { OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
+// import { SolidPolygonLayer } from '@deck.gl/layers'
 
 interface DeckObject {
   index: number
@@ -25,8 +21,18 @@ interface DeckObject {
   data: any
 }
 
+interface BinaryPolygons {
+  // number of polygons
+  pLength: number
+  // flat list of all vertices for all polygons
+  vertices: Float32Array
+  // offset of first vertex in each polygon
+  startIndices: Uint32Array
+}
+
 export default function Component({
   viewId = 0,
+  polygons = {} as BinaryPolygons,
   fillColors = '#59a14f' as string | Uint8Array,
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 0 as number | Float32Array,
@@ -40,40 +46,19 @@ export default function Component({
   tooltip = [] as string[],
   featureFilter = new Float32Array(0),
 }) {
-  // release _mapRef on unmount to avoid memory leak
+  // release _mapRef after render, to avoid memory leak
   const _mapRef = useRef<MapRef>() as any
   useEffect(() => {
     _mapRef.current = false
   })
-
-  // const features = globalStore.state.globalCache[viewId] as any[]
-  const [features, setFeatures] = useState([] as any[])
-
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
-  const [screenshotCount, setScreenshot] = useState(screenshot)
 
   // MAP VIEW -------------------------------------------------------------------------
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
 
-  // Feature setter hack:
-  // Using the array itself causes an enormous memory leak. I am not sure why
-  // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
-  // is in our code, not theirs? But I spent days trying to find it.
-  // Anyway, making this deep copy of the feature array seems to solve it.
-  REACT_VIEW_HANDLES[1000 + viewId] = (features: any[]) => {
-    const fullCopy = features.map(feature => {
-      const f = {
-        type: '' + feature.type,
-        geometry: JSON.parse(JSON.stringify(feature.geometry)),
-        properties: JSON.parse(JSON.stringify(feature.properties)),
-      } as any
-      if ('id' in feature) f.id = '' + feature.id
-      return f
-    })
-    setFeatures(fullCopy)
-  }
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [screenshotCount, setScreenshot] = useState(screenshot)
 
   // SCREENSHOT -----------------------------------------------------------------------
   let isTakingScreenshot = screenshot > screenshotCount
@@ -105,19 +90,20 @@ export default function Component({
     const color = rgb(lineColors)
     cbLineColor = [color.r, color.g, color.b]
     if (!isStroked) cbLineColor.push(0) // totally transparent
-  } else {
-    // array of colors
-    cbLineColor = (_: any, o: DeckObject) => {
-      if (features[o.index].properties._hide) return [0, 0, 0, 0]
-
-      return [
-        lineColors[o.index * 3 + 0], // r
-        lineColors[o.index * 3 + 1], // g
-        lineColors[o.index * 3 + 2], // b
-        255, // no opacity, for now
-      ]
-    }
   }
+  //  else {
+  //   // array of colors
+  //   cbLineColor = (_: any, o: DeckObject) => {
+  //     if (features[o.index].properties._hide) return [0, 0, 0, 0]
+
+  //     return [
+  //       lineColors[o.index * 3 + 0], // r
+  //       lineColors[o.index * 3 + 1], // g
+  //       lineColors[o.index * 3 + 2], // b
+  //       255, // no opacity, for now
+  //     ]
+  //   }
+  // }
 
   // LINE WIDTHS ----------------------------------------------------------------------
   let cbLineWidth // can be callback OR a plain string in simple mode
@@ -189,8 +175,8 @@ export default function Component({
       )
     }
 
-    // dataset elements
-    const featureTips = Object.entries(features[index].properties)
+    // FIXME dataset elements
+    const featureTips = [] as any[] // Object.entries(features[index].properties)
 
     let datasetProps = ''
     for (const [tipKey, tipValue] of featureTips) {
@@ -239,69 +225,75 @@ export default function Component({
     }
   }
 
-  const layer = new GeojsonOffsetLayer({
-    id: 'geoJsonOffsetLayer',
-    data: features,
-    // function callbacks: --------------
-    getLineWidth: cbLineWidth,
-    getLineColor: cbLineColor,
-    getFillColor: cbFillColor,
-    getPointRadius: cbPointRadius,
-    getElevation: cbFillHeight,
-    // settings: ------------------------
-    autoHighlight: true,
-    extruded: !!fillHeights,
-    highlightColor: [255, 0, 224],
-    // lineJointRounded: true,
-    lineWidthUnits: 'pixels',
-    lineWidthScale: 1,
-    lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
-    lineWidthMaxPixels: 50,
-    getOffset: OFFSET_DIRECTION.RIGHT,
-    opacity: fillHeights ? 100 : opacity / 100, // 3D must be opaque
-    pickable: true,
-    pointRadiusUnits: 'pixels',
-    pointRadiusMinPixels: 2,
-    // pointRadiusMaxPixels: 50,
-    stroked: isStroked,
-    useDevicePixels: isTakingScreenshot,
-    fp64: false,
-    updateTriggers: {
-      getFillColor: fillColors,
-      getLineColor: lineColors,
-      getLineWidth: lineWidths,
-      getPointRadius: pointRadii,
-      getElevation: fillHeights,
-      getFilterValue: featureFilter,
-    },
-    transitions: {
-      getFillColor: 300,
-      getLineColor: 300,
-      getLineWidth: 300,
-      getPointRadius: 300,
-    },
-    parameters: {
-      depthTest: !!fillHeights,
-      fp64: false,
-    },
-    glOptions: {
-      // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
-      preserveDrawingBuffer: true,
-      fp64: false,
-    },
-    // filter shapes
-    extensions: [new DataFilterExtension({ filterSize: 1 })],
-    filterRange: [0, 1], // set filter to -1 to filter element out
-    getFilterValue: (_: any, o: DeckObject) => {
-      return featureFilter[o.index]
-    },
-  }) as any
+  // const layer = new GeojsonOffsetLayer({
+  //   id: 'geoJsonOffsetLayer',
+  //   data: {
+  //     length: polygons.pLength,
+  //     startIndices: polygons.startIndices,
+  //     attributes: {
+  //       getPolygon: { value: polygons.vertices, size: 2 },
+  //       getFillColor: { value: fillColors, size: 3 },
+  //     },
+  //   },
+  //   // function callbacks: --------------
+  //   getFillColor: [96, 0, 240], // cbFillColor,
+  //   getLineWidth: cbLineWidth,
+  //   getLineColor: cbLineColor,
+  //   getPointRadius: cbPointRadius,
+  //   getElevation: cbFillHeight,
+  //   positionFormat: 'XY',
+  //   // settings: ------------------------
+  //   autoHighlight: true,
+  //   extruded: !!fillHeights,
+  //   highlightColor: [255, 0, 224],
+  //   _normalize: false,
+  //   // lineJointRounded: true,
+  //   lineWidthUnits: 'pixels',
+  //   lineWidthScale: 1,
+  //   lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
+  //   lineWidthMaxPixels: 50,
+  //   getOffset: OFFSET_DIRECTION.RIGHT,
+  //   opacity: fillHeights ? 100 : opacity / 100, // 3D must be opaque
+  //   pickable: true,
+  //   pointRadiusUnits: 'pixels',
+  //   pointRadiusMinPixels: 2,
+  //   // pointRadiusMaxPixels: 50,
+  //   stroked: isStroked,
+  //   useDevicePixels: isTakingScreenshot,
+  //   updateTriggers: {
+  //     getFillColor: fillColors,
+  //     getLineColor: lineColors,
+  //     getLineWidth: lineWidths,
+  //     getPointRadius: pointRadii,
+  //     getElevation: fillHeights,
+  //     getFilterValue: featureFilter,
+  //   },
+  //   transitions: {
+  //     getFillColor: 300,
+  //     getLineColor: 300,
+  //     getLineWidth: 300,
+  //     getPointRadius: 300,
+  //   },
+  //   parameters: {
+  //     depthTest: !!fillHeights,
+  //   },
+  //   glOptions: {
+  //     // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+  //     preserveDrawingBuffer: true,
+  //   },
+  //   // filter shapes
+  //   extensions: [new DataFilterExtension({ filterSize: 1 })],
+  //   filterRange: [0, 1], // set filter to -1 to filter element out
+  //   getFilterValue: (_: any, o: DeckObject) => {
+  //     return featureFilter[o.index]
+  //   },
+  // }) as any
 
   const deckInstance = (
     /*
     //@ts-ignore */
     <DeckGL
-      layers={[layer]}
+      layers={[]}
       viewState={viewState}
       controller={true}
       pickingRadius={4}
@@ -324,7 +316,7 @@ export default function Component({
     >
       {
         /*
-        // @ts-ignore */
+    // @ts-ignore */
         <StaticMap
           ref={_mapRef}
           mapStyle={globalStore.getters.mapStyle}

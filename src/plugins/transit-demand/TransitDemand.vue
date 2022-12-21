@@ -70,7 +70,6 @@ import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
-import nprogress from 'nprogress'
 import Papaparse from 'papaparse'
 import yaml from 'yaml'
 
@@ -135,15 +134,15 @@ const MyComponent = defineComponent({
         thumbnail: true,
       },
       isDarkMode: globalStore.state.isDarkMode,
+      isMapMoving: false,
       loadingText: 'MATSim Transit Inspector',
       mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
-      project: {} as any,
+
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as any[],
       selectedRoute: {} as any,
       stopMarkers: [] as any[],
-      isMapMoving: false,
 
       _attachedRouteLayers: [] as string[],
       _departures: {} as { [linkID: string]: Departure },
@@ -334,7 +333,7 @@ const MyComponent = defineComponent({
         f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
       )
       if (outputConfigs.length && this.fileSystem) {
-        console.log('trying to find CRS in', outputConfigs[0])
+        // console.log('trying to find CRS in', outputConfigs[0])
 
         for (const xmlConfigFileName of outputConfigs) {
           try {
@@ -399,8 +398,6 @@ const MyComponent = defineComponent({
       this.$emit('title', t)
 
       this.projection = this.vizDetails.projection
-
-      nprogress.done()
     },
 
     isMobile() {
@@ -507,14 +504,15 @@ const MyComponent = defineComponent({
 
     async mapIsReady() {
       const networks = await this.loadNetworks()
-      console.log({ networks })
+      // console.log({ networks })
       if (networks) this.processInputs(networks)
 
-      this.setupKeyListeners()
+      // TODO remove for now until we research whether
+      // this causes a memory leak:
+      // this.setupKeyListeners()
     },
 
     setupKeyListeners() {
-      // const parent = this
       window.addEventListener('keyup', event => {
         if (event.keyCode === 27) {
           // ESC
@@ -541,8 +539,9 @@ const MyComponent = defineComponent({
           // message.data will have .id and either .error or .xml
           const { resolve, reject } = this.resolvers[message.data.id]
 
-          if (message.data.error) reject(message.data.error)
+          xmlWorker.terminate()
 
+          if (message.data.error) reject(message.data.error)
           resolve(message.data.xml)
         }
       }
@@ -606,6 +605,8 @@ const MyComponent = defineComponent({
         worker.onmessage = (event: MessageEvent) => {
           this.loadingText = 'Processing demand...'
           const csvData = new TextDecoder('utf-8').decode(event.data)
+          worker.terminate()
+
           Papaparse.parse(csvData, {
             // preview: 10000,
             header: true,
@@ -719,14 +720,11 @@ const MyComponent = defineComponent({
       this.handleClickedMetric({ field: 'departures' })
 
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-      this.mymap.fitBounds(this._mapExtentXYXY, {
-        animate: false,
-      })
+      this.mymap.fitBounds(this._mapExtentXYXY, { animate: false })
 
       if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
 
       this.loadingText = ''
-      nprogress.done()
     },
 
     async processDepartures() {
@@ -912,7 +910,7 @@ const MyComponent = defineComponent({
       if (!routeID) return
 
       const route = this._routeData[routeID]
-      console.log({ selectedRoute: route })
+      // console.log({ selectedRoute: route })
 
       this.selectedRoute = route
 
@@ -942,7 +940,11 @@ const MyComponent = defineComponent({
 
     removeSelectedRoute() {
       if (this.selectedRoute) {
-        this.mymap.removeLayer('selected-route')
+        try {
+          this.mymap.removeLayer('selected-route')
+        } catch (e) {
+          // oh well
+        }
         this.selectedRoute = null
       }
     },
@@ -986,7 +988,7 @@ const MyComponent = defineComponent({
         sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
       })
 
-      console.log({ sum, allLinks })
+      // console.log({ sum, allLinks })
     },
 
     removeAttachedRoutes() {
@@ -1042,22 +1044,33 @@ const MyComponent = defineComponent({
 
       this.showRouteDetails(this.routesOnLink[i].id)
     },
-  },
 
-  created() {
-    this._attachedRouteLayers = []
-    this._departures = {}
-    this._mapExtentXYXY = [180, 90, -180, -90]
-    this._maximum = 0
-    this._network = { nodes: {}, links: {} }
-    this._routeData = {}
-    this._stopFacilities = {}
-    this._transitLines = {}
-    this.selectedRoute = null
+    clearData() {
+      this._attachedRouteLayers = []
+      this._departures = {}
+      this._mapExtentXYXY = [180, 90, -180, -90]
+      this._maximum = 0
+      this._network = { nodes: {}, links: {} }
+      this._routeData = {}
+      this._stopFacilities = {}
+      this._transitLinks = null
+      this._transitLines = {}
+      this.selectedRoute = null
+      this.cfDemand = null
+      this.cfDemandLink?.dispose()
+      this.resolvers = {}
+      this.routesOnLink = []
+      this.selectedRoute = {}
+      this.stopMarkers = []
+      this._linkData = null
+      this._geoTransitLinks = null
+    },
   },
 
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
+
+    this.clearData()
 
     // populate props after we attach, not before!
     this.myState.subfolder = this.subfolder
@@ -1073,13 +1086,15 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    if (this.mymap) this.mymap.remove()
+
+    this.clearData()
+
     if (this.xmlWorker) this.xmlWorker.terminate()
     if (this._roadFetcher) this._roadFetcher.destroy()
     if (this._transitFetcher) this._transitFetcher.destroy()
     if (this._transitHelper) this._transitHelper.terminate()
-  },
 
-  destroyed() {
     this.$store.commit('setFullScreen', false)
   },
 })

@@ -56,6 +56,13 @@ export default class DashboardDataManager {
     this.fileApi = this.getFileSystem(this.root)
   }
 
+  private files: any[] = []
+  private threads: Worker[] = []
+  private subfolder = ''
+  private root = ''
+  private fileApi: FileSystemConfig
+  private networks: { [id: string]: Promise<NetworkLinks> } = {}
+
   public kill() {
     for (const worker of this.threads) worker.terminate()
   }
@@ -156,6 +163,7 @@ export default class DashboardDataManager {
       filterListeners: new Set(),
       dataset: new Promise<DataTable>((resolve, reject) => {
         const thread = new DataFetcherWorker()
+        // console.log('NEW WORKER', thread)
         this.threads.push(thread)
         try {
           thread.postMessage({ config: fullConfig, featureProperties })
@@ -302,7 +310,7 @@ export default class DashboardDataManager {
     const selectedDataset = this.datasets[config.dataset]
     if (!selectedDataset) throw Error('No dataset named: ' + config.dataset)
 
-    console.log(22, config.dataset, this.datasets[config.dataset])
+    // console.log(22, config.dataset, this.datasets[config.dataset])
     this.datasets[config.dataset].filterListeners.add(listener)
   }
 
@@ -319,6 +327,7 @@ export default class DashboardDataManager {
   public clearCache() {
     this.kill() // any stragglers must die
     this.datasets = {}
+    this.networks = {}
   }
 
   // ---- PRIVATE STUFFS -----------------------
@@ -434,9 +443,6 @@ export default class DashboardDataManager {
     }
   }
 
-  private files: any[] = []
-  private threads: Worker[] = []
-
   private async fetchDataset(config: { dataset: string }) {
     if (!this.files.length) {
       const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
@@ -446,6 +452,7 @@ export default class DashboardDataManager {
     return new Promise<DataTable>((resolve, reject) => {
       const thread = new DataFetcherWorker()
       this.threads.push(thread)
+      // console.log('NEW WORKER', thread)
       try {
         thread.postMessage({
           fileSystemConfig: this.fileApi,
@@ -525,10 +532,6 @@ export default class DashboardDataManager {
     return svnProject[0]
   }
 
-  private subfolder = ''
-  private root = ''
-  private fileApi: FileSystemConfig
-
   private datasets: {
     [id: string]: {
       dataset: Promise<DataTable>
@@ -537,8 +540,6 @@ export default class DashboardDataManager {
       filterListeners: Set<any>
     }
   } = {}
-
-  private networks: { [id: string]: Promise<NetworkLinks> } = {}
 }
 
 export function checkFilterValue(

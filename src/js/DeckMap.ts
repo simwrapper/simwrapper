@@ -61,7 +61,7 @@ function getTooltip(pickingInfo: any) {
 
 // Create canvas elements for mapbox and deck
 function createCanvas(props: any) {
-  let { container = document.body } = props
+  let { container } = props
 
   if (typeof container === 'string') {
     container = document.querySelector(container)
@@ -174,9 +174,9 @@ export default class DeckMap extends Deck {
   }
 
   finalize() {
-    if (this._map) {
-      this._map.remove()
-    }
+    if (this._map) this._map.remove()
+    this._map = null
+
     super.finalize()
   }
 

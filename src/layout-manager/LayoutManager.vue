@@ -504,6 +504,9 @@ export default defineComponent({
     },
 
     onClose(x: number, y: number) {
+      // kill the element
+      this.panels[y][x].component = null
+
       // remove the panel
       this.panels[y].splice(x, 1) // at column x of row y, remove 1 item
 

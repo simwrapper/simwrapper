@@ -105,7 +105,7 @@ function buildDiffWidthsBasedOnNumericValues(props: {
     }
   }
 
-  console.log({ widths, calculatedValues })
+  // console.log({ widths, calculatedValues })
 
   // For legend, let's show 1-2-4-8-16-32-64 pixels?
   const legend = [] as any[]
@@ -174,7 +174,7 @@ function getHeightsBasedOnNumericValues(props: {
 
   // Normalize data
   if (normalize) {
-    console.log('NORMALIZING')
+    // console.log('NORMALIZING')
     normalizedValues = new Float32Array(data.values.length)
     normalizedMax = -Infinity
     for (let i = 0; i < data.values.length; i++) {
@@ -257,7 +257,7 @@ function buildColorsBasedOnCategories(props: {
   keys.forEach((key, index) => legend.push({ label: key, value: colors[index % colors.length] }))
   legend.sort((a, b) => (a.label < b.label ? -1 : 1))
 
-  console.log({ legend })
+  // console.log({ legend })
 
   return { array: rgbArray, legend, calculatedValues: null }
 }
@@ -308,7 +308,7 @@ function buildDiffDomainBreakpoints(
       .map(v => -1 * v)
     breakpoints.push(...guessBreaks)
 
-    console.log({ breakpoints })
+    // console.log({ breakpoints })
     return breakpoints
   }
 
@@ -323,7 +323,7 @@ function buildDiffDomainBreakpoints(
   breakpoints.pop() // remove extra zero
   breakpoints.push(...guessBreaks)
 
-  console.log({ breakpoints })
+  // console.log({ breakpoints })
   return breakpoints
 }
 
@@ -372,7 +372,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
   const minDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.min(a, b)), Infinity)
   const maxDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.max(a, b)), -Infinity)
 
-  console.log({ minDiff, maxDiff, diffValues })
+  // console.log({ minDiff, maxDiff, diffValues })
 
   // *range* is the list of colors;
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
@@ -418,7 +418,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
 
-  console.log({ legend, colors })
+  // console.log({ legend, colors })
 
   return { array: rgbArray, legend, calculatedValues: diffValues }
 }
@@ -459,7 +459,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   // Normalize data
   if (normalize) {
-    console.log('NORMALIZING')
+    // console.log('NORMALIZING')
     normalizedValues = new Float32Array(data.values.length)
     normalizedMax = -Infinity
 
@@ -469,7 +469,7 @@ function buildColorsBasedOnNumericValues(props: {
     }
   }
 
-  console.log({ normalizedValues, normalizedMax })
+  // console.log({ normalizedValues, normalizedMax })
 
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
@@ -512,7 +512,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
 
-  console.log({ legend, colors })
+  // console.log({ legend, colors })
 
   return { array: rgbArray, legend, calculatedValues }
 }
