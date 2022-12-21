@@ -1,20 +1,19 @@
 <template lang="pug">
 .draw-thing
-  .map(:id="mapID" v-show="showShapeDrawer")
+  .map(:id="mapID" v-if="showShapeDrawer")
 
   .map-actions
     button.button.draw-button.is-tiny(v-if="isDark && showShapeDrawer" title="Draw" @click="toggleShapeDrawer"
       :class="{'is-drawing': showShapeDrawer}" :style="{border: `1px solid rgb(119,119,119)`}"
-    )
-      img(src="./images/draw-icon-dm.png" width=16)
+    ): img(src="./images/draw-icon-dm.png" width=16)
+
     button.button.draw-button.is-tiny(v-else-if="isDark && !showShapeDrawer" title="Draw" @click="toggleShapeDrawer"
       :class="{'is-drawing': showShapeDrawer}" :style="{background: `rgb(43,60,78)`, border: `1px solid rgb(119,119,119)`}"
-    )
-      img(src="./images/draw-icon-dm.png" width=16)
+    ): img(src="./images/draw-icon-dm.png" width=16)
+
     button.button.draw-button.is-tiny(v-else title="Draw" @click="toggleShapeDrawer"
       :class="{'is-drawing': showShapeDrawer}" :style="{border: '1px solid rgb(224,224,224)'}"
-    )
-      img(src="./images/draw-icon.png" width=16)
+    ): img(src="./images/draw-icon.png" width=16)
 
   .control-panel(v-if="showShapeDrawer")
     h3 {{ $t('title')}}
@@ -30,7 +29,6 @@
 </template>
 
 <script lang="ts">
-// :style="{background: `rgb(43,60,78)`, border: `1px solid rgb(119,119,119)`
 const i18n = {
   messages: {
     en: {
@@ -46,12 +44,11 @@ const i18n = {
 }
 import { defineComponent } from 'vue'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
-import proj4 from 'proj4'
 import ShapeWriter from 'shp-write'
+import { TranslateResult } from 'vue-i18n'
 
 import LayerManager from '@/js/LayerManager'
 import globalStore from '@/store'
-import { TranslateResult } from 'vue-i18n'
 
 export default defineComponent({
   name: 'DrawingTool',
@@ -80,28 +77,35 @@ export default defineComponent({
 
   mounted() {
     this.hint = this.$t('hint')
-    this.setupLayerManager()
-    this.updateLayers()
+    // FIXME: broken! Fix later -- 500MB memory leak!
+    // this.setupLayerManager()
+    // this.updateLayers()
   },
 
   beforeDestroy() {
+    this.showShapeDrawer = false
     this.layerManager.destroy()
   },
 
   watch: {
     viewState() {
-      this.layerManager.deckInstance.setProps({ viewState: this.viewState })
+      // FIXME
+      // this.layerManager.deckInstance.setProps({ viewState: this.viewState })
     },
+
     'globalStore.state.isDarkMode'() {
       this.isDark = this.$store.state.isDarkMode
-      this.layerManager.updateStyle()
+      // FIXME
+      // this.layerManager.updateStyle()
     },
   },
+
   computed: {
     viewState(): any {
       return this.$store.state.viewState
     },
   },
+
   methods: {
     toggleShapeDrawer() {
       this.clearShapes()
@@ -216,7 +220,7 @@ export default defineComponent({
     },
 
     updateLayers() {
-      // view isn't picking the changes up, let's force it
+      // vue isn't picking the changes up, let's force it
       const shapes = this.polygons.slice(0)
       const dots = this.points.slice(0)
 
@@ -239,10 +243,10 @@ export default defineComponent({
         })
       )
 
-      this.layerManager.removeLayer('scatterplot-layer')
+      this.layerManager.removeLayer('draw-scatterplot-layer')
       this.layerManager.addLayer(
         new ScatterplotLayer({
-          id: 'scatterplot-layer',
+          id: 'draw-scatterplot-layer',
           data: dots,
           getPosition: (d: any) => d,
           pickable: true,
