@@ -110,9 +110,9 @@ export default new Vuex.Store({
         jump?: boolean
       }
     ) {
-      /** Only jump camera if there is no view yet to avoid jarring */
-      if (!value.jump) state.viewState = value
-      else if (state.viewState.initial) state.viewState = value
+      // Only jump camera if it's our first location
+      // or if user has explicitly asked to jump the camera
+      if (state.viewState.initial || value.jump) state.viewState = value
     },
     error(state, value: string) {
       if (
