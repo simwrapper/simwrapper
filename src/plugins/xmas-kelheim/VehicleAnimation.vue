@@ -452,31 +452,14 @@ const MyComponent = defineComponent({
       if (this.myState.isRunning) this.animate()
     },
 
+    /** Load background traffic.
+     * If saved as binary chunks in eventBlobs, load them sequentially.
+     * If it's a raw MATSim event file, export the chunks after loading! */
     async loadBackgroundTraffic() {
       if (this.vizDetails.eventBlobs) {
         for (const blobFilename of this.vizDetails.eventBlobs) {
-          const gzipFetcher = new GzipFetcher()
-
-          gzipFetcher.onmessage = (event: MessageEvent) => {
-            const floats = new Float32Array(event.data.buffer)
-            const size = floats.length / 6
-            const bytes = 4
-
-            const layer = {
-              vehicles: {
-                locO: new Float32Array(event.data.buffer, 0, size * 2),
-                locD: new Float32Array(event.data.buffer, bytes * size * 2, size * 2),
-                t0: new Float32Array(event.data.buffer, bytes * size * 4, size),
-                t1: new Float32Array(event.data.buffer, bytes * size * 5, size),
-              },
-            }
-
-            this.trafficLayers.push(layer)
-          }
-          gzipFetcher.postMessage({
-            filePath: this.myState.subfolder + '/' + blobFilename,
-            fileSystem: this.fileSystem,
-          })
+          const layer = await this.loadBackgroundChunk(blobFilename)
+          this.trafficLayers.push(layer)
         }
       } else if (this.vizDetails.events) {
         const parser = new EventParser({
@@ -493,6 +476,33 @@ const MyComponent = defineComponent({
         this.trafficLayers = layers
         this.exportJSON(layers)
       }
+    },
+
+    /** Load one binary-encoded traffic chunk */
+    async loadBackgroundChunk(blobFilename: string): Promise<any> {
+      return new Promise((resolve, reject) => {
+        console.log('load chunk:', blobFilename)
+        const gzipFetcher = new GzipFetcher()
+        gzipFetcher.onmessage = (event: MessageEvent) => {
+          const floats = new Float32Array(event.data.buffer)
+          const size = floats.length / 6
+          const bytes = 4
+
+          const layer = {
+            vehicles: {
+              locO: new Float32Array(event.data.buffer, 0, size * 2),
+              locD: new Float32Array(event.data.buffer, bytes * size * 2, size * 2),
+              t0: new Float32Array(event.data.buffer, bytes * size * 4, size),
+              t1: new Float32Array(event.data.buffer, bytes * size * 5, size),
+            },
+          }
+          resolve(layer)
+        }
+        gzipFetcher.postMessage({
+          filePath: this.myState.subfolder + '/' + blobFilename,
+          fileSystem: this.fileSystem,
+        })
+      })
     },
 
     exportJSON(layers: any[]) {
@@ -580,6 +590,7 @@ const MyComponent = defineComponent({
           zoom: this.vizDetails.zoom || 11,
           pitch: this.vizDetails.pitch || 20,
           bearing: this.vizDetails.bearing || 0,
+          jump: true,
         })
       }
 
