@@ -1,6 +1,6 @@
 <template lang="pug">
 .draw-thing
-  .map(:id="mapID" v-if="showShapeDrawer")
+  .map(:id="mapID" v-show="showShapeDrawer" @click="handleMapClick")
 
   .map-actions
     button.button.draw-button.is-tiny(v-if="isDark && showShapeDrawer" title="Draw" @click="toggleShapeDrawer"
@@ -76,10 +76,10 @@ export default defineComponent({
   },
 
   mounted() {
+    console.log('DRATWOOL')
     this.hint = this.$t('hint')
-    // FIXME: broken! Fix later -- 500MB memory leak!
-    // this.setupLayerManager()
-    // this.updateLayers()
+    this.setupLayerManager()
+    this.updateLayers()
   },
 
   beforeDestroy() {
@@ -89,14 +89,12 @@ export default defineComponent({
 
   watch: {
     viewState() {
-      // FIXME
-      // this.layerManager.deckInstance.setProps({ viewState: this.viewState })
+      this.layerManager.deckInstance.setProps({ viewState: this.viewState })
     },
 
     'globalStore.state.isDarkMode'() {
       this.isDark = this.$store.state.isDarkMode
-      // FIXME
-      // this.layerManager.updateStyle()
+      this.layerManager.updateStyle()
     },
   },
 
@@ -273,26 +271,30 @@ export default defineComponent({
 .draw-thing {
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
+  right: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .map {
   pointer-events: all;
+  flex: 1;
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  bottom: 0;
   height: 100%;
+  width: 100%;
+  z-index: 0;
 }
 
 .control-panel {
   background-color: var(--bgPanel);
   pointer-events: all;
   padding: 0.5rem 1rem;
-  z-index: 0;
+  z-index: 5;
   position: absolute;
   top: 6px;
   right: 31px;
@@ -300,12 +302,8 @@ export default defineComponent({
   border-radius: 3px;
 }
 
-.drawing-tool {
-  grid-column: 1 / 3;
-  grid-row: 1 / 4;
-}
-
 .draw-button {
+  pointer-events: all;
   padding: 0px 4px;
   border: var(--borderZoomButtons);
   border-radius: 4px;
@@ -333,8 +331,9 @@ export default defineComponent({
   position: absolute;
   display: flex;
   flex-direction: column;
-  top: 100px;
+  top: 128px;
   right: 7px;
+  z-index: 15;
 }
 
 .buttons {

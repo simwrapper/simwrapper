@@ -11,7 +11,7 @@
     )
 
   zoom-buttons(v-if="!thumbnail")
-  drawing-tool(v-if="!thumbnail")
+  //- drawing-tool(v-if="!thumbnail")
 
   collapsible-panel.left-side(v-if="!thumbnail"
     :darkMode="isDarkMode"

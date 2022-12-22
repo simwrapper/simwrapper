@@ -6,6 +6,7 @@
   .status-bar(v-show="statusText") {{ statusText }}
 
   .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
+    //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
     geojson-layer(v-if="!needsInitialMapExtent"
       :viewId="layerId"
@@ -39,13 +40,6 @@
     )
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
-
-  modal-join-column-picker(v-if="datasetJoinSelector"
-    :data1="datasetJoinSelector.data1"
-    :data2="datasetJoinSelector.data2"
-    @join="cbDatasetJoined"
-  )
-
 
   .config-bar(v-if="!thumbnail && !isEmbedded"
     :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
@@ -146,6 +140,7 @@ import ColorWidthSymbologizer from '@/js/ColorWidthSymbologizer'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalJoinColumnPicker from './ModalJoinColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
@@ -173,6 +168,7 @@ const MyComponent = defineComponent({
     ModalJoinColumnPicker,
     VizConfigurator,
     ZoomButtons,
+    DrawingTool,
   },
 
   props: {
@@ -2066,6 +2062,7 @@ export default MyComponent
   flex-direction: row;
   padding-top: 0.25rem;
   background-color: var(--bgDashboard);
+  z-index: 20;
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;

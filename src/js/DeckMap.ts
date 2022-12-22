@@ -61,7 +61,7 @@ function getTooltip(pickingInfo: any) {
 
 // Create canvas elements for mapbox and deck
 function createCanvas(props: any) {
-  let { container } = props
+  let { container = document.body } = props
 
   if (typeof container === 'string') {
     container = document.querySelector(container)
@@ -81,6 +81,9 @@ function createCanvas(props: any) {
   Object.assign(mapboxCanvas.style, CANVAS_STYLE)
 
   const deckCanvas = document.createElement('canvas')
+  deckCanvas.width = window.innerWidth
+  deckCanvas.height = window.innerHeight
+
   deckCanvas.oncontextmenu = () => false // this disables right click on map
   container.appendChild(deckCanvas)
   Object.assign(deckCanvas.style, CANVAS_STYLE)
