@@ -16,20 +16,27 @@ import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 
 // ----------------------------------------
 
-const initialViewState = () => ({
-  // start with western europe for now
-  initial: true,
-  pitch: 0,
-  bearing: 0,
-  maxZoom: 24,
-  longitude: 13.45, // -122.45,
-  latitude: 52.5, // 37.77,
-  // zoom: 10.5,
-  // longitude: 13.45,
-  // latitude: 52.5,
-  // zoom: 8,
-  zoom: 7,
-})
+// ViewState has tricky logic, to handle cold-start, view-start,
+// and interactive motion.
+// Booleans to handle the various situations:
+// startup: true for the app default (here). views will override this
+// initial: set to true for a view's first map request. This will be
+//          honored if the app is in startup state, but will be ignored
+//          if NOT in startup state, because that means a different view
+//          has already set the map and we don't want it to be "jarring"
+//    jump: Force jump the view to new location no matter what.
+const initialViewState = () => {
+  return {
+    // Set your startup city long/lat here!
+    startup: true,
+    longitude: 13.45,
+    latitude: 52.5,
+    zoom: 7,
+    pitch: 0,
+    bearing: 0,
+    maxZoom: 24,
+  }
+}
 
 export default new Vuex.Store({
   state: {
@@ -43,6 +50,7 @@ export default new Vuex.Store({
     isFullWidth: false,
     isShowingLeftBar: true,
     isDarkMode: true,
+    isInitialViewSet: false,
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as Warnings[],
@@ -66,6 +74,7 @@ export default new Vuex.Store({
       center?: number[]
       jump?: boolean
       initial?: boolean
+      startup?: boolean
     },
   },
 
@@ -108,11 +117,27 @@ export default new Vuex.Store({
         zoom: number
         center?: number[]
         jump?: boolean
+        initial?: boolean
+        startup?: boolean
       }
     ) {
-      // Only jump camera if it's our first location
-      // or if user has explicitly asked to jump the camera
-      if (state.viewState.initial || value.jump) state.viewState = value
+      let honorIt = false
+
+      // always honor a jump request
+      if (value.jump) honorIt = true
+      // honor an initial request IFF we are in startup state
+      if (value.initial && !state.isInitialViewSet) honorIt = true
+      // honor a move request -- must not have initial or startup
+      if (!value.initial && !value.startup) honorIt = true
+
+      if (honorIt) {
+        // remove logic, just keep camera settings
+        const { jump, startup, initial, ...camera } = value
+        state.viewState = camera
+        state.isInitialViewSet = true
+      } else {
+        console.log('(ignored')
+      }
     },
     error(state, value: string) {
       if (

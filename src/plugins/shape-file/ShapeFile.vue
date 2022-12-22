@@ -7,7 +7,7 @@
 
   .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
 
-    geojson-layer(
+    geojson-layer(v-if="!needsInitialMapExtent"
       :viewId="layerId"
       :fillColors="dataFillColors"
       :featureDataTable="boundaryDataTable"
@@ -1484,7 +1484,6 @@ const MyComponent = defineComponent({
         // this.polygons = { vertices, startIndices, pLength: boundaries.length }
 
         this.boundaries = boundaries
-        // this.$store.commit('setCache', { key: this.layerId, value: this.boundaries })
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
@@ -1566,6 +1565,7 @@ const MyComponent = defineComponent({
           bearing: 0,
           pitch: 0,
           zoom: 9,
+          initial: true,
         })
         this.needsInitialMapExtent = false
       }
@@ -1640,7 +1640,7 @@ const MyComponent = defineComponent({
           pitch: 0,
           zoom: 9,
           center: [longitude, latitude],
-          jump: true,
+          initial: true,
         })
         this.needsInitialMapExtent = false
       }
@@ -1956,6 +1956,7 @@ const MyComponent = defineComponent({
           pitch: this.vizDetails.pitch || 0,
           longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
           latitude: this.vizDetails.center ? this.vizDetails.center[1] : 0,
+          initial: true,
         })
         this.needsInitialMapExtent = false
       }
@@ -1998,8 +1999,6 @@ const MyComponent = defineComponent({
   beforeDestroy() {
     // MUST delete the React view handles to prevent gigantic memory leaks!
     delete REACT_VIEW_HANDLES[this.layerId]
-
-    this.$store.commit('removeCache', this.layerId)
 
     if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
       REACT_VIEW_HANDLES[1000 + this.layerId]([])
