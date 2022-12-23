@@ -7,8 +7,6 @@ import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-// import HexagonLayer from './SelectableHexLayer'
-// import { pointToHexbin } from './HexagonAggregator'
 
 const material = {
   ambient: 0.64,

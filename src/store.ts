@@ -136,7 +136,7 @@ export default new Vuex.Store({
         state.viewState = camera
         state.isInitialViewSet = true
       } else {
-        console.log('(ignored')
+        // console.log('(ignored')
       }
     },
     error(state, value: string) {
