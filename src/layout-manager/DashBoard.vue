@@ -288,6 +288,10 @@ export default defineComponent({
           card.isLoaded = false
           card.number = numCard
 
+          // make YAML easier to write: merge "props" property with other properties
+          // so user doesn't need to specify "props: {...}"
+          if (!card.props) card.props = Object.assign({}, card)
+
           // Vue 2 is weird about new properties: use Vue.set() instead
           Vue.set(this.opacity, card.id, 0.5)
           Vue.set(this.infoToggle, card.id, false)
@@ -299,6 +303,7 @@ export default defineComponent({
       }
       this.$emit('layoutComplete')
     },
+
     updateThemeAndLabels() {
       this.title = this.getDashboardLabel('title')
       this.description = this.getDashboardLabel('description')
