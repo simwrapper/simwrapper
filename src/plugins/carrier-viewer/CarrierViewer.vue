@@ -179,7 +179,7 @@ const CarrierPlugin = defineComponent({
   },
   data: () => {
     return {
-      linkLayerId: Math.random(),
+      linkLayerId: Math.floor(1e12 * Math.random()),
 
       vizSettings: {
         simplifyTours: false,

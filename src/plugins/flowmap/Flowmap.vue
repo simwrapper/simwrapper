@@ -1,5 +1,5 @@
 <template lang="pug">
- .flowmap(:class="{'hide-thumbnail': !thumbnail}"
+.flowmap(:class="{'hide-thumbnail': !thumbnail}"
         :style='{"background": urlThumbnail}'
         oncontextmenu="return false")
 
@@ -9,7 +9,7 @@
         :props="mapProps"
         )
 
-  
+
     .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
       h3 {{ vizDetails.title }}
       p {{ vizDetails.description }}
@@ -17,29 +17,29 @@
     zoom-buttons(v-if="!thumbnail")
 
     .bottom-panel(v-if="!thumbnail")
-      
-       
+
+
         b-checkbox.hello(
               v-model="vizDetails.animationEnabled"
             )
         p Animation
-      
-        
+
+
         b-checkbox.hello(
               v-model="vizDetails.locationLabelsEnabled"
             )
         p Labels
-        
+
         b-checkbox.hello(
               v-model="vizDetails.clustering"
             )
         p Clustering
-      
-
-        
 
 
-  
+
+
+
+
 </template>
 
 <script lang="ts">
@@ -82,7 +82,7 @@ export default class VueComponent extends Vue {
   private centroids: any[] = []
   private flows: any[] = []
 
-  private viewId = Math.random()
+  private viewId = Math.floor(1e12 * Math.random())
   private statusText = 'Loading...'
   private needsInitialMapExtent = true
 

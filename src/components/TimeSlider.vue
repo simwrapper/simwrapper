@@ -51,7 +51,7 @@ export default defineComponent({
         datasetRange: [0, 86400],
         labels: ['', ''],
       },
-      id: 'id-' + Math.random(),
+      id: 'id-' + Math.floor(1e12 * Math.random()),
       resizer: null as ResizeObserver | null,
     }
   },

@@ -161,7 +161,7 @@ const MyComponent = defineComponent({
     } as any
 
     return {
-      viewId: Math.random(),
+      viewId: Math.floor(1e12 * Math.random()),
       COLOR_OCCUPANCY,
       SETTINGS,
       legendItems: Object.keys(COLOR_OCCUPANCY).map(key => {

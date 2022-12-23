@@ -36,7 +36,7 @@ export default defineComponent({
       globalState: globalStore.state,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: DataTable },
-      id: ('heatmap-' + Math.random()) as any,
+      id: ('heatmap-' + Math.floor(1e12 * Math.random())) as any,
       YAMLrequirementsHeatmap: { dataset: '', y: '', columns: [] },
       layout: {
         margin: { t: 8, b: 50 },

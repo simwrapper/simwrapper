@@ -108,7 +108,7 @@ export default defineComponent({
     return {
       title: '',
       description: '',
-      viewId: 'dashboard-' + Math.random(),
+      viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
       rows: [] as { id: string; cards: any[] }[],
       fileList: [] as string[],

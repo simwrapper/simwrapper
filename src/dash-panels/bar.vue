@@ -35,8 +35,8 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      id: 'bar-' + Math.random(),
-      plotID: Math.floor(Math.random() * 100000).toString(),
+      id: 'bar-' + Math.floor(1e12 * Math.random()),
+      plotID: Math.floor(1e12 * Math.random()).toString(),
       className: '',
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },

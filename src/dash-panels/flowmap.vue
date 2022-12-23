@@ -34,7 +34,7 @@ export default defineComponent({
       boundaries: [] as any[],
       centroids: [] as { id: any; name?: any; lat: number; lon: number }[],
       flows: [] as any[],
-      viewId: ('id-' + Math.random()) as any,
+      viewId: ('id-' + Math.floor(1e12 * Math.random())) as any,
       startTime: Date.now(),
       elapsed: 0,
       animator: null as any,

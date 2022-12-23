@@ -200,7 +200,7 @@ const MyComponent = defineComponent({
       dataCalculatedValueLabel: '',
 
       globalState: globalStore.state,
-      layerId: Math.random(),
+      layerId: Math.floor(1e12 * Math.random()),
 
       activeColumn: '',
       useCircles: false,

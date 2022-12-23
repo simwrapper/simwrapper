@@ -214,7 +214,7 @@ const MyComponent = defineComponent({
 
       datasets: {} as { [id: string]: DataTable },
       isButtonActiveColumn: false,
-      linkLayerId: `linklayer-${Math.random()}` as any,
+      linkLayerId: `linklayer-${Math.floor(1e12 * Math.random())}` as any,
       scaleWidth: 0,
       numLinks: 0,
       showTimeRange: false,

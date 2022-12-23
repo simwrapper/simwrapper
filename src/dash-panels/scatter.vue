@@ -34,7 +34,7 @@ export default defineComponent({
       globalState: globalStore.state,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      id: ('scatter-' + Math.random()) as any,
+      id: ('scatter-' + Math.floor(1e12 * Math.random())) as any,
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },

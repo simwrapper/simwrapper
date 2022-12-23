@@ -35,7 +35,7 @@ export default defineComponent({
       globalState: globalStore.state,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      id: 'area-' + Math.random(),
+      id: 'area-' + Math.floor(1e12 * Math.random()),
       YAMLrequirementsArea: { dataset: '', x: '' },
       data: [] as any[],
       layout: {

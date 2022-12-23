@@ -62,7 +62,7 @@ const MyComponent = defineComponent({
       loadingText: '',
       jsonChart: {} as any,
       totalTrips: 0,
-      cleanConfigId: `sankey-${Math.random()}` as any,
+      cleanConfigId: `sankey-${Math.floor(1e12 * Math.random())}` as any,
       onlyShowChanges: false,
       csvData: [] as any[],
       colorRamp: [] as string[],
