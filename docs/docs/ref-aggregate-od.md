@@ -1,6 +1,6 @@
 ---
 id: aggregate-od
-title: Aggregate O/D Flows
+title: Aggregate O/D flows
 ---
 
 ![banner screenshot](assets/aggregate-od.jpg)
@@ -16,14 +16,14 @@ A file named `viz-od*.yml` must be present in working folder. Each yml file matc
 
 ```yaml
 # all of the below are required except description and idColumn.
-title: "My Aggregate Viz"
-description: "this will be in the sidebar"
+title: 'My Aggregate Viz'
+description: 'this will be in the sidebar'
 shpFile: Bezirksregionen_zone_GK4_fixed.shp
 dbfFile: Bezirksregionen_zone_GK4_fixed.dbf
 csvFile: od-analysis-hourly-drt.csv
 projection: GK4
 scaleFactor: 100
-idColumn: "id"
+idColumn: 'id'
 lineWidth: 50
 ```
 

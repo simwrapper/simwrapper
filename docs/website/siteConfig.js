@@ -10,11 +10,11 @@ const siteConfig = {
   favicon: 'img/SW_favicon.png',
 
   headerLinks: [
-    { doc: 'intro', label: 'Documentation' },
+    { doc: 'index', label: 'Documentation' },
     { blog: true, label: 'News', left: true },
     {
       href: 'https://github.com/simwrapper/simwrapper',
-      label: 'Github',
+      label: 'GitHub',
       external: true,
     },
   ],

@@ -1,6 +1,6 @@
 ---
 id: video
-title: Video Player
+title: Video player
 ---
 
 This viz allows playing of MP4 and MOV video files to be streamed.

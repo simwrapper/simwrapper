@@ -1,6 +1,6 @@
 ---
 id: heatmap-charts
-title: Heatmap Chart
+title: Heatmap chart
 ---
 
 ![Heatmap chart example](assets/heatmap-chart.jpg)

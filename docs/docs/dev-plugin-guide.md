@@ -1,6 +1,6 @@
 ---
 id: plugin-guide
-title: Plugin Writing Guide
+title: Plugin writing guide
 ---
 
 TBA - placeholder guide for writing your own plugins.

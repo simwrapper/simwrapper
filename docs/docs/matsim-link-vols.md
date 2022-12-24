@@ -1,6 +1,6 @@
 ---
 id: link-vols
-title: Network Link Plots
+title: MATSim Network link plots
 ---
 
 ![bandwidth banner](assets/links.jpg)
@@ -23,11 +23,11 @@ You can create a link visualization as a standalone view, as part of a dashboard
 **Standalone: viz-links-example.yaml**
 
 ```yaml
-title: "Passagiers in DRT Vehicles"
-description: "Hourly passengers, build scenario"
-csvFile: "hourlyTrafficVolume-drt-vehicles.csv"
-csvBase: "../base/hourlyTrafficVolume-drt-vehicles.csv"
-network: "*output_network.xml.gz"
+title: 'Passagiers in DRT Vehicles'
+description: 'Hourly passengers, build scenario'
+csvFile: 'hourlyTrafficVolume-drt-vehicles.csv'
+csvBase: '../base/hourlyTrafficVolume-drt-vehicles.csv'
+network: '*output_network.xml.gz'
 thumbnail: thumbnail-roads.jpg
 ```
 
@@ -39,19 +39,19 @@ header:
 
 layout:
   row1:
-    - title: "Link example"
-      description: "Sample data"
+    - title: 'Link example'
+      description: 'Sample data'
       type: links
       height: 8
       props:
-        network: "../input/baseCase/hamburg-v2.0-network-with-pt-hvvArea.geo.json.gz"
+        network: '../input/baseCase/hamburg-v2.0-network-with-pt-hvvArea.geo.json.gz'
         projection: EPSG:25832
         center: 13.4684, 56.6787
         zoom: 9
         showDifferences: true
         datasets:
-          csvFile: "output/reallab2030/accidentCosts.csv.gz"
-          csvBase: "../base/output/accidentCosts.csv.gz"
+          csvFile: 'output/reallab2030/accidentCosts.csv.gz'
+          csvBase: '../base/output/accidentCosts.csv.gz'
         display:
           color:
             dataset: csvFile
@@ -89,7 +89,7 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 
 ### Field descriptions
 
-**title:** (optional) title of the visualization, appears right on top of the map. If a title is specified both under `general` and under `props`, the one under  `general` will be used.
+**title:** (optional) title of the visualization, appears right on top of the map. If a title is specified both under `general` and under `props`, the one under `general` will be used.
 
 **description:** (optional) description of the visualization, appears between title and map. If a description is specified both under `general` and under `props`, the one under `general` will be used.
 
@@ -121,6 +121,7 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 **showDifference:** allows difference plots to be created if a base case is provided. Should be `true`.
 
 **display:** The optional display section includes details of the color and width data specifications.
+
 ## Defining Colors and Widths
 
 Both colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML; see the example above.

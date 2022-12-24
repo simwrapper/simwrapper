@@ -1,6 +1,6 @@
 ---
 id: pie-charts
-title: Pie Charts
+title: Pie charts
 ---
 
 ![pie chart example](assets/pie.png)
@@ -23,14 +23,14 @@ Pie charts can only be included as panels in **Dashboards**. See Dashboard docum
 ```yaml
 layout:
   row1:
-    - type: "pie"
-      title: "Mode Share"
-      description: "From modestats.txt"
+    - type: 'pie'
+      title: 'Mode Share'
+      description: 'From modestats.txt'
       width: 1
       props:
-        dataset: "*modestats.txt"
+        dataset: '*modestats.txt'
         useLastRow: true
-        ignoreColumns: ["Iteration"]
+        ignoreColumns: ['Iteration']
 ```
 
 ---

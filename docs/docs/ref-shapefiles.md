@@ -1,12 +1,10 @@
 ---
-id: area-maps
-title: Area Maps
+id: shapefiles
+title: Shapefiles: Area maps, network links, and GeoJSON
 ---
 
 ![Examples of choropleth and dot-size maps](assets/area-maps.jpg)
 _(1) Area map with "choropleth" color-filled areas; (2) Area map with circles instead of filled areas_
-
-### Aggregate area maps and dot-size maps
 
 Area maps with filled colors are excellent for depicting spatial data in one dimension.
 
@@ -14,7 +12,11 @@ Note that very large and very small areas on the same maps can create misleading
 
 **NOTE** Both plots are created using the same configuration below. Click the UI button below the maps to switch between the two views.
 
-## Usage
+## Creating a shapefile panel
+
+## Properties
+
+## Visualization hints
 
 **Standalone:** Create a `viz-map*.yaml` file as described below
 
@@ -34,14 +36,15 @@ Note that very large and very small areas on the same maps can create misleading
 NOTE: These properties all go into a `viz-map*.yaml` file as-is, or in a dashboard file they all go under the `props:` section of a layout row. See the examples at the end of this document.
 
 ```yaml
-title: "Area map example: DRT vehicles"
-description: "DRT Trips by PLZ Code"
+title: 'Area map example: DRT vehicles'
+description: 'DRT Trips by PLZ Code'
 center: [6.9814, 51.57]
 zoom: 10
 pitch: 0
 bearing: 0
 ```
-All of these properties are optional. 
+
+All of these properties are optional.
 
 - **title:** (optional) title of the visualization, appears right on top of the map. In the case of a dashboard: if a title is specified both under `general` and under `props`, the one under `general` will be used.
 
@@ -54,7 +57,6 @@ All of these properties are optional.
 - **pitch:** (optional) If it is not provided, the pitch is 0.
 
 - **bearing:** (optional) If it is not provided, the bearing is 0.
-
 
 ### **shapes:** the boundaries/areas to be drawn
 

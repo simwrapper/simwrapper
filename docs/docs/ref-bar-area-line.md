@@ -1,6 +1,6 @@
 ---
 id: bar-area-line
-title: Bar, Area, and Line Charts
+title: Bar, area, and line charts
 ---
 
 ![bar area example](assets/bar-line.png)
@@ -23,35 +23,35 @@ Bar, area, and line charts can only be included as panels in **Dashboards**. See
 ```yaml
 layout:
   row1:
-    - type: "bar"
-      title: "Bar Plot"
-      description: "By iteration"
+    - type: 'bar'
+      title: 'Bar Plot'
+      description: 'By iteration'
       width: 2
       props:
-        dataset: "*drt_customer_stats.csv"
-        x: "iteration"
-        xAxisName: "Iteration"
-        yAxisName: "Distance"
+        dataset: '*drt_customer_stats.csv'
+        x: 'iteration'
+        xAxisName: 'Iteration'
+        yAxisName: 'Distance'
 
-    - type: "area"
-      title: "Mode Share Progression"
-      description: "By iteration"
+    - type: 'area'
+      title: 'Mode Share Progression'
+      description: 'By iteration'
       width: 1
       props:
-        dataset: "*modestats.txt"
-        x: "Iteration"
+        dataset: '*modestats.txt'
+        x: 'Iteration'
 
-    - type: "line"
-      title: "Mean Distances by Mode"
-      description: "per Iteration"
+    - type: 'line'
+      title: 'Mean Distances by Mode'
+      description: 'per Iteration'
       width: 1
       props:
-        dataset: "*drt_customer_stats.csv"
-        x: "iteration"
-        xAxisName: "Iteration"
-        yAxisName: "Distance"
+        dataset: '*drt_customer_stats.csv'
+        x: 'iteration'
+        xAxisName: 'Iteration'
+        yAxisName: 'Distance'
         columns: [distance_m_mean, directDistance_m_mean]
-        legendName: ["Distance (mean)", "Direct Distance (mean)"]
+        legendName: ['Distance (mean)', 'Direct Distance (mean)']
 ```
 
 ---

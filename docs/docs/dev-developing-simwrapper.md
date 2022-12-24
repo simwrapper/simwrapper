@@ -6,7 +6,7 @@ title: Developing SimWrapper
 This page details **build instructions** for setting up your own instance of a SimWrapper website. This is for developers who want to build and extend SimWrapper.
 
 - If you are only interested in _using SimWrapper_ -- whether the official [TU Berlin SimWrapper](https://vsp.berlin/simwrapper) or your own team's version of it -- then _you do not need to read this page._
-- Read [this introduction](intro.md) instead, or go straight to the [dashboard guide](dashboards.md).
+- Read [this introduction](index.md) instead, or go straight to the [dashboard guide](guide-dashboards.md).
 
 ## Foundational technologies
 

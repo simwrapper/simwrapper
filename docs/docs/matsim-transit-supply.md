@@ -1,6 +1,6 @@
 ---
 id: transit-supply
-title: Transit Supply
+title: MATSim Transit supply/demand
 ---
 
 ![transit banner](assets/transit.jpg)

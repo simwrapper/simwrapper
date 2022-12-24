@@ -1,6 +1,6 @@
 ---
 id: carrier-viewer
-title: Carrier Viewer
+title: MATSim Carrier viewer
 ---
 
 ![carriers-banner](assets/carriers.jpg)
@@ -15,8 +15,8 @@ A file named `viz-carrier*.yaml` must be present in working folder. Each yml fil
 **viz-carrier-example.yml**
 
 ```yaml
-title: "Dynamic Response Shared Taxis"
-description: "Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)"
+title: 'Dynamic Response Shared Taxis'
+description: 'Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)'
 network: output_network.json.gz # slower: output_network.json.gz
 carriers: output_carriers.xml.gz
 center: [13.391, 52.515]

@@ -93,7 +93,7 @@ class HomeSplash extends React.Component {
           <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
           <PromoSection>
             <Button href="/site">Enter Site</Button>
-            <Button href={docUrl('intro')}>Read the Docs</Button>
+            <Button href={docUrl('')}>Read the Docs</Button>
             <Button href={`${baseUrl}blog`}>Latest Updates</Button>
           </PromoSection>
         </div>

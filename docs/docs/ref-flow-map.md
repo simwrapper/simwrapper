@@ -1,6 +1,6 @@
 ---
 id: flow-map
-title: Flow Maps
+title: Flow maps
 ---
 
 ![flow map example](assets/flow-map.jpg)
@@ -25,18 +25,18 @@ Flow maps can only be included as panels in **Dashboards**. See Dashboard docume
 ```yaml
 layout:
   row1:
-    - type: "flowmap"
-      title: "Origin/Destination Flows"
-      description: "Total daily trips"
+    - type: 'flowmap'
+      title: 'Origin/Destination Flows'
+      description: 'Total daily trips'
       width: 2
       props:
-        boundaries: "taz.geojson"
-        boundariesJoinCol: "TAZ1454"
-        boundariesLabels: "TAZ"
-        dataset: "trip-od-flows.csv"
-        origin: "origin"
-        destination: "destination"
-        flow: "trips"
+        boundaries: 'taz.geojson'
+        boundariesJoinCol: 'TAZ1454'
+        boundariesLabels: 'TAZ'
+        dataset: 'trip-od-flows.csv'
+        origin: 'origin'
+        destination: 'destination'
+        flow: 'trips'
 ```
 
 ---

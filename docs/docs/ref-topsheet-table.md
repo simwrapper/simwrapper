@@ -1,6 +1,6 @@
 ---
 id: calculation-tables
-title: Calculation Tables
+title: Calculation tables
 ---
 
 ![Topsheet banner](assets/topsheet.png)

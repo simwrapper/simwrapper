@@ -1,6 +1,6 @@
 ---
 id: sankey
-title: Sankey Diagrams
+title: Sankey/Alluvial diagrams
 ---
 
 ![Sankey banner](assets/sankey.jpg)

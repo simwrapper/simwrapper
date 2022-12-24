@@ -1,6 +1,6 @@
 ---
 id: xy-hexagons
-title: XY Hexagons
+title: XY hexagons (aggregate)
 ---
 
 ![xy hexagon banner](assets/xy-hexagons.jpg)
@@ -15,8 +15,8 @@ A file named `viz-xy-*.yml` must be present in working folder. Each yml file mat
 **viz-xy-example.yml**
 
 ```yaml
-title: "XY Example-1: DRT Vehicles"
-description: "Total origins/destinations by area"
+title: 'XY Example-1: DRT Vehicles'
+description: 'Total origins/destinations by area'
 file: drt-vehicles.json.gz
 thumbnail: thumbnail-vehicles.jpg
 center: [6.9814, 51.57]
@@ -41,15 +41,13 @@ aggregations:
       y: baseToY
 ```
 
-
 **dashboard-xy-example.yml**
 
 ```yaml
-
 header:
   tab: 'Example'
   title: 'DRT Vehicles'
-  description: "XY plot for DRT vehicles"
+  description: 'XY plot for DRT vehicles'
 
 layout:
   general:
@@ -58,10 +56,10 @@ layout:
       type: 'hexagons'
       props:
         configFile: 'viz-xy-example.yaml'
-        
-    - title: "Another XY plot"
-      description: "descriptions are optional"
-      type: "hexagons"
+
+    - title: 'Another XY plot'
+      description: 'descriptions are optional'
+      type: 'hexagons'
       props:
         height: 10
         width: 2
@@ -78,9 +76,7 @@ layout:
             - title: Stops
               x: X
               y: Y
- 
 ```
-
 
 ## YAML fields explained
 
@@ -98,14 +94,13 @@ layout:
 
 **center:** (optional) coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data.
 
-**zoom:** (optional) zoom level of the map between 5 and 20. If it is not provided, the zoom level 9 is used. 
+**zoom:** (optional) zoom level of the map between 5 and 20. If it is not provided, the zoom level 9 is used.
 
-**radius:** starting radius of the hexagons. 
+**radius:** starting radius of the hexagons.
 
 **maxHeight:** (optional) starting height of the hexagons. If it is not provided, 0 is used.
 
-**aggregations:**  a list of `title`, `x`, `y` which say which columns of data in the elements array contain the x,y data. x,y can be column numbers or column names. You can specify multiple aggregations in the data section. _Note: column numbers are zero-based!_
-
+**aggregations:** a list of `title`, `x`, `y` which say which columns of data in the elements array contain the x,y data. x,y can be column numbers or column names. You can specify multiple aggregations in the data section. _Note: column numbers are zero-based!_
 
 ## XY Data File format
 

@@ -1,30 +1,27 @@
 {
   "doc": {
-    "Introduction": ["intro", "file-management", "mini-file-server"],
+    "Introduction": ["index", "file-management", "mini-file-server", "help"],
     "Guides": [
       "guide-getting-started",
       "guide-dashboards",
       "guide-project-sites",
       "guide-publishing"
     ],
-    "Reference": [
-      "area-maps",
+    "API Reference / MATSim": ["link-vols", "transit-supply", "carrier-viewer", "drt-vehicles"],
+    "API Reference / General": [
+      "aggregate-od",
       "bar-area-line",
-      "carrier-viewer",
       "calculation-tables",
-      "drt-vehicles",
       "flow-map",
       "heatmap-charts",
-      "link-vols",
       "pie-charts",
       "sankey",
+      "xy-scatter-plots",
+      "shapefiles",
       "text-block",
-      "transit-supply",
       "vega-lite",
       "video",
-      "xy-hexagons",
-      "xy-scatter-plots",
-      "aggregate-od"
+      "xy-hexagons"
     ],
     "For Developers": ["scripts", "dev-guide", "plugin-guide", "changelog"]
   }

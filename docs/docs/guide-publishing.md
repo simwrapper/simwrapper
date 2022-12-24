@@ -1,6 +1,6 @@
 ---
 id: guide-publishing
-title: 4. Publishing to the Web
+title: 4. Publishing to the web
 ---
 
 OK so you've curated your model runs, post-processed all your results, and built your pretty dashboards! Now you want to show them to people.
@@ -53,12 +53,15 @@ To password-protect a SimWrapper site using standard HTTP Basic authentication, 
 `htpasswd` is installed by default on Mac OS and is part of `openssh` for other platforms.
 
 1. Use the program `htpasswd` to create username/password pairs you need:
-  - `htpasswd -c .htpasswd [username]` and then enter the desired password. This will create/overwrite the file `.htpasswd`
-  - If you need more than one user, drop the `-c` from the command and run again for each user: `htpasswd .htpasswd [anotheruser]`
-2. Add one line to the end of the Dockerfile, to copy the file into the root folder of the site: 
-  - `COPY .htpasswd  /`
-3. Now run `flyctl launch` as above.
 
+- `htpasswd -c .htpasswd [username]` and then enter the desired password. This will create/overwrite the file `.htpasswd`
+- If you need more than one user, drop the `-c` from the command and run again for each user: `htpasswd .htpasswd [anotheruser]`
+
+2. Add one line to the end of the Dockerfile, to copy the file into the root folder of the site:
+
+- `COPY .htpasswd  /`
+
+3. Now run `flyctl launch` as above.
 
 ## Other Docker-based sites
 
@@ -84,7 +87,7 @@ Github is not a good place to store large files; it has a hard limit of 100Mb on
 
 These are the CORS headers needed for Apache or NGINX web servers. These allow external websites to access the files on your server over HTTP.
 
-**Your files are visible on the web, so don't put things there that should not be public.**
+**Your files will be visible on the Internet, so don't put things there that should not be public.**
 
 ```
 add_header Access-Control-Allow-Origin "*";

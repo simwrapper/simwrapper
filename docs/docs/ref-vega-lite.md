@@ -1,6 +1,6 @@
 ---
 id: vega-lite
-title: Vega-Lite Charts
+title: Vega-Lite charts
 ---
 
 ![vega banner](assets/vega-chart.jpg)

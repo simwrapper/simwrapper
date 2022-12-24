@@ -1,6 +1,6 @@
 ---
 id: mini-file-server
-title: Mini File Server
+title: Command-line tools for accessing local files
 ---
 
 To view files that are either **local on your computer** or on **shared network drives** that you view on your computer through your regular filesytem, you can use Mini File Server!!
@@ -24,7 +24,7 @@ _You can still install the mini-file-server python script yourself if you want t
 
 Mini File Server is a tiny Python or Java program that runs on your local machine and allows the SimWrapper website to see the files. Nothing leaves your computer: it is all served locally from the client-side app.
 
-- See [File Management](file-management.md) for other ways to access server-based and cloud-storage files with SimWrapper!
+- See [File Management](intro-file-management.md) for other ways to access server-based and cloud-storage files with SimWrapper!
 
 You can access files on your local computer by running a small file server app which responds at URL "http://localhost:8000". You can set any folder on your computer as the root folder, and then SimWrapper will have access to anything in that folder and all subfolders below it. Only you will have access to these files: they are not network- or internet-accessible.
 

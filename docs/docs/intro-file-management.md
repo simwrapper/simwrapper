@@ -1,6 +1,6 @@
 ---
 id: file-management
-title: File Management
+title: File management
 ---
 
 **SimWrapper** is essentially a very fancy file browser that works on the web. It allows you to browse the files and subfolders in the file storage areas you configure:
