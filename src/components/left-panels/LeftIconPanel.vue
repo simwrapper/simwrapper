@@ -39,6 +39,8 @@ import ICON_DOCS from '@/assets/icons/readme.svg'
 
 import globalStore from '@/store'
 
+const DOCS_URL = 'https://simwrapper.github.io/docs'
+
 export interface Section {
   name: string
   class: string
@@ -63,7 +65,7 @@ export default defineComponent({
         // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
       ] as Section[],
       bottomSections: [
-        { name: 'Docs', link: 'https://simwrapper.github.io/docs/intro', icon: ICON_DOCS },
+        { name: 'Docs', link: DOCS_URL, icon: ICON_DOCS },
         { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
       ] as Section[],
     }
