@@ -8,13 +8,27 @@ _Example "topsheet" calculation table_
 
 ## Introduction
 
-You can create and display a simple table of calculations based on the CSV and XML data files in run folders. This can be useful for generating summary statistics, key performance indicators, etc.
+Calculation tables (formerly called "topsheets") are for creating and displaying a simple table of calculations, based on the CSV and XML data files in run folders. This can be useful for generating summary statistics, key performance indicators, etc.
 
-A calculation table is defined in a YAML file which must be named `topsheet-*.yaml`. A separate table will be displayed for every topsheet\*.yaml file found in a run folder.
+- A calculation table is defined in a YAML file which must be named `table-*.yaml`. (formerly `topsheet-*`.
+- A separate table will be displayed for every topsheet\*.yaml file found in a run folder.
 
-### Project-level ".topsheets" folders
+## Including Calculation tables in dashboards
 
-Topsheet definition files can also be saved in a folder named `.topsheets` **anywhere above the current run folder** in the folder hierarchy.
+Use the dashboard `type: table` to include a calculation table in a dashboard. The table configuration is still stored in a separate file, and is reference in the `configFile` parameter. See below:
+
+```yaml
+layout:
+  row1:
+    - type: table
+      title: "Trips by Time of Day and Purpose"
+      description: "Hourly summary"
+      configFile: "topsheet-3-drt-Cost.yml"
+```
+
+## Project-level ".topsheets" folders
+
+Table definition files can also be saved in a folder named `.topsheets` **anywhere above the current run folder** in the folder hierarchy.
 
 All topsheets found in the folder tree will be displayed if possible; if duplicate names are found in higher levels, the topsheet definition found in the closest level to the current folder will be the one created.
 

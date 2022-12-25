@@ -10,12 +10,18 @@ Sankeys are great for showing the shift between two states; for example mode sha
 
 ## Usage
 
-A file named `sankey-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate Sankey diagram.
+Standalone: a file named `sankey-*.yml` must be present in working folder. Each yml file matching that pattern will produce a separate Sankey diagram.
+
+Dashboard: Each panel is defined inside a **row** in a `dashboard-*.yaml` file.
+
+  - Use panel `type: sankey` in the dashboard configuration.
+
 
 **sankey-example.yml**
 
 ```yaml
-# only the csv line is required, but title and description sure help
+# only the csv line is required, but title and description help your viewers
+type: sankey
 csv: modeshares.csv
 title: Sankey Demo
 description: Erster Schritt!

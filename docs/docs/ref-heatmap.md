@@ -12,34 +12,33 @@ A heatmap chart depicts aggregate data in two dimensions on one chart.
 
 Heatmap charts can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
 
+- Use panel `type: heatmap` in the dashboard configuration.
 - Each heatmap panel is defined inside a **row** in a `dashboard-*.yaml` file.
-- Use panel type `heatmap` in the dashboard configuration. (Note this may change to `heatmap-chart` in the future)
 - Standard title, description, and width fields define the frame.
 
 ---
 
 ### Sample dashboard.yaml config snippet with a heatmap
 
-```pre
+```yaml
 layout:
   row1:
     - title: "My Heatmap"
       type: heatmap
-      props:
-        dataset: "trips-tod-wide.csv"
-        y: depart
-        columns: ['Home','Work','atwork','eatout','escort','othdiscr','othmaint',
-                  'school','shopping','social']
-        xAxisTitle: "Activity Purpose"
-        yAxisTitle: "Time of Day (Hour)"
-        flipAxes: true
+      dataset: "trips-tod-wide.csv"
+      y: depart
+      columns: ['Home','Work','atwork','eatout','escort','othdiscr','othmaint',
+                'school','shopping','social']
+      xAxisTitle: "Activity Purpose"
+      yAxisTitle: "Time of Day (Hour)"
+      flipAxes: true
 ```
 
 ---
 
 ### Heatmap chart properties
 
-Heatmap chart properties belong in the `props` section:
+Heatmap chart properties:
 
 **dataset:** String. The filepath containing the data. May include wildcards \* and ?.
 

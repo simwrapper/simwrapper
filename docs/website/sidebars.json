@@ -7,7 +7,13 @@
       "guide-project-sites",
       "guide-publishing"
     ],
-    "API Reference / MATSim": ["link-vols", "transit-supply", "carrier-viewer", "drt-vehicles"],
+    "API Reference / MATSim": [
+      "link-vols",
+      "carrier-viewer",
+      "drt-vehicles",
+      "matsim-events",
+      "transit-supply"
+    ],
     "API Reference / General": [
       "aggregate-od",
       "bar-area-line",
@@ -21,7 +27,8 @@
       "text-block",
       "vega-lite",
       "video",
-      "xy-hexagons"
+      "xy-hexagons",
+      "xy-time"
     ],
     "For Developers": ["scripts", "dev-guide", "plugin-guide", "changelog"]
   }

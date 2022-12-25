@@ -8,15 +8,12 @@ _(1) Area map with "choropleth" color-filled areas; (2) Area map with circles in
 
 Area maps with filled colors are excellent for depicting spatial data in one dimension.
 
-Note that very large and very small areas on the same maps can create misleading visualizations; in this case it may be best to normalize data by area before plotting it. Alternatively, the circle-plots show exactly the same data in a different manner.
 
 **NOTE** Both plots are created using the same configuration below. Click the UI button below the maps to switch between the two views.
 
-## Creating a shapefile panel
+## Creating this panel
 
-## Properties
-
-## Visualization hints
+Properties are written in either a standalone `viz-map*.yaml` file, or in a dashboard file they go in the `layout:` section of a `dashboard-*.yaml` file. See the examples at the end of this document.
 
 **Standalone:** Create a `viz-map*.yaml` file as described below
 
@@ -25,44 +22,41 @@ Note that very large and very small areas on the same maps can create misleading
 **Embed in Dashboard:** Create a `dashboard-*.yaml` file and include a `type: map` section as described below.
 
 - Each area map panel is defined inside a **row** in a `dashboard-*.yaml` file.
-- Use panel type `map` in the dashboard configuration. (Note this may change in the future as we add more map types)
+- Use panel `type: map` in the dashboard configuration. (Note this may change in the future as we add more map types)
 - Standard title, description, and width fields define the frame.
 - See [Dashboard documentation](dashboards) for general tips on creating dashboard configurations.
 
----
+> The [SimWrapper example project]() includes sample data and YAML configurations that you can use as a starting point.
 
-### Configuration reference properties
 
-NOTE: These properties all go into a `viz-map*.yaml` file as-is, or in a dashboard file they all go under the `props:` section of a layout row. See the examples at the end of this document.
+## Properties
 
-```yaml
-title: 'Area map example: DRT vehicles'
-description: 'DRT Trips by PLZ Code'
-center: [6.9814, 51.57]
-zoom: 10
-pitch: 0
-bearing: 0
-```
 
-All of these properties are optional.
+### Dashboard-specific properties
 
-- **title:** (optional) title of the visualization, appears right on top of the map. In the case of a dashboard: if a title is specified both under `general` and under `props`, the one under `general` will be used.
+|Property | Usage|
+| ---     | ---  |
+| `type` | In `dashboard-*.yaml` config files, MUST be set to **"map"** |
+|`height`| Relative height. Larger numbers create taller panels. (default: 5) |
+|`width`| Relative width. The widths of all panels on a single row are summed, and the layout of each panel is then relative to that total width. (default: 1) |
 
-- **description:** (optional) description of the visualization, appears between title and map. In the case of a dashboard: if a description is specified both under `general` and under `props`, the one under `general` will be used.
 
-- **center:** (optional) coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data.
+### General properties
 
-- **zoom:** (optional) zoom level of the map between 5 and 20. If it is not provided, the zoom level 9 is used.
-
-- **pitch:** (optional) If it is not provided, the pitch is 0.
-
-- **bearing:** (optional) If it is not provided, the bearing is 0.
+|Property | Usage|
+| ---     | ---  |
+| `title`, `title_en`, `title_de` | Title text for this panel; will be shown just above the map. The language-specific version will be used if provided. |
+| `description`, `description_en`, `description_de` | Second line of descriptive text, shown below the title line. The language-specific version will be used if provided. |
+| `center` | Coordinates that the map centers on. Can be provided as array or string. If it is not provided, a center is calculated using a sampling of the data. |
+| `zoom`|  Zoom level of the map between 5 and 20. (default: 9) |
+| `pitch`|  Map pitch (default: 0) |
+| `bearing`|  Map bearing/direction (default:0) |
 
 ### **shapes:** the boundaries/areas to be drawn
 
-There are **two separate data types** loaded for an area map: one for the boundaries/shapes, and one for the dataset.
+There are **two separate data types** required for an area map: the boundaries/shapes, and one the dataset (unless the shapefile self-contains all of the required data).
 
-Joining data: Both files must contain an matching identification column in order to join the two datasets together. In other words, the boundary IDs must be present (somwhere) in both datafiles. The names of the columns can be different in the two files; see below.
+Both files must contain an matching identification column in order to **join the two datasets** together. In other words, the boundary IDs must be present (somewhere) in both datafiles. The names of the columns do not have to be identical, but it helps legibility. See below.
 
 ```yaml
 shapes:
@@ -122,11 +116,17 @@ display:
 - **steps:** Number of steps in the ramp.
 - **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
 
----
+## Visualization hints
 
-## YAML configuration examples
+Very large and very small areas on the same maps can create misleading visualizations; consider "normalizing" data by land area before plotting it. Alternatively, the circle-plots show exactly the same data in a different manner.
 
-### Sample viz-map-1.yaml configuration
+- Use the sequential color palettes for continuous data.
+- Use diverging color palettes for difference plots and other situations where data is both positive and negative
+- Use categorical colors when there are just a few categories or "buckets" in which the data resides.
+
+## Example YAML configurations: putting it all together
+
+### Sample viz-map-1.yaml standalone configuration
 
 ```yaml
 title: 'VIZ-MAP 1'
@@ -158,27 +158,26 @@ header:
   description: 'All day'
 
 layout:
-  row:
+  row1:
     - type: map
+      title: 'VIZ-MAP 1'
+      description: 'All day transit usage'
       height: 10
-      props:
-        title: 'VIZ-MAP 1'
-        description: 'All day transit usage'
-        center: [6.9814, 51.57]
-        zoom: 10
-        shapes:
-          file: '../../shapefiles/geoid.geojson'
-          join: id
-        datasets:
-          transit-trips:
-            file: .dashboard/transit-data.csv
-            join: geoid
-        display:
-          fill:
-            dataset: transit-trips
-            filters: operator, income
-            columnName: trip_origins, trip_boards, trip_reslocs
-            colorRamp:
-              ramp: Plasma
-              steps: 7
+      center: [6.9814, 51.57]
+      zoom: 10
+      shapes:
+        file: '../../shapefiles/geoid.geojson'
+        join: id
+      datasets:
+        transit-trips:
+          file: .dashboard/transit-data.csv
+          join: geoid
+      display:
+        fill:
+          dataset: transit-trips
+          filters: operator, income
+          columnName: trip_origins, trip_boards, trip_reslocs
+          colorRamp:
+            ramp: Plasma
+            steps: 7
 ```

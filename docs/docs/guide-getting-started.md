@@ -3,7 +3,7 @@ id: guide-getting-started
 title: 1. Getting started tutorial
 ---
 
-Welcome to SimWrapper! Let's get you up and running with the basics. This guide uses sample data that's hopefully a lot like data you have or use.
+Welcome to SimWrapper! Let's get you up and running with the basics. This guide uses sample data that's hopefully a lot like the data you will be using.
 
 ## Outline of Getting Started Guide
 

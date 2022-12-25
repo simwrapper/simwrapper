@@ -9,8 +9,6 @@ _A flow map of San Francisco_
 
 Flowmaps depict _aggregate movements_ between origins and destinations.
 
-**THIS VIEW IS UNDER CONSTRUCTION, MORE TO COME...**
-
 ## Usage
 
 Flow maps can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
@@ -29,23 +27,20 @@ layout:
       title: 'Origin/Destination Flows'
       description: 'Total daily trips'
       width: 2
-      props:
-        boundaries: 'taz.geojson'
-        boundariesJoinCol: 'TAZ1454'
-        boundariesLabels: 'TAZ'
-        dataset: 'trip-od-flows.csv'
-        origin: 'origin'
-        destination: 'destination'
-        flow: 'trips'
+      boundaries: 'taz.geojson'
+      boundariesJoinCol: 'TAZ1454'
+      boundariesLabels: 'TAZ'
+      dataset: 'trip-od-flows.csv'
+      origin: 'origin'
+      destination: 'destination'
+      flow: 'trips'
 ```
 
 ---
 
 ### Flowmap properties
 
-Each flowmap can have the following properties in the `props` section:
-
-_THIS API IS CHANGING RAPIDLY, SORRY FOR ANY INCONSISTENCIES!_
+Each flowmap can have the following properties:
 
 **boundaries:** Geojson file with feature element boundaries.
 

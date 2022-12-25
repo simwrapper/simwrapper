@@ -27,30 +27,28 @@ layout:
       title: 'Y vs. X'
       description: 'a scatterplot'
       width: 3
-      props:
-        dataset: '*drt_customer_stats.csv'
-        x: 'iteration'
-        usedCol: [distance]
-        legendName: ['Distance (mean)']
-        xAxisName: 'Iteration'
-        yAxisName: 'Distance, m'
-        markerSize: 5
+      dataset: '*drt_customer_stats.csv'
+      x: 'iteration'
+      usedCol: [distance]
+      legendName: ['Distance (mean)']
+      xAxisName: 'Iteration'
+      yAxisName: 'Distance, m'
+      markerSize: 5
 
     - type: 'bubble'
       title: 'Y vs. X'
       description: 'a bubbley scatterplot'
       width: 2
-      props:
-        dataset: '*drt_customer_stats.csv'
-        x: 'iteration'
-        y: 'distance_mean'
-        bubble: 'directDistance'
-        factor: 100
-        legendName: ['Distance (mean)']
-        markerSize: 5
-        skipFirstRow: false
-        xAxisName: 'Iteration'
-        yAxisName: 'Distance, m'
+      dataset: '*drt_customer_stats.csv'
+      x: 'iteration'
+      y: 'distance_mean'
+      bubble: 'directDistance'
+      factor: 100
+      legendName: ['Distance (mean)']
+      markerSize: 5
+      skipFirstRow: false
+      xAxisName: 'Iteration'
+      yAxisName: 'Distance, m'
 ```
 
 ---

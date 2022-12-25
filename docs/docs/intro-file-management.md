@@ -19,7 +19,7 @@ SimWrapper can be configured to use any Internet storage that can serve up file 
 
 - To set up SimWrapper for internet storage, you need to fork SimWrapper and set up your own instance, then define your storage endpoint in the file `src/fileSystemConfig.js` following the examples there.
 
-- If you do not yet have your own instance of SimWrapper set up, follow the [instructions here](dev-guide.md).
+- If you do not yet have your own instance of SimWrapper set up, follow the [instructions here](dev-developing-simwrapper.md).
 
 **Amazon AWS** You can set up access to Amazon EC2/EFS file storage by following this guide: <https://docs.aws.amazon.com/efs/latest/ug/wt2-apache-web-server.html>
 

@@ -13,7 +13,7 @@ Sometimes a pie chart is all you need. Please remember to use them sparingly; th
 Pie charts can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
 
 - Each pie chart panel is defined inside a **row** in a `dashboard-*.yaml` file.
-- Use panel type `pie` in the dashboard configuration.
+- Use panel `type: pie` in the dashboard configuration.
 - Standard title, description, and width fields define the frame.
 
 ---
@@ -27,17 +27,16 @@ layout:
       title: 'Mode Share'
       description: 'From modestats.txt'
       width: 1
-      props:
-        dataset: '*modestats.txt'
-        useLastRow: true
-        ignoreColumns: ['Iteration']
+      dataset: '*modestats.txt'
+      useLastRow: true
+      ignoreColumns: ['Iteration']
 ```
 
 ---
 
 ### Pie chart properties
 
-Pie chart properties in the `props` section:
+Pie chart properties:
 
 **dataset:** String. The filepath containing the data. May include wildcards \* and ?.
 

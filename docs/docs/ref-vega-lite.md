@@ -12,6 +12,17 @@ See the Vega-Lite website for many examples of typical data visualizations that 
 
 **NOTE:** For simple bar, area, and line charts, you will probably be better off using the simple charts defined in [Bar, Area, and Line Charts](bar-area-line)
 
+## Dashboards
+
+Vega-lite charts can be embedded in dashboards using `type: vega` and specifying the config details in the props as follows:
+
+```yaml
+row:
+  - title: My Vega Chart
+    type: vega
+    config: my-example.vega.json
+```
+
 ## Usage
 
 A file named `*.vega.json` must be present in working folder. Each json file matching that pattern will produce a separate Vega-Lite diagram.
@@ -26,18 +37,6 @@ See [Data in Vega](https://vega.github.io/vega-lite/docs/data.html) for the full
 **AUTOSIZE** must be set as in the example below for the charts to be responsive to window size changes.
 
 **WIDTH** and **HEIGHT** can be hardcoded to pixel sizes, but a width set to `container` will be responsive. Height needs to be specified.
-
-## Dashboards
-
-Vega-lite charts can be embedded in dashboards using `type: vega` and specifying the config details in the props as follows:
-
-```yaml
-row:
-  - title: My Vega Chart
-    type: vega
-    props:
-      config: my-example.vega.json
-```
 
 ---
 
