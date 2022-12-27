@@ -3,40 +3,55 @@ id: guide-getting-started
 title: 1. Getting started tutorial
 ---
 
-Welcome to SimWrapper! Let's get you up and running with the basics. This guide uses sample data that's hopefully a lot like the data you will be using.
+Welcome to SimWrapper! Let's get you up and running with the basics.
 
-## Outline of Getting Started Guide
+- This guide uses sample data that's hopefully a lot like the data you would have for your projects
+- Use Google Chrome or MS Edge for the guide. Other browsers (Firefox, Safari) require a [separate local HTTP server](file-management) to access local files; for now that's just a stumbling block to getting started.
 
-### 1. Get and start up SimWrapper in your data folder
+## How it works: SimWrapper and file-based configuration
 
-(create a sample-data.zip with some useful data)
+Most MATSim/ActivitySim outputs such as the `*.xml.gz` files are too large to open in a web browser, so SimWrapper provides a set of _visualization plugins_ which can display something useful for you. Plugins exist for lots of things and the list is growing: link volumes, agent animations, aggregate area summaries, and more.
 
-- Install with `pip install simwrapper` or `conda install -c conda-forge simwrapper`
-- Switch to your data folder and run `simwrapper here`
+Here's how it works: For every visualization you want to create, you write a small _configuration file_ and store it in the same folder as the inputs for that visualization. We use the YAML text format, which is a common configuration file format. For each properly named YAML file, one visualization thumbnail will appear in that folder when you navigate to the folder in SimWrapper. Clicking on the thumbnail will open that visualization full-screen.
 
-### 2. Area maps and CSV data
+Generally, a viz will require a specific set of inputs, and those inputs are usually the result of some _post-processing_ of the raw simulation outputs. It's up to you to do that post-processing and store the files in the same folder as your config file.
 
-- Get some sample data such as `git clone https://github.com/simwrapper/simwrapper-example-project`
-- Load a shapefile or geojson
-- Add a datafile
-- set some colors, filters
-- Save your map in a YAML file
+Let's get started with some sample data.
 
-### 3. Create a dashboard with some charts
+## 1. Get the sample data and open it in SimWrapper
 
-- Introduce `dashboard-*.yaml` templates with a few line or area charts
-- Layout with columns, rows
-- Multiple tabs with multiple dashboard.yaml files
-- You can always see the raw files on the Files tab of each dashboard
+- Download [simwrapper-example-project.zip](https://github.com/simwrapper/simwrapper-example-project/archive/refs/heads/main.zip) from GitHub
+- Unzip the file somewhere you can find it easily - Desktop, home folder, etc.
+- Go to [simwrapper.github.io](https://simwrapper.github.io/site) and click `Add folder...` and browse to the folder you just created. Grant access to the folder so the SimWrapper site can see the files!
+  - (If you are using Firefox, `cd` to the data folder and run `simwrapper here` to start the local HTTP server)
 
-### 4. Add maps to the dashboard
+You should now see something similar to this:
 
-- Dashboards can include any of the vizualization types listed in the reference docs!
-- Let's add our map from above using a `type: map` dashboard panel
+<img src="assets/example-folder.jpg" style="border: 1px solid #ccc"><i>Example data folder</i></img>
 
-### 5. Configuring dashboard templates for multiple run folders
+## 2. Explore the samples
 
-- In SimWrapper, everything is folder-based. So `viz-*.yaml` and `dashboard-*.yaml` files in a folder will automatically be detected and loaded based on their filenames. If you want to define dashboards that will be used for multiple folders, such as several runs for a particular project,
+Each of the subfolders in the example project shows different map views and capabilities of SimWrapper -- network link plots, statistical charts, area maps (shapefiles), dashboards, and so on.
+
+- Experiment with the various knobs and configuration settings to see how the visualizations can be manipulated
+- From your PC file browser, open up the `viz-*.yaml` files in each subfolder to see how each of the visualizations is defined in a readable text format.
+- Every visualization type has a different filename "prefix" to help you find them: e.g, `viz-map-*.yaml` are for shapefiles, `viz-link-*.yaml` are for MATSim network plots, and so on.
+- You can edit these YAML files, save, and click Reload on your browser to see how your changes affect the visualizations.
+
+## 3. Create a dashboard with some charts
+
+The dashboards subfolder shows how you can combine multiple visualizations into cohesive dashboards.
+
+- The `dashboard-*.yaml` files define each individual tab in a dashboard. It's often nice to name them `dashboard-1-*.yaml`, `dashboard-2-*.yaml` etc, to set them in the order that you like.
+- Dashboards are laid out in rows: Each row can have multiple panels. See the YAML files for how this works!
+
+See the [Dashboards in Depth](guide-dashboards) article to learn more about building multi-panel dashboards.
+
+## 4. Configuring dashboard templates for multiple run folders
+
+In SimWrapper, everything is folder-based. So `viz-*.yaml` and `dashboard-*.yaml` files in a folder will automatically be detected and loaded based on their filenames.
+
+If you want to define dashboards that will be used for **multiple folders**, such as several runs for a particular project:
 
 - **Create a folder** named `simwrapper` in the parent project directory.
 - Move all dashboard, viz, and template YAMLs into that folder
@@ -44,19 +59,7 @@ Welcome to SimWrapper! Let's get you up and running with the basics. This guide 
 - The base folder for a dashboard is the _folder you are viewing_, not the dashboard template folder.
 - You can have multiple `simwrapper` folders all the way up your folder hierarchy; dashboard panels will be generated based on filename, and each found dashboard will be displayed as a tab on the folder view.
 
-
----
-_old text_
-
-## 2. Visualizations and their YAML files
-
-Most MATSim outputs such as the `*.xml.gz` files are too large to open in a web browser, so there is also a set of _visualization plugins_ which can display something useful for you. Plugins exist for lots of things and the list is growing: link volumes, agent animations, aggregate area summaries, and more.
-
-Here's how it works: For every visualization you want to create, you write a small _configuration file_ and store it in the same folder as the inputs for that visualization. (We use the YAML text format, which is a common configuration file format.) For each properly named YAML file, one visualization thumbnail will appear in that folder when you navigate to the folder in SimWrapper. Clicking on the thumbnail will open that visualization full-screen.
-
-Generally, a viz will require a specific set of inputs, and those inputs are usually the result of some _post-processing_ of the raw MATSim outputs. It's up to you to do that post-processing and commit the files to public-svn in the same folder as your config file.
-
-## 3. Creating visualizations for your model outputs
+## 5. More details on visualizations and their YAML files
 
 Here is an example YAML config file for a link-volume summary:
 

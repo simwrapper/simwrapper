@@ -13,7 +13,7 @@ You can hide all of the SimWrapper "chrome" such as the folder browser, and prov
 
 There are two general configuration options:
 
-**hideLeftBar:** True/false, hides the blue folder browser panel
+**hideLeftBar:** True/false, hides the left-side folder browser panel
 
 **fullWidth:** True/false, true removes the fixed-width centered panel if you want a full-screen experience
 
@@ -32,7 +32,9 @@ css: custom.css
 
 ```markdown
 <!-- header image logo -->
-<img class="project-logo" src="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/kelheim/projects/KelRide/logos/KelRide-text.png"/>
+<img class="project-logo"
+     src="https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/kelheim/projects/KelRide/logos/KelRide-text.png"
+/>
 ```
 
 #### Sample footer.md
@@ -48,7 +50,7 @@ css: custom.css
 
   <div class="menu">
     VSP / TU Berlin
-    © 2022 TU Berlin. <a href="https://vsp.berlin/impressum">Impressum</a>
+    © 2023 TU Berlin. <a href="https://vsp.berlin/impressum">Impressum</a>
   </div>
 </div>
 
@@ -59,7 +61,7 @@ css: custom.css
 
 This CSS is quite extensive!
 
-```markdown
+```css
 html {
 font-size: 16px !important;
 }

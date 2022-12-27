@@ -17,7 +17,7 @@ Fly.io free tier currently (May 2022) includes:
 - 3 (or 10?) site URLs
 - 100 GB data transfer per month free, then $0.02/Gb over
 
-Thus, you only need to watch the outbound data transfer to keep your site free. This service doesn't have any redundancy or fault-tolerance, so keep local copies of all your files in case their data center explodes.
+Thus, you only need to watch the outbound data transfer to keep your site free. This service doesn't have any redundancy or fault-tolerance, so keep local copies of all your files in case their data center explodes or catches on fire.
 
 ### First time setup
 
@@ -73,7 +73,7 @@ On Docker Hub, we created the `simwrapper/site` docker image which can be used a
 
 That's it! Note that in the command above we mount a local volume to the image at `/data` which is where SimWrapper expects your files to be. For a cloud site, you would need to put that in accessible storage somewhere. If you already know Docker, you already know how to do this.
 
-## Github Pages + Your own file server
+## Github Pages ( + Your own file server)
 
 Github is not a good place to store large files; it has a hard limit of 100Mb on file sizes, and generally doesn't work well for files over 20Mb either. So, the SimWrapper website code and assets themselves can be served from any static site provider at all, such as Github Pages. But your model outputs probably need to go somewhere else.
 
