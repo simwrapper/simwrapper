@@ -189,7 +189,7 @@ export default function Component({
       )
     }
 
-    // dataset elements
+    // --- dataset tooltip lines ---
     const featureTips = Object.entries(features[index].properties)
 
     let datasetProps = ''
@@ -201,7 +201,7 @@ export default function Component({
     }
     if (datasetProps) propList.push(datasetProps)
 
-    // feature elements
+    // --- boundary feature tooltip lines ---
     let columns = Object.keys(featureDataTable)
     if (tooltip && tooltip.length) {
       columns = tooltip.map(tip => {

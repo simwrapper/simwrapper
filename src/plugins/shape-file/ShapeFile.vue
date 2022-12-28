@@ -24,7 +24,6 @@
       :tooltip="vizDetails.tooltip"
     )
     //- :features="useCircles ? centroids: boundaries"
-    //- boundaryDataTable"
 
     viz-configurator(v-if="isLoaded"
       :embedded="isEmbedded"
@@ -737,6 +736,11 @@ const MyComponent = defineComponent({
         }
       }
 
+      // Notify Deck.gl of the new tooltip data
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+      }
+
       // console.log({ boundaries: this.boundaries })
 
       // add this dataset to the datamanager
@@ -746,6 +750,7 @@ const MyComponent = defineComponent({
         dataTable,
         filename: this.datasetFilename,
       })
+
       this.myDataManager.addFilterListener(
         { dataset: this.datasetFilename },
         this.processFiltersNow
@@ -763,7 +768,6 @@ const MyComponent = defineComponent({
       // console.log('triggering updates')
 
       this.vizDetails = Object.assign({}, this.vizDetails)
-
       this.datasets[datasetId] = dataTable
       this.datasets = Object.assign({}, this.datasets)
     },
