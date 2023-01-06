@@ -10,7 +10,7 @@
         )
 
 
-    .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard && !isEmbedded")
+    .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard")
       h3 {{ vizDetails.title }}
       p {{ vizDetails.description }}
 
@@ -34,11 +34,6 @@
               v-model="vizDetails.clustering"
             )
         p Clustering
-
-
-
-
-
 
 </template>
 
@@ -69,7 +64,6 @@ export default class VueComponent extends Vue {
   @Prop({ required: false }) thumbnail!: boolean
   @Prop({ required: true }) subfolder!: string
   @Prop({ required: false }) files!: string[] //was required true
-  //@Prop({ required: true }) config!: any
   @Prop({ required: false }) yamlConfig!: string
   @Prop({ required: false }) datamanager!: DashboardDataManager
 
@@ -112,7 +106,7 @@ export default class VueComponent extends Vue {
     origin: '',
     destination: '',
     flow: '',
-    colorScheme: 'teal',
+    colorScheme: 'Teal',
     highlightColor: 'orange',
     fadeEnabled: true,
     fadeAmount: 50,
@@ -159,6 +153,7 @@ export default class VueComponent extends Vue {
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
+
       if (this.thumbnail) {
         this.buildThumbnail()
         return
@@ -186,10 +181,7 @@ export default class VueComponent extends Vue {
 
       this.$emit('isLoaded')
 
-      this.animate()
-
       this.vizDetails = Object.assign({}, this.vizDetails)
-
       this.statusText = ''
     } catch (e) {
       this.$store.commit('error', 'Flowmap' + e)
@@ -207,13 +199,6 @@ export default class VueComponent extends Vue {
   private elapsed = 0
   private animator: any = null
 
-  private animate() {
-    setTimeout(() => {
-      this.elapsed = (Date.now() - this.startTime) * 0.05
-      this.animator = window.requestAnimationFrame(this.animate)
-    }, 33)
-  }
-
   private buildFileApi() {
     const filesystem = this.fsConfig || this.getFileSystem(this.root)
     this.fileApi = new HTTPFileSystem(filesystem)
@@ -226,6 +211,7 @@ export default class VueComponent extends Vue {
   }
 
   private async getVizDetails() {
+    // Config was passed in from dashboard:
     if (this.configFromDashboard) {
       console.log('we have a dashboard')
       this.validateYAML()
@@ -233,11 +219,14 @@ export default class VueComponent extends Vue {
       return
     }
 
+    // Config is in a YAML file which we can parse
     const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
     if (hasYaml) {
       console.log('has yaml')
       await this.loadStandaloneYAMLConfig()
     }
+
+    // No config at all; use the default
   }
 
   private async buildThumbnail() {
@@ -269,6 +258,7 @@ export default class VueComponent extends Vue {
     try {
       const text = await this.fileApi.getFileText(filename)
       this.vizDetails = Object.assign({}, YAML.parse(text))
+      return
     } catch (err) {
       const message = '' + err
       if (message.startsWith('YAMLSemantic')) {
@@ -287,8 +277,6 @@ export default class VueComponent extends Vue {
         console.error(`Also failed to load ${vizes[this.yamlConfig]}`)
       }
     }
-
-    console.log(this.vizDetails)
   }
 
   private async loadBoundaries() {
