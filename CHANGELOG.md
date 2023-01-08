@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/simwrapper/simwrapper/compare/v2.0.1...v2.1.0) (2023-01-08)
+
+
+### Features
+
+* Dashboard files no longer need "props:" subsection: less indentation! ([777a85e](https://github.com/simwrapper/simwrapper/commit/777a85e638327831d1fa39c207e40f42102fe3ed))
+
+
+### Bug Fixes
+
+* **flowmap:** 2.0 merge caused some flowmap problems ([4d2e4f4](https://github.com/simwrapper/simwrapper/commit/4d2e4f4a297f8f1d7ee0ef2cc5b153efb062544d)), closes [#189](https://github.com/simwrapper/simwrapper/issues/189)
+* folder browser thumbnail colors are not consistent ([d74964c](https://github.com/simwrapper/simwrapper/commit/d74964c0bedaf054f5568a3233a736f933adad27))
+* Sankey plot and others had ill-formed div ID's ([b179d6b](https://github.com/simwrapper/simwrapper/commit/b179d6bb02bc8052e30ab0b3c43d7c3656d6ccc6))
+* Shapefile data tooltips went missing ([76f0931](https://github.com/simwrapper/simwrapper/commit/76f0931d0f0e36fa7b193c4c0a0771effc13119a)), closes [#188](https://github.com/simwrapper/simwrapper/issues/188)
+
 ### [2.0.1](https://github.com/simwrapper/simwrapper/compare/v2.0.0...v2.0.1) (2022-12-22)
 
 ### Bug Fixes
