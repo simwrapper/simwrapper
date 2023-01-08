@@ -3,11 +3,30 @@ id: changelog
 title: Change log
 ---
 
-Welcome to SimWrapper version 2.0! Big new version with a new look, lots of new small features, and some big improvements in stability and memory usage
+Welcome to SimWrapper version 2.x! Big new version with a new look, lots of new small features, and some big improvements in stability and memory usage
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 The full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
+
+# Changelog
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [2.1.0](https://github.com/simwrapper/simwrapper/compare/v2.0.1...v2.1.0) (2023-01-08)
+
+
+### Features
+
+* Dashboard files no longer need "props:" subsection: less indentation! ([777a85e](https://github.com/simwrapper/simwrapper/commit/777a85e638327831d1fa39c207e40f42102fe3ed))
+
+
+### Bug Fixes
+
+* **flowmap:** 2.0 merge caused some flowmap problems ([4d2e4f4](https://github.com/simwrapper/simwrapper/commit/4d2e4f4a297f8f1d7ee0ef2cc5b153efb062544d)), closes [#189](https://github.com/simwrapper/simwrapper/issues/189)
+* folder browser thumbnail colors are not consistent ([d74964c](https://github.com/simwrapper/simwrapper/commit/d74964c0bedaf054f5568a3233a736f933adad27))
+* Sankey plot and others had ill-formed div ID's ([b179d6b](https://github.com/simwrapper/simwrapper/commit/b179d6bb02bc8052e30ab0b3c43d7c3656d6ccc6))
+* Shapefile data tooltips went missing ([76f0931](https://github.com/simwrapper/simwrapper/commit/76f0931d0f0e36fa7b193c4c0a0771effc13119a)), closes [#188](https://github.com/simwrapper/simwrapper/issues/188)
 
 ### [2.0.1](https://github.com/simwrapper/simwrapper/compare/v2.0.0...v2.0.1) (2022-12-22)
 
@@ -16,11 +35,11 @@ The full commit history is on GitHub at <https://github.com/simwrapper/simwrappe
 - memory optimization for shapefile and transit viewers
 - camera is not shifting when user specified a center in YAML ([ffd981f](https://github.com/simwrapper/simwrapper/commit/ffd981f57645353146c069cdce3af5210eb822c5))
 
-## [2.0.0](https://github.com/simwrapper/simwrapper/compare/v1.10.0...v2.0.0) (2022-12-06)
+## [2.0.0](https://github.com/simwrapper/simwrapper/compare/v1.10.0...v2.0.0) (2022-12-16)
 
 ### ⚠ BREAKING CHANGES
 
-- Several new config files have new parameters
+- several new config files require new parameters
 
 ### Features
 
@@ -74,6 +93,7 @@ The full commit history is on GitHub at <https://github.com/simwrapper/simwrappe
 - **xyt:** time slider was crashing chrome with some x/y/t datasets ([35f16ee](https://github.com/simwrapper/simwrapper/commit/35f16eeb40b479132eb93c7b81f3afcb59eb1ea8))
 - **xyt:** XYT can now load huge files from Subversion and the web ([fd9a090](https://github.com/simwrapper/simwrapper/commit/fd9a090cac0d4a94a39f9f1f215e2851008ced76))
 - **xyt:** XYT map no longer always centered on Berlin ([502102b](https://github.com/simwrapper/simwrapper/commit/502102b1e479128349caf2f8802014965907aaf4))
+
 - bump version to 2.0.0 ([ae2afac](https://github.com/simwrapper/simwrapper/commit/ae2afac5ed99c666ba15952a325f49f626ba3168))
 
 ## [1.10.0](https://github.com/simwrapper/simwrapper/compare/v1.9.0...v1.10.0) (2022-04-25)
