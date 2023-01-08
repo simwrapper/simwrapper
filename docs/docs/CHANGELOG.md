@@ -9,8 +9,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 The full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
 
-# Changelog
-
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 ## [2.1.0](https://github.com/simwrapper/simwrapper/compare/v2.0.1...v2.1.0) (2023-01-08)
@@ -51,12 +49,10 @@ All notable changes to this project will be documented in this file. See [standa
 - **dashboards:** Skip dashboards using .nodashboards and triggerPattern ([23486ba](https://github.com/simwrapper/simwrapper/commit/23486ba060c7d1b5825b16f0506da552ce159677))
 - Drag and Drop support for splitting views ([6aabf72](https://github.com/simwrapper/simwrapper/commit/6aabf723940fe74e0236bd62ede9ff53ac1a2255))
 - embed EPSG code in CSV files with a comment line # EPSG:xxxx ([20cddb7](https://github.com/simwrapper/simwrapper/commit/20cddb7dcc133203a09cbc22136498df18012c8f))
-- Filter shapes by property values such as facility types ([c37f91d](https://github.com/simwrapper/simwrapper/commit/c37f91d55132f403b47692250529a90128908425))
 - Filter shapes by property values such as facility types ([a5dc632](https://github.com/simwrapper/simwrapper/commit/a5dc6326c722b23c159279dc77a77b9a1c157e0f))
 - **links:** Support SFCTA-style daysim networks ([f8974be](https://github.com/simwrapper/simwrapper/commit/f8974bef94ae9b6f27c4f50c40be95b7fc9a0550))
 - **map:** Filters work on datasets now ([a1437ba](https://github.com/simwrapper/simwrapper/commit/a1437ba93fc9d2f3253165f072321b449f7a95e4))
 - **map:** Legends now auto-generated based on map colors, widths, etc ([#156](https://github.com/simwrapper/simwrapper/issues/156)) ([af4fee6](https://github.com/simwrapper/simwrapper/commit/af4fee67c27bb7659fee854cb524ea5ef830906f))
-- **map:** Legends now auto-generated based on map colors, widths, etc ([#156](https://github.com/simwrapper/simwrapper/issues/156)) ([0f9b062](https://github.com/simwrapper/simwrapper/commit/0f9b062e65818d8e7d78e727f6667a11fa34e222))
 - **map:** Map learned relative-difference mode "relative: true" ([779a8dc](https://github.com/simwrapper/simwrapper/commit/779a8dcc811fd0687cb281dd8fab01943d2306d6))
 - **maps:** Shapefile viewer learned fill height, circle radius, and more ([93653f4](https://github.com/simwrapper/simwrapper/commit/93653f4f252955bc00174ffd8c771d8e50fe1e3b))
 - Redesigned left-side navigation for quick access to files & settings ([9fee32c](https://github.com/simwrapper/simwrapper/commit/9fee32c4d77a1642cf8a55a0688275f37d66cd01))
