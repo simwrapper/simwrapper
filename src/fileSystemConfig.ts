@@ -62,7 +62,14 @@ let fileSystems: FileSystemConfig[] = [
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
-    name: 'Public Scenarios',
+    name: 'SimWrapper Examples',
+    slug: 'examples',
+    description: 'Pre-built dashboards for exploration',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+  },
+  {
+    name: 'VSP Public Scenarios',
     slug: 'public',
     description: 'Simulation results from VSP at TU-Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
@@ -93,6 +100,15 @@ let fileSystems: FileSystemConfig[] = [
     description: 'Shared CHAMP model runs',
     baseURL: 'http://prospector/champ_runs',
     hidden: true,
+  },
+  {
+    name: 'RealLabHH',
+    slug: 'reallabhh',
+    description: 'digital mobility of tomorrow is being tested in a metropolis here and now',
+    description_de: 'Digitale Mobilität von morgen im Hier und Jetzt in einer Metropole',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/hamburg/hamburg-v2/hamburg-v2.2/viz',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
 ]
 
