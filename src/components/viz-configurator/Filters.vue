@@ -58,6 +58,7 @@ export default defineComponent({
     const OPERATORS = ['==', '!=', '<=', '>=', '<', '>']
 
     return {
+      OPERATORS,
       filters: {} as { [id: string]: FilterDefinition },
       addDataColumn: null as string | null,
       addOperator: OPERATORS[0],

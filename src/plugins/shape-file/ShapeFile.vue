@@ -5,6 +5,11 @@
 
   .status-bar(v-show="statusText") {{ statusText }}
 
+  modal-join-column-picker(v-if="showJoiner"
+    v-bind="datasetJoinSelector"
+    @join="cbDatasetJoined"
+  )
+
   .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
     //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
@@ -221,7 +226,8 @@ const MyComponent = defineComponent({
       datasetFilename: '',
       triggerScreenshot: 0,
 
-      datasetJoinSelector: null as null | { [id: string]: { title: string; columns: string[] } },
+      datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
+      showJoiner: false,
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -677,8 +683,11 @@ const MyComponent = defineComponent({
           data1: { title: datasetId, columns: Object.keys(dataTable) },
           data2: { title: 'Features', columns: Array.from(boundaryProperties) as string[] },
         }
+        this.showJoiner = true
+
         this.cbDatasetJoined = (join: string[]) => {
-          this.datasetJoinSelector = null
+          this.datasetJoinSelector = {}
+          this.showJoiner = false
           resolve(join)
         }
       })
@@ -1617,7 +1626,10 @@ const MyComponent = defineComponent({
         this.statusText = ''
       }
 
-      if (this.needsInitialMapExtent && !this.$store.state.viewState.latitude) {
+      console.log(2, this.needsInitialMapExtent)
+      // if (this.needsInitialMapExtent && !this.$store.state.viewState.latitude) {
+      if (true) {
+        console.log(3)
         // if we don't have a user-specified map center/zoom, focus on the shapefile itself
         function getFirstPoint(thing: any): any[] {
           if (Array.isArray(thing[0])) return getFirstPoint(thing[0])
@@ -1642,9 +1654,9 @@ const MyComponent = defineComponent({
           center: [longitude, latitude],
           initial: true,
         })
-        this.needsInitialMapExtent = false
       }
 
+      this.needsInitialMapExtent = false
       return geojson.features as any[]
     },
 

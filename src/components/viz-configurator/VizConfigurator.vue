@@ -232,6 +232,7 @@ export default defineComponent({
         shapes: this.vizDetails.shapes?.file || this.vizDetails.shapes,
         datasets: { ...this.vizDetails.datasets },
         display: { ...this.vizDetails.display },
+        filters: { ...this.vizDetails.filters },
       } as any
 
       // remove pitch and bearing if they're zero

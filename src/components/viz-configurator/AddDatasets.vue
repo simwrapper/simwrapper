@@ -89,6 +89,7 @@ export default defineComponent({
       return new HTTPFileSystem(this.fileSystem)
     },
   },
+
   async mounted() {
     const { files } = await this.fileApi.getDirectory(this.subfolder)
     this.filesInFolder = files.filter(f => this.validRegex.test(f.toLocaleUpperCase())).sort()
@@ -97,6 +98,7 @@ export default defineComponent({
   watch: {
     fileChoice() {
       console.warn('*** TODO: THIS HAPPENED')
+      this.fileChoiceChanged(this.fileChoice)
     },
   },
   methods: {
