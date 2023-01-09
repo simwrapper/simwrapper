@@ -395,7 +395,9 @@ export default defineComponent({
     },
 
     goUpOneFolder() {
-      const target = this.xsubfolder.substring(0, this.xsubfolder.lastIndexOf('/'))
+      let target = this.xsubfolder
+      if (this.xsubfolder.endsWith('/')) target = this.xsubfolder.slice(0, length - 1)
+      target = target.substring(0, target.lastIndexOf('/'))
 
       const props = {
         root: this.fileSystem.slug,
