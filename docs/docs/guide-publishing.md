@@ -73,15 +73,27 @@ On Docker Hub, we created the `simwrapper/site` docker image which can be used a
 
 That's it! Note that in the command above we mount a local volume to the image at `/data` which is where SimWrapper expects your files to be. For a cloud site, you would need to put that in accessible storage somewhere. If you already know Docker, you already know how to do this.
 
-## Github Pages ( + Your own file server)
+## GitHub Pages ( + Your own file server)
 
-Github is not a good place to store large files; it has a hard limit of 100Mb on file sizes, and generally doesn't work well for files over 20Mb either. So, the SimWrapper website code and assets themselves can be served from any static site provider at all, such as Github Pages. But your model outputs probably need to go somewhere else.
+Github is not a great place to store large files; it has a hard limit of 100Mb on file sizes, and generally doesn't work well for files over 20Mb either. So, yes the SimWrapper website code and assets themselves can be served from any static site provider at all, such as Github Pages. But your model outputs might need to go somewhere else.
 
 - At VSP, we have a departmental Subversion server that is set up and maintained for us. The only settings we needed to tweak were to add "CORS Headers" which allow unfettered access to the site from other websites (e.g. SimWrapper)
 
 - An NGINX proxy server is probably a more common choice if you don't already have Subversion lying around for some reason.
 
 - **For this to work,** you need to create your own build of SimWrapper and edit the `src/fileSystems.ts` file to point to your file server URL. Push that build to Github Pages.
+
+### Outline of instructions for using GitHub Pages
+
+- Clone the SimWrapper Repo at <https://github.com/simwrapper/simwrapper.git>
+- Copy all your configuration YAML and data files into the `data` subfolder
+- Edit `vite.config.js` and change the `base` to be whatever your repo name is. For example if you want to host things on your GitHub user page at "username/simwrapper", change this to `base: '/simwrapper'`.
+- Run `npm run build`
+- Your site is now built in the `dist` subfolder of your repo. Push the content of that `dist` folder to a new `gh-pages` branch in your repo.
+- Be sure to enable GitHub pages for your repo, and point it to the `gh-pages` branch.
+
+This worked as of fall 2021, if you have problems or things are broken let us know!
+
 
 ### CORS Headers
 
