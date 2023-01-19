@@ -115,6 +115,19 @@ display:
 - **reversed:** true/false
 - **steps:** Number of steps in the ramp.
 - **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
+- **diff:** Example `col1 - col2` will activate diff mode (todo: more examples needed )
+
+### filters
+
+In the `filter` section, you can filter dataset with multiple expressions on numerical columns in any dataset.  Keys are of the format `dataset.column: "filter"` and filter can be `==, !=, <, <=, >, >=`
+
+```yaml
+filters:
+   dataset1.trips: "> 0"
+   shapes.TAZ: "!=0"
+```
+
+_TODO: more filter examples needed_
 
 ## Visualization hints
 
