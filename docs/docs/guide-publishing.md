@@ -63,7 +63,7 @@ To password-protect a SimWrapper site using standard HTTP Basic authentication, 
 
 3. Now run `flyctl launch` as above.
 
-## Other Docker-based sites
+## Docker-based sites
 
 SimWrapper has been packed up into a Docker image at `simwrapper/site`, which is nothing more than the NGINX proxy server with the latest SimWrapper code embedded, all carefully configured to have the correct settings for serving the site and data you provide.
 
