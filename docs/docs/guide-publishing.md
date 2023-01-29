@@ -93,7 +93,7 @@ It will be hosted at yourusername.github.io/simwrapper, or you can rename your c
 - Copy all of your data files and configuration YAMLs into the `public/data` subfolder
 - You must edit two files, to tell GitHub what the endpoint of the URL is: 
   - `vite.config.js`: change the `base` to be whatever your repo name is. For example to host things at "username.github.io/simwrapper", change this to `base: '/simwrapper/'`.
-  - `public/404.html`: change the `meta` refresh content value to show `"0;URL='/simwrapper/'"
+  - `public/404.html`: change the `meta` refresh content value to show `"0;URL='/simwrapper/'"`
 - Run `npm run build`
 - Your site is now built in the local `dist` subfolder.
 - Push the content of that `dist` folder to a new `gh-pages` branch in your repo:
