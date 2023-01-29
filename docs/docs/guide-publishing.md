@@ -110,6 +110,7 @@ Be sure to enable GitHub pages for your repo, and point it to the `gh-pages` bra
 
 This worked as of fall 2021, if you have problems or things are broken let us know!
 
+## File server settings
 
 ### CORS Headers
 
