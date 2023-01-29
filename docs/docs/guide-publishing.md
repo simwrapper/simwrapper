@@ -89,8 +89,18 @@ Github is not a great place to store large files; it has a hard limit of 100Mb o
 - Copy all your configuration YAML and data files into the `data` subfolder
 - Edit `vite.config.js` and change the `base` to be whatever your repo name is. For example if you want to host things on your GitHub user page at "username/simwrapper", change this to `base: '/simwrapper'`.
 - Run `npm run build`
-- Your site is now built in the `dist` subfolder of your repo. Push the content of that `dist` folder to a new `gh-pages` branch in your repo.
-- Be sure to enable GitHub pages for your repo, and point it to the `gh-pages` branch.
+- Your site is now built in the `dist` subfolder of your repo. 
+- Push the content of that `dist` folder to a new `gh-pages` branch in your repo:
+
+```bash
+cd dist
+git init .
+git add . && git commit -m "gh-pages"
+git remote add origin git@github.com:username/reponame.git # Put your username/reponame here
+git push --force origin master:gh-pages
+```
+
+Be sure to enable GitHub pages for your repo, and point it to the `gh-pages` branch.
 
 This worked as of fall 2021, if you have problems or things are broken let us know!
 
