@@ -85,11 +85,17 @@ Github is not a great place to store large files; it has a hard limit of 100Mb o
 
 ### Outline of instructions for using GitHub Pages
 
+You can make your own clone of the SimWrapper website and host it yourself on GitHub Pages, including all of your data files (if they are each < 100Mb in size). 
+
+It will be hosted at yourusername.github.io/simwrapper, or you can rename your clone to use a different endpoint slug other than "/simwrapper".
+
 - Clone the SimWrapper Repo at <https://github.com/simwrapper/simwrapper.git>
-- Copy all your configuration YAML and data files into the `data` subfolder
-- Edit `vite.config.js` and change the `base` to be whatever your repo name is. For example if you want to host things on your GitHub user page at "username/simwrapper", change this to `base: '/simwrapper'`.
+- Copy all of your data files and configuration YAMLs into the `public/data` subfolder
+- You must edit two files, to tell GitHub what the endpoint of the URL is: 
+  - `vite.config.js`: change the `base` to be whatever your repo name is. For example to host things at "username.github.io/simwrapper", change this to `base: '/simwrapper/'`.
+  - `public/404.html`: change the `meta` refresh content value to show `"0;URL='/simwrapper/'"
 - Run `npm run build`
-- Your site is now built in the `dist` subfolder of your repo. 
+- Your site is now built in the local `dist` subfolder.
 - Push the content of that `dist` folder to a new `gh-pages` branch in your repo:
 
 ```bash
