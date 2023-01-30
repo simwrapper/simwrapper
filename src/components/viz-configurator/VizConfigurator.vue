@@ -30,7 +30,7 @@
                   i.fa.fa-sm.fa-share
                   | &nbsp;Export
               b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+              //- b-dropdown-item(value="png" aria-role="listitem") Take screenshot
 
           b-button.is-small.is-white.export-button(@click="clickedAddData")
             i.fa.fa-sm.fa-plus
