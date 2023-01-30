@@ -84,6 +84,7 @@ You can make your own clone of the SimWrapper website and host it yourself on Gi
 It will be hosted at yourusername.github.io/simwrapper, or you can rename your clone to use a different endpoint slug other than "/simwrapper".
 
 - Clone the SimWrapper Repo at <https://github.com/simwrapper/simwrapper.git>
+- Run `npm ci` to install all javascript dependencies
 - Copy all of your data files and configuration YAMLs into the `public/data` subfolder
 - You must edit two files, to tell GitHub what the endpoint of the URL is: 
   - `vite.config.js`: change the `base` to be whatever your repo name is. For example to host things at "username.github.io/simwrapper", change this to `base: '/simwrapper/'`.
