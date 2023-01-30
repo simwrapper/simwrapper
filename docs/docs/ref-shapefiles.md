@@ -115,7 +115,8 @@ display:
 - **reversed:** true/false
 - **steps:** Number of steps in the ramp.
 - **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
-- **diff:** Example `col1 - col2` will activate diff mode (todo: more examples needed )
+- **diff:** Example `col1 - col2` will activate diff mode
+  - _(todo: more examples needed )_
 
 ### filters
 
@@ -128,6 +129,26 @@ filters:
 ```
 
 _TODO: more filter examples needed_
+
+### Tooltip
+
+By default, the tooltip shows all columns in the shapefile, as well as any columns that are actively being displayed as either a color or a width.
+
+You can customize the tooltip to just show what you are interested as follows:
+
+- Add a `tooltip:` section to the properties, which will be an array of tooltip entries
+- Each entry is of format `datasetname:columnname`, so for example `AM_FLOWS:VEHICLE_VOL` will display the AM_FLOWS dataset and VEHICLE_VOL column.
+- Use the shapefile/network filename for its columnar data, or the dataset "key" for joined datasets.
+
+Custom tooltip example:
+
+```yaml
+tooltip:
+  - AM:TOT_VOL
+  - AM:TNC
+  - freeflow.shp:FACILITY_TYPE
+  - freeflow.shp:SPEED
+```
 
 ## Visualization hints
 
