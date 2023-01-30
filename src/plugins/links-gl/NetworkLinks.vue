@@ -20,7 +20,7 @@
     )
 
     zoom-buttons(v-if="!thumbnail")
-    drawing-tool(v-if="!thumbnail")
+    //- drawing-tool(v-if="!thumbnail")
 
     //- color/width/etc panel
     viz-configurator(v-if="!thumbnail && isDataLoaded"
