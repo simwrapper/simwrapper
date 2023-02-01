@@ -28,6 +28,10 @@
     )
 
   .table-of-tiles(ref="tileTable")
+    .authorization-strip(v-if="authHandles.length")
+      .auth-row(v-for="auth in authHandles")
+        p.flex1 {{ '' + auth }}
+        b-button hello
 
     .row-drop-target(:style="buildDragHighlightStyle(-1,-1)"
         @drop="onDrop({event: $event, row: 'rowTop'})"
@@ -160,6 +164,7 @@ export default defineComponent({
       dragY: -1,
       isDragHappening: false,
       isShowingActiveSection: false,
+      authHandles: [] as any[],
     }
   },
   computed: {
@@ -889,5 +894,23 @@ export default defineComponent({
   user-select: none;
   background-color: var(--bgDashboardHeader);
   padding: 1px 0px;
+}
+
+.authorization-strip {
+  z-index: 10000;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #ffc;
+  border: 2px solid blue;
+  border-left: 1rem solid blue;
+  margin: 0.25rem;
+  padding: 0.5rem;
+  filter: $filterShadow;
+}
+
+.auth-row {
+  display: flex;
 }
 </style>
