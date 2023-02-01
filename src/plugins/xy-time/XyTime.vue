@@ -457,7 +457,7 @@ const MyComponent = defineComponent({
           if (this.gzipWorker) this.gzipWorker.terminate()
           let userCRS = prompt('' + this.$t('promptCRS')) || 'EPSG:25833'
           if (Number.isFinite(parseInt(userCRS))) userCRS = `EPSG:${userCRS}`
-          this.vizDetails.projection = userCRS
+          this.vizDetails.projection = userCRS.toUpperCase()
           this.parseCSVFile(filename)
         } else {
           const rows = event.data.time.length
@@ -509,7 +509,6 @@ const MyComponent = defineComponent({
       if (!this.isAnimating) return
 
       this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
-
       const animationClockTime = this.animationElapsedTime + this.timeRange[0]
 
       if (animationClockTime > this.timeRange[1]) {

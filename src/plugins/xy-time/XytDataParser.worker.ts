@@ -41,7 +41,7 @@ onmessage = function (e) {
     console.log(666, 'cancelled')
   } else if (e.data.userCRS) {
     // restarting with a user-supplied CRS
-    _proj = e.data.userCRS
+    _proj = e.data.userCRS.toUpperCase()
     console.log('NEW CRS:', _proj)
     step2fetchCSVdata(_filename)
   } else {
@@ -56,7 +56,7 @@ async function startLoading(props: {
   fileSystem: FileSystemConfig
   projection: string
 }) {
-  if (props.projection) _proj = props.projection
+  if (props.projection) _proj = props.projection.toUpperCase()
 
   _filename = await step1PrepareFetch(props.filepath, props.fileSystem)
   step2fetchCSVdata(_filename)
