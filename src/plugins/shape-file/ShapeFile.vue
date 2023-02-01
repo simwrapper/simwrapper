@@ -1609,8 +1609,9 @@ const MyComponent = defineComponent({
 
       // See if there is a .prj file with projection information
       let projection = DEFAULT_PROJECTION
+      const prjFilename = url.replace('.shp', '.prj')
       try {
-        projection = await this.fileApi.getFileText(url.replace('.shp', '.prj'))
+        projection = await this.fileApi.getFileText(prjFilename)
       } catch (e) {
         // lol we can live without a projection right? ;-O
       }
@@ -1625,15 +1626,27 @@ const MyComponent = defineComponent({
         this.statusText = ''
       }
 
-      console.log(2, this.needsInitialMapExtent)
+      function getFirstPoint(thing: any): any[] {
+        if (Array.isArray(thing[0])) return getFirstPoint(thing[0])
+        else return [thing[0], thing[1]]
+      }
+
+      // check if we have lon/lat
+      const firstPoint = getFirstPoint(geojson.features[0].geometry.coordinates)
+      if (Math.abs(firstPoint[0]) > 180 || Math.abs(firstPoint[1]) > 90) {
+        // this ain't lon/lat
+        const msg = `Coordinates not lon/lat. Try providing ${prjFilename.substring(
+          1 + prjFilename.lastIndexOf('/')
+        )}`
+        this.$store.commit('error', msg)
+        this.statusText = msg
+        return []
+      }
+
       // if (this.needsInitialMapExtent && !this.$store.state.viewState.latitude) {
       if (true) {
-        console.log(3)
         // if we don't have a user-specified map center/zoom, focus on the shapefile itself
-        function getFirstPoint(thing: any): any[] {
-          if (Array.isArray(thing[0])) return getFirstPoint(thing[0])
-          else return [thing[0], thing[1]]
-        }
+
         const long = []
         const lat = []
         for (let i = 0; i < geojson.features.length; i += 128) {
