@@ -5,7 +5,11 @@
   .output-table(v-if="entries.length")
     .row(v-for="row,i in entries" :key="'entry'+i")
       .cell.top-label(:style="row.style") {{ row.title }}
-      b-input.b-input-tight.cell.top-value(:style="row.style" v-model="row.value" @change="boxChanged")
+      b-input.b-input-tight.cell.top-value(
+        v-model="row.value"
+        :style="row.style"
+        @input="boxChanged"
+      )
 
   .output-table(v-if="table.length" style="margin-top: 1rem")
     .row(v-for="row,i in table" :key="'row'+i")
@@ -49,7 +53,6 @@ export default defineComponent({
     }
   },
   mounted() {
-    console.log('TOPSHEET YAML IS', this.yaml)
     if (this.files.length) this.runTopSheet()
   },
 
