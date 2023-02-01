@@ -1458,16 +1458,13 @@ const MyComponent = defineComponent({
         // set feature properties as a data source
         await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
 
-        // turn ON line borders if it's NOT a big dataset (user can re-enable)
+        // turn ON line borders if it's a SMALL dataset (user can re-enable)
         if (!hasNoLines || boundaries.length < 5000) {
           this.dataLineColors = '#4e79a7'
         }
 
         // hide polygon/point buttons and opacity if we have no polygons
         if (hasNoPolygons) this.isAreaMode = false
-
-        // generate centroids if we have polygons
-        if (!hasNoPolygons) this.generateCentroidsAndMapCenter()
 
         // // create binary representation of boundaries
         // // see https://deck.gl/docs/api-reference/layers/solid-polygon-layer
@@ -1493,6 +1490,9 @@ const MyComponent = defineComponent({
         // this.polygons = { vertices, startIndices, pLength: boundaries.length }
 
         this.boundaries = boundaries
+
+        // generate centroids if we have polygons
+        if (!hasNoPolygons) await this.generateCentroidsAndMapCenter()
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
@@ -1566,6 +1566,7 @@ const MyComponent = defineComponent({
       centerLong /= this.centroids.length
       centerLat /= this.centroids.length
 
+      console.log('CENTER', centerLong, centerLat)
       if (this.needsInitialMapExtent && !this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
           longitude: centerLong,
@@ -1661,7 +1662,6 @@ const MyComponent = defineComponent({
     },
 
     async loadDatasets() {
-      // for now just load first dataset
       const keys = Object.keys(this.config.datasets)
       for (const key of keys) {
         await this.loadDataset(key)
