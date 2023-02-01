@@ -14,11 +14,6 @@ import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 
 import screenshots from '@/js/screenshots'
 
-// GeoJsonLayer.defaultProps = {
-//   bearing: 0,
-//   offsetDirection: OFFSET_DIRECTION.RIGHT,
-// }
-
 interface DeckObject {
   index: number
   target: number[]
@@ -40,17 +35,18 @@ export default function Component({
   tooltip = [] as string[],
   featureFilter = new Float32Array(0),
 }) {
-  // release _mapRef on unmount to avoid memory leak
-  const _mapRef = useRef<MapRef>() as any
-  useEffect(() => {
-    _mapRef.current = false
-  })
-
   // const features = globalStore.state.globalCache[viewId] as any[]
   const [features, setFeatures] = useState([] as any[])
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
+
+  const _mapRef = useRef<MapRef>() as any
+  // release _mapRef on unmount to avoid memory leak
+  // TODO: WAIT! Releasing _mapRef breaks screenshot functionality.
+  // useEffect(() => {
+  //   if (screenshot <= screenshotCount) _mapRef.current = false
+  // })
 
   // MAP VIEW -------------------------------------------------------------------------
   REACT_VIEW_HANDLES[viewId] = () => {
@@ -313,7 +309,6 @@ export default function Component({
       }
       onAfterRender={async () => {
         if (screenshot > screenshotCount) {
-          // console.log({ deckInstance })
           await screenshots.savePNG(
             deckInstance.props.layers[0],
             _mapRef?.current?.getMap()._canvas
