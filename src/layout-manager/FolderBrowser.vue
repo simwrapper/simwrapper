@@ -79,13 +79,17 @@
                 p {{ viz.title }}
 
       //- FILES: individual links to files in this folder
-      h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
+      //- this is DISABLED for Chrome API for now, because we
+      //- can't download those files via regular URL
+      .files-section(v-if="myState.svnProject.baseURL")
+        h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
 
-      .curate-content(v-if="myState.files.length")
-        .file-table
-          .file(:class="{fade: myState.isLoading}"
-                v-for="file in myState.files" :key="file")
-            a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ cleanName(file) }}
+        .curate-content(v-if="myState.files.length")
+          .file-table
+            .file(v-for="file in myState.files" :key="file"
+              :class="{fade: myState.isLoading}"
+            )
+              a(v-if="myState.svnProject.baseURL" :href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ cleanName(file) }}
 
 </template>
 
