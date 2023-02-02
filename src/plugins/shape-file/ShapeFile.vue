@@ -39,6 +39,7 @@
       :vizDetails="vizDetails"
       :datasets="datasets"
       :legendStore="legendStore"
+      :filterDefinitions="currentUIFilterDefinitions"
       @update="changeConfiguration"
       @screenshot="takeScreenshot"
     )
@@ -234,7 +235,11 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       config: {} as any,
+      // these are the filters defined in the UI
+      currentUIFilterDefinitions: {} as any,
+      // these are the processed filter defs passed to the data manager
       filterDefinitions: [] as FilterDefinition[],
+
       isEmbedded: false,
       resizer: null as null | ResizeObserver,
       boundaryFilters: new Float32Array(0),
@@ -787,8 +792,6 @@ const MyComponent = defineComponent({
 
       // build it
       this.statusText = 'Joining datasets...'
-      // console.log('building lookup for', joinColumn)
-
       this.boundaryJoinLookups[joinColumn] = {}
       const lookupValues = this.boundaryJoinLookups[joinColumn]
 
@@ -830,6 +833,7 @@ const MyComponent = defineComponent({
 
     handleNewFilters(filters: any) {
       // Filter shapes
+      this.currentUIFilterDefinitions = filters
       this.filterDefinitions = this.parseFilterDefinitions(filters)
       this.filterShapesNow()
 
@@ -1296,18 +1300,12 @@ const MyComponent = defineComponent({
           d => d[1] == datasetName
         )[0][0]
 
-        const dataset = this.datasets[datasetKey]
-
         let join = this.vizDetails.datasets[datasetKey].join.split(':')
         if (join.length == 1) join.push(join[0])
-
-        // console.log(11, this.vizDetails.datasets[datasetKey])
-        // console.log({ datasetKey, dataset, join })
 
         let { filteredRows } = await this.myDataManager.getFilteredDataset({
           dataset: datasetName || '',
         })
-        // console.log(12, filteredRows)
 
         if (!filteredRows) return
 

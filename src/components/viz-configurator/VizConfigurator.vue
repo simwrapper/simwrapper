@@ -69,6 +69,7 @@ import { startCase } from 'lodash'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendStore from '@/js/LegendStore'
+import { FilterDefinition } from '@/js/DashboardDataManager'
 
 import AddDatasetsPanel from './AddDatasets.vue'
 import ColorPanel from './Colors.vue'
@@ -96,6 +97,7 @@ export default defineComponent({
     LineWidthPanel,
     FiltersPanel,
   },
+
   props: {
     vizDetails: { type: Object as any, required: true },
     datasets: { type: Object as any, required: true },
@@ -103,9 +105,11 @@ export default defineComponent({
     subfolder: { type: String, required: true },
     yamlConfig: { type: String },
     legendStore: { type: Object as PropType<LegendStore>, required: true },
+    filterDefinitions: { type: Object, required: true },
     sections: { type: Array as PropType<string[]> },
     embedded: Boolean,
   },
+
   data: () => {
     return {
       showPanels: false,
@@ -232,7 +236,7 @@ export default defineComponent({
         shapes: this.vizDetails.shapes?.file || this.vizDetails.shapes,
         datasets: { ...this.vizDetails.datasets },
         display: { ...this.vizDetails.display },
-        filters: { ...this.vizDetails.filters },
+        filters: {},
       } as any
 
       // remove pitch and bearing if they're zero
@@ -310,8 +314,9 @@ export default defineComponent({
       }
 
       // filters
-      if (this.vizDetails.filters) {
-        config.filters = Object.assign({}, this.vizDetails.filters)
+      if (!Object.keys(this.filterDefinitions).length) delete config.filters
+      else {
+        config.filters = Object.assign({}, this.filterDefinitions)
       }
 
       const text = YAML.stringify(config, {

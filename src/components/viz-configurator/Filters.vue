@@ -2,19 +2,22 @@
 .width-panel
   .widgets
     .widget
-      p(style="line-height: 1.25rem;") Filter (hide) map features based on data, by adding filters here
+      p(style="line-height: 1.25rem;") Select features based on data.
 
-  .widgets
-    .widget(v-show="filterIds.length")
+  .widgets(v-show="filterIds.length")
+    .widget
       h4 Active Filters
 
       .filter-items
         .filter-details(v-for="f in filterIds" :key="f")
-          p.stretch: b {{`${f} ${filters[f].operator} ${filters[f].value}`}}
+          p.stretch
+            b {{ filters[f].dataset }}:&nbsp;
+            | {{ `${filters[f].column} ${filters[f].operator} ${filters[f].value}`}}
           .span.close-button(@click="clickedRemoveFilter(f)") &times;
 
   .widgets
     .widget.boop
+      h4 New Filter
       b-select.tight.selector(expanded v-model="addDataColumn" placeholder="New filter...")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
@@ -225,7 +228,7 @@ export default defineComponent({
 }
 
 .tight {
-  margin: -0.5rem 0 -8px 0px;
+  margin: 0rem 0 -8px 0px;
 }
 
 .filter-details {

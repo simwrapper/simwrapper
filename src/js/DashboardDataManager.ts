@@ -353,6 +353,11 @@ export default class DashboardDataManager {
     console.log('FILTERS:', metaData.activeFilters)
     console.log('TOTLROWS', numberOfRowsInFullDataset)
 
+    // we will go thru each filter for this dataset and set the elements
+    // to false whenever a row fails a filter.
+    // This implements "AND" logic.
+    const hasMatchedFilters = new Array(numberOfRowsInFullDataset).fill(true)
+
     const ltgt = /^(<|>)/ // starts with < or >
 
     for (const [column, spec] of Object.entries(metaData.activeFilters)) {
@@ -365,19 +370,15 @@ export default class DashboardDataManager {
       if (ltgt.test(spec.values[0])) {
         if (spec.values[0].startsWith('<=')) {
           spec.conditional = '<='
-          // spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
           spec.values[0] = spec.values[0].substring(2).trim()
         } else if (spec.values[0].startsWith('>=')) {
           spec.conditional = '>='
-          // spec.values[0] = parseFloat(spec.values[0].substring(2).trim())
           spec.values[0] = spec.values[0].substring(2).trim()
         } else if (spec.values[0].startsWith('<')) {
           spec.conditional = '<'
-          // spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
           spec.values[0] = spec.values[0].substring(1).trim()
         } else if (spec.values[0].startsWith('>')) {
           spec.conditional = '>'
-          // spec.values[0] = parseFloat(spec.values[0].substring(1).trim())
           spec.values[0] = spec.values[0].substring(1).trim()
         }
       } else {
@@ -388,18 +389,23 @@ export default class DashboardDataManager {
         }
       }
 
-      console.log('HEREWEGO: ', spec)
-      // update every row
+      // test every row: falsify if it fails the test.
       for (let i = 0; i < numberOfRowsInFullDataset; i++) {
-        if (checkFilterValue(spec, dataColumn.values[i])) {
-          const row = {} as any
-          allColumns.forEach(col => (row[col] = dataset[col].values[i]))
-          filteredRows.push(row)
+        if (!checkFilterValue(spec, dataColumn.values[i])) {
+          hasMatchedFilters[i] = false
         }
       }
     }
 
-    // console.log('FILTROWS', filteredRows)
+    // Build the final filtered dataset based on hasMatchedFilters
+    for (let i = 0; i < numberOfRowsInFullDataset; i++) {
+      if (hasMatchedFilters[i]) {
+        const row = {} as any
+        allColumns.forEach(col => (row[col] = dataset[col].values[i]))
+        filteredRows.push(row)
+      }
+    }
+
     metaData.filteredRows = filteredRows
     this.notifyListeners(datasetId)
   }
