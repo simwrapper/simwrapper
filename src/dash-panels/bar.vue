@@ -284,10 +284,15 @@ export default defineComponent({
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
 
+      console.log(allRows)
+      console.log(columnNames)
+
       if (!columnNames.length) return
 
       // old configs called it "usedCol" --> now "columns"
       let columns = this.config.columns || this.config.usedCol
+
+      console.log(columns)
 
       // Or maybe user didn't specify: then use all the columns!
       if (!columns && columnNames.length) {
@@ -324,6 +329,7 @@ export default defineComponent({
         const legendName = useOwnNames ? this.config.legendTitles[i] : col
 
         let values = allRows[col].values
+        console.log(values)
         if (this.config.skipFirstRow) values = values.slice(1)
 
         // are durations in 00:00:00 format?
