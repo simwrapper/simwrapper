@@ -139,6 +139,7 @@ const MyComponent = defineComponent({
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
         'custom colors': false,
+        //'add color': function () {},
       },
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
