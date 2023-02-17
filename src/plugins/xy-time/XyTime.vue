@@ -138,6 +138,7 @@ const MyComponent = defineComponent({
         'color ramp': 'viridis',
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
+        'custom colors': false,
       },
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
@@ -295,6 +296,7 @@ const MyComponent = defineComponent({
       colors.add(this.guiConfig, 'radius', 1, 20, 1)
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+      colors.add(this.guiConfig, 'custom colors').onChange(this.setColors)
 
       // const times = this.guiController.addFolder('Time')
     },
