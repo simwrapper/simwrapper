@@ -2,7 +2,7 @@ import micromatch from 'micromatch'
 import pako from 'pako'
 import { DirectoryEntry, FileSystemAPIHandle, FileSystemConfig, YamlConfigs } from '@/Globals'
 
-const YAML_FOLDER = 'simwrapper'
+const YAML_FOLDERS = ['simwrapper', '.simwrapper']
 
 // Cache directory listings for each slug & directory
 const CACHE: { [slug: string]: { [dir: string]: DirectoryEntry } } = {}
@@ -269,13 +269,15 @@ class SVNFileSystem {
 
       try {
         const { dirs } = await this.getDirectory(currentPath)
-        if (dirs.indexOf(YAML_FOLDER) > -1) {
-          configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+        for (const folder of YAML_FOLDERS) {
+          if (dirs.includes(folder)) {
+            configFolders.push(`${currentPath}/${folder}`.replaceAll('//', '/'))
+          }
         }
       } catch (e) {}
     }
 
-    // also add current working folder as final option, which supercedes all others
+    // also add current working folder as final option, which supersedes all others
     configFolders.push(folder)
 
     // find all dashboards, topsheets, and viz-* yamls in each configuration folder.
