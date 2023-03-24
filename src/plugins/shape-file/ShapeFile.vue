@@ -1616,7 +1616,8 @@ const MyComponent = defineComponent({
         // lol we can live without a projection right? ;-O
       }
 
-      const guessCRS = Coords.guessProjection(projection)
+      // Allow user to override .PRJ projection with YAML config
+      const guessCRS = this.vizDetails.projection || Coords.guessProjection(projection)
 
       // then, reproject if we have a .prj file
       if (guessCRS) {
