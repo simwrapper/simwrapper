@@ -52,6 +52,16 @@
             ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
 
         .tours(v-if="activeTab=='tours'")
+            .dropdown(v-if="this.plans.length" :class="{'is-active': dropdownIsActive}" style="width: 100%")
+              .dropdown-trigger(@click="selectDropdown()")
+                button
+                  span Select Plan
+                  span.icon.is-small
+                    i.fas.fa-angle-down
+              .dropdown-menu
+                .dropdown-content
+                  a.dropdown-item(v-for="(plan, index) in this.plans" @click="selectPlan(plan)") Plan {{ index }}
+
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
                 @click="handleSelectTour(tour)"
@@ -138,6 +148,7 @@ import {
   REACT_VIEW_HANDLES,
   ColorScheme,
 } from '@/Globals'
+import { object } from 'prop-types'
 
 interface NetworkLinks {
   source: Float32Array
@@ -238,6 +249,7 @@ const CarrierPlugin = defineComponent({
       services: [] as any[],
       stopActivities: [] as any[],
       tours: [] as any[],
+      plans: [] as any[],
 
       shownShipments: [] as any[],
       shipmentIdsInTour: [] as any[],
@@ -257,6 +269,7 @@ const CarrierPlugin = defineComponent({
 
       selectedCarrier: '',
       selectedTours: [] as any[],
+      selectedPlan: null as any,
       selectedShipment: null as any,
 
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
@@ -272,6 +285,8 @@ const CarrierPlugin = defineComponent({
       })
         .map((a: any) => a.slice(0, 3))
         .reverse(),
+
+      dropdownIsActive: false,
     }
   },
   computed: {
@@ -579,6 +594,7 @@ const CarrierPlugin = defineComponent({
       this.shipments = []
       this.services = []
       this.tours = []
+      this.plans = []
       this.shownShipments = []
       this.shownDepots = []
       this.selectedShipment = null
@@ -616,10 +632,39 @@ const CarrierPlugin = defineComponent({
       this.selectAllTours()
     },
 
-    processTours(carrier: any) {
-      if (!carrier.plan?.tour?.length) return []
+    getAllPlans(carrier: any) {
+      // Add plan to plans[] if there is no plans-tag and only one plan
+      if (carrier.plan != undefined) {
+        this.plans.push(carrier.plan)
+        this.selectedPlan = carrier.plan
+        return
+      }
 
-      const tours: any[] = carrier.plan.tour.map((tour: any, i: number) => {
+      if (carrier.plans != undefined) {
+        // Add plan to plans[] if a plans-tag has only one child
+        if (carrier.plans.plan != undefined) {
+          this.plans.push(carrier.plans.plan)
+          this.selectedPlan = carrier.plans.plan
+          return
+        }
+
+        // Add plans to plans[] if a plans-tag exists and the plans-tag has multiple childs
+        for (let i = 0; i < carrier.plans.length; i++) {
+          this.plans.push(carrier.plans[i])
+          if (carrier.plans[i].selected == 'true') this.selectedPlan = carrier.plans[i]
+          return
+        }
+      }
+    },
+
+    processTours(carrier: any) {
+      // if (!carrier.plan?.tour?.length) return []
+
+      this.getAllPlans(carrier)
+
+      console.log('All plans: ', this.plans)
+
+      const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
         // reconstitute the plan. Our XML library builds
         // two arrays: one for acts and one for legs.
         // We need them stitched back together in the correct order.
@@ -1021,6 +1066,15 @@ const CarrierPlugin = defineComponent({
         this.myState.statusMessage = error
         return ''
       }
+    },
+
+    selectDropdown() {
+      this.dropdownIsActive = !this.dropdownIsActive
+    },
+
+    selectPlan(plan: any) {
+      this.selectDropdown()
+      this.selectedPlan = plan
     },
   },
   async mounted() {
