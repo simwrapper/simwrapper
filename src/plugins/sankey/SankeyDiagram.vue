@@ -72,7 +72,7 @@ const MyComponent = defineComponent({
 
   computed: {
     fileApi(): HTTPFileSystem {
-      return new HTTPFileSystem(this.fileSystem)
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
 
     fileSystem(): FileSystemConfig {

@@ -257,7 +257,7 @@ const Component = defineComponent({
   methods: {
     buildFileApi() {
       const filesystem = this.getFileSystem(this.root)
-      this.myState.fileApi = new HTTPFileSystem(filesystem)
+      this.myState.fileApi = new HTTPFileSystem(filesystem, globalStore)
       this.myState.fileSystem = filesystem
     },
 
@@ -1357,7 +1357,6 @@ const Component = defineComponent({
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-
     ;(this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)),
       (this.bounceScaleSlider = debounce(this.changedScale, 50)),
       (this.bounceLineFilter = debounce(this.changedLineFilter, 250)),

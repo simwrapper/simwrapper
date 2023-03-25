@@ -201,7 +201,7 @@ export default class VueComponent extends Vue {
 
   private buildFileApi() {
     const filesystem = this.fsConfig || this.getFileSystem(this.root)
-    this.fileApi = new HTTPFileSystem(filesystem)
+    this.fileApi = new HTTPFileSystem(filesystem, globalStore)
     this.fileSystemConfig = filesystem
   }
 

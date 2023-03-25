@@ -159,7 +159,7 @@ const MyComponent = defineComponent({
 
       // project filesystem
       const filesystem = this.getFileSystem(params.project)
-      this.myState.fileApi = new HTTPFileSystem(filesystem)
+      this.myState.fileApi = new HTTPFileSystem(filesystem, globalStore)
       this.myState.fileSystem = filesystem
 
       // subfolder and config file

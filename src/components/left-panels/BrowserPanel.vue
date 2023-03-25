@@ -332,7 +332,8 @@ export default defineComponent({
       this.highlightedViz = -2
 
       if (!this.myState.svnProject) return
-      this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
+
+      this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject, globalStore)
 
       this.generateBreadcrumbs()
 
