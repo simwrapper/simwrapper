@@ -52,10 +52,10 @@
             ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
 
         .tours(v-if="activeTab=='tours'")
-            .dropdown(v-if="this.plans.length" :class="{'is-active': dropdownIsActive}" style="width: 100%")
+            .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
               .dropdown-trigger(@click="selectDropdown()")
                 button
-                  span Select Plan
+                  span Select Plan {{ this.plans.length }}
                   span.icon.is-small
                     i.fas.fa-angle-down
               .dropdown-menu
@@ -642,27 +642,31 @@ const CarrierPlugin = defineComponent({
 
       if (carrier.plans != undefined) {
         // Add plan to plans[] if a plans-tag has only one child
-        if (carrier.plans.plan != undefined) {
+        if (carrier.plans.plan.length == undefined) {
           this.plans.push(carrier.plans.plan)
           this.selectedPlan = carrier.plans.plan
           return
         }
 
         // Add plans to plans[] if a plans-tag exists and the plans-tag has multiple childs
-        for (let i = 0; i < carrier.plans.length; i++) {
-          this.plans.push(carrier.plans[i])
-          if (carrier.plans[i].selected == 'true') this.selectedPlan = carrier.plans[i]
-          return
+        this.plans = carrier.plans.plan
+
+        for (let i = 0; i < carrier.plans.plan.length; i++) {
+          if (carrier.plans.plan[i].selected == "true") {
+            this.selectedPlan = carrier.plans.plan[i]
+            break
+          }
+          this.selectedPlan = carrier.plans.plan[i]
         }
       }
     },
 
     processTours(carrier: any) {
-      // if (!carrier.plan?.tour?.length) return []
-
       this.getAllPlans(carrier)
 
-      console.log('All plans: ', this.plans)
+      if (!this.selectPlan || !this.plans.length) return []
+
+      console.log("Selected Plan: ", this.selectedPlan)
 
       const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
         // reconstitute the plan. Our XML library builds
