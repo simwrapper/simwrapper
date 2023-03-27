@@ -666,7 +666,8 @@ const CarrierPlugin = defineComponent({
 
       if (!this.selectPlan || !this.plans.length) return []
 
-      console.log("Selected Plan: ", this.selectedPlan)
+      console.log("Selected Plan 2: ", this.selectedPlan)
+      
 
       const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
         // reconstitute the plan. Our XML library builds
