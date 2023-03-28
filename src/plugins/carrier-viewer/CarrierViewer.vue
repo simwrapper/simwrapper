@@ -40,7 +40,7 @@
           span {{ $t('tours') }}
         b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
           span {{ $t('vehicles') }}
-        b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+        b-radio-button(v-model="activeTab" native-value="services" size="is-small" type="is-warning")
           span {{ $t('services') }}
 
       .detail-area
@@ -55,12 +55,12 @@
             .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
               .dropdown-trigger(@click="selectDropdown()")
                 button
-                  span Select Plan {{ this.plans.length }}
+                  span Select Plan
                   span.icon.is-small
                     i.fas.fa-angle-down
               .dropdown-menu
                 .dropdown-content
-                  a.dropdown-item(v-for="(plan, index) in this.plans" @click="selectPlan(plan)") Plan {{ index }}
+                  a.dropdown-item(v-for="(plan, index) in this.plans" @click="selectPlan(plan)" :class="{'is-active': plan.$selected == 'true'}") Plan {{ index + 1 }}
 
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
@@ -666,9 +666,6 @@ const CarrierPlugin = defineComponent({
 
       if (!this.selectPlan || !this.plans.length) return []
 
-      console.log("Selected Plan 2: ", this.selectedPlan)
-      
-
       const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
         // reconstitute the plan. Our XML library builds
         // two arrays: one for acts and one for legs.
@@ -805,7 +802,7 @@ const CarrierPlugin = defineComponent({
       let network = this.myState.yamlConfig.replaceAll('carriers', 'network')
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
-        const allNetworks = files.filter(f => f.indexOf('output_network') > -1)
+        const allNetworks = files.filter(f => f.indexOf('network') > -1)
         if (allNetworks.length) network = allNetworks[0]
         else {
           this.myState.statusMessage = 'No road network found.'
@@ -1078,6 +1075,15 @@ const CarrierPlugin = defineComponent({
     },
 
     selectPlan(plan: any) {
+
+      for (let i = 0; i < this.plans.length; i++) {
+        this.plans[i].$selected = "false"
+      }
+
+      plan.$selected = "true"
+
+      this.selectedTours = []
+
       this.selectDropdown()
       this.selectedPlan = plan
     },
@@ -1105,6 +1111,9 @@ const CarrierPlugin = defineComponent({
     this.setMapCenter()
 
     this.myState.statusMessage = ''
+
+    // Select the first carrier if the carriers are loaded
+    if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
   },
 
   beforeDestroy() {
