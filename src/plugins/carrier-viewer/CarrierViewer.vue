@@ -585,6 +585,8 @@ const CarrierPlugin = defineComponent({
     },
 
     handleSelectCarrier(carrier: any) {
+      this.dropdownIsActive = false
+      
       if (!this.links) return
 
       const id = carrier.$id
