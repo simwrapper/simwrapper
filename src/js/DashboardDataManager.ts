@@ -46,6 +46,7 @@ export interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
   linkIds: any[]
+  projection: String
 }
 
 export default class DashboardDataManager {

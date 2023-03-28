@@ -146,6 +146,7 @@ import {
   LIGHT_MODE,
   DARK_MODE,
   REACT_VIEW_HANDLES,
+  MAP_STYLES_OFFLINE,
   ColorScheme,
 } from '@/Globals'
 
@@ -153,6 +154,7 @@ interface NetworkLinks {
   source: Float32Array
   dest: Float32Array
   linkIds: any[]
+  projection: String
 }
 
 naturalSort.insensitive = true
@@ -586,7 +588,7 @@ const CarrierPlugin = defineComponent({
 
     handleSelectCarrier(carrier: any) {
       this.dropdownIsActive = false
-      
+
       if (!this.links) return
 
       const id = carrier.$id
@@ -653,7 +655,7 @@ const CarrierPlugin = defineComponent({
         this.plans = carrier.plans.plan
 
         for (let i = 0; i < carrier.plans.plan.length; i++) {
-          if (carrier.plans.plan[i].selected == "true") {
+          if (carrier.plans.plan[i].selected == 'true') {
             this.selectedPlan = carrier.plans.plan[i]
             break
           }
@@ -951,12 +953,17 @@ const CarrierPlugin = defineComponent({
     },
 
     async loadNetwork() {
-      this.myState.statusMessage = 'Loading network'
+      this.myState.statusMessage = 'Loading network...'
 
       if (this.vizDetails.network.indexOf('.xml.') > -1) {
         // load matsim xml file
         const path = `${this.myState.subfolder}/${this.vizDetails.network}`
         const net = await this.fetchNetwork(path, {})
+
+        // Handle Atlantis: no long/lat coordinates
+        if (net.projection == 'Atlantis') {
+          this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
+        }
 
         // build direct lookup of x/y from link-id
         this.myState.statusMessage = 'Building network link table'
@@ -1076,14 +1083,13 @@ const CarrierPlugin = defineComponent({
     },
 
     selectPlan(plan: any) {
-
       // Set all plans to unselected
       for (let i = 0; i < this.plans.length; i++) {
-        this.plans[i].$selected = "false"
+        this.plans[i].$selected = 'false'
       }
 
       // Select new plan
-      plan.$selected = "true"
+      plan.$selected = 'true'
 
       // Unselect all tours
       this.selectedTours = []
@@ -1446,9 +1452,11 @@ input {
 }
 
 .xmessage {
+  position: absolute;
+  bottom: 0;
   z-index: 10;
   background-color: var(--bgPanel2);
-  padding: 0.5rem 0.5rem;
+  padding: 0.5rem 1rem;
 }
 
 @media only screen and (max-width: 640px) {
