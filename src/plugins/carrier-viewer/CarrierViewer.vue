@@ -40,7 +40,7 @@
           span {{ $t('tours') }}
         b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
           span {{ $t('vehicles') }}
-        b-radio-button(v-model="activeTab" native-value="services" size="is-small" type="is-warning")
+        b-radio-button(v-if="services.length" v-model="activeTab" native-value="services" size="is-small" type="is-warning")
           span {{ $t('services') }}
 
       .detail-area
