@@ -148,7 +148,6 @@ import {
   REACT_VIEW_HANDLES,
   ColorScheme,
 } from '@/Globals'
-import { object } from 'prop-types'
 
 interface NetworkLinks {
   source: Float32Array
@@ -1076,12 +1075,15 @@ const CarrierPlugin = defineComponent({
 
     selectPlan(plan: any) {
 
+      // Set all plans to unselected
       for (let i = 0; i < this.plans.length; i++) {
         this.plans[i].$selected = "false"
       }
 
+      // Select new plan
       plan.$selected = "true"
 
+      // Unselect all tours
       this.selectedTours = []
 
       this.selectDropdown()
