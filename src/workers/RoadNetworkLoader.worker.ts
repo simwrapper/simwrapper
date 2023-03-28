@@ -186,7 +186,7 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
   }
 
   // all done! post the links
-  const links = { source, dest, linkIds }
+  const links = { source, dest, linkIds, projection: guessCRS }
 
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
 
@@ -201,7 +201,7 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
   // What is the CRS?
   let coordinateReferenceSystem = ''
 
-  const attribute = _content.network.attributes?.attribute
+  const attribute = _content.network?.attributes?.attribute
   if (attribute?.$name === 'coordinateReferenceSystem') {
     coordinateReferenceSystem = attribute['#text']
     console.log('CRS', coordinateReferenceSystem)
@@ -215,13 +215,16 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
 function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
   // build node/coordinate lookup
   const nodes: { [id: string]: number[] } = {}
+
+  // if crs is Atlantis, then don't do any conversions
+  const crs = coordinateReferenceSystem === 'Atlantis' ? '' : coordinateReferenceSystem
+
+  // store (converted) coordinates in lookup
   for (const node of _content.network.nodes.node as any) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
 
     // convert coordinates to long/lat if necessary
-    const longlat = coordinateReferenceSystem
-      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
-      : coordinates
+    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
 
     nodes[node.$id] = longlat
   }
@@ -243,7 +246,7 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
     dest[2 * i + 1] = nodes[link.$to][1]
   }
 
-  const links = { source, dest, linkIds }
+  const links = { source, dest, linkIds, projection: coordinateReferenceSystem }
 
   // all done! post the links
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
@@ -285,7 +288,8 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     linkIds[i] = feature.id || feature.properties.id
   }
 
-  const links = { source, dest, linkIds }
+  const links = { source, dest, linkIds, projection: 'EPSG:4326' }
+
   // all done! post the links
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
 }

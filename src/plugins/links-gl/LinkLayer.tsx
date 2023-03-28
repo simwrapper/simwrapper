@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
+import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
@@ -28,6 +29,7 @@ export default function Component({
   newColors = new Uint8Array(),
   newWidths = new Float32Array(),
   dark = false,
+  projection = '',
   scaleWidth = 1,
   mapIsIndependent = false,
 }) {
@@ -133,6 +135,9 @@ export default function Component({
     }
   }
 
+  const coordinateSystem =
+    projection == 'Atlantis' ? COORDINATE_SYSTEM.METER_OFFSETS : COORDINATE_SYSTEM.DEFAULT
+
   //@ts-ignore
   const layer = new LineOffsetLayer({
     id: 'linkLayer',
@@ -150,6 +155,7 @@ export default function Component({
     widthMinPixels: 0.5,
     widthMaxPixels: 50,
     pickable: true,
+    coordinateSystem,
     opacity: 1,
     autoHighlight: true,
     highlightColor: [255, 0, 224],

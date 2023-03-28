@@ -30,6 +30,7 @@
       :subfolder="myState.subfolder"
       :yamlConfig="yamlConfig"
       :legendStore="legendStore"
+      :filterDefinitions="currentUIFilterDefinitions"
       @update="changeConfiguration")
 
     //- .top-panel(v-if="vizDetails.title")
@@ -103,7 +104,7 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { DataTableColumn, DataTable, DataType, LookupDataset } from '@/Globals'
+import { MAP_STYLES_OFFLINE, DataTableColumn, DataTable, DataType, LookupDataset } from '@/Globals'
 // import FilterPanel from './BadFilterPanel.vue'
 import SelectorPanel from './SelectorPanel.vue'
 import LinkGlLayer from './LinkLayer'
@@ -212,6 +213,7 @@ const MyComponent = defineComponent({
         },
       },
 
+      currentUIFilterDefinitions: {} as any,
       datasets: {} as { [id: string]: DataTable },
       isButtonActiveColumn: false,
       linkLayerId: `linklayer-${Math.floor(1e12 * Math.random())}` as any,
@@ -223,6 +225,7 @@ const MyComponent = defineComponent({
         source: new Float32Array(),
         dest: new Float32Array(),
         linkIds: [] as any[],
+        projection: '',
       },
       fixedColors: ['#4e79a7'],
       myState: {
@@ -666,21 +669,23 @@ const MyComponent = defineComponent({
       let longitude = 0
       let latitude = 0
 
-      const numLinks = data.source.length / 2
+      console.log({ projection: this.geojsonData.projection })
 
-      const gap = 4096
-      for (let i = 0; i < numLinks; i += gap) {
-        longitude += data.source[i * 2]
-        latitude += data.source[i * 2 + 1]
-        samples++
+      if (this.geojsonData.projection !== 'Atlantis') {
+        const numLinks = data.source.length / 2
+        const gap = numLinks < 4096 ? 2 : 1024
+        for (let i = 0; i < numLinks; i += gap) {
+          longitude += data.source[i * 2]
+          latitude += data.source[i * 2 + 1]
+          samples++
+        }
+
+        longitude = longitude / samples
+        latitude = latitude / samples
+        console.log('center', longitude, latitude)
       }
 
-      longitude = longitude / samples
-      latitude = latitude / samples
-
-      console.log('center', longitude, latitude)
-
-      if (longitude && latitude) {
+      if (this.geojsonData.projection === 'Atlantis' || (longitude && latitude)) {
         this.$store.commit('setMapCamera', {
           longitude,
           latitude,
@@ -721,7 +726,12 @@ const MyComponent = defineComponent({
         )
 
         this.numLinks = network.linkIds.length
-        this.geojsonData = network
+        this.geojsonData = network as any
+
+        // Handle Atlantis: no long/lat coordinates
+        if (network.projection == 'Atlantis') {
+          this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
+        }
 
         this.setMapCenter() // this could be off main thread
 
