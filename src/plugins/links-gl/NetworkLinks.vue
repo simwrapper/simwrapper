@@ -1058,7 +1058,7 @@ globalStore.commit('registerPlugin', {
   prettyName: 'Network Links',
   description: 'Network link attributes',
   filePatterns: [
-    '**/*output_network.xml?(.gz)',
+    '**/*network.xml?(.gz)',
     '**/*network.geo?(.)json?(.gz)',
     '**/viz-gl-link*.y?(a)ml',
     '**/viz-link*.y?(a)ml',
