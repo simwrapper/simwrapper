@@ -16,6 +16,7 @@
         :newColors="colorArray"
         :newWidths="widthArray"
         :scaleWidth="scaleWidth"
+        :projection="vizDetails.projection"
         :mapIsIndependent="vizDetails.mapIsIndependent"
     )
 
@@ -730,6 +731,7 @@ const MyComponent = defineComponent({
 
         // Handle Atlantis: no long/lat coordinates
         if (network.projection == 'Atlantis') {
+          this.vizDetails.projection = 'Atlantis'
           this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
         }
 

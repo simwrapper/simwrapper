@@ -119,7 +119,6 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { group, zip, sum } from 'd3-array'
 
-import EPSGdefinitions from 'epsg'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
@@ -1627,7 +1626,7 @@ const MyComponent = defineComponent({
       if (guessCRS) {
         this.statusText = 'Projecting coordinates...'
         await this.$nextTick()
-        geojson = reproject.toWgs84(geojson, guessCRS, EPSGdefinitions)
+        geojson = reproject.toWgs84(geojson, guessCRS, Coords.allEPSGs)
         this.statusText = ''
       }
 

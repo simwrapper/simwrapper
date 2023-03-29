@@ -1,5 +1,5 @@
 import proj4 from 'proj4'
-import EPSG from 'epsg'
+import EPSG from 'epsg-index/all.json'
 
 // These strings in a shapefile .PRJ will trigger the following EPSG codes.
 // Add your own to this list!
@@ -16,37 +16,33 @@ const lookups = {
 }
 
 // Set up ALL coordinate systems in 'epsg' repository
-const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
+const allEPSGs = Object.entries(EPSG).map(epsg => [`EPSG:${epsg[0]}`, epsg[1].proj4]) as any[]
 
 proj4.defs(allEPSGs)
-proj4.defs(
-  'GK4',
-  '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs'
-)
 
-// Add all standard MATSim projects from TransformationFactory to proj4
-proj4.defs([
-  [
-    // south africa
-    'EPSG:2048',
-    '+proj=tmerc +lat_0=0 +lon_0=19 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
-  ],
-  [
-    // berlin
-    'EPSG:31468',
-    '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs',
-  ],
-  [
-    // cottbus
-    'EPSG:25833',
-    '+proj=utm +zone=33 +ellps=GRS80 +units=m +no_defs',
-  ],
-  [
-    // ruhr
-    'EPSG:25832',
-    '+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs',
-  ],
-])
+// // Add all standard MATSim projects from TransformationFactory to proj4
+// proj4.defs([
+//   [
+//     // south africa
+//     'EPSG:2048',
+//     '+proj=tmerc +lat_0=0 +lon_0=19 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',
+//   ],
+//   [
+//     // berlin
+//     'EPSG:31468',
+//     '+proj=tmerc +lat_0=0 +lon_0=12 +k=1 +x_0=4500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs',
+//   ],
+//   [
+//     // cottbus
+//     'EPSG:25833',
+//     '+proj=utm +zone=33 +ellps=GRS80 +units=m +no_defs',
+//   ],
+//   [
+//     // ruhr
+//     'EPSG:25832',
+//     '+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs',
+//   ],
+// ])
 
 // aliases for existing definitions here
 proj4.defs('DK4', proj4.defs('EPSG:31468'))
@@ -96,4 +92,4 @@ function guessProjection(definition: string) {
   return ''
 }
 
-export default { toLngLat, guessProjection }
+export default { toLngLat, guessProjection, allEPSGs }

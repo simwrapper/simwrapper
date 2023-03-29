@@ -5,7 +5,6 @@
 
 import { decompressSync } from 'fflate'
 import { XMLParser } from 'fast-xml-parser'
-import EPSGdefinitions from 'epsg'
 import reproject from 'reproject'
 import * as shapefile from 'shapefile'
 
@@ -144,7 +143,7 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
 
   // then, reproject if we have a projection
   if (guessCRS && guessCRS !== 'EPSG:4326') {
-    _content = reproject.toWgs84(_content, guessCRS, EPSGdefinitions)
+    _content = reproject.toWgs84(_content, guessCRS, Coords.allEPSGs)
   }
 
   // OK we now have LINKS in geojson.features!! ----------------------------------------
