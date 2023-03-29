@@ -204,7 +204,12 @@ export default class DashboardDataManager {
     }
   }
 
-  public async getRoadNetwork(filename: string, subfolder: string, vizDetails: any) {
+  public async getRoadNetwork(
+    filename: string,
+    subfolder: string,
+    vizDetails: any,
+    cbStatus?: any
+  ) {
     const path = `/${subfolder}/${filename}`
 
     // Get the dataset the first time it is requested
@@ -223,7 +228,7 @@ export default class DashboardDataManager {
       if (match.length === 1) {
         // fetchNetwork immediately returns a Promise<>, which we wait on so that
         // multiple views don't all try to fetch the network individually
-        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`, vizDetails)
+        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`, vizDetails, cbStatus)
       } else {
         throw Error('File not found: ' + path)
       }
@@ -491,7 +496,7 @@ export default class DashboardDataManager {
     })
   }
 
-  private async fetchNetwork(path: string, vizDetails: any) {
+  private async fetchNetwork(path: string, vizDetails: any, cbStatus?: any) {
     return new Promise<NetworkLinks>((resolve, reject) => {
       const thread = new RoadNetworkLoader()
       try {
@@ -509,6 +514,12 @@ export default class DashboardDataManager {
             if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
 
             thread.postMessage({ crs })
+            return
+          }
+
+          // notify client of status update messages
+          if (e.data.status) {
+            if (cbStatus) cbStatus(e.data.status)
             return
           }
 

@@ -192,14 +192,176 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
   if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
 }
 
-async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
-  const rawData = await fetchGzip(filePath, fileSystem)
-  const decoded = new TextDecoder('utf-8').decode(rawData)
-  _content = await parseXML(decoded, options)
+async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
+  console.log('rawData is really big:', rawData.length)
+
+  // Start chunking the rawdata
+  const decoder = new TextDecoder('utf-8')
+  // Be careful to only split chunks at the border between </link> and <link>
+
+  // 9% at a time seems nice
+  let chunkBytes = Math.floor(rawData.length / 11)
+
+  let decoded = ''
+  let currentBytePosition = chunkBytes
+  let firstChunk = rawData.subarray(0, currentBytePosition)
+
+  // Find end of nodes; close them and close network. Parse it.
+  while (currentBytePosition < rawData.length) {
+    const text = decoder.decode(firstChunk)
+    decoded += text
+
+    if (text.indexOf('<links') > -1) break
+    let startBytePosition = currentBytePosition
+    currentBytePosition += chunkBytes
+    firstChunk = rawData.subarray(startBytePosition, currentBytePosition)
+  }
+
+  const endNodes = decoded.indexOf('<links')
+
+  // This creates main network object with attributes and nodes.
+  let networkNodes = decoded.slice(0, endNodes) + '\n</network>\n'
+
+  postMessage({ status: 'Parsing nodes...' })
+
+  let network = parseXML(networkNodes)
 
   // What is the CRS?
   let coordinateReferenceSystem = ''
+  const attribute = network?.network?.attributes?.attribute
+  if (attribute?.$name === 'coordinateReferenceSystem') {
+    coordinateReferenceSystem = attribute['#text']
+    console.log('CRS', coordinateReferenceSystem)
+  } else {
+    // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
+    postMessage({ promptUserForCRS: 'crs needed' })
+    return
+  }
 
+  // Prep the lookups.
+  const nodes: { [id: string]: number[] } = {}
+  const linkIds: any = []
+  const linkChunks = [] as any[]
+
+  // if crs is Atlantis, then don't do any conversions
+  const crs = coordinateReferenceSystem === 'Atlantis' ? '' : coordinateReferenceSystem
+
+  // store (converted) coordinates in lookup
+  for (const node of network.network.nodes.node as any) {
+    const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
+    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
+    nodes[node.$id] = longlat
+  }
+
+  // clear some memory
+  network = null
+  networkNodes = ''
+
+  // Process initial link chunks
+  postMessage({ status: 'Parsing links..' })
+
+  let startLinks = decoded.indexOf('<link ')
+  let endLinks = decoded.lastIndexOf('</link>')
+  let usable = decoded.slice(startLinks, endLinks + 7)
+  let leftovers = decoded.slice(endLinks + 7)
+  let linkData = parseXML(usable, options)
+
+  const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
+  linkChunks.push(chunk)
+
+  let startByte = 0
+  let endByte = currentBytePosition
+
+  let totalNumberOfLinks = linkData.link.length
+
+  // Process remaining link chunks
+  while (true) {
+    startByte = endByte
+    endByte = startByte + chunkBytes
+    console.log(`Parsing links... ${Math.floor((100 * startByte) / rawData.length)}%`)
+    postMessage({ status: `Parsing links... ${Math.floor((100 * startByte) / rawData.length)}%` })
+    const nextChunk = rawData.subarray(startByte, endByte)
+
+    decoded = leftovers + decoder.decode(nextChunk)
+    let endofFinalLink = decoded.lastIndexOf('</link>')
+    usable = decoded.slice(0, endofFinalLink + 7)
+    leftovers = decoded.slice(endofFinalLink + 7)
+
+    if (usable.indexOf('<link ') === -1) break
+
+    linkData = parseXML(usable, options)
+    const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
+    linkChunks.push(chunk)
+    totalNumberOfLinks += linkData.link.length
+
+    // end when we're at the end
+    if (endByte > rawData.length) break
+  }
+  console.log({ totalNumberOfLinks })
+
+  // Last chunk, close out.
+  const source: Float32Array = new Float32Array(2 * totalNumberOfLinks)
+  const dest: Float32Array = new Float32Array(2 * totalNumberOfLinks)
+
+  let offset = 0
+  for (const chunk of linkChunks) {
+    for (let i = 0; i < chunk[0].length; i++) {
+      source[offset + i] = chunk[0][i]
+      dest[offset + i] = chunk[1][i]
+    }
+    offset += chunk[0].length
+  }
+
+  const links = {
+    source,
+    dest,
+    linkIds,
+    projection: coordinateReferenceSystem,
+  }
+  postMessage({ links }, [links.source.buffer, links.dest.buffer])
+}
+
+// build [source,dest] Float32Array of link positions
+function buildLinkChunk(nodes: any, linkIds: any[], links: any[]): Float32Array[] {
+  const source: Float32Array = new Float32Array(2 * links.length)
+  const dest: Float32Array = new Float32Array(2 * links.length)
+
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i]
+    linkIds.push(link.$id)
+
+    const nodeFrom = nodes[link.$from]
+    const nodeTo = nodes[link.$to]
+
+    source[2 * i + 0] = nodeFrom ? nodeFrom[0] : NaN // nodes[link.$from][0]
+    source[2 * i + 1] = nodeFrom ? nodeFrom[1] : NaN
+    dest[2 * i + 0] = nodeTo ? nodeTo[0] : NaN
+    dest[2 * i + 1] = nodeTo ? nodeTo[1] : NaN
+  }
+
+  return [source, dest]
+}
+
+async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
+  const rawData = await fetchGzip(filePath, fileSystem)
+
+  try {
+    // rawData can be enormous. Decoding can fail silently due to memory pressure.
+    const decoded = new TextDecoder('utf-8').decode(rawData)
+    if (decoded.length > 0) {
+      _content = await parseXML(decoded, options)
+    } else {
+      _content = await memorySafeXMLParser(rawData, options)
+      return
+    }
+  } catch (e) {
+    console.error('' + e)
+    postMessage({ error: 'Could not parse network XML' })
+    return
+  }
+
+  // What is the CRS?
+  let coordinateReferenceSystem = ''
   const attribute = _content.network?.attributes?.attribute
   if (attribute?.$name === 'coordinateReferenceSystem') {
     coordinateReferenceSystem = attribute['#text']

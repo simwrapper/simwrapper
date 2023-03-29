@@ -100,7 +100,6 @@ import { ToggleButton } from 'vue-js-toggle-button'
 import { rgb } from 'd3-color'
 import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { shallowEqualObjects } from 'shallow-equal'
-
 import readBlob from 'read-blob'
 import YAML from 'yaml'
 
@@ -114,6 +113,7 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import LegendStore from '@/js/LegendStore'
+import Coords from '@/js/Coords'
 
 import {
   ColorScheme,
@@ -630,39 +630,43 @@ const MyComponent = defineComponent({
       this.generateColorArray()
     },
 
-    async setMapCenter() {
-      const data = this.geojsonData
-      if (this.vizDetails.center) {
-        if (typeof this.vizDetails.center == 'string') {
-          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
-        }
-
-        if (!this.vizDetails.zoom) {
-          this.vizDetails.zoom = 9
-        }
-
-        this.$store.commit('setMapCamera', {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
-          bearing: 0,
-          pitch: 0,
-          zoom: this.vizDetails.zoom,
-          jump: false,
-        })
-
-        const view = {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
-          bearing: 0,
-          pitch: 0,
-          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-          jump: false, // move the map no matter what
-        }
-
-        // bounce our map
-        if (REACT_VIEW_HANDLES[this.linkLayerId]) REACT_VIEW_HANDLES[this.linkLayerId](view)
-        return
+    setMapCenterFromVizDetails() {
+      if (typeof this.vizDetails.center == 'string') {
+        this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
       }
+
+      if (!this.vizDetails.zoom) {
+        this.vizDetails.zoom = 9
+      }
+
+      this.$store.commit('setMapCamera', {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom,
+        jump: false,
+      })
+
+      const view = {
+        longitude: this.vizDetails.center[0],
+        latitude: this.vizDetails.center[1],
+        bearing: 0,
+        pitch: 0,
+        zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+        jump: false, // move the map no matter what
+      }
+
+      // bounce our map
+      if (REACT_VIEW_HANDLES[this.linkLayerId]) {
+        REACT_VIEW_HANDLES[this.linkLayerId](view)
+      }
+    },
+
+    async setMapCenter() {
+      if (this.vizDetails.center) return this.setMapCenterFromVizDetails()
+
+      const data = this.geojsonData
 
       if (!data.source.length) return
 
@@ -672,7 +676,14 @@ const MyComponent = defineComponent({
 
       console.log({ projection: this.geojsonData.projection })
 
-      if (this.geojsonData.projection !== 'Atlantis') {
+      // figure out the center
+      if (this.geojsonData.projection === 'Atlantis') {
+        const webMercator =
+          '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs'
+        const firstPoint = Coords.toLngLat(webMercator, [data.source[0], data.source[1]])
+        longitude = firstPoint[0]
+        latitude = firstPoint[1]
+      } else {
         const numLinks = data.source.length / 2
         const gap = numLinks < 4096 ? 2 : 1024
         for (let i = 0; i < numLinks; i += gap) {
@@ -686,13 +697,13 @@ const MyComponent = defineComponent({
         console.log('center', longitude, latitude)
       }
 
-      if (this.geojsonData.projection === 'Atlantis' || (longitude && latitude)) {
+      if (longitude && latitude) {
         this.$store.commit('setMapCamera', {
           longitude,
           latitude,
           bearing: 0,
           pitch: 0,
-          zoom: 9,
+          zoom: 8,
           jump: false,
         })
       }
@@ -713,6 +724,10 @@ const MyComponent = defineComponent({
       }
     },
 
+    async updateStatus(message: string) {
+      this.myState.statusMessage = message
+    },
+
     async loadNetwork(): Promise<any> {
       if (!this.myDataManager) throw Error('links: no datamanager')
 
@@ -723,7 +738,8 @@ const MyComponent = defineComponent({
         const network = await this.myDataManager.getRoadNetwork(
           filename,
           this.myState.subfolder,
-          this.vizDetails
+          this.vizDetails,
+          this.updateStatus
         )
 
         this.numLinks = network.linkIds.length
