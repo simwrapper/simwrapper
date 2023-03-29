@@ -55,7 +55,7 @@
             .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
               .dropdown-trigger(@click="selectDropdown()")
                 button
-                  span Select Plan
+                  span Plan {{ selectedPlanIndex + 1 }}
                   span.icon.is-small
                     i.fas.fa-angle-down
               .dropdown-menu
@@ -271,6 +271,7 @@ const CarrierPlugin = defineComponent({
       selectedCarrier: '',
       selectedTours: [] as any[],
       selectedPlan: null as any,
+      selectedPlanIndex: null as any,
       selectedShipment: null as any,
 
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
@@ -1091,6 +1092,8 @@ const CarrierPlugin = defineComponent({
       // Select new plan
       plan.$selected = 'true'
 
+      this.selectedPlanIndex = this.plans.indexOf(plan)
+
       // Unselect all tours
       this.selectedTours = []
 
@@ -1457,6 +1460,10 @@ input {
   z-index: 10;
   background-color: var(--bgPanel2);
   padding: 0.5rem 1rem;
+}
+
+.dropdown {
+  margin-bottom: 0.5rem;
 }
 
 @media only screen and (max-width: 640px) {
