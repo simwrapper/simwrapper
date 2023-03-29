@@ -471,13 +471,13 @@ export default class DashboardDataManager {
         thread.onmessage = e => {
           thread.terminate()
           if (e.data.error) {
-            console.log(e.data.error)
-            // var msg = '' + e.data.error
-            //globalStore.commit('error', e.data.error)
+            let msg = '' + e.data.error
+            msg = msg.replace('[object Response]', 'File load error')
+
             globalStore.commit('setStatus', {
               type: Status.ERROR,
-              msg: `File not found: ${this.subfolder}/${config.dataset}`,
-              desc: 'Check filename and path.',
+              msg,
+              desc: JSON.stringify(config),
             })
             reject()
           }
