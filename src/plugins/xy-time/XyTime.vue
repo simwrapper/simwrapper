@@ -233,7 +233,7 @@ const MyComponent = defineComponent({
 
   computed: {
     fileApi(): HTTPFileSystem {
-      return new HTTPFileSystem(this.fileSystem)
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
     fileSystem(): FileSystemConfig {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
@@ -591,6 +591,8 @@ const MyComponent = defineComponent({
 
     async loadFiles() {
       console.log(1)
+
+      await this.fileApi.getChromePermission(this.fileSystem.handle)
 
       try {
         let filename = `${this.myState.subfolder}/${this.vizDetails.file}`

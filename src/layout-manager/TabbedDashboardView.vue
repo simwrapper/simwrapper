@@ -41,7 +41,7 @@
     @up="goUpOneFolder()"
   )
 
-  p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
+  //- p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
   .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
@@ -60,6 +60,7 @@ import YAML from 'yaml'
 import DashBoard from './DashBoard.vue'
 import FolderBrowser from './FolderBrowser.vue'
 
+import globalStore from '@/store'
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -99,7 +100,7 @@ export default defineComponent({
   },
   computed: {
     fileApi(): HTTPFileSystem {
-      return new HTTPFileSystem(this.fileSystem)
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
     fileSystem(): FileSystemConfig {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
@@ -167,6 +168,10 @@ export default defineComponent({
     async findConfigsAndDashboards() {
       this.loadErrorMessage = ''
       if (!this.fileApi) return []
+
+      await this.fileApi.getChromePermission(this.fileSystem.handle)
+
+      this.getFolderReadme()
 
       try {
         this.allConfigFiles = await this.fileApi.findAllYamlConfigs(this.xsubfolder)
@@ -339,12 +344,12 @@ export default defineComponent({
 
       this.header = ''
       this.footer = ''
+      this.dashboards = []
       this.pageHeader = this.getPageHeader()
-      this.getFolderReadme()
+
       // this.generateBreadcrumbs()
 
       // this happens async
-      this.dashboards = []
       this.findConfigsAndDashboards()
     },
 

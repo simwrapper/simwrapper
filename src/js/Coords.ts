@@ -1,19 +1,22 @@
 import proj4 from 'proj4'
 import EPSG from 'epsg-index/all.json'
 
+// These strings in a shapefile .PRJ will trigger the following EPSG codes.
+// Add your own to this list!
+
 const lookups = {
-  DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
-  Hartebeesthoek94: 'EPSG:2048',
   NAD_1983_StatePlane_California_III_FIPS_0403_Feet: 'EPSG:2227',
   NAD_1983_UTM_Zone_10N: 'EPSG:26910',
+  D_North_American_1983: 'EPSG:4326',
+  DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',
   ETRS89_UTM_zone_32N: 'EPSG:25832',
   ETRS89_UTM_zone_33N: 'EPSG:25833',
+  Hartebeesthoek94: 'EPSG:2048',
   UTM_Zone_32N: 'EPSG:25832',
 }
 
 // Set up ALL coordinate systems in 'epsg' repository
-// const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
-const allEPSGs = Object.entries(EPSG).map(epsg => [`EPSG:${epsg[0]}`, epsg[1].proj4]) as any[]
+const allEPSGs = Object.entries(EPSG).filter(row => row[0].startsWith('EPSG') && row[1]) as any
 
 proj4.defs(allEPSGs)
 
@@ -71,7 +74,7 @@ function guessProjection(definition: string) {
   const epsg = /^EPSG:\d+$/
   if (epsg.test(definition.trim())) return definition.trim()
 
-  // maybe a DHDN GK4 is there
+  // maybe a DHDN GK4 or another known string is in there
   for (const [key, epsg] of Object.entries(lookups)) {
     if (definition.indexOf(key) > -1) return epsg
   }
@@ -90,7 +93,7 @@ function guessProjection(definition: string) {
     }
   }
 
-  // all else fails: return EPSG:31468
+  // all else fails: return nothing
   return ''
 }
 

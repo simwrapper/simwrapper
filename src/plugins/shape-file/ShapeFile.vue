@@ -203,6 +203,7 @@ const MyComponent = defineComponent({
       dataCalculatedValues: null as Float32Array | null,
       dataCalculatedValueLabel: '',
 
+      globalStore,
       globalState: globalStore.state,
       layerId: Math.floor(1e12 * Math.random()),
 
@@ -286,7 +287,7 @@ const MyComponent = defineComponent({
 
   computed: {
     fileApi(): HTTPFileSystem {
-      return new HTTPFileSystem(this.fileSystem)
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
 
     fileSystem(): FileSystemConfig {
@@ -1584,6 +1585,7 @@ const MyComponent = defineComponent({
 
       const url = `${this.subfolder}/${filename}`
 
+      console.log(1)
       // first, get shp/dbf files
       let geojson: any = {}
       try {
@@ -1603,6 +1605,7 @@ const MyComponent = defineComponent({
         this.$store.commit('error', '' + e)
         return []
       }
+      console.log(2, geojson)
 
       // geojson.features = geojson.features.slice(0, 10000)
 
@@ -1615,8 +1618,10 @@ const MyComponent = defineComponent({
         // lol we can live without a projection right? ;-O
       }
 
-      const guessCRS = Coords.guessProjection(projection)
+      // Allow user to override .PRJ projection with YAML config
+      const guessCRS = this.vizDetails.projection || Coords.guessProjection(projection)
 
+      console.log({ guessCRS })
       // then, reproject if we have a .prj file
       if (guessCRS) {
         this.statusText = 'Projecting coordinates...'

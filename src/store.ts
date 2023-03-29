@@ -51,6 +51,7 @@ export default new Vuex.Store({
     isShowingLeftBar: true,
     isDarkMode: true,
     isInitialViewSet: false,
+    fileHandleAccessRequests: [] as any[],
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as Warnings[],
@@ -235,6 +236,12 @@ export default new Vuex.Store({
     },
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value
+    },
+    setFileHandleForPermissionRequest(state, handle: any) {
+      state.fileHandleAccessRequests.push(handle)
+    },
+    clearFileHandlePermissionRequests(state) {
+      state.fileHandleAccessRequests = []
     },
     toggleShowLeftBar(state) {
       state.isShowingLeftBar = !state.isShowingLeftBar

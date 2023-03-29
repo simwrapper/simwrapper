@@ -6,6 +6,10 @@
     router-view.main-content
     p.splash-label(v-if="showSplash") • Loading SimWrapper •
 
+  .grant-permission-area(v-if="accessRequests.length")
+    p Grant access to local files to view this content:
+    button.button.is-small(@click="grantAccess") Grant access
+
   //.message-zone(v-if="state.statusErrors.length")
     .message-error(v-for="err,i in state.statusErrors")
       p: i.fa.fa-icon.fa-exclamation-triangle(style="color: orange;")
@@ -60,6 +64,9 @@ export default defineComponent({
     }
   },
   computed: {
+    accessRequests(): any[] {
+      return globalStore.state.fileHandleAccessRequests
+    },
     topNavLinks(): any[] {
       // {name, description, need_password, svn, thumbnail, url }
       // a '/' will be prepended
@@ -139,6 +146,16 @@ export default defineComponent({
         document.body.classList.remove('full-screen-page')
         document.documentElement.style.overflowY = null as any
       }
+    },
+
+    async grantAccess() {
+      const { handle } = this.$store.state.fileHandleAccessRequests[0]
+      const status = await handle.requestPermission({ mode: 'read' })
+      console.log(status)
+      for (const request of this.$store.state.fileHandleAccessRequests) {
+        request.resolve(status == 'granted')
+      }
+      this.$store.commit('clearFileHandlePermissionRequests')
     },
   },
   async mounted() {
@@ -531,6 +548,20 @@ p.splash-label {
   }
   button {
     margin: auto 0;
+  }
+}
+
+.grant-permission-area {
+  position: absolute;
+  width: 100%;
+  padding: 1rem;
+  background-color: #ffd15e;
+  color: black;
+  display: flex;
+  // font-weight: bold;
+
+  button {
+    margin-left: auto;
   }
 }
 

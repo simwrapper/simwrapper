@@ -1,29 +1,49 @@
 import micromatch from 'micromatch'
 import pako from 'pako'
+
 import { DirectoryEntry, FileSystemAPIHandle, FileSystemConfig, YamlConfigs } from '@/Globals'
 
-const YAML_FOLDER = 'simwrapper'
+const YAML_FOLDERS = ['simwrapper', '.simwrapper']
 
 // Cache directory listings for each slug & directory
 const CACHE: { [slug: string]: { [dir: string]: DirectoryEntry } } = {}
 
 // ---------------------------------------------------------------------------
 
-class SVNFileSystem {
+class HTTPFileSystem {
   private baseUrl: string
   private urlId: string
   private needsAuth: boolean
   private fsHandle: FileSystemAPIHandle | null
+  private store: any
 
-  constructor(project: FileSystemConfig) {
+  constructor(project: FileSystemConfig, store?: any) {
     this.urlId = project.slug
     this.needsAuth = !!project.needPassword
     this.fsHandle = project.handle || null
+    this.store = store || null
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
 
     if (!CACHE[this.urlId]) CACHE[this.urlId] = {}
+  }
+
+  // make sure user has given permission to view this folder
+  async getChromePermission(handle: any) {
+    if (!handle) return true
+
+    const status = await handle.queryPermission({ mode: 'read' })
+    if (status !== 'granted') {
+      if (!this.store) return true
+      // callback triggers after user grants/denies access:
+      const granted = new Promise<boolean>(resolve => {
+        this.store.commit('setFileHandleForPermissionRequest', { handle, resolve })
+      })
+      const resolved = await granted
+      return resolved
+    }
+    return true
   }
 
   public clearCache() {
@@ -186,7 +206,8 @@ class SVNFileSystem {
     }
   }
 
-  async getDirectoryFromHandle(stillScaryPath: string) {
+  // might pass in the global store, or not
+  async getDirectoryFromHandle(stillScaryPath: string, store?: any) {
     // File System API has no concept of nested paths, which of course
     // is how every filesystem from the past 60 years is actually laid out.
     // Caching each level should lessen the pain of this weird workaround.
@@ -202,6 +223,9 @@ class SVNFileSystem {
 
     const contents: DirectoryEntry = { files: [], dirs: [], handles: {} }
     if (!this.fsHandle) return contents
+
+    const granted = await this.getChromePermission(this.fsHandle)
+    if (!granted) return contents
 
     let parts = stillScaryPath.split('/').filter(p => !!p) // split and remove blanks
 
@@ -269,13 +293,15 @@ class SVNFileSystem {
 
       try {
         const { dirs } = await this.getDirectory(currentPath)
-        if (dirs.indexOf(YAML_FOLDER) > -1) {
-          configFolders.push(`${currentPath}/${YAML_FOLDER}`.replaceAll('//', '/'))
+        for (const folder of YAML_FOLDERS) {
+          if (dirs.includes(folder)) {
+            configFolders.push(`${currentPath}/${folder}`.replaceAll('//', '/'))
+          }
         }
       } catch (e) {}
     }
 
-    // also add current working folder as final option, which supercedes all others
+    // also add current working folder as final option, which supersedes all others
     configFolders.push(folder)
 
     // find all dashboards, topsheets, and viz-* yamls in each configuration folder.
@@ -452,4 +478,4 @@ class SVNFileSystem {
   }
 }
 
-export default SVNFileSystem
+export default HTTPFileSystem

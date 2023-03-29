@@ -55,6 +55,7 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
     config: Object as any,
   },
+
   data() {
     return {
       globalState: globalStore.state,
@@ -68,9 +69,10 @@ const MyComponent = defineComponent({
       colorRamp: [] as string[],
     }
   },
+
   computed: {
     fileApi(): HTTPFileSystem {
-      return new HTTPFileSystem(this.fileSystem)
+      return new HTTPFileSystem(this.fileSystem, globalStore)
     },
 
     fileSystem(): FileSystemConfig {
@@ -84,6 +86,7 @@ const MyComponent = defineComponent({
       return svnProject[0]
     },
   },
+
   watch: {
     'globalState.resizeEvents'() {
       this.changeDimensions()
@@ -102,6 +105,7 @@ const MyComponent = defineComponent({
       this.doD3()
     },
   },
+
   methods: {
     changeDimensions() {
       if (this.jsonChart?.nodes) this.doD3()
@@ -276,6 +280,7 @@ const MyComponent = defineComponent({
         .attr('viewBox', `0 0 ${width} ${height}`)
     },
   },
+
   async mounted() {
     await this.getVizDetails()
     this.csvData = await this.loadFiles()
