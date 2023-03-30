@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.1.1](https://github.com/simwrapper/simwrapper/compare/v2.1.0...v2.1.1) (2023-03-30)
+
+
+### Bug Fixes
+
+* "giant network" support and "Atlantis" coords work in network loader ([ecac9a8](https://github.com/simwrapper/simwrapper/commit/ecac9a8d00bd7c6db45fba13c9ace9628c8c9b28)), closes [#194](https://github.com/simwrapper/simwrapper/issues/194) [#195](https://github.com/simwrapper/simwrapper/issues/195)
+* **calcs:** calculation tables lost ability to recalculate ([d497923](https://github.com/simwrapper/simwrapper/commit/d497923a824a483251c32acb5e833546a8d47936))
+* geojson shape viewer failed on some geojson files ([e95114b](https://github.com/simwrapper/simwrapper/commit/e95114b81d392c0c237794643a17a5d666ad93aa)), closes [#196](https://github.com/simwrapper/simwrapper/issues/196)
+* **map:** allow overriding shapefile projection in YAML,fixes [#192](https://github.com/simwrapper/simwrapper/issues/192) ([eeda80a](https://github.com/simwrapper/simwrapper/commit/eeda80a4c4b4c7d7665abfed4649ad6cc2d011f6))
+* **map:** Better warning when shapefile has unknown coordinate system ([35f151b](https://github.com/simwrapper/simwrapper/commit/35f151bb7df0c4ce6dc95f87e3b32e818c7886f0))
+* **map:** Shapefile filters export better and work with multiple params ([2bed365](https://github.com/simwrapper/simwrapper/commit/2bed365cc93ff612a3cb3fe6617ee14035b9e96b))
+* Page reloads don't work with Chrome Local Files ([e229a1f](https://github.com/simwrapper/simwrapper/commit/e229a1fd61551645703c80b3ca295807b717ee7f)), closes [#205](https://github.com/simwrapper/simwrapper/issues/205)
+* Project YAML files should be in "simwrapper" or ".simwrapper" folders ([cd07489](https://github.com/simwrapper/simwrapper/commit/cd074896e1c0a276887484a860aa6ce028795edf)), closes [#221](https://github.com/simwrapper/simwrapper/issues/221) [#211](https://github.com/simwrapper/simwrapper/issues/211)
+* shapefile join dialog not always showing up for "add dataset" ([b68ff66](https://github.com/simwrapper/simwrapper/commit/b68ff66cb22d66813598c705f3520be9b5c1e372))
+* UP button on folder browser doesn't always go up ([351c8d1](https://github.com/simwrapper/simwrapper/commit/351c8d10f521f8042a086dbfe5abfaf7bcd1acf1))
+* x-y-t coordinate projection should not be case-sensitive ([bb2c3a6](https://github.com/simwrapper/simwrapper/commit/bb2c3a651b364e67e85ef74c7cb14cf637b76fa1)), closes [#204](https://github.com/simwrapper/simwrapper/issues/204)
+
 ## [2.1.0](https://github.com/simwrapper/simwrapper/compare/v2.0.1...v2.1.0) (2023-01-08)
 
 
