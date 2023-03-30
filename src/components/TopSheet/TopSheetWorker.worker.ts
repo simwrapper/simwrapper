@@ -126,20 +126,25 @@ async function runTopSheet(props: {
 }) {
   // console.log('TopSheet thread worker starting')
 
-  _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
-  _originalFolder = props.subfolder
-  _subfolder = props.subfolder
-  _files = props.files
-  _yamlFile = props.yaml
-  _locale = props.locale
-  _allConfigYamls = props.allConfigFiles
+  try {
+    _fileSystem = new HTTPFileSystem(props.fileSystemConfig)
+    _originalFolder = props.subfolder
+    _subfolder = props.subfolder
+    _files = props.files
+    _yamlFile = props.yaml
+    _locale = props.locale
+    _allConfigYamls = props.allConfigFiles
 
-  // read the table definitions from yaml
-  _yaml = await getYaml()
+    // read the table definitions from yaml
+    _yaml = await getYaml()
 
-  // set the title
-  const title = getTitle(_locale)
-  postMessage({ response: 'title', title })
+    // set the title
+    const title = getTitle(_locale)
+    postMessage({ response: 'title', title })
+  } catch (e) {
+    postMessage({ response: 'error', message: 'Bad configuration' })
+    return [{ title: 'Error in configuration', value: '', style: { backgroundColor: 'yellow' } }]
+  }
 
   // load all files
   await loadFiles()
