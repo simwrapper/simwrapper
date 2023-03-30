@@ -694,19 +694,17 @@ const MyComponent = defineComponent({
 
         longitude = longitude / samples
         latitude = latitude / samples
-        console.log('center', longitude, latitude)
       }
+      console.log('center', longitude, latitude)
 
-      if (longitude && latitude) {
-        this.$store.commit('setMapCamera', {
-          longitude,
-          latitude,
-          bearing: 0,
-          pitch: 0,
-          zoom: 8,
-          jump: false,
-        })
-      }
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        bearing: 0,
+        pitch: 0,
+        zoom: 8,
+        jump: false,
+      })
     },
 
     setupLogoMover() {
