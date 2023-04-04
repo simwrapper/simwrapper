@@ -3,13 +3,31 @@ id: changelog
 title: Change log
 ---
 
-Welcome to SimWrapper version 2.x! Big new version with a new look, lots of new small features, and some big improvements in stability and memory usage
+Welcome to SimWrapper version 2! Big new version with a new look, lots of new small features, and some big improvements in stability and memory usage
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 The full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
+# Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [2.1.1](https://github.com/simwrapper/simwrapper/compare/v2.1.0...v2.1.1) (2023-03-30)
+
+
+### Bug Fixes
+
+* "giant network" support and "Atlantis" coords work in network loader ([ecac9a8](https://github.com/simwrapper/simwrapper/commit/ecac9a8d00bd7c6db45fba13c9ace9628c8c9b28)), closes [#194](https://github.com/simwrapper/simwrapper/issues/194) [#195](https://github.com/simwrapper/simwrapper/issues/195)
+* **calcs:** calculation tables lost ability to recalculate ([d497923](https://github.com/simwrapper/simwrapper/commit/d497923a824a483251c32acb5e833546a8d47936))
+* geojson shape viewer failed on some geojson files ([e95114b](https://github.com/simwrapper/simwrapper/commit/e95114b81d392c0c237794643a17a5d666ad93aa)), closes [#196](https://github.com/simwrapper/simwrapper/issues/196)
+* **map:** allow overriding shapefile projection in YAML,fixes [#192](https://github.com/simwrapper/simwrapper/issues/192) ([eeda80a](https://github.com/simwrapper/simwrapper/commit/eeda80a4c4b4c7d7665abfed4649ad6cc2d011f6))
+* **map:** Better warning when shapefile has unknown coordinate system ([35f151b](https://github.com/simwrapper/simwrapper/commit/35f151bb7df0c4ce6dc95f87e3b32e818c7886f0))
+* **map:** Shapefile filters export better and work with multiple params ([2bed365](https://github.com/simwrapper/simwrapper/commit/2bed365cc93ff612a3cb3fe6617ee14035b9e96b))
+* Page reloads don't work with Chrome Local Files ([e229a1f](https://github.com/simwrapper/simwrapper/commit/e229a1fd61551645703c80b3ca295807b717ee7f)), closes [#205](https://github.com/simwrapper/simwrapper/issues/205)
+* Project YAML files should be in "simwrapper" or ".simwrapper" folders ([cd07489](https://github.com/simwrapper/simwrapper/commit/cd074896e1c0a276887484a860aa6ce028795edf)), closes [#221](https://github.com/simwrapper/simwrapper/issues/221) [#211](https://github.com/simwrapper/simwrapper/issues/211)
+* shapefile join dialog not always showing up for "add dataset" ([b68ff66](https://github.com/simwrapper/simwrapper/commit/b68ff66cb22d66813598c705f3520be9b5c1e372))
+* UP button on folder browser doesn't always go up ([351c8d1](https://github.com/simwrapper/simwrapper/commit/351c8d10f521f8042a086dbfe5abfaf7bcd1acf1))
+* x-y-t coordinate projection should not be case-sensitive ([bb2c3a6](https://github.com/simwrapper/simwrapper/commit/bb2c3a651b364e67e85ef74c7cb14cf637b76fa1)), closes [#204](https://github.com/simwrapper/simwrapper/issues/204)
 
 ## [2.1.0](https://github.com/simwrapper/simwrapper/compare/v2.0.1...v2.1.0) (2023-01-08)
 
@@ -49,10 +67,12 @@ All notable changes to this project will be documented in this file. See [standa
 - **dashboards:** Skip dashboards using .nodashboards and triggerPattern ([23486ba](https://github.com/simwrapper/simwrapper/commit/23486ba060c7d1b5825b16f0506da552ce159677))
 - Drag and Drop support for splitting views ([6aabf72](https://github.com/simwrapper/simwrapper/commit/6aabf723940fe74e0236bd62ede9ff53ac1a2255))
 - embed EPSG code in CSV files with a comment line # EPSG:xxxx ([20cddb7](https://github.com/simwrapper/simwrapper/commit/20cddb7dcc133203a09cbc22136498df18012c8f))
+- Filter shapes by property values such as facility types ([c37f91d](https://github.com/simwrapper/simwrapper/commit/c37f91d55132f403b47692250529a90128908425))
 - Filter shapes by property values such as facility types ([a5dc632](https://github.com/simwrapper/simwrapper/commit/a5dc6326c722b23c159279dc77a77b9a1c157e0f))
 - **links:** Support SFCTA-style daysim networks ([f8974be](https://github.com/simwrapper/simwrapper/commit/f8974bef94ae9b6f27c4f50c40be95b7fc9a0550))
 - **map:** Filters work on datasets now ([a1437ba](https://github.com/simwrapper/simwrapper/commit/a1437ba93fc9d2f3253165f072321b449f7a95e4))
 - **map:** Legends now auto-generated based on map colors, widths, etc ([#156](https://github.com/simwrapper/simwrapper/issues/156)) ([af4fee6](https://github.com/simwrapper/simwrapper/commit/af4fee67c27bb7659fee854cb524ea5ef830906f))
+- **map:** Legends now auto-generated based on map colors, widths, etc ([#156](https://github.com/simwrapper/simwrapper/issues/156)) ([0f9b062](https://github.com/simwrapper/simwrapper/commit/0f9b062e65818d8e7d78e727f6667a11fa34e222))
 - **map:** Map learned relative-difference mode "relative: true" ([779a8dc](https://github.com/simwrapper/simwrapper/commit/779a8dcc811fd0687cb281dd8fab01943d2306d6))
 - **maps:** Shapefile viewer learned fill height, circle radius, and more ([93653f4](https://github.com/simwrapper/simwrapper/commit/93653f4f252955bc00174ffd8c771d8e50fe1e3b))
 - Redesigned left-side navigation for quick access to files & settings ([9fee32c](https://github.com/simwrapper/simwrapper/commit/9fee32c4d77a1642cf8a55a0688275f37d66cd01))
