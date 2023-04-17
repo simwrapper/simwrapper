@@ -261,11 +261,13 @@ export default defineComponent({
       }
 
       // single visualization?
-      const fileNameWithoutPath = [pathMatch.substring(1 + pathMatch.lastIndexOf('/'))]
-      for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
-        if (micromatch(fileNameWithoutPath, vizPlugin.filePatterns).length) {
-          // plugin matched!
+      const fileNameWithoutPath = pathMatch.substring(1 + pathMatch.lastIndexOf('/'))
+      const lowerCaseFileName = fileNameWithoutPath.toLocaleLowerCase()
 
+      for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
+        // be case insensitive for the matching itself
+        if (micromatch.isMatch(lowerCaseFileName, vizPlugin.filePatterns)) {
+          // plugin matched!
           if (this.panels.length === 1 && this.panels[0].length === 1) {
             this.panels = [[this.panels[0][0]]]
           } else {
@@ -280,7 +282,7 @@ export default defineComponent({
                   props: {
                     root,
                     subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
-                    yamlConfig: fileNameWithoutPath[0],
+                    yamlConfig: fileNameWithoutPath,
                     thumbnail: false,
                   } as any,
                 },

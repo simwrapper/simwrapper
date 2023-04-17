@@ -527,7 +527,7 @@ const MyComponent = defineComponent({
         this.vizDetails = Object.assign({}, emptyState, this.configFromDashboard)
       } else {
         // was a YAML file was passed in?
-        const filename = this.yamlConfig ?? ''
+        const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
 
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
           const ycfg = await this.loadYamlConfig()
@@ -537,12 +537,12 @@ const MyComponent = defineComponent({
 
         // is this a bare geojson/shapefile file? - build vizDetails manually
         if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
-          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${filename}`
+          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
             title,
             description: this.subfolder,
-            shapes: filename,
+            shapes: this.yamlConfig,
           })
 
           this.config = Object.assign({}, this.vizDetails)
@@ -1413,7 +1413,7 @@ const MyComponent = defineComponent({
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
           // this.boundaries = boundaries.features
-        } else if (filename.endsWith('.shp')) {
+        } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
           // this.boundaries = boundaries
@@ -1585,12 +1585,15 @@ const MyComponent = defineComponent({
 
       const url = `${this.subfolder}/${filename}`
 
-      console.log(1)
       // first, get shp/dbf files
       let geojson: any = {}
       try {
         const shpPromise = this.fileApi.getFileBlob(url)
-        const dbfPromise = this.fileApi.getFileBlob(url.replace('.shp', '.dbf'))
+        const dbfFilename = url
+          .replace('.shp', '.dbf')
+          .replace('.SHP', '.DBF')
+          .replace('.Shp', '.Dbf')
+        const dbfPromise = this.fileApi.getFileBlob(dbfFilename)
         await Promise.all([shpPromise, dbfPromise])
 
         const shpBlob = await (await shpPromise)?.arrayBuffer()
@@ -1605,13 +1608,15 @@ const MyComponent = defineComponent({
         this.$store.commit('error', '' + e)
         return []
       }
-      console.log(2, geojson)
 
       // geojson.features = geojson.features.slice(0, 10000)
 
       // See if there is a .prj file with projection information
       let projection = DEFAULT_PROJECTION
-      const prjFilename = url.replace('.shp', '.prj')
+      const prjFilename = url
+        .replace('.shp', '.prj')
+        .replace('.SHP', '.PRJ')
+        .replace('.Shp', '.Prj')
       try {
         projection = await this.fileApi.getFileText(prjFilename)
       } catch (e) {
