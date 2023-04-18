@@ -307,7 +307,6 @@ export default defineComponent({
       for (const viz of this.globalState.visualizationTypes.values()) {
         // match based on file patterns registered for each viz
         const matches = micromatch(this.myState.files, viz.filePatterns, { nocase: true })
-        console.log(11, matches)
         for (const file of matches) {
           // add thumbnail for each matching file
           this.myState.vizes.push({ component: viz.kebabName, config: file, title: '..' })
