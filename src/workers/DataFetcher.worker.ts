@@ -147,14 +147,13 @@ async function loadFile() {
 }
 
 async function parseData(filename: string, buffer: Uint8Array) {
-  if (filename.endsWith('.dbf') || filename.endsWith('.DBF')) {
+  if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
     const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
     calculateMaxValues(_dataset, dataTable)
     _fileData[_dataset] = dataTable
   } else {
     // convert text to utf-8
     const text = new TextDecoder().decode(buffer)
-
     // parse the text: we can handle CSV or XML
     await parseVariousFileTypes(_dataset, filename, text)
   }
