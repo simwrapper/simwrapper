@@ -815,7 +815,7 @@ export default defineComponent({
         if (!showDashboards) allConfigs.dashboards = {}
         return allConfigs
       } catch (e) {
-        console.error('' + e)
+        // console.error('' + e)
         return { dashboards: {}, configs: {}, vizes: {}, topsheets: {} }
         // throw Error('' + e)
       }

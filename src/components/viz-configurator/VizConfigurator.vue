@@ -309,7 +309,7 @@ export default defineComponent({
 
       // delete empty display sections
       for (const entries of Object.entries(config.display) as any[]) {
-        console.log(entries)
+        // console.log(entries)
         if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
       }
 

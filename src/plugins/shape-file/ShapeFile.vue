@@ -670,7 +670,6 @@ const MyComponent = defineComponent({
 
     async handleNewDataset(props: DatasetDefinition) {
       const { key, dataTable, filename } = props
-
       const datasetId = key
       this.datasetFilename = filename || datasetId
 
@@ -705,9 +704,6 @@ const MyComponent = defineComponent({
       this.figureOutRemainingFilteringOptions()
     },
 
-    /**
-     *
-     */
     setupJoin(
       dataTable: DataTable,
       datasetId: string,
@@ -1428,13 +1424,16 @@ const MyComponent = defineComponent({
         let hasNoPolygons = true
 
         boundaries.forEach(b => {
-          // push property object to its own dataset array
-          featureProperties.push(b.properties || {})
-
-          // clear out actual feature properties; they will be in the dataset instead
+          // create a new properties object for each row
+          const properties = b.properties ?? {}
+          // geojson sometimes has "id" outside of properties:
+          if ('id' in b) properties.id = b.id
+          // push this new property object to the featureProperties array
+          featureProperties.push(properties)
+          // clear out actual feature properties; they are now in featureProperties instead
           b.properties = {}
 
-          // check if we have linestrings: network mode!
+          // check if we have linestrings: network mode !
           if (
             hasNoLines &&
             (b.geometry.type == 'LineString' || b.geometry.type == 'MultiLineString')
@@ -1442,7 +1441,7 @@ const MyComponent = defineComponent({
             hasNoLines = false
           }
 
-          // check if we have polygons: shapefile mode!
+          // check if we have polygons: area-map mode !
           if (
             hasNoPolygons &&
             (b.geometry.type == 'Polygon' || b.geometry.type == 'MultiPolygon')

@@ -97,7 +97,7 @@ export default defineComponent({
 
   watch: {
     fileChoice() {
-      console.warn('*** TODO: THIS HAPPENED')
+      console.warn('*** File Chosen!')
       this.fileChoiceChanged(this.fileChoice)
     },
   },

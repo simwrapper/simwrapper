@@ -7,16 +7,16 @@
  * Each tabbed dashboard should instantiate this class once, and destroy it when the dashboard
  * is closed. Datasets can be big, we don't want them to stick around forever!
  *
- * Data queries will return -both- the full dataset AND a filtered dataset. That way
- * the filtered data can be visually layered on top of the full data.
+ * Data queries always return -both- the full dataset AND a filtered dataset.
+ * That way, the filtered data can be visually layered on top of the full data.
  */
 
 import { rollup } from 'd3-array'
 
-import { DataTable, DataTableColumn, FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
-import { findMatchingGlobInFiles } from '@/js/util'
 import HTTPFileSystem from './HTTPFileSystem'
+import { DataTable, DataTableColumn, FileSystemConfig, Status } from '@/Globals'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
@@ -54,7 +54,7 @@ export default class DashboardDataManager {
     // hello
     this.root = args.length ? args[0] : ''
     this.subfolder = args.length ? args[1] : ''
-    this.fileApi = this.getFileSystem(this.root)
+    this.fileApi = this._getFileSystem(this.root)
   }
 
   private files: any[] = []
@@ -101,7 +101,8 @@ export default class DashboardDataManager {
 
   /**
    *
-   * @param config the configuration params from the YAML file. Must include dataset, and other optional parameters as needed by the viz
+   * @param config the configuration params from the YAML file. Must include dataset,
+   *               and may include other optional parameters as needed by the viz
    * @returns object with {x,y} or {allRows[]}
    */
   public async getDataset(config: configuration) {
@@ -110,18 +111,21 @@ export default class DashboardDataManager {
       if (!this.datasets[config.dataset]) {
         console.log('load:', config.dataset)
 
-        // fetchDataset() immediately returns a Promise<>, which we wait on
+        // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
         this.datasets[config.dataset] = {
-          dataset: this.fetchDataset(config),
+          dataset: this._fetchDataset(config),
           activeFilters: {},
           filteredRows: null,
           filterListeners: new Set(),
         }
       }
 
+      // wait for dataset to load
+      // (this will immediately return dataset if it is already loaded)
       let myDataset = await this.datasets[config.dataset].dataset
 
+      // make a copy because each viz in a dashboard might be hacking it differently
       let allRows = { ...myDataset }
 
       // remove ignored columns
@@ -166,6 +170,7 @@ export default class DashboardDataManager {
         const thread = new DataFetcherWorker()
         // console.log('NEW WORKER', thread)
         this.threads.push(thread)
+
         try {
           thread.postMessage({ config: fullConfig, featureProperties })
 
@@ -193,6 +198,10 @@ export default class DashboardDataManager {
     return this.datasets[key].dataset
   }
 
+  /**
+   *  Register an existing in-memory DataTable as a dataset in this Dashboard
+   * @param props key, dataTable, and filename associated with this DataTable
+   */
   public setPreloadedDataset(props: { key: string; dataTable: DataTable; filename: string }) {
     this.datasets[props.filename] = {
       dataset: new Promise<DataTable>((resolve, reject) => {
@@ -228,7 +237,7 @@ export default class DashboardDataManager {
       if (match.length === 1) {
         // fetchNetwork immediately returns a Promise<>, which we wait on so that
         // multiple views don't all try to fetch the network individually
-        this.networks[path] = this.fetchNetwork(`${folder}/${match[0]}`, vizDetails, cbStatus)
+        this.networks[path] = this._fetchNetwork(`${folder}/${match[0]}`, vizDetails, cbStatus)
       } else {
         throw Error('File not found: ' + path)
       }
@@ -309,7 +318,7 @@ export default class DashboardDataManager {
     } else {
       allFilters[column] = { values, invert, range }
     }
-    this.updateFilters(dataset) // this is async
+    this._updateFilters(dataset) // this is async
   }
 
   public addFilterListener(config: { dataset: string }, listener: any) {
@@ -338,7 +347,7 @@ export default class DashboardDataManager {
 
   // ---- PRIVATE STUFFS -----------------------
 
-  private async updateFilters(datasetId: string) {
+  private async _updateFilters(datasetId: string) {
     console.log('> updateFilters ', datasetId)
     const metaData = this.datasets[datasetId]
     console.log({ metaData })
@@ -346,7 +355,7 @@ export default class DashboardDataManager {
     if (!Object.keys(metaData.activeFilters).length) {
       console.log('no keys')
       metaData.filteredRows = null
-      this.notifyListeners(datasetId)
+      this._notifyListeners(datasetId)
       return
     }
 
@@ -365,6 +374,7 @@ export default class DashboardDataManager {
     const hasMatchedFilters = new Array(numberOfRowsInFullDataset).fill(true)
 
     const ltgt = /^(<|>)/ // starts with < or >
+    //            (╯° °)╯︵ ┻━┻
 
     for (const [column, spec] of Object.entries(metaData.activeFilters)) {
       const dataColumn = dataset[column]
@@ -413,49 +423,49 @@ export default class DashboardDataManager {
     }
 
     metaData.filteredRows = filteredRows
-    this.notifyListeners(datasetId)
+    this._notifyListeners(datasetId)
   }
 
-  private checkFilterValue(
-    spec: { conditional: string; invert: boolean; values: any[] },
-    elementValue: any
-  ) {
-    // lookup closure functions for < > <= >=
-    const conditionals: any = {
-      '<': () => {
-        return elementValue < spec.values[0]
-      },
-      '<=': () => {
-        return elementValue <= spec.values[0]
-      },
-      '>': () => {
-        return elementValue > spec.values[0]
-      },
-      '>=': () => {
-        return elementValue >= spec.values[0]
-      },
-    }
+  // private _checkFilterValue(
+  //   spec: { conditional: string; invert: boolean; values: any[] },
+  //   elementValue: any
+  // ) {
+  //   // lookup closure functions for < > <= >=
+  //   const conditionals: any = {
+  //     '<': () => {
+  //       return elementValue < spec.values[0]
+  //     },
+  //     '<=': () => {
+  //       return elementValue <= spec.values[0]
+  //     },
+  //     '>': () => {
+  //       return elementValue > spec.values[0]
+  //     },
+  //     '>=': () => {
+  //       return elementValue >= spec.values[0]
+  //     },
+  //   }
 
-    let isValueInFilterSpec: boolean
+  //   let isValueInFilterSpec: boolean
 
-    if (spec.conditional) {
-      isValueInFilterSpec = conditionals[spec.conditional]()
-    } else {
-      isValueInFilterSpec = spec.values.includes(elementValue)
-    }
+  //   if (spec.conditional) {
+  //     isValueInFilterSpec = conditionals[spec.conditional]()
+  //   } else {
+  //     isValueInFilterSpec = spec.values.includes(elementValue)
+  //   }
 
-    if (spec.invert) return !isValueInFilterSpec
-    return isValueInFilterSpec
-  }
+  //   if (spec.invert) return !isValueInFilterSpec
+  //   return isValueInFilterSpec
+  // }
 
-  private notifyListeners(datasetId: string) {
+  private _notifyListeners(datasetId: string) {
     const dataset = this.datasets[datasetId]
     for (const notifyListener of dataset.filterListeners) {
       notifyListener(datasetId)
     }
   }
 
-  private async fetchDataset(config: { dataset: string }) {
+  private async _fetchDataset(config: { dataset: string }) {
     if (!this.files.length) {
       const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
       this.files = files
@@ -496,7 +506,7 @@ export default class DashboardDataManager {
     })
   }
 
-  private async fetchNetwork(path: string, vizDetails: any, cbStatus?: any) {
+  private async _fetchNetwork(path: string, vizDetails: any, cbStatus?: any) {
     return new Promise<NetworkLinks>((resolve, reject) => {
       const thread = new RoadNetworkLoader()
       try {
@@ -539,7 +549,7 @@ export default class DashboardDataManager {
     })
   }
 
-  private getFileSystem(name: string) {
+  private _getFileSystem(name: string) {
     const svnProject: FileSystemConfig[] = globalStore.state.svnProjects.filter(
       (a: FileSystemConfig) => a.slug === name
     )
