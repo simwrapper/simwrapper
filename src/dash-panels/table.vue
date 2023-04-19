@@ -16,7 +16,7 @@
     import 'vue-good-table/dist/vue-good-table.css'
     import { VueGoodTable } from 'vue-good-table';
 
-    import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
+    import { FileSystemConfig, Status } from '@/Globals'
     import globalStore from '@/store'
     
     export default defineComponent({
@@ -42,7 +42,7 @@
             columns: [] as any[],
             rows: [] as any[],
             paginationOptions: {
-                enabled: true
+                enabled: true,
             },
             dataColumnNames: ['date'],
             percentColumnNames: ['percent'],
@@ -51,7 +51,7 @@
     async mounted() {
         this.dataSet = await this.loadData()
         this.prepareData()
-        
+
         this.$emit('isLoaded')
     },
   beforeDestroy() {
@@ -115,7 +115,7 @@
         if (key in this.config === false) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `line chart: missing required key: ${key}`,
+            msg: `tablev2: missing required key: ${key}`,
             desc: JSON.stringify(this.config),
           })
         }
@@ -125,7 +125,7 @@
         if (this.config[deprecated]) {
           this.$store.commit('setStatus', {
             type: Status.WARNING,
-            msg: `line chart: deprecated field: ${deprecated}`,
+            msg: `tablev2: deprecated field: ${deprecated}`,
             desc: JSON.stringify(this.config),
           })
         }
@@ -136,6 +136,10 @@
         return array.every(element => {
             return typeof element === 'number' || element == null;
         });
+    },
+
+    columnFilterFn(data: any, filterString: string) {
+        return data.toString().includes(filterString.toString())
     },
 
     prepareData() {
@@ -150,7 +154,8 @@
         Object.entries(this.dataSet.allRows).forEach(
             ([key, value]) => {
                 this.columns.push({label: key.charAt(0).toUpperCase() + key.slice(1), field: key, filterOptions: {
-                    enabled: true
+                    enabled: true,
+                    filterFn: this.columnFilterFn,
                 },})
                 data = value
                 numberOfValues = data.values.length
@@ -164,11 +169,7 @@
         Object.entries(this.dataSet.allRows).forEach(
             ([key, value]) => {
                 data = value
-
-                if (this.onlyNumbers(data.values)) {
-                    numberColumns.push(key)
-                }
-
+                if (this.onlyNumbers(data.values)) numberColumns.push(key)
                 numberOfValues = data.values.length
                 for (let i = 0; i < numberOfValues; i++) {
                     this.rows[i][key] = data.values[i]
@@ -178,20 +179,13 @@
 
         Object.values(this.columns).forEach(
             (value) => {
-                
-                if (numberColumns.includes(value.field)) {
-                    Object.assign(value, {type: 'number'});
-                }
-
+                if (numberColumns.includes(value.field)) Object.assign(value, {type: 'number'});
                 if (this.dataColumnNames.includes(value.field)) {
                     Object.assign(value, {type: 'date'});
                     Object.assign(value, {dateInputFormat: 'yyyy-MM-dd'});
                     Object.assign(value, {dateOutputFormat: 'yyyy-MM-dd'});
                 }
-
-                if (this.percentColumnNames.includes(value.field)) {
-                    Object.assign(value, {type: 'percentage'});
-                }
+                if (this.percentColumnNames.includes(value.field)) Object.assign(value, {type: 'percentage'});
             }
         );
     },
