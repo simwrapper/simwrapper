@@ -4,11 +4,25 @@
   //- DATA COLUMN
   .widgets
     .widget
+        p.tight Display
         b-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="@")
 
           optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
+
+  //- DATA COLUMN
+  .widgets
+    .widget
+        p.tight Aggregate/Join by
+        b-select.selector(expanded v-model="combineBy")
+          option(label="Row count" value="@count")
+
+          optgroup(label="Join by...")
+            option(v-for="col in columnsInDataset(dataColumn.slice(0, dataColumn.indexOf('/')))" :value="col" :label="col")
+
+          //- optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
+          //-   option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
   //- NORMALIZE COLUMN
   .widgets(v-if="dataColumn && dataColumn.length > 1")
@@ -105,6 +119,7 @@ export interface FillColorDefinition {
   relative?: boolean
   dataset: string
   columnName: string
+  combineBy?: string
   normalize: string
   colorRamp?: Ramp
   fixedColors: string[]
@@ -147,6 +162,7 @@ export default defineComponent({
       steps: '9',
       flip: false,
       dataColumn: '',
+      combineBy: '@count',
       normalSelection: '',
       selectedColor: {} as Ramp,
       selectedSingleColor: '',
@@ -180,6 +196,9 @@ export default defineComponent({
       this.diffSelectionChanged()
     },
     dataColumn() {
+      this.emitColorSpecification()
+    },
+    combineBy() {
       this.emitColorSpecification()
     },
     diffDatasets() {
@@ -323,6 +342,7 @@ export default defineComponent({
       const fill = {
         dataset,
         columnName,
+        combineBy: this.combineBy,
         fixedColors,
         normalize: this.normalSelection,
         colorRamp: {
