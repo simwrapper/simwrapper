@@ -138,6 +138,13 @@
         });
     },
 
+    onlyDates(array: any[]) {
+        return array.every(element => {
+          console.log(element.length, element.split('-'))
+            return element.length == 10 && element.split('-').length == 3;
+        });
+    },
+
     columnFilterFn(data: any, filterString: string) {
         return data.toString().includes(filterString.toString())
     },
@@ -147,6 +154,7 @@
         let numberOfValues = 0;
         let data: any
         let numberColumns = [] as any[]
+        let dateColumns = [] as any[]
 
         this.columns = []
         this.rows = []
@@ -170,6 +178,7 @@
             ([key, value]) => {
                 data = value
                 if (this.onlyNumbers(data.values)) numberColumns.push(key)
+                else if (this.onlyDates(data.values)) dateColumns.push(key)
                 numberOfValues = data.values.length
                 for (let i = 0; i < numberOfValues; i++) {
                     this.rows[i][key] = data.values[i]
@@ -180,7 +189,7 @@
         Object.values(this.columns).forEach(
             (value) => {
                 if (numberColumns.includes(value.field)) Object.assign(value, {type: 'number'});
-                if (this.dataColumnNames.includes(value.field)) {
+                if (dateColumns.includes(value.field) || this.dataColumnNames.includes(value.field)) {
                     Object.assign(value, {type: 'date'});
                     Object.assign(value, {dateInputFormat: 'yyyy-MM-dd'});
                     Object.assign(value, {dateOutputFormat: 'yyyy-MM-dd'});
@@ -188,6 +197,22 @@
                 if (this.percentColumnNames.includes(value.field)) Object.assign(value, {type: 'percentage'});
             }
         );
+
+        // Enable or disable filter options for the rows (YAML option: enableFilter: false/true)
+        // The default is false
+        for (let i = 0; i < this.columns.length; i++) {
+          if (this.config.enableFilter) {
+            this.columns[i].filterOptions.enabled = true
+            this.columns[i].filterOptions.filterFn = this.columnFilterFn
+          } else {
+            this.columns[i].filterOptions.enabled = false
+          }
+        }
+
+        // Pagination Options
+        // Enable or disable filter options for the rows (YAML option: enableFilter: false/true)
+        // The default is false
+        if (!this.config.enablePaginationOptions) this.paginationOptions.enabled = false
     },
   },
     })
