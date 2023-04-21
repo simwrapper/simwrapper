@@ -2,7 +2,8 @@
     vue-good-table.myplot(
       :columns="columns"
       :rows="rows"
-      :pagination-options="paginationOptions")
+      :pagination-options="paginationOptions"
+      styleClass="vgt-table striped bordered")
     </template>
 
 <script lang="ts">
@@ -17,7 +18,6 @@ import { VueGoodTable } from 'vue-good-table'
 
 import { FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
-import { number } from 'mathjs'
 
 export default defineComponent({
   name: 'TablePanel',
@@ -189,7 +189,8 @@ export default defineComponent({
       })
 
       Object.values(this.columns).forEach(value => {
-        if (numberColumns.includes(value.field)) Object.assign(value, { type: 'number' })
+        if (numberColumns.includes(value.field))
+          Object.assign(value, { type: 'number', tdClass: 'vgt-right-align-text-for-numbers' })
         if (dateColumns.includes(value.field) || this.dataColumnNames.includes(value.field)) {
           Object.assign(value, { type: 'date' })
           Object.assign(value, { dateInputFormat: 'yyyy-MM-dd' })
@@ -211,15 +212,25 @@ export default defineComponent({
       }
 
       // Show/hide option
-      // if (Object.keys(this.config).includes('show') && Object.keys(this.config).includes('hide')) {
-      // } else if (Object.keys(this.config).includes('show')) {
-      //   for (let i = 0; i < this.columns.length; i++) {
-      //     if (!this.config.show.includes(this.columns[i].field)) {
-      //       this.columns[i].hidden = true
-      //     }
-      //   }
-      // } else if (Object.keys(this.config).includes('hide')) {
-      // }
+      if (Object.keys(this.config).includes('show') && Object.keys(this.config).includes('hide')) {
+        for (let i = 0; i < this.columns.length; i++) {
+          if (!this.config.show.includes(this.columns[i].field)) {
+            this.columns[i].hidden = true
+          }
+        }
+      } else if (Object.keys(this.config).includes('show')) {
+        for (let i = 0; i < this.columns.length; i++) {
+          if (!this.config.show.includes(this.columns[i].field)) {
+            this.columns[i].hidden = true
+          }
+        }
+      } else if (Object.keys(this.config).includes('hide')) {
+        for (let i = 0; i < this.columns.length; i++) {
+          if (this.config.hide.includes(this.columns[i].field)) {
+            this.columns[i].hidden = true
+          }
+        }
+      }
 
       // Change Pagination Options Dropdown
       if (numberOfValues < 5) {
@@ -231,7 +242,7 @@ export default defineComponent({
       } else if (numberOfValues < 10) {
         this.paginationOptions = {
           ...this.paginationOptions,
-          perPageDropdown: [numberOfValues, 5],
+          perPageDropdown: [5],
         }
       } else {
         this.paginationOptions = {
