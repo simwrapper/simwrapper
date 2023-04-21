@@ -2,9 +2,7 @@
     vue-good-table.myplot(
       :columns="columns"
       :rows="rows"
-      :fixed-header="true"
-      :pagination-options="paginationOptions"
-      compactMode)
+      :pagination-options="paginationOptions")
     </template>
 
 <script lang="ts">
