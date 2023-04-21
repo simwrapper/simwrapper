@@ -160,6 +160,7 @@ export default defineComponent({
       this.columns = []
       this.rows = []
 
+      // Create columns array for the header
       Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
         this.columns.push({
           label: key.charAt(0).toUpperCase() + key.slice(1),
@@ -174,10 +175,12 @@ export default defineComponent({
         numberOfValues = data.values.length
       })
 
+      // Add empty object for each row
       for (let i = 0; i < numberOfValues; i++) {
         this.rows.push({})
       }
 
+      // Add the data to the row-array and check if all values of a column are numbers or dates
       Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
         data = value
         if (this.onlyNumbers(data.values)) numberColumns.push(key)
@@ -188,6 +191,7 @@ export default defineComponent({
         }
       })
 
+      // Set the format for the columns. Number, date or percentage (default: text)
       Object.values(this.columns).forEach(value => {
         if (numberColumns.includes(value.field))
           Object.assign(value, { type: 'number', tdClass: 'vgt-right-align-text-for-numbers' })
