@@ -14,7 +14,7 @@
   //- DATA COLUMN
   .widgets
     .widget
-        p.tight Aggregate/Join by
+        p.tight Join by
         b-select.selector(expanded v-model="combineBy")
           option(label="Row count" value="@count")
 

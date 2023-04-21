@@ -792,9 +792,9 @@ const MyComponent = defineComponent({
 
       // console.log('triggering updates')
 
-      this.vizDetails = Object.assign({}, this.vizDetails)
       this.datasets[datasetId] = dataTable
-      this.datasets = Object.assign({}, this.datasets)
+      // this.vizDetails = Object.assign({}, this.vizDetails)
+      // this.datasets = Object.assign({}, this.datasets)
     },
 
     getBoundaryOffsetLookup(joinColumn: string) {
@@ -909,6 +909,7 @@ const MyComponent = defineComponent({
 
     handleNewFillColor(fill: FillColorDefinition) {
       // console.log('FILL COLOR')
+
       const color = fill
       this.fixedColors = color.fixedColors
       const columnName = color.columnName
@@ -916,11 +917,13 @@ const MyComponent = defineComponent({
       if (color.diffDatasets) {
         // *** diff mode *************************
         this.handleFillColorDiffMode(fill)
+        return
       } else if (!columnName) {
         // *** simple color **********************
         this.dataFillColors = color.fixedColors[0]
         this.dataCalculatedValueLabel = ''
         this.legendStore.clear('Color')
+        return
       } else {
         // *** Data column mode ******************
         const datasetKey = color.dataset || ''

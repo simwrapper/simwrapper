@@ -432,15 +432,14 @@ function buildColorsBasedOnNumericValues(props: {
   options: any
   combineBy?: string
 }) {
-  console.log(5555, props)
   const { numFeatures, data, lookup, normalize, options, combineBy } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
 
-  console.log('numFeatures is', numFeatures)
-  console.log('data length is', data.values.length)
-  console.log('lookup length is', lookup.values.length)
+  // console.log('numFeatures is', numFeatures)
+  // console.log('data length is', data.values.length)
+  // console.log('lookup length is', lookup.values.length)
 
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
@@ -461,9 +460,7 @@ function buildColorsBasedOnNumericValues(props: {
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
   // calculate aggregated values. This might be a job for crossfilter2 later
-
   const calculatedValues = new Float32Array(numFeatures)
-
   if (combineBy === '@count') {
     // *** COUNT rows that have this lookup
     for (let i = 0; i < data.values.length; i++) {
@@ -503,20 +500,13 @@ function buildColorsBasedOnNumericValues(props: {
     }
   }
 
-  // console.log({ normalizedValues, normalizedMax })
-
-  const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
-
   const rgbArray = new Uint8Array(numFeatures * 3)
+  const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < numFeatures; i++) {
     const value = normalizedValues[i] / (normalizedMax || 1)
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
-
-    // const offset = lookup ? lookup.values[i] : i
     const colorOffset = i * 3
-
-    // calculatedValues[offset] = value
 
     rgbArray[colorOffset + 0] = color[0]
     rgbArray[colorOffset + 1] = color[1]
@@ -527,7 +517,7 @@ function buildColorsBasedOnNumericValues(props: {
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
-  // need to figure out RANGES, not just breakpoints:
+  // display RANGES, not just breakpoints:
   let lowerBound = 0
   for (let i = 0; i < keys.length; i++) {
     const upperBound = keys[i]
