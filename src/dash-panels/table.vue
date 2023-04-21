@@ -17,6 +17,7 @@ import { VueGoodTable } from 'vue-good-table'
 
 import { FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
+import { number } from 'mathjs'
 
 export default defineComponent({
   name: 'TablePanel',
@@ -42,6 +43,9 @@ export default defineComponent({
       rows: [] as any[],
       paginationOptions: {
         enabled: true,
+        perPageDropdown: [] as any[],
+        dropdownAllowAll: false,
+        perPage: 5,
       },
       dataColumnNames: ['date'],
       percentColumnNames: ['percent'],
@@ -216,6 +220,25 @@ export default defineComponent({
       //   }
       // } else if (Object.keys(this.config).includes('hide')) {
       // }
+
+      // Change Pagination Options Dropdown
+      if (numberOfValues < 5) {
+        this.paginationOptions.perPage = numberOfValues
+        this.paginationOptions = {
+          ...this.paginationOptions,
+          perPageDropdown: [numberOfValues],
+        }
+      } else if (numberOfValues < 10) {
+        this.paginationOptions = {
+          ...this.paginationOptions,
+          perPageDropdown: [numberOfValues, 5],
+        }
+      } else {
+        this.paginationOptions = {
+          ...this.paginationOptions,
+          perPageDropdown: [5, 10],
+        }
+      }
     },
   },
 })
