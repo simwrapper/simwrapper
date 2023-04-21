@@ -1,59 +1,60 @@
 <template lang="pug">
-    vue-good-table(
+    vue-good-table.myplot(
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
-      :pagination-options="paginationOptions")
+      :pagination-options="paginationOptions"
+      compactMode)
     </template>
-    
-    <script lang="ts">
-    import { defineComponent } from 'vue'
-    import type { PropType } from 'vue'
-    
-    import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
-    import VuePlotly from '@/components/VuePlotly.vue'
 
-    import 'vue-good-table/dist/vue-good-table.css'
-    import { VueGoodTable } from 'vue-good-table';
+<script lang="ts">
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
-    import { FileSystemConfig, Status } from '@/Globals'
-    import globalStore from '@/store'
-    
-    export default defineComponent({
-      name: 'TablePanel',
-      components: { VuePlotly, VueGoodTable},
-      props: {
-        fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
-        subfolder: { type: String, required: true },
-        files: { type: Array, required: true },
-        config: { type: Object as any, required: true },
-        cardTitle: { type: String, required: true },
-        cardId: String,
-        datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import VuePlotly from '@/components/VuePlotly.vue'
+
+import 'vue-good-table/dist/vue-good-table.css'
+import { VueGoodTable } from 'vue-good-table'
+
+import { FileSystemConfig, Status } from '@/Globals'
+import globalStore from '@/store'
+
+export default defineComponent({
+  name: 'TablePanel',
+  components: { VuePlotly, VueGoodTable },
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    files: { type: Array, required: true },
+    config: { type: Object as any, required: true },
+    cardTitle: { type: String, required: true },
+    cardId: String,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+  },
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      // dataSet is either x,y or allRows[]
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      id: ('line-' + Math.floor(1e12 * Math.random())) as any,
+      YAMLrequirementsLine: { dataset: '' },
+      YAMLdeprecations: [],
+      columns: [] as any[],
+      rows: [] as any[],
+      paginationOptions: {
+        enabled: true,
       },
-      data: () => {
-        return {
-          globalState: globalStore.state,
-          // dataSet is either x,y or allRows[]
-          dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-          id: ('line-' + Math.floor(1e12 * Math.random())) as any,
-          YAMLrequirementsLine: { dataset: ''},
-          YAMLdeprecations: [],
-            columns: [] as any[],
-            rows: [] as any[],
-            paginationOptions: {
-                enabled: true,
-            },
-            dataColumnNames: ['date'],
-            percentColumnNames: ['percent'],
-        }
-      },
-    async mounted() {
-        this.dataSet = await this.loadData()
-        this.prepareData()
+      dataColumnNames: ['date'],
+      percentColumnNames: ['percent'],
+    }
+  },
+  async mounted() {
+    this.dataSet = await this.loadData()
+    this.prepareData()
 
-        this.$emit('isLoaded')
-    },
+    this.$emit('isLoaded')
+  },
   beforeDestroy() {
     this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
   },
@@ -133,95 +134,106 @@
     },
 
     onlyNumbers(array: any[]) {
-        return array.every(element => {
-            return typeof element === 'number' || element == null;
-        });
+      return array.every(element => {
+        return typeof element === 'number' || element == null
+      })
     },
 
     onlyDates(array: any[]) {
-        return array.every(element => {
-          console.log(element.length, element.split('-'))
-            return element.length == 10 && element.split('-').length == 3;
-        });
+      return array.every(element => {
+        return element.length == 10 && element.split('-').length == 3
+      })
     },
 
     columnFilterFn(data: any, filterString: string) {
-        return data.toString().includes(filterString.toString())
+      return data.toString().includes(filterString.toString())
     },
 
     prepareData() {
+      let numberOfValues = 0
+      let data: any
+      let numberColumns = [] as any[]
+      let dateColumns = [] as any[]
 
-        let numberOfValues = 0;
-        let data: any
-        let numberColumns = [] as any[]
-        let dateColumns = [] as any[]
+      this.columns = []
+      this.rows = []
 
-        this.columns = []
-        this.rows = []
+      Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
+        this.columns.push({
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          field: key,
+          hidden: false,
+          filterOptions: {
+            enabled: true,
+            filterFn: this.columnFilterFn,
+          },
+        })
+        data = value
+        numberOfValues = data.values.length
+      })
 
-        Object.entries(this.dataSet.allRows).forEach(
-            ([key, value]) => {
-                this.columns.push({label: key.charAt(0).toUpperCase() + key.slice(1), field: key, filterOptions: {
-                    enabled: true,
-                    filterFn: this.columnFilterFn,
-                },})
-                data = value
-                numberOfValues = data.values.length
-            }
-        );
+      for (let i = 0; i < numberOfValues; i++) {
+        this.rows.push({})
+      }
 
+      Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
+        data = value
+        if (this.onlyNumbers(data.values)) numberColumns.push(key)
+        else if (this.onlyDates(data.values)) dateColumns.push(key)
+        numberOfValues = data.values.length
         for (let i = 0; i < numberOfValues; i++) {
-            this.rows.push({})
+          this.rows[i][key] = data.values[i]
         }
+      })
 
-        Object.entries(this.dataSet.allRows).forEach(
-            ([key, value]) => {
-                data = value
-                if (this.onlyNumbers(data.values)) numberColumns.push(key)
-                else if (this.onlyDates(data.values)) dateColumns.push(key)
-                numberOfValues = data.values.length
-                for (let i = 0; i < numberOfValues; i++) {
-                    this.rows[i][key] = data.values[i]
-                } 
-            }
-        );
-
-        Object.values(this.columns).forEach(
-            (value) => {
-                if (numberColumns.includes(value.field)) Object.assign(value, {type: 'number'});
-                if (dateColumns.includes(value.field) || this.dataColumnNames.includes(value.field)) {
-                    Object.assign(value, {type: 'date'});
-                    Object.assign(value, {dateInputFormat: 'yyyy-MM-dd'});
-                    Object.assign(value, {dateOutputFormat: 'yyyy-MM-dd'});
-                }
-                if (this.percentColumnNames.includes(value.field)) Object.assign(value, {type: 'percentage'});
-            }
-        );
-
-        // Enable or disable filter options for the rows (YAML option: enableFilter: false/true)
-        // The default is false
-        for (let i = 0; i < this.columns.length; i++) {
-          if (this.config.enableFilter) {
-            this.columns[i].filterOptions.enabled = true
-            this.columns[i].filterOptions.filterFn = this.columnFilterFn
-          } else {
-            this.columns[i].filterOptions.enabled = false
-          }
+      Object.values(this.columns).forEach(value => {
+        if (numberColumns.includes(value.field)) Object.assign(value, { type: 'number' })
+        if (dateColumns.includes(value.field) || this.dataColumnNames.includes(value.field)) {
+          Object.assign(value, { type: 'date' })
+          Object.assign(value, { dateInputFormat: 'yyyy-MM-dd' })
+          Object.assign(value, { dateOutputFormat: 'yyyy-MM-dd' })
         }
+        if (this.percentColumnNames.includes(value.field))
+          Object.assign(value, { type: 'percentage' })
+      })
 
-        // Pagination Options
-        // Enable or disable filter options for the rows (YAML option: enableFilter: false/true)
-        // The default is false
-        if (!this.config.enablePaginationOptions) this.paginationOptions.enabled = false
+      // Enable or disable filter options for the rows (YAML option: enableFilter: false/true)
+      // The default is false
+      for (let i = 0; i < this.columns.length; i++) {
+        if (this.config.enableFilter) {
+          this.columns[i].filterOptions.enabled = true
+          this.columns[i].filterOptions.filterFn = this.columnFilterFn
+        } else {
+          this.columns[i].filterOptions.enabled = false
+        }
+      }
+
+      // Show/hide option
+      // if (Object.keys(this.config).includes('show') && Object.keys(this.config).includes('hide')) {
+      // } else if (Object.keys(this.config).includes('show')) {
+      //   for (let i = 0; i < this.columns.length; i++) {
+      //     if (!this.config.show.includes(this.columns[i].field)) {
+      //       this.columns[i].hidden = true
+      //     }
+      //   }
+      // } else if (Object.keys(this.config).includes('hide')) {
+      // }
     },
   },
-    })
-    </script>
-    
-    <style scoped lang="scss">
-    @import '@/styles.scss';
-    
-    @media only screen and (max-width: 640px) {
-    }
-    </style>
-    
+})
+</script>
+
+<style scoped lang="scss">
+@import '@/styles.scss';
+
+.myplot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+@media only screen and (max-width: 640px) {
+}
+</style>
