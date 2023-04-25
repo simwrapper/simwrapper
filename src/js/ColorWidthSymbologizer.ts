@@ -480,23 +480,26 @@ function buildColorsBasedOnNumericValues(props: {
   let normalizedValues = calculatedValues
   let normalizedMax = calculatedValues[0]
   let nMaxLength = normalizedValues.length
-  for (let i = 1; i < nMaxLength; ++i) {
-    if (calculatedValues[i] > normalizedMax) {
-      normalizedMax = calculatedValues[i]
-    }
-  }
+
+  for (let i = 1; i < nMaxLength; ++i) normalizedMax = Math.max(normalizedMax, calculatedValues[i])
   normalizedMax = normalizedMax ?? -Infinity
 
   // Normalize data
   if (normalize) {
-    // console.log('NORMALIZING')
-    normalizedValues = new Float32Array(calculatedValues.length)
+    normalizedValues = new Float32Array(numFeatures)
     normalizedMax = -Infinity
 
     // TODO: this is broken. Need to normalize using the lookup again?
     for (let i = 0; i < data.values.length; i++) {
-      normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
-      if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
+      const offset = lookup ? lookup.values[i] : i
+      const numerator = calculatedValues[offset]
+      const denominator = normalize.values[i]
+      if (denominator) {
+        normalizedValues[offset] = numerator / denominator
+        normalizedMax = Math.max(normalizedValues[offset], normalizedMax)
+      } else {
+        normalizedValues[offset] = NaN
+      }
     }
   }
 

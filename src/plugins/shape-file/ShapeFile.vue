@@ -95,6 +95,7 @@
         max-height="250"
         aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
         placeholder="+"
+        size="20"
       )
 
         optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
@@ -877,14 +878,56 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewFillColor(fillOrFilteredDataTable: FillColorDefinition | DataTable) {
-      console.log('FILL COLOR')
+    paintFillsWithFilter(dataTable: DataTable) {
+      console.log('FILTR now')
+      const columnName = this.currentUIFillColorDefinitions.columnName
+      const lookupColumn =
+        this.currentUIFillColorDefinitions.combineBy === '@count'
+          ? dataTable[`@@${columnName}`]
+          : dataTable[`@@${this.currentUIFillColorDefinitions.combineBy}`]
 
+      let normalColumn
+      if (this.currentUIFillColorDefinitions.normalize) {
+        const keys = this.currentUIFillColorDefinitions.normalize.split(':')
+        this.dataCalculatedValueLabel = columnName + '/' + keys[1]
+        const datasetKey = this.currentUIFillColorDefinitions.dataset
+
+        if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
+          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+        }
+        normalColumn = dataTable[keys[1]] // this.datasets[keys[0]][keys[1]]
+      }
+
+      const props = {
+        numFeatures: this.boundaries.length,
+        data: dataTable[columnName],
+        normalize: normalColumn,
+        lookup: lookupColumn,
+        filter: this.boundaryFilters,
+        options: this.currentUIFillColorDefinitions,
+        combineBy: this.currentUIFillColorDefinitions.combineBy,
+      }
+
+      const { array, legend, calculatedValues } =
+        ColorWidthSymbologizer.getColorsForDataColumn(props)
+
+      this.dataFillColors = array
+      this.dataCalculatedValues = calculatedValues
+      this.legendStore.setLegendSection({
+        section: 'Color',
+        column: columnName,
+        values: legend,
+      })
+    },
+
+    handleNewFillColor(fillOrFilteredDataTable: FillColorDefinition | DataTable) {
       // *** FILTER: if prop has a columnName, then this is a FillColorDefinition
-      const isFillColorDefinition = !!fillOrFilteredDataTable?.columnName
+      const isFillColorDefinition = 'columnName' in fillOrFilteredDataTable
+      const isFilterTable = !isFillColorDefinition
 
       // If we received a new fill color definition AND the dataset is filtered,
-      // bookmark that definition and process the filter first/instead.
+      // then bookmark that definition and process the filter first/instead.
+      // (note, processFiltersNow() will call this function again once the calcs are done)
       if (isFillColorDefinition) {
         const dataset = fillOrFilteredDataTable?.dataset as string
         const { filteredRows } = this.myDataManager.getFilteredDataset({
@@ -897,32 +940,8 @@ const MyComponent = defineComponent({
         }
       }
 
-      if (!isFillColorDefinition) {
-        console.log('FILTR now')
-        const dataTable = fillOrFilteredDataTable as DataTable
-        const columnName = this.currentUIFillColorDefinitions.columnName
-        const lookupColumn =
-          this.currentUIFillColorDefinitions.combineBy === '@count'
-            ? dataTable[`@@${columnName}`]
-            : dataTable[`@@${this.currentUIFillColorDefinitions.combineBy}`]
-
-        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataTable[columnName],
-          normalize: undefined,
-          lookup: lookupColumn,
-          filter: this.boundaryFilters,
-          options: this.currentUIFillColorDefinitions,
-          combineBy: this.currentUIFillColorDefinitions.combineBy,
-        })
-
-        this.dataFillColors = array
-        this.dataCalculatedValues = calculatedValues
-        this.legendStore.setLegendSection({
-          section: 'Color',
-          column: columnName,
-          values: legend,
-        })
+      if (isFilterTable) {
+        this.paintFillsWithFilter(fillOrFilteredDataTable)
         return
       }
 
@@ -971,6 +990,7 @@ const MyComponent = defineComponent({
           dataJoinColumn = columnName
         } else {
           console.warn('*** HOW DID I GET HERE?')
+          this.globalStore.commit('error', 'Could not match data to boundaries')
         }
 
         if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
@@ -1257,7 +1277,6 @@ const MyComponent = defineComponent({
         this.dataCalculatedValues = null
         this.dataCalculatedValueLabel = ''
       }
-      // this.filterListener()
     },
 
     handleNewRadius(radiusOptions: CircleRadiusDefinition) {
@@ -1336,11 +1355,7 @@ const MyComponent = defineComponent({
         }
       })
 
-      console.log('answer!', join)
       return join.length ? join : 'id'
-
-      // const [dataJoinColumn, featureJoinColumn] = join
-      // this.setupJoin(dataTable, datasetId, dataJoinColumn, featureJoinColumn)
     },
 
     async processFiltersNow(datasetName?: string) {
