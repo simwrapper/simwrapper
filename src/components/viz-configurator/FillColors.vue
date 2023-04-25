@@ -19,7 +19,7 @@
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
-            option(v-for="col in columnsInDataset(dataColumn.slice(0, dataColumn.indexOf('/')))" :value="col" :label="col")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])" :value="col" :label="col")
 
           //- optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
           //-   option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
@@ -237,9 +237,8 @@ export default defineComponent({
         this.dataColumn = selectedColumn
         this.datasetLabels = [...this.datasetLabels]
 
-        if (config?.normalize) {
-          this.normalSelection = config.normalize
-        }
+        if (config?.normalize) this.normalSelection = config.normalize
+        if (config?.combineBy) this.combineBy = config.combineBy
 
         if (config.colorRamp) {
           let colorChoice =

@@ -718,9 +718,8 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-      console.log('> setupJoin', props)
-
       const { dataTable, datasetId, dataJoinColumn } = props
+      console.log('> setupJoin', datasetId, dataJoinColumn)
 
       // make sure columns exist!
       if (!this.boundaryDataTable[this.featureJoinColumn])
@@ -879,7 +878,6 @@ const MyComponent = defineComponent({
     },
 
     paintFillsWithFilter(dataTable: DataTable) {
-      console.log('FILTR now')
       const columnName = this.currentUIFillColorDefinitions.columnName
       const lookupColumn =
         this.currentUIFillColorDefinitions.combineBy === '@count'
@@ -895,7 +893,7 @@ const MyComponent = defineComponent({
         if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         }
-        normalColumn = dataTable[keys[1]] // this.datasets[keys[0]][keys[1]]
+        normalColumn = dataTable[keys[1]]
       }
 
       const props = {
@@ -969,7 +967,7 @@ const MyComponent = defineComponent({
 
         // no selected dataset or datacol missing? Not sure what to do here, just give up...
         if (!selectedDataset) {
-          console.warn('color: no selected dataset')
+          console.warn('color: no selected dataset yet, maybe still loading')
           return
         }
         const dataColumn = selectedDataset[columnName]
@@ -982,11 +980,9 @@ const MyComponent = defineComponent({
         // Do we need a join? Join it
         let dataJoinColumn = ''
         if (color.combineBy && !(color.combineBy === '@count')) {
-          console.log('8a')
           dataJoinColumn = color.combineBy
         } else if (color.combineBy === '@count' ? columnName : color.combineBy) {
-          console.log('8b')
-          // rowcount specified -- join on the column name itself
+          // rowcount specified: join on the column name itself
           dataJoinColumn = columnName
         } else {
           console.warn('*** HOW DID I GET HERE?')
@@ -1324,10 +1320,18 @@ const MyComponent = defineComponent({
     async figureOutFeatureIdColumn() {
       console.log('figure out!')
 
-      // if it's in the yaml, we're done
+      // if user specified it in a data join in the YAML, we're done
+      if (this.featureJoinColumn) return this.featureJoinColumn
 
-      const featureDataset = this.datasets[Object.keys(this.vizDetails.datasets)[0]]
+      // if user specified it in the shapefile yaml, we're done
+      if ('string' !== typeof this.vizDetails.shapes && this.vizDetails.shapes.join) {
+        return this.vizDetails.shapes.join
+      }
+
+      // if there's only one column, we're done
+      const featureDataset = this.datasets[Object.keys(this.datasets)[0]]
       const availableColumns = Object.keys(featureDataset)
+      if (availableColumns.length === 1) return availableColumns[0]
 
       // ask the user
       const join: string = await new Promise((resolve, reject) => {
@@ -1800,7 +1804,11 @@ const MyComponent = defineComponent({
             ? Object.keys(dataset.allRows)[0]
             : this.config.datasets[datasetKey].join
 
-        const joinColumns = joiner.split(':')
+        const joinColumns = joiner?.split(':') || []
+
+        // if join is oldstyle "dataCol:FeatureID" the set the featureCol
+        if (joinColumns.length == 2) this.featureJoinColumn = joinColumns[0]
+        // TODO if join is one column then really we should just ignore it but for now...
         if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
 
         // save it!
@@ -1809,25 +1817,14 @@ const MyComponent = defineComponent({
         // link the joins if we have a join
         this.statusText = `Joining datasets...`
         await this.$nextTick()
-        if (joinColumns[0]) {
-          // this.setupJoin(this.datasets[datasetKey], datasetKey, joinColumns[1], joinColumns[0])
-          this.setupJoin({
-            dataTable: this.datasets[datasetKey],
-            datasetId: datasetKey,
-            dataJoinColumn: joinColumns[1],
-          })
-        }
 
         // Set up filters -- there could be some in YAML already
         this.myDataManager.addFilterListener(
           { dataset: this.datasetFilename },
           this.processFiltersNow
         )
-        // console.log(21, this.filterDefinitions)
 
         this.activateFiltersForDataset({ datasetKey })
-
-        // console.log(22, 'heloo')
         this.figureOutRemainingFilteringOptions()
       } catch (e) {
         const msg = '' + e
@@ -2102,6 +2099,7 @@ const MyComponent = defineComponent({
       // Need boundaries first so we can build the lookups.
       // await Promise.all([this.loadBoundaries(), this.loadDataset()])
       await this.loadBoundaries()
+
       this.filterShapesNow()
 
       this.isLoaded = true
@@ -2117,7 +2115,6 @@ const MyComponent = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.statusText = ''
-
       // Ask for shapes feature ID if it's not obvious/specified already
       this.featureJoinColumn = await this.figureOutFeatureIdColumn()
     } catch (e) {
