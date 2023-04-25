@@ -531,7 +531,7 @@ function buildColorsBasedOnNumericValues(props: {
   }
 
   const total = calculatedValues.reduce((a, b) => a + b, 0)
-  console.log({ total })
+  // console.log({ total })
 
   legend.push({
     label: `${Math.round(lowerBound * normalizedMax)} - ${normalizedMax}`,

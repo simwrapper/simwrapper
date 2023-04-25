@@ -15,7 +15,7 @@ import { rollup } from 'd3-array'
 
 import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
-import { DataTable, DataTableColumn, FileSystemConfig, Status } from '@/Globals'
+import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
@@ -68,7 +68,9 @@ export default class DashboardDataManager {
     for (const worker of this.threads) worker.terminate()
   }
 
-  public getFilteredDataset(config: { dataset: string }) {
+  public getFilteredDataset(config: { dataset: string }): { filteredRows: any[] | null } {
+    if (!(config.dataset in this.datasets)) return { filteredRows: null }
+
     const filteredRows = this.datasets[config.dataset].filteredRows
     return { filteredRows }
   }
@@ -103,7 +105,7 @@ export default class DashboardDataManager {
    *
    * @param config the configuration params from the YAML file. Must include dataset,
    *               and may include other optional parameters as needed by the viz
-   * @returns object with {x,y} or {allRows[]}
+   * @returns allRows object, containing a DataTableColumn for each column in this dataset
    */
   public async getDataset(config: configuration, options?: { highPrecision: boolean }) {
     try {
@@ -126,6 +128,7 @@ export default class DashboardDataManager {
       let myDataset = await this.datasets[config.dataset].dataset
 
       // make a copy because each viz in a dashboard might be hacking it differently
+      // TODO: be more "functional" and return the object itself, and let views create copies if they need to
       let allRows = { ...myDataset }
 
       // remove ignored columns
@@ -135,7 +138,7 @@ export default class DashboardDataManager {
         })
       }
 
-      // if useLastRow, do that
+      // if useLastRow, drop all rows except the last row
       if (config.useLastRow) {
         Object.keys(allRows).forEach(colName => {
           const values = myDataset[colName].values
@@ -203,7 +206,7 @@ export default class DashboardDataManager {
    * @param props key, dataTable, and filename associated with this DataTable
    */
   public setPreloadedDataset(props: { key: string; dataTable: DataTable; filename: string }) {
-    this.datasets[props.filename] = {
+    this.datasets[props.key] = {
       dataset: new Promise<DataTable>((resolve, reject) => {
         resolve(props.dataTable)
       }),
@@ -307,6 +310,9 @@ export default class DashboardDataManager {
     console.log('> setFilter', dataset, column, value)
     // Filter might be single or an array; make it an array.
     const values = Array.isArray(value) ? value : [value]
+    if (this.datasets[dataset].activeFilters == null) {
+      this.datasets[dataset].activeFilters = {}
+    }
     const allFilters = this.datasets[dataset].activeFilters
     // a second click on a filter means REMOVE this filter.
     // if (allFilters[column] !== undefined && allFilters[column] === values) {
@@ -421,6 +427,18 @@ export default class DashboardDataManager {
         filteredRows.push(row)
       }
     }
+
+    // For now let's leave the filtered rows as an array of data objects
+
+    // // CONVERT array of objects to column-based DataTableColumns
+    // const filteredDataTable: { [id: string]: DataTableColumn } = {}
+    // allColumns.forEach(columnId => {
+    //   const column = { name: columnId, values: [], type: DataType.UNKNOWN } as any
+    //   for (const row of filteredRows) column.values.push(row[columnId])
+    //   filteredDataTable[columnId] = column
+    // })
+
+    // metaData.filteredRows = filteredDataTable as any
 
     metaData.filteredRows = filteredRows
     this._notifyListeners(datasetId)

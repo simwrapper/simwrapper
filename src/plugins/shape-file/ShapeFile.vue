@@ -85,23 +85,24 @@
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
-    //- //- Filter ADDers
-    //- .filter(v-if="availableFilterColumns.length")
-    //-   p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
-    //-   b-dropdown(v-model="chosenNewFilterColumn"
-    //-     @change="handleUserCreatedNewFilter"
-    //-     :scrollable="availableFilterColumns.length > 10"
-    //-     max-height="250"
-    //-     aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
-    //-   )
-    //-     template(#trigger="{ active }")
-    //-       b-button.is-primary.is-outlined(
-    //-         label="+"
-    //-       )
+    //- Filter ADDers
+    .filter(v-if="availableFilterColumns.length")
+      p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
 
-    //-     b-dropdown-item(v-for="option in availableFilterColumns"
-    //-       :key="option" :value="option" aria-role="listitem"
-    //-     ) {{ option }}
+      b-select(v-model="chosenNewFilterColumn"
+        @input="handleUserCreatedNewFilter"
+        :scrollable="availableFilterColumns.length > 10"
+        max-height="250"
+        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+        placeholder="+"
+      )
+
+        optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
+          option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
+
+        //- b-dropdown-item(v-for="option in availableFilterColumns"
+        //-   :key="option" :value="option" aria-role="listitem"
+        //- ) {{ option }}
 
     .filter.right
       p Transparency
@@ -163,6 +164,7 @@ interface FilterDetails {
   label?: string
   options: any[]
   active: any[]
+  dataset?: any
 }
 
 const MyComponent = defineComponent({
@@ -236,8 +238,10 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       config: {} as any,
-      // these are the filters defined in the UI
+      // these are the settings defined in the UI
       currentUIFilterDefinitions: {} as any,
+      currentUIFillColorDefinitions: {} as any,
+
       // these are the processed filter defs passed to the data manager
       filterDefinitions: [] as FilterDefinition[],
 
@@ -246,7 +250,7 @@ const MyComponent = defineComponent({
       boundaryFilters: new Float32Array(0),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
       boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
-      datasetKeyToFilename: {} as any,
+      // datasetKeyToFilename: {} as any,
       datasetValuesColumn: '',
       datasetValuesColumnOptions: [] as string[],
 
@@ -308,6 +312,10 @@ const MyComponent = defineComponent({
       else return ['line-color', 'line-width', 'filters']
     },
 
+    datasetChoices(): string[] {
+      return Object.keys(this.datasets)
+    },
+
     generatedExportFilename(): string {
       let filename = Sanitize(this.yamlConfig ?? '')
       filename = filename.replaceAll(' ', '-')
@@ -358,6 +366,11 @@ const MyComponent = defineComponent({
         const right = deckmap.clientWidth > 640 ? '280px' : '36px'
         logo.style.right = right
       }
+    },
+
+    columnsInDataset(datasetId: string) {
+      const data = this.datasets[datasetId]
+      return Object.keys(data)
     },
 
     filterShapesNow() {
@@ -674,34 +687,18 @@ const MyComponent = defineComponent({
       const datasetId = key
       this.datasetFilename = filename || datasetId
 
-      console.log('TODO: HANDLE NEW DATSET: ')
-      this.setupPreJoin(dataTable, datasetId)
-      this.figureOutRemainingFilteringOptions()
-      return
-    },
+      console.log('HANDLE NEW DATSET:', datasetId, this.datasetFilename)
 
-    setupPreJoin(dataTable: DataTable, datasetId: string) {
-      console.log('> setupPreJoin', datasetId)
-
-      // make sure columns exist!
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
-      // if (!dataTable[dataJoinColumn])
-      //   throw Error(`Dataset ${datasetId} does not have column ${dataJoinColumn}`)
 
-      // add this dataset to the datamanager
-      // TODO yikes no lookup yet! This will -bite us-
-      // dataTable['@'] = lookupColumn
       this.myDataManager.setPreloadedDataset({
         key: datasetId,
         dataTable,
         filename: this.datasetFilename,
       })
 
-      this.myDataManager.addFilterListener(
-        { dataset: this.datasetFilename },
-        this.processFiltersNow
-      )
+      this.myDataManager.addFilterListener({ dataset: datasetId }, this.processFiltersNow)
 
       this.vizDetails.datasets[datasetId] = {
         file: this.datasetFilename,
@@ -712,20 +709,17 @@ const MyComponent = defineComponent({
         //     : `${featureJoinColumn}:${dataJoinColumn}`,
       } as any
 
-      // console.log('triggering updates')
-
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.datasets[datasetId] = dataTable
       this.datasets = Object.assign({}, this.datasets)
+
+      this.figureOutRemainingFilteringOptions()
     },
 
-    setupJoin(
-      dataTable: DataTable,
-      datasetId: string,
-      dataJoinColumn: string
-      // featureJoinColumn: string
-    ) {
-      // console.log('> setupJoin', datasetId)
+    setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+      console.log('> setupJoin', props)
+
+      const { dataTable, datasetId, dataJoinColumn } = props
 
       // make sure columns exist!
       if (!this.boundaryDataTable[this.featureJoinColumn])
@@ -734,22 +728,24 @@ const MyComponent = defineComponent({
         throw Error(`Dataset ${datasetId} does not have column ${dataJoinColumn}`)
 
       // create lookup column and write lookup offsets
-      const lookupColumn: DataTableColumn = { type: DataType.LOOKUP, values: [], name: '@' }
-
+      const lookupColumn: DataTableColumn = {
+        type: DataType.LOOKUP,
+        values: [],
+        name: `@@${dataJoinColumn}`,
+      }
       const dataValues = dataTable[dataJoinColumn].values
       const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
 
-      // console.log('retrieving lookup values:', featureJoinColumn, dataJoinColumn)
-
       // if user wants specific tooltips based on this dataset, save the values
+      // TODO - this is in the wrong place and probably causes problems with
+      // multi-line datasets
+
       const tips = this.vizDetails.tooltip || []
       const relevantTips = tips
         .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
         .map(tip => {
           return [tip, tip.substring(1 + tip.indexOf('.'))]
         })
-
-      // console.log({ relevantTips })
 
       for (let i = 0; i < dataValues.length; i++) {
         const featureOffset = boundaryOffsets[dataValues[i]]
@@ -766,20 +762,15 @@ const MyComponent = defineComponent({
         REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
       }
 
-      // console.log({ boundaries: this.boundaries })
-
-      // add this dataset to the datamanager
-      dataTable['@'] = lookupColumn
+      // add/replace this dataset in the datamanager, with the new lookup column
+      dataTable[`@@${dataJoinColumn}`] = lookupColumn
       this.myDataManager.setPreloadedDataset({
         key: datasetId,
         dataTable,
         filename: this.datasetFilename,
       })
 
-      this.myDataManager.addFilterListener(
-        { dataset: this.datasetFilename },
-        this.processFiltersNow
-      )
+      this.myDataManager.addFilterListener({ dataset: datasetId }, this.processFiltersNow)
 
       this.vizDetails.datasets[datasetId] = {
         file: this.datasetFilename,
@@ -791,10 +782,7 @@ const MyComponent = defineComponent({
       } as any
 
       // console.log('triggering updates')
-
       this.datasets[datasetId] = dataTable
-      // this.vizDetails = Object.assign({}, this.vizDetails)
-      // this.datasets = Object.assign({}, this.datasets)
     },
 
     getBoundaryOffsetLookup(joinColumn: string) {
@@ -825,23 +813,6 @@ const MyComponent = defineComponent({
       this.availableFilterColumns = columns
     },
 
-    // private handleNewFill(fill: FillDefinition) {
-    //   this.fixedColors = fill.fixedColors
-
-    //   const columnName = fill.columnName
-
-    //   if (columnName) {
-    //     const datasetKey = fill.dataset
-    //     const selectedDataset = this.datasets[datasetKey]
-    //     if (selectedDataset) {
-    //       this.activeColumn = 'value'
-    //       this.datasetValuesColumn = columnName
-    //     }
-    //   }
-
-    //   this.filterListener()
-    // }
-
     handleNewFilters(filters: any) {
       // Filter shapes
       this.currentUIFilterDefinitions = filters
@@ -851,7 +822,6 @@ const MyComponent = defineComponent({
       // Filter datasets
       Object.keys(this.datasets).forEach((datasetKey, i) => {
         if (i === 0) return // skip shapefile
-        // this.myDataManager.addFilterListener({ dataset: key }, this.processFiltersNow)
         this.activateFiltersForDataset({ datasetKey })
       })
 
@@ -872,9 +842,9 @@ const MyComponent = defineComponent({
       // console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
 
       if (dataset1 && dataset2) {
-        const lookup1 = dataset1['@']
+        const lookup1 = dataset1[`@${columnName}`]
         const dataCol1 = dataset1[columnName]
-        const lookup2 = dataset2['@']
+        const lookup2 = dataset2[`@${columnName}`]
         const dataCol2 = dataset2[columnName]
 
         if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
@@ -907,16 +877,64 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewFillColor(fill: FillColorDefinition) {
-      // console.log('FILL COLOR')
+    handleNewFillColor(fillOrFilteredDataTable: FillColorDefinition | DataTable) {
+      console.log('FILL COLOR')
 
-      const color = fill
+      // *** FILTER: if prop has a columnName, then this is a FillColorDefinition
+      const isFillColorDefinition = !!fillOrFilteredDataTable?.columnName
+
+      // If we received a new fill color definition AND the dataset is filtered,
+      // bookmark that definition and process the filter first/instead.
+      if (isFillColorDefinition) {
+        const dataset = fillOrFilteredDataTable?.dataset as string
+        const { filteredRows } = this.myDataManager.getFilteredDataset({
+          dataset: `${dataset}` || '',
+        })
+        if (filteredRows && filteredRows.length) {
+          this.currentUIFillColorDefinitions = fillOrFilteredDataTable
+          this.processFiltersNow(dataset)
+          return
+        }
+      }
+
+      if (!isFillColorDefinition) {
+        console.log('FILTR now')
+        const dataTable = fillOrFilteredDataTable as DataTable
+        const columnName = this.currentUIFillColorDefinitions.columnName
+        const lookupColumn =
+          this.currentUIFillColorDefinitions.combineBy === '@count'
+            ? dataTable[`@@${columnName}`]
+            : dataTable[`@@${this.currentUIFillColorDefinitions.combineBy}`]
+
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+          numFeatures: this.boundaries.length,
+          data: dataTable[columnName],
+          normalize: undefined,
+          lookup: lookupColumn,
+          filter: this.boundaryFilters,
+          options: this.currentUIFillColorDefinitions,
+          combineBy: this.currentUIFillColorDefinitions.combineBy,
+        })
+
+        this.dataFillColors = array
+        this.dataCalculatedValues = calculatedValues
+        this.legendStore.setLegendSection({
+          section: 'Color',
+          column: columnName,
+          values: legend,
+        })
+        return
+      }
+
+      const color = fillOrFilteredDataTable as FillColorDefinition
+      this.currentUIFillColorDefinitions = color
+
       this.fixedColors = color.fixedColors
       const columnName = color.columnName
 
       if (color.diffDatasets) {
         // *** diff mode *************************
-        this.handleFillColorDiffMode(fill)
+        this.handleFillColorDiffMode(color)
         return
       } else if (!columnName) {
         // *** simple color **********************
@@ -940,17 +958,30 @@ const MyComponent = defineComponent({
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
         }
 
-        // Do we have a join? Join it
+        this.dataCalculatedValueLabel = columnName ?? ''
+
+        // Do we need a join? Join it
+        let dataJoinColumn = ''
         if (color.combineBy && !(color.combineBy === '@count')) {
-          // combine/join specified -- use that column to join
-          this.setupJoin(selectedDataset, datasetKey, color.combineBy)
+          console.log('8a')
+          dataJoinColumn = color.combineBy
         } else if (color.combineBy === '@count' ? columnName : color.combineBy) {
+          console.log('8b')
           // rowcount specified -- join on the column name itself
-          this.setupJoin(selectedDataset, datasetKey, columnName)
+          dataJoinColumn = columnName
+        } else {
+          console.warn('*** HOW DID I GET HERE?')
         }
 
-        const lookupColumn = selectedDataset['@']
-        console.log({ lookupColumn, combineBy: color.combineBy })
+        if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
+          this.setupJoin({
+            datasetId: datasetKey,
+            dataTable: selectedDataset,
+            dataJoinColumn,
+          })
+        }
+
+        const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
         // Figure out the normal
         let normalColumn
@@ -962,7 +993,6 @@ const MyComponent = defineComponent({
           }
           normalColumn = this.datasets[keys[0]][keys[1]]
         }
-        // console.log({ normalColumn })
 
         // Calculate colors for each feature
         // console.log('Updating fills...')
@@ -1315,110 +1345,116 @@ const MyComponent = defineComponent({
 
     async processFiltersNow(datasetName?: string) {
       // This callback occurs when there is a newly filtered dataset.
-      // - Grouping is required because some datasets will have multiple rows per TAZ/Link/Shape
-      //   (for example, one row per transit operator with trip data for a zone)
-      // - We need to get the correct join columns so that grouping happens on the right key
-      // - Then apply those values (summed if necessary) to the boundaries.
 
-      try {
-        console.log('> processFiltersNow', datasetName)
+      console.log('> processFiltersNow', datasetName)
 
-        // get dataset + join for this filename --> reverse lookup by filename
-        const datasetKey = Object.entries(this.datasetKeyToFilename).filter(
-          d => d[1] == datasetName
-        )[0][0]
+      const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
+      const filteredDataTable: { [id: string]: DataTableColumn } = {}
 
-        let join = this.vizDetails.datasets[datasetKey].join.split(':')
-        if (join.length == 1) join.push(join[0])
+      // if we got NULL, remove this filter totally
+      if (filteredRows) {
+        // turn array of objects into data columns for consumption by fill/line/height doodads
+        // (do this here... or should this be somewhere else?)
 
-        let { filteredRows } = await this.myDataManager.getFilteredDataset({
-          dataset: datasetName || '',
+        // CONVERT array of objects to column-based DataTableColumns
+        const allColumns = filteredRows.length > 0 ? Object.keys(filteredRows[0]) : []
+        allColumns.forEach(columnId => {
+          const column = { name: columnId, values: [], type: DataType.UNKNOWN } as any
+          for (const row of filteredRows) column.values.push(row[columnId])
+          filteredDataTable[columnId] = column
         })
-
-        if (!filteredRows) return
-
-        // hide shapes that don't match filter.
-        const hideFeature = new Uint8Array(this.boundaries.length).fill(1) // hide by default
-        filteredRows.forEach(row => {
-          const rowNumber = row['@']
-          hideFeature[rowNumber] = 0
-        })
-        const newFilter = new Float32Array(this.boundaries.length)
-        for (let i = 0; i < this.boundaries.length; i++) {
-          if (this.boundaryFilters[i] == -1 || hideFeature[i]) newFilter[i] = -1
-        }
-
-        this.boundaryFilters = newFilter
-        return
-
-        // let groupLookup: any // this will be the map of boundary IDs to rows
-        // let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
-
-        // if (!filteredRows) {
-        //   // is filter UN-selected? Rebuild full dataset
-        //   // TODO: FIXME this is old ------:
-        //   // const joinCol = this.boundaryDataTable[this.datasetJoinColumn].values
-        //   // const dataValues = this.boundaryDataTable[this.datasetValuesColumn].values
-        //   // groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
-        //   filteredRows = [] // get rid of this
-        // } else {
-        //   // group filtered values by lookup key
-        //   groupLookup = group(filteredRows, d => d[join[0]])
-        //   groupIndex = this.datasetValuesColumn // index is values column name
-        // }
-
-        // console.log({ groupLookup })
-
-        // // Build the filtered dataset columns
-        // const filteredDataset: DataTable = {}
-        // const columns = Object.keys(filteredRows[0])
-        // for (const column of columns) {
-        //   filteredDataset[column] = { name: column, values: [], type: DataType.NUMBER }
-        // }
-        // for (let i = 0; i < filteredRows.length; i++) {
-        //   for (const column of columns) {
-        //     filteredDataset[column].values[i] = filteredRows[i][column]
-        //   }
-        // }
-
-        // console.log({ filteredDataset })
-        // // ok we have a filter, let's update the geojson values
-        // this.setupJoin(filteredDataset, '_filter', join[0], join[1])
-
-        // // const filteredBoundaries = [] as any[]
-
-        //       this.boundaries.forEach(boundary => {
-        //         // id can be in root of feature, or in properties
-        //         let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
-        //         if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
-
-        //         // the groupy thing doesn't auto-convert between strings and numbers
-        //         let row = groupLookup.get(lookupKey)
-        //         if (row == undefined) row = groupLookup.get('' + lookupKey)
-
-        //         // do we have an answer
-        //         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-        //         filteredBoundaries.push(boundary)
-        //       })
-
-        // // centroids
-        // const filteredCentroids = [] as any[]
-        // this.centroids.forEach(centroid => {
-        //   const centroidId = centroid.properties!.id
-        //   if (!centroidId) return
-
-        //   let row = groupLookup.get(centroidId)
-        //   if (row == undefined) row = groupLookup.get('' + centroidId)
-        //   centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
-        //   filteredCentroids.push(centroid)
-        // })
-
-        // this.boundaries = filteredBoundaries
-        // this.centroids = filteredCentroids
-      } catch (e) {
-        console.error('' + e)
       }
+
+      // now redraw colors ... wit dis
+      this.handleNewFillColor(filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions)
     },
+
+    // ------------------------------------
+    // TODO do shapes later
+
+    // // hide shapes that don't match filter.
+    // const hideFeature = new Uint8Array(this.boundaries.length).fill(1) // hide by default
+    // filteredRows.forEach(row => {
+    //   const rowNumber = row['@']
+    //   hideFeature[rowNumber] = 0
+    // })
+    // const newFilter = new Float32Array(this.boundaries.length)
+    // for (let i = 0; i < this.boundaries.length; i++) {
+    //   if (this.boundaryFilters[i] == -1 || hideFeature[i]) newFilter[i] = -1
+    // }
+
+    // this.boundaryFilters = newFilter
+    // return
+
+    // ------------------------------------
+
+    // let groupLookup: any // this will be the map of boundary IDs to rows
+    // let groupIndex: any = 1 // unfiltered values will always be element 1 of [key, values[]]
+
+    // if (!filteredRows) {
+    //   // is filter UN-selected? Rebuild full dataset
+    //   // TODO: FIXME this is old ------:
+    //   // const joinCol = this.boundaryDataTable[this.datasetJoinColumn].values
+    //   // const dataValues = this.boundaryDataTable[this.datasetValuesColumn].values
+    //   // groupLookup = group(zip(joinCol, dataValues), d => d[0]) // group by join key
+    //   filteredRows = [] // get rid of this
+    // } else {
+    //   // group filtered values by lookup key
+    //   groupLookup = group(filteredRows, d => d[join[0]])
+    //   groupIndex = this.datasetValuesColumn // index is values column name
+    // }
+
+    // console.log({ groupLookup })
+
+    // // Build the filtered dataset columns
+    // const filteredDataset: DataTable = {}
+    // const columns = Object.keys(filteredRows[0])
+    // for (const column of columns) {
+    //   filteredDataset[column] = { name: column, values: [], type: DataType.NUMBER }
+    // }
+    // for (let i = 0; i < filteredRows.length; i++) {
+    //   for (const column of columns) {
+    //     filteredDataset[column].values[i] = filteredRows[i][column]
+    //   }
+    // }
+
+    // console.log({ filteredDataset })
+    // // ok we have a filter, let's update the geojson values
+    // this.setupJoin(filteredDataset, '_filter', join[0], join[1])
+
+    // // const filteredBoundaries = [] as any[]
+
+    //       this.boundaries.forEach(boundary => {
+    //         // id can be in root of feature, or in properties
+    //         let lookupKey = boundary.properties[joinShapesBy] || boundary[joinShapesBy]
+    //         if (!lookupKey) this.$store.commit('error', `Shape is missing property "${joinShapesBy}"`)
+
+    //         // the groupy thing doesn't auto-convert between strings and numbers
+    //         let row = groupLookup.get(lookupKey)
+    //         if (row == undefined) row = groupLookup.get('' + lookupKey)
+
+    //         // do we have an answer
+    //         boundary.properties.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
+    //         filteredBoundaries.push(boundary)
+    //       })
+
+    // // centroids
+    // const filteredCentroids = [] as any[]
+    // this.centroids.forEach(centroid => {
+    //   const centroidId = centroid.properties!.id
+    //   if (!centroidId) return
+
+    //   let row = groupLookup.get(centroidId)
+    //   if (row == undefined) row = groupLookup.get('' + centroidId)
+    //   centroid.properties!.value = row ? sum(row.map((v: any) => v[groupIndex])) : 'N/A'
+    //   filteredCentroids.push(centroid)
+    // })
+
+    // this.boundaries = filteredBoundaries
+    // this.centroids = filteredCentroids
+    // } catch (e) {
+    //   console.error('' + e)
+    // }
 
     async loadBoundaries() {
       let now = Date.now()
@@ -1754,14 +1790,17 @@ const MyComponent = defineComponent({
 
         // save it!
         this.datasets[datasetKey] = dataset.allRows
-        this.datasetKeyToFilename[datasetKey] = this.datasetFilename
 
         // link the joins if we have a join
         this.statusText = `Joining datasets...`
         await this.$nextTick()
         if (joinColumns[0]) {
           // this.setupJoin(this.datasets[datasetKey], datasetKey, joinColumns[1], joinColumns[0])
-          this.setupJoin(this.datasets[datasetKey], datasetKey, joinColumns[1])
+          this.setupJoin({
+            dataTable: this.datasets[datasetKey],
+            datasetId: datasetKey,
+            dataJoinColumn: joinColumns[1],
+          })
         }
 
         // Set up filters -- there could be some in YAML already
@@ -1785,13 +1824,11 @@ const MyComponent = defineComponent({
 
     activateFiltersForDataset(props: { datasetKey: string }) {
       // console.log('> activateFiltersForDataset ', props.datasetKey)
-      const filters = this.filterDefinitions.filter(f => f.dataset == props.datasetKey)
+      const filters = this.filterDefinitions.filter(f => f.dataset === props.datasetKey)
 
       for (const filter of filters) {
         console.log(123, filter)
-        this.myDataManager.setFilter(
-          Object.assign(filter, { dataset: this.datasetKeyToFilename[props.datasetKey] })
-        )
+        this.myDataManager.setFilter(Object.assign(filter, { dataset: props.datasetKey }))
       }
     },
 
@@ -1802,7 +1839,12 @@ const MyComponent = defineComponent({
       // Get the set of options available for each filter
       filterColumns.forEach((f: string) => {
         let options = [...new Set(this.boundaryDataTable[f].values)]
-        this.filters[f] = { column: f, label: f, options, active: [] }
+        this.filters[f] = {
+          column: f,
+          label: f,
+          options,
+          active: [],
+        }
       })
 
       // perhaps we have some active filters in the URL query
@@ -1841,13 +1883,15 @@ const MyComponent = defineComponent({
     },
 
     handleUserSelectedNewFilters(column: string) {
-      const active = this.filters[column].active
-      // TODO FIXME
+      const filter = this.filters[column]
+      const active = filter.active
+      console.log({ filter, active })
+
       this.myDataManager.setFilter({
-        dataset: this.datasetFilename,
+        dataset: filter.dataset || this.datasetFilename,
         column,
         invert: false,
-        value: '', // <-- what should this be?
+        value: active, // '', // <-- what should this be?
       })
 
       // update URL too
@@ -1859,7 +1903,10 @@ const MyComponent = defineComponent({
           delete queryFilters[filter[0]]
         }
       }
-      this.$router.replace({ query: queryFilters })
+      // only update if query actually changed
+      if (JSON.stringify(this.$route.query) !== JSON.stringify(queryFilters)) {
+        this.$router.replace({ query: queryFilters })
+      }
     },
 
     showCircles(show: boolean) {
@@ -1871,18 +1918,18 @@ const MyComponent = defineComponent({
       this.$router.replace({ query })
     },
 
-    async handleUserCreatedNewFilter() {
-      await this.$nextTick()
+    handleUserCreatedNewFilter() {
       console.log('ADD NEW FILTER:', this.chosenNewFilterColumn)
-      const f = this.chosenNewFilterColumn
-      let options = [...new Set(this.boundaryDataTable[f].values)]
+      const [dataset, column] = this.chosenNewFilterColumn.split(':')
+
+      let options = [...new Set(this.datasets[dataset][column].values)]
       this.chosenNewFilterColumn = ''
 
       if (options.length > 48) {
-        alert('Column ' + f + ' has too many values to be used as a filter.')
+        alert(`Column ${column} has too many values to be used as a filter.`)
         return
       }
-      this.filters[f] = { column: f, label: f, options, active: [] }
+      this.filters[column] = { column, label: column, options, active: [], dataset }
 
       this.figureOutRemainingFilteringOptions()
     },

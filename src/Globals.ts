@@ -34,6 +34,7 @@ export enum DataType {
   BOOLEAN,
   DATE,
   LOOKUP,
+  UNKNOWN,
 }
 
 export interface DataTable {

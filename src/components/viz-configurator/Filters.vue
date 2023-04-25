@@ -17,8 +17,8 @@
 
   .widgets
     .widget.boop
-      h4 New Filter
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="New filter...")
+      //- h4 New Filter
+      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="Add new filter...")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"

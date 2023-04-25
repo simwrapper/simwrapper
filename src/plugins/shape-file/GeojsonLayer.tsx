@@ -174,7 +174,7 @@ export default function Component({
     const propList = []
 
     // calculated value
-    if (calculatedValues && calculatedValueLabel) {
+    if (calculatedValues) {
       const key = calculatedValueLabel || 'Value'
       let value = precise(calculatedValues[index])
 

@@ -114,13 +114,13 @@ interface Ramp {
 }
 
 export interface FillColorDefinition {
+  dataset: string
+  columnName: string
+  normalize: string
   diff?: string
   diffDatasets?: string[]
   relative?: boolean
-  dataset: string
-  columnName: string
   combineBy?: string
-  normalize: string
   colorRamp?: Ramp
   fixedColors: string[]
 }
