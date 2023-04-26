@@ -105,7 +105,10 @@ export default new Vuex.Store({
     setFullScreen(state, value: boolean) {
       state.isFullScreen = value
     },
-    setMapStyles(state, value: { light: string; dark: string }) {
+    setMapStyles(
+      state,
+      value: { light: string; dark: string; transparentLight: string; transparentDark: string }
+    ) {
       state.mapStyles = value
     },
     setMapCamera(

@@ -263,7 +263,7 @@ const Component = defineComponent({
 
     setupResizer() {
       this.resizer = new ResizeObserver(() => {
-        this.mymap.resize()
+        if (this.mymap) this.mymap.resize()
       })
 
       const viz = document.getElementById(this.containerId) as HTMLElement
