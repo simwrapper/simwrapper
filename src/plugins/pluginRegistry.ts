@@ -7,6 +7,7 @@ import Summary from '@/plugins/calculation-table/CalculationTable.vue'
 import Network from '@/plugins/links-gl/NetworkLinks.vue'
 import Transit from '@/plugins/transit-demand/TransitDemand.vue'
 import AggregateOd from '@/plugins/aggregate-od/AggregateOd.vue'
+import Plotly from '@/plugins/plotly/PlotlyDiagram.vue'
 import Sankey from '@/plugins/sankey/SankeyDiagram.vue'
 import VegaLite from '@/plugins/vega-lite/VegaLite.vue'
 import VidPlayer from '@/plugins/video-player/VideoPlayer.vue'
@@ -27,6 +28,7 @@ const plugins = {
   CarrierViewer,
   Hexagons,
   Sankey,
+  Plotly,
   VegaLite,
   VehicleView,
   XYT,
