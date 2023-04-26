@@ -15,6 +15,7 @@ let _files: string[] = []
 let _config: any = {}
 let _dataset = ''
 let _buffer: Uint8Array
+let _highPrecision = false
 
 const _fileData: { [key: string]: DataTable } = {}
 
@@ -29,9 +30,11 @@ async function fetchData(props: {
   config: string
   buffer: Uint8Array
   featureProperties?: any[]
+  options?: { highPrecision: boolean }
 }) {
   _config = props.config
   _dataset = _config.dataset
+  if (props.options?.highPrecision) _highPrecision = true
 
   // Did we get featureProperties array? Just need to convert it to DataTable
   if (props.featureProperties) {
@@ -101,10 +104,12 @@ function convertFeaturePropertiesToDataTable(features: any[]) {
 
   // 2. Determine column types based on first row (scary but necessary?)
   for (const columnId of headers) {
-    let values: any[] | Float32Array
+    let values: any[] | Float32Array | Float64Array
     let columnType = DataType.NUMBER
     if (typeof firstRow[columnId] == 'number') {
-      values = new Float32Array(features.length)
+      values = _highPrecision
+        ? new Float64Array(features.length)
+        : new Float32Array(features.length)
       values.fill(NaN)
     } else {
       values = []
@@ -236,7 +241,9 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
   // First we assume everything is a number.
   // Then if/when we find out otherwise, we will convert to a regular JS array as needed
   for (const column of headers) {
-    const values = new Float32Array(csv.data.length).fill(NaN)
+    const values = _highPrecision
+      ? new Float64Array(csv.data.length).fill(NaN)
+      : new Float32Array(csv.data.length).fill(NaN)
     dataTable[column] = { name: column, values, type: DataType.NUMBER } // Assume NUMBER for now
   }
 

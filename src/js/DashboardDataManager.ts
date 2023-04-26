@@ -105,7 +105,7 @@ export default class DashboardDataManager {
    *               and may include other optional parameters as needed by the viz
    * @returns object with {x,y} or {allRows[]}
    */
-  public async getDataset(config: configuration) {
+  public async getDataset(config: configuration, options?: { highPrecision: boolean }) {
     try {
       // first, get the dataset
       if (!this.datasets[config.dataset]) {
@@ -114,7 +114,7 @@ export default class DashboardDataManager {
         // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
         this.datasets[config.dataset] = {
-          dataset: this._fetchDataset(config),
+          dataset: this._fetchDataset(config, options),
           activeFilters: {},
           filteredRows: null,
           filterListeners: new Set(),
@@ -465,7 +465,7 @@ export default class DashboardDataManager {
     }
   }
 
-  private async _fetchDataset(config: { dataset: string }) {
+  private async _fetchDataset(config: { dataset: string }, options?: { highPrecision: boolean }) {
     if (!this.files.length) {
       const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
       this.files = files
@@ -481,6 +481,7 @@ export default class DashboardDataManager {
           subfolder: this.subfolder,
           files: this.files,
           config: config,
+          options,
         })
 
         thread.onmessage = e => {

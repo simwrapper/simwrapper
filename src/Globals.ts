@@ -52,7 +52,7 @@ export interface DataTable {
  * of the value itself.
  */
 export interface DataTableColumn {
-  values: Float32Array | any[]
+  values: Float64Array | Float32Array | any[]
   name: string
   type: DataType
   max?: number

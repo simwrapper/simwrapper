@@ -1,10 +1,10 @@
 <template lang="pug">
-    vue-good-table.myplot(
+vue-good-table.myplot(
       :columns="columns"
       :rows="rows"
       :pagination-options="paginationOptions"
       styleClass="vgt-table striped bordered")
-    </template>
+</template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
@@ -86,7 +86,7 @@ export default defineComponent({
 
       try {
         //this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config)
+        let dataset = await this.datamanager.getDataset(this.config, { highPrecision: true })
 
         // no filter? we are done
         if (!this.config.filters) return dataset
