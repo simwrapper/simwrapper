@@ -27,8 +27,11 @@
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
       :tooltip="vizDetails.tooltip"
+      :cbTooltip="cbTooltip"
     )
     //- :features="useCircles ? centroids: boundaries"
+
+    background-map-on-top
 
     viz-configurator(v-if="isLoaded"
       :embedded="isEmbedded"
@@ -43,6 +46,8 @@
       @update="changeConfiguration"
       @screenshot="takeScreenshot"
     )
+
+    details-panel.details-panel(v-if="tooltipHtml" v-html="tooltipHtml")
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -105,10 +110,10 @@
         //-   :key="option" :value="option" aria-role="listitem"
         //- ) {{ option }}
 
-    .filter.right
-      p Transparency
-      b-slider.slider.is-small.is-fullwidth.is-warning(
-        id="sliderOpacity" :min="0" :max="100" v-model="sliderOpacity" :tooltip="false" :step="2.5" type="range")
+    //- .filter.right
+    //-   p Transparency
+    //-   b-slider.slider.is-small.is-fullwidth.is-warning(
+    //-     id="sliderOpacity" :min="0" :max="100" v-model="sliderOpacity" :tooltip="false" :step="2.5" type="range")
 
     .map-type-buttons(v-if="isAreaMode")
       img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
@@ -142,6 +147,7 @@ import {
 import GeojsonLayer from './GeojsonLayer'
 // import GeojsonLayer from './GeojsonVueLayer.vue'
 
+import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer from '@/js/ColorWidthSymbologizer'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalIdColumnPicker from './ModalIdColumnPicker.vue'
@@ -171,6 +177,7 @@ interface FilterDetails {
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
   components: {
+    BackgroundMapOnTop,
     GeojsonLayer,
     ModalIdColumnPicker,
     VizConfigurator,
@@ -212,7 +219,7 @@ const MyComponent = defineComponent({
 
       activeColumn: '',
       useCircles: false,
-      sliderOpacity: 80,
+      sliderOpacity: 100,
 
       maxValue: 1000,
       expColors: false,
@@ -254,6 +261,8 @@ const MyComponent = defineComponent({
       // datasetKeyToFilename: {} as any,
       datasetValuesColumn: '',
       datasetValuesColumnOptions: [] as string[],
+
+      tooltipHtml: '',
 
       vizDetails: {
         title: '',
@@ -434,6 +443,10 @@ const MyComponent = defineComponent({
           }
         }
       }
+    },
+
+    cbTooltip(html: string) {
+      this.tooltipHtml = html
     },
 
     filterShapesNowOriginal() {
@@ -2185,6 +2198,7 @@ export default MyComponent
 .area-map {
   position: relative;
   flex: 1;
+  background-color: var(--bgBold);
 }
 
 .config-bar {
@@ -2262,6 +2276,24 @@ export default MyComponent
 
 .right {
   margin-left: auto;
+}
+
+.details-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background-color: var(--bgPanel);
+  display: flex;
+  filter: $filterShadow;
+  flex-direction: column;
+  margin: 0.5rem;
+  padding: 0.25rem;
+  width: 15rem;
+  font-size: 0.8rem;
+  color: var(--bold);
+  opacity: 0.95;
+  max-height: 75%;
+  overflow-y: auto;
 }
 
 @media only screen and (max-width: 640px) {
