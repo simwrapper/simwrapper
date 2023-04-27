@@ -136,6 +136,16 @@ const MyComponent = defineComponent({
     // },
   },
 
+  mounted() {
+    window.addEventListener('resize', this.changeDimensions)
+
+    this.getVizDetails()
+  },
+
+  beforeDestroy() {
+    window.removeEventListener('resize', this.changeDimensions)
+  },
+
   methods: {
     changeDimensions() {
       // console.log('CHANGE DIM')
@@ -161,7 +171,9 @@ const MyComponent = defineComponent({
       if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
       this.$emit('title', this.vizDetails.title)
 
-      if (parsed.traces) this.traces = parsed.traces
+      // only build the chart if we are on a real page and not the file browser
+      if (this.thumbnail) return
+      if (this.vizDetails.traces) this.traces = this.vizDetails.traces
     },
 
     async loadFiles(): Promise<any[]> {
@@ -189,20 +201,6 @@ const MyComponent = defineComponent({
       }
       return []
     },
-  },
-
-  mounted() {
-    this.getVizDetails()
-    // this.csvData = await this.loadFiles()
-    // this.jsonChart = this.processInputs()
-
-    window.addEventListener('resize', this.changeDimensions)
-
-    // this.doD3()
-  },
-
-  beforeDestroy() {
-    window.removeEventListener('resize', this.changeDimensions)
   },
 })
 
