@@ -51,23 +51,8 @@
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
-  .config-bar(v-if="!thumbnail && !isEmbedded"
+  .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
     :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
-
-    //- //- Column picker
-    //- .filter(:disabled="!datasetValuesColumnOptions.length")
-    //-   p Display
-    //-   b-dropdown(v-model="datasetValuesColumn"
-    //-     aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
-    //-     :scrollable="datasetValuesColumnOptions.length > 10"
-    //-     max-height="250"
-    //-     @change="handleUserSelectedNewMetric"
-    //-   )
-    //-     template(#trigger="{ active }")
-    //-       b-button.is-warning(:label="datasetValuesColumn" :icon-right="active ? 'menu-up' : 'menu-down'")
-
-    //-     b-dropdown-item(v-for="option in datasetValuesColumnOptions"
-    //-       :key="option" :value="option" aria-role="listitem") {{ option }}
 
     //- Filter pickers
     .filter(v-for="filter in Object.keys(filters)")
@@ -78,21 +63,20 @@
         max-height="250"
         multiple
         @change="handleUserSelectedNewFilters(filter)"
-        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
+        aria-role="list" :mobile-modal="false" :close-on-click="true"
       )
         template(#trigger="{ active }")
           b-button.is-primary(
             :type="filters[filter].active.length ? '' : 'is-outlined'"
             :label="filterLabel(filter)"
-            :icon-right="active ? 'menu-up' : 'menu-down'"
           )
 
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
-    .map-type-buttons(v-if="isAreaMode")
-      img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
-      img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
+    //- .map-type-buttons(v-if="isAreaMode")
+    //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
+    //-   img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -177,7 +161,6 @@ const MyComponent = defineComponent({
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
       chosenNewFilterColumn: '',
-      availableFilterColumns: [] as string[],
       boundaryDataTable: {} as DataTable,
 
       dataFillColors: '#888' as string | Uint8Array,
@@ -233,9 +216,7 @@ const MyComponent = defineComponent({
       boundaryFilters: new Float32Array(0),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
       boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
-      // datasetKeyToFilename: {} as any,
       datasetValuesColumn: '',
-      datasetValuesColumnOptions: [] as string[],
 
       tooltipHtml: '',
 
@@ -496,12 +477,18 @@ const MyComponent = defineComponent({
       for (const filter of filterSpecs) {
         const [id, value] = filter
         const [dataset, column] = id.split('.')
-        filters.push({
+        const filterDefinition: FilterDefinition = {
           dataset,
           value,
           column: column.endsWith('!') ? column.substring(0, column.length - 1) : column,
           invert: column.endsWith('!'),
-        })
+        }
+        filters.push(filterDefinition)
+
+        // // categorical filters may already have UI settings that need merging
+        // if (column in this.filters) {
+        //   filterDefinition.....
+        // }
       }
 
       return filters
@@ -707,8 +694,6 @@ const MyComponent = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.datasets[datasetId] = dataTable
       this.datasets = Object.assign({}, this.datasets)
-
-      this.figureOutRemainingFilteringOptions()
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
@@ -797,16 +782,6 @@ const MyComponent = defineComponent({
       return lookupValues
     },
 
-    figureOutRemainingFilteringOptions() {
-      this.datasetValuesColumnOptions = Object.keys(this.boundaryDataTable)
-      const existingFilterColumnNames = Object.keys(this.filters)
-
-      const columns = Array.from(this.datasetValuesColumnOptions).filter(
-        f => f !== this.datasetJoinColumn && existingFilterColumnNames.indexOf(f) === -1
-      )
-      this.availableFilterColumns = columns
-    },
-
     removeAnyOldFilters(filters: any) {
       const oldFilters = new Set(
         Object.keys(this.currentUIFilterDefinitions).filter(f => !f.startsWith('shapes.'))
@@ -824,7 +799,15 @@ const MyComponent = defineComponent({
           column,
           value: [],
         })
-        delete this.filters[column]
+
+        // also remove from category-UI and URL
+        if (column in this.filters) {
+          const query = Object.assign({}, this.$route.query)
+          delete query[column]
+          this.$router.replace({ query })
+
+          delete this.filters[column]
+        }
       }
     },
 
@@ -845,9 +828,6 @@ const MyComponent = defineComponent({
         if (i === 0) return // skip shapes, we just did them
         this.activateFiltersForDataset(datasetKey)
       })
-
-      // handle UI filter options
-      this.figureOutRemainingFilteringOptions()
     },
 
     handleFillColorDiffMode(color: FillColorDefinition) {
@@ -1846,7 +1826,6 @@ const MyComponent = defineComponent({
         )
 
         this.activateFiltersForDataset(datasetKey)
-        this.figureOutRemainingFilteringOptions()
       } catch (e) {
         const msg = '' + e
         console.error(msg)
@@ -1861,10 +1840,13 @@ const MyComponent = defineComponent({
       for (const filter of filters) {
         // if user selected a @categorical, just add it to the thingy
         if (filter.value == '@categorical') {
-          this.handleUserCreatedNewFilter(`${datasetKey}:${filter.column}`)
-        }
-        // actually filter the data
-        else {
+          if (this.filters[filter.column]) {
+            filter.value = this.filters[filter.column].active
+          } else {
+            this.handleUserCreatedNewFilter(`${datasetKey}:${filter.column}`)
+          }
+        } else {
+          // actually filter the data
           this.myDataManager.setFilter(Object.assign(filter, { dataset: datasetKey }))
         }
       }
@@ -1894,8 +1876,6 @@ const MyComponent = defineComponent({
         // TODO FIXME
         // this.myDataManager.setFilter(this.datasetFilename, column, this.filters[column].active)
       }
-
-      this.figureOutRemainingFilteringOptions()
     },
 
     filterLabel(filter: string) {
@@ -1968,8 +1948,6 @@ const MyComponent = defineComponent({
         return
       }
       this.filters[column] = { column, label: column, options, active: [], dataset }
-
-      this.figureOutRemainingFilteringOptions()
     },
 
     updateChart() {
@@ -2004,7 +1982,7 @@ const MyComponent = defineComponent({
       let datasetValuesCol = this.config.display.fill.columnName || valueColumns[0]
 
       this.datasetValuesColumn = datasetValuesCol
-      this.datasetValuesColumnOptions = valueColumns
+      // this.datasetValuesColumnOptions = valueColumns
 
       this.setupFilters()
 
@@ -2215,11 +2193,17 @@ export default MyComponent
 }
 
 .config-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: flex;
   flex-direction: row;
-  padding-top: 0.25rem;
-  background-color: var(--bgDashboard);
-  z-index: 20;
+  margin: 0.5rem;
+  padding: 0.25rem 0rem 0.5rem 0.5rem;
+  background-color: var(--bgPanel);
+  z-index: 9;
+  opacity: 0.93;
+  border-radius: 5px;
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;
@@ -2239,10 +2223,6 @@ export default MyComponent
   .img-button:hover {
     border: 2px solid var(--linkHover);
   }
-}
-
-.config-bar.is-standalone {
-  padding: 0.5rem 0.5rem;
 }
 
 .config-bar.is-disabled {
