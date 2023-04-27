@@ -47,7 +47,7 @@
       @screenshot="takeScreenshot"
     )
 
-    details-panel.details-panel(v-if="tooltipHtml" v-html="tooltipHtml")
+    .details-panel(v-if="tooltipHtml" v-html="tooltipHtml")
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -2279,13 +2279,14 @@ export default MyComponent
 }
 
 .details-panel {
+  text-align: left;
   position: absolute;
   bottom: 0;
   left: 0;
   background-color: var(--bgPanel);
   display: flex;
   filter: $filterShadow;
-  flex-direction: column;
+  flex-direction: row;
   margin: 0.5rem;
   padding: 0.25rem;
   width: 15rem;
@@ -2293,7 +2294,9 @@ export default MyComponent
   color: var(--bold);
   opacity: 0.95;
   max-height: 75%;
+  overflow-x: hidden;
   overflow-y: auto;
+  white-space: nowrap;
 }
 
 @media only screen and (max-width: 640px) {

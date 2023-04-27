@@ -64,7 +64,7 @@ export default function Component({
       const f = {
         type: '' + feature.type,
         geometry: JSON.parse(JSON.stringify(feature.geometry)),
-        properties: JSON.parse(JSON.stringify(feature.properties)),
+        properties: JSON.parse(JSON.stringify(feature?.properties || {})),
       } as any
       if ('id' in feature) f.id = '' + feature.id
       return f
@@ -167,13 +167,14 @@ export default function Component({
     return format(x, { lowerExp: -7, upperExp: 7, precision: 4 })
   }
 
+  // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
     // tooltip will show values for color settings and for width settings.
     // if there is base data, it will also show values and diff vs. base for both color and width.
 
     if (!cbTooltip) return null
 
-    if (object == null) {
+    if (object === null || !features[index]?.properties) {
       cbTooltip(null)
       return null
     }
