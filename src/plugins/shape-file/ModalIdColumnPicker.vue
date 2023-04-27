@@ -35,6 +35,9 @@ interface DataSet {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+// Reasonable guesses as to the ID column in the shapefile
+const ID_GUESSES = ['id', 'ID', 'TAZ', 'AB']
+
 export default defineComponent({
   name: 'ModalJoinColumnPicker',
   i18n,
@@ -64,10 +67,14 @@ export default defineComponent({
     },
   },
   mounted() {
-    // pick a plausible default
-    if (this.columns.indexOf('id') > -1) this.selected1 = this.columns.indexOf('id')
-    if (this.columns.indexOf('ID') > -1) this.selected1 = this.columns.indexOf('ID')
-    if (this.columns.indexOf('TAZ') > -1) this.selected1 = this.columns.indexOf('TAZ')
+    // pick a plausible default for the ID column
+    for (const guess of ID_GUESSES) {
+      const found = this.columns.indexOf(guess)
+      if (found > -1) {
+        this.selected1 = found
+        break
+      }
+    }
   },
 })
 </script>

@@ -90,31 +90,6 @@
         b-dropdown-item(v-for="option in filters[filter].options"
           :key="option" :value="option" aria-role="listitem") {{ option }}
 
-    //- Filter ADDers
-    .filter(v-if="availableFilterColumns.length")
-      p {{ Object.keys(filters).length ? "&nbsp;" : "Filter" }}
-
-      b-select(v-model="chosenNewFilterColumn"
-        @input="handleUserCreatedNewFilter"
-        :scrollable="availableFilterColumns.length > 10"
-        max-height="250"
-        aria-role="list" position="is-top-right" :mobile-modal="false" :close-on-click="true"
-        placeholder="+"
-        size="20"
-      )
-
-        optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
-          option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
-
-        //- b-dropdown-item(v-for="option in availableFilterColumns"
-        //-   :key="option" :value="option" aria-role="listitem"
-        //- ) {{ option }}
-
-    //- .filter.right
-    //-   p Transparency
-    //-   b-slider.slider.is-small.is-fullwidth.is-warning(
-    //-     id="sliderOpacity" :min="0" :max="100" v-model="sliderOpacity" :tooltip="false" :step="2.5" type="range")
-
     .map-type-buttons(v-if="isAreaMode")
       img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
       img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
@@ -395,12 +370,17 @@ const MyComponent = defineComponent({
       const isLTGT = /^(<|>)/ // starts with < or >
 
       for (const filter of shapeFilters) {
-        console.log('filter >>>:', filter)
+        // console.log('filter >>>:', filter)
         let spec = filter.value
         let conditional = ''
 
-        // prep LT/GT
-        if (isLTGT.test(spec)) {
+        // check categorical
+        if (spec == '@categorical') {
+          conditional = '@categorical'
+          spec = ''
+        }
+        // check LT/GT
+        else if (isLTGT.test(spec)) {
           if (spec.startsWith('<=')) {
             conditional = '<='
             spec = parseFloat(spec.substring(2).trim())
@@ -414,15 +394,16 @@ const MyComponent = defineComponent({
             conditional = '>'
             spec = parseFloat(spec.substring(1).trim())
           }
-        } else {
-          // handle case where we are testing equal/inequal and its a "numeric" string
+        }
+        // handle case where we are testing equal/inequal and its a "numeric" string
+        else {
           if (typeof spec === 'string') {
             // handle a comma-separated list
             if (spec.indexOf(',') > -1) {
               spec = spec
                 .split(',')
                 .map(v => v.trim())
-                .map(v => (isNaN(parseFloat(v)) ? v : parseFloat(v)))
+                .map(v => (Number.isNaN(parseFloat(v)) ? v : parseFloat(v)))
             } else {
               const numericString = parseFloat(spec)
               if (!Number.isNaN(numericString)) spec = numericString
@@ -433,7 +414,7 @@ const MyComponent = defineComponent({
         if (!Array.isArray(spec)) spec = [spec]
 
         const fullSpecification = { conditional, invert: filter.invert || false, values: spec }
-        console.log('HEREWEGO: ', fullSpecification)
+        // console.log('HEREWEGO: ', fullSpecification)
         const dataColumnValues = this.boundaryDataTable[filter.column].values
 
         // update every row
@@ -826,16 +807,43 @@ const MyComponent = defineComponent({
       this.availableFilterColumns = columns
     },
 
+    removeAnyOldFilters(filters: any) {
+      const oldFilters = new Set(
+        Object.keys(this.currentUIFilterDefinitions).filter(f => !f.startsWith('shapes.'))
+      )
+      const newFilters = new Set(Object.keys(filters).filter(f => !f.startsWith('shapes.')))
+      newFilters.forEach(f => oldFilters.delete(f))
+
+      for (const deletedFilter of oldFilters) {
+        console.log('REMOVING', deletedFilter)
+        const dot = deletedFilter.indexOf('.')
+        const dataset = deletedFilter.slice(0, dot)
+        const column = deletedFilter.slice(dot + 1)
+        this.myDataManager.setFilter({
+          dataset,
+          column,
+          value: [],
+        })
+        delete this.filters[column]
+      }
+    },
+
     handleNewFilters(filters: any) {
-      // Filter shapes
+      // Remove removed filters first!
+      this.removeAnyOldFilters(filters)
+
       this.currentUIFilterDefinitions = filters
-      this.filterDefinitions = this.parseFilterDefinitions(filters)
+
+      const newDefinitions = this.parseFilterDefinitions(filters)
+      this.filterDefinitions = newDefinitions
+
+      // Filter the shapes/boundaries
       this.filterShapesNow()
 
-      // Filter datasets
+      // Filter attached datasets
       Object.keys(this.datasets).forEach((datasetKey, i) => {
-        if (i === 0) return // skip shapefile
-        this.activateFiltersForDataset({ datasetKey })
+        if (i === 0) return // skip shapes, we just did them
+        this.activateFiltersForDataset(datasetKey)
       })
 
       // handle UI filter options
@@ -1837,7 +1845,7 @@ const MyComponent = defineComponent({
           this.processFiltersNow
         )
 
-        this.activateFiltersForDataset({ datasetKey })
+        this.activateFiltersForDataset(datasetKey)
         this.figureOutRemainingFilteringOptions()
       } catch (e) {
         const msg = '' + e
@@ -1847,13 +1855,18 @@ const MyComponent = defineComponent({
       return []
     },
 
-    activateFiltersForDataset(props: { datasetKey: string }) {
-      // console.log('> activateFiltersForDataset ', props.datasetKey)
-      const filters = this.filterDefinitions.filter(f => f.dataset === props.datasetKey)
+    activateFiltersForDataset(datasetKey: string) {
+      const filters = this.filterDefinitions.filter(f => f.dataset === datasetKey)
 
       for (const filter of filters) {
-        console.log(123, filter)
-        this.myDataManager.setFilter(Object.assign(filter, { dataset: props.datasetKey }))
+        // if user selected a @categorical, just add it to the thingy
+        if (filter.value == '@categorical') {
+          this.handleUserCreatedNewFilter(`${datasetKey}:${filter.column}`)
+        }
+        // actually filter the data
+        else {
+          this.myDataManager.setFilter(Object.assign(filter, { dataset: datasetKey }))
+        }
       }
     },
 
@@ -1943,9 +1956,9 @@ const MyComponent = defineComponent({
       this.$router.replace({ query })
     },
 
-    handleUserCreatedNewFilter() {
-      console.log('ADD NEW FILTER:', this.chosenNewFilterColumn)
-      const [dataset, column] = this.chosenNewFilterColumn.split(':')
+    handleUserCreatedNewFilter(selectedColumn?: string) {
+      const selection = selectedColumn || this.chosenNewFilterColumn
+      const [dataset, column] = selection.split(':')
 
       let options = [...new Set(this.datasets[dataset][column].values)]
       this.chosenNewFilterColumn = ''
