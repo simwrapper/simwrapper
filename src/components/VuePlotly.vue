@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import Plotly from 'plotly.js/dist/plotly-cartesian'
+import Plotly from 'plotly.js/dist/plotly'
 
 let plotlyCounter = 0
 

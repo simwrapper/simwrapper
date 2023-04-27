@@ -1,5 +1,5 @@
 <template lang="pug">
-plotly-diagram.deck-map(
+plotly-diagram.plotly-panel(
   :root="fileSystemConfig.slug"
   :subfolder="subfolder"
   :config="config"
@@ -31,7 +31,7 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.deck-map {
+.plotly-panel {
   position: absolute;
   top: 0;
   bottom: 0;

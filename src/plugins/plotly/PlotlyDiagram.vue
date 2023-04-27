@@ -5,7 +5,7 @@
   p(v-if="vizDetails.description") {{  vizDetails.description }}
 
   VuePlotly.myplot(
-    :data="data"
+    :data="traces"
     :layout="layout"
     :options="options"
     :id="id"
@@ -51,9 +51,9 @@ const MyComponent = defineComponent({
       jsonChart: {} as any,
       totalTrips: 0,
       id: `plotly-id-${Math.floor(1e12 * Math.random())}` as any,
-      data: [] as any[],
+      traces: [] as any[],
       layout: {
-        height: 300,
+        // height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
           color: '#444444',
@@ -161,7 +161,7 @@ const MyComponent = defineComponent({
       if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
       this.$emit('title', this.vizDetails.title)
 
-      if (parsed.traces) this.data = parsed.traces
+      if (parsed.traces) this.traces = parsed.traces
     },
 
     async loadFiles(): Promise<any[]> {
