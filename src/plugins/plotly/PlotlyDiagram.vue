@@ -1,8 +1,8 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
 
-  h2 {{  vizDetails.title }}
-  p(v-if="vizDetails.description") {{  vizDetails.description }}
+  //- h2 {{  vizDetails.title }}
+  //- p(v-if="vizDetails.description") {{  vizDetails.description }}
 
   VuePlotly.myplot(
     :data="traces"
@@ -41,6 +41,7 @@ const MyComponent = defineComponent({
     yamlConfig: String,
     thumbnail: Boolean,
     config: Object as any,
+    resize: Object as any,
   },
 
   data() {
@@ -52,8 +53,9 @@ const MyComponent = defineComponent({
       totalTrips: 0,
       id: `plotly-id-${Math.floor(1e12 * Math.random())}` as any,
       traces: [] as any[],
+      prevWidth: -1,
+      prevHeight: -1,
       layout: {
-        // height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
           color: '#444444',
@@ -97,7 +99,7 @@ const MyComponent = defineComponent({
         ],
         toImageButtonOptions: {
           format: 'png', // one of png, svg, jpeg, webp
-          filename: 'plotly-chart',
+          filename: 'chart',
           width: null,
           height: null,
         },
@@ -124,22 +126,17 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.resizeEvents'() {
-      this.changeDimensions()
+      this.changeDimensions({})
     },
 
-    // yamlConfig() {
-    //   this.getVizDetails()
-    // },
-
-    // subfolder() {
-    //   this.getVizDetails()
-    // },
+    resize(event: any) {
+      this.changeDimensions(event)
+    },
   },
 
-  mounted() {
+  async mounted() {
+    await this.getVizDetails()
     window.addEventListener('resize', this.changeDimensions)
-
-    this.getVizDetails()
   },
 
   beforeDestroy() {
@@ -147,15 +144,23 @@ const MyComponent = defineComponent({
   },
 
   methods: {
-    changeDimensions() {
-      // console.log('CHANGE DIM')
-      // if (this.jsonChart?.nodes) this.doD3()
+    changeDimensions(dim: any) {
+      if (dim?.height && dim?.width) {
+        if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
+          console.log('CHANGE DIM')
+          this.prevHeight = dim.height
+          this.prevWidth = dim.width
+          this.layout = Object.assign({}, this.layout, dim)
+        }
+      }
     },
 
     async getVizDetails() {
       if (this.config) {
+        console.log('GOT THIS')
         this.vizDetails = Object.assign({}, this.config)
         this.$emit('title', this.vizDetails.title || 'Chart')
+        if (this.vizDetails.traces) this.traces = this.vizDetails.traces
         return
       }
 
@@ -225,7 +230,7 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 1rem;
+  // margin: 1rem;
 }
 
 .mycomponent.is-thumbnail {
@@ -233,90 +238,15 @@ export default MyComponent
   height: $thumbnailHeight;
 }
 
-.chart-area {
+.myplot {
   height: 100%;
   width: 100%;
   flex: 1;
   margin: 0 auto;
 }
 
-.chart-area.is-thumbnail {
+.myplot.is-thumbnail {
   padding: 0rem 0rem;
   margin: 0 0;
 }
-
-.myplot {
-  margin-top: 1rem;
-}
-
-// h1 {
-//   margin: 0px auto;
-//   font-size: 1.5rem;
-// }
-
-// h3 {
-//   margin: 0px auto;
-// }
-
-// h4,
-// p {
-//   margin: 1rem 1rem;
-// }
-
-// .details {
-//   font-size: 12px;
-// }
-
-// .bigtitle {
-//   font-weight: bold;
-//   font-style: italic;
-//   font-size: 20px;
-//   margin: 20px 0px;
-// }
-
-// .info-header {
-//   background-color: #097c43;
-//   padding: 0.5rem 0rem;
-//   border-top: solid 1px #888;
-//   border-bottom: solid 1px #888;
-// }
-
-// /* from sankey example */
-// .node rect {
-//   cursor: move;
-//   fill-opacity: 0.9;
-//   shape-rendering: crispEdges;
-// }
-
-// .node text {
-//   pointer-events: none;
-//   text-shadow: 0 1px 0 #fff;
-// }
-
-// .link {
-//   fill: none;
-//   stroke: #000;
-//   stroke-opacity: 0.2;
-// }
-
-// .link:hover {
-//   stroke-opacity: 0.4;
-// }
-
-// .center {
-//   text-align: center;
-// }
-
-// .labels {
-//   padding: 0rem 1rem;
-
-//   p {
-//     padding-top: 0;
-//     margin: 0px 0px;
-//   }
-// }
-
-// .switcher {
-//   margin: 0.5rem auto 0.5rem 1rem;
-// }
 </style>

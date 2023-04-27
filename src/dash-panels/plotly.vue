@@ -4,6 +4,8 @@ plotly-diagram.plotly-panel(
   :subfolder="subfolder"
   :config="config"
   :thumbnail="false"
+  :resize="resizeEvent"
+
 )
 </template>
 
@@ -17,13 +19,27 @@ import PlotlyDiagram from '@/plugins/plotly/PlotlyDiagram.vue'
 export default defineComponent({
   name: 'PlotlyDiagramPanel',
   components: { PlotlyDiagram },
+
+  data: () => {
+    return {
+      resizeEvent: {} as any,
+    }
+  },
+
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
     config: { type: Object, required: true },
+    cardId: String,
   },
   mounted() {
     this.$emit('isLoaded')
+    this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+  },
+  methods: {
+    changeDimensions(event: any) {
+      this.resizeEvent = event
+    },
   },
 })
 </script>
@@ -39,5 +55,6 @@ export default defineComponent({
   right: 0;
   display: flex;
   flex-direction: column;
+  background-color: cyan;
 }
 </style>
