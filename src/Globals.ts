@@ -3,6 +3,8 @@ export const DEFAULT_PROJECTION = ''
 export const MAP_STYLES_ONLINE = {
   light: 'mapbox://styles/mapbox/light-v10',
   dark: 'mapbox://styles/vsp-tu-berlin/ckek59op0011219pbwfar1rex',
+  transparentLight: 'mapbox://styles/vsp-tu-berlin/clgxnk7m500dt01p687w8e693',
+  transparentDark: 'mapbox://styles/vsp-tu-berlin/clgwrqa0w00av01pg5jox0a35',
   // light: 'mapbox://styles/mapbox/outdoors-v11',
   // dark: 'mapbox://styles/mapbox/outdoors-v11',
   // dark: 'mapbox://styles/mapbox/light-v10',
@@ -12,6 +14,8 @@ export const MAP_STYLES_OFFLINE = {
   // NO NETWoRK:
   light: { version: 8, layers: [], sources: {} },
   dark: { version: 8, layers: [], sources: {} },
+  transparentLight: { version: 8, layers: [], sources: {} },
+  transparentDark: { version: 8, layers: [], sources: {} },
 }
 
 export const BG_COLOR_DASHBOARD = {
@@ -34,6 +38,7 @@ export enum DataType {
   BOOLEAN,
   DATE,
   LOOKUP,
+  UNKNOWN,
 }
 
 export interface DataTable {
@@ -52,7 +57,7 @@ export interface DataTable {
  * of the value itself.
  */
 export interface DataTableColumn {
-  values: Float32Array | any[]
+  values: Float64Array | Float32Array | any[]
   name: string
   type: DataType
   max?: number

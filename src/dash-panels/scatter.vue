@@ -144,8 +144,6 @@ export default defineComponent({
     },
 
     async loadData() {
-      if (!this.files.length) return {}
-
       try {
         let dataset = await this.datamanager.getDataset(this.config)
 

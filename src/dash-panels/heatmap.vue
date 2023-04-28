@@ -162,8 +162,6 @@ export default defineComponent({
     },
 
     async loadData() {
-      if (!this.files.length) return {}
-
       try {
         this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config)

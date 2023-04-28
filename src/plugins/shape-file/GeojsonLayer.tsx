@@ -32,8 +32,9 @@ export default function Component({
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
   featureDataTable = {} as DataTable,
-  tooltip = [] as string[],
   featureFilter = new Float32Array(0),
+  tooltip = [] as string[],
+  cbTooltip = {} as any,
 }) {
   // const features = globalStore.state.globalCache[viewId] as any[]
   const [features, setFeatures] = useState([] as any[])
@@ -63,7 +64,7 @@ export default function Component({
       const f = {
         type: '' + feature.type,
         geometry: JSON.parse(JSON.stringify(feature.geometry)),
-        properties: JSON.parse(JSON.stringify(feature.properties)),
+        properties: JSON.parse(JSON.stringify(feature?.properties || {})),
       } as any
       if ('id' in feature) f.id = '' + feature.id
       return f
@@ -166,15 +167,22 @@ export default function Component({
     return format(x, { lowerExp: -7, upperExp: 7, precision: 4 })
   }
 
+  // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
     // tooltip will show values for color settings and for width settings.
     // if there is base data, it will also show values and diff vs. base for both color and width.
 
-    if (object == null) return null
+    if (!cbTooltip) return null
+
+    if (object === null || !features[index]?.properties) {
+      cbTooltip(null)
+      return null
+    }
+
     const propList = []
 
     // calculated value
-    if (calculatedValues && calculatedValueLabel) {
+    if (calculatedValues) {
       const key = calculatedValueLabel || 'Value'
       let value = precise(calculatedValues[index])
 
@@ -191,10 +199,11 @@ export default function Component({
     let datasetProps = ''
     for (const [tipKey, tipValue] of featureTips) {
       let value = tipValue
-      if (value == null) return
+      if (value === null) continue
       if (typeof value == 'number') value = precise(value)
       datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
     }
+
     if (datasetProps) propList.push(datasetProps)
 
     // --- boundary feature tooltip lines ---
@@ -216,23 +225,18 @@ export default function Component({
     })
     if (featureProps) propList.push(featureProps)
 
+    // nothing to show? no tooltip
+    if (!propList.length) {
+      cbTooltip(null)
+      return
+    }
+
     let finalHTML = propList.join('<tr><td>&nbsp;</td></tr>')
     const html = `<table>${finalHTML}</table>`
 
-    try {
-      return {
-        html,
-        style: {
-          fontSize: '0.9rem',
-          color: '#224',
-          backgroundColor: 'white',
-          filter: 'drop-shadow(0px 4px 8px #44444444)',
-        },
-      }
-    } catch (e) {
-      console.warn(e)
-      return html
-    }
+    cbTooltip(html)
+
+    return null
   }
 
   const layer = new GeojsonOffsetLayer({
@@ -316,20 +320,7 @@ export default function Component({
           setScreenshot(screenshot) // update scrnshot count so we don't take 1000 screenshots by mistake :-/
         }
       }}
-    >
-      {
-        /*
-        // @ts-ignore */
-        <StaticMap
-          ref={_mapRef}
-          mapStyle={globalStore.getters.mapStyle}
-          mapboxApiAccessToken={MAPBOX_TOKEN}
-          preserveDrawingBuffer
-          preventStyleDiffing
-          reuseMaps
-        />
-      }
-    </DeckGL>
+    ></DeckGL>
   )
 
   return deckInstance

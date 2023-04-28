@@ -1,24 +1,27 @@
 <template lang="pug">
 .width-panel
-  .widgets
-    .widget
-      p(style="line-height: 1.25rem;") Select features based on data.
+  //- .widgets
+  //-   .widget
+  //-     p(style="line-height: 1.25rem;") Select features based on data.
 
   .widgets(v-show="filterIds.length")
     .widget
       h4 Active Filters
 
       .filter-items
-        .filter-details(v-for="f in filterIds" :key="f")
+        .active-filter.filter-details(v-for="f in filterIds" :key="f")
           p.stretch
             b {{ filters[f].dataset }}:&nbsp;
-            | {{ `${filters[f].column} ${filters[f].operator} ${filters[f].value}`}}
+            span(v-if="filters[f].operator == OPERATORS[0]") by&nbsp;
+            | {{ `${filters[f].column}` }}
+            span(v-if="filters[f].operator !== OPERATORS[0]") &nbsp;{{ `${filters[f].operator} ${filters[f].value}`}}
+
           .span.close-button(@click="clickedRemoveFilter(f)") &times;
 
   .widgets
     .widget.boop
-      h4 New Filter
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="New filter...")
+      h4 Add New Filter
+      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="Select...")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"
@@ -26,16 +29,19 @@
                 :label="column")
 
       .filter-details2(v-if="addDataColumn")
-        b-select.operator(expanded v-model="addOperator" width=5)
+        b-select.operator(expanded v-model="addOperator")
           option(v-for="operator in OPERATORS" :value="operator" :label="operator")
-        b-field
+        b-field(v-if="addOperator!==OPERATORS[0]")
           b-input(v-model="addValue" placeholder="1.0")
 
-      button.button.add-button.is-small.is-primary(
-        v-if="addDataColumn"
-        :disabled="!addValue"
-        @click="clickedAddFilter"
-      ) Add
+      .button-bar(v-if="addDataColumn")
+        button.button.add-button.is-small.is-inverted(
+          @click="clickedCancel"
+        ) Cancel
+        button.button.add-button.is-small.is-primary(v-if="addDataColumn"
+          :disabled="addOperator !== OPERATORS[0] && addValue===''"
+          @click="clickedAddFilter"
+        ) &nbsp;&nbsp;Add&nbsp;&nbsp;
 
 </template>
 
@@ -58,7 +64,7 @@ export default defineComponent({
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
   data: () => {
-    const OPERATORS = ['==', '!=', '<=', '>=', '<', '>']
+    const OPERATORS = ['Categories', '==', '!=', '<=', '>=', '<', '>']
 
     return {
       OPERATORS,
@@ -93,12 +99,25 @@ export default defineComponent({
     },
   },
   methods: {
+    eraseFields() {
+      this.addDataColumn = null
+      this.addOperator = this.OPERATORS[0]
+      this.addValue = ''
+    },
+
+    clickedCancel() {
+      this.eraseFields()
+    },
+
     clickedAddFilter() {
       let [dataset, column] = this.addDataColumn ? this.addDataColumn.split('@') : ['', '']
 
       // always call shapefile or network "shapes"
       // console.log(2, dataset, column, this.datasetLabels)
       if (this.datasetLabels.indexOf(dataset) < 1) dataset = 'shapes'
+
+      // If user selected Categories, make sure value field is blank
+      if (this.addOperator === this.OPERATORS[0]) this.addValue = ''
 
       const filter: FilterDefinition = {
         dataset,
@@ -108,6 +127,8 @@ export default defineComponent({
       }
       this.filters[`${dataset}.${column}`] = filter
       this.filters = Object.assign({}, this.filters)
+
+      this.eraseFields()
     },
 
     clickedRemoveFilter(f: string) {
@@ -139,8 +160,13 @@ export default defineComponent({
         const filter: FilterDefinition = {
           dataset,
           column,
-          operator: '==',
+          operator: '',
           value: filterConfig[key],
+        }
+
+        if (filter.value === this.OPERATORS[0]) {
+          filter.column = filter.column.substring(0, filter.column.length - 1)
+          filter.operator = this.OPERATORS[0]
         }
 
         if (column.endsWith('!')) {
@@ -176,13 +202,18 @@ export default defineComponent({
         const filter = Object.assign({}, this.filters[key])
         let id = `${filter.dataset}.${filter.column}`
         if (filter.operator === '!=') id += '!'
+
+        if (filter.operator === this.OPERATORS[0]) {
+          filter.value = '@categorical'
+        }
+
         if (filter.operator.startsWith('<') || filter.operator.startsWith('>')) {
           filter.value = `${filter.operator} ${filter.value}`
         }
+
         f[id] = filter.value
       }
 
-      // console.log(2, f)
       setTimeout(() => this.$emit('update', { filters: f }), 25)
     },
 
@@ -261,7 +292,13 @@ export default defineComponent({
 }
 
 .operator {
-  width: 6rem;
+  flex: 1;
+  min-width: 5rem;
+}
+
+.button-bar {
+  display: block;
+  margin-left: auto;
 }
 
 .add-button {
@@ -284,7 +321,15 @@ export default defineComponent({
 }
 
 h4 {
+  margin-top: 0.25rem;
   color: var(--textFancy);
   font-weight: bold;
+}
+
+.button {
+  margin-left: 2px;
+}
+
+.active-filter {
 }
 </style>

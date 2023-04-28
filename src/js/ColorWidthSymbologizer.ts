@@ -13,7 +13,7 @@ enum Style {
 }
 
 function getColorsForDataColumn(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   data2?: DataTableColumn
   lookup: DataTableColumn
@@ -22,6 +22,7 @@ function getColorsForDataColumn(props: {
   filter: Float32Array
   options: any
   relative?: boolean
+  combineBy?: string
 }) {
   // Figure out what kind of thing the user wants
   if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
@@ -220,14 +221,14 @@ function getRadiusForDataColumn(props: {
 }
 
 function buildColorsBasedOnCategories(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
   filter: Float32Array
   options: any
 }) {
-  const { length, data, lookup, normalize, options } = props
+  const { numFeatures, data, lookup, normalize, options } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
@@ -328,7 +329,7 @@ function buildDiffDomainBreakpoints(
 }
 
 function buildDiffColorsBasedOnNumericValues(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   data2?: DataTableColumn
   lookup: DataTableColumn
@@ -337,7 +338,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
   relative?: boolean
   options: any
 }) {
-  const { length, data, data2, lookup, lookup2, normalize, relative, options } = props
+  const { numFeatures, data, data2, lookup, lookup2, normalize, relative, options } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   // Figure out differences
@@ -424,16 +425,21 @@ function buildDiffColorsBasedOnNumericValues(props: {
 }
 
 function buildColorsBasedOnNumericValues(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
   options: any
+  combineBy?: string
 }) {
-  const { length, data, lookup, normalize, options } = props
+  const { numFeatures, data, lookup, normalize, options, combineBy } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
+
+  // console.log('numFeatures is', numFeatures)
+  // console.log('data length is', data.values.length)
+  // console.log('lookup length is', lookup.values.length)
 
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
@@ -453,36 +459,57 @@ function buildColorsBasedOnNumericValues(props: {
   // const isCategorical = false // colorRampType === 0 || buildColumn.type == DataType.STRING
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
-  const calculatedValues = new Float32Array(length)
-  let normalizedValues = data.values
-  let normalizedMax = data.max || -Infinity
-
-  // Normalize data
-  if (normalize) {
-    // console.log('NORMALIZING')
-    normalizedValues = new Float32Array(data.values.length)
-    normalizedMax = -Infinity
-
+  // calculate aggregated values. This might be a job for crossfilter2 later
+  const calculatedValues = new Float32Array(numFeatures)
+  if (combineBy === '@count') {
+    // *** COUNT rows that have this lookup
     for (let i = 0; i < data.values.length; i++) {
-      normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
-      if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
+      const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] += 1
+    }
+  } else {
+    // *** SUM values in rows
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      // always SUM, for now
+      calculatedValues[offset] += data.values[i]
     }
   }
 
-  // console.log({ normalizedValues, normalizedMax })
+  // Get max
+  let normalizedValues = calculatedValues
+  let normalizedMax = calculatedValues[0]
+  let nMaxLength = normalizedValues.length
 
+  for (let i = 1; i < nMaxLength; ++i) normalizedMax = Math.max(normalizedMax, calculatedValues[i])
+  normalizedMax = normalizedMax ?? -Infinity
+
+  // Normalize data
+  if (normalize) {
+    normalizedValues = new Float32Array(numFeatures)
+    normalizedMax = -Infinity
+
+    // TODO: this is broken. Need to normalize using the lookup again?
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      const numerator = calculatedValues[offset]
+      const denominator = normalize.values[i]
+      if (denominator) {
+        normalizedValues[offset] = numerator / denominator
+        normalizedMax = Math.max(normalizedValues[offset], normalizedMax)
+      } else {
+        normalizedValues[offset] = NaN
+      }
+    }
+  }
+
+  const rgbArray = new Uint8Array(numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
-  const rgbArray = new Uint8Array(length * 3)
-
-  for (let i = 0; i < data.values.length; i++) {
+  for (let i = 0; i < numFeatures; i++) {
     const value = normalizedValues[i] / (normalizedMax || 1)
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
-
-    const offset = lookup ? lookup.values[i] : i
-    const colorOffset = offset * 3
-
-    calculatedValues[offset] = value
+    const colorOffset = i * 3
 
     rgbArray[colorOffset + 0] = color[0]
     rgbArray[colorOffset + 1] = color[1]
@@ -493,7 +520,7 @@ function buildColorsBasedOnNumericValues(props: {
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
-  // need to figure out RANGES, not just breakpoints:
+  // display RANGES, not just breakpoints:
   let lowerBound = 0
   for (let i = 0; i < keys.length; i++) {
     const upperBound = keys[i]
@@ -505,16 +532,18 @@ function buildColorsBasedOnNumericValues(props: {
     })
     lowerBound = upperBound
   }
+
+  const total = calculatedValues.reduce((a, b) => a + b, 0)
+  // console.log({ total })
+
   legend.push({
     label: `${Math.round(lowerBound * normalizedMax)} - ${normalizedMax}`,
     value: colors[keys.length - 1],
   })
-
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
-
   // console.log({ legend, colors })
 
-  return { array: rgbArray, legend, calculatedValues }
+  return { array: rgbArray, calculatedValues, legend }
 }
 
 // helpers ------------------------------------------------------------

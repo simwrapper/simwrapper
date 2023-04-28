@@ -200,7 +200,6 @@ export default defineComponent({
     },
 
     async loadData() {
-      if (!this.files.length) return {}
       if (!this.datamanager) return {}
 
       try {
