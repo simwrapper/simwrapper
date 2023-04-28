@@ -29,6 +29,7 @@ layout:
       enableFilter: true
       hide: [bike, car]
       show: [bus]
+      fullsize: false
 ```
 
 ---
@@ -44,3 +45,5 @@ Table viewer properties:
 **hide:** Array of strings. List of column names that should be ignored.
 
 **show:** Array of strings. List of column names that should be displayed. If the hide and show option are in the .yaml file the hide option will be ignored.
+
+**fullsize:** true/false. This option defines whether the whole table should be displayed or if there are several pages. The default setting is false.
