@@ -31,7 +31,7 @@
     )
     //- :features="useCircles ? centroids: boundaries"
 
-    background-map-on-top
+    background-map-on-top(v-if="isLoaded")
 
     viz-configurator(v-if="isLoaded"
       :embedded="isEmbedded"
@@ -193,8 +193,9 @@ const MyComponent = defineComponent({
       needsInitialMapExtent: true,
       datasetJoinColumn: '',
       featureJoinColumn: '',
-      datasetFilename: '',
       triggerScreenshot: 0,
+
+      datasetKeyToFilename: {} as any,
 
       datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
       showJoiner: false,
@@ -497,6 +498,39 @@ const MyComponent = defineComponent({
     honorQueryParameters() {
       const query = this.$route.query
       if (query.show == 'dots') this.useCircles = true
+
+      // this.setupQueryFilters()
+    },
+
+    // perhaps we have some active filters in the URL query
+    setupQueryFilters() {
+      const datasetKeys = Object.keys(this.datasets)
+      // TODO - make this multi-dataset aware  // 2 means shapes + dataset #1.
+      if (datasetKeys.length !== 2) return
+
+      const firstDatasetKey = datasetKeys[1]
+      const firstDataset = this.datasets[firstDatasetKey]
+
+      const columnNames = Object.keys(firstDataset)
+
+      const queryFilters = Object.keys(this.$route.query).filter(f => columnNames.indexOf(f) > -1)
+
+      for (const column of queryFilters) {
+        if (!this.filters[column]) {
+          console.log('CREATING category filter:', column)
+          this.handleUserCreatedNewFilter(`${firstDatasetKey}:${column}`)
+        }
+
+        const text = '' + this.$route.query[column]
+        if (text) this.filters[column].active = text.split(',')
+
+        this.myDataManager.setFilter({
+          dataset: this.datasetKeyToFilename[firstDatasetKey],
+          column,
+          value: this.filters[column].active,
+        })
+        this.activateFiltersForDataset(firstDatasetKey)
+      }
     },
 
     convertCommasToArray(thing: any): any[] {
@@ -519,7 +553,7 @@ const MyComponent = defineComponent({
 
       // are we in a dashboard?
       if (this.configFromDashboard) {
-        this.config = Object.assign({}, this.configFromDashboard)
+        this.config = JSON.parse(JSON.stringify(this.configFromDashboard))
         this.vizDetails = Object.assign({}, emptyState, this.configFromDashboard)
       } else {
         // was a YAML file was passed in?
@@ -527,11 +561,11 @@ const MyComponent = defineComponent({
 
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
           const ycfg = await this.loadYamlConfig()
-          this.config = Object.assign({}, ycfg)
+          this.config = ycfg
           this.vizDetails = Object.assign({}, emptyState, ycfg)
         }
 
-        // is this a bare geojson/shapefile file? - build vizDetails manually
+        // OR is this a bare geojson/shapefile file? - build vizDetails manually
         if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
           const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${this.yamlConfig}`
 
@@ -541,7 +575,7 @@ const MyComponent = defineComponent({
             shapes: this.yamlConfig,
           })
 
-          this.config = Object.assign({}, this.vizDetails)
+          this.config = JSON.parse(JSON.stringify(this.vizDetails))
         }
       }
 
@@ -667,23 +701,25 @@ const MyComponent = defineComponent({
     async handleNewDataset(props: DatasetDefinition) {
       const { key, dataTable, filename } = props
       const datasetId = key
-      this.datasetFilename = filename || datasetId
+      const datasetFilename = filename || datasetId
 
-      console.log('HANDLE NEW DATSET:', datasetId, this.datasetFilename)
+      console.log('HANDLE NEW DATSET:', datasetId, datasetFilename)
 
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
 
       this.myDataManager.setPreloadedDataset({
-        key: datasetId,
+        key: this.datasetKeyToFilename[datasetId],
         dataTable,
-        filename: this.datasetFilename,
       })
 
-      this.myDataManager.addFilterListener({ dataset: datasetId }, this.processFiltersNow)
+      this.myDataManager.addFilterListener(
+        { dataset: this.datasetKeyToFilename[datasetId] },
+        this.processFiltersNow
+      )
 
       this.vizDetails.datasets[datasetId] = {
-        file: this.datasetFilename,
+        file: datasetFilename,
         // if join columns are not named identically, use "this:that" format
         // join:
         //   featureJoinColumn === dataJoinColumn
@@ -744,15 +780,17 @@ const MyComponent = defineComponent({
       // add/replace this dataset in the datamanager, with the new lookup column
       dataTable[`@@${dataJoinColumn}`] = lookupColumn
       this.myDataManager.setPreloadedDataset({
-        key: datasetId,
+        key: this.datasetKeyToFilename[datasetId],
         dataTable,
-        filename: this.datasetFilename,
       })
 
-      this.myDataManager.addFilterListener({ dataset: datasetId }, this.processFiltersNow)
+      this.myDataManager.addFilterListener(
+        { dataset: this.datasetKeyToFilename[datasetId] },
+        this.processFiltersNow
+      )
 
       this.vizDetails.datasets[datasetId] = {
-        file: this.datasetFilename,
+        file: this.datasetKeyToFilename[datasetId],
         // if join columns are not named identically, use "this:that" format
         join:
           this.featureJoinColumn === dataJoinColumn
@@ -795,7 +833,7 @@ const MyComponent = defineComponent({
         const dataset = deletedFilter.slice(0, dot)
         const column = deletedFilter.slice(dot + 1)
         this.myDataManager.setFilter({
-          dataset,
+          dataset: this.datasetKeyToFilename[dataset],
           column,
           value: [],
         })
@@ -1551,29 +1589,6 @@ const MyComponent = defineComponent({
         // hide polygon/point buttons and opacity if we have no polygons
         if (hasNoPolygons) this.isAreaMode = false
 
-        // // create binary representation of boundaries
-        // // see https://deck.gl/docs/api-reference/layers/solid-polygon-layer
-        // const vertices = new Float32Array(boundaries.map(d => d.geometry.coordinates[0]).flat(2))
-        // const startIndices = new Uint32Array(
-        //   boundaries.reduce(
-        //     (acc, d) => {
-        //       const lastIndex = acc[acc.length - 1]
-        //       acc.push(lastIndex + d.geometry.coordinates[0].length)
-        //       return acc
-        //     },
-        //     [0]
-        //   )
-        // )
-
-        // console.log('5 vertexicate took', (Date.now() - now) / 1000)
-        // now = Date.now()
-
-        // console.log(`6 total vertices: ${vertices.length / 2}`)
-        // console.log(`7 total indices: ${startIndices.length}`)
-        // console.log(`8 number of shapes: ${boundaries.length}`)
-
-        // this.polygons = { vertices, startIndices, pLength: boundaries.length }
-
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
@@ -1769,8 +1784,11 @@ const MyComponent = defineComponent({
     },
 
     async loadDatasets() {
-      const keys = Object.keys(this.config.datasets)
+      const keys = Object.keys(this.vizDetails.datasets)
       for (const key of keys) {
+        // don't reload datasets we already loaded
+        if (key in this.datasets) continue
+
         await this.loadDataset(key)
       }
     },
@@ -1781,21 +1799,22 @@ const MyComponent = defineComponent({
 
         // dataset could be  { dataset: myfile.csv }
         //               or  { dataset: { file: myfile.csv, join: TAZ }}
-
-        this.datasetFilename =
+        const datasetFilename =
           'string' === typeof this.config.datasets[datasetKey]
             ? this.config.datasets[datasetKey]
             : this.config.datasets[datasetKey].file
 
-        this.statusText = `Loading dataset ${this.datasetFilename} ...`
-        // console.log(11, 'loading ' + this.datasetFilename)
+        this.statusText = `Loading dataset ${datasetFilename} ...`
 
         await this.$nextTick()
 
-        let loaderConfig = { dataset: this.datasetFilename }
+        let loaderConfig = { dataset: datasetFilename }
         if ('string' !== typeof this.config.datasets[datasetKey]) {
           loaderConfig = Object.assign(loaderConfig, this.config.datasets[datasetKey])
         }
+
+        // save the filename and key for later lookups
+        this.datasetKeyToFilename[datasetKey] = datasetFilename
 
         const dataset = await this.myDataManager.getDataset(loaderConfig)
 
@@ -1815,16 +1834,10 @@ const MyComponent = defineComponent({
         // save it!
         this.datasets[datasetKey] = dataset.allRows
 
-        // link the joins if we have a join
-        this.statusText = `Joining datasets...`
         await this.$nextTick()
 
         // Set up filters -- there could be some in YAML already
-        this.myDataManager.addFilterListener(
-          { dataset: this.datasetFilename },
-          this.processFiltersNow
-        )
-
+        this.myDataManager.addFilterListener({ dataset: datasetFilename }, this.processFiltersNow)
         this.activateFiltersForDataset(datasetKey)
       } catch (e) {
         const msg = '' + e
@@ -1838,6 +1851,7 @@ const MyComponent = defineComponent({
       const filters = this.filterDefinitions.filter(f => f.dataset === datasetKey)
 
       for (const filter of filters) {
+        console.log(3, JSON.stringify(filter))
         // if user selected a @categorical, just add it to the thingy
         if (filter.value == '@categorical') {
           if (this.filters[filter.column]) {
@@ -1847,39 +1861,16 @@ const MyComponent = defineComponent({
           }
         } else {
           // actually filter the data
-          this.myDataManager.setFilter(Object.assign(filter, { dataset: datasetKey }))
+          this.myDataManager.setFilter(
+            Object.assign(filter, { dataset: this.datasetKeyToFilename[datasetKey] })
+          )
         }
-      }
-    },
-
-    setupFilters() {
-      let filterColumns = this.config.display.fill.filters
-      if (!filterColumns) return
-
-      // Get the set of options available for each filter
-      filterColumns.forEach((f: string) => {
-        let options = [...new Set(this.boundaryDataTable[f].values)]
-        this.filters[f] = {
-          column: f,
-          label: f,
-          options,
-          active: [],
-        }
-      })
-
-      // perhaps we have some active filters in the URL query
-      const columnNames = Object.keys(this.boundaryDataTable)
-      const queryFilters = Object.keys(this.$route.query).filter(f => columnNames.indexOf(f) > -1)
-      for (const column of queryFilters) {
-        const text = '' + this.$route.query[column]
-        if (text) this.filters[column].active = text.split(',')
-        // TODO FIXME
-        // this.myDataManager.setFilter(this.datasetFilename, column, this.filters[column].active)
       }
     },
 
     filterLabel(filter: string) {
-      const label = this.filters[filter].active.join(',').substring(0, 20) || 'Select...'
+      let label = this.filters[filter].active.join(',').substring(0, 50) || 'Select...'
+      if (label.length === 50) label += '...'
       return label
     },
 
@@ -1903,10 +1894,9 @@ const MyComponent = defineComponent({
     handleUserSelectedNewFilters(column: string) {
       const filter = this.filters[column]
       const active = filter.active
-      console.log({ filter, active })
 
       this.myDataManager.setFilter({
-        dataset: filter.dataset || this.datasetFilename,
+        dataset: this.datasetKeyToFilename[filter.dataset], // || datasetFilename,
         column,
         invert: false,
         value: active, // '', // <-- what should this be?
@@ -1984,7 +1974,7 @@ const MyComponent = defineComponent({
       this.datasetValuesColumn = datasetValuesCol
       // this.datasetValuesColumnOptions = valueColumns
 
-      this.setupFilters()
+      // this.setupFilters()
 
       // 1. build the data lookup for each key in the dataset.
       //    There is often more than one row per key, so we will
@@ -2068,11 +2058,12 @@ const MyComponent = defineComponent({
 
       this.clearData()
       await this.getVizDetails()
-      this.buildThumbnail()
 
+      this.buildThumbnail()
       if (this.thumbnail) return
 
       this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
+
       this.setupLogoMover()
 
       if (this.needsInitialMapExtent && this.vizDetails.center) {
@@ -2092,18 +2083,15 @@ const MyComponent = defineComponent({
       this.dataFillColors = globalStore.state.isDarkMode ? '#44445580' : '#dddddd80'
 
       // convert values to arrays as needed
-      if (!this.config.display.fill) this.config.display.fill = { filters: [] }
-      this.config.display.fill.filters = this.convertCommasToArray(this.config.display.fill.filters)
+      if (!this.config.display.fill) this.config.display.fill = {}
 
       if (this.config.display?.fill?.values) {
         this.config.display.fill.values = this.convertCommasToArray(this.config.display.fill.values)
       }
 
       // load the boundaries first, then the dataset.
-      // Need boundaries first so we can build the lookups.
-      // await Promise.all([this.loadBoundaries(), this.loadDataset()])
+      // Need boundaries first so we can build the lookups!
       await this.loadBoundaries()
-
       this.filterShapesNow()
 
       this.isLoaded = true
@@ -2111,12 +2099,14 @@ const MyComponent = defineComponent({
 
       await this.loadDatasets()
 
+      console.log(60, Object.keys(this.datasets))
       // Check URL query parameters
-      this.honorQueryParameters()
 
       this.datasets = Object.assign({}, this.datasets)
-      this.config.datasets = Object.assign({}, this.datasets)
+      this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
       this.vizDetails = Object.assign({}, this.vizDetails)
+
+      this.honorQueryParameters()
 
       this.statusText = ''
       // Ask for shapes feature ID if it's not obvious/specified already
@@ -2203,7 +2193,6 @@ export default MyComponent
   background-color: var(--bgPanel);
   z-index: 9;
   opacity: 0.93;
-  border-radius: 5px;
   input.slider {
     margin: auto 0 0.5rem auto;
     width: 8rem;

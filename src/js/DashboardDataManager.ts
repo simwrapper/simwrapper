@@ -205,12 +205,17 @@ export default class DashboardDataManager {
    *  Register an existing in-memory DataTable as a dataset in this Dashboard
    * @param props key, dataTable, and filename associated with this DataTable
    */
-  public setPreloadedDataset(props: { key: string; dataTable: DataTable; filename: string }) {
+  public setPreloadedDataset(props: { key: string; dataTable: DataTable }) {
+    // let filters = {}
+    // if (this.datasets[props.key]) {
+    //   filters = this.datasets[props.key].activeFilters
+    // }
+
     this.datasets[props.key] = {
       dataset: new Promise<DataTable>((resolve, reject) => {
         resolve(props.dataTable)
       }),
-      activeFilters: {},
+      activeFilters: {}, // filters,
       filteredRows: null,
       filterListeners: new Set(),
     }
@@ -307,7 +312,13 @@ export default class DashboardDataManager {
   public setFilter(filter: FilterDefinition) {
     const { dataset, column, value, invert, range } = filter
 
+    if (!this.datasets[dataset]) {
+      console.warn(`${dataset} doesn't exist yet`)
+      console.warn(Object.keys(this.datasets))
+      return
+    }
     console.log('> setFilter', dataset, column, value)
+
     // Filter might be single or an array; make it an array.
     const values = Array.isArray(value) ? value : [value]
     if (this.datasets[dataset].activeFilters == null) {

@@ -160,8 +160,13 @@ export default defineComponent({
         const filter: FilterDefinition = {
           dataset,
           column,
-          operator: 'Categories',
+          operator: '',
           value: filterConfig[key],
+        }
+
+        if (filter.value === this.OPERATORS[0]) {
+          filter.column = filter.column.substring(0, filter.column.length - 1)
+          filter.operator = this.OPERATORS[0]
         }
 
         if (column.endsWith('!')) {

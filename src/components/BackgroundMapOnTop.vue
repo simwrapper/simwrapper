@@ -55,6 +55,10 @@ const Component = defineComponent({
           style: this.isDarkMode ? styles.transparentDark : styles.transparentLight,
           logoPosition: 'top-left',
         })
+
+        // make sure it starts up aligned with main map
+        const view = { ...this.globalState.viewState } as any
+        this.mymap.jumpTo(view)
       } catch (e) {
         console.error('HUH?' + e)
         return
@@ -85,9 +89,6 @@ const Component = defineComponent({
 
     async mapIsReady() {
       this.setupResizer()
-
-      // const view = { longitude: -122.3, latitude: 37.8, zoom: 9, bearing: 0, pitch: 0 }
-      // this.viewMoved(view)
     },
 
     viewMoved(value: any) {
