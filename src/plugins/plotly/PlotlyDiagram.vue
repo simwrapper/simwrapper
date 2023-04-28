@@ -28,7 +28,7 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, VisualizationPlugin, UI_FONT } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
@@ -132,10 +132,14 @@ const MyComponent = defineComponent({
     resize(event: any) {
       this.changeDimensions(event)
     },
+    'globalState.isDarkMode'() {
+      this.updateTheme()
+    },
   },
 
   async mounted() {
     await this.getVizDetails()
+    this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
   },
 
@@ -155,9 +159,17 @@ const MyComponent = defineComponent({
       }
     },
 
+    updateTheme() {
+      const colors = {
+        paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
+      }
+      this.layout = Object.assign({}, this.layout, colors)
+    },
+
     async getVizDetails() {
       if (this.config) {
-        console.log('GOT THIS')
         this.vizDetails = Object.assign({}, this.config)
         this.$emit('title', this.vizDetails.title || 'Chart')
         if (this.vizDetails.traces) this.traces = this.vizDetails.traces
