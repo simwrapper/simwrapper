@@ -1,9 +1,11 @@
 <template lang="pug">
-    vue-good-table.myplot(
+    vue-good-table(
+      :class="this.config.fullsize ? 'fullsize' : 'fixed-height'"
       :columns="columns"
       :rows="rows"
+      :fixed-header="true"
       :pagination-options="paginationOptions"
-      styleClass="vgt-table striped bordered")
+      styleClass="vgt-table striped bordered condensed")
     </template>
 
 <script lang="ts">
@@ -42,7 +44,7 @@ export default defineComponent({
       columns: [] as any[],
       rows: [] as any[],
       paginationOptions: {
-        enabled: true,
+        enabled: false,
         perPageDropdown: [] as any[],
         dropdownAllowAll: false,
         perPage: 5,
@@ -254,20 +256,40 @@ export default defineComponent({
           perPageDropdown: [5, 10],
         }
       }
+
+      if (!this.config.fullsize) this.paginationOptions.enabled = true
+
+      if (numberOfValues < 5) this.paginationOptions.enabled = false
     },
   },
 })
 </script>
 
+<style lang="scss">
+.vgt-table th {
+  padding: 0.4rem 0 0.4rem 0.75rem;
+  /*padding: 0.75em 0.5em 0.75em 0.75em;*/
+}
+
+.vgt-wrap__footer {
+  padding: 0.4rem;
+}
+</style>
+
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.myplot {
-  position: absolute;
+.fullsize {
+  height: 100%;
+}
+
+.fixed-height {
+  /* position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  bottom: 0;
+  bottom: 0; */
+  height: 100%;
 }
 
 @media only screen and (max-width: 640px) {

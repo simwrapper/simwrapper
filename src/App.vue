@@ -701,6 +701,15 @@ p.splash-label {
   font-size: 0.9rem;
 }
 
+.vgt-table {
+  overflow-y: auto;
+  height: min-content;
+}
+.vgt-table th {
+  position: sticky;
+  top: 0;
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;
