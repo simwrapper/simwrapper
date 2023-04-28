@@ -1,9 +1,10 @@
 <template lang="pug">
-vue-good-table.myplot(
+vue-good-table(
       :columns="columns"
       :rows="rows"
+      :fixed-header="true"
       :pagination-options="paginationOptions"
-      styleClass="vgt-table striped bordered")
+      styleClass="vgt-table striped bordered condensed")
 </template>
 
 <script lang="ts">
@@ -13,7 +14,7 @@ import type { PropType } from 'vue'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 
-import 'vue-good-table/dist/vue-good-table.css'
+import 'vue-good-table/src/styles/style.scss'
 import { VueGoodTable } from 'vue-good-table'
 
 import { FileSystemConfig, Status } from '@/Globals'
@@ -42,7 +43,7 @@ export default defineComponent({
       columns: [] as any[],
       rows: [] as any[],
       paginationOptions: {
-        enabled: true,
+        enabled: false,
         perPageDropdown: [] as any[],
         dropdownAllowAll: false,
         perPage: 5,
@@ -57,9 +58,17 @@ export default defineComponent({
 
     this.$emit('isLoaded')
   },
+
   beforeDestroy() {
     this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
   },
+
+  watch: {
+    'globalState.isDarkMode'() {
+      this.updateTheme()
+    },
+  },
+
   methods: {
     handleFilterChanged() {
       if (!this.datamanager) return
@@ -248,27 +257,55 @@ export default defineComponent({
           ...this.paginationOptions,
           perPageDropdown: [5],
         }
-      } else {
+      } else if (numberOfValues < 20) {
         this.paginationOptions = {
           ...this.paginationOptions,
           perPageDropdown: [5, 10],
         }
+      } else {
+        this.paginationOptions = {
+          ...this.paginationOptions,
+          perPageDropdown: [5, 10, 20],
+        }
       }
+
+      if (!this.config.fullsize) this.paginationOptions.enabled = true
+
+      if (numberOfValues < 5) this.paginationOptions.enabled = false
+    },
+
+    updateTheme() {
+      // TODO
     },
   },
 })
 </script>
 
+<style lang="scss">
+.vgt-table th {
+  padding: 0.4rem 0 0.4rem 0.75rem;
+}
+
+.vgt-wrap__footer {
+  padding: 0.4rem;
+}
+
+.vgt-table,
+.vgt-wrap__footer,
+.footer__row-count__label,
+.footer__row-count__select,
+.footer__navigation__page-info,
+.footer__navigation__page-btn span {
+  font-size: 12px !important;
+}
+
+.vgt-pull-left {
+  margin-top: 4px;
+}
+</style>
+
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-.myplot {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-}
 
 @media only screen and (max-width: 640px) {
 }
