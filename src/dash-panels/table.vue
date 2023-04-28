@@ -1,12 +1,11 @@
 <template lang="pug">
-vue-good-table.myplot(
+vue-good-table(
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
       :pagination-options="paginationOptions"
       styleClass="vgt-table striped bordered condensed")
 </template>
-
 
 <script lang="ts">
 import { defineComponent } from 'vue'
@@ -49,14 +48,11 @@ export default defineComponent({
         dropdownAllowAll: false,
         perPage: 5,
       },
-      isDarkmode: false,
-      currentTheme: '',
       dataColumnNames: ['date'],
       percentColumnNames: ['percent'],
     }
   },
   async mounted() {
-    this.globalState.isDarkMode ? (this.currentTheme = 'nocturnal') : (this.currentTheme = '')
     this.dataSet = await this.loadData()
     this.prepareData()
 
@@ -69,8 +65,6 @@ export default defineComponent({
 
   watch: {
     'globalState.isDarkMode'() {
-      this.isDarkmode = this.globalState.isDarkMode
-      this.globalState.isDarkMode ? (this.currentTheme = 'nocturnal') : (this.currentTheme = '')
       this.updateTheme()
     },
   },
@@ -281,7 +275,7 @@ export default defineComponent({
     },
 
     updateTheme() {
-      console.log('DARKMODE')
+      // TODO
     },
   },
 })
