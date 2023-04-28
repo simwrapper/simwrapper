@@ -1,10 +1,11 @@
 <template lang="pug">
     vue-good-table(
-      :class="this.config.fullsize ? 'fullsize' : 'fixed-height'"
+      v-bind:class="[this.config.fullsize ? 'fullsize' : 'fixed-height']"
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
       :pagination-options="paginationOptions"
+      theme="my-theme"
       styleClass="vgt-table striped bordered condensed")
     </template>
 
@@ -15,7 +16,7 @@ import type { PropType } from 'vue'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
 
-import 'vue-good-table/dist/vue-good-table.css'
+import 'vue-good-table/src/styles/style.scss'
 import { VueGoodTable } from 'vue-good-table'
 
 import { FileSystemConfig, Status } from '@/Globals'
@@ -49,19 +50,32 @@ export default defineComponent({
         dropdownAllowAll: false,
         perPage: 5,
       },
+      isDarkmode: false,
+      currentTheme: '',
       dataColumnNames: ['date'],
       percentColumnNames: ['percent'],
     }
   },
   async mounted() {
+    this.globalState.isDarkMode ? (this.currentTheme = 'nocturnal') : (this.currentTheme = '')
     this.dataSet = await this.loadData()
     this.prepareData()
 
     this.$emit('isLoaded')
   },
+
   beforeDestroy() {
     this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
   },
+
+  watch: {
+    'globalState.isDarkMode'() {
+      this.isDarkmode = this.globalState.isDarkMode
+      this.globalState.isDarkMode ? (this.currentTheme = 'nocturnal') : (this.currentTheme = '')
+      this.updateTheme()
+    },
+  },
+
   methods: {
     handleFilterChanged() {
       if (!this.datamanager) return
@@ -250,16 +264,25 @@ export default defineComponent({
           ...this.paginationOptions,
           perPageDropdown: [5],
         }
-      } else {
+      } else if (numberOfValues < 20) {
         this.paginationOptions = {
           ...this.paginationOptions,
           perPageDropdown: [5, 10],
+        }
+      } else {
+        this.paginationOptions = {
+          ...this.paginationOptions,
+          perPageDropdown: [5, 10, 20],
         }
       }
 
       if (!this.config.fullsize) this.paginationOptions.enabled = true
 
       if (numberOfValues < 5) this.paginationOptions.enabled = false
+    },
+
+    updateTheme() {
+      console.log('DARKMODE')
     },
   },
 })
@@ -268,11 +291,23 @@ export default defineComponent({
 <style lang="scss">
 .vgt-table th {
   padding: 0.4rem 0 0.4rem 0.75rem;
-  /*padding: 0.75em 0.5em 0.75em 0.75em;*/
 }
 
 .vgt-wrap__footer {
   padding: 0.4rem;
+}
+
+.vgt-table,
+.vgt-wrap__footer,
+.footer__row-count__label,
+.footer__row-count__select,
+.footer__navigation__page-info,
+.footer__navigation__page-btn span {
+  font-size: 12px !important;
+}
+
+.vgt-pull-left {
+  margin-top: 4px;
 }
 </style>
 
