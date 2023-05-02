@@ -3,10 +3,16 @@
 <html lang="en">
   <head>
     <script>
-      sessionStorage.redirect = location.href
+      const numRedirects = Number.parseInt(localStorage?.numRedirects || '0') + 1
+
+      // console.log({ numRedirects })
+      localStorage.numRedirects = numRedirects
+      localStorage[`redirect${numRedirects}`] = location.href
+
+      let meta = document.createElement('meta')
+      meta.httpEquiv = 'refresh'
+      meta.content = "0;URL='/'" + `?redirect404=${numRedirects}'`
+      document.head.appendChild(meta)
     </script>
-    <!-- URL below MUST reflect base folder of built site;
-         example: '/simwrapper/' for https://vsp.berlin/simwrapper/ -->
-    <meta http-equiv="refresh" content="0;URL='/'" />
   </head>
 </html>
