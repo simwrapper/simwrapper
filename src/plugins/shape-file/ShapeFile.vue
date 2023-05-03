@@ -919,9 +919,9 @@ const MyComponent = defineComponent({
     paintFillsWithFilter(dataTable: DataTable) {
       const columnName = this.currentUIFillColorDefinitions.columnName
       const lookupColumn =
-        this.currentUIFillColorDefinitions.combineBy === '@count'
+        this.currentUIFillColorDefinitions.join === '@count'
           ? dataTable[`@@${columnName}`]
-          : dataTable[`@@${this.currentUIFillColorDefinitions.combineBy}`]
+          : dataTable[`@@${this.currentUIFillColorDefinitions.join}`]
 
       let normalColumn
       if (this.currentUIFillColorDefinitions.normalize) {
@@ -942,7 +942,7 @@ const MyComponent = defineComponent({
         lookup: lookupColumn,
         filter: this.boundaryFilters,
         options: this.currentUIFillColorDefinitions,
-        combineBy: this.currentUIFillColorDefinitions.combineBy,
+        join: this.currentUIFillColorDefinitions.join,
       }
 
       const { array, legend, calculatedValues } =
@@ -1018,9 +1018,9 @@ const MyComponent = defineComponent({
 
         // Do we need a join? Join it
         let dataJoinColumn = ''
-        if (color.combineBy && !(color.combineBy === '@count')) {
-          dataJoinColumn = color.combineBy
-        } else if (color.combineBy === '@count' ? columnName : color.combineBy) {
+        if (color.join && !(color.join === '@count')) {
+          dataJoinColumn = color.join
+        } else if (color.join === '@count' ? columnName : color.join) {
           // rowcount specified: join on the column name itself
           dataJoinColumn = columnName
         } else {
@@ -1058,7 +1058,7 @@ const MyComponent = defineComponent({
           lookup: lookupColumn,
           filter: this.boundaryFilters,
           options: color,
-          combineBy: color.combineBy,
+          join: color.join,
         })
 
         this.dataFillColors = array

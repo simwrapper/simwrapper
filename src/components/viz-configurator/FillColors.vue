@@ -15,7 +15,7 @@
   .widgets
     .widget
         p.tight Join by
-        b-select.selector(expanded v-model="combineBy")
+        b-select.selector(expanded v-model="join")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -120,7 +120,7 @@ export interface FillColorDefinition {
   diff?: string
   diffDatasets?: string[]
   relative?: boolean
-  combineBy?: string
+  join?: string
   colorRamp?: Ramp
   fixedColors: string[]
 }
@@ -162,7 +162,7 @@ export default defineComponent({
       steps: '9',
       flip: false,
       dataColumn: '',
-      combineBy: '@count',
+      join: '@count',
       normalSelection: '',
       selectedColor: {} as Ramp,
       selectedSingleColor: '',
@@ -198,7 +198,7 @@ export default defineComponent({
     dataColumn() {
       this.emitColorSpecification()
     },
-    combineBy() {
+    join() {
       this.emitColorSpecification()
     },
     diffDatasets() {
@@ -238,7 +238,7 @@ export default defineComponent({
         this.datasetLabels = [...this.datasetLabels]
 
         if (config?.normalize) this.normalSelection = config.normalize
-        if (config?.combineBy) this.combineBy = config.combineBy
+        if (config?.join) this.join = config.join
 
         if (config.colorRamp) {
           let colorChoice =
@@ -341,7 +341,7 @@ export default defineComponent({
       const fill = {
         dataset,
         columnName,
-        combineBy: this.combineBy,
+        join: this.join,
         fixedColors,
         normalize: this.normalSelection,
         colorRamp: {

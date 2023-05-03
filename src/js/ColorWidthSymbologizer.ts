@@ -22,7 +22,7 @@ function getColorsForDataColumn(props: {
   filter: Float32Array
   options: any
   relative?: boolean
-  combineBy?: string
+  join?: string
 }) {
   // Figure out what kind of thing the user wants
   if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
@@ -430,9 +430,9 @@ function buildColorsBasedOnNumericValues(props: {
   lookup: DataTableColumn
   normalize?: DataTableColumn
   options: any
-  combineBy?: string
+  join?: string
 }) {
-  const { numFeatures, data, lookup, normalize, options, combineBy } = props
+  const { numFeatures, data, lookup, normalize, options, join } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
@@ -461,7 +461,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   // calculate aggregated values. This might be a job for crossfilter2 later
   const calculatedValues = new Float32Array(numFeatures)
-  if (combineBy === '@count') {
+  if (join === '@count') {
     // *** COUNT rows that have this lookup
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
