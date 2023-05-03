@@ -1,15 +1,34 @@
 <template lang="pug">
-.width-panel
+.height-panel
+
+  //- DATA COLUMN
   .widgets
     .widget
+        p.tight Display
         b-select.selector(expanded v-model="dataColumn")
           option(label="None" value="^")
           optgroup(v-for="dataset in datasetChoices"
-                  :key="dataset" :label="dataset")
+                   :key="dataset"
+                   :label="dataset"
+          )
             option(v-for="column in numericColumnsInDataset(dataset)"
-                  :key="`${dataset}/${column}`"
-                  :value="`${dataset}/${column}`"
-                  :label="column")
+                   :key="`${dataset}/${column}`"
+                   :value="`${dataset}/${column}`"
+                   :label="column")
+
+  //- JOIN COLUMN
+  .widgets
+    .widget
+        p.tight Join by
+        b-select.selector(expanded v-model="join")
+          option(label="Row count" value="@count")
+
+          optgroup(label="Join by...")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
+                   :key="col"
+                   :value="col"
+                   :label="col"
+            )
 
   //- NORMALIZE COLUMN
   .widgets(v-if="dataColumn && dataColumn.length > 1")
@@ -18,8 +37,13 @@
         b-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
-            option(v-for="column in numericColumnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
+            option(v-for="column in numericColumnsInDataset(dataset)"
+                   :key="`${dataset}/${column}`"
+                   :value="`${dataset}:${column}`"
+                   :label="column"
+            )
 
+  //- SCALING
   .widgets
     .widget
       p Scaling
@@ -38,8 +62,9 @@ import { debounce } from 'debounce'
 export type FillHeightDefinition = {
   dataset?: string
   columnName?: string
-  scaleFactor?: number
+  join?: string
   normalize?: string
+  scaleFactor?: number
 }
 
 export default defineComponent({
@@ -53,6 +78,7 @@ export default defineComponent({
     return {
       transforms,
       dataColumn: '',
+      join: '@count',
       normalSelection: '',
       scaleFactor: '1',
       selectedTransform: transforms[0],
@@ -72,6 +98,9 @@ export default defineComponent({
     },
     datasets() {
       this.datasetsAreLoaded()
+    },
+    join() {
+      this.emitSpecification()
     },
     scaleFactor() {
       this.debounceHandleScale()
@@ -95,6 +124,7 @@ export default defineComponent({
         this.dataColumn = `${config.dataset}/${config.columnName}`
         this.datasetLabels = [...this.datasetLabels]
         this.scaleFactor = config.scaleFactor
+        this.join = config.join
 
         if (config?.normalize) {
           this.normalSelection = config.normalize
@@ -125,6 +155,7 @@ export default defineComponent({
         const fillHeight: FillHeightDefinition = {
           dataset: '',
           columnName: '',
+          join: this.join,
           normalize: this.normalSelection,
           scaleFactor: parseFloat(this.scaleFactor),
         }
@@ -142,11 +173,22 @@ export default defineComponent({
       const fillHeight: FillHeightDefinition = {
         dataset,
         columnName,
+        join: this.join,
         normalize: this.normalSelection,
         scaleFactor: parseFloat(this.scaleFactor),
       }
 
       setTimeout(() => this.$emit('update', { fillHeight }), 25)
+    },
+
+    columnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
+
+      return allColumns
     },
 
     numericColumnsInDataset(datasetId: string): string[] {
@@ -165,7 +207,7 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-.width-panel {
+.height-panel {
   padding-right: 0rem;
 }
 
@@ -189,5 +231,9 @@ export default defineComponent({
   margin-top: 0.75rem;
   overflow-x: auto;
   max-width: 100%;
+}
+
+.tight {
+  margin: 0 0 -10px 1px;
 }
 </style>

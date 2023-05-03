@@ -1,7 +1,10 @@
 <template lang="pug">
 .width-panel
+
+  //- DATA COLUMN
   .widgets
     .widget
+        p.tight Display
         b-select.selector(expanded v-model="dataColumn")
 
           option(label="None" value="@0")
@@ -11,16 +14,32 @@
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
+                  :key="`${dataset}/${column}`"
                   :value="`${dataset}/${column}`"
                   :label="column")
 
+  //- JOIN COLUMN ------------
+  .widgets
+    .widget
+        p.tight Join by
+        b-select.selector(expanded v-model="join")
+          option(label="Row count" value="@count")
+
+          optgroup(label="Join by...")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
+                   :key="col"
+                   :value="col"
+                   :label="col"
+            )
+
+  //- SCALING ----------------
   .widgets
     .widget
       p Scaling
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
-  //- DIFF MODE
+  //- DIFF MODE --------------
   .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
     .widgets
       .widget(style="flex: 3")
@@ -67,6 +86,7 @@ export type LineWidthDefinition = {
   diff?: string
   diffDatasets?: string[]
   relative?: boolean
+  join?: string
 }
 
 export default defineComponent({
@@ -81,6 +101,7 @@ export default defineComponent({
     return {
       dataColumn: '',
       scaleFactor: '1',
+      join: '@count',
       selectedTransform: transforms[0],
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
@@ -118,6 +139,9 @@ export default defineComponent({
     scaleFactor() {
       this.debounceHandleScaleChanged()
     },
+    join() {
+      this.emitSpecification()
+    },
   },
   methods: {
     vizConfigChanged() {
@@ -132,6 +156,7 @@ export default defineComponent({
 
         this.datasetLabels = [...this.datasetLabels]
         this.scaleFactor = config.scaleFactor
+        this.join = config.join
       }
     },
     setupDiffMode(config: LineWidthDefinition) {
@@ -220,6 +245,7 @@ export default defineComponent({
       const lineWidth: LineWidthDefinition = {
         dataset,
         columnName,
+        join: this.join,
         scaleFactor: parseFloat(this.scaleFactor),
       } as any
 
@@ -249,6 +275,16 @@ export default defineComponent({
 
     datasetChoices(): string[] {
       return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
+
+    columnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
+
+      return allColumns
     },
 
     numericColumnsInDataset(datasetId: string): string[] {

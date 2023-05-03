@@ -1229,7 +1229,28 @@ const MyComponent = defineComponent({
           const dataColumn = selectedDataset[columnName]
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-          const lookupColumn = selectedDataset['@']
+
+          // Do we need a join? Join it
+          let dataJoinColumn = ''
+          if (width.join && !(width.join === '@count')) {
+            dataJoinColumn = width.join
+          } else if (width.join === '@count' ? columnName : width.join) {
+            // rowcount specified: join on the column name itself
+            dataJoinColumn = columnName
+          } else {
+            console.warn('*** HOW DID I GET HERE?')
+            this.globalStore.commit('error', 'Could not match data to boundaries')
+          }
+
+          if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
+            this.setupJoin({
+              datasetId: datasetKey,
+              dataTable: selectedDataset,
+              dataJoinColumn,
+            })
+          }
+
+          const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
           // Calculate widths for each feature
           const { array, legend, calculatedValues } = ColorWidthSymbologizer.getWidthsForDataColumn(
@@ -1237,6 +1258,7 @@ const MyComponent = defineComponent({
               length: this.boundaries.length,
               data: dataColumn,
               lookup: lookupColumn,
+              join: width.join,
               options: width,
             }
           )
@@ -1275,7 +1297,28 @@ const MyComponent = defineComponent({
           const dataColumn = selectedDataset[columnName]
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-          const lookupColumn = selectedDataset['@']
+
+          // Do we need a join? Join it
+          let dataJoinColumn = ''
+          if (height.join && !(height.join === '@count')) {
+            dataJoinColumn = height.join
+          } else if (height.join === '@count' ? columnName : height.join) {
+            // rowcount specified: join on the column name itself
+            dataJoinColumn = columnName
+          } else {
+            console.warn('*** HOW DID I GET HERE?')
+            this.globalStore.commit('error', 'Could not match data to boundaries')
+          }
+
+          if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
+            this.setupJoin({
+              datasetId: datasetKey,
+              dataTable: selectedDataset,
+              dataJoinColumn,
+            })
+          }
+
+          const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
           // Figure out the normal
           let normalColumn
@@ -1289,16 +1332,17 @@ const MyComponent = defineComponent({
             this.dataCalculatedValueLabel = columnName + '/' + keys[1]
           }
 
-          // Calculate widths for each feature
-          // console.log('update fill height...')
-          const { heights, calculatedValues } =
+          // Calculate for each feature
+          const { heights, calculatedValues, normalizedValues } =
             ColorWidthSymbologizer.getHeightsBasedOnNumericValues({
               length: this.boundaries.length,
               data: dataColumn,
               lookup: lookupColumn,
               options: height,
               normalize: normalColumn,
+              join: height.join,
             })
+
           this.dataFillHeights = heights
           this.dataCalculatedValues = calculatedValues
           this.dataNormalizedValues = normalizedValues || null
@@ -1351,7 +1395,6 @@ const MyComponent = defineComponent({
     async handleMapClick(click: any) {
       try {
         const { x, y, data } = click.points[0]
-
         const filter = this.config.groupBy
         const value = x
 

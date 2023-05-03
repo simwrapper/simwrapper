@@ -8,10 +8,17 @@
         b-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="@")
 
-          optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
-            option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
+          optgroup(v-for="dataset in datasetChoices()"
+                   :key="dataset"
+                   :label="dataset"
+          )
+            option(v-for="column in columnsInDataset(dataset)"
+                   :key="`${dataset}/${column}`"
+                   :value="`${dataset}/${column}`"
+                   :label="column"
+            )
 
-  //- DATA COLUMN
+  //- JOIN COLUMN
   .widgets
     .widget
         p.tight Join by
@@ -19,10 +26,10 @@
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
-            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])" :value="col" :label="col")
-
-          //- optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
-          //-   option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
+                   :value="col"
+                   :label="col"
+            )
 
   //- NORMALIZE COLUMN
   .widgets(v-if="dataColumn && dataColumn.length > 1")
@@ -31,7 +38,11 @@
         b-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
-            option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}:${column}`" :label="column")
+            option(v-for="column in columnsInDataset(dataset)"
+              :key="`${dataset}/${column}`"
+              :value="`${dataset}:${column}`"
+              :label="column"
+            )
 
   //- DIFF MODE
   .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")

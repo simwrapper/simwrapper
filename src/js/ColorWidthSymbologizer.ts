@@ -41,6 +41,7 @@ function getWidthsForDataColumn(props: {
   lookup: DataTableColumn
   lookup2?: DataTableColumn
   normalize?: DataTableColumn
+  join?: string
   options: any
 }) {
   // Figure out what kind of thing the user wants
@@ -80,15 +81,31 @@ function buildDiffWidthsBasedOnNumericValues(props: {
   lookup: DataTableColumn
   lookup2?: DataTableColumn
   normalize?: DataTableColumn
+  join?: string
   options: any
 }) {
-  const { length, data, data2, lookup, lookup2, normalize, options } = props
+  const { length, data, data2, lookup, lookup2, normalize, join, options } = props
   const { columnName, dataset, scaleFactor } = options
 
   if (isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
   const widths = new Float32Array(length)
   const calculatedValues = new Float32Array(length)
+
+  if (join === '@count') {
+    // *** COUNT rows that have this lookup
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] += 1
+    }
+  } else {
+    // *** SUM values in rows
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      // always SUM, for now
+      calculatedValues[offset] += data.values[i]
+    }
+  }
 
   if (scaleFactor) {
     data.values.forEach((value, index) => {
@@ -160,15 +177,31 @@ function getHeightsBasedOnNumericValues(props: {
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
+  join?: string
   options: any
 }) {
-  const { length, data, lookup, normalize, options } = props
+  const { length, data, lookup, normalize, join, options } = props
   const { columnName, dataset, scaleFactor } = options
 
   if (typeof scaleFactor !== 'number') return { heights: 0, calculatedValues: null }
 
   const heights = new Float32Array(length)
   const calculatedValues = new Float32Array(length)
+
+  if (join === '@count') {
+    // *** COUNT rows that have this lookup
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] += 1
+    }
+  } else {
+    // *** SUM values in rows
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      // always SUM, for now
+      calculatedValues[offset] += data.values[i]
+    }
+  }
 
   let normalizedValues = data.values
   let normalizedMax = data.max || -Infinity
@@ -191,7 +224,7 @@ function getHeightsBasedOnNumericValues(props: {
       heights[offset] = normalizedValues[i] / scaleFactor
     }
   }
-  return { heights, calculatedValues }
+  return { heights, calculatedValues, normalizedValues: null }
 }
 
 function getRadiusForDataColumn(props: {
