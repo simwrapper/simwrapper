@@ -14,7 +14,8 @@
 
       // URL below MUST reflect base folder of built site;
       // example: '/simwrapper/' for https://vsp.berlin/simwrapper/
-      meta.content = "0;URL='/'" + `?redirect404=${numRedirects}'`
+      const baseURL = '/'
+      meta.content = `0;URL='${baseURL}?redirect404=${numRedirects}'`
 
       document.head.appendChild(meta)
     </script>
