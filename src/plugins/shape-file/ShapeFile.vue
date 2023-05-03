@@ -163,7 +163,6 @@ const MyComponent = defineComponent({
       legendStore: new LegendStore(),
       chosenNewFilterColumn: '',
       boundaryDataTable: {} as DataTable,
-
       dataFillColors: '#888' as string | Uint8Array,
       dataLineColors: '' as string | Uint8Array,
       dataLineWidths: 1 as number | Float32Array,
@@ -581,8 +580,32 @@ const MyComponent = defineComponent({
         }
       }
 
+      this.buildOldJoinLookups()
+
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
+    },
+
+    buildOldJoinLookups() {
+      // figure out old-style joins
+      const oldJoinFieldPerDataset = {} as any
+
+      for (const dataset of Object.keys(this.vizDetails.datasets || [])) {
+        const join = this.vizDetails.datasets[dataset].join
+        if (!join) continue
+
+        const colon = join.indexOf(':')
+        oldJoinFieldPerDataset[dataset] = join.substring(colon + 1)
+      }
+
+      // apply old-style joins to elements
+      for (const section of Object.keys(this.vizDetails.display || [])) {
+        const display = this.vizDetails.display as any
+        const details = display[section]
+        if (details.dataset && !details.join) {
+          details.join = oldJoinFieldPerDataset[details.dataset]
+        }
+      }
     },
 
     async buildThumbnail() {
