@@ -163,8 +163,18 @@ export default function Component({
     console.log('click!')
   }
 
-  function precise(x: number) {
-    return format(x, { lowerExp: -7, upperExp: 7, precision: 4 })
+  function precise(x: number, precision: number) {
+    return format(x, { lowerExp: -7, upperExp: 7, precision })
+  }
+
+  function kindaRoundValue({ value, precision }: { value: any; precision: number }) {
+    if (typeof value !== 'number') return value
+
+    let printValue = '' + value
+    if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
+      if (/\d$/.test(printValue)) return precise(value, precision)
+    }
+    return value
   }
 
   // TOOLTIP ------------------------------------------------------------------
@@ -184,7 +194,7 @@ export default function Component({
     // calculated value
     if (calculatedValues) {
       const key = calculatedValueLabel || 'Value'
-      let value = precise(calculatedValues[index])
+      let value = precise(calculatedValues[index], 4)
 
       if (calculatedValueLabel.startsWith('%')) value = value + ' %'
 
@@ -194,13 +204,14 @@ export default function Component({
     }
 
     // --- dataset tooltip lines ---
+    let datasetProps = ''
     const featureTips = Object.entries(features[index].properties)
 
-    let datasetProps = ''
     for (const [tipKey, tipValue] of featureTips) {
-      let value = tipValue
-      if (value === null) continue
-      if (typeof value == 'number') value = precise(value)
+      if (tipValue === null) continue
+
+      // Truncate fractional digits IF it is a simple number that has a fraction
+      let value = kindaRoundValue({ value: tipValue, precision: 4 })
       datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
     }
 
@@ -219,7 +230,8 @@ export default function Component({
       if (featureDataTable[column]) {
         let value = featureDataTable[column].values[index]
         if (value == null) return
-        if (typeof value == 'number') value = precise(value)
+        if (typeof value == 'number') value = kindaRoundValue({ value, precision: 4 })
+
         featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
       }
     })

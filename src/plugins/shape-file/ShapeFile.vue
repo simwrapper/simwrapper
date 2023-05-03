@@ -2270,8 +2270,8 @@ export default MyComponent
   filter: $filterShadow;
   flex-direction: row;
   margin: 0.5rem;
-  padding: 0.25rem;
-  width: 15rem;
+  padding: 0.25rem 0.5rem;
+  // width: 15rem;
   font-size: 0.8rem;
   color: var(--bold);
   opacity: 0.95;
