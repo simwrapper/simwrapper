@@ -270,7 +270,7 @@ export default function Component({
     lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
     lineWidthMaxPixels: 50,
     getOffset: OFFSET_DIRECTION.RIGHT,
-    opacity: fillHeights ? 100 : opacity / 100, // 3D must be opaque
+    opacity: fillHeights ? 1.0 : 0.75, // 3D must be opaque
     pickable: true,
     pointRadiusUnits: 'pixels',
     pointRadiusMinPixels: 2,
@@ -332,7 +332,13 @@ export default function Component({
           setScreenshot(screenshot) // update scrnshot count so we don't take 1000 screenshots by mistake :-/
         }
       }}
-    ></DeckGL>
+    >
+      {
+        /*
+        // @ts-ignore */
+        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+      }
+    </DeckGL>
   )
 
   return deckInstance

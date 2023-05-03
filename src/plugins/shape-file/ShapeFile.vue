@@ -31,7 +31,7 @@
     )
     //- :features="useCircles ? centroids: boundaries"
 
-    background-map-on-top(v-if="isLoaded")
+    //- background-map-on-top(v-if="isLoaded")
 
     viz-configurator(v-if="isLoaded"
       :embedded="isEmbedded"
