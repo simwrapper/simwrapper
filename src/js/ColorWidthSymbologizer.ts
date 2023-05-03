@@ -260,7 +260,7 @@ function buildColorsBasedOnCategories(props: {
 
   // console.log({ legend })
 
-  return { array: rgbArray, legend, calculatedValues: null }
+  return { array: rgbArray, legend, calculatedValues: null, normalizedValues: null }
 }
 
 function buildDiffDomainBreakpoints(
@@ -421,7 +421,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   // console.log({ legend, colors })
 
-  return { array: rgbArray, legend, calculatedValues: diffValues }
+  return { array: rgbArray, legend, calculatedValues: diffValues, normalizedValues: null }
 }
 
 function buildColorsBasedOnNumericValues(props: {
@@ -543,7 +543,12 @@ function buildColorsBasedOnNumericValues(props: {
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
   // console.log({ legend, colors })
 
-  return { array: rgbArray, calculatedValues, legend }
+  return {
+    array: rgbArray,
+    calculatedValues,
+    normalizedValues: normalize && normalizedValues,
+    legend,
+  }
 }
 
 // helpers ------------------------------------------------------------

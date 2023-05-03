@@ -23,6 +23,7 @@
       :screenshot="triggerScreenshot"
       :calculatedValues="dataCalculatedValues"
       :calculatedValueLabel="dataCalculatedValueLabel"
+      :normalizedValues="dataNormalizedValues"
       :featureFilter="boundaryFilters"
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
@@ -169,6 +170,7 @@ const MyComponent = defineComponent({
       dataPointRadii: 5 as number | Float32Array,
       dataFillHeights: 0 as number | Float32Array,
       dataCalculatedValues: null as Float32Array | null,
+      dataNormalizedValues: null as Float32Array | null,
       dataCalculatedValueLabel: '',
 
       globalStore,
@@ -1051,18 +1053,20 @@ const MyComponent = defineComponent({
 
         // Calculate colors for each feature
         // console.log('Updating fills...')
-        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataColumn,
-          normalize: normalColumn,
-          lookup: lookupColumn,
-          filter: this.boundaryFilters,
-          options: color,
-          join: color.join,
-        })
+        const { array, legend, calculatedValues, normalizedValues } =
+          ColorWidthSymbologizer.getColorsForDataColumn({
+            numFeatures: this.boundaries.length,
+            data: dataColumn,
+            normalize: normalColumn,
+            lookup: lookupColumn,
+            filter: this.boundaryFilters,
+            options: color,
+            join: color.join,
+          })
 
         this.dataFillColors = array
         this.dataCalculatedValues = calculatedValues
+        this.dataNormalizedValues = normalizedValues || null
 
         this.legendStore.setLegendSection({
           section: 'Color',
@@ -1297,6 +1301,7 @@ const MyComponent = defineComponent({
             })
           this.dataFillHeights = heights
           this.dataCalculatedValues = calculatedValues
+          this.dataNormalizedValues = normalizedValues || null
           this.dataCalculatedValueLabel = ''
 
           if (this.$store.state.viewState.pitch == 0) {
@@ -1357,7 +1362,7 @@ const MyComponent = defineComponent({
     },
 
     async figureOutFeatureIdColumn() {
-      console.log('figure out!')
+      // console.log('figure out join id!')
 
       // if user specified it in a data join in the YAML, we're done
       if (this.featureJoinColumn) return this.featureJoinColumn
@@ -2099,7 +2104,6 @@ const MyComponent = defineComponent({
 
       await this.loadDatasets()
 
-      console.log(60, Object.keys(this.datasets))
       // Check URL query parameters
 
       this.datasets = Object.assign({}, this.datasets)

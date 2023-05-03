@@ -4,7 +4,6 @@ import { DataFilterExtension } from '@deck.gl/extensions'
 
 import { StaticMap, MapRef } from 'react-map-gl'
 import { rgb } from 'd3-color'
-import { format } from 'mathjs'
 
 import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
@@ -28,6 +27,7 @@ export default function Component({
   fillHeights = 0 as number | Float32Array,
   calculatedValues = null as null | Float32Array,
   calculatedValueLabel = '',
+  normalizedValues = null as null | Float32Array,
   opacity = 1,
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
@@ -36,6 +36,8 @@ export default function Component({
   tooltip = [] as string[],
   cbTooltip = {} as any,
 }) {
+  const PRECISION = 4
+
   // const features = globalStore.state.globalCache[viewId] as any[]
   const [features, setFeatures] = useState([] as any[])
 
@@ -158,21 +160,20 @@ export default function Component({
     globalStore.commit('setMapCamera', view)
   }
 
-  // INTERACTIONS ---------------------------------------------------------------------
+  // CLICK  ---------------------------------------------------------------------
   function handleClick() {
     console.log('click!')
   }
 
-  function precise(x: number, precision: number) {
-    return format(x, { lowerExp: -7, upperExp: 7, precision })
-  }
-
-  function kindaRoundValue({ value, precision }: { value: any; precision: number }) {
+  // this will only round a number if it is a plain old regular number with
+  // a fractional part to the right of the decimal point.
+  function truncateFractionalPart({ value, precision }: { value: any; precision: number }) {
     if (typeof value !== 'number') return value
 
     let printValue = '' + value
     if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
-      if (/\d$/.test(printValue)) return precise(value, precision)
+      if (/\d$/.test(printValue))
+        return printValue.substring(0, 1 + PRECISION + printValue.lastIndexOf('.')) // precise(value, precision)
     }
     return value
   }
@@ -191,15 +192,28 @@ export default function Component({
 
     const propList = []
 
-    // calculated value
-    if (calculatedValues) {
-      const key = calculatedValueLabel || 'Value'
-      let value = precise(calculatedValues[index], 4)
-
-      if (calculatedValueLabel.startsWith('%')) value = value + ' %'
+    // normalized value first
+    if (normalizedValues) {
+      const label = calculatedValueLabel ?? 'Normalized Value'
+      let value = truncateFractionalPart({ value: normalizedValues[index], precision: PRECISION })
 
       propList.push(
-        `<tr><td style="text-align: right; padding-right: 0.5rem;">${key}</td><td><b>${value}</b></td></tr>`
+        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
+      )
+    }
+
+    // calculated value
+    if (calculatedValues) {
+      let cLabel = calculatedValueLabel ?? 'Value'
+
+      const label = normalizedValues ? cLabel.substring(0, cLabel.lastIndexOf('/')) : cLabel
+      let value = truncateFractionalPart({ value: calculatedValues[index], precision: PRECISION })
+
+      if (calculatedValueLabel.startsWith('%')) value = `${value} %`
+
+      propList.push(
+        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
+         <tr><td>&nbsp;</td></tr>`
       )
     }
 
@@ -211,7 +225,7 @@ export default function Component({
       if (tipValue === null) continue
 
       // Truncate fractional digits IF it is a simple number that has a fraction
-      let value = kindaRoundValue({ value: tipValue, precision: 4 })
+      let value = truncateFractionalPart({ value: tipValue, precision: 4 })
       datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
     }
 
@@ -230,7 +244,7 @@ export default function Component({
       if (featureDataTable[column]) {
         let value = featureDataTable[column].values[index]
         if (value == null) return
-        if (typeof value == 'number') value = kindaRoundValue({ value, precision: 4 })
+        if (typeof value == 'number') value = truncateFractionalPart({ value, precision: 4 })
 
         featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
       }
@@ -243,7 +257,7 @@ export default function Component({
       return
     }
 
-    let finalHTML = propList.join('<tr><td>&nbsp;</td></tr>')
+    let finalHTML = propList.join('')
     const html = `<table>${finalHTML}</table>`
 
     cbTooltip(html)
