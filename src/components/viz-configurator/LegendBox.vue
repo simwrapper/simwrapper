@@ -1,5 +1,5 @@
 <template lang="pug">
-.legend-box
+.legend-box(v-if="sections.length")
   .legend-section(v-for="section,i in sections" :key="section.section")
     p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ sectionTitle(section) }}
     .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
@@ -31,6 +31,8 @@ export default defineComponent({
   methods: {
     sectionTitle(section: LegendSection) {
       let title = section.column
+
+      if (section.normalColumn) title += ` / ${section.normalColumn}`
 
       if (section.relative) {
         title += ' (% Diff)'

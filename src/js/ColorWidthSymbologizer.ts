@@ -147,7 +147,7 @@ function buildWidthsBasedOnNumericValues(props: {
   const { length, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
+  if (Number.isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
   const widths = new Float32Array(length)
   const calculatedValues = new Float32Array(length)
@@ -514,7 +514,10 @@ function buildColorsBasedOnNumericValues(props: {
   let normalizedMax = calculatedValues[0]
   let nMaxLength = normalizedValues.length
 
-  for (let i = 1; i < nMaxLength; ++i) normalizedMax = Math.max(normalizedMax, calculatedValues[i])
+  for (let i = 1; i < nMaxLength; ++i) {
+    normalizedMax = Math.max(normalizedMax, calculatedValues[i])
+  }
+
   normalizedMax = normalizedMax ?? -Infinity
 
   // Normalize data
@@ -522,7 +525,6 @@ function buildColorsBasedOnNumericValues(props: {
     normalizedValues = new Float32Array(numFeatures)
     normalizedMax = -Infinity
 
-    // TODO: this is broken. Need to normalize using the lookup again?
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
       const numerator = calculatedValues[offset]
@@ -531,7 +533,7 @@ function buildColorsBasedOnNumericValues(props: {
         normalizedValues[offset] = numerator / denominator
         normalizedMax = Math.max(normalizedValues[offset], normalizedMax)
       } else {
-        normalizedValues[offset] = NaN
+        normalizedValues[offset] = 5 // NaN
       }
     }
   }
@@ -549,16 +551,19 @@ function buildColorsBasedOnNumericValues(props: {
     rgbArray[colorOffset + 2] = color[2]
   }
 
+  // Generate LEGEND ranges ---------------------------------
+
   const legend = [] as any[]
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
-  // display RANGES, not just breakpoints:
+  let precision = normalizedMax >= 10000 ? 0 : 3
+
   let lowerBound = 0
   for (let i = 0; i < keys.length; i++) {
     const upperBound = keys[i]
-    const lowerLabel = Math.round(lowerBound * normalizedMax)
-    const upperLabel = Math.round(upperBound * normalizedMax)
+    const lowerLabel = truncateFractionalPart({ value: lowerBound * normalizedMax, precision })
+    const upperLabel = truncateFractionalPart({ value: upperBound * normalizedMax, precision })
     legend.push({
       label: `${lowerLabel} - ${upperLabel}`,
       value: colors[i],
@@ -566,12 +571,13 @@ function buildColorsBasedOnNumericValues(props: {
     lowerBound = upperBound
   }
 
-  const total = calculatedValues.reduce((a, b) => a + b, 0)
-  // console.log({ total })
-
+  // final bucket:
   legend.push({
-    label: `${Math.round(lowerBound * normalizedMax)} - ${normalizedMax}`,
-    value: colors[keys.length - 1],
+    label: `${truncateFractionalPart({
+      value: lowerBound * normalizedMax,
+      precision,
+    })} - ${truncateFractionalPart({ value: normalizedMax, precision })}`,
+    value: colors[keys.length],
   })
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
   // console.log({ legend, colors })
@@ -593,6 +599,23 @@ function buildRGBfromHexCodes(hexcodes: string[]) {
     return [c.r, c.g, c.b]
   })
   return colorsAsRGB
+}
+
+// this will only round a number if it is a plain old regular number with
+// a fractional part to the right of the decimal point.
+function truncateFractionalPart({ value, precision }: { value: any; precision?: number }) {
+  // default: 3 decimals
+  let usePrecision = precision ?? 3
+  if (usePrecision == 0) usePrecision = -1 // truncates the decimal point itself
+
+  if (typeof value !== 'number') return value
+
+  let printValue = '' + value
+  if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
+    if (/\d$/.test(printValue))
+      return printValue.substring(0, 1 + usePrecision + printValue.lastIndexOf('.'))
+  }
+  return value
 }
 
 export default {

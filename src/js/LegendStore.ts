@@ -4,6 +4,7 @@ export interface LegendSection {
   values: any
   diff?: boolean
   relative?: boolean
+  normalColumn?: string
 }
 
 class LegendStore {

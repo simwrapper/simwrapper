@@ -1065,8 +1065,10 @@ const MyComponent = defineComponent({
 
         // Figure out the normal
         let normalColumn
+        let keys = [] as any[]
+
         if (color.normalize) {
-          const keys = color.normalize.split(':')
+          keys = color.normalize.split(':')
           this.dataCalculatedValueLabel = columnName + '/' + keys[1]
           if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
@@ -1095,6 +1097,7 @@ const MyComponent = defineComponent({
           section: 'Color',
           column: dataColumn.name,
           values: legend,
+          normalColumn: color.normalize ? keys[1] : undefined,
         })
       }
     },
