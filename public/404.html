@@ -4,17 +4,16 @@
 <html lang="en">
   <head>
     <script>
-      const numRedirects = Number.parseInt(localStorage?.numRedirects || '0') + 1
+      // baseURL below MUST reflect base folder of built site;
+      // example: '/simwrapper/' for https://vsp.berlin/simwrapper/
+      const baseURL = '/'
 
+      const numRedirects = Number.parseInt(localStorage?.numRedirects || '0') + 1
       localStorage.numRedirects = numRedirects
       localStorage[`redirect${numRedirects}`] = location.href
 
       let meta = document.createElement('meta')
       meta.httpEquiv = 'refresh'
-
-      // URL below MUST reflect base folder of built site;
-      // example: '/simwrapper/' for https://vsp.berlin/simwrapper/
-      const baseURL = '/'
       meta.content = `0;URL='${baseURL}?redirect404=${numRedirects}'`
 
       document.head.appendChild(meta)
