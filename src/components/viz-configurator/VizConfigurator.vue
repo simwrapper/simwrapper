@@ -239,12 +239,20 @@ export default defineComponent({
         filters: {},
       } as any
 
+      // define shapefile join column, if we have one
+      if (typeof this.vizDetails.shapes === 'object' && this.vizDetails.shapes.join) {
+        config.shapes = { file: config.shapes, join: this.vizDetails.shapes.join }
+      }
+
       // remove pitch and bearing if they're zero
       if (!this.$store.state.viewState.bearing) delete config.bearing
       if (!this.$store.state.viewState.pitch) delete config.pitch
 
       // remove shapefile itself from list of datasets
-      const shapeFilename = config.shapes?.substring(1 + config.shapes.indexOf('/'))
+      const shapeFilename =
+        typeof config.shapes === 'string'
+          ? config?.shapes?.substring(1 + config.shapes.lastIndexOf('/'))
+          : config?.shapes?.file?.substring(1 + config.shapes.file.lastIndexOf('/') || 0)
       if (config.datasets[shapeFilename]) delete config.datasets[shapeFilename]
 
       // remove blank and false values
@@ -298,11 +306,19 @@ export default defineComponent({
         }
       }
 
-      // clean up datasets filenames
+      // clean up datasets filenames & joins
       if (config.datasets) {
         for (const [key, filenameOrObject] of Object.entries(config.datasets) as any[]) {
           if (typeof filenameOrObject.file === 'object') {
             config.datasets[key].file = filenameOrObject.file?.name || filenameOrObject.file || key
+          }
+          // remove old join statements
+          if (typeof filenameOrObject === 'object') {
+            delete config.datasets[key].join
+            // simplify: if all we have is a filename, convert object to string
+            if (Object.keys(config.datasets[key]).length == 1 && config.datasets[key].file) {
+              config.datasets[key] = config.datasets[key].file
+            }
           }
         }
       }
