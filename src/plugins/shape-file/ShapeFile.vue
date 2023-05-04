@@ -48,7 +48,7 @@
       @screenshot="takeScreenshot"
     )
 
-    .details-panel(v-if="tooltipHtml" v-html="tooltipHtml")
+    .details-panel(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -1375,7 +1375,7 @@ const MyComponent = defineComponent({
           this.dataFillHeights = heights
           this.dataCalculatedValues = calculatedValues
           this.dataNormalizedValues = normalizedValues || null
-          this.dataCalculatedValueLabel = ''
+          // this.dataCalculatedValueLabel = ''
 
           if (this.$store.state.viewState.pitch == 0) {
             const angledView = Object.assign({}, this.$store.state.viewState, {
@@ -1385,7 +1385,7 @@ const MyComponent = defineComponent({
           }
         }
       } else {
-        // simple width
+        // simple
         this.dataFillHeights = 0
         this.dataCalculatedValues = null
         this.dataCalculatedValueLabel = ''
