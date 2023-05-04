@@ -254,14 +254,15 @@ function getRadiusForDataColumn(props: {
 }
 
 function buildColorsBasedOnCategories(props: {
-  numFeatures: number
   data: DataTableColumn
+  filter: Float32Array
+  join?: string
   lookup: DataTableColumn
   normalize?: DataTableColumn
-  filter: Float32Array
+  numFeatures: number
   options: any
 }) {
-  const { numFeatures, data, lookup, normalize, options } = props
+  const { numFeatures, data, lookup, normalize, join, options } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
@@ -273,12 +274,19 @@ function buildColorsBasedOnCategories(props: {
   const setColorBasedOnCategory: any = scaleOrdinal().range(colorsAsRGB)
 
   const gray = store.state.isDarkMode ? 48 : 212
-  const rgbArray = new Uint8Array(length * 3).fill(gray)
+  const rgbArray = new Uint8Array(numFeatures * 3).fill(gray)
+
+  const calculatedValues = []
 
   for (let i = 0; i < data.values.length; i++) {
+    const offset = lookup ? lookup.values[i] : i
+    calculatedValues[offset] = data.values[i]
+  }
+
+  for (let i = 0; i < numFeatures; i++) {
     if (props.filter[i] === -1) continue
-    const color = setColorBasedOnCategory(data.values[i])
-    const offset = lookup ? lookup.values[i] * 3 : i * 3
+    const color = setColorBasedOnCategory(calculatedValues[i])
+    const offset = i * 3
     rgbArray[offset + 0] = color[0]
     rgbArray[offset + 1] = color[1]
     rgbArray[offset + 2] = color[2]
@@ -557,7 +565,7 @@ function buildColorsBasedOnNumericValues(props: {
   const keys = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
-  let precision = normalizedMax >= 10000 ? 0 : 3
+  let precision = normalizedMax >= 1000 ? 0 : 3
 
   let lowerBound = 0
   for (let i = 0; i < keys.length; i++) {

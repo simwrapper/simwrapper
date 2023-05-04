@@ -155,7 +155,7 @@ export default defineComponent({
           : `${config.dataset}/${config.columnName}`
 
         this.datasetLabels = [...this.datasetLabels]
-        this.scaleFactor = config.scaleFactor
+        this.scaleFactor = config.scaleFactor ?? '1'
         this.join = config.join
       }
     },

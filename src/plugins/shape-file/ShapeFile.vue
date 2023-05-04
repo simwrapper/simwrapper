@@ -580,14 +580,12 @@ const MyComponent = defineComponent({
         }
       }
 
-      this.buildOldJoinLookups()
-
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
     },
 
+    // figure out old-style joins
     buildOldJoinLookups() {
-      // figure out old-style joins
       const oldJoinFieldPerDataset = {} as any
 
       for (const dataset of Object.keys(this.vizDetails.datasets || [])) {
@@ -596,13 +594,17 @@ const MyComponent = defineComponent({
 
         const colon = join.indexOf(':')
         oldJoinFieldPerDataset[dataset] = join.substring(colon + 1)
+        if (typeof this.vizDetails.shapes == 'string') {
+          const shapeJoinField = colon > -1 ? join.substring(0, colon) : join
+          this.vizDetails.shapes = { file: this.vizDetails.shapes, join: shapeJoinField }
+        }
       }
 
       // apply old-style joins to elements
       for (const section of Object.keys(this.vizDetails.display || [])) {
         const display = this.vizDetails.display as any
         const details = display[section]
-        if (details.dataset && !details.join) {
+        if ((details.dataset || details.diff) && !details.join) {
           details.join = oldJoinFieldPerDataset[details.dataset]
         }
       }
@@ -1168,6 +1170,7 @@ const MyComponent = defineComponent({
                 lookup: lookupColumn,
                 options: color,
                 filter: this.boundaryFilters,
+                join: color.join,
               })
             this.dataLineColors = array
             this.dataCalculatedValues = calculatedValues
@@ -1291,7 +1294,7 @@ const MyComponent = defineComponent({
 
           this.dataLineWidths = array || 0
           this.dataCalculatedValues = calculatedValues
-          this.dataCalculatedValueLabel = ''
+          this.dataCalculatedValueLabel = columnName
 
           if (legend.length) {
             this.legendStore.setLegendSection({
@@ -1431,8 +1434,6 @@ const MyComponent = defineComponent({
     },
 
     async figureOutFeatureIdColumn() {
-      // console.log('figure out join id!')
-
       // if user specified it in a data join in the YAML, we're done
       if (this.featureJoinColumn) return this.featureJoinColumn
 
@@ -1448,12 +1449,6 @@ const MyComponent = defineComponent({
 
       // ask the user
       const join: string = await new Promise((resolve, reject) => {
-        // if there is only one data column, we're done
-        if (availableColumns.length === 1) {
-          resolve(availableColumns[0])
-          return
-        }
-
         const boundaryProperties = new Set()
         // Some geojsons have an 'id' separate from their property table
         if (this.boundaries[0].id) boundaryProperties.add('id')
@@ -2135,6 +2130,8 @@ const MyComponent = defineComponent({
 
       this.buildThumbnail()
       if (this.thumbnail) return
+
+      this.buildOldJoinLookups()
 
       this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
 

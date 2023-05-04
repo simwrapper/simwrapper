@@ -1,5 +1,7 @@
 <template lang="pug">
 .color-ramp-picker
+
+  //- DATA COLUMN
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
@@ -9,6 +11,20 @@
                   :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
+  //- JOIN COLUMN
+  .widgets
+    .widget
+        p.tight Join by
+        b-select.selector(expanded v-model="join")
+          //- option(label="Row count" value="@count")
+
+          optgroup(label="Join by...")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
+                   :value="col"
+                   :label="col"
+            )
+
+  //- SINGLE COLORS
   .colorbar.single(v-show="dataColumn=='@'")
     .single-color(
       v-for="swatch of simpleColors" :key="swatch"
@@ -16,6 +32,7 @@
       :class="{active: selectedSingleColor == swatch }"
       @click="clickedSingleColor(swatch)")
 
+  //- COLOR RAMPS
   .more(v-show="dataColumn && dataColumn.length >= 2")
     .widgets
       .widget
@@ -77,6 +94,7 @@ export interface LineColorDefinition {
   columnName: string
   colorRamp?: Ramp
   fixedColors: string[]
+  join?: string
 }
 
 const ALL_COLOR_RAMPS = [
@@ -109,6 +127,7 @@ export default defineComponent({
       diffRelative: false,
       diffUISelection: '',
       flip: false,
+      join: '',
       isCurrentlyDiffMode: false,
       isFirstDataset: true,
       selectedColor: {} as Ramp,
@@ -181,6 +200,9 @@ export default defineComponent({
 
         this.dataColumn = selectedColumn
         this.datasetLabels = [...this.datasetLabels]
+
+        if (config?.join) this.join = config.join
+
         if (config.colorRamp) {
           let colorChoice =
             this.colorChoices.find(f => f.ramp == config.colorRamp.ramp) || this.colorChoices[0]
@@ -287,6 +309,7 @@ export default defineComponent({
       const lineColor = {
         dataset,
         columnName,
+        join: this.join,
         fixedColors,
         colorRamp: {
           ramp: this.selectedColor.ramp,
