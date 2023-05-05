@@ -64,12 +64,6 @@ export default defineComponent({
     this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
   },
 
-  watch: {
-    'globalState.isDarkMode'() {
-      console.log('Darkmode: ', this.globalState.isDarkMode)
-    },
-  },
-
   methods: {
     handleFilterChanged() {
       if (!this.datamanager) return
@@ -274,10 +268,6 @@ export default defineComponent({
         this.paginationOptions.enabled = false
 
       if (numberOfValues < 5) this.paginationOptions.enabled = false
-    },
-
-    updateTheme() {
-      // TODO
     },
   },
 })
