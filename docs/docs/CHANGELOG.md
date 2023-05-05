@@ -12,6 +12,29 @@ The full commit history is on GitHub at <https://github.com/simwrapper/simwrappe
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.2.1](https://github.com/simwrapper/simwrapper/compare/v2.2.0...v2.2.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* CSV table plugin has poor precision ([25169fc](https://github.com/simwrapper/simwrapper/commit/25169fcb9ea683c6ca84c37d1f8f7336f34b36ca))
+* Embed multiple SimWrapper views on a single HTML webpage ([8df8638](https://github.com/simwrapper/simwrapper/commit/8df8638eb742562808408dda548c56a44451e334)), closes [#245](https://github.com/simwrapper/simwrapper/issues/245)
+* **map:** Tooltip values get rounded in strange ways ([b87f0b5](https://github.com/simwrapper/simwrapper/commit/b87f0b5883ffc96e5f8abf2316aca937799033c4)), closes [#247](https://github.com/simwrapper/simwrapper/issues/247)
+* pie/line/bar charts from subfolders not appearing ([14fd18a](https://github.com/simwrapper/simwrapper/commit/14fd18a6500faa3d3ab7ca137c3bdba8cc797071))
+
+## [2.2.0](https://github.com/simwrapper/simwrapper/compare/v2.1.1...v2.2.0) (2023-04-21)
+
+
+### Features
+
+* New CSV table plugin with nice formatting and filters ([9573c2a](https://github.com/simwrapper/simwrapper/commit/9573c2a23e4865a2004bae50ad6afe2980327284)), closes [#228](https://github.com/simwrapper/simwrapper/issues/228)
+
+
+### Bug Fixes
+
+* shapefile plugin ignores .SHP (capitalized) filenames ([2ca70c5](https://github.com/simwrapper/simwrapper/commit/2ca70c53194bc26bc49cf581256f848b98060d28)), closes [#232](https://github.com/simwrapper/simwrapper/issues/232)
+* **transit:** Firefox could not load some transit networks ([5f674a1](https://github.com/simwrapper/simwrapper/commit/5f674a1e8ceda8469fddb2458716063cf0bf3f01)), closes [#234](https://github.com/simwrapper/simwrapper/issues/234)
+
 ### [2.1.1](https://github.com/simwrapper/simwrapper/compare/v2.1.0...v2.1.1) (2023-03-30)
 
 
