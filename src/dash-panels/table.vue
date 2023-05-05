@@ -1,5 +1,6 @@
 <template lang="pug">
 vue-good-table(
+      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable']"
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
@@ -65,7 +66,7 @@ export default defineComponent({
 
   watch: {
     'globalState.isDarkMode'() {
-      this.updateTheme()
+      console.log('Darkmode: ', this.globalState.isDarkMode)
     },
   },
 
@@ -282,6 +283,121 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
+// Darkmode Settings
+
+.darktable table.vgt-table {
+  border: none;
+}
+
+.darktable .vgt-table thead th {
+  color: var(--text);
+  background-color: var(--bgMapPanel) !important;
+  background: none;
+  border: none;
+}
+
+.darktable .vgt-table.striped tbody tr:nth-of-type(odd) {
+  background-color: #212121 !important;
+}
+
+.darktable .vgt-table.striped tbody tr:nth-of-type(even) {
+  background-color: var(--bgMapPanel) !important;
+}
+
+.darktable .vgt-table.bordered td {
+  // border-color: var(--bgMapPanel);
+  border: none;
+  color: var(--text);
+}
+
+.darktable .vgt-wrap__footer {
+  background: none;
+  border: none;
+  color: var(--text);
+}
+
+.darktable .footer__row-count__select {
+  color: var(--text);
+}
+
+.darktable .footer__navigation__page-info {
+  color: var(--text);
+}
+
+.darktable .footer__navigation__page-btn {
+  color: var(--text);
+}
+
+.darktable .vgt-input {
+  height: 24px;
+  font-size: 12px;
+  color: var(--text);
+  background-color: #212121;
+  border: none;
+}
+
+.darktable .vgt-input::placeholder {
+  color: var(--text);
+}
+
+// Lightmode Settings
+
+.lighttable table.vgt-table {
+  border: none;
+}
+
+.lighttable .vgt-table thead th {
+  color: var(--text);
+  background-color: var(--bgMapPanel) !important;
+  background: none;
+  border: none;
+}
+
+.lighttable .vgt-table.striped tbody tr:nth-of-type(odd) {
+  background-color: #f6f6f6 !important;
+}
+
+.lighttable .vgt-table.striped tbody tr:nth-of-type(even) {
+  background-color: var(--bgMapPanel) !important;
+}
+
+.lighttable .vgt-table.bordered td {
+  // border-color: var(--bgMapPanel);
+  border: none;
+  color: var(--text);
+}
+
+.lighttable .vgt-wrap__footer {
+  background: none;
+  border: none;
+  background-color: #f6f6f6;
+  color: var(--text);
+}
+
+.lighttable .footer__row-count__select {
+  color: var(--text);
+}
+
+.lighttable .footer__navigation__page-info {
+  color: var(--text);
+}
+
+.lighttable .footer__navigation__page-btn {
+  color: var(--text);
+}
+
+.lighttable .vgt-input {
+  height: 24px;
+  font-size: 12px;
+  color: var(--text);
+  background-color: #f6f6f6;
+  border: none;
+}
+
+.lighttable .vgt-input::placeholder {
+  color: var(--text);
+}
+
 .vgt-table th {
   padding: 0.4rem 0 0.4rem 0.75rem;
 }
