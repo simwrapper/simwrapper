@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.2.1](https://github.com/simwrapper/simwrapper/compare/v2.2.0...v2.2.1) (2023-05-05)
+
+
+### Bug Fixes
+
+* CSV table plugin has poor precision ([25169fc](https://github.com/simwrapper/simwrapper/commit/25169fcb9ea683c6ca84c37d1f8f7336f34b36ca))
+* Embed multiple SimWrapper views on a single HTML webpage ([8df8638](https://github.com/simwrapper/simwrapper/commit/8df8638eb742562808408dda548c56a44451e334)), closes [#245](https://github.com/simwrapper/simwrapper/issues/245)
+* **map:** Tooltip values get rounded in strange ways ([b87f0b5](https://github.com/simwrapper/simwrapper/commit/b87f0b5883ffc96e5f8abf2316aca937799033c4)), closes [#247](https://github.com/simwrapper/simwrapper/issues/247)
+* pie/line/bar charts from subfolders not appearing ([14fd18a](https://github.com/simwrapper/simwrapper/commit/14fd18a6500faa3d3ab7ca137c3bdba8cc797071))
+
 ## [2.2.0](https://github.com/simwrapper/simwrapper/compare/v2.1.1...v2.2.0) (2023-04-21)
 
 
