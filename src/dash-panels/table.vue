@@ -44,7 +44,7 @@ export default defineComponent({
       columns: [] as any[],
       rows: [] as any[],
       paginationOptions: {
-        enabled: false,
+        enabled: true,
         perPageDropdown: [] as any[],
         dropdownAllowAll: false,
         perPage: 5,
@@ -270,7 +270,8 @@ export default defineComponent({
         }
       }
 
-      if (!this.config.fullsize) this.paginationOptions.enabled = true
+      if (this.config.fullsize || this.config.showAllRows || this.config.showallrows)
+        this.paginationOptions.enabled = false
 
       if (numberOfValues < 5) this.paginationOptions.enabled = false
     },
