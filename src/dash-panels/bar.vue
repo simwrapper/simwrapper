@@ -19,7 +19,6 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from './_allPanels'
 
 import globalStore from '@/store'
-import { column } from 'mathjs'
 
 export default defineComponent({
   name: 'BarChartPanel',
@@ -294,6 +293,7 @@ export default defineComponent({
         columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
+      // Ignore columns from the ignoredColumns option in the config
       if (Object.keys(this.config).includes('ignoredColumns')) {
         this.config.ignoredColumns.forEach((ignoredColumn: any) => {
           const index = columns.indexOf(ignoredColumn, 0)
