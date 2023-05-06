@@ -19,6 +19,7 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { buildCleanTitle } from './_allPanels'
 
 import globalStore from '@/store'
+import { column } from 'mathjs'
 
 export default defineComponent({
   name: 'BarChartPanel',
@@ -291,6 +292,15 @@ export default defineComponent({
       // Or maybe user didn't specify: then use all the columns!
       if (!columns && columnNames.length) {
         columns = columnNames.filter(col => col !== this.config.x).sort()
+      }
+
+      if (Object.keys(this.config).includes('ignoredColumns')) {
+        this.config.ignoredColumns.forEach((ignoredColumn: any) => {
+          const index = columns.indexOf(ignoredColumn, 0)
+          if (index > -1) {
+            columns.splice(index, 1)
+          }
+        })
       }
 
       // old legendname field
