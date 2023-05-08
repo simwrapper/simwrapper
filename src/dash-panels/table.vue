@@ -409,6 +409,10 @@ export default defineComponent({
 .vgt-pull-left {
   margin-top: 4px;
 }
+
+.vgt-table thead * {
+  display: none !important;
+}
 </style>
 
 <style scoped lang="scss">
