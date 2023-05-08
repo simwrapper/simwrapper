@@ -2,6 +2,7 @@
 .width-panel
   .widgets
     .widget
+        p.tight Display
         b-select.selector(expanded v-model="dataColumn")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices()"
@@ -9,6 +10,20 @@
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :value="`${dataset}/${column}`"
                   :label="column")
+
+  //- JOIN COLUMN ------------
+  .widgets
+    .widget
+        p.tight Join by
+        b-select.selector(expanded v-model="join")
+          option(label="Row count" value="@count")
+
+          optgroup(label="Join by...")
+            option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
+                   :key="col"
+                   :value="col"
+                   :label="col"
+            )
 
   .widgets
     .widget
@@ -39,6 +54,7 @@ export type CircleRadiusDefinition = {
   dataset?: string
   columnName?: string
   scaleFactor?: number
+  join?: string
 }
 
 export default defineComponent({
@@ -55,6 +71,7 @@ export default defineComponent({
       scaleFactor: '100',
       selectedTransform: transforms[0],
       datasetLabels: [] as string[],
+      join: '',
     }
   },
   mounted() {
@@ -74,6 +91,9 @@ export default defineComponent({
     dataColumn() {
       this.emitWidthSpecification()
     },
+    join() {
+      this.emitWidthSpecification()
+    },
   },
   methods: {
     vizConfigChanged() {
@@ -83,6 +103,7 @@ export default defineComponent({
         this.dataColumn = selectedColumn
         this.datasetLabels = [...this.datasetLabels]
         this.scaleFactor = config.scaleFactor
+        this.join = config.join ?? ''
       }
     },
 
@@ -92,7 +113,15 @@ export default defineComponent({
     },
 
     emitWidthSpecification() {
-      if (!this.dataColumn) return
+      if (!this.dataColumn) {
+        const radius = {
+          columnName: '',
+          scaleFactor: parseFloat(this.scaleFactor),
+          join: this.join,
+        }
+        setTimeout(() => this.$emit('update', { radius }), 50)
+        return
+      }
 
       const slash = this.dataColumn.indexOf('/')
 
@@ -103,6 +132,7 @@ export default defineComponent({
         dataset,
         columnName,
         scaleFactor: parseFloat(this.scaleFactor),
+        join: this.join,
       }
 
       setTimeout(() => this.$emit('update', { radius }), 50)
@@ -110,6 +140,16 @@ export default defineComponent({
 
     datasetChoices(): string[] {
       return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
+
+    columnsInDataset(datasetId: string): string[] {
+      const dataset = this.datasets[datasetId]
+      if (!dataset) return []
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
+
+      return allColumns
     },
 
     numericColumnsInDataset(datasetId: string): string[] {
@@ -151,5 +191,9 @@ export default defineComponent({
   margin-top: 0.75rem;
   overflow-x: auto;
   max-width: 100%;
+}
+
+.tight {
+  margin: 0 0 -10px 1px;
 }
 </style>

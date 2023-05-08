@@ -1398,20 +1398,45 @@ const MyComponent = defineComponent({
         // Get the data column
         const datasetKey = radiusOptions.dataset || ''
         const selectedDataset = this.datasets[datasetKey]
+
         if (selectedDataset) {
           const dataColumn = selectedDataset[columnName]
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-          const lookupColumn = selectedDataset['@']
+
+          // Do we need a join? Join it
+          let dataJoinColumn = ''
+          if (radiusOptions.join && !(radiusOptions.join === '@count')) {
+            dataJoinColumn = radiusOptions.join
+          } else if (radiusOptions.join === '@count' ? columnName : radiusOptions.join) {
+            // rowcount specified: join on the column name itself
+            dataJoinColumn = columnName
+          } else {
+            console.warn('*** HOW DID I GET HERE?')
+            this.globalStore.commit('error', 'Could not match data to boundaries')
+          }
+
+          if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
+            this.setupJoin({
+              datasetId: datasetKey,
+              dataTable: selectedDataset,
+              dataJoinColumn,
+            })
+          }
+
+          const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+
           // Calculate radius for each feature
           const { radius, calculatedValues } = ColorWidthSymbologizer.getRadiusForDataColumn({
             length: this.boundaries.length,
             data: dataColumn,
             lookup: lookupColumn,
+            join: dataJoinColumn,
             options: radiusOptions,
           })
           this.dataPointRadii = radius
           this.dataCalculatedValues = calculatedValues
+          this.dataCalculatedValueLabel = dataColumn.name
         }
       } else {
         // simple width
@@ -1419,6 +1444,13 @@ const MyComponent = defineComponent({
       }
 
       // this.filterListener()
+
+      // set features INSIDE react component
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](
+          typeof this.dataPointRadii == 'number' ? this.boundaries : this.centroids
+        )
+      }
     },
 
     async handleMapClick(click: any) {
@@ -1617,6 +1649,7 @@ const MyComponent = defineComponent({
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
+        let hasPoints = false
 
         boundaries.forEach(b => {
           // create a new properties object for each row
@@ -1627,6 +1660,11 @@ const MyComponent = defineComponent({
           featureProperties.push(properties)
           // clear out actual feature properties; they are now in featureProperties instead
           b.properties = {}
+
+          // points?
+          if (b.geometry.type == 'Point' || b.geometry.type == 'MultiPoint') {
+            hasPoints = true
+          }
 
           // check if we have linestrings: network mode !
           if (
@@ -1655,13 +1693,14 @@ const MyComponent = defineComponent({
           this.dataLineColors = '#4e79a7'
         }
 
-        // hide polygon/point buttons and opacity if we have no polygons
+        // hide polygon/point buttons and opacity if we have no polygons or we do have points
         if (hasNoPolygons) this.isAreaMode = false
+        if (hasPoints) this.isAreaMode = true
 
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons) await this.generateCentroidsAndMapCenter()
+        if (!hasNoPolygons || hasPoints) await this.generateCentroidsAndMapCenter()
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
