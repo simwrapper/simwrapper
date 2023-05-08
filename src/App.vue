@@ -453,6 +453,12 @@ p.splash-label {
   p {
     margin-top: 0.5rem;
   }
+
+  strong {
+    color: var(--text);
+    font-family: $fancyFont;
+  }
+
   h1,
   h2,
   h3,
