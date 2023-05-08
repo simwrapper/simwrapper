@@ -410,6 +410,10 @@ export default defineComponent({
   margin-top: 4px;
 }
 
+.vgt-table thead * {
+  font-weight: 700;
+}
+
 .vgt-table th.sortable button:hover {
   cursor: pointer;
 }
