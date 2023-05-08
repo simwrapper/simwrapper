@@ -33,7 +33,7 @@ export default defineComponent({
       id: ('overview-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      YAMLrequirementsOverview: { dataset: '', useLastRow: '' },
+      YAMLrequirementsOverview: { dataset: '' },
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
@@ -64,15 +64,8 @@ export default defineComponent({
     }
   },
   async mounted() {
-    // this.updateTheme()
-
-    // this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
-
     this.dataSet = await this.loadData()
-    console.log(this.dataSet)
-    // this.updateChart()
-
-    // this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+    this.validateDataSet()
     this.$emit('isLoaded')
   },
   methods: {
@@ -109,6 +102,20 @@ export default defineComponent({
             msg: `YAML file missing required key: ${key}`,
             desc: 'Check this.YAMLrequirementsXY for required keys',
           })
+        }
+      }
+    },
+
+    validateDataSet() {
+      for (const [key, value] of Object.entries(this.dataSet.allRows)) {
+        const valueTemp = value as any
+        if (valueTemp.values.length > 1) {
+          this.$store.commit('setStatus', {
+            type: Status.WARNING,
+            msg: `The Dataset for the overview panel shoul have only two rows`,
+            desc: `Check out the ${key}-column in the ${this.config.dataset} file.`,
+          })
+          break
         }
       }
     },
