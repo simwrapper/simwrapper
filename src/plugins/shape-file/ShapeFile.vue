@@ -1649,6 +1649,7 @@ const MyComponent = defineComponent({
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
+        let hasPoints = false
 
         boundaries.forEach(b => {
           // create a new properties object for each row
@@ -1659,6 +1660,11 @@ const MyComponent = defineComponent({
           featureProperties.push(properties)
           // clear out actual feature properties; they are now in featureProperties instead
           b.properties = {}
+
+          // points?
+          if (b.geometry.type == 'Point' || b.geometry.type == 'MultiPoint') {
+            hasPoints = true
+          }
 
           // check if we have linestrings: network mode !
           if (
@@ -1687,13 +1693,14 @@ const MyComponent = defineComponent({
           this.dataLineColors = '#4e79a7'
         }
 
-        // hide polygon/point buttons and opacity if we have no polygons
+        // hide polygon/point buttons and opacity if we have no polygons or we do have points
         if (hasNoPolygons) this.isAreaMode = false
+        if (hasPoints) this.isAreaMode = true
 
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons) await this.generateCentroidsAndMapCenter()
+        if (!hasNoPolygons || hasPoints) await this.generateCentroidsAndMapCenter()
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
