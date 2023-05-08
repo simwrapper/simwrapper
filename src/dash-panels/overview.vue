@@ -12,9 +12,8 @@ import type { PropType } from 'vue'
 
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
-import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
-import { buildCleanTitle } from './_allPanels'
 
 export default defineComponent({
   name: 'OverviewPanel',
@@ -62,43 +61,6 @@ export default defineComponent({
           y: 1,
         },
       },
-
-      //   data: [
-      //     {
-      //       sort: false, // to keep colors consistent across plots
-      //       labels: [] as any[],
-      //       values: [] as any[],
-      //       type: 'pie',
-      //       hole: 0.1,
-      //       textinfo: 'label+percent',
-      //       textposition: 'inside',
-      //       automargin: true,
-      //     },
-      //   ],
-      //   options: {
-      //     displaylogo: false,
-      //     responsive: true,
-      //     modeBarButtonsToRemove: [
-      //       'pan2d',
-      //       'zoom2d',
-      //       'select2d',
-      //       'lasso2d',
-      //       'zoomIn2d',
-      //       'zoomOut2d',
-      //       'autoScale2d',
-      //       'hoverClosestCartesian',
-      //       'hoverCompareCartesian',
-      //       'resetScale2d',
-      //       'toggleSpikelines',
-      //       'resetViewMapbox',
-      //     ],
-      //     toImageButtonOptions: {
-      //       format: 'png', // one of png, svg, jpeg, webp
-      //       filename: 'pie-chart',
-      //       width: null,
-      //       height: null,
-      //     },
-      //   },
     }
   },
   async mounted() {
@@ -113,62 +75,14 @@ export default defineComponent({
     // this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
   },
-  beforeDestroy() {
-    // this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
-  },
-
-  watch: {
-    'globalState.isDarkMode'() {
-      //   this.updateTheme()
-    },
-  },
   methods: {
-    // changeDimensions(dimensions: { width: number; height: number }) {
-    //   this.layout = Object.assign({}, this.layout, dimensions)
-    // },
-
-    // handleFilterChanged() {
-    //   if (!this.datamanager) return
-
-    //   const { filteredRows } = this.datamanager.getFilteredDataset(this.config) as any
-
-    //   if (!filteredRows || !filteredRows.length) {
-    //     this.dataSet = { allRows: {} }
-    //   } else {
-    //     const allRows = {} as any
-
-    //     const keys = Object.keys(filteredRows[0])
-    //     keys.forEach(key => (allRows[key] = { name: key, values: [] as any }))
-
-    //     filteredRows.forEach((row: any) => {
-    //       keys.forEach(key => allRows[key].values.push(row[key]))
-    //     })
-    //     this.dataSet = { allRows }
-    //   }
-
-    //   //   this.updateChart()
-    // },
-
-    // updateTheme() {
-    //   const colors = {
-    //     paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-    //     plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-    //     font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
-    //   }
-    //   this.layout = Object.assign({}, this.layout, colors)
-    // },
-
     async loadData() {
       try {
-        // this.validateYAML()
+        this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config)
-        console.log(dataset)
 
         // no filter? we are done
         if (!this.config.filters) return dataset
-
-        // filter data before returning:
-        // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
 
         for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
@@ -187,42 +101,17 @@ export default defineComponent({
       return { allRows: {} }
     },
 
-    // validateYAML() {
-    //   for (const key in this.YAMLrequirementsPie) {
-    //     if (key in this.config === false) {
-    //       this.$store.commit('setStatus', {
-    //         type: Status.ERROR,
-    //         msg: `YAML file missing required key: ${key}`,
-    //         desc: 'Check this.YAMLrequirementsXY for required keys',
-    //       })
-    //     }
-    //   }
-    // },
-
-    // updateChart() {
-    //   try {
-    //     if (this.config.groupBy) this.updateChartWithGroupBy()
-    //     else this.updateChartSimple()
-    //   } catch (e) {
-    //     const msg = '' + e
-    //     this.$store.commit('setStatus', {
-    //       type: Status.ERROR,
-    //       msg,
-    //       desc: 'Add a desription...',
-    //     })
-    //   }
-    // },
-
-    updateChartWithGroupBy() {
-      // tba
+    validateYAML() {
+      for (const key in this.YAMLrequirementsOverview) {
+        if (key in this.config === false) {
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `YAML file missing required key: ${key}`,
+            desc: 'Check this.YAMLrequirementsXY for required keys',
+          })
+        }
+      }
     },
-
-    // updateChartSimple() {
-    //   const allRows = this.dataSet.allRows || {}
-
-    //   this.data[0].labels = Object.keys(allRows)
-    //   this.data[0].values = Object.values(allRows)
-    // },
   },
 })
 </script>
