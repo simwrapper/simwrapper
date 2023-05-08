@@ -4,7 +4,7 @@
             p.text {{ value.name }}
             hr.line
             p.text {{ value.values[0] }}
-    </template>
+</template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
