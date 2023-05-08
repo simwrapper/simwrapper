@@ -19,6 +19,7 @@ import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
 import video from './video.vue'
+import overview from './overview.vue'
 
 // full-screen map visualizations:
 import carriers from './carriers.vue'
@@ -48,6 +49,7 @@ export const plotlyCharts = {
   vega,
   video,
   csv,
+  overview,
 }
 
 // export all remaining charts/maps here:
