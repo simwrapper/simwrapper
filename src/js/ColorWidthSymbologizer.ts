@@ -233,8 +233,9 @@ function getRadiusForDataColumn(props: {
   lookup: DataTableColumn
   normalize?: DataTableColumn
   options: any
+  join?: string
 }) {
-  const { length, data, lookup, normalize, options } = props
+  const { length, data, lookup, normalize, join, options } = props
   const { columnName, dataset, scaleFactor } = options
   // console.log(data, options)
 
@@ -243,13 +244,26 @@ function getRadiusForDataColumn(props: {
   const radius = new Float32Array(length)
   const calculatedValues = new Float32Array(length)
 
-  if (scaleFactor) {
+  if (!scaleFactor) return { radius, calculatedValues }
+
+  if (join === '@count') {
+    // *** COUNT rows that have this lookup
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
-      calculatedValues[offset] = data.values[i]
-      radius[offset] = Math.sqrt(data.values[i] / scaleFactor)
+      calculatedValues[offset] += 1
+    }
+  } else {
+    // *** SUM values in rows
+    for (let i = 0; i < data.values.length; i++) {
+      const offset = lookup ? lookup.values[i] : i
+      calculatedValues[offset] += data.values[i]
     }
   }
+
+  for (let i = 0; i < length; i++) {
+    radius[i] = Math.sqrt(calculatedValues[i] / scaleFactor)
+  }
+
   return { radius, calculatedValues }
 }
 
