@@ -11,7 +11,7 @@
           option(label="1px" value="@1")
           option(label="2px" value="@2")
 
-          optgroup(v-for="dataset in datasetChoices()"
+          optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :key="`${dataset}/${column}`"
@@ -19,10 +19,11 @@
                   :label="column")
 
   //- JOIN COLUMN ------------
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -101,7 +102,7 @@ export default defineComponent({
     return {
       dataColumn: '',
       scaleFactor: '1',
-      join: '@count',
+      join: '',
       selectedTransform: transforms[0],
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
@@ -141,6 +142,11 @@ export default defineComponent({
     },
     join() {
       this.emitSpecification()
+    },
+  },
+  computed: {
+    datasetChoices() {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
     },
   },
   methods: {
@@ -271,10 +277,6 @@ export default defineComponent({
       // the link viewer is on main thread so lets make
       // sure user gets some visual feedback
       setTimeout(() => this.$emit('update', { lineWidth }), 25)
-    },
-
-    datasetChoices(): string[] {
-      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
     },
 
     columnsInDataset(datasetId: string): string[] {
