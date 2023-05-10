@@ -130,7 +130,7 @@ function buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
     routeProfile: [],
     route: [],
     departures: route.departures.departure.length,
-    firstDeparture: allDepartures.departureTime,
+    firstDeparture: allDepartures[0].departureTime,
     lastDeparture: allDepartures[allDepartures.length - 1].departureTime,
     geojson: '',
   }
