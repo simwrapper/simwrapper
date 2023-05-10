@@ -34,7 +34,7 @@ layout:
 
 ---
 
-### Pie chart properties
+### Table viewer properties
 
 Table viewer properties:
 
@@ -46,4 +46,4 @@ Table viewer properties:
 
 **show:** Array of strings. List of column names that should be displayed. If the hide and show option are in the .yaml file the hide option will be ignored.
 
-**showAllrows:** true/false. This option defines whether the whole table should be displayed or if there are several pages. The default setting is false.
+**showAllRows:** true/false. This option defines whether the whole table should be displayed or if there are several pages. The default setting is false.
