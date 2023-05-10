@@ -48,7 +48,7 @@ layout:
       xAxisName: 'Iteration'
       yAxisName: 'Distance'
       columns: [distance_m_mean, directDistance_m_mean]
-      legendName: ['Distance (mean)', 'Direct Distance (mean)']
+      legendTitles: ['Distance (mean)', 'Direct Distance (mean)']
 ```
 
 ---
@@ -67,6 +67,6 @@ Each chart can have the following properties:
 
 **stacked:** true/false for bar charts, whether to stack multiple bars
 
-**legendName:** Array of strings. Legend titles for each line. The column names will be used if this is omitted.
+**legendTitles:** Array of strings. Legend titles for each line. The column names will be used if this is omitted.
 
 **xAxisName/yAxisName:** Labels for the axes.
