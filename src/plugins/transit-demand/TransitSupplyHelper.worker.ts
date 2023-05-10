@@ -17,11 +17,16 @@ onmessage = function (e) {
   _xml = params.xml
   projection = params.projection
 
-  createNodesAndLinksFromXML()
-  convertCoords()
-  const answer = processTransit()
+  try {
+    createNodesAndLinksFromXML()
+    convertCoords()
+    const answer = processTransit()
 
-  postMessage(answer)
+    postMessage(answer)
+  } catch (e) {
+    console.error('' + e)
+    postMessage({ error: e })
+  }
 }
 // -----------------------------------------------------------
 
@@ -154,14 +159,16 @@ function buildCoordinatesForRoute(transitRoute: RouteDetails) {
   let previousLink: boolean = false
 
   for (const linkID of transitRoute.route) {
+    const networkLink = _network.links[linkID]
+
     if (!previousLink) {
-      const x0 = _network.nodes[_network.links[linkID].from].x
-      const y0 = _network.nodes[_network.links[linkID].from].y
-      coords.push([x0, y0])
+      const x0 = _network.nodes[networkLink?.from]?.x
+      const y0 = _network.nodes[networkLink?.from]?.y
+      if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
     }
-    const x = _network.nodes[_network.links[linkID].to].x
-    const y = _network.nodes[_network.links[linkID].to].y
-    coords.push([x, y])
+    const x = _network.nodes[networkLink?.to]?.x
+    const y = _network.nodes[networkLink?.to]?.y
+    if (x !== undefined && y !== undefined) coords.push([x, y])
     previousLink = true
   }
 

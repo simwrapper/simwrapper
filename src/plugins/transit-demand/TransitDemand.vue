@@ -275,7 +275,8 @@ const MyComponent = defineComponent({
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
       // Road network: first try the most obvious network filename:
-      let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+      let network =
+        this.vizDetails.network ?? this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
@@ -300,6 +301,7 @@ const MyComponent = defineComponent({
 
     async guessProjection(networks: any): Promise<string> {
       // 00. If it's in config, use it
+      if (this.vizDetails.projection) return this.vizDetails.projection
       if (this.config?.projection) return this.config.projection
 
       // 0. If it's in the network, use it
@@ -425,15 +427,18 @@ const MyComponent = defineComponent({
         const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
         if (extent) {
-          const lnglat = JSON.parse(extent)
+          try {
+            const lnglat = JSON.parse(extent)
+            const mFac = this.isMobile() ? 0 : 1
+            const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
 
-          const mFac = this.isMobile() ? 0 : 1
-          const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-
-          this.mymap.fitBounds(lnglat, {
-            animate: false,
-            padding,
-          })
+            this.mymap.fitBounds(lnglat, {
+              animate: false,
+              padding,
+            })
+          } catch (e) {
+            // ignore this, it's ok
+          }
         }
         // Start doing stuff AFTER the MapBox library has fully initialized
         this.mymap.on('load', this.mapIsReady)
@@ -442,7 +447,8 @@ const MyComponent = defineComponent({
 
         this.mymap.keyboard.disable() // so arrow keys don't pan
       } catch (e) {
-        console.error({ e })
+        console.error('' + e)
+
         // no worries
       }
     },
@@ -507,9 +513,9 @@ const MyComponent = defineComponent({
     async mapIsReady() {
       const networks = await this.loadNetworks()
       const projection = await this.guessProjection(networks)
-      console.log(projection)
       this.vizDetails.projection = projection
       this.projection = this.vizDetails.projection
+      console.log(projection)
 
       if (networks) this.processInputs(networks)
 
@@ -704,6 +710,13 @@ const MyComponent = defineComponent({
         this.loadingText = buffer.data.status
         return
       }
+
+      if (buffer.data.error) {
+        console.error(buffer.data.error)
+        this.$store.commit('error', buffer.data.error)
+        return
+      }
+
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
       this._network = network
       this._routeData = routeData
@@ -815,6 +828,8 @@ const MyComponent = defineComponent({
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
           const link = this._network.links[linkID]
+          if (!link) continue
+
           const coordinates = [
             [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
             [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
@@ -1112,8 +1127,8 @@ globalStore.commit('registerPlugin', {
   kebabName: 'transit',
   prettyName: 'Transit Demand',
   description: 'Transit passengers and ridership',
-  // filePatterns: ['viz-pt-demand*.y?(a)ml', '*output_transitSchedule.xml?(.gz)'],
-  filePatterns: ['*transitschedule.xml?(.gz)'],
+  filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)'],
+  // filePatterns: ['*transitschedule.xml?(.gz)'],
   component: MyComponent,
 } as VisualizationPlugin)
 
