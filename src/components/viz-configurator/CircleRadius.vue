@@ -4,7 +4,7 @@
     .widget
         p.tight Display
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="")
+          option(label="None" value="@")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
@@ -121,7 +121,9 @@ export default defineComponent({
     },
 
     emitWidthSpecification() {
-      if (!this.dataColumn) {
+      if (!this.dataColumn) return
+
+      if (this.dataColumn == '@') {
         const radius = {
           columnName: '',
           scaleFactor: parseFloat(this.scaleFactor),
@@ -132,7 +134,6 @@ export default defineComponent({
       }
 
       const slash = this.dataColumn.indexOf('/')
-
       const dataset = this.dataColumn.substring(0, slash)
       const columnName = this.dataColumn.substring(slash + 1)
 

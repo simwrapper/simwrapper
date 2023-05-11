@@ -1431,6 +1431,12 @@ const MyComponent = defineComponent({
         const datasetKey = radiusOptions.dataset || ''
         const selectedDataset = this.datasets[datasetKey]
 
+        // no selected dataset or datacol missing? Not sure what to do here, just give up...
+        if (!selectedDataset) {
+          console.warn('radius: no selected dataset yet, maybe still loading')
+          return
+        }
+
         if (selectedDataset) {
           const dataColumn = selectedDataset[columnName]
           if (!dataColumn)
@@ -2251,6 +2257,7 @@ const MyComponent = defineComponent({
       this.honorQueryParameters()
 
       this.statusText = ''
+
       // Ask for shapes feature ID if it's not obvious/specified already
       this.featureJoinColumn = await this.figureOutFeatureIdColumn()
     } catch (e) {
