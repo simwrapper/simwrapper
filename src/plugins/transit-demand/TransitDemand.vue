@@ -244,13 +244,12 @@ const MyComponent = defineComponent({
       // are we in a dashboard?
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
-        return
+        return true
       }
 
       // if a YAML file was passed in, just use it
       if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
-        this.loadYamlConfig()
-        return
+        return this.loadYamlConfig()
       }
 
       // Build the config based on folder contents
@@ -269,6 +268,7 @@ const MyComponent = defineComponent({
       }
 
       this.$emit('title', title)
+      return true
     },
 
     async prepareView() {
@@ -380,14 +380,12 @@ const MyComponent = defineComponent({
     },
 
     async loadYamlConfig() {
-      // first get config
-      try {
-        // might be a project config:
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
 
+      try {
         const text = await this.fileApi.getFileText(filename)
         this.vizDetails = yaml.parse(text)
       } catch (e) {
@@ -395,13 +393,19 @@ const MyComponent = defineComponent({
         const err = e as any
         if (this.fileSystem && this.fileSystem.needPassword && err.status === 401) {
           this.$store.commit('requestLogin', this.fileSystem.slug)
+        } else {
+          const msg = 'Could not load ' + filename
+          this.$store.commit('error', msg)
+          this.loadingText = msg
         }
+        return false
       }
 
       const t = this.vizDetails.title ? this.vizDetails.title : 'Transit Ridership'
       this.$emit('title', t)
 
       this.projection = this.vizDetails.projection
+      return true
     },
 
     isMobile() {
@@ -1100,7 +1104,8 @@ const MyComponent = defineComponent({
     this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.thumbnail = this.thumbnail
 
-    await this.getVizDetails()
+    const status = await this.getVizDetails()
+    if (!status) return
 
     if (this.thumbnail) return
 
