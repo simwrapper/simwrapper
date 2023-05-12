@@ -244,13 +244,12 @@ const MyComponent = defineComponent({
       // are we in a dashboard?
       if (this.config) {
         this.vizDetails = Object.assign({}, this.config)
-        return
+        return true
       }
 
       // if a YAML file was passed in, just use it
       if (this.myState.yamlConfig?.endsWith('yaml') || this.myState.yamlConfig?.endsWith('yml')) {
-        this.loadYamlConfig()
-        return
+        return this.loadYamlConfig()
       }
 
       // Build the config based on folder contents
@@ -269,13 +268,15 @@ const MyComponent = defineComponent({
       }
 
       this.$emit('title', title)
+      return true
     },
 
     async prepareView() {
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
       // Road network: first try the most obvious network filename:
-      let network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+      let network =
+        this.vizDetails.network ?? this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
@@ -300,6 +301,7 @@ const MyComponent = defineComponent({
 
     async guessProjection(networks: any): Promise<string> {
       // 00. If it's in config, use it
+      if (this.vizDetails.projection) return this.vizDetails.projection
       if (this.config?.projection) return this.config.projection
 
       // 0. If it's in the network, use it
@@ -378,14 +380,12 @@ const MyComponent = defineComponent({
     },
 
     async loadYamlConfig() {
-      // first get config
-      try {
-        // might be a project config:
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
+      const filename =
+        this.myState.yamlConfig.indexOf('/') > -1
+          ? this.myState.yamlConfig
+          : this.myState.subfolder + '/' + this.myState.yamlConfig
 
+      try {
         const text = await this.fileApi.getFileText(filename)
         this.vizDetails = yaml.parse(text)
       } catch (e) {
@@ -393,13 +393,19 @@ const MyComponent = defineComponent({
         const err = e as any
         if (this.fileSystem && this.fileSystem.needPassword && err.status === 401) {
           this.$store.commit('requestLogin', this.fileSystem.slug)
+        } else {
+          const msg = 'Could not load ' + filename
+          this.$store.commit('error', msg)
+          this.loadingText = msg
         }
+        return false
       }
 
       const t = this.vizDetails.title ? this.vizDetails.title : 'Transit Ridership'
       this.$emit('title', t)
 
       this.projection = this.vizDetails.projection
+      return true
     },
 
     isMobile() {
@@ -425,15 +431,18 @@ const MyComponent = defineComponent({
         const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
         if (extent) {
-          const lnglat = JSON.parse(extent)
+          try {
+            const lnglat = JSON.parse(extent)
+            const mFac = this.isMobile() ? 0 : 1
+            const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
 
-          const mFac = this.isMobile() ? 0 : 1
-          const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-
-          this.mymap.fitBounds(lnglat, {
-            animate: false,
-            padding,
-          })
+            this.mymap.fitBounds(lnglat, {
+              animate: false,
+              padding,
+            })
+          } catch (e) {
+            // ignore this, it's ok
+          }
         }
         // Start doing stuff AFTER the MapBox library has fully initialized
         this.mymap.on('load', this.mapIsReady)
@@ -442,7 +451,8 @@ const MyComponent = defineComponent({
 
         this.mymap.keyboard.disable() // so arrow keys don't pan
       } catch (e) {
-        console.error({ e })
+        console.error('' + e)
+
         // no worries
       }
     },
@@ -507,9 +517,9 @@ const MyComponent = defineComponent({
     async mapIsReady() {
       const networks = await this.loadNetworks()
       const projection = await this.guessProjection(networks)
-      console.log(projection)
       this.vizDetails.projection = projection
       this.projection = this.vizDetails.projection
+      console.log(projection)
 
       if (networks) this.processInputs(networks)
 
@@ -704,6 +714,13 @@ const MyComponent = defineComponent({
         this.loadingText = buffer.data.status
         return
       }
+
+      if (buffer.data.error) {
+        console.error(buffer.data.error)
+        this.$store.commit('error', buffer.data.error)
+        return
+      }
+
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
       this._network = network
       this._routeData = routeData
@@ -815,6 +832,8 @@ const MyComponent = defineComponent({
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
           const link = this._network.links[linkID]
+          if (!link) continue
+
           const coordinates = [
             [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
             [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
@@ -1085,7 +1104,8 @@ const MyComponent = defineComponent({
     this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.thumbnail = this.thumbnail
 
-    await this.getVizDetails()
+    const status = await this.getVizDetails()
+    if (!status) return
 
     if (this.thumbnail) return
 
@@ -1112,8 +1132,8 @@ globalStore.commit('registerPlugin', {
   kebabName: 'transit',
   prettyName: 'Transit Demand',
   description: 'Transit passengers and ridership',
-  // filePatterns: ['viz-pt-demand*.y?(a)ml', '*output_transitSchedule.xml?(.gz)'],
-  filePatterns: ['*transitschedule.xml?(.gz)'],
+  filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)'],
+  // filePatterns: ['*transitschedule.xml?(.gz)'],
   component: MyComponent,
 } as VisualizationPlugin)
 

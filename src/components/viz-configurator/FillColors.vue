@@ -8,7 +8,7 @@
         b-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="@")
 
-          optgroup(v-for="dataset in datasetChoices()"
+          optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
                    :label="dataset"
           )
@@ -19,10 +19,11 @@
             )
 
   //- JOIN COLUMN
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -37,7 +38,7 @@
         p.tight Normalize by
         b-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
-          optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
+          optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
               :key="`${dataset}/${column}`"
               :value="`${dataset}:${column}`"
@@ -160,29 +161,35 @@ export default defineComponent({
     simpleColors(): any {
       return this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
     },
+
     colorChoices() {
       if (!this.diffDatasets || this.diffDatasets.length) {
         return ALL_COLOR_RAMPS.filter(ramp => ramp.style == style.diverging)
       }
       return ALL_COLOR_RAMPS
     },
+
+    datasetChoices() {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
   },
+
   data: () => {
     return {
       globalState: globalStore.state,
-      steps: '9',
-      flip: false,
       dataColumn: '',
-      join: '@count',
-      normalSelection: '',
-      selectedColor: {} as Ramp,
-      selectedSingleColor: '',
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
       diffRelative: false,
       diffUISelection: '',
       diffChoices: [] as any[],
+      flip: false,
       isCurrentlyDiffMode: false,
+      join: '',
+      normalSelection: '',
+      selectedColor: {} as Ramp,
+      selectedSingleColor: '',
+      steps: '9',
       useHardCodedColors: false,
     }
   },
@@ -385,10 +392,6 @@ export default defineComponent({
       // the viewer is on main thread so lets make
       // sure user gets some visual feedback
       setTimeout(() => this.$emit('update', { fill }), 25)
-    },
-
-    datasetChoices(): string[] {
-      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
     },
 
     columnsInDataset(datasetId: string): string[] {

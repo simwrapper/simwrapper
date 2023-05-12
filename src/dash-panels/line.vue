@@ -222,13 +222,12 @@ export default defineComponent({
     updateChartSimple() {
       let useOwnNames = false
 
+      // old configs called it "usedCol" --> now "columns"
+      let columns = this.config.columns || this.config.usedCol
+
       // old legendname field
       if (this.config.legendName) this.config.legendTitles = this.config.legendName
-      if (this.config.legendName !== undefined) {
-        if (this.config.legendName.length == this.config.usedCol.length) {
-          useOwnNames = true
-        }
-      }
+      if (this.config.legendTitles?.length) useOwnNames = true
 
       const allRows = this.dataSet.allRows || ({} as any)
       const columnNames = Object.keys(allRows)
@@ -237,9 +236,6 @@ export default defineComponent({
 
       let x = allRows[this.config.x].values || []
       if (this.config.skipFirstRow) x = x.slice(1)
-
-      // old configs called it "usedCol" --> now "columns"
-      let columns = this.config.columns || this.config.usedCol
 
       // Or maybe user didn't specify: then use all the columns!
       if (!columns && columnNames.length) {
@@ -250,7 +246,7 @@ export default defineComponent({
 
       for (let i = 0; i < columns.length; i++) {
         const col = columns[i]
-        const legendName = useOwnNames ? this.config.legendTitles[i] : col
+        const legendName = useOwnNames ? this.config.legendTitles[i] ?? col : col
 
         let values = allRows[col].values
         if (this.config.skipFirstRow) values = values.slice(1)

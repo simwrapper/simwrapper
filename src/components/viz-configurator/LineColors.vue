@@ -7,15 +7,16 @@
         b-select.selector(expanded v-model="dataColumn")
           option(label="No lines" value="^")
           option(label="Single color" value="@")
-          optgroup(v-for="dataset in datasetChoices()"
+          optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
   //- JOIN COLUMN
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           //- option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -127,9 +128,9 @@ export default defineComponent({
       diffRelative: false,
       diffUISelection: '',
       flip: false,
-      join: '',
       isCurrentlyDiffMode: false,
       isFirstDataset: true,
+      join: '',
       selectedColor: {} as Ramp,
       selectedSingleColor: '',
       steps: '9',
@@ -140,16 +141,24 @@ export default defineComponent({
     simpleColors(): any {
       return this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
     },
+
     colorChoices() {
       if (!this.diffDatasets || this.diffDatasets.length) {
         return ALL_COLOR_RAMPS.filter(ramp => ramp.style == style.diverging)
       }
       return ALL_COLOR_RAMPS
     },
+
+    datasetChoices() {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
   },
+
   mounted() {
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
     this.datasetsAreLoaded()
+
+    this.selectedColor = this.colorChoices[0]
 
     if (this.vizConfiguration.display?.lineColor?.fixedColors) this.useHardCodedColors = true
 
@@ -340,10 +349,6 @@ export default defineComponent({
       // the link viewer is on main thread so lets make
       // sure user gets some visual feedback
       setTimeout(() => this.$emit('update', { lineColor }), 50)
-    },
-
-    datasetChoices(): string[] {
-      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
     },
 
     columnsInDataset(datasetId: string): string[] {

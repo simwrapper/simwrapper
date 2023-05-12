@@ -414,6 +414,14 @@ export default defineComponent({
 .vgt-pull-left {
   margin-top: 4px;
 }
+
+.vgt-table thead * {
+  font-weight: 700;
+}
+
+.vgt-table th.sortable button:hover {
+  cursor: pointer;
+}
 </style>
 
 <style scoped lang="scss">

@@ -763,6 +763,12 @@ const MyComponent = defineComponent({
       const { dataTable, datasetId, dataJoinColumn } = props
       console.log('> setupJoin', datasetId, dataJoinColumn)
 
+      // if no join at all, don't do anything
+      if (!dataJoinColumn) return
+
+      // if join already exists, don't do anything
+      if (`@@${dataJoinColumn}` in dataTable) return
+
       // make sure columns exist!
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
@@ -1045,23 +1051,24 @@ const MyComponent = defineComponent({
 
         // Do we need a join? Join it
         let dataJoinColumn = ''
-        if (color.join && !(color.join === '@count')) {
+        if (color.join && color.join !== '@count') {
+          // join column name set by user
           dataJoinColumn = color.join
-        } else if (color.join === '@count' ? columnName : color.join) {
+        } else if (color.join === '@count') {
           // rowcount specified: join on the column name itself
           dataJoinColumn = columnName
         } else {
-          console.warn('*** HOW DID I GET HERE?')
-          this.globalStore.commit('error', 'Could not match data to boundaries')
+          // nothing specified: let's hope they didn't want to join
+          if (this.datasetChoices.length > 1) {
+            console.warn('No join; lets hope user just wants to display data in boundary file')
+          }
         }
 
-        if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
-          this.setupJoin({
-            datasetId: datasetKey,
-            dataTable: selectedDataset,
-            dataJoinColumn,
-          })
-        }
+        this.setupJoin({
+          datasetId: datasetKey,
+          dataTable: selectedDataset,
+          dataJoinColumn,
+        })
 
         const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
@@ -1156,11 +1163,33 @@ const MyComponent = defineComponent({
           const datasetKey = color.dataset || ''
           const selectedDataset = this.datasets[datasetKey]
           if (selectedDataset) {
-            const lookupColumn = selectedDataset['@']
             const dataColumn = selectedDataset[columnName]
 
             if (!dataColumn)
               throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
+            // Do we need a join? Join it
+            let dataJoinColumn = ''
+            if (color.join && color.join !== '@count') {
+              // join column name set by user
+              dataJoinColumn = color.join
+            } else if (color.join === '@count') {
+              // rowcount specified: join on the column name itself
+              dataJoinColumn = columnName
+            } else {
+              // nothing specified: let's hope they didn't want to join
+              if (this.datasetChoices.length > 1) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+              }
+            }
+
+            this.setupJoin({
+              datasetId: datasetKey,
+              dataTable: selectedDataset,
+              dataJoinColumn,
+            })
+
+            const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
             // Calculate colors for each feature
             const { array, legend, calculatedValues } =
@@ -1172,6 +1201,7 @@ const MyComponent = defineComponent({
                 filter: this.boundaryFilters,
                 join: color.join,
               })
+
             this.dataLineColors = array
             this.dataCalculatedValues = calculatedValues
             this.dataCalculatedValueLabel = ''
@@ -1261,23 +1291,24 @@ const MyComponent = defineComponent({
 
           // Do we need a join? Join it
           let dataJoinColumn = ''
-          if (width.join && !(width.join === '@count')) {
+          if (width.join && width.join !== '@count') {
+            // join column name set by user
             dataJoinColumn = width.join
-          } else if (width.join === '@count' ? columnName : width.join) {
+          } else if (width.join === '@count') {
             // rowcount specified: join on the column name itself
             dataJoinColumn = columnName
           } else {
-            console.warn('*** HOW DID I GET HERE?')
-            this.globalStore.commit('error', 'Could not match data to boundaries')
+            // nothing specified: let's hope they didn't want to join
+            if (this.datasetChoices.length > 1) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+            }
           }
 
-          if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
-            this.setupJoin({
-              datasetId: datasetKey,
-              dataTable: selectedDataset,
-              dataJoinColumn,
-            })
-          }
+          this.setupJoin({
+            datasetId: datasetKey,
+            dataTable: selectedDataset,
+            dataJoinColumn,
+          })
 
           const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
@@ -1329,23 +1360,24 @@ const MyComponent = defineComponent({
 
           // Do we need a join? Join it
           let dataJoinColumn = ''
-          if (height.join && !(height.join === '@count')) {
+          if (height.join && height.join !== '@count') {
+            // join column name set by user
             dataJoinColumn = height.join
-          } else if (height.join === '@count' ? columnName : height.join) {
+          } else if (height.join === '@count') {
             // rowcount specified: join on the column name itself
             dataJoinColumn = columnName
           } else {
-            console.warn('*** HOW DID I GET HERE?')
-            this.globalStore.commit('error', 'Could not match data to boundaries')
+            // nothing specified: let's hope they didn't want to join
+            if (this.datasetChoices.length > 1) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+            }
           }
 
-          if (dataJoinColumn && !selectedDataset[`@@${dataJoinColumn}`]) {
-            this.setupJoin({
-              datasetId: datasetKey,
-              dataTable: selectedDataset,
-              dataJoinColumn,
-            })
-          }
+          this.setupJoin({
+            datasetId: datasetKey,
+            dataTable: selectedDataset,
+            dataJoinColumn,
+          })
 
           const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
@@ -1398,20 +1430,52 @@ const MyComponent = defineComponent({
         // Get the data column
         const datasetKey = radiusOptions.dataset || ''
         const selectedDataset = this.datasets[datasetKey]
+
+        // no selected dataset or datacol missing? Not sure what to do here, just give up...
+        if (!selectedDataset) {
+          console.warn('radius: no selected dataset yet, maybe still loading')
+          return
+        }
+
         if (selectedDataset) {
           const dataColumn = selectedDataset[columnName]
           if (!dataColumn)
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-          const lookupColumn = selectedDataset['@']
+
+          // Do we need a join? Join it
+          let dataJoinColumn = ''
+          if (radiusOptions.join && radiusOptions.join !== '@count') {
+            // join column name set by user
+            dataJoinColumn = radiusOptions.join
+          } else if (radiusOptions.join === '@count') {
+            // rowcount specified: join on the column name itself
+            dataJoinColumn = columnName
+          } else {
+            // nothing specified: let's hope they didn't want to join
+            if (this.datasetChoices.length > 1) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+            }
+          }
+
+          this.setupJoin({
+            datasetId: datasetKey,
+            dataTable: selectedDataset,
+            dataJoinColumn,
+          })
+
+          const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+
           // Calculate radius for each feature
           const { radius, calculatedValues } = ColorWidthSymbologizer.getRadiusForDataColumn({
             length: this.boundaries.length,
             data: dataColumn,
             lookup: lookupColumn,
+            join: dataJoinColumn,
             options: radiusOptions,
           })
           this.dataPointRadii = radius
           this.dataCalculatedValues = calculatedValues
+          this.dataCalculatedValueLabel = dataColumn.name
         }
       } else {
         // simple width
@@ -1419,6 +1483,13 @@ const MyComponent = defineComponent({
       }
 
       // this.filterListener()
+
+      // set features INSIDE react component
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](
+          typeof this.dataPointRadii == 'number' ? this.boundaries : this.centroids
+        )
+      }
     },
 
     async handleMapClick(click: any) {
@@ -1617,6 +1688,7 @@ const MyComponent = defineComponent({
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
+        let hasPoints = false
 
         boundaries.forEach(b => {
           // create a new properties object for each row
@@ -1627,6 +1699,11 @@ const MyComponent = defineComponent({
           featureProperties.push(properties)
           // clear out actual feature properties; they are now in featureProperties instead
           b.properties = {}
+
+          // points?
+          if (b.geometry.type == 'Point' || b.geometry.type == 'MultiPoint') {
+            hasPoints = true
+          }
 
           // check if we have linestrings: network mode !
           if (
@@ -1655,13 +1732,14 @@ const MyComponent = defineComponent({
           this.dataLineColors = '#4e79a7'
         }
 
-        // hide polygon/point buttons and opacity if we have no polygons
+        // hide polygon/point buttons and opacity if we have no polygons or we do have points
         if (hasNoPolygons) this.isAreaMode = false
+        if (hasPoints) this.isAreaMode = true
 
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons) await this.generateCentroidsAndMapCenter()
+        if (!hasNoPolygons || hasPoints) await this.generateCentroidsAndMapCenter()
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
@@ -2127,6 +2205,13 @@ const MyComponent = defineComponent({
 
       this.clearData()
       await this.getVizDetails()
+      if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
+        this.vizDetails.center = this.vizDetails.center
+          //@ts-ignore
+          .split(',')
+          .map((coord: any) => parseFloat(coord))
+        this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
+      }
 
       this.buildThumbnail()
       if (this.thumbnail) return
@@ -2179,6 +2264,7 @@ const MyComponent = defineComponent({
       this.honorQueryParameters()
 
       this.statusText = ''
+
       // Ask for shapes feature ID if it's not obvious/specified already
       this.featureJoinColumn = await this.figureOutFeatureIdColumn()
     } catch (e) {
