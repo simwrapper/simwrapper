@@ -19,6 +19,7 @@ import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
 import video from './video.vue'
+import tile from './tile.vue'
 
 // full-screen map visualizations:
 import carriers from './carriers.vue'
@@ -33,6 +34,7 @@ export const plotlyCharts = {
   area,
   bar,
   bubble,
+  csv,
   heatmap,
   hexagons,
   image: slideshow, // both 'image' and 'slideshow' types work for images
@@ -43,11 +45,11 @@ export const plotlyCharts = {
   sankey,
   slideshow,
   text,
+  tile,
   transit,
   scatter,
   vega,
   video,
-  csv,
 }
 
 // export all remaining charts/maps here:

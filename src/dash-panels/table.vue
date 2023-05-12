@@ -264,7 +264,12 @@ export default defineComponent({
         }
       }
 
-      if (this.config.fullsize || this.config.showAllRows || this.config.showallrows)
+      if (
+        this.config.fullsize ||
+        this.config.showAllRows ||
+        this.config.showallrows ||
+        this.config.showAllrows
+      )
         this.paginationOptions.enabled = false
 
       if (numberOfValues < 5) this.paginationOptions.enabled = false
