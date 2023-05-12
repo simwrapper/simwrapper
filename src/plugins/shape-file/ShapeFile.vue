@@ -2205,6 +2205,13 @@ const MyComponent = defineComponent({
 
       this.clearData()
       await this.getVizDetails()
+      if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
+        this.vizDetails.center = this.vizDetails.center
+          //@ts-ignore
+          .split(',')
+          .map((coord: any) => parseFloat(coord))
+        this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
+      }
 
       this.buildThumbnail()
       if (this.thumbnail) return
