@@ -276,7 +276,6 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       resizer: undefined as ResizeObserver | undefined,
-      networkWorker: undefined as Worker | undefined,
       dataLoaderWorkers: [] as Worker[],
       csvRowLookupFromLinkRow: {} as { [datasetId: string]: number[] },
 
@@ -1071,8 +1070,9 @@ const MyComponent = defineComponent({
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
 
-    if (this.networkWorker) this.networkWorker.terminate()
-    for (const worker of this.dataLoaderWorkers) worker.terminate()
+    try {
+      for (const worker of this.dataLoaderWorkers) worker.terminate()
+    } catch (e) {}
 
     this.$store.commit('setFullScreen', false)
   },

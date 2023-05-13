@@ -391,7 +391,6 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
   }
 
   // build links
-
   const source: Float32Array = new Float32Array(2 * _content.network.links.link.length)
   const dest: Float32Array = new Float32Array(2 * _content.network.links.link.length)
 
@@ -529,7 +528,9 @@ function parseXML(xml: string, settings: any = {}) {
   const parser = new XMLParser(options)
 
   try {
+    console.log(801, 'about to parse xml')
     const result = parser.parse(xml)
+    console.log(802, 'parse successful')
     return result
   } catch (e) {
     console.error('WHAT', e)
