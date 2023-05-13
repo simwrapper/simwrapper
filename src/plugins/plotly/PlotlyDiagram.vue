@@ -22,13 +22,15 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import yaml from 'yaml'
 import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable } from '@/Globals'
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
@@ -38,10 +40,11 @@ const MyComponent = defineComponent({
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
-    yamlConfig: String,
-    thumbnail: Boolean,
-    config: Object as any,
+    config: { type: Object as any },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
     resize: Object as any,
+    thumbnail: Boolean,
+    yamlConfig: String,
   },
 
   data() {
@@ -55,6 +58,10 @@ const MyComponent = defineComponent({
       traces: [] as any[],
       prevWidth: -1,
       prevHeight: -1,
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      // Plotly Layout
       layout: {
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
@@ -80,6 +87,7 @@ const MyComponent = defineComponent({
           y: 1,
         },
       },
+      // Plotly options
       options: {
         displaylogo: false,
         responsive: true,
@@ -139,6 +147,18 @@ const MyComponent = defineComponent({
 
   async mounted() {
     await this.getVizDetails()
+    // only continue if we are on a real page and not the file browser
+    if (this.thumbnail) return
+
+    try {
+      if (this.vizDetails.dataset) await this.prepareData()
+      if (this.vizDetails.traces) this.traces = this.vizDetails.traces
+    } catch (err) {
+      const e = err as any
+      console.error({ e })
+      this.loadingText = '' + e
+    }
+
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
   },
@@ -151,7 +171,6 @@ const MyComponent = defineComponent({
     changeDimensions(dim: any) {
       if (dim?.height && dim?.width) {
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
-          console.log('CHANGE DIM')
           this.prevHeight = dim.height
           this.prevWidth = dim.width
           this.layout = Object.assign({}, this.layout, dim)
@@ -187,36 +206,49 @@ const MyComponent = defineComponent({
       this.vizDetails = parsed
       if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
       this.$emit('title', this.vizDetails.title)
-
-      // only build the chart if we are on a real page and not the file browser
-      if (this.thumbnail) return
-      if (this.vizDetails.traces) this.traces = this.vizDetails.traces
     },
 
-    async loadFiles(): Promise<any[]> {
-      this.loadingText = 'Loading files...'
-      try {
-        const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
-
-        const content = Papaparse.parse(rawText, {
-          // using header:false because we don't care what
-          // the column names are: we expect "from,to,value" in cols 0,1,2.
-          header: false,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-        })
-        return content.data
-      } catch (err) {
-        const e = err as any
-        console.error({ e })
-        this.loadingText = '' + e
-
-        // maybe it failed because password?
-        if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.fileSystem.slug)
-        }
+    async prepareData(): Promise<any> {
+      const dataTable = await this.loadDatasets()
+      if (Object.keys(dataTable).length) {
+        this.replaceTemplateStringsWithRealData(dataTable)
       }
-      return []
+    },
+
+    async loadDatasets(): Promise<DataTable> {
+      this.loadingText = 'Loading datasets...'
+
+      const url = this.vizDetails.dataset
+      const csvData = await this.myDataManager.getDataset({ dataset: url }, { highPrecision: true })
+      return csvData.allRows
+    },
+
+    replaceTemplateStringsWithRealData(dataTable: DataTable) {
+      this.recursiveCheckForTemplate(dataTable, this.vizDetails, '$dataset')
+    },
+
+    recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
+      Object.entries(object).forEach(kv => {
+        const [key, value] = kv
+        if (typeof value === 'string') {
+          // string stuff
+          if (value.includes(template)) {
+            const column = value.substring(value.indexOf('.') + 1)
+            if (column in dataTable) {
+              object[key] = dataTable[column].values
+            } else {
+              globalStore.commit('error', `Column "column" not in ${this.vizDetails.dataset}`)
+            }
+          }
+        } else if (Array.isArray(value)) {
+          // array stuff
+          if (typeof value[0] == 'object') {
+            value.forEach(v => this.recursiveCheckForTemplate(dataTable, v, template))
+          }
+        } else if (typeof value == 'object') {
+          this.recursiveCheckForTemplate(dataTable, value, template)
+        }
+      })
     },
   },
 })
