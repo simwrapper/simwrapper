@@ -63,10 +63,10 @@ Each chart can have the following properties:
 
 **columns:** (Required) Array of strings. List the column names of the columns which have the values to be graphed. Each element will be its own line/color. Example: `['distance', 'duration']`
 
-**useLastRow:** true/false. If set to true, only the last row of the datafile will be used to build the pie chart. For example, this is useful for MATSim outputs which list every iteration's output, if you are only in the final iteration.
+**useLastRow:** true/false. If set to true, only the last row of the datafile will be used to build the pie chart. For example, this is useful for MATSim outputs which list every iteration's output, and you are only interested in the final iteration.
 
-**stacked:** true/false for bar charts, whether to stack multiple bars
+**stacked:** true/false for bar charts: whether to stack multiple bars
 
-**legendTitles:** Array of strings. Legend titles for each line. The column names will be used if this is omitted.
+**legendTitles:** Array of strings. Legend titles for each data column. The column names will be used if this is omitted.
 
 **xAxisName/yAxisName:** Labels for the axes.
