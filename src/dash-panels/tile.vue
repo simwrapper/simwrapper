@@ -1,9 +1,16 @@
 <template lang="pug">
-    .content
-        .elements(v-for="(value, name, index) in this.dataSet.allRows")
-            p.text {{ value.name }}
-            hr.line
-            p.text {{ value.values[0] }}
+  .content
+    .tiles-container
+      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+        p.tile-title {{ value.name }}
+        .tile-bottom-row
+          img.tile-image(v-bind:src="value.values[1]")
+          p.tile-value {{ value.values[0] }}
+          p.tile-value {{ value.values[1] }}
+        //- .elements(v-for="(value, name, index) in this.dataSet.allRows")
+        //-     p.text {{ value.name }}
+        //-     hr.line
+        //-     p.text {{ value.values[0] }}
 </template>
 
 <script lang="ts">
@@ -61,6 +68,28 @@ export default defineComponent({
           y: 1,
         },
       },
+      colors: [
+        '#F08080', // Helles Korallenrosa
+        '#FFB6C1', // Blassrosa
+        '#FFDAB9', // Pfirsich
+        '#FFECB3', // Cremegelb
+        '#B0E0E6', // Hellblau
+        '#98FB98', // Hellgrün
+        '#FFD700', // Goldgelb
+        '#FFA07A', // Lachsrosa
+        '#E0FFFF', // Helltürkis
+        '#FFDAB9', // Rosa
+        '#FFC0CB', // Rosa
+        '#FFA500', // Orange
+        '#FF8C00', // Dunkelorange
+        '#FF7F50', // Korallenrot
+        '#FFE4B5', // Papaya
+        '#ADD8E6', // Hellblau
+        '#90EE90', // Hellgrün
+        '#FFD700', // Goldgelb
+        '#FFC0CB', // Rosa
+        '#FFA500', // Orange
+      ],
     }
   },
   async mounted() {
@@ -149,6 +178,50 @@ export default defineComponent({
 
 .text {
   margin-bottom: 0 !important;
+}
+
+.tiles-container {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  background-color: #845ec2;
+  margin: 10px;
+  padding: 20px;
+  // flex-grow: 1;
+  // aspect-ratio: 1 / 1;
+  min-width: 250px;
+  font-family: $fancyFont;
+}
+
+.tile-bottom-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.tile .tile-value {
+  font-size: 2rem;
+  width: 100%;
+  text-align: center;
+  color: #363636; // var(--text) but always the color from the light mode.
+}
+
+.tile .tile-title {
+  width: 100%;
+  text-align: center;
+  font-size: 1.4rem;
+  color: #363636;
+}
+
+.tile-image {
+  height: 3rem;
 }
 
 @media only screen and (max-width: 640px) {
