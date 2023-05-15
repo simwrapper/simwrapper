@@ -3,14 +3,8 @@
     .tiles-container
       .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
-        .tile-bottom-row
-          img.tile-image(v-bind:src="value.values[1]")
-          p.tile-value {{ value.values[0] }}
-          p.tile-value {{ value.values[1] }}
-        //- .elements(v-for="(value, name, index) in this.dataSet.allRows")
-        //-     p.text {{ value.name }}
-        //-     hr.line
-        //-     p.text {{ value.values[0] }}
+        img.tile-image(v-bind:src="'/src/assets/tile-icons/' + value.values[1] + '.png'")
+        p.tile-value {{ value.values[0] }}
 </template>
 
 <script lang="ts">
@@ -68,6 +62,7 @@ export default defineComponent({
           y: 1,
         },
       },
+      imagePath: '/src/assets/tile-icons/',
       colors: [
         '#F08080', // Helles Korallenrosa
         '#FFB6C1', // Blassrosa
@@ -190,38 +185,39 @@ export default defineComponent({
 }
 
 .tile {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   background-color: #845ec2;
   margin: 10px;
   padding: 20px;
-  // flex-grow: 1;
-  // aspect-ratio: 1 / 1;
   min-width: 250px;
   font-family: $fancyFont;
-}
-
-.tile-bottom-row {
-  display: flex;
-  flex-direction: row;
 }
 
 .tile .tile-value {
   font-size: 2rem;
   width: 100%;
-  text-align: center;
   color: #363636; // var(--text) but always the color from the light mode.
+  grid-column-start: 2;
+  grid-column-end: 4;
+  text-align: center;
+  grid-row: 2;
 }
 
 .tile .tile-title {
   width: 100%;
-  text-align: center;
   font-size: 1.4rem;
-  color: #363636;
+  color: #363636; // var(--text) but always the color from the light mode.
+  text-align: center;
+  grid-column-start: 1;
+  grid-column-end: 5;
+  grid-row: 1;
 }
 
-.tile-image {
-  height: 3rem;
+.tile .tile-image {
+  height: 3.5rem;
+  grid-row: 2;
 }
 
 @media only screen and (max-width: 640px) {
