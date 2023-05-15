@@ -29,9 +29,10 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataSet } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataSet, DataTableColumn } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { column } from 'mathjs'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -280,7 +281,7 @@ const MyComponent = defineComponent({
       }
 
       if ('aggregate' in ds) {
-        this.aggregateColumns(dataTable, ds.aggregate.removeColumns, ds.aggregate.target)
+        this.aggregateColumns(dataTable, ds.aggregate.groupBy, ds.aggregate.target)
       }
 
       return dataTable;
@@ -346,10 +347,41 @@ const MyComponent = defineComponent({
     },
 
     // Aggregate columns, currently only sum
-    aggregateColumns(dataTable: DataTable, removeColumns: any, target: string) {
+    aggregateColumns(dataTable: DataTable, groupBy: any[], target: string) {
 
+      const aggr = {} as any
 
+      const n = dataTable[Object.keys(dataTable)[0]].values.length
 
+      for(let i = 0; i < n; i++) {
+        const k = groupBy.reduce((acc, column) => acc += dataTable[column].values[i], "")
+
+        if (k in aggr) {
+          aggr[k][target] += dataTable[target].values[i]
+        } else {
+          aggr[k] = Object.fromEntries(groupBy.map(column => [column, dataTable[column].values[i]]))
+          aggr[k][target] = dataTable[target].values[i]
+        }
+      }
+
+      // Remove the unneeded columns
+      Object.keys(dataTable).forEach(column => {
+        if (groupBy.indexOf(column) == -1 && column != target)
+          delete dataTable[column]
+      })
+
+      // Initial empty arrays for final columns
+      const values = Object.fromEntries( [...groupBy, target].map(c => [c, []])) as any
+
+      Object.values(aggr).forEach((a: any) => {
+        Object.entries(a).forEach(cv => {
+          values[cv[0]].push(cv[1])
+        })
+      })
+
+      Object.entries(values).forEach(kv => {
+        dataTable[kv[0]].values = kv[1] as any[]
+      })
 
     },
 
@@ -369,16 +401,28 @@ const MyComponent = defineComponent({
       const columns = Object.fromEntries(exclude.map(c => [c, []]))
 
       // Pivot target arrays
-      const values = []
-      const names = []
+      const values = [] as any[]
+      const names = [] as any[]
 
       const n = dataTable[Object.keys(dataTable)[0]].values.length
 
-      console.log('Columns', columns, 'Pivot', pivot, 'n', n)
+      //console.log('Columns', columns, 'Pivot', pivot, 'n', n)
 
       for(let i = 0; i < n; i++) {
-        // TODO: Fill columns and pivot
+        pivot.forEach(c => {
+          exclude.forEach(c => columns[c].push(dataTable[c].values[i]))
+          names.push(c)
+          values.push(dataTable[c].values[i])
+        })
       }
+
+      //console.log('Columns', columns, 'Values', values, 'Names', names)
+
+      exclude.forEach(c => {
+        dataTable[c].values = columns[c] 
+      })
+      dataTable[valuesTo] = {name: valuesTo,  values: values} as DataTableColumn
+      dataTable[namesTo] = {name: namesTo, values: names} as DataTableColumn
     },
 
     recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
