@@ -29,7 +29,7 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataTableColumn } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -217,7 +217,7 @@ const MyComponent = defineComponent({
 
       if (Object.keys(dataTable).length) {
 
-        this.vizDetails.traces.forEach(v => {
+        this.vizDetails.traces.forEach( (v: any) => {
 
             // This data uses array as name and needs to be split into multiple traces.
             if (v.name?.startsWith("$")) {
