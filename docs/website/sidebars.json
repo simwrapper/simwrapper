@@ -22,6 +22,7 @@
       "heatmap-charts",
       "pie-charts",
       "table",
+      "tiles",
       "sankey",
       "xy-scatter-plots",
       "shapefiles",
