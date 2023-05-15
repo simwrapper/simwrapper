@@ -3,7 +3,7 @@
     .tiles-container
       .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
-        img.tile-image(v-bind:src="'/src/assets/tile-icons/' + value.values[1] + '.png'")
+        img.tile-image(v-if="value.values[1] != undefined" v-bind:src="'/src/assets/tile-icons/' + value.values[1] + '.png'")
         p.tile-value {{ value.values[0] }}
 </template>
 
