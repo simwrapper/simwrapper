@@ -70,6 +70,7 @@ export interface DataTableColumn {
 export interface DataSet {
   name?: string
   file: string
+  data?: DataTable
 
   // Transformations
   pivot?: any
