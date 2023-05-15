@@ -29,7 +29,14 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataSet, DataTableColumn } from '@/Globals'
+import {
+  FileSystemConfig,
+  UI_FONT,
+  BG_COLOR_DASHBOARD,
+  DataTable,
+  DataSet,
+  DataTableColumn,
+} from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { column } from 'mathjs'
@@ -210,104 +217,104 @@ const MyComponent = defineComponent({
     },
 
     async prepareData(): Promise<any> {
-
       // Dataset can be single string or full object
       if (typeof this.vizDetails.dataset === 'string') {
-          this.vizDetails.dataset = [{
+        this.vizDetails.dataset = [
+          {
             name: 'dataset',
-            file: this.vizDetails.dataset
-          }]
+            file: this.vizDetails.dataset,
+          },
+        ]
       }
 
-      // TODO: currently hard-coded to only work with one dataset
-      const ds = this.vizDetails.dataset[0] as DataSet
+      for (const ds of this.vizDetails.dataset) {
+        await this.loadDatasets(ds)
+      }
 
-      let dataTable = await this.loadDatasets(ds)
-      dataTable = this.transformData(ds, dataTable)
+      let traces = [] as any[]
 
-      let traces = []
+      this.vizDetails.traces.forEach((tr: any) => {
 
-      // TODO: Warning if traces is empty
+        // Grouped traces won't be added without it group
+        let grouped = false
 
-      if (Object.keys(dataTable).length) {
+        this.vizDetails.dataset.forEach((ds: DataSet) => {
+          // This data uses array as name and needs to be split into multiple traces.
+          const name = '$' + ds.name
 
-        this.vizDetails.traces.forEach( (v: any) => {
+          if (tr.name?.startsWith(name)) {
+            let ref = tr.name.replace(name + '.', '')
+            let groups = this.groupDataTable(ds.data as DataTable, ref)
 
-            // This data uses array as name and needs to be split into multiple traces.
-            if (v.name?.startsWith("$")) {
+            Object.keys(groups).forEach(group => {
+              // TODO: Is there a library for deep copy ?
+              let copy = JSON.parse(JSON.stringify(tr))
 
-              let name = v.name.replace("$dataset.", "")
-              let groups = this.groupDataTable(dataTable, name)
+              copy.name = group
 
-              Object.keys(groups).forEach(group => {
+              // TODO: color from color ramp
+              this.recursiveCheckForTemplate(groups[group], copy, name)
+              traces.push(copy)
+            })
 
-                // TODO: Is there a library for deep copy ?
-                let copy = (JSON.parse(JSON.stringify(v)));
-
-                copy.name = group;
-                this.recursiveCheckForTemplate(groups[group], copy, '$dataset')
-                traces.push(copy)
-              })
-
-
-
-            } else {
-              this.recursiveCheckForTemplate(dataTable, v, '$dataset')
-              traces.push(v)
-            }
-
+            grouped = true
+          } else {
+            this.recursiveCheckForTemplate(ds.data as DataTable, tr, name)
+          }
         })
 
-      } else
-        traces = this.vizDetails.traces
+        if (!grouped) traces.push(tr)
+      })
 
       this.vizDetails.traces = traces
     },
 
-    async loadDatasets(ds: DataSet): Promise<DataTable> {
+    async loadDatasets(ds: DataSet): Promise<DataSet> {
       this.loadingText = 'Loading datasets...'
 
-      const csvData = await this.myDataManager.getDataset({ dataset: ds.file }, { highPrecision: true })
-      return csvData.allRows
+      const csvData = await this.myDataManager.getDataset(
+        { dataset: ds.file },
+        { highPrecision: true }
+      )
+
+      ds.data = csvData.allRows
+      this.transformData(ds)
+
+      return ds
     },
 
     // Transform dataset if requested
-    transformData(ds: DataSet, dataTable: DataTable) : DataTable {
-
+    transformData(ds: DataSet) {
       // TODO: Error checks and messages
 
       if ('pivot' in ds) {
-        this.pivot(dataTable, ds.pivot.exclude, ds.pivot.valuesTo, ds.pivot.namesTo)
+        this.pivot(ds.data as DataTable, ds.pivot.exclude, ds.pivot.valuesTo, ds.pivot.namesTo)
       }
 
       if ('aggregate' in ds) {
-        this.aggregateColumns(dataTable, ds.aggregate.groupBy, ds.aggregate.target)
+        this.aggregateColumns(ds.data as DataTable, ds.aggregate.groupBy, ds.aggregate.target)
       }
-
-      return dataTable;
     },
-    
-    countOccurrences(array: Float64Array | Float32Array | any[]): {[key: string] : number} {
-      let counts = {} as {[key: string] : number}
-      array.forEach( (el : any) => {
-          counts[el] = counts[el] ? counts[el] + 1 : 1;      
-      });
+
+    countOccurrences(array: Float64Array | Float32Array | any[]): { [key: string]: number } {
+      let counts = {} as { [key: string]: number }
+      array.forEach((el: any) => {
+        counts[el] = counts[el] ? counts[el] + 1 : 1
+      })
 
       return counts
     },
 
     // Group data table by values in columnName and generate multiple tables
-    groupDataTable(dataTable: DataTable, columnName: string): {[key: string] : DataTable} {
+    groupDataTable(dataTable: DataTable, columnName: string): { [key: string]: DataTable } {
+      let obj = {} as { [key: string]: DataTable }
 
-      let obj = {} as {[key: string] : DataTable}
-
-      let column =  dataTable[columnName]
+      let column = dataTable[columnName]
 
       let occ = this.countOccurrences(column.values)
 
       // Copy all columns and initialize as empty
-      Object.entries(occ).forEach( kv => {
-
+      Object.entries(occ).forEach(kv => {
         const [group, n] = kv
 
         let dt = {} as DataTable
@@ -315,7 +322,7 @@ const MyComponent = defineComponent({
         // Shallow copy each column
         Object.entries(dataTable).forEach(kv => {
           const [key, column] = kv
-          dt[key] = {...column}
+          dt[key] = { ...column }
 
           let c = Object.getPrototypeOf(column.values).constructor
 
@@ -327,20 +334,18 @@ const MyComponent = defineComponent({
       })
 
       for (var i = 0; i < dataTable[columnName].values.length; i++) {
+        var group = dataTable[columnName].values[i]
+        let target = obj[group]
 
-          var group = dataTable[columnName].values[i]
-          let target = obj[group]
+        // determine index by subtracting the total for each group
+        let idx = target[columnName].values.length - occ[group]--
 
-          // determine index by subtracting the total for each group
-          let idx = target[columnName].values.length - occ[group]--;
+        // Copy columns
+        Object.entries(dataTable).forEach(kv => {
+          const [key, column] = kv
 
-          // Copy columns
-          Object.entries(dataTable).forEach(kv => {
-            const [key, column] = kv
-
-            target[key].values[idx] = column.values[i];
-          })
-
+          target[key].values[idx] = column.values[i]
+        })
       }
 
       return obj
@@ -348,13 +353,12 @@ const MyComponent = defineComponent({
 
     // Aggregate columns, currently only sum
     aggregateColumns(dataTable: DataTable, groupBy: any[], target: string) {
-
       const aggr = {} as any
 
       const n = dataTable[Object.keys(dataTable)[0]].values.length
 
-      for(let i = 0; i < n; i++) {
-        const k = groupBy.reduce((acc, column) => acc += dataTable[column].values[i], "")
+      for (let i = 0; i < n; i++) {
+        const k = groupBy.reduce((acc, column) => (acc += dataTable[column].values[i]), '')
 
         if (k in aggr) {
           aggr[k][target] += dataTable[target].values[i]
@@ -366,12 +370,11 @@ const MyComponent = defineComponent({
 
       // Remove the unneeded columns
       Object.keys(dataTable).forEach(column => {
-        if (groupBy.indexOf(column) == -1 && column != target)
-          delete dataTable[column]
+        if (groupBy.indexOf(column) == -1 && column != target) delete dataTable[column]
       })
 
       // Initial empty arrays for final columns
-      const values = Object.fromEntries( [...groupBy, target].map(c => [c, []])) as any
+      const values = Object.fromEntries([...groupBy, target].map(c => [c, []])) as any
 
       Object.values(aggr).forEach((a: any) => {
         Object.entries(a).forEach(cv => {
@@ -382,18 +385,16 @@ const MyComponent = defineComponent({
       Object.entries(values).forEach(kv => {
         dataTable[kv[0]].values = kv[1] as any[]
       })
-
     },
 
     // Pivot wide to long format
     pivot(dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
-
       // Columns to pivot
       const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
-      
+
       exclude.forEach(column => {
-        if (!(column in dataTable)) {       
-            globalStore.commit('error', `Pivot column ${column} not in ${this.vizDetails.dataset}`)
+        if (!(column in dataTable)) {
+          globalStore.commit('error', `Pivot column ${column} not in ${this.vizDetails.dataset}`)
         }
       })
 
@@ -408,7 +409,7 @@ const MyComponent = defineComponent({
 
       //console.log('Columns', columns, 'Pivot', pivot, 'n', n)
 
-      for(let i = 0; i < n; i++) {
+      for (let i = 0; i < n; i++) {
         pivot.forEach(c => {
           exclude.forEach(c => columns[c].push(dataTable[c].values[i]))
           names.push(c)
@@ -419,10 +420,10 @@ const MyComponent = defineComponent({
       //console.log('Columns', columns, 'Values', values, 'Names', names)
 
       exclude.forEach(c => {
-        dataTable[c].values = columns[c] 
+        dataTable[c].values = columns[c]
       })
-      dataTable[valuesTo] = {name: valuesTo,  values: values} as DataTableColumn
-      dataTable[namesTo] = {name: namesTo, values: names} as DataTableColumn
+      dataTable[valuesTo] = { name: valuesTo, values: values } as DataTableColumn
+      dataTable[namesTo] = { name: namesTo, values: names } as DataTableColumn
     },
 
     recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
@@ -447,8 +448,8 @@ const MyComponent = defineComponent({
           this.recursiveCheckForTemplate(dataTable, value, template)
         }
       })
-    }
-  }
+    },
+  },
 })
 
 // !register plugin!
