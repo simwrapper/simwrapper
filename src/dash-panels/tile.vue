@@ -1,7 +1,7 @@
 <template lang="pug">
   .content
     .tiles-container
-      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colorsD3[index % colors.length]}")
         p.tile-title {{ value.name }}
         img.tile-image(v-if="value.values[1] != undefined" v-bind:src="'/src/assets/tile-icons/' + value.values[1] + '.png'")
         p.tile-value {{ value.values[0] }}
@@ -31,7 +31,7 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      id: ('overview-' + Math.floor(1e12 * Math.random())) as any,
+      id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
@@ -62,7 +62,6 @@ export default defineComponent({
           y: 1,
         },
       },
-      imagePath: '/src/assets/tile-icons/',
       colors: [
         '#F08080', // Helles Korallenrosa
         '#FFB6C1', // Blassrosa
@@ -84,6 +83,18 @@ export default defineComponent({
         '#FFD700', // Goldgelb
         '#FFC0CB', // Rosa
         '#FFA500', // Orange
+      ],
+      colorsD3: [
+        '#1F77B4',
+        '#FF7F0E',
+        '#2CA02C',
+        '#D62728',
+        '#9467BD',
+        '#8C564B',
+        '#E377C2',
+        '#7F7F7F',
+        '#BCBD22',
+        '#17BECF',
       ],
     }
   },
