@@ -29,7 +29,7 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataSet } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -209,7 +209,20 @@ const MyComponent = defineComponent({
     },
 
     async prepareData(): Promise<any> {
-      const dataTable = await this.loadDatasets()
+
+      // Dataset can be single string or full object
+      if (typeof this.vizDetails.dataset === 'string') {
+          this.vizDetails.dataset = [{
+            name: 'dataset',
+            file: this.vizDetails.dataset
+          }]
+      }
+
+      // TODO: currently hard-coded to only work with one dataset
+      const ds = this.vizDetails.dataset[0] as DataSet
+
+      let dataTable = await this.loadDatasets(ds)
+      dataTable = this.transformData(ds, dataTable)
 
       let traces = []
 
@@ -250,38 +263,29 @@ const MyComponent = defineComponent({
       this.vizDetails.traces = traces
     },
 
-    async loadDatasets(): Promise<DataTable> {
+    async loadDatasets(ds: DataSet): Promise<DataTable> {
       this.loadingText = 'Loading datasets...'
 
-      const url = this.vizDetails.dataset
-      const csvData = await this.myDataManager.getDataset({ dataset: url }, { highPrecision: true })
+      const csvData = await this.myDataManager.getDataset({ dataset: ds.file }, { highPrecision: true })
       return csvData.allRows
     },
 
-    recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
-      Object.entries(object).forEach(kv => {
-        const [key, value] = kv
-        if (typeof value === 'string') {
-          // string stuff
-          if (value.includes(template)) {
-            const column = value.substring(value.indexOf('.') + 1)
-            if (column in dataTable) {
-              object[key] = dataTable[column].values
-            } else {
-              globalStore.commit('error', `Column "column" not in ${this.vizDetails.dataset}`)
-            }
-          }
-        } else if (Array.isArray(value)) {
-          // array stuff
-          if (typeof value[0] == 'object') {
-            value.forEach(v => this.recursiveCheckForTemplate(dataTable, v, template))
-          }
-        } else if (typeof value == 'object') {
-          this.recursiveCheckForTemplate(dataTable, value, template)
-        }
-      })
-    },
+    // Transform dataset if requested
+    transformData(ds: DataSet, dataTable: DataTable) : DataTable {
 
+      // TODO: Error checks and messages
+
+      if ('pivot' in ds) {
+        this.pivot(dataTable, ds.pivot.exclude, ds.pivot.valuesTo, ds.pivot.namesTo)
+      }
+
+      if ('aggregate' in ds) {
+        this.aggregateColumns(dataTable, ds.aggregate.removeColumns, ds.aggregate.target)
+      }
+
+      return dataTable;
+    },
+    
     countOccurrences(array: Float64Array | Float32Array | any[]): {[key: string] : number} {
       let counts = {} as {[key: string] : number}
       array.forEach( (el : any) => {
@@ -326,10 +330,8 @@ const MyComponent = defineComponent({
           var group = dataTable[columnName].values[i]
           let target = obj[group]
 
-          // determin index by subtracting the total for each group
+          // determine index by subtracting the total for each group
           let idx = target[columnName].values.length - occ[group]--;
-
-          console.log(target)
 
           // Copy columns
           Object.entries(dataTable).forEach(kv => {
@@ -340,9 +342,67 @@ const MyComponent = defineComponent({
 
       }
 
-      console.log('obj', obj)
-
       return obj
+    },
+
+    // Aggregate columns, currently only sum
+    aggregateColumns(dataTable: DataTable, removeColumns: any, target: string) {
+
+
+
+
+    },
+
+    // Pivot wide to long format
+    pivot(dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
+
+      // Columns to pivot
+      const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
+      
+      exclude.forEach(column => {
+        if (!(column in dataTable)) {       
+            globalStore.commit('error', `Pivot column ${column} not in ${this.vizDetails.dataset}`)
+        }
+      })
+
+      // New data entries
+      const columns = Object.fromEntries(exclude.map(c => [c, []]))
+
+      // Pivot target arrays
+      const values = []
+      const names = []
+
+      const n = dataTable[Object.keys(dataTable)[0]].values.length
+
+      console.log('Columns', columns, 'Pivot', pivot, 'n', n)
+
+      for(let i = 0; i < n; i++) {
+        // TODO: Fill columns and pivot
+      }
+    },
+
+    recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
+      Object.entries(object).forEach(kv => {
+        const [key, value] = kv
+        if (typeof value === 'string') {
+          // string stuff
+          if (value.includes(template)) {
+            const column = value.substring(value.indexOf('.') + 1)
+            if (column in dataTable) {
+              object[key] = dataTable[column].values
+            } else {
+              globalStore.commit('error', `Column "column" not in ${this.vizDetails.dataset}`)
+            }
+          }
+        } else if (Array.isArray(value)) {
+          // array stuff
+          if (typeof value[0] == 'object') {
+            value.forEach(v => this.recursiveCheckForTemplate(dataTable, v, template))
+          }
+        } else if (typeof value == 'object') {
+          this.recursiveCheckForTemplate(dataTable, value, template)
+        }
+      })
     }
   }
 })
