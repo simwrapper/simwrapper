@@ -64,6 +64,19 @@ export interface DataTableColumn {
   // factors?: any[] // only present if elements are stored as offset to the factor value here, instead of as the real value
 }
 
+/**
+ * Datast definition including possible transformations
+ */
+export interface DataSet {
+  name?: string
+  file: string
+
+  // Transformations
+  pivot?: any
+  aggregate?: any
+  multiIndex?: any
+}
+
 /** LookupDataset bridges CSV data and link data with the join column containing array offsets */
 export interface LookupDataset {
   datasetKey: string
