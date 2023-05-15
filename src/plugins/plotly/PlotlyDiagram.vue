@@ -29,7 +29,7 @@ import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable } from '@/Globals'
+import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD, DataTable, DataTableColumn } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -210,9 +210,44 @@ const MyComponent = defineComponent({
 
     async prepareData(): Promise<any> {
       const dataTable = await this.loadDatasets()
+
+      let traces = []
+
+      // TODO: Warning if traces is empty
+
       if (Object.keys(dataTable).length) {
-        this.replaceTemplateStringsWithRealData(dataTable)
-      }
+
+        this.vizDetails.traces.forEach(v => {
+
+            // This data uses array as name and needs to be split into multiple traces.
+            if (v.name?.startsWith("$")) {
+
+              let name = v.name.replace("$dataset.", "")
+              let groups = this.groupDataTable(dataTable, name)
+
+              Object.keys(groups).forEach(group => {
+
+                // TODO: Is there a library for deep copy ?
+                let copy = (JSON.parse(JSON.stringify(v)));
+
+                copy.name = group;
+                this.recursiveCheckForTemplate(groups[group], copy, '$dataset')
+                traces.push(copy)
+              })
+
+
+
+            } else {
+              this.recursiveCheckForTemplate(dataTable, v, '$dataset')
+              traces.push(v)
+            }
+
+        })
+
+      } else
+        traces = this.vizDetails.traces
+
+      this.vizDetails.traces = traces
     },
 
     async loadDatasets(): Promise<DataTable> {
@@ -221,10 +256,6 @@ const MyComponent = defineComponent({
       const url = this.vizDetails.dataset
       const csvData = await this.myDataManager.getDataset({ dataset: url }, { highPrecision: true })
       return csvData.allRows
-    },
-
-    replaceTemplateStringsWithRealData(dataTable: DataTable) {
-      this.recursiveCheckForTemplate(dataTable, this.vizDetails, '$dataset')
     },
 
     recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
@@ -250,7 +281,70 @@ const MyComponent = defineComponent({
         }
       })
     },
-  },
+
+    countOccurrences(array: Float64Array | Float32Array | any[]): {[key: string] : number} {
+      let counts = {} as {[key: string] : number}
+      array.forEach( (el : any) => {
+          counts[el] = counts[el] ? counts[el] + 1 : 1;      
+      });
+
+      return counts
+    },
+
+    // Group data table by values in columnName and generate multiple tables
+    groupDataTable(dataTable: DataTable, columnName: string): {[key: string] : DataTable} {
+
+      let obj = {} as {[key: string] : DataTable}
+
+      let column =  dataTable[columnName]
+
+      let occ = this.countOccurrences(column.values)
+
+      // Copy all columns and initialize as empty
+      Object.entries(occ).forEach( kv => {
+
+        const [group, n] = kv
+
+        let dt = {} as DataTable
+
+        // Shallow copy each column
+        Object.entries(dataTable).forEach(kv => {
+          const [key, column] = kv
+          dt[key] = {...column}
+
+          let c = Object.getPrototypeOf(column.values).constructor
+
+          // Construct array of same type
+          dt[key].values = new c(n)
+        })
+
+        obj[group] = dt
+      })
+
+      for (var i = 0; i < dataTable[columnName].values.length; i++) {
+
+          var group = dataTable[columnName].values[i]
+          let target = obj[group]
+
+          // determin index by subtracting the total for each group
+          let idx = target[columnName].values.length - occ[group]--;
+
+          console.log(target)
+
+          // Copy columns
+          Object.entries(dataTable).forEach(kv => {
+            const [key, column] = kv
+
+            target[key].values[idx] = column.values[i];
+          })
+
+      }
+
+      console.log('obj', obj)
+
+      return obj
+    }
+  }
 })
 
 // !register plugin!
