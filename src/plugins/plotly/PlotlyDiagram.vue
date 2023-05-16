@@ -190,6 +190,10 @@ const MyComponent = defineComponent({
       mergedLayout.font = this.layout.font
       mergedLayout.legend = this.layout.legend
 
+      // we never want these:
+      delete mergedLayout.height
+      delete mergedLayout.width
+
       // be selective about these:
       if (mergedLayout.xaxis) {
         mergedLayout.xaxis.automargin = true
