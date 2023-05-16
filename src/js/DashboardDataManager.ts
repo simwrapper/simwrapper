@@ -49,6 +49,11 @@ export interface NetworkLinks {
   projection: String
 }
 
+// This tells us if our environment has the Chrome File System Access API, meaning we are in Chrome
+//@ts-ignore
+const isChrome = !!window.showDirectoryPicker
+const isFirefox = !isChrome
+
 export default class DashboardDataManager {
   constructor(...args: string[]) {
     // hello
@@ -575,6 +580,7 @@ export default class DashboardDataManager {
           filePath: path,
           fileSystem: this.fileApi,
           vizDetails,
+          isFirefox, // we need this for now, because Firefox bug #260
         })
       } catch (err) {
         thread.terminate()

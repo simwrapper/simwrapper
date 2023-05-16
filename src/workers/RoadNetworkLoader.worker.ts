@@ -32,6 +32,7 @@ let _filePath = ''
 let _networkFormat: NetworkFormat
 let _subfolder = ''
 let _vizDetails = {} as any
+let _isFirefox = false
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
@@ -49,12 +50,13 @@ onmessage = async function (e) {
         break
     }
   } else {
-    const { filePath, fileSystem, vizDetails, options } = e.data
+    const { filePath, fileSystem, vizDetails, options, isFirefox } = e.data
 
     // guess file type from extension
     _networkFormat = guessFileTypeFromExtension(filePath)
     _vizDetails = vizDetails
     _filePath = filePath
+    _isFirefox = isFirefox
 
     // fetch nodes and links
     fetchNodesAndLinks({
@@ -207,6 +209,8 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
   let firstChunk = rawData.subarray(0, currentBytePosition)
 
   // Find end of nodes; close them and close network. Parse it.
+  postMessage({ status: 'Parsing nodes...' })
+
   while (currentBytePosition < rawData.length) {
     const text = decoder.decode(firstChunk)
     decoded += text
@@ -221,8 +225,6 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
 
   // This creates main network object with attributes and nodes.
   let networkNodes = decoded.slice(0, endNodes) + '\n</network>\n'
-
-  postMessage({ status: 'Parsing nodes...' })
 
   let network = parseXML(networkNodes)
 
@@ -346,30 +348,13 @@ async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemCon
   const rawData = await fetchGzip(filePath, fileSystem)
 
   try {
-    // rawData can be enormous. Decoding can fail silently due to memory pressure.
-    const decoded = new TextDecoder('utf-8').decode(rawData)
-    if (decoded.length > 0) {
-      _content = await parseXML(decoded, options)
-    } else {
-      _content = await memorySafeXMLParser(rawData, options)
-      return
-    }
+    // always use the memory-safe parser, because Firefox randomly hangs without any
+    // error messages or warnings when the parse object is too big :-(
+    await memorySafeXMLParser(rawData, options)
   } catch (e) {
     console.error('' + e)
     postMessage({ error: 'Could not parse network XML' })
     return
-  }
-
-  // What is the CRS?
-  let coordinateReferenceSystem = ''
-  const attribute = _content.network?.attributes?.attribute
-  if (attribute?.$name === 'coordinateReferenceSystem') {
-    coordinateReferenceSystem = attribute['#text']
-    console.log('CRS', coordinateReferenceSystem)
-    parseXmlNetworkAndPostResults(coordinateReferenceSystem)
-  } else {
-    // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
-    postMessage({ promptUserForCRS: 'crs needed' })
   }
 }
 
@@ -515,6 +500,7 @@ function parseXML(xml: string, settings: any = {}) {
     ignoreAttributes: false,
     preserveOrder: false,
     attributeNamePrefix: '$',
+    isFirefox: _isFirefox,
     // isArray: undefined as any,
   }
 
@@ -528,9 +514,9 @@ function parseXML(xml: string, settings: any = {}) {
   const parser = new XMLParser(options)
 
   try {
-    console.log(801, 'about to parse xml')
+    // console.log(801, 'about to parse xml', xml.length)
     const result = parser.parse(xml)
-    console.log(802, 'parse successful')
+    // console.log(802, 'parse successful')
     return result
   } catch (e) {
     console.error('WHAT', e)
