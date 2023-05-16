@@ -159,7 +159,7 @@ const MyComponent = defineComponent({
     if (this.thumbnail) return
 
     try {
-      if (this.vizDetails.dataset) await this.prepareData()
+      if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
     } catch (err) {
       const e = err as any
@@ -217,28 +217,29 @@ const MyComponent = defineComponent({
     },
 
     async prepareData(): Promise<any> {
-      // Dataset can be single string or full object
-      if (typeof this.vizDetails.dataset === 'string') {
-        this.vizDetails.dataset = [
-          {
-            name: 'dataset',
-            file: this.vizDetails.dataset,
-          },
-        ]
-      }
+      await Promise.all(
+        Object.entries(this.vizDetails.datasets).map(kv => {
+          let [key, value] = kv
 
-      for (const ds of this.vizDetails.dataset) {
-        await this.loadDatasets(ds)
-      }
+          // Dataset can be single string or full object
+          if (typeof value === 'string') {
+            value = {
+              file: value,
+            }
+          }
+
+          return this.loadDataset(key, value as DataSet)
+        })
+      )
 
       let traces = [] as any[]
+      let datasets = Object.values(this.vizDetails.datasets) as DataSet[]
 
       this.vizDetails.traces.forEach((tr: any) => {
-
         // Grouped traces won't be added without it group
         let grouped = false
 
-        this.vizDetails.dataset.forEach((ds: DataSet) => {
+        datasets.forEach((ds: DataSet) => {
           // This data uses array as name and needs to be split into multiple traces.
           const name = '$' + ds.name
 
@@ -269,7 +270,7 @@ const MyComponent = defineComponent({
       this.vizDetails.traces = traces
     },
 
-    async loadDatasets(ds: DataSet): Promise<DataSet> {
+    async loadDataset(name: string, ds: DataSet): Promise<DataSet> {
       this.loadingText = 'Loading datasets...'
 
       const csvData = await this.myDataManager.getDataset(
@@ -278,6 +279,9 @@ const MyComponent = defineComponent({
       )
 
       ds.data = csvData.allRows
+      ds.name = name
+
+      this.vizDetails.datasets[name] = ds
       this.transformData(ds)
 
       return ds
@@ -288,7 +292,13 @@ const MyComponent = defineComponent({
       // TODO: Error checks and messages
 
       if ('pivot' in ds) {
-        this.pivot(ds.data as DataTable, ds.pivot.exclude, ds.pivot.valuesTo, ds.pivot.namesTo)
+        this.pivot(
+          ds.name as string,
+          ds.data as DataTable,
+          ds.pivot.exclude,
+          ds.pivot.valuesTo,
+          ds.pivot.namesTo
+        )
       }
 
       if ('aggregate' in ds) {
@@ -388,13 +398,13 @@ const MyComponent = defineComponent({
     },
 
     // Pivot wide to long format
-    pivot(dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
+    pivot(name: string, dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
       // Columns to pivot
       const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
 
       exclude.forEach(column => {
         if (!(column in dataTable)) {
-          globalStore.commit('error', `Pivot column ${column} not in ${this.vizDetails.dataset}`)
+          globalStore.commit('error', `Pivot column ${column} not in ${name}`)
         }
       })
 
@@ -436,7 +446,7 @@ const MyComponent = defineComponent({
             if (column in dataTable) {
               object[key] = dataTable[column].values
             } else {
-              globalStore.commit('error', `Column "column" not in ${this.vizDetails.dataset}`)
+              globalStore.commit('error', `Column "${column}" not in ${Object.keys(dataTable)}`)
             }
           }
         } else if (Array.isArray(value)) {
