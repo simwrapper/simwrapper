@@ -186,14 +186,16 @@ const MyComponent = defineComponent({
     mergeLayouts() {
       const mergedLayout = { ...this.vizDetails.layout }
 
+      // TODO: only if the y axis title is set, the margin to the left needs to be little bit larger
+
       // we always want to use SimWrapper defaults for these:
+      mergedLayout.margin = this.layout.margin
       mergedLayout.font = this.layout.font
       mergedLayout.legend = this.layout.legend
 
       // we never want these:
       delete mergedLayout.height
       delete mergedLayout.width
-      delete mergedLayout.margin
 
       // be selective about these:
       if (mergedLayout.xaxis) {
@@ -263,18 +265,32 @@ const MyComponent = defineComponent({
         })
       )
 
+      if (this.vizDetails.mergeDatasets) {
+        this.vizDetails.datasets = {
+          dataset: {
+            name: 'dataset',
+            file: 'none',
+            data: this.mergeDatasets(Object.values(this.vizDetails.datasets)),
+          },
+        }
+      }
+
       let traces = [] as any[]
       let datasets = Object.values(this.vizDetails.datasets) as DataSet[]
 
-      this.vizDetails.traces.forEach((tr: any) => {
+      let color: null | any[] = null
+
+      if ('colorRamp' in this.vizDetails) {
+        const globalRamp =
+          typeof this.vizDetails.colorRamp === 'string'
+            ? { ramp: this.vizDetails.colorRamp }
+            : this.vizDetails.colorRamp
+        color = colorRamp(globalRamp, this.vizDetails.traces.length)
+      }
+
+      this.vizDetails.traces.forEach((tr: any, trIdx: number) => {
         // Grouped traces won't be added without its group
         let grouped = false
-
-        let ramp: Ramp | null = null
-
-        if ('colorRamp' in tr) {
-          ramp = typeof tr.colorRamp === 'string' ? { ramp: tr.colorRamp } : tr.colorRamp
-        }
 
         datasets.forEach((ds: DataSet) => {
           // This data uses array as name and needs to be split into multiple traces.
@@ -285,7 +301,13 @@ const MyComponent = defineComponent({
             const groups = this.groupDataTable(ds.data as DataTable, ref)
 
             const n = Object.keys(groups).length
-            const color = ramp ? colorRamp(ramp, n) : null
+
+            let c: null | any[] = null
+
+            if ('colorRamp' in tr) {
+              const ramp = typeof tr.colorRamp === 'string' ? { ramp: tr.colorRamp } : tr.colorRamp
+              c = colorRamp(ramp, n)
+            }
 
             Object.keys(groups).forEach((group, idx) => {
               // TODO: Is there a library for deep copy ?
@@ -294,9 +316,9 @@ const MyComponent = defineComponent({
               copy.name = group
               this.recursiveCheckForTemplate(groups[group], copy, name)
 
-              if (color) {
+              if (c) {
                 if (!('marker' in tr)) tr.marker = {}
-                tr.marker.color = color[idx]
+                tr.marker.color = c[idx]
               }
               traces.push(copy)
             })
@@ -308,12 +330,11 @@ const MyComponent = defineComponent({
         })
 
         if (!grouped) {
-          if (ramp) {
+          if (color) {
             // Assign marker
             if (!('marker' in tr)) tr.marker = {}
 
-            const c = colorRamp(ramp, 1)
-            tr.marker.color = c
+            tr.marker.color = color[trIdx]
           }
           traces.push(tr)
         }
@@ -355,6 +376,21 @@ const MyComponent = defineComponent({
 
       if ('aggregate' in ds) {
         this.aggregateColumns(ds.data as DataTable, ds.aggregate.groupBy, ds.aggregate.target)
+      }
+
+      if ('constant' in ds) {
+        Object.entries(ds.constant!).forEach(kv => {
+          const [column, value] = kv
+
+          const values = new Array(Object.values(ds.data!)[0].values.length)
+          values.fill(value)
+
+          ds.data![column] = {
+            name: column,
+            values: values,
+            type: 1,
+          }
+        })
       }
     },
 
@@ -486,6 +522,23 @@ const MyComponent = defineComponent({
       })
       dataTable[valuesTo] = { name: valuesTo, values: values } as DataTableColumn
       dataTable[namesTo] = { name: namesTo, values: names } as DataTableColumn
+    },
+
+    mergeDatasets(datasets: DataSet[]): DataTable {
+      const data = {} as DataTable
+      const first = datasets[0].data!
+
+      Object.keys(first).forEach((column: string) => {
+        const values = datasets.map(ds => ds.data![column].values).flat()
+
+        data[column] = {
+          name: column,
+          type: first[column].type,
+          values: values,
+        }
+      })
+
+      return data
     },
 
     recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
