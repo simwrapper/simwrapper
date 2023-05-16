@@ -187,13 +187,13 @@ const MyComponent = defineComponent({
       const mergedLayout = { ...this.vizDetails.layout }
 
       // we always want to use SimWrapper defaults for these:
-      mergedLayout.margin = this.layout.margin
       mergedLayout.font = this.layout.font
       mergedLayout.legend = this.layout.legend
 
       // we never want these:
       delete mergedLayout.height
       delete mergedLayout.width
+      delete mergedLayout.margin
 
       // be selective about these:
       if (mergedLayout.xaxis) {
