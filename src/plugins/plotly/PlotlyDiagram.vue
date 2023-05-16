@@ -34,7 +34,8 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import { colorRamp, Ramp } from '@/js/ColorsAndWidths'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -266,25 +267,37 @@ const MyComponent = defineComponent({
       let datasets = Object.values(this.vizDetails.datasets) as DataSet[]
 
       this.vizDetails.traces.forEach((tr: any) => {
-        // Grouped traces won't be added without it group
+        // Grouped traces won't be added without its group
         let grouped = false
+
+        let ramp: Ramp | null = null
+
+        if ('colorRamp' in tr) {
+          ramp = typeof tr.colorRamp === 'string' ? { ramp: tr.colorRamp } : tr.colorRamp
+        }
 
         datasets.forEach((ds: DataSet) => {
           // This data uses array as name and needs to be split into multiple traces.
           const name = '$' + ds.name
 
           if (tr.name?.startsWith(name)) {
-            let ref = tr.name.replace(name + '.', '')
-            let groups = this.groupDataTable(ds.data as DataTable, ref)
+            const ref = tr.name.replace(name + '.', '')
+            const groups = this.groupDataTable(ds.data as DataTable, ref)
 
-            Object.keys(groups).forEach(group => {
+            const n = Object.keys(groups).length
+            const color = ramp ? colorRamp(ramp, n) : null
+
+            Object.keys(groups).forEach((group, idx) => {
               // TODO: Is there a library for deep copy ?
-              let copy = JSON.parse(JSON.stringify(tr))
+              const copy = JSON.parse(JSON.stringify(tr))
 
               copy.name = group
-
-              // TODO: color from color ramp
               this.recursiveCheckForTemplate(groups[group], copy, name)
+
+              if (color) {
+                if (!('marker' in tr)) tr.marker = {}
+                tr.marker.color = color[idx]
+              }
               traces.push(copy)
             })
 
@@ -294,7 +307,16 @@ const MyComponent = defineComponent({
           }
         })
 
-        if (!grouped) traces.push(tr)
+        if (!grouped) {
+          if (ramp) {
+            // Assign marker
+            if (!('marker' in tr)) tr.marker = {}
+
+            const c = colorRamp(ramp, 1)
+            tr.marker.color = c
+          }
+          traces.push(tr)
+        }
       })
 
       this.vizDetails.traces = traces
