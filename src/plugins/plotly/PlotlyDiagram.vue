@@ -1,9 +1,6 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
 
-  //- h2 {{  vizDetails.title }}
-  //- p(v-if="vizDetails.description") {{  vizDetails.description }}
-
   VuePlotly.myplot(
     :data="traces"
     :layout="layout"
@@ -25,10 +22,10 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import yaml from 'yaml'
-import Papaparse from 'papaparse'
 import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import {
   FileSystemConfig,
   UI_FONT,
@@ -38,8 +35,6 @@ import {
   DataTableColumn,
 } from '@/Globals'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { column } from 'mathjs'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -61,7 +56,6 @@ const MyComponent = defineComponent({
       vizDetails: { title: '', description: '' } as any,
       loadingText: '',
       jsonChart: {} as any,
-      totalTrips: 0,
       id: `plotly-id-${Math.floor(1e12 * Math.random())}` as any,
       traces: [] as any[],
       prevWidth: -1,
@@ -69,7 +63,7 @@ const MyComponent = defineComponent({
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
-      // Plotly Layout
+      // Plotly layout
       layout: {
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
