@@ -2,14 +2,63 @@
 import { scaleLinear, scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { rgb } from 'd3-color'
 
+import * as d3sc from 'd3-scale-chromatic'
+import * as d3color from 'd3-color'
+const d3 = Object.assign({}, d3sc, d3color) as any
+
 import { DataTableColumn, DataType } from '@/Globals'
 
 import store from '@/store'
 
-enum Style {
+export enum Style {
   categorical,
   diverging,
   sequential,
+}
+
+export interface Ramp {
+  ramp: string
+  style: Style
+  reverse?: boolean
+  steps?: number
+  breakpoints?: string
+}
+
+export function colorRamp(scale: Ramp, n: number): string[] {
+  let colors
+  // let dark
+
+  // categorical
+  if (scale.style === Style.categorical) {
+    const categories = d3[`scheme${scale.ramp}`]
+    return categories.slice(0, n)
+  }
+
+  // sequential and diverging
+  if (d3[`scheme${scale.ramp}`] && d3[`scheme${scale.ramp}`][n]) {
+    colors = d3[`scheme${scale.ramp}`][n]
+    // dark = d3.lab(colors[0]).l < 50
+  } else {
+    try {
+      const interpolate = d3[`interpolate${scale.ramp}`]
+      colors = []
+      // dark = d3.lab(interpolate(0)).l < 50
+      for (let i = 0; i < n; ++i) {
+        colors.push(d3.rgb(interpolate(i / (n - 1))).hex())
+      }
+    } catch (e) {
+      // some ramps cannot be interpolated, give the
+      // highest one instead.
+      return colorRamp(scale, n - 1)
+    }
+  }
+
+  // fix center color if diverging: pale grey
+  if (scale.style === Style.diverging && n % 2 === 1) {
+    colors[Math.floor(n / 2)] = store.state.isDarkMode ? '#282828' : '#e4e4e4'
+  }
+
+  return colors
 }
 
 function getColorsForDataColumn(props: {
