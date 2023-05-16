@@ -108,7 +108,7 @@ import GeojsonLayer from './GeojsonLayer'
 // import GeojsonLayer from './GeojsonVueLayer.vue'
 
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
-import ColorWidthSymbologizer from '@/js/ColorWidthSymbologizer'
+import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalIdColumnPicker from './ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
