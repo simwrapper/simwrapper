@@ -155,6 +155,8 @@ const MyComponent = defineComponent({
     try {
       if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
+      // merge user-supplied layout with SimWrapper layout defaults
+      if (this.vizDetails.layout) this.mergeLayouts()
     } catch (err) {
       const e = err as any
       console.error({ e })
@@ -178,6 +180,36 @@ const MyComponent = defineComponent({
           this.layout = Object.assign({}, this.layout, dim)
         }
       }
+    },
+
+    mergeLayouts() {
+      const mergedLayout = { ...this.vizDetails.layout }
+
+      // we always want to use SimWrapper defaults for these:
+      mergedLayout.margin = this.layout.margin
+      mergedLayout.font = this.layout.font
+      mergedLayout.legend = this.layout.legend
+
+      // be selective about these:
+      if (mergedLayout.xaxis) {
+        mergedLayout.xaxis.automargin = true
+        mergedLayout.xaxis.autorange = true
+        mergedLayout.xaxis.animate = true
+        if (!mergedLayout.xaxis.title) mergedLayout.xaxis.title = this.layout.xaxis.title
+      } else {
+        mergedLayout.xaxis = this.layout.xaxis
+      }
+
+      if (mergedLayout.yaxis) {
+        mergedLayout.yaxis.automargin = true
+        mergedLayout.yaxis.autorange = true
+        mergedLayout.yaxis.animate = true
+        if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
+      } else {
+        mergedLayout.yaxis = this.layout.yaxis
+      }
+
+      this.layout = mergedLayout
     },
 
     updateTheme() {
