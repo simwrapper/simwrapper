@@ -4,8 +4,9 @@ import { rgb } from 'd3-color'
 
 import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
-const d3 = Object.assign({}, d3sc, d3color) as any
+const d3 = { ...d3sc, ...d3color }
 
+console.log({ d3 })
 import { DataTableColumn, DataType } from '@/Globals'
 
 import store from '@/store'
@@ -26,7 +27,6 @@ export interface Ramp {
 
 export function colorRamp(scale: Ramp, n: number): string[] {
   let colors
-  // let dark
 
   // categorical
   if (scale.style === Style.categorical) {
@@ -35,20 +35,22 @@ export function colorRamp(scale: Ramp, n: number): string[] {
   }
 
   // sequential and diverging
-  if (d3[`scheme${scale.ramp}`] && d3[`scheme${scale.ramp}`][n]) {
+  const scheme = `scheme${scale.ramp}`
+  if (n > 3 && d3[scheme] && d3[scheme][n]) {
     colors = d3[`scheme${scale.ramp}`][n]
-    // dark = d3.lab(colors[0]).l < 50
   } else {
     try {
       const interpolate = d3[`interpolate${scale.ramp}`]
       colors = []
-      // dark = d3.lab(interpolate(0)).l < 50
       for (let i = 0; i < n; ++i) {
-        colors.push(d3.rgb(interpolate(i / (n - 1))).hex())
+        // shave off the very dark edges of each band at low "n"
+        const fraction = n <= 3 ? (0.7 * i) / (n - 1) + 0.15 : i / (n - 1)
+        const rgb = interpolate(fraction)
+        const hex = d3.rgb(rgb).hex()
+        colors.push(hex)
       }
     } catch (e) {
-      // some ramps cannot be interpolated, give the
-      // highest one instead.
+      // some ramps cannot be interpolated, give the highest one instead.
       return colorRamp(scale, n - 1)
     }
   }
@@ -401,8 +403,8 @@ function buildDiffDomainBreakpoints(
   const numBreaks = Math.floor(colorRamp.steps / 2) - 1
   const divisor = numBreaks + 1
 
-  // odd number of cells
   if (colorRamp.steps % 2 == 1) {
+    // ODD number of cells
     const guessBreaks = [1]
 
     for (let i = 1; i <= numBreaks; i++) guessBreaks.push((i * biggest) / divisor)
@@ -412,24 +414,22 @@ function buildDiffDomainBreakpoints(
       .reverse()
       .map(v => -1 * v)
     breakpoints.push(...guessBreaks)
+    return breakpoints
+  } else {
+    // EVEN number of cells: split at zero
+    const guessBreaks = [0]
 
-    // console.log({ breakpoints })
+    for (let i = 1; i <= numBreaks; i++) guessBreaks.push((i * biggest) / divisor)
+    const breakpoints = guessBreaks
+      .slice()
+      .reverse()
+      .map(v => -1 * v)
+
+    breakpoints.pop() // remove extra zero
+    breakpoints.push(...guessBreaks)
+
     return breakpoints
   }
-
-  // even number of cells: split at zero
-  const guessBreaks = [0]
-
-  for (let i = 1; i <= numBreaks; i++) guessBreaks.push((i * biggest) / divisor)
-  const breakpoints = guessBreaks
-    .slice()
-    .reverse()
-    .map(v => -1 * v)
-  breakpoints.pop() // remove extra zero
-  breakpoints.push(...guessBreaks)
-
-  // console.log({ breakpoints })
-  return breakpoints
 }
 
 function buildDiffColorsBasedOnNumericValues(props: {
