@@ -70,6 +70,7 @@ function getColorsForDataColumn(props: {
   lookup: DataTableColumn
   lookup2?: DataTableColumn
   normalize?: DataTableColumn
+  normalLookup?: DataTableColumn
   filter: Float32Array
   options: any
   relative?: boolean
@@ -439,10 +440,12 @@ function buildDiffColorsBasedOnNumericValues(props: {
   lookup: DataTableColumn
   lookup2?: DataTableColumn
   normalize?: DataTableColumn
+  normalLookup?: DataTableColumn
   relative?: boolean
   options: any
 }) {
-  const { numFeatures, data, data2, lookup, lookup2, normalize, relative, options } = props
+  const { numFeatures, data, data2, lookup, lookup2, normalize, normalLookup, relative, options } =
+    props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   // Calculate the raw values for each feature
@@ -459,10 +462,16 @@ function buildDiffColorsBasedOnNumericValues(props: {
     })
   }
 
-  // normalize
-  // TODO: This only works if normal is in boundary file, not in dataset
   if (normalize) {
-    const normalDenominator = normalize.values
+    // build denominator
+    const normalDenominator = new Float32Array(numFeatures)
+    normalize.values.forEach((value, index) => {
+      // use normal value directly if it comes from featureset; otherwise use normalLookup
+      const offset = normalLookup ? normalLookup.values[index] : index
+      normalDenominator[offset] = value
+    })
+
+    // scale by denominator
     for (let i = 0; i < numFeatures; i++) {
       rawValues1[i] /= normalDenominator[i]
       rawValues2[i] /= normalDenominator[i]
@@ -489,8 +498,6 @@ function buildDiffColorsBasedOnNumericValues(props: {
     (a, b) => (Number.isFinite(a) ? Math.max(a, b) : b),
     -Infinity
   )
-
-  // console.log(11, { minDiff, maxDiff, diffValues })
 
   // *range* is the list of colors;
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
@@ -545,10 +552,11 @@ function buildColorsBasedOnNumericValues(props: {
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
+  normalLookup?: DataTableColumn
   options: any
   join?: string
 }) {
-  const { numFeatures, data, lookup, normalize, options, join } = props
+  const { numFeatures, data, lookup, normalize, normalLookup, options, join } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
@@ -603,21 +611,24 @@ function buildColorsBasedOnNumericValues(props: {
 
   normalizedMax = normalizedMax ?? -Infinity
 
-  // Normalize data
+  // Normalize data -------------------
+
   if (normalize) {
     normalizedValues = new Float32Array(numFeatures)
     normalizedMax = -Infinity
 
-    for (let i = 0; i < data.values.length; i++) {
-      const offset = lookup ? lookup.values[i] : i
-      const numerator = calculatedValues[offset]
-      const denominator = normalize.values[i]
-      if (denominator) {
-        normalizedValues[offset] = numerator / denominator
-        normalizedMax = Math.max(normalizedValues[offset], normalizedMax)
-      } else {
-        normalizedValues[offset] = 5 // NaN
-      }
+    // build denominator
+    const normalDenominator = new Float32Array(numFeatures)
+    normalize.values.forEach((value, index) => {
+      // use normal value directly if it comes from featureset; otherwise use normalLookup
+      const offset = normalLookup ? normalLookup.values[index] : index
+      normalDenominator[offset] = value
+    })
+
+    // scale by denominator
+    for (let i = 0; i < numFeatures; i++) {
+      normalizedValues[i] = calculatedValues[i] / normalDenominator[i]
+      normalizedMax = Math.max(normalizedValues[i], normalizedMax)
     }
   }
 

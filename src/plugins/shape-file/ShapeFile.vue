@@ -927,16 +927,26 @@ const MyComponent = defineComponent({
         if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
         if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
 
-        // let normalColumn = null as any
-
-        // if (color.normalize) {
-        //   const keys = color.normalize.split(':')
-        //   if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
-        //     throw Error(`Featureset does not contain column "${columnName}"`)
-        //   }
-        //   this.dataCalculatedValueLabel = columnName + '/' + keys[1]
-        //   normalColumn = this.datasets[keys[0]][keys[1]]
-        // }
+        // NORMALIZE if we need to
+        let normalColumn
+        let normalLookup
+        if (color.normalize) {
+          const [dataset, column] = color.normalize.split(':')
+          if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
+            throw Error(`${dataset} does not contain column "${column}"`)
+          }
+          this.dataCalculatedValueLabel += `/ ${column}`
+          normalColumn = this.datasets[dataset][column]
+          // Create yet one more join for the normal column if it's not from the featureset itself
+          if (this.datasetChoices[0] !== dataset) {
+            this.setupJoin({
+              datasetId: dataset,
+              dataTable: this.datasets[dataset],
+              dataJoinColumn: lookupColumn,
+            })
+            normalLookup = this.datasets[dataset][`@@${column}`]
+          }
+        }
 
         // Calculate colors for each feature
         const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
@@ -945,7 +955,8 @@ const MyComponent = defineComponent({
           data2: dataCol2,
           lookup: lookup1,
           lookup2: lookup2,
-          // normalize: normalColumn,
+          normalize: normalColumn,
+          normalLookup,
           options: color,
           filter: this.boundaryFilters,
           relative,
@@ -1092,22 +1103,33 @@ const MyComponent = defineComponent({
         let normalColumn
         let keys = [] as any[]
 
+        // NORMALIZE if we need to
+        let normalLookup
         if (color.normalize) {
-          keys = color.normalize.split(':')
-          this.dataCalculatedValueLabel = columnName + '/' + keys[1]
-          if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
-            throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+          const [dataset, column] = color.normalize.split(':')
+          if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
+            throw Error(`${dataset} does not contain column "${column}"`)
           }
-          normalColumn = this.datasets[keys[0]][keys[1]]
+          this.dataCalculatedValueLabel += `/ ${column}`
+          normalColumn = this.datasets[dataset][column]
+          // Create yet one more join for the normal column if it's not from the featureset itself
+          if (this.datasetChoices[0] !== dataset) {
+            this.setupJoin({
+              datasetId: dataset,
+              dataTable: this.datasets[dataset],
+              dataJoinColumn: column,
+            })
+            normalLookup = this.datasets[dataset][`@@${column}`]
+          }
         }
 
         // Calculate colors for each feature
-        // console.log('Updating fills...')
         const { array, legend, calculatedValues, normalizedValues } =
           ColorWidthSymbologizer.getColorsForDataColumn({
             numFeatures: this.boundaries.length,
             data: dataColumn,
             normalize: normalColumn,
+            normalLookup,
             lookup: lookupColumn,
             filter: this.boundaryFilters,
             options: color,
