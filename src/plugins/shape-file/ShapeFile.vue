@@ -781,9 +781,10 @@ const MyComponent = defineComponent({
         values: [],
         name: `@@${dataJoinColumn}`,
       }
-      const dataValues = dataTable[dataJoinColumn].values
-      const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
 
+      const lookupValues = dataTable[dataJoinColumn].values
+
+      const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
       // if user wants specific tooltips based on this dataset, save the values
       // TODO - this is in the wrong place and probably causes problems with
       // multi-line datasets
@@ -795,8 +796,8 @@ const MyComponent = defineComponent({
           return [tip, tip.substring(1 + tip.indexOf('.'))]
         })
 
-      for (let i = 0; i < dataValues.length; i++) {
-        const featureOffset = boundaryOffsets[dataValues[i]]
+      for (let i = 0; i < lookupValues.length; i++) {
+        const featureOffset = boundaryOffsets[lookupValues[i]]
         lookupColumn.values[i] = featureOffset
         for (const tip of relevantTips) {
           const feature = this.boundaries[featureOffset]
@@ -904,7 +905,7 @@ const MyComponent = defineComponent({
     handleFillColorDiffMode(color: FillColorDefinition) {
       if (!color.diffDatasets) return
       const columnName = color.columnName
-
+      const lookupColumn = color.join || ''
       const key1 = color.diffDatasets[0] || ''
       const dataset1 = this.datasets[key1]
       const key2 = color.diffDatasets[1] || ''
@@ -914,13 +915,28 @@ const MyComponent = defineComponent({
       // console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
 
       if (dataset1 && dataset2) {
-        const lookup1 = dataset1[`@${columnName}`]
+        // generate the lookup columns we need
+        this.setupJoin({ datasetId: key1, dataTable: dataset1, dataJoinColumn: lookupColumn })
+        this.setupJoin({ datasetId: key2, dataTable: dataset2, dataJoinColumn: lookupColumn })
+
+        const lookup1 = dataset1[`@@${lookupColumn}`]
+        const lookup2 = dataset2[`@@${lookupColumn}`]
         const dataCol1 = dataset1[columnName]
-        const lookup2 = dataset2[`@${columnName}`]
         const dataCol2 = dataset2[columnName]
 
         if (!dataCol1) throw Error(`Dataset ${key1} does not contain column "${columnName}"`)
         if (!dataCol2) throw Error(`Dataset ${key2} does not contain column "${columnName}"`)
+
+        // let normalColumn = null as any
+
+        // if (color.normalize) {
+        //   const keys = color.normalize.split(':')
+        //   if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
+        //     throw Error(`Featureset does not contain column "${columnName}"`)
+        //   }
+        //   this.dataCalculatedValueLabel = columnName + '/' + keys[1]
+        //   normalColumn = this.datasets[keys[0]][keys[1]]
+        // }
 
         // Calculate colors for each feature
         const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
@@ -929,13 +945,13 @@ const MyComponent = defineComponent({
           data2: dataCol2,
           lookup: lookup1,
           lookup2: lookup2,
+          // normalize: normalColumn,
           options: color,
           filter: this.boundaryFilters,
           relative,
         })
 
         this.dataFillColors = array
-
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 

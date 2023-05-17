@@ -445,52 +445,57 @@ function buildDiffColorsBasedOnNumericValues(props: {
   const { numFeatures, data, data2, lookup, lookup2, normalize, relative, options } = props
   const { colorRamp, columnName, dataset, fixedColors } = options
 
-  // Figure out differences
-
-  const diffValues = new Float32Array(length)
-
-  data.values.forEach((value, index) => {
-    diffValues[lookup.values[index]] = value
-  })
+  // Calculate the raw values for each feature
+  const rawValues1 = new Float32Array(numFeatures)
+  const rawValues2 = new Float32Array(numFeatures)
 
   if (data2 && lookup2) {
-    if (relative) {
-      // percent difference diff
-      data2.values.forEach((originalValue, index) => {
-        const offset = lookup2.values[index]
-        const newValue = diffValues[offset]
-        // don't divide by zero
-        const percentDifference = newValue
-          ? (100 * (newValue - originalValue)) / originalValue
-          : NaN
-        diffValues[offset] = percentDifference
-      })
-    } else {
-      // simple subtraction for non-relative difference
-      data2.values.forEach((value, index) => {
-        const offset = lookup2.values[index]
-        diffValues[offset] -= value
-      })
+    data.values.forEach((value, index) => {
+      rawValues1[lookup.values[index]] += value
+    })
+
+    data2.values.forEach((value, index) => {
+      rawValues2[lookup2.values[index]] += value
+    })
+  }
+
+  // normalize
+  // TODO: This only works if normal is in boundary file, not in dataset
+  if (normalize) {
+    const normalDenominator = normalize.values
+    for (let i = 0; i < numFeatures; i++) {
+      rawValues1[i] /= normalDenominator[i]
+      rawValues2[i] /= normalDenominator[i]
     }
   }
 
-  const minDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.min(a, b)), Infinity)
-  const maxDiff = diffValues.reduce((a, b) => (Number.isNaN(a) ? b : Math.max(a, b)), -Infinity)
+  // Calc the differences
+  const diffValues = new Float32Array(numFeatures)
+  let pctDiffValues
+  if (relative) pctDiffValues = new Float32Array(numFeatures)
 
-  // console.log({ minDiff, maxDiff, diffValues })
+  for (let i = 0; i < numFeatures; i++) {
+    diffValues[i] = rawValues1[i] - rawValues2[i]
+    if (relative) pctDiffValues = (100.0 * diffValues[i]) / rawValues1[i]
+  }
+
+  const minDiff = diffValues.reduce((a, b) => (Number.isFinite(a) ? Math.min(a, b) : b), Infinity)
+  const maxDiff = diffValues.reduce((a, b) => (Number.isFinite(a) ? Math.max(a, b) : b), -Infinity)
+
+  // console.log(11, { minDiff, maxDiff, diffValues })
 
   // *range* is the list of colors;
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
   // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
   // *scaleThreshold* is the d3 function that maps numerical values to the color buckets
   // *colorRampType* is 0 if a categorical color ramp is chosen
-  const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff, relative || false)
+  const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff, !!relative)
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
-  const rgbArray = new Uint8Array(length * 3)
+  const rgbArray = new Uint8Array(numFeatures * 3)
 
   diffValues.forEach((value, index) => {
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
