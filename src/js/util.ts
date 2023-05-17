@@ -18,6 +18,29 @@ export function arrayBufferToBase64(buffer: any) {
 }
 
 /**
+ * Concat multiple typed arrays into one.
+ * @param arrays a list of  typed arrays
+ * @returns
+ */
+export function mergeTypedArrays(arrays: Array<any>[]): Array<any> {
+  if (arrays.length == 0) return new Array()
+  if (arrays.length == 1) return arrays[0]
+
+  const total = arrays.map(a => a.length).reduce((t, n) => t + n)
+
+  const c = Object.getPrototypeOf(arrays[0]).constructor
+  const result = new c(total)
+
+  let n = 0
+  for (const arr of arrays) {
+    result.set(arr, n)
+    n += arr.length
+  }
+
+  return result
+}
+
+/**
  * Debounce any function for better UI responsiveness
  * @param fn function to debounce
  * @param ms milliseconds to wait
