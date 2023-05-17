@@ -761,7 +761,7 @@ const MyComponent = defineComponent({
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
       const { dataTable, datasetId, dataJoinColumn } = props
-      console.log('> setupJoin', datasetId, dataJoinColumn)
+      // console.log('> setupJoin', datasetId, dataJoinColumn)
 
       // if no join at all, don't do anything
       if (!dataJoinColumn) return
@@ -967,11 +967,12 @@ const MyComponent = defineComponent({
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 
         this.legendStore.setLegendSection({
-          section: 'Fill',
+          section: 'FillColor',
           column: dataCol1.name,
           values: legend,
           diff: true,
           relative,
+          normalColumn: normalColumn ? normalColumn.name : '',
         })
       }
     },
@@ -1011,7 +1012,7 @@ const MyComponent = defineComponent({
       this.dataFillColors = array
       this.dataCalculatedValues = calculatedValues
       this.legendStore.setLegendSection({
-        section: 'Color',
+        section: 'FillColor',
         column: columnName,
         values: legend,
       })
@@ -1101,7 +1102,6 @@ const MyComponent = defineComponent({
 
         // Figure out the normal
         let normalColumn
-        let keys = [] as any[]
 
         // NORMALIZE if we need to
         let normalLookup
@@ -1117,7 +1117,7 @@ const MyComponent = defineComponent({
             this.setupJoin({
               datasetId: dataset,
               dataTable: this.datasets[dataset],
-              dataJoinColumn: column,
+              dataJoinColumn,
             })
             normalLookup = this.datasets[dataset][`@@${column}`]
           }
@@ -1141,10 +1141,10 @@ const MyComponent = defineComponent({
         this.dataNormalizedValues = normalizedValues || null
 
         this.legendStore.setLegendSection({
-          section: 'Color',
+          section: 'FillColor',
           column: dataColumn.name,
           values: legend,
-          normalColumn: color.normalize ? keys[1] : undefined,
+          normalColumn: normalColumn ? normalColumn.name : '',
         })
       }
     },
@@ -1190,7 +1190,7 @@ const MyComponent = defineComponent({
             this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}`
 
             this.legendStore.setLegendSection({
-              section: 'Line Color',
+              section: 'LineColor',
               column: dataCol1.name,
               values: legend,
               diff: true,
@@ -1245,7 +1245,7 @@ const MyComponent = defineComponent({
             this.dataCalculatedValueLabel = ''
 
             this.legendStore.setLegendSection({
-              section: 'Line Color',
+              section: 'LineColor',
               column: dataColumn.name,
               values: legend,
             })
@@ -1313,7 +1313,7 @@ const MyComponent = defineComponent({
           this.dataCalculatedValueLabel = 'Diff: ' + columnName
 
           this.legendStore.setLegendSection({
-            section: 'Line Color',
+            section: 'LineColor',
             column: '' + dataCol1.name,
             values: legend,
           })
@@ -1367,7 +1367,7 @@ const MyComponent = defineComponent({
 
           if (legend.length) {
             this.legendStore.setLegendSection({
-              section: 'Line Width',
+              section: 'LineWidth',
               column: dataColumn.name,
               values: legend,
             })

@@ -485,7 +485,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   for (let i = 0; i < numFeatures; i++) {
     diffValues[i] = rawValues1[i] - rawValues2[i]
-    if (relative) pctDiffValues[i] = (100.0 * diffValues[i]) / rawValues1[i]
+    if (relative) pctDiffValues[i] = 100 * (diffValues[i] / rawValues2[i])
   }
 
   const displayTheseDiffs = relative ? pctDiffValues : diffValues
@@ -531,7 +531,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
     const lowerLabel = Math.round(lowerBound * 1)
     const upperLabel = Math.round(upperBound * 1)
     legend.push({
-      label: lowerBound !== undefined ? `${lowerLabel} : ${upperLabel}` : `< ${upperLabel}`,
+      label: lowerBound !== undefined ? `${lowerLabel} — ${upperLabel}` : `< ${upperLabel}`,
       value: colors[i],
     })
     lowerBound = upperBound
@@ -540,9 +540,6 @@ function buildDiffColorsBasedOnNumericValues(props: {
     label: `> ${Math.round(lowerBound * 1)}`,
     value: colors[keys.length],
   })
-
-  // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
-  // console.log({ legend, colors })
 
   return { array: rgbArray, legend, calculatedValues: displayTheseDiffs, normalizedValues: null }
 }
@@ -611,7 +608,7 @@ function buildColorsBasedOnNumericValues(props: {
 
   normalizedMax = normalizedMax ?? -Infinity
 
-  // Normalize data -------------------
+  // Normalize data -------------------------------------------------
 
   if (normalize) {
     normalizedValues = new Float32Array(numFeatures)
@@ -659,7 +656,7 @@ function buildColorsBasedOnNumericValues(props: {
     const lowerLabel = truncateFractionalPart({ value: lowerBound * normalizedMax, precision })
     const upperLabel = truncateFractionalPart({ value: upperBound * normalizedMax, precision })
     legend.push({
-      label: `${lowerLabel} - ${upperLabel}`,
+      label: `${lowerLabel} — ${upperLabel}`,
       value: colors[i],
     })
     lowerBound = upperBound
@@ -673,8 +670,6 @@ function buildColorsBasedOnNumericValues(props: {
     })} - ${truncateFractionalPart({ value: normalizedMax, precision })}`,
     value: colors[keys.length],
   })
-  // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
-  // console.log({ legend, colors })
 
   return {
     array: rgbArray,
@@ -706,9 +701,20 @@ function truncateFractionalPart({ value, precision }: { value: any; precision?: 
 
   let printValue = '' + value
   if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
-    if (/\d$/.test(printValue))
-      return printValue.substring(0, 1 + usePrecision + printValue.lastIndexOf('.'))
+    if (/\d$/.test(printValue)) {
+      const clipped = printValue.substring(0, 1 + usePrecision + printValue.lastIndexOf('.'))
+      // remove trailing zeroes
+      try {
+        if (parseInt(clipped.substring(1 + clipped.indexOf('.'))) === 0) {
+          return clipped.substring(0, clipped.indexOf('.'))
+        }
+      } catch (e) {
+        // can ignore this
+      }
+      return clipped
+    }
   }
+
   return value
 }
 
