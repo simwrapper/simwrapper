@@ -58,7 +58,7 @@
           option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
 
       .widget
-        p % Diff
+        p %Diff
         b-checkbox.hello(
           :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
           v-model="diffRelative"

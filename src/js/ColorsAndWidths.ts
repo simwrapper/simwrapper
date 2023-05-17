@@ -471,16 +471,24 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   // Calc the differences
   const diffValues = new Float32Array(numFeatures)
-  let pctDiffValues
+  let pctDiffValues = new Float32Array(0)
   if (relative) pctDiffValues = new Float32Array(numFeatures)
 
   for (let i = 0; i < numFeatures; i++) {
     diffValues[i] = rawValues1[i] - rawValues2[i]
-    if (relative) pctDiffValues = (100.0 * diffValues[i]) / rawValues1[i]
+    if (relative) pctDiffValues[i] = (100.0 * diffValues[i]) / rawValues1[i]
   }
 
-  const minDiff = diffValues.reduce((a, b) => (Number.isFinite(a) ? Math.min(a, b) : b), Infinity)
-  const maxDiff = diffValues.reduce((a, b) => (Number.isFinite(a) ? Math.max(a, b) : b), -Infinity)
+  const displayTheseDiffs = relative ? pctDiffValues : diffValues
+
+  const minDiff = displayTheseDiffs.reduce(
+    (a, b) => (Number.isFinite(a) ? Math.min(a, b) : b),
+    Infinity
+  )
+  const maxDiff = displayTheseDiffs.reduce(
+    (a, b) => (Number.isFinite(a) ? Math.max(a, b) : b),
+    -Infinity
+  )
 
   // console.log(11, { minDiff, maxDiff, diffValues })
 
@@ -497,8 +505,8 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   const rgbArray = new Uint8Array(numFeatures * 3)
 
-  diffValues.forEach((value, index) => {
-    const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
+  displayTheseDiffs.forEach((value, index) => {
+    const color = Number.isFinite(value) ? setColorBasedOnValue(value) : gray
     const offset = index * 3
     rgbArray[offset + 0] = color[0]
     rgbArray[offset + 1] = color[1]
@@ -527,10 +535,9 @@ function buildDiffColorsBasedOnNumericValues(props: {
   })
 
   // legend.sort((a, b) => (a.label < b.label ? -1 : 1))
-
   // console.log({ legend, colors })
 
-  return { array: rgbArray, legend, calculatedValues: diffValues, normalizedValues: null }
+  return { array: rgbArray, legend, calculatedValues: displayTheseDiffs, normalizedValues: null }
 }
 
 function buildColorsBasedOnNumericValues(props: {
