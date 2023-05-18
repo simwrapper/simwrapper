@@ -146,9 +146,9 @@ export default defineComponent({
     },
 
     colorChoices() {
-      if (!this.diffDatasets || this.diffDatasets.length) {
-        return ALL_COLOR_RAMPS.filter(ramp => ramp.style == Style.diverging)
-      }
+      // if (!this.diffDatasets || this.diffDatasets.length) {
+      //   return ALL_COLOR_RAMPS.filter(ramp => ramp.style == Style.diverging)
+      // }
       return ALL_COLOR_RAMPS
     },
 
@@ -302,10 +302,10 @@ export default defineComponent({
         const pieces = this.diffUISelection.split(' - ')
         this.diffDatasets = pieces
         // pick a diverging color ramp if we don't have one yet
-        if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
+        // if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
       } else {
         // pick a nondiverging color ramp if we just turned diffmode off
-        if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
+        // if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
         this.diffDatasets = []
         this.diffRelative = false
       }
@@ -317,7 +317,7 @@ export default defineComponent({
       if (!this.dataColumn) return
 
       // single color
-      if (this.dataColumn == '@') {
+      if (this.dataColumn === '@') {
         this.normalSelection = ''
         if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
         this.clickedSingleColor(this.selectedSingleColor)
@@ -337,7 +337,7 @@ export default defineComponent({
         ? this.vizConfiguration.display?.fill?.fixedColors.slice()
         : this.buildColors(this.selectedColor, steps)
 
-      // this.useHardCodedColors = false
+      this.useHardCodedColors = false
 
       const fill = {
         dataset,

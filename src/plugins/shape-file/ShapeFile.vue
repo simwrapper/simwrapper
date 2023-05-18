@@ -102,6 +102,7 @@ import {
   VisualizationPlugin,
   DEFAULT_PROJECTION,
   REACT_VIEW_HANDLES,
+  Status,
 } from '@/Globals'
 
 import GeojsonLayer from './GeojsonLayer'
@@ -188,8 +189,6 @@ const MyComponent = defineComponent({
 
       // Filters. Key is column id; value array is empty for "all" or a list of "or" values
       filters: {} as { [column: string]: FilterDetails },
-
-      fixedColors: ['#4e79a7'],
 
       needsInitialMapExtent: true,
       datasetJoinColumn: '',
@@ -793,16 +792,30 @@ const MyComponent = defineComponent({
       const relevantTips = tips
         .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
         .map(tip => {
-          return [tip, tip.substring(1 + tip.indexOf('.'))]
+          return { id: tip, column: tip.substring(1 + tip.indexOf('.')) }
         })
 
+      for (const tip of relevantTips) {
+        // make sure tip column exists
+        if (!dataTable[tip.column]) {
+          this.globalStore.commit('setStatus', {
+            type: Status.WARNING,
+            msg: `Tooltip references "${tip.id}" but that column doesn't exist`,
+            desc: `Check the tooltip spec and column names`,
+          })
+        }
+      }
+
       for (let i = 0; i < lookupValues.length; i++) {
+        // set lookup data
         const featureOffset = boundaryOffsets[lookupValues[i]]
         lookupColumn.values[i] = featureOffset
+        const feature = this.boundaries[featureOffset]
+        // also set tooltip data
         for (const tip of relevantTips) {
-          const feature = this.boundaries[featureOffset]
-          const value = dataTable[tip[1]].values[i]
-          if (feature && value) feature.properties[tip[0]] = value
+          if (!dataTable[tip.column]) continue
+          const value = dataTable[tip.column]?.values[i] && ''
+          if (feature && value) feature.properties[tip.id] = value
         }
       }
 
@@ -1046,7 +1059,6 @@ const MyComponent = defineComponent({
       const color = fillOrFilteredDataTable as FillColorDefinition
       this.currentUIFillColorDefinitions = color
 
-      this.fixedColors = color.fixedColors
       const columnName = color.columnName
 
       if (color.diffDatasets) {
@@ -1057,7 +1069,7 @@ const MyComponent = defineComponent({
         // *** simple color **********************
         this.dataFillColors = color.fixedColors[0]
         this.dataCalculatedValueLabel = ''
-        this.legendStore.clear('Color')
+        this.legendStore.clear('FillColor')
         return
       } else {
         // *** Data column mode ******************
@@ -1149,9 +1161,14 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewLineColor(color: LineColorDefinition) {
+    handleNewLineColor(color: LineColorDefinition | false) {
       try {
-        this.fixedColors = color.fixedColors
+        if (color === false) {
+          this.dataLineColors = ''
+          this.dataCalculatedValueLabel = ''
+          this.legendStore.clear('Line Color')
+          return
+        }
 
         const columnName = color.columnName
 
@@ -1704,8 +1721,8 @@ const MyComponent = defineComponent({
       let filename: string = shapeConfig.file || shapeConfig
 
       let featureProperties = [] as any[]
-
       let boundaries: any[]
+
       try {
         this.statusText = 'Loading features...'
 
@@ -1789,7 +1806,7 @@ const MyComponent = defineComponent({
         throw Error(`Could not load "${filename}"`)
       }
 
-      if (!this.boundaries) throw Error(`"features" not found in shapes file`)
+      if (!this.boundaries) throw Error(`No "features" found in shapes file`)
     },
 
     async setFeaturePropertiesAsDataSource(

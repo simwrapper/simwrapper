@@ -504,7 +504,9 @@ export default class DashboardDataManager {
           thread.terminate()
           if (e.data.error) {
             let msg = '' + e.data.error
-            msg = msg.replace('[object Response]', 'File load error')
+            msg = msg.replace('[object Response]', 'Error loading file')
+
+            if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`
 
             globalStore.commit('setStatus', {
               type: Status.ERROR,

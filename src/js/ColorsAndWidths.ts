@@ -7,7 +7,7 @@ import * as d3color from 'd3-color'
 const d3 = { ...d3sc, ...d3color }
 
 console.log({ d3 })
-import { DataTableColumn, DataType } from '@/Globals'
+import { DataTableColumn, DataType, Status } from '@/Globals'
 
 import store from '@/store'
 
@@ -370,13 +370,14 @@ function buildColorsBasedOnCategories(props: {
   return { array: rgbArray, legend, calculatedValues: null, normalizedValues: null }
 }
 
-function buildDiffDomainBreakpoints(
-  options: any,
-  minDiff: number,
-  maxDiff: number,
-  relative: boolean
-) {
-  const { colorRamp, columnName, dataset, fixedColors } = options
+function buildDiffDomainBreakpoints(props: {
+  colorRamp: Ramp
+  fixedColors?: any[]
+  minDiff: number
+  maxDiff: number
+}) {
+  let { colorRamp, fixedColors, minDiff, maxDiff } = props
+  const steps = colorRamp.steps ?? fixedColors?.length ?? 5
 
   // MANUAL BREAKPOINTS
   if (colorRamp.breakpoints) {
@@ -397,18 +398,20 @@ function buildDiffDomainBreakpoints(
   }
 
   // GUESS BREAKPOINTS OURSELVES
-  if (colorRamp.steps == 2) return [0]
-  if (colorRamp.steps == 3) return [-1, 1]
+  if (steps == 2) return [0]
+  if (steps == 3) return [-1, 1]
 
   const biggest = maxDiff > Math.abs(minDiff) ? maxDiff : -1 * minDiff
-  const numBreaks = Math.floor(colorRamp.steps / 2) - 1
+  const numBreaks = Math.floor(steps / 2) - 1
   const divisor = numBreaks + 1
 
-  if (colorRamp.steps % 2 == 1) {
+  if (steps % 2 == 1) {
     // ODD number of cells
     const guessBreaks = [1]
 
-    for (let i = 1; i <= numBreaks; i++) guessBreaks.push((i * biggest) / divisor)
+    for (let i = 1; i <= numBreaks; i++) {
+      guessBreaks.push((i * biggest) / divisor)
+    }
 
     const breakpoints = guessBreaks
       .slice()
@@ -503,8 +506,21 @@ function buildDiffColorsBasedOnNumericValues(props: {
   // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
   // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
   // *scaleThreshold* is the d3 function that maps numerical values to the color buckets
-  // *colorRampType* is 0 if a categorical color ramp is chosen
-  const domain = buildDiffDomainBreakpoints(options, minDiff, maxDiff, !!relative)
+
+  let domain
+  if (minDiff < 0) {
+    // if min is NEGATIVE, do a diverging split no matter what
+    domain = buildDiffDomainBreakpoints({ colorRamp, fixedColors, minDiff, maxDiff })
+  } else {
+    // if min is POSITIVE, do a normal sequence
+    domain = buildBreakpointsForNumericValues({
+      colorRamp,
+      fixedColors,
+      min: minDiff,
+      max: maxDiff,
+    }).map(breakpoint => (colorRamp.style === Style.diverging ? breakpoint : breakpoint * maxDiff))
+  }
+
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
@@ -544,24 +560,20 @@ function buildDiffColorsBasedOnNumericValues(props: {
   return { array: rgbArray, legend, calculatedValues: displayTheseDiffs, normalizedValues: null }
 }
 
-function buildColorsBasedOnNumericValues(props: {
-  numFeatures: number
-  data: DataTableColumn
-  lookup: DataTableColumn
-  normalize?: DataTableColumn
-  normalLookup?: DataTableColumn
-  options: any
-  join?: string
-}) {
-  const { numFeatures, data, lookup, normalize, normalLookup, options, join } = props
-  const { colorRamp, columnName, dataset, fixedColors } = options
+function buildBreakpointsForNumericValues(props: {
+  colorRamp: Ramp
+  fixedColors: any[]
+  min: number
+  max: number
+}): number[] {
+  const { colorRamp, fixedColors, min, max } = props
 
-  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
+  // if using a diverging (zero-centered) scale, try to make a good guess as to what user wants
+  if (colorRamp.style === Style.diverging) {
+    return buildDiffDomainBreakpoints({ colorRamp, fixedColors, minDiff: min, maxDiff: max })
+  }
 
-  // console.log('numFeatures is', numFeatures)
-  // console.log('data length is', data.values.length)
-  // console.log('lookup length is', lookup.values.length)
-
+  // Continuous (non-diverging) scale:
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
   // An exponent reduces visual dominance of very large values at the high end of the scale
@@ -571,16 +583,24 @@ function buildColorsBasedOnNumericValues(props: {
     .fill(0)
     .map((v, i) => Math.pow((1 / numColors) * (i + 1), exponent))
 
-  // *scaleOrdinal* is the d3 function that maps categorical variables to colors.
-  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
-  // *range* is the list of colors;
-  // *domain* is the list of breakpoints in the 0-1.0 continuum; it is auto-created from data for categorical.
-  // *colorRampType* is 0 if a categorical color ramp is chosen
+  return domain
+}
 
-  // const isCategorical = false // colorRampType === 0 || buildColumn.type == DataType.STRING
-  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
+function buildColorsBasedOnNumericValues(props: {
+  numFeatures: number
+  data: DataTableColumn
+  lookup: DataTableColumn
+  normalize?: DataTableColumn
+  normalLookup?: DataTableColumn
+  options: { colorRamp: Ramp; fixedColors: any[] }
+  join?: string
+}) {
+  const { numFeatures, data, lookup, normalize, normalLookup, options, join } = props
+  const { colorRamp, fixedColors } = options
 
-  // calculate aggregated values. This might be a job for crossfilter2 later
+  const isDivergingScale = colorRamp?.style === Style.diverging
+
+  // CALCULATE aggregated values. This might be a job for crossfilter2 later
   const calculatedValues = new Float32Array(numFeatures)
   if (join === '@count') {
     // *** COUNT rows that have this lookup
@@ -589,10 +609,9 @@ function buildColorsBasedOnNumericValues(props: {
       calculatedValues[offset] += 1
     }
   } else {
-    // *** SUM values in rows
+    // *** SUM values in rows (always sum, for now)
     for (let i = 0; i < data.values.length; i++) {
       const offset = lookup ? lookup.values[i] : i
-      // always SUM, for now
       calculatedValues[offset] += data.values[i]
     }
   }
@@ -601,7 +620,6 @@ function buildColorsBasedOnNumericValues(props: {
   let normalizedValues = calculatedValues
   let normalizedMax = calculatedValues[0]
   let nMaxLength = normalizedValues.length
-
   for (let i = 1; i < nMaxLength; ++i) {
     normalizedMax = Math.max(normalizedMax, calculatedValues[i])
   }
@@ -629,14 +647,44 @@ function buildColorsBasedOnNumericValues(props: {
     }
   }
 
+  const minimum = normalizedValues.reduce(
+    (a, b) => (Number.isFinite(a) ? Math.min(a, b) : b),
+    Infinity
+  )
+
+  // warn user about negative numbers
+  if (!isDivergingScale && minimum < 0) {
+    store.commit('setStatus', {
+      type: Status.WARNING,
+      msg: `Column "${data.name}" has negative values: use a diverging color scale`,
+      desc: 'Data containing negative numbers usually require a zero-centered ("diverging") color scale',
+    })
+  }
+
+  // // build breakpoints and colors
+  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
+  const breakpoints = buildBreakpointsForNumericValues({
+    colorRamp,
+    fixedColors,
+    min: minimum,
+    max: normalizedMax,
+  })
+
+  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
+  // *range* is the list of colors;
+  // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
+  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
+
   const rgbArray = new Uint8Array(numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < numFeatures; i++) {
-    const value = normalizedValues[i] / (normalizedMax || 1)
+    const value = isDivergingScale
+      ? normalizedValues[i]
+      : normalizedValues[i] / (normalizedMax || 1)
+
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
     const colorOffset = i * 3
-
     rgbArray[colorOffset + 0] = color[0]
     rgbArray[colorOffset + 1] = color[1]
     rgbArray[colorOffset + 2] = color[2]
@@ -645,16 +693,21 @@ function buildColorsBasedOnNumericValues(props: {
   // Generate LEGEND ranges ---------------------------------
 
   const legend = [] as any[]
-  const keys = setColorBasedOnValue.domain() as any[]
+  const domainBreakpoints = setColorBasedOnValue.domain() as any[]
   const colors = setColorBasedOnValue.range() as any[]
 
   let precision = normalizedMax >= 1000 ? 0 : 3
 
-  let lowerBound = 0
-  for (let i = 0; i < keys.length; i++) {
-    const upperBound = keys[i]
-    const lowerLabel = truncateFractionalPart({ value: lowerBound * normalizedMax, precision })
-    const upperLabel = truncateFractionalPart({ value: upperBound * normalizedMax, precision })
+  let lowerBound = minimum
+  for (let i = 0; i < domainBreakpoints.length; i++) {
+    let upperBound = domainBreakpoints[i]
+    // Scale the legend labels if we are in regular scale mode (non-divergent)
+    if (!isDivergingScale) {
+      // lowerBound *= normalizedMax
+      upperBound *= normalizedMax
+    }
+    const lowerLabel = truncateFractionalPart({ value: lowerBound, precision })
+    const upperLabel = truncateFractionalPart({ value: upperBound, precision })
     legend.push({
       label: `${lowerLabel} — ${upperLabel}`,
       value: colors[i],
@@ -665,10 +718,10 @@ function buildColorsBasedOnNumericValues(props: {
   // final bucket:
   legend.push({
     label: `${truncateFractionalPart({
-      value: lowerBound * normalizedMax,
+      value: lowerBound, // isDivergingScale ? lowerBound : lowerBound * normalizedMax,
       precision,
-    })} - ${truncateFractionalPart({ value: normalizedMax, precision })}`,
-    value: colors[keys.length],
+    })} — ${truncateFractionalPart({ value: normalizedMax, precision })}`,
+    value: colors[domainBreakpoints.length],
   })
 
   return {
