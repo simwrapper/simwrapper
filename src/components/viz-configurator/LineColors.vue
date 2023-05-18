@@ -182,6 +182,11 @@ export default defineComponent({
     vizConfigChanged() {
       const config = this.vizConfiguration.display?.lineColor
 
+      if (config === false) {
+        this.dataColumn = '^'
+        return
+      }
+
       this.setupDiffMode(config)
 
       if (config?.columnName) {
@@ -270,7 +275,7 @@ export default defineComponent({
       if (!this.dataColumn) return
 
       // no lines
-      if (this.dataColumn == '^') {
+      if (this.dataColumn === '^') {
         this.clickedSingleColor('')
         return
       }
