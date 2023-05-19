@@ -1165,7 +1165,6 @@ const MyComponent = defineComponent({
       try {
         if (color === false) {
           this.dataLineColors = ''
-          this.dataCalculatedValueLabel = ''
           this.legendStore.clear('Line Color')
           return
         }
@@ -1259,7 +1258,6 @@ const MyComponent = defineComponent({
 
             this.dataLineColors = array
             this.dataCalculatedValues = calculatedValues
-            this.dataCalculatedValueLabel = ''
 
             this.legendStore.setLegendSection({
               section: 'LineColor',
@@ -1270,7 +1268,6 @@ const MyComponent = defineComponent({
         } else {
           // simple color
           this.dataLineColors = color.fixedColors[0]
-          this.dataCalculatedValueLabel = ''
           this.legendStore.clear('Line Color')
         }
       } catch (e) {
