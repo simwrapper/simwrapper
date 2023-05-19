@@ -87,7 +87,7 @@ function getColorsForDataColumn(props: {
 }
 
 function getWidthsForDataColumn(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   data2?: DataTableColumn
   lookup: DataTableColumn
@@ -107,7 +107,7 @@ function getWidthsForDataColumn(props: {
 }
 
 function buildWidthsBasedOnCategories(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
@@ -127,7 +127,7 @@ function buildWidthsBasedOnCategories(props: {
 }
 
 function buildDiffWidthsBasedOnNumericValues(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   data2?: DataTableColumn
   lookup: DataTableColumn
@@ -136,46 +136,46 @@ function buildDiffWidthsBasedOnNumericValues(props: {
   join?: string
   options: any
 }) {
-  const { length, data, data2, lookup, lookup2, normalize, join, options } = props
-  const { columnName, dataset, scaleFactor } = options
+  const { numFeatures, data, data2, lookup, lookup2, normalize, join, options } = props
+  const { columnName, dataset, scaleFactor, relative } = options
 
   if (isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
-  const widths = new Float32Array(length)
-  const calculatedValues = new Float32Array(length)
+  const widths = new Float32Array(numFeatures)
 
-  if (join === '@count') {
-    // *** COUNT rows that have this lookup
-    for (let i = 0; i < data.values.length; i++) {
-      const offset = lookup ? lookup.values[i] : i
-      calculatedValues[offset] += 1
-    }
-  } else {
-    // *** SUM values in rows
-    for (let i = 0; i < data.values.length; i++) {
-      const offset = lookup ? lookup.values[i] : i
-      // always SUM, for now
-      calculatedValues[offset] += data.values[i]
-    }
+  // Calculate the raw values for each feature
+  const rawValues1 = new Float32Array(numFeatures)
+  const rawValues2 = new Float32Array(numFeatures)
+
+  if (data2 && lookup2) {
+    data.values.forEach((value, index) => {
+      rawValues1[lookup.values[index]] += value
+    })
+
+    data2.values.forEach((value, index) => {
+      rawValues2[lookup2.values[index]] += value
+    })
   }
+
+  // Calc the differences
+  const diffValues = new Float32Array(numFeatures)
+  let pctDiffValues = new Float32Array(0)
+  if (relative) pctDiffValues = new Float32Array(numFeatures)
+
+  for (let i = 0; i < numFeatures; i++) {
+    diffValues[i] = rawValues1[i] - rawValues2[i]
+    if (relative) pctDiffValues[i] = 100 * (diffValues[i] / rawValues2[i])
+  }
+
+  const displayTheseDiffs = relative ? pctDiffValues : diffValues
 
   if (scaleFactor) {
-    data.values.forEach((value, index) => {
-      const offset = lookup.values[index]
-      calculatedValues[offset] = value
-    })
-    if (data2 && lookup2) {
-      data2.values.forEach((value, index) => {
-        const offset = lookup2.values[index]
-        calculatedValues[offset] = calculatedValues[offset] - value
-      })
-    }
-    for (let i = 0; i < widths.length; i++) {
-      widths[i] = Math.abs(calculatedValues[i] / scaleFactor)
+    for (let i = 0; i < numFeatures; i++) {
+      widths[i] = Math.abs(displayTheseDiffs[i] / scaleFactor)
     }
   }
 
-  // console.log({ widths, calculatedValues })
+  // console.log({ widths, displayTheseDiffs })
 
   // For legend, let's show 1-2-4-8-16-32-64 pixels?
   const legend = [] as any[]
@@ -186,17 +186,17 @@ function buildDiffWidthsBasedOnNumericValues(props: {
   legend[0].label = '<' + legend[0].label
   legend[legend.length - 1].label = legend[legend.length - 1].label + '+'
 
-  return { array: widths, legend, calculatedValues }
+  return { array: widths, legend, calculatedValues: displayTheseDiffs }
 }
 
 function buildWidthsBasedOnNumericValues(props: {
-  length: number
+  numFeatures: number
   data: DataTableColumn
   lookup: DataTableColumn
   normalize?: DataTableColumn
   options: any
 }) {
-  const { length, data, lookup, normalize, options } = props
+  const { numFeatures, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
   if (Number.isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }

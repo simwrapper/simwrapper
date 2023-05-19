@@ -4,12 +4,19 @@
   //- DATA COLUMN
   .widgets
     .widget
+        p.tight Display
         b-select.selector(expanded v-model="dataColumn")
-          option(label="No lines" value="^")
           option(label="Single color" value="@")
+
           optgroup(v-for="dataset in datasetChoices"
-                  :key="dataset" :label="dataset")
-            option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
+                    :key="dataset"
+                    :label="dataset"
+          )
+            option(v-for="column in columnsInDataset(dataset)"
+                    :key="`${dataset}/${column}`"
+                    :value="`${dataset}/${column}`"
+                    :label="column"
+            )
 
   //- JOIN COLUMN
   .widgets(v-if="datasetChoices.length > 1")
@@ -17,15 +24,47 @@
         p.tight Join by
         b-select.selector(expanded v-model="join")
           option(label="None" value="")
-          //- option(label="Row count" value="@count")
+          option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
-                   :value="col"
-                   :label="col"
+                    :value="col"
+                    :label="col"
             )
 
-  //- SINGLE COLORS
+  //- NORMALIZE COLUMN
+  .widgets(v-if="dataColumn && dataColumn.length > 1")
+    .widget
+        p.tight Normalize by
+        b-select.selector(expanded v-model="normalSelection")
+          option(label="None" value="")
+          optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
+            option(v-for="column in columnsInDataset(dataset)"
+              :key="`${dataset}/${column}`"
+              :value="`${dataset}:${column}`"
+              :label="column"
+            )
+
+  //- DIFF MODE
+  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
+    .widgets
+      .widget(style="flex: 3")
+        p.tight Compare datasets
+        b-select.selector(
+          :disabled="!dataColumn || diffChoices.length<2"
+          expanded
+          v-model="diffUISelection"
+        )
+          option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
+
+      .widget
+        p %Diff
+        b-checkbox.hello(
+          :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
+          v-model="diffRelative"
+        )
+
+  //- SIMPLE COLORS
   .colorbar.single(v-show="dataColumn=='@'")
     .single-color(
       v-for="swatch of simpleColors" :key="swatch"
@@ -33,10 +72,10 @@
       :class="{active: selectedSingleColor == swatch }"
       @click="clickedSingleColor(swatch)")
 
-  //- COLOR RAMPS
-  .more(v-show="dataColumn && dataColumn.length >= 2")
+  //- STEPS, REVERSE, COLOR RAMPS
+  .more(v-show="dataColumn && dataColumn.length > 1")
     .widgets
-      .widget
+      .widget(style="flex: 3")
         p Steps
         b-input(v-model="steps"
             placeholder="Number"
@@ -45,7 +84,7 @@
             max="15")
 
       .widget
-        p Reverse
+        p Flip
         b-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
@@ -58,26 +97,26 @@
           :style="{backgroundColor: `${swatch}`}"
         ): p &nbsp;
 
-
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import globalStore from '@/store'
+import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
 
 export interface LineColorDefinition {
+  dataset: string
+  columnName: string
+  normalize: string
   diff?: string
   diffDatasets?: string[]
   relative?: boolean
-  dataset: string
-  columnName: string
+  join?: string
   colorRamp?: Ramp
   fixedColors: string[]
-  join?: string
 }
 
 const ALL_COLOR_RAMPS = [
@@ -100,34 +139,15 @@ export default defineComponent({
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
-  data: () => {
-    return {
-      globalState: globalStore.state,
-      dataColumn: '@',
-      datasetLabels: [] as string[],
-      diffChoices: [] as any[],
-      diffDatasets: [] as string[],
-      diffRelative: false,
-      diffUISelection: '',
-      flip: false,
-      isCurrentlyDiffMode: false,
-      isFirstDataset: true,
-      join: '',
-      selectedColor: {} as Ramp,
-      selectedSingleColor: '',
-      steps: '9',
-      useHardCodedColors: false,
-    }
-  },
   computed: {
     simpleColors(): any {
       return this.buildColors({ ramp: 'Tableau10', style: Style.categorical }, 10)
     },
 
     colorChoices() {
-      if (!this.diffDatasets || this.diffDatasets.length) {
-        return ALL_COLOR_RAMPS.filter(ramp => ramp.style == Style.diverging)
-      }
+      // if (!this.diffDatasets || this.diffDatasets.length) {
+      //   return ALL_COLOR_RAMPS.filter(ramp => ramp.style == Style.diverging)
+      // }
       return ALL_COLOR_RAMPS
     },
 
@@ -136,11 +156,30 @@ export default defineComponent({
     },
   },
 
+  data: () => {
+    return {
+      globalState: globalStore.state,
+      dataColumn: '',
+      datasetLabels: [] as string[],
+      diffDatasets: [] as string[],
+      diffRelative: false,
+      diffUISelection: '',
+      diffChoices: [] as any[],
+      flip: false,
+      isCurrentlyDiffMode: false,
+      join: '',
+      normalSelection: '',
+      selectedColor: {} as Ramp,
+      selectedSingleColor: '',
+      steps: '9',
+      useHardCodedColors: false,
+    }
+  },
   mounted() {
+    this.selectedSingleColor = this.simpleColors[0]
+    this.selectedColor = this.colorChoices[0]
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
     this.datasetsAreLoaded()
-
-    this.selectedColor = this.colorChoices[0]
 
     if (this.vizConfiguration.display?.lineColor?.fixedColors) this.useHardCodedColors = true
 
@@ -159,10 +198,10 @@ export default defineComponent({
     dataColumn() {
       this.emitColorSpecification()
     },
-    diffDatasets() {
+    join() {
       this.emitColorSpecification()
     },
-    diffRelative() {
+    diffDatasets() {
       this.emitColorSpecification()
     },
     flip() {
@@ -171,21 +210,22 @@ export default defineComponent({
     'globalState.isDarkMode'() {
       this.emitColorSpecification()
     },
+    normalSelection() {
+      this.emitColorSpecification()
+    },
     selectedColor() {
       this.emitColorSpecification()
     },
     steps() {
       this.emitColorSpecification()
     },
+    diffRelative() {
+      this.emitColorSpecification()
+    },
   },
   methods: {
     vizConfigChanged() {
       const config = this.vizConfiguration.display?.lineColor
-
-      if (config === false) {
-        this.dataColumn = '^'
-        return
-      }
 
       this.setupDiffMode(config)
 
@@ -197,11 +237,13 @@ export default defineComponent({
         this.dataColumn = selectedColumn
         this.datasetLabels = [...this.datasetLabels]
 
+        if (config?.normalize) this.normalSelection = config.normalize
         if (config?.join) this.join = config.join
 
         if (config.colorRamp) {
           let colorChoice =
-            this.colorChoices.find(f => f.ramp == config.colorRamp.ramp) || this.colorChoices[0]
+            this.colorChoices.find((f: Ramp) => f.ramp == config.colorRamp.ramp) ||
+            this.colorChoices[0]
           this.selectedColor = colorChoice
           this.steps = config.colorRamp.steps
           this.flip = !!config.colorRamp.reverse
@@ -210,6 +252,7 @@ export default defineComponent({
         this.clickedSingleColor(config.fixedColors[0])
       }
     },
+
     setupDiffMode(config: LineColorDefinition) {
       if (!config?.diff) return
 
@@ -226,13 +269,11 @@ export default defineComponent({
       this.diffRelative = !!config.relative
       this.diffUISelection = `${diffPieces[0]} - ${diffPieces[1]}`
     },
-
     datasetsAreLoaded() {
       const datasetIds = Object.keys(this.datasets)
       this.datasetLabels = datasetIds
       this.updateDiffLabels()
     },
-
     updateDiffLabels() {
       const choices = []
 
@@ -260,10 +301,10 @@ export default defineComponent({
         const pieces = this.diffUISelection.split(' - ')
         this.diffDatasets = pieces
         // pick a diverging color ramp if we don't have one yet
-        if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
+        // if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
       } else {
         // pick a nondiverging color ramp if we just turned diffmode off
-        if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
+        // if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
         this.diffDatasets = []
         this.diffRelative = false
       }
@@ -271,23 +312,18 @@ export default defineComponent({
     },
 
     emitColorSpecification() {
-      // no answer
+      // no data
       if (!this.dataColumn) return
 
-      // no lines
-      if (this.dataColumn === '^') {
-        this.clickedSingleColor('')
-        return
-      }
-
-      const slash = this.dataColumn.indexOf('/')
-
       // single color
-      if (slash === -1) {
+      if (this.dataColumn === '@') {
+        this.normalSelection = ''
         if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
         this.clickedSingleColor(this.selectedSingleColor)
         return
       }
+
+      const slash = this.dataColumn.indexOf('/')
 
       // based on data
       const dataset = this.dataColumn.substring(0, slash)
@@ -300,13 +336,14 @@ export default defineComponent({
         ? this.vizConfiguration.display?.lineColor?.fixedColors.slice()
         : this.buildColors(this.selectedColor, steps)
 
-      // this.useHardCodedColors = false
+      this.useHardCodedColors = false
 
       const lineColor = {
         dataset,
         columnName,
         join: this.join,
         fixedColors,
+        normalize: this.normalSelection,
         colorRamp: {
           ramp: this.selectedColor.ramp,
           style: this.selectedColor.style,
@@ -322,6 +359,7 @@ export default defineComponent({
         lineColor.colorRamp.breakpoints =
           this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints
       }
+
       setTimeout(() => this.$emit('update', { lineColor }), 50)
     },
 
@@ -331,11 +369,12 @@ export default defineComponent({
         fixedColors: [this.selectedSingleColor],
         dataset: '',
         columnName: '',
+        normalize: '',
       }
 
-      // the link viewer is on main thread so lets make
+      // the viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { lineColor }), 50)
+      setTimeout(() => this.$emit('update', { lineColor }), 25)
     },
 
     columnsInDataset(datasetId: string): string[] {
@@ -350,6 +389,7 @@ export default defineComponent({
 
     pickColor(colorRamp: Ramp) {
       this.selectedColor = colorRamp
+      this.emitColorSpecification()
     },
 
     buildColors(scale: Ramp, count?: number): string[] {
@@ -362,9 +402,9 @@ export default defineComponent({
       if (reverse) colors = colors.reverse()
 
       // only flip in dark mode if it's a sequential scale
-      // if (scale.style === style.sequential && this.globalState.isDarkMode) {
-      //   colors = colors.reverse()
-      // }
+      if (scale.style === Style.sequential && this.globalState.isDarkMode) {
+        colors = colors.reverse()
+      }
 
       return colors
     },
@@ -412,17 +452,17 @@ export default defineComponent({
   padding: 1px 1px;
   border-radius: 3px;
   margin-right: 0.75rem;
-  border: 3px solid #00000000;
+  border: 2px solid #00000000;
 }
 
 .color-ramp.active {
-  border: 3px solid #6361dd;
+  border: 2px solid #6361dd;
 }
 
 .colorbar {
   display: flex;
   flex-direction: row;
-  height: 12px;
+  height: 9px;
 }
 
 .color-ramp:hover {
@@ -452,5 +492,8 @@ export default defineComponent({
 }
 .single-color.active {
   border-color: black;
+}
+.tight {
+  margin: 0 0 -10px 1px;
 }
 </style>
