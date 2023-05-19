@@ -6,7 +6,6 @@ import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
 const d3 = { ...d3sc, ...d3color }
 
-console.log({ d3 })
 import { DataTableColumn, DataType, Status } from '@/Globals'
 
 import store from '@/store'
@@ -201,8 +200,8 @@ function buildWidthsBasedOnNumericValues(props: {
 
   if (Number.isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
-  const widths = new Float32Array(length)
-  const calculatedValues = new Float32Array(length)
+  const widths = new Float32Array(numFeatures)
+  const calculatedValues = new Float32Array(numFeatures)
 
   if (scaleFactor) {
     for (let i = 0; i < data.values.length; i++) {
