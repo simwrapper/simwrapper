@@ -1334,7 +1334,7 @@ const MyComponent = defineComponent({
         const dataset1 = this.datasets[key1]
         const key2 = width.diffDatasets[1] || ''
         const dataset2 = this.datasets[key2]
-        const relative = !!width.relative
+        // const relative = !!width.relative
 
         if (dataset1 && dataset2) {
           // generate the lookup columns we need
