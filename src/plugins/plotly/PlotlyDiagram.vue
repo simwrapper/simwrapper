@@ -22,10 +22,14 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import yaml from 'yaml'
-import VuePlotly from '@/components/VuePlotly.vue'
+import { max } from 'd3-array'
 
 import globalStore from '@/store'
+import VuePlotly from '@/components/VuePlotly.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import { colorRamp, Ramp } from '@/js/ColorsAndWidths'
+import { mergeTypedArrays } from '@/js/util'
 import {
   FileSystemConfig,
   UI_FONT,
@@ -34,8 +38,6 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
-import DashboardDataManager from '@/js/DashboardDataManager'
-import { colorRamp, Ramp } from '@/js/ColorsAndWidths'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -265,7 +267,7 @@ const MyComponent = defineComponent({
         })
       )
 
-      if (this.vizDetails.mergeDatasets) {
+      if (this.vizDetails.mergeDatasets && Object.values(this.vizDetails.datasets).length > 1) {
         this.vizDetails.datasets = {
           dataset: {
             name: 'dataset',
@@ -275,18 +277,10 @@ const MyComponent = defineComponent({
         }
       }
 
-      let traces = [] as any[]
-      let datasets = Object.values(this.vizDetails.datasets) as DataSet[]
+      const datasets = Object.values(this.vizDetails.datasets) as DataSet[]
+      const traces = [] as any[]
 
-      let color: null | any[] = null
-
-      if ('colorRamp' in this.vizDetails) {
-        const globalRamp =
-          typeof this.vizDetails.colorRamp === 'string'
-            ? { ramp: this.vizDetails.colorRamp }
-            : this.vizDetails.colorRamp
-        color = colorRamp(globalRamp, this.vizDetails.traces.length)
-      }
+      const color = this.getColors(this.vizDetails, this.vizDetails.traces.length)
 
       this.vizDetails.traces.forEach((tr: any, trIdx: number) => {
         // Grouped traces won't be added without its group
@@ -301,13 +295,7 @@ const MyComponent = defineComponent({
             const groups = this.groupDataTable(ds.data as DataTable, ref)
 
             const n = Object.keys(groups).length
-
-            let c: null | any[] = null
-
-            if ('colorRamp' in tr) {
-              const ramp = typeof tr.colorRamp === 'string' ? { ramp: tr.colorRamp } : tr.colorRamp
-              c = colorRamp(ramp, n)
-            }
+            const c = this.getColors(tr, n)
 
             Object.keys(groups).forEach((group, idx) => {
               // TODO: Is there a library for deep copy ?
@@ -360,10 +348,18 @@ const MyComponent = defineComponent({
       return ds
     },
 
+    getColors(conf: any, n: number): null | string[] {
+      if ('colorRamp' in conf) {
+        const ramp = typeof conf.colorRamp === 'string' ? { ramp: conf.colorRamp } : conf.colorRamp
+        // Produce at least two color or strange effects happen
+        return colorRamp(ramp, n >= 2 ? n : 2)
+      }
+
+      return null
+    },
+
     // Transform dataset if requested
     transformData(ds: DataSet) {
-      // TODO: Error checks and messages
-
       if ('pivot' in ds) {
         this.pivot(
           ds.name as string,
@@ -529,7 +525,25 @@ const MyComponent = defineComponent({
       const first = datasets[0].data!
 
       Object.keys(first).forEach((column: string) => {
-        const values = datasets.map(ds => ds.data![column].values).flat()
+        const mapped = datasets.map(ds => {
+          if (!(column in ds.data!)) {
+            globalStore.commit(
+              'error',
+              `Merged dataset ${ds.name} does not contain column ${column}`
+            )
+          }
+
+          return ds.data![column].values
+        })
+
+        // Need to distinguish primitive arrays and standard ones
+        let values
+        if (
+          first[column].values instanceof Float32Array ||
+          first[column].values instanceof Float64Array
+        )
+          values = mergeTypedArrays(mapped as Array<any>[])
+        else values = mapped.flat()
 
         data[column] = {
           name: column,
@@ -549,7 +563,16 @@ const MyComponent = defineComponent({
           if (value.includes(template)) {
             const column = value.substring(value.indexOf('.') + 1)
             if (column in dataTable) {
-              object[key] = dataTable[column].values
+              // Merge two columns into a multi index
+              if (this.vizDetails.multiIndex && column in this.vizDetails.multiIndex) {
+                // This creates a tuples of two arrays that has special handling in plotly
+                object[key] = [
+                  dataTable[column].values,
+                  dataTable[this.vizDetails.multiIndex[column]].values,
+                ]
+              }
+              // Normal way to add values into the column
+              else object[key] = dataTable[column].values
             } else {
               globalStore.commit('error', `Column "${column}" not in ${Object.keys(dataTable)}`)
             }
