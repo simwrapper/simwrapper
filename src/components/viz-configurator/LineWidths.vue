@@ -10,6 +10,7 @@
           option(label="None" value="@0")
           option(label="1px" value="@1")
           option(label="2px" value="@2")
+          option(label="3px" value="@3")
 
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
