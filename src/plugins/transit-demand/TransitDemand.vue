@@ -70,7 +70,7 @@ import * as turf from '@turf/turf'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
-import Papaparse from 'papaparse'
+import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
@@ -621,13 +621,13 @@ const MyComponent = defineComponent({
           const csvData = new TextDecoder('utf-8').decode(event.data)
           worker.terminate()
 
-          Papaparse.parse(csvData, {
+          Papa.parse(csvData, {
             // preview: 10000,
             header: true,
             skipEmptyLines: true,
             dynamicTyping: true,
             worker: true,
-            complete: results => {
+            complete: (results: any) => {
               resolve(this.processDemand(results))
             },
           })
@@ -641,7 +641,7 @@ const MyComponent = defineComponent({
       return promise
     },
 
-    processDemand(results: Papaparse.ParseResult<unknown>) {
+    processDemand(results: any) {
       // todo: make sure meta contains fields we need!
       this.loadingText = 'Processing demand data...'
 

@@ -2,11 +2,11 @@
 
 import nerdamer, { ExpressionParam } from 'nerdamer'
 import pako from 'pako'
-import Papaparse from 'papaparse'
 import YAML from 'yaml'
 
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import Papa from '@simwrapper/papaparse'
 import { findMatchingGlobInFiles, parseXML } from '@/js/util'
 
 type TableRow = {
@@ -593,7 +593,7 @@ async function parseVariousFileTypes(fileKey: string, filename: string, text: st
   }
 
   // if it isn't XML, then let's hope assume Papaparse can handle it
-  const csv = Papaparse.parse(text, {
+  const csv = Papa.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ','],
     comments: '#',

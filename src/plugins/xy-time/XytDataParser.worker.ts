@@ -1,7 +1,7 @@
 /**
  * Load a *.xyt.csv file, parse it, and return a set of ArrayBuffers for display.
  */
-import Papaparse from 'papaparse'
+import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
@@ -236,7 +236,7 @@ async function step2fetchCSVdata(filename: string) {
             leftOvers = text.slice(lastLF + 1)
             text = text.slice(0, lastLF)
 
-            const results = Papaparse.parse(text, {
+            const results = Papa.parse(text, {
               header: true,
               skipEmptyLines: true,
               dynamicTyping: true,

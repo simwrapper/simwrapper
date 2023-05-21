@@ -47,7 +47,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import Papaparse from 'papaparse'
 import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'

@@ -33,7 +33,7 @@ import {
   schemeCategory10 as colorScheme,
 } from 'd3-scale-chromatic'
 
-import Papaparse from 'papaparse'
+import Papa from '@simwrapper/papaparse'
 
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
@@ -133,7 +133,7 @@ const MyComponent = defineComponent({
       try {
         const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
 
-        const content = Papaparse.parse(rawText, {
+        const content = Papa.parse(rawText, {
           // using header:false because we don't care what
           // the column names are: we expect "from,to,value" in cols 0,1,2.
           header: false,
