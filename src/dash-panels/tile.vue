@@ -160,7 +160,6 @@ export default defineComponent({
       Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
         const value = kv[1] as any
         if (this.checkIfItIsACustomIcon(value.values[1])) {
-          console.log(this.subfolder + '/' + this.config.dataset + '/../' + value.values[1])
           try {
             const blob = await this.fileApi.getFileBlob(
               this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
