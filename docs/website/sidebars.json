@@ -21,6 +21,7 @@
       "flow-map",
       "heatmap-charts",
       "pie-charts",
+      "plotly",
       "table",
       "tiles",
       "sankey",
