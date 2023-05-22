@@ -4,7 +4,7 @@
       .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
         p.tile-value {{ value.values[0] }}
-        .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index]}")
+        .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
         img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
         font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl" :style="{'background': ''}")
 </template>
@@ -129,7 +129,6 @@ export default defineComponent({
       testImage: '',
       base64Images: [] as any[],
       imagesAreLoaded: false,
-      testIndex: 1,
     }
   },
   computed: {
@@ -146,13 +145,22 @@ export default defineComponent({
     console.log(this.base64Images)
   },
   methods: {
+    forceRerender() {
+      // Removing my-component from the DOM
+      this.imagesAreLoaded = false
+
+      this.$nextTick(() => {
+        // Adding the component back in
+        this.imagesAreLoaded = true
+      })
+    },
     async loadImages() {
       this.imagesAreLoaded = false
 
       Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
-        this.testIndex++
         const value = kv[1] as any
         if (this.checkIfItIsACustomIcon(value.values[1])) {
+          console.log(this.subfolder + '/' + this.config.dataset + '/../' + value.values[1])
           try {
             const blob = await this.fileApi.getFileBlob(
               this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
@@ -165,6 +173,7 @@ export default defineComponent({
             console.error(e)
           }
         }
+        this.forceRerender()
       })
 
       this.imagesAreLoaded = true
