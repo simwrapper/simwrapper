@@ -1,16 +1,16 @@
 <template lang="pug">
   .content
-    .tiles-container
-      .tile(v-if="imagesAreLoaded" v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+    .tiles-container(v-if="imagesAreLoaded")
+      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
         p.tile-value {{ value.values[0] }}
         .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index]}")
-        img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'")
-        font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl")
+        img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl" :style="{'background': ''}")
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { nextTick, defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import readBlob from 'read-blob'
@@ -129,6 +129,7 @@ export default defineComponent({
       testImage: '',
       base64Images: [] as any[],
       imagesAreLoaded: false,
+      testIndex: 1,
     }
   },
   computed: {
@@ -139,33 +140,35 @@ export default defineComponent({
   async mounted() {
     this.dataSet = await this.loadData()
     this.validateDataSet()
+    await this.loadImages()
     this.$emit('isLoaded')
 
-    Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
-      // const key = kv[0]
-      const value = kv[1] as any
-      // console.log(value)
-      if (this.checkIfItIsACustomIcon(value.values[1])) {
-        // console.log(this.subfolder + '/' + this.config.dataset)
-        try {
-          const blob = await this.fileApi.getFileBlob(
-            this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
-          )
-          const buffer = await readBlob.arraybuffer(blob)
-          const base64 = this.arrayBufferToBase64(buffer)
-          if (base64)
-            this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
-        } catch (e) {
-          console.error(e)
-        }
-      }
-    })
-
-    // console.log(this.base64Images)
-    // setTimeout(() => (this.imagesAreLoaded = true), 100)
-    this.imagesAreLoaded = true
+    console.log(this.base64Images)
   },
   methods: {
+    async loadImages() {
+      this.imagesAreLoaded = false
+
+      Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
+        this.testIndex++
+        const value = kv[1] as any
+        if (this.checkIfItIsACustomIcon(value.values[1])) {
+          try {
+            const blob = await this.fileApi.getFileBlob(
+              this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+            )
+            const buffer = await readBlob.arraybuffer(blob)
+            const base64 = this.arrayBufferToBase64(buffer)
+            if (base64)
+              this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
+          } catch (e) {
+            console.error(e)
+          }
+        }
+      })
+
+      this.imagesAreLoaded = true
+    },
     arrayBufferToBase64(buffer: any) {
       var binary = ''
       var bytes = new Uint8Array(buffer)
