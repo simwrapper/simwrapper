@@ -4,7 +4,7 @@
       .tile(v-if="imagesAreLoaded" v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
         p.tile-value {{ value.values[0] }}
-        .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="base64Images[index]") 
+        .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index]}")
         img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'")
         font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl")
 </template>
@@ -154,9 +154,7 @@ export default defineComponent({
           const buffer = await readBlob.arraybuffer(blob)
           const base64 = this.arrayBufferToBase64(buffer)
           if (base64)
-            this.base64Images[i] = {
-              background: `center / cover no-repeat url(data:image/png;base64,${base64})`,
-            }
+            this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
         } catch (e) {
           console.error(e)
         }
