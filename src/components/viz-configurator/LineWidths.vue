@@ -11,6 +11,8 @@
           option(label="1px" value="@1")
           option(label="2px" value="@2")
           option(label="3px" value="@3")
+          option(label="5px" value="@5")
+          option(label="8px" value="@8")
 
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
