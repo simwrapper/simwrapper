@@ -22,7 +22,6 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import yaml from 'yaml'
-import { max } from 'd3-array'
 
 import globalStore from '@/store'
 import VuePlotly from '@/components/VuePlotly.vue'
@@ -305,8 +304,8 @@ const MyComponent = defineComponent({
               this.recursiveCheckForTemplate(groups[group], copy, name)
 
               if (c) {
-                if (!('marker' in tr)) tr.marker = {}
-                tr.marker.color = c[idx]
+                if (!('marker' in tr)) copy.marker = {}
+                copy.marker.color = c[idx]
               }
               traces.push(copy)
             })
