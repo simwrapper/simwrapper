@@ -1654,8 +1654,18 @@ const MyComponent = defineComponent({
         })
       }
 
-      // now redraw colors ... wit dis
-      this.handleNewFillColor(filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions)
+      // now redraw colors for fills and liness
+      if (this.currentUIFillColorDefinitions?.dataset) {
+        this.handleNewFillColor(
+          filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
+        )
+      }
+
+      if (this.currentUILineColorDefinitions?.dataset) {
+        this.handleNewLineColor(
+          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
+        )
+      }
     },
 
     // ------------------------------------
