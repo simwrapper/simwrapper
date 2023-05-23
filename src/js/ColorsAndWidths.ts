@@ -336,9 +336,9 @@ function buildColorsBasedOnCategories(props: {
   // *range* is the list of colors which we received;
   // *domain* is is auto-created by d3 from data for categorical.
 
-  const setColorBasedOnCategory: any = scaleOrdinal().range(colorsAsRGB)
+  const setColorBasedOnCategory = scaleOrdinal().range(colorsAsRGB)
 
-  const gray = store.state.isDarkMode ? 48 : 212
+  const gray = store.state.isDarkMode ? 48 : 228
   const rgbArray = new Uint8Array(numFeatures * 3).fill(gray)
 
   const calculatedValues = []
@@ -350,7 +350,10 @@ function buildColorsBasedOnCategories(props: {
 
   for (let i = 0; i < numFeatures; i++) {
     if (props.filter[i] === -1) continue
-    const color = setColorBasedOnCategory(calculatedValues[i])
+    if (calculatedValues[i] == undefined) continue
+
+    const color: any = setColorBasedOnCategory(calculatedValues[i])
+
     const offset = i * 3
     rgbArray[offset + 0] = color[0]
     rgbArray[offset + 1] = color[1]
