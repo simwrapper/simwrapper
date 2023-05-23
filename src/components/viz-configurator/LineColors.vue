@@ -374,7 +374,7 @@ export default defineComponent({
 
       // the viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { lineColor }), 25)
+      setTimeout(() => this.$emit('update', { lineColor }), 50)
     },
 
     columnsInDataset(datasetId: string): string[] {

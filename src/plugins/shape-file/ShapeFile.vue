@@ -171,6 +171,7 @@ const MyComponent = defineComponent({
       dataFillHeights: 0 as number | Float32Array,
       dataCalculatedValues: null as Float32Array | null,
       dataNormalizedValues: null as Float32Array | null,
+      constantLineWidth: null as null | number,
       dataCalculatedValueLabel: '',
 
       globalStore,
@@ -702,6 +703,9 @@ const MyComponent = defineComponent({
         if (props['lineWidth']) {
           this.vizDetails.display.lineWidth = props.lineWidth
           this.handleNewLineWidth(props.lineWidth)
+          // redo colors after widths to ensure categorical widths are set properly
+          if (this.currentUILineColorDefinitions)
+            this.handleNewLineColor(this.currentUILineColorDefinitions)
         }
 
         if (props['radius']) {
@@ -1286,22 +1290,33 @@ const MyComponent = defineComponent({
         }
 
         // Calculate colors for each feature
-        const { array, legend, calculatedValues, normalizedValues } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            normalize: normalColumn,
-            normalLookup,
-            lookup: lookupColumn,
-            filter: this.boundaryFilters,
-            options: color,
-            join: color.join,
-          })
+        const colors = ColorWidthSymbologizer.getColorsForDataColumn({
+          numFeatures: this.boundaries.length,
+          data: dataColumn,
+          normalize: normalColumn,
+          normalLookup,
+          lookup: lookupColumn,
+          filter: this.boundaryFilters,
+          options: color,
+          join: color.join,
+        })
+
+        const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
 
         this.dataLineColors = array
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = normalizedValues || null
 
+        // If colors are based on category and line widths are constant, then use a
+        // 1-pixel line width when the category is undefined.
+        if (hasCategory && this.constantLineWidth !== null) {
+          const lineWidth = this.constantLineWidth as number
+          const variableConstantWidth = new Float32Array(this.boundaries.length).fill(1)
+          Object.keys(hasCategory).forEach((i: any) => {
+            variableConstantWidth[i] = lineWidth
+          })
+          this.dataLineWidths = variableConstantWidth
+        }
         this.legendStore.setLegendSection({
           section: 'Line Color',
           column: dataColumn.name,
@@ -1317,8 +1332,11 @@ const MyComponent = defineComponent({
       // constant line width?  @0, @1, @2
       if (width.dataset && /^@\d$/.test(width.dataset)) {
         this.dataLineWidths = Number.parseInt(width.dataset.substring(1))
+        this.constantLineWidth = this.dataLineWidths
         this.legendStore.clear('Line Width')
         return
+      } else {
+        this.constantLineWidth = null
       }
 
       // No scale factor?
