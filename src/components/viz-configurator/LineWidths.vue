@@ -261,7 +261,7 @@ export default defineComponent({
       if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
       if (this.diffRelative) lineWidth.relative = true
 
-      setTimeout(() => this.$emit('update', { lineWidth }), 20)
+      setTimeout(() => this.$emit('update', { lineWidth }), 25)
     },
 
     clickedSingle() {
@@ -279,7 +279,7 @@ export default defineComponent({
 
       // the link viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { lineWidth }), 20)
+      setTimeout(() => this.$emit('update', { lineWidth }), 25)
     },
 
     columnsInDataset(datasetId: string): string[] {

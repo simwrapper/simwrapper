@@ -369,9 +369,7 @@ function buildColorsBasedOnCategories(props: {
 
   // console.log({ legend })
 
-  // build the hasCategory thing
-  const hasCategory = calculatedValues.map(v => !!v)
-  return { array: rgbArray, legend, calculatedValues: null, normalizedValues: null, hasCategory }
+  return { array: rgbArray, legend, calculatedValues: null, normalizedValues: null }
 }
 
 function buildDiffDomainBreakpoints(props: {
