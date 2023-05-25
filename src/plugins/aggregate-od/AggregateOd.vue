@@ -73,9 +73,9 @@ import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
-import { forEachAsync } from 'js-coroutines'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
+import Papa from '@simwrapper/papaparse'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
@@ -113,7 +113,7 @@ interface AggOdYaml {
 const TOTAL_MSG = 'Alle >>'
 const FADED = 0.0 // 0.15
 
-const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500]
+const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500, 1000, 5000]
 
 const INPUTS = {
   OD_FLOWS: 'O/D Flows (.csv)',
@@ -216,7 +216,6 @@ const Component = defineComponent({
       project: {} as any,
 
       scaleFactor: 1,
-      sliderValue: [1, 500],
       scaleValues: SCALE_WIDTH,
       currentScale: SCALE_WIDTH[0],
       currentTimeBin: TOTAL_MSG,
@@ -228,9 +227,6 @@ const Component = defineComponent({
 
       _mapExtentXYXY: null as any,
       _maximum: null as any,
-
-      dailyFrom: null as any,
-      dailyTo: null as any,
 
       bounceTimeSlider: {},
       bounceScaleSlider: {},
@@ -285,7 +281,6 @@ const Component = defineComponent({
       }
 
       if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
-
       if (!this.isMapMoving) this.isMapMoving = true
     },
 
@@ -543,7 +538,7 @@ const Component = defineComponent({
           // Test this
           properties[TOTAL_MSG] = link.daily
           link.values.forEach((value: number, i: number) => {
-            properties[this.headers[i + 1]] = value ? value : 0
+            properties[this.headers[i]] = value ?? 0
           })
 
           const feature: any = {
@@ -559,6 +554,9 @@ const Component = defineComponent({
           // some dests aren't on map: z.b. 'other'
         }
       }
+      // console.log(555, this.currentTimeBin, {
+      //   SPIDERLINKFEATURECOLLECTION: this.spiderLinkFeatureCollection,
+      // })
     },
 
     updateSpiderLinks() {
@@ -595,6 +593,7 @@ const Component = defineComponent({
             'line-offset': ['*', 0.5, ['get', 'daily']],
             'line-opacity': ['get', 'fade'],
           },
+          filter: ['>', ['get', this.currentTimeBin], 0],
         },
         'centroid-layer'
       )
@@ -659,6 +658,7 @@ const Component = defineComponent({
             'circle-stroke-width': 3,
             'circle-stroke-color': 'white',
           },
+          filter: ['>', ['get', this.isOrigin ? 'dailyFrom' : 'dailyTo'], 0],
         })
       }
 
@@ -672,6 +672,7 @@ const Component = defineComponent({
             'text-size': 11,
           },
           paint: this.showCentroids ? {} : { 'text-halo-color': 'white', 'text-halo-width': 2 },
+          filter: ['>', ['get', this.isOrigin ? 'dailyFrom' : 'dailyTo'], 0],
         })
       }
     },
@@ -771,25 +772,10 @@ const Component = defineComponent({
         centroid.properties.dailyFrom = values.from * this.scaleFactor
         centroid.properties.dailyTo = values.to * this.scaleFactor
 
-        this.dailyFrom = centroid.properties.dailyFrom
-        this.dailyTo = centroid.properties.dailyTo
-
-        centroid.properties.widthFrom = Math.min(
-          35,
-          Math.max(
-            12,
-            Math.pow(this.dailyFrom / this.scaleFactor, 0.3) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
-        centroid.properties.widthTo = Math.min(
-          35,
-          Math.max(
-            12,
-            Math.pow(this.dailyTo / this.scaleFactor, 0.3) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
+        let digits = Math.log10(centroid.properties.dailyFrom)
+        centroid.properties.widthFrom = 6 + digits * 4
+        digits = Math.log10(centroid.properties.dailyTo)
+        centroid.properties.widthTo = 6 + digits * 4
 
         if (!feature.properties) feature.properties = {}
 
@@ -815,8 +801,6 @@ const Component = defineComponent({
 
       // daily
       if (timePeriod === 'Alle >>') {
-        //from = Math.round(this.marginals.rowTotal[feature.id])
-        //to = Math.round(this.marginals.colTotal[feature.id])
         to = feature.properties.dailyTo
         from = feature.properties.dailyFrom
         return { from, to }
@@ -867,25 +851,10 @@ const Component = defineComponent({
         centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
         centroid.properties.dailyTo = dailyTo * this.scaleFactor
 
-        this.dailyFrom = centroid.properties.dailyFrom
-        this.dailyTo = centroid.properties.dailyTo
-
-        centroid.properties.widthFrom = Math.min(
-          70,
-          Math.max(
-            12,
-            Math.sqrt(this.dailyFrom / this.scaleFactor) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
-        centroid.properties.widthTo = Math.min(
-          70,
-          Math.max(
-            12,
-            Math.sqrt(this.dailyTo / this.scaleFactor) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
+        let digits = Math.log10(centroid.properties.dailyFrom)
+        centroid.properties.widthFrom = 6 + digits * 4
+        digits = Math.log10(centroid.properties.dailyTo)
+        centroid.properties.widthTo = 6 + digits * 4
 
         if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
         if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
@@ -902,9 +871,6 @@ const Component = defineComponent({
       }
 
       this.centroidSource = centroids
-
-      // console.log({ CENTROIDS: this.centroids })
-      // console.log({ CENTROIDSOURCE: this.centroidSource })
 
       if (!this.mymap.getSource('centroids')) {
         this.mymap.addSource('centroids', {
@@ -964,15 +930,15 @@ const Component = defineComponent({
     },
 
     // To display only the centroids whose dailyTo and dailyFrom values are not
-    // both 0, the objects get the property 'isVisable'. When adding the geojson
+    // both 0, the objects get the property 'isVisible'. When adding the geojson
     // data to the map, it is filtered by this attribute.
     processGeojson() {
-      for (let i = 0; i < this.geojson.features.length; i++) {
-        const data = this.geojson.features[i].properties
-        if (data.dailyFrom != 0 || data.dailyTo != 0) {
-          this.geojson.features[i].properties.isVisiable = true
+      for (const feature of this.geojson.features) {
+        const data = feature.properties
+        if (data.dailyFrom !== 0 || data.dailyTo !== 0) {
+          feature.properties.isVisible = true
         } else {
-          this.geojson.features[i].properties.isVisiable = false
+          feature.properties.isVisible = false
         }
       }
     },
@@ -986,7 +952,7 @@ const Component = defineComponent({
 
       this.loadingText = 'Koordinaten berechnen...'
 
-      await forEachAsync(geojson.features, (feature: any) => {
+      for (const feature of geojson.features) {
         // 'id' column used for lookup, unless idColumn is set in YAML
         if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
 
@@ -1003,7 +969,7 @@ const Component = defineComponent({
           console.error('ERR with feature: ' + feature)
           console.error(e)
         }
-      })
+      }
       return geojson
     },
 
@@ -1058,7 +1024,7 @@ const Component = defineComponent({
       const fromCentroid: any = {}
       const toCentroid: any = {}
 
-      await forEachAsync(Object.keys(this.zoneData), (row: any) => {
+      for (const row of Object.keys(this.zoneData)) {
         // store number of time periods (no totals here)
         fromCentroid[row] = Array(this.headers.length - 1).fill(0)
 
@@ -1083,24 +1049,27 @@ const Component = defineComponent({
             }
           }
         }
-      })
-
-      for (const row in this.zoneData) {
       }
+
       return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
     },
 
     async processHourlyData(csvData: string) {
       this.loadingText = 'Uhrzeitdaten entwicklen...'
 
-      const lines = csvData.split('\n')
-      const separator = lines[0].indexOf(';') > 0 ? ';' : ','
+      const csv = Papa.parse(csvData, {
+        comments: '#',
+        delimitersToGuess: [';', '\t', ','],
+        dynamicTyping: true,
+        header: true,
+        skipEmptyLines: true,
+      })
 
-      // data is in format: o,d, value[1], value[2], value[3]...
-      const headers = lines[0].split(separator).map(a => a.trim())
-      this.rowName = headers[0]
-      this.colName = headers[1]
-      this.headers = [TOTAL_MSG].concat(headers.slice(2))
+      this.headers = csv.meta.fields
+
+      this.rowName = this.headers[0]
+      this.colName = this.headers[1]
+      this.headers = this.headers.slice(2)
 
       if (!this.rowName || !this.colName) {
         this.$store.commit('setStatus', {
@@ -1109,34 +1078,33 @@ const Component = defineComponent({
           desc: 'First column has no name. Data MUST be orig,dest,values...',
         })
       }
-      // console.log(this.headers)
+      // console.log({ headers: this.headers })
 
-      await forEachAsync(lines.slice(1), (row: any) => {
-        // skip header row
-        const columns = row.split(separator)
-        const values = columns.slice(2).map((a: any) => parseFloat(a))
+      // loop over each row to build matrix of data
+      for (const row of csv.data) {
+        const values = this.headers.map(column => parseFloat(row[column]))
 
         // build zone matrix
-        const i = columns[0]
-        const j = columns[1]
+        const i = row[this.rowName]
+        const j = row[this.colName]
 
         if (!this.zoneData[i]) this.zoneData[i] = {}
         this.zoneData[i][j] = values
 
         // calculate daily/total values
-        const daily = values.reduce((a: any, b: any) => a + b, 0)
+        const daily = values.reduce((a: number, b: number) => (Number.isFinite(b) ? a + b : a), 0)
 
         if (!this.dailyData[i]) this.dailyData[i] = {}
         this.dailyData[i][j] = daily
 
         // save total on the links too
         if (daily !== 0) {
-          const rowName = String(columns[0]) + ':' + String(columns[1])
-          this.linkData[rowName] = { orig: columns[0], dest: columns[1], daily, values }
+          const rowName = `${i}:${j}`
+          this.linkData[rowName] = { orig: i, dest: j, daily, values }
         }
-      })
+      }
 
-      // console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
+      // console.log(111, { DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
     },
 
     updateMapExtent(coordinates: any) {
@@ -1185,7 +1153,7 @@ const Component = defineComponent({
             'line-opacity': 0.5,
             'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
           },
-          filter: ['==', 'isVisiable', true],
+          filter: ['==', 'isVisible', true],
         },
         'centroid-layer'
       )
