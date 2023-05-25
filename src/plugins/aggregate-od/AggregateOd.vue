@@ -476,12 +476,16 @@ const Component = defineComponent({
       }
     },
 
-    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
-      this.fadeUnselectedLinks(-1)
-      this.selectedCentroid = 0
-
-      if (this.isMobile()) {
-        // do something
+    handleEmptyClick(e: any) {
+      if (
+        this.mymap.queryRenderedFeatures(e.point).filter(feature => feature.source === 'centroids')
+          .length === 0
+      ) {
+        // didn't click on a centroid: clear the map
+        this.fadeUnselectedLinks(-1)
+        this.selectedCentroid = 0
+        if (this.isMobile()) {
+        } // do something
       }
     },
 
@@ -683,15 +687,13 @@ const Component = defineComponent({
     },
 
     clickedOnCentroid(e: any) {
-      // console.log({ CLICK: e })
-
       e.originalEvent.stopPropagating = true
 
       const centroid = e.features[0].properties
-      // console.log(centroid)
+      // console.log('CLICK!', centroid, this.selectedCentroid, centroid.id === this.selectedCentroid)
 
       const id = centroid.id
-      // console.log('clicked on id', id)
+
       // a second click on a centroid UNselects it.
       if (id === this.selectedCentroid) {
         this.unselectAllCentroids()
@@ -699,11 +701,6 @@ const Component = defineComponent({
       }
 
       this.selectedCentroid = id
-
-      // console.log(this.marginals)
-      // console.log(this.marginals.rowTotal[id])
-      // console.log(this.marginals.colTotal[id])
-
       this.fadeUnselectedLinks(id)
     },
 
@@ -735,9 +732,11 @@ const Component = defineComponent({
 
       const totalTrips = trips + revTrips
 
-      let html = `<h1>${totalTrips} Bidirectional Trips</h1><br/>`
-      html += `<p> -----------------------------</p>`
-      html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
+      let html = `<h1><b>${totalTrips} Bidirectional Trip${totalTrips !== 1 ? 's' : ''}</b></h1>`
+      html += `<p style="width: max-content">_________________________</p>`
+      html += `<p style="width: max-content">${trips} trip${
+        trips !== 1 ? 's' : ''
+      } // ${revTrips} reverse trip${revTrips !== 1 ? 's' : ''}</p>`
 
       new maplibregl.Popup({ closeOnClick: true })
         .setLngLat(e.lngLat)
@@ -773,9 +772,9 @@ const Component = defineComponent({
         centroid.properties.dailyTo = values.to * this.scaleFactor
 
         let digits = Math.log10(centroid.properties.dailyFrom)
-        centroid.properties.widthFrom = 6 + digits * 4
+        centroid.properties.widthFrom = 6 + digits * 3.5
         digits = Math.log10(centroid.properties.dailyTo)
-        centroid.properties.widthTo = 6 + digits * 4
+        centroid.properties.widthTo = 6 + digits * 3.5
 
         if (!feature.properties) feature.properties = {}
 
@@ -852,9 +851,9 @@ const Component = defineComponent({
         centroid.properties.dailyTo = dailyTo * this.scaleFactor
 
         let digits = Math.log10(centroid.properties.dailyFrom)
-        centroid.properties.widthFrom = 6 + digits * 4
+        centroid.properties.widthFrom = 6 + digits * 3.5
         digits = Math.log10(centroid.properties.dailyTo)
-        centroid.properties.widthTo = 6 + digits * 4
+        centroid.properties.widthTo = 6 + digits * 3.5
 
         if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
         if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
@@ -880,20 +879,18 @@ const Component = defineComponent({
       }
       this.updateCentroidLabels()
 
-      const parent = this
-
-      this.mymap.on('click', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-        parent.clickedOnCentroid(e)
+      this.mymap.on('click', 'centroid-layer', (e: maplibregl.MapMouseEvent) => {
+        this.clickedOnCentroid(e)
       })
 
       // turn "hover cursor" into a pointer, so user knows they can click.
-      this.mymap.on('mousemove', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-        parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+      this.mymap.on('mousemove', 'centroid-layer', (e: maplibregl.MapMouseEvent) => {
+        this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
       })
 
       // and back to normal when they mouse away
-      this.mymap.on('mouseleave', 'centroid-layer', function () {
-        parent.mymap.getCanvas().style.cursor = 'grab'
+      this.mymap.on('mouseleave', 'centroid-layer', () => {
+        this.mymap.getCanvas().style.cursor = 'grab'
       })
     },
 
@@ -910,21 +907,20 @@ const Component = defineComponent({
     },
 
     setupKeyListeners() {
-      const parent = this
-      window.addEventListener('keyup', function (event) {
+      window.addEventListener('keyup', event => {
         if (event.keyCode === 27) {
           // ESC
-          parent.pressedEscape()
+          this.pressedEscape()
         }
       })
-      window.addEventListener('keydown', function (event) {
+      window.addEventListener('keydown', event => {
         if (event.keyCode === 38) {
           // UP
-          parent.pressedArrowKey(-1)
+          this.pressedArrowKey(-1)
         }
         if (event.keyCode === 40) {
           // DOWN
-          parent.pressedArrowKey(+1)
+          this.pressedArrowKey(+1)
         }
       })
     },
