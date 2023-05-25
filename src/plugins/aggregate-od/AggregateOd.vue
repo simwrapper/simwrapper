@@ -655,7 +655,7 @@ const Component = defineComponent({
           paint: {
             'circle-color': '#ec0',
             'circle-radius': ['get', radiusField],
-            'circle-stroke-width': 3,
+            'circle-stroke-width': 2,
             'circle-stroke-color': 'white',
           },
           filter: ['>', ['get', this.isOrigin ? 'dailyFrom' : 'dailyTo'], 0],
