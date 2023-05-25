@@ -75,6 +75,15 @@ function getColorsForDataColumn(props: {
   relative?: boolean
   join?: string
 }) {
+  // First: if there is no dataColumn yet, return empty everything
+  if (!props.data)
+    return {
+      array: null,
+      legend: [],
+      calculatedValues: null,
+      normalizedValues: null,
+    }
+
   // Figure out what kind of thing the user wants
   if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
     return buildColorsBasedOnCategories(props)

@@ -981,6 +981,8 @@ const MyComponent = defineComponent({
           relative,
         })
 
+        if (!array) return
+
         if (section === 'fill') {
           this.dataFillColors = array
         } else {
@@ -1034,6 +1036,8 @@ const MyComponent = defineComponent({
 
       const { array, legend, calculatedValues } =
         ColorWidthSymbologizer.getColorsForDataColumn(props)
+
+      if (!array) return
 
       if (section === 'fill') {
         this.dataFillColors = array
@@ -1166,16 +1170,18 @@ const MyComponent = defineComponent({
             join: color.join,
           })
 
-        this.dataFillColors = array
-        this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = normalizedValues || null
+        if (array) {
+          this.dataFillColors = array
+          this.dataCalculatedValues = calculatedValues
+          this.dataNormalizedValues = normalizedValues || null
 
-        this.legendStore.setLegendSection({
-          section: 'FillColor',
-          column: dataColumn.name,
-          values: legend,
-          normalColumn: normalColumn ? normalColumn.name : '',
-        })
+          this.legendStore.setLegendSection({
+            section: 'FillColor',
+            column: dataColumn.name,
+            values: legend,
+            normalColumn: normalColumn ? normalColumn.name : '',
+          })
+        }
       }
     },
 
@@ -1302,6 +1308,8 @@ const MyComponent = defineComponent({
         })
 
         const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+
+        if (!array) return
 
         this.dataLineColors = array
         this.dataCalculatedValues = calculatedValues

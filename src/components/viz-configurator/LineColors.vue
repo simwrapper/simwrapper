@@ -19,7 +19,7 @@
             )
 
   //- JOIN COLUMN
-  .widgets(v-if="datasetChoices.length > 1")
+  .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")

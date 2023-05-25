@@ -22,7 +22,7 @@
                   :label="column")
 
   //- JOIN COLUMN ------------
-  .widgets(v-if="datasetChoices.length > 1")
+  .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 2")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
@@ -37,7 +37,7 @@
             )
 
   //- SCALING ----------------
-  .widgets
+  .widgets(v-if="dataColumn && dataColumn.length > 2")
     .widget
       p Scaling
       b-field
@@ -155,7 +155,6 @@ export default defineComponent({
   methods: {
     vizConfigChanged() {
       const config = this.vizConfiguration.display?.lineWidth
-
       this.setupDiffMode(config)
 
       if (config?.columnName) {
@@ -166,6 +165,9 @@ export default defineComponent({
         this.datasetLabels = [...this.datasetLabels]
         this.scaleFactor = config.scaleFactor ?? '1'
         this.join = config.join
+      } else if (/^@\d$/.test(config?.dataset)) {
+        // simple numeric width:
+        this.dataColumn = config.dataset
       }
     },
     setupDiffMode(config: LineWidthDefinition) {
@@ -261,7 +263,7 @@ export default defineComponent({
       if (this.diffDatasets.length) lineWidth.diffDatasets = this.diffDatasets
       if (this.diffRelative) lineWidth.relative = true
 
-      setTimeout(() => this.$emit('update', { lineWidth }), 20)
+      setTimeout(() => this.$emit('update', { lineWidth }), 50)
     },
 
     clickedSingle() {
