@@ -1785,7 +1785,7 @@ const MyComponent = defineComponent({
       let now = Date.now()
 
       const shapeConfig =
-        this.config.boundaries || this.config.shapes || this.config.geojsonv || this.config.network
+        this.config.boundaries || this.config.shapes || this.config.geojson || this.config.network
 
       if (!shapeConfig) return
 
@@ -1866,7 +1866,11 @@ const MyComponent = defineComponent({
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons || hasPoints) await this.generateCentroidsAndMapCenter()
+        if (!hasNoPolygons || hasPoints) {
+          await this.generateCentroidsAndMapCenter()
+        } else if (this.needsInitialMapExtent) {
+          this.calculateAndMoveToCenter()
+        }
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
@@ -1906,6 +1910,39 @@ const MyComponent = defineComponent({
 
       // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
       // this.figureOutRemainingFilteringOptions()
+    },
+
+    async calculateAndMoveToCenter() {
+      let centerLong = 0
+      let centerLat = 0
+      let numCoords = 0
+      const numFeatures = this.boundaries.length
+
+      for (let idx = 0; idx < numFeatures; idx += 256) {
+        const centroid = turf.centerOfMass(this.boundaries[idx])
+        if (centroid?.geometry?.coordinates) {
+          centerLong += centroid.geometry.coordinates[0]
+          centerLat += centroid.geometry.coordinates[1]
+          numCoords += 1
+        }
+      }
+
+      centerLong /= numCoords
+      centerLat /= numCoords
+
+      console.log('CENTER', centerLong, centerLat)
+      if (this.needsInitialMapExtent && !this.vizDetails.center) {
+        this.$store.commit('setMapCamera', {
+          longitude: centerLong,
+          latitude: centerLat,
+          center: [centerLong, centerLat],
+          bearing: 0,
+          pitch: 0,
+          zoom: 9,
+          initial: true,
+        })
+        this.needsInitialMapExtent = false
+      }
     },
 
     async generateCentroidsAndMapCenter() {
