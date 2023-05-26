@@ -1,5 +1,5 @@
 <template lang="pug">
-  .content
+.content
     .tiles-container(v-if="imagesAreLoaded")
       .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
@@ -10,22 +10,19 @@
 </template>
 
 <script lang="ts">
-import { nextTick, defineComponent } from 'vue'
+import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
 import readBlob from 'read-blob'
+
 import DashboardDataManager from '@/js/DashboardDataManager'
-import VuePlotly from '@/components/VuePlotly.vue'
 import { FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
-import { any } from 'micromatch'
-import { re } from 'mathjs'
 
 export default defineComponent({
   name: 'OverviewPanel',
-  components: { VuePlotly },
+  components: {},
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
