@@ -14,12 +14,12 @@ import { nextTick, defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import readBlob from 'read-blob'
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import DashboardDataManager from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
-import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
+import { FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
-import { findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
+import { arrayBufferToBase64 } from '@/js/util'
 
 export default defineComponent({
   name: 'OverviewPanel',
