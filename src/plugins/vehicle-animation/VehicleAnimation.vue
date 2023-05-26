@@ -110,6 +110,7 @@ import LegendColors from './LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import { arrayBufferToBase64 } from '@/js/util'
 
 import {
   ColorScheme,
@@ -385,7 +386,7 @@ const MyComponent = defineComponent({
             this.myState.subfolder + '/' + this.vizDetails.thumbnail
           )
           const buffer = await readBlob.arraybuffer(blob)
-          const base64 = this.arrayBufferToBase64(buffer)
+          const base64 = arrayBufferToBase64(buffer)
           if (base64)
             this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
         } catch (e) {
@@ -407,16 +408,6 @@ const MyComponent = defineComponent({
       // set -- or clear -- search box!
       if (this.searchTerm === vehId) this.searchTerm = ''
       else this.searchTerm = vehId
-    },
-
-    arrayBufferToBase64(buffer: any) {
-      var binary = ''
-      var bytes = new Uint8Array(buffer)
-      var len = bytes.byteLength
-      for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i])
-      }
-      return window.btoa(binary)
     },
 
     updateLegendColors() {
