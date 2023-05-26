@@ -20,6 +20,8 @@ import { FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
+import { any } from 'micromatch'
+import { re } from 'mathjs'
 
 export default defineComponent({
   name: 'OverviewPanel',
@@ -143,13 +145,15 @@ export default defineComponent({
             if (base64)
               this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
           } catch (e) {
-            this.$store.commit('setStatus', {
-              type: Status.WARNING,
-              msg: e.statusText,
-              desc: `The file ${value.values[1]} was not found in this path ${
-                this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
-              }.`,
-            })
+            if (e instanceof Response) {
+              this.$store.commit('setStatus', {
+                type: Status.WARNING,
+                msg: e.statusText,
+                desc: `The file ${value.values[1]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+                }.`,
+              })
+            }
           }
         }
         this.forceRerender()
