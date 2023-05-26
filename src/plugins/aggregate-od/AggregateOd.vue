@@ -23,15 +23,18 @@
       scale-box.complication(:rows="scaleRows")
 
   .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
-    .widget-column(v-if="this.headers.length > 2")
-      h4.heading {{ $t('time')}}
-      b-checkbox.checkbox(style="margin: 0 0 0 auto;" v-model="showTimeRange")
-          | &nbsp;{{ $t('duration') }}
-      time-slider.time-slider(
-        :useRange='showTimeRange'
-        :stops='headers'
-        @change='bounceTimeSlider')
 
+    //- TIME SLIDER ----
+    .widget-column(v-if="this.headers.length > 2" style="min-width: 8rem")
+      h4.heading {{ $t('time')}}
+      b-checkbox.checkbox(v-model="showTimeRange") {{ $t('duration') }}
+      time-slider.xtime-slider(
+        :useRange="showTimeRange"
+        :stops="headers"
+        :all="allTimeBinsLabel"
+        @change="bounceTimeSlider")
+
+    //- CENTROID CONTROLS
     .widget-column
       h4.heading {{ $t('circle')}}
       b-checkbox.checkbox(v-model="showCentroids")
@@ -39,6 +42,7 @@
       b-checkbox.checkbox(v-model="showCentroidLabels")
         | &nbsp;{{$t('showNumbers')}}
 
+    //- ORIG/DEST BUTTONS
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
       b-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
@@ -77,6 +81,7 @@ import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
+import VueSlider from 'vue-slider-component'
 import YAML from 'yaml'
 
 import { findMatchingGlobInFiles } from '@/js/util'
@@ -133,6 +138,7 @@ const Component = defineComponent({
     ScaleSlider,
     TimeSlider,
     ZoomButtons,
+    VueSlider,
   },
   props: {
     root: { type: String, required: true },
@@ -145,6 +151,7 @@ const Component = defineComponent({
     return {
       globalState: globalStore.state,
       isFinishedLoading: false,
+
       myState: {
         subfolder: '',
         yamlConfig: '',
@@ -182,7 +189,7 @@ const Component = defineComponent({
       },
 
       containerId: `c${Math.floor(1e12 * Math.random())}`,
-      mapId: '',
+      mapId: `map-c${Math.floor(1e12 * Math.random())}`,
 
       centroids: {} as any,
       centroidSource: {} as any,
@@ -219,6 +226,7 @@ const Component = defineComponent({
       scaleValues: SCALE_WIDTH,
       currentScale: SCALE_WIDTH[0],
       currentTimeBin: TOTAL_MSG,
+      allTimeBinsLabel: TOTAL_MSG,
 
       lineFilter: 0,
 
@@ -228,9 +236,9 @@ const Component = defineComponent({
       _mapExtentXYXY: null as any,
       _maximum: null as any,
 
-      bounceTimeSlider: {},
-      bounceScaleSlider: {},
-      bounceLineFilter: {},
+      bounceTimeSlider: {} as any,
+      bounceScaleSlider: {} as any,
+      bounceLineFilter: {} as any,
       resizer: null as ResizeObserver | null,
       isMapMoving: false,
       isDarkMode: false,
@@ -704,11 +712,12 @@ const Component = defineComponent({
       const props = e.features[0].properties
       // console.log(props)
 
-      const trips = props.daily * this.scaleFactor
+      const trips = Math.round(10000 * props.daily * this.scaleFactor) / 10000
       let revTrips = 0
       const reverseDir = '' + props.dest + ':' + props.orig
 
-      if (this.linkData[reverseDir]) revTrips = this.linkData[reverseDir].daily * this.scaleFactor
+      if (this.linkData[reverseDir])
+        revTrips = Math.round(10000 * this.linkData[reverseDir].daily * this.scaleFactor) / 10000
 
       const totalTrips = trips + revTrips
 
@@ -748,8 +757,8 @@ const Component = defineComponent({
 
         const values = this.calculateCentroidValuesForZone(timePeriod, feature)
 
-        centroid.properties.dailyFrom = values.from * this.scaleFactor
-        centroid.properties.dailyTo = values.to * this.scaleFactor
+        centroid.properties.dailyFrom = Math.round(10000 * values.from * this.scaleFactor) / 10000
+        centroid.properties.dailyTo = Math.round(10000 * values.to * this.scaleFactor) / 10000
 
         let digits = Math.log10(centroid.properties.dailyFrom)
         centroid.properties.widthFrom = 6 + digits * 3.5
@@ -1245,7 +1254,7 @@ const Component = defineComponent({
     },
   },
   watch: {
-    '$store.state.viewState'(value: any) {
+    'globalState.viewState'(value: any) {
       if (this.mapIsIndependent) return
       if (!this.mymap || this.isMapMoving || this.thumbnail) {
         this.isMapMoving = false
@@ -1253,20 +1262,23 @@ const Component = defineComponent({
       }
 
       const { bearing, longitude, latitude, zoom, pitch } = value
-
       // sometimes closing a view returns a null map, ignore it!
       if (!zoom) return
 
-      this.mymap.off('move', this.handleMapMotion)
+      try {
+        this.mymap.off('move', this.handleMapMotion)
 
-      this.mymap.jumpTo({
-        bearing,
-        zoom,
-        center: [longitude, latitude],
-        pitch,
-      })
-
-      this.mymap.on('move', this.handleMapMotion)
+        this.mymap.jumpTo({
+          bearing,
+          zoom,
+          center: [longitude, latitude],
+          pitch,
+        })
+        // back on again
+        this.mymap.on('move', this.handleMapMotion)
+      } catch (e) {
+        // oh well
+      }
     },
 
     '$store.state.colorScheme'() {
@@ -1288,7 +1300,7 @@ const Component = defineComponent({
     },
 
     showTimeRange() {
-      console.log(this.showTimeRange)
+      // console.log(this.showTimeRange)
     },
 
     showCentroids() {
@@ -1306,16 +1318,18 @@ const Component = defineComponent({
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-    ;(this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)),
-      (this.bounceScaleSlider = debounce(this.changedScale, 50)),
-      (this.bounceLineFilter = debounce(this.changedLineFilter, 250)),
-      (this.mapId = 'map-' + this.containerId)
+
+    this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)
+    this.bounceScaleSlider = debounce(this.changedScale, 50)
+    this.bounceLineFilter = debounce(this.changedLineFilter, 250)
 
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
 
     await this.getVizDetails()
+
+    if (this.thumbnail) return
 
     this.setupMap()
     this.configureSettings()
@@ -1456,10 +1470,6 @@ h4 {
   margin: 1px 0px;
 }
 
-// .time-slider {
-//   // width: 12rem;
-// }
-
 .heading {
   font-weight: bold;
   text-align: left;
@@ -1526,6 +1536,10 @@ h4 {
 
 .checkbox:hover {
   color: var(--textFancy);
+}
+
+.xtime-slider {
+  margin-top: -0.25rem;
 }
 
 @media only screen and (max-width: 640px) {
