@@ -18,7 +18,7 @@
         :initialValue="lineFilter"
         @change='bounceLineFilter')
 
-    .lower-right(v-if="!thumbnail && !isMobile()")
+    .lower-right(v-if="!thumbnail && !isMobile")
       legend-box.complication(:rows="legendRows")
       scale-box.complication(:rows="scaleRows")
 
@@ -262,6 +262,17 @@ const Component = defineComponent({
       return new HTTPFileSystem(this.fileSystem, globalStore)
     },
 
+    isMobile() {
+      const w = window
+      const d = document
+      const e = d.documentElement
+      const g = d.getElementsByTagName('body')[0]
+      const x = w.innerWidth || e.clientWidth || g.clientWidth
+      const y = w.innerHeight || e.clientHeight || g.clientHeight
+
+      return x < 640
+    },
+
     legendRows(): any[] {
       return ['#00aa66', '#880033', '↓', '↑']
     },
@@ -430,7 +441,7 @@ const Component = defineComponent({
         if (extent) {
           const lnglat = JSON.parse(extent)
 
-          const mFac = this.isMobile() ? 0 : 1
+          const mFac = this.isMobile ? 0 : 1
           const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
 
           this.$store.commit('setMapCamera', {
@@ -471,13 +482,15 @@ const Component = defineComponent({
 
     handleEmptyClick(e: any) {
       if (
-        this.mymap.queryRenderedFeatures(e.point).filter(feature => feature.source === 'centroids')
+        this.mymap
+          .queryRenderedFeatures(e.point)
+          .filter(feature => feature.source === 'centroids' || feature.source === 'spider-source')
           .length === 0
       ) {
         // didn't click on a centroid: clear the map
         this.fadeUnselectedLinks(-1)
         this.selectedCentroid = 0
-        if (this.isMobile()) {
+        if (this.isMobile) {
         } // do something
       }
     },
@@ -488,22 +501,10 @@ const Component = defineComponent({
       if (files) {
         this.geojson = await this.processShapefile(files)
         // this is async, setup will continue at finishedLoading() when data is loaded
-        this.loadCSVData()
+        if (this.geojson) this.loadCSVData()
       }
 
-      this.loadingText = ''
       nprogress.done()
-    },
-
-    isMobile() {
-      const w = window
-      const d = document
-      const e = d.documentElement
-      const g = d.getElementsByTagName('body')[0]
-      const x = w.innerWidth || e.clientWidth || g.clientWidth
-      const y = w.innerHeight || e.clientHeight || g.clientHeight
-
-      return x < 640
     },
 
     createSpiderLinks() {
@@ -938,8 +939,15 @@ const Component = defineComponent({
       this.loadingText = 'Koordinaten berechnen...'
 
       for (const feature of geojson.features) {
+        const properties = feature.properties as any
+
         // 'id' column used for lookup, unless idColumn is set in YAML
-        if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
+        if (!this.idColumn && properties) this.idColumn = Object.keys(properties)[0]
+
+        if (!(this.idColumn in properties)) {
+          this.$store.commit('error', `Shapefile does not contain ID column "${this.idColumn}"`)
+          return
+        }
 
         // Save id somewhere helpful
         if (feature.properties) feature.id = feature.properties[this.idColumn]
@@ -1040,7 +1048,7 @@ const Component = defineComponent({
     },
 
     async loadCSVData() {
-      this.loadingText = 'Uhrzeitdaten entwicklen...'
+      this.loadingText = 'Load CSV data...'
 
       let csvFilename = ''
       try {
@@ -1056,7 +1064,7 @@ const Component = defineComponent({
       }
 
       this.csvWorker = new CSVWorker()
-      this.csvWorker.onmessage = async (event: MessageEvent) => {
+      this.csvWorker.onmessage = (event: MessageEvent) => {
         const message = event.data
         if (message.status) {
           this.loadingText = message.status
@@ -1078,7 +1086,10 @@ const Component = defineComponent({
     },
 
     async finishedLoadingData(message: any) {
+      console.log(222, 'done') // message)
+      this.loadingText = 'Building diagram...'
       this.isFinishedLoading = true
+      await this.$nextTick()
       this.rowName = message.rowName
       this.colName = message.colName
       this.headers = message.headers
@@ -1093,6 +1104,7 @@ const Component = defineComponent({
       this.setMapExtent()
       this.buildSpiderLinks()
       this.setupKeyListeners()
+      this.loadingText = ''
     },
 
     updateMapExtent(coordinates: any) {

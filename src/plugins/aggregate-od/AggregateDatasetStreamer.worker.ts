@@ -81,7 +81,7 @@ function createMatrixFromRowData(data: any[]) {
     // calculate daily/total values
     const daily = values.reduce((a: number, b: number) => (Number.isFinite(b) ? a + b : a), 0)
 
-    if (!_dailyZoneData[i]) _dailyZoneData[i] = {}
+    if (!_dailyZoneData[i]) _dailyZoneData[i] = []
     _dailyZoneData[i][j] = daily
 
     // save total on the links too
