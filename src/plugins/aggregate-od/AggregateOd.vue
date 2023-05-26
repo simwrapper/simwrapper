@@ -144,8 +144,6 @@ const Component = defineComponent({
     return {
       globalState: globalStore.state,
       myState: {
-        fileApi: undefined as HTTPFileSystem | undefined,
-        fileSystem: undefined as FileSystemConfig | undefined,
         subfolder: '',
         yamlConfig: '',
         thumbnail: false,
@@ -237,6 +235,21 @@ const Component = defineComponent({
     }
   },
   computed: {
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
+
+    fileApi() {
+      return new HTTPFileSystem(this.fileSystem, globalStore)
+    },
+
     legendRows(): any[] {
       return ['#00aa66', '#880033', '↓', '↑']
     },
@@ -251,12 +264,6 @@ const Component = defineComponent({
     },
   },
   methods: {
-    buildFileApi() {
-      const filesystem = this.getFileSystem(this.root)
-      this.myState.fileApi = new HTTPFileSystem(filesystem, globalStore)
-      this.myState.fileSystem = filesystem
-    },
-
     setupResizer() {
       this.resizer = new ResizeObserver(() => {
         if (this.mymap) this.mymap.resize()
@@ -284,20 +291,7 @@ const Component = defineComponent({
       if (!this.isMapMoving) this.isMapMoving = true
     },
 
-    getFileSystem(name: string) {
-      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-        (a: FileSystemConfig) => a.slug === name
-      )
-      if (svnProject.length === 0) {
-        console.log('no such project')
-        throw Error
-      }
-      return svnProject[0]
-    },
-
     async getVizDetails() {
-      if (!this.myState.fileApi) return
-
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as any
@@ -309,16 +303,12 @@ const Component = defineComponent({
               ? this.myState.yamlConfig
               : this.myState.subfolder + '/' + this.myState.yamlConfig
 
-          const text = await this.myState.fileApi.getFileText(filename)
+          const text = await this.fileApi.getFileText(filename)
           this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
           this.validateYAML()
           this.setVizDetails()
-        } catch (err) {
-          const e = err as any
-          // maybe it failed because password?
-          if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-            globalStore.commit('requestLogin', this.myState.fileSystem.slug)
-          }
+        } catch (e) {
+          console.error('' + e)
         }
       }
 
@@ -364,14 +354,12 @@ const Component = defineComponent({
     },
 
     async findFilenameFromWildcard(path: string) {
-      if (!this.myState.fileApi) return ''
-
       // get folder
       let folder =
         path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
 
       // get file path search pattern
-      const { files } = await this.myState.fileApi.getDirectory(folder)
+      const { files } = await this.fileApi.getDirectory(folder)
       let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
       const match = findMatchingGlobInFiles(files, pattern)
 
@@ -383,8 +371,6 @@ const Component = defineComponent({
     },
 
     async loadFiles() {
-      if (!this.myState.fileApi) return
-
       try {
         this.loadingText = 'Dateien laden...'
 
@@ -398,12 +384,12 @@ const Component = defineComponent({
           `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
         )
 
-        const odFlows = await this.myState.fileApi.getFileText(csvFilename)
+        const odFlows = await this.fileApi.getFileText(csvFilename)
 
-        const blob = await this.myState.fileApi.getFileBlob(shpFilename)
+        const blob = await this.fileApi.getFileBlob(shpFilename)
         const shpFile = await readBlob.arraybuffer(blob)
 
-        const blob2 = await this.myState.fileApi.getFileBlob(dbfFilename)
+        const blob2 = await this.fileApi.getFileBlob(dbfFilename)
         const dbfFile = await readBlob.arraybuffer(blob2)
 
         return { shpFile, dbfFile, odFlows }
@@ -1330,7 +1316,6 @@ const Component = defineComponent({
     this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
 
-    this.buildFileApi()
     await this.getVizDetails()
 
     this.setupMap()
