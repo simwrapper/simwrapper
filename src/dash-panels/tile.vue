@@ -4,9 +4,9 @@
       .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value.name }}
         p.tile-value {{ value.values[0] }}
-        .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+        .tile-image(v-if="value.values[1] != undefined && checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value.values[1] != undefined && checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value.values[1] != undefined" :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
@@ -19,6 +19,7 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
+import { findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 
 export default defineComponent({
   name: 'OverviewPanel',
@@ -39,33 +40,6 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
-      layout: {
-        height: 300,
-        margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
-        font: {
-          color: '#444444',
-          family: UI_FONT,
-        },
-        xaxis: {
-          automargin: true,
-          autorange: true,
-          title: { text: '', standoff: 12 },
-          animate: true,
-        },
-        yaxis: {
-          automargin: true,
-          autorange: true,
-          title: { text: '', standoff: 16 },
-          animate: true,
-        },
-        legend: {
-          // yanchor: 'top',
-          // xanchor: 'center',
-          orientation: 'v',
-          x: 1,
-          y: 1,
-        },
-      },
       colors: [
         '#F08080', // Light coral pink
         '#FFB6C1', // Pale pink
@@ -165,11 +139,17 @@ export default defineComponent({
               this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
             )
             const buffer = await readBlob.arraybuffer(blob)
-            const base64 = this.arrayBufferToBase64(buffer)
+            const base64 = arrayBufferToBase64(buffer)
             if (base64)
               this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
           } catch (e) {
-            console.error(e)
+            this.$store.commit('setStatus', {
+              type: Status.WARNING,
+              msg: e.statusText,
+              desc: `The file ${value.values[1]} was not found in this path ${
+                this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+              }.`,
+            })
           }
         }
         this.forceRerender()
@@ -177,36 +157,13 @@ export default defineComponent({
 
       this.imagesAreLoaded = true
     },
-    arrayBufferToBase64(buffer: any) {
-      var binary = ''
-      var bytes = new Uint8Array(buffer)
-      var len = bytes.byteLength
-      for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i])
-      }
-      return window.btoa(binary)
-    },
 
     async loadData() {
       try {
         this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config)
-        // console.log(dataset)
 
-        // no filter? we are done
-        if (!this.config.filters) return dataset
-
-        for (const [column, value] of Object.entries(this.config.filters)) {
-          const filter: FilterDefinition = {
-            dataset: this.config.dataset,
-            column: column,
-            value: value,
-            range: Array.isArray(value),
-          }
-          this.datamanager.setFilter(filter)
-        }
-        // empty for now; filtered data will come back later via handleFilterChanged async.
-        return { allRows: {} }
+        return dataset
       } catch (e) {
         console.error('' + e)
       }
@@ -228,7 +185,7 @@ export default defineComponent({
     validateDataSet() {
       for (const [key, value] of Object.entries(this.dataSet.allRows)) {
         const valueTemp = value as any
-        if (valueTemp.values.length > 1) {
+        if (valueTemp.values.length > 2) {
           this.$store.commit('setStatus', {
             type: Status.WARNING,
             msg: `The Dataset for the overview panel should have only two rows`,
@@ -245,6 +202,7 @@ export default defineComponent({
     },
 
     checkIfItIsACustomIcon(name: string) {
+      if (name == undefined) return
       if (
         name.includes('.png') ||
         name.includes('.jpg') ||
