@@ -1,23 +1,28 @@
 <template lang="pug">
-    .content
-        .elements(v-for="(value, name, index) in this.dataSet.allRows")
-            p.text {{ value.name }}
-            hr.line
-            p.text {{ value.values[0] }}
+.content
+    .tiles-container(v-if="imagesAreLoaded")
+      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+        p.tile-title {{ value.name }}
+        p.tile-value {{ value.values[0] }}
+        .tile-image(v-if="value.values[1] != undefined && checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value.values[1] != undefined && checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value.values[1] != undefined" :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import readBlob from 'read-blob'
 
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
-import VuePlotly from '@/components/VuePlotly.vue'
-import { FileSystemConfig, Status, UI_FONT } from '@/Globals'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import { FileSystemConfig, Status } from '@/Globals'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
+import { arrayBufferToBase64 } from '@/js/util'
 
 export default defineComponent({
   name: 'OverviewPanel',
-  components: { VuePlotly },
+  components: {},
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
@@ -30,64 +35,136 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      id: ('overview-' + Math.floor(1e12 * Math.random())) as any,
+      id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
-      layout: {
-        height: 300,
-        margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
-        font: {
-          color: '#444444',
-          family: UI_FONT,
-        },
-        xaxis: {
-          automargin: true,
-          autorange: true,
-          title: { text: '', standoff: 12 },
-          animate: true,
-        },
-        yaxis: {
-          automargin: true,
-          autorange: true,
-          title: { text: '', standoff: 16 },
-          animate: true,
-        },
-        legend: {
-          // yanchor: 'top',
-          // xanchor: 'center',
-          orientation: 'v',
-          x: 1,
-          y: 1,
-        },
-      },
+      colors: [
+        '#F08080', // Light coral pink
+        '#FFB6C1', // Pale pink
+        '#FFDAB9', // peach
+        '#FFECB3', // cream yellow
+        '#B0E0E6', // light blue
+        '#98FB98', // light green
+        '#FFD700', // golden yellow
+        '#FFA07A', // salmon pink
+        '#E0FFFF', // light turquoise
+        '#FFDAB9', // pink
+        '#FFC0CB', // pink
+        '#FFA500', // orange
+        '#FF8C00', // dark orange
+        '#FF7F50', // coral red
+        '#FFE4B5', // papaya
+        '#ADD8E6', // light blue
+        '#90EE90', // light green
+        '#FFD700', // golden yellow
+        '#FFC0CB', // pink
+        '#FFA500', // Orange
+      ],
+      colorsD3: [
+        '#1F77B4',
+        '#FF7F0E',
+        '#2CA02C',
+        '#D62728',
+        '#9467BD',
+        '#8C564B',
+        '#E377C2',
+        '#7F7F7F',
+        '#BCBD22',
+        '#17BECF',
+      ],
+
+      localTileIcons: [
+        'departure_board',
+        'directions_car',
+        'emoji_transportation',
+        'local_taxi',
+        'subway',
+        'directions_bike',
+        'directions_subway',
+        'ev_station',
+        'local_gas_station',
+        'motorcycle',
+        'train',
+        'directions_boat',
+        'electric_car',
+        'group',
+        'local_parking',
+        'person',
+        'transportation',
+        'directions_bus',
+        'electric_rickshaw',
+        'groups',
+        'local_shipping',
+        'route',
+        'two_wheeler',
+      ],
+      testImage: '',
+      base64Images: [] as any[],
+      imagesAreLoaded: false,
     }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystemConfig, globalStore)
+    },
   },
   async mounted() {
     this.dataSet = await this.loadData()
     this.validateDataSet()
+    await this.loadImages()
     this.$emit('isLoaded')
+
+    console.log(this.base64Images)
   },
   methods: {
+    forceRerender() {
+      // Removing my-component from the DOM
+      this.imagesAreLoaded = false
+
+      this.$nextTick(() => {
+        // Adding the component back in
+        this.imagesAreLoaded = true
+      })
+    },
+    async loadImages() {
+      this.imagesAreLoaded = false
+
+      Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
+        const value = kv[1] as any
+        if (this.checkIfItIsACustomIcon(value.values[1])) {
+          try {
+            const blob = await this.fileApi.getFileBlob(
+              this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+            )
+            const buffer = await readBlob.arraybuffer(blob)
+            const base64 = arrayBufferToBase64(buffer)
+            if (base64)
+              this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
+          } catch (e) {
+            if (e instanceof Response) {
+              this.$store.commit('setStatus', {
+                type: Status.WARNING,
+                msg: e.statusText,
+                desc: `The file ${value.values[1]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+                }.`,
+              })
+            }
+          }
+        }
+        this.forceRerender()
+      })
+
+      this.imagesAreLoaded = true
+    },
+
     async loadData() {
       try {
         this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config)
 
-        // no filter? we are done
-        if (!this.config.filters) return dataset
-
-        for (const [column, value] of Object.entries(this.config.filters)) {
-          const filter: FilterDefinition = {
-            dataset: this.config.dataset,
-            column: column,
-            value: value,
-            range: Array.isArray(value),
-          }
-          this.datamanager.setFilter(filter)
-        }
-        // empty for now; filtered data will come back later via handleFilterChanged async.
-        return { allRows: {} }
+        return dataset
       } catch (e) {
         console.error('' + e)
       }
@@ -109,15 +186,34 @@ export default defineComponent({
     validateDataSet() {
       for (const [key, value] of Object.entries(this.dataSet.allRows)) {
         const valueTemp = value as any
-        if (valueTemp.values.length > 1) {
+        if (valueTemp.values.length > 2) {
           this.$store.commit('setStatus', {
             type: Status.WARNING,
-            msg: `The Dataset for the overview panel shoul have only two rows`,
+            msg: `The Dataset for the overview panel should have only two rows`,
             desc: `Check out the ${key}-column in the ${this.config.dataset} file.`,
           })
           break
         }
       }
+    },
+
+    checkIfIconIsInAssetsFolder(name: string) {
+      // console.log(name.trim(), this.localTileIcons.includes(name.trim()))
+      return this.localTileIcons.includes(name.trim())
+    },
+
+    checkIfItIsACustomIcon(name: string) {
+      if (name == undefined) return
+      if (
+        name.includes('.png') ||
+        name.includes('.jpg') ||
+        name.includes('.svg') ||
+        name.includes('.jpeg')
+      ) {
+        // console.log(this.fileSystemConfig.slug + '/' + this.subfolder + '/' + this.config.dataset)
+        return true
+      }
+      return false
     },
   },
 })
@@ -149,6 +245,55 @@ export default defineComponent({
 
 .text {
   margin-bottom: 0 !important;
+}
+
+.tiles-container {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.tile {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  background-color: #845ec2;
+  margin: 10px;
+  padding: 20px;
+  min-width: 250px;
+  font-family: $fancyFont;
+}
+
+.tile .tile-value {
+  font-size: 2rem;
+  font-weight: bold;
+  width: 100%;
+  color: #363636; // var(--text) but always the color from the light mode.
+  grid-column-start: 2;
+  grid-column-end: 4;
+  text-align: center;
+  grid-row: 2;
+}
+
+.tile .tile-title {
+  width: 100%;
+  font-size: 1.4rem;
+  height: 5rem;
+  margin-bottom: 0;
+  color: #363636; // var(--text) but always the color from the light mode.
+  text-align: center;
+  grid-column-start: 1;
+  grid-column-end: 5;
+  grid-row: 1;
+}
+
+.tile .tile-image {
+  height: 4rem;
+  grid-row: 2;
+  align-items: baseline;
 }
 
 @media only screen and (max-width: 640px) {
