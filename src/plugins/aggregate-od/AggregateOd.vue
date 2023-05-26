@@ -75,7 +75,6 @@ import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
-import Papa from '@simwrapper/papaparse'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
@@ -92,6 +91,8 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+
+import CSVWorker from './AggregateDatasetStreamer.worker.ts?worker'
 
 import globalStore from '@/store'
 
@@ -143,6 +144,7 @@ const Component = defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
+      isFinishedLoading: false,
       myState: {
         subfolder: '',
         yamlConfig: '',
@@ -232,6 +234,8 @@ const Component = defineComponent({
       resizer: null as ResizeObserver | null,
       isMapMoving: false,
       isDarkMode: false,
+
+      csvWorker: null as Worker | null,
     }
   },
   computed: {
@@ -272,12 +276,14 @@ const Component = defineComponent({
       const viz = document.getElementById(this.containerId) as HTMLElement
       this.resizer.observe(viz)
     },
+
     configureSettings() {
       if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
         this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
       }
       if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
     },
+
     handleMapMotion() {
       const mapCamera = {
         longitude: this.mymap.getCenter().lng,
@@ -328,10 +334,8 @@ const Component = defineComponent({
       let configuration = {} as any
 
       if (hasYaml) {
-        console.log('agg-od has yaml')
         configuration = this.standaloneYAMLconfig
       } else {
-        console.log('agg-od no yaml')
         configuration = this.config
       }
 
@@ -374,9 +378,6 @@ const Component = defineComponent({
       try {
         this.loadingText = 'Dateien laden...'
 
-        const csvFilename = await this.findFilenameFromWildcard(
-          `${this.myState.subfolder}/${this.vizDetails.csvFile}`
-        )
         const shpFilename = await this.findFilenameFromWildcard(
           `${this.myState.subfolder}/${this.vizDetails.shpFile}`
         )
@@ -384,15 +385,13 @@ const Component = defineComponent({
           `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
         )
 
-        const odFlows = await this.fileApi.getFileText(csvFilename)
-
         const blob = await this.fileApi.getFileBlob(shpFilename)
         const shpFile = await readBlob.arraybuffer(blob)
 
         const blob2 = await this.fileApi.getFileBlob(dbfFilename)
         const dbfFile = await readBlob.arraybuffer(blob2)
 
-        return { shpFile, dbfFile, odFlows }
+        return { shpFile, dbfFile }
         //
       } catch (e) {
         const error = e as any
@@ -477,16 +476,11 @@ const Component = defineComponent({
 
     async mapIsReady() {
       const files = await this.loadFiles()
+
       if (files) {
         this.geojson = await this.processShapefile(files)
-        await this.processHourlyData(files.odFlows)
-        this.marginals = await this.getDailyDataSummary()
-        this.buildCentroids(this.geojson)
-        this.convertRegionColors(this.geojson)
-        this.addGeojsonToMap(this.geojson)
-        this.setMapExtent()
-        this.buildSpiderLinks()
-        this.setupKeyListeners()
+        // this is async, setup will continue at finishedLoading() when data is loaded
+        this.loadCSVData()
       }
 
       this.loadingText = ''
@@ -1036,57 +1030,60 @@ const Component = defineComponent({
       return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
     },
 
-    async processHourlyData(csvData: string) {
+    async loadCSVData() {
       this.loadingText = 'Uhrzeitdaten entwicklen...'
 
-      const csv = Papa.parse(csvData, {
-        comments: '#',
-        delimitersToGuess: [';', '\t', ','],
-        dynamicTyping: true,
-        header: true,
-        skipEmptyLines: true,
-      })
-
-      this.headers = csv.meta.fields
-
-      this.rowName = this.headers[0]
-      this.colName = this.headers[1]
-      this.headers = this.headers.slice(2)
-
-      if (!this.rowName || !this.colName) {
-        this.$store.commit('setStatus', {
-          type: Status.WARNING,
-          msg: 'CSV data might be wrong format',
-          desc: 'First column has no name. Data MUST be orig,dest,values...',
-        })
+      let csvFilename = ''
+      try {
+        csvFilename = await this.findFilenameFromWildcard(
+          `${this.myState.subfolder}/${this.vizDetails.csvFile}`
+        )
+      } catch (e) {
+        this.$store.commit(
+          'error',
+          `Error loading ${this.myState.subfolder}/${this.vizDetails.csvFile}`
+        )
+        return
       }
-      // console.log({ headers: this.headers })
 
-      // loop over each row to build matrix of data
-      for (const row of csv.data) {
-        const values = this.headers.map(column => parseFloat(row[column]))
-
-        // build zone matrix
-        const i = row[this.rowName]
-        const j = row[this.colName]
-
-        if (!this.zoneData[i]) this.zoneData[i] = {}
-        this.zoneData[i][j] = values
-
-        // calculate daily/total values
-        const daily = values.reduce((a: number, b: number) => (Number.isFinite(b) ? a + b : a), 0)
-
-        if (!this.dailyData[i]) this.dailyData[i] = {}
-        this.dailyData[i][j] = daily
-
-        // save total on the links too
-        if (daily !== 0) {
-          const rowName = `${i}:${j}`
-          this.linkData[rowName] = { orig: i, dest: j, daily, values }
+      this.csvWorker = new CSVWorker()
+      this.csvWorker.onmessage = async (event: MessageEvent) => {
+        const message = event.data
+        if (message.status) {
+          this.loadingText = message.status
+        } else if (message.error) {
+          this.csvWorker?.terminate()
+          this.loadingText = message.error
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `Aggr.OD: Error loading "${this.myState.subfolder}/${this.vizDetails.csvFile}"`,
+            desc: `Check the path and filename`,
+          })
+        } else if (message.finished) {
+          this.csvWorker?.terminate()
+          this.finishedLoadingData(message)
         }
       }
 
-      // console.log(111, { DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
+      this.csvWorker.postMessage({ fileSystem: this.fileSystem, filePath: csvFilename })
+    },
+
+    async finishedLoadingData(message: any) {
+      this.isFinishedLoading = true
+      this.rowName = message.rowName
+      this.colName = message.colName
+      this.headers = message.headers
+      this.dailyData = message.dailyZoneData
+      this.zoneData = message.zoneData
+      this.linkData = message.dailyLinkData
+
+      this.marginals = await this.getDailyDataSummary()
+      this.buildCentroids(this.geojson)
+      this.convertRegionColors(this.geojson)
+      this.addGeojsonToMap(this.geojson)
+      this.setMapExtent()
+      this.buildSpiderLinks()
+      this.setupKeyListeners()
     },
 
     updateMapExtent(coordinates: any) {
@@ -1233,6 +1230,8 @@ const Component = defineComponent({
     },
 
     changedScale(value: any) {
+      if (!this.isFinishedLoading) return
+
       // console.log({ slider: value, timebin: this.currentTimeBin })
       this.currentScale = value
       this.changedTimeSlider(this.currentTimeBin)
@@ -1321,6 +1320,10 @@ const Component = defineComponent({
     this.setupMap()
     this.configureSettings()
     this.setupResizer()
+  },
+
+  beforeDestroy() {
+    if (this.csvWorker) this.csvWorker.terminate()
   },
 
   destroyed() {
