@@ -3,8 +3,11 @@ id: tiles
 title: Tiles
 ---
 
-![table viewer example](assets/tiles.png)
+![tiles example](assets/tiles_light_mode.png)
 _Tiles_
+
+<!-- ![table viewer example](assets/tiles_dark_mode.png)
+_Tiles (dark mode)_ -->
 
 The Tiles plug in displays key data for a good overview.
 
@@ -24,9 +27,67 @@ The tiles plug-in can only be included as panels in **Dashboards**. See Dashboar
 layout:
   row1:
     - type: 'tiles'
-      title: Example Title
+      title: Tiles Plug-in Example
       dataset: 'data.csv'
 ```
+
+---
+
+### CSV Structure
+
+The following .csv structure belongs to the sample image above. The first line contains the titles, the second line the values and the third line the names or paths of the icons. The values and the icons are not required.
+
+<table>
+<tbody>
+<tr>
+<td>custom Image</td>
+<td>custom Image (parent folder)</td>
+<td>image from assets Folder (Material UI)</td>
+<td>Fontawesome Icon 1</td>
+<td>Fontawesome Icon 2</td>
+</tr>
+<tr>
+<td>1234</td>
+<td>text</td>
+<td>3517</td>
+<td>75135</td>
+<td>transport</td>
+</tr>
+<tr>
+<td>vsp_logo.png</td>
+<td>../warning.png</td>
+<td>emoji_transportation</td>
+<td>virus-covid</td>
+<td>chart-simple</td>
+</tr>
+</tbody>
+</table>
+
+---
+
+### Add icons to the tile
+
+There are three ways to add icons. When adding images, these three options are also checked in this order:
+
+1. **Custom Images:** To add your own images, the file must be in the same directory and the relative path (including extension) must be specified in the .csv file.
+
+2. **Predefined Icons:** See [Predefined Icons](###predefined-icons). For adding only the name (without extension) must be specified.
+
+3. **Font Awesome Free Icons:** For adding these icons only the name must be specified. An overview of the available icons can be found [here](https://fontawesome.com/search?o=r&m=free&s=solid). Only the icons from the Solid series will work.
+
+---
+
+### Predefined Icons
+
+|                    Name                    |      Icon     |
+|:--------------------------------------------:|:---------------|
+|![departure_board](assets/departure_board.svg)|departure_board| 
+|![departure_board](assets/electric_car.svg)|electric_car| 
+|![departure_board](assets/route.svg)|route| 
+|![departure_board](assets/local_gas_station.svg)|local_gas_station| 
+|And many more...|And many more...|
+
+For a complete overview, you can check [here](https://github.com/simwrapper/simwrapper/tree/overview-panel/src/assets/tile-icons). You can also add more icons and save them in this folder. Please use this [link](https://fonts.google.com/icons) and select these options for a consistent design: Grade: 0; Fill: true; Weight: 400; Optical Size: 48px.
 
 ---
 
