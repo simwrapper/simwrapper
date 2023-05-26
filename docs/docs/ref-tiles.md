@@ -67,9 +67,9 @@ The following .csv structure belongs to the sample image above. The first line c
 
 ### Add icons to the tile
 
-There are three ways to add icons. When adding images, these three options are also checked in this order:
+There are three ways to add icons. When adding icons, these three options are also checked in this order:
 
-1. **Custom Images:** To add your own images, the file must be in the same directory and the relative path (including extension) must be specified in the .csv file.
+1. **Custom Icons:** To add your own icons, the file must be in the same directory and the relative path (including extension) must be specified in the .csv file.
 
 2. **Predefined Icons:** See [Predefined Icons](###predefined-icons). For adding only the name (without extension) must be specified.
 
