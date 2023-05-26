@@ -6,7 +6,7 @@
         p.tile-value {{ value.values[0] }}
         .tile-image(v-if="checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
         img.tile-image(v-else-if="checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
