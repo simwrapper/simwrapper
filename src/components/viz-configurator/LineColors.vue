@@ -127,6 +127,7 @@ const ALL_COLOR_RAMPS = [
   { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
   { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
   { ramp: 'RdBu', style: Style.diverging, reverse: true },
+  { ramp: 'RdYlBu', style: Style.sequential },  // Not sequential, but otherwise the middle color is replaced
   { ramp: 'PRGn', style: Style.diverging, reverse: true },
   { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
   { ramp: 'Paired', style: Style.categorical }, // , reverse: true },

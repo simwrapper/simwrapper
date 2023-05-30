@@ -159,6 +159,18 @@ const MyComponent = defineComponent({
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
       // merge user-supplied layout with SimWrapper layout defaults
       if (this.vizDetails.layout) this.mergeLayouts()
+
+      if (this.vizDetails.fixedRatio) {
+        this.vizDetails.layout.xaxis = Object.assign(this.vizDetails.layout.xaxis, {
+          constrain: "domain",
+        })
+
+        this.vizDetails.layout.yaxis = Object.assign(this.vizDetails.layout.yaxis, {
+          constrain: "domain",
+          scaleanchor: 'x',
+          scaleration: 1,
+        })
+      }
     } catch (err) {
       const e = err as any
       console.error({ e })
