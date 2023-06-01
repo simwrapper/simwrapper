@@ -162,14 +162,18 @@ const MyComponent = defineComponent({
 
       if (this.vizDetails.fixedRatio) {
         this.vizDetails.layout.xaxis = Object.assign(this.vizDetails.layout.xaxis, {
-          constrain: "domain",
+          constrain: 'domain',
         })
 
         this.vizDetails.layout.yaxis = Object.assign(this.vizDetails.layout.yaxis, {
-          constrain: "domain",
+          constrain: 'domain',
           scaleanchor: 'x',
           scaleration: 1,
         })
+      }
+
+      if (this.vizDetails.dropdownMenu) {
+        this.createMenus()
       }
     } catch (err) {
       const e = err as any
@@ -230,6 +234,62 @@ const MyComponent = defineComponent({
       }
 
       this.layout = mergedLayout
+    },
+
+    createMenus() {
+      const buttons: any[] = []
+
+      // index of traces for each group
+      const groups: { [key: string]: number[] } = {}
+
+      const n = Object.values(this.traces).length
+
+      Object.values(this.traces).forEach((tr, idx) => {
+        // restore the indended legend label
+        if ('original_name' in tr) {
+          tr.name = tr.original_name
+        }
+
+        if (!(tr.group_name in groups)) groups[tr.group_name] = []
+
+        groups[tr.group_name].push(idx)
+
+        tr.visible = false
+      })
+
+      Object.entries(groups).forEach(kv => {
+        const [group, ids] = kv
+
+        const arr = new Array(n)
+        arr.fill(false)
+
+        for (const idx of ids as any[]) {
+          arr[idx] = true
+        }
+
+        buttons.push({
+          method: 'update',
+          args: [{ visible: arr }],
+          label: group,
+        })
+      })
+
+      const updatemenus = [
+        {
+          buttons: buttons,
+          y: 1,
+          yanchor: 'top',
+        },
+      ]
+
+      const first = Object.values(groups)[0]
+
+      for (const idx of first) {
+        this.traces[idx].visible = true
+      }
+
+      const layout: any = this.layout
+      layout.updatemenus = updatemenus
     },
 
     updateTheme() {
@@ -313,6 +373,7 @@ const MyComponent = defineComponent({
               const copy = JSON.parse(JSON.stringify(tr))
 
               copy.name = group
+              copy.group_name = group
               this.recursiveCheckForTemplate(groups[group], copy, name)
 
               if (c) {
