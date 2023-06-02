@@ -1,18 +1,19 @@
 <template lang="pug">
 .content
-    .tiles-container(v-if="imagesAreLoaded")
-      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
-        p.tile-title {{ value.name }}
-        p.tile-value {{ value.values[0] }}
-        .tile-image(v-if="value.values[1] != undefined && checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="value.values[1] != undefined && checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else-if="value.values[1] != undefined" :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+    .tiles-container(v-if="imagesAreLoaded || true")
+      .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+        p.tile-title {{ value[0] }}
+        p.tile-value {{ value[1] }}
+        .tile-image(v-if="value[2] != undefined && checkIfItIsACustomIcon(value[2])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value[2] != undefined && checkIfIconIsInAssetsFolder(value[2])" v-bind:src="'/src/assets/tile-icons/' + value[2].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value[2] != undefined" :icon="value[2].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import readBlob from 'read-blob'
+import Papa from '@simwrapper/papaparse'
 
 import DashboardDataManager from '@/js/DashboardDataManager'
 import { FileSystemConfig, Status } from '@/Globals'
@@ -37,7 +38,7 @@ export default defineComponent({
       globalState: globalStore.state,
       id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      dataSet: {} as { data?: any; x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
       colors: [
         '#F08080', // Light coral pink
@@ -110,7 +111,9 @@ export default defineComponent({
     },
   },
   async mounted() {
-    this.dataSet = await this.loadData()
+    // this.dataSet = await this.loadData()
+    this.dataSet = await this.loadFile()
+    console.log(this.dataSet)
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
@@ -130,12 +133,12 @@ export default defineComponent({
     async loadImages() {
       this.imagesAreLoaded = false
 
-      Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
-        const value = kv[1] as any
-        if (this.checkIfItIsACustomIcon(value.values[1])) {
+      for (let i = 0; i < this.dataSet.data.length; i++) {
+        const value = this.dataSet.data[i] as any
+        if (this.checkIfItIsACustomIcon(value[2])) {
           try {
             const blob = await this.fileApi.getFileBlob(
-              this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+              this.subfolder + '/' + this.config.dataset + '/../' + value[2].trim()
             )
             const buffer = await readBlob.arraybuffer(blob)
             const base64 = arrayBufferToBase64(buffer)
@@ -146,29 +149,30 @@ export default defineComponent({
               this.$store.commit('setStatus', {
                 type: Status.WARNING,
                 msg: e.statusText,
-                desc: `The file ${value.values[1]} was not found in this path ${
-                  this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
+                desc: `The file ${value[2]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value[2]
                 }.`,
               })
             }
           }
         }
         this.forceRerender()
-      })
+      }
 
       this.imagesAreLoaded = true
     },
 
-    async loadData() {
-      try {
-        this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config)
+    async loadFile() {
+      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.config.dataset)
+      const csv = Papa.parse(rawText, {
+        comments: '#',
+        delimitersToGuess: [';', '\t', ',', ' '],
+        dynamicTyping: true,
+        header: false,
+        skipEmptyLines: true,
+      })
 
-        return dataset
-      } catch (e) {
-        console.error('' + e)
-      }
-      return { allRows: {} }
+      return csv
     },
 
     validateYAML() {
@@ -184,33 +188,22 @@ export default defineComponent({
     },
 
     validateDataSet() {
-      for (const [key, value] of Object.entries(this.dataSet.allRows)) {
-        const valueTemp = value as any
-        if (valueTemp.values.length > 2) {
-          this.$store.commit('setStatus', {
-            type: Status.WARNING,
-            msg: `The Dataset for the overview panel should have only two rows`,
-            desc: `Check out the ${key}-column in the ${this.config.dataset} file.`,
-          })
-          break
-        }
-      }
+      // TODO: Update validation for new format
     },
 
     checkIfIconIsInAssetsFolder(name: string) {
-      // console.log(name.trim(), this.localTileIcons.includes(name.trim()))
+      if (typeof name != 'string' && name == undefined) return
       return this.localTileIcons.includes(name.trim())
     },
 
-    checkIfItIsACustomIcon(name: string) {
-      if (name == undefined) return
+    checkIfItIsACustomIcon(name: any) {
+      if (name == undefined || typeof name != 'string') return
       if (
         name.includes('.png') ||
         name.includes('.jpg') ||
         name.includes('.svg') ||
         name.includes('.jpeg')
       ) {
-        // console.log(this.fileSystemConfig.slug + '/' + this.subfolder + '/' + this.config.dataset)
         return true
       }
       return false
