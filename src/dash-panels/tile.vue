@@ -1,6 +1,6 @@
 <template lang="pug">
 .content
-    .tiles-container(v-if="imagesAreLoaded || true")
+    .tiles-container(v-if="imagesAreLoaded")
       .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}")
         p.tile-title {{ value[0] }}
         p.tile-value {{ value[1] }}
@@ -38,7 +38,7 @@ export default defineComponent({
       globalState: globalStore.state,
       id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { data?: any; x?: any[]; y?: any[]; allRows?: any },
+      dataSet: {} as { data?: []; x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
       colors: [
         '#F08080', // Light coral pink
@@ -111,14 +111,10 @@ export default defineComponent({
     },
   },
   async mounted() {
-    // this.dataSet = await this.loadData()
     this.dataSet = await this.loadFile()
-    console.log(this.dataSet)
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
-
-    console.log(this.base64Images)
   },
   methods: {
     forceRerender() {
@@ -192,12 +188,11 @@ export default defineComponent({
     },
 
     checkIfIconIsInAssetsFolder(name: string) {
-      if (typeof name != 'string' && name == undefined) return
       return this.localTileIcons.includes(name.trim())
     },
 
-    checkIfItIsACustomIcon(name: any) {
-      if (name == undefined || typeof name != 'string') return
+    checkIfItIsACustomIcon(name: string) {
+      if (name == undefined) return
       if (
         name.includes('.png') ||
         name.includes('.jpg') ||
