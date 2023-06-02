@@ -19,7 +19,7 @@
             )
 
   //- JOIN COLUMN
-  .widgets(v-if="datasetChoices.length > 1")
+  .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
@@ -127,6 +127,7 @@ const ALL_COLOR_RAMPS = [
   { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
   { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
   { ramp: 'RdBu', style: Style.diverging, reverse: true },
+  { ramp: 'RdYlBu', style: Style.sequential },  // Not sequential, but otherwise the middle color is replaced
   { ramp: 'PRGn', style: Style.diverging, reverse: true },
   { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
   { ramp: 'Paired', style: Style.categorical }, // , reverse: true },
@@ -374,7 +375,7 @@ export default defineComponent({
 
       // the viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { lineColor }), 25)
+      setTimeout(() => this.$emit('update', { lineColor }), 50)
     },
 
     columnsInDataset(datasetId: string): string[] {

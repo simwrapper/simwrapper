@@ -171,6 +171,7 @@ const MyComponent = defineComponent({
       dataFillHeights: 0 as number | Float32Array,
       dataCalculatedValues: null as Float32Array | null,
       dataNormalizedValues: null as Float32Array | null,
+      constantLineWidth: null as null | number,
       dataCalculatedValueLabel: '',
 
       globalStore,
@@ -702,6 +703,9 @@ const MyComponent = defineComponent({
         if (props['lineWidth']) {
           this.vizDetails.display.lineWidth = props.lineWidth
           this.handleNewLineWidth(props.lineWidth)
+          // redo colors after widths to ensure categorical widths are set properly
+          if (this.currentUILineColorDefinitions)
+            this.handleNewLineColor(this.currentUILineColorDefinitions)
         }
 
         if (props['radius']) {
@@ -977,6 +981,8 @@ const MyComponent = defineComponent({
           relative,
         })
 
+        if (!array) return
+
         if (section === 'fill') {
           this.dataFillColors = array
         } else {
@@ -1030,6 +1036,8 @@ const MyComponent = defineComponent({
 
       const { array, legend, calculatedValues } =
         ColorWidthSymbologizer.getColorsForDataColumn(props)
+
+      if (!array) return
 
       if (section === 'fill') {
         this.dataFillColors = array
@@ -1162,16 +1170,18 @@ const MyComponent = defineComponent({
             join: color.join,
           })
 
-        this.dataFillColors = array
-        this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = normalizedValues || null
+        if (array) {
+          this.dataFillColors = array
+          this.dataCalculatedValues = calculatedValues
+          this.dataNormalizedValues = normalizedValues || null
 
-        this.legendStore.setLegendSection({
-          section: 'FillColor',
-          column: dataColumn.name,
-          values: legend,
-          normalColumn: normalColumn ? normalColumn.name : '',
-        })
+          this.legendStore.setLegendSection({
+            section: 'FillColor',
+            column: dataColumn.name,
+            values: legend,
+            normalColumn: normalColumn ? normalColumn.name : '',
+          })
+        }
       }
     },
 
@@ -1286,22 +1296,35 @@ const MyComponent = defineComponent({
         }
 
         // Calculate colors for each feature
-        const { array, legend, calculatedValues, normalizedValues } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            normalize: normalColumn,
-            normalLookup,
-            lookup: lookupColumn,
-            filter: this.boundaryFilters,
-            options: color,
-            join: color.join,
-          })
+        const colors = ColorWidthSymbologizer.getColorsForDataColumn({
+          numFeatures: this.boundaries.length,
+          data: dataColumn,
+          normalize: normalColumn,
+          normalLookup,
+          lookup: lookupColumn,
+          filter: this.boundaryFilters,
+          options: color,
+          join: color.join,
+        })
+
+        const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+
+        if (!array) return
 
         this.dataLineColors = array
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = normalizedValues || null
 
+        // If colors are based on category and line widths are constant, then use a
+        // 1-pixel line width when the category is undefined.
+        if (hasCategory && this.constantLineWidth !== null) {
+          const lineWidth = this.constantLineWidth as number
+          const variableConstantWidth = new Float32Array(this.boundaries.length).fill(1)
+          Object.keys(hasCategory).forEach((i: any) => {
+            variableConstantWidth[i] = lineWidth
+          })
+          this.dataLineWidths = variableConstantWidth
+        }
         this.legendStore.setLegendSection({
           section: 'Line Color',
           column: dataColumn.name,
@@ -1317,8 +1340,11 @@ const MyComponent = defineComponent({
       // constant line width?  @0, @1, @2
       if (width.dataset && /^@\d$/.test(width.dataset)) {
         this.dataLineWidths = Number.parseInt(width.dataset.substring(1))
+        this.constantLineWidth = this.dataLineWidths
         this.legendStore.clear('Line Width')
         return
+      } else {
+        this.constantLineWidth = null
       }
 
       // No scale factor?
@@ -1654,8 +1680,18 @@ const MyComponent = defineComponent({
         })
       }
 
-      // now redraw colors ... wit dis
-      this.handleNewFillColor(filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions)
+      // now redraw colors for fills and liness
+      if (this.currentUIFillColorDefinitions?.dataset) {
+        this.handleNewFillColor(
+          filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
+        )
+      }
+
+      if (this.currentUILineColorDefinitions?.dataset) {
+        this.handleNewLineColor(
+          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
+        )
+      }
     },
 
     // ------------------------------------
@@ -1749,7 +1785,7 @@ const MyComponent = defineComponent({
       let now = Date.now()
 
       const shapeConfig =
-        this.config.boundaries || this.config.shapes || this.config.geojsonv || this.config.network
+        this.config.boundaries || this.config.shapes || this.config.geojson || this.config.network
 
       if (!shapeConfig) return
 
@@ -1830,7 +1866,11 @@ const MyComponent = defineComponent({
         this.boundaries = boundaries
 
         // generate centroids if we have polygons
-        if (!hasNoPolygons || hasPoints) await this.generateCentroidsAndMapCenter()
+        if (!hasNoPolygons || hasPoints) {
+          await this.generateCentroidsAndMapCenter()
+        } else if (this.needsInitialMapExtent) {
+          this.calculateAndMoveToCenter()
+        }
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
@@ -1870,6 +1910,39 @@ const MyComponent = defineComponent({
 
       // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
       // this.figureOutRemainingFilteringOptions()
+    },
+
+    async calculateAndMoveToCenter() {
+      let centerLong = 0
+      let centerLat = 0
+      let numCoords = 0
+      const numFeatures = this.boundaries.length
+
+      for (let idx = 0; idx < numFeatures; idx += 256) {
+        const centroid = turf.centerOfMass(this.boundaries[idx])
+        if (centroid?.geometry?.coordinates) {
+          centerLong += centroid.geometry.coordinates[0]
+          centerLat += centroid.geometry.coordinates[1]
+          numCoords += 1
+        }
+      }
+
+      centerLong /= numCoords
+      centerLat /= numCoords
+
+      console.log('CENTER', centerLong, centerLat)
+      if (this.needsInitialMapExtent && !this.vizDetails.center) {
+        this.$store.commit('setMapCamera', {
+          longitude: centerLong,
+          latitude: centerLat,
+          center: [centerLong, centerLat],
+          bearing: 0,
+          pitch: 0,
+          zoom: 9,
+          initial: true,
+        })
+        this.needsInitialMapExtent = false
+      }
     },
 
     async generateCentroidsAndMapCenter() {
