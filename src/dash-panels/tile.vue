@@ -2,11 +2,11 @@
 .content
     .tiles-container(v-if="imagesAreLoaded")
       .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}")
-        p.tile-title {{ value[0] }}
-        p.tile-value {{ value[1] }}
-        .tile-image(v-if="value[2] != undefined && checkIfItIsACustomIcon(value[2])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="value[2] != undefined && checkIfIconIsInAssetsFolder(value[2])" v-bind:src="'/src/assets/tile-icons/' + value[2].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else-if="value[2] != undefined" :icon="value[2].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+        p.tile-title {{ value[tileNameIndex] }}
+        p.tile-value {{ value[tileValueIndex] }}
+        .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
@@ -103,6 +103,9 @@ export default defineComponent({
       testImage: '',
       base64Images: [] as any[],
       imagesAreLoaded: false,
+      tileNameIndex: 0,
+      tileValueIndex: 1,
+      tileImageIndex: 2,
     }
   },
   computed: {
@@ -131,10 +134,14 @@ export default defineComponent({
 
       for (let i = 0; i < this.dataSet.data.length; i++) {
         const value = this.dataSet.data[i] as any
-        if (this.checkIfItIsACustomIcon(value[2])) {
+        if (this.checkIfItIsACustomIcon(value[this.tileImageIndex])) {
           try {
             const blob = await this.fileApi.getFileBlob(
-              this.subfolder + '/' + this.config.dataset + '/../' + value[2].trim()
+              this.subfolder +
+                '/' +
+                this.config.dataset +
+                '/../' +
+                value[this.tileImageIndex].trim()
             )
             const buffer = await readBlob.arraybuffer(blob)
             const base64 = arrayBufferToBase64(buffer)
@@ -145,8 +152,8 @@ export default defineComponent({
               this.$store.commit('setStatus', {
                 type: Status.WARNING,
                 msg: e.statusText,
-                desc: `The file ${value[2]} was not found in this path ${
-                  this.subfolder + '/' + this.config.dataset + '/../' + value[2]
+                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
                 }.`,
               })
             }
