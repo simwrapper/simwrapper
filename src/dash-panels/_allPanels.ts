@@ -26,6 +26,7 @@ import carriers from './carriers.vue'
 import flowmap from './flowmap.vue'
 import links from './links.vue'
 import map from './area-map.vue'
+import xytime from './xytime.vue'
 
 // ----- EXPORT CHARTS HERE ---------------------------------------------------
 // export all resizable charts here
@@ -50,6 +51,7 @@ export const plotlyCharts = {
   scatter,
   vega,
   video,
+  xytime,
 }
 
 // export all remaining charts/maps here:
