@@ -47,7 +47,7 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
 
   // prepare storage object -- figure out records and columns
   const dataTable: DataTable = {}
-  const expectedNumberOfRows = (source.byteLength - headerLength) / data._recordLength
+  const expectedNumberOfRows = (source.byteLength - headerLength - 1) / data._recordLength
   const numberOfColumns = data._fields.length
   console.log({ numberOfColumns, expectedNumberOfRows })
 
@@ -88,8 +88,6 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
     console.warn(e)
   }
   console.log('dbf total records', recordNumber)
-  console.log({ dbf: data })
-
   return dataTable
 }
 
