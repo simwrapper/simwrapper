@@ -38,7 +38,7 @@ export default defineComponent({
       globalState: globalStore.state,
       id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { data?: []; x?: any[]; y?: any[]; allRows?: any },
+      dataSet: {} as { data?: any; x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
       colors: [
         '#F08080', // Light coral pink
