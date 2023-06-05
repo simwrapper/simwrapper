@@ -35,7 +35,7 @@ layout:
 
 ### CSV Structure
 
-The following .csv structure belongs to the sample image above. The first line contains the titles, the second line the values and the third line the names or paths of the icons. The values and the icons are not required.
+The following .csv structure belongs to the sample image above. The column line contains the titles, the second column the values and the third column the names or paths of the icons. The values and the icons are not required.
 
 <table>
 <tbody>
