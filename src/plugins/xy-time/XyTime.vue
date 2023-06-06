@@ -597,6 +597,7 @@ const MyComponent = defineComponent({
       try {
         let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
         await this.parseCSVFile(filename)
+        this.$emit('isLoaded')
         console.log(2)
       } catch (e) {
         console.error(e)
