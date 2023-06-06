@@ -1,19 +1,18 @@
 <template lang="pug">
 .content
     .tiles-container(v-if="imagesAreLoaded")
-      .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}")
-        p.tile-title {{ value[tileNameIndex] }}
-        p.tile-value {{ value[tileValueIndex] }}
-        .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+      .tile(v-for="(value, name, index) in this.dataSet.allRows" v-bind:style="{ 'background-color': colors[index % colors.length]}")
+        p.tile-title {{ value.name }}
+        p.tile-value {{ value.values[0] }}
+        .tile-image(v-if="value.values[1] != undefined && checkIfItIsACustomIcon(value.values[1])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value.values[1] != undefined && checkIfIconIsInAssetsFolder(value.values[1])" v-bind:src="'/src/assets/tile-icons/' + value.values[1].trim() + '.svg'" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value.values[1] != undefined" :icon="value.values[1].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import readBlob from 'read-blob'
-import Papa from '@simwrapper/papaparse'
 
 import DashboardDataManager from '@/js/DashboardDataManager'
 import { FileSystemConfig, Status } from '@/Globals'
@@ -38,7 +37,7 @@ export default defineComponent({
       globalState: globalStore.state,
       id: ('tiles-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
-      dataSet: {} as { data?: any; x?: any[]; y?: any[]; allRows?: any },
+      dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       YAMLrequirementsOverview: { dataset: '' },
       colors: [
         '#F08080', // Light coral pink
@@ -103,9 +102,6 @@ export default defineComponent({
       testImage: '',
       base64Images: [] as any[],
       imagesAreLoaded: false,
-      tileNameIndex: 0,
-      tileValueIndex: 1,
-      tileImageIndex: 2,
     }
   },
   computed: {
@@ -114,10 +110,12 @@ export default defineComponent({
     },
   },
   async mounted() {
-    this.dataSet = await this.loadFile()
+    this.dataSet = await this.loadData()
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
+
+    console.log(this.base64Images)
   },
   methods: {
     forceRerender() {
@@ -132,16 +130,12 @@ export default defineComponent({
     async loadImages() {
       this.imagesAreLoaded = false
 
-      for (let i = 0; i < this.dataSet.data.length; i++) {
-        const value = this.dataSet.data[i] as any
-        if (this.checkIfItIsACustomIcon(value[this.tileImageIndex])) {
+      Object.entries(this.dataSet.allRows).forEach(async (kv, i) => {
+        const value = kv[1] as any
+        if (this.checkIfItIsACustomIcon(value.values[1])) {
           try {
             const blob = await this.fileApi.getFileBlob(
-              this.subfolder +
-                '/' +
-                this.config.dataset +
-                '/../' +
-                value[this.tileImageIndex].trim()
+              this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
             )
             const buffer = await readBlob.arraybuffer(blob)
             const base64 = arrayBufferToBase64(buffer)
@@ -152,30 +146,29 @@ export default defineComponent({
               this.$store.commit('setStatus', {
                 type: Status.WARNING,
                 msg: e.statusText,
-                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${
-                  this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
+                desc: `The file ${value.values[1]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value.values[1]
                 }.`,
               })
             }
           }
         }
         this.forceRerender()
-      }
+      })
 
       this.imagesAreLoaded = true
     },
 
-    async loadFile() {
-      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.config.dataset)
-      const csv = Papa.parse(rawText, {
-        comments: '#',
-        delimitersToGuess: [';', '\t', ',', ' '],
-        dynamicTyping: true,
-        header: false,
-        skipEmptyLines: true,
-      })
+    async loadData() {
+      try {
+        this.validateYAML()
+        let dataset = await this.datamanager.getDataset(this.config)
 
-      return csv
+        return dataset
+      } catch (e) {
+        console.error('' + e)
+      }
+      return { allRows: {} }
     },
 
     validateYAML() {
@@ -191,10 +184,21 @@ export default defineComponent({
     },
 
     validateDataSet() {
-      // TODO: Update validation for new format
+      for (const [key, value] of Object.entries(this.dataSet.allRows)) {
+        const valueTemp = value as any
+        if (valueTemp.values.length > 2) {
+          this.$store.commit('setStatus', {
+            type: Status.WARNING,
+            msg: `The Dataset for the overview panel should have only two rows`,
+            desc: `Check out the ${key}-column in the ${this.config.dataset} file.`,
+          })
+          break
+        }
+      }
     },
 
     checkIfIconIsInAssetsFolder(name: string) {
+      // console.log(name.trim(), this.localTileIcons.includes(name.trim()))
       return this.localTileIcons.includes(name.trim())
     },
 
@@ -206,6 +210,7 @@ export default defineComponent({
         name.includes('.svg') ||
         name.includes('.jpeg')
       ) {
+        // console.log(this.fileSystemConfig.slug + '/' + this.subfolder + '/' + this.config.dataset)
         return true
       }
       return false
