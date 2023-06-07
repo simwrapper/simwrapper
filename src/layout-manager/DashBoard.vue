@@ -345,7 +345,7 @@ export default defineComponent({
 
     getRowClass(row: any) {
       const rowClass = { 'is-panel-narrow': this.isPanelNarrow } as any
-      rowClass[`${row}-${row.id}`] = true
+      rowClass[`row-${row.id}`] = true
       return rowClass
     },
   },
