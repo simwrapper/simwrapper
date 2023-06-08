@@ -1,6 +1,12 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
-  b-input.searchbox(placeholder="Search..." v-model="searchTerm")
+  b-input.searchbox(
+    type="search"
+    icon-pack="fas"
+    icon="search"
+    placeholder="search..."
+    v-model="searchTerm"
+  )
   .viewer
     tree-view.things(v-if="isLoaded"
       :initialData="viewXml"
