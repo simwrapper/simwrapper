@@ -96,6 +96,7 @@ const MyComponent = defineComponent({
       if (this.config) {
         // config came in from the dashboard and is already parsed
         this.vizDetails = { ...this.config }
+        this.vizDetails.file = `/${this.subfolder}/${this.config.file}`
         this.$emit('title', this.vizDetails.title || this.vizDetails.file || 'XML')
       } else {
         // Otherwise this is an XML file
