@@ -21,6 +21,7 @@ li
       :key="index"
       :item="child"
       :root="false"
+      :expandAll="expandAll"
       @navigate="$emit('navigate', $event)"
     )
 
@@ -32,10 +33,11 @@ import Vue from 'vue'
 export default Vue.component('tree-item', {
   props: {
     item: { type: Object, required: true },
+    expandAll: { type: Boolean },
   },
   data() {
     return {
-      isOpen: false, // this.item.level < 2, // default to all-open
+      isOpen: this.expandAll, // this.item.level < 2, // default to all-open
       text: '',
       elementId: '',
       children: [] as any[],
@@ -53,7 +55,7 @@ export default Vue.component('tree-item', {
     }
 
     this.elementId = keys[0]
-    this.children = thing[keys[0]]
+    this.children = thing[keys[0]] || []
 
     // figure out #text content
     if (this.children.length === 1 && this.children[0]['#text']) {

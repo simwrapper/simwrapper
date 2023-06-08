@@ -1,10 +1,10 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
-  b-input.searchbox(placeholder="Search TBA...")
+  b-input.searchbox(placeholder="Search..." v-model="searchTerm")
   .viewer
-    tree-view.things(v-if="fullXml"
-      :initialData="fullXml"
-      @navigate="handleNavigation($event)"
+    tree-view.things(v-if="isLoaded"
+      :initialData="viewXml"
+      :expandAll="isSearch"
     )
 
 </template>
@@ -19,8 +19,7 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
-// import yaml from 'yaml'
+import debounce from 'debounce'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -53,8 +52,20 @@ const MyComponent = defineComponent({
       loadingText: '',
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       xmlWorker: null as any,
+      viewXml: {} as any,
       fullXml: null as any,
+      searchXml: null as any,
+      searchTerm: '',
+      debounceSearch: {} as any,
+      isLoaded: false,
+      isSearch: false,
     }
+  },
+
+  watch: {
+    searchTerm() {
+      this.debounceSearch()
+    },
   },
 
   computed: {
@@ -75,6 +86,8 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
+    this.debounceSearch = debounce(this.handleSearch, 500)
+
     try {
       await this.getVizDetails()
       // only continue if we are on a real page and not the file browser
@@ -84,6 +97,9 @@ const MyComponent = defineComponent({
 
       //TODO remove '?xml' correctly
       this.fullXml = answer[1]
+
+      this.viewXml = this.fullXml
+      this.isLoaded = true
     } catch (err) {
       const e = err as any
       console.error({ e })
@@ -139,8 +155,67 @@ const MyComponent = defineComponent({
       })
     },
 
-    handleNavigation(event: any) {
-      console.log('EVENT!', event)
+    async handleSearch() {
+      console.log('search:', this.searchTerm)
+
+      if (!this.searchTerm) {
+        // clear empty search
+        this.viewXml = this.fullXml
+        this.isSearch = false
+      } else {
+        const searchXML = this.findSearchTermInElement(
+          [this.fullXml],
+          this.searchTerm.toLocaleLowerCase()
+        )
+        this.viewXml = searchXML[0]
+        this.isSearch = true
+      }
+      this.isLoaded = false
+      await this.$nextTick()
+      this.isLoaded = true
+    },
+
+    findSearchTermInElement(element: any[], term: string): any[] {
+      if (term !== this.searchTerm.toLocaleLowerCase()) return []
+
+      const found = [] as any[]
+      for (const node of element) {
+        const items = { ...node }
+        // check attributes
+        if (items[':@']) {
+          const attributes = JSON.stringify(items[':@']).toLocaleLowerCase()
+          if (attributes.indexOf(term) > -1) {
+            found.push(node)
+            continue
+          }
+        }
+
+        // check #text
+        if (items['#text']) {
+          // convert to string!
+          if (`${items['#text']}`.toLocaleLowerCase().indexOf(term) > -1) {
+            found.push(node)
+          }
+          continue
+        }
+
+        // check children
+        const attr = items[':@']
+        delete items[':@']
+        const key = Object.keys(items)[0]
+        const children = items[key]
+        if (!children.length) continue
+
+        // recurse into kids:
+        const foundInChildren = this.findSearchTermInElement(children, term)
+        if (foundInChildren.length) {
+          const leaf = {} as any
+          if (attr) leaf[':@'] = attr
+          leaf[key] = foundInChildren
+          found.push(leaf)
+        }
+      }
+      return found
     },
   },
 })
