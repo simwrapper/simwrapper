@@ -19,6 +19,7 @@ import text from './text.vue'
 import transit from './transit.vue'
 import vega from './vega.vue'
 import video from './video.vue'
+import xml from './xml.vue'
 import tile from './tile.vue'
 
 // full-screen map visualizations:
@@ -51,6 +52,7 @@ export const plotlyCharts = {
   scatter,
   vega,
   video,
+  xml,
   xytime,
 }
 

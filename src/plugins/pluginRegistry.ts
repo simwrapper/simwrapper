@@ -1,4 +1,5 @@
 // import plugins in the order you want them to appear on project pages
+import XmlViewer from '@/plugins/xml-viewer/XmlViewer.vue'
 import XmasKelheim from '@/plugins/xmas-kelheim/VehicleAnimation.vue'
 import Events from '@/plugins/event-viewer/EventViewer.vue'
 import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
@@ -36,6 +37,7 @@ const plugins = {
   ImageView,
   XmasKelheim,
   Flowmap,
+  XmlViewer,
 }
 
 export default plugins
