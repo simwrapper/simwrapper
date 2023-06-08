@@ -11,19 +11,16 @@ vue-good-table(
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
-import VuePlotly from '@/components/VuePlotly.vue'
-
 import 'vue-good-table/src/styles/style.scss'
 import { VueGoodTable } from 'vue-good-table'
 
-import { FileSystemConfig, Status } from '@/Globals'
 import globalStore from '@/store'
+import { FileSystemConfig, Status } from '@/Globals'
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 
 export default defineComponent({
   name: 'TablePanel',
-  components: { VuePlotly, VueGoodTable },
+  components: { VueGoodTable },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
@@ -166,9 +163,19 @@ export default defineComponent({
 
       // Create columns array for the header
       Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
+        // this issue tells us that fields with a dot in them require special handling
+        // https://github.com/xaksis/vue-good-table/issues/593
+        // field now either the key (string) or a function which returns row[key]
+        let field: any = key
+        if (field.indexOf('.') > -1) {
+          field = (rowObject: any) => {
+            return rowObject[key]
+          }
+        }
+
         this.columns.push({
           label: key.charAt(0).toUpperCase() + key.slice(1),
-          field: key,
+          field,
           hidden: false,
           filterOptions: {
             enabled: true,
