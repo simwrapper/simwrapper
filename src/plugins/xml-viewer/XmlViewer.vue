@@ -149,7 +149,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'xml-viewer',
   prettyName: 'XML Viewer',
   description: 'Browse any (small) XML file',
-  filePatterns: ['**/*config.xml*'],
+  filePatterns: ['**/*.xml*'],
   component: MyComponent,
 })
 
@@ -178,7 +178,7 @@ export default MyComponent
   width: 100%;
   flex: 1;
   margin: 0 auto;
-  overflow-y: auto;
+  overflow: auto;
 }
 
 .viewer.is-thumbnail {

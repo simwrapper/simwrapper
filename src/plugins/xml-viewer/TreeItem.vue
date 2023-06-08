@@ -8,6 +8,9 @@ li
           style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
         )
       b.leaf-label {{ elementId }}
+
+    .leaf-text(v-if="text") &nbsp;&nbsp;{{ text }}
+
     .leaf-attribute(v-for="attribute in attributes")
       span &nbsp;&nbsp;{{ attribute[0] }}:&nbsp;
       b "{{ attribute[1] }}"
@@ -41,14 +44,22 @@ export default Vue.component('tree-item', {
   },
   mounted() {
     const thing = { ...this.item } as any // could be anything really!
-    this.text = thing['#text'] || ''
     this.attributes = this.getAttributes(thing)
     delete thing[':@']
-    delete thing['#text']
+
     const keys = Object.keys(thing)
-    if (keys.length !== 1) console.log('WHAT')
+    if (keys.length !== 1) {
+      console.log('WHAT', keys)
+    }
+
     this.elementId = keys[0]
     this.element = thing[keys[0]]
+
+    // figure out #text content
+    if (this.element.length === 1 && this.element[0]['#text']) {
+      this.text = this.element[0]['#text']
+      this.element = []
+    }
   },
 
   methods: {
@@ -96,7 +107,8 @@ li {
 
 .leaf-node {
   display: flex;
-  flex-direction: row;
+  // flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .leaf-label:hover {
@@ -106,6 +118,12 @@ li {
 .leaf-nav-title {
   display: flex;
   margin-right: 0px;
+}
+
+.leaf-text {
+  font-weight: bold;
+  font-style: italic;
+  color: var(--linkHover);
 }
 
 .leaf-label {
