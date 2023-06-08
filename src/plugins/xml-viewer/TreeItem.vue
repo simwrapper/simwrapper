@@ -43,7 +43,7 @@ export default Vue.component('tree-item', {
     }
   },
   mounted() {
-    const thing = this.item as any // could be anything really!
+    const thing = { ...this.item } as any // could be anything really!
     this.attributes = this.getAttributes(thing)
     delete thing[':@']
 
