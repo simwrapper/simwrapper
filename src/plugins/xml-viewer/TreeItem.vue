@@ -1,8 +1,8 @@
 <template lang="pug">
 li
-  .leaf-node(v-if="item" @click="toggle")
+  .leaf-node(@click="toggle")
     .leaf-nav-title
-      .toggle(v-if="element.length")
+      .toggle(v-if="children.length")
         i.fa(
           :class="{'fa-plus-square': !isOpen, 'fa-minus-square': isOpen}"
           style="font-size: 0.7rem; margin: 5px 0 auto -8px;"
@@ -17,7 +17,7 @@ li
 
   ul.children(v-if="isFolder && isOpen")
     tree-item.item(
-      v-for="(child, index) in element"
+      v-for="(child, index) in children"
       :key="index"
       :item="child"
       :root="false"
@@ -38,12 +38,12 @@ export default Vue.component('tree-item', {
       isOpen: false, // this.item.level < 2, // default to all-open
       text: '',
       elementId: '',
-      element: [] as any[],
+      children: [] as any[],
       attributes: [] as any[],
     }
   },
   mounted() {
-    const thing = { ...this.item } as any // could be anything really!
+    const thing = this.item as any // could be anything really!
     this.attributes = this.getAttributes(thing)
     delete thing[':@']
 
@@ -53,12 +53,12 @@ export default Vue.component('tree-item', {
     }
 
     this.elementId = keys[0]
-    this.element = thing[keys[0]]
+    this.children = thing[keys[0]]
 
     // figure out #text content
-    if (this.element.length === 1 && this.element[0]['#text']) {
-      this.text = this.element[0]['#text']
-      this.element = []
+    if (this.children.length === 1 && this.children[0]['#text']) {
+      this.text = this.children[0]['#text']
+      this.children = []
     }
   },
 
@@ -82,7 +82,7 @@ export default Vue.component('tree-item', {
 
   computed: {
     isFolder(): boolean {
-      return this.element.length > 0
+      return this.children.length > 0
     },
   },
 })
