@@ -1,5 +1,4 @@
 // import plugins in the order you want them to appear on project pages
-import XmlViewer from '@/plugins/xml-viewer/XmlViewer.vue'
 import XmasKelheim from '@/plugins/xmas-kelheim/VehicleAnimation.vue'
 import Events from '@/plugins/event-viewer/EventViewer.vue'
 import CarrierViewer from '@/plugins/carrier-viewer/CarrierViewer.vue'
@@ -17,6 +16,7 @@ import AreaMap from '@/plugins/shape-file/ShapeFile.vue'
 import Hexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 import XYT from '@/plugins/xy-time/XyTime.vue'
 import Flowmap from '@/plugins/flowmap/Flowmap.vue'
+import XmlViewer from '@/plugins/xml-viewer/XmlViewer.vue'
 
 // // EVERY plugin must also be exported here:
 const plugins = {
