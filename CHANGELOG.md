@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.4.0](https://github.com/simwrapper/simwrapper/compare/v2.3.0...v2.4.0) (2023-06-09)
+
+
+### Features
+
+* XML viewer, see your XML configs in a searchable tree view ([058bb0d](https://github.com/simwrapper/simwrapper/commit/058bb0d7f3b76c20125c8a922a07022b1e321350))
+
+
+### Bug Fixes
+
+* **csv:** Support column names with dots e.g. vol.final ([5a79d86](https://github.com/simwrapper/simwrapper/commit/5a79d863d01af68a02516da9c77993d3352d4083))
+* X/Y/T plots now work in dashboards ([#267](https://github.com/simwrapper/simwrapper/issues/267)) ([ab1eb35](https://github.com/simwrapper/simwrapper/commit/ab1eb35001fd9d06ba60271a6c27cc12fc820bd8))
+
 ## [2.3.0](https://github.com/simwrapper/simwrapper/compare/v2.2.1...v2.3.0) (2023-05-26)
 
 
