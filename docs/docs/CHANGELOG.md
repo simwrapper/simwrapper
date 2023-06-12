@@ -12,6 +12,32 @@ The full commit history is on GitHub at <https://github.com/simwrapper/simwrappe
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.3.0](https://github.com/simwrapper/simwrapper/compare/v2.2.1...v2.3.0) (2023-05-26)
+
+
+### Features
+
+* New "CSV" table plug in ([#250](https://github.com/simwrapper/simwrapper/issues/250)) ([7e4ede6](https://github.com/simwrapper/simwrapper/commit/7e4ede67ceab3dcf99bc9fdd88a1bfc8674a4e26))
+* New "tiles" plugin for individual metrics in pretty boxes ([ea1f008](https://github.com/simwrapper/simwrapper/commit/ea1f00809b79da4a1391adf092ad64d214aab475))
+* New Plotly plugin supporting all Plotly chart types ([387ad79](https://github.com/simwrapper/simwrapper/commit/387ad79ad4447d232a88664fb526637c62509fd8))
+
+
+### Bug Fixes
+
+* **aggregate-od:** Some centroids are blank/zero; should be hidden ([db3493b](https://github.com/simwrapper/simwrapper/commit/db3493bfafa8fd771559ba943199d578f62d319b)), closes [#155](https://github.com/simwrapper/simwrapper/issues/155)
+* **build:** Always set base URL from a clean config when building ([2ee0da0](https://github.com/simwrapper/simwrapper/commit/2ee0da07c04c8f3bffa17970ff5d4d26720b3b4d))
+* Firefox (sometimes) fails to load large MATSim XML networks ([3faecf7](https://github.com/simwrapper/simwrapper/commit/3faecf76ad15aa6275fff9b521024db5f7b55bdd)), closes [#260](https://github.com/simwrapper/simwrapper/issues/260)
+* **hexagons:** Off-by-one error in data files that don't end with a newline ([97da006](https://github.com/simwrapper/simwrapper/commit/97da006909ebd61238c4fdc589d7cfd3547c3e7c))
+* **map:** categorical color scale doesn't handle missing values properly ([bfb08c7](https://github.com/simwrapper/simwrapper/commit/bfb08c75d2598ee8e62a71aa561ffa9dbb6cd8c1))
+* **map:** Let line widths be 1-pixel if no data exists for line color ([1dd9e9f](https://github.com/simwrapper/simwrapper/commit/1dd9e9fd9dc2d5c8878b7e186dfd0c25b045b2a1))
+* **plotly:** use "legendTitles: [...] to specify legend text ([88d4fcd](https://github.com/simwrapper/simwrapper/commit/88d4fcd58d979a85551131f10dfad6c84751ccd4)), closes [#257](https://github.com/simwrapper/simwrapper/issues/257)
+* **shapefile:** allow user to specify center as "long,lat" instead of array ([6f7fdef](https://github.com/simwrapper/simwrapper/commit/6f7fdef731a7095f8e6c021a31e3d6e4abce0b24))
+* **shapefile:** diff mode for line widths/colors working better ([118c2a2](https://github.com/simwrapper/simwrapper/commit/118c2a282578b7e6aa572f39ff9af5bf89844134)), closes [#263](https://github.com/simwrapper/simwrapper/issues/263)
+* Support point-only shapes from shapefiles ([6c3a919](https://github.com/simwrapper/simwrapper/commit/6c3a919a91f3d5584c263b76e1350575f182ccc5))
+* Text color darkmode markdown plugin is too dark ([2dc485f](https://github.com/simwrapper/simwrapper/commit/2dc485fe3d4668e97a79729628db767468e9996e)), closes [#249](https://github.com/simwrapper/simwrapper/issues/249)
+* **transit:** allow viz-pt-*.yaml file to specify correct network (old kelheim) ([e3d5aae](https://github.com/simwrapper/simwrapper/commit/e3d5aae78e615a00037d0c77d6dd8a9573138e83)), closes [#172](https://github.com/simwrapper/simwrapper/issues/172)
+* **transit:** first departure time missing from route details panel ([fc438c2](https://github.com/simwrapper/simwrapper/commit/fc438c2fd6b9af8b77de05b01a08229e5265ef60)), closes [#171](https://github.com/simwrapper/simwrapper/issues/171)
+
 ### [2.2.1](https://github.com/simwrapper/simwrapper/compare/v2.2.0...v2.2.1) (2023-05-05)
 
 

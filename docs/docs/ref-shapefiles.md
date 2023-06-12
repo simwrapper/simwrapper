@@ -1,6 +1,6 @@
 ---
 id: shapefiles
-title: Shapefiles: Area maps, network links, and GeoJSON
+title: "Shapefiles: Area maps, network links, and GeoJSON"
 ---
 
 ![Examples of choropleth and dot-size maps](assets/area-maps.jpg)
@@ -72,7 +72,7 @@ Contains two subentries:
 ### **datasets:** the dataset to be joined to the shapefile
 
 ```yaml
-dataset:
+datasets:
   transit-trips:
     file: .summaries/transit-outputs.csv
     join: TAZ
@@ -92,6 +92,7 @@ For area maps, the `fill` section defines the color fill, and is (currently) the
 display:
   fill:
     dataset: transit-trips
+    join: TAZ
     filters: operator, income
     columnName: trip_origins, trip_boards, trip_reslocs
     colorRamp:
