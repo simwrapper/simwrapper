@@ -101,3 +101,8 @@ Tiles plug-in properties:
 
 **dataset:** String. The filepath containing the csv-file. The first row describes the header text and the second row describes the values
 
+---
+
+### Notes
+
+- Currently, Predefined Icons can't be used. [GitHub Issue](https://github.com/simwrapper/simwrapper/issues/274)
