@@ -1,6 +1,6 @@
 <template lang="pug">
 vue-good-table(
-      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable']"
+      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style == 'topsheet' ? 'topsheet-style' : '']"
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
@@ -48,6 +48,8 @@ export default defineComponent({
       },
       dataColumnNames: ['date'],
       percentColumnNames: ['percent'],
+      hideHeader: false,
+      isFullsize: false,
     }
   },
   async mounted() {
@@ -161,6 +163,8 @@ export default defineComponent({
       this.columns = []
       this.rows = []
 
+      if (this.config.style == 'topsheet') this.hideHeader = true
+
       // Create columns array for the header
       Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
         // this issue tells us that fields with a dot in them require special handling
@@ -271,7 +275,19 @@ export default defineComponent({
         }
       }
 
+      // Show/Hide header
+      if (!this.config.hideHeader) {
+        this.hideHeader = false
+      }
+
+      // Add settings for topsheet style
+      if (this.config.style == 'topsheet') {
+        this.hideHeader = true
+        this.isFullsize = true
+      }
+
       if (
+        this.isFullsize ||
         this.config.fullsize ||
         this.config.showAllRows ||
         this.config.showallrows ||
@@ -428,6 +444,22 @@ export default defineComponent({
 
 .vgt-table th.sortable button:hover {
   cursor: pointer;
+}
+
+// Hide header
+.hide-header .vgt-inner-wrap .vgt-responsive .vgt-table thead,
+.hide-header .vgt-inner-wrap .vgt-fixed-header {
+  display: none;
+}
+
+// Columns right aligned (except the first one
+.topsheet-style .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:not(:first-child) {
+  text-align: right;
+  font-weight: bold;
+}
+
+.topsheet-style .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td {
+  font-size: 1.1rem;
 }
 </style>
 
