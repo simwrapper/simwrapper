@@ -11,6 +11,8 @@
     tree-view.things(v-if="isLoaded"
       :initialData="viewXml"
       :expandAll="isSearch"
+      :level="1"
+      :numberOfUnfoldLevel="numberOfUnfoldLevel"
     )
 
 </template>
@@ -65,6 +67,7 @@ const MyComponent = defineComponent({
       debounceSearch: {} as any,
       isLoaded: false,
       isSearch: false,
+      numberOfUnfoldLevel: 1,
     }
   },
 
@@ -111,6 +114,8 @@ const MyComponent = defineComponent({
       console.error({ e })
       this.loadingText = '' + e
     }
+
+    this.numberOfUnfoldLevel = this.config.unfoldLevel + 1
   },
 
   methods: {

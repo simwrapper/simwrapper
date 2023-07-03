@@ -22,6 +22,8 @@ li
       :item="child"
       :root="false"
       :expandAll="expandAll"
+      :numberOfUnfoldLevel="numberOfUnfoldLevel"
+      :level="level + 1"
       @navigate="$emit('navigate', $event)"
     )
 
@@ -34,6 +36,8 @@ export default Vue.component('tree-item', {
   props: {
     item: { type: Object, required: true },
     expandAll: { type: Boolean },
+    level: { type: Number },
+    numberOfUnfoldLevel: { type: Number },
   },
   data() {
     return {
@@ -61,6 +65,12 @@ export default Vue.component('tree-item', {
     if (this.children.length === 1 && this.children[0]['#text']) {
       this.text = this.children[0]['#text']
       this.children = []
+    }
+
+    if (this.level < this.numberOfUnfoldLevel + 1) {
+      this.isOpen = true
+    } else {
+      this.isOpen = this.expandAll
     }
   },
 
