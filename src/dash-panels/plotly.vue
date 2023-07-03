@@ -55,6 +55,6 @@ export default defineComponent({
   right: 0;
   display: flex;
   flex-direction: column;
-  background-color: cyan;
+  // background-color: cyan;
 }
 </style>

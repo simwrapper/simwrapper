@@ -1,9 +1,6 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
 
-  //- h2 {{  vizDetails.title }}
-  //- p(v-if="vizDetails.description") {{  vizDetails.description }}
-
   VuePlotly.myplot(
     :data="traces"
     :layout="layout"
@@ -22,14 +19,24 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import yaml from 'yaml'
-import Papaparse from 'papaparse'
-import VuePlotly from '@/components/VuePlotly.vue'
 
 import globalStore from '@/store'
-import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD } from '@/Globals'
+import VuePlotly from '@/components/VuePlotly.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import { colorRamp, Ramp } from '@/js/ColorsAndWidths'
+import { mergeTypedArrays } from '@/js/util'
+import {
+  FileSystemConfig,
+  UI_FONT,
+  BG_COLOR_DASHBOARD,
+  DataTable,
+  DataSet,
+  DataTableColumn,
+} from '@/Globals'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -38,10 +45,11 @@ const MyComponent = defineComponent({
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
-    yamlConfig: String,
-    thumbnail: Boolean,
-    config: Object as any,
+    config: { type: Object as any },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
     resize: Object as any,
+    thumbnail: Boolean,
+    yamlConfig: String,
   },
 
   data() {
@@ -50,11 +58,14 @@ const MyComponent = defineComponent({
       vizDetails: { title: '', description: '' } as any,
       loadingText: '',
       jsonChart: {} as any,
-      totalTrips: 0,
       id: `plotly-id-${Math.floor(1e12 * Math.random())}` as any,
       traces: [] as any[],
       prevWidth: -1,
       prevHeight: -1,
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      // Plotly layout
       layout: {
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
         font: {
@@ -80,6 +91,7 @@ const MyComponent = defineComponent({
           y: 1,
         },
       },
+      // Plotly options
       options: {
         displaylogo: false,
         responsive: true,
@@ -139,6 +151,36 @@ const MyComponent = defineComponent({
 
   async mounted() {
     await this.getVizDetails()
+    // only continue if we are on a real page and not the file browser
+    if (this.thumbnail) return
+
+    try {
+      if (this.vizDetails.datasets) await this.prepareData()
+      if (this.vizDetails.traces) this.traces = this.vizDetails.traces
+      // merge user-supplied layout with SimWrapper layout defaults
+      if (this.vizDetails.layout) this.mergeLayouts()
+
+      if (this.vizDetails.fixedRatio) {
+        this.vizDetails.layout.xaxis = Object.assign(this.vizDetails.layout.xaxis, {
+          constrain: 'domain',
+        })
+
+        this.vizDetails.layout.yaxis = Object.assign(this.vizDetails.layout.yaxis, {
+          constrain: 'domain',
+          scaleanchor: 'x',
+          scaleration: 1,
+        })
+      }
+
+      if (this.vizDetails.dropdownMenu) {
+        this.createMenus()
+      }
+    } catch (err) {
+      const e = err as any
+      console.error({ e })
+      this.loadingText = '' + e
+    }
+
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
   },
@@ -151,12 +193,103 @@ const MyComponent = defineComponent({
     changeDimensions(dim: any) {
       if (dim?.height && dim?.width) {
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
-          console.log('CHANGE DIM')
           this.prevHeight = dim.height
           this.prevWidth = dim.width
           this.layout = Object.assign({}, this.layout, dim)
         }
       }
+    },
+
+    mergeLayouts() {
+      const mergedLayout = { ...this.vizDetails.layout }
+
+      // TODO: only if the y axis title is set, the margin to the left needs to be little bit larger
+
+      // we always want to use SimWrapper defaults for these:
+      mergedLayout.margin = this.layout.margin
+      mergedLayout.font = this.layout.font
+      mergedLayout.legend = this.layout.legend
+
+      // we never want these:
+      delete mergedLayout.height
+      delete mergedLayout.width
+
+      // be selective about these:
+      if (mergedLayout.xaxis) {
+        mergedLayout.xaxis.automargin = true
+        mergedLayout.xaxis.autorange = true
+        mergedLayout.xaxis.animate = true
+        if (!mergedLayout.xaxis.title) mergedLayout.xaxis.title = this.layout.xaxis.title
+      } else {
+        mergedLayout.xaxis = this.layout.xaxis
+      }
+
+      if (mergedLayout.yaxis) {
+        mergedLayout.yaxis.automargin = true
+        mergedLayout.yaxis.autorange = true
+        mergedLayout.yaxis.animate = true
+        if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
+      } else {
+        mergedLayout.yaxis = this.layout.yaxis
+      }
+
+      this.layout = mergedLayout
+    },
+
+    createMenus() {
+      const buttons: any[] = []
+
+      // index of traces for each group
+      const groups: { [key: string]: number[] } = {}
+
+      const n = Object.values(this.traces).length
+
+      Object.values(this.traces).forEach((tr, idx) => {
+        // restore the indended legend label
+        if ('original_name' in tr) {
+          tr.name = tr.original_name
+        }
+
+        if (!(tr.group_name in groups)) groups[tr.group_name] = []
+
+        groups[tr.group_name].push(idx)
+
+        tr.visible = false
+      })
+
+      Object.entries(groups).forEach(kv => {
+        const [group, ids] = kv
+
+        const arr = new Array(n)
+        arr.fill(false)
+
+        for (const idx of ids as any[]) {
+          arr[idx] = true
+        }
+
+        buttons.push({
+          method: 'update',
+          args: [{ visible: arr }],
+          label: group,
+        })
+      })
+
+      const updatemenus = [
+        {
+          buttons: buttons,
+          y: 1,
+          yanchor: 'top',
+        },
+      ]
+
+      const first = Object.values(groups)[0]
+
+      for (const idx of first) {
+        this.traces[idx].visible = true
+      }
+
+      const layout: any = this.layout
+      layout.updatemenus = updatemenus
     },
 
     updateTheme() {
@@ -187,36 +320,344 @@ const MyComponent = defineComponent({
       this.vizDetails = parsed
       if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
       this.$emit('title', this.vizDetails.title)
-
-      // only build the chart if we are on a real page and not the file browser
-      if (this.thumbnail) return
-      if (this.vizDetails.traces) this.traces = this.vizDetails.traces
     },
 
-    async loadFiles(): Promise<any[]> {
-      this.loadingText = 'Loading files...'
-      try {
-        const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
+    async prepareData(): Promise<any> {
+      await Promise.all(
+        Object.entries(this.vizDetails.datasets).map(kv => {
+          let [key, value] = kv
 
-        const content = Papaparse.parse(rawText, {
-          // using header:false because we don't care what
-          // the column names are: we expect "from,to,value" in cols 0,1,2.
-          header: false,
-          dynamicTyping: true,
-          skipEmptyLines: true,
+          // Dataset can be single string or full object
+          if (typeof value === 'string') {
+            value = {
+              file: value,
+            }
+          }
+
+          return this.loadDataset(key, value as DataSet)
         })
-        return content.data
-      } catch (err) {
-        const e = err as any
-        console.error({ e })
-        this.loadingText = '' + e
+      )
 
-        // maybe it failed because password?
-        if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.fileSystem.slug)
+      if (this.vizDetails.mergeDatasets && Object.values(this.vizDetails.datasets).length > 1) {
+        this.vizDetails.datasets = {
+          dataset: {
+            name: 'dataset',
+            file: 'none',
+            data: this.mergeDatasets(Object.values(this.vizDetails.datasets)),
+          },
         }
       }
-      return []
+
+      const datasets = Object.values(this.vizDetails.datasets) as DataSet[]
+      const traces = [] as any[]
+
+      const color = this.getColors(this.vizDetails, this.vizDetails.traces.length)
+
+      this.vizDetails.traces.forEach((tr: any, trIdx: number) => {
+        // Grouped traces won't be added without its group
+        let grouped = false
+
+        datasets.forEach((ds: DataSet) => {
+          // This data uses array as name and needs to be split into multiple traces.
+          const name = '$' + ds.name
+
+          if (tr.name?.startsWith(name)) {
+            const ref = tr.name.replace(name + '.', '')
+            const groups = this.groupDataTable(ds.data as DataTable, ref)
+
+            const n = Object.keys(groups).length
+            const c = this.getColors(tr, n)
+
+            Object.keys(groups).forEach((group, idx) => {
+              // TODO: Is there a library for deep copy ?
+              const copy = JSON.parse(JSON.stringify(tr))
+
+              copy.name = group
+              copy.group_name = group
+              this.recursiveCheckForTemplate(groups[group], copy, name)
+
+              if (c) {
+                if (!('marker' in tr)) copy.marker = {}
+                copy.marker.color = c[idx]
+              }
+              traces.push(copy)
+            })
+
+            grouped = true
+          } else {
+            this.recursiveCheckForTemplate(ds.data as DataTable, tr, name)
+          }
+        })
+
+        if (!grouped) {
+          if (color) {
+            // Assign marker
+            if (!('marker' in tr)) tr.marker = {}
+
+            tr.marker.color = color[trIdx]
+          }
+          traces.push(tr)
+        }
+      })
+
+      this.vizDetails.traces = traces
+    },
+
+    async loadDataset(name: string, ds: DataSet): Promise<DataSet> {
+      this.loadingText = 'Loading datasets...'
+
+      const csvData = await this.myDataManager.getDataset(
+        { dataset: ds.file },
+        { highPrecision: true }
+      )
+
+      ds.data = csvData.allRows
+      ds.name = name
+
+      this.vizDetails.datasets[name] = ds
+      this.transformData(ds)
+
+      return ds
+    },
+
+    getColors(conf: any, n: number): null | string[] {
+      if ('colorRamp' in conf) {
+        const ramp = typeof conf.colorRamp === 'string' ? { ramp: conf.colorRamp } : conf.colorRamp
+        // Produce at least two color or strange effects happen
+        return colorRamp(ramp, n >= 2 ? n : 2)
+      }
+
+      return null
+    },
+
+    // Transform dataset if requested
+    transformData(ds: DataSet) {
+      if ('pivot' in ds) {
+        this.pivot(
+          ds.name as string,
+          ds.data as DataTable,
+          ds.pivot.exclude,
+          ds.pivot.valuesTo,
+          ds.pivot.namesTo
+        )
+      }
+
+      if ('aggregate' in ds) {
+        this.aggregateColumns(ds.data as DataTable, ds.aggregate.groupBy, ds.aggregate.target)
+      }
+
+      if ('constant' in ds) {
+        Object.entries(ds.constant!).forEach(kv => {
+          const [column, value] = kv
+
+          const values = new Array(Object.values(ds.data!)[0].values.length)
+          values.fill(value)
+
+          ds.data![column] = {
+            name: column,
+            values: values,
+            type: 1,
+          }
+        })
+      }
+    },
+
+    countOccurrences(array: Float64Array | Float32Array | any[]): { [key: string]: number } {
+      let counts = {} as { [key: string]: number }
+      array.forEach((el: any) => {
+        counts[el] = counts[el] ? counts[el] + 1 : 1
+      })
+
+      return counts
+    },
+
+    // Group data table by values in columnName and generate multiple tables
+    groupDataTable(dataTable: DataTable, columnName: string): { [key: string]: DataTable } {
+      let obj = {} as { [key: string]: DataTable }
+
+      let column = dataTable[columnName]
+
+      let occ = this.countOccurrences(column.values)
+
+      // Copy all columns and initialize as empty
+      Object.entries(occ).forEach(kv => {
+        const [group, n] = kv
+
+        let dt = {} as DataTable
+
+        // Shallow copy each column
+        Object.entries(dataTable).forEach(kv => {
+          const [key, column] = kv
+          dt[key] = { ...column }
+
+          let c = Object.getPrototypeOf(column.values).constructor
+
+          // Construct array of same type
+          dt[key].values = new c(n)
+        })
+
+        obj[group] = dt
+      })
+
+      for (var i = 0; i < dataTable[columnName].values.length; i++) {
+        var group = dataTable[columnName].values[i]
+        let target = obj[group]
+
+        // determine index by subtracting the total for each group
+        let idx = target[columnName].values.length - occ[group]--
+
+        // Copy columns
+        Object.entries(dataTable).forEach(kv => {
+          const [key, column] = kv
+
+          target[key].values[idx] = column.values[i]
+        })
+      }
+
+      return obj
+    },
+
+    // Aggregate columns, currently only sum
+    aggregateColumns(dataTable: DataTable, groupBy: any[], target: string) {
+      const aggr = {} as any
+
+      const n = dataTable[Object.keys(dataTable)[0]].values.length
+
+      for (let i = 0; i < n; i++) {
+        const k = groupBy.reduce((acc, column) => (acc += dataTable[column].values[i]), '')
+
+        if (k in aggr) {
+          aggr[k][target] += dataTable[target].values[i]
+        } else {
+          aggr[k] = Object.fromEntries(groupBy.map(column => [column, dataTable[column].values[i]]))
+          aggr[k][target] = dataTable[target].values[i]
+        }
+      }
+
+      // Remove the unneeded columns
+      Object.keys(dataTable).forEach(column => {
+        if (groupBy.indexOf(column) == -1 && column != target) delete dataTable[column]
+      })
+
+      // Initial empty arrays for final columns
+      const values = Object.fromEntries([...groupBy, target].map(c => [c, []])) as any
+
+      Object.values(aggr).forEach((a: any) => {
+        Object.entries(a).forEach(cv => {
+          values[cv[0]].push(cv[1])
+        })
+      })
+
+      Object.entries(values).forEach(kv => {
+        dataTable[kv[0]].values = kv[1] as any[]
+      })
+    },
+
+    // Pivot wide to long format
+    pivot(name: string, dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
+      // Columns to pivot
+      const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
+
+      exclude.forEach(column => {
+        if (!(column in dataTable)) {
+          globalStore.commit('error', `Pivot column ${column} not in ${name}`)
+        }
+      })
+
+      // New data entries
+      const columns = Object.fromEntries(exclude.map(c => [c, []]))
+
+      // Pivot target arrays
+      const values = [] as any[]
+      const names = [] as any[]
+
+      const n = dataTable[Object.keys(dataTable)[0]].values.length
+
+      //console.log('Columns', columns, 'Pivot', pivot, 'n', n)
+
+      for (let i = 0; i < n; i++) {
+        pivot.forEach(c => {
+          exclude.forEach(c => columns[c].push(dataTable[c].values[i]))
+          names.push(c)
+          values.push(dataTable[c].values[i])
+        })
+      }
+
+      //console.log('Columns', columns, 'Values', values, 'Names', names)
+
+      exclude.forEach(c => {
+        dataTable[c].values = columns[c]
+      })
+      dataTable[valuesTo] = { name: valuesTo, values: values } as DataTableColumn
+      dataTable[namesTo] = { name: namesTo, values: names } as DataTableColumn
+    },
+
+    mergeDatasets(datasets: DataSet[]): DataTable {
+      const data = {} as DataTable
+      const first = datasets[0].data!
+
+      Object.keys(first).forEach((column: string) => {
+        const mapped = datasets.map(ds => {
+          if (!(column in ds.data!)) {
+            globalStore.commit(
+              'error',
+              `Merged dataset ${ds.name} does not contain column ${column}`
+            )
+          }
+
+          return ds.data![column].values
+        })
+
+        // Need to distinguish primitive arrays and standard ones
+        let values
+        if (
+          first[column].values instanceof Float32Array ||
+          first[column].values instanceof Float64Array
+        )
+          values = mergeTypedArrays(mapped as Array<any>[])
+        else values = mapped.flat()
+
+        data[column] = {
+          name: column,
+          type: first[column].type,
+          values: values,
+        }
+      })
+
+      return data
+    },
+
+    recursiveCheckForTemplate(dataTable: DataTable, object: any, template: string) {
+      Object.entries(object).forEach(kv => {
+        const [key, value] = kv
+        if (typeof value === 'string') {
+          // string stuff
+          if (value.includes(template)) {
+            const column = value.substring(value.indexOf('.') + 1)
+            if (column in dataTable) {
+              // Merge two columns into a multi index
+              if (this.vizDetails.multiIndex && column in this.vizDetails.multiIndex) {
+                // This creates a tuples of two arrays that has special handling in plotly
+                object[key] = [
+                  dataTable[column].values,
+                  dataTable[this.vizDetails.multiIndex[column]].values,
+                ]
+              }
+              // Normal way to add values into the column
+              else object[key] = dataTable[column].values
+            } else {
+              globalStore.commit('error', `Column "${column}" not in ${Object.keys(dataTable)}`)
+            }
+          }
+        } else if (Array.isArray(value)) {
+          // array stuff
+          if (typeof value[0] == 'object') {
+            value.forEach(v => this.recursiveCheckForTemplate(dataTable, v, template))
+          }
+        } else if (typeof value == 'object') {
+          this.recursiveCheckForTemplate(dataTable, value, template)
+        }
+      })
     },
   },
 })

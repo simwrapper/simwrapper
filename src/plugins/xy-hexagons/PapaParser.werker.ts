@@ -4,7 +4,7 @@
 
 import { expose, Transfer } from 'threads/worker'
 import { Observable } from 'observable-fns'
-import Papaparse from 'papaparse'
+import Papa from '@simwrapper/papaparse'
 
 import Coords from '@/js/Coords'
 
@@ -24,11 +24,11 @@ expose({
     const text = decoder.decode(textSection)
     let offset = 0
 
-    Papaparse.parse(text, {
+    Papa.parse(text, {
       header: false,
       skipEmptyLines: true,
       dynamicTyping: true,
-      step: (results, parser) => {
+      step: (results: any, parser: any) => {
         if (offset % 65536 === 0) {
           console.log(offset)
           // observer.next(`Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%`)

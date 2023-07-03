@@ -10,6 +10,8 @@ echo --- CLEARING ---
 rm -rf dist
 
 echo --- Set up Github Pages SPA links ---
+# always start with clean config
+git checkout vite.config.ts public/404.html
 # $1 is github repo; $2 is base URL folder (without slashes)
 sed -I .bak "s#'/'#'/$2/'#"  vite.config.ts
 sed -I .bak "s#'/'#'/$2/'#"  public/404.html

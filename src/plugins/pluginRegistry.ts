@@ -16,6 +16,7 @@ import AreaMap from '@/plugins/shape-file/ShapeFile.vue'
 import Hexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
 import XYT from '@/plugins/xy-time/XyTime.vue'
 import Flowmap from '@/plugins/flowmap/Flowmap.vue'
+import XmlViewer from '@/plugins/xml-viewer/XmlViewer.vue'
 
 // // EVERY plugin must also be exported here:
 const plugins = {
@@ -36,6 +37,7 @@ const plugins = {
   ImageView,
   XmasKelheim,
   Flowmap,
+  XmlViewer,
 }
 
 export default plugins

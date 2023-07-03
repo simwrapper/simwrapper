@@ -8,7 +8,7 @@
         b-select.selector(expanded v-model="dataColumn")
           option(label="Single color" value="@")
 
-          optgroup(v-for="dataset in datasetChoices()"
+          optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
                    :label="dataset"
           )
@@ -19,10 +19,11 @@
             )
 
   //- JOIN COLUMN
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -37,7 +38,7 @@
         p.tight Normalize by
         b-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
-          optgroup(v-for="dataset in datasetChoices()" :key="dataset" :label="dataset")
+          optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
               :key="`${dataset}/${column}`"
               :value="`${dataset}:${column}`"
@@ -57,7 +58,7 @@
           option(v-for="option in diffChoices" :label="option[0]" :value="option[1]")
 
       .widget
-        p % Diff
+        p %Diff
         b-checkbox.hello(
           :disabled="!diffUISelection || !dataColumn || diffChoices.length<2"
           v-model="diffRelative"
@@ -103,26 +104,9 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import * as d3sc from 'd3-scale-chromatic'
-import * as d3color from 'd3-color'
-
-import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import globalStore from '@/store'
-
-const d3 = Object.assign({}, d3sc, d3color) as any
-
-enum style {
-  categorical,
-  diverging,
-  sequential,
-}
-
-interface Ramp {
-  ramp: string
-  style: style
-  reverse?: boolean
-  steps?: number
-}
+import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
 
 export interface FillColorDefinition {
   dataset: string
@@ -137,17 +121,17 @@ export interface FillColorDefinition {
 }
 
 const ALL_COLOR_RAMPS = [
-  { ramp: 'Viridis', style: style.sequential, reverse: true }, // , reverse: true },
-  { ramp: 'Plasma', style: style.sequential, reverse: true }, // , reverse: true },
-  { ramp: 'Blues', style: style.sequential }, // , reverse: true },
-  { ramp: 'Greens', style: style.sequential }, // , reverse: true },
-  { ramp: 'Purples', style: style.sequential }, // , reverse: true },
-  { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
-  { ramp: 'RdBu', style: style.diverging, reverse: true },
-  { ramp: 'PRGn', style: style.diverging, reverse: true },
-  { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
-  { ramp: 'Paired', style: style.categorical }, // , reverse: true },
-  // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
+  { ramp: 'Viridis', style: Style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Plasma', style: Style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Blues', style: Style.sequential }, // , reverse: true },
+  { ramp: 'Greens', style: Style.sequential }, // , reverse: true },
+  { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
+  { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
+  { ramp: 'RdBu', style: Style.diverging, reverse: true },
+  { ramp: 'PRGn', style: Style.diverging, reverse: true },
+  { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
+  { ramp: 'Paired', style: Style.categorical }, // , reverse: true },
+  // { ramp: 'PuOr', style: Style.diverging }, // , reverse: true },
 ]
 
 export default defineComponent({
@@ -158,31 +142,37 @@ export default defineComponent({
   },
   computed: {
     simpleColors(): any {
-      return this.buildColors({ ramp: 'Tableau10', style: style.categorical }, 10)
+      return this.buildColors({ ramp: 'Tableau10', style: Style.categorical }, 10)
     },
+
     colorChoices() {
-      if (!this.diffDatasets || this.diffDatasets.length) {
-        return ALL_COLOR_RAMPS.filter(ramp => ramp.style == style.diverging)
-      }
+      // if (!this.diffDatasets || this.diffDatasets.length) {
+      //   return ALL_COLOR_RAMPS.filter(ramp => ramp.style == Style.diverging)
+      // }
       return ALL_COLOR_RAMPS
     },
+
+    datasetChoices() {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
   },
+
   data: () => {
     return {
       globalState: globalStore.state,
-      steps: '9',
-      flip: false,
       dataColumn: '',
-      join: '@count',
-      normalSelection: '',
-      selectedColor: {} as Ramp,
-      selectedSingleColor: '',
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
       diffRelative: false,
       diffUISelection: '',
       diffChoices: [] as any[],
+      flip: false,
       isCurrentlyDiffMode: false,
+      join: '',
+      normalSelection: '',
+      selectedColor: {} as Ramp,
+      selectedSingleColor: '',
+      steps: '9',
       useHardCodedColors: false,
     }
   },
@@ -312,10 +302,10 @@ export default defineComponent({
         const pieces = this.diffUISelection.split(' - ')
         this.diffDatasets = pieces
         // pick a diverging color ramp if we don't have one yet
-        if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
+        // if (!this.isCurrentlyDiffMode) this.selectedColor = this.colorChoices[0]
       } else {
         // pick a nondiverging color ramp if we just turned diffmode off
-        if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
+        // if (this.isCurrentlyDiffMode) this.selectedColor = ALL_COLOR_RAMPS[0]
         this.diffDatasets = []
         this.diffRelative = false
       }
@@ -327,7 +317,7 @@ export default defineComponent({
       if (!this.dataColumn) return
 
       // single color
-      if (this.dataColumn == '@') {
+      if (this.dataColumn === '@') {
         this.normalSelection = ''
         if (!this.selectedSingleColor) this.selectedSingleColor = this.simpleColors[0]
         this.clickedSingleColor(this.selectedSingleColor)
@@ -347,7 +337,7 @@ export default defineComponent({
         ? this.vizConfiguration.display?.fill?.fixedColors.slice()
         : this.buildColors(this.selectedColor, steps)
 
-      // this.useHardCodedColors = false
+      this.useHardCodedColors = false
 
       const fill = {
         dataset,
@@ -387,10 +377,6 @@ export default defineComponent({
       setTimeout(() => this.$emit('update', { fill }), 25)
     },
 
-    datasetChoices(): string[] {
-      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
-    },
-
     columnsInDataset(datasetId: string): string[] {
       const dataset = this.datasets[datasetId]
       if (!dataset) return []
@@ -407,7 +393,7 @@ export default defineComponent({
     },
 
     buildColors(scale: Ramp, count?: number): string[] {
-      let colors = [...this.ramp(scale, count || parseInt(this.steps))]
+      let colors = [...colorRamp(scale, count || parseInt(this.steps))]
 
       // many reasons to flip the colorscale:
       // (1) the scale preset; (2) the checkbox (3) dark mode
@@ -416,43 +402,8 @@ export default defineComponent({
       if (reverse) colors = colors.reverse()
 
       // only flip in dark mode if it's a sequential scale
-      if (scale.style === style.sequential && this.globalState.isDarkMode) {
+      if (scale.style === Style.sequential && this.globalState.isDarkMode) {
         colors = colors.reverse()
-      }
-
-      return colors
-    },
-
-    ramp(scale: Ramp, n: number): string[] {
-      let colors
-      // let dark
-
-      if (scale.style === style.categorical) {
-        const categories = d3[`scheme${scale.ramp}`]
-        return categories.slice(0, n)
-      }
-
-      if (d3[`scheme${scale.ramp}`] && d3[`scheme${scale.ramp}`][n]) {
-        colors = d3[`scheme${scale.ramp}`][n]
-        // dark = d3.lab(colors[0]).l < 50
-      } else {
-        try {
-          const interpolate = d3[`interpolate${scale.ramp}`]
-          colors = []
-          // dark = d3.lab(interpolate(0)).l < 50
-          for (let i = 0; i < n; ++i) {
-            colors.push(d3.rgb(interpolate(i / (n - 1))).hex())
-          }
-        } catch (e) {
-          // some ramps cannot be interpolated, give the
-          // highest one instead.
-          return this.ramp(scale, n - 1)
-        }
-      }
-
-      // fix center color if diverging: opaque grey
-      if (scale.style === style.diverging && n % 2 === 1) {
-        colors[Math.floor(n / 2)] = globalStore.state.isDarkMode ? '#282828' : '#e4e4e4'
       }
 
       return colors

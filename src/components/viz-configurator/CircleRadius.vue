@@ -4,18 +4,19 @@
     .widget
         p.tight Display
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="")
-          optgroup(v-for="dataset in datasetChoices()"
+          option(label="None" value="@")
+          optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :value="`${dataset}/${column}`"
                   :label="column")
 
   //- JOIN COLUMN ------------
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -95,6 +96,13 @@ export default defineComponent({
       this.emitWidthSpecification()
     },
   },
+
+  computed: {
+    datasetChoices() {
+      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
+    },
+  },
+
   methods: {
     vizConfigChanged() {
       const config = this.vizConfiguration.display?.radius
@@ -113,7 +121,9 @@ export default defineComponent({
     },
 
     emitWidthSpecification() {
-      if (!this.dataColumn) {
+      if (!this.dataColumn) return
+
+      if (this.dataColumn == '@') {
         const radius = {
           columnName: '',
           scaleFactor: parseFloat(this.scaleFactor),
@@ -124,7 +134,6 @@ export default defineComponent({
       }
 
       const slash = this.dataColumn.indexOf('/')
-
       const dataset = this.dataColumn.substring(0, slash)
       const columnName = this.dataColumn.substring(slash + 1)
 
@@ -136,10 +145,6 @@ export default defineComponent({
       }
 
       setTimeout(() => this.$emit('update', { radius }), 50)
-    },
-
-    datasetChoices(): string[] {
-      return this.datasetLabels.filter(label => label !== 'csvBase').reverse()
     },
 
     columnsInDataset(datasetId: string): string[] {

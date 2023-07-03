@@ -18,20 +18,23 @@
         :initialValue="lineFilter"
         @change='bounceLineFilter')
 
-    .lower-right(v-if="!thumbnail && !isMobile()")
+    .lower-right(v-if="!thumbnail && !isMobile")
       legend-box.complication(:rows="legendRows")
       scale-box.complication(:rows="scaleRows")
 
   .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
-    .widget-column(v-if="this.headers.length > 2")
-      h4.heading {{ $t('time')}}
-      b-checkbox.checkbox(style="margin: 0 0 0 auto;" v-model="showTimeRange")
-          | &nbsp;{{ $t('duration') }}
-      time-slider.time-slider(
-        :useRange='showTimeRange'
-        :stops='headers'
-        @change='bounceTimeSlider')
 
+    //- TIME SLIDER ----
+    .widget-column(v-if="this.headers.length > 2" style="min-width: 8rem")
+      h4.heading {{ $t('time')}}
+      b-checkbox.checkbox(v-model="showTimeRange") {{ $t('duration') }}
+      time-slider.xtime-slider(
+        :useRange="showTimeRange"
+        :stops="headers"
+        :all="allTimeBinsLabel"
+        @change="bounceTimeSlider")
+
+    //- CENTROID CONTROLS
     .widget-column
       h4.heading {{ $t('circle')}}
       b-checkbox.checkbox(v-model="showCentroids")
@@ -39,6 +42,7 @@
       b-checkbox.checkbox(v-model="showCentroidLabels")
         | &nbsp;{{$t('showNumbers')}}
 
+    //- ORIG/DEST BUTTONS
     .widget-column(style="margin: 0 0 0 auto")
       h4.heading {{$t('total')}}
       b-button.is-small(@click='clickedOrigins' :class='{"is-link": isOrigin ,"is-active": isOrigin}') {{$t('origins')}}
@@ -73,11 +77,11 @@ import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
 import { debounce } from 'debounce'
 import { FeatureCollection, Feature } from 'geojson'
-import { forEachAsync } from 'js-coroutines'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
+import VueSlider from 'vue-slider-component'
 import YAML from 'yaml'
 
 import { findMatchingGlobInFiles } from '@/js/util'
@@ -92,6 +96,8 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { ColorScheme, FileSystem, FileSystemConfig, Status, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+
+import CSVWorker from './AggregateDatasetStreamer.worker.ts?worker'
 
 import globalStore from '@/store'
 
@@ -113,7 +119,7 @@ interface AggOdYaml {
 const TOTAL_MSG = 'Alle >>'
 const FADED = 0.0 // 0.15
 
-const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500]
+const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500, 1000, 5000]
 
 const INPUTS = {
   OD_FLOWS: 'O/D Flows (.csv)',
@@ -132,6 +138,7 @@ const Component = defineComponent({
     ScaleSlider,
     TimeSlider,
     ZoomButtons,
+    VueSlider,
   },
   props: {
     root: { type: String, required: true },
@@ -143,9 +150,9 @@ const Component = defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
+      isFinishedLoading: false,
+
       myState: {
-        fileApi: undefined as HTTPFileSystem | undefined,
-        fileSystem: undefined as FileSystemConfig | undefined,
         subfolder: '',
         yamlConfig: '',
         thumbnail: false,
@@ -182,7 +189,7 @@ const Component = defineComponent({
       },
 
       containerId: `c${Math.floor(1e12 * Math.random())}`,
-      mapId: '',
+      mapId: `map-c${Math.floor(1e12 * Math.random())}`,
 
       centroids: {} as any,
       centroidSource: {} as any,
@@ -216,10 +223,10 @@ const Component = defineComponent({
       project: {} as any,
 
       scaleFactor: 1,
-      sliderValue: [1, 500],
       scaleValues: SCALE_WIDTH,
       currentScale: SCALE_WIDTH[0],
       currentTimeBin: TOTAL_MSG,
+      allTimeBinsLabel: TOTAL_MSG,
 
       lineFilter: 0,
 
@@ -229,18 +236,43 @@ const Component = defineComponent({
       _mapExtentXYXY: null as any,
       _maximum: null as any,
 
-      dailyFrom: null as any,
-      dailyTo: null as any,
-
-      bounceTimeSlider: {},
-      bounceScaleSlider: {},
-      bounceLineFilter: {},
+      bounceTimeSlider: {} as any,
+      bounceScaleSlider: {} as any,
+      bounceLineFilter: {} as any,
       resizer: null as ResizeObserver | null,
       isMapMoving: false,
       isDarkMode: false,
+
+      csvWorker: null as Worker | null,
     }
   },
   computed: {
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
+
+    fileApi() {
+      return new HTTPFileSystem(this.fileSystem, globalStore)
+    },
+
+    isMobile() {
+      const w = window
+      const d = document
+      const e = d.documentElement
+      const g = d.getElementsByTagName('body')[0]
+      const x = w.innerWidth || e.clientWidth || g.clientWidth
+      const y = w.innerHeight || e.clientHeight || g.clientHeight
+
+      return x < 640
+    },
+
     legendRows(): any[] {
       return ['#00aa66', '#880033', '↓', '↑']
     },
@@ -255,12 +287,6 @@ const Component = defineComponent({
     },
   },
   methods: {
-    buildFileApi() {
-      const filesystem = this.getFileSystem(this.root)
-      this.myState.fileApi = new HTTPFileSystem(filesystem, globalStore)
-      this.myState.fileSystem = filesystem
-    },
-
     setupResizer() {
       this.resizer = new ResizeObserver(() => {
         if (this.mymap) this.mymap.resize()
@@ -269,12 +295,14 @@ const Component = defineComponent({
       const viz = document.getElementById(this.containerId) as HTMLElement
       this.resizer.observe(viz)
     },
+
     configureSettings() {
       if (this.vizDetails.lineWidths || this.vizDetails.lineWidth) {
         this.currentScale = this.vizDetails.lineWidth || this.vizDetails.lineWidths || 1
       }
       if (this.vizDetails.hideSmallerThan) this.lineFilter = this.vizDetails.hideSmallerThan
     },
+
     handleMapMotion() {
       const mapCamera = {
         longitude: this.mymap.getCenter().lng,
@@ -285,24 +313,10 @@ const Component = defineComponent({
       }
 
       if (!this.mapIsIndependent) this.$store.commit('setMapCamera', mapCamera)
-
       if (!this.isMapMoving) this.isMapMoving = true
     },
 
-    getFileSystem(name: string) {
-      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
-        (a: FileSystemConfig) => a.slug === name
-      )
-      if (svnProject.length === 0) {
-        console.log('no such project')
-        throw Error
-      }
-      return svnProject[0]
-    },
-
     async getVizDetails() {
-      if (!this.myState.fileApi) return
-
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as any
@@ -314,16 +328,12 @@ const Component = defineComponent({
               ? this.myState.yamlConfig
               : this.myState.subfolder + '/' + this.myState.yamlConfig
 
-          const text = await this.myState.fileApi.getFileText(filename)
+          const text = await this.fileApi.getFileText(filename)
           this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
           this.validateYAML()
           this.setVizDetails()
-        } catch (err) {
-          const e = err as any
-          // maybe it failed because password?
-          if (this.myState.fileSystem && this.myState.fileSystem.needPassword && e.status === 401) {
-            globalStore.commit('requestLogin', this.myState.fileSystem.slug)
-          }
+        } catch (e) {
+          console.error('' + e)
         }
       }
 
@@ -343,10 +353,8 @@ const Component = defineComponent({
       let configuration = {} as any
 
       if (hasYaml) {
-        console.log('agg-od has yaml')
         configuration = this.standaloneYAMLconfig
       } else {
-        console.log('agg-od no yaml')
         configuration = this.config
       }
 
@@ -369,14 +377,12 @@ const Component = defineComponent({
     },
 
     async findFilenameFromWildcard(path: string) {
-      if (!this.myState.fileApi) return ''
-
       // get folder
       let folder =
         path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
 
       // get file path search pattern
-      const { files } = await this.myState.fileApi.getDirectory(folder)
+      const { files } = await this.fileApi.getDirectory(folder)
       let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
       const match = findMatchingGlobInFiles(files, pattern)
 
@@ -388,14 +394,9 @@ const Component = defineComponent({
     },
 
     async loadFiles() {
-      if (!this.myState.fileApi) return
-
       try {
         this.loadingText = 'Dateien laden...'
 
-        const csvFilename = await this.findFilenameFromWildcard(
-          `${this.myState.subfolder}/${this.vizDetails.csvFile}`
-        )
         const shpFilename = await this.findFilenameFromWildcard(
           `${this.myState.subfolder}/${this.vizDetails.shpFile}`
         )
@@ -403,15 +404,13 @@ const Component = defineComponent({
           `${this.myState.subfolder}/${this.vizDetails.dbfFile}`
         )
 
-        const odFlows = await this.myState.fileApi.getFileText(csvFilename)
-
-        const blob = await this.myState.fileApi.getFileBlob(shpFilename)
+        const blob = await this.fileApi.getFileBlob(shpFilename)
         const shpFile = await readBlob.arraybuffer(blob)
 
-        const blob2 = await this.myState.fileApi.getFileBlob(dbfFilename)
+        const blob2 = await this.fileApi.getFileBlob(dbfFilename)
         const dbfFile = await readBlob.arraybuffer(blob2)
 
-        return { shpFile, dbfFile, odFlows }
+        return { shpFile, dbfFile }
         //
       } catch (e) {
         const error = e as any
@@ -442,7 +441,7 @@ const Component = defineComponent({
         if (extent) {
           const lnglat = JSON.parse(extent)
 
-          const mFac = this.isMobile() ? 0 : 1
+          const mFac = this.isMobile ? 0 : 1
           const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 100 * mFac, left: 50 * mFac }
 
           this.$store.commit('setMapCamera', {
@@ -481,42 +480,31 @@ const Component = defineComponent({
       }
     },
 
-    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
-      this.fadeUnselectedLinks(-1)
-      this.selectedCentroid = 0
-
-      if (this.isMobile()) {
-        // do something
+    handleEmptyClick(e: any) {
+      if (
+        this.mymap
+          .queryRenderedFeatures(e.point)
+          .filter(feature => feature.source === 'centroids' || feature.source === 'spider-source')
+          .length === 0
+      ) {
+        // didn't click on a centroid: clear the map
+        this.fadeUnselectedLinks(-1)
+        this.selectedCentroid = 0
+        if (this.isMobile) {
+        } // do something
       }
     },
 
     async mapIsReady() {
       const files = await this.loadFiles()
+
       if (files) {
         this.geojson = await this.processShapefile(files)
-        await this.processHourlyData(files.odFlows)
-        this.marginals = await this.getDailyDataSummary()
-        this.buildCentroids(this.geojson)
-        this.convertRegionColors(this.geojson)
-        this.addGeojsonToMap(this.geojson)
-        this.setMapExtent()
-        this.buildSpiderLinks()
-        this.setupKeyListeners()
+        // this is async, setup will continue at finishedLoading() when data is loaded
+        if (this.geojson) this.loadCSVData()
       }
 
-      this.loadingText = ''
       nprogress.done()
-    },
-
-    isMobile() {
-      const w = window
-      const d = document
-      const e = d.documentElement
-      const g = d.getElementsByTagName('body')[0]
-      const x = w.innerWidth || e.clientWidth || g.clientWidth
-      const y = w.innerHeight || e.clientHeight || g.clientHeight
-
-      return x < 640
     },
 
     createSpiderLinks() {
@@ -543,7 +531,7 @@ const Component = defineComponent({
           // Test this
           properties[TOTAL_MSG] = link.daily
           link.values.forEach((value: number, i: number) => {
-            properties[this.headers[i + 1]] = value ? value : 0
+            properties[this.headers[i]] = value ?? 0
           })
 
           const feature: any = {
@@ -559,6 +547,9 @@ const Component = defineComponent({
           // some dests aren't on map: z.b. 'other'
         }
       }
+      // console.log(555, this.currentTimeBin, {
+      //   SPIDERLINKFEATURECOLLECTION: this.spiderLinkFeatureCollection,
+      // })
     },
 
     updateSpiderLinks() {
@@ -595,6 +586,7 @@ const Component = defineComponent({
             'line-offset': ['*', 0.5, ['get', 'daily']],
             'line-opacity': ['get', 'fade'],
           },
+          filter: ['>', ['get', this.currentTimeBin], 0],
         },
         'centroid-layer'
       )
@@ -656,9 +648,10 @@ const Component = defineComponent({
           paint: {
             'circle-color': '#ec0',
             'circle-radius': ['get', radiusField],
-            'circle-stroke-width': 3,
+            'circle-stroke-width': 2,
             'circle-stroke-color': 'white',
           },
+          filter: ['>', ['get', this.isOrigin ? 'dailyFrom' : 'dailyTo'], 0],
         })
       }
 
@@ -672,6 +665,7 @@ const Component = defineComponent({
             'text-size': 11,
           },
           paint: this.showCentroids ? {} : { 'text-halo-color': 'white', 'text-halo-width': 2 },
+          filter: ['>', ['get', this.isOrigin ? 'dailyFrom' : 'dailyTo'], 0],
         })
       }
     },
@@ -682,15 +676,13 @@ const Component = defineComponent({
     },
 
     clickedOnCentroid(e: any) {
-      // console.log({ CLICK: e })
-
       e.originalEvent.stopPropagating = true
 
       const centroid = e.features[0].properties
-      // console.log(centroid)
+      // console.log('CLICK!', centroid, this.selectedCentroid, centroid.id === this.selectedCentroid)
 
       const id = centroid.id
-      // console.log('clicked on id', id)
+
       // a second click on a centroid UNselects it.
       if (id === this.selectedCentroid) {
         this.unselectAllCentroids()
@@ -698,11 +690,6 @@ const Component = defineComponent({
       }
 
       this.selectedCentroid = id
-
-      // console.log(this.marginals)
-      // console.log(this.marginals.rowTotal[id])
-      // console.log(this.marginals.colTotal[id])
-
       this.fadeUnselectedLinks(id)
     },
 
@@ -726,17 +713,20 @@ const Component = defineComponent({
       const props = e.features[0].properties
       // console.log(props)
 
-      const trips = props.daily * this.scaleFactor
+      const trips = Math.round(10000 * props.daily * this.scaleFactor) / 10000
       let revTrips = 0
       const reverseDir = '' + props.dest + ':' + props.orig
 
-      if (this.linkData[reverseDir]) revTrips = this.linkData[reverseDir].daily * this.scaleFactor
+      if (this.linkData[reverseDir])
+        revTrips = Math.round(10000 * this.linkData[reverseDir].daily * this.scaleFactor) / 10000
 
       const totalTrips = trips + revTrips
 
-      let html = `<h1>${totalTrips} Bidirectional Trips</h1><br/>`
-      html += `<p> -----------------------------</p>`
-      html += `<p>${trips} trips : ${revTrips} reverse trips</p>`
+      let html = `<h1><b>${totalTrips} Bidirectional Trip${totalTrips !== 1 ? 's' : ''}</b></h1>`
+      html += `<p style="width: max-content">_________________________</p>`
+      html += `<p style="width: max-content">${trips} trip${
+        trips !== 1 ? 's' : ''
+      } // ${revTrips} reverse trip${revTrips !== 1 ? 's' : ''}</p>`
 
       new maplibregl.Popup({ closeOnClick: true })
         .setLngLat(e.lngLat)
@@ -768,28 +758,13 @@ const Component = defineComponent({
 
         const values = this.calculateCentroidValuesForZone(timePeriod, feature)
 
-        centroid.properties.dailyFrom = values.from * this.scaleFactor
-        centroid.properties.dailyTo = values.to * this.scaleFactor
+        centroid.properties.dailyFrom = Math.round(10000 * values.from * this.scaleFactor) / 10000
+        centroid.properties.dailyTo = Math.round(10000 * values.to * this.scaleFactor) / 10000
 
-        this.dailyFrom = centroid.properties.dailyFrom
-        this.dailyTo = centroid.properties.dailyTo
-
-        centroid.properties.widthFrom = Math.min(
-          35,
-          Math.max(
-            12,
-            Math.pow(this.dailyFrom / this.scaleFactor, 0.3) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
-        centroid.properties.widthTo = Math.min(
-          35,
-          Math.max(
-            12,
-            Math.pow(this.dailyTo / this.scaleFactor, 0.3) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
+        let digits = Math.log10(centroid.properties.dailyFrom)
+        centroid.properties.widthFrom = 6 + digits * 3.5
+        digits = Math.log10(centroid.properties.dailyTo)
+        centroid.properties.widthTo = 6 + digits * 3.5
 
         if (!feature.properties) feature.properties = {}
 
@@ -815,8 +790,6 @@ const Component = defineComponent({
 
       // daily
       if (timePeriod === 'Alle >>') {
-        //from = Math.round(this.marginals.rowTotal[feature.id])
-        //to = Math.round(this.marginals.colTotal[feature.id])
         to = feature.properties.dailyTo
         from = feature.properties.dailyFrom
         return { from, to }
@@ -867,25 +840,10 @@ const Component = defineComponent({
         centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
         centroid.properties.dailyTo = dailyTo * this.scaleFactor
 
-        this.dailyFrom = centroid.properties.dailyFrom
-        this.dailyTo = centroid.properties.dailyTo
-
-        centroid.properties.widthFrom = Math.min(
-          70,
-          Math.max(
-            12,
-            Math.sqrt(this.dailyFrom / this.scaleFactor) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
-        centroid.properties.widthTo = Math.min(
-          70,
-          Math.max(
-            12,
-            Math.sqrt(this.dailyTo / this.scaleFactor) *
-              (1.5 + this.scaleFactor / (this.scaleFactor + 50))
-          )
-        )
+        let digits = Math.log10(centroid.properties.dailyFrom)
+        centroid.properties.widthFrom = 6 + digits * 3.5
+        digits = Math.log10(centroid.properties.dailyTo)
+        centroid.properties.widthTo = 6 + digits * 3.5
 
         if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
         if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
@@ -903,9 +861,6 @@ const Component = defineComponent({
 
       this.centroidSource = centroids
 
-      // console.log({ CENTROIDS: this.centroids })
-      // console.log({ CENTROIDSOURCE: this.centroidSource })
-
       if (!this.mymap.getSource('centroids')) {
         this.mymap.addSource('centroids', {
           data: this.centroidSource,
@@ -914,20 +869,18 @@ const Component = defineComponent({
       }
       this.updateCentroidLabels()
 
-      const parent = this
-
-      this.mymap.on('click', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-        parent.clickedOnCentroid(e)
+      this.mymap.on('click', 'centroid-layer', (e: maplibregl.MapMouseEvent) => {
+        this.clickedOnCentroid(e)
       })
 
       // turn "hover cursor" into a pointer, so user knows they can click.
-      this.mymap.on('mousemove', 'centroid-layer', function (e: maplibregl.MapMouseEvent) {
-        parent.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
+      this.mymap.on('mousemove', 'centroid-layer', (e: maplibregl.MapMouseEvent) => {
+        this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
       })
 
       // and back to normal when they mouse away
-      this.mymap.on('mouseleave', 'centroid-layer', function () {
-        parent.mymap.getCanvas().style.cursor = 'grab'
+      this.mymap.on('mouseleave', 'centroid-layer', () => {
+        this.mymap.getCanvas().style.cursor = 'grab'
       })
     },
 
@@ -944,35 +897,34 @@ const Component = defineComponent({
     },
 
     setupKeyListeners() {
-      const parent = this
-      window.addEventListener('keyup', function (event) {
+      window.addEventListener('keyup', event => {
         if (event.keyCode === 27) {
           // ESC
-          parent.pressedEscape()
+          this.pressedEscape()
         }
       })
-      window.addEventListener('keydown', function (event) {
+      window.addEventListener('keydown', event => {
         if (event.keyCode === 38) {
           // UP
-          parent.pressedArrowKey(-1)
+          this.pressedArrowKey(-1)
         }
         if (event.keyCode === 40) {
           // DOWN
-          parent.pressedArrowKey(+1)
+          this.pressedArrowKey(+1)
         }
       })
     },
 
     // To display only the centroids whose dailyTo and dailyFrom values are not
-    // both 0, the objects get the property 'isVisable'. When adding the geojson
+    // both 0, the objects get the property 'isVisible'. When adding the geojson
     // data to the map, it is filtered by this attribute.
     processGeojson() {
-      for (let i = 0; i < this.geojson.features.length; i++) {
-        const data = this.geojson.features[i].properties
-        if (data.dailyFrom != 0 || data.dailyTo != 0) {
-          this.geojson.features[i].properties.isVisiable = true
+      for (const feature of this.geojson.features) {
+        const data = feature.properties
+        if (data.dailyFrom !== 0 || data.dailyTo !== 0) {
+          feature.properties.isVisible = true
         } else {
-          this.geojson.features[i].properties.isVisiable = false
+          feature.properties.isVisible = false
         }
       }
     },
@@ -986,9 +938,16 @@ const Component = defineComponent({
 
       this.loadingText = 'Koordinaten berechnen...'
 
-      await forEachAsync(geojson.features, (feature: any) => {
+      for (const feature of geojson.features) {
+        const properties = feature.properties as any
+
         // 'id' column used for lookup, unless idColumn is set in YAML
-        if (!this.idColumn && feature.properties) this.idColumn = Object.keys(feature.properties)[0]
+        if (!this.idColumn && properties) this.idColumn = Object.keys(properties)[0]
+
+        if (!(this.idColumn in properties)) {
+          this.$store.commit('error', `Shapefile does not contain ID column "${this.idColumn}"`)
+          return
+        }
 
         // Save id somewhere helpful
         if (feature.properties) feature.id = feature.properties[this.idColumn]
@@ -1003,7 +962,7 @@ const Component = defineComponent({
           console.error('ERR with feature: ' + feature)
           console.error(e)
         }
-      })
+      }
       return geojson
     },
 
@@ -1058,7 +1017,7 @@ const Component = defineComponent({
       const fromCentroid: any = {}
       const toCentroid: any = {}
 
-      await forEachAsync(Object.keys(this.zoneData), (row: any) => {
+      for (const row of Object.keys(this.zoneData)) {
         // store number of time periods (no totals here)
         fromCentroid[row] = Array(this.headers.length - 1).fill(0)
 
@@ -1083,60 +1042,69 @@ const Component = defineComponent({
             }
           }
         }
-      })
-
-      for (const row in this.zoneData) {
       }
+
       return { rowTotal, colTotal, from: fromCentroid, to: toCentroid }
     },
 
-    async processHourlyData(csvData: string) {
-      this.loadingText = 'Uhrzeitdaten entwicklen...'
+    async loadCSVData() {
+      this.loadingText = 'Load CSV data...'
 
-      const lines = csvData.split('\n')
-      const separator = lines[0].indexOf(';') > 0 ? ';' : ','
-
-      // data is in format: o,d, value[1], value[2], value[3]...
-      const headers = lines[0].split(separator).map(a => a.trim())
-      this.rowName = headers[0]
-      this.colName = headers[1]
-      this.headers = [TOTAL_MSG].concat(headers.slice(2))
-
-      if (!this.rowName || !this.colName) {
-        this.$store.commit('setStatus', {
-          type: Status.WARNING,
-          msg: 'CSV data might be wrong format',
-          desc: 'First column has no name. Data MUST be orig,dest,values...',
-        })
+      let csvFilename = ''
+      try {
+        csvFilename = await this.findFilenameFromWildcard(
+          `${this.myState.subfolder}/${this.vizDetails.csvFile}`
+        )
+      } catch (e) {
+        this.$store.commit(
+          'error',
+          `Error loading ${this.myState.subfolder}/${this.vizDetails.csvFile}`
+        )
+        return
       }
-      // console.log(this.headers)
 
-      await forEachAsync(lines.slice(1), (row: any) => {
-        // skip header row
-        const columns = row.split(separator)
-        const values = columns.slice(2).map((a: any) => parseFloat(a))
-
-        // build zone matrix
-        const i = columns[0]
-        const j = columns[1]
-
-        if (!this.zoneData[i]) this.zoneData[i] = {}
-        this.zoneData[i][j] = values
-
-        // calculate daily/total values
-        const daily = values.reduce((a: any, b: any) => a + b, 0)
-
-        if (!this.dailyData[i]) this.dailyData[i] = {}
-        this.dailyData[i][j] = daily
-
-        // save total on the links too
-        if (daily !== 0) {
-          const rowName = String(columns[0]) + ':' + String(columns[1])
-          this.linkData[rowName] = { orig: columns[0], dest: columns[1], daily, values }
+      this.csvWorker = new CSVWorker()
+      this.csvWorker.onmessage = (event: MessageEvent) => {
+        const message = event.data
+        if (message.status) {
+          this.loadingText = message.status
+        } else if (message.error) {
+          this.csvWorker?.terminate()
+          this.loadingText = message.error
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `Aggr.OD: Error loading "${this.myState.subfolder}/${this.vizDetails.csvFile}"`,
+            desc: `Check the path and filename`,
+          })
+        } else if (message.finished) {
+          this.csvWorker?.terminate()
+          this.finishedLoadingData(message)
         }
-      })
+      }
 
-      // console.log({ DAILY: this.dailyData, LINKS: this.linkData, ZONES: this.zoneData })
+      this.csvWorker.postMessage({ fileSystem: this.fileSystem, filePath: csvFilename })
+    },
+
+    async finishedLoadingData(message: any) {
+      console.log(222, 'done') // message)
+      this.loadingText = 'Building diagram...'
+      this.isFinishedLoading = true
+      await this.$nextTick()
+      this.rowName = message.rowName
+      this.colName = message.colName
+      this.headers = message.headers
+      this.dailyData = message.dailyZoneData
+      this.zoneData = message.zoneData
+      this.linkData = message.dailyLinkData
+
+      this.marginals = await this.getDailyDataSummary()
+      this.buildCentroids(this.geojson)
+      this.convertRegionColors(this.geojson)
+      this.addGeojsonToMap(this.geojson)
+      this.setMapExtent()
+      this.buildSpiderLinks()
+      this.setupKeyListeners()
+      this.loadingText = ''
     },
 
     updateMapExtent(coordinates: any) {
@@ -1185,7 +1153,7 @@ const Component = defineComponent({
             'line-opacity': 0.5,
             'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 3, 1],
           },
-          filter: ['==', 'isVisiable', true],
+          filter: ['==', 'isVisible', true],
         },
         'centroid-layer'
       )
@@ -1283,6 +1251,8 @@ const Component = defineComponent({
     },
 
     changedScale(value: any) {
+      if (!this.isFinishedLoading) return
+
       // console.log({ slider: value, timebin: this.currentTimeBin })
       this.currentScale = value
       this.changedTimeSlider(this.currentTimeBin)
@@ -1296,7 +1266,7 @@ const Component = defineComponent({
     },
   },
   watch: {
-    '$store.state.viewState'(value: any) {
+    'globalState.viewState'(value: any) {
       if (this.mapIsIndependent) return
       if (!this.mymap || this.isMapMoving || this.thumbnail) {
         this.isMapMoving = false
@@ -1304,20 +1274,23 @@ const Component = defineComponent({
       }
 
       const { bearing, longitude, latitude, zoom, pitch } = value
-
       // sometimes closing a view returns a null map, ignore it!
       if (!zoom) return
 
-      this.mymap.off('move', this.handleMapMotion)
+      try {
+        this.mymap.off('move', this.handleMapMotion)
 
-      this.mymap.jumpTo({
-        bearing,
-        zoom,
-        center: [longitude, latitude],
-        pitch,
-      })
-
-      this.mymap.on('move', this.handleMapMotion)
+        this.mymap.jumpTo({
+          bearing,
+          zoom,
+          center: [longitude, latitude],
+          pitch,
+        })
+        // back on again
+        this.mymap.on('move', this.handleMapMotion)
+      } catch (e) {
+        // oh well
+      }
     },
 
     '$store.state.colorScheme'() {
@@ -1339,7 +1312,7 @@ const Component = defineComponent({
     },
 
     showTimeRange() {
-      console.log(this.showTimeRange)
+      // console.log(this.showTimeRange)
     },
 
     showCentroids() {
@@ -1357,21 +1330,26 @@ const Component = defineComponent({
   async mounted() {
     globalStore.commit('setFullScreen', !this.thumbnail)
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-    ;(this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)),
-      (this.bounceScaleSlider = debounce(this.changedScale, 50)),
-      (this.bounceLineFilter = debounce(this.changedLineFilter, 250)),
-      (this.mapId = 'map-' + this.containerId)
+
+    this.bounceTimeSlider = debounce(this.changedTimeSlider, 100)
+    this.bounceScaleSlider = debounce(this.changedScale, 50)
+    this.bounceLineFilter = debounce(this.changedLineFilter, 250)
 
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
 
-    this.buildFileApi()
     await this.getVizDetails()
+
+    if (this.thumbnail) return
 
     this.setupMap()
     this.configureSettings()
     this.setupResizer()
+  },
+
+  beforeDestroy() {
+    if (this.csvWorker) this.csvWorker.terminate()
   },
 
   destroyed() {
@@ -1504,10 +1482,6 @@ h4 {
   margin: 1px 0px;
 }
 
-// .time-slider {
-//   // width: 12rem;
-// }
-
 .heading {
   font-weight: bold;
   text-align: left;
@@ -1574,6 +1548,10 @@ h4 {
 
 .checkbox:hover {
   color: var(--textFancy);
+}
+
+.xtime-slider {
+  margin-top: -0.25rem;
 }
 
 @media only screen and (max-width: 640px) {

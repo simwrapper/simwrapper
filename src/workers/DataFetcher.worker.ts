@@ -1,8 +1,8 @@
 /*eslint prefer-rest-params: "off"*/
 
 import pako from 'pako'
-import Papaparse from 'papaparse'
 import DBF from '@/js/dbfReader'
+import Papa from '@simwrapper/papaparse'
 
 import { DataTableColumn, DataTable, DataType, FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -203,14 +203,14 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
   const dataTable: DataTable = {}
 
   const headerLookup: any = {}
-  const csv = Papaparse.parse(text, {
+  const csv = Papa.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ',', ' '],
     comments: '#',
     skipEmptyLines: true,
     dynamicTyping: true,
     header: true,
-    transformHeader: (column, index) => {
+    transformHeader: (column: any, index: any) => {
       // add _1,_2 suffixes to any header labels that are repeated; e.g. 00,..,24,00_1
       if (!headerLookup[column]) headerLookup[column] = 0
       headerLookup[column] += 1
@@ -225,14 +225,14 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
     let dropColumns: string[] = Array.isArray(_config.drop) ? _config.drop : _config.drop.split(',')
     if (dropColumns.length) {
       console.log('DROPPING', dropColumns)
-      headers = headers.filter(header => dropColumns.indexOf(header) == -1)
+      headers = headers.filter((header: any) => dropColumns.indexOf(header) == -1)
     }
   }
   if (_config.keep) {
     let keepColumns: string[] = Array.isArray(_config.keep) ? _config.keep : _config.keep.split(',')
     if (keepColumns.length) {
       console.log('KEEPING', keepColumns)
-      headers = headers.filter(header => keepColumns.indexOf(header) > -1)
+      headers = headers.filter((header: any) => keepColumns.indexOf(header) > -1)
     }
   }
 
@@ -300,7 +300,7 @@ function badparseCsvFile(fileKey: string, filename: string, text: string) {
   // console.log('c1')
   const dataTable: DataTable = {}
 
-  const csv = Papaparse.parse(text, {
+  const csv = Papa.parse(text, {
     // preview: 10000,
     delimitersToGuess: ['\t', ';', ','],
     comments: '#',

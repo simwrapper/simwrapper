@@ -2,7 +2,7 @@
  * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
  */
 import pako from 'pako'
-import Papaparse from 'papaparse'
+import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -109,7 +109,7 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   const decoder = new TextDecoder()
 
   const header = decoder.decode(unzipped.subarray(0, 1024)).split('\n')[0]
-  const endOfHeader = header.length + 1
+  const endOfHeader = header.length
 
   const separator =
     header.indexOf(';') > -1
@@ -135,9 +135,9 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 
   // how many lines
   let count = 0
-  for (let i = startOfData; i < unzipped.length; i++) {
-    if (unzipped[i] === 10) count++
-  }
+  for (let i = startOfData; i < unzipped.length; i++) if (unzipped[i] === 10) count++
+  // might end last line without EOL marker
+  if (unzipped[unzipped.length - 1] !== 10) count++
 
   totalLines = count
 
@@ -182,12 +182,13 @@ function step3parseCSVdata(sections: Uint8Array[]) {
     for (const section of sections) {
       const text = decoder.decode(section)
 
-      Papaparse.parse(text, {
+      Papa.parse(text, {
         header: false,
         // preview: 100,
         skipEmptyLines: true,
+        delimitersToGuess: ['\t', ';', ',', ' '],
         dynamicTyping: true,
-        step: (results: any, parser) => {
+        step: (results: any, parser: any) => {
           if (offset % 65536 === 0) {
             console.log(offset)
             postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })

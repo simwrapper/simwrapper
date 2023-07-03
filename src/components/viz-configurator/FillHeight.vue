@@ -17,10 +17,11 @@
                    :label="column")
 
   //- JOIN COLUMN
-  .widgets
+  .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
         b-select.selector(expanded v-model="join")
+          option(label="None" value="")
           option(label="Row count" value="@count")
 
           optgroup(label="Join by...")
@@ -78,7 +79,7 @@ export default defineComponent({
     return {
       transforms,
       dataColumn: '',
-      join: '@count',
+      join: '',
       normalSelection: '',
       scaleFactor: '1',
       selectedTransform: transforms[0],

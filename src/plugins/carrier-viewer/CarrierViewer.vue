@@ -131,7 +131,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { parseXML, findMatchingGlobInFiles } from '@/js/util'
+import { parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
@@ -877,7 +877,7 @@ const CarrierPlugin = defineComponent({
             this.myState.subfolder + '/' + this.vizDetails.thumbnail
           )
           const buffer = await readBlob.arraybuffer(blob)
-          const base64 = this.arrayBufferToBase64(buffer)
+          const base64 = arrayBufferToBase64(buffer)
           if (base64)
             this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
         } catch (e) {
@@ -917,16 +917,6 @@ const CarrierPlugin = defineComponent({
 
     clickedEmptyMap() {
       this.selectAllTours()
-    },
-
-    arrayBufferToBase64(buffer: any) {
-      var binary = ''
-      var bytes = new Uint8Array(buffer)
-      var len = bytes.byteLength
-      for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i])
-      }
-      return window.btoa(binary)
     },
 
     updateLegendColors() {},

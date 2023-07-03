@@ -114,6 +114,7 @@ import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
+import { arrayBufferToBase64 } from '@/js/util'
 
 import {
   ColorScheme,
@@ -276,7 +277,6 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
 
       resizer: undefined as ResizeObserver | undefined,
-      networkWorker: undefined as Worker | undefined,
       dataLoaderWorkers: [] as Worker[],
       csvRowLookupFromLinkRow: {} as { [datasetId: string]: number[] },
 
@@ -455,23 +455,13 @@ const MyComponent = defineComponent({
             this.myState.subfolder + '/' + this.vizDetails.thumbnail
           )
           const buffer = await readBlob.arraybuffer(blob)
-          const base64 = this.arrayBufferToBase64(buffer)
+          const base64 = arrayBufferToBase64(buffer)
           if (base64)
             this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
         } catch (e) {
           console.error(e)
         }
       }
-    },
-
-    arrayBufferToBase64(buffer: any) {
-      var binary = ''
-      var bytes = new Uint8Array(buffer)
-      var len = bytes.byteLength
-      for (var i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i])
-      }
-      return window.btoa(binary)
     },
 
     toggleShowDiffs() {
@@ -1071,8 +1061,9 @@ const MyComponent = defineComponent({
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
 
-    if (this.networkWorker) this.networkWorker.terminate()
-    for (const worker of this.dataLoaderWorkers) worker.terminate()
+    try {
+      for (const worker of this.dataLoaderWorkers) worker.terminate()
+    } catch (e) {}
 
     this.$store.commit('setFullScreen', false)
   },

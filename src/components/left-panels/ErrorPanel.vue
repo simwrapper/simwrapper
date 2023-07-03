@@ -70,6 +70,8 @@ export default defineComponent({
   },
   methods: {
     cleanError(message: string) {
+      if (!message) return ''
+
       if (message.startsWith('Error: ')) return message.slice(7)
       return message
     },

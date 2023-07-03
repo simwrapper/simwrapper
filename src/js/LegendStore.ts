@@ -8,7 +8,6 @@ export interface LegendSection {
 }
 
 class LegendStore {
-  private debug = true
   private internalState = {
     message: '',
     sections: [] as LegendSection[],

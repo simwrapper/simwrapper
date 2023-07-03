@@ -1,116 +1,76 @@
 <template lang="pug">
-.time-slider-main-content
-  vue-slider.time-slider(v-bind="timeSlider" v-model="sliderValue")
+.time-slider
+  b-slider(:min="0" :max="stops.length" v-model="sliderValue" :tooltip="false")
+    b-slider-tick(v-for="stop,i of allStops" :key="stop" :value="i")
+  p: b {{ stopLabel }}
+
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import * as timeConvert from 'convert-seconds'
-import vueSlider from 'vue-slider-component'
 
 export default defineComponent({
   name: 'TimeSliderX',
-  components: { 'vue-slider': vueSlider },
+  components: {},
   props: {
-    initialTime: Number,
     useRange: Boolean,
+    all: String,
     stops: { type: Array, required: true },
   },
   data: () => {
-    const TOTAL_MSG = 'All >>'
-
     return {
-      TOTAL_MSG,
-      sliderValue: TOTAL_MSG as any,
-      timeSlider: {
-        height: 6,
-        piecewise: true,
-        show: false,
-        'enable-cross': false,
-        minRange: 1,
-        marks: [] as any[],
-        contained: true,
-        sliderStyle: [{ backgroundColor: '#f05b72' }, { backgroundColor: '#3498db' }],
-        processStyle: {
-          backgroundColor: '#00bb5588',
-          borderColor: '#f05b72',
-        },
-        tooltip: 'always',
-        'tooltip-placement': 'bottom',
-        data: [] as any[],
-      },
+      sliderValue: 0 as any,
     }
   },
   computed: {
-    clockTime(): string {
-      return this.convertSecondsToClockTime(this.sliderValue)
+    allStops() {
+      const initial = this.all ? [this.all] : []
+      return [...initial, ...this.stops]
+    },
+
+    stopLabel() {
+      if (Array.isArray(this.sliderValue))
+        return `${this.allStops[this.sliderValue[0]]} : ${this.allStops[this.sliderValue[1]]}`
+      else return this.allStops[this.sliderValue]
     },
   },
   watch: {
-    initialTime(seconds: number) {
-      this.sliderValue = seconds
-    },
-
     useRange(useIt: boolean) {
       if (useIt) {
-        this.sliderValue = [this.stops[0], this.stops[this.stops.length - 1]]
+        this.sliderValue = [1, this.allStops.length - 1]
       } else {
-        this.sliderValue = [this.stops[0]]
+        this.sliderValue = this.sliderValue[0]
       }
-      console.log('changed to: ' + this.sliderValue)
-    },
-
-    stops(newStops: any) {
-      console.log({ newStops })
-      this.timeSlider.data = newStops
     },
 
     sliderValue() {
-      this.$emit('change', this.sliderValue)
+      const timePeriod = Array.isArray(this.sliderValue)
+        ? [this.allStops[this.sliderValue[0]], this.allStops[this.sliderValue[1]]]
+        : this.allStops[this.sliderValue]
+      this.$emit('change', timePeriod)
     },
   },
   mounted() {
-    this.timeSlider.data = this.stops
-    this.timeSlider.marks = [
-      this.stops[0],
-      this.stops[Math.floor(this.stops.length / 2)],
-      this.stops[this.stops.length - 1],
-    ]
+    // console.log(777, this.stops)
   },
-  methods: {
-    dataFunction() {
-      return {
-        value: this.sliderValue,
-        data: this.stops,
-      }
-    },
-
-    convertSecondsToClockTimeMinutes(index: number) {
-      try {
-        const hms = timeConvert(index)
-        const minutes = ('00' + hms.minutes).slice(-2)
-        return `${hms.hours}:${minutes}`
-      } catch (e) {
-        return '0:00'
-      }
-    },
-
-    convertSecondsToClockTime(index: number) {
-      const hms = timeConvert(index)
-      const minutes = ('00' + hms.minutes).slice(-2)
-      const seconds = ('00' + hms.seconds).slice(-2)
-      return `${hms.hours}:${minutes}:${seconds}`
-    },
-  },
+  methods: {},
 })
 </script>
 
 <style scoped lang="scss">
-@import '../../../node_modules/vue-slider-component/theme/default.css';
+@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .time-slider {
-  margin-left: 0.5rem;
-  padding-bottom: 0.25rem;
+  margin: 0.5rem;
+  margin-top: -0.75rem;
+}
+
+p {
+  font-size: 1rem;
+  margin: 0;
+  margin-left: -0.4rem;
+  padding: 0;
+  line-height: 0.5rem;
 }
 </style>

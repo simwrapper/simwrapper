@@ -49,6 +49,11 @@ export interface NetworkLinks {
   projection: String
 }
 
+// This tells us if our environment has the Chrome File System Access API, meaning we are in Chrome
+//@ts-ignore
+const isChrome = !!window.showDirectoryPicker
+const isFirefox = !isChrome
+
 export default class DashboardDataManager {
   constructor(...args: string[]) {
     // hello
@@ -228,27 +233,9 @@ export default class DashboardDataManager {
     cbStatus?: any
   ) {
     const path = `/${subfolder}/${filename}`
-
     // Get the dataset the first time it is requested
     if (!this.networks[path]) {
-      console.log('load network:', path)
-
-      // get folder
-      let folder =
-        path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
-
-      // get file path search pattern
-      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
-      let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
-      const match = findMatchingGlobInFiles(files, pattern)
-
-      if (match.length === 1) {
-        // fetchNetwork immediately returns a Promise<>, which we wait on so that
-        // multiple views don't all try to fetch the network individually
-        this.networks[path] = this._fetchNetwork(`${folder}/${match[0]}`, vizDetails, cbStatus)
-      } else {
-        throw Error('File not found: ' + path)
-      }
+      this.networks[path] = this._fetchNetwork({ subfolder, filename, vizDetails, cbStatus })
     }
 
     // wait for the worker to provide the network
@@ -517,7 +504,9 @@ export default class DashboardDataManager {
           thread.terminate()
           if (e.data.error) {
             let msg = '' + e.data.error
-            msg = msg.replace('[object Response]', 'File load error')
+            msg = msg.replace('[object Response]', 'Error loading file')
+
+            if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`
 
             globalStore.commit('setStatus', {
               type: Status.ERROR,
@@ -536,22 +525,37 @@ export default class DashboardDataManager {
     })
   }
 
-  private async _fetchNetwork(path: string, vizDetails: any, cbStatus?: any) {
-    return new Promise<NetworkLinks>((resolve, reject) => {
-      const thread = new RoadNetworkLoader()
-      try {
-        thread.postMessage({
-          filePath: path,
-          fileSystem: this.fileApi,
-          vizDetails,
-        })
+  private async _fetchNetwork(props: {
+    subfolder: string
+    filename: string
+    vizDetails: any
+    cbStatus?: any
+  }) {
+    return new Promise<NetworkLinks>(async (resolve, reject) => {
+      const { subfolder, filename, vizDetails, cbStatus } = props
 
-        thread.onmessage = e => {
+      const path = `/${subfolder}/${filename}`
+      console.log('load network:', path)
+
+      // get folder
+      let folder =
+        path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
+
+      // get file path search pattern
+      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
+      let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
+      const match = findMatchingGlobInFiles(files, pattern)
+
+      if (match.length !== 1) reject('File not found: ' + path)
+
+      const thread = new RoadNetworkLoader() as any
+      try {
+        thread.onmessage = (e: MessageEvent) => {
           // perhaps network has no CRS and we need to ask user
           if (e.data.promptUserForCRS) {
             let crs =
               prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
-            if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
+            if (Number.isInteger(parseInt(crs))) crs = `EPSG:${crs}`
 
             thread.postMessage({ crs })
             return
@@ -565,12 +569,21 @@ export default class DashboardDataManager {
 
           // normal exit
           thread.terminate()
+
           if (e.data.error) {
             console.error(e.data.error)
             reject(e.data.error)
           }
+
           resolve(e.data.links)
         }
+
+        thread.postMessage({
+          filePath: path,
+          fileSystem: this.fileApi,
+          vizDetails,
+          isFirefox, // we need this for now, because Firefox bug #260
+        })
       } catch (err) {
         thread.terminate()
         console.error(err)

@@ -17,7 +17,7 @@
       )
 
         //- card header/title
-        .dash-card-headers(:class="{'fullscreen': !!fullScreenCardId}")
+        .dash-card-headers(v-if="card.title + card.description" :class="{'fullscreen': !!fullScreenCardId}")
           .header-labels
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
@@ -296,6 +296,10 @@ export default defineComponent({
           Vue.set(this.opacity, card.id, 0.5)
           Vue.set(this.infoToggle, card.id, false)
 
+          // Card header could be hidden
+          if (!card.title && !card.description) card.showHeader = false
+          else card.showHeader = true
+
           numCard++
         })
 
@@ -345,7 +349,7 @@ export default defineComponent({
 
     getRowClass(row: any) {
       const rowClass = { 'is-panel-narrow': this.isPanelNarrow } as any
-      rowClass[`${row}-${row.id}`] = true
+      rowClass[`row-${row.id}`] = true
       return rowClass
     },
   },

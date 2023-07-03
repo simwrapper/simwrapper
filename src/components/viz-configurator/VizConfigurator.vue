@@ -275,15 +275,24 @@ export default defineComponent({
         }
       }
       if (config.display.lineColor) {
-        if (config.display.lineColor.colorRamp) {
-          delete config.display.lineColor.colorRamp?.style
-          delete config.display.lineColor.fixedColors
-          if (!config.display.lineColor.colorRamp.reverse) {
-            delete config.display.lineColor.colorRamp.reverse
-          }
+        console.log(555, config.display.lineColor)
+        // no-lines: set to false
+        if (
+          config.display.lineColor.fixedColors &&
+          config.display.lineColor.fixedColors[0] === ''
+        ) {
+          config.display.lineColor = false
         } else {
-          delete config.display.lineColor.dataset
-          delete config.display.lineColor.columnName
+          if (config.display.lineColor.colorRamp) {
+            delete config.display.lineColor.colorRamp?.style
+            delete config.display.lineColor.fixedColors
+            if (!config.display.lineColor.colorRamp.reverse) {
+              delete config.display.lineColor.colorRamp.reverse
+            }
+          } else {
+            delete config.display.lineColor.dataset
+            delete config.display.lineColor.columnName
+          }
         }
       }
 
@@ -325,7 +334,8 @@ export default defineComponent({
 
       // delete empty display sections
       for (const entries of Object.entries(config.display) as any[]) {
-        // console.log(entries)
+        // user can disable a section (lines ahem!) by setting it to false
+        if (entries[1] === false) continue
         if (!Object.keys(entries[1]).length) delete config.display[entries[0]]
       }
 
