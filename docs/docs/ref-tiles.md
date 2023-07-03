@@ -75,7 +75,7 @@ There are three ways to add icons. When adding icons, these three options are al
 
 1. **Custom Icons:** To add your own icons, the file must be in the same directory and the relative path (including extension) must be specified in the .csv file.
 
-2. **Predefined Icons:** See [Predefined Icons](###predefined-icons). For adding only the name (without extension) must be specified.
+2. **Predefined Icons:** See [Predefined Icons](#predefined-icons). For adding only the name (without extension) must be specified.
 
 3. **Font Awesome Free Icons:** For adding these icons only the name must be specified. An overview of the available icons can be found [here](https://fontawesome.com/search?o=r&m=free&s=solid). Only the icons from the Solid series will work.
 

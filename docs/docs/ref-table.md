@@ -3,7 +3,7 @@ id: table
 title: Table viewer
 ---
 
-![table viewer example](assets/table.png)
+![table viewer example](assets/table/table-style-default.png)
 _Table Viewer_
 
 The Table viewer is able to display csv files clearly.
@@ -30,7 +30,33 @@ layout:
       hide: [bike, car]
       show: [bus]
       showAllrows: false
+      hideHeader: false
+      style: default
 ```
+
+---
+
+### Styles
+
+The Table plug-in provides various styles.
+
+**Default Style:**
+
+```yaml
+style: default # Or just leave blank
+```
+
+![table viewer example](assets/table/table-style-default.png)
+_Default Style_
+
+**Topsheet Style:**
+
+```yaml
+style: topsheet
+```
+
+![table viewer example](assets/table/table-style-topsheet.png)
+_Topsheet Viewer_
 
 ---
 
@@ -47,3 +73,7 @@ Table viewer properties:
 **show:** Array of strings. List of column names that should be displayed. If the hide and show option are in the .yaml file the hide option will be ignored.
 
 **showAllRows:** true/false. This option defines whether the whole table should be displayed or if there are several pages. The default setting is false.
+
+**style:** String. This option specifies which style the table should have. The default value is default. Which styles are available can be looked up [here](#styles).
+
+**hideHeader:** true/false. This option defines whether the header is visible or not. The default is false. Note: Even if no header is to be displayed, the table needs a header row.
