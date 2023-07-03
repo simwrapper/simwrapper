@@ -1,5 +1,5 @@
 ---
-id: xml
+id: xml-viewer
 title: XML Viewer
 ---
 
