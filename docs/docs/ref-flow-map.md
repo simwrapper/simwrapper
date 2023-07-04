@@ -11,12 +11,12 @@ Flowmaps depict _aggregate movements_ between origins and destinations.
 
 ## Usage
 
-Flow maps can be included as panels in **Dashboards** or used as a **standalone map**. See [Dashboard documentation](dashboards) for general tips on creating dashboard configurations.
+Flow maps can be included as panels in **Dashboards** or used as a **standalone map**. See [Dashboard Guide](guide-dashboards) for general tips on creating dashboard configurations.
 
 **Standalone:** Create a `viz-flowmap*.yaml` file as described below
 
  -or-
- 
+
  **Embed in Dashboard:** `Create a dashboard-*.yaml` file and include a `type:flowmap` section as desccribed below.
 - Each chart panel is defined inside a **row** in a `dashboard-*.yaml` file.
 - Standard title, description, height, and width fields define the frame.
@@ -64,7 +64,7 @@ These settings are optional. Depending on the data used and the focus of the wor
 
 #### Clustering
 
-Unless otherwise specified clustering is turned on, meaning the flows aggregate based on the zoom level. This is recommended for most datasets. When vizualising smaller datasets, where there is less overlap of the flows or trying to show specific details clustering can be turned off and a specific clustering level can be used instead. 
+Unless otherwise specified clustering is turned on, meaning the flows aggregate based on the zoom level. This is recommended for most datasets. When vizualising smaller datasets, where there is less overlap of the flows or trying to show specific details clustering can be turned off and a specific clustering level can be used instead.
 
 - **clusteringEnabled:** (optional) `true` or `false`. Turns the aggregation of the flows on and off. The standard value used is `true`.
 - **clusteringAuto:** (optional) `true`or `false`. Turns the automatic scaling of the clustering on and off. If turned off, a value for **clusteringLevel** should be provided. The standard value used is `true`.
