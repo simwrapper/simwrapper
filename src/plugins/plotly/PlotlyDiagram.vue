@@ -299,8 +299,9 @@ const MyComponent = defineComponent({
           {
             pad: { t: 10 },
             currentvalue: {
+              visible: false,
               xanchor: 'left',
-              prefix: groups,
+              prefix: '',
             },
             steps: buttons,
           },
