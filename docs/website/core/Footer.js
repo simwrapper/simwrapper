@@ -5,13 +5,13 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-const React = require("react");
+const React = require('react');
 
 class Footer extends React.Component {
   docUrl(doc) {
     const baseUrl = this.props.config.baseUrl;
     const docsUrl = this.props.config.docsUrl;
-    const docsPart = `${docsUrl ? `${docsUrl}/` : ""}`;
+    const docsPart = `${docsUrl ? `${docsUrl}/` : ''}`;
     return `${baseUrl}${docsPart}${doc}`;
   }
 
@@ -29,8 +29,8 @@ class Footer extends React.Component {
           </a>
           <div>
             <h5>Docs</h5>
-            <a href={this.docUrl("simwrapper-intro")}>Getting Started</a>
-            <a href={this.docUrl("simwrapper-installation")}>Developer Guide</a>
+            <a href={this.docUrl('guide-getting-started')}>Getting Started</a>
+            <a href={this.docUrl('dev-guide')}>Developer Guide</a>
             <a href={`${this.props.config.baseUrl}blog`}>Latest Updates</a>
           </div>
           {/* <div>
@@ -54,11 +54,9 @@ class Footer extends React.Component {
           </div> */}
           <div>
             <h5>More</h5>
-            <a href="https://www.vsp.tu-berlin.de">VSP Home</a>
+            <a href="https://vsp.berlin">VSP Home</a>
             <a href="https://matsim.org">MATSim.org</a>
-            <a href="https://github.com/simwrapper/simwrapper.github.io">
-              ⭐ us on GitHub!
-            </a>
+            <a href="https://github.com/simwrapper/simwrapper">⭐ us on GitHub!</a>
           </div>
         </section>
 
