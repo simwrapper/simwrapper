@@ -83,25 +83,24 @@ Unless otherwise specified clustering is turned on, meaning the flows aggregate 
 
 ```yaml
 layout:
-  - title: 'Trip Origin/Destination Flows'
+  - type: 'flowmap'
+    title: 'Trip Origin/Destination Flows'
     description: 'Major flows shown'
-    type: 'flowmap'
     height: 10
-    props:
-      boundaries: 'taz1454.geojson'
-      boundariesJoinCol: 'TAZ1454'
-      boundariesLabels: 'TAZ'
-      dataset: 'trip-od-flows.csv'
-      origin: 'origin'
-      destination: 'destination'
-      flow: 'trips'
-      animationEnabled: false
-      clusteringEnabled: true
-      clusteringAuto: true
-      clusteringLevel: 20
-      locationLabelsEnabled: true
-      pickable: true
-      opacity: 1
+    boundaries: 'taz1454.geojson'
+    boundariesJoinCol: 'TAZ1454'
+    boundariesLabels: 'TAZ'
+    dataset: 'trip-od-flows.csv'
+    origin: 'origin'
+    destination: 'destination'
+    flow: 'trips'
+    animationEnabled: false
+    clusteringEnabled: true
+    clusteringAuto: true
+    clusteringLevel: 20
+    locationLabelsEnabled: true
+    pickable: true
+    opacity: 1
 ```
 
 ### Sample viz-flowmap.yaml config snippet
