@@ -16,14 +16,17 @@ Start with the example below and edit as necessary. YAML is _extremely picky_ ab
 
 ### Header
 
-A dashboard requires a top-level `header` containing _tab_ and _title_ and optional _description._
+A dashboard requires a top-level `header` containing _tab_ and _title_ and an optional _description._
 
 ```yaml
 header:
   tab: 'Summary'
   title: 'Top-Level Summary Statistics'
   description: 'At-a-glance figures we usually look at' #optional
+  triggerPattern: "*.drt.csv" #optional
 ```
+
+**triggerPattern:** (optional) If specified, the dashboard defined in this YAML will only be generated when a filename matching the given triggerPattern exists in the current folder. For example, if it is set to `triggerPattern: "*.drt.csv"` and the file `output_mode.drt.csv` exists in the current folder, then this dashboard will be created. If no file matches the given pattern, then this dashboard will be skipped. If triggerPattern is not specified, then the dashboard will always be generated.
 
 ### Layout
 

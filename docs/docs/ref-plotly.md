@@ -10,9 +10,9 @@ With the Plotly plug-in it is possible to create your own plug-ins in addition t
 
 ## Usage
 
-The tiles plug-in can only be included as panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
+The plotly plug-in can be used to add panels in **Dashboards**. See Dashboard documentation for general tips on creating dashboard configurations.
 
-- Each table viewer panel is defined inside a **row** in a `dashboard-*.yaml` file.
+- Each plotly panel is defined inside a **row** in a `dashboard-*.yaml` file.
 - Use panel `type: plotly` in the dashboard configuration.
 - Standard title, description, and width fields define the frame.
 
