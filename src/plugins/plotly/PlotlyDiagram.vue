@@ -172,9 +172,11 @@ const MyComponent = defineComponent({
         })
       }
 
-      if (this.vizDetails.dropdownMenu) {
-        this.createMenus()
-      }
+      // Backwards compatiblity with the older "dropdownMenu" option
+      if (this.vizDetails.dropdownMenu) this.vizDetails.interactive = 'dropdown'
+
+      // create interactive elements
+      if (this.vizDetails.interactive) this.createMenus(this.vizDetails.interactive)
     } catch (err) {
       const e = err as any
       console.error({ e })
@@ -236,7 +238,9 @@ const MyComponent = defineComponent({
       this.layout = mergedLayout
     },
 
-    createMenus() {
+    createMenus(mode: string) {
+      if (mode == 'none') return
+
       const buttons: any[] = []
 
       // index of traces for each group
@@ -274,22 +278,36 @@ const MyComponent = defineComponent({
         })
       })
 
-      const updatemenus = [
-        {
-          buttons: buttons,
-          y: 1,
-          yanchor: 'top',
-        },
-      ]
-
       const first = Object.values(groups)[0]
-
       for (const idx of first) {
         this.traces[idx].visible = true
       }
 
       const layout: any = this.layout
-      layout.updatemenus = updatemenus
+
+      if (mode == 'dropdown') {
+        const updatemenus = [
+          {
+            buttons: buttons,
+            y: 1,
+            yanchor: 'top',
+          },
+        ]
+        layout.updatemenus = updatemenus
+      } else if (mode == 'slider') {
+        const sliders = [
+          {
+            pad: { t: 10 },
+            currentvalue: {
+              visible: false,
+              xanchor: 'left',
+              prefix: '',
+            },
+            steps: buttons,
+          },
+        ]
+        layout.sliders = sliders
+      }
     },
 
     updateTheme() {
