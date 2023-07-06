@@ -121,7 +121,6 @@ const MyComponent = defineComponent({
 
       if (this.thumbnail) this.vizDetails.height = 125
 
-      console.log(this.vizDetails)
       this.embedChart()
     },
 
@@ -162,11 +161,11 @@ const MyComponent = defineComponent({
     async loadFiles() {
       let json: any = { data: {} }
 
-      try {
-        this.loadingText = 'Loading chart...'
+      // might be a project config:
+      const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
 
-        // might be a project config:
-        const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
+      try {
+        this.loadingText = 'Loading config...'
 
         json = await this.fileApi.getFileJson(filename)
 
@@ -183,10 +182,11 @@ const MyComponent = defineComponent({
         console.error({ e })
         this.loadingText = '' + e
 
-        // maybe it failed because password?
-        if (this.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.fileSystem.slug)
-        }
+        let msg = 'Error loading: ' + filename
+        if (e.statusText === 'File not found') msg = 'File not found: ' + filename
+        if (e.name === 'SyntaxError') msg = 'Error parsing JSON: ' + filename
+        this.$store.commit('error', msg)
+
         return
       }
 
@@ -194,10 +194,21 @@ const MyComponent = defineComponent({
       // hand it to Vega which will parse it .
       if (json.data.url && !json.data.url.startsWith('http')) {
         const path = `/${this.myState.subfolder}/${json.data.url}`
-        const rawData = await this.fileApi.getFileText(path)
-        json.data = {
-          values: rawData,
-          format: { type: path.endsWith('json') ? 'json' : 'csv' },
+
+        try {
+          const rawData = await this.fileApi.getFileText(path)
+          json.data = {
+            values: rawData,
+            format: { type: path.toLocaleLowerCase().endsWith('json') ? 'json' : 'csv' },
+          }
+        } catch (err) {
+          const e = err as any
+          console.error(e)
+
+          let msg = 'Error loading: ' + path
+          if (e.statusText === 'File not found') msg = 'File not found: ' + path
+          if (e.name === 'SyntaxError') msg = 'Error parsing JSON: ' + path
+          this.$store.commit('error', msg)
         }
       }
 
@@ -206,6 +217,8 @@ const MyComponent = defineComponent({
     },
 
     async embedChart() {
+      if (!this.vizDetails) return
+
       let box = document.querySelector(`#${this.cleanConfigId}`) as Element
       if (!box) return
 
