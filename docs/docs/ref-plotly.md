@@ -4,7 +4,7 @@ title: Plotly
 ---
 
 ![plotly example](assets/plotly.png)
-_Plotly_
+<br/>_Plotly_
 
 With the Plotly plug-in it is possible to create your own plug-ins in addition to the standard ones.
 

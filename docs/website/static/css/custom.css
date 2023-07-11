@@ -8,7 +8,7 @@
 /* your custom css */
 
 body {
-  font-family: "Titillium Web", "Arial", "Helvetica";
+  font-family: 'Open Sans', 'Arial', 'Helvetica';
 }
 
 h1,
@@ -17,7 +17,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Titillium Web", "Roboto", "Arial", "Helvetica";
+  font-family: 'Roboto Slab', 'Open Sans', 'Arial', 'Helvetica';
 }
 
 h1.postHeaderTitle {
@@ -55,7 +55,7 @@ h2.headerTitleWithLogo:hover {
 }
 
 .homeContainer {
-  background-image: url("/img/berlin-dots.jpg");
+  background-image: url('/img/berlin-dots.jpg');
   margin: 0 0;
   padding: 5rem 0;
 }
@@ -100,17 +100,60 @@ h2.projectTitle {
   color: #effc5e;
 }
 
+article p img {
+  margin: 0 0;
+  width: 640px;
+}
+
+.visualization-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 180px);
+  gap: 1rem 1rem;
+}
+
+.visualization h4 {
+  margin: 0 0 0.15rem 0;
+  padding: 0 0;
+}
+
+.visualization img {
+  object-fit: cover;
+  height: 180px;
+  width: 180px;
+  border: 1px solid #c2d5e5;
+  opacity: 0.85;
+}
+
+.visualization img:hover {
+  opacity: 1;
+}
+
 @media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
+  .wrapper {
+    max-width: none;
+  }
 }
 
 @media only screen and (min-width: 1024px) {
+  .wrapper {
+    max-width: none;
+  }
 }
 
 @media only screen and (max-width: 1023px) {
+  .wrapper {
+    max-width: none;
+  }
 }
 
 @media only screen and (min-width: 1400px) {
+  .wrapper {
+    max-width: none;
+  }
 }
 
 @media only screen and (min-width: 1500px) {
+  .wrapper {
+    max-width: none;
+  }
 }

@@ -1,6 +1,6 @@
 {
   "doc": {
-    "Introduction": ["index", "file-management", "help"],
+    "Introduction": ["index", "examples", "file-management", "help"],
     "Guides": [
       "guide-getting-started",
       "guide-dashboards",

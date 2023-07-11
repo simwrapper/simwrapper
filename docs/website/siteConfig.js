@@ -11,6 +11,7 @@ const siteConfig = {
 
   headerLinks: [
     { doc: 'index', label: 'Documentation' },
+    { doc: 'examples', label: 'Examples' },
     { blog: true, label: 'News', left: true },
     {
       href: 'https://github.com/simwrapper/simwrapper',
@@ -27,7 +28,8 @@ const siteConfig = {
 
   stylesheets: [
     // "https://fonts.googleapis.com/css?family=Space+Grotesk:400,400i,700|Titillium+Web:400,400i,700",
-    'https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700',
+    // 'https://fonts.googleapis.com/css?family=Titillium+Web:400,400i,700',
+    'https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700|Roboto+Slab:400,400i,700',
   ],
 
   highlight: { theme: 'default' },
@@ -36,8 +38,8 @@ const siteConfig = {
 
   cleanUrl: true,
   copyright: `Copyright © ${new Date().getFullYear()} VSP, TU Berlin`,
-  enableUpdateTime: true,
-  onPageNav: 'separate',
+  enableUpdateTime: false,
+  // onPageNav: 'separate',
 
   // Open Graph and Twitter card images.
   ogImage: 'img/undraw_online.svg',

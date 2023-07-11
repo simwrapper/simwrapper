@@ -29,7 +29,7 @@ header:
 ```
 
 |**Field**|**Description**|**Default**|
-|-------|---------|-------------|
+|---------|---------------|-----------|
 |title|Header title displayed at top of dashboard|--|
 |tab|Name shown on the tab|Same as title|
 |description|Longer text shown below dashboard title|--|
@@ -72,7 +72,7 @@ That indentation in the example above is extremely important! Indentation is how
 Each element in a row has the following properties. This defines both the how the panel will be featured in the dashboard, as well as the panel-specific properties themselves.
 
 |**Field**|**Description**|**Default**|
-|-------|----------|-------------|
+|---------|---------------|-----------|
 |type| (required) The chart or plot type, e.g. `pie`, `bar`, `map`, etc. See the individual chart docs on the left-nav for all available plots.||
 |title|The name of the plot||
 |description|A brief description, displayed below the title||
