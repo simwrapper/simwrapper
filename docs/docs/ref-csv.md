@@ -1,12 +1,12 @@
 ---
-id: table
-title: Table viewer
+id: csv
+title: CSV table viewer
 ---
 
 ![table viewer example](assets/table/table-style-default.png)
-_Table Viewer_
+_CSV Table Viewer_
 
-The Table viewer is able to display csv files clearly.
+The CSV table viewer is able to display (small) csv files clearly.
 
 ## Usage
 

@@ -90,6 +90,13 @@ These visualizations work with any dataset, generally using CSV text format or X
 <div class="visualization">
 <!--   -----------------------   -->
 
+#### CSV table viewer
+[![CSV Viewer](assets/thumb-csv.jpg)](ref-csv.md)
+
+</div>
+<div class="visualization">
+<!--   -----------------------   -->
+
 #### Flow map
 [![Flow maps](assets/flow-map.jpg)](ref-flow-map.md)
 
