@@ -18,6 +18,20 @@ These visualizations are for MATSim-specific outputs.
 
 <div class="visualization">
 
+#### MATSim network link&nbsp;plot
+[![MATSim network links](assets/links.jpg)](matsim-link-vols.md)
+</div>
+
+<div class="visualization">
+<!--   -----------------------   -->
+
+#### MATSim transit network
+[![MATSim transit](assets/thumb-transit.jpg)](matsim-transit-supply.md)
+</div>
+
+<div class="visualization">
+<!--   -----------------------   -->
+
 #### MATSim Carriers/Freight
 [![MATSim Carriers](assets/thumb-carriers.jpg)](matsim-carrier-viewer.md)
 </div>
@@ -27,20 +41,6 @@ These visualizations are for MATSim-specific outputs.
 
 #### MATSim vehicle animation (DRT)
 [![MATSim vehicles](assets/drt.jpg)](matsim-drt-animation.md)
-</div>
-
-<div class="visualization">
-<!--   -----------------------   -->
-
-#### MATSim network link&nbsp;plots
-[![MATSim network links](assets/links.jpg)](matsim-link-vols.md)
-</div>
-
-<div class="visualization">
-<!--   -----------------------   -->
-
-#### MATSim transit network
-[![MATSim transit](assets/thumb-transit.jpg)](matsim-transit-supply.md)
 </div>
 
 <div class="visualization">
