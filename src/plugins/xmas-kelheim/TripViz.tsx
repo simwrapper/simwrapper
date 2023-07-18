@@ -179,7 +179,7 @@ export default function Component(props: {
           opacity: 1,
           currentTime: simulationTime,
           shadowEnabled: true,
-          iconAtlas: '/simwrapper/icon-atlas.png',
+          iconAtlas: '/icon-atlas.png',
           iconMapping: ICON_MAPPING,
           sizeScale: 1,
           billboard: false,
