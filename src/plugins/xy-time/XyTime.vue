@@ -100,6 +100,12 @@ interface VizDetail {
   thumbnail?: string
   center: any
   zoom: number
+  buckets: number
+  clipMax: number
+  exponent: number
+  radius: number
+  colorRamp: string
+  breakpoints: string
 }
 
 interface PointLayer {
@@ -138,6 +144,7 @@ const MyComponent = defineComponent({
         'color ramp': 'viridis',
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
+        'manual breaks': '',
       },
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
@@ -175,6 +182,14 @@ const MyComponent = defineComponent({
         thumbnail: '',
         center: null as any,
         zoom: 9,
+        // x-y-t details:
+        buckets: 5,
+        exponent: 4,
+        clipMax: 100,
+        radius: 5,
+        colorRamp: 'viridis',
+        flip: false,
+        breakpoints: '',
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -282,19 +297,24 @@ const MyComponent = defineComponent({
 
     setupGui() {
       this.guiController = new GUI({
-        title: 'Color Settings',
+        title: 'Settings',
         injectStyles: true,
         width: 200,
         container: document.getElementById(this.configId) || undefined,
       })
 
-      const colors = this.guiController // .addFolder('Colors')
-      colors.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'radius', 1, 20, 1)
+      const config = this.guiController // .addFolder('Colors')
+      config.add(this.guiConfig, 'radius', 1, 20, 1)
+
+      const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+
+      const breakpoints = config.addFolder('breakpoints')
+      breakpoints.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'manual breaks').onChange(this.setColors)
 
       // const times = this.guiController.addFolder('Time')
     },
@@ -334,14 +354,15 @@ const MyComponent = defineComponent({
       let projection = 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
 
       // output_trips:
-      this.vizDetails = {
+      this.vizDetails = Object.assign(this.vizDetails, {
         title: 'Point Data: ' + this.myState.yamlConfig,
         description: this.myState.yamlConfig,
         file: this.myState.yamlConfig,
         projection,
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
-      }
+      })
+
       this.$emit('title', this.vizDetails.title || this.vizDetails.file)
       return
     },
@@ -416,6 +437,21 @@ const MyComponent = defineComponent({
         ? this.vizDetails.title
         : 'Point Data: ' + this.vizDetails.file
       this.$emit('title', t)
+
+      if (this.vizDetails.buckets) this.guiConfig.buckets = this.vizDetails.buckets
+      if (this.vizDetails.exponent) this.guiConfig.exponent = this.vizDetails.exponent
+      if (this.vizDetails.radius) this.guiConfig.radius = this.vizDetails.radius
+      if (this.vizDetails.clipMax) this.guiConfig['clip max'] = this.vizDetails.clipMax
+      if (this.vizDetails.colorRamp) this.guiConfig['color ramp'] = this.vizDetails.colorRamp
+      if (this.vizDetails.breakpoints) this.guiConfig['manual breaks'] = this.vizDetails.breakpoints
+    },
+
+    setManualBreakpoints() {
+      const breakpoints = this.guiConfig['manual breaks'].split(',').map(b => {
+        return Number.parseFloat(b.trim())
+      })
+      this.breakpoints = breakpoints
+      this.guiConfig.buckets = 1 + breakpoints.length
     },
 
     async buildThumbnail() {
@@ -550,6 +586,8 @@ const MyComponent = defineComponent({
       }
       colors.push(colors256[255])
 
+      this.colors = colors
+
       // figure out min and max
       const max1 = Math.pow(this.range[1], 1 / EXPONENT)
       const max2 = (max1 * this.guiConfig['clip max']) / 100.0
@@ -557,18 +595,24 @@ const MyComponent = defineComponent({
 
       // console.log({ max1, max2 })
 
-      const breakpoints = [] as number[]
-      for (let i = 1; i < this.guiConfig.buckets; i++) {
-        const raw = (max2 * i) / this.guiConfig.buckets
-        const breakpoint = Math.pow(raw, EXPONENT)
-        breakpoints.push(breakpoint)
+      // generate some breakpoints if user didn't supply them
+      if (this.guiConfig['manual breaks']) {
+        this.setManualBreakpoints()
+      } else {
+        if (!this.vizDetails.breakpoints) {
+          const breakpoints = [] as number[]
+          for (let i = 1; i < this.guiConfig.buckets; i++) {
+            const raw = (max2 * i) / this.guiConfig.buckets
+            const breakpoint = Math.pow(raw, EXPONENT)
+            breakpoints.push(breakpoint)
+          }
+
+          this.breakpoints = breakpoints
+        }
       }
 
       // only update legend if we have the full dataset already
-      if (this.isLoaded) this.setLegend(colors, breakpoints)
-
-      this.colors = colors
-      this.breakpoints = breakpoints
+      if (this.isLoaded) this.setLegend(colors, this.breakpoints)
     },
 
     setLegend(colors: any[], breakpoints: number[]) {
@@ -590,15 +634,12 @@ const MyComponent = defineComponent({
     },
 
     async loadFiles() {
-      console.log(1)
-
       await this.fileApi.getChromePermission(this.fileSystem.handle)
 
       try {
         let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
         await this.parseCSVFile(filename)
         this.$emit('isLoaded')
-        console.log(2)
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e

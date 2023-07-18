@@ -449,6 +449,14 @@ p.splash-label {
   z-index: 101;
 }
 
+.lil-gui .title {
+  margin-bottom: 0px;
+}
+
+.lil-gui .controller.string input {
+  color: #44aabb;
+}
+
 .markdown {
   p {
     margin-top: 0.5rem;

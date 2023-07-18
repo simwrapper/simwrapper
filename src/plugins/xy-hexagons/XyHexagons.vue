@@ -754,7 +754,7 @@ globalStore.commit('registerPlugin', {
   kebabName: 'hexagons',
   prettyName: 'XY Aggregator',
   description: 'Collects XY data into geographic hexagons',
-  filePatterns: ['**/viz-xy*.y?(a)ml', '*output_trips.csv?(.gz)'],
+  filePatterns: ['**/viz-xy-*.y?(a)ml', '*output_trips.csv?(.gz)'],
   component: MyComponent,
 } as VisualizationPlugin)
 
