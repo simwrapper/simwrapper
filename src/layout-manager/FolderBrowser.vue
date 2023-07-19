@@ -143,9 +143,10 @@ import micromatch from 'micromatch'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
-import plugins from '@/plugins/pluginRegistry'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { pluginComponents } from '@/plugins/pluginRegistry'
+
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 const tabColors = {
@@ -165,12 +166,10 @@ const tabColors = {
   transit: '#3B6FE4',
 } as any
 
-const allComponents = Object.assign({ TopsheetsFinder }, plugins)
-
 export default defineComponent({
   name: 'FolderBrowser',
   i18n,
-  components: allComponents,
+  components: Object.assign({ TopsheetsFinder }, pluginComponents),
   props: {
     root: { type: String, required: true },
     allConfigFiles: { type: Object as PropType<YamlConfigs>, required: true },

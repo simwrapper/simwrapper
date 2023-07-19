@@ -680,15 +680,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'plotly',
-  prettyName: 'Plotly Chart',
-  description: 'Generic viewer for any type of Plotly chart',
-  filePatterns: ['**/plotly*.y?(a)ml'],
-  component: MyComponent,
-})
-
 export default MyComponent
 </script>
 

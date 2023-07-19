@@ -1357,15 +1357,6 @@ const Component = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'aggregate-od',
-  prettyName: 'Origin/Destination Patterns',
-  description: 'Depicts aggregate O/D flows between areas.',
-  filePatterns: ['**/viz-od*.y?(a)ml'],
-  component: Component,
-} as VisualizationPlugin)
-
 export default Component
 </script>
 

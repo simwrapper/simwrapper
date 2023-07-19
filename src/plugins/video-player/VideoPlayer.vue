@@ -178,15 +178,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'vid-player',
-  prettyName: 'Video',
-  description: '',
-  filePatterns: ['*.mp4'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

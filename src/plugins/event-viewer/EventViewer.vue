@@ -741,15 +741,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'events',
-  prettyName: 'Event Viewer',
-  description: 'MATSim event viewer',
-  filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

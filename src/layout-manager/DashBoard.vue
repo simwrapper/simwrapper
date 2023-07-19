@@ -71,25 +71,25 @@ import type { PropType } from 'vue'
 
 import YAML from 'yaml'
 
+import globalStore from '@/store'
 import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import TopSheet from '@/components/TopSheet/TopSheet.vue'
-import charts, { plotlyCharts } from '@/dash-panels/_allPanels'
-import DashboardDataManager from '@/js/DashboardDataManager'
 
-import globalStore from '@/store'
+import TopSheet from '@/components/TopSheet/TopSheet.vue'
+// import charts, { plotlyCharts } from '@/dash-panels/_allPanels'
+
+import { panelLookup } from '@/dash-panels/_allPanels'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
-const chartTypes = Object.keys(charts)
-const plotlyChartTypes = {} as any
+const chartTypes = Object.keys(panelLookup)
+// const plotlyChartTypes = {} as any
 
-// build lookups for chart types
 chartTypes.forEach((key: any) => {
-  //@ts-ignore
-  namedCharts[`card-${key}`] = charts[key] as any
-  //@ts-ignore
-  if (plotlyCharts[key]) plotlyChartTypes[key] = true
+  namedCharts[`card-${key}`] = panelLookup[key] // key // charts[key] as any
+  // //@ts-ignore
+  // if (plotlyCharts[key]) plotlyChartTypes[key] = true
 })
 
 export default defineComponent({
@@ -179,8 +179,14 @@ export default defineComponent({
       return files
     },
 
-    getCardComponent(card: any) {
+    getCardComponent(card: { type: string }) {
+      console.log(1, card)
       if (card.type === 'table' || card.type === 'topsheet') return 'TopSheet'
+
+      // load the plugin
+      if (panelLookup[card.type]) {
+        return panelLookup[card.type]
+      }
 
       // might be a chart
       if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
@@ -220,7 +226,7 @@ export default defineComponent({
     getCardStyle(card: any) {
       // figure out height. If card has registered a resizer with changeDimensions(),
       // then it needs a default height (300)
-      const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
+      const defaultHeight = 300 // plotlyChartTypes[card.type] ? 300 : undefined
       const height = card.height ? card.height * 60 : defaultHeight
 
       const flex = card.width || 1

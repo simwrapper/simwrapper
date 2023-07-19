@@ -592,7 +592,6 @@ const MyComponent = defineComponent({
       const max1 = Math.pow(this.range[1], 1 / EXPONENT)
       const max2 = (max1 * this.guiConfig['clip max']) / 100.0
       // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
-
       // console.log({ max1, max2 })
 
       // generate some breakpoints if user didn't supply them
@@ -662,15 +661,6 @@ const MyComponent = defineComponent({
     },
   },
 })
-
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'x-y-t',
-  prettyName: 'X/Y Time Viewer',
-  description: 'Displays point data over time',
-  filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],
-  component: MyComponent,
-} as VisualizationPlugin)
 
 export default MyComponent
 </script>

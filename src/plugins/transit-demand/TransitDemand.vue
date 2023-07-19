@@ -1127,19 +1127,9 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'transit',
-  prettyName: 'Transit Demand',
-  description: 'Transit passengers and ridership',
-  filePatterns: ['viz-pt*.y?(a)ml', '*transitschedule.xml?(.gz)'],
-  // filePatterns: ['*transitschedule.xml?(.gz)'],
-  component: MyComponent,
-} as VisualizationPlugin)
+const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
 
 export default MyComponent
-
-const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
 </script>
 
 <style scoped lang="scss">

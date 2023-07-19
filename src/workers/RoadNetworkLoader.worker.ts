@@ -149,7 +149,7 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
   }
 
   // OK we now have LINKS in geojson.features!! ----------------------------------------
-  console.log({ _content })
+  // console.log({ _content })
 
   const linkIds: any = []
   // const links = [] as any[]

@@ -944,6 +944,7 @@ const MyComponent = defineComponent({
         fixedColors: this.fixedColors,
         dataset: '',
         columnName: '',
+        normalize: '',
       }
       this.changeConfiguration({ color })
     },
@@ -1068,20 +1069,6 @@ const MyComponent = defineComponent({
     this.$store.commit('setFullScreen', false)
   },
 })
-
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'network',
-  prettyName: 'Network Links',
-  description: 'Network link attributes',
-  filePatterns: [
-    '**/*network.xml?(.gz)',
-    '**/*network.geo?(.)json?(.gz)',
-    '**/viz-gl-link*.y?(a)ml',
-    '**/viz-link*.y?(a)ml',
-  ],
-  component: MyComponent,
-} as VisualizationPlugin)
 
 export default MyComponent
 </script>

@@ -143,8 +143,6 @@ export interface FileSystemConfig {
 export interface VisualizationPlugin {
   component: any
   kebabName: string
-  prettyName: string
-  description?: string
   filePatterns: string[]
 }
 

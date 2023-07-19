@@ -722,15 +722,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'vehicle-view',
-  prettyName: 'Trip Viewer',
-  description: 'Deck.gl based trip viewer',
-  filePatterns: ['**/viz-vehicles*.y?(a)ml'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

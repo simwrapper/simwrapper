@@ -420,18 +420,6 @@ export default class VueComponent extends Vue {
     // nothing, for now
   }
 }
-
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'flowmap',
-  prettyName: 'Flowmap',
-  description: 'flowmap',
-  filePatterns: [
-    // viz-map plugin
-    '**/viz-flowmap*.y?(a)ml',
-  ],
-  component: VueComponent,
-} as VisualizationPlugin)
 </script>
 
 <style scoped lang="scss">

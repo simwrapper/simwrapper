@@ -284,15 +284,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'vega-lite',
-  prettyName: 'Chart',
-  description: 'Interactive chart visualization',
-  filePatterns: ['**/*.vega.json'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

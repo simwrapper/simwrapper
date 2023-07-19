@@ -115,7 +115,7 @@ import { Route } from 'vue-router'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
-import plugins from '@/plugins/pluginRegistry'
+import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import TabbedDashboardView from './TabbedDashboardView.vue'
 import SplashPage from './SplashPage.vue'
@@ -143,7 +143,7 @@ export default defineComponent({
       SplashPage,
       TabbedDashboardView,
     },
-    plugins
+    pluginComponents
   ),
   data: () => {
     return {

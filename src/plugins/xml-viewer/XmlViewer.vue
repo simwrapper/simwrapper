@@ -231,15 +231,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'xml-viewer',
-  prettyName: 'XML Viewer',
-  description: 'Browse any (small) XML file',
-  filePatterns: ['**/*.xml*'],
-  component: MyComponent,
-})
-
 export default MyComponent
 </script>
 

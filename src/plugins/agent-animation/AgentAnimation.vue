@@ -353,15 +353,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'agent-animation',
-  prettyName: 'Agent Animation',
-  description: 'birds',
-  filePatterns: ['**/viz-agent-anim*.y?(a)ml'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

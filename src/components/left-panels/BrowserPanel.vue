@@ -199,14 +199,18 @@ import yaml from 'yaml'
 
 import globalStore from '@/store'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
-import plugins from '@/plugins/pluginRegistry'
+import { pluginComponents } from '@/plugins/pluginRegistry'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import AddDataSource from './AddDataSource.vue'
 
-const components = Object.assign({ AddDataSource, FileSystemProjects, TopsheetsFinder }, plugins)
+const components = Object.assign(
+  { AddDataSource, FileSystemProjects, TopsheetsFinder },
+  pluginComponents
+)
 
 export default defineComponent({
   name: 'BrowserPanel',

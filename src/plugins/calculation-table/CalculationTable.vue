@@ -114,15 +114,6 @@ const Component = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'summary',
-  prettyName: 'Summary Table',
-  description: 'Calculation table',
-  filePatterns: ['(topsheet|table)*.y?(a)ml'],
-  component: Component,
-} as VisualizationPlugin)
-
 export default Component
 </script>
 

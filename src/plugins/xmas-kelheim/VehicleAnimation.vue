@@ -806,15 +806,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'xmas-kelheim',
-  prettyName: 'Trip Viewer',
-  description: 'Deck.gl based trip viewer',
-  filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 

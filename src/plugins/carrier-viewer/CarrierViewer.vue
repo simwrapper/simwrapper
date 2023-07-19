@@ -1127,15 +1127,6 @@ const CarrierPlugin = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'carrier-viewer',
-  prettyName: 'Carrier Viewer',
-  description: 'For freight etc!',
-  filePatterns: ['**/*carriers.xml*', '**/viz-carrier*.y?(a)ml*'],
-  component: CarrierPlugin,
-} as VisualizationPlugin)
-
 export default CarrierPlugin
 </script>
 

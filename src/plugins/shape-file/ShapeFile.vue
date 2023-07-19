@@ -106,8 +106,6 @@ import {
 } from '@/Globals'
 
 import GeojsonLayer from './GeojsonLayer'
-// import GeojsonLayer from './GeojsonVueLayer.vue'
-
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
@@ -2454,22 +2452,6 @@ const MyComponent = defineComponent({
     this.$store.commit('setFullScreen', false)
   },
 })
-
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'area-map',
-  prettyName: 'Shapefile Viewer',
-  description: 'Shapefile, Geojson, Network Viewer',
-  filePatterns: [
-    // viz-map plugin
-    '**/viz-map*.y?(a)ml',
-    // raw geojson files
-    '**/*.geojson?(.gz)',
-    // shapefiles too
-    '**/*.shp',
-  ],
-  component: MyComponent,
-} as VisualizationPlugin)
 
 export default MyComponent
 </script>

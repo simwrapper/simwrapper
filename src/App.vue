@@ -39,10 +39,12 @@ import maplibregl from 'maplibre-gl'
 import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
+import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
-import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import LoginPanel from '@/components/LoginPanel.vue'
+
+import plugins from '@/plugins/pluginRegistry'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript
@@ -52,10 +54,18 @@ writableMapBox.accessToken = MAPBOX_TOKEN
 
 let doThisOnceForLocalFiles = true
 
+const pluginComponents = {} as any
+
+// Register all plugins as components
+plugins.forEach(p => {
+  pluginComponents[p.kebabName] = p.component
+  globalStore.commit('registerPlugin', p)
+})
+
 export default defineComponent({
   name: 'SimWrapper',
   i18n,
-  components: { LoginPanel },
+  components: Object.assign({ LoginPanel }),
   data: () => {
     return {
       state: globalStore.state,

@@ -6,7 +6,7 @@ import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import Coords from '@/js/Coords'
+// import Coords from '@/js/Coords'
 import { findMatchingGlobInFiles } from '@/js/util'
 
 // -----------------------------------------------------------
@@ -194,10 +194,11 @@ function step3parseCSVdata(sections: Uint8Array[]) {
             postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
           }
           for (const key of Object.keys(rowCache)) {
-            const wgs84 = Coords.toLngLat(proj, [
-              results.data[rowCache[key].coordColumns[0] as any],
-              results.data[rowCache[key].coordColumns[1] as any],
-            ])
+            const wgs84 = [5, 5]
+            // Coords.toLngLat(proj, [
+            //   results.data[rowCache[key].coordColumns[0] as any],
+            //   results.data[rowCache[key].coordColumns[1] as any],
+            // ])
             rowCache[key].raw.set(wgs84, offset)
           }
           offset += 2

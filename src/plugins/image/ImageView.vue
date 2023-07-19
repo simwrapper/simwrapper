@@ -118,15 +118,6 @@ const MyComponent = defineComponent({
   },
 })
 
-// !register plugin!
-globalStore.commit('registerPlugin', {
-  kebabName: 'image-view',
-  prettyName: 'Image',
-  description: '',
-  filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!
-  component: MyComponent,
-} as VisualizationPlugin)
-
 export default MyComponent
 </script>
 
