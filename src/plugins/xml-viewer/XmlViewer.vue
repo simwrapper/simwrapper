@@ -108,6 +108,9 @@ const MyComponent = defineComponent({
       this.fullXml = answer[1]
 
       this.viewXml = this.fullXml
+
+      this.viewXml = this.recursiveDelete(this.viewXml)
+
       this.isLoaded = true
     } catch (err) {
       const e = err as any
@@ -227,6 +230,24 @@ const MyComponent = defineComponent({
         }
       }
       return found
+    },
+
+    recursiveDelete(array: any[]) {
+      console.log(array)
+      for (const [k, v] of Object.entries(array)) {
+        let data = v as any[]
+        console.log(data.length)
+        if (data.length < 50) {
+        } else {
+          for (let i = 49; i < data.length; i++) {
+            data.splice(50, 1)
+          }
+        }
+        for (let i = 0; i < 50; i++) {
+          array = this.recursiveDelete(data)
+        }
+      }
+      return array
     },
   },
 })
