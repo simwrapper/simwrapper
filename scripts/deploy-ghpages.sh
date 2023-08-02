@@ -13,8 +13,8 @@ echo --- Set up Github Pages SPA links ---
 # always start with clean config
 git checkout vite.config.ts public/404.html
 # $1 is github repo; $2 is base URL folder (without slashes)
-sed -I .bak "s#'/'#'/$2/'#"  vite.config.ts
-sed -I .bak "s#'/'#'/$2/'#"  public/404.html
+#sed -I .bak "s#'/'#'/$2/'#"  vite.config.ts
+#sed -I .bak "s#'/'#'/$2/'#"  public/404.html
 
 echo --- BUILD INDEX.HTML FILES ---
 npm run index
@@ -28,6 +28,6 @@ git init .
 git add . && git commit -m "gh-pages"
 
 echo --- PUSH TO GITHUB ---
-git remote add origin git@github.com:$1.git
+#git remote add origin git@github.com:$1.git
 git push --force origin master:gh-pages
 

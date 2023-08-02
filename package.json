@@ -9,7 +9,7 @@
     "Janek Laudan <laudan@vsp.tu-berlin.de>"
   ],
   "scripts": {
-    "deploy-amil": "bash scripts/deploy-ghpages.sh FCL-G-AMIL/dashboard dashboard",
+    "deploy-amil": "cp -f public/404.dashboard.html public/404.html && bash scripts/deploy-ghpages.sh FCL-G-AMIL/dashboard MATSim",
     "index": "node scripts/build-index.js public/data",
     "serve": "npm run index && vite",
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
