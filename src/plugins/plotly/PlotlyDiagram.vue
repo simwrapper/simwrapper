@@ -67,23 +67,25 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       // Plotly layout
       layout: {
-        margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
+        margin: { t: 0, b: 0, l: 0, r: 0, pad: 0 },
         font: {
           color: '#444444',
           family: UI_FONT,
         },
         xaxis: {
           automargin: true,
-          autorange: true,
+          // autorange: true,
+          range: [0, 100], // Just some default values. The correct values are valculated later in the code (in mounted())
           title: { text: '', standoff: 12 },
           animate: true,
         },
         yaxis: {
           automargin: true,
-          autorange: true,
+          // autorange: true,
+          range: [0, 100], // Just some default values. The correct values are valculated later in the code (in mounted())
           title: { text: '', standoff: 16 },
           animate: true,
-          rangemode: 'tozero',
+          // rangemode: 'tozero',
         },
         legend: {
           orientation: 'v',
@@ -116,6 +118,10 @@ const MyComponent = defineComponent({
           height: null,
         },
       },
+      minXValue: Number.POSITIVE_INFINITY,
+      minYValue: Number.POSITIVE_INFINITY,
+      maxXValue: Number.NEGATIVE_INFINITY,
+      maxYValue: Number.NEGATIVE_INFINITY,
     }
   },
 
@@ -153,38 +159,36 @@ const MyComponent = defineComponent({
     await this.getVizDetails()
     // only continue if we are on a real page and not the file browser
     if (this.thumbnail) return
-
     try {
       if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
+
       // merge user-supplied layout with SimWrapper layout defaults
       if (this.vizDetails.layout) this.mergeLayouts()
-
       if (this.vizDetails.fixedRatio) {
         this.vizDetails.layout.xaxis = Object.assign(this.vizDetails.layout.xaxis, {
           constrain: 'domain',
         })
-
         this.vizDetails.layout.yaxis = Object.assign(this.vizDetails.layout.yaxis, {
           constrain: 'domain',
           scaleanchor: 'x',
           scaleration: 1,
         })
       }
-
       // Backwards compatiblity with the older "dropdownMenu" option
       if (this.vizDetails.dropdownMenu) this.vizDetails.interactive = 'dropdown'
-
       // create interactive elements
       if (this.vizDetails.interactive) this.createMenus(this.vizDetails.interactive)
+
+      this.calculateAxis()
     } catch (err) {
       const e = err as any
       console.error({ e })
       this.loadingText = '' + e
     }
-
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
+    console.log(this.layout)
   },
 
   beforeDestroy() {
@@ -192,6 +196,53 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    /**
+     * Calculates the axis ranges for the x-axis and y-axis based on the data in the 'traces' array.
+     * It iterates through each trace and updates the 'maxXValue', 'maxYValue', 'minYValue', and 'minXValue'
+     * based on the maximum and minimum values found in the 'x' and 'y' arrays of each trace.
+     */
+    calculateAxis() {
+      for (let i = 0; i < this.traces.length; i++) {
+        // Update the 'maxXValue' if the maximum value in the 'x' array of the current trace is greater than the current 'maxXValue'.
+        if (Math.max(...this.traces[i].x) >= this.maxXValue) {
+          this.maxXValue = Math.max(...this.traces[i].x)
+        }
+
+        // Update the 'maxYValue' if the maximum value in the 'y' array of the current trace is greater than the current 'maxYValue'.
+        if (Math.max(...this.traces[i].y) >= this.maxYValue) {
+          this.maxYValue = Math.max(...this.traces[i].y)
+        }
+
+        // Update the 'minYValue' if the minimum value in the 'y' array of the current trace is less than the current 'minYValue'.
+        if (Math.min(...this.traces[i].y) <= this.minYValue) {
+          this.minYValue = Math.min(...this.traces[i].y)
+        }
+
+        // Update the 'minXValue' if the minimum value in the 'x' array of the current trace is less than the current 'minXValue'.
+        if (Math.min(...this.traces[i].x) <= this.minXValue) {
+          this.minXValue = Math.min(...this.traces[i].x)
+        }
+      }
+
+      // Set the x-axis and y-axis ranges in the layout based on the calculated 'minXValue', 'maxXValue', 'minYValue', and 'maxYValue'.
+      this.layout.xaxis.range = [this.minXValue, this.maxXValue]
+      this.layout.yaxis.range = [this.minYValue, this.maxYValue]
+
+      // Uncomment the following lines to log the chart title and axis ranges to the console for debugging purposes.
+      // console.log(this.$props.config.title)
+      // console.log(
+      //   this.vizDetails.description +
+      //     ': x-axis: [' +
+      //     this.minXValue +
+      //     ',' +
+      //     this.maxXValue +
+      //     '], y-axis: [' +
+      //     this.minYValue +
+      //     ',' +
+      //     this.maxYValue +
+      //     ']'
+      // )
+    },
     changeDimensions(dim: any) {
       if (dim?.height && dim?.width) {
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
@@ -208,7 +259,7 @@ const MyComponent = defineComponent({
       // TODO: only if the y axis title is set, the margin to the left needs to be little bit larger
 
       // we always want to use SimWrapper defaults for these:
-      mergedLayout.margin = this.layout.margin
+      // mergedLayout.margin = this.layout.margin
       mergedLayout.font = this.layout.font
       mergedLayout.legend = this.layout.legend
 
@@ -219,7 +270,7 @@ const MyComponent = defineComponent({
       // be selective about these:
       if (mergedLayout.xaxis) {
         mergedLayout.xaxis.automargin = true
-        mergedLayout.xaxis.autorange = true
+        // mergedLayout.xaxis.autorange = true
         mergedLayout.xaxis.animate = true
         if (!mergedLayout.xaxis.title) mergedLayout.xaxis.title = this.layout.xaxis.title
       } else {
@@ -228,7 +279,7 @@ const MyComponent = defineComponent({
 
       if (mergedLayout.yaxis) {
         mergedLayout.yaxis.automargin = true
-        mergedLayout.yaxis.autorange = true
+        // mergedLayout.yaxis.autorange = true
         mergedLayout.yaxis.animate = true
         if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
       } else {
