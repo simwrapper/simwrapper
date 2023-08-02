@@ -109,7 +109,7 @@ const MyComponent = defineComponent({
 
       this.viewXml = this.fullXml
 
-      this.viewXml = this.recursiveDelete(this.viewXml)
+      // this.viewXml = this.recursiveDelete(this.viewXml)
 
       this.isLoaded = true
     } catch (err) {
@@ -232,24 +232,31 @@ const MyComponent = defineComponent({
       return found
     },
 
-    recursiveDelete(array: any[]) {
-      console.log(array)
-      for (const [k, v] of Object.entries(array)) {
-        let data = v as any[]
-        console.log(data.length)
-        if (data.length < 50) {
-        } else {
-          for (let i = 49; i < data.length; i++) {
-            data.splice(50, 1)
-          }
-        }
-        for (let i = 0; i < 50; i++) {
-          array = this.recursiveDelete(data)
-        }
-      }
-      return array
-    },
+    // recursiveDelete(array: any[]) {
+    //   for (const [k, v] of Object.entries(array)) {
+    //     let data = v as any[]
+    //     if (data.length < 50) {
+    //     } else {
+    //       for (let i = 49; i < data.length; i++) {
+    //         data.splice(50, 1)
+    //       }
+    //     }
+    //     for (let i = 0; i < 50; i++) {
+    //       array = this.recursiveDelete(data)
+    //     }
+    //   }
+    //   return array
+    // },
   },
+})
+
+// !register plugin!
+globalStore.commit('registerPlugin', {
+  kebabName: 'xml-viewer',
+  prettyName: 'XML Viewer',
+  description: 'Browse any (small) XML file',
+  filePatterns: ['**/*.xml*'],
+  component: MyComponent,
 })
 
 export default MyComponent
