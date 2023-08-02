@@ -1,0 +1,88 @@
+
+html {
+  font-size: 16px !important;
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+#dashboard {
+  width: 80%;
+  margin: auto;
+}
+
+.up-link {
+  display: none;
+}
+
+.tabs ul li:last-child {
+  display: none;
+}
+
+.tabs.is-centered ul {
+  justify-content: left !important;
+  padding-left: 170px;
+}
+
+.row-scenarios .dash-card-frame {
+  margin-bottom: 0 !important;
+}
+
+.row-videos .dash-card-headers {
+  display: none !important;
+}
+
+img.project-logo {
+  position: absolute;
+  height: 48px;
+}
+
+.tabs a {
+  font-size: 1.4rem;
+}
+
+.project-header {
+  margin: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.project-footer {
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+footer {
+  background-color: #262626;
+}
+
+.logos img {
+  height: 45px;
+}
+
+img.bmdv {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: auto;
+  top: 4px;
+}
+
+footer .logos {
+  display: flex;
+  justify-content: left;
+  gap: 15px;
+  align-items: center;
+  padding: 36px 0 24px;
+  border-bottom: 1px solid #4b4b4b;
+  margin-bottom: 24px;
+}
+
+footer .menu {
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 36px;
+  color: #b2b2b2;
+}

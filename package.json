@@ -9,10 +9,7 @@
     "Janek Laudan <laudan@vsp.tu-berlin.de>"
   ],
   "scripts": {
-    "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
-    "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
-    "deploy-simwrapper": "bash scripts/deploy-ghpages.sh simwrapper/site site",
-    "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
+    "deploy-amil": "bash scripts/deploy-ghpages.sh FCL-G-AMIL/dashboard dashboard",
     "index": "node scripts/build-index.js public/data",
     "serve": "npm run index && vite",
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
@@ -49,8 +46,8 @@
     "d3-array": "^3.1.1",
     "d3-hexbin": "^0.2.2",
     "d3-request": "^1.0.6",
-    "d3-scale": "^3.2.2",
-    "d3-scale-chromatic": "^1.5.0",
+    "d3-scale": "^4.0.2",
+    "d3-scale-chromatic": "^3.0.0",
     "d3-selection": "^1.4.1",
     "debounce": "^1.2.0",
     "deck.gl": "^8.8.21",
@@ -159,7 +156,7 @@
     "threads-plugin": "^1.4.0",
     "ts-jest": "^28.0.0",
     "typescript": "^4.2.0",
-    "vite": "2.5.10",
+    "vite": "^2.9.16",
     "vite-plugin-md": "^0.11.0",
     "vite-plugin-rewrite-all": "^1.0.0",
     "vue-template-compiler": "2.7.10"

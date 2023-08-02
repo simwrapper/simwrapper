@@ -1,0 +1,49 @@
+version: 1
+
+header:
+  tab: "System-wide effects"
+  title: Short- and long-term effects of AVs and ACVs
+  description: "This page shows the potential effects when introducing automated (AVs) and autonomous connected vehicles (ACVs),
+                together with intelligent infrastructure uniformly and unrestricted to the scenario. We simulated short-term effects by only allowing agents
+                to adapt their plans by re-routing and departure time mutation. Long-term effects also includes mode-choice behaviour."
+
+layout:
+  st:
+    - type: "text"
+      title: "Short-term travel time savings"
+      width: 4
+      props:
+        file: scenarios/short-term.md
+
+    - type: "vega"
+      title: "Relative travel times"
+      description: "Shown are the mean relative travel time over all congested link in the base scenario throughout the day."
+      width: 7
+      props:
+        config: scenarios/rel_tt.json
+
+  lt:
+    - type: "text"
+      title: "Long-term effects with Mode-choice"
+      width: 30
+      props:
+        file: scenarios/long-term.md
+
+    - type: "sankey"
+      title: "Mode-Shift Distant future"
+      description: "Number of agents switching mode of transportation"
+      width: 35
+      props:
+        csv: shift_lt.csv
+
+    - type: "slideshow"
+      title: "Emissions"
+      description: "Particulate matter emissions according to HBEFA. Red areas represent roughly an increase in 10%."
+      width: 35
+      height: 8
+      props:
+        slides:
+          - image: scenarios/pm_mid_cropped.png
+            title: Mid-term scenario
+          - image: scenarios/pm_long_cropped.png
+            title: Distant future scenario

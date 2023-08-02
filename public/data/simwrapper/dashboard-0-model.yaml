@@ -1,0 +1,83 @@
+header:
+  tab: "Düsseldorf scenario"
+  title: "The MATSim Open Düsseldorf Scenario"
+  description: >
+    This dashboards shows an overview and some key insights into the Düsseldorf MATSim scenario available at https://github.com/matsim-scenarios/matsim-duesseldorf
+    , a transport model for Düsseldorf, provided by the Transport Systems Planning and Transport Telematics group of Technische Universität Berlin.
+    This model has been used within the KoMoDnext project, but is all model code and data is openly available and can be used for further transportation study research.
+
+
+layout:
+  map:
+    - type: "links"
+      title: "Overview"
+      description: "Simulated volumes in the study area. These do not represent real volumes, but down-sampled volumes of agents using their car for private transport."
+      height: 12
+      props:
+        csvFile: "link_volumes.csv"
+        geojsonFile: "network.geojson"
+        center: [6.779091, 51.225]
+        zoom: 11.6
+        display:
+          color:
+            dataset: csvFile
+            columnName: volume
+            colorRamp:
+              ramp: RdBu
+              reverse: false
+              steps: 7
+          width:
+            dataset: csvFile
+            columnName: volume
+            scaleFactor: 5000
+
+
+  row1:
+    - type: "video"
+      title: "Visualization"
+      description: "Visualization of the scenario"
+      width: 3
+      props:
+        controls: true
+        allowfullscreen: true
+        loop: true
+        autoplay: true
+        muted: true
+        sources:
+          video/mp4: overview/video2.mp4
+
+    - type: "line"
+      title: "Car traffic"
+      description: "Number of agents en-route"
+      width: 4
+      props:
+        dataset: "base_car_traffic.csv"
+        x: "time"
+        xAxisName: "Time"
+        yAxisName: "Number of agents"
+
+  row2:
+    - type: vega
+      title: "Trips by mode and distance"
+      description: "Comparison of the trip distance distribution by mode between simulation and SrV 2018"
+      width: 3
+      height: 6
+      props:
+        config: overview/dis-vega.json
+
+    - type: "pie"
+      title: "Mode-Share"
+      description: "Mode-share in city area"
+      width: 1
+      height: 6
+      props:
+        dataset: "base_modeshare.csv"
+        useLastRow: true
+
+    - type: vega
+      title: "Travel-time validation"
+      width: 2
+      height: 6
+      description: "Travel time was validated for a random selection of trips against an online API with traffic information."
+      props:
+        config: overview/validate-vega.json

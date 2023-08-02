@@ -1,0 +1,83 @@
+header:
+  tab: "Flow capacity"
+  title: "Effect of AVs on flow capacity"
+  description:  >
+      This dashboard shows the effect of conventional vehicles (CV), automated vehicles (AV) and highly autonomous vehicles (ACV) on flow capacity, i.e. the potential throughput of vehicles.
+      We modeled the driving behaviour microscopically in SUMO and evaluated the resulting flow capacity for intersections and free flow sections in the study area.
+      Three different scenarios with varying vehicle share and capabilities are presented and compared."
+
+layout:
+
+  scenarios:
+    - type: "text"
+      title: "Near future scenario"
+      width: 3
+      height: 2
+      props:
+        file: flow/st.md
+
+    - type: "text"
+      title: "Medium-term future scenario"
+      width: 3
+      height: 2
+      props:
+        file: flow/mt.md
+
+    - type: "text"
+      title: "Distant future scenario"
+      width: 3
+      height: 2
+      props:
+        file: flow/lt.md
+
+  videos:
+    - type: "video"
+      title: "Visualization"
+      width: 2
+      props:
+        controls: true
+        allowfullscreen: true
+        loop: true
+        sources:
+          video/webm: flow/st.webm
+
+    - type: "video"
+      title: "Visualization"
+      width: 2
+      props:
+        controls: true
+        allowfullscreen: true
+        loop: true
+        sources:
+          video/webm: flow/mt.webm
+
+    - type: "video"
+      title: "Visualization"
+      width: 2
+      props:
+        controls: true
+        allowfullscreen: true
+        loop: true
+        sources:
+          video/webm: flow/lt.webm
+
+  flow1:
+    - type: text
+      title: "Flow capacity prognosis at intersections"
+      props:
+        file: flow/intersection.md
+
+  flow:
+    - type: vega
+      title: "Flow capacity for AVs shares"
+      description: "Shown is the maximum absolute flow capacity at free flowing traffic depending on the speed limit. AVs driving behaviour is the same as in the short term scenario."
+      height: 7
+      props:
+        config: flow/flow-av-vega.json
+
+    - type: vega
+      title: "Flow capacity for ACVs shares"
+      description: "Shown is the maximum absolute flow capacity at free flowing traffic depending on the speed limit. ACV driving behaviour is the same as in the long term scenario."
+      height: 7
+      props:
+        config: flow/flow-acv-vega.json

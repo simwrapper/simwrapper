@@ -1,0 +1,12 @@
+version: 1
+
+header:
+  tab: "Rollout scenarios"
+  title: Rollout scenarios
+  description: This page explores some potential rollout scenario for introducing connected infrastructure
+
+layout:
+  text:
+    - type: "text"
+      props:
+        file: "scenarios/corridor.md"

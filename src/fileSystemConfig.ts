@@ -36,15 +36,16 @@ let fileSystems: FileSystemConfig[] = [
     name: webLiveHostname + ' live folders',
     slug: 'live',
     description: 'Files served using "simwrapper here"',
-    baseURL: websiteLiveHost + ':8050/_f_', // e.g. 'http://localhost:8050/_f_',
-    hidden: true,
+    baseURL: websiteLiveHost + ':3000/_f_', // e.g. 'http://localhost:8050/_f_',
+    // hidden: true,
   },
   {
-    name: 'Public Data Folder',
+    name: 'PoC Data Folder',
     slug: 'files',
     description: 'Data from /public/data folder',
-    baseURL: loc.origin + BASE_URL + 'data',
-    hidden: true,
+    baseURL: loc.origin + BASE_URL + 'data/simwrapper',
+    // thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    // hidden: true,
   },
 
   {
@@ -61,29 +62,29 @@ let fileSystems: FileSystemConfig[] = [
     baseURL: 'http://localhost:8000',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
-  {
-    name: 'SimWrapper Examples',
-    slug: 'examples',
-    description: 'Pre-built dashboards for exploration',
-    thumbnail: 'images/thumb-localfiles.jpg',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
-  },
-  {
-    name: 'VSP Public Scenarios',
-    slug: 'public',
-    description: 'Simulation results from VSP at TU-Berlin',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
-    thumbnail: '/simwrapper/images/thumb-chart.jpg',
-    skipList: ['episim/battery'],
-  },
-  {
-    name: 'Sample Runs',
-    slug: 'sample-runs',
-    description: 'Pre-built dashboards for exploration',
-    thumbnail: 'images/thumb-localfiles.jpg',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/billy/simwrapper/sample-data',
-    hidden: true,
-  },
+  // {
+  //   name: 'SimWrapper Examples',
+  //   slug: 'examples',
+  //   description: 'Pre-built dashboards for exploration',
+  //   thumbnail: 'images/thumb-localfiles.jpg',
+  //   baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+  // },
+  // {
+  //   name: 'VSP Public Scenarios',
+  //   slug: 'public',
+  //   description: 'Simulation results from VSP at TU-Berlin',
+  //   baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
+  //   thumbnail: '/simwrapper/images/thumb-chart.jpg',
+  //   skipList: ['episim/battery'],
+  // },
+  // {
+  //   name: 'Sample Runs',
+  //   slug: 'sample-runs',
+  //   description: 'Pre-built dashboards for exploration',
+  //   thumbnail: 'images/thumb-localfiles.jpg',
+  //   baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/billy/simwrapper/sample-data',
+  //   hidden: true,
+  // },
   {
     name: 'KoMoDnext',
     slug: 'komodnext',
@@ -92,24 +93,24 @@ let fileSystems: FileSystemConfig[] = [
     baseURL:
       'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/duesseldorf/projects/komodnext/website',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
-    hidden: true,
+    // hidden: true,
   },
-  {
-    name: 'SFCTA Prospector',
-    slug: 'champ',
-    description: 'Shared CHAMP model runs',
-    baseURL: 'http://prospector/champ_runs',
-    hidden: true,
-  },
-  {
-    name: 'RealLabHH',
-    slug: 'reallabhh',
-    description: 'digital mobility of tomorrow is being tested in a metropolis here and now',
-    description_de: 'Digitale Mobilität von morgen im Hier und Jetzt in einer Metropole',
-    baseURL:
-      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/hamburg/hamburg-v2/hamburg-v2.2/viz',
-    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
-  },
+  // {
+  //   name: 'SFCTA Prospector',
+  //   slug: 'champ',
+  //   description: 'Shared CHAMP model runs',
+  //   baseURL: 'http://prospector/champ_runs',
+  //   hidden: true,
+  // },
+  // {
+  //   name: 'RealLabHH',
+  //   slug: 'reallabhh',
+  //   description: 'digital mobility of tomorrow is being tested in a metropolis here and now',
+  //   description_de: 'Digitale Mobilität von morgen im Hier und Jetzt in einer Metropole',
+  //   baseURL:
+  //     'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/hamburg/hamburg-v2/hamburg-v2.2/viz',
+  //   thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+  // },
 ]
 
 for (let port = 8000; port < 8049; port++) {

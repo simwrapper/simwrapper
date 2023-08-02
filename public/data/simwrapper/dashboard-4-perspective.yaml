@@ -1,0 +1,11 @@
+version: 1
+
+header:
+  tab: "Perspective"
+  title: Perspective scenarios
+
+layout:
+  text:
+    - type: "text"
+      props:
+        file: "scenarios/perspective.md"
