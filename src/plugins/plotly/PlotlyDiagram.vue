@@ -189,7 +189,6 @@ const MyComponent = defineComponent({
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
     this.layout.margin = { r: 0, t: 8, b: 0, l: 50, pad: 2 }
-    console.log(this.layout)
   },
 
   beforeDestroy() {
