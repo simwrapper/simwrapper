@@ -261,7 +261,7 @@ const MyComponent = defineComponent({
       // TODO: only if the y axis title is set, the margin to the left needs to be little bit larger
 
       // we always want to use SimWrapper defaults for these:
-      // mergedLayout.margin = this.layout.margin
+      mergedLayout.margin = this.layout.margin
       mergedLayout.font = this.layout.font
       mergedLayout.legend = this.layout.legend
 
