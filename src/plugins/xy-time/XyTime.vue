@@ -146,7 +146,6 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
   },
   data() {
-    // const addColor = this.addColor
     return {
       guiConfig: {
         buckets: 7,
@@ -158,7 +157,7 @@ const MyComponent = defineComponent({
         flip: false,
         'manual breaks': '',
         // @ts-ignore ->
-        'create custom breakpoints': this.addColor,
+        'create custom breakpoints': this.toggleModalDialog,
       },
       showCustomBreakpoints: false,
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
@@ -286,7 +285,7 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
-    addColor() {
+    toggleModalDialog() {
       this.showCustomBreakpoints = !this.showCustomBreakpoints
     },
     handleTimeSliderValues(timeValues: any[]) {
