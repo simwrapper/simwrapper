@@ -34,6 +34,15 @@
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
+  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints" 
+    :breakpointsProp="this.breakpoints" 
+    :colorsProp="this.colors" 
+    @close="showCustomBreakpoints = false" 
+    @updateColor="(colorArray) => this.setLegend(colorArray, this.breakpoints)"
+    @updateBreakpoint="(breakpointArray) => this.setLegend(this.colors, breakpointArray)"
+    @addOrRemoveBreakpoint="(colorArray, breakpointArray) => this.setLegend(colorArray, breakpointArray)"
+  )
+
 </template>
 
 <script lang="ts">
@@ -80,6 +89,7 @@ import TimeSlider from '@/components/TimeSlider.vue'
 import XyTimeDeckMap from './XyTimeDeckMap'
 import XytDataParser from './XytDataParser.worker.ts?worker'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import ModalDialogCustomColorbreakpoint from './ModalDialogCustomColorbreakpoint.vue'
 
 import {
   ColorScheme,
@@ -126,6 +136,7 @@ const MyComponent = defineComponent({
     TimeSlider,
     ZoomButtons,
     XyTimeDeckMap,
+    ModalDialogCustomColorbreakpoint,
   },
   props: {
     root: { type: String, required: true },
@@ -134,7 +145,8 @@ const MyComponent = defineComponent({
     config: Object,
     thumbnail: Boolean,
   },
-  data: () => {
+  data() {
+    // const addColor = this.addColor
     return {
       guiConfig: {
         buckets: 7,
@@ -145,7 +157,10 @@ const MyComponent = defineComponent({
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
         'manual breaks': '',
+        // @ts-ignore ->
+        'create custom breakpoints': this.addColor,
       },
+      showCustomBreakpoints: false,
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
       timeLabels: [0, 1] as any[],
@@ -271,6 +286,9 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
+    addColor() {
+      this.showCustomBreakpoints = !this.showCustomBreakpoints
+    },
     handleTimeSliderValues(timeValues: any[]) {
       this.animationElapsedTime = timeValues[0]
       this.timeFilter = timeValues
@@ -304,7 +322,7 @@ const MyComponent = defineComponent({
       })
 
       const config = this.guiController // .addFolder('Colors')
-      config.add(this.guiConfig, 'radius', 1, 20, 1)
+      config.add(this.guiConfig, 'radius', 1, 50, 1)
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
@@ -315,8 +333,7 @@ const MyComponent = defineComponent({
       breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'manual breaks').onChange(this.setColors)
-
-      // const times = this.guiController.addFolder('Time')
+      breakpoints.add(this.guiConfig, 'create custom breakpoints', 1, 100, 1)
     },
     async solveProjection() {
       if (this.thumbnail) return
