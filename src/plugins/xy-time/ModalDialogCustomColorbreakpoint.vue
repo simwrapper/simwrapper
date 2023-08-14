@@ -2,14 +2,14 @@
   // Modal dialog container
   .modal-dialog
     // Title for the modal
-    h2.modal-dialog-heading Add custom breakpoints
+    h2.modal-dialog-heading Custom Breakpoints
     
     // Container for the color table
     .color-table
       // Loop through each color
       .color(v-for="(color, index) in colors")
         // Button to remove a color and breakpoint
-        button.button.remove-button(@click="removeBreakpoint(index)") -
+        button.button.remove-button(@click="removeBreakpoint(index)") x
         
         // Color picker input for selecting color
         input.color-picker(

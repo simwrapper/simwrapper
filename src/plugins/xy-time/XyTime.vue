@@ -157,7 +157,7 @@ const MyComponent = defineComponent({
         flip: false,
         'manual breaks': '',
         // @ts-ignore ->
-        'create custom breakpoints': this.toggleModalDialog,
+        'Custom breakpoints...': this.toggleModalDialog,
       },
       showCustomBreakpoints: false,
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
@@ -332,7 +332,7 @@ const MyComponent = defineComponent({
       breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'manual breaks').onChange(this.setColors)
-      breakpoints.add(this.guiConfig, 'create custom breakpoints', 1, 100, 1)
+      breakpoints.add(this.guiConfig, 'Custom breakpoints...', 1, 100, 1)
     },
     async solveProjection() {
       if (this.thumbnail) return
