@@ -31,7 +31,7 @@
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index - 1], 6)"
           @change="changeBreakpoint($event, index - 1)"
-          :class="{ active: incorrectBreakpoints[index - 1] }"
+          :class="{ 'incorrect-number-indicator': incorrectBreakpoints[index - 1] }"
         )
         input.breakpoint-picker(
           v-else
@@ -40,10 +40,11 @@
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index], 6)"
           @change="changeBreakpoint($event, index)"
-          :class="{ active: incorrectBreakpoints[index - 1] }"
+          :class="{ 'incorrect-number-indicator': incorrectBreakpoints[index - 1] }"
         )
 
-        i.remove-button.fas.fa-plus(v-if="index != colors.length - 1" @click="addBreakpoint(index)")
+        // Add button for breakpoints between two breakpoints
+        i.remove-button.fas.fa-plus(v-if="index != colors.length - 1 && index != 0" @click="addBreakpoint(index)")
     
     // Holds all buttons at the bottom of the panel
     .button-holder
@@ -98,7 +99,6 @@ const MyComponent = defineComponent({
       // Push the last value from breakpointsProp and colorsProp to add a new color and breakpoint
       this.breakpointsProp.push(this.breakpointsProp[this.breakpointsProp.length - 1])
       this.colorsProp.push(this.colorsProp[this.colorsProp.length - 1])
-      console.log(this.colorsProp)
       this.$emit('addOrRemoveBreakpoint', this.colors, this.breakpoints)
     },
 
@@ -166,15 +166,12 @@ const MyComponent = defineComponent({
     },
 
     /**
-     *
+     * Adds a breakpoint between two breakpoints and automatically
+     * calculates the average of the two colors or values.
      * @param index
      */
     addBreakpoint(index: number) {
       if (index == 0) return
-      console.log(index)
-      console.log(this.colorsProp)
-      console.log(this.breakpoints)
-
       const prevColor = this.colorsProp[index] as number[]
       const nextColor = this.colorsProp[index + 1] as number[]
 
@@ -244,28 +241,34 @@ const MyComponent = defineComponent({
       this.$emit('updateColor', this.colors)
     },
 
+    /**
+     * Updates a breakpoint at the specified index with the new value from the event.
+     *
+     * @param {any} event - The event object triggered by the breakpoint change.
+     * @param {number} index - The index of the breakpoint being updated.
+     */
     changeBreakpoint(event: any, index: number) {
       this.breakpoints[index] = event.target.value
       for (let i = 0; i < this.breakpointsProp.length; i++) {
-        if (this.breakpoints[i] == undefined)
+        if (this.breakpoints[i] === undefined) {
           this.breakpoints[i] = this.roundToDecimalPlaces(this.breakpointsProp[i], 6)
+        }
       }
       this.$emit('updateBreakpoint', this.breakpoints)
       this.checkIfBreakpointsAreCorrect()
     },
 
     /**
-     *
+     * Checks if the array of breakpoints is in ascending order.
+     * Returns true if all breakpoints are correctly ordered, otherwise false.
      */
     checkIfBreakpointsAreCorrect() {
-      console.log(this.breakpoints)
       let maxValue = Number.NEGATIVE_INFINITY
       this.incorrectBreakpoints = []
       let returnValue = true
       for (let i = 1; i < this.breakpoints.length; i++) {
         this.incorrectBreakpoints[i] = false
         maxValue = this.breakpoints[i] > maxValue ? this.breakpoints[i] : maxValue
-        // console.log(maxValue)
         if (this.breakpoints[i] < maxValue) {
           this.incorrectBreakpoints[i] = true
           returnValue = false
@@ -344,7 +347,7 @@ export default MyComponent
   padding: 5px;
 }
 
-.active {
+.incorrect-number-indicator {
   color: rgb(255, 111, 111);
 }
 
