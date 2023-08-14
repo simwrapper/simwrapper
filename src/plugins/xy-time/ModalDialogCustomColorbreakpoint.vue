@@ -42,6 +42,8 @@
           @change="changeBreakpoint($event, index)"
           :class="{ active: incorrectBreakpoints[index - 1] }"
         )
+
+        i.remove-button.fas.fa-plus(v-if="index != colors.length - 1" @click="addBreakpoint(index)")
     
     // Holds all buttons at the bottom of the panel
     .button-holder
@@ -96,6 +98,7 @@ const MyComponent = defineComponent({
       // Push the last value from breakpointsProp and colorsProp to add a new color and breakpoint
       this.breakpointsProp.push(this.breakpointsProp[this.breakpointsProp.length - 1])
       this.colorsProp.push(this.colorsProp[this.colorsProp.length - 1])
+      console.log(this.colorsProp)
       this.$emit('addOrRemoveBreakpoint', this.colors, this.breakpoints)
     },
 
@@ -160,6 +163,55 @@ const MyComponent = defineComponent({
 
       const factor = Math.pow(10, decimalPlaces)
       return Math.round(number * factor) / factor
+    },
+
+    /**
+     *
+     * @param index
+     */
+    addBreakpoint(index: number) {
+      if (index == 0) return
+      console.log(index)
+      console.log(this.colorsProp)
+      console.log(this.breakpoints)
+
+      const prevColor = this.colorsProp[index] as number[]
+      const nextColor = this.colorsProp[index + 1] as number[]
+
+      const prevValue = this.breakpoints[index - 1]
+      const nextValue = this.breakpoints[index]
+
+      const averageColor = this.calculateAverageColor(prevColor, nextColor)
+      const averageValue = (prevValue + nextValue) / 2
+
+      this.colorsProp.splice(index + 1, 0, averageColor)
+      this.breakpoints.splice(index, 0, averageValue)
+
+      this.$emit('addOrRemoveBreakpoint', this.colors, this.breakpoints)
+    },
+
+    /**
+     * Calculates the average color between two given colors.
+     *
+     * @param color1 - The first color in the format [r, g, b].
+     * @param color2 - The second color in the format [r, g, b].
+     * @returns The calculated average color in the format [r, g, b].
+     * @throws Error if the input colors are not in the expected format.
+     */
+    calculateAverageColor(color1: number[], color2: number[]): number[] {
+      // Validate input color format
+      if (color1.length !== 3 || color2.length !== 3) {
+        throw new Error('Colors must be in the format [r, g, b]')
+      }
+
+      // Calculate average color by averaging corresponding RGB components
+      const averageColor = [
+        Math.round((color1[0] + color2[0]) / 2),
+        Math.round((color1[1] + color2[1]) / 2),
+        Math.round((color1[2] + color2[2]) / 2),
+      ]
+
+      return averageColor
     },
 
     /**
@@ -294,5 +346,16 @@ export default MyComponent
 
 .active {
   color: rgb(255, 111, 111);
+}
+
+.add-button-container {
+  position: relative;
+}
+
+.add-color {
+  position: absolute;
+  top: 50px;
+  width: 20px;
+  height: 20px;
 }
 </style>

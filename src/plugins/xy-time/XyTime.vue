@@ -642,16 +642,14 @@ const MyComponent = defineComponent({
       if (this.guiConfig['manual breaks']) {
         this.setManualBreakpoints()
       } else {
-        if (!this.vizDetails.breakpoints) {
-          const breakpoints = [] as number[]
-          for (let i = 1; i < this.guiConfig.buckets; i++) {
-            const raw = (max2 * i) / this.guiConfig.buckets
-            const breakpoint = Math.pow(raw, EXPONENT)
-            breakpoints.push(breakpoint)
-          }
-
-          this.breakpoints = breakpoints
+        const breakpoints = [] as number[]
+        for (let i = 1; i < this.guiConfig.buckets; i++) {
+          const raw = (max2 * i) / this.guiConfig.buckets
+          const breakpoint = Math.pow(raw, EXPONENT)
+          breakpoints.push(breakpoint)
         }
+
+        this.breakpoints = breakpoints
       }
 
       // only update legend if we have the full dataset already
