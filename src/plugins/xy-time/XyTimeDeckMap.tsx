@@ -49,6 +49,7 @@ export default function Component({
   breakpoints = [0.0] as number[],
   radius = 5,
   mapIsIndependent = false,
+  currentValue = 0,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -68,8 +69,7 @@ export default function Component({
     if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
-  function getTooltip(element: any) {
-    // console.log(element)
+  function getTooltip(element: any, click: boolean) {
     if (element.index < 0) return null
 
     const layerId = element?.layer?.id
@@ -80,6 +80,7 @@ export default function Component({
 
     const value = pointLayers[layerId].value[element.index]
     const cleanValue = Math.round(1e6 * value) / 1e6
+    currentValue = cleanValue
     return {
       html: `\
         <table style="font-size: 0.9rem">
@@ -154,8 +155,8 @@ export default function Component({
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}
-      onClick={getTooltip}
-      getTooltip={getTooltip}
+      onClick={(e: any) => getTooltip(e, true)}
+      getTooltip={(e: any) => getTooltip(e, false)}
     >
       {
         /*

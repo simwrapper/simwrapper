@@ -9,7 +9,8 @@
       // Loop through each color
       .color(v-for="(color, index) in colors")
         // Button to remove a color and breakpoint
-        button.button.remove-button(@click="removeBreakpoint(index)") x
+        //- button.button.remove-button(@click="removeBreakpoint(index)") x
+        i.remove-button.fas.fa-trash(@click="removeBreakpoint(index)")
         
         // Color picker input for selecting color
         input.color-picker(
@@ -21,35 +22,36 @@
         // Comparator symbol
         p.comperator(v-if="index === 0") <
         p.comperator(v-else) >=
-        
+
         // Breakpoint picker input for adjusting breakpoints
         input.breakpoint-picker(
           v-if="index !== 0"
           v-model="breakpoints[index - 1]"
           type="number"
-          min="-10"
-          max="10"
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index - 1], 6)"
+          @change="changeBreakpoint($event, index - 1)"
+          :class="{ active: incorrectBreakpoints[index - 1] }"
         )
         input.breakpoint-picker(
           v-else
           v-model="breakpoints[index]"
           type="number"
-          min="-10"
-          max="10"
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index], 6)"
+          @change="changeBreakpoint($event, index)"
+          :class="{ active: incorrectBreakpoints[index - 1] }"
         )
     
-    // Button to add a new color
-    button.button(@click="addColor") Add Color
-    
-    // Button to close the modal dialog with rounded border
-    button.button(
-      @click="closeModalDialog"
-      :style="{ 'border-bottom-left-radius': '10px', 'border-bottom-right-radius': '10px' }"
-    ) Close
+    // Holds all buttons at the bottom of the panel
+    .button-holder
+      // Button to add a new color
+      button.button.is-success(@click="addColor") Add Color
+      
+      // Button to close the modal dialog with rounded border
+      button.button.is-danger(
+        @click="closeModalDialog"
+      ) Close
 </template>
 
 <script lang="ts">
@@ -58,31 +60,32 @@ import { defineComponent } from 'vue'
 const MyComponent = defineComponent({
   name: 'ModalDialogCustomColorbreakpoint',
   props: {
-    breakpointsProp: { type: Array, required: true }, // Array of breakpoint values
+    breakpointsProp: { type: Array as () => number[], required: true }, // Array of breakpoint values
     colorsProp: { type: Array, required: true }, // Array of color values
   },
   data() {
     return {
       // Create local copies of breakpoints and colors arrays to avoid direct modification of props
-      breakpoints: [] as any[], // Local copy of breakpoint values
+      breakpoints: [] as number[], // Local copy of breakpoint values
+      incorrectBreakpoints: [] as any[], // Lists all incorrect breakpoints (prevoius breakpoint is higher)
       colors: [] as any[], // Local copy of color values
     }
   },
   mounted() {
     this.colors = this.colorsProp
+    this.breakpoints = this.breakpointsProp
+    this.checkIfBreakpointsAreCorrect()
   },
   watch: {
     breakpointsProp() {
       this.breakpoints = this.breakpointsProp
       for (let i = 0; i < this.breakpointsProp.length; i++) {
         this.breakpoints[i] = this.roundToDecimalPlaces(this.breakpoints[i], 6)
+        this.breakpointsProp[i] = this.roundToDecimalPlaces(this.breakpointsProp[i], 6)
       }
     },
     colorsProp() {
       this.colors = this.colorsProp
-    },
-    breakpoints() {
-      this.$emit('updateBreakpoint', this.breakpoints)
     },
   },
   methods: {
@@ -188,6 +191,36 @@ const MyComponent = defineComponent({
       this.colors[index] = color
       this.$emit('updateColor', this.colors)
     },
+
+    changeBreakpoint(event: any, index: number) {
+      this.breakpoints[index] = event.target.value
+      for (let i = 0; i < this.breakpointsProp.length; i++) {
+        if (this.breakpoints[i] == undefined)
+          this.breakpoints[i] = this.roundToDecimalPlaces(this.breakpointsProp[i], 6)
+      }
+      this.$emit('updateBreakpoint', this.breakpoints)
+      this.checkIfBreakpointsAreCorrect()
+    },
+
+    /**
+     *
+     */
+    checkIfBreakpointsAreCorrect() {
+      console.log(this.breakpoints)
+      let maxValue = Number.NEGATIVE_INFINITY
+      this.incorrectBreakpoints = []
+      let returnValue = true
+      for (let i = 1; i < this.breakpoints.length; i++) {
+        this.incorrectBreakpoints[i] = false
+        maxValue = this.breakpoints[i] > maxValue ? this.breakpoints[i] : maxValue
+        // console.log(maxValue)
+        if (this.breakpoints[i] < maxValue) {
+          this.incorrectBreakpoints[i] = true
+          returnValue = false
+        }
+      }
+      return returnValue
+    },
   },
 })
 
@@ -200,7 +233,8 @@ export default MyComponent
 .modal-dialog {
   display: flex;
   flex-direction: column;
-  width: 500px;
+  width: min-content;
+  min-width: 300px;
   height: min-content;
   max-height: 500px;
   margin: auto;
@@ -220,12 +254,13 @@ export default MyComponent
   flex-direction: row;
   margin-bottom: 3px;
   font-size: 1.5rem;
+  width: min-content;
 }
 
 .color-table {
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: scroll;
-  padding: 10px;
+  margin: 10px;
 }
 
 .color-picker {
@@ -236,6 +271,7 @@ export default MyComponent
 
 .breakpoint-picker {
   width: 120px;
+  min-width: min-content;
 }
 
 .comperator {
@@ -244,7 +280,19 @@ export default MyComponent
   width: 2.2rem;
 }
 
+.button-holder {
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-evenly;
+  padding-bottom: 10px;
+}
+
 .remove-button {
-  margin: 1rem;
+  margin: 0 0.5rem;
+  padding: 5px;
+}
+
+.active {
+  color: rgb(255, 111, 111);
 }
 </style>

@@ -203,7 +203,7 @@ const MyComponent = defineComponent({
         radius: 5,
         colorRamp: 'viridis',
         flip: false,
-        breakpoints: '',
+        breakpoints: null as any,
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -353,6 +353,7 @@ const MyComponent = defineComponent({
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as VizDetail
+        this.setCustomGuiConfig()
         return
       }
 
@@ -363,6 +364,30 @@ const MyComponent = defineComponent({
       } else {
         // console.log('NO YAML WTF')
         this.setConfigForRawCSV()
+      }
+    },
+
+    setCustomGuiConfig() {
+      if (!this.config) return
+      console.log('Hi')
+
+      // Set custom radius
+      if (this.config.radius >= 5 && this.config.radius <= 50)
+        this.guiConfig.radius = this.config.radius
+
+      // Set custom breakpoints
+      if (this.config.breakpoints) {
+        if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
+          this.$store.commit('setStatus', {
+            type: Status.ERROR,
+            msg: `Wrong number of colors and values for the breakpoints.`,
+            desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
+          })
+        } else {
+          this.guiConfig.buckets = this.config.breakpoints.colors.length
+          this.breakpoints = this.config.breakpoints.values
+          this.colors = this.config.breakpoints.colors
+        }
       }
     },
 
@@ -408,6 +433,7 @@ const MyComponent = defineComponent({
     },
 
     validateYAML() {
+      console.log(this.myState)
       const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
       let configuration = {} as any
 
@@ -429,6 +455,8 @@ const MyComponent = defineComponent({
         }
       }
 
+      console.log(configuration)
+
       if (configuration.radius == 0) {
         this.$store.commit('setStatus', {
           type: Status.WARNING,
@@ -437,11 +465,11 @@ const MyComponent = defineComponent({
         })
       }
 
-      if (configuration.zoom < 5 || configuration.zoom > 20) {
+      if (configuration.zoom < 5 || configuration.zoom > 50) {
         this.$store.commit('setStatus', {
           type: Status.WARNING,
           msg: `Zoom is out of the recommended range `,
-          desc: 'Zoom levels should be between 5 and 20. ',
+          desc: 'Zoom levels should be between 5 and 50. ',
         })
       }
     },
@@ -646,6 +674,7 @@ const MyComponent = defineComponent({
           return { label, value: rgb }
         }),
       })
+      this.breakpoints = breakpoints
     },
 
     async loadFiles() {
