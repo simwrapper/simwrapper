@@ -26,7 +26,6 @@
         // Breakpoint picker input for adjusting breakpoints
         input.breakpoint-picker(
           v-if="index !== 0"
-          v-model="breakpoints[index - 1]"
           type="number"
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index - 1], 6)"
@@ -35,7 +34,6 @@
         )
         input.breakpoint-picker(
           v-else
-          v-model="breakpoints[index]"
           type="number"
           step=".01"
           :placeholder="roundToDecimalPlaces(breakpointsProp[index], 6)"
@@ -44,7 +42,8 @@
         )
 
         // Add button for breakpoints between two breakpoints
-        i.remove-button.fas.fa-plus(v-if="index != colors.length - 1 && index != 0" @click="addBreakpoint(index)")
+        .add-button-container
+          i.remove-button.fas.fa-plus(v-if="index != colors.length - 1 && index != 0" @click="addBreakpoint(index)")
     
     // Holds all buttons at the bottom of the panel
     .button-holder
@@ -266,7 +265,7 @@ const MyComponent = defineComponent({
       let maxValue = Number.NEGATIVE_INFINITY
       this.incorrectBreakpoints = []
       let returnValue = true
-      for (let i = 1; i < this.breakpoints.length; i++) {
+      for (let i = 0; i < this.breakpoints.length; i++) {
         this.incorrectBreakpoints[i] = false
         maxValue = this.breakpoints[i] > maxValue ? this.breakpoints[i] : maxValue
         if (this.breakpoints[i] < maxValue) {
@@ -353,6 +352,12 @@ export default MyComponent
 
 .add-button-container {
   position: relative;
+}
+
+.add-button-container > .remove-button {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .add-color {

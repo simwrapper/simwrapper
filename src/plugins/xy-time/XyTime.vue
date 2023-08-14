@@ -155,7 +155,6 @@ const MyComponent = defineComponent({
         'color ramp': 'viridis',
         colorRamps: ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis'],
         flip: false,
-        'manual breaks': '',
         // @ts-ignore ->
         'Custom breakpoints...': this.toggleModalDialog,
       },
@@ -331,7 +330,6 @@ const MyComponent = defineComponent({
       breakpoints.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
-      breakpoints.add(this.guiConfig, 'manual breaks').onChange(this.setColors)
       breakpoints.add(this.guiConfig, 'Custom breakpoints...', 1, 100, 1)
     },
     async solveProjection() {
@@ -369,7 +367,6 @@ const MyComponent = defineComponent({
 
     setCustomGuiConfig() {
       if (!this.config) return
-      console.log('Hi')
 
       // Set custom radius
       if (this.config.radius >= 5 && this.config.radius <= 50)
@@ -433,7 +430,6 @@ const MyComponent = defineComponent({
     },
 
     validateYAML() {
-      console.log(this.myState)
       const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
       let configuration = {} as any
 
@@ -454,8 +450,6 @@ const MyComponent = defineComponent({
           })
         }
       }
-
-      console.log(configuration)
 
       if (configuration.radius == 0) {
         this.$store.commit('setStatus', {
@@ -487,15 +481,6 @@ const MyComponent = defineComponent({
       if (this.vizDetails.radius) this.guiConfig.radius = this.vizDetails.radius
       if (this.vizDetails.clipMax) this.guiConfig['clip max'] = this.vizDetails.clipMax
       if (this.vizDetails.colorRamp) this.guiConfig['color ramp'] = this.vizDetails.colorRamp
-      if (this.vizDetails.breakpoints) this.guiConfig['manual breaks'] = this.vizDetails.breakpoints
-    },
-
-    setManualBreakpoints() {
-      const breakpoints = this.guiConfig['manual breaks'].split(',').map(b => {
-        return Number.parseFloat(b.trim())
-      })
-      this.breakpoints = breakpoints
-      this.guiConfig.buckets = 1 + breakpoints.length
     },
 
     async buildThumbnail() {
@@ -638,19 +623,14 @@ const MyComponent = defineComponent({
       // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
       // console.log({ max1, max2 })
 
-      // generate some breakpoints if user didn't supply them
-      if (this.guiConfig['manual breaks']) {
-        this.setManualBreakpoints()
-      } else {
-        const breakpoints = [] as number[]
-        for (let i = 1; i < this.guiConfig.buckets; i++) {
-          const raw = (max2 * i) / this.guiConfig.buckets
-          const breakpoint = Math.pow(raw, EXPONENT)
-          breakpoints.push(breakpoint)
-        }
-
-        this.breakpoints = breakpoints
+      const breakpoints = [] as number[]
+      for (let i = 1; i < this.guiConfig.buckets; i++) {
+        const raw = (max2 * i) / this.guiConfig.buckets
+        const breakpoint = Math.pow(raw, EXPONENT)
+        breakpoints.push(breakpoint)
       }
+
+      this.breakpoints = breakpoints
 
       // only update legend if we have the full dataset already
       if (this.isLoaded) this.setLegend(colors, this.breakpoints)
