@@ -49,7 +49,6 @@ export default function Component({
   breakpoints = [0.0] as number[],
   radius = 5,
   mapIsIndependent = false,
-  currentValue = 0,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -80,7 +79,6 @@ export default function Component({
 
     const value = pointLayers[layerId].value[element.index]
     const cleanValue = Math.round(1e6 * value) / 1e6
-    currentValue = cleanValue
     return {
       html: `\
         <table style="font-size: 0.9rem">

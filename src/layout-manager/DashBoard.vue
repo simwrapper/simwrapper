@@ -180,7 +180,7 @@ export default defineComponent({
     },
 
     getCardComponent(card: { type: string }) {
-      console.log(1, card)
+      // console.log(1, card)
       if (card.type === 'table' || card.type === 'topsheet') return 'TopSheet'
 
       // load the plugin
