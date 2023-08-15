@@ -157,6 +157,7 @@ const MyComponent = defineComponent({
         flip: false,
         // @ts-ignore ->
         'Custom breakpoints...': this.toggleModalDialog,
+        'manual breaks': '',
       },
       minRadius: 5,
       maxRadius: 50,
@@ -170,7 +171,7 @@ const MyComponent = defineComponent({
       colors: [
         [128, 128, 128],
         [128, 128, 128],
-      ] as number[][],
+      ] as any[][],
       breakpoints: [0.0],
       range: [Infinity, -Infinity],
       timeRange: [Infinity, -Infinity],
@@ -374,20 +375,30 @@ const MyComponent = defineComponent({
       if (this.config.radius >= this.minRadius && this.config.radius <= this.maxRadius)
         this.guiConfig.radius = this.config.radius
 
-      // Set custom breakpoints
-      if (this.config.breakpoints) {
-        if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
-          this.$store.commit('setStatus', {
-            type: Status.ERROR,
-            msg: `Wrong number of colors and values for the breakpoints.`,
-            desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
-          })
-        } else {
-          this.guiConfig.buckets = this.config.breakpoints.colors.length
-          this.breakpoints = this.config.breakpoints.values
-          this.colors = this.config.breakpoints.colors
+      if (Object.prototype.toString.call(this.config.breakpoints) === '[object Array]') {
+        // Only breakpoints
+        this.setManualBreakpoints(this.config.breakpoints)
+      } else {
+        // Set custom breakpoints
+        if (this.config.breakpoints) {
+          if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
+            this.$store.commit('setStatus', {
+              type: Status.ERROR,
+              msg: `Wrong number of colors and values for the breakpoints.`,
+              desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
+            })
+          } else {
+            this.guiConfig.buckets = this.config.breakpoints.colors.length
+            this.breakpoints = this.config.breakpoints.values
+            this.colors = this.config.breakpoints.colors
+          }
         }
       }
+    },
+
+    setManualBreakpoints(breakpoints: number[]) {
+      this.breakpoints = breakpoints
+      this.guiConfig.buckets = 1 + breakpoints.length
     },
 
     setConfigForRawCSV() {
@@ -625,14 +636,17 @@ const MyComponent = defineComponent({
       // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
       // console.log({ max1, max2 })
 
-      const breakpoints = [] as number[]
-      for (let i = 1; i < this.guiConfig.buckets; i++) {
-        const raw = (max2 * i) / this.guiConfig.buckets
-        const breakpoint = Math.pow(raw, EXPONENT)
-        breakpoints.push(breakpoint)
-      }
+      // Generate breakpoints only if there are not already set
+      if (!this.vizDetails.breakpoints) {
+        const breakpoints = [] as number[]
+        for (let i = 1; i < this.guiConfig.buckets; i++) {
+          const raw = (max2 * i) / this.guiConfig.buckets
+          const breakpoint = Math.pow(raw, EXPONENT)
+          breakpoints.push(breakpoint)
+        }
 
-      this.breakpoints = breakpoints
+        this.breakpoints = breakpoints
+      }
 
       // only update legend if we have the full dataset already
       if (this.isLoaded) this.setLegend(colors, this.breakpoints)

@@ -8,9 +8,8 @@
     .color-table
       // Loop through each color
       .color(v-for="(color, index) in colors")
-        // Button to remove a color and breakpoint
-        //- button.button.remove-button(@click="removeBreakpoint(index)") x
-        i.remove-button.fas.fa-sm.fa-trash(@click="removeBreakpoint(index)")
+        // Button to remove a color and breakpoint 
+        i.remove-button.fas.fa-xs.fa-trash(@click="removeBreakpoint(index)")
         
         // Color picker input for selecting color
         input.color-picker(
@@ -48,10 +47,10 @@
     // Holds all buttons at the bottom of the panel
     .button-holder
       // Button to add a new color
-      button.button.is-success(@click="addColor") Add Color
+      button.button.is-success.is-small.is-outlined(@click="addColor") Add Color
       
       // Button to close the modal dialog with rounded border
-      button.button.is-danger(
+      button.button.is-danger.is-small.is-outlined(
         @click="closeModalDialog"
       ) Close
 </template>
@@ -219,6 +218,7 @@ const MyComponent = defineComponent({
       this.breakpointsProp.splice(index - 1, 1)
       this.colorsProp.splice(index, 1)
       this.$emit('addOrRemoveBreakpoint', this.colors, this.breakpoints)
+      this.checkIfBreakpointsAreCorrect()
     },
 
     /**
@@ -268,6 +268,7 @@ const MyComponent = defineComponent({
       for (let i = 0; i < this.breakpoints.length; i++) {
         this.incorrectBreakpoints[i] = false
         maxValue = this.breakpoints[i] > maxValue ? this.breakpoints[i] : maxValue
+        // console.log(this.breakpoints[i], Number(maxValue))
         if (this.breakpoints[i] < maxValue) {
           this.incorrectBreakpoints[i] = true
           returnValue = false
@@ -294,7 +295,7 @@ export default MyComponent
   margin: auto;
   background-color: white;
   border-radius: 10px;
-  font-size: 3rem;
+  // font-size: 3rem;
   z-index: 20;
   box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
 }
@@ -310,7 +311,7 @@ export default MyComponent
   align-items: center;
   flex-direction: row;
   margin-bottom: 3px;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   width: min-content;
 }
 
@@ -321,20 +322,16 @@ export default MyComponent
 }
 
 .color-picker {
-  width: 30px;
-  height: 30px;
+  width: 25px;
+  height: 25px;
   overflow-y: scroll;
-}
-
-.breakpoint-picker {
-  width: 120px;
-  min-width: min-content;
 }
 
 .comperator {
   display: flex;
   justify-content: center;
-  width: 2.2rem;
+  width: 1rem;
+  margin-right: 4px;
 }
 
 .button-holder {
@@ -349,12 +346,17 @@ export default MyComponent
   padding: 5px;
 }
 
+.remove-button:hover {
+  cursor: pointer;
+}
+
 .incorrect-number-indicator {
   color: rgb(255, 111, 111);
 }
 
 .add-button-container {
   position: relative;
+  width: 30px;
 }
 
 .add-button-container > .remove-button {
