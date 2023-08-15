@@ -20,8 +20,8 @@
         )
         
         // Comparator symbol
-        p.comperator(v-if="index === 0") <
-        p.comperator(v-else) >=
+        p.comperator(v-if="index === 0" v-html="'<p>&lt;</p>'")
+        p.comperator(v-else v-html="'<p>&gE;</p>'")
 
         // Breakpoint picker input for adjusting breakpoints
         input.breakpoint-picker(
