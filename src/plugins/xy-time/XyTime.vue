@@ -158,6 +158,8 @@ const MyComponent = defineComponent({
         // @ts-ignore ->
         'Custom breakpoints...': this.toggleModalDialog,
       },
+      minRadius: 5,
+      maxRadius: 50,
       showCustomBreakpoints: false,
       viewId: `xyt-id-${Math.floor(1e12 * Math.random())}` as any,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
@@ -320,7 +322,7 @@ const MyComponent = defineComponent({
       })
 
       const config = this.guiController // .addFolder('Colors')
-      config.add(this.guiConfig, 'radius', 1, 50, 1)
+      config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, 1)
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
@@ -369,7 +371,7 @@ const MyComponent = defineComponent({
       if (!this.config) return
 
       // Set custom radius
-      if (this.config.radius >= 5 && this.config.radius <= 50)
+      if (this.config.radius >= this.minRadius && this.config.radius <= this.maxRadius)
         this.guiConfig.radius = this.config.radius
 
       // Set custom breakpoints

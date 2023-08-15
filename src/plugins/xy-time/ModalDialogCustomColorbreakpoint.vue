@@ -10,7 +10,7 @@
       .color(v-for="(color, index) in colors")
         // Button to remove a color and breakpoint
         //- button.button.remove-button(@click="removeBreakpoint(index)") x
-        i.remove-button.fas.fa-trash(@click="removeBreakpoint(index)")
+        i.remove-button.fas.fa-sm.fa-trash(@click="removeBreakpoint(index)")
         
         // Color picker input for selecting color
         input.color-picker(
@@ -43,7 +43,7 @@
 
         // Add button for breakpoints between two breakpoints
         .add-button-container
-          i.remove-button.fas.fa-plus(v-if="index != colors.length - 1 && index != 0" @click="addBreakpoint(index)")
+          i.remove-button.fas.fa-sm.fa-plus(v-if="index != colors.length - 1 && index != 0" @click="addBreakpoint(index)")
     
     // Holds all buttons at the bottom of the panel
     .button-holder
@@ -296,10 +296,13 @@ export default MyComponent
   border-radius: 10px;
   font-size: 3rem;
   z-index: 20;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
 }
 
 .modal-dialog-heading {
-  padding: 1rem 0 0 1rem;
+  padding-top: 1rem;
+  width: fit-content;
+  margin: 0 auto;
 }
 
 .color {
@@ -362,7 +365,6 @@ export default MyComponent
 
 .add-color {
   position: absolute;
-  top: 50px;
   width: 20px;
   height: 20px;
 }
