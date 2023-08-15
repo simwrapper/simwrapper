@@ -153,8 +153,8 @@ export default function Component({
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}
-      onClick={(e: any) => getTooltip(e, true)}
-      getTooltip={(e: any) => getTooltip(e, false)}
+      onClick={getTooltip}
+      getTooltip={getTooltip}
     >
       {
         /*
