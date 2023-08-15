@@ -51,15 +51,15 @@ In addition to the standard dashboard configurations, the following properties a
 
 **file:** String. The filepath containing the csv-file.
 
-**breakpoints:** Object. Defines the breakpoints. Colors and values are described in *colors* and *values* respectively. ***Important***: The number of colors must be one more than the number of values.
+**breakpoints:** Object/Array. Defines the breakpoints. Either only the breakpoints can be defined as an array or the breakpoints including colors and values can be defined in an object. Colors and values are described in *colors* and *values* respectively. ***Important***: The number of colors must be one more than the number of values.
 
 **colors:** Array. Defines the colors of the breakpoints
 
 **values:** Array. Defines the values of the breakpoints
 
-**radius** Number. Defines the radius of the circles (Must be between 5 and 50)
+**radius:** Number. Defines the radius of the circles (Must be between 5 and 50)
 
-The .yaml file could then look like this:
+The .yaml file could then look like this (Here are both variants of how to define Brteakpoints. However, only one of the two variants may be used at most):
 
 ```yaml
 - type: xytime
@@ -67,7 +67,7 @@ The .yaml file could then look like this:
   description: per day
   height: 12.0
   radius: 50
-  breakpoints:
+  breakpoints: # Breakpoint variant one
     colors:
       - '#440154'
       - '#31658D'
@@ -77,5 +77,6 @@ The .yaml file could then look like this:
       - 0.000233
       - 0.003731
       - 0.018888
+  breakpoints: [0.000233, 0.003731, 0.018888] # Breakpoint variant two
   file: analysis/emissions/emissions_grid_per_day.xyt.csv
 ```
