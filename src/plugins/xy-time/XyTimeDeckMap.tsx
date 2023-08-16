@@ -68,8 +68,7 @@ export default function Component({
     if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
   }
 
-  function getTooltip(element: any) {
-    // console.log(element)
+  function getTooltip(element: any, click: boolean) {
     if (element.index < 0) return null
 
     const layerId = element?.layer?.id
