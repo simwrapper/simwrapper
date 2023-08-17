@@ -6,7 +6,8 @@ import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-// import Coords from '@/js/Coords'
+import Coords from '@/js/Coords'
+
 import { findMatchingGlobInFiles } from '@/js/util'
 
 // -----------------------------------------------------------
@@ -123,15 +124,25 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
 
   // split uint8 array into subarrays
   const startOfData = endOfHeader + 1
+  const sections = [] as Uint8Array[]
+
   let half = Math.floor(unzipped.length / 2)
-  while (unzipped[half] !== 10) {
+  while (half > 0 && unzipped[half] !== 10) {
     // \n
     half -= 1
   }
-  const section1 = unzipped.subarray(startOfData, half)
-  const section2 = unzipped.subarray(half)
 
-  const sections = [section1, section2]
+  // it's possible there is no data in this CSV :eyeroll:
+
+  if (half == 0) {
+    const section1 = unzipped.subarray(startOfData)
+    sections.push(section1)
+  } else {
+    const section1 = unzipped.subarray(startOfData, half)
+    const section2 = unzipped.subarray(half)
+    sections.push(section1)
+    sections.push(section2)
+  }
 
   // how many lines
   let count = 0
@@ -161,6 +172,7 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
       }
 
       columnLookup.push(...[xCol, yCol])
+
       rowCache[`${group}${i}`] = {
         raw: new Float32Array(count * 2),
         coordColumns: [xCol, yCol],
@@ -194,11 +206,10 @@ function step3parseCSVdata(sections: Uint8Array[]) {
             postMessage({ status: `Processing CSV: ${Math.floor((50.0 * offset) / totalLines)}%` })
           }
           for (const key of Object.keys(rowCache)) {
-            const wgs84 = [5, 5]
-            // Coords.toLngLat(proj, [
-            //   results.data[rowCache[key].coordColumns[0] as any],
-            //   results.data[rowCache[key].coordColumns[1] as any],
-            // ])
+            const wgs84 = Coords.toLngLat(proj, [
+              results.data[rowCache[key].coordColumns[0] as any],
+              results.data[rowCache[key].coordColumns[1] as any],
+            ])
             rowCache[key].raw.set(wgs84, offset)
           }
           offset += 2
