@@ -1,12 +1,13 @@
 <template lang="pug">
 .content
     .tiles-container(v-if="imagesAreLoaded")
-      .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}")
-        p.tile-title {{ value[tileNameIndex] }}
-        p.tile-value {{ value[tileValueIndex] }}
-        .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
-        font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+      .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}" @click="")
+        a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
+          p.tile-title {{ value[tileNameIndex] }}
+          p.tile-value {{ value[tileValueIndex] }}
+          .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+          img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
+          font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
@@ -106,6 +107,7 @@ export default defineComponent({
       tileNameIndex: 0,
       tileValueIndex: 1,
       tileImageIndex: 2,
+      urlIndex: 3,
     }
   },
   computed: {
@@ -289,6 +291,10 @@ export default defineComponent({
   height: 4rem;
   grid-row: 2;
   align-items: baseline;
+}
+
+.is-not-clickable {
+  cursor: default;
 }
 
 @media only screen and (max-width: 640px) {
