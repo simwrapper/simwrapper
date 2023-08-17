@@ -35,7 +35,7 @@ layout:
 
 ### CSV Structure
 
-The following .csv structure belongs to the sample image above. The column line contains the titles, the second column the values and the third column the names or paths of the icons. The values and the icons are not required.
+The following .csv structure belongs to the sample image above. The column line contains the titles, the second column the values, the third column the names or paths of the icons and the fourth defines the url. The values, the icons and the url are not required.
 
 <table>
 <tbody>
@@ -43,26 +43,31 @@ The following .csv structure belongs to the sample image above. The column line 
 <td>custom Image</td>
 <td>text</td>
 <td>vsp_logo.png</td>
+<td>https://vsp.berlin</td>
 </tr>
 <tr>
 <td>custom Image (parent folder)</td>
 <td>1234</td>
 <td>../warning.png</td>
+<td></td>
 </tr>
 <tr>
 <td>image from assets Folder (Material UI)</td>
 <td>3517</td>
 <td>emoji_transportation</td>
+<td>https://tu.berlin</td>
 </tr>
 <tr>
 <td>Fontawesome Icon 1</td>
 <td>75135</td>
 <td>virus-covid</td>
+<td></td>
 </tr>
 <tr>
 <td>Fontawesome Icon 2</td>
 <td>transport</td>
 <td>chart-simple</td>
+<td></td>
 </tr>
 </tbody>
 </table>
