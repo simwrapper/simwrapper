@@ -345,7 +345,7 @@ const CarrierPlugin = defineComponent({
 
   methods: {
     handleSelectShipment(shipment: any) {
-      console.log({ shipment })
+      // console.log({ shipment })
 
       if (this.selectedShipment === shipment) {
         this.selectedShipment = null
@@ -895,7 +895,7 @@ const CarrierPlugin = defineComponent({
 
     clickedDepot(object: any) {
       const vehiclesAtThisDepot = Object.values(object.vehicles).map((v: any) => v.$id)
-      console.log({ vehiclesAtThisDepot })
+      // console.log({ vehiclesAtThisDepot })
       this.selectedTours = []
       this.shownShipments = []
 
@@ -1000,6 +1000,11 @@ const CarrierPlugin = defineComponent({
               if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
 
               thread.postMessage({ crs })
+              return
+            }
+
+            if (e.data.status) {
+              this.myState.statusMessage = '' + e.data.status
               return
             }
 
