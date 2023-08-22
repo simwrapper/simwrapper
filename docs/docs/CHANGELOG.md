@@ -12,12 +12,43 @@ The full commit history is on GitHub at <https://github.com/simwrapper/simwrappe
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.5.0](https://github.com/simwrapper/simwrapper/compare/v2.4.0...v2.5.0) (2023-08-22)
+
+
+### Features
+
+* **xyt:** added UI dialog for custom breakpoints ([#285](https://github.com/simwrapper/simwrapper/issues/285)) ([4bd6b2a](https://github.com/simwrapper/simwrapper/commit/4bd6b2a8935f8a9c6e801a26e2ee21c58c9840c7))
+
+
+### Bug Fixes
+
+* better error messages in vega-chart plugin ([b4de7da](https://github.com/simwrapper/simwrapper/commit/b4de7daed4335034433613f11c8f91dcd3982c9e))
+* **carriers:** Carrier viewer not loading some large networks ([784b8c5](https://github.com/simwrapper/simwrapper/commit/784b8c54a9ee7d9f815f8a613686fae88abdd0e6))
+* **hexagons:** blank CSVs crash the map ([85254e5](https://github.com/simwrapper/simwrapper/commit/85254e54741e4e134446e8910596629221cc5639)), closes [#286](https://github.com/simwrapper/simwrapper/issues/286)
+* Plotly slider bug (Issue [#282](https://github.com/simwrapper/simwrapper/issues/282)) ([#283](https://github.com/simwrapper/simwrapper/issues/283)) ([52d942c](https://github.com/simwrapper/simwrapper/commit/52d942c39bb1316a6c2329fb1f509804a5565e4f))
+* Startup time improvement through lazy loading of viz plugins ([8c3be04](https://github.com/simwrapper/simwrapper/commit/8c3be043b47d13a1e61f83dfd6e045cdfcf15b44))
+* **xyt:** X-Y-T plot can specify manual breakpoints instead of buckets,exponent ([43a08f0](https://github.com/simwrapper/simwrapper/commit/43a08f0bca7ec6c029afd99f6118472945ea00d8))
+
+## [2.4.0](https://github.com/simwrapper/simwrapper/compare/v2.3.0...v2.4.0) (2023-06-09)
+
+
+### Features
+
+* XML viewer, see your XML configs in a searchable tree view ([058bb0d](https://github.com/simwrapper/simwrapper/commit/058bb0d7f3b76c20125c8a922a07022b1e321350))
+
+
+### Bug Fixes
+
+* **csv:** Support column names with dots e.g. vol.final ([5a79d86](https://github.com/simwrapper/simwrapper/commit/5a79d863d01af68a02516da9c77993d3352d4083))
+* X/Y/T plots now work in dashboards ([#267](https://github.com/simwrapper/simwrapper/issues/267)) ([ab1eb35](https://github.com/simwrapper/simwrapper/commit/ab1eb35001fd9d06ba60271a6c27cc12fc820bd8))
+
 ## [2.3.0](https://github.com/simwrapper/simwrapper/compare/v2.2.1...v2.3.0) (2023-05-26)
 
 
 ### Features
 
-* New "CSV" table plug in ([#250](https://github.com/simwrapper/simwrapper/issues/250)) ([7e4ede6](https://github.com/simwrapper/simwrapper/commit/7e4ede67ceab3dcf99bc9fdd88a1bfc8674a4e26))
+* Adding a new Tiles/Overview Panel ([#254](https://github.com/simwrapper/simwrapper/issues/254)) ([92334d8](https://github.com/simwrapper/simwrapper/commit/92334d85c24189e6a857808b854d4f59e40e96bc))
+* New "CSV" Table plug in ([#250](https://github.com/simwrapper/simwrapper/issues/250)) ([7e4ede6](https://github.com/simwrapper/simwrapper/commit/7e4ede67ceab3dcf99bc9fdd88a1bfc8674a4e26))
 * New "tiles" plugin for individual metrics in pretty boxes ([ea1f008](https://github.com/simwrapper/simwrapper/commit/ea1f00809b79da4a1391adf092ad64d214aab475))
 * New Plotly plugin supporting all Plotly chart types ([387ad79](https://github.com/simwrapper/simwrapper/commit/387ad79ad4447d232a88664fb526637c62509fd8))
 
