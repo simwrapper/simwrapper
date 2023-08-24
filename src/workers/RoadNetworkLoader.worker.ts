@@ -33,20 +33,25 @@ let _networkFormat: NetworkFormat
 let _subfolder = ''
 let _vizDetails = {} as any
 let _isFirefox = false
+let _rawData = null as Uint8Array | null
+let _options = {} as any
+let _crs = ''
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
   if (e.data.crs) {
+    _crs = e.data.crs
+
     switch (_networkFormat) {
       case NetworkFormat.MATSIM_XML:
-        parseXmlNetworkAndPostResults(e.data.crs)
+        memorySafeXMLParser()
         break
       case NetworkFormat.SFCTA:
         parseSFCTANetworkAndPostResults(e.data.crs)
         break
       default:
         console.log('oops')
-        parseXmlNetworkAndPostResults(e.data.crs)
+        memorySafeXMLParser()
         break
     }
   } else {
@@ -194,31 +199,40 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
   if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
 }
 
-async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
-  console.log('rawData is really big:', rawData.length)
+async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
+  // pick up where we left off if user interactively gave us the CRS
+  if (rawData) _rawData = rawData
+  if (options) _options = options
+
+  if (!_rawData) {
+    console.error("can't restart: no data")
+    return
+  }
+
+  console.log('rawData is big:', _rawData.length)
 
   // Start chunking the rawdata
   const decoder = new TextDecoder('utf-8')
   // Be careful to only split chunks at the border between </link> and <link>
 
   // 9% at a time seems nice
-  let chunkBytes = Math.floor(rawData.length / 11)
+  let chunkBytes = Math.floor(_rawData.length / 11)
 
   let decoded = ''
   let currentBytePosition = chunkBytes
-  let firstChunk = rawData.subarray(0, currentBytePosition)
+  let firstChunk = _rawData.subarray(0, currentBytePosition)
 
   // Find end of nodes; close them and close network. Parse it.
   postMessage({ status: 'Parsing nodes...' })
 
-  while (currentBytePosition < rawData.length) {
+  while (currentBytePosition < _rawData.length) {
     const text = decoder.decode(firstChunk)
     decoded += text
 
     if (text.indexOf('<links') > -1) break
     let startBytePosition = currentBytePosition
     currentBytePosition += chunkBytes
-    firstChunk = rawData.subarray(startBytePosition, currentBytePosition)
+    firstChunk = _rawData.subarray(startBytePosition, currentBytePosition)
   }
 
   const endNodes = decoded.indexOf('<links')
@@ -228,16 +242,20 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
 
   let network = parseXML(networkNodes)
 
+  // console.log({ network })
+
   // What is the CRS?
-  let coordinateReferenceSystem = ''
-  const attribute = network?.network?.attributes?.attribute
-  if (attribute?.$name === 'coordinateReferenceSystem') {
-    coordinateReferenceSystem = attribute['#text']
-    console.log('CRS', coordinateReferenceSystem)
-  } else {
-    // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
-    postMessage({ promptUserForCRS: 'crs needed' })
-    return
+  let coordinateReferenceSystem = _crs
+  if (!_crs) {
+    const attribute = network?.network?.attributes?.attribute
+    if (attribute?.$name === 'coordinateReferenceSystem') {
+      coordinateReferenceSystem = attribute['#text']
+      console.log('CRS', coordinateReferenceSystem)
+    } else {
+      // We don't have CRS: send msg to UI thread to ask for it. We'll pick it up later.
+      postMessage({ promptUserForCRS: 'crs needed' })
+      return
+    }
   }
 
   // Prep the lookups.
@@ -266,7 +284,7 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
   let endLinks = decoded.lastIndexOf('</link>')
   let usable = decoded.slice(startLinks, endLinks + 7)
   let leftovers = decoded.slice(endLinks + 7)
-  let linkData = parseXML(usable, options)
+  let linkData = parseXML(usable, _options)
 
   const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
   linkChunks.push(chunk)
@@ -280,9 +298,8 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
   while (true) {
     startByte = endByte
     endByte = startByte + chunkBytes
-    console.log(`Parsing links... ${Math.floor((100 * startByte) / rawData.length)}%`)
-    postMessage({ status: `Parsing links... ${Math.floor((100 * startByte) / rawData.length)}%` })
-    const nextChunk = rawData.subarray(startByte, endByte)
+    postMessage({ status: `Parsing links... ${Math.floor((100 * startByte) / _rawData.length)}%` })
+    const nextChunk = _rawData.subarray(startByte, endByte)
 
     decoded = leftovers + decoder.decode(nextChunk)
     let endofFinalLink = decoded.lastIndexOf('</link>')
@@ -291,13 +308,13 @@ async function memorySafeXMLParser(rawData: Uint8Array, options: any) {
 
     if (usable.indexOf('<link ') === -1) break
 
-    linkData = parseXML(usable, options)
+    linkData = parseXML(usable, _options)
     const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
     linkChunks.push(chunk)
     totalNumberOfLinks += linkData.link.length
 
     // end when we're at the end
-    if (endByte > rawData.length) break
+    if (endByte > _rawData.length) break
   }
   console.log({ totalNumberOfLinks })
 
