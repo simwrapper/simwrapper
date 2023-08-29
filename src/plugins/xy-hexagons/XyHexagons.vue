@@ -593,6 +593,9 @@ const MyComponent = defineComponent({
         // bounce our map
         if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
+        // Sets the map to the specified data
+        this.$store.commit('setMapCamera', Object.assign({}, view))
+
         return
       }
 
