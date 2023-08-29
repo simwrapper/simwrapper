@@ -41,7 +41,7 @@
     @up="goUpOneFolder()"
   )
 
-  //- p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
+  p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
   .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
@@ -223,7 +223,8 @@ export default defineComponent({
         if (this.fileSystem.handle) {
           this.loadErrorMessage = `Click to grant access to folder "${this.fileSystem.handle.name}"`
         } else {
-          this.loadErrorMessage = this.fileSystem.baseURL + ': Could not load'
+          this.loadErrorMessage =
+            this.fileSystem.baseURL + '/' + this.xsubfolder + ': Could not load'
         }
       }
     },
