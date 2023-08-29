@@ -101,7 +101,6 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 import crossfilter from 'crossfilter2'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
-import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
 import pako from '@aftersim/pako'
@@ -110,7 +109,7 @@ import LegendColors from './LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from './SettingsPanel.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { arrayBufferToBase64 } from '@/js/util'
+import { arrayBufferToBase64, gUnzip } from '@/js/util'
 
 import {
   ColorScheme,
@@ -484,7 +483,7 @@ const MyComponent = defineComponent({
       const allTrips: any[] = []
       let vehNumber = -1
 
-      await coroutines.forEachAsync(trips, (trip: any) => {
+      for (const trip of trips) {
         const path = trip.path
         const timestamps = trip.timestamps
         const passengers = trip.passengers
@@ -504,7 +503,7 @@ const MyComponent = defineComponent({
             occ: passengers[i],
           })
         }
-      })
+      }
       return crossfilter(allTrips)
     },
 
@@ -576,7 +575,7 @@ const MyComponent = defineComponent({
 
       const traces: any = []
 
-      await coroutines.forEachAsync(trips, (vehicle: any) => {
+      for (const vehicle of trips) {
         vehNumber++
 
         let time = vehicle.timestamps[0]
@@ -616,7 +615,7 @@ const MyComponent = defineComponent({
           segment.t1 = nextTime
         })
         traces.push(...segments)
-      })
+      }
 
       return crossfilter(traces)
     },
@@ -636,10 +635,11 @@ const MyComponent = defineComponent({
           const blob = await this.fileApi.getFileBlob(
             this.myState.subfolder + '/' + this.vizDetails.drtTrips
           )
-          const blobString = blob ? await blobToBinaryString(blob) : null
-          let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+          const buffer = await blob.arrayBuffer()
+          // recursively gunzip until it can gunzip no more:
+          const unzipped = gUnzip(buffer)
+          const text = new TextDecoder('utf-8').decode(unzipped)
           const json = JSON.parse(text)
-
           trips = json.trips
           drtRequests = json.drtRequests
         }

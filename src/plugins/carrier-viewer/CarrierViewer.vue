@@ -125,13 +125,12 @@ import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
 import pako from '@aftersim/pako'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
-import * as coroutines from 'js-coroutines'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
+import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
@@ -957,7 +956,8 @@ const CarrierPlugin = defineComponent({
 
       // sort by '$id' attribute
       const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      console.log(carrierList)
+      // console.log(carrierList)
+
       return carrierList
     },
 
@@ -988,15 +988,11 @@ const CarrierPlugin = defineComponent({
         })
         return links
       } else {
-        // pre-converted output from create_network.py
-        const blob = await this.fileApi.getFileBlob(
+        // pre-converted JSON output from create_network.py
+        const jsonNetwork = await this.fileApi.getFileJson(
           this.myState.subfolder + '/' + this.vizDetails.network
         )
-        const blobString = blob ? await blobToBinaryString(blob) : null
-        let text = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
-        const convertedNetwork = JSON.parse(text)
-
-        return convertedNetwork
+        return jsonNetwork
       }
     },
 
@@ -1075,21 +1071,22 @@ const CarrierPlugin = defineComponent({
 
         let content = ''
 
-        if (filepath.endsWith('xml')) {
-          content = await this.fileApi.getFileText(filepath)
-        } else if (filepath.endsWith('gz')) {
+        if (filepath.endsWith('xml') || filepath.endsWith('gz')) {
           const blob = await this.fileApi.getFileBlob(filepath)
-          const blobString = blob ? await blobToBinaryString(blob) : null
-          content = await coroutines.run(pako.inflateAsync(blobString, { to: 'string' }))
+          const buffer = await blob.arrayBuffer()
+          // recursively gunzip until it can gunzip no more:
+          const unzipped = gUnzip(buffer)
+          const text = new TextDecoder('utf-8').decode(unzipped)
+          return text
         }
-        return content
       } catch (e) {
-        globalStore.commit('error', '' + e)
-        const error = filepath + ': ' + e
-        console.error(e)
-        this.myState.statusMessage = error
-        return ''
+        // oh no
       }
+
+      const error = `Error loading ${filepath}`
+      globalStore.commit('error', error)
+      this.myState.statusMessage = error
+      return ''
     },
 
     selectDropdown() {
