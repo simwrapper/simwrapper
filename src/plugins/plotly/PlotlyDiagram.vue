@@ -87,6 +87,14 @@ const MyComponent = defineComponent({
           animate: true,
           rangemode: 'tozero',
         },
+        yaxis2: {
+          automargin: true,
+          autorange: true,
+          range: [0, 100], // see this.layout.xaxis.range...
+          title: { text: '', standoff: 16 },
+          animate: true,
+          rangemode: 'tozero',
+        },
         legend: {
           orientation: 'v',
           x: 1,
@@ -283,7 +291,18 @@ const MyComponent = defineComponent({
         mergedLayout.yaxis.automargin = true
         mergedLayout.yaxis.autorange = true
         mergedLayout.yaxis.animate = true
+        mergedLayout.yaxis.rangemode = 'tozero'
         if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
+      } else {
+        mergedLayout.yaxis = this.layout.yaxis
+      }
+
+      if (mergedLayout.yaxis2) {
+        mergedLayout.yaxis2.automargin = true
+        mergedLayout.yaxis2.autorange = true
+        mergedLayout.yaxis2.animate = true
+        mergedLayout.yaxis2.rangemode = 'tozero'
+        if (!mergedLayout.yaxis2.title) mergedLayout.yaxis2.title = this.layout.yaxis2.title
       } else {
         mergedLayout.yaxis = this.layout.yaxis
       }
