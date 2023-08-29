@@ -65,7 +65,7 @@
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
                 @click="handleSelectTour(tour)"
-                :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
+                :class="{selected: selectedTours.includes(tour)}") {{ tour.tourId }} {{ `${tour.vehicleId}` }}
 
         .vehicles(v-if="activeTab=='vehicles'")
             span {{ $t('vehicles')}}: {{ vehicles.length}}
@@ -519,6 +519,22 @@ const CarrierPlugin = defineComponent({
     },
 
     async handleSelectTour(tour: any) {
+      // add the legs from the shipmentLookup if the tour has no route data
+      if (!tour.legs.length) {
+        console.log('No Route.')
+        for (let i = 0; i < tour.plan.length; i++) {
+          if (tour.plan[i].$shipmentId) {
+            const shipmentId = tour.plan[i].$shipmentId
+            const linksArray = [
+              this.shipmentLookup[shipmentId].$from,
+              this.shipmentLookup[shipmentId].$to,
+            ]
+            tour.legs.push({ links: linksArray })
+          }
+        }
+        this.vizSettings.simplifyTours = true
+      }
+
       //this unselects tour if user clicks an already-selected tour again
       if (this.selectedTours.includes(tour)) {
         this.selectedTours = this.selectedTours.filter((element: any) => element !== tour)
@@ -709,6 +725,7 @@ const CarrierPlugin = defineComponent({
 
         const p = {
           vehicleId: tour.$vehicleId,
+          tourId: tour.$tourId,
           plan,
           legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
           tourNumber: 0,
@@ -940,6 +957,7 @@ const CarrierPlugin = defineComponent({
 
       // sort by '$id' attribute
       const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+      console.log(carrierList)
       return carrierList
     },
 
@@ -1122,6 +1140,9 @@ const CarrierPlugin = defineComponent({
 
     // Select the first carrier if the carriers are loaded
     if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
+
+    // Select the first tour if the tours are loaded
+    if (this.tours.length) this.handleSelectTour(this.tours[0])
   },
 
   beforeDestroy() {
