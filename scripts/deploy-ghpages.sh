@@ -29,5 +29,7 @@ git add . && git commit -m "gh-pages"
 
 echo --- PUSH TO GITHUB ---
 git remote add origin git@github.com:$1.git
+git config --global user.email "you@example.com"'
+git config --global user.name "GitHub Actions"'
 git push --force origin master:gh-pages
 
