@@ -291,7 +291,7 @@ const MyComponent = defineComponent({
         mergedLayout.yaxis.automargin = true
         mergedLayout.yaxis.autorange = true
         mergedLayout.yaxis.animate = true
-        mergedLayout.yaxis.rangemode = 'tozero'
+        if (!mergedLayout.yaxis.rangemode) mergedLayout.yaxis.rangemode = 'tozero'
         if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
       } else {
         mergedLayout.yaxis = this.layout.yaxis
@@ -301,7 +301,7 @@ const MyComponent = defineComponent({
         mergedLayout.yaxis2.automargin = true
         mergedLayout.yaxis2.autorange = true
         mergedLayout.yaxis2.animate = true
-        mergedLayout.yaxis2.rangemode = 'tozero'
+        if (!mergedLayout.yaxis2.rangemode) mergedLayout.yaxis2.rangemode = 'tozero'
         if (!mergedLayout.yaxis2.title) mergedLayout.yaxis2.title = this.layout.yaxis2.title
       } else {
         mergedLayout.yaxis = this.layout.yaxis
