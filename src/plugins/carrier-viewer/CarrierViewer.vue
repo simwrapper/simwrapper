@@ -65,7 +65,7 @@
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
                 @click="handleSelectTour(tour)"
-                :class="{selected: selectedTours.includes(tour)}") {{ `${tour.vehicleId}` }}
+                :class="{selected: selectedTours.includes(tour)}") {{ tour.tourId }} {{ `${tour.vehicleId}` }}
 
         .vehicles(v-if="activeTab=='vehicles'")
             span {{ $t('vehicles')}}: {{ vehicles.length}}
@@ -149,7 +149,6 @@ import {
   MAP_STYLES_OFFLINE,
   ColorScheme,
 } from '@/Globals'
-import { to } from 'mathjs'
 
 interface NetworkLinks {
   source: Float32Array
@@ -157,8 +156,6 @@ interface NetworkLinks {
   linkIds: any[]
   projection: String
 }
-
-// TODO: vizSettings.simplifyTours should be true by default if there are no linkId's
 
 naturalSort.insensitive = true
 
@@ -648,7 +645,6 @@ const CarrierPlugin = defineComponent({
           .map((s: any) => s.$)
           .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
 
-      // Important: carrier.plan.tour[].leg[].route
       this.tours = this.processTours(carrier)
 
       // select all everything
@@ -686,7 +682,6 @@ const CarrierPlugin = defineComponent({
     },
 
     processTours(carrier: any) {
-      // console.log('processTours')
       this.getAllPlans(carrier)
 
       if (!this.selectPlan || !this.plans.length) return []
@@ -697,10 +692,6 @@ const CarrierPlugin = defineComponent({
         // We need them stitched back together in the correct order.
         const plan = [tour.act[0]]
         const shipmentsOnBoard = new Set()
-
-        // tour.leg has an array and some objects have a route object. but noch the one with the bug...
-        // -> check where the route object/string was created
-        // console.log(tour)
 
         for (let i = 1; i < tour.act.length; i++) {
           // insert list of shipments onboard
@@ -715,29 +706,6 @@ const CarrierPlugin = defineComponent({
             shipmentsOnBoard.delete(tour.act[i].$shipmentId)
         }
 
-        // for (let i = 0; i < plan.length; i++) {
-        //   if (plan[i].$shipmentId) {
-        //     // console.log(this.shipmentLookup[plan[i].$shipmentId].$id)
-        //     const from = this.shipmentLookup[plan[i].$shipmentId].$from
-        //     const to = this.shipmentLookup[plan[i].$shipmentId].$to
-        //     // console.log('From: ', from, '\nTo: ', to)
-        //   }
-        // }
-
-        // if (!tour.leg.route) {
-        for (let i = 0; i < plan.length; i++) {
-          if (plan[i].$shipmentId) {
-            // console.log(this.shipmentLookup[plan[i].$shipmentId].$id)
-            const from = this.shipmentLookup[plan[i].$shipmentId].$from
-            const to = this.shipmentLookup[plan[i].$shipmentId].$to
-            // console.log(tour.leg[i])
-            // console.log('From: ', from, '\nTo: ', to)
-            // tour.leg[i].route += '' + from + ' ' + to
-          }
-        }
-        // }
-
-        // console.log(tour.leg)
         // Parse any route strings "123434 234143 14241"
         const legs = tour.leg
           .filter((leg: any) => leg.route && leg.route.length)
@@ -757,6 +725,7 @@ const CarrierPlugin = defineComponent({
 
         const p = {
           vehicleId: tour.$vehicleId,
+          tourId: tour.$tourId,
           plan,
           legs, // legs.links, legs.shipmentsOnBoard, legs.totalSize
           tourNumber: 0,
@@ -768,9 +737,6 @@ const CarrierPlugin = defineComponent({
 
       // now assign them numbers based on their sorted order
       tours.forEach((tour, i) => (tour.tourNumber = i))
-
-      // console.log(tours)
-      // console.log(this.shipmentIdsInTour)
 
       return tours
     },
@@ -975,7 +941,6 @@ const CarrierPlugin = defineComponent({
     async loadCarriers() {
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
 
-      console.log('this.vizDetails.carriers', this.vizDetails.carriers)
       const carriersXML = await this.loadFileOrGzippedFile(this.vizDetails.carriers)
       if (!carriersXML) return []
 
@@ -992,7 +957,7 @@ const CarrierPlugin = defineComponent({
 
       // sort by '$id' attribute
       const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      // console.log(carrierList)
+      console.log(carrierList)
       return carrierList
     },
 
