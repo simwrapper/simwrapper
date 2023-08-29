@@ -3,14 +3,24 @@ id: changelog
 title: Change log
 ---
 
-Welcome to SimWrapper version 2! Big new version with a new look, lots of new small features, and some big improvements in stability and memory usage
-
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+Welcome to SimWrapper! All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 The full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [2.5.1](https://github.com/simwrapper/simwrapper/compare/v2.5.0...v2.5.1) (2023-08-29)
+
+
+### Bug Fixes
+
+* **carriers:** Preprocessed network files not loading ([890d453](https://github.com/simwrapper/simwrapper/commit/890d4536eb017ff47e0b14e6dca79080b84d509b)), closes [#288](https://github.com/simwrapper/simwrapper/issues/288)
+* **carriers:** Show simple tours if there is no route  ([3e22128](https://github.com/simwrapper/simwrapper/commit/3e22128b7c7d0db1ee0a0fb65be722d73e0f336f)), closes [#290](https://github.com/simwrapper/simwrapper/issues/290)
+* **links:** some networks with Atlantis coord system not loading after EPSG prompt ([9e9e4a7](https://github.com/simwrapper/simwrapper/commit/9e9e4a77c3bafff8add4204b8313f6e5c36a8a9d))
+* **plotly:** y-axis on plots with two y-axes not aligned ([54a349b](https://github.com/simwrapper/simwrapper/commit/54a349b6eb33805672a11e1ff75ea87a3373fa5a)), closes [#291](https://github.com/simwrapper/simwrapper/issues/291)
+* **veh-animation:** Vehicle icons not loading from all base URLs ([86b6287](https://github.com/simwrapper/simwrapper/commit/86b6287bc05da2d8af3719ecede65143fd0b533c))
+* **xy-hexagons:** Hexagon map sometimes ignores user-supplied center ([1b7d16f](https://github.com/simwrapper/simwrapper/commit/1b7d16f8bc56e01c27671084f30a8eb67e3f7183))
 
 ## [2.5.0](https://github.com/simwrapper/simwrapper/compare/v2.4.0...v2.5.0) (2023-08-22)
 
