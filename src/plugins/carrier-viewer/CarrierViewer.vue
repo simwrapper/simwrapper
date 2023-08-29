@@ -521,9 +521,23 @@ const CarrierPlugin = defineComponent({
       }
     },
 
-    // Wird aufgerufen, wenn auf eine Tour geklickt wird
     async handleSelectTour(tour: any) {
-      console.log(tour)
+      // add the legs from the shipmentLookup if the tour has no route data
+      if (!tour.legs.length) {
+        console.log('No Route.')
+        for (let i = 0; i < tour.plan.length; i++) {
+          if (tour.plan[i].$shipmentId) {
+            const shipmentId = tour.plan[i].$shipmentId
+            const linksArray = [
+              this.shipmentLookup[shipmentId].$from,
+              this.shipmentLookup[shipmentId].$to,
+            ]
+            tour.legs.push({ links: linksArray })
+          }
+        }
+        this.vizSettings.simplifyTours = true
+      }
+
       //this unselects tour if user clicks an already-selected tour again
       if (this.selectedTours.includes(tour)) {
         this.selectedTours = this.selectedTours.filter((element: any) => element !== tour)
@@ -590,12 +604,9 @@ const CarrierPlugin = defineComponent({
           type: 'leg',
         },
       ])
-
-      console.log('shownLegs: ', this.shownLegs)
     },
 
     handleSelectCarrier(carrier: any) {
-      // console.log(carrier)
       this.dropdownIsActive = false
 
       if (!this.links) return
@@ -714,19 +725,19 @@ const CarrierPlugin = defineComponent({
         // }
 
         // if (!tour.leg.route) {
-        //   for (let i = 0; i < plan.length; i++) {
-        //     if (plan[i].$shipmentId) {
-        //       console.log(this.shipmentLookup[plan[i].$shipmentId].$id)
-        //       const from = this.shipmentLookup[plan[i].$shipmentId].$from
-        //       const to = this.shipmentLookup[plan[i].$shipmentId].$to
-        //       console.log(tour.leg[i])
-        //       // console.log('From: ', from, '\nTo: ', to)
-        //       // tour.leg[i].route += '' + from + ' ' + to
-        //     }
-        //   }
+        for (let i = 0; i < plan.length; i++) {
+          if (plan[i].$shipmentId) {
+            // console.log(this.shipmentLookup[plan[i].$shipmentId].$id)
+            const from = this.shipmentLookup[plan[i].$shipmentId].$from
+            const to = this.shipmentLookup[plan[i].$shipmentId].$to
+            // console.log(tour.leg[i])
+            // console.log('From: ', from, '\nTo: ', to)
+            // tour.leg[i].route += '' + from + ' ' + to
+          }
+        }
         // }
 
-        console.log(tour.leg)
+        // console.log(tour.leg)
         // Parse any route strings "123434 234143 14241"
         const legs = tour.leg
           .filter((leg: any) => leg.route && leg.route.length)
@@ -1159,6 +1170,9 @@ const CarrierPlugin = defineComponent({
 
     // Select the first carrier if the carriers are loaded
     if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
+
+    // Select the first tour if the tours are loaded
+    if (this.tours.length) this.handleSelectTour(this.tours[0])
   },
 
   beforeDestroy() {
