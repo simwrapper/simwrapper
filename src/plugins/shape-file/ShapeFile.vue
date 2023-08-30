@@ -947,6 +947,7 @@ const MyComponent = defineComponent({
         // NORMALIZE if we need to
         let normalColumn
         let normalLookup
+
         if (color.normalize) {
           const [dataset, column] = color.normalize.split(':')
           if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
@@ -961,7 +962,7 @@ const MyComponent = defineComponent({
               dataTable: this.datasets[dataset],
               dataJoinColumn: lookupColumn,
             })
-            normalLookup = this.datasets[dataset][`@@${column}`]
+            normalLookup = this.datasets[dataset][`@@${lookupColumn}`]
           }
         }
 
@@ -1151,7 +1152,7 @@ const MyComponent = defineComponent({
               dataTable: this.datasets[dataset],
               dataJoinColumn,
             })
-            normalLookup = this.datasets[dataset][`@@${column}`]
+            normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
           }
         }
 
@@ -1289,7 +1290,7 @@ const MyComponent = defineComponent({
               dataTable: this.datasets[dataset],
               dataJoinColumn,
             })
-            normalLookup = this.datasets[dataset][`@@${column}`]
+            normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
           }
         }
 
