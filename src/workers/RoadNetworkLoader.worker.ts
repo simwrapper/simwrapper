@@ -282,8 +282,17 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
 
   let startLinks = decoded.indexOf('<link ')
   let endLinks = decoded.lastIndexOf('</link>')
-  let usable = decoded.slice(startLinks, endLinks + 7)
-  let leftovers = decoded.slice(endLinks + 7)
+  let closeTagLength = 7
+
+  // old MATSim networks used <link blah=... /> instead of <link asdfasdf>...</link>
+  if (endLinks === -1) {
+    endLinks = decoded.lastIndexOf(' />')
+    closeTagLength = 3
+  }
+
+  let usable = decoded.slice(startLinks, endLinks + closeTagLength)
+  let leftovers = decoded.slice(endLinks + closeTagLength)
+
   let linkData = parseXML(usable, _options)
 
   const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
@@ -302,9 +311,9 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
     const nextChunk = _rawData.subarray(startByte, endByte)
 
     decoded = leftovers + decoder.decode(nextChunk)
-    let endofFinalLink = decoded.lastIndexOf('</link>')
-    usable = decoded.slice(0, endofFinalLink + 7)
-    leftovers = decoded.slice(endofFinalLink + 7)
+    let endofFinalLink = decoded.lastIndexOf(closeTagLength === 7 ? '</link>' : ' />')
+    usable = decoded.slice(0, endofFinalLink + closeTagLength)
+    leftovers = decoded.slice(endofFinalLink + closeTagLength)
 
     if (usable.indexOf('<link ') === -1) break
 
