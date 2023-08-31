@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue2'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
-// import pluginRewriteAll from 'vite-plugin-rewrite-all'
+import pluginRewriteAll from 'vite-plugin-rewrite-all'
 
 export default defineConfig({
   base: '/',
@@ -12,8 +12,8 @@ export default defineConfig({
     //createVuePlugin(),
     // markdown
     markdownPlugin({}),
-    // why do we need rewriteAll
-    // pluginRewriteAll(),
+    // pluginRewriteAll allows pages ending in http://path/blah.yaml to load
+    pluginRewriteAll(),
   ],
   resolve: {
     alias: {
