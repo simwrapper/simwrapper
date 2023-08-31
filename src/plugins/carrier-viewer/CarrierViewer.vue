@@ -65,7 +65,9 @@
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
                 @click="handleSelectTour(tour)"
-                :class="{selected: selectedTours.includes(tour)}") {{ tour.tourId }} {{ `${tour.vehicleId}` }}
+                :class="{selected: selectedTours.includes(tour)}") 
+                div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
+                div(v-else) {{ `${tour.vehicleId}` }}
 
         .vehicles(v-if="activeTab=='vehicles'")
             span {{ $t('vehicles')}}: {{ vehicles.length}}
