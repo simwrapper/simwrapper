@@ -44,7 +44,7 @@ const i18n = {
 }
 import { defineComponent } from 'vue'
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers'
-import ShapeWriter from 'shp-write'
+import ShapeWriter from '@simwrapper/shp-write'
 import { TranslateResult } from 'vue-i18n'
 
 import LayerManager from '@/js/LayerManager'
