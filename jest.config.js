@@ -1,5 +1,6 @@
 module.exports = {
-  testEnvironment: 'jsdom',
+  testEnvironment: 'jest-environment-jsdom', // Use the jest-environment-jsdom package
+  // testEnvironment: 'jsdom',
   moduleFileExtensions: ['js', 'ts', 'json', 'vue'],
   transform: {
     '^.+\\.ts$': 'ts-jest',

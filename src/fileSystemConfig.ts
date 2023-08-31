@@ -2,7 +2,7 @@ import { get, set, clear } from 'idb-keyval'
 import { FileSystemConfig, FileSystemAPIHandle } from '@/Globals'
 import globalStore from '@/store'
 
-const BASE_URL = import.meta.env.BASE_URL
+const BASE_URL = process.env.BASE_URL
 
 // The URL contains the websiteLiveHost, calculated at runtime
 const loc = window.location

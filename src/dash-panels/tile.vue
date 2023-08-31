@@ -23,7 +23,7 @@ import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 
 export default defineComponent({
-  name: 'OverviewPanel',
+  name: 'Tile',
   components: {},
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
