@@ -160,6 +160,7 @@
     "typescript": "^4.2.0",
     "unplugin-vue-markdown": "^0.24.3",
     "vite": "^4.4.9",
+    "vite-plugin-rewrite-all": "^1.0.1",
     "vue-template-compiler": "2.7.10"
   }
 }
