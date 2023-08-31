@@ -46,12 +46,6 @@
     "convert-seconds": "^1.0.1",
     "crossfilter2": "^1.5.4",
     "csvtojson": "^2.0.10",
-    "d3-array": "^3.1.1",
-    "d3-hexbin": "^0.2.2",
-    "d3-request": "^1.0.6",
-    "d3-scale": "^3.2.2",
-    "d3-scale-chromatic": "^1.5.0",
-    "d3-selection": "^1.4.1",
     "debounce": "^1.2.0",
     "deck.gl": "^8.8.21",
     "dompurify": "^2.3.6",
@@ -93,7 +87,6 @@
     "vega": "^5.21.0",
     "vega-embed": "^6.20.5",
     "vega-lite": "^5.2.0",
-    "vite-plugin-vue2": "^2.0.2",
     "vue": "2.7.10",
     "vue-class-component": "^7.2.6",
     "vue-good-table": "^2.21.11",
@@ -158,9 +151,7 @@
     "threads-plugin": "^1.4.0",
     "ts-jest": "^28.0.0",
     "typescript": "^4.2.0",
-    "vite": "2.5.10",
-    "vite-plugin-md": "^0.11.0",
-    "vite-plugin-rewrite-all": "^1.0.0",
+    "vite": "^4.4.9",
     "vue-template-compiler": "2.7.10"
   }
 }
