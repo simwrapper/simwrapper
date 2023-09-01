@@ -12,25 +12,33 @@ flow-map.deck-map(
 </template>
 
 <script lang="ts">
-import { Vue, Component, Watch, Prop } from 'vue-property-decorator'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
-import FlowMap from '@/plugins/flowmap/Flowmap.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import FlowMap from '@/plugins/flowmap/Flowmap.vue'
 
-@Component({ components: { FlowMap } })
-export default class VueComponent extends Vue {
-  @Prop({ required: true }) fileSystemConfig!: FileSystemConfig
-  @Prop({ required: true }) subfolder!: string
-  @Prop({ required: true }) files!: string[]
-  @Prop({ required: true }) config!: any
-  @Prop({ required: false }) datamanager!: DashboardDataManager
-  @Prop({ required: false }) yamlConfig!: string
-
-  private isLoaded() {
+export default defineComponent({
+  name: 'FlowmapPanel',
+  components: { FlowMap },
+  props: {
+    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
+    subfolder: { type: String, required: true },
+    files: { type: Array, required: true },
+    config: { type: Object, required: true },
+    datamanager: Object as PropType<DashboardDataManager>,
+    // yamlConfig: String,
+  },
+  mounted() {
     this.$emit('isLoaded')
-  }
-}
+  },
+  methods: {
+    isLoaded() {
+      this.$emit('isLoaded')
+    },
+  },
+})
 </script>
 
 <style scoped lang="scss">
