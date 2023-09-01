@@ -6,7 +6,8 @@
   "author": "Billy Charlton <charlton@tu-berlin.de>",
   "contributors": [
     "Friedrich Voelkers <friedrich.k.voelkers@tu-berlin.de>",
-    "Janek Laudan <laudan@vsp.tu-berlin.de>"
+    "Janek Laudan <laudan@vsp.tu-berlin.de>",
+    "Johanna Bänsch <j.baensch@tu-berlin.de>"
   ],
   "scripts": {
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
