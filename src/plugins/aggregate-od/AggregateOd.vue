@@ -81,7 +81,6 @@ import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 import nprogress from 'nprogress'
 import proj4 from 'proj4'
 import readBlob from 'read-blob'
-import VueSlider from 'vue-slider-component'
 import YAML from 'yaml'
 
 import { findMatchingGlobInFiles } from '@/js/util'
@@ -138,7 +137,6 @@ const Component = defineComponent({
     ScaleSlider,
     TimeSlider,
     ZoomButtons,
-    VueSlider,
   },
   props: {
     root: { type: String, required: true },

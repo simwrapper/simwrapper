@@ -95,7 +95,6 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import YAML from 'yaml'
@@ -133,7 +132,6 @@ const MyComponent = defineComponent({
     SettingsPanel,
     LegendColors,
     TripViz,
-    VueSlider,
     PlaybackControls,
     ToggleButton,
     ZoomButtons,
@@ -725,7 +723,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 .gl-app {

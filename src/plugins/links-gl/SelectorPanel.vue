@@ -119,10 +119,9 @@ export default defineComponent({
     },
 
     changeTimeSlider(value: any) {
-      console.log('new slider!', value)
       if (value.length && value.length === 1) value = value[0]
 
-      this.$emit('slider', { dataset: this.csvData, column: value })
+      this.$emit('slider', { dataset: this.csvData, column: this.getColumns()[value] })
     },
 
     handleClickDropdown() {
@@ -218,7 +217,6 @@ input {
 }
 
 .time-slider {
-  padding-bottom: 1.25rem;
   width: 100%;
 }
 

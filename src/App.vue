@@ -203,7 +203,6 @@ export default defineComponent({
 @import '~/the-new-css-reset/css/reset.css';
 @import '~/lil-gui/dist/lil-gui.min.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
-@import '~/vue-slider-component/theme/default.css';
 @import '~/buefy/dist/buefy.css';
 
 @import '@/styles.scss';
@@ -394,10 +393,6 @@ a:hover {
 
 .space {
   margin: 0 1rem;
-}
-
-.vue-slider-rail {
-  background-color: green;
 }
 
 .center-area {

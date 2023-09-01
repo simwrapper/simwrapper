@@ -102,27 +102,6 @@ const plugins = [
   },
 ]
 
-//   CarrierViewer: defineAsyncComponent(() => import('@/plugins/carrier-viewer/CarrierViewer.vue')),
-//   Vehicles: defineAsyncComponent(() => import('@/plugins/vehicle-animation/VehicleAnimation.vue')),
-//   Summary: defineAsyncComponent(() => import('@/plugins/calculation-table/CalculationTable.vue')),
-//   Hexagons: defineAsyncComponent(() => import('@/plugins/xy-hexagons/XyHexagons.vue')),
-//   Network: defineAsyncComponent(() => import('@/plugins/links-gl/NetworkLinks.vue')),
-//   Transit: defineAsyncComponent(() => import('@/plugins/transit-demand/TransitDemand.vue')),
-//   AggregateOd: defineAsyncComponent(() => import('@/plugins/aggregate-od/AggregateOd.vue')),
-//   Flowmap: defineAsyncComponent(() => import('@/plugins/flowmap/Flowmap.vue')),
-//   Plotly: defineAsyncComponent(() => import('@/plugins/flowmap/Flowmap.vue')),
-//   VegaLite: defineAsyncComponent(() => import('@/plugins/vega-lite/VegaLite.vue')),
-//   Sankey: defineAsyncComponent(() => import('@/plugins/sankey/SankeyDiagram.vue')),
-//   Events: defineAsyncComponent(() => import('@/plugins/event-viewer/EventViewer.vue')),
-//   ImageView: defineAsyncComponent(() => import('@/plugins/image/ImageView.vue')),
-//   VidPlayer: defineAsyncComponent(() => import('@/plugins/video-player/VideoPlayer.vue')),
-//   XmlViewer: defineAsyncComponent(() => import('@/plugins/xml-viewer/XmlViewer.vue')),
-// }
-
-//   XYT: defineAsyncComponent(() => import('@/plugins/xy-time/XyTime.vue')),
-//   AreaMap: defineAsyncComponent(() => import('@/plugins/shape-file/ShapeFile.vue')),
-//   XmasKelheim: defineAsyncComponent(() => import('@/plugins/xmas-kelheim/VehicleAnimation.vue')),
-
 export const pluginComponents: { [key: string]: AsyncComponent } = {}
 plugins.forEach(p => {
   pluginComponents[p.kebabName] = p.component

@@ -69,7 +69,6 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
-import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
@@ -93,7 +92,6 @@ export default defineComponent({
     PlaybackControls,
     SettingsPanel,
     ToggleButton,
-    VueSlider,
   },
   data: () => {
     return {

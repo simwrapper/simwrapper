@@ -20,7 +20,7 @@
 
   .right-side
     .morestuff(v-if="isLoaded")
-      vue-slider.speed-slider(v-model="speed"
+      b-slider.speed-slider(v-model="speed"
         :data="speedStops"
         :duration="0"
         :dotSize="20"
@@ -47,7 +47,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
-import VueSlider from 'vue-slider-component'
 import { ToggleButton } from 'vue-js-toggle-button'
 import readBlob from 'read-blob'
 import yaml from 'yaml'
@@ -74,7 +73,6 @@ const MyComponent = defineComponent({
     AnimationView,
     ModalMarkdownDialog,
     PlaybackControls,
-    VueSlider,
     ToggleButton,
   },
   props: {
@@ -357,7 +355,6 @@ export default MyComponent
 </script>
 
 <style scoped lang="scss">
-@import '~/vue-slider-component/theme/default.css';
 @import '@/styles.scss';
 
 #v3-app {
