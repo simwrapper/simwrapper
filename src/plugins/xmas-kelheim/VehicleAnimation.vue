@@ -97,7 +97,6 @@ import crossfilter from 'crossfilter2'
 import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 
 import globalStore from '@/store'
-import pako from '@aftersim/pako'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import LegendColors from './LegendColors'
 import PlaybackControls from '@/components/PlaybackControls.vue'

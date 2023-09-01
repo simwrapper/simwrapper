@@ -26,7 +26,6 @@
     "fsevents": "*"
   },
   "dependencies": {
-    "@aftersim/pako": "^1.0.11-3",
     "@deck.gl/extensions": "^8.8.21",
     "@flowmap.gl/data": "8.0.0-alpha.25",
     "@flowmap.gl/layers": "8.0.0-alpha.25",

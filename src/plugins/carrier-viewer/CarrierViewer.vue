@@ -125,8 +125,6 @@ import readBlob from 'read-blob'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
-import pako from '@aftersim/pako'
-import { blobToArrayBuffer, blobToBinaryString } from 'blob-util'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
