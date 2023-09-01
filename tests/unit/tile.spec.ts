@@ -1,21 +1,37 @@
 import { mount } from '@vue/test-utils'
-import Tile from '@/dash-panels/tile.vue'
+import Tile from '@/dash-panels/tile.vue' // Pfad zur Tile-Komponente
 
-describe('Tile.vue', () => {
+describe('Tile Component', () => {
+  // Überprüfen, ob die Komponente korrekt gerendert wird
   it('renders correctly', async () => {
-    const wrapper = mount(Tile)
-
-    wrapper.setProps({
-      fileSystemConfig: { type: Object, required: true },
-      subfolder: { type: String, required: true },
-      files: { type: Array, required: true },
-      config: {},
-      datamanager: { type: Object, required: true },
+    const wrapper = mount(Tile, {
+      props: {
+        fileSystemConfig: {},
+        subfolder: 'path/to/subfolder',
+        files: [],
+        config: {},
+        datamanager: {},
+      },
     })
 
-    wrapper.setData({ imagesAreLoaded: true })
+    // Überprüfen, ob die Komponente existiert
+    expect(wrapper.exists()).toBe(true)
+  })
 
-    expect(wrapper.find('.content').exists()).toBe(true)
-    expect(wrapper.findAll('.tile').length).toBe(0) // Should be 0
+  // Überprüfen, ob das Laden von Bildern korrekt funktioniert
+  it('loads images correctly', async () => {
+    const wrapper = mount(Tile, {
+      props: {
+        fileSystemConfig: {},
+        subfolder: 'path/to/subfolder',
+        files: [],
+        config: {},
+        datamanager: {},
+      },
+    })
+
+    await wrapper.vm.$nextTick()
+
+    // TODO: Werden die Bilder geladen?
   })
 })

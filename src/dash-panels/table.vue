@@ -5,6 +5,7 @@ vue-good-table(
       :rows="rows"
       :fixed-header="true"
       :pagination-options="paginationOptions"
+      :row-style-class="rowStyleClassFn"
       styleClass="vgt-table striped bordered condensed")
 </template>
 
@@ -64,6 +65,11 @@ export default defineComponent({
   },
 
   methods: {
+    rowStyleClassFn(row: any) {
+      const result = row['Cap. Utilization'] > 0.25 ? 'green' : 'red'
+      console.log(result)
+      return result
+    },
     handleFilterChanged() {
       if (!this.datamanager) return
 
@@ -302,6 +308,10 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
+.green {
+  background-color: green !important;
+}
+
 // Darkmode Settings
 
 .darktable table.vgt-table {
