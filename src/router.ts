@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import VueRouter, { Route, RouteConfig } from 'vue-router'
+import VueRouter, { Route } from 'vue-router'
 
 import globalStore from '@/store'
 
@@ -26,36 +26,35 @@ const routes = [
   },
 ]
 
-// // individual viz plugins all go into /v/* subpaths
-function vizPlugins(): any[] {
-  const plugins = []
-  for (const plugin of globalStore.state.visualizationTypes.values()) {
-    plugins.push({
-      path: BASE_URL + 'v/' + plugin.kebabName + '/:slug/*',
-      name: plugin.kebabName,
-      component: plugin.component,
-      props: (route: Route) => {
-        const match = route.params.pathMatch
-        const subfolder = match.substring(0, match.lastIndexOf('/'))
-        const yamlConfig = match.substring(match.lastIndexOf('/') + 1)
-        return {
-          root: route.params.slug,
-          subfolder,
-          yamlConfig,
-          thumbnail: false,
-        }
-      },
-    })
-  }
+// // // individual viz plugins all go into /v/* subpaths
+// function vizPlugins(): any[] {
+//   const plugins = []
+//   for (const plugin of globalStore.state.visualizationTypes.values()) {
+//     plugins.push({
+//       path: BASE_URL + 'v/' + plugin.kebabName + '/:slug/*',
+//       name: plugin.kebabName,
+//       component: plugin.component,
+//       props: (route: Route) => {
+//         const match = route.params.pathMatch
+//         const subfolder = match.substring(0, match.lastIndexOf('/'))
+//         const yamlConfig = match.substring(match.lastIndexOf('/') + 1)
+//         return {
+//           root: route.params.slug,
+//           subfolder,
+//           yamlConfig,
+//           thumbnail: false,
+//         }
+//       },
+//     })
+//   }
 
-  return plugins
-}
+//   return plugins
+// }
 
 const router = new VueRouter({
   mode: 'history',
   base: '/',
   routes,
-  // routes: vizPlugins().concat(routes),
   // native-like back/forward and top-of-page routing
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
@@ -65,10 +64,5 @@ const router = new VueRouter({
     }
   },
 })
-
-// router.beforeEach((to, from, next) => {
-//   console.log(to.path)
-//   next()
-// })
 
 export default router

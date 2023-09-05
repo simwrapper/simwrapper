@@ -1,6 +1,4 @@
-import { VisualizationPlugin } from '@/Globals'
 import { AsyncComponent, defineAsyncComponent } from 'vue'
-// : VisualizationPlugin[]
 
 // EVERY plugin must be registered here:
 

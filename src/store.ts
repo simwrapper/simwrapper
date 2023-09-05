@@ -15,16 +15,17 @@ import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
 
 // ----------------------------------------
-
 // ViewState has tricky logic, to handle cold-start, view-start,
 // and interactive motion.
 // Booleans to handle the various situations:
+// ---------------------------------------------------------------------
 // startup: true for the app default (here). views will override this
 // initial: set to true for a view's first map request. This will be
 //          honored if the app is in startup state, but will be ignored
 //          if NOT in startup state, because that means a different view
 //          has already set the map and we don't want it to be "jarring"
-//    jump: Force jump the view to new location no matter what.
+// jump:    Force jump the view to new location no matter what.
+// ---------------------------------------------------------------------
 const initialViewState = () => {
   return {
     // Set your startup city long/lat here!
