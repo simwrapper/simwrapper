@@ -1,3 +1,5 @@
+/// <reference types="vitest" />
+
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue2'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
@@ -15,6 +17,10 @@ export default defineConfig({
     // pluginRewriteAll allows pages ending in http://path/blah.yaml to load
     pluginRewriteAll(),
   ],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+  },
   resolve: {
     alias: {
       '@': '/src',
@@ -23,7 +29,7 @@ export default defineConfig({
     },
   },
   define: {
-    'process.platform': null,
+    // 'process.platform': null,
     'process.env': [],
   },
 })

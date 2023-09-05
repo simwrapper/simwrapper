@@ -120,6 +120,7 @@ export default defineComponent({
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
+    console.log(this.$props)
   },
   methods: {
     forceRerender() {
