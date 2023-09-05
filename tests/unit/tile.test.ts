@@ -1,12 +1,11 @@
 import { mount } from '@vue/test-utils'
+import '../../src/shims-vue.d'
+
 import Tile from '../../src/dash-panels/tile.vue'
-import DataManager from '../../src/js/DashboardDataManager'
-// import DataManager from '@/js/DashboardDataManager'
+import DashboardDataManager from '../../src/js/DashboardDataManager'
 
 describe('Tile.vue', () => {
   it('good test', async () => {
-    // TODO: Hardcode!?!
-    // @ts-ignore -> I don't know why...
     const wrapper = mount(Tile, {
       propsData: {
         fileSystemConfig: {
@@ -27,10 +26,10 @@ describe('Tile.vue', () => {
           title: 'Tiles Plug-in Example New Format',
           type: 'tile',
         },
-        datamanager: new DataManager(),
+        datamanager: new DashboardDataManager('local', '/'),
       },
     })
-    console.log(wrapper)
+    // console.log(wrapper)
 
     wrapper.setData({
       dataSet: [['Fontawesome Icon 2', ' transport', ' chart-simple']],
