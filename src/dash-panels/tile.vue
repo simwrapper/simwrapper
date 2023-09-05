@@ -23,7 +23,7 @@ import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 
 export default defineComponent({
-  name: 'OverviewPanel',
+  name: 'Tile',
   components: {},
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
@@ -120,7 +120,8 @@ export default defineComponent({
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
-    console.log(this.$props)
+    console.log(this.dataSet)
+    console.log(globalStore)
   },
   methods: {
     forceRerender() {
