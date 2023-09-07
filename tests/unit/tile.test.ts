@@ -1,16 +1,46 @@
-import { mount } from '@vue/test-utils'
-import '../../src/shims-vue.d'
+// Import necessary modules and components
+import createFetchMock from 'vitest-fetch-mock' // Import fetch mocking library
+import { vi } from 'vitest' // Import vi test runner
+import { mount } from '@vue/test-utils' // Import Vue test utilities
+import Tile from '../../src/dash-panels/tile.vue' // Import the Tile component to be tested
+import DashboardDataManager from '../../src/js/DashboardDataManager' // Import DashboardDataManager
 
-import Tile from '../../src/dash-panels/tile.vue'
-import DashboardDataManager from '../../src/js/DashboardDataManager'
+// Create a fetch mocker instance for mocking HTTP requests
+const fetchMocker = createFetchMock(vi)
+fetchMocker.enableMocks()
 
+// Define mock response data for testing
+const mockResponseData = {
+  dataSet: {
+    data: [
+      ['custom Image', 'text', './vsp-logo.png'],
+      ['custom Image (parent folder)', 1234, './vsp-logo.png'],
+      ['image from assets Folder (Material UI)', 3517, './vsp-logo.png'],
+      ['Fontawesome Icon 1', 75135, './vsp-logo.png'],
+      ['Fontawesome Icon 2', 'transport', './vsp-logo.png'],
+    ],
+  },
+}
+
+// Begin describing the test suite for the Tile.vue component
 describe('Tile.vue', () => {
-  it('good test', async () => {
+  // Reset mock requests before each test
+  beforeEach(() => {
+    fetchMocker.resetMocks()
+  })
+
+  // Define a test case for loading data and images correctly
+  it('loads data and images correctly', async () => {
+    // Mock the HTTP response with mockResponseData
+    fetchMocker.mockResponseOnce(JSON.stringify(mockResponseData), {
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    // Mount the Tile component with required props
     const wrapper = mount(Tile, {
       propsData: {
         fileSystemConfig: {
           baseURL: 'http://localhost:8000',
-          description: 'Files on this computer, shared using "simwrapper serve" tool',
           name: 'local',
           slug: 'local',
           thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
@@ -29,62 +59,41 @@ describe('Tile.vue', () => {
         datamanager: new DashboardDataManager('local', '/'),
       },
     })
-    // console.log(wrapper)
 
-    wrapper.setData({
-      dataSet: [['Fontawesome Icon 2', ' transport', ' chart-simple']],
-    })
-
-    wrapper.setProps({ imagesAreLoaded: true })
-
-    // Warten bis Bilder geladen sind...
+    // Wait for Vue to update the component
     await wrapper.vm.$nextTick()
 
-    // wrapper.setData({ imagesAreLoaded: true })
+    // Assertions
 
-    // Existiert die KOmponente überhaupt?!
+    // Check if the Tile component exists in the DOM
     expect(wrapper.exists()).toBe(true)
 
-    console.log(wrapper)
-
-    // Klassennamen etc. überprüfen
+    // Find the tiles container element and check its existence
     const tilesContainer = wrapper.find('.tiles-container')
-    expect(tilesContainer.exists()).toBe(true) // Should be true later..
+    expect(tilesContainer.exists()).toBe(true)
 
-    // Überprüfe, ob Hintergrundfarben korrekt gesetzt werden
+    // Find all tile elements and check their count
     const tiles = wrapper.findAll('.tile')
-    // tiles.forEach((tile, index) => {
-    //   const colorIndex = index % wrapper.vm.colors.length
-    //   const backgroundColor = wrapper.vm.colors[colorIndex]
-    //   expect(tile.attributes('style')).toContain(`background-color: ${backgroundColor}`)
-    // })
+    expect(tiles.length).toBe(mockResponseData.dataSet.data.length)
 
-    // Click handler fpr die Links
-    // TODO: Sollen die bei jedem vorhanden sein? Eig. nicht...
-    // In den Props korrekt festlegen
+    // Perform additional assertions
 
-    // @ts-ignore -> I don't know why...
-    // tiles.forEach(tile => {
-    //   const anchorTag = tile.find('a')
-    //   expect(anchorTag.attributes('href')).toBeUndefined()
-    // })
+    // For example, check the text content of the first tile
+    const tile1 = tiles[0]
+    expect(tile1.find('.tile-title').text()).toBe('custom Image')
+    expect(tile1.find('.tile-value').text()).toBe('text')
 
-    // TODO: Bilddateien!!!!
+    // Check the text content of the second tile
+    const tile2 = tiles[1]
+    expect(tile2.find('.tile-title').text()).toBe('custom Image (parent folder)')
+    expect(tile2.find('.tile-value').text()).toBe('1234')
 
+    // Find all tile image elements and check their count
     const tileImages = wrapper.findAll('.tile-image')
-    // tileImages.forEach((image, index) => {
-    //   const base64Image = wrapper.vm.base64Images[index]
-    //   if (base64Image) {
-    //     expect(image.attributes('style')).toContain(`background: ${base64Image}`)
-    //   }
-    // })
+    expect(tileImages.length).toBe(mockResponseData.dataSet.data.length)
 
-    // Vergleich der dargestellten
-    // und der übergebenebn Bilder
-    // expect(tiles.length).toBe(wrapper.vm.dataSet.data.length)
-    // expect(tileImages.length).toBe(wrapper.vm.dataSet.data.length)
+    // Check that the imagesAreLoaded flag is true
+    expect(wrapper.vm.imagesAreLoaded).toBe(true)
   })
-
-  // TODO:
-  // zweiter Test mit fehlerhaften Eingaben
+  // Add more test cases as needed
 })
