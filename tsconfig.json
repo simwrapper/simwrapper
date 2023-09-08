@@ -17,7 +17,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "esnext",
-    "types": ["vite/client", "@types/jest"]
+    "types": ["vite/client", "@types/jest", "vitest/globals"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "test/**/*.ts", "test/**/*.tsx"],
   "exclude": ["node_modules"]
