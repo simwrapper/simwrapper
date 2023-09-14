@@ -21,10 +21,11 @@ import { FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 export default defineComponent({
   name: 'Tile',
-  components: {},
+  components: { FontAwesomeIcon },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
