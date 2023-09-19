@@ -145,5 +145,16 @@ describe('Table.vue', () => {
     console.log(wrapper.vm)
     // Does the component exists?
     expect(wrapper.exists()).toBe(true)
+
+    expect(wrapper.attributes().hideHeader).toBe(false) // SHOULD BE False!
+    expect(wrapper.attributes().isFullsize).toBe(false) // SHOULD BE FAlse!
+    expect(wrapper.attributes().dataColumnNames).toBe(['date']) // SHOULD BE TRUE!
+    expect(wrapper.attributes().percentColumnNames).toBe(['percent']) // SHOULD BE TRUE!
+
+    // Check if all classes exists...
+    const tableContainer = wrapper.find('.vgt-inner-wrap')
+    expect(tableContainer.exists()).toBe(true)
+    const tableWrapContainer = tableContainer.find('.vgt-fixed-header')
+    expect(tableWrapContainer.exists()).toBe(true)
   })
 })
