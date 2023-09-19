@@ -74,6 +74,7 @@ const i18n = {
     },
   },
 }
+import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
@@ -455,9 +456,13 @@ const MyComponent = defineComponent({
     },
 
     setRadiusAndHeight() {
-      if (!this.vizDetails.radius) this.vizDetails.radius = 250
+      if (!this.vizDetails.radius) {
+        Vue.set(this.vizDetails, 'radius', 250)
+      }
 
-      if (!this.vizDetails.maxHeight) this.vizDetails.maxHeight = 0
+      if (!this.vizDetails.maxHeight) {
+        Vue.set(this.vizDetails, 'maxHeight', 0)
+      }
     },
 
     async loadStandaloneYAMLConfig() {
