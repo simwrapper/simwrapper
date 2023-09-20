@@ -8,20 +8,17 @@ import store from '@/store'
 import router from '@/router'
 import App from '@/App.vue'
 
+Vue.config.productionTip = false
+store.commit('setLocale', locale)
+
+// Font Awesome Icons ------------
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
-
 library.add(fas)
-
 Vue.component('font-awesome-icon', FontAwesomeIcon)
 
-Vue.config.productionTip = false
-
-store.commit('setLocale', locale)
-
-Vue.use(VueI18n)
-
+// Vue Plugins -------------------
 import { VuePlugin } from 'vuera'
 Vue.use(VuePlugin)
 
@@ -30,13 +27,13 @@ Vue.use(Buefy, {
   defaultInputHasCounter: false,
 })
 
-Vue.config.productionTip = false
-
+Vue.use(VueI18n)
 const i18n = new VueI18n({
   locale,
   fallbackLocale: 'en',
 })
 
+// mount Vue SPA in div #app
 new Vue({
   i18n,
   router,
