@@ -597,7 +597,8 @@ export default class DashboardDataManager {
       (a: FileSystemConfig) => a.slug === name
     )
     if (svnProject.length === 0) {
-      console.error('DDM: no such project')
+      console.log(globalStore.state.svnProjects)
+      console.error(`DDM: no such project, is slug correct? (${name})`)
       throw Error
     }
     return svnProject[0]
