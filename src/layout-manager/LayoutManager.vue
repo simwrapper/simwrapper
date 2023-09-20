@@ -58,7 +58,7 @@
         .tile-header.flex-row(v-if="getShowHeader(panel)")
 
           .tile-labels
-            h3(:style="{textAlign: isMultipanel ? 'left' : 'center'}") {{ panel.title }}
+            h3(:style="{textAlign: 'left'}") {{ panel.title }}
             p(v-if="panel.description") {{ panel.description }}
 
           .tile-buttons
@@ -650,7 +650,7 @@ export default defineComponent({
 
     getContainerStyle(panel: any, x: number, y: number) {
       let style: any = {
-        padding: this.isMultipanel ? '5px 5px' : '0',
+        padding: this.isMultipanel ? '5px 5px' : '0px 0px',
       }
 
       // // figure out height. If card has registered a resizer with changeDimensions(),
@@ -896,6 +896,7 @@ export default defineComponent({
   user-select: none;
   background-color: var(--bgDashboardHeader);
   padding: 1px 0px;
+  border-bottom: 1px solid #6666cc77;
 }
 
 .authorization-strip {
