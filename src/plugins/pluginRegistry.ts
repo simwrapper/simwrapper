@@ -94,8 +94,8 @@ const plugins = [
     component: defineAsyncComponent(() => import('./video-player/VideoPlayer.vue')),
   },
   {
-    kebabName: 'xml-viewer',
-    filePatterns: ['**/*.xml*'],
+    kebabName: 'xml-config',
+    filePatterns: ['**/*config*.xml*'],
     component: defineAsyncComponent(() => import('./xml-viewer/XmlViewer.vue')),
   },
 ]

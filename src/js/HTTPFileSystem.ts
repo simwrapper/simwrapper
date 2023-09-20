@@ -272,7 +272,7 @@ class HTTPFileSystem {
     // console.log(stillScaryPath)
     const response = await this._getFileResponse(stillScaryPath).then()
     const htmlListing = await response.text()
-    console.log(htmlListing)
+    // console.log(htmlListing)
     const dirEntry = this.buildListFromHtml(htmlListing)
     return dirEntry
   }
