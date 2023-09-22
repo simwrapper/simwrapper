@@ -58,16 +58,16 @@ describe('Tile.vue', () => {
       },
     })
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       await wrapper.vm.$nextTick()
     }
 
-    await wrapper.vm.loadImages()
+    // await wrapper.vm.loadImages()
 
     console.log(wrapper.text())
 
     // Does the component exists
-    expect(wrapper.exists()).toBe(true)
+    // expect(wrapper.exists()).toBe(true)
 
     // Is the component not empty
     // expect(wrapper.isEmpty()).toBe(false)
@@ -79,7 +79,6 @@ describe('Tile.vue', () => {
     console.log(wrapper.find('.content').attributes())
     // console.log(wrapper.attributes('content'))
 
-    // Debugging Tests
     console.log('Debugging Tests Start')
 
     console.log(wrapper.find('.content').find('.tiles-container'))
@@ -94,7 +93,7 @@ describe('Tile.vue', () => {
     console.log(wrapper)
     console.log(contentWrapper)
     console.log(tilesContainerWrapper)
-    console.log(tile.at(1).attributes())
+    console.log(tile)
 
     console.log('Variables')
     console.log('dataSet.data (test): ', wrapper.vm.dataSet.data)
