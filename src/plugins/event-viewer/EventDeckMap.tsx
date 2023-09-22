@@ -60,6 +60,7 @@ export default function Component({
   radius = 5,
   mapIsIndependent = false,
   simulationTime = 20000,
+  projection = '',
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -204,7 +205,8 @@ export default function Component({
 
   const allLayers = [...pointLayers, ...vehicleLayers]
 
-  // initialViewState={initialViewState}
+  const showBackgroundMap = projection && projection !== 'Atlantis'
+
   return (
     <DeckGL
       layers={allLayers}
@@ -216,7 +218,7 @@ export default function Component({
       onClick={getTooltip}
       getTooltip={getTooltip}
     >
-      {
+      {showBackgroundMap && (
         /*
         // @ts-ignore */
         <StaticMap
@@ -224,7 +226,7 @@ export default function Component({
           preventStyleDiffing={true}
           mapboxApiAccessToken={MAPBOX_TOKEN}
         />
-      }
+      )}
     </DeckGL>
   )
 }

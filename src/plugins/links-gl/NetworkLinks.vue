@@ -664,16 +664,8 @@ const MyComponent = defineComponent({
       let longitude = 0
       let latitude = 0
 
-      console.log({ projection: this.geojsonData.projection })
-
       // figure out the center
-      if (this.geojsonData.projection === 'Atlantis') {
-        const webMercator =
-          '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs'
-        const firstPoint = Coords.toLngLat(webMercator, [data.source[0], data.source[1]])
-        longitude = firstPoint[0]
-        latitude = firstPoint[1]
-      } else {
+      if (this.geojsonData.projection !== 'Atlantis') {
         const numLinks = data.source.length / 2
         const gap = numLinks < 4096 ? 2 : 1024
         for (let i = 0; i < numLinks; i += gap) {
@@ -681,7 +673,6 @@ const MyComponent = defineComponent({
           latitude += data.source[i * 2 + 1]
           samples++
         }
-
         longitude = longitude / samples
         latitude = latitude / samples
       }
@@ -734,9 +725,9 @@ const MyComponent = defineComponent({
         this.geojsonData = network as any
 
         // Handle Atlantis: no long/lat coordinates
-        if (network.projection == 'Atlantis') {
-          this.vizDetails.projection = 'Atlantis'
-          this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
+        if (network.projection) {
+          this.vizDetails.projection = '' + network.projection
+          // this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
         }
 
         this.setMapCenter() // this could be off main thread
@@ -1125,7 +1116,7 @@ export default MyComponent
 }
 
 .status-message {
-  margin: 0 0;
+  margin: 0 0 0.5rem 0;
   padding: 0.5rem 0.5rem;
   color: var(--textFancy);
   background-color: var(--bgPanel);

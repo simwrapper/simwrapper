@@ -26,10 +26,6 @@ interface Shipment {
   toY: number
 }
 
-const ICON_MAPPING = {
-  circle: { x: 0, y: 0, width: 128, height: 128, mask: true },
-}
-
 const ActivityColor = {
   pickup: [0, 150, 255],
   delivery: [240, 0, 60],
@@ -49,6 +45,7 @@ export default function Component(props: {
   settings: any
   dark: boolean
   numSelectedTours: number
+  projection: string
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
@@ -69,6 +66,7 @@ export default function Component(props: {
     stopActivities,
     center,
     onClick,
+    projection,
   } = props
 
   const { simplifyTours, scaleFactor, shipmentDotsOnTourMap } = settings
@@ -486,6 +484,8 @@ export default function Component(props: {
     })
   )
 
+  const showBackgroundMap = projection && projection !== 'Atlantis'
+
   return (
     <DeckGL
       layers={layers}
@@ -496,11 +496,11 @@ export default function Component(props: {
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
-      {
+      {showBackgroundMap && (
         /*
         // @ts-ignore */
         <StaticMap mapboxApiAccessToken={MAPBOX_TOKEN} mapStyle={globalStore.getters.mapStyle} />
-      }
+      )}
       {renderTooltip(hoverInfo)}
     </DeckGL>
   )

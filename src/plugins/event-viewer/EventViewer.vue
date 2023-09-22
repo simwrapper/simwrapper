@@ -13,6 +13,7 @@
     :radius="this.guiConfig.radius"
     :mapIsIndependent="false"
     :simulationTime="timeFilter[1]"
+    :projection="vizDetails.projection"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")
@@ -144,6 +145,7 @@ const MyComponent = defineComponent({
         source: new Float32Array(),
         dest: new Float32Array(),
         linkIds: [],
+        projection: '',
       } as NetworkLinks,
       linkIdLookup: {} as any,
       guiConfig: {
@@ -632,8 +634,10 @@ const MyComponent = defineComponent({
       const network = await this.myDataManager.getRoadNetwork(
         networkFilename,
         this.myState.subfolder,
-        Object.assign({ projection: '25833' }, this.vizDetails)
+        Object.assign({}, this.vizDetails)
       )
+
+      this.vizDetails.projection = '' + network.projection
 
       const linkIdLookup = {} as any
       let i = 0

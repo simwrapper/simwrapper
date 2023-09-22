@@ -16,7 +16,9 @@
                   :viewId="linkLayerId"
                   :settings="vizSettings"
                   :numSelectedTours="selectedTours.length"
-                  :onClick="handleClick")
+                  :onClick="handleClick"
+                  :projection="vizDetails.projection"
+                  )
       ZoomButtons(v-if="!thumbnail")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
@@ -969,10 +971,7 @@ const CarrierPlugin = defineComponent({
         const path = `${this.myState.subfolder}/${this.vizDetails.network}`
         const net = await this.fetchNetwork(path, {})
 
-        // Handle Atlantis: no long/lat coordinates
-        if (net.projection == 'Atlantis') {
-          this.$store.commit('setMapStyles', MAP_STYLES_OFFLINE)
-        }
+        this.vizDetails.projection = '' + net.projection
 
         // build direct lookup of x/y from link-id
         this.myState.statusMessage = 'Building network link table'
