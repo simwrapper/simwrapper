@@ -1,5 +1,5 @@
 <template lang="pug">
-.content
+  .content
     .tiles-container(v-if="imagesAreLoaded")
       .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}" @click="")
         a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
@@ -104,7 +104,7 @@ export default defineComponent({
       ],
       testImage: '',
       base64Images: [] as any[],
-      imagesAreLoaded: false,
+      imagesAreLoaded: true,
       tileNameIndex: 0,
       tileValueIndex: 1,
       tileImageIndex: 2,
@@ -117,25 +117,38 @@ export default defineComponent({
     },
   },
   async mounted() {
+    console.log('Mounted')
+    // console.log(this.$props.fileSystemConfig)
+    // console.log(this.$props.subfolder)
+    // console.log(this.$props.files)
+    // console.log(this.$props.cardId)
+    // console.log(this.$props.cardTitle)
+    // console.log(this.$props.config.dataset)
+    // console.log(this.$props.datamanager)
     this.dataSet = await this.loadFile()
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
-    console.log(this.dataSet)
-    console.log(globalStore)
+    // console.log(this.dataSet)
+    // console.log('imagesAreLoaded', this.imagesAreLoaded)
   },
+  // watch: {
+  //   imagesAreLoaded() {
+  //     console.log('Update imagesAreLoaded', this.imagesAreLoaded)
+  //   },
+  // },
   methods: {
-    forceRerender() {
+    async forceRerender() {
+      // console.log('forceRerender')
       // Removing my-component from the DOM
       this.imagesAreLoaded = false
 
-      this.$nextTick(() => {
-        // Adding the component back in
-        this.imagesAreLoaded = true
-      })
+      await this.$nextTick()
+
+      this.imagesAreLoaded = true
     },
     async loadImages() {
-      this.imagesAreLoaded = false
+      // this.imagesAreLoaded = true
 
       for (let i = 0; i < this.dataSet.data.length; i++) {
         const value = this.dataSet.data[i] as any
@@ -164,7 +177,7 @@ export default defineComponent({
             }
           }
         }
-        this.forceRerender()
+        await this.forceRerender()
       }
 
       this.imagesAreLoaded = true
@@ -180,6 +193,7 @@ export default defineComponent({
         skipEmptyLines: true,
       })
 
+      console.log('CSV:', csv.data)
       return csv
     },
 
