@@ -65,7 +65,7 @@
             span {{ $t('tours')}}: {{ tours.length}}
             .leaf.tour(v-for="tour,i in tours" :key="`${i}-${tour.$id}`"
                 @click="handleSelectTour(tour)"
-                :class="{selected: selectedTours.includes(tour)}") 
+                :class="{selected: selectedTours.includes(tour)}")
                 div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
 
@@ -1028,6 +1028,7 @@ const CarrierPlugin = defineComponent({
             if (e.data.error) {
               console.error(e.data.error)
               globalStore.commit('error', e.data.error)
+              this.myState.statusMessage = e.data.error
               reject(e.data.error)
             }
             resolve(e.data.links)

@@ -11,6 +11,7 @@ import * as shapefile from 'shapefile'
 import Coords from '@/js/Coords'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { DataTable, FileSystemConfig } from '@/Globals'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 
@@ -40,7 +41,7 @@ let _crs = ''
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
   if (e.data.crs) {
-    _crs = e.data.crs
+    _crs = e.data.crs || 'Atlantis'
 
     switch (_networkFormat) {
       case NetworkFormat.MATSIM_XML:
@@ -273,6 +274,41 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
     nodes[node.$id] = longlat
   }
 
+  // re-center / normalize Atlantis coords around 0,0
+  if (coordinateReferenceSystem === 'Atlantis') {
+    let x = 0
+    let y = 0
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    const coordinates = Object.values(nodes)
+    for (const coord of coordinates) {
+      x = coord[0]
+      y = coord[1]
+      minX = Math.min(x, minX)
+      minY = Math.min(y, minY)
+      maxX = Math.max(x, maxX)
+      maxY = Math.max(y, maxY)
+    }
+    const centerX = (maxX + minX) / 2
+    const centerY = (maxY + minY) / 2
+
+    // * 0.00000904369503 // convert meters to degrees
+    const webMercator =
+      '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs'
+
+    for (const coord of coordinates) {
+      coord[0] -= centerX
+      coord[1] -= centerY
+
+      const lnglat = Coords.toLngLat(webMercator, coord)
+
+      coord[0] = lnglat[0]
+      coord[1] = lnglat[1]
+    }
+  }
+
   // clear some memory
   network = null
   networkNodes = ''
@@ -284,10 +320,11 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   let endLinks = decoded.lastIndexOf('</link>')
   let closeTagLength = 7
 
-  // old MATSim networks used <link blah=... /> instead of <link asdfasdf>...</link>
+  console.log(80, endLinks)
+  // old MATSim networks used <link blah=.../> instead of <link asdfasdf>...</link>
   if (endLinks === -1) {
-    endLinks = decoded.lastIndexOf(' />')
-    closeTagLength = 3
+    endLinks = decoded.lastIndexOf('/>')
+    closeTagLength = 2
   }
 
   let usable = decoded.slice(startLinks, endLinks + closeTagLength)
@@ -311,21 +348,22 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
     const nextChunk = _rawData.subarray(startByte, endByte)
 
     decoded = leftovers + decoder.decode(nextChunk)
-    let endofFinalLink = decoded.lastIndexOf(closeTagLength === 7 ? '</link>' : ' />')
+    let endofFinalLink = decoded.lastIndexOf(closeTagLength === 7 ? '</link>' : '/>')
     usable = decoded.slice(0, endofFinalLink + closeTagLength)
     leftovers = decoded.slice(endofFinalLink + closeTagLength)
 
     if (usable.indexOf('<link ') === -1) break
 
     linkData = parseXML(usable, _options)
-    const chunk = buildLinkChunk(nodes, linkIds, linkData.link) // array of links is in XML linkData.link
+    // array of links is in XML linkData.link
+    const chunk = buildLinkChunk(nodes, linkIds, linkData.link)
     linkChunks.push(chunk)
     totalNumberOfLinks += linkData.link.length
 
     // end when we're at the end
     if (endByte > _rawData.length) break
   }
-  console.log({ totalNumberOfLinks })
+  // console.log({ totalNumberOfLinks })
 
   // Last chunk, close out.
   const source: Float32Array = new Float32Array(2 * totalNumberOfLinks)
@@ -456,7 +494,7 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     //
     // Thus we will look in both places.
 
-    linkIds[i] = feature.id || feature.properties.id
+    linkIds[i] = feature.id ?? feature.properties.id
   }
 
   const links = { source, dest, linkIds, projection: 'EPSG:4326' }
@@ -466,9 +504,29 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
 }
 
 async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
+  let resolvedPath = filePath
   try {
     const httpFileSystem = new HTTPFileSystem(fileSystem)
-    const blob = await httpFileSystem.getFileBlob(filePath)
+
+    // if dataset has a path in it, we need to fetch the correct subfolder contents
+    // and resolve any path wildcards
+    const slash = filePath.indexOf('/')
+    if (slash > -1) {
+      const dataset = filePath.substring(1 + filePath.lastIndexOf('/'))
+      const subfolder = filePath.substring(0, filePath.lastIndexOf('/'))
+
+      // resolve path wildcards
+      const { files } = await httpFileSystem.getDirectory(subfolder)
+      const matchingFiles = findMatchingGlobInFiles(files, dataset)
+      if (matchingFiles.length === 0) throw Error(`No files matched "${dataset}"`)
+      if (matchingFiles.length > 1) {
+        throw Error(`More than one file matched "${dataset}": ${matchingFiles}`)
+      }
+      resolvedPath = `${subfolder}/${matchingFiles[0]}`
+    }
+
+    console.log(100, 'RESOLVED PATH', resolvedPath)
+    const blob = await httpFileSystem.getFileBlob(resolvedPath)
     if (!blob) throwError('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()

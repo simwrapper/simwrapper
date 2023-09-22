@@ -554,7 +554,9 @@ export default class DashboardDataManager {
           // perhaps network has no CRS and we need to ask user
           if (e.data.promptUserForCRS) {
             let crs =
-              prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
+              prompt(
+                'Enter the projection coordinate reference system, e.g. "EPSG:25832", or cancel if unknown'
+              ) || 'Atlantis'
             if (Number.isInteger(parseInt(crs))) crs = `EPSG:${crs}`
 
             thread.postMessage({ crs })

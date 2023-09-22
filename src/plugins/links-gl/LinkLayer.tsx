@@ -4,9 +4,7 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
-import { scaleThreshold, scaleOrdinal } from 'd3-scale'
 import { StaticMap } from 'react-map-gl'
-import { rgb } from 'd3-color'
 import { format } from 'mathjs'
 
 import {
@@ -135,8 +133,9 @@ export default function Component({
     }
   }
 
-  const coordinateSystem =
-    projection == 'Atlantis' ? COORDINATE_SYSTEM.METER_OFFSETS : COORDINATE_SYSTEM.DEFAULT
+  // Atlantis is pre-converted now in the RoadNetworkLoader to lng/lat
+  // projection == 'Atlantis' ? COORDINATE_SYSTEM.METER_OFFSETS : COORDINATE_SYSTEM.DEFAULT
+  const coordinateSystem = COORDINATE_SYSTEM.DEFAULT
 
   //@ts-ignore
   const layer = new LineOffsetLayer({
@@ -176,6 +175,8 @@ export default function Component({
     },
   })
 
+  const showBackgroundMap = projection && projection !== 'Atlantis'
+
   return (
     /*
     //@ts-ignore */
@@ -191,11 +192,11 @@ export default function Component({
       onClick={handleClick}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
-      {
+      {showBackgroundMap && (
         /*
         // @ts-ignore */
         <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
-      }
+      )}
     </DeckGL>
   )
 }
