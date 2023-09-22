@@ -193,7 +193,7 @@ export default defineComponent({
         skipEmptyLines: true,
       })
 
-      console.log('CSV:', csv.data)
+      // console.log('CSV:', csv.data)
       return csv
     },
 

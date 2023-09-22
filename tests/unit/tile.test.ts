@@ -1,6 +1,7 @@
-import { mount, shallowMount } from '@vue/test-utils'
+import { shallowMount } from '@vue/test-utils'
 import { vi } from 'vitest'
 import '../../src/shims-vue.d'
+import * as d3color from 'd3-color'
 
 import blobUtil from 'blob-util'
 
@@ -31,6 +32,8 @@ global.fetch = vi.fn().mockResolvedValue({
 })
 
 describe('Tile.vue', () => {
+  const numberOfTiles = 5
+
   test('good test', async () => {
     const wrapper = shallowMount(Tile, {
       propsData: {
@@ -58,45 +61,44 @@ describe('Tile.vue', () => {
       },
     })
 
-    for (let i = 0; i < 6; i++) {
+    // Workaround for the async/await stuff...
+    for (let i = 0; i < 10; i++) {
       await wrapper.vm.$nextTick()
     }
 
-    // await wrapper.vm.loadImages()
+    // Check if the component exists
+    expect(wrapper.exists()).toBe(true)
 
-    console.log(wrapper.text())
-
-    // Does the component exists
-    // expect(wrapper.exists()).toBe(true)
-
-    // Is the component not empty
-    // expect(wrapper.isEmpty()).toBe(false)
+    // Check if the component is not empty
     const rootByCss = wrapper.findComponent('.content') // => finds Root
     expect(rootByCss.vm.$options.name).toBe('Tile')
 
-    // console.log(wrapper.classes())
-    console.log(wrapper.attributes())
-    console.log(wrapper.find('.content').attributes())
-    // console.log(wrapper.attributes('content'))
-
-    console.log('Debugging Tests Start')
-
-    console.log(wrapper.find('.content').find('.tiles-container'))
-    console.log('Debugging Tests End')
-
-    console.log('Testing UI')
-    console.log(wrapper.find('.content').find('.tiles-container').findAll('.tile'))
+    // Create all wrapper elemnts
     const contentWrapper = wrapper.find('.content')
     const tilesContainerWrapper = contentWrapper.find('.tiles-container')
     const tile = tilesContainerWrapper.findAll('.tile')
 
-    console.log(wrapper)
-    console.log(contentWrapper)
-    console.log(tilesContainerWrapper)
-    console.log(tile)
+    // Check the number of tiles
+    expect(tile.length).toBe(numberOfTiles)
 
-    console.log('Variables')
-    console.log('dataSet.data (test): ', wrapper.vm.dataSet.data)
-    console.log('imagesAreLoaded (test):', wrapper.vm.imagesAreLoaded)
+    // Check the css-classes
+    for (let i = 0; i < numberOfTiles; i++) {
+      expect(tile.at(i).attributes().class).toBe('tile')
+    }
+
+    // Check the background colors
+    for (let i = 0; i < numberOfTiles; i++) {
+      expect(tile.at(i).attributes().style).toBe(
+        'background-color: ' + d3color.rgb(wrapper.vm.colors[i]) + ';'
+      )
+    }
+
+    // Check the title and the value
+    for (let i = 0; i < numberOfTiles; i++) {
+      expect(tile.at(i).text()).toBe(
+        wrapper.vm.dataSet.data[i][wrapper.vm.tileNameIndex] +
+          wrapper.vm.dataSet.data[i][wrapper.vm.tileValueIndex]
+      )
+    }
   })
 })
