@@ -215,7 +215,7 @@ const MyComponent = defineComponent({
       requestEnd: {} as crossfilter.Dimension<any, any>,
       requestVehicle: {} as crossfilter.Dimension<any, any>,
 
-      simulationTime: 6 * 3600, // 8 * 3600 + 10 * 60 + 10
+      simulationTime: 8 * 3600, // 8 * 3600 + 10 * 60 + 10
 
       timeElapsedSinceLastFrame: 0,
 
@@ -228,9 +228,10 @@ const MyComponent = defineComponent({
       showHelp: false,
 
       speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
-      speed: 1,
+      speed: 2,
 
       legendBits: [] as any[],
+      isEmbedded: false,
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
 
       vehicleLookup: [] as string[],
@@ -504,6 +505,15 @@ const MyComponent = defineComponent({
       return crossfilter(allTrips)
     },
 
+    setEmbeddedMode() {
+      if ('embed' in this.$route.query) {
+        console.log('EMBEDDED MODE')
+        this.isEmbedded = true
+        this.$store.commit('setShowLeftBar', false)
+        this.$store.commit('setFullWidth', true)
+      }
+    },
+
     updateDatasetFilters() {
       // dont' filter if we haven't loaded yet
       if (!this.traceStart || !this.pathStart || !this.requestStart) return
@@ -666,6 +676,9 @@ const MyComponent = defineComponent({
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig ?? ''
     this.myState.subfolder = this.subfolder
+
+    // EMBED MODE?
+    this.setEmbeddedMode()
 
     await this.getVizDetails()
 
