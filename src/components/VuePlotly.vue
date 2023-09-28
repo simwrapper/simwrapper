@@ -37,6 +37,8 @@ export default defineComponent({
 
     await this.$nextTick()
 
+    // console.log(this.plotlyId, this.data, this.layout, this.options)
+
     Plotly.react(this.plotlyId, this.data, this.layout, this.options)
 
     const myPlot = document.getElementById(this.plotlyId) as any

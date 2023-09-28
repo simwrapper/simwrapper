@@ -117,29 +117,13 @@ export default defineComponent({
     },
   },
   async mounted() {
-    console.log('Mounted')
-    // console.log(this.$props.fileSystemConfig)
-    // console.log(this.$props.subfolder)
-    // console.log(this.$props.files)
-    // console.log(this.$props.cardId)
-    // console.log(this.$props.cardTitle)
-    // console.log(this.$props.config.dataset)
-    // console.log(this.$props.datamanager)
     this.dataSet = await this.loadFile()
     this.validateDataSet()
     await this.loadImages()
     this.$emit('isLoaded')
-    // console.log(this.dataSet)
-    // console.log('imagesAreLoaded', this.imagesAreLoaded)
   },
-  // watch: {
-  //   imagesAreLoaded() {
-  //     console.log('Update imagesAreLoaded', this.imagesAreLoaded)
-  //   },
-  // },
   methods: {
     async forceRerender() {
-      // console.log('forceRerender')
       // Removing my-component from the DOM
       this.imagesAreLoaded = false
 
@@ -148,8 +132,6 @@ export default defineComponent({
       this.imagesAreLoaded = true
     },
     async loadImages() {
-      // this.imagesAreLoaded = true
-
       for (let i = 0; i < this.dataSet.data.length; i++) {
         const value = this.dataSet.data[i] as any
         if (this.checkIfItIsACustomIcon(value[this.tileImageIndex])) {
@@ -192,8 +174,6 @@ export default defineComponent({
         header: false,
         skipEmptyLines: true,
       })
-
-      // console.log('CSV:', csv.data)
       return csv
     },
 

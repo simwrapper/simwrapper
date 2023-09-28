@@ -103,6 +103,7 @@ export default defineComponent({
     }
   },
   async mounted() {
+    console.log('Mounted Pie!')
     this.updateTheme()
 
     this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
@@ -112,6 +113,7 @@ export default defineComponent({
 
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
     this.$emit('isLoaded')
+    console.log(this.$props)
   },
   beforeDestroy() {
     this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)

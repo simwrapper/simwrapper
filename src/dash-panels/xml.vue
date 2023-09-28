@@ -34,6 +34,7 @@ export default defineComponent({
   mounted() {
     this.$emit('isLoaded')
     this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
+    console.log('Config: ', this.config)
   },
   methods: {
     changeDimensions(event: any) {

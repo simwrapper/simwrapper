@@ -119,6 +119,8 @@ const MyComponent = defineComponent({
     }
 
     this.numberOfUnfoldLevel = this.config.unfoldLevel + 1
+
+    console.log(this.$props)
   },
 
   methods: {

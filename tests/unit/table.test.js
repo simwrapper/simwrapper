@@ -7,57 +7,6 @@ import '../../src/shims-vue.d'
 import Table from '../../src/dash-panels/table.vue'
 import { DashboardDataManager } from '../../src/js/DashboardDataManager'
 
-// const htmlListing = `<!DOCTYPE HTML>
-// <html lang="en">
-// <head>
-// <meta charset="utf-8">
-// <title>Directory listing for /table-style/data/</title>
-// </head>
-// <body>
-// <h1>Directory listing for /table-style/data/</h1>
-// <hr>
-// <ul>
-// <li><a href=".DS_Store">.DS_Store</a></li>
-// <li><a href="tiles.csv">tiles.csv</a></li>
-// <li><a href="tiles_new_format.csv">tiles_new_format.csv</a></li>
-// <li><a href="vsp_logo.png">vsp_logo.png</a></li>
-// </ul>
-// <hr>
-// </body>
-// </html>`
-
-// global.fetch = vi.fn().mockResolvedValue({
-//   status: 200,
-//   text: () =>
-//     new Promise(resolve => {
-//       resolve(htmlListing)
-//     }),
-// })
-
-/**
- * Mock _fetchData
- *
- * parameters:
- *
- * config (object):
- *
- * ataset: "data/tiles_new_format.csv"
- * height: 0.1
- * id: "card-id-1"
- * isLoaded: false
- * number: 1
- * title: "Default Stlye"
- * type: "csv"
- *
- * options (object):
- *
- * highPrecision: true
- *
- * 'Return/Resolve'
- *
- * resolve(mockReturnData);
- */
-
 const mockReturnData = {
   Name: {
     name: 'Name',
@@ -94,17 +43,6 @@ vi.mock('../../src/js/DashboardDataManager', () => {
 })
 
 describe('Table.vue', () => {
-  // beforeEach(() => {
-  //   const _fetchDataset = vi.fn(
-  //       () =>
-  //         new Promise() <
-  //         DataTable >
-  //         (resolve => {
-  //           console.log('MOCKING!!!')
-  //           resolve(mockReturnData)
-  //         })
-  // })
-
   test('mount component', async () => {
     const wrapper = mount(Table, {
       propsData: {
