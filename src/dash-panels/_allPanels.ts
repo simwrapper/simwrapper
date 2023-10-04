@@ -10,6 +10,7 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
   bar: defineAsyncComponent(() => import('./bar.vue')),
   bubble: defineAsyncComponent(() => import('./bubble.vue')),
   csv: defineAsyncComponent(() => import('./table.vue')),
+  gridmap: defineAsyncComponent(() => import('./gridmap.vue')),
   heatmap: defineAsyncComponent(() => import('./heatmap.vue')),
   hexagons: defineAsyncComponent(() => import('./hexagons.vue')),
   line: defineAsyncComponent(() => import('./line.vue')),
