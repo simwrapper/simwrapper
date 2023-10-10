@@ -26,7 +26,7 @@ The tiles plug-in can only be included as panels in **Dashboards**. See Dashboar
 ```yaml
 layout:
   row1:
-    - type: 'tiles'
+    - type: 'tile'
       title: Tiles Plug-in Example
       dataset: 'data.csv'
 ```
