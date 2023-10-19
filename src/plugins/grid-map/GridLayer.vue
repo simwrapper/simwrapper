@@ -18,7 +18,16 @@
     
       .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
             //- :class="{'is-dashboard': config !== undefined }"
-        
+
+            //- viz-configurator(v-if="isLoaded"
+            //-   :embedded="true"
+            //-   :fileSystem="fileSystem"
+            //-   :subfolder="subfolder"
+            //-   :vizDetails="vizDetails"
+            //-   :datasets="data"
+            //-   :legendStore="legendStore"
+            //- )
+
             .panel-item
               p.ui-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
               b-slider.ui-slider(v-model="vizDetails.maxHeight"
@@ -43,7 +52,24 @@
                 :duration="0" :dotSize="12"
                 :tooltip="false"
               )
+            .panel-item
+              h4 Aktueller Wert
+              p(v-if="hoverValue") {{ parseFloat((hoverValue).toFixed(4)) }}
+              p(v-else) - 
+              h4 Letzter Wert 
+              p(v-if="clickedValue") {{ parseFloat((clickedValue).toFixed(4)) }}
+              p(v-else) -
     
+      time-slider.time-slider-area(v-if="isLoaded"
+        :range="timeRange"
+        :activeTimeExtent="timeFilter"
+        :labels="timeLabels"
+        :isAnimating="true"
+        @timeExtent="handleTimeSliderValues"
+        @toggleAnimation="toggleAnimation"
+        @drag="isAnimating=false"
+      )
+
       .message(v-if="!thumbnail && myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
     
@@ -89,9 +115,11 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+// import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import XyHexDeckMap from './GridMap'
+import TimeSlider from '@/components/TimeSlider.vue'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 
@@ -119,6 +147,8 @@ const MyComponent = defineComponent({
     XyHexDeckMap,
     ToggleButton,
     ZoomButtons,
+    // VizConfigurator,
+    TimeSlider,
   },
   props: {
     root: { type: String, required: true },
@@ -130,6 +160,7 @@ const MyComponent = defineComponent({
   data: () => {
     const colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
     return {
+      // legendStore: new LegendStore(),
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
         title: '',
@@ -188,6 +219,16 @@ const MyComponent = defineComponent({
         selectedHexagonIds: any[]
       },
       resizer: null as ResizeObserver | null,
+      hoverValue: null as any,
+      clickedValue: null as any,
+      startTime: 0,
+      isAnimating: false,
+      animationElapsedTime: 0,
+      timeFilter: [0, 3599],
+      timeRange: [Infinity, -Infinity],
+      timeLabels: [0, 1] as any[],
+      ANIMATE_SPEED: 4,
+      animator: null as any,
     }
   },
   computed: {
@@ -235,6 +276,8 @@ const MyComponent = defineComponent({
         opacity: this.vizDetails.opacity,
         selectedHexStats: this.hexStats,
         upperPercentile: 100,
+        onClick: this.handleClick,
+        onHover: this.handleHover,
       }
     },
     textColor(): any {
@@ -269,6 +312,14 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
+    handleClick(target: any, event: any) {
+      if (!target.layer) return
+      this.clickedValue = target.object.value
+    },
+    handleHover(target: any, event: any) {
+      if (!target.layer && !target.object) return
+      if (target.object != undefined) this.hoverValue = target.object.value
+    },
     async solveProjection() {
       console.log('solveProjection')
       if (this.thumbnail) return
@@ -519,9 +570,44 @@ const MyComponent = defineComponent({
 
       const returnArray = []
 
+      let minValue = Number.POSITIVE_INFINITY
+      let maxValue = Number.NEGATIVE_INFINITY
+
       for (let i = 0; i < csv.data.length; i++) {
-        returnArray.push({ centroid: [csv.data[i].x, csv.data[i].y], value: csv.data[i].value })
+        if (i == 0) this.timeRange[0] = csv.data[i].time
+        if (i == csv.data.length - 1) this.timeRange[1] = csv.data[i].time
+
+        if (csv.data[i].value < minValue) minValue = csv.data[i].value
+        if (csv.data[i].value > maxValue) maxValue = csv.data[i].value
+
+        returnArray.push({
+          centroid: [csv.data[i].x, csv.data[i].y],
+          value: csv.data[i].value,
+          scaledValue: 0,
+        })
       }
+      // console.log('Before')
+      // console.log({ minValue, maxValue })
+
+      const scaleFactor = 100 / maxValue
+
+      // Time to scale! :D
+      for (let i = 0; i < returnArray.length; i++) {
+        returnArray[i].scaledValue = scaleFactor * returnArray[i].value
+        // console.log(returnArray[i].value)
+      }
+
+      // minValue = Number.POSITIVE_INFINITY
+      // maxValue = Number.NEGATIVE_INFINITY
+
+      // for (let i = 0; i < returnArray.length; i++) {
+      //   if (returnArray[i].scaledValue < minValue) minValue = returnArray[i].scaledValue
+      //   if (returnArray[i].scaledValue > maxValue) maxValue = returnArray[i].scaledValue
+      //   // console.log(returnArray[i].value)
+      // }
+
+      // console.log('After')
+      // console.log({ minValue, maxValue, scaleFactor })
 
       // this.dataIsLoaded({ a: null, b: null })
       this.myState.statusMessage = ''
@@ -551,6 +637,52 @@ const MyComponent = defineComponent({
       this.setMapCenter()
       this.moveLogo()
       this.myState.statusMessage = ''
+    },
+
+    // TODO...
+    toggleAnimation() {
+      this.isAnimating = !this.isAnimating
+      if (this.isAnimating) {
+        this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
+        this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
+        this.animate()
+      }
+    },
+
+    animate() {
+      if (!this.isAnimating) return
+
+      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
+      const animationClockTime = this.animationElapsedTime + this.timeRange[0]
+
+      if (animationClockTime > this.timeRange[1]) {
+        this.startTime = Date.now()
+        this.animationElapsedTime = 0 // this.timeRange[0]
+      }
+
+      const span = this.timeFilter[1] - this.timeFilter[0]
+      this.timeFilter = [animationClockTime, animationClockTime + span]
+
+      this.animator = window.requestAnimationFrame(this.animate)
+    },
+
+    handleTimeSliderValues(timeValues: any[]) {
+      this.animationElapsedTime = timeValues[0]
+      this.timeFilter = timeValues
+      this.timeLabels = [
+        this.convertSecondsToClockTimeMinutes(timeValues[0]),
+        this.convertSecondsToClockTimeMinutes(timeValues[1]),
+      ]
+    },
+
+    convertSecondsToClockTimeMinutes(index: number) {
+      const h = Math.floor(index / 3600)
+      const m = Math.floor((index - h * 3600) / 60)
+      const s = index - h * 3600 - m * 60
+
+      const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
+
+      return `${hms.h}:${hms.m}`
     },
   },
   async processData() {
@@ -600,6 +732,8 @@ const MyComponent = defineComponent({
     } catch (e) {
       console.warn(e)
     }
+
+    if (this.animator) window.cancelAnimationFrame(this.animator)
 
     this.$store.commit('setFullScreen', false)
   },
@@ -755,6 +889,15 @@ input {
   top: 0;
   right: 0;
   pointer-events: none;
+}
+
+.time-slider-area {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0;
+  right: 0;
+  margin: 0 1rem 0 20rem;
+  filter: $filterShadow;
 }
 
 @media only screen and (max-width: 640px) {
