@@ -547,6 +547,7 @@ const MyComponent = defineComponent({
             Math.min(this.timeRange[0], event.data.time[0]),
             Math.max(this.timeRange[1], event.data.time[rows - 1]),
           ]
+          console.log('TimeRange', this.timeRange)
           this.pointLayers.push(event.data)
         }
       }

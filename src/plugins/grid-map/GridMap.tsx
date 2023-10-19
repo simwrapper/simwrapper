@@ -6,6 +6,7 @@ import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { re } from 'mathjs'
 
 const material = {
   ambient: 0.64,
@@ -26,7 +27,6 @@ const INITIAL_VIEW = {
 export default function Layer({
   viewId = 0,
   colorRamp = 'chlorophyll',
-  coverage = 1,
   dark = false,
   data = {} as any,
   extrude = true,
@@ -39,6 +39,7 @@ export default function Layer({
   selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
   upperPercentile = 100,
   onClick = {} as any,
+  onHover = {} as any,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(INITIAL_VIEW)
@@ -72,6 +73,7 @@ export default function Layer({
   const maxValue = 100
 
   function pickColor(value: number) {
+    if (value == 0) return null
     const index = Math.floor((value / maxValue) * (colors.length - 1))
     return colors[index]
   }
@@ -102,9 +104,14 @@ export default function Layer({
     onClick(target, event)
   }
 
+  function handleHover(target: any, event: any) {
+    onHover(target, event)
+  }
+
   interface MapData {
     centroid: [number, number]
     value: number
+    scaledValue: number
   }
 
   let rows = null
@@ -126,8 +133,9 @@ export default function Layer({
       id: 'gridlayer',
       data: data,
       getPosition: (d: MapData) => d.centroid,
-      getFillColor: (d: MapData) => pickColor(d.value),
-      getElevation: (d: MapData) => d.value,
+      getFillColor: (d: MapData) => pickColor(d.scaledValue),
+      getElevation: (d: MapData) => d.scaledValue,
+      // getElevation: () => 200 ,
       colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
       coverage: 1,
       autoHighlight: true,
@@ -155,6 +163,7 @@ export default function Layer({
       viewState={viewState}
       getTooltip={getTooltip}
       onClick={handleClick}
+      onHover={handleHover}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {
