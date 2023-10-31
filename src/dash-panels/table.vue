@@ -48,7 +48,7 @@ export default defineComponent({
       },
       dataColumnNames: ['date'],
       percentColumnNames: ['percent'],
-      hideHeader: false,
+      hideHeader: undefined as any,
       isFullsize: false,
     }
   },
@@ -163,7 +163,9 @@ export default defineComponent({
       this.columns = []
       this.rows = []
 
-      if (this.config.style == 'topsheet') this.hideHeader = true
+      // if (this.config.style == 'topsheet' && this.hideHeader == undefined) {
+      //   this.hideHeader = true
+      // }
 
       // Create columns array for the header
       Object.entries(this.dataSet.allRows).forEach(([key, value]) => {
@@ -275,15 +277,16 @@ export default defineComponent({
         }
       }
 
-      // Show/Hide header
-      if (!this.config.hideHeader) {
-        this.hideHeader = false
-      }
-
       // Add settings for topsheet style
       if (this.config.style == 'topsheet') {
         this.hideHeader = true
         this.isFullsize = true
+      }
+
+      // Overwrite templates
+      // Show/Hide header
+      if (this.config.hideHeader != undefined) {
+        this.hideHeader = this.config.hideHeader
       }
 
       if (
