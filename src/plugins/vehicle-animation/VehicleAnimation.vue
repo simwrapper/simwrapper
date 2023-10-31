@@ -364,7 +364,7 @@ const MyComponent = defineComponent({
           longitude: this.vizDetails.center[0],
           latitude: this.vizDetails.center[1],
           zoom: this.vizDetails.zoom || 10,
-          pitch: 10,
+          pitch: 20,
           bearing: 0,
         })
       }
@@ -492,14 +492,18 @@ const MyComponent = defineComponent({
         this.vehicleLookupString[trip.id] = vehNumber
 
         for (let i = 0; i < trip.path.length - 1; i++) {
-          allTrips.push({
+          const trip = {
             t0: timestamps[i],
             t1: timestamps[i + 1],
             p0: path[i],
             p1: path[i + 1],
             v: vehNumber,
             occ: passengers[i],
-          })
+          }
+          // grey out vehicles that aren't moving
+          if (trip.p0[0] == trip.p1[0] && trip.p0[1] == trip.p1[1]) trip.occ = 0
+
+          allTrips.push(trip)
         }
       }
       return crossfilter(allTrips)
