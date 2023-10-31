@@ -15,7 +15,7 @@
 
       .tabs.is-centered
 
-        ul(style="margin-right: 1rem")
+        ul(style="padding-right: 1rem")
           li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
             :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
             :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
@@ -456,7 +456,7 @@ export default defineComponent({
   position: absolute;
   top: 0;
   bottom: 0;
-  background-color: var(--bgMapPanel);
+  background-color: var(--bgDashboard);
   flex-direction: column;
   overflow-y: auto;
 }
@@ -477,8 +477,9 @@ export default defineComponent({
 
 .tabs ul {
   line-height: 0.8rem;
-  border-bottom-color: var(--bgMapPanel);
   border-bottom-width: 5px;
+  border-bottom-color: var(--bgDashboard);
+  background-color: var(--bgDashboard);
 }
 
 .tabholder {
@@ -500,7 +501,7 @@ export default defineComponent({
 }
 
 li.is-not-active b a {
-  color: var(--text);
+  color: var(--textBlack);
 }
 
 .breadcrumbs {

@@ -429,13 +429,16 @@ export default defineComponent({
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
-  margin: 2rem 2rem 2rem 0;
+  margin: 2rem 2rem 1rem 0;
+  background-color: var(--bgCardFrame);
+  padding: 3px;
+  border-radius: 5px;
 
   .dash-card-headers {
     display: flex;
     flex-direction: row;
-    border-top: var(--borderDashboard);
-    padding-top: 0.1rem;
+    // border-top: var(--borderDashboard);
+    // padding-top: 0.1rem;
   }
 
   .dash-card-headers.fullscreen {
