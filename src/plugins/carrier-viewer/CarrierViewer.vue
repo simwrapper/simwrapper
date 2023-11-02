@@ -991,6 +991,10 @@ const CarrierPlugin = defineComponent({
         const jsonNetwork = await this.fileApi.getFileJson(
           this.myState.subfolder + '/' + this.vizDetails.network
         )
+
+        // geojson is ALWAYS in long/lat
+        this.vizDetails.projection = 'EPSG:4326'
+
         return jsonNetwork
       }
     },
@@ -1010,7 +1014,8 @@ const CarrierPlugin = defineComponent({
             if (e.data.promptUserForCRS) {
               let crs =
                 prompt('Enter the coordinate reference system, e.g. EPSG:25832') || 'EPSG:31468'
-              if (!isNaN(parseInt(crs))) crs = `EPSG:${crs}`
+
+              if (Number.isFinite(parseInt(crs))) crs = `EPSG:${crs}`
 
               thread.postMessage({ crs })
               return
