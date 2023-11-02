@@ -14,6 +14,16 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.5.2](https://github.com/simwrapper/simwrapper/compare/v2.5.1...v2.5.2) (2023-11-02)
+
+
+### Bug Fixes
+
+* Atlantis "non" coordinate system better handled now ([b2ae688](https://github.com/simwrapper/simwrapper/commit/b2ae6886640eee80b1c09acc5ec2c76230f6a98c))
+* **links:** very old MATSim networks were not loading properly ([0eeb24c](https://github.com/simwrapper/simwrapper/commit/0eeb24cc621eaef8dc423943f2d20441c4851433))
+* normalized data calculation out of alignment ([802bbd9](https://github.com/simwrapper/simwrapper/commit/802bbd9c57375ca709940a52ff815da1d771e690)), closes [#281](https://github.com/simwrapper/simwrapper/issues/281)
+* user-supplied bad/wrong url -> better error message ([023480a](https://github.com/simwrapper/simwrapper/commit/023480ab66958898ea4141923be040ce3fde3c9c)), closes [#259](https://github.com/simwrapper/simwrapper/issues/259)
+
 ### [2.5.1](https://github.com/simwrapper/simwrapper/compare/v2.5.0...v2.5.1) (2023-08-29)
 
 
