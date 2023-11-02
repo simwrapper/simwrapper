@@ -49,7 +49,7 @@ export default new Vuex.Store({
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
     isFullScreen: false,
-    isFullWidth: false,
+    isFullWidth: true,
     isShowingLeftBar: true,
     isDarkMode: true,
     isInitialViewSet: false,

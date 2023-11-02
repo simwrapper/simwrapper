@@ -429,16 +429,14 @@ export default defineComponent({
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
-  margin: 2rem 2rem 1rem 0;
+  margin: 0 1.25rem 1.25rem 0;
   background-color: var(--bgCardFrame);
   padding: 3px;
-  border-radius: 5px;
+  border-radius: 3px;
 
   .dash-card-headers {
     display: flex;
     flex-direction: row;
-    // border-top: var(--borderDashboard);
-    // padding-top: 0.1rem;
   }
 
   .dash-card-headers.fullscreen {
@@ -465,7 +463,6 @@ export default defineComponent({
     grid-row: 1 / 2;
     font-size: 1.2rem;
     line-height: 1.5rem;
-    margin-top: 0.1rem;
     margin-bottom: 0.5rem;
     color: var(--link);
   }
@@ -492,7 +489,7 @@ export default defineComponent({
 }
 
 .dash-card-frame.wiide {
-  margin-right: 2rem;
+  // margin-right: 2rem;
 }
 
 .dash-card {

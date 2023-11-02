@@ -4,42 +4,35 @@
   .tabholder(v-show="!isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
-      //- .breadcrumbs(v-else)
-      //-   h3 {{ pageHeader }}
-      //-   h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
 
-      //- .folder-readme(v-if="folderReadme"
-      //-   :class="{'readme-centered': !this.header}"
-      //-   v-html="folderReadme"
-      //- )
+  //- .dashboard-finder(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'")
+  .dashboard-finder
+    ul.dashboard-navigation
+      li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
+        :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
+        :style="{opacity: tab===activeTab ? 1.0 : 0.55}"
+      )
+        b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
 
-      .tabs.is-centered
+    .dashboard-stuff(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'")
+      dash-board.dashboard-content(
+        :root="root"
+        :xsubfolder="xsubfolder"
+        :config="dashboards[dashboardTabWithDelay]"
+        :datamanager="dashboardDataManager"
+        :zoomed="isZoomed"
+        :allConfigFiles="allConfigFiles"
+        @zoom="handleZoom"
+        @layoutComplete="handleLayoutComplete"
+      )
 
-        ul(style="padding-right: 1rem")
-          li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
-            :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
-            :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
-          )
-            b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
-
-  dash-board(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
-    :root="root"
-    :xsubfolder="xsubfolder"
-    :config="dashboards[dashboardTabWithDelay]"
-    :datamanager="dashboardDataManager"
-    :zoomed="isZoomed"
-    :allConfigFiles="allConfigFiles"
-    @zoom="handleZoom"
-    @layoutComplete="handleLayoutComplete"
-  )
-
-  folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
-    :root="root"
-    :xsubfolder="xsubfolder"
-    :allConfigFiles="allConfigFiles"
-    @navigate="onNavigate"
-    @up="goUpOneFolder()"
-  )
+    folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
+      :root="root"
+      :xsubfolder="xsubfolder"
+      :allConfigFiles="allConfigFiles"
+      @navigate="onNavigate"
+      @up="goUpOneFolder()"
+    )
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
@@ -527,6 +520,49 @@ li.is-not-active b a {
     max-width: $dashboardWidth;
     margin: 0 2rem;
   }
+}
+
+.dashboard-finder {
+  display: flex;
+  flex-direction: row;
+}
+
+.dashboard-navigation {
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 0rem 2rem 1rem;
+}
+
+.dashboard-stuff {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dashboard-folder-browser {
+  margin: 2rem 2rem 1rem 1rem;
+  padding-top: 1rem;
+  flex: 1;
+}
+
+.tab-list {
+  font-family: $fancyFont;
+  font-size: 1.2rem;
+  line-height: 2.2rem;
+  padding: 0 1rem 0 0.75rem;
+  border-left: 5px solid #00000000;
+  width: max-content;
+}
+
+.tab-list:hover {
+  background-color: var(--bgBold);
+  opacity: 0.5;
+}
+
+.tab-list.is-active {
+  background-color: var(--bgBold);
+  border-left: 5px solid green;
+  border-radius: 3px 0 0 3px;
 }
 
 .up-link a {
