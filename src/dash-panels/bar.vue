@@ -23,6 +23,7 @@ import globalStore from '@/store'
 export default defineComponent({
   name: 'BarChartPanel',
   components: { VuePlotly },
+
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
     subfolder: { type: String, required: true },
@@ -32,6 +33,7 @@ export default defineComponent({
     cardId: String,
     datamanager: Object as PropType<DashboardDataManager>,
   },
+
   data: () => {
     return {
       globalState: globalStore.state,
@@ -40,7 +42,7 @@ export default defineComponent({
       className: '',
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      YAMLrequirementsBar: { dataset: '', x: '', columns: '' },
+      YAMLrequirementsBar: { dataset: '', x: '' },
       layout: {
         barmode: 'overlay',
         bargap: 0.08,
@@ -237,8 +239,8 @@ export default defineComponent({
         if (key in this.config === false) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `Bar chart missing required key: ${key}`,
+            desc: `Bar chart requires ${Object.keys(this.YAMLrequirementsBar)}`,
           })
         }
       }

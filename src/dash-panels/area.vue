@@ -30,6 +30,7 @@ export default defineComponent({
     cardId: String,
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
+
   data: () => {
     return {
       globalState: globalStore.state,
@@ -189,8 +190,8 @@ export default defineComponent({
         if (key in this.config === false) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `Area chart missing required key: ${key}`,
+            desc: `Required keys: ${Object.keys(this.YAMLrequirementsArea)}`,
           })
         }
       }

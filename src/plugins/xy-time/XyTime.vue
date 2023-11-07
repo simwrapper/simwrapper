@@ -34,10 +34,10 @@
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
-  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints" 
-    :breakpointsProp="this.breakpoints" 
-    :colorsProp="this.colors" 
-    @close="showCustomBreakpoints = false" 
+  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints"
+    :breakpointsProp="this.breakpoints"
+    :colorsProp="this.colors"
+    @close="showCustomBreakpoints = false"
     @updateColor="(colorArray) => this.setLegend(colorArray, this.breakpoints)"
     @updateBreakpoint="(breakpointArray) => this.setLegend(this.colors, breakpointArray)"
     @addOrRemoveBreakpoint="(colorArray, breakpointArray) => this.setLegend(colorArray, breakpointArray)"
@@ -458,8 +458,8 @@ const MyComponent = defineComponent({
         if (key in configuration === false) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `XYTime missing required key: ${key}`,
+            desc: `XYTime requires keys: ${Object.keys(this.YAMLrequirementsXY)}`,
           })
         }
       }

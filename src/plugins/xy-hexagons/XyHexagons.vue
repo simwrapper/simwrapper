@@ -507,8 +507,8 @@ const MyComponent = defineComponent({
         if (!(key in configuration)) {
           this.$store.commit('setStatus', {
             type: Status.ERROR,
-            msg: `${this.yamlConfig}: missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `XYHexagon: ${this.yamlConfig}: missing required key: ${key}`,
+            desc: `XYHexagon requires ${Object.keys(this.YAMLrequirementsXY)}`,
           })
         }
       }
