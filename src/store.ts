@@ -238,6 +238,20 @@ export default new Vuex.Store({
       delete state.localURLShortcuts[shortcut]
       const trimmed = state.svnProjects.filter(root => root.slug !== shortcut)
       state.svnProjects = trimmed
+
+      try {
+        const KEY = 'projectShortcuts'
+        let existingRoot = localStorage.getItem(KEY) || ('{}' as any)
+
+        let roots = JSON.parse(existingRoot)
+        delete roots[shortcut]
+        console.log('NEW ROOTS', roots)
+
+        localStorage.setItem(KEY, JSON.stringify(roots))
+      } catch (e) {
+        // you failed
+        console.error('' + e)
+      }
     },
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value

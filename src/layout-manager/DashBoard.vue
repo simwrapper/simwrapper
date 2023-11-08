@@ -1,6 +1,7 @@
 <template lang="pug">
 .dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow }" :id="viewId")
   .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
+
     .dashboard-header(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
@@ -44,8 +45,10 @@
 
 
         //- card contents
-        .spinner-box(v-if="getCardComponent(card)" :id="card.id" :class="{'is-loaded': card.isLoaded}")
-
+        .spinner-box(v-if="getCardComponent(card)"
+          :id="card.id"
+          :class="{'is-loaded': card.isLoaded}"
+        )
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
@@ -152,7 +155,7 @@ export default defineComponent({
      * Remove the dashboard titles and use the ones from the topsheet.
      */
     setCardTitles(card: any, event: any) {
-      console.log(card, event)
+      // console.log(card, event)
       card.title = event
       card.description = ''
     },
@@ -250,7 +253,7 @@ export default defineComponent({
             bottom: 0,
             left: 0,
             right: 0,
-            margin: '18px 1rem 0.5rem 1rem',
+            margin: '4px', // '18px 1rem 0.5rem 1rem',
           }
         }
       }
@@ -412,7 +415,7 @@ export default defineComponent({
   margin: 1rem 3rem 1rem 0rem;
 
   h2 {
-    line-height: 3rem;
+    line-height: 2rem;
   }
 }
 
@@ -431,7 +434,7 @@ export default defineComponent({
   grid-auto-rows: auto auto 1fr;
   margin: 0 1.25rem 1.25rem 0;
   background-color: var(--bgCardFrame);
-  padding: 3px;
+  padding: 4px;
   border-radius: 3px;
 
   .dash-card-headers {
@@ -488,9 +491,9 @@ export default defineComponent({
   }
 }
 
-.dash-card-frame.wiide {
-  // margin-right: 2rem;
-}
+// .dash-card-frame.wiide {
+//   // margin-right: 2rem;
+// }
 
 .dash-card {
   transition: opacity 0.5s;
@@ -513,6 +516,6 @@ export default defineComponent({
 }
 
 .dash-card-frame.is-panel-narrow {
-  margin: 2rem 1rem 2rem 0;
+  margin: 0rem 1rem 1.25rem 0;
 }
 </style>

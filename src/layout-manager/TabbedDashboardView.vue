@@ -1,13 +1,21 @@
 <template lang="pug">
 .tabbed-folder-view
  .centered-vessel(:class="{wiide}")
-  .tabholder(v-show="!isZoomed" :style="dashWidthCalculator")
+
+  .tabholder(v-if="!isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
+      .project-path(v-else)
+        .nav-title: p {{ finalFolder }}
+        bread-crumbs.breadcrumbs(
+            :root="root"
+            :subfolder="xsubfolder"
+            @navigate="onNavigate"
+            @crumbs="updateCrumbs"
+        )
 
-  //- .dashboard-finder(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'")
-  .dashboard-finder
-    ul.dashboard-navigation
+  .dashboard-finder(:class="{isMultipanel}")
+    ul.dashboard-navigation(v-if="Object.keys(dashboards).length > 1")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.55}"
@@ -50,13 +58,13 @@ import micromatch from 'micromatch'
 import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
-import DashBoard from './DashBoard.vue'
-import FolderBrowser from './FolderBrowser.vue'
-
 import globalStore from '@/store'
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
+import BreadCrumbs from '@/components/BreadCrumbs.vue'
+import DashBoard from './DashBoard.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import FolderBrowser from './FolderBrowser.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
@@ -68,10 +76,11 @@ const mdRenderer = new markdown({
 
 export default defineComponent({
   name: 'TabbedDashboardView',
-  components: { DashBoard, FolderBrowser },
+  components: { BreadCrumbs, DashBoard, FolderBrowser },
   props: {
     root: { type: String, required: true },
     xsubfolder: { type: String, required: true },
+    isMultipanel: { type: Boolean, required: false },
   },
   data: () => {
     return {
@@ -89,6 +98,9 @@ export default defineComponent({
       customCSS: '',
       dashboardTabWithDelay: '',
       showFooter: false,
+      globalState: globalStore.state,
+      finalFolder: '',
+      crumbs: [] as any,
     }
   },
   computed: {
@@ -347,6 +359,47 @@ export default defineComponent({
       this.findConfigsAndDashboards()
     },
 
+    updateCrumbs(props: { crumbs: any[]; finalFolder: string }) {
+      this.finalFolder = props.finalFolder || ''
+      this.crumbs = props.crumbs
+    },
+
+    // generateBreadcrumbs() {
+    //   if (!this.fileSystem) return []
+
+    //   const crumbs = [
+    //     {
+    //       label: 'SimWrapper',
+    //       url: '/',
+    //     },
+    //     {
+    //       label: this.fileSystem.name,
+    //       url: '/' + this.fileSystem.slug,
+    //     },
+    //   ]
+
+    //   const subfolders = this.xsubfolder.split('/')
+    //   let buildFolder = '/'
+    //   let finalFolder = this.fileSystem.name
+
+    //   for (const folder of subfolders) {
+    //     if (!folder) continue
+
+    //     buildFolder += folder + '/'
+    //     crumbs.push({
+    //       label: folder,
+    //       url: '/' + this.fileSystem.slug + buildFolder,
+    //     })
+    //     finalFolder = folder
+    //   }
+
+    //   // save them!
+    //   this.finalFolder = finalFolder
+    //   this.crumbs = crumbs
+    //   // globalStore.commit('setBreadCrumbs', crumbs)
+    //   // return crumbs
+    // },
+
     async switchTab(tab: string, index: number) {
       if (tab === this.activeTab) return
 
@@ -479,14 +532,13 @@ export default defineComponent({
   // max-width: $dashboardWidth + 3;
   // margin: 0 auto;
   z-index: 50;
-  top: 0px;
-  position: sticky;
-  background-color: var(--bgMapPanel);
+  // position: sticky;
+  // background-color: var(--bgMapPanel);
+  margin: 0 1rem;
 }
 
 .tabholdercontainer {
-  background-image: var(--bgDashboard);
-  // margin: 0 3rem;
+  margin: 0 2rem;
 }
 
 .tabholdercontainer.wiide {
@@ -497,7 +549,7 @@ li.is-not-active b a {
   color: var(--textBlack);
 }
 
-.breadcrumbs {
+.oldbreadcrumbs {
   background-image: var(--bgTabBanner);
   padding: 0.25rem 0 1rem 1rem;
   color: var(--linkFancy);
@@ -525,12 +577,17 @@ li.is-not-active b a {
 .dashboard-finder {
   display: flex;
   flex-direction: row;
+  margin: 0 2rem;
+}
+
+.dashboard-finder.isMultipanel {
+  margin: 0 0rem;
 }
 
 .dashboard-navigation {
   display: flex;
   flex-direction: column;
-  padding: 2rem 0rem 2rem 1rem;
+  padding: 2rem 1rem 2rem 1rem;
 }
 
 .dashboard-stuff {
@@ -540,8 +597,8 @@ li.is-not-active b a {
 }
 
 .dashboard-folder-browser {
-  margin: 2rem 2rem 1rem 1rem;
-  padding-top: 1rem;
+  // margin: 2rem 2rem 1rem 1rem;
+  // padding-top: 1rem;
   flex: 1;
 }
 
@@ -671,9 +728,23 @@ li.is-not-active b a {
   text-align: center;
 }
 
+.nav-title {
+  // margin-top: 2px;
+  padding: 0.75rem 1rem;
+  background-color: var(--bgDashboardHeader);
+  color: white;
+  font-size: 1.6rem;
+  font-family: $fancyFont;
+  font-weight: bold;
+}
+
+.breadcrumbs {
+  padding: 0.25rem 0;
+}
+
 @media only screen and (max-width: 50em) {
   .tabholdercontainer {
-    margin: 0 1rem;
+    // margin: 0 1rem;
   }
 }
 </style>

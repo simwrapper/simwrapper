@@ -4,27 +4,27 @@
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
 )
-  .left-panel(v-show="showLeftBar")
-    left-icon-panel(
-      :activeSection="activeLeftSection.name"
-      @activate="setActiveLeftSection({section: $event, toggle:true})"
-    )
+  .restore-left-panel-button(v-if="!$store.state.isShowingLeftBar")
+    p.show-hide(@click="$store.commit('setShowLeftBar', true)")
+      i.fas.fa-arrow-right
 
-    .left-panel-active-section(v-show="isShowingActiveSection"
-                               :style="activeSectionStyle"
+  .left-panel(v-show="showLeftBar")
+
+    .left-panel-active-section(
+      v-show="isShowingActiveSection"
+      :style="activeSectionStyle"
     )
-      component(v-for="section of leftSections" :key="section"
-                :is="section"
-                v-show="section==activeLeftSection.class"
-                @navigate="onNavigate($event,0,0)"
-                @activate="setActiveLeftSection({section: $event, toggle:false})"
-                @isDragging="handleDragStartStop"
+      system-panel(
+        @navigate="onNavigate($event,0,0)"
+        @activate="setActiveLeftSection({section: $event, toggle:false})"
+        @isDragging="handleDragStartStop"
+        @split="splitMainPanel"
       )
 
     .left-panel-divider(v-show="activeLeftSection"
-                        @mousedown="dividerDragStart"
-                        @mouseup="dividerDragEnd"
-                        @mousemove.stop="dividerDragging"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
     )
 
   .table-of-tiles(ref="tileTable")
@@ -44,7 +44,6 @@
     .tile-row(v-for="panelRow,y in panels" :key="y"
         v-show="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
     )
-
       .drag-container(
         v-for="panel,x in panelRow" :key="panel.key"
         @drop="onDrop({event: $event,x,y})"
@@ -57,31 +56,45 @@
       )
         .tile-header.flex-row(v-if="getShowHeader(panel)")
 
-          .tile-labels
-            h3(:style="{textAlign: 'left'}") {{ panel.title }}
+          .tile-buttons(v-if="panel.component !== 'SplashPage'")
+            .nav-button.is-small.is-white(
+              @click="onBack(x,y)"
+            ): i.fa.fa-arrow-left
+
+          .tile-labels(:class="{'is-singlepanel': !isMultipanel}")
+            h3(v-if="panel.title" :style="{textAlign: 'left'}") {{ panel.title }}
             p(v-if="panel.description") {{ panel.description }}
 
-          .tile-buttons
-            .nav-button.is-small.is-white(
-              v-if="panel.info"
-              @click="handleToggleInfoClicked(panel)"
-            ): i.fa.fa-info-circle
-            //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
+            .breadcrumb-row
+              bread-crumbs.bread-crumbs(
+                :root="panel.props.root || ''"
+                :subfolder="panel.props.xsubfolder || ''"
+                @navigate="onNavigate($event,x,y)"
+              )
 
-            .nav-button.is-small.is-white(
-              v-show="panels.length > 1 || panels[0].length > 1"
-              @click="toggleZoom(panel, x, y)"
-              :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
-            ): i.fa.fa-expand
+          .flex-row
+            .tile-buttons
+              .nav-button.is-small.is-white(
+                v-if="panel.info"
+                @click="handleToggleInfoClicked(panel)"
+              ): i.fa.fa-info-circle
+              //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
 
-            .nav-button.is-small.is-white(
-              @click="onClose(x,y)"
-              title="Close"
-            ): i.fa.fa-times-circle
+              .nav-button.is-small.is-white(
+                v-show="panels.length > 1 || panels[0].length > 1"
+                @click="toggleZoom(panel, x, y)"
+                :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
+              ): i.fa.fa-expand
+
+              .nav-button.is-small.is-white(v-if="isMultipanel"
+                @click="onClose(x,y)"
+                title="Close"
+              ): i.fa.fa-times-circle
 
         //- here is the actual viz component:
         component.map-tile(
           :is="panel.component"
+          :isMultipanel="isMultipanel"
           :style="getTileStyle(panel)"
           v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"
@@ -117,18 +130,19 @@ import micromatch from 'micromatch'
 import globalStore from '@/store'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
-import TabbedDashboardView from './TabbedDashboardView.vue'
-import SplashPage from './SplashPage.vue'
+import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
+import SplashPage from './SplashPage.vue'
+import SystemPanel from './SystemPanel.vue'
+import TabbedDashboardView from './TabbedDashboardView.vue'
 
 import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
-import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
 import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import { FileSystemConfig } from '@/Globals'
 
 const BASE_URL = import.meta.env.BASE_URL
-const DEFAULT_LEFT_WIDTH = 300
+const DEFAULT_LEFT_WIDTH = 250
 
 export default defineComponent({
   name: 'LayoutManager',
@@ -136,11 +150,11 @@ export default defineComponent({
   components: Object.assign(
     {
       LeftIconPanel,
-      BrowserPanel,
-      FolderBrowser,
+      BreadCrumbs,
       ErrorPanel,
-      SettingsPanel,
+      FolderBrowser,
       SplashPage,
+      SystemPanel,
       TabbedDashboardView,
     },
     pluginComponents
@@ -149,13 +163,12 @@ export default defineComponent({
     return {
       // panels is an array of arrays: each row, with its vizes in order.
       panels: [] as any[][],
-      leftSections: ['BrowserPanel', 'ErrorPanel', 'SettingsPanel'],
       // scrollbars for dashboards and kebab-case name of any plugins that need them:
       panelsWithScrollbars: ['TabbedDashboardView', 'FolderBrowser', 'calc-table'],
       zoomed: false,
       isEmbedded: false,
       fullScreenPanel: { x: -1, y: -1 },
-      activeLeftSection: { name: 'Files', class: 'BrowserPanel' } as Section,
+      activeLeftSection: { name: 'Files', class: 'SystemPanel' } as Section,
       leftSectionWidth: DEFAULT_LEFT_WIDTH,
       isDraggingDivider: 0,
       dragStartWidth: 0,
@@ -163,10 +176,11 @@ export default defineComponent({
       dragX: -1,
       dragY: -1,
       isDragHappening: false,
-      isShowingActiveSection: false,
+      isShowingActiveSection: true, //TODO fix this
       authHandles: [] as any[],
     }
   },
+
   computed: {
     isMultipanel(): boolean {
       if (this.panels.length > 1) return true
@@ -185,9 +199,11 @@ export default defineComponent({
       } else return { display: 'none' }
     },
   },
+
   watch: {
     '$store.state.statusErrors'() {
       if (this.$store.state.statusErrors.length) {
+        // TODO
         this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
       }
     },
@@ -447,6 +463,20 @@ export default defineComponent({
       this.dragEnd()
     },
 
+    splitMainPanel(props: { root: string }) {
+      let x = 0
+      let y = 0
+
+      const newPanel = {
+        component: 'SplashPage',
+        props: {},
+        key: Math.random(),
+      }
+      this.panels[y].splice(x, 0, newPanel)
+      this.updateURL()
+      globalStore.commit('resize')
+    },
+
     async onSplit(props: {
       x: number
       y: number
@@ -537,18 +567,55 @@ export default defineComponent({
     },
 
     onBack(x: number, y: number) {
-      this.panels[y][x].component = 'TabbedDashboardView'
-      this.panels[y][x].props.xsubfolder = this.panels[y][x].props.subfolder
-      delete this.panels[y][x].props.yamlConfig
+      const panel = this.panels[y][x]
 
+      // can't go above splash screen
+      if (panel.component == 'SplashPage') return
+
+      // is this a viz instead of a folder/dashboard? Go back to folder.
+      if (panel.component !== 'TabbedDashboardView') {
+        panel.component = 'TabbedDashboardView'
+        panel.props.xsubfolder = this.panels[y][x].props.subfolder
+        delete panel.props.yamlConfig
+        this.updateURL()
+        return
+      }
+
+      let folder = '' + panel.props.xsubfolder
+
+      // if we're at the root, switch to SplashPage
+      if (!folder || folder === '/') {
+        panel.component = 'SplashPage'
+        panel.props = {}
+        this.updateURL()
+        return
+      }
+
+      // this is a folder/dashboard: go up one level
+      folder = folder.replaceAll('//', '/')
+      if (folder.endsWith('/')) folder = folder.slice(0, -1)
+      let segments = folder.split('/')
+      let upFolder = segments.slice(0, -1).join('/')
+
+      // new subfolder!
+      panel.props.xsubfolder = upFolder
+      delete panel.props.yamlConfig
       this.updateURL()
     },
 
     getShowHeader(panel: any) {
-      // whether or not to show the panel header is a bit convoluted:
-      if (panel.component === 'SplashPage') return false
-      if (this.showLeftBar) return true
-      if (this.panels.length == 1 && this.panels[0].length == 1) return false
+      // // whether or not to show the panel header is a bit convoluted:
+      // if (panel.component === 'SplashPage') return false
+      // if (this.showLeftBar) return true
+      // if (this.panels.length == 1 && this.panels[0].length == 1) return false
+      // return true
+
+      // some panels don't require header (or provide their own)
+      if (this.panels.length > 1 || this.panels[0].length > 1) return true
+
+      const panelsWithoutHeader = ['SplashPage', 'TabbedDashboardView']
+      if (panelsWithoutHeader.includes(panel.component)) return false
+
       return true
     },
 
@@ -649,8 +716,9 @@ export default defineComponent({
     },
 
     getContainerStyle(panel: any, x: number, y: number) {
+      const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
       let style: any = {
-        padding: this.isMultipanel ? '5px 5px' : '0px 0px',
+        padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
       }
 
       // // figure out height. If card has registered a resizer with changeDimensions(),
@@ -678,10 +746,9 @@ export default defineComponent({
           bottom: 0,
           left: 0,
           right: 0,
-          margin: '5px 5px',
+          margin: '6px 6px',
         }
       }
-
       return style
     },
   },
@@ -694,15 +761,15 @@ export default defineComponent({
     if (this.leftSectionWidth < 0) this.leftSectionWidth = 2
 
     const section = localStorage.getItem('activeLeftSection')
-    if (section) {
-      try {
-        this.activeLeftSection = JSON.parse(section)
-      } catch (e) {
-        this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-      }
-    } else {
-      this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-    }
+    // if (section) {
+    //   try {
+    //     this.activeLeftSection = JSON.parse(section)
+    //   } catch (e) {
+    //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
+    //   }
+    // } else {
+    this.activeLeftSection = { name: 'Files', class: 'SystemPanel' }
+    // }
 
     this.buildLayoutFromURL()
   },
@@ -720,6 +787,7 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
+  background-color: var(--bgBrowser);
 }
 
 .left-panel {
@@ -760,7 +828,7 @@ export default defineComponent({
   display: grid;
   grid-template-rows: auto 1fr;
   grid-template-columns: 1fr;
-  background-color: var(--bgBrowser);
+  // background-color: var(--bgBrowser);
 }
 
 .drag-highlight {
@@ -813,7 +881,7 @@ export default defineComponent({
   top: 0;
   bottom: 0;
   right: 0;
-  width: 4px;
+  width: 5px;
   height: 100%;
   background-color: #00000000;
   margin-right: -4px;
@@ -831,7 +899,7 @@ export default defineComponent({
   background-color: var(--bgBrowser);
   color: white;
   width: 300px;
-  padding: 0 0rem 0 0.25rem;
+  padding: 0 0;
 }
 
 .row-drop-target {
@@ -852,15 +920,19 @@ export default defineComponent({
   margin-left: 5px;
 
   h3 {
-    font-size: 1.1rem;
-    line-height: 1rem;
-    margin: 4px 0 5px 0;
-    color: var(--textFancy);
+    font-size: 1.2rem;
+    line-height: 1.1rem;
+    margin: 5px 1rem 0 2px;
+    color: white; // var(--textFancy);
   }
   p {
     margin-top: -0.5rem;
     margin-bottom: 0.5rem;
   }
+}
+
+.tile-labels.getpanel {
+  padding: 3px 0;
 }
 
 .tile-buttons {
@@ -872,8 +944,9 @@ export default defineComponent({
 }
 
 .nav-button {
-  opacity: 0.3;
-  margin-right: 0px;
+  opacity: 0.4;
+  margin-bottom: auto;
+  padding: 2px;
   i {
     font-size: 0.8rem;
     padding: 0px 6px;
@@ -895,8 +968,9 @@ export default defineComponent({
 .tile-header {
   user-select: none;
   background-color: var(--bgDashboardHeader);
-  padding: 1px 0px;
+  padding: 0px 0px;
   border-bottom: 1px solid #6666cc77;
+  display: flex;
 }
 
 .authorization-strip {
@@ -913,7 +987,43 @@ export default defineComponent({
   filter: $filterShadow;
 }
 
+.is-white {
+  color: white;
+}
+
 .auth-row {
   display: flex;
+}
+
+.breadcrumb-row {
+  display: flex;
+  color: #bbb;
+}
+
+.bread-crumbs {
+  padding: 2px 2rem 2px 0;
+  font-size: 0.9rem;
+}
+
+.restore-left-panel-button {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  background-color: #48485f; // $appTag;
+  z-index: 8000;
+  color: #ccc;
+
+  p {
+    padding: 1rem 4px;
+    font-size: 0.8rem;
+    text-align: center;
+    vertical-align: center;
+  }
+
+  p:hover {
+    background-color: #3c3c49;
+    color: #deef6f;
+    cursor: pointer;
+  }
 }
 </style>

@@ -160,6 +160,8 @@ export enum ColorScheme {
 export interface BreadCrumb {
   label: string
   url?: string
+  root?: string
+  subfolder?: string
 }
 
 export interface Warnings {

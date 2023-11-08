@@ -2,7 +2,6 @@
 .panel
 
   .top-panel
-    h4(:style="headerTextColor") Issues
 
     .warnings
       .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
@@ -10,24 +9,27 @@
         p No issues for this page.
 
       .message-area(v-else)
+
         h3(v-if="state.statusErrors.length") Errors: {{state.statusErrors.length}}
         .single-message(v-for="err,i in state.statusErrors")
           p(v-html="cleanError(err.msg)" @click="toggleShowDescription(i, true)")
           .description(v-if="descriptionIndexListError.includes(i)")
             p(v-html="err.desc")
+
         h3(v-if="state.statusWarnings.length") Warnings: {{state.statusWarnings.length}}
         .single-message(v-for="err,i in state.statusWarnings")
           p(v-html="err.msg" @click="toggleShowDescription(i, false)")
           .description(v-if="descriptionIndexListWarning.includes(i)")
             p(v-html="err.desc")
 
+    .clear-button
+      b-button.is-small(
+        v-if="state.statusErrors.length || state.statusWarnings.length"
+        type="is-warning"
+        inverted
+        @click="clearAllButtons()"
+      ) Clear all messages
 
-  .bottom-panel
-    b-button.clear-button(
-      v-if="state.statusErrors.length || state.statusWarnings.length"
-      expanded
-      @click="clearAllButtons()"
-    ) Clear all messages
 
 </template>
 
@@ -113,8 +115,9 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 0.25rem 0;
+  padding: 0 0;
   color: var(--text);
+  margin-left: 0.5rem;
 }
 
 h4 {
@@ -128,16 +131,11 @@ h4 {
 }
 
 .top-panel {
-  flex: 1;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   margin: 0.25rem 0.5rem 0.5rem 0.5rem;
-}
-
-.bottom-panel {
-  margin-top: auto;
-  padding: 0 0.5rem 0.25rem 0.5rem;
+  background-color: #557;
 }
 
 a {
@@ -175,13 +173,14 @@ a {
 }
 
 .message-area {
-  text-indent: -20px;
-  margin-left: 20px;
+  text-indent: -5px;
+  margin-left: 5px;
+  margin-right: 5px;
 }
 
 .message-area h3 {
-  margin-top: 1rem;
-  font-size: 1.2rem;
+  margin-top: 0.25rem;
+  font-size: 1.1rem;
 }
 
 .single-message {
@@ -192,8 +191,7 @@ a {
 .description {
   width: 100%;
   height: min-content;
-  background-color: rgb(95, 123, 167);
-  margin-top: 0.25rem;
+  background-color: #5f7ba7;
   margin-bottom: 0.25rem;
   padding: 0 0.25rem;
   text-indent: 0;
@@ -221,6 +219,10 @@ p {
   line-height: 1.1rem;
   list-style-type: square;
   word-wrap: break-word;
+}
+
+.clear-button {
+  padding: 4px 4px;
 }
 
 @media only screen and (max-width: 640px) {

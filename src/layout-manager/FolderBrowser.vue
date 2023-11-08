@@ -13,26 +13,31 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
-      b.up-link: a(@click="$emit('up')") ^ UP
+      //- // header bar
+      //- .nav-title: p {{ myState.finalFolder }}
+      //- bread-crumbs.breadcrumbs(
+      //-     :root="root"
+      //-     :subfolder="xsubfolder"
+      //-     :isLoading="myState.isLoading"
+      //-     @navigate="$emit('navigate', $event)"
+      //- )
 
       //- this is the content of readme.md, if it exists
-      .readme-header.markdown
-        .curate-content.markdown(
-          v-if="myState.readme"
-          v-html="myState.readme"
-        )
+      .readme-header.markdown(v-if="myState.readme")
+        .curate-content.markdown(v-html="myState.readme")
 
       //- file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
       .curate-content(v-if="myState.folders.length")
         .folder-table
-          .folder(:class="{fade: myState.isLoading}"
+          .folder(v-for="folder,i in myState.folders"
                   :key="folder.name"
-                  v-for="folder in myState.folders"
-                  @click="openOutputFolder(folder)")
+                  :class="{fade: myState.isLoading, 'up-folder': i == 0}"
+                  @click="openOutputFolder(folder)"
+          )
             p
-              i.fa.fa-folder-open
+              i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               | &nbsp;{{ cleanName(folder) }}
 
       //- MAPS: thumbnails of each viz map here
@@ -132,6 +137,7 @@ interface IMyState {
   subfolder: string
   summary: boolean
   vizes: VizEntry[]
+  finalFolder: string
 }
 
 import { defineComponent } from 'vue'
@@ -148,6 +154,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+import BreadCrumbs from '@/components/BreadCrumbs.vue'
 
 const tabColors = {
   // blank means dashboard:
@@ -169,7 +176,7 @@ const tabColors = {
 export default defineComponent({
   name: 'FolderBrowser',
   i18n,
-  components: Object.assign({ TopsheetsFinder }, pluginComponents),
+  components: Object.assign({ TopsheetsFinder, BreadCrumbs }, pluginComponents),
   props: {
     root: { type: String, required: true },
     allConfigFiles: { type: Object as PropType<YamlConfigs>, required: true },
@@ -195,6 +202,7 @@ export default defineComponent({
         subfolder: '',
         vizes: [],
         summary: false,
+        finalFolder: '',
       } as IMyState,
     }
   },
@@ -237,37 +245,6 @@ export default defineComponent({
       return svnProject[0]
     },
 
-    generateBreadcrumbs() {
-      if (!this.myState.svnProject) return []
-
-      const crumbs = [
-        {
-          label: 'SimWrapper',
-          url: '/',
-        },
-        {
-          label: this.myState.svnProject.name,
-          url: '/' + this.myState.svnProject.slug,
-        },
-      ]
-
-      const subfolders = this.myState.subfolder.split('/')
-      let buildFolder = '/'
-      for (const folder of subfolders) {
-        if (!folder) continue
-
-        buildFolder += folder + '/'
-        crumbs.push({
-          label: folder,
-          url: '/' + this.myState.svnProject.slug + buildFolder,
-        })
-      }
-
-      // save them!
-      globalStore.commit('setBreadCrumbs', crumbs)
-      return crumbs
-    },
-
     clickedVisualization(vizNumber: number) {
       const viz = this.myState.vizes[vizNumber]
 
@@ -292,12 +269,20 @@ export default defineComponent({
     },
 
     async showReadme() {
+      if (!this.myState.svnRoot) return
       this.myState.readme = ''
       const readme = 'readme.md'
-      if (this.myState.files.map(f => f.toLocaleLowerCase()).indexOf(readme) > -1) {
-        if (!this.myState.svnRoot) return
-        const text = await this.myState.svnRoot.getFileText(this.myState.subfolder + '/' + readme)
-        this.myState.readme = this.mdRenderer.render(text)
+      const readmeIndex = this.myState.files.map(f => f.toLocaleLowerCase()).indexOf(readme)
+      if (readmeIndex > -1) {
+        const readmeFilename = this.myState.files[readmeIndex]
+        try {
+          const text = await this.myState.svnRoot.getFileText(
+            this.myState.subfolder + '/' + readmeFilename
+          )
+          this.myState.readme = this.mdRenderer.render(text)
+        } catch (e) {
+          // no readme
+        }
       }
     },
 
@@ -398,7 +383,7 @@ export default defineComponent({
         const allVizes = Object.values(mergedFilesAndVizes)
 
         this.myState.errorStatus = ''
-        this.myState.folders = folders
+        this.myState.folders = [' UP'].concat(folders)
         this.myState.files = allVizes
       } catch (err) {
         // Bad things happened! Tell user
@@ -435,6 +420,11 @@ export default defineComponent({
       if (this.myState.isLoading) return
       if (!this.myState.svnProject) return
 
+      if (folder === ' UP') {
+        this.$emit('up')
+        return
+      }
+
       const target =
         folder === '..'
           ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
@@ -467,8 +457,6 @@ export default defineComponent({
 
       if (!this.myState.svnProject) return
       this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject)
-
-      this.generateBreadcrumbs()
 
       // this happens async
       this.fetchFolderContents()
@@ -522,7 +510,7 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .vessel {
-  margin: 0 auto;
+  margin: 0 0;
   padding: 0rem 0rem 2rem 0rem;
   max-width: $dashboardWidth + 3;
 }
@@ -542,7 +530,6 @@ h2 {
 h3,
 h4 {
   margin-top: 2rem;
-  margin-bottom: 0.5rem;
 }
 
 .badnews {
@@ -562,15 +549,15 @@ h4 {
 .viz-grid-item {
   z-index: 1;
   // text-align: center;
-  margin: 4px 0;
+  margin: 4px 0 0 0;
   padding: 0 0;
   display: flex;
   flex-direction: column;
   cursor: pointer;
   vertical-align: top;
-  background-color: var(--bgBrowser);
+  background-color: var(--bgCream5);
   // border: var(--borderThin);
-  border-radius: 5px;
+  // border-radius: 5px;
 }
 
 .viz-frame {
@@ -581,7 +568,6 @@ h4 {
   flex: 1;
   overflow: hidden;
   padding: 5px 0 0 5px;
-  border-radius: 3px;
   p {
     margin: 0 0 0 0;
     line-height: 1rem;
@@ -596,10 +582,8 @@ h4 {
 }
 
 .viz-frame:hover {
-  // box-shadow: var(--shadowMode);
-  background-color: var(--bgHover);
-  border-radius: 5px;
-  transition: background-color 0.02s ease-in-out;
+  background-color: var(--bgPanel);
+  transition: background-color 0.1s ease-in-out;
 }
 
 .viz-frame-component {
@@ -612,8 +596,7 @@ h4 {
 
 .folder-table {
   display: grid;
-  row-gap: 0rem;
-  column-gap: 1rem;
+  gap: 4px;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   list-style: none;
   margin-bottom: 0px;
@@ -624,17 +607,17 @@ h4 {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgBrowser);
-  margin: 0.25rem 0rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
+  background-color: var(--bgCream5);
+  padding: 0.25rem 0.75rem;
+  // border-radius: 8px;
   word-wrap: break-word;
 }
 
 .folder:hover {
-  background-color: var(--bgHover);
+  background-color: var(--bgPanel);
   // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
   transition: background-color 0.1s ease-in-out;
+  color: var(--yellowHighlight);
 }
 
 .project-bar {
@@ -666,6 +649,14 @@ h4 {
   margin-bottom: 0.5rem;
 }
 
+.file a {
+  color: var(--textFancy);
+}
+
+.file a:hover {
+  color: var(--textLink);
+}
+
 .markdown {
   padding: 1rem 0rem;
 }
@@ -689,9 +680,10 @@ h4 {
 h3.curate-heading {
   font-size: 1.8rem;
   font-weight: bold;
-  color: var(--textFancy);
+  color: var(--textBold);
   padding-top: 0.5rem;
-  margin-top: 0rem;
+  margin-top: 1rem;
+  line-height: 1.5rem;
 }
 
 .curate-content {
@@ -716,8 +708,7 @@ h3.curate-heading {
   cursor: pointer;
   vertical-align: top;
   background-color: var(--bgBold);
-  border: var(--borderThin);
-  border-radius: 16px;
+  border: var(--borderSymbology);
 }
 
 .viz-image-frame {
@@ -725,18 +716,17 @@ h3.curate-heading {
   z-index: 1;
   flex: 1;
   min-height: $thumbnailHeight;
-  border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 
   p {
     margin: auto 0 0 0;
-    background-color: var(--bgDashboard);
+    background-color: var(--bgBold);
     font-size: 1rem;
     font-weight: bold;
     line-height: 1.2rem;
-    padding: 1rem 0.5rem;
+    padding: 0.5rem 0.5rem;
     color: var(--text);
     word-wrap: break-word;
     /* Required for text-overflow to do anything */
@@ -747,7 +737,7 @@ h3.curate-heading {
 }
 
 .viz-image-frame:hover {
-  box-shadow: var(--shadowMode);
+  // box-shadow: var(--shadowMode);
   transition: box-shadow 0.1s ease-in-out;
 }
 
@@ -756,8 +746,8 @@ h3.curate-heading {
 }
 
 .folder-browser {
-  background-color: var(--bgMapPanel);
-  padding: 0 3rem;
+  // background-color: var(--bgMapPanel);
+  padding: 0 1rem;
 }
 
 // p.v-title {
@@ -776,5 +766,35 @@ p.v-plugin {
   background-color: var(--bgCream3);
   padding: 2px 3px;
   border-radius: 0 0 4px 0;
+}
+
+.folder-title-bar {
+  // background-color: rgb(255, 255, 155);
+  padding: 0.5rem;
+  font-size: 2.2rem;
+  margin-top: 0.25rem;
+  margin-left: -0.5rem;
+}
+
+.up-link {
+  margin-top: 0.5rem;
+}
+
+.up-folder {
+  background-color: var(--bgTreeItem);
+}
+
+.nav-title {
+  // margin-top: 2px;
+  padding: 0.75rem 1rem;
+  background-color: var(--bgDashboardHeader);
+  color: white;
+  font-size: 1.6rem;
+  font-family: $fancyFont;
+  font-weight: bold;
+}
+
+.breadcrumbs {
+  padding: 0.25rem 0;
 }
 </style>

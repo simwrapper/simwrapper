@@ -16,7 +16,7 @@
         .is-chrome(v-if="isChrome")
           h3 Local Folders
 
-          p(v-if="!localFileHandles.length") Chrome &amp; Edge can browse folders directly:
+          p(v-if="!localFileHandles.length") This browser can access local folders:
 
           .roots
             .project-root.local(v-for="row in localFileHandles" :key="row.key"
@@ -28,7 +28,7 @@
 
           p.config-sources: a(@click="showChromeDirectory") Add local folder...
 
-        h3(style="margin-top: 1rem") Browse Data Sources
+        h3.section-head Browse Data Sources
 
         .roots
           .project-root(v-for="project in allRoots" :key="project.slug"
@@ -39,8 +39,21 @@
 
         p.config-sources: a(@click="configureSources") Edit data sources...
 
+        h3.section-head Funding partners
 
-        p.funding Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies.
+        p.funding Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies below.
+
+        .links-and-logos
+          .logos
+            a(v-for="logo in allLogos"
+              :href="logo.url"
+              :title="logo.name"
+              target="_blank"
+            )
+              img.img-logo(:src="logo.image")
+
+
+        h3.section-head For more information
 
         .legal
           p SimWrapper is open source and available on&nbsp;
@@ -51,15 +64,6 @@
               a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;TU&nbsp;Berlin
               a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
               a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
-
-    .links-and-logos
-      .logos
-        a(v-for="logo in allLogos"
-          :href="logo.url"
-          :title="logo.name"
-          target="_blank"
-        )
-          img.img-logo(:src="logo.image")
 
 
 </template>
@@ -144,6 +148,7 @@ export default defineComponent({
   methods: {
     onNavigate(event: any) {
       // pass it on up
+      console.log('ZZLDIJFSD', event)
       this.$emit('navigate', event)
     },
 
@@ -165,7 +170,13 @@ export default defineComponent({
       let destination = `${root}`
       if (folder) destination += `/${folder}`
 
-      this.$router.push(destination)
+      this.$emit('navigate', {
+        component: 'TabbedDashboardView',
+        props: {
+          root,
+          xsubfolder: '',
+        },
+      })
     },
 
     async clickedBrowseChromeLocalFolder(row: { key: string; handle: any }) {
@@ -226,7 +237,7 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .splash-page {
-  background-color: var(--bgSplash);
+  // background-color: var(--bgDashboard);
 }
 
 .scrolly {
@@ -242,7 +253,7 @@ export default defineComponent({
 }
 
 .thing-area {
-  background-color: var(--bgSplash);
+  background-color: var(--bgDashboard);
   flex: 1;
 }
 
@@ -269,38 +280,23 @@ a {
   // margin: 0 auto;
 }
 
+.links-and-logos {
+  margin-top: 0.5rem;
+  padding: 1rem 1rem;
+  display: flex;
+  flex-direction: row;
+  color: #227;
+  background-color: white;
+  max-width: 3.5rem + $dashboardWidth;
+}
 .logos {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: repeat(auto-fill, 6.5rem);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   padding: 1rem 0rem;
-  margin: 0 auto;
   a {
     margin-top: auto;
   }
-}
-
-.links-and-logos {
-  padding: 0.5rem 0;
-  width: 9rem;
-  display: flex;
-  flex-direction: column;
-  color: #227;
-  background-color: #fff;
-}
-
-.words {
-  line-height: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  margin: auto 0;
-  padding: 0 5rem;
-  text-align: center;
-  font-size: 1rem;
-}
-
-.words a {
-  color: var(--link);
 }
 
 hr {
@@ -318,14 +314,14 @@ h2.splash-readme {
 
 .funding {
   font-size: 0.9rem;
-  margin: 3rem 0 0.5rem 0;
+  margin: 0.5rem 0 0.5rem 0;
 }
 
 .legal {
   // padding: 0rem 2rem 0rem 2rem;
   display: flex;
   p {
-    margin: 0rem 0 0 0;
+    margin: 0 0;
     font-size: 0.9rem;
   }
   a {
@@ -339,6 +335,7 @@ h2.splash-readme {
 
 .img-logo {
   margin-bottom: auto;
+  width: 9rem;
 }
 
 .project-root {
@@ -370,7 +367,7 @@ h2.splash-readme {
 
 .project-root:hover {
   cursor: pointer;
-  background-color: var(--bgHover);
+  background-color: var(--bgHover2);
   transition: background-color 0.1s ease-in-out;
   border-right: 1px solid #66666640;
   border-top: 1px solid #66666640;
@@ -401,7 +398,6 @@ h2.splash-readme {
 
 .config-sources {
   margin-top: 0.5rem;
-  // text-align: right;
   a {
     color: var(--link);
   }
@@ -417,6 +413,10 @@ h2.splash-readme {
   gap: 0rem 0.5rem;
   grid-template-columns: repeat(auto-fit, 18rem);
   list-style: none;
+}
+
+.section-head {
+  margin-top: 1.5rem;
 }
 
 @media only screen and (max-width: 800px) {
