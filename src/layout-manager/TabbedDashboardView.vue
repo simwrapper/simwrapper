@@ -353,8 +353,6 @@ export default defineComponent({
       this.dashboards = []
       this.pageHeader = this.getPageHeader()
 
-      // this.generateBreadcrumbs()
-
       // this happens async
       this.findConfigsAndDashboards()
     },
@@ -363,42 +361,6 @@ export default defineComponent({
       this.finalFolder = props.finalFolder || ''
       this.crumbs = props.crumbs
     },
-
-    // generateBreadcrumbs() {
-    //   if (!this.fileSystem) return []
-
-    //   const crumbs = [
-    //     {
-    //       label: 'SimWrapper',
-    //       url: '/',
-    //     },
-    //     {
-    //       label: this.fileSystem.name,
-    //       url: '/' + this.fileSystem.slug,
-    //     },
-    //   ]
-
-    //   const subfolders = this.xsubfolder.split('/')
-    //   let buildFolder = '/'
-    //   let finalFolder = this.fileSystem.name
-
-    //   for (const folder of subfolders) {
-    //     if (!folder) continue
-
-    //     buildFolder += folder + '/'
-    //     crumbs.push({
-    //       label: folder,
-    //       url: '/' + this.fileSystem.slug + buildFolder,
-    //     })
-    //     finalFolder = folder
-    //   }
-
-    //   // save them!
-    //   this.finalFolder = finalFolder
-    //   this.crumbs = crumbs
-    //   // globalStore.commit('setBreadCrumbs', crumbs)
-    //   // return crumbs
-    // },
 
     async switchTab(tab: string, index: number) {
       if (tab === this.activeTab) return

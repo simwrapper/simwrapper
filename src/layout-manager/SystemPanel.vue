@@ -378,7 +378,15 @@ export default defineComponent({
     clickedOnFolder(props: { root: string }) {
       // if (this.myState.isLoading) return
 
-      this.$emit('navigate', { component: 'TabbedDashboardView', props })
+      const rootPage = {
+        component: 'TabbedDashboardView',
+        props: {
+          root: props.root,
+          xsubfolder: '/',
+        },
+      }
+
+      this.$emit('navigate', rootPage)
       return
     },
 

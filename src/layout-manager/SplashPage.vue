@@ -236,10 +236,6 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.splash-page {
-  // background-color: var(--bgDashboard);
-}
-
 .scrolly {
   background-color: white;
   position: absolute;
