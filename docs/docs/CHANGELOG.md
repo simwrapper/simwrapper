@@ -14,6 +14,13 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.5.3](https://github.com/simwrapper/simwrapper/compare/v2.5.2...v2.5.3) (2023-11-09)
+
+
+### Bug Fixes
+
+* Plotly diagram y-axis title sometimes missing ([44bbeb2](https://github.com/simwrapper/simwrapper/commit/44bbeb2458b1f545f24c59b94c51d99c13b8abef)), closes [#301](https://github.com/simwrapper/simwrapper/issues/301)
+
 ### [2.5.2](https://github.com/simwrapper/simwrapper/compare/v2.5.1...v2.5.2) (2023-11-02)
 
 
