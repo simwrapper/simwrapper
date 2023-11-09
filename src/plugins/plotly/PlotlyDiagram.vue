@@ -75,7 +75,7 @@ const MyComponent = defineComponent({
         xaxis: {
           automargin: true,
           autorange: true,
-          range: [0, 100], // Just some default values. The correct values are valculated later in the code (in setFixedAxis()). Only used for interactive plotly plots with a slider
+          range: [0, 100], // Just some default values. The correct values are calculated later in the code (in setFixedAxis()). Only used for interactive plotly plots with a slider
           title: { text: '', standoff: 12 },
           animate: true,
         },
@@ -304,9 +304,8 @@ const MyComponent = defineComponent({
         if (!mergedLayout.yaxis2.rangemode) mergedLayout.yaxis2.rangemode = 'tozero'
         if (!mergedLayout.yaxis2.title) mergedLayout.yaxis2.title = this.layout.yaxis2.title
       } else {
-        mergedLayout.yaxis = this.layout.yaxis
+        mergedLayout.yaxis2 = this.layout.yaxis2
       }
-
       this.layout = mergedLayout
     },
 
@@ -393,7 +392,8 @@ const MyComponent = defineComponent({
 
     async getVizDetails() {
       if (this.config) {
-        this.vizDetails = Object.assign({}, this.config)
+        this.vizDetails = JSON.parse(JSON.stringify(this.config))
+
         this.$emit('title', this.vizDetails.title || 'Chart')
         if (this.vizDetails.traces) this.traces = this.vizDetails.traces
         return
