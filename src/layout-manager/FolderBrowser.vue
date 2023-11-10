@@ -13,19 +13,6 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
-      //- // header bar
-      //- .nav-title: p {{ myState.finalFolder }}
-      //- bread-crumbs.breadcrumbs(
-      //-     :root="root"
-      //-     :subfolder="xsubfolder"
-      //-     :isLoading="myState.isLoading"
-      //-     @navigate="$emit('navigate', $event)"
-      //- )
-
-      //- this is the content of readme.md, if it exists
-      .readme-header.markdown(v-if="myState.readme")
-        .curate-content.markdown(v-html="myState.readme")
-
       //- file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
@@ -39,6 +26,10 @@
             p
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               | &nbsp;{{ cleanName(folder) }}
+
+      //- this is the content of readme.md, if it exists
+      .readme-header.markdown(v-if="myState.readme")
+        .curate-content.markdown(v-html="myState.readme")
 
       //- MAPS: thumbnails of each viz map here
       .section-maps(v-if="Object.keys(vizMaps).length")
@@ -509,6 +500,9 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+.folder-browser {
+  padding: 0 1rem;
+}
 .vessel {
   margin: 0 0;
   padding: 0rem 0rem 2rem 0rem;
@@ -620,22 +614,6 @@ h4 {
   color: var(--yellowHighlight);
 }
 
-.project-bar {
-  display: flex;
-  margin-bottom: 1rem;
-  padding: 2rem 0 0 0;
-  z-index: 10000;
-}
-
-.project-bar p {
-  margin-top: -0.25rem;
-}
-
-.fade {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
 .file-table {
   display: grid;
   row-gap: 0rem;
@@ -737,22 +715,12 @@ h3.curate-heading {
 }
 
 .viz-image-frame:hover {
-  // box-shadow: var(--shadowMode);
   transition: box-shadow 0.1s ease-in-out;
 }
 
 .viz-image-frame-component {
   background-color: var(--bgPanel);
 }
-
-.folder-browser {
-  // background-color: var(--bgMapPanel);
-  padding: 0 1rem;
-}
-
-// p.v-title {
-//   // font-size: 1rem;
-// }
 
 p.v-filename {
   margin: 5px 0;
@@ -768,33 +736,7 @@ p.v-plugin {
   border-radius: 0 0 4px 0;
 }
 
-.folder-title-bar {
-  // background-color: rgb(255, 255, 155);
-  padding: 0.5rem;
-  font-size: 2.2rem;
-  margin-top: 0.25rem;
-  margin-left: -0.5rem;
-}
-
-.up-link {
-  margin-top: 0.5rem;
-}
-
 .up-folder {
   background-color: var(--bgTreeItem);
-}
-
-.nav-title {
-  // margin-top: 2px;
-  padding: 0.75rem 1rem;
-  background-color: var(--bgDashboardHeader);
-  color: white;
-  font-size: 1.6rem;
-  font-family: $fancyFont;
-  font-weight: bold;
-}
-
-.breadcrumbs {
-  padding: 0.25rem 0;
 }
 </style>

@@ -36,11 +36,13 @@
 
       add-data-source(v-else @close="showAddDataSource=false")
 
-    //- h3 Pinned
-    //- .items
-    //-   p Folder 1
-    //-   p Folder 2
-    //-   p More...
+    h3 PINNED
+    .items
+      .project-root(v-for="favorite in globalState.favoriteLocations" :key="favorite.fullPath"
+        @click="clickedOnFavorite(favorite)")
+        p.root {{ favorite.label }}
+          i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
+        p.description {{ favorite.hint || `${favorite.root}${favorite.subfolder}` }}
 
     .err-panel-container(v-if="hasErrors")
       h3 Debug Issues
@@ -141,7 +143,7 @@ import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
-import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
+import { BreadCrumb, FavoriteLocation, FileSystemConfig, YamlConfigs } from '@/Globals'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -188,6 +190,7 @@ export default defineComponent({
   mounted() {
     this.updateShortcuts()
     this.getRootAndRoute(this.$route.params.pathMatch)
+    this.updateFavorites()
   },
 
   watch: {
@@ -285,6 +288,33 @@ export default defineComponent({
       )
 
       this.allRoots = roots
+    },
+
+    async updateFavorites() {
+      try {
+        const f = localStorage.getItem('favoriteLocations') || '[]'
+        const favorites = JSON.parse(f)
+        this.$store.commit('setFavorites', favorites)
+      } catch (e) {
+        // oh welll, no favorites
+      }
+    },
+
+    clickedDeleteFavorite(favorite: FavoriteLocation) {
+      this.$store.commit('removeFavorite', favorite)
+    },
+
+    clickedOnFavorite(favorite: FavoriteLocation) {
+      const page = {
+        component: 'TabbedDashboardView',
+        props: {
+          root: favorite.root,
+          xsubfolder: favorite.subfolder,
+        },
+      }
+
+      this.$emit('navigate', page)
+      return
     },
 
     cleanName(text: string) {
@@ -713,6 +743,7 @@ h2 {
 
 .description {
   font-size: 0.75rem;
+  margin-top: -2px;
 }
 
 .open-folder {

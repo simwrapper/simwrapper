@@ -164,6 +164,15 @@ export interface BreadCrumb {
   subfolder?: string
 }
 
+export interface FavoriteLocation {
+  label: string
+  root: string
+  subfolder: string
+  file?: string
+  fullPath?: string
+  hint?: string
+}
+
 export interface Warnings {
   msg: string
   desc?: string

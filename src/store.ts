@@ -10,6 +10,7 @@ import {
   FileSystemConfig,
   Status,
   VisualizationPlugin,
+  FavoriteLocation,
 } from '@/Globals'
 
 import fileSystems from '@/fileSystemConfig'
@@ -53,6 +54,7 @@ export default new Vuex.Store({
     isShowingLeftBar: true,
     isDarkMode: true,
     isInitialViewSet: false,
+    favoriteLocations: [] as FavoriteLocation[],
     fileHandleAccessRequests: [] as any[],
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
@@ -253,6 +255,48 @@ export default new Vuex.Store({
         console.error('' + e)
       }
     },
+
+    setFavorites(state, favorites: FavoriteLocation[]) {
+      state.favoriteLocations = favorites.map(f => {
+        if (!f.fullPath) f.fullPath = `${f.root}/${f.subfolder}/${f.file || ''}`
+        return f
+      })
+    },
+    addFavorite(state, favorite: FavoriteLocation) {
+      if (!favorite.fullPath)
+        favorite.fullPath = `${favorite.root}${favorite.subfolder}/${favorite.file || ''}`
+
+      // overwrite if user already has it
+      const exists = state.favoriteLocations.findIndex(f => favorite.fullPath === f.fullPath)
+      if (exists > -1) {
+        state.favoriteLocations[exists] = favorite
+      } else {
+        state.favoriteLocations.push(favorite)
+      }
+
+      state.favoriteLocations.sort((a, b) => (a.label < b.label ? -1 : 1))
+      state.favoriteLocations = [...state.favoriteLocations]
+
+      try {
+        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+    removeFavorite(state, favorite: FavoriteLocation) {
+      if (!favorite.fullPath)
+        favorite.fullPath = `${favorite.root}/${favorite.subfolder}/${favorite.file || ''}`
+
+      const exists = state.favoriteLocations.findIndex(f => favorite.fullPath === f.fullPath)
+      if (exists > -1) state.favoriteLocations.splice(exists, 1)
+
+      try {
+        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value
     },

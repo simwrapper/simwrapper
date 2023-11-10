@@ -6,7 +6,13 @@
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
-        .nav-title: p {{ finalFolder }}
+        .nav-title
+          p.title-text {{ finalFolder }}
+          p.favorite-icon(
+            @click="clickedFavorite"
+            title="Favorite"
+            :class="{'is-favorite': isFavorite}"
+          ): i.fa.fa-star
         bread-crumbs.breadcrumbs(
             :root="root"
             :subfolder="xsubfolder"
@@ -59,7 +65,7 @@ import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
+import { FavoriteLocation, FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import DashBoard from './DashBoard.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -127,6 +133,14 @@ export default defineComponent({
       }
       return {}
     },
+
+    isFavorite(): any {
+      const key = `${this.root}/${this.xsubfolder}/`
+      const indexOfPathInFavorites = this.globalState.favoriteLocations.findIndex(
+        f => key == f.fullPath
+      )
+      return indexOfPathInFavorites > -1
+    },
   },
   watch: {
     root() {
@@ -152,6 +166,21 @@ export default defineComponent({
 
     onNavigate(options: any) {
       this.$emit('navigate', options)
+    },
+
+    clickedFavorite() {
+      let hint = `${this.root}/${this.xsubfolder}`
+      hint = hint.substring(0, hint.lastIndexOf('/'))
+
+      const favorite: FavoriteLocation = {
+        root: this.root,
+        subfolder: this.xsubfolder,
+        label: this.finalFolder,
+        fullPath: `${this.root}/${this.xsubfolder}/`,
+        hint,
+      }
+
+      this.$store.commit(this.isFavorite ? 'removeFavorite' : 'addFavorite', favorite)
     },
 
     async getFolderReadme() {
@@ -501,6 +530,8 @@ export default defineComponent({
 
 .tabholdercontainer {
   margin: 0 2rem;
+  display: flex;
+  flex-direction: row;
 }
 
 .tabholdercontainer.wiide {
@@ -509,31 +540,6 @@ export default defineComponent({
 
 li.is-not-active b a {
   color: var(--textBlack);
-}
-
-.oldbreadcrumbs {
-  background-image: var(--bgTabBanner);
-  padding: 0.25rem 0 1rem 1rem;
-  color: var(--linkFancy);
-  font-size: 1.5rem;
-  text-align: center;
-
-  h3 {
-    color: white;
-    font-weight: bold;
-  }
-
-  h4 {
-    line-height: 1rem;
-    margin: 0;
-    color: #e4e4e4;
-    font-size: 1.1rem;
-  }
-
-  p {
-    max-width: $dashboardWidth;
-    margin: 0 2rem;
-  }
 }
 
 .dashboard-finder {
@@ -690,8 +696,12 @@ li.is-not-active b a {
   text-align: center;
 }
 
+.project-path {
+  flex: 1;
+}
+
 .nav-title {
-  // margin-top: 2px;
+  display: flex;
   padding: 0.75rem 1rem;
   background-color: var(--bgDashboardHeader);
   color: white;
@@ -700,13 +710,25 @@ li.is-not-active b a {
   font-weight: bold;
 }
 
-.breadcrumbs {
-  padding: 0.25rem 0;
+.title-text {
+  flex: 1;
 }
 
-@media only screen and (max-width: 50em) {
-  .tabholdercontainer {
-    // margin: 0 1rem;
-  }
+.favorite-icon {
+  margin: auto 0 auto 1rem;
+  opacity: 0.5;
+  font-size: 1.25rem;
+}
+
+.is-favorite {
+  opacity: 1;
+}
+.favorite-icon:hover {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.breadcrumbs {
+  padding: 0.25rem 0;
 }
 </style>
