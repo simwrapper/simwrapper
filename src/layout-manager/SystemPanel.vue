@@ -412,7 +412,7 @@ export default defineComponent({
         component: 'TabbedDashboardView',
         props: {
           root: props.root,
-          xsubfolder: '/',
+          xsubfolder: '',
         },
       }
 

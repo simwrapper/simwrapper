@@ -274,6 +274,7 @@ export default defineComponent({
       if (slash > -1) {
         root = pathMatch.substring(0, slash)
         xsubfolder = pathMatch.substring(slash + 1)
+        if (xsubfolder.endsWith('/')) xsubfolder = xsubfolder.slice(0, -1)
       }
 
       // single visualization?
@@ -331,7 +332,7 @@ export default defineComponent({
             key,
             title,
             component: 'TabbedDashboardView',
-            props: { root, xsubfolder } as any,
+            props: { root, xsubfolder: folder } as any,
           },
         ],
       ]

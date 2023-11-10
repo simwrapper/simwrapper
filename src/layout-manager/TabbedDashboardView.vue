@@ -135,7 +135,9 @@ export default defineComponent({
     },
 
     isFavorite(): any {
-      const key = `${this.root}/${this.xsubfolder}/`
+      let key = this.root
+      if (this.xsubfolder) key += `/${this.xsubfolder}`
+
       const indexOfPathInFavorites = this.globalState.favoriteLocations.findIndex(
         f => key == f.fullPath
       )
@@ -170,13 +172,14 @@ export default defineComponent({
 
     clickedFavorite() {
       let hint = `${this.root}/${this.xsubfolder}`
+      // remove current folder from subfolder
       hint = hint.substring(0, hint.lastIndexOf('/'))
 
       const favorite: FavoriteLocation = {
         root: this.root,
         subfolder: this.xsubfolder,
         label: this.finalFolder,
-        fullPath: `${this.root}/${this.xsubfolder}/`,
+        fullPath: `${this.root}/${this.xsubfolder}`,
         hint,
       }
 
@@ -439,7 +442,7 @@ export default defineComponent({
 
     goUpOneFolder() {
       let target = this.xsubfolder
-      if (this.xsubfolder.endsWith('/')) target = this.xsubfolder.slice(0, length - 1)
+      if (this.xsubfolder.endsWith('/')) target = this.xsubfolder.slice(0, -1)
       target = target.substring(0, target.lastIndexOf('/'))
 
       const props = {
@@ -716,7 +719,7 @@ li.is-not-active b a {
 
 .favorite-icon {
   margin: auto 0 auto 1rem;
-  opacity: 0.5;
+  opacity: 0.3;
   font-size: 1.25rem;
 }
 
@@ -724,7 +727,6 @@ li.is-not-active b a {
   opacity: 1;
 }
 .favorite-icon:hover {
-  opacity: 1;
   cursor: pointer;
 }
 

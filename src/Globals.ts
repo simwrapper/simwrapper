@@ -161,12 +161,18 @@ export interface BreadCrumb {
   label: string
   url?: string
   root?: string
+  // IMPORTANT: subfolder never starts or ends with /.
+  // VALID: '', 'data', 'data/berlin'.
+  // INVALID: '/', '/data' etc
   subfolder?: string
 }
 
 export interface FavoriteLocation {
   label: string
   root: string
+  // IMPORTANT: subfolder never starts or ends with /.
+  // INVALID: '/', '/data', '/data/berlin/'
+  // VALID: '', 'data', 'data/berlin'.
   subfolder: string
   file?: string
   fullPath?: string
