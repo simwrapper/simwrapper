@@ -233,6 +233,20 @@ export default defineComponent({
       const columns = this.config.columns || this.config.usedCol || []
       if (!columns.length) return
 
+      // check for valid columns
+      let status = true
+      const check = ['y']
+      for (const col of check) {
+        if (!allRows[this.config[col]]) {
+          this.$store.commit(
+            'error',
+            `${this.cardTitle}: "${this.config.dataset}" ${check} column "${col}" missing`
+          )
+          status = false
+        }
+      }
+      if (!status) return
+
       // Reads all the data of the y-axis.
       let yaxis = allRows[this.config.y].values
 

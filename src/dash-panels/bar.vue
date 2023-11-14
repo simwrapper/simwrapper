@@ -305,6 +305,15 @@ export default defineComponent({
 
       if (this.config.stacked) this.className = this.plotID
 
+      // check for x column
+      if (!allRows[this.config.x]) {
+        this.$store.commit(
+          'error',
+          `${this.cardTitle}: "${this.config.dataset}" x column "${this.config.x}" missing`
+        )
+        return
+      }
+
       const xColumn = allRows[this.config.x]
 
       if (!xColumn) {

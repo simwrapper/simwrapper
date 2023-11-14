@@ -234,6 +234,15 @@ export default defineComponent({
 
       if (!columnNames.length) return
 
+      // check for x column
+      if (!allRows[this.config.x]) {
+        this.$store.commit(
+          'error',
+          `${this.cardTitle}: "${this.config.dataset}" x column "${this.config.x}" missing`
+        )
+        return
+      }
+
       let x = allRows[this.config.x].values || []
       if (this.config.skipFirstRow) x = x.slice(1)
 

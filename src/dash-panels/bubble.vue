@@ -209,6 +209,20 @@ export default defineComponent({
 
       if (Object.keys(allRows).length === 0) return
 
+      // check for valid columns
+      let status = true
+      const check = ['x', 'y', 'bubble']
+      for (const col of check) {
+        if (!allRows[this.config[col]]) {
+          this.$store.commit(
+            'error',
+            `${this.cardTitle}: "${this.config.dataset}" ${check} column "${col}" missing`
+          )
+          status = false
+        }
+      }
+      if (!status) return
+
       // bubble sizes
       let bubble = allRows[this.config.bubble].values.map((v: any) => v * factor)
       if (this.config.skipFirstRow) bubble = bubble.slice(1)

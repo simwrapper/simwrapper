@@ -230,6 +230,15 @@ export default defineComponent({
       if (this.config.legendName) this.config.legendTitles = this.config.legendName
       if (this.config.legendTitles?.length) useOwnNames = true
 
+      // check for x column
+      if (!allRows[this.config.x]) {
+        this.$store.commit(
+          'error',
+          `${this.cardTitle}: "${this.config.dataset}" x column "${this.config.x}" missing`
+        )
+        return
+      }
+
       // convert the data
       const convertedData: any = {}
       x = allRows[this.config.x].values || []
