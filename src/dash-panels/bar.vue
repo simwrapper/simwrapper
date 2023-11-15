@@ -233,8 +233,6 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in bars validation')
-
       for (const key in this.YAMLrequirementsBar) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {

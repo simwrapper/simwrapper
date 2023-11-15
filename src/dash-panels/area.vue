@@ -184,8 +184,6 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in area validation')
-
       for (const key in this.YAMLrequirementsArea) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {

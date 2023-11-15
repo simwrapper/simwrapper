@@ -175,8 +175,6 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in line validation')
-
       for (const key in this.YAMLrequirementsLine) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {

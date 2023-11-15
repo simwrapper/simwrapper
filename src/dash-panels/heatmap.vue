@@ -190,8 +190,6 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in heatmap validation')
-
       for (const key in this.YAMLrequirementsHeatmap) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {

@@ -490,8 +490,6 @@ const MyComponent = defineComponent({
     },
 
     validateYAML() {
-      console.log('in yaml validation 2')
-
       const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
       let configuration = {} as any
 
