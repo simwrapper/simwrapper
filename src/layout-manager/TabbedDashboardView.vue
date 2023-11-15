@@ -26,7 +26,7 @@
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.55}"
       )
-        b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
+        b: a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
     .dashboard-stuff(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'")
       dash-board.dashboard-content(
@@ -394,7 +394,7 @@ export default defineComponent({
       this.crumbs = props.crumbs
     },
 
-    async switchTab(tab: string, index: number) {
+    async switchLeftTab(tab: string, index: number) {
       if (tab === this.activeTab) return
 
       // Force teardown the dashboard to ensure we start with a clean slate
@@ -579,7 +579,6 @@ li.is-not-active b a {
   line-height: 2.2rem;
   padding: 0 1rem 0 0.75rem;
   border-left: 5px solid #00000000;
-  width: max-content;
 }
 
 .tab-list:hover {
@@ -720,7 +719,7 @@ li.is-not-active b a {
 .favorite-icon {
   margin: auto 0 auto 1rem;
   opacity: 0.3;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 
 .is-favorite {

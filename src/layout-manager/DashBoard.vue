@@ -3,10 +3,19 @@
   .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
 
     .dashboard-header(v-if="!fullScreenCardId && (title + description)"
-      :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
-    )
+      :class="{wiide, 'is-panel-narrow': isPanelNarrow}")
       h2 {{ title }}
       p {{ description }}
+
+    //- .tabs.is-centered(v-if="Object.keys(dashboards).length > 1"))
+    .tabs.is-centered(v-if="subtabs.length")
+      ul.tab-row
+        li.tab-entry(v-for="subtab,index of subtabs" :key="index"
+          :class="{'is-active': index===activeTab, 'is-not-active': index!==activeTab}"
+          :style="{opacity: index===activeTab ? 1.0 : 0.55}"
+        )
+          //- b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
+          b: a(@click="switchTab(index)") {{ getTabTitle(index) }}
 
     //- start row here
     .dash-row(v-for="row,i in rows" :key="i" :class="getRowClass(row)")
@@ -124,6 +133,11 @@ export default defineComponent({
       narrowPanelObserver: null as ResizeObserver | null,
       isPanelNarrow: false,
       numberOfShownCards: 1,
+      // subtab state:
+      subtabs: [] as any[],
+      activeTab: 0,
+      dashboardTabWithDelay: -1,
+      showFooter: false,
     }
   },
   computed: {
@@ -269,6 +283,44 @@ export default defineComponent({
       return svnProject[0]
     },
 
+    getTabTitle(index: number) {
+      let title = '...'
+      let tab = this.subtabs[index]
+      if (this.$store.state.locale === 'de') {
+        title = tab.subtab_de || tab.subtab || tab.subtab_en
+      } else {
+        title = tab.subtab_en || tab.subtab || tab.subtab_de
+      }
+      return title
+    },
+
+    async switchTab(index: number) {
+      if (index === this.activeTab) return
+
+      // Force teardown the dashboard to ensure we start with a clean slate
+      this.dashboardTabWithDelay = -1
+      this.showFooter = false
+
+      await this.$nextTick()
+
+      this.activeTab = index
+      this.rows = []
+
+      // to give browser time to teardown
+      setTimeout(() => {
+        this.dashboardTabWithDelay = index
+        const { subtab, ...queryWithoutSubtab } = this.$route.query
+        if (index) {
+          this.$router.replace({
+            query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
+          })
+        } else {
+          this.$router.replace({ query: {} })
+        }
+        this.selectTabLayout()
+      }, 125)
+    },
+
     async setupDashboard() {
       // Do we have config already or do we need to fetch it from the yaml file?
       if (this.config) {
@@ -283,11 +335,55 @@ export default defineComponent({
       // set header
       this.updateThemeAndLabels()
 
-      // build rows
+      if (this.yaml.subtabs) {
+        this.subtabs = this.yaml.subtabs
+        // Help the user to not footgun
+        if (this.yaml.layout) {
+          this.$store.commit(
+            'error',
+            `Dashboard YAML contains both "subtabs" and "layout". Move layout into subtabs section.`
+          )
+          return
+        }
+      }
+
+      // // Start on correct subtab
+      if (this.$route.query.subtab) {
+        try {
+          const userSupplied = parseInt('' + this.$route.query.subtab) - 1
+          this.activeTab = userSupplied || 0
+        } catch (e) {
+          // user spam; just use first tab
+          this.activeTab = 0
+        }
+      } else {
+        this.activeTab = 0
+      }
+
+      this.dashboardTabWithDelay = this.activeTab
+      this.selectTabLayout()
+    },
+
+    selectTabLayout() {
+      // Choose subtab or full layout
+      if (this.yaml.layout) {
+        this.setupRows(this.yaml.layout)
+      } else if (this.yaml.subtabs.length && this.activeTab > -1) {
+        const subtab = this.yaml.subtabs[this.activeTab].layout
+        this.setupRows(subtab)
+      } else {
+        this.$store.commit(
+          'error',
+          `Dashboard YAML: could not find current subtab ${this.activeTab}`
+        )
+      }
+    },
+
+    setupRows(layout: any) {
       let numCard = 1
 
-      for (const rowId of Object.keys(this.yaml.layout)) {
-        let cards: any[] = this.yaml.layout[rowId]
+      for (const rowId of Object.keys(layout)) {
+        let cards: any[] = layout[rowId]
 
         // row must be an array - if it isn't, assume it is an array of length one
         if (!cards.forEach) cards = [cards]
@@ -415,7 +511,7 @@ export default defineComponent({
   margin: 1rem 3rem 1rem 0rem;
 
   h2 {
-    line-height: 2rem;
+    line-height: 2.1rem;
   }
 }
 
@@ -434,8 +530,8 @@ export default defineComponent({
   grid-auto-rows: auto auto 1fr;
   margin: 0 1.25rem 1.25rem 0;
   background-color: var(--bgCardFrame);
-  padding: 4px;
-  border-radius: 3px;
+  padding: 2px 5px;
+  border-radius: 4px;
 
   .dash-card-headers {
     display: flex;
@@ -464,7 +560,7 @@ export default defineComponent({
 
   h3 {
     grid-row: 1 / 2;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1.5rem;
     margin-bottom: 0.5rem;
     color: var(--link);
@@ -517,5 +613,24 @@ export default defineComponent({
 
 .dash-card-frame.is-panel-narrow {
   margin: 0rem 1rem 1.25rem 0;
+}
+
+ul.tab-row {
+  padding: 0 0;
+  margin: 0 0;
+  border-bottom: none;
+}
+
+li.tab-entry b a {
+  color: var(--link);
+  padding-bottom: 2px;
+}
+
+li.is-active b a {
+  border-bottom: 2px solid var(--link);
+}
+
+li.is-not-active b a {
+  color: var(--text);
 }
 </style>
