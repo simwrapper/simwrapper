@@ -14,11 +14,12 @@
       v-show="isShowingActiveSection"
       :style="activeSectionStyle"
     )
-      system-panel(
+      component(:is="activeLeftSection.class"
         @navigate="onNavigate($event,0,0)"
-        @activate="setActiveLeftSection({section: $event, toggle:false})"
+        @activate="setActiveLeftSection"
         @isDragging="handleDragStartStop"
         @split="splitMainPanel"
+        :navRoot="navRoot"
       )
 
     .left-panel-divider(v-show="activeLeftSection"
@@ -99,7 +100,7 @@
           v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"
           @title="setCardTitles(panel, $event)"
-          @activate="setActiveLeftSection({section: $event, toggle:true})"
+          @activate="setActiveLeftSection"
         )
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
@@ -132,13 +133,13 @@ import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
+import ProjectLeftPanel from './ProjectLeftPanel.vue'
 import SplashPage from './SplashPage.vue'
 import SystemPanel from './SystemPanel.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
 
 import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
-import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import { FileSystemConfig } from '@/Globals'
 
 const BASE_URL = import.meta.env.BASE_URL
@@ -153,6 +154,7 @@ export default defineComponent({
       BreadCrumbs,
       ErrorPanel,
       FolderBrowser,
+      ProjectLeftPanel,
       SplashPage,
       SystemPanel,
       TabbedDashboardView,
@@ -178,6 +180,8 @@ export default defineComponent({
       isDragHappening: false,
       isShowingActiveSection: true, //TODO fix this
       authHandles: [] as any[],
+      // navigation aids for project pages:
+      navRoot: '',
     }
   },
 
@@ -202,10 +206,9 @@ export default defineComponent({
 
   watch: {
     '$store.state.statusErrors'() {
-      if (this.$store.state.statusErrors.length) {
-        // TODO
-        this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
-      }
+      // if (this.$store.state.statusErrors.length) {
+      //   this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
+      // }
     },
 
     $route(to: Route, from: Route) {
@@ -220,25 +223,27 @@ export default defineComponent({
     },
   },
   methods: {
-    setActiveLeftSection(props: { toggle: boolean; section: Section }) {
+    setActiveLeftSection(section: Section) {
       // don't open the left bar if it's optional, meaning it's currently closed
-      if (props.section.onlyIfVisible && !this.isShowingActiveSection) return
+      if (section.onlyIfVisible && !this.isShowingActiveSection) return
 
       // clicked same section as is already shown
-      if (this.isShowingActiveSection && props.section.name === this.activeLeftSection.name) {
-        if (props.toggle) this.isShowingActiveSection = false
+      if (this.isShowingActiveSection && section.name === this.activeLeftSection.name) {
         return
       }
 
       // if there's a link, open a tab
-      if (props.section.link) {
-        window.open(props.section.link, '_blank')
+      if (section.link) {
+        window.open(section.link, '_blank')
         return
       }
 
+      // help project pages know where they are rooted
+      if (section.navRoot) this.navRoot = section.navRoot
+
       this.isShowingActiveSection = true
-      this.activeLeftSection = props.section
-      localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
+      this.activeLeftSection = section
+      localStorage.setItem('activeLeftSection', JSON.stringify(section))
       if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
     },
 

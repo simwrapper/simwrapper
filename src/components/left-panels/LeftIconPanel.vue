@@ -48,6 +48,7 @@ export interface Section {
   colorize?: boolean
   link?: string
   onlyIfVisible?: boolean
+  navRoot?: string
 }
 
 export default defineComponent({

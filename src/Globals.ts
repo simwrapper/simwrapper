@@ -18,6 +18,15 @@ export const MAP_STYLES_OFFLINE = {
   transparentDark: { version: 8, layers: [], sources: {} },
 }
 
+export interface NavigationItem {
+  text?: string
+  text_en?: string
+  text_de?: string
+  url?: string
+  image?: string
+  children?: NavigationItem[]
+}
+
 export const BG_COLOR_DASHBOARD = {
   light: '#fff',
   dark: '#181818',

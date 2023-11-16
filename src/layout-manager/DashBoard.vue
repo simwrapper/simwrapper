@@ -1,6 +1,6 @@
 <template lang="pug">
-.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow }" :id="viewId")
-  .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
+.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
+  .dashboard-content(:class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}" :style="dashWidthCalculator")
 
     .dashboard-header(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}")
@@ -18,7 +18,10 @@
           b: a(@click="switchTab(index)") {{ getTabTitle(index) }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i" :class="getRowClass(row)")
+    .dash-row(v-for="row,i in rows" :key="i"
+      :class="getRowClass(row)"
+      :style="{'flex': rowFlexWeights[i] || 1}"
+    )
 
       //- each card here
       .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
@@ -128,6 +131,7 @@ export default defineComponent({
       fullScreenCardId: '',
       resizers: {} as { [id: string]: any },
       infoToggle: {} as { [id: string]: boolean },
+      isFullScreenDashboard: false,
       isResizing: false,
       opacity: {} as any,
       narrowPanelObserver: null as ResizeObserver | null,
@@ -138,8 +142,10 @@ export default defineComponent({
       activeTab: 0,
       dashboardTabWithDelay: -1,
       showFooter: false,
+      rowFlexWeights: [] as number[],
     }
   },
+
   computed: {
     dashWidthCalculator(): any {
       if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
@@ -154,6 +160,7 @@ export default defineComponent({
       return new HTTPFileSystem(this.fileSystemConfig)
     },
   },
+
   watch: {
     async '$store.state.resizeEvents'() {
       await this.$nextTick()
@@ -163,6 +170,7 @@ export default defineComponent({
       this.updateThemeAndLabels()
     },
   },
+
   methods: {
     /**
      * This only gets triggered when a topsheet has some titles.
@@ -249,11 +257,13 @@ export default defineComponent({
       const flex = card.width || 1
 
       let style: any = {
-        // margin: '2rem 1rem 2rem 0',
         flex: flex,
+        // margin: '2rem 1rem 2rem 0',
       }
 
-      if (height) {
+      if (card.background) style.backgroundColor = card.background
+
+      if (height && !this.isFullScreenDashboard) {
         style.minHeight = `${height}px`
       }
 
@@ -267,7 +277,7 @@ export default defineComponent({
             bottom: 0,
             left: 0,
             right: 0,
-            margin: '4px', // '18px 1rem 0.5rem 1rem',
+            margin: '6px 0px', // '18px 1rem 0.5rem 1rem',
           }
         }
       }
@@ -284,8 +294,9 @@ export default defineComponent({
     },
 
     getTabTitle(index: number) {
-      let title = '...'
+      let title = `Tab ${index + 1}`
       let tab = this.subtabs[index]
+
       if (this.$store.state.locale === 'de') {
         title = tab.subtab_de || tab.subtab || tab.subtab_en
       } else {
@@ -305,6 +316,7 @@ export default defineComponent({
 
       this.activeTab = index
       this.rows = []
+      this.rowFlexWeights = []
 
       // to give browser time to teardown
       setTimeout(() => {
@@ -345,6 +357,16 @@ export default defineComponent({
           )
           return
         }
+      }
+
+      // set fullscreen
+      if (
+        this.yaml.header.fullScreen ||
+        this.yaml.header.fullscreen ||
+        this.yaml.header.fillscreen ||
+        this.yaml.header.fillScreen
+      ) {
+        this.isFullScreenDashboard = true
       }
 
       // // Start on correct subtab
@@ -388,10 +410,23 @@ export default defineComponent({
         // row must be an array - if it isn't, assume it is an array of length one
         if (!cards.forEach) cards = [cards]
 
+        let flexWeight = 1
+
         cards.forEach(card => {
           card.id = `card-id-${numCard}`
           card.isLoaded = false
           card.number = numCard
+
+          // hoist flex weight if card has "height" and we are full-screen
+          try {
+            if (this.isFullScreenDashboard && card.height) {
+              flexWeight = Math.max(flexWeight, card.height)
+            }
+          } catch (e) {
+            console.error('' + e)
+            this.$store.commit('error', 'Dashboard YAML: non-numeric height')
+            flexWeight = 1
+          }
 
           // make YAML easier to write: merge "props" property with other properties
           // so user doesn't need to specify "props: {...}"
@@ -409,6 +444,7 @@ export default defineComponent({
         })
 
         this.rows.push({ id: rowId, cards })
+        this.rowFlexWeights.push(flexWeight)
       }
       this.$emit('layoutComplete')
     },
@@ -453,7 +489,10 @@ export default defineComponent({
     },
 
     getRowClass(row: any) {
-      const rowClass = { 'is-panel-narrow': this.isPanelNarrow } as any
+      const rowClass = {
+        'is-panel-narrow': this.isPanelNarrow,
+        'is-fullscreen-dashboard': this.isFullScreenDashboard,
+      } as any
       rowClass[`row-${row.id}`] = true
       return rowClass
     },
@@ -491,7 +530,12 @@ export default defineComponent({
 
 .dashboard {
   margin: 0 0;
-  padding: 1rem 0rem 1rem 1rem;
+  padding: 0 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
 
   .dashboard-content {
     max-width: $dashboardWidth;
@@ -504,7 +548,7 @@ export default defineComponent({
 }
 
 .dashboard.wiide {
-  padding-left: 2rem;
+  padding-left: 1rem;
 }
 
 .dashboard-header {
@@ -523,6 +567,26 @@ export default defineComponent({
   display: flex;
   flex-direction: row;
 }
+
+// FULL-SCREEN-DASHBOARD
+
+.dashboard.is-fullscreen-dashboard {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard .dashboard-content.is-fullscreen-dashboard {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-row.is-fullscreen-dashboard {
+  flex: 1;
+}
+
+// --end--
 
 .dash-card-frame {
   display: grid;
@@ -600,7 +664,7 @@ export default defineComponent({
 // Observe for narrowness instead of a media-query
 // since the panel might be narrow even if the window is wide.
 .dashboard.is-panel-narrow {
-  padding: 1rem 0rem 1rem 1rem;
+  // padding: 1rem 0rem 1rem 1rem;
 }
 
 .dashboard-header.is-panel-narrow {

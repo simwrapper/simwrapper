@@ -159,7 +159,7 @@ const components = Object.assign(
 )
 
 export default defineComponent({
-  name: 'BrowserPanel',
+  name: 'SystemPanel',
   i18n,
   components,
   data: () => {

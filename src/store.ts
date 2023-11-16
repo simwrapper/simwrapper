@@ -8,6 +8,7 @@ import {
   Warnings,
   ColorScheme,
   FileSystemConfig,
+  NavigationItem,
   Status,
   VisualizationPlugin,
   FavoriteLocation,
@@ -52,10 +53,16 @@ export default new Vuex.Store({
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: true,
+    isShowingFilesSection: true,
     isDarkMode: true,
     isInitialViewSet: false,
     favoriteLocations: [] as FavoriteLocation[],
     fileHandleAccessRequests: [] as any[],
+    leftNavItems: null as null | {
+      top: NavigationItem[]
+      middle: NavigationItem[]
+      bottom: NavigationItem[]
+    },
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as Warnings[],
@@ -108,6 +115,15 @@ export default new Vuex.Store({
     },
     setFullScreen(state, value: boolean) {
       state.isFullScreen = value
+    },
+    setLeftNavItems(
+      state,
+      value: { top: NavigationItem[]; middle: NavigationItem[]; bottom: NavigationItem[] }
+    ) {
+      state.leftNavItems = value
+    },
+    setShowFilesSection(state, value: boolean) {
+      state.isShowingFilesSection = value
     },
     setMapStyles(
       state,
