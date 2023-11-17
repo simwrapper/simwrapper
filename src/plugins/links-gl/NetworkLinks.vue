@@ -741,7 +741,9 @@ const MyComponent = defineComponent({
         // then load CSVs in background
         this.loadCSVFiles()
       } catch (e) {
-        this.$store.commit('error', '' + e)
+        this.myState.statusMessage = '' + e
+        const title = this.vizDetails.title || 'Network map'
+        this.$store.commit('error', `${title}: ` + e)
         this.$emit('isLoaded')
       }
     },

@@ -542,11 +542,15 @@ export default class DashboardDataManager {
         path.indexOf('/') > -1 ? path.substring(0, path.lastIndexOf('/')) : this.subfolder
 
       // get file path search pattern
-      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
-      let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
-      const match = findMatchingGlobInFiles(files, pattern)
-
-      if (match.length !== 1) reject('File not found: ' + path)
+      try {
+        const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(folder)
+        let pattern = path.indexOf('/') === -1 ? path : path.substring(path.lastIndexOf('/') + 1)
+        const match = findMatchingGlobInFiles(files, pattern)
+        if (match.length !== 1) reject('File not found: ' + path)
+      } catch (e) {
+        // Could not get directory listing!
+        reject('Error reading folder: ' + folder)
+      }
 
       const thread = new RoadNetworkLoader() as any
       try {
