@@ -28,7 +28,10 @@
       )
         a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
-    .dashboard-stuff(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'")
+    .dashboard-content(
+      v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
+      :class="{'is-breadcrumbs-hidden': hideBreadcrumbs && !isZoomed}"
+    )
       dash-board(
         :root="root"
         :xsubfolder="xsubfolder"
@@ -632,10 +635,14 @@ li.is-not-active b a {
   padding: 2rem 1rem 2rem 0rem;
 }
 
-.dashboard-stuff {
+.dashboard-content {
   flex-direction: column;
   flex: 1;
   position: relative;
+}
+
+.dashboard-content.is-breadcrumbs-hidden {
+  margin-top: 0.5rem;
 }
 
 .dashboard-folder-browser {
