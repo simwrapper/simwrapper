@@ -6,7 +6,21 @@ import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-import { re } from 'mathjs'
+
+interface MapData {
+  time: Number
+  colorData: Uint8Array
+  values: Float64Array
+  centroid: Float64Array
+  numberOffilledColors: Number
+  numberOffilledValues: Number
+  numberOffilledCentroids: Number
+  length: Number
+}
+interface CompleteMapData {
+  mapData: MapData[]
+  scaledFactor: Number
+}
 
 const material = {
   ambient: 0.64,
@@ -28,7 +42,9 @@ export default function Layer({
   viewId = 0,
   colorRamp = 'chlorophyll',
   dark = false,
-  data = {} as any,
+  // data = {} as any,
+  data = {} as CompleteMapData,
+  currentTimeIndex = 0 as number,
   extrude = true,
   highlights = [],
   mapIsIndependent = false,
@@ -70,13 +86,13 @@ export default function Layer({
     alpha: 1,
   }).map((c: number[]) => [c[0], c[1], c[2], 255])
 
-  const maxValue = 100
+  // const maxValue = 100
 
-  function pickColor(value: number) {
-    if (value == 0) return null
-    const index = Math.floor((value / maxValue) * (colors.length - 1))
-    return colors[index]
-  }
+  // function pickColor(value: number) {
+  //   if (value == 0) return null
+  //   const index = Math.floor((value / maxValue) * (colors.length - 1))
+  //   return colors[index]
+  // }
 
   function getTooltip({ object }: any) {
     if (!object || !object.position || !object.position.length) {
@@ -108,34 +124,53 @@ export default function Layer({
     onHover(target, event)
   }
 
-  interface MapData {
-    centroid: [number, number]
-    value: number
-    scaledValue: number
-  }
-
-  let rows = null
-  if (highlights.length) {
-    rows = highlights.map(row => row[1])
-  } else if (!data.length) {
-    rows = null
-  } else {
-    rows = {
-      length: data.length,
-      attributes: {
-        getPosition: { value: data.raw, size: 2 },
-      },
-    }
-  }
+  // console.log(data.mapData[currentTimeIndex])
 
   const layers = [
     new GridCellLayer({
       id: 'gridlayer',
-      data: data,
-      getPosition: (d: MapData) => d.centroid,
-      getFillColor: (d: MapData) => pickColor(d.scaledValue),
-      getElevation: (d: MapData) => d.scaledValue,
-      // getElevation: () => 200 ,
+      // currentTimeIndex: currentTimeIndex,
+
+      data: data.mapData[currentTimeIndex],
+
+      // getPosition:
+
+      getPosition: (object: any, { index, data, target }) => {
+        target[0] = data.centroid[index * 2]
+        target[1] = data.centroid[index * 2 + 1]
+        target[2] = 0
+        return target
+      },
+      getFillColor: (object, { index, data, target }) => {
+        target[0] = data.colorData[index * 4]
+        target[1] = data.colorData[index * 4 + 1]
+        target[2] = data.colorData[index * 4 + 2]
+        target[3] = data.colorData[index * 4 + 3]
+        return target
+      },
+      getElevation: (object, { index, data, target }) => {
+        return data.values[index]
+      },
+
+      // data: data.mapData[currentTimeIndex],
+      // getPosition: data.mapData[currentTimeIndex].centroid,
+      // getFillColor: data.mapData[currentTimeIndex].colorData,
+      // getElevation: data.mapData[currentTimeIndex].values,
+
+      // data: data.mapData[currentTimeIndex],
+      // getPosition: d => d.position,
+      // getColor: d => d.color,
+
+      // data: {
+      //   // this is required so that the layer knows how many points to draw
+      //   length: data.mapData[currentTimeIndex].values.length,
+      //   attributes: {
+      //     getPosition: { value: data.mapData[currentTimeIndex].centroid, size: 2 },
+      //     getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 4 },
+      //     getElevation: { value: data.mapData[currentTimeIndex].values, size: 1 },
+      //   },
+      // },
+
       colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
       coverage: 1,
       autoHighlight: true,

@@ -6,7 +6,7 @@
 
   .slider-area
     button.button.play-button(size="is-small" type="is-link"
-      @click="$emit('toggleAnimation')"
+      @click="updateAnimation"
       ) {{ isAnimating ? '|&nbsp;|' : '>' }}
 
     .time-slider-dragger(ref="slider" @mousemove="dragging")
@@ -29,13 +29,14 @@ enum DRAGTYPE {
 }
 
 export default defineComponent({
-  name: 'TimeSlider',
+  name: 'TimeSliderV2',
   props: {
-    labels: Array as PropType<string[]>,
-    range: Array as PropType<number[]>,
-    activeTimeExtent: Array as PropType<number[]>,
-    isAnimating: Boolean,
-    useTimeBins: Boolean,
+    // labels: Array as PropType<string[]>,
+    range: { type: Array as PropType<number[]>, required: true },
+    // activeTimeExtent: Array as PropType<number[]>,
+    // isAnimating: Boolean,
+    // useTimeBins: Boolean,
+    timeBinSize: Number,
   },
   data: () => {
     return {
@@ -51,9 +52,17 @@ export default defineComponent({
         // the datasetRange is the extent of the time values in the dataset, e.g. 0-86400
         datasetRange: [0, 86400],
         labels: ['', ''],
+        animationElapsedTime: 0,
+        startTime: 0,
+        timeFilter: [0, 3599],
+        // timeRange: [Infinity, -Infinity],
+        animator: null as any,
+        timeLabels: [0, 1] as any[],
       },
       id: 'id-' + Math.floor(1e12 * Math.random()),
       resizer: null as ResizeObserver | null,
+      ANIMATE_SPEED: 10,
+      isAnimating: false,
     }
   },
   computed: {
@@ -90,18 +99,18 @@ export default defineComponent({
     window.addEventListener('mouseup', this.dragEnd)
     window.addEventListener('mousemove', this.dragging)
 
-    console.log(this.labels) // 0, 1
-    console.log(this.range) // 7200, 82800
-    console.log(this.activeTimeExtent) // 0, 3599
-    console.log(this.isAnimating) // true
+    console.log('The TimeSliderV2 has mounted')
   },
 
   beforeDestroy() {
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)
+
+    if (this.state.animator) window.cancelAnimationFrame(this.state.animator)
   },
   watch: {
-    activeTimeExtent() {
+    'state.timeFilter'() {
+      // console.log(this.state.timeFilter)
       this.updateExtent()
     },
     labels() {
@@ -113,9 +122,55 @@ export default defineComponent({
     'state.rightPosition'() {
       this.emitValues()
     },
+    // isAnimating() {
+    //   this.updateAnimation()
+    // },
   },
 
   methods: {
+    // TODO...
+    updateAnimation() {
+      console.log('updateAnimation')
+      this.isAnimating = !this.isAnimating
+      if (this.isAnimating) {
+        this.state.animationElapsedTime = this.state.timeFilter[0] - this.range[0]
+        this.state.startTime = Date.now() - this.state.animationElapsedTime / this.ANIMATE_SPEED
+        this.animate()
+      }
+    },
+
+    animate() {
+      if (!this.isAnimating) return
+      // console.log('animate')
+
+      this.state.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.state.startTime)
+
+      if (this.timeBinSize != undefined) {
+        const modulo = this.state.animationElapsedTime % this.timeBinSize
+        // console.log(modulo)
+
+        if (Math.abs(modulo) != 0) this.state.animationElapsedTime -= modulo
+      }
+
+      // console.log(this.state.animationElapsedTime)
+      const animationClockTime = this.state.animationElapsedTime + this.range[0]
+
+      if (animationClockTime > this.range[1]) {
+        this.state.startTime = Date.now()
+        this.state.animationElapsedTime = 0 // this.timeRange[0]
+      }
+
+      // console.log(this.state, animationClockTime)
+      const span = this.state.timeFilter[1] - this.state.timeFilter[0]
+      // console.log(this.state.timeFilter[1] - this.state.timeFilter[0])
+
+      this.state.timeFilter = [animationClockTime, animationClockTime + span]
+
+      // this.timesliderModuloValue = animationClockTime % 7200
+
+      this.state.animator = window.requestAnimationFrame(this.animate)
+    },
+
     setupResizer() {
       try {
         this.resizer = new ResizeObserver(this.getDimensions)
@@ -145,16 +200,24 @@ export default defineComponent({
     },
 
     updateExtent() {
-      if (!this.activeTimeExtent) return
+      if (!this.state.timeFilter) return
+
+      // console.log('updateExtent()')
+      // console.log(this.state.timeFilter)
+      // console.log(this.state.datasetRange)
+      // console.log(this.fullDatasetTimeSpan)
 
       this.state.leftPosition =
-        (this.activeTimeExtent[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+        (this.state.timeFilter[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
       this.state.rightPosition =
-        (this.activeTimeExtent[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+        (this.state.timeFilter[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+
+      // console.log(this.state.leftPosition)
+      // console.log(this.state.rightPosition)
     },
 
     updateLabels() {
-      if (this.labels) this.state.labels = this.labels
+      if (this.state.timeLabels) this.state.labels = this.state.timeLabels
     },
 
     // TODO: Only when bucket changes
@@ -171,15 +234,31 @@ export default defineComponent({
       // console.log(start, end)
       // console.log(start % this.state.datasetRange[0])
 
-      if (this.useTimeBins && false) {
-        this.$emit('timeExtent', [start, end])
-      } else {
-        this.$emit('timeExtent', [start, end])
-      }
+      this.state.animationElapsedTime = start
+      this.state.timeFilter = [start, end]
+
+      this.state.timeLabels = [
+        this.convertSecondsToClockTimeMinutes(start),
+        this.convertSecondsToClockTimeMinutes(end),
+      ]
+
+      // console.log(start, end)
+
+      this.$emit('timeExtent', [start, end])
 
       // this.$emit('timeExtent', [start, end])
 
       // this.$emit('timeExtent', [0, 7200])
+    },
+
+    convertSecondsToClockTimeMinutes(index: number) {
+      const h = Math.floor(index / 3600)
+      const m = Math.floor((index - h * 3600) / 60)
+      const s = index - h * 3600 - m * 60
+
+      const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
+
+      return `${hms.h}:${hms.m}`
     },
 
     getDimensions() {
