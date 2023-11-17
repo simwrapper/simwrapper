@@ -1,7 +1,7 @@
 <template lang="pug">
 #layout-manager
 
- site-nav-bar(@navigate="onNavigate($event,0,0)")
+ site-nav-bar(v-if="$store.state.topNavItems" @navigate="onNavigate($event,0,0)")
 
  #split-screen(
   @mousemove="dividerDragging"

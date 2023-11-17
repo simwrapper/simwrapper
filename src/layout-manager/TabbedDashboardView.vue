@@ -642,7 +642,7 @@ li.is-not-active b a {
 }
 
 .dashboard-content.is-breadcrumbs-hidden {
-  margin-top: 0.5rem;
+  margin-top: 1rem;
 }
 
 .dashboard-folder-browser {
