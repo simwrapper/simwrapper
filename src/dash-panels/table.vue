@@ -1,5 +1,5 @@
 <template lang="pug">
-vue-good-table(
+vue-good-table.plugin-panel(
       :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style == 'topsheet' ? 'topsheet-style' : '']"
       :columns="columns"
       :rows="rows"
@@ -115,8 +115,6 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in line validation')
-
       for (const key in this.YAMLrequirementsLine) {
         if (key in this.config === false) {
           this.$store.commit('setStatus', {
@@ -468,6 +466,14 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+.plugin-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow: auto;
+}
 
 @media only screen and (max-width: 640px) {
 }
