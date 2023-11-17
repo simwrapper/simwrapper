@@ -1,7 +1,7 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!hideBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
+  .tabholder(v-show="!globalState.isHidingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
@@ -106,7 +106,6 @@ export default defineComponent({
       footer: '',
       customCSS: '',
       dashboardTabWithDelay: '',
-      hideBreadcrumbs: false,
       showFooter: false,
       globalState: globalStore.state,
       finalFolder: '',
@@ -319,8 +318,9 @@ export default defineComponent({
             this.$store.commit('setShowFilesSection', false)
           }
 
-          // Top-Nav-Bar
-          if (yaml.hideBreadcrumbs) this.hideBreadcrumbs = true
+          // Breadcrumb-Bar. Delicious!
+          if (yaml.hideBreadcrumbs) this.$store.commit('setHideBreadcrumbs', true)
+
           if (yaml.topNavBar) {
             this.topNavItems = {
               left: [],

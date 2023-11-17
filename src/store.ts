@@ -52,6 +52,7 @@ export default new Vuex.Store({
     dashboardWidth: '',
     isFullScreen: false,
     isFullWidth: true,
+    isHidingBreadcrumbs: false,
     isShowingLeftBar: true,
     isShowingFilesSection: true,
     isDarkMode: true,
@@ -113,6 +114,9 @@ export default new Vuex.Store({
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {
       state.breadcrumbs = value
+    },
+    setHideBreadcrumbs(state, value: boolean) {
+      state.isHidingBreadcrumbs = value
     },
     setCredentials(state, value: { url: string; username: string; pw: string }) {
       const creds = btoa(`${value.username}:${value.pw}`)
