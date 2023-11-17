@@ -62,9 +62,7 @@
     
       time-slider.time-slider-area(v-if="isLoaded"
         :range="timeRange"
-        :activeTimeExtent="timeFilter"
-        :labels="timeLabels"
-        :isAnimating="true"
+        :timeBinSize="7200"
         @timeExtent="handleTimeSliderValues"
         @toggleAnimation="toggleAnimation"
         @drag="isAnimating=false"
@@ -119,7 +117,9 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import XyHexDeckMap from './GridMap'
-import TimeSlider from '@/components/TimeSlider.vue'
+import TimeSlider from '@/components/TimeSliderV2.vue'
+
+import colormap from 'colormap'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 
@@ -201,6 +201,20 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
       data: null as any,
+
+      selectedTimeData: [] as any[],
+      /////// Data reorgaisation stuff
+      allTimePeriodes: [] as any[],
+      colors: colormap({
+        colormap: 'chlorophyll',
+        nshades: 10,
+        format: 'rba',
+        alpha: 1,
+      }).map((c: number[]) => [c[0], c[1], c[2], 255]),
+      currentTime: [0, 0] as Number[],
+      // Map to map the time to the index of the time array
+      timeToIndex: new Map<Number, number>(),
+      ///////
       rowCache: {} as {
         [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
       },
@@ -223,12 +237,13 @@ const MyComponent = defineComponent({
       clickedValue: null as any,
       startTime: 0,
       isAnimating: false,
-      animationElapsedTime: 0,
-      timeFilter: [0, 3599],
+      // animationElapsedTime: 0,
+      // timeFilter: [0, 3599],
       timeRange: [Infinity, -Infinity],
-      timeLabels: [0, 1] as any[],
-      ANIMATE_SPEED: 4,
-      animator: null as any,
+      // timeLabels: [0, 1] as any[],
+      // ANIMATE_SPEED: 4,
+      // animator: null as any,
+      timesliderModuloValue: Number.POSITIVE_INFINITY,
     }
   },
   computed: {
@@ -266,7 +281,12 @@ const MyComponent = defineComponent({
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
         // data: this.requests,
+        // data: this.selectedTimeData,
+        // data: this.data,
+        // data: {},
         data: this.data,
+        // currentTimeIndex: this.currentTime[0],
+        currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
         extrude: this.extrudeTowers,
         highlights: this.highlightedTrips,
         mapIsIndependent: this.vizDetails.mapIsIndependent,
@@ -296,7 +316,7 @@ const MyComponent = defineComponent({
   },
   watch: {
     vizDetails() {
-      console.log(this.vizDetails.maxHeight)
+      // console.log(this.vizDetails.maxHeight)
     },
     extrudeTowers() {
       if (this.extrudeTowers && this.globalState.viewState.pitch == 0) {
@@ -312,6 +332,12 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
+    pickColor(value: number) {
+      // console.log(value)
+      if (value == 0) return [0, 0, 0, 0]
+      const index = Math.floor((value / 100) * (this.colors.length - 1))
+      return this.colors[index]
+    },
     handleClick(target: any, event: any) {
       if (!target.layer) return
       this.clickedValue = target.object.value
@@ -556,6 +582,7 @@ const MyComponent = defineComponent({
     },
 
     async loadFile() {
+      console.log('loadFile()')
       const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.file)
       const csv = Papa.parse(rawText, {
         comments: '#',
@@ -568,66 +595,132 @@ const MyComponent = defineComponent({
       const projection = csv.comments[0].split('#')[1].trim()
       if (projection) this.vizDetails.projection = projection
 
-      const returnArray = []
+      // Time blocks
+      let allTimes = [] as Number[]
 
+      // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
 
+      // This for loop collects all the data that's used by
       for (let i = 0; i < csv.data.length; i++) {
         if (i == 0) this.timeRange[0] = csv.data[i].time
         if (i == csv.data.length - 1) this.timeRange[1] = csv.data[i].time
 
+        // calculate the min and max value
         if (csv.data[i].value < minValue) minValue = csv.data[i].value
         if (csv.data[i].value > maxValue) maxValue = csv.data[i].value
 
-        returnArray.push({
-          centroid: [csv.data[i].x, csv.data[i].y],
-          value: csv.data[i].value,
-          scaledValue: 0,
-        })
+        // Store all different times
+        if (!allTimes.includes(csv.data[i].time)) allTimes.push(csv.data[i].time)
       }
-      // console.log('Before')
-      // console.log({ minValue, maxValue })
 
+      // Count elements per time
+      const numberOfElementsPerTime = Math.ceil(csv.data.length / allTimes.length)
+
+      // scaleFactor
       const scaleFactor = 100 / maxValue
 
-      // Time to scale! :D
-      for (let i = 0; i < returnArray.length; i++) {
-        returnArray[i].scaledValue = scaleFactor * returnArray[i].value
-        // console.log(returnArray[i].value)
+      // interface for each time object inside the mapData Array
+      interface MapData {
+        time: Number
+        colorData: Uint8Array
+        values: Float64Array
+        centroid: Float64Array
+        numberOfFilledColors?: Number
+        numberOfFilledValues?: Number
+        numberOfFilledCentroids?: Number
+        length: Number
       }
 
-      // minValue = Number.POSITIVE_INFINITY
-      // maxValue = Number.NEGATIVE_INFINITY
+      const finalData = {
+        mapData: [] as MapData[],
+        scaledFactor: scaleFactor as Number,
+      }
 
-      // for (let i = 0; i < returnArray.length; i++) {
-      //   if (returnArray[i].scaledValue < minValue) minValue = returnArray[i].scaledValue
-      //   if (returnArray[i].scaledValue > maxValue) maxValue = returnArray[i].scaledValue
-      //   // console.log(returnArray[i].value)
-      // }
+      // map all times to their index and create a mapData object for each time
+      allTimes.forEach((time, index) => {
+        this.timeToIndex.set(time, index)
 
-      // console.log('After')
-      // console.log({ minValue, maxValue, scaleFactor })
+        finalData.mapData.push({
+          time: time,
+          values: new Float64Array(numberOfElementsPerTime),
+          centroid: new Float64Array(numberOfElementsPerTime * 2),
+          colorData: new Uint8Array(numberOfElementsPerTime * 4),
+          numberOfFilledValues: 0,
+          numberOfFilledCentroids: 0,
+          numberOfFilledColors: 0,
+          length: numberOfElementsPerTime,
+        })
+      })
 
-      // this.dataIsLoaded({ a: null, b: null })
+      // Loop through the data and create the data object for the map
+      for (let i = 0; i < csv.data.length; i++) {
+        // index for the time
+        const index = this.timeToIndex.get(csv.data[i].time) as number
+
+        const value = scaleFactor * csv.data[i].value
+        const colors = this.pickColor(value)
+
+        // Save index for next position in the array
+        const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
+        const lastColorIndex = finalData.mapData[index].numberOfFilledColors as number
+        const lastCentroidIndex = finalData.mapData[index].numberOfFilledCentroids as number
+
+        // Save the value
+        finalData.mapData[index].values[lastValueIndex] = value
+
+        // Loop through the colors and add them to the mapData
+        for (let j = 0; j < 4; j++) {
+          finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
+        }
+
+        // Convert coordinates
+        let wgs84 = [csv.data[i].x, csv.data[i].y]
+        if (this.vizDetails.projection !== 'EPSG:4326') {
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, [csv.data[i].x, csv.data[i].y])
+        }
+
+        // Add centroids to the mapData
+        finalData.mapData[index].centroid[lastCentroidIndex] = wgs84[0]
+        finalData.mapData[index].centroid[lastCentroidIndex + 1] = wgs84[1]
+
+        // Update the number of values for time array in the mapData
+        finalData.mapData[index].numberOfFilledValues = lastValueIndex + 1
+        finalData.mapData[index].numberOfFilledCentroids = lastCentroidIndex + 2
+        finalData.mapData[index].numberOfFilledColors = lastColorIndex + 4
+      }
+
+      // Clean data (delete numberOfFilledXXXX)
+      Array.from(allTimes.keys()).forEach((index: number) => {
+        delete finalData.mapData[index].numberOfFilledValues
+        delete finalData.mapData[index].numberOfFilledCentroids
+        delete finalData.mapData[index].numberOfFilledColors
+      })
+
+      // for (time in timeToIndex)
       this.myState.statusMessage = ''
-      return returnArray
+      console.log('DATA: ', finalData)
+      return finalData
     },
 
     // TODO: setMapCenter() and moveLogo()
 
     resolveProjection() {
       if (this.vizDetails.projection === 'EPSG:4326') return
-      console.log('Projection: ', this.vizDetails.projection)
-      console.log('Data: ', this.data)
+      // console.log('Projection: ', this.vizDetails.projection)
+      // console.log('Data: ', this.data)
+      // console.log(this.data)
       for (let i = 0; i < this.data.length; i++) {
         const wgs84 = Coords.toLngLat(this.vizDetails.projection, this.data[i].centroid)
         this.data[i].centroid = wgs84
       }
+
+      // console.log(this.data)
     },
 
     dataIsLoaded({ rowCache, columnLookup }: any) {
-      console.log(rowCache, columnLookup)
+      // console.log(rowCache, columnLookup)
       //   this.columnLookup = columnLookup
       //   this.rowCache = rowCache
 
@@ -641,52 +734,68 @@ const MyComponent = defineComponent({
 
     // TODO...
     toggleAnimation() {
-      this.isAnimating = !this.isAnimating
-      if (this.isAnimating) {
-        this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
-        this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
-        this.animate()
-      }
+      // this.isAnimating = !this.isAnimating
+      // if (this.isAnimating) {
+      //   this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
+      //   this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
+      //   this.animate()
+      // }
     },
 
-    animate() {
-      if (!this.isAnimating) return
-
-      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
-      const animationClockTime = this.animationElapsedTime + this.timeRange[0]
-
-      if (animationClockTime > this.timeRange[1]) {
-        this.startTime = Date.now()
-        this.animationElapsedTime = 0 // this.timeRange[0]
-      }
-
-      const span = this.timeFilter[1] - this.timeFilter[0]
-      this.timeFilter = [animationClockTime, animationClockTime + span]
-
-      this.animator = window.requestAnimationFrame(this.animate)
-    },
+    // animate() {
+    //   if (!this.isAnimating) return
+    //   this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
+    //   // console.log(this.animationElapsedTime)
+    //   const animationClockTime = this.animationElapsedTime + this.timeRange[0]
+    //   if (animationClockTime > this.timeRange[1]) {
+    //     this.startTime = Date.now()
+    //     this.animationElapsedTime = 0 // this.timeRange[0]
+    //   }
+    //   const span = this.timeFilter[1] - this.timeFilter[0]
+    //   this.timeFilter = [animationClockTime, animationClockTime + span]
+    //   // this.timesliderModuloValue = animationClockTime % 7200
+    //   this.animator = window.requestAnimationFrame(this.animate)
+    // },
 
     handleTimeSliderValues(timeValues: any[]) {
-      this.animationElapsedTime = timeValues[0]
-      this.timeFilter = timeValues
-      this.timeLabels = [
-        this.convertSecondsToClockTimeMinutes(timeValues[0]),
-        this.convertSecondsToClockTimeMinutes(timeValues[1]),
-      ]
+      // console.log(timeValues)
+      this.currentTime = timeValues
+      // console.log(this.data)
+      // console.log('Updated time')
+
+      this.selectedTimeData = []
+
+      for (let i = 0; i < this.data.length; i++) {
+        if (this.data[i].time == timeValues[0]) {
+          this.selectedTimeData.push(this.data[i])
+        }
+      }
+
+      // console.log('Updated time DONE')
+      // console.log('Time: ', timeValues[0])
+      // console.log('Number of values: ', this.selectedTimeData.length)
+
+      // console.log(timeValues)
+      // this.animationElapsedTime = timeValues[0]
+      // this.timeFilter = timeValues
+      // this.timeLabels = [
+      //   this.convertSecondsToClockTimeMinutes(timeValues[0]),
+      //   this.convertSecondsToClockTimeMinutes(timeValues[1]),
+      // ]
     },
 
-    convertSecondsToClockTimeMinutes(index: number) {
-      const h = Math.floor(index / 3600)
-      const m = Math.floor((index - h * 3600) / 60)
-      const s = index - h * 3600 - m * 60
+    // convertSecondsToClockTimeMinutes(index: number) {
+    //   const h = Math.floor(index / 3600)
+    //   const m = Math.floor((index - h * 3600) / 60)
+    //   const s = index - h * 3600 - m * 60
 
-      const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
+    //   const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
 
-      return `${hms.h}:${hms.m}`
-    },
+    //   return `${hms.h}:${hms.m}`
+    // },
   },
   async processData() {
-    console.log(this.data)
+    // console.log(this.data)
   },
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
@@ -708,7 +817,7 @@ const MyComponent = defineComponent({
     // await this.loadFiles()
     this.data = await this.loadFile()
 
-    this.resolveProjection()
+    // this.resolveProjection()
     // this.processData()
     // this.mapState.center = this.findCenter(this.rawRequests)
 
@@ -718,6 +827,7 @@ const MyComponent = defineComponent({
     // this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
 
     console.log(this.data)
+    console.log(this.isLoaded)
   },
 
   beforeDestroy() {
@@ -733,7 +843,7 @@ const MyComponent = defineComponent({
       console.warn(e)
     }
 
-    if (this.animator) window.cancelAnimationFrame(this.animator)
+    // if (this.animator) window.cancelAnimationFrame(this.animator)
 
     this.$store.commit('setFullScreen', false)
   },
