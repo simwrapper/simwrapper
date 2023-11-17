@@ -1,10 +1,13 @@
 <template lang="pug">
 #site-nav-bar
   .span(v-for="item in navbar.left" :style="getStyle(item)")
-    img(v-if="item.image" :src="getUrl(item.image)" :style="getStyle(item)")
+    .logo(v-if="item.image")
+      a(v-if="item.url" @click="navigate(item.url)")
+        img(:src="getUrl(item.image)" :style="getStyle(item)")
+      img(v-else :src="getUrl(item.image)" :style="getStyle(item)")
+
     .xmenu(v-else-if="hasLabel(item)" :style="getStyle(item)")
-      p(v-if="item.url && item.url.startsWith('http')"): a(:href="item.url") {{ getLabel(item) }}
-      p(v-else-if="item.url"): a(@click="navigate(item.url)") {{ getLabel(item) }}
+      p(v-if="item.url"): a(@click="navigate(item.url)") {{ getLabel(item) }}
       p(v-else) {{ getLabel(item) }}
 
   .push-right &nbsp;
