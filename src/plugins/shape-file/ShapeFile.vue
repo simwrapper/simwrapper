@@ -1876,9 +1876,11 @@ const MyComponent = defineComponent({
           REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
         }
       } catch (e) {
-        console.error(e)
-        this.$store.commit('error', '' + e)
-        throw Error(`Could not load "${filename}"`)
+        const err = e as any
+        const message = err.statusText || 'Could not load'
+        this.$emit('isLoaded')
+        this.statusText = `${message}: "${filename}"`
+        throw Error(this.statusText)
       }
 
       if (!this.boundaries) throw Error(`No "features" found in shapes file`)
