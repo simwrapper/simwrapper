@@ -14,6 +14,15 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.5.4](https://github.com/simwrapper/simwrapper/compare/v2.5.3...v2.5.4) (2023-11-17)
+
+
+### Bug Fixes
+
+* Better error messages when basic chart configs are missing columns ([9e97d1e](https://github.com/simwrapper/simwrapper/commit/9e97d1e7f78fda189e6bdc523900dcdd624d3878))
+* **csv:** CSV tables were expanding outside their bounds ([e61b751](https://github.com/simwrapper/simwrapper/commit/e61b75198257c49f5ea810d9cef75c7e798403ee))
+* **map:** shapefile infinite wait on missing geojson file ([b5b3ffa](https://github.com/simwrapper/simwrapper/commit/b5b3ffa0ede26df107234a4f589409964a5a1b50))
+
 ### [2.5.3](https://github.com/simwrapper/simwrapper/compare/v2.5.2...v2.5.3) (2023-11-09)
 
 
