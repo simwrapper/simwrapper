@@ -1,7 +1,10 @@
 <template lang="pug">
 #layout-manager
 
- site-nav-bar(v-if="$store.state.topNavItems" @navigate="onNavigate($event,0,0)")
+ top-nav-bar(v-if="$store.state.topNavItems"
+  @navigate="onNavigate($event,0,0)"
+  :currentFolder="firstPanelSubfolder"
+ )
 
  #split-screen(
   @mousemove="dividerDragging"
@@ -24,6 +27,7 @@
         @activate="setActiveLeftSection"
         @isDragging="handleDragStartStop"
         @split="splitMainPanel"
+        :currentFolder="firstPanelSubfolder"
         :navRoot="navRoot"
       )
 
@@ -138,10 +142,10 @@ import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
-import ProjectLeftPanel from './ProjectLeftPanel.vue'
-import SiteNavBar from './SiteNavBar.vue'
+import LeftProjectPanel from './LeftProjectPanel.vue'
+import TopNavBar from './TopNavBar.vue'
 import SplashPage from './SplashPage.vue'
-import SystemPanel from './SystemPanel.vue'
+import LeftSystemPanel from './LeftSystemPanel.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
 
 import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
@@ -156,39 +160,41 @@ export default defineComponent({
   i18n,
   components: Object.assign(
     {
-      LeftIconPanel,
       BreadCrumbs,
       ErrorPanel,
       FolderBrowser,
-      ProjectLeftPanel,
-      SiteNavBar,
+      LeftIconPanel,
+      LeftProjectPanel,
+      LeftSystemPanel,
+      TopNavBar,
       SplashPage,
-      SystemPanel,
       TabbedDashboardView,
     },
     pluginComponents
   ),
   data: () => {
     return {
+      activeLeftSection: { name: 'Files', class: 'LeftSystemPanel' } as Section,
+      authHandles: [] as any[],
+      dragX: -1,
+      dragY: -1,
+      dragQuadrant: null as any,
+      dragStartWidth: 0,
+      // keep track of URL for highlighting purposes
+      firstPanelSubfolder: '',
+      fullScreenPanel: { x: -1, y: -1 },
+      isDraggingDivider: 0,
+      isDragHappening: false,
+      isEmbedded: false,
+      isShowingActiveSection: true, //TODO fix this
+      leftSectionWidth: DEFAULT_LEFT_WIDTH,
+      // navigation aids for project pages:
+      navRoot: '',
       // panels is an array of arrays: each row, with its vizes in order.
       panels: [] as any[][],
       // scrollbars for dashboards and kebab-case name of any plugins that need them:
       panelsWithScrollbars: ['TabbedDashboardView', 'FolderBrowser', 'calc-table'],
       zoomed: false,
-      isEmbedded: false,
-      fullScreenPanel: { x: -1, y: -1 },
-      activeLeftSection: { name: 'Files', class: 'SystemPanel' } as Section,
-      leftSectionWidth: DEFAULT_LEFT_WIDTH,
-      isDraggingDivider: 0,
-      dragStartWidth: 0,
-      quadrant: null as any,
-      dragX: -1,
-      dragY: -1,
-      isDragHappening: false,
-      isShowingActiveSection: true, //TODO fix this
-      authHandles: [] as any[],
-      // navigation aids for project pages:
-      navRoot: '',
     }
   },
 
@@ -357,7 +363,7 @@ export default defineComponent({
     buildDragHighlightStyle(x: number, y: number) {
       // top row
       if (x == -1) {
-        const opacity = this.quadrant == 'rowTop' ? '1' : '0'
+        const opacity = this.dragQuadrant == 'rowTop' ? '1' : '0'
         const pointerEvents = this.isDragHappening ? 'auto' : 'none'
 
         return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
@@ -365,17 +371,17 @@ export default defineComponent({
 
       // bottom row
       if (x == -2) {
-        const opacity = this.quadrant == 'rowBottom' ? '1' : '0'
+        const opacity = this.dragQuadrant == 'rowBottom' ? '1' : '0'
         const pointerEvents = this.isDragHappening ? 'auto' : 'none'
         return { bottom: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
       }
 
       // tiles
-      if (x !== this.dragX || y !== this.dragY || !this.quadrant) return {}
+      if (x !== this.dragX || y !== this.dragY || !this.dragQuadrant) return {}
 
-      const backgroundColor = this.quadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
+      const backgroundColor = this.dragQuadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
       const area: any = { opacity: 1.0, backgroundColor }
-      Object.entries(this.quadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
+      Object.entries(this.dragQuadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
       return area
     },
 
@@ -384,7 +390,7 @@ export default defineComponent({
 
       // row is special
       if (row) {
-        this.quadrant = row
+        this.dragQuadrant = row
         return
       }
 
@@ -404,7 +410,7 @@ export default defineComponent({
       let BORDER = 8
 
       if (pctX < 0.3) {
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'left',
           width: panel.offsetWidth / 2 - BORDER * 2,
           height: panel.offsetHeight - BORDER * 2,
@@ -412,7 +418,7 @@ export default defineComponent({
           marginTop: BORDER,
         }
       } else if (pctX > 0.7) {
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'right',
           width: panel.offsetWidth / 2 - BORDER * 2,
           height: panel.offsetHeight - BORDER * 2,
@@ -439,7 +445,7 @@ export default defineComponent({
         BORDER *= 5
         const w = (panel.offsetWidth - BORDER * 2) * 0.95
         const h = (panel.offsetHeight - BORDER * 2) * 0.95
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'center',
           width: w,
           height: h,
@@ -450,13 +456,13 @@ export default defineComponent({
     },
 
     dragEnd() {
-      this.quadrant = null
+      this.dragQuadrant = null
       this.dragX = -1
       this.dragY = -1
     },
 
     onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
-      if (!this.quadrant) return
+      if (!this.dragQuadrant) return
 
       const { event, x, y, row } = props
 
@@ -468,7 +474,7 @@ export default defineComponent({
         const component = componentConfig.component || 'TabbedDashboardView'
 
         const viz = { component, props: componentConfig }
-        this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
+        this.onSplit({ x, y, row, quadrant: this.dragQuadrant.quadrant, viz })
       } catch (e) {
         console.warn('' + e)
       }
@@ -633,7 +639,15 @@ export default defineComponent({
     },
 
     updateURL() {
-      if (this.panels.length === 1 && this.panels[0].length === 1) {
+      // save the first-most panel URL for highlighting purposes
+      this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
+
+      // multipanel has a base64 murky URL:
+      if (this.panels.length > 1 || this.panels[0].length > 1) {
+        const base64 = btoa(JSON.stringify(this.panels))
+        this.$router.push(`${BASE_URL}split/${base64}`)
+      } else {
+        // single panel has user-readable friendly URL:
         const props = this.panels[0][0].props
 
         const root = props.root || ''
@@ -653,9 +667,6 @@ export default defineComponent({
           if (props.config) finalUrl += `/${props.config}`
           this.$router.push(finalUrl)
         }
-      } else {
-        const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`${BASE_URL}split/${base64}`)
       }
     },
 
@@ -773,7 +784,7 @@ export default defineComponent({
     this.leftSectionWidth = width == null ? DEFAULT_LEFT_WIDTH : parseInt(width)
     if (this.leftSectionWidth < 0) this.leftSectionWidth = 2
 
-    const section = localStorage.getItem('activeLeftSection')
+    // const section = localStorage.getItem('activeLeftSection')
     // if (section) {
     //   try {
     //     this.activeLeftSection = JSON.parse(section)
@@ -781,10 +792,13 @@ export default defineComponent({
     //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
     //   }
     // } else {
-    this.activeLeftSection = { name: 'Files', class: 'SystemPanel' }
+    this.activeLeftSection = { name: 'Files', class: 'LeftSystemPanel' }
     // }
 
     this.buildLayoutFromURL()
+
+    // save the first-most panel URL for highlighting purposes
+    this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
   },
 })
 </script>

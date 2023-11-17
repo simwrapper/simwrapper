@@ -122,6 +122,7 @@ export default defineComponent({
         subfolder: string
         left: NavigationItem[]
         right: NavigationItem[]
+        style?: any
       },
     }
   },
@@ -326,6 +327,7 @@ export default defineComponent({
               right: [],
               fileSystem: this.fileSystem,
               subfolder: this.xsubfolder,
+              style: yaml.topNavBar.style,
             }
 
             if (yaml.topNavBar.left) {
@@ -358,7 +360,7 @@ export default defineComponent({
           if (this.leftNavItems) {
             this.$emit('activate', {
               name: 'Project',
-              class: 'ProjectLeftPanel',
+              class: 'LeftProjectPanel',
               onlyIfVisible: false,
               navRoot: this.root,
               navSubfolder: this.xsubfolder,
@@ -673,7 +675,7 @@ li.is-not-active b a {
 
 .tab-list.is-active {
   background-color: var(--bgBold);
-  border-right: 5px solid green;
+  border-right: 5px solid var(--highlightActiveSection);
   border-radius: 3px 0 0 3px;
   font-weight: bold;
   a {

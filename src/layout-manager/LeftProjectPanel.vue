@@ -14,7 +14,7 @@
       img.sw-nav-item(v-if="item.image" :src="getUrl(item.image)" :style="getStyle(item)")
       h3.sw-nav-item(v-else-if="item.section" :style="getStyle(item)") {{ getLabel(item)}}
       .sw-nav-item(v-else-if="hasLabel(item)" :style="getStyle(item)")
-        p(v-if="item.url" :style="getStyle(item)"): a(@click="navigate(item.url)" :style="getStyle(item)") {{ getLabel(item) }}
+        p(v-if="item.url"): a(@click="navigate(item.url)" :style="getStyle(item, true)") {{ getLabel(item) }}
         p(v-else :style="getStyle(item)") {{ getLabel(item) }}
 
   .sw-leftpanel-bottom
@@ -67,6 +67,7 @@ export default defineComponent({
   i18n,
   components,
   props: {
+    currentFolder: { type: String, required: true },
     navRoot: { type: String, required: false },
   },
   data: () => {
@@ -147,9 +148,21 @@ export default defineComponent({
       return fullUrl
     },
 
-    getStyle(item: any) {
+    getStyle(item: any, isLink: boolean) {
       let style = {} as any
       if (item.style) Object.assign(style, item.style)
+
+      // Current folder gets special highlight
+      if (
+        isLink &&
+        item.url &&
+        this.currentFolder.length > 1 &&
+        item.url.indexOf(this.currentFolder) > -1
+      ) {
+        style.backgroundColor = '#e3e3e0'
+        style.borderRadius = '4px'
+        style.color = 'black'
+      }
       return style
     },
 
@@ -321,8 +334,10 @@ h4 {
 }
 
 .sw-nav-item {
-  padding: 0 1rem;
+  padding: 0 1rem 1px 1rem;
   a {
+    margin-left: -4px;
+    padding: 1px 4px;
     color: #ccc;
   }
   a:hover {
