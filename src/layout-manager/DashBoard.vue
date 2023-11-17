@@ -359,15 +359,7 @@ export default defineComponent({
         }
       }
 
-      // set fullscreen
-      if (
-        this.yaml.header.fullScreen ||
-        this.yaml.header.fullscreen ||
-        this.yaml.header.fillscreen ||
-        this.yaml.header.fillScreen
-      ) {
-        this.isFullScreenDashboard = true
-      }
+      this.setFullScreen()
 
       // // Start on correct subtab
       if (this.$route.query.subtab) {
@@ -485,7 +477,22 @@ export default defineComponent({
     handleResize() {
       const dashboard = document.getElementById(this.viewId) as HTMLElement
       if (dashboard) this.isPanelNarrow = dashboard.clientWidth < 800
+      this.setFullScreen()
       this.$store.commit('resize')
+    },
+
+    setFullScreen() {
+      if (this.isPanelNarrow) {
+        // Narrow panels are never fullscreen
+        this.isFullScreenDashboard = false
+      } else {
+        // help user with capitalization
+        this.isFullScreenDashboard =
+          this.yaml.header.fullScreen ||
+          this.yaml.header.fillScreen ||
+          this.yaml.header.fullscreen ||
+          this.yaml.header.fillscreen
+      }
     },
 
     getRowClass(row: any) {

@@ -1,7 +1,7 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!isMultipanel && !isZoomed" :style="dashWidthCalculator")
+  .tabholder(v-show="!hideBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
@@ -103,6 +103,7 @@ export default defineComponent({
       footer: '',
       customCSS: '',
       dashboardTabWithDelay: '',
+      hideBreadcrumbs: false,
       showFooter: false,
       globalState: globalStore.state,
       finalFolder: '',
@@ -113,7 +114,12 @@ export default defineComponent({
         middle: NavigationItem[]
         bottom: NavigationItem[]
       },
-      topNavItems: [] as NavigationItem[],
+      topNavItems: null as null | {
+        fileSystem: FileSystemConfig
+        subfolder: string
+        left: NavigationItem[]
+        right: NavigationItem[]
+      },
     }
   },
   computed: {
@@ -309,6 +315,25 @@ export default defineComponent({
             this.$store.commit('setShowFilesSection', false)
           }
 
+          // Top-Nav-Bar
+          if (yaml.hideBreadcrumbs) this.hideBreadcrumbs = true
+          if (yaml.topNavBar) {
+            this.topNavItems = {
+              left: [],
+              right: [],
+              fileSystem: this.fileSystem,
+              subfolder: this.xsubfolder,
+            }
+
+            if (yaml.topNavBar.left) {
+              this.topNavItems.left = this.topNavItems.left.concat(yaml.topNavBar.left)
+            }
+            if (yaml.topNavBar.right) {
+              this.topNavItems.right = this.topNavItems.right.concat(yaml.topNavBar.right)
+            }
+          }
+          this.$store.commit('setTopNavItems', this.topNavItems)
+
           // Left-Nav Panel
           if (yaml.leftNavBar) {
             // if (!this.leftNavItems) this.leftNavItems = { top: [], middle: [], bottom: [] }
@@ -324,7 +349,6 @@ export default defineComponent({
               this.leftNavItems.bottom = this.leftNavItems.bottom.concat(yaml.leftNavBar.bottom)
             }
           }
-
           this.$store.commit('setLeftNavItems', this.leftNavItems)
 
           // switch to leftside project panel if we have one
@@ -403,7 +427,8 @@ export default defineComponent({
           const { files, dirs } = await this.fileApi.getDirectory(this.xsubfolder)
           const allContents = [...files, ...dirs]
 
-          if (micromatch.match(allContents, yaml.header.triggerPattern).length === 0) {
+          const matches = micromatch.match(allContents, yaml.header.triggerPattern).length
+          if (matches === 0) {
             // no files matched trigger; skip this dashboard
             return false
           }

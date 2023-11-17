@@ -1,12 +1,17 @@
 <template lang="pug">
-#split-screen(
+#layout-manager
+
+ site-nav-bar(@navigate="onNavigate($event,0,0)")
+
+ #split-screen(
   @mousemove="dividerDragging"
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
-)
-  .restore-left-panel-button(v-if="!$store.state.isShowingLeftBar")
-    p.show-hide(@click="$store.commit('setShowLeftBar', true)")
-      i.fas.fa-arrow-right
+ )
+  .restore-left-panel-button(v-if="!$store.state.isShowingLeftBar"
+    @click="$store.commit('setShowLeftBar', true)"
+  )
+    p.show-hide: i.fas.fa-arrow-right
 
   .left-panel(v-show="showLeftBar")
 
@@ -134,6 +139,7 @@ import { pluginComponents } from '@/plugins/pluginRegistry'
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
 import ProjectLeftPanel from './ProjectLeftPanel.vue'
+import SiteNavBar from './SiteNavBar.vue'
 import SplashPage from './SplashPage.vue'
 import SystemPanel from './SystemPanel.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
@@ -155,6 +161,7 @@ export default defineComponent({
       ErrorPanel,
       FolderBrowser,
       ProjectLeftPanel,
+      SiteNavBar,
       SplashPage,
       SystemPanel,
       TabbedDashboardView,
@@ -784,16 +791,22 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-#split-screen {
+#layout-manager {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  background-color: yellow;
+}
+
+#split-screen {
+  display: flex;
+  flex-direction: row;
   background-color: var(--bgBrowser);
+  flex: 1;
 }
 
 .left-panel {
@@ -1013,23 +1026,29 @@ export default defineComponent({
 
 .restore-left-panel-button {
   position: absolute;
-  bottom: 0;
   left: 0;
+  bottom: 0;
+  height: 4rem;
+  margin-bottom: 2rem;
   background-color: #48485f; // $appTag;
   z-index: 8000;
   color: #ccc;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  display: flex;
+  flex-direction: column;
 
   p {
-    padding: 1rem 4px;
-    font-size: 0.8rem;
+    margin: auto 0;
+    padding: 0 2px 0 2px;
+    font-size: 9px;
     text-align: center;
-    vertical-align: center;
   }
+}
 
-  p:hover {
-    background-color: #3c3c49;
-    color: #deef6f;
-    cursor: pointer;
-  }
+.restore-left-panel-button:hover {
+  background-color: #666; // #3c3c49;
+  color: #deef6f;
+  cursor: pointer;
 }
 </style>

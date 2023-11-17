@@ -10,12 +10,12 @@
         p(v-else) {{ getLabel(item) }}
 
   .sw-leftpanel-middle
-    .span(v-for="item,idx of middleItems" :key="`middle-${idx}`")
+    .span(v-for="item,idx of middleItems" :key="`middle-${idx}`" :style="getStyle(item)")
       img.sw-nav-item(v-if="item.image" :src="getUrl(item.image)" :style="getStyle(item)")
-      h3.sw-nav-item(v-else-if="item.section") {{ getLabel(item)}}
-      .sw-nav-item(v-else-if="hasLabel(item)")
-        p(v-if="item.url"): a(@click="navigate(item.url)") {{ getLabel(item) }}
-        p(v-else) {{ getLabel(item) }}
+      h3.sw-nav-item(v-else-if="item.section" :style="getStyle(item)") {{ getLabel(item)}}
+      .sw-nav-item(v-else-if="hasLabel(item)" :style="getStyle(item)")
+        p(v-if="item.url" :style="getStyle(item)"): a(@click="navigate(item.url)" :style="getStyle(item)") {{ getLabel(item) }}
+        p(v-else :style="getStyle(item)") {{ getLabel(item) }}
 
   .sw-leftpanel-bottom
     .span(v-for="item,idx of bottomItems" :key="`bottom-${idx}`")
@@ -144,15 +144,12 @@ export default defineComponent({
       if (url.startsWith('http')) return url
 
       const fullUrl = `${this.fileSystem.baseURL}${url}`
-      console.log(33, fullUrl)
       return fullUrl
     },
 
     getStyle(item: any) {
-      const style = {} as any
-      if (item.background) {
-        style.backgroundColor = item.background
-      }
+      let style = {} as any
+      if (item.style) Object.assign(style, item.style)
       return style
     },
 

@@ -77,6 +77,12 @@ export default new Vuex.Store({
     runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
+    topNavItems: null as null | {
+      fileSystem: FileSystemConfig
+      subfolder: string
+      left: NavigationItem[]
+      right: NavigationItem[]
+    },
     viewState: initialViewState() as {
       longitude: number
       latitude: number
@@ -125,6 +131,18 @@ export default new Vuex.Store({
     setShowFilesSection(state, value: boolean) {
       state.isShowingFilesSection = value
     },
+    setTopNavItems(
+      state,
+      value: {
+        left: NavigationItem[]
+        right: NavigationItem[]
+        fileSystem: FileSystemConfig
+        subfolder: string
+      }
+    ) {
+      state.topNavItems = value
+    },
+
     setMapStyles(
       state,
       value: { light: string; dark: string; transparentLight: string; transparentDark: string }
