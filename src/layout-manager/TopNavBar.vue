@@ -1,33 +1,50 @@
 <template lang="pug">
-#site-nav-bar(:style="getStyle(navbar)")
-  .span(v-for="item in navbar.left" :style="getStyle(item)")
-    .logo(v-if="item.image")
-      a(v-if="item.url" @click="navigate(item.url)")
-        img(:src="getUrl(item.image)" :style="getStyle(item)")
-      img(v-else :src="getUrl(item.image)" :style="getStyle(item)")
+b-navbar#site-nav-bar(
 
-    .xmenu(v-else-if="hasLabel(item)" :style="getStyle(item)")
-      p(v-if="item.url"): a(@click="navigate(item.url)" :style="getStyle(item, true)") {{ getLabel(item) }}
-      p(v-else) {{ getLabel(item) }}
+  :style="getNavbarStyle(navbar)"
+  :type="isDark ? 'is-black' : 'is-white'"
+)
 
-  .push-right &nbsp;
+  template("#brand" v-if="navbar.logo")
+    b-navbar-item(
+      @click="navigate(navbar.logo.url)" :style="getStyle(navbar.logo)"
+    ): img(:src="navbar.logo.image" :style="getStyle(navbar.logo)")
 
-  .stacked(v-for="item,i in navbar.right" :style="getStyle(item)")
+  template("#start")
 
-      .xmenu(v-if="hasLabel(item)" :style="getStyle(item)")
-        p(v-if="item.url"): a(@click="navigate(item.url, i)" :style="getStyle(item, true)") {{ getLabel(item) }}
-        p(v-else @click="selectedGroup=i") {{ getLabel(item) }}
+    component(v-for="item,i in navbar.left" :key="`${i}`"
+      hoverable
+      :is="item.children ? 'BNavbarDropdown' : 'BNavbarItem'"
+      :style="getStyle(item)"
+      :label="item.children ? getLabel(item) : undefined"
+      @click="navigate(item.url)"
+    ) {{ item.children ? undefined : getLabel(item) }}
 
-      .child-options(:class="{'is-parent-selected': i===selectedGroup}")
-        .span(v-for="child in item.children" :style="getStyle(child)")
-          p(v-if="child.url"): a(@click="navigate(child.url, i)" :style="getStyle(child, true)") {{ getLabel(child) }}
-          p(v-else) {{ getLabel(child) }}
+      b-navbar-item(v-for="child in item.children" :key="`child-${i}`"
+        @click="navigate(child.url)"
+      ) {{ getLabel(child) }}
+
+  template("#end")
+
+    component(v-for="item,i in navbar.right" :key="`${i}`"
+      hoverable
+      :is="item.children ? 'BNavbarDropdown' : 'BNavbarItem'"
+      :style="getStyle(item)"
+      :label="item.children ? getLabel(item) : undefined"
+      @click="navigate(item.url)"
+    ) {{ item.children ? undefined : getLabel(item) }}
+
+      b-navbar-item(v-for="child,j in item.children" :key="`child-${j}`"
+        @click="navigate(child.url)"
+      ) {{ getLabel(child) }}
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import isDarkColor from 'is-dark-color'
+
 import type { NavigationItem } from '@/Globals'
 export default defineComponent({
   name: 'SiteNavBar',
@@ -40,6 +57,7 @@ export default defineComponent({
   data: () => {
     return {
       selectedGroup: -1,
+      isDark: false,
     }
   },
 
@@ -79,15 +97,29 @@ export default defineComponent({
       const style = {} as any
       if (item.style) Object.assign(style, item.style)
 
-      // Current folder gets special highlight
-      if (
-        isLink &&
-        item.url &&
-        this.currentFolder.length > 1 &&
-        item.url.indexOf(this.currentFolder) > -1
-      ) {
-        style.borderBottom = '1px solid white'
-        style.fontWeight = 'bold'
+      // // Current folder gets special highlight
+      // if (
+      //   isLink &&
+      //   item.url &&
+      //   this.currentFolder.length > 1 &&
+      //   item.url.indexOf(this.currentFolder) > -1
+      // ) {
+      //   style.borderBottom = '1px solid white'
+      //   style.fontWeight = 'bold'
+      // }
+
+      return style
+    },
+
+    getNavbarStyle(item: any) {
+      const style = {} as any
+      if (item.style) Object.assign(style, item.style)
+
+      // light or dark?
+      const darks = ['black', 'blue', 'brown', 'green', 'red', 'purple']
+      if (darks.includes(style.backgroundColor)) this.isDark = true
+      if (style.backgroundColor && style.backgroundColor.startsWith('#')) {
+        this.isDark = isDarkColor(style.backgroundColor)
       }
       return style
     },
@@ -118,81 +150,6 @@ export default defineComponent({
 @import '@/styles.scss';
 
 #site-nav-bar {
-  display: flex;
-  flex-direction: row;
-  color: #ddd;
-  background-color: #333faa;
-  padding-right: 0.5rem;
-  font-size: 13px;
-}
-
-.xmenu {
-  padding: 0px 0px;
-  margin: 0 0;
-  margin-right: 1rem;
-  line-height: 1.2rem;
-}
-
-p {
-  padding: 0 0;
-}
-
-a {
-  color: #ddd;
-}
-
-a:hover {
-  color: yellow;
-}
-
-.xmenu:hover {
-  // background-color: #4b55aa;
-  cursor: pointer;
-  color: yellow;
-}
-
-.xbrand {
-  font-weight: bold;
-  color: white;
-  font-family: $fancyFont;
-  // margin-top: -1px;
-}
-
-.push-right {
-  margin-left: auto;
-}
-
-.errors {
-  background-color: #ae0f0f;
-  color: white;
-  font-weight: bold;
-}
-
-.stacked {
-  display: flex;
-  flex-direction: column;
-  margin-top: 3px;
-  margin-right: 1rem;
-  margin-bottom: 3px;
-}
-
-.child-options {
-  display: flex;
-  flex-direction: row;
-  visibility: hidden;
-
-  p {
-    padding: 0 0;
-    margin: 0 0;
-    margin-right: 1rem;
-  }
-}
-
-.stacked:hover .child-options {
-  visibility: visible;
-}
-
-.is-parent-selected {
-  visibility: visible;
+  user-select: none;
 }
 </style>

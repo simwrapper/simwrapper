@@ -337,7 +337,7 @@ h4 {
   padding: 0 1rem 1px 1rem;
   a {
     margin-left: -4px;
-    padding: 1px 4px;
+    padding: 2px 4px;
     color: #ccc;
   }
   a:hover {

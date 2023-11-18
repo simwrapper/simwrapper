@@ -30,7 +30,7 @@
 
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
-      :class="{'is-breadcrumbs-hidden': hideBreadcrumbs && !isZoomed}"
+      :class="{'is-breadcrumbs-hidden': globalState.isHidingBreadcrumbs && !isZoomed}"
     )
       dash-board(
         :root="root"
@@ -121,6 +121,7 @@ export default defineComponent({
         subfolder: string
         left: NavigationItem[]
         right: NavigationItem[]
+        logo?: NavigationItem
         style?: any
       },
     }
@@ -306,6 +307,9 @@ export default defineComponent({
           if (yaml.hideLeftBar === false) this.$store.commit('setShowLeftBar', true)
           this.$store.commit('setShowLeftBar', true)
 
+          // theme
+          if (yaml.theme) this.$store.commit('setTheme', yaml.theme)
+
           // set margins wide if requested to do so
           this.$store.commit('setFullWidth', !!yaml.fullWidth)
           this.$store.commit('setDashboardWidth', '')
@@ -329,6 +333,8 @@ export default defineComponent({
               subfolder: this.xsubfolder,
               style: yaml.topNavBar.style,
             }
+
+            if (yaml.topNavBar.logo) this.topNavItems.logo = yaml.topNavBar.logo
 
             if (yaml.topNavBar.left) {
               this.topNavItems.left = this.topNavItems.left.concat(yaml.topNavBar.left)
@@ -602,7 +608,7 @@ export default defineComponent({
   z-index: 50;
   // position: sticky;
   // background-color: var(--bgMapPanel);
-  margin: 0 0.5rem;
+  margin: 1rem 0.5rem;
 }
 
 .tabholdercontainer {
