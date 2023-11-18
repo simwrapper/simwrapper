@@ -164,6 +164,7 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
+    this.updateTheme()
     await this.getVizDetails()
     // only continue if we are on a real page and not the file browser
     if (this.thumbnail) return
