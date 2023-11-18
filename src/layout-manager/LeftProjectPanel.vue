@@ -312,8 +312,8 @@ h4 {
   flex: 1;
 }
 
-.sw-leftpanel-bottom {
-}
+// .sw-leftpanel-bottom {
+// }
 
 .fade {
   opacity: 0.4;

@@ -44,18 +44,18 @@
           i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
         p.description {{ favorite.hint || `${favorite.root}${favorite.subfolder}` }}
 
-    .err-panel-container(v-if="hasErrors")
-      h3 Debug Issues
-      error-panel
-
   .bottom-panel
 
     h3 DOCUMENTATION
     .items
-      p: a(href="https://simwrapper.github.io/docs" target="_blank") SimWrapper docs
-      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Visualization gallery
+      p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
+      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
       p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
-      p: a(href="https://simwrapper.github.io/docs/changelog" target="_blank") Change log
+
+  .error-panel-container(v-if="hasErrors")
+      .spacer
+      h3 Debug Issues
+      error-panel.actual-error-panel
 
   .action-buttons
     p.show-hide(@click="$store.commit('setShowLeftBar', false)")
@@ -535,6 +535,7 @@ export default defineComponent({
   font-size: 0.9rem;
   color: #eee;
   background-color: $themeColorPale;
+  position: relative;
 }
 
 .top-panel {
@@ -558,7 +559,6 @@ h4 {
   flex: 1;
   display: flex;
   flex-direction: column;
-  // width: 100%;
   margin-bottom: 0rem;
   padding: 0 0.5rem 0 1rem;
   overflow-y: auto;
@@ -569,13 +569,6 @@ h4 {
   h1 {
     letter-spacing: -1px;
   }
-  h3 {
-    font-family: $mainFont;
-    font-size: 1rem;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-  }
 
   p,
   a {
@@ -585,9 +578,8 @@ h4 {
 }
 
 .bottom-panel {
-  // padding: 0 0.5rem 0.25rem 0.5rem;
-  flex: unset;
   margin-right: 0.5rem;
+  flex: unset;
 }
 
 h2 {
@@ -715,8 +707,8 @@ h2 {
 // hello
 
 .items {
-  margin-left: 1rem;
-  margin-right: 0.5rem;
+  margin-left: 0.5rem;
+  margin-right: 0.25rem;
 
   a {
     color: #ccc;
@@ -775,6 +767,38 @@ h2 {
   border-left: 1px solid #888;
 }
 
-.err-panel-container {
+h3 {
+  font-family: $mainFont;
+  font-size: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.error-panel-container {
+  position: absolute;
+  bottom: 0;
+  margin-bottom: 24px;
+  background-color: #28385d;
+  overflow-y: auto;
+  max-height: 25rem;
+  padding-left: 0.25rem;
+  margin-top: 12px;
+
+  h3 {
+    border-top: 1px solid white;
+    margin-top: 0rem;
+    margin-left: 2px;
+    margin-right: 0.25rem;
+  }
+}
+
+.actual-error-panel {
+  background-color: #28385d;
+}
+
+.spacer {
+  background-color: $themeColorPale;
+  height: 0.5rem;
 }
 </style>

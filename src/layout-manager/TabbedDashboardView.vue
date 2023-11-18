@@ -608,7 +608,7 @@ export default defineComponent({
   z-index: 50;
   // position: sticky;
   // background-color: var(--bgMapPanel);
-  margin: 1rem 0.5rem;
+  margin: 1rem 0.5rem 0.25rem 0.5rem;
 }
 
 .tabholdercontainer {
@@ -804,7 +804,7 @@ li.is-not-active b a {
   padding: 0.75rem 1rem;
   background-color: var(--bgDashboardHeader);
   color: white;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-family: $fancyFont;
   font-weight: bold;
 }

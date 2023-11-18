@@ -1,14 +1,22 @@
 <template lang="pug">
 .panel
 
-  .top-panel
+  .warnings
+    .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
+      p.check ☑️
+      p No issues for this page.
 
-    .warnings
-      .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
-        p.check ☑️
-        p No issues for this page.
+    .has-errors(v-else)
 
-      .message-area(v-else)
+      .clear-button
+        b-button.is-small(
+          v-if="state.statusErrors.length || state.statusWarnings.length"
+          type="is-warning is-outlined"
+          expanded
+          @click="clearAllButtons()"
+        ) Clear all messages
+
+      .message-area
 
         h3(v-if="state.statusErrors.length") Errors: {{state.statusErrors.length}}
         .single-message(v-for="err,i in state.statusErrors")
@@ -21,15 +29,6 @@
           p(v-html="err.msg" @click="toggleShowDescription(i, false)")
           .description(v-if="descriptionIndexListWarning.includes(i)")
             p(v-html="err.desc")
-
-    .clear-button
-      b-button.is-small(
-        v-if="state.statusErrors.length || state.statusWarnings.length"
-        type="is-warning"
-        inverted
-        @click="clearAllButtons()"
-      ) Clear all messages
-
 
 </template>
 
@@ -117,7 +116,6 @@ export default defineComponent({
   height: 100%;
   padding: 0 0;
   color: var(--text);
-  margin-left: 0.5rem;
 }
 
 h4 {
@@ -128,14 +126,6 @@ h4 {
   margin-bottom: 0.5rem;
   font-weight: bold;
   color: #ddd;
-}
-
-.top-panel {
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  margin: 0.25rem 0.5rem 0.5rem 0.5rem;
-  background-color: #557;
 }
 
 a {
@@ -173,14 +163,14 @@ a {
 }
 
 .message-area {
-  text-indent: -5px;
-  margin-left: 5px;
-  margin-right: 5px;
+  text-indent: -8px;
+  margin-left: 8px;
+  margin-right: 4px;
 }
 
 .message-area h3 {
   margin-top: 0.25rem;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .single-message {
@@ -222,7 +212,7 @@ p {
 }
 
 .clear-button {
-  padding: 4px 4px;
+  margin-right: 0.775rem;
 }
 
 @media only screen and (max-width: 640px) {
