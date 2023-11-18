@@ -29,7 +29,7 @@ export interface NavigationItem {
 
 export const BG_COLOR_DASHBOARD = {
   light: '#fff',
-  dark: '#181818',
+  dark: '#14141a',
 }
 
 export const MAPBOX_TOKEN =

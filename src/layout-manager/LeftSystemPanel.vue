@@ -778,6 +778,8 @@ h3 {
 .error-panel-container {
   position: absolute;
   bottom: 0;
+  left: 0;
+  right: 0;
   margin-bottom: 24px;
   background-color: #28385d;
   overflow-y: auto;

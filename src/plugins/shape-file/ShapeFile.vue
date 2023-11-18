@@ -2434,6 +2434,8 @@ const MyComponent = defineComponent({
       this.featureJoinColumn = await this.figureOutFeatureIdColumn()
     } catch (e) {
       this.$store.commit('error', 'Mapview ' + e)
+      this.statusText = 'Error: ' + e
+      this.$emit('isLoaded')
     }
   },
 

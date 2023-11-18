@@ -1,7 +1,7 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-show="!globalState.isHidingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
+  .tabholder(v-if="!globalState.isHidingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
@@ -53,7 +53,7 @@
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
+  .foot-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
@@ -602,13 +602,16 @@ export default defineComponent({
   background-color: var(--bgDashboard);
 }
 
+.foot-holder {
+  z-index: 50;
+}
 .tabholder {
   // max-width: $dashboardWidth + 3;
   // margin: 0 auto;
   z-index: 50;
   // position: sticky;
   // background-color: var(--bgMapPanel);
-  margin: 1rem 0.5rem 0.25rem 0.5rem;
+  padding: 1rem 0.25rem 0.25rem 0.5rem;
 }
 
 .tabholdercontainer {

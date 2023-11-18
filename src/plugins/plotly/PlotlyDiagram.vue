@@ -460,7 +460,6 @@ const MyComponent = defineComponent({
             const c = this.getColors(tr, n)
 
             Object.keys(groups).forEach((group, idx) => {
-              // TODO: Is there a library for deep copy ?
               const copy = JSON.parse(JSON.stringify(tr))
 
               copy.name = group
