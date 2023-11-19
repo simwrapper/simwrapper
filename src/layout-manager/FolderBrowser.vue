@@ -487,9 +487,15 @@ export default defineComponent({
 
       // make sure page is rendered before we attach zoom semantics
       await this.$nextTick()
-      mediumZoom('.medium-zoom', {
-        background: '#444450',
-      })
+      try {
+        setTimeout(() => {
+          mediumZoom('.medium-zoom', {
+            background: '#333344',
+          })
+        }, 250)
+      } catch (e) {
+        // oh well
+      }
     },
   },
   mounted() {
