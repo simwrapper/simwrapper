@@ -19,7 +19,7 @@
             @crumbs="updateCrumbs"
         )
 
-  .dashboard-finder(:class="{isMultipanel}")
+  .dashboard-finder(:class="{isMultipanel, isZoomed}")
     ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
@@ -611,11 +611,11 @@ export default defineComponent({
   z-index: 50;
   // position: sticky;
   // background-color: var(--bgMapPanel);
-  padding: 1rem 0.25rem 0.25rem 0.5rem;
+  padding: 0.75rem 0rem 0.25rem 0rem;
 }
 
 .tabholdercontainer {
-  margin: 0 1rem;
+  margin: 0 $cardSpacing;
   display: flex;
   flex-direction: row;
 }
@@ -632,22 +632,25 @@ li.is-not-active b a {
   display: flex;
   flex: 1;
   flex-direction: row-reverse;
-  margin: 0 0.5rem;
+  margin: 0 $cardSpacing;
   position: relative;
 }
 
 .dashboard-finder.isMultipanel {
-  margin: 0 0rem;
+  margin: 0 0.5rem;
+}
+
+.dashboard-finder.isZoomed {
+  margin: 0 0.5rem;
 }
 
 .dashboard-right-sections {
   display: flex;
   flex-direction: column;
-  padding: 2rem 1rem 2rem 0rem;
+  padding: 1.5rem 0rem 2rem 0rem;
 }
 
 .dashboard-content {
-  flex-direction: column;
   flex: 1;
   position: relative;
 }
@@ -670,7 +673,6 @@ li.is-not-active b a {
   border-right: 5px solid #00000000;
   user-select: none;
   margin-bottom: 1px;
-  // text-align: right;
 
   a {
     color: var(--text);
@@ -831,5 +833,6 @@ li.is-not-active b a {
 
 .breadcrumbs {
   padding: 0.25rem 0;
+  font-size: 0.9rem;
 }
 </style>

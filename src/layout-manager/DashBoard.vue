@@ -554,9 +554,9 @@ export default defineComponent({
   }
 }
 
-.dashboard.wiide {
-  padding-left: 1rem;
-}
+// .dashboard.wiide {
+//   // padding-left: 1rem;
+// }
 
 .dashboard-header {
   margin: 1rem 3rem 1rem 0rem;
@@ -566,9 +566,9 @@ export default defineComponent({
   }
 }
 
-.dashboard-header.wiide {
-  margin-right: 3rem;
-}
+// .dashboard-header.wiide {
+//   // margin-right: 3rem;
+// }
 
 .dash-row {
   display: flex;
@@ -599,7 +599,7 @@ export default defineComponent({
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
-  margin: 0 1.25rem 1.25rem 0;
+  margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
   padding: 2px 5px;
   border-radius: 4px;
@@ -670,9 +670,9 @@ export default defineComponent({
 
 // Observe for narrowness instead of a media-query
 // since the panel might be narrow even if the window is wide.
-.dashboard.is-panel-narrow {
-  // padding: 1rem 0rem 1rem 1rem;
-}
+// .dashboard.is-panel-narrow {
+//   // padding: 0rem 0rem;
+// }
 
 .dashboard-header.is-panel-narrow {
   margin: 1rem 1rem 1rem 0rem;
@@ -683,7 +683,7 @@ export default defineComponent({
 }
 
 .dash-card-frame.is-panel-narrow {
-  margin: 0rem 1rem 1.25rem 0;
+  margin: 0rem 0.5rem 1rem 0;
 }
 
 ul.tab-row {

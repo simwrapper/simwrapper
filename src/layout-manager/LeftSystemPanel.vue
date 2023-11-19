@@ -770,7 +770,7 @@ h2 {
 h3 {
   font-family: $mainFont;
   font-size: 1rem;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
 }
