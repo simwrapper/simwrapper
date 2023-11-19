@@ -303,6 +303,14 @@ const MyComponent = defineComponent({
       if (!REACT_VIEW_HANDLES[this.layerId]) return
       REACT_VIEW_HANDLES[this.layerId]()
     },
+
+    'globalState.colorScheme'() {
+      // change one element to force a deck.gl redraw
+      this.$nextTick().then(p => {
+        const tooltips = this.vizDetails.tooltip || []
+        this.vizDetails.tooltip = [...tooltips]
+      })
+    },
   },
 
   methods: {
