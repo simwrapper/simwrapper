@@ -487,15 +487,22 @@ export default defineComponent({
       this.dragEnd()
     },
 
-    splitMainPanel(props: { root: string }) {
+    splitMainPanel(props: { root: string; xsubfolder?: string }) {
       let x = 0
       let y = 0
 
       const newPanel = {
         component: 'SplashPage',
-        props: {},
+        props: {} as any,
         key: Math.random(),
       }
+
+      if (props.root) {
+        newPanel.component = 'TabbedDashboardView'
+        newPanel.props.root = props.root
+        newPanel.props.xsubfolder = props.xsubfolder || ''
+      }
+
       this.panels[y].splice(x, 0, newPanel)
       this.updateURL()
       globalStore.commit('resize')
