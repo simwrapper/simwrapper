@@ -1,7 +1,7 @@
 <template lang="pug">
 .trail(v-if="root")
   .x-home
-    p(@click="clickedBreadcrumb({url: '//'})")
+    p(@click="clickedBreadcrumb({url: '/'})")
       i.fa.fa-home
 
   .x-breadcrumbs(v-if="root")
@@ -55,18 +55,21 @@ export default defineComponent({
           label: this.fileSystem.name,
           url: '/' + this.fileSystem.slug,
           root: this.fileSystem.slug,
-          subfolder: '/',
+          subfolder: '',
         },
       ] as BreadCrumb[]
 
       const subfolders = this.subfolder.split('/')
-      let buildFolder = '/'
+      let buildFolder = ''
       let finalFolder = this.fileSystem.name
 
       for (const folder of subfolders) {
         if (!folder) continue
 
-        buildFolder += folder + '/'
+        buildFolder += `/${folder}`
+        // subfolder nevers starts/ends with a '/'
+        if (buildFolder.startsWith('/')) buildFolder = buildFolder.substring(1)
+
         zcrumbs.push({
           label: folder,
           url: '/' + this.fileSystem.slug + buildFolder,
@@ -87,7 +90,10 @@ export default defineComponent({
       if (!this.fileSystem) return
 
       // if we are at top of hierarchy, jump to splashpage
-      if (!crumb.root) this.$emit('navigate', { component: 'SplashPage', props: {} })
+      if (!crumb.root) {
+        this.$emit('navigate', { component: 'SplashPage', props: {} })
+        return
+      }
 
       const props = {
         root: crumb.root,

@@ -598,7 +598,7 @@ h2 {
 .project-root {
   display: flex;
   flex-direction: column;
-  margin-left: -10px;
+  margin-left: -8px;
   margin-bottom: 0.25rem;
   padding: 1px 0 1px 0.5rem;
   border-left: 2px solid #00000000; // #989898;

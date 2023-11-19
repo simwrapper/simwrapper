@@ -416,10 +416,11 @@ export default defineComponent({
         return
       }
 
-      const target =
+      let target =
         folder === '..'
           ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
           : this.myState.subfolder + '/' + folder
+      if (target.startsWith('/')) target = target.slice(1)
 
       const props = {
         root: this.myState.svnProject.slug,

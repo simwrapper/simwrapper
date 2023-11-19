@@ -185,6 +185,7 @@ export default defineComponent({
 
     onNavigate(options: any) {
       this.$emit('navigate', options)
+      this.setTitle()
     },
 
     clickedFavorite() {
@@ -554,10 +555,12 @@ export default defineComponent({
     },
 
     setTitle() {
-      const folder = this.xsubfolder.startsWith('/') ? this.xsubfolder.slice(1) : this.xsubfolder
-      const title = `${this.fileSystem.name}: ${folder}`
+      // Now we have breadcrumbs so just use the current folder name instead of whole path
+      const title = `${this.fileSystem.name}/${this.xsubfolder}`
+      let lastFolder = title.substring(1 + title.lastIndexOf('/'))
+      if (!lastFolder) lastFolder = this.fileSystem.name
 
-      this.$emit('title', title)
+      this.$emit('title', lastFolder)
     },
   },
   mounted() {

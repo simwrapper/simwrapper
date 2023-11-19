@@ -41,7 +41,7 @@
     .authorization-strip(v-if="authHandles.length")
       .auth-row(v-for="auth in authHandles")
         p.flex1 {{ '' + auth }}
-        b-button hello
+        //- b-button hello
 
     .row-drop-target(:style="buildDragHighlightStyle(-1,-1)"
         @drop="onDrop({event: $event, row: 'rowTop'})"
@@ -75,13 +75,6 @@
             h3(v-if="panel.title" :style="{textAlign: 'left'}") {{ panel.title }}
             p(v-if="panel.description") {{ panel.description }}
 
-            .breadcrumb-row
-              bread-crumbs.bread-crumbs(
-                :root="panel.props.root || ''"
-                :subfolder="panel.props.xsubfolder || ''"
-                @navigate="onNavigate($event,x,y)"
-              )
-
           .flex-row
             .tile-buttons
               .nav-button.is-small.is-white(
@@ -100,6 +93,13 @@
                 @click="onClose(x,y)"
                 title="Close"
               ): i.fa.fa-times-circle
+
+        .breadcrumb-row(v-if="getShowHeader(panel)")
+          bread-crumbs.bread-crumbs(
+            :root="panel.props.root || ''"
+            :subfolder="panel.props.xsubfolder || ''"
+            @navigate="onNavigate($event,x,y)"
+          )
 
         //- here is the actual viz component:
         component.map-tile(
@@ -292,6 +292,7 @@ export default defineComponent({
       if (slash > -1) {
         root = pathMatch.substring(0, slash)
         xsubfolder = pathMatch.substring(slash + 1)
+        if (xsubfolder.startsWith('/')) xsubfolder = xsubfolder.slice(1)
         if (xsubfolder.endsWith('/')) xsubfolder = xsubfolder.slice(0, -1)
       }
 
@@ -307,6 +308,8 @@ export default defineComponent({
             this.panels = [[this.panels[0][0]]]
           } else {
             let key = Math.random()
+            let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
+            if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
             this.panels = [
               [
                 {
@@ -316,7 +319,7 @@ export default defineComponent({
                   description: '',
                   props: {
                     root,
-                    subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+                    subfolder, /// : xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
                     yamlConfig: fileNameWithoutPath,
                     thumbnail: false,
                   } as any,
@@ -342,7 +345,9 @@ export default defineComponent({
       const fileSystem = svnProjects[0]
 
       const folder = xsubfolder.startsWith('/') ? xsubfolder.slice(1) : xsubfolder
-      const title = `${fileSystem.name}: ${folder}`
+
+      const lastFolder = folder.substring(1 + folder.lastIndexOf('/'))
+      const title = lastFolder || fileSystem.name
 
       this.panels = [
         [
@@ -844,7 +849,7 @@ export default defineComponent({
 }
 
 .map-tile {
-  grid-row: 2 / 3;
+  grid-row: 3 / 4;
   grid-column: 1 / 2;
   position: absolute;
   top: 0;
@@ -859,7 +864,7 @@ export default defineComponent({
   flex: 1;
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: 1fr;
   // background-color: var(--bgBrowser);
 }
@@ -950,7 +955,7 @@ export default defineComponent({
   grid-column: 1 / 2;
   display: flex;
   flex-direction: column;
-  margin-left: 5px;
+  margin-left: 2px;
 
   h3 {
     font-size: 1.2rem;
@@ -1029,8 +1034,12 @@ export default defineComponent({
 }
 
 .breadcrumb-row {
+  grid-row: 2 / 3;
+  grid-column: 1 / 2;
   display: flex;
-  color: #bbb;
+  color: var(--text);
+  background-color: var(--bgDashboard);
+  padding: 0 0.5rem;
 }
 
 .bread-crumbs {
