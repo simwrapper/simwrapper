@@ -262,7 +262,6 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  // margin: 1rem;
 }
 
 .mycomponent.is-thumbnail {
@@ -284,7 +283,6 @@ export default MyComponent
 }
 
 .things {
-  background-color: var(--bgBold);
   width: 100%;
   padding: 0.25rem 0;
 }
