@@ -16,6 +16,7 @@ import {
 
 import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
+import i18n from '@/i18n'
 
 // ----------------------------------------
 // ViewState has tricky logic, to handle cold-start, view-start,
@@ -51,6 +52,7 @@ export default new Vuex.Store({
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
     hasUserManuallyHiddenLeftBar: false,
+    i18n,
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: false,
