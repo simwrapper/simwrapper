@@ -16,6 +16,7 @@ import {
 
 import fileSystems from '@/fileSystemConfig'
 import { MAP_STYLES_ONLINE, MAP_STYLES_OFFLINE } from '@/Globals'
+import i18n from '@/i18n'
 
 // ----------------------------------------
 // ViewState has tricky logic, to handle cold-start, view-start,
@@ -50,6 +51,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
+    i18n,
     isFullScreen: false,
     isFullWidth: true,
     isHidingBreadcrumbs: false,
