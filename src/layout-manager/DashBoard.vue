@@ -7,15 +7,13 @@
       h2 {{ title }}
       p {{ description }}
 
-    //- .tabs.is-centered(v-if="Object.keys(dashboards).length > 1"))
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
         li.tab-entry(v-for="subtab,index of subtabs" :key="index"
           :class="{'is-active': index===activeTab, 'is-not-active': index!==activeTab}"
           :style="{opacity: index===activeTab ? 1.0 : 0.55}"
         )
-          //- b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
-          b: a(@click="switchTab(index)") {{ getTabTitle(index) }}
+          b: a(@click="switchTab(index)") {{ subtab.title }}
 
     //- start row here
     .dash-row(v-for="row,i in rows" :key="i"
@@ -347,17 +345,8 @@ export default defineComponent({
       // set header
       this.updateThemeAndLabels()
 
-      if (this.yaml.subtabs) {
-        this.subtabs = this.yaml.subtabs
-        // Help the user to not footgun
-        if (this.yaml.layout) {
-          this.$store.commit(
-            'error',
-            `Dashboard YAML contains both "subtabs" and "layout". Move layout into subtabs section.`
-          )
-          return
-        }
-      }
+      // if there are subtabs, prepare them
+      if (this.yaml.subtabs) this.setupSubtabs()
 
       this.setFullScreen()
 
@@ -378,13 +367,53 @@ export default defineComponent({
       this.selectTabLayout()
     },
 
+    setupSubtabs() {
+      // YAML definition of subtabs can be:
+      // 1) false/missing: no subtabs.
+      // 2) true: convert each row property of the layout to a subtab
+      // 3) array[] of row IDs that comprise each subtab, e.g.
+      //    subtabs:
+      //    - title: 'Tab1'
+      //      rows: ['modeshare','statistics']
+      //
+      // In cases 2 and 3, this.subtabs will hold an array with the
+      // title and layout object for each subtab.
+
+      let i = 1
+      this.subtabs = []
+      const allRowKeys = new Set(Object.keys(this.yaml.layout))
+
+      if (this.yaml.subtabs === true) {
+        // One subtab per layout object.
+        for (const rowKey of allRowKeys) {
+          this.subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
+        }
+      } else {
+        // subtabs array explicitly assigns rows to subtabs
+        for (const tab of this.yaml.subtabs) {
+          this.subtabs.push({
+            title: this.getObjectLabel(tab, 'title'),
+            layout: tab.rows.map((rowName: string) => {
+              allRowKeys.delete(rowName)
+              return this.yaml.layout[rowName]
+            }),
+          })
+        }
+        // if user missed any rows, add them at the end
+        for (const leftoverKey of allRowKeys) {
+          this.subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
+        }
+      }
+    },
+
     selectTabLayout() {
       // Choose subtab or full layout
-      if (this.yaml.layout) {
-        this.setupRows(this.yaml.layout)
-      } else if (this.yaml.subtabs.length && this.activeTab > -1) {
-        const subtab = this.yaml.subtabs[this.activeTab].layout
+
+      if (this.subtabs.length && this.activeTab > -1) {
+        const subtab = this.subtabs[this.activeTab].layout
         this.setupRows(subtab)
+      } else if (this.yaml.layout) {
+        this.setupRows(this.yaml.layout)
       } else {
         this.$store.commit(
           'error',
@@ -449,6 +478,19 @@ export default defineComponent({
         this.$store.commit('setTheme', this.yaml.header.theme)
       }
     },
+
+    getObjectLabel(o: any, prefix: string) {
+      let label = prefix
+
+      if (this.$store.state.locale === 'de') {
+        label = o[`${prefix}_de`] || o[`${prefix}`] || o[`${prefix}_en`] || ''
+      } else {
+        label = o[`${prefix}_en`] || o[`${prefix}`] || o[`${prefix}_de`] || ''
+      }
+
+      return label
+    },
+
     getDashboardLabel(element: 'title' | 'description') {
       const header = this.yaml.header
       let tag = '...'
