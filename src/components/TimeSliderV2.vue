@@ -37,6 +37,7 @@ export default defineComponent({
     // isAnimating: Boolean,
     // useTimeBins: Boolean,
     timeBinSize: Number,
+    allTimes: [] as any[],
   },
   data: () => {
     return {
@@ -58,6 +59,7 @@ export default defineComponent({
         // timeRange: [Infinity, -Infinity],
         animator: null as any,
         timeLabels: [0, 1] as any[],
+        currentTime: 0 as number,
       },
       id: 'id-' + Math.floor(1e12 * Math.random()),
       resizer: null as ResizeObserver | null,
@@ -66,23 +68,29 @@ export default defineComponent({
     }
   },
   computed: {
+    // Calculate the total time span of the dataset.
     fullDatasetTimeSpan(): number {
-      return this.state.datasetRange[1] - this.state.datasetRange[0]
+      return this.state.datasetRange[1] - this.state.datasetRange[0] + this.allTimes[0]
     },
 
+    // Calculate the extent from the left to the right position of the slider.
     extentLeftToRight(): number {
       return this.state.rightPosition - this.state.leftPosition
     },
 
+    // Check if the time range is non-zero by comparing start and finish points.
     hasNonZeroTimeRange(): boolean {
-      // return false if the start and finish of the range are identical
+      // Return false if the start and finish of the range are identical.
       return !!this.fullDatasetTimeSpan
     },
+
+    // Calculate the margins for the active region of the slider.
     calculateActiveMargins(): any {
       const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
       const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
       const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
 
+      // Log margin-related values (for debugging).
       // console.log({ usableWidth, marginLeft, marginRight })
 
       return {
@@ -91,88 +99,150 @@ export default defineComponent({
       }
     },
   },
+
   mounted() {
+    // Initialize component dimensions, initial values, and set up the resizer.
     this.getDimensions()
     this.setupInitialValues()
     this.setupResizer()
 
+    // Add event listeners for mouseup and mousemove when the component is mounted.
     window.addEventListener('mouseup', this.dragEnd)
     window.addEventListener('mousemove', this.dragging)
-
-    console.log('The TimeSliderV2 has mounted')
   },
 
   beforeDestroy() {
+    // Remove event listeners for mouseup and mousemove before the component is destroyed.
     window.removeEventListener('mouseup', this.dragEnd)
     window.removeEventListener('mousemove', this.dragging)
 
+    // Cancel the animation frame if it's active to prevent memory leaks.
     if (this.state.animator) window.cancelAnimationFrame(this.state.animator)
   },
+
   watch: {
-    'state.timeFilter'() {
-      // console.log(this.state.timeFilter)
+    // Watch for changes in 'state.currentTime' and trigger 'updateExtent' when it changes.
+    'state.currentTime'() {
       this.updateExtent()
     },
+
+    // Watch for changes in 'state.timeFilter' and also trigger 'updateExtent'.
+    'state.timeFilter'() {
+      // Uncomment the console log for debugging purposes.
+      // console.log(this.state.timeFilter);
+      this.updateExtent()
+    },
+
+    // Watch for changes in 'labels' and trigger 'updateLabels'.
     labels() {
       this.updateLabels()
     },
+
+    // Watch for changes in 'state.leftPosition' and 'state.rightPosition', and call 'emitValues' to emit updated values.
     'state.leftPosition'() {
       this.emitValues()
     },
     'state.rightPosition'() {
       this.emitValues()
     },
-    // isAnimating() {
-    //   this.updateAnimation()
+
+    // 'isAnimating'() {
+    //   this.updateAnimation();
     // },
   },
 
   methods: {
-    // TODO...
+    /**
+     * Toggles the animation state and initiates or stops the animation loop accordingly.
+     */
     updateAnimation() {
       console.log('updateAnimation')
       this.isAnimating = !this.isAnimating
+
       if (this.isAnimating) {
+        // Calculate animation elapsed time and start time to control the animation.
         this.state.animationElapsedTime = this.state.timeFilter[0] - this.range[0]
         this.state.startTime = Date.now() - this.state.animationElapsedTime / this.ANIMATE_SPEED
+
+        // Initiate the animation loop.
         this.animate()
       }
     },
 
+    /**
+     * Finds the index of the lower value in the sorted array 'this.allTimes' between which the given parameter lies.
+     *
+     * @param parameter - The value to search for to find the index in the 'this.allTimes' array.
+     * @returns The index of the lower value in the 'this.allTimes' array between which the given parameter lies.
+     *          If the parameter is smaller than the first entry in the array, -1 is returned.
+     */
+    findIndexLessThanOrEqualTo(parameter: number): number {
+      let left = 0
+      let right = this.allTimes.length - 1
+      let result = -1
+
+      while (left <= right) {
+        const mid = Math.floor((left + right) / 2)
+
+        if (this.allTimes[mid] === parameter) {
+          return mid
+        }
+
+        if (this.allTimes[mid] < parameter) {
+          result = mid
+          left = mid + 1
+        } else {
+          right = mid - 1
+        }
+      }
+      return result
+    },
+
+    /**
+     * Controls the animation loop to update the current time and time filter.
+     * This method calculates the animation progress and updates the relevant state variables.
+     */
     animate() {
       if (!this.isAnimating) return
-      // console.log('animate')
 
+      // Calculate animation elapsed time based on elapsed real-time and animation speed.
       this.state.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.state.startTime)
 
-      if (this.timeBinSize != undefined) {
-        const modulo = this.state.animationElapsedTime % this.timeBinSize
-        // console.log(modulo)
-
-        if (Math.abs(modulo) != 0) this.state.animationElapsedTime -= modulo
-      }
-
-      // console.log(this.state.animationElapsedTime)
+      // Calculate the current animation clock time.
       const animationClockTime = this.state.animationElapsedTime + this.range[0]
 
-      if (animationClockTime > this.range[1]) {
+      // Update the current time based on the animation clock time.
+      this.state.currentTime = this.findIndexLessThanOrEqualTo(animationClockTime)
+
+      // console.log(animationClockTime)
+      // console.log(this.state.currentTime)
+
+      // Check if animation has reached the end of the range.
+      if (animationClockTime > this.range[1] + this.allTimes[0]) {
+        // Restart the animation if it exceeds the range.
         this.state.startTime = Date.now()
-        this.state.animationElapsedTime = 0 // this.timeRange[0]
+        this.state.animationElapsedTime = 0
       }
 
-      // console.log(this.state, animationClockTime)
-      const span = this.state.timeFilter[1] - this.state.timeFilter[0]
-      // console.log(this.state.timeFilter[1] - this.state.timeFilter[0])
+      // Update the time filter based on the current time.
+      this.state.timeFilter = [
+        this.allTimes[this.state.currentTime],
+        this.allTimes[this.state.currentTime + 1] == undefined
+          ? 0
+          : this.allTimes[this.state.currentTime + 1],
+      ]
 
-      this.state.timeFilter = [animationClockTime, animationClockTime + span]
-
-      // this.timesliderModuloValue = animationClockTime % 7200
-
+      // Request the next animation frame to continue the loop.
       this.state.animator = window.requestAnimationFrame(this.animate)
     },
 
+    /**
+     * Sets up a ResizeObserver to monitor changes in component dimensions.
+     * This method attempts to create a ResizeObserver and attach it to the component's DOM element.
+     */
     setupResizer() {
       try {
+        // Create a ResizeObserver instance and observe the component's DOM element.
         this.resizer = new ResizeObserver(this.getDimensions)
         const sliderElement = document.getElementById(`id-${this.id}`) as HTMLElement
         this.resizer.observe(sliderElement)
@@ -181,166 +251,269 @@ export default defineComponent({
       }
     },
 
+    /**
+     * Calculates and sets the initial values for the component's state.
+     * This method initializes dataset range, time filter, and slider positions.
+     */
     setupInitialValues() {
       try {
-        if (this.range) this.state.datasetRange = this.range
+        // If 'range' is provided, set dataset range and initial time filter.
+        if (this.range) {
+          this.state.datasetRange = this.range
+          this.state.timeFilter = [this.allTimes[0], this.allTimes[1]]
+        }
 
+        // Check if the full dataset time span is zero.
         if (this.fullDatasetTimeSpan === 0) {
           this.state.leftPosition = 0
           this.state.rightPosition = 1
         } else {
+          // Calculate and update slider positions based on the dataset range.
           this.updateExtent()
         }
       } catch (e) {
         console.error('' + e)
-        // divide by zero, oh well
+        // Handle potential division by zero.
       } finally {
+        // Mark the setup as complete.
         this.state.isSetupComplete = true
       }
     },
 
+    /**
+     * Updates the slider positions and time labels based on the current time filter.
+     * This method recalculates and sets the left and right slider positions as well as time labels.
+     */
     updateExtent() {
       if (!this.state.timeFilter) return
 
-      // console.log('updateExtent()')
-      // console.log(this.state.timeFilter)
-      // console.log(this.state.datasetRange)
-      // console.log(this.fullDatasetTimeSpan)
-
+      // Calculate the left and right slider positions based on the current time filter.
       this.state.leftPosition =
-        (this.state.timeFilter[0] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+        (1 / this.fullDatasetTimeSpan) * (this.allTimes[this.state.currentTime] - this.allTimes[0])
       this.state.rightPosition =
-        (this.state.timeFilter[1] - this.state.datasetRange[0]) / this.fullDatasetTimeSpan
+        (1 / this.fullDatasetTimeSpan) *
+        (this.allTimes[this.state.currentTime + 1] == undefined
+          ? this.allTimes[this.state.currentTime] + this.allTimes[0]
+          : this.allTimes[this.state.currentTime + 1] - this.allTimes[0])
 
-      // console.log(this.state.leftPosition)
-      // console.log(this.state.rightPosition)
+      // Calculate and set time labels.
+      this.state.timeLabels = [
+        this.convertSecondsToClockTimeMinutes(this.allTimes[this.state.currentTime]),
+        this.convertSecondsToClockTimeMinutes(
+          this.allTimes[this.state.currentTime + 1] == undefined
+            ? this.allTimes[this.state.currentTime] + this.allTimes[0]
+            : this.allTimes[this.state.currentTime + 1]
+        ),
+      ]
+
+      // Update labels and complete the update.
+      this.updateLabels()
     },
 
+    /**
+     * Updates component labels with time labels if available in the state.
+     */
     updateLabels() {
+      // If time labels are available in the state, update component labels.
       if (this.state.timeLabels) this.state.labels = this.state.timeLabels
     },
 
-    // TODO: Only when bucket changes
+    /**
+     * Emits time extent values to the parent component when setup is complete.
+     * This method emits the current time filter values to the parent component.
+     */
     emitValues() {
+      // Check if setup is complete before emitting time extent values.
       if (!this.state.isSetupComplete) return
 
-      // console.log(this.state.datasetRange[0])
-      // console.log(this.state.leftPosition)
-      // console.log(this.state.rightPosition)
-      // console.log(this.useTimeBins)
-
-      const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
-      const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
-      // console.log(start, end)
-      // console.log(start % this.state.datasetRange[0])
-
-      this.state.animationElapsedTime = start
-      this.state.timeFilter = [start, end]
-
-      this.state.timeLabels = [
-        this.convertSecondsToClockTimeMinutes(start),
-        this.convertSecondsToClockTimeMinutes(end),
-      ]
-
-      // console.log(start, end)
-
-      this.$emit('timeExtent', [start, end])
-
-      // this.$emit('timeExtent', [start, end])
-
-      // this.$emit('timeExtent', [0, 7200])
+      // Emit the current time filter values to the parent component.
+      this.$emit('timeExtent', this.state.timeFilter)
     },
 
+    /**
+     * Converts a time value in seconds to a clock-style time format in hours and minutes.
+     *
+     * @param index - The time value in seconds to be converted.
+     * @returns A formatted string in the 'hh:mm' clock time format.
+     */
     convertSecondsToClockTimeMinutes(index: number) {
       const h = Math.floor(index / 3600)
       const m = Math.floor((index - h * 3600) / 60)
+
+      // Calculate seconds separately.
       const s = index - h * 3600 - m * 60
 
+      // Create an object to represent hours, minutes, and seconds.
       const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
 
+      // Return the formatted clock time string.
       return `${hms.h}:${hms.m}`
     },
 
+    // Calculates the width of the element
     getDimensions() {
       //@ts-ignore - ref doesn't know about clientWidth
       this.state.componentWidth = this.$refs.slider?.clientWidth || 0
     },
 
+    /**
+     * Initiates a dragging operation when a mouse click event occurs.
+     *
+     * @param e - The MouseEvent object containing event details.
+     * @emits drag - Emits a 'drag' event to notify parent components of the drag operation.
+     */
     dragStart(e: MouseEvent) {
+      console.log('dragStart')
       this.$emit('drag')
+
+      // Set the 'isDragging' flag to true to indicate a drag operation.
       this.state.isDragging = true
+
+      // Store the initial mouse position when dragging starts.
       this.state.dragStartX = e.clientX
 
+      // Calculate various dimensions and update the drag type based on mouse position.
       const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
       const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
       const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
 
+      // Calculate the width of the time duration area within the slider.
       const durationWidth =
         this.state.componentWidth - marginRight - marginLeft - 2 * GRAB_HANDLE_WIDTH
 
-      // console.log({ usableWidth, durationWidth, marginLeft, marginRight })
-
+      // Determine the drag type based on the mouse position within the duration area.
       if (e.offsetX >= 0 && e.offsetX < durationWidth) this.state.dragType = DRAGTYPE.SLIDE
       else if (e.offsetX < 0) this.state.dragType = DRAGTYPE.START
       else if (e.offsetX > durationWidth) this.state.dragType = DRAGTYPE.END
     },
 
+    /**
+     * Handles dragging operations based on mouse movement during dragging.
+     *
+     * @param e - The MouseEvent object containing event details.
+     */
     dragging(e: MouseEvent) {
+      console.log('dragging')
       if (!this.state.isDragging) return
 
+      // Calculate the horizontal movement distance (deltaX) of the mouse.
       const deltaX = e.clientX - this.state.dragStartX
       const usableWidth = this.state.componentWidth - 2 * GRAB_HANDLE_WIDTH
 
-      // are we moving the time duration window
+      // Check the type of drag operation and update positions accordingly.
       if (DRAGTYPE.SLIDE == this.state.dragType) {
         const currentExtent = this.extentLeftToRight
         let newLeft = (usableWidth * this.state.leftPosition + deltaX) / usableWidth
         let newRight = newLeft + currentExtent
 
-        // don't scroll past the left edge
+        // Ensure the draggable window does not exceed the slider's boundaries.
         if (newLeft < 0) {
           newLeft = 0
           newRight = currentExtent
         }
 
-        // don't scroll past the right edge
         if (newRight > 1) {
           newRight = 1
           newLeft = newRight - currentExtent
         }
 
+        // console.log(this.fullDatasetTimeSpan)
+
+        // console.log('New Start Time: ', newLeft * this.fullDatasetTimeSpan + this.allTimes[0])
+        // console.log('New End Time: ', newRight * this.fullDatasetTimeSpan + this.allTimes[0])
+
+        const newStartTime = this.findIndexLessThanOrEqualTo(
+          newLeft * this.fullDatasetTimeSpan + this.allTimes[0]
+        )
+
+        const newEndTime =
+          this.findIndexLessThanOrEqualTo(newLeft * this.fullDatasetTimeSpan + this.allTimes[0]) + 1
+
+        // this.state.leftPosition =
+        //   (1 / this.fullDatasetTimeSpan) * (this.allTimes[newStartTime] - this.allTimes[0])
+        // this.state.rightPosition =
+        //   (1 / this.fullDatasetTimeSpan) *
+        //   (this.allTimes[newStartTime + 1] == undefined
+        //     ? this.allTimes[newStartTime] + this.allTimes[0]
+        //     : this.allTimes[newStartTime + 1] - this.allTimes[0])
+
         this.state.leftPosition = newLeft
         this.state.rightPosition = newRight
 
+        this.updateTimeLabel()
+
         this.state.dragStartX = e.clientX
         return
       }
 
-      // are we moving the start-time
-      if (DRAGTYPE.START == this.state.dragType) {
-        const newLeft = usableWidth * this.state.leftPosition + deltaX
-        this.state.leftPosition = Math.max(0, newLeft / usableWidth)
-        if (this.state.leftPosition > this.state.rightPosition) {
-          this.state.rightPosition = this.state.leftPosition
-        }
-        this.state.dragStartX = e.clientX
-        return
-      }
+      // FIXED BIN SIZE! CANT STRETCH THE SLIDER!!!
+      // if (DRAGTYPE.START == this.state.dragType) {
+      //   // Handle dragging the start-time handle.
+      //   const newLeft = usableWidth * this.state.leftPosition + deltaX
+      //   this.state.leftPosition = Math.max(0, newLeft / usableWidth)
 
-      // are we moving the end-time
-      if (DRAGTYPE.END == this.state.dragType) {
-        const newRight = usableWidth * this.state.rightPosition + deltaX
-        this.state.rightPosition = Math.min(1, newRight / usableWidth)
-        if (this.state.leftPosition > this.state.rightPosition) {
-          this.state.leftPosition = this.state.rightPosition
-        }
-        this.state.dragStartX = e.clientX
-        return
-      }
+      //   // Ensure that the start-time does not overlap with the end-time.
+      //   if (this.state.leftPosition > this.state.rightPosition) {
+      //     this.state.rightPosition = this.state.leftPosition
+      //   }
+
+      //   this.state.dragStartX = e.clientX
+      //   return
+      // }
+
+      // if (DRAGTYPE.END == this.state.dragType) {
+      //   // Handle dragging the end-time handle.
+      //   const newRight = usableWidth * this.state.rightPosition + deltaX
+      //   this.state.rightPosition = Math.min(1, newRight / usableWidth)
+
+      //   // Ensure that the end-time does not overlap with the start-time.
+      //   if (this.state.leftPosition > this.state.rightPosition) {
+      //     this.state.leftPosition = this.state.rightPosition
+      //   }
+
+      //   this.state.dragStartX = e.clientX
+      // }
     },
 
+    /**
+     * Handles the end of a dragging operation, resetting the dragging state.
+     *
+     * @param e - The event object associated with the drag end event.
+     */
     dragEnd(e: any) {
+      const newStartTime = this.findIndexLessThanOrEqualTo(
+        this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
+      )
+
+      this.state.leftPosition =
+        (1 / this.fullDatasetTimeSpan) * (this.allTimes[newStartTime] - this.allTimes[0])
+      this.state.rightPosition =
+        (1 / this.fullDatasetTimeSpan) *
+        (this.allTimes[newStartTime + 1] == undefined
+          ? this.allTimes[newStartTime] + this.allTimes[0]
+          : this.allTimes[newStartTime + 1] - this.allTimes[0])
       this.state.isDragging = false
+    },
+
+    updateTimeLabel() {
+      const newStartTime = this.findIndexLessThanOrEqualTo(
+        this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
+      )
+
+      const newEndTime =
+        this.findIndexLessThanOrEqualTo(
+          this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
+        ) + 1
+
+      console.log(newStartTime, newEndTime)
+
+      // Calculate and set time labels.
+      this.state.timeLabels = [
+        this.convertSecondsToClockTimeMinutes(this.allTimes[newStartTime]),
+        this.convertSecondsToClockTimeMinutes(this.allTimes[newEndTime]),
+      ]
+
+      this.updateLabels()
     },
   },
 })
