@@ -64,6 +64,9 @@
     p.settings-icon(@click="$store.commit('rotateColors')")
       i.fas.fa-adjust
       | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
+    p.settings-icon(@click="updateLanguage")
+      i.fas.fa-globe
+      | &nbsp;&nbsp;{{ globalState.locale }}
     p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
       i.fas.fa-columns
       | &nbsp;&nbsp;split
@@ -253,6 +256,11 @@ export default defineComponent({
       if (!this.myState.svnProject) return
 
       this.myState.svnRoot = new HTTPFileSystem(this.myState.svnProject, globalStore)
+    },
+
+    updateLanguage() {
+      this.$store.commit('setLocale', this.$store.state.locale == 'en' ? 'de' : 'en')
+      this.$root.$i18n.locale = this.$store.state.locale
     },
 
     authenticationChanged() {
@@ -617,9 +625,9 @@ h2 {
   }
 }
 
-.project-root.local {
-  // border-left: 2px solid $matsimBlue;
-}
+// .project-root.local {
+//   // border-left: 2px solid $matsimBlue;
+// }
 
 .project-root:hover {
   cursor: pointer;
