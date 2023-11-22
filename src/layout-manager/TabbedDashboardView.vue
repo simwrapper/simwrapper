@@ -169,6 +169,15 @@ export default defineComponent({
     xsubfolder() {
       this.updateRoute()
     },
+    'globalState.colorScheme'() {
+      const allConfigs = Object.values(this.allConfigFiles.configs)
+      if (!allConfigs.length) return
+
+      // Set theme for bottommost config only
+      const config = allConfigs[allConfigs.length - 1]
+      const configKey = `theme-${config}`
+      localStorage.setItem(configKey, this.globalState.colorScheme)
+    },
   },
   methods: {
     clearStyles() {
@@ -320,7 +329,7 @@ export default defineComponent({
           }
 
           // theme
-          if (yaml.theme) this.$store.commit('setTheme', yaml.theme)
+          if (yaml.theme) this.setProjectTheme(yaml.theme, filename)
 
           // set margins wide if requested to do so
           this.$store.commit('setFullWidth', !!yaml.fullWidth)
@@ -411,7 +420,28 @@ export default defineComponent({
       }
     },
 
-    handleRemoveDashboard() {},
+    setProjectTheme(theme: string, configFilepath: string) {
+      // Encourage the project theme, but don't force user to use it
+
+      // 1) If browser cache has a user theme for this project-config, use it
+      // 2) Otherwise, use theme in project config -- and save it in cache!
+      // 3) Listen for theme changes, save in browser cache for this project
+
+      // 1) If browser cache has a user theme for this project-config, use it
+      const cacheKey = `theme-${configFilepath}`
+      const userTheme = localStorage.getItem(cacheKey)
+      console.log(cacheKey, userTheme)
+      if (userTheme) {
+        this.$store.commit('setTheme', userTheme)
+        return
+      }
+
+      // 2) No user-chosen theme: honor simwrapper-config setting
+      this.$store.commit('setTheme', theme)
+      localStorage.setItem(cacheKey, theme)
+
+      // 3) Watch for theme changes in watch{}
+    },
 
     async buildPanel(which: string, yaml: any, folder: string) {
       // first get the correct/best header for this locale
