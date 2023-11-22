@@ -254,12 +254,11 @@ export default defineComponent({
 
       const flex = card.width || 1
 
-      let style: any = {
-        flex: flex,
-        // margin: '2rem 1rem 2rem 0',
-      }
+      let style: any = { flex: flex }
 
-      if (card.background) style.backgroundColor = card.background
+      if (card.backgroundColor || card.background) {
+        style.backgroundColor = card.backgroundColor || card.background
+      }
 
       if (height && !this.isFullScreenDashboard) {
         style.minHeight = `${height}px`
