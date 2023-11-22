@@ -63,6 +63,7 @@
       time-slider.time-slider-area(v-if="isLoaded"
         :range="timeRange"
         :timeBinSize="7200"
+        :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
         @toggleAnimation="toggleAnimation"
         @drag="isAnimating=false"
@@ -122,6 +123,23 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 import colormap from 'colormap'
 
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
+
+// interface for each time object inside the mapData Array
+export interface MapData {
+  time: Number
+  colorData: Uint8Array
+  values: Float32Array
+  centroid: Float32Array
+  numberOfFilledColors?: Number
+  numberOfFilledValues?: Number
+  numberOfFilledCentroids?: Number
+  length: Number
+}
+
+export interface CompleteMapData {
+  mapData: MapData[]
+  scaledFactor: Number
+}
 
 interface VizDetail {
   title: string
@@ -235,11 +253,13 @@ const MyComponent = defineComponent({
       resizer: null as ResizeObserver | null,
       hoverValue: null as any,
       clickedValue: null as any,
-      startTime: 0,
-      isAnimating: false,
+      startTime: 0 as Number,
+      isAnimating: false as Boolean,
       // animationElapsedTime: 0,
       // timeFilter: [0, 3599],
-      timeRange: [Infinity, -Infinity],
+      timeRange: [Infinity, -Infinity] as Number[],
+      timeBinSize: Infinity as Number,
+      allTimes: [] as number[],
       // timeLabels: [0, 1] as any[],
       // ANIMATE_SPEED: 4,
       // animator: null as any,
@@ -596,7 +616,7 @@ const MyComponent = defineComponent({
       if (projection) this.vizDetails.projection = projection
 
       // Time blocks
-      let allTimes = [] as Number[]
+      // let allTimes = [] as Number[]
 
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
@@ -604,48 +624,43 @@ const MyComponent = defineComponent({
 
       // This for loop collects all the data that's used by
       for (let i = 0; i < csv.data.length; i++) {
-        if (i == 0) this.timeRange[0] = csv.data[i].time
-        if (i == csv.data.length - 1) this.timeRange[1] = csv.data[i].time
+        // Stores all times to calculate the range and the timeBinSize
+        if (!this.allTimes.includes(csv.data[i].time)) this.allTimes.push(csv.data[i].time)
 
         // calculate the min and max value
         if (csv.data[i].value < minValue) minValue = csv.data[i].value
         if (csv.data[i].value > maxValue) maxValue = csv.data[i].value
 
         // Store all different times
-        if (!allTimes.includes(csv.data[i].time)) allTimes.push(csv.data[i].time)
+        if (!this.allTimes.includes(csv.data[i].time)) this.allTimes.push(csv.data[i].time)
       }
 
+      // console.log(this.allTimes.sort((n1, n2) => n1 - n2))
+
+      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
+
+      this.timeRange[0] = Math.min.apply(Math, this.allTimes)
+      this.timeRange[1] = Math.max.apply(Math, this.allTimes)
+
       // Count elements per time
-      const numberOfElementsPerTime = Math.ceil(csv.data.length / allTimes.length)
+      const numberOfElementsPerTime = Math.ceil(csv.data.length / this.allTimes.length)
 
       // scaleFactor
       const scaleFactor = 100 / maxValue
 
-      // interface for each time object inside the mapData Array
-      interface MapData {
-        time: Number
-        colorData: Uint8Array
-        values: Float64Array
-        centroid: Float64Array
-        numberOfFilledColors?: Number
-        numberOfFilledValues?: Number
-        numberOfFilledCentroids?: Number
-        length: Number
-      }
-
       const finalData = {
         mapData: [] as MapData[],
         scaledFactor: scaleFactor as Number,
-      }
+      } as CompleteMapData
 
       // map all times to their index and create a mapData object for each time
-      allTimes.forEach((time, index) => {
+      this.allTimes.forEach((time, index) => {
         this.timeToIndex.set(time, index)
 
         finalData.mapData.push({
           time: time,
-          values: new Float64Array(numberOfElementsPerTime),
-          centroid: new Float64Array(numberOfElementsPerTime * 2),
+          values: new Float32Array(numberOfElementsPerTime),
+          centroid: new Float32Array(numberOfElementsPerTime * 2),
           colorData: new Uint8Array(numberOfElementsPerTime * 4),
           numberOfFilledValues: 0,
           numberOfFilledCentroids: 0,
@@ -692,7 +707,7 @@ const MyComponent = defineComponent({
       }
 
       // Clean data (delete numberOfFilledXXXX)
-      Array.from(allTimes.keys()).forEach((index: number) => {
+      Array.from(this.allTimes.keys()).forEach((index: number) => {
         delete finalData.mapData[index].numberOfFilledValues
         delete finalData.mapData[index].numberOfFilledCentroids
         delete finalData.mapData[index].numberOfFilledColors
