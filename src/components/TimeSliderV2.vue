@@ -31,12 +31,7 @@ enum DRAGTYPE {
 export default defineComponent({
   name: 'TimeSliderV2',
   props: {
-    // labels: Array as PropType<string[]>,
     range: { type: Array as PropType<number[]>, required: true },
-    // activeTimeExtent: Array as PropType<number[]>,
-    // isAnimating: Boolean,
-    // useTimeBins: Boolean,
-    timeBinSize: Number,
     allTimes: [] as any[],
   },
   data: () => {
@@ -47,23 +42,20 @@ export default defineComponent({
         dragType: DRAGTYPE.SLIDE,
         isDragging: false,
         isSetupComplete: false,
-        // always 0.0-1.0 :
         leftPosition: 0,
         rightPosition: 1,
-        // the datasetRange is the extent of the time values in the dataset, e.g. 0-86400
         datasetRange: [0, 86400],
         labels: ['', ''],
         animationElapsedTime: 0,
         startTime: 0,
         timeFilter: [0, 3599],
-        // timeRange: [Infinity, -Infinity],
         animator: null as any,
         timeLabels: [0, 1] as any[],
         currentTime: 0 as number,
       },
       id: 'id-' + Math.floor(1e12 * Math.random()),
       resizer: null as ResizeObserver | null,
-      ANIMATE_SPEED: 10,
+      ANIMATE_SPEED: 5,
       isAnimating: false,
     }
   },
@@ -363,7 +355,6 @@ export default defineComponent({
      * @emits drag - Emits a 'drag' event to notify parent components of the drag operation.
      */
     dragStart(e: MouseEvent) {
-      console.log('dragStart')
       this.$emit('drag')
 
       // Set the 'isDragging' flag to true to indicate a drag operation.
@@ -393,7 +384,6 @@ export default defineComponent({
      * @param e - The MouseEvent object containing event details.
      */
     dragging(e: MouseEvent) {
-      console.log('dragging')
       if (!this.state.isDragging) return
 
       // Calculate the horizontal movement distance (deltaX) of the mouse.
@@ -416,26 +406,6 @@ export default defineComponent({
           newRight = 1
           newLeft = newRight - currentExtent
         }
-
-        // console.log(this.fullDatasetTimeSpan)
-
-        // console.log('New Start Time: ', newLeft * this.fullDatasetTimeSpan + this.allTimes[0])
-        // console.log('New End Time: ', newRight * this.fullDatasetTimeSpan + this.allTimes[0])
-
-        const newStartTime = this.findIndexLessThanOrEqualTo(
-          newLeft * this.fullDatasetTimeSpan + this.allTimes[0]
-        )
-
-        const newEndTime =
-          this.findIndexLessThanOrEqualTo(newLeft * this.fullDatasetTimeSpan + this.allTimes[0]) + 1
-
-        // this.state.leftPosition =
-        //   (1 / this.fullDatasetTimeSpan) * (this.allTimes[newStartTime] - this.allTimes[0])
-        // this.state.rightPosition =
-        //   (1 / this.fullDatasetTimeSpan) *
-        //   (this.allTimes[newStartTime + 1] == undefined
-        //     ? this.allTimes[newStartTime] + this.allTimes[0]
-        //     : this.allTimes[newStartTime + 1] - this.allTimes[0])
 
         this.state.leftPosition = newLeft
         this.state.rightPosition = newRight
@@ -480,7 +450,7 @@ export default defineComponent({
      *
      * @param e - The event object associated with the drag end event.
      */
-    dragEnd(e: any) {
+    dragEnd(e: MouseEvent) {
       const newStartTime = this.findIndexLessThanOrEqualTo(
         this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
       )
@@ -504,8 +474,6 @@ export default defineComponent({
         this.findIndexLessThanOrEqualTo(
           this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
         ) + 1
-
-      console.log(newStartTime, newEndTime)
 
       // Calculate and set time labels.
       this.state.timeLabels = [

@@ -14,7 +14,7 @@
           .panel-items(v-if="hexStats" style="color: #c0f;")
             p.big(style="margin-top: 2rem;") {{ $t('selection') }}:
             h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
-            button.button(style="color: #c0f; border-color: #c0f" @click="handleShowSelectionButton") {{ $t('showDetails') }}
+            button.button(style="color: #c0f; border-color: #c0f") {{ $t('showDetails') }}
     
       .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
             //- :class="{'is-dashboard': config !== undefined }"
@@ -65,7 +65,6 @@
         :timeBinSize="7200"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
-        @toggleAnimation="toggleAnimation"
         @drag="isAnimating=false"
       )
 
@@ -550,13 +549,6 @@ const MyComponent = defineComponent({
         }
       }
     },
-    handleShowSelectionButton() {
-      // const arrays = Object.values(this.multiSelectedHexagons)
-      // let points: any[] = []
-      // arrays.map(a => (points = points.concat(a)))
-      // const pickedObject = { object: { points } }
-      // this.flipViewToShowInvertedData(pickedObject)
-    },
 
     selectedHexagonStatistics(): {
       rows: number
@@ -615,9 +607,6 @@ const MyComponent = defineComponent({
       const projection = csv.comments[0].split('#')[1].trim()
       if (projection) this.vizDetails.projection = projection
 
-      // Time blocks
-      // let allTimes = [] as Number[]
-
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
@@ -634,8 +623,6 @@ const MyComponent = defineComponent({
         // Store all different times
         if (!this.allTimes.includes(csv.data[i].time)) this.allTimes.push(csv.data[i].time)
       }
-
-      // console.log(this.allTimes.sort((n1, n2) => n1 - n2))
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
 
@@ -723,60 +710,15 @@ const MyComponent = defineComponent({
 
     resolveProjection() {
       if (this.vizDetails.projection === 'EPSG:4326') return
-      // console.log('Projection: ', this.vizDetails.projection)
-      // console.log('Data: ', this.data)
-      // console.log(this.data)
+
       for (let i = 0; i < this.data.length; i++) {
         const wgs84 = Coords.toLngLat(this.vizDetails.projection, this.data[i].centroid)
         this.data[i].centroid = wgs84
       }
-
-      // console.log(this.data)
     },
-
-    dataIsLoaded({ rowCache, columnLookup }: any) {
-      // console.log(rowCache, columnLookup)
-      //   this.columnLookup = columnLookup
-      //   this.rowCache = rowCache
-
-      //   const agg = this.activeAggregation.replaceAll('~', '')
-      //   this.requests = this.rowCache[agg]
-
-      this.setMapCenter()
-      this.moveLogo()
-      this.myState.statusMessage = ''
-    },
-
-    // TODO...
-    toggleAnimation() {
-      // this.isAnimating = !this.isAnimating
-      // if (this.isAnimating) {
-      //   this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
-      //   this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
-      //   this.animate()
-      // }
-    },
-
-    // animate() {
-    //   if (!this.isAnimating) return
-    //   this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
-    //   // console.log(this.animationElapsedTime)
-    //   const animationClockTime = this.animationElapsedTime + this.timeRange[0]
-    //   if (animationClockTime > this.timeRange[1]) {
-    //     this.startTime = Date.now()
-    //     this.animationElapsedTime = 0 // this.timeRange[0]
-    //   }
-    //   const span = this.timeFilter[1] - this.timeFilter[0]
-    //   this.timeFilter = [animationClockTime, animationClockTime + span]
-    //   // this.timesliderModuloValue = animationClockTime % 7200
-    //   this.animator = window.requestAnimationFrame(this.animate)
-    // },
 
     handleTimeSliderValues(timeValues: any[]) {
-      // console.log(timeValues)
       this.currentTime = timeValues
-      // console.log(this.data)
-      // console.log('Updated time')
 
       this.selectedTimeData = []
 
@@ -785,29 +727,7 @@ const MyComponent = defineComponent({
           this.selectedTimeData.push(this.data[i])
         }
       }
-
-      // console.log('Updated time DONE')
-      // console.log('Time: ', timeValues[0])
-      // console.log('Number of values: ', this.selectedTimeData.length)
-
-      // console.log(timeValues)
-      // this.animationElapsedTime = timeValues[0]
-      // this.timeFilter = timeValues
-      // this.timeLabels = [
-      //   this.convertSecondsToClockTimeMinutes(timeValues[0]),
-      //   this.convertSecondsToClockTimeMinutes(timeValues[1]),
-      // ]
     },
-
-    // convertSecondsToClockTimeMinutes(index: number) {
-    //   const h = Math.floor(index / 3600)
-    //   const m = Math.floor((index - h * 3600) / 60)
-    //   const s = index - h * 3600 - m * 60
-
-    //   const hms = { h: `${h}`, m: `${m}`.padStart(2, '0'), s: `${s}`.padStart(2, '0') }
-
-    //   return `${hms.h}:${hms.m}`
-    // },
   },
   async processData() {
     // console.log(this.data)
