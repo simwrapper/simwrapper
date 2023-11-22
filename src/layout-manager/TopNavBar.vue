@@ -14,13 +14,13 @@ b-navbar#site-nav-bar(
 
     component(v-for="item,i in navbar.left" :key="`${i}`"
       hoverable
-      :is="item.children ? 'BNavbarDropdown' : 'BNavbarItem'"
+      :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
       :style="getStyle(item)"
-      :label="item.children ? getLabel(item) : undefined"
+      :label="item.dropdown ? getLabel(item) : undefined"
       @click="navigate(item.url)"
-    ) {{ item.children ? undefined : getLabel(item) }}
+    ) {{ item.dropdown ? undefined : getLabel(item) }}
 
-      b-navbar-item(v-for="child in item.children" :key="`child-${i}`"
+      b-navbar-item(v-for="child in item.dropdown" :key="`child-${i}`"
         @click="navigate(child.url)"
       ) {{ getLabel(child) }}
 
@@ -28,13 +28,13 @@ b-navbar#site-nav-bar(
 
     component(v-for="item,i in navbar.right" :key="`${i}`"
       hoverable
-      :is="item.children ? 'BNavbarDropdown' : 'BNavbarItem'"
+      :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
       :style="getStyle(item)"
-      :label="item.children ? getLabel(item) : undefined"
+      :label="item.dropdown ? getLabel(item) : undefined"
       @click="navigate(item.url)"
-    ) {{ item.children ? undefined : getLabel(item) }}
+    ) {{ item.dropdown ? undefined : getLabel(item) }}
 
-      b-navbar-item(v-for="child,j in item.children" :key="`child-${j}`"
+      b-navbar-item(v-for="child,j in item.dropdown" :key="`child-${j}`"
         @click="navigate(child.url)"
       ) {{ getLabel(child) }}
 
