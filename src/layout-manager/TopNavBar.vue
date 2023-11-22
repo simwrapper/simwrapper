@@ -1,6 +1,5 @@
 <template lang="pug">
 b-navbar#site-nav-bar(
-
   :style="getNavbarStyle(navbar)"
   :type="isDark ? 'is-black' : 'is-white'"
 )
@@ -121,6 +120,8 @@ export default defineComponent({
       if (style.backgroundColor && style.backgroundColor.startsWith('#')) {
         this.isDark = isDarkColor(style.backgroundColor)
       }
+      // override text color
+      if ('useDarkText' in style) this.isDark = !style.useDarkText
       return style
     },
 
