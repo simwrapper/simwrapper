@@ -847,6 +847,7 @@ export default defineComponent({
   flex: 1;
   display: flex;
   flex-direction: column;
+  filter: drop-shadow(0px 0px 5px #00000040);
 }
 
 .tile-row {
@@ -874,7 +875,6 @@ export default defineComponent({
   display: grid;
   grid-template-rows: auto auto 1fr;
   grid-template-columns: 1fr;
-  // background-color: var(--bgBrowser);
 }
 
 .drag-highlight {

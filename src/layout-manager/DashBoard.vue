@@ -622,6 +622,11 @@ export default defineComponent({
 
   h2 {
     line-height: 2.1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  p {
+    line-height: 1.4rem;
   }
 }
 
