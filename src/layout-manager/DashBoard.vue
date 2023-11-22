@@ -48,11 +48,10 @@
             )
               i.fa.fa-expand
 
-        // info contents
+        //- info contents
         .info(v-show="infoToggle[card.id]")
           p
           p {{ card.info }}
-
 
         //- card contents
         .spinner-box(v-if="getCardComponent(card)"
@@ -76,7 +75,7 @@
             @titles="setCardTitles(card, $event)"
             @error="setCardError(card, $event)"
           )
-          .dash-card-errors(v-if="card.errors")
+          .dash-card-errors(v-if="card.errors.length")
             p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
@@ -183,19 +182,17 @@ export default defineComponent({
     },
 
     setCardError(card: any, event: any) {
+      // blank event: clear all errors for this card
       if (!event) {
-        // blank event: clear all errors for this card
-        card.errors = null
+        card.errors = []
         return
       }
 
       if (typeof event === 'string' && event) {
         // simple string error message
-        if (!card.errors) card.errors = [] as string[]
         card.errors.push(event)
       } else if (event.msg && event.type === Status.ERROR) {
         // status object: ignore warnings for now
-        if (!card.errors) card.errors = [] as string[]
         card.errors.push(event.msg)
       }
     },
@@ -335,7 +332,7 @@ export default defineComponent({
       this.rows = []
       this.rowFlexWeights = []
 
-      // to give browser time to teardown
+      // to give browser time to teardown: 0.2 seconds delay
       setTimeout(() => {
         this.dashboardTabWithDelay = index
         const { subtab, ...queryWithoutSubtab } = this.$route.query
@@ -347,7 +344,7 @@ export default defineComponent({
           this.$router.replace({ query: {} })
         }
         this.selectTabLayout()
-      }, 125)
+      }, 200)
     },
 
     async setupDashboard() {
@@ -475,6 +472,7 @@ export default defineComponent({
           // Vue 2 is weird about new properties: use Vue.set() instead
           Vue.set(this.opacity, card.id, 0.5)
           Vue.set(this.infoToggle, card.id, false)
+          Vue.set(card, 'errors', [] as string[])
 
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
