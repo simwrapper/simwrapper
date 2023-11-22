@@ -139,7 +139,7 @@ export default defineComponent({
           this.$emit('isLoaded')
           break
         case 'error':
-          this.$store.commit('error', `${this.yaml}: ${data.message}`)
+          this.$emit('error', `${this.yaml}: ${data.message}`)
           this.$emit('isLoaded')
           break
         default:

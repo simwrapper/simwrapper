@@ -186,7 +186,7 @@ export default defineComponent({
     validateYAML() {
       for (const key in this.YAMLrequirementsArea) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `Area chart missing required key: ${key}`,
             desc: `Required keys: ${Object.keys(this.YAMLrequirementsArea)}`,
@@ -201,7 +201,7 @@ export default defineComponent({
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', { type: Status.ERROR, msg })
+        this.$emit('error', { type: Status.ERROR, msg })
       }
     },
 

@@ -395,7 +395,7 @@ const MyComponent = defineComponent({
           this.$store.commit('requestLogin', this.fileSystem.slug)
         } else {
           const msg = 'Could not load ' + filename
-          this.$store.commit('error', msg)
+          this.$emit('error', msg)
           this.loadingText = msg
         }
         return false
@@ -717,7 +717,7 @@ const MyComponent = defineComponent({
 
       if (buffer.data.error) {
         console.error(buffer.data.error)
-        this.$store.commit('error', buffer.data.error)
+        this.$emit('error', buffer.data.error)
         return
       }
 

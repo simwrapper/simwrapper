@@ -179,7 +179,7 @@ export default defineComponent({
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg,
           desc: 'Add a desription...',

@@ -4,6 +4,7 @@ carrier-viewer.deck-map(
   :subfolder="subfolder"
   :config="config"
   :thumbnail="false"
+  @error="$emit('error', $event)"
 )
 
 </template>

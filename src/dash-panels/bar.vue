@@ -134,7 +134,7 @@ export default defineComponent({
       // warnings
       // missing title
       if (plotTitle.length == 0) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `The plot title is missing!`,
           desc: "Please add a plot title in the .yaml-file (title: 'Example title')",
@@ -235,7 +235,7 @@ export default defineComponent({
     validateYAML() {
       for (const key in this.YAMLrequirementsBar) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `Bar chart missing required key: ${key}`,
             desc: `Bar chart requires ${Object.keys(this.YAMLrequirementsBar)}`,
@@ -250,7 +250,7 @@ export default defineComponent({
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', { type: Status.ERROR, msg })
+        this.$emit('error', { type: Status.ERROR, msg })
       }
     },
 

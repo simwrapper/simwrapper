@@ -74,7 +74,10 @@
             @isLoaded="handleCardIsLoaded(card)"
             @dimension-resizer="setDimensionResizer"
             @titles="setCardTitles(card, $event)"
+            @error="setCardError(card, $event)"
           )
+          .dash-card-errors(v-if="card.errors")
+            p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
 
@@ -85,7 +88,7 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { FileSystemConfig, YamlConfigs } from '@/Globals'
+import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
@@ -175,9 +178,26 @@ export default defineComponent({
      * Remove the dashboard titles and use the ones from the topsheet.
      */
     setCardTitles(card: any, event: any) {
-      // console.log(card, event)
       card.title = event
       card.description = ''
+    },
+
+    setCardError(card: any, event: any) {
+      if (!event) {
+        // blank event: clear all errors for this card
+        card.errors = null
+        return
+      }
+
+      if (typeof event === 'string' && event) {
+        // simple string error message
+        if (!card.errors) card.errors = [] as string[]
+        card.errors.push(event)
+      } else if (event.msg && event.type === Status.ERROR) {
+        // status object: ignore warnings for now
+        if (!card.errors) card.errors = [] as string[]
+        card.errors.push(event.msg)
+      }
     },
 
     resizeAllCards() {
@@ -444,7 +464,7 @@ export default defineComponent({
             }
           } catch (e) {
             console.error('' + e)
-            this.$store.commit('error', 'Dashboard YAML: non-numeric height')
+            this.$emit('error', 'Dashboard YAML: non-numeric height')
             flexWeight = 1
           }
 
@@ -744,5 +764,25 @@ li.is-active b a {
 
 li.is-not-active b a {
   color: var(--text);
+}
+
+.dash-card-errors {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bgError);
+  color: var(--textBold);
+  border: 1px solid var(--bgCream4);
+  margin-bottom: 2px;
+  padding: 1rem 0.5rem;
+  z-index: 20000;
+  font-size: 0.95rem;
+  max-height: 50%;
+  overflow-y: auto;
+  p {
+    line-height: 1.2rem;
+    margin: 0 0;
+  }
 }
 </style>

@@ -186,15 +186,19 @@ export default new Vuex.Store({
       }
     },
     error(state, value: string) {
-      if (
-        !state.statusErrors.length ||
-        state.statusErrors[state.statusErrors.length - 1].msg !== value
-      ) {
-        state.statusErrors.push({ msg: value, desc: '' })
-        state.isShowingLeftBar = true
-      }
+      console.error('store.ts: NOT SUPPOSED TO BE HERE!' + value)
+      // if (
+      //   !state.statusErrors.length ||
+      //   state.statusErrors[state.statusErrors.length - 1].msg !== value
+      // ) {
+      //   state.statusErrors.push({ msg: value, desc: '' })
+      //   state.isShowingLeftBar = true
+      // }
     },
     setStatus(state, value: { type: Status; msg: string; desc?: string }) {
+      console.error('store.ts: NOT SUPPOSED TO BE HERE!' + value)
+      return
+
       if (!value.desc?.length) {
         value.desc = ''
       }
@@ -221,11 +225,6 @@ export default new Vuex.Store({
           state.statusErrors.push(warningObj)
           state.isShowingLeftBar = true
         }
-      }
-    },
-    clearError(state, value: number) {
-      if (state.statusErrors.length >= value) {
-        state.statusErrors.splice(value, 1) // remove one element
       }
     },
     clearAllErrors(state) {

@@ -202,7 +202,7 @@ const MyComponent = defineComponent({
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.statusText = ''
     } catch (e) {
-      this.$store.commit('error', 'Flowmap' + e)
+      this.$emit('error', 'Flowmap' + e)
     }
   },
 
@@ -265,7 +265,7 @@ const MyComponent = defineComponent({
       } catch (err) {
         const message = '' + err
         if (message.startsWith('YAMLSemantic')) {
-          this.$store.commit('error', `${filename}: ${message}`)
+          this.$emit('error', `${filename}: ${message}`)
         }
         console.log(`${filename} not found, trying config folders`)
       }

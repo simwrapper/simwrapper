@@ -6,6 +6,7 @@ vega-lite.dash-element(
   :cardId="cardId"
   :thumbnail="false"
   @dimension-resizer="$emit('dimension-resizer', $event)"
+  @error="$emit('error', $event)"
 )
 
 </template>

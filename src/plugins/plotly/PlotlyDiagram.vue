@@ -650,7 +650,7 @@ const MyComponent = defineComponent({
 
       exclude.forEach(column => {
         if (!(column in dataTable)) {
-          globalStore.commit('error', `Pivot column ${column} not in ${name}`)
+          this.$emit('error', `Pivot column ${column} not in ${name}`)
         }
       })
 
@@ -689,10 +689,7 @@ const MyComponent = defineComponent({
       Object.keys(first).forEach((column: string) => {
         const mapped = datasets.map(ds => {
           if (!(column in ds.data!)) {
-            globalStore.commit(
-              'error',
-              `Merged dataset ${ds.name} does not contain column ${column}`
-            )
+            this.$emit('error', `Merged dataset ${ds.name} does not contain column ${column}`)
           }
 
           return ds.data![column].values
@@ -736,7 +733,7 @@ const MyComponent = defineComponent({
               // Normal way to add values into the column
               else object[key] = dataTable[column].values
             } else {
-              globalStore.commit('error', `Column "${column}" not in ${Object.keys(dataTable)}`)
+              this.$emit('error', `Column "${column}" not in ${Object.keys(dataTable)}`)
             }
           }
         } else if (Array.isArray(value)) {

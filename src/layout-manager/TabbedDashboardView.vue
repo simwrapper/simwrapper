@@ -415,7 +415,7 @@ export default defineComponent({
         } catch (e) {
           // note parsing error and move on
           const msg = `Error reading ${filename}: ` + e
-          this.$store.commit('error', msg)
+          this.$emit('error', msg)
           console.error(msg)
         }
       }
@@ -497,7 +497,7 @@ export default defineComponent({
         // console.log('DASHBOARD:', fullPath)
         return true
       } catch (e) {
-        this.$store.commit('setStatus', { type: Status.ERROR, msg: '' + e })
+        this.$emit('error', { type: Status.ERROR, msg: '' + e })
         return false
       }
     },

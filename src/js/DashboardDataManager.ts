@@ -185,13 +185,8 @@ export default class DashboardDataManager {
           thread.onmessage = e => {
             thread.terminate()
             if (e.data.error) {
-              console.log(e.data.error)
-              globalStore.commit('setStatus', {
-                type: Status.ERROR,
-                msg: `Problem loading properties in ${fullpath}`,
-                desc: 'File loaded from storage, but properties table could not be parsed',
-              })
-              reject()
+              console.error(e.data.error)
+              reject(`Problem loading properties in ${fullpath}`)
             }
             resolve(e.data)
           }
@@ -383,7 +378,7 @@ export default class DashboardDataManager {
     for (const [column, spec] of Object.entries(metaData.activeFilters)) {
       const dataColumn = dataset[column]
       if (spec.values[0] === undefined || spec.values[0] === '') {
-        globalStore.commit('error', datasetId + ': filter error')
+        throw Error(datasetId + ': filter error')
       }
 
       // prep LT/GT
@@ -508,12 +503,7 @@ export default class DashboardDataManager {
 
             if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`
 
-            globalStore.commit('setStatus', {
-              type: Status.ERROR,
-              msg,
-              desc: JSON.stringify(config),
-            })
-            reject()
+            reject(msg)
           }
           resolve(e.data)
         }

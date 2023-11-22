@@ -481,7 +481,7 @@ const MyComponent = defineComponent({
         const e = err as any
         console.log('failed')
 
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `File not found`,
           desc: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
@@ -503,7 +503,7 @@ const MyComponent = defineComponent({
 
       for (const key in this.YAMLrequirementsXY) {
         if (!(key in configuration)) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `XYHexagon: ${this.yamlConfig}: missing required key: ${key}`,
             desc: `XYHexagon requires ${Object.keys(this.YAMLrequirementsXY)}`,
@@ -512,7 +512,7 @@ const MyComponent = defineComponent({
       }
 
       if (configuration.radius == 0) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Radius set to zero`,
           desc: 'Radius can not be zero, preset value used instead. ',
@@ -520,7 +520,7 @@ const MyComponent = defineComponent({
       }
 
       if (configuration.zoom < 5 || configuration.zoom > 20) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Zoom is out of the recommended range `,
           desc: 'Zoom levels should be between 5 and 20. ',
@@ -661,7 +661,7 @@ const MyComponent = defineComponent({
           this.myState.statusMessage = buffer.data.status
         } else if (buffer.data.error) {
           this.myState.statusMessage = buffer.data.error
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `Loading Error`,
             desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
@@ -703,7 +703,7 @@ const MyComponent = defineComponent({
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `Loading/Parsing Error`,
           desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',

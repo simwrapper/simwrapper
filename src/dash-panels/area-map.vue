@@ -7,6 +7,7 @@ shape-file.deck-map(
   :datamanager="datamanager"
   :yamlConfig="'config'"
   @isLoaded="isLoaded"
+  @error="$emit('error', $event)"
 )
 //- :fsConfig="fileSystemConfig"
 
