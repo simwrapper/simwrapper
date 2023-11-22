@@ -381,11 +381,12 @@ export default defineComponent({
             if (yaml.leftNavBar.bottom) {
               this.leftNavItems.bottom = this.leftNavItems.bottom.concat(yaml.leftNavBar.bottom)
             }
-          }
-          this.$store.commit('setLeftNavItems', this.leftNavItems)
 
-          // switch to leftside project panel if we have one
-          if (this.leftNavItems) {
+            // User defined a leftNavBar: so make it visible
+            this.$store.commit('setLeftNavItems', this.leftNavItems)
+            this.$store.commit('setShowLeftBar', true)
+            this.$store.commit('setShowShowHideButton', true)
+
             this.$emit('activate', {
               name: 'Project',
               class: 'LeftProjectPanel',
