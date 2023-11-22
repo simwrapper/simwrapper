@@ -125,12 +125,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { close: 'Close panel', back: 'Go back' },
-    de: { close: 'Schließen', back: 'Zurück' },
-  },
-}
 
 import Vue, { defineComponent } from 'vue'
 
@@ -138,6 +132,7 @@ import { Route } from 'vue-router'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
