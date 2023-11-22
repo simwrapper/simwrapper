@@ -89,6 +89,7 @@ export default defineComponent({
       if (event.altKey && event.shiftKey && event.keyCode === 81) {
         console.log('QUICKVIEW')
         this.$store.commit('toggleShowLeftBar')
+        this.$store.commit('setShowShowHideButton', true)
         this.$store.commit('resize')
       }
       // shift-alt-W: wide screen mode

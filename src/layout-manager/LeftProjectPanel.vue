@@ -32,6 +32,9 @@
       p.settings-icon(@click="$store.commit('rotateColors')")
         i.fas.fa-adjust
         | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
+      p.settings-icon(@click="updateLanguage")
+        i.fas.fa-globe
+        | &nbsp;&nbsp;{{ globalState.locale }}
       p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
         i.fas.fa-columns
         | &nbsp;&nbsp;split
@@ -127,6 +130,11 @@ export default defineComponent({
     },
   },
   methods: {
+    updateLanguage() {
+      this.$store.commit('setLocale', this.$store.state.locale == 'en' ? 'de' : 'en')
+      this.$root.$i18n.locale = this.$store.state.locale
+    },
+
     hasLabel(item: NavigationItem): any {
       return item.text || item.text_de || item.text_en
     },

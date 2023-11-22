@@ -11,7 +11,7 @@
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
  )
-  .restore-left-panel-button(v-if="!$store.state.isShowingLeftBar"
+  .restore-left-panel-button(v-if="$store.state.isShowingShowHideButton && !$store.state.isShowingLeftBar"
     @click="$store.commit('setShowLeftBar', true)"
   )
     p.show-hide: i.fas.fa-arrow-right
@@ -267,6 +267,7 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
+        this.$store.commit('setShowLeftBar', true)
         return
       }
 

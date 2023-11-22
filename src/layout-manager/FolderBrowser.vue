@@ -145,7 +145,6 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
-import BreadCrumbs from '@/components/BreadCrumbs.vue'
 
 const tabColors = {
   // blank means dashboard:
@@ -167,7 +166,7 @@ const tabColors = {
 export default defineComponent({
   name: 'FolderBrowser',
   i18n,
-  components: Object.assign({ TopsheetsFinder, BreadCrumbs }, pluginComponents),
+  components: Object.assign({ TopsheetsFinder }, pluginComponents),
   props: {
     root: { type: String, required: true },
     allConfigFiles: { type: Object as PropType<YamlConfigs>, required: true },

@@ -1,7 +1,7 @@
 <template lang="pug">
 .tabbed-folder-view
 
-  .tabholder(v-if="!globalState.isHidingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
+  .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
@@ -30,7 +30,7 @@
 
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
-      :class="{'is-breadcrumbs-hidden': globalState.isHidingBreadcrumbs && !isZoomed}"
+      :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
     )
       dash-board(
         :root="root"
@@ -93,23 +93,24 @@ export default defineComponent({
   },
   data: () => {
     return {
+      activeTab: '',
+      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
+      crumbs: [] as any,
+      customCSS: '',
       dashboards: [] as any[],
       dashboardDataManager: null as DashboardDataManager | null,
-      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
-      isZoomed: false,
-      styleElement: null as any,
-      loadErrorMessage: '',
-      activeTab: '',
-      pageHeader: '',
-      folderReadme: '',
-      header: '',
-      footer: '',
-      customCSS: '',
       dashboardTabWithDelay: '',
-      showFooter: false,
-      globalState: globalStore.state,
       finalFolder: '',
-      crumbs: [] as any,
+      folderReadme: '',
+      footer: '',
+      globalState: globalStore.state,
+      header: '',
+      isShowingBreadcrumbs: false,
+      isZoomed: false,
+      loadErrorMessage: '',
+      pageHeader: '',
+      showFooter: false,
+      styleElement: null as any,
       // project site navigation
       leftNavItems: null as null | {
         top: NavigationItem[]
@@ -287,13 +288,18 @@ export default defineComponent({
     },
 
     async setupProjectConfig() {
-      if (!Object.keys(this.allConfigFiles.configs).length) {
-        // no config, so show navbar and be done
-        // this.$store.commit('setShowLeftBar', true)
+      const allConfigs = Object.values(this.allConfigFiles.configs)
+
+      // no configs: no project mode.
+      if (!allConfigs.length) {
+        this.isShowingBreadcrumbs = true
+        this.$store.commit('setShowLeftBar', true)
+        this.$store.commit('setShowShowHideButton', true)
         return
       }
 
-      for (const filename of Object.values(this.allConfigFiles.configs)) {
+      // configs: set up "project mode" !!
+      for (const filename of allConfigs) {
         try {
           const config = await this.fileApi.getFileText(filename)
           const yaml = YAML.parse(config)
@@ -304,9 +310,14 @@ export default defineComponent({
             : filename.substring(0, filename.indexOf('simwrapper-config.y'))
 
           // always reveal quickview bar unless told not to
-          if (yaml.hideLeftBar === true) this.$store.commit('setShowLeftBar', false)
-          if (yaml.hideLeftBar === false) this.$store.commit('setShowLeftBar', true)
-          this.$store.commit('setShowLeftBar', true)
+          if (yaml.hideLeftBar === true) {
+            this.$store.commit('setShowLeftBar', false)
+            this.$store.commit('setShowShowHideButton', false)
+          }
+          if (yaml.hideLeftBar === false) {
+            this.$store.commit('setShowLeftBar', true)
+            this.$store.commit('setShowShowHideButton', true)
+          }
 
           // theme
           if (yaml.theme) this.$store.commit('setTheme', yaml.theme)
@@ -324,7 +335,8 @@ export default defineComponent({
           }
 
           // Breadcrumb-Bar. Delicious!
-          if (yaml.hideBreadcrumbs) this.$store.commit('setHideBreadcrumbs', true)
+          this.isShowingBreadcrumbs = !yaml.hideBreadcrumbs
+          // if (yaml.hideBreadcrumbs) this.isShowingBreadcrumbs = false
 
           if (yaml.topNavBar) {
             this.topNavItems = {

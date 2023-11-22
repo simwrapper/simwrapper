@@ -92,21 +92,9 @@ export default defineComponent({
       return fullUrl
     },
 
-    getStyle(item: any, isLink: boolean) {
+    getStyle(item: any) {
       const style = {} as any
       if (item.style) Object.assign(style, item.style)
-
-      // // Current folder gets special highlight
-      // if (
-      //   isLink &&
-      //   item.url &&
-      //   this.currentFolder.length > 1 &&
-      //   item.url.indexOf(this.currentFolder) > -1
-      // ) {
-      //   style.borderBottom = '1px solid white'
-      //   style.fontWeight = 'bold'
-      // }
-
       return style
     },
 
