@@ -90,26 +90,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      Maps: 'Maps',
-      Images: 'Images',
-      Analysis: 'Analysis',
-      Files: 'Files',
-      Folders: 'Folders',
-      Topsheet: 'Topsheet',
-    },
-    de: {
-      Maps: 'Karten',
-      Images: 'Bilder',
-      Analysis: 'Ergebnisse',
-      Files: 'Dateien',
-      Folders: 'Ordner',
-      Topsheet: 'Topsheet',
-    },
-  },
-}
 
 interface VizEntry {
   component: string
@@ -140,6 +120,7 @@ import micromatch from 'micromatch'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'

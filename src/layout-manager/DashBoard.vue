@@ -87,6 +87,7 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 

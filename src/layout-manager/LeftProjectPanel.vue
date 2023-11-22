@@ -42,17 +42,12 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {},
-    de: {},
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import {
   BreadCrumb,
   FavoriteLocation,

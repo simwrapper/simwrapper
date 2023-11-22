@@ -14,9 +14,9 @@
 
       .middle-area
         .is-chrome(v-if="isChrome")
-          h3 Local Folders
+          h3 {{ $t("localFolders") }}
 
-          p(v-if="!localFileHandles.length") This browser can access local folders:
+          p(v-if="!localFileHandles.length") {{  $t("browserDescription") }}
 
           .roots
             .project-root.local(v-for="row in localFileHandles" :key="row.key"
@@ -24,11 +24,11 @@
 
               h5.remove-local(style="flex: 1;") {{ row.handle.name}}
                 i.fa.fa-times(@click.stop="clickedDelete(row)")
-              p Local folder
+              p {{ $t("localFolder") }}
 
-          p.config-sources: a(@click="showChromeDirectory") Add local folder...
+          p.config-sources: a(@click="showChromeDirectory") {{ $t("addFolder") }}
 
-        h3.section-head Browse Data Sources
+        h3.section-head {{$t("browseSources")}}
 
         .roots
           .project-root(v-for="project in allRoots" :key="project.slug"
@@ -37,11 +37,11 @@
             h5 {{ project.name }}
             p {{ project.description }}
 
-        p.config-sources: a(@click="configureSources") Edit data sources...
+        p.config-sources: a(@click="configureSources") {{ $t("editSources") }}
 
-        h3.section-head Funding partners
+        h3.section-head {{$t("fundingPartners")}}
 
-        p.funding Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies below.
+        p.funding {{ $t("funding") }}
 
         .links-and-logos
           .logos
@@ -53,10 +53,10 @@
               img.img-logo(:src="logo.image")
 
 
-        h3.section-head For more information
+        h3.section-head {{ $t("moreInfo") }}
 
         .legal
-          p SimWrapper is open source and available on&nbsp;
+          p {{ $t("openSource") }} &nbsp;
             a(href="https://github.com/simwrapper/simwrapper") GitHub.
 
         .legal
@@ -72,25 +72,12 @@
 // Typescript doesn't know the Chrome File System API
 declare const window: any
 
-const i18n = {
-  messages: {
-    en: {
-      'more-info': 'Documentation:',
-      tagLine: 'the simulation browser and data visualizer from TU&nbsp;Berlin.',
-      privacy:
-        'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
-    },
-    de: {
-      'more-info': 'Für weitere Informationen:',
-      tagLine: 'Der Modellergebnis-Browser der TU Berlin.',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import { get, set, clear } from 'idb-keyval'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import InfoBottom from '@/assets/info-bottom.md'
 import { FileSystemConfig } from '@/Globals'

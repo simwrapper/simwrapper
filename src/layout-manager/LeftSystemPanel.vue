@@ -17,10 +17,10 @@
             i.fa.fa-times(@click.stop="clickedLocalDelete(row)")
 
         .project-root.open-folder(@click="showChromeDirectory")
-          p.root Open folder...
-          p.description This browser can access local folders
+          p.root {{ $t("openFolder") }}
+          p.description {{ $t("browserDescription") }}
 
-    h3 Data Sources
+    h3 {{ $t("dataSources")}}
     .items(v-if="!showAddDataSource")
       .project-root(v-for="project in allRoots" :key="project.slug"
         @click="clickedOnFolder({root: project.slug})")
@@ -32,12 +32,12 @@
       p.config-sources
         a(@click="showAddDataSource=true")
           i.fa.fa-plus
-          | &nbsp;Add data source...
+          | &nbsp;{{ $t("addData") }}
 
     .items(v-if="showAddDataSource")
       add-data-source(@close="showAddDataSource=false" )
 
-    h3 PINNED
+    h3 {{ $t("pinned")}}
     .items
       .project-root(v-for="favorite in globalState.favoriteLocations" :key="favorite.fullPath"
         @click="clickedOnFavorite(favorite)")
@@ -47,11 +47,11 @@
 
   //- .bottom-panel
 
-  //-   h3 DOCUMENTATION
-  //-   .items
-  //-     p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
-  //-     p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
-  //-     p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
+    h3 DOCUMENTATION
+    .items
+      p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
+      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
+      p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
 
   //- .action-panel
   //-   p.show-hide(@click="$store.commit('setShowLeftBar', false)")
@@ -74,29 +74,6 @@
 declare const window: any
 const BASE_URL = import.meta.env.BASE_URL
 const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
-
-const i18n = {
-  messages: {
-    en: {
-      Maps: 'Maps & Dashboards',
-      Images: 'Images',
-      Analysis: 'Analysis',
-      Files: 'Files',
-      Folders: 'Folders',
-      Topsheet: 'Table',
-      privacy:
-        'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
-    },
-    de: {
-      Maps: 'Karten',
-      Images: 'Bilder',
-      Analysis: 'Ergebnisse',
-      Files: 'Dateien',
-      Folders: 'Ordner',
-      Topsheet: 'Tabelle',
-    },
-  },
-}
 
 const tabColors = {
   // blank means dashboard:
@@ -142,6 +119,7 @@ import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { BreadCrumb, FavoriteLocation, FileSystemConfig, YamlConfigs } from '@/Globals'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
