@@ -3,30 +3,47 @@ const i18n = {
     en: {
 
     //Folder Browser
-    Maps: 'Maps',
-    Images: 'Images',
-    Analysis: 'Analysis',
-    Files: 'Files',
-    localFolders: "Local Folders",
-    localFolder: "Local Folder",
-    Folders: 'Folders',
-    Topsheet: 'Topsheet',
-    openFolder: "Open Folder...",
+    maps: 'Maps',
+    images: 'Images',
+    analysis: 'Analysis',
     browserDescription: "This browser can access local folders",
-    addData: "Add data source...",
+    label: "Label",
+    note: "Note",
+
+    //Folders-Data-Files
+    files: 'Files',
+
+    folders: 'Folders',
+    localFolder: "Local Folder",
+    localFolders: "Local Folders",    
+    openFolder: "Open Folder...",
     addFolder:"Add local folder...",
+    
+    addData: "Add data source...",    
+    dataSources: "Data Sources",
     browseSources: "Browse data sources",
     editSources: "Edit data sources...",
+    addDataURL: "Add Data URL",
     
 
-    //Site Layout
+    //General
     back: 'Go back',
     close: 'Close panel',
 
+    theme: 'Theme',
     dark: "dark",
     light: "light",
+
+    cancel: "Cancel",
+    settings: "Settings",
+    translate: 'Note: German translations are incomplete, but steadily improving',
+    language: 'Language',
     
-    dataSources: "Data Sources",
+    
+    //Site Layout
+    topsheet: 'Topsheet',
+
+    
     pinned: "Pinned",
     documentation: "Documentation",
     documentationLink: "Documentation site",
@@ -55,30 +72,46 @@ const i18n = {
   },
     de: {
     //Folder Browser
-    Maps: 'Karten',
-    Images: 'Bilder',
-    Analysis: 'Ergebnisse',
-    Files: 'Dateien',
-    Folders: 'Ordner',
-    TlocalFolders: "Lokale Ordner",
-    localFolder: "Lokaler Ordner",
-    Topsheet: 'Topsheet',
-    openFolder: "Ordner öffnen...",
+    maps: 'Karten',
+    images: 'Bilder',
+    analysis: 'Ergebnisse',
     browserDescription: "Mit diesem Browser können lokale Dateien geladen werden",
-    addData: "Datenquelle hinzufügen...",
+    label: "Bezeichnung",
+    note: "Anmerkung",
+
+    //Folders-Data-Files
+    files: 'Dateien',
+
+    folders: 'Ordner',
+    localFolder: "Lokaler Ordner",
+    localFolders: "Lokale Ordner",
+    openFolder: "Ordner öffnen...",
     addFolder:"Lokaler Ordner hinzufügen",
+    
+    dataSources: "Datenquellen",
+    addData: "Datenquelle hinzufügen...",    
     browseSources: "Datenquellen durchsuchen...",
     editSources: "Datenquellen bearbeiten...",
+    addDataURL: "URL zu Datenquelle hinzufügen",
     
 
-    //Site Layout
+    //General
     back: 'Zurück',
     close: 'Schließen',
 
     dark: "dunkel",
     light: "hell",
+
+    cancel: "Abbrechen",
+    settings: "Einstellungen",
+
+    translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
+    language: 'Sprache',
+
+    //Site Layout
+
+    topsheet: 'Topsheet',
     
-    dataSources: "Datenquellen",
     pinned: "Angeheftet",
     documentation: "Dokumentation",
     documentationLink: "Dokumentation",

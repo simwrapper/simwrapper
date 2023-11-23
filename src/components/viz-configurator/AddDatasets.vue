@@ -4,18 +4,19 @@
     .thing
       .spinner-box
         p &nbsp;
-      h3 LOADING...
+      h3 {{ $t("loading") }}
 
   h3.button-close(@click="clickedClose")
     i.fa.fa-sm.fa-times
 
-  h3.header-line Add Data
+  h3.header-line {{$t("addData")}}
 
+//CONTINUE HERE
   .widgets
     .widget
-      b Choose a dataset from files in this folder:
+      b {{ $t("chooseData") }}
       b-select.selector(expanded v-model="fileChoice")
-        option(value="" label="Select file...")
+        option(value="" label= "Select file...")
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 
   br
@@ -54,6 +55,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+
+import i18n from '@/i18n'
 
 import { gUnzip } from '@/js/util'
 import { VizLayerConfiguration, FileSystemConfig, DataTable } from '@/Globals'

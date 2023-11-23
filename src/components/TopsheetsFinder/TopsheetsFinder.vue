@@ -11,11 +11,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { title: 'Key Performance Indicators' },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -26,7 +21,6 @@ import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
 export default defineComponent({
   name: 'TopsheetsFinder',
-  i18n,
   components: { TopSheet },
   props: {
     fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
