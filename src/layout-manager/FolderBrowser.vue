@@ -14,7 +14,7 @@
     .curated-sections
 
       //- file system folders
-      h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
+      h3.curate-heading(v-if="myState.folders.length")  {{ $t('folders') }}
 
       .curate-content(v-if="myState.folders.length")
         .folder-table
@@ -33,7 +33,7 @@
 
       //- MAPS: thumbnails of each viz map here
       .section-maps(v-if="Object.keys(vizMaps).length")
-        h3.curate-heading {{ $t('Maps')}}
+        h3.curate-heading {{ $t('maps')}}
         .curate-content
           .viz-table
             .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
@@ -56,7 +56,7 @@
 
       //- IMAGES here
       .section-images(v-if="Object.keys(vizImages).length")
-        h3.curate-heading {{ $t('Images')}}
+        h3.curate-heading {{ $t('images')}}
         .curate-content
           .viz-image-table
             .viz-image-grid-item(v-for="[index, viz] of Object.entries(vizImages)" :key="index"
@@ -78,7 +78,7 @@
       //- this is DISABLED for Chrome API for now, because we
       //- can't download those files via regular URL
       .files-section(v-if="myState?.svnProject?.baseURL")
-        h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
+        h3.curate-heading(v-if="myState.files.length") {{$t('files')}}
 
         .curate-content(v-if="myState.files.length")
           .file-table

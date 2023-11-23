@@ -2,7 +2,7 @@
 .panel
 
   .top-panel
-    h4 Settings
+    h4 {{ $t("Settings") }}
 
   .middle-panel
 
@@ -37,38 +37,18 @@
         .delete(@click="deleteShortcut(root.slug)")
 
     .option
-      h5 {{ $t('addDataSources') }}
+      h5 {{ $t('addData') }}
       add-data-source
 
 
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      translate: 'Note: German translations are incomplete, but steadily improving',
-      theme: 'Theme',
-      light: 'Light',
-      dark: 'Dark',
-      language: 'Language',
-      dataSources: 'Data Sources',
-      addDataSources: 'Add Data Source',
-    },
-    de: {
-      translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
-      theme: 'Thema',
-      light: 'Hell',
-      dark: 'Dunkel',
-      language: 'Sprache',
-      dataSources: 'Datenquellen',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import AddDataSource from './AddDataSource.vue'
 
 export default defineComponent({
