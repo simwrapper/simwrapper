@@ -28,6 +28,9 @@
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
 
+  .hide-left-panel-button(@click="$store.commit('setShowLeftBar', false)")
+    p.show-hide: i.fas.fa-arrow-left
+
   settings-panel.settings-popup(v-if="isShowingSettings"
     @close="toggleSettings()"
   )
@@ -131,6 +134,7 @@ export default defineComponent({
 .bottom {
   display: flex;
   flex-direction: column;
+  margin-bottom: 4rem;
 }
 
 .item {
@@ -172,12 +176,45 @@ img {
 
 .settings-popup {
   position: absolute;
-  bottom: 26px;
+  bottom: 0.5rem;
   left: 28px;
   right: 8px;
   background-color: #202028;
   padding: 0.5rem 0.5rem 0rem 0.5rem;
   font-size: 0.9rem;
   filter: drop-shadow(0px 0px 8px #00000060);
+}
+
+.hide-button {
+  padding-top: 0;
+  // background-color: #48485f;
+}
+
+.hide-left-panel-button {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3rem;
+  margin-bottom: 1rem;
+  background-color: #48485f; // $appTag;
+  z-index: 8000;
+  color: #ccc;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  display: flex;
+  flex-direction: column;
+
+  p {
+    margin: auto 0;
+    padding: 0 3px;
+    font-size: 9px;
+    text-align: center;
+  }
+}
+
+.hide-left-panel-button:hover {
+  background-color: #666; // #3c3c49;
+  color: #deef6f;
+  cursor: pointer;
 }
 </style>

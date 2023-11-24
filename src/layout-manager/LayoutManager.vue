@@ -17,7 +17,9 @@
     p.show-hide: i.fas.fa-arrow-right
 
   .left-panel(v-show="showLeftBar")
+    // do not show left-icon bar if we are in project mode
     left-icon-panel.left-icon-panel(
+      v-if="$store.state.isShowingFilesSection"
       :activeSection="activeLeftSection.name"
       @activate="setActiveLeftSection"
     )
@@ -1066,8 +1068,8 @@ export default defineComponent({
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 4rem;
-  margin-bottom: 2rem;
+  height: 3rem;
+  margin-bottom: 1rem;
   background-color: #48485f; // $appTag;
   z-index: 8000;
   color: #ccc;
@@ -1078,7 +1080,7 @@ export default defineComponent({
 
   p {
     margin: auto 0;
-    padding: 0 2px 0 2px;
+    padding: 0 3px;
     font-size: 9px;
     text-align: center;
   }

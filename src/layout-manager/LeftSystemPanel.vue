@@ -52,10 +52,10 @@
   //-     p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
   //-     p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
 
-  .action-panel
-    p.show-hide(@click="$store.commit('setShowLeftBar', false)")
-      i.fas.fa-arrow-left
-      | &nbsp;&nbsp;hide
+  //- .action-panel
+  //-   p.show-hide(@click="$store.commit('setShowLeftBar', false)")
+  //-     i.fas.fa-arrow-left
+  //-     | &nbsp;&nbsp;hide
     //- p.settings-icon(@click="$store.commit('rotateColors')")
     //-   i.fas.fa-adjust
     //-   | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}

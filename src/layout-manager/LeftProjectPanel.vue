@@ -25,19 +25,19 @@
         p(v-if="item.url"): a(@click="navigate(item.url)") {{ getLabel(item) }}
         p(v-else) {{ getLabel(item) }}
 
-    .action-buttons
-      p.show-hide(@click="$store.commit('setShowLeftBar', false)")
-        i.fas.fa-arrow-left
-        | &nbsp;&nbsp;hide
-      p.settings-icon(@click="$store.commit('rotateColors')")
-        i.fas.fa-adjust
-        | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
-      p.settings-icon(@click="updateLanguage")
-        i.fas.fa-globe
-        | &nbsp;&nbsp;{{ globalState.locale }}
-      p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
-        i.fas.fa-columns
-        | &nbsp;&nbsp;split
+    //- .action-buttons
+    //-   p.show-hide(@click="$store.commit('setShowLeftBar', false)")
+    //-     i.fas.fa-arrow-left
+    //-     | &nbsp;&nbsp;hide
+    //-   p.settings-icon(@click="$store.commit('rotateColors')")
+    //-     i.fas.fa-adjust
+    //-     | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
+    //-   p.settings-icon(@click="updateLanguage")
+    //-     i.fas.fa-globe
+    //-     | &nbsp;&nbsp;{{ globalState.locale }}
+    //-   p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
+    //-     i.fas.fa-columns
+    //-     | &nbsp;&nbsp;split
 
 </template>
 
@@ -301,8 +301,7 @@ h4 {
 .sw-leftpanel-bottom {
   display: flex;
   flex-direction: column;
-  // width: 100%;
-  margin-bottom: 0rem;
+  margin-bottom: 1rem;
   overflow-y: auto;
   overflow-x: hidden;
   text-align: left;
