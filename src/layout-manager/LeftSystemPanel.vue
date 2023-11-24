@@ -56,12 +56,12 @@
     p.show-hide(@click="$store.commit('setShowLeftBar', false)")
       i.fas.fa-arrow-left
       | &nbsp;&nbsp;hide
-    p.settings-icon(@click="$store.commit('rotateColors')")
-      i.fas.fa-adjust
-      | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
-    p.settings-icon(@click="updateLanguage")
-      i.fas.fa-globe
-      | &nbsp;&nbsp;{{ globalState.locale }}
+    //- p.settings-icon(@click="$store.commit('rotateColors')")
+    //-   i.fas.fa-adjust
+    //-   | &nbsp;&nbsp;{{ globalState.isDarkMode ? 'dark':'light' }}
+    //- p.settings-icon(@click="updateLanguage")
+    //-   i.fas.fa-globe
+    //-   | &nbsp;&nbsp;{{ globalState.locale }}
     //- p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
     //-   i.fas.fa-columns
     //-   | &nbsp;&nbsp;split

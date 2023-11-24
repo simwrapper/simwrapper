@@ -17,6 +17,7 @@
       i.fa-icon.fas(v-if="section.fontAwesomeIcon" :class="section.fontAwesomeIcon")
 
   .bottom
+
     .item(v-for="section in bottomSections" :key="section.name"
       @click="select(section)"
     )
@@ -27,6 +28,9 @@
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
 
+  settings-panel.settings-popup(v-if="isShowingSettings"
+    @close="toggleSettings()"
+  )
 
 </template>
 
@@ -40,6 +44,7 @@ import ICON_DOCS from '@/assets/icons/readme.svg'
 import ICON_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_icon_black.png'
 
 import globalStore from '@/store'
+import SettingsPanel from './SettingsPanel.vue'
 
 const DOCS_URL = 'https://simwrapper.github.io/docs'
 
@@ -55,12 +60,14 @@ export interface Section {
 
 export default defineComponent({
   name: 'LeftIconPanel',
+  components: { SettingsPanel },
   props: {
     activeSection: { type: String, required: true },
   },
   data: () => {
     return {
       state: globalStore.state,
+      isShowingSettings: false,
       topSections: [
         { name: 'Home', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
         { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
@@ -88,15 +95,16 @@ export default defineComponent({
   },
   methods: {
     select(section: Section) {
-      this.$emit('activate', section)
+      if (section.name == 'Settings') {
+        this.toggleSettings()
+      } else {
+        this.$emit('activate', section)
+      }
     },
 
-    // buttonStyle(section: any) {
-    //   return {
-    //     opacity: 1.0,
-    //     borderLeft: '3px solid white',
-    //   }
-    // },
+    toggleSettings() {
+      this.isShowingSettings = !this.isShowingSettings
+    },
   },
 })
 </script>
@@ -160,5 +168,16 @@ img {
 .fa-icon {
   margin: 7px auto 0 auto;
   font-size: 10px;
+}
+
+.settings-popup {
+  position: absolute;
+  bottom: 26px;
+  left: 28px;
+  right: 8px;
+  background-color: #202028;
+  padding: 0.5rem 0.5rem 0rem 0.5rem;
+  font-size: 0.9rem;
+  filter: drop-shadow(0px 0px 8px #00000060);
 }
 </style>
