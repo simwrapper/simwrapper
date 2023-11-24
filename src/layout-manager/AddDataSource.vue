@@ -43,12 +43,8 @@ import MarkdownIt from 'markdown-it'
 import globalStore from '@/store'
 
 const mdAddNotes = `
-Add a local shortcut for any URL-based resource.
-SimWrapper requires several server settings, including:
-
-- Open access (no login)
-- File and directory listings
--  CORS "Access-Control-Allow-Origin"
+Add any URL-based data provider.
+See SimWrapper documentation for details.
 `
 
 export default defineComponent({
@@ -147,7 +143,6 @@ b-button {
 
 .add-data-panel {
   background-color: #557;
-  margin-right: 0.5rem;
 }
 
 .add {

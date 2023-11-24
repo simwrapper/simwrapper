@@ -1,9 +1,10 @@
 <template lang="pug">
 .icon-panel
-  .top
-    .item(v-for="section in topSections" :key="section.name"
-      :class="{'is-active': activeSection === section.name}"
 
+  .top
+
+    .item(v-for="section in topSections" :key="section.name"
+      :class="{'is-active': section.name === activeSection}"
       @click="select(section)"
     )
       .sideways
@@ -21,7 +22,9 @@
     .item(v-for="section in bottomSections" :key="section.name"
       @click="select(section)"
     )
-      p.sideways {{ section.name }}
+      .sideways
+        p {{ section.name }}
+
       img.svg-icon(v-if="section.icon"
         :src="section.icon"
         :draggable="false"
@@ -40,14 +43,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 
-import ICON_FILES from '@/assets/icons/files.svg'
-import ICON_ISSUES from '@/assets/icons/issues.svg'
+import globalStore from '@/store'
+import SettingsPanel from './SettingsPanel.vue'
+
 import ICON_INFO from '@/assets/icons/settings.svg'
 import ICON_DOCS from '@/assets/icons/readme.svg'
 import ICON_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_icon_black.png'
-
-import globalStore from '@/store'
-import SettingsPanel from './SettingsPanel.vue'
 
 const DOCS_URL = 'https://simwrapper.github.io/docs'
 
@@ -158,7 +159,7 @@ export default defineComponent({
   opacity: 1;
 }
 
-.item.is-active {
+.is-active {
   opacity: 1;
   background-color: $themeColorPale;
 }
@@ -186,6 +187,7 @@ img {
   background-color: #202028;
   padding: 0.5rem 0.5rem 0rem 0.5rem;
   font-size: 0.9rem;
+  z-index: 2;
   filter: drop-shadow(0px 0px 8px #00000060);
 }
 

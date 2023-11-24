@@ -21,7 +21,7 @@
           p.description This browser can access local folders
 
     h3 Data Sources
-    .items
+    .items(v-if="!showAddDataSource")
       .project-root(v-for="project in allRoots" :key="project.slug"
         @click="clickedOnFolder({root: project.slug})")
 
@@ -29,12 +29,13 @@
           i.fa.fa-times(@click.stop="clickedDataSourceDelete(project)")
         p.description {{ project.description }}
 
-      p.config-sources(v-if="!showAddDataSource")
+      p.config-sources
         a(@click="showAddDataSource=true")
           i.fa.fa-plus
           | &nbsp;Add data source...
 
-      add-data-source(v-else @close="showAddDataSource=false")
+    .items(v-if="showAddDataSource")
+      add-data-source(@close="showAddDataSource=false" )
 
     h3 PINNED
     .items
@@ -146,7 +147,7 @@ import { pluginComponents } from '@/plugins/pluginRegistry'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-import AddDataSource from '@/components/left-panels/AddDataSource.vue'
+import AddDataSource from './AddDataSource.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import LeftIconPanel, { Section } from './LeftIconPanel.vue'
@@ -162,7 +163,7 @@ const components = Object.assign(
 export default defineComponent({
   name: 'SystemPanel',
   i18n,
-  components: {},
+  components: { AddDataSource },
   data: () => {
     return {
       globalState: globalStore.state,

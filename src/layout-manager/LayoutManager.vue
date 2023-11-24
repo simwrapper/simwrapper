@@ -819,7 +819,7 @@ export default defineComponent({
     //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
     //   }
     // } else {
-    this.activeLeftSection = { name: 'Files', class: 'LeftSystemPanel' }
+    this.activeLeftSection = { name: 'Home', class: 'LeftSystemPanel' }
     // }
 
     this.buildLayoutFromURL()
