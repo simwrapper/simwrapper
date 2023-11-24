@@ -17,6 +17,10 @@
     p.show-hide: i.fas.fa-arrow-right
 
   .left-panel(v-show="showLeftBar")
+    left-icon-panel.left-icon-panel(
+      :activeSection="activeLeftSection.name"
+      @activate="setActiveLeftSection"
+    )
 
     .left-panel-active-section(
       v-show="isShowingActiveSection"
@@ -145,10 +149,11 @@ import FolderBrowser from './FolderBrowser.vue'
 import LeftProjectPanel from './LeftProjectPanel.vue'
 import TopNavBar from './TopNavBar.vue'
 import SplashPage from './SplashPage.vue'
+import LeftSplitFolderPanel from './LeftSplitFolderPanel.vue'
 import LeftSystemPanel from './LeftSystemPanel.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
 
-import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
+import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import { FileSystemConfig } from '@/Globals'
 
@@ -165,6 +170,7 @@ export default defineComponent({
       FolderBrowser,
       LeftIconPanel,
       LeftProjectPanel,
+      LeftSplitFolderPanel,
       LeftSystemPanel,
       TopNavBar,
       SplashPage,
@@ -174,7 +180,7 @@ export default defineComponent({
   ),
   data: () => {
     return {
-      activeLeftSection: { name: 'Files', class: 'LeftSystemPanel' } as Section,
+      activeLeftSection: { name: 'Home', class: 'LeftSystemPanel' } as Section,
       authHandles: [] as any[],
       dragX: -1,
       dragY: -1,
@@ -186,7 +192,7 @@ export default defineComponent({
       isDraggingDivider: 0,
       isDragHappening: false,
       isEmbedded: false,
-      isShowingActiveSection: true, //TODO fix this
+      isShowingActiveSection: true,
       leftSectionWidth: DEFAULT_LEFT_WIDTH,
       // navigation aids for project pages:
       navRoot: '',
@@ -237,6 +243,7 @@ export default defineComponent({
   },
   methods: {
     setActiveLeftSection(section: Section) {
+      console.log(section)
       // don't open the left bar if it's optional, meaning it's currently closed
       if (section.onlyIfVisible && !this.isShowingActiveSection) return
 
@@ -942,7 +949,7 @@ export default defineComponent({
 }
 
 .left-panel-active-section {
-  background-color: var(--bgBrowser);
+  background-color: $themeColorPale;
   color: white;
   width: 300px;
   padding: 0 0;

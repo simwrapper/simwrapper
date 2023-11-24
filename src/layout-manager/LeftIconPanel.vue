@@ -1,31 +1,32 @@
 <template lang="pug">
-.left-nav-panel
+.icon-panel
   .top
-    button.item(v-for="section in topSections" :key="section.name"
-      :style="buttonStyle(section)"
+    .item(v-for="section in topSections" :key="section.name"
+      :class="{'is-active': activeSection === section.name}"
+
       @click="select(section)"
     )
-      img.svg-icon(
+      .sideways
+        p {{ section.name }}
+
+      img.svg-icon(v-if="section.icon"
         :src="section.icon"
         :draggable="false"
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
-      p {{ section.name }}
+      i.fa-icon.fas(v-if="section.fontAwesomeIcon" :class="section.fontAwesomeIcon")
 
   .bottom
-    button.item(v-for="section in bottomSections" :key="section.name"
-      :style="buttonStyle(section)"
+    .item(v-for="section in bottomSections" :key="section.name"
       @click="select(section)"
     )
-      img.svg-icon(
+      p.sideways {{ section.name }}
+      img.svg-icon(v-if="section.icon"
         :src="section.icon"
         :draggable="false"
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
-      p {{ section.name }}
 
-  //- .hide
-  //-   b-button.button(size="is-small" expanded) <<
 
 </template>
 
@@ -36,6 +37,7 @@ import ICON_FILES from '@/assets/icons/files.svg'
 import ICON_ISSUES from '@/assets/icons/issues.svg'
 import ICON_INFO from '@/assets/icons/settings.svg'
 import ICON_DOCS from '@/assets/icons/readme.svg'
+import ICON_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_icon_black.png'
 
 import globalStore from '@/store'
 
@@ -60,13 +62,14 @@ export default defineComponent({
     return {
       state: globalStore.state,
       topSections: [
-        { name: 'Files', class: 'BrowserPanel', icon: ICON_FILES },
-        { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
+        { name: 'Home', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
+        { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
+        // { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
         // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
         // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
       ] as Section[],
       bottomSections: [
-        { name: 'Docs', link: DOCS_URL, icon: ICON_DOCS },
+        { name: 'Documentation', link: DOCS_URL, icon: ICON_DOCS },
         { name: 'Settings', class: 'SettingsPanel', icon: ICON_INFO },
       ] as Section[],
     }
@@ -88,19 +91,12 @@ export default defineComponent({
       this.$emit('activate', section)
     },
 
-    buttonStyle(section: any) {
-      const colorizedOpacity =
-        this.state.statusErrors.length || this.state.statusWarnings.length ? 0.8 : 0.4
-
-      if (this.activeSection !== section.name) {
-        return { opacity: section.colorize ? colorizedOpacity : 0.4 }
-      }
-
-      return {
-        opacity: 1.0,
-        borderLeft: '3px solid white',
-      }
-    },
+    // buttonStyle(section: any) {
+    //   return {
+    //     opacity: 1.0,
+    //     borderLeft: '3px solid white',
+    //   }
+    // },
   },
 })
 </script>
@@ -108,18 +104,20 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.left-nav-panel {
-  background-color: #313135;
+.icon-panel {
+  background-color: var(--bgIconBar);
   display: flex;
   flex-direction: column;
   user-select: none;
+  color: #fff;
+  // padding-top: 1rem;
 }
 
 .top {
+  margin-top: 0rem;
   margin-bottom: auto;
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
 }
 
 .bottom {
@@ -128,23 +126,15 @@ export default defineComponent({
 }
 
 .item {
-  width: 60px;
-  text-align: center;
-  margin-bottom: 16px;
-  border-left: 3px solid #00000000;
-  border-right: 3px solid #00000000;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  margin: 0 auto 0 auto;
   opacity: 0.4;
-}
-
-p {
-  margin-top: -6px;
-  font-size: 11px;
-  color: #c6c1b9;
-}
-
-.item img {
-  margin: 5px 4px;
-  width: 26px;
+  width: 22px;
+  p {
+    font-size: 0.8rem;
+  }
 }
 
 .item:hover {
@@ -152,15 +142,23 @@ p {
   opacity: 1;
 }
 
-.button {
-  background-color: #444;
-  border: none;
-  color: #ccc;
-  height: 20px;
+.item.is-active {
+  opacity: 1;
+  background-color: $themeColorPale;
 }
 
-.button:hover,
-.button:active {
-  background-color: #555;
+img {
+  margin: 8px auto 0 auto;
+  width: 11px;
+}
+
+.sideways {
+  transform: rotate(-90deg);
+  margin-top: 0.75rem;
+}
+
+.fa-icon {
+  margin: 7px auto 0 auto;
+  font-size: 10px;
 }
 </style>

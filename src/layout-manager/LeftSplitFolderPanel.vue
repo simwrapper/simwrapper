@@ -2,7 +2,8 @@
 .panel
 
   .top-panel
-    h4 Files
+    h4 Split View
+
 
     .trail(v-if="root")
       .x-home
@@ -12,14 +13,18 @@
       .x-breadcrumbs(v-if="root")
         p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
           @click="clickedBreadcrumb(crumb)"
-        ) &nbsp;/&nbsp;{{ crumb.label }}
+        ) &nbsp;&bullet;&nbsp;{{ crumb.label }}
 
   .middle-panel
+
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
 
         .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
-          p You can browse to another folder from here. Drag panels into the main window area to open them side-by-side.
+          p
+            | You can browse to another folder from here.&nbsp;
+            b Drag folder&nbsp;
+            | into the main window area to open side-by-side.
 
         .is-chrome(v-if="isChrome")
           h3 Local Folders
@@ -42,85 +47,71 @@
           h5 {{ project.name }}
           p {{ project.description }}
 
-        p.config-sources: a(@click="configureSources") Edit data sources...
 
       //- Starting point if in a project folder: -------------------------
       .curated-sections(v-else)
 
-        h3.curate-heading {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
+        h3.curate-heading(
+          draggable
+          @dragstart="dragStart($event, subfolder)"
+          @dragend="dragEnd"
+        ) {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
 
         .curate-content(v-if="myState.folders.length")
+
           .folder-table
+
             .folder(v-for="folder,i in myState.folders" :key="folder"
-                :class="{fade: myState.isLoading, upfolder: i == 0}"
-                @click="clickedOnFolder({folder, i})")
+              draggable
+              @dragstart="dragStart($event, `${myState.subfolder}/${folder}`)"
+              @dragend="dragEnd"
+              :class="{fade: myState.isLoading, upfolder: i == 0}"
+              @click="clickedOnFolder({folder, i})"
+            )
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               p {{ cleanName(folder) }}
 
           p(v-if="myState.folders.length==1" style="font-size: 0.9rem; opacity: 0.7; margin: 0.5rem 0; text-align: right") No subfolders.
 
-        //- MAPS: thumbnails of each viz map here
-        .section-maps(v-if="vizMaps.size")
+        //- //- MAPS: thumbnails of each viz map here
+        //- .section-maps(v-if="vizMaps.size")
 
-          h3.curate-heading {{ $t('Maps')}}
-          .curate-content
-            .viz-table
-              .viz-grid-item(
-                v-for="[index, viz] of vizMaps.entries()" :key="index"
-                @click="clickedVisualization(index)"
-              )
-                .viz-frame(
-                  :class="{highlighted: index === highlightedViz }"
-                  draggable
-                  @dragstart="dragStart($event, viz)"
-                  @dragend="dragEnd"
-                )
-                  p.v-title: b {{ viz.title }}
-                  p.v-filename {{ viz.config }}
-                  p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
+        //-   h3.curate-heading {{ $t('Maps')}}
+        //-   .curate-content
+        //-     .viz-table
+        //-       .viz-grid-item(
+        //-         v-for="[index, viz] of vizMaps.entries()" :key="index"
+        //-         @click="clickedVisualization(index)"
+        //-       )
+        //-         .viz-frame(
+        //-           :class="{highlighted: index === highlightedViz }"
+        //-           draggable
+        //-           @dragstart="dragStart($event, viz)"
+        //-           @dragend="dragEnd"
+        //-         )
+        //-           p.v-title: b {{ viz.title }}
+        //-           p.v-filename {{ viz.config }}
+        //-           p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
 
-                  component.viz-frame-component(
-                        v-show="false"
-                        :is="viz.component"
-                        :root="myState.svnProject.slug"
-                        :subfolder="myState.subfolder"
-                        :yamlConfig="viz.config"
-                        :thumbnail="true"
-                        :fileApi="myState.svnRoot"
-                        :style="{'pointer-events': 'none'}"
-                        @title="updateTitle(index, $event)")
+        //-           component.viz-frame-component(
+        //-                 v-show="false"
+        //-                 :is="viz.component"
+        //-                 :root="myState.svnProject.slug"
+        //-                 :subfolder="myState.subfolder"
+        //-                 :yamlConfig="viz.config"
+        //-                 :thumbnail="true"
+        //-                 :fileApi="myState.svnRoot"
+        //-                 :style="{'pointer-events': 'none'}"
+        //-                 @title="updateTitle(index, $event)")
 
-            .hint-clicks(:style="{opacity : needDoubleClickHint ? 1 : 0}")
-              p
-                b Drag
-                | &nbsp;or&nbsp;
-                b double-click
-                | &nbsp;a tile
-                br
-                | to open it in the main panel
-
-        //- IMAGES here
-        .section-images(v-if="Object.keys(vizImages).length")
-          h3.curate-heading {{ $t('Images')}}
-          .curate-content
-            .viz-image-table
-              .viz-image-grid-item(v-for="[index, viz] of Object.entries(vizImages)" :key="index"
-                        @click="clickedVisualization(index)")
-
-                .viz-image-frame
-                  component.viz-image-frame-component(
-                        :is="viz.component"
-                        :root="myState.svnProject.slug"
-                        :subfolder="myState.subfolder"
-                        :yamlConfig="viz.config"
-                        :thumbnail="true"
-                        :fileApi="myState.svnRoot"
-                        :style="{'pointer-events': 'auto'}"
-                        @title="updateTitle(index, $event)")
-                  p {{ viz.title }}
-
-
-  //- .bottom-panel(v-if="!root")
+        //-     .hint-clicks(:style="{opacity : needDoubleClickHint ? 1 : 0}")
+        //-       p
+        //-         b Drag
+        //-         | &nbsp;or&nbsp;
+        //-         b double-click
+        //-         | &nbsp;a tile
+        //-         br
+        //-         | to open it in the main panel
 
 </template>
 
@@ -205,12 +196,8 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-import AddDataSource from './AddDataSource.vue'
 
-const components = Object.assign(
-  { AddDataSource, FileSystemProjects, TopsheetsFinder },
-  pluginComponents
-)
+const components = Object.assign({ FileSystemProjects, TopsheetsFinder }, pluginComponents)
 
 export default defineComponent({
   name: 'BrowserPanel',
@@ -737,7 +724,9 @@ export default defineComponent({
         return
       }
 
-      this.subfolder = `${this.subfolder}/${folder}`
+      let subfolder = `${this.subfolder}/${folder}`
+      if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
+      this.subfolder = subfolder
     },
 
     handleSingleClickFolder(xprops: { folder: string; i: number; root: string }) {
@@ -777,13 +766,14 @@ export default defineComponent({
       this.$emit('isDragging', false)
     },
 
-    dragStart(event: DragEvent, item: any) {
+    dragStart(event: DragEvent, folder: any) {
       this.$emit('isDragging', true)
 
-      const bundle = Object.assign({}, item, {
+      const panel = { component: 'TabbedDashboardView', props: {} }
+      const bundle = Object.assign({}, panel, {
         root: this.root,
-        subfolder: this.myState.subfolder,
-        xsubfolder: this.myState.subfolder,
+        subfolder: folder,
+        xsubfolder: folder,
       }) as any
 
       bundle.yamlConfig = bundle.config
@@ -986,8 +976,8 @@ h2 {
   cursor: pointer;
   display: flex;
   flex-direction: row;
-  background-color: var(--bgMapPanel);
-  color: var(--text);
+  background-color: #14141a;
+  color: #c6c1b9;
   line-height: 1.05rem;
   padding: 3px 4px;
   border-radius: 0;
@@ -1002,8 +992,7 @@ h2 {
 }
 
 .folder:hover {
-  background-color: var(--bgHover);
-  // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 3px 10px 0 rgba(0, 0, 0, 0.08);
+  background-color: #21516d;
   transition: background-color 0.08s ease-in-out;
 }
 
@@ -1033,58 +1022,6 @@ h2 {
   list-style: none;
 }
 
-.viz-image-grid-item {
-  z-index: 1;
-  text-align: center;
-  margin: 0 0;
-  padding: 0 0;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  vertical-align: top;
-  background-color: var(--bgBold);
-  border: var(--borderThin);
-  border-radius: 16px;
-}
-
-.viz-image-frame {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  min-height: $thumbnailHeight;
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-
-  p {
-    margin: 0 0 0 0;
-    background-color: var(--bgBold);
-    font-weight: bold;
-    line-height: 1.2rem;
-    padding: 1rem 0.5rem;
-    color: var(--text);
-    word-wrap: break-word;
-    /* Required for text-overflow to do anything */
-    // text-overflow: ellipsis;
-    // white-space: nowrap;
-    // overflow: hidden;
-  }
-}
-
-.viz-image-frame:hover {
-  box-shadow: var(--shadowMode);
-  transition: box-shadow 0.1s ease-in-out;
-}
-
-.viz-image-frame-component {
-  background-color: var(--bgPanel);
-}
-
-.upfolder {
-  background-color: var(--bgBold);
-}
-
 .fa-arrow-up {
   margin-right: 2px;
 }
@@ -1094,7 +1031,8 @@ h2 {
   flex-direction: column;
   margin-top: 0.75rem;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bgMapPanel);
+  background-color: #14141a;
+  color: #bbb;
   border-left: 3px solid var(--sliderThumb);
 
   h5 {
@@ -1115,7 +1053,7 @@ h2 {
 
 .project-root:hover {
   cursor: pointer;
-  background-color: var(--bgHover);
+  background-color: #21516d;
   transition: background-color 0.1s ease-in-out;
 }
 
@@ -1206,7 +1144,7 @@ p.v-plugin {
 .trail {
   display: flex;
   width: 100%;
-  // color: var(--link);
+  font-size: 0.8rem;
   p:hover {
     color: var(--linkHover);
     cursor: pointer;
@@ -1217,9 +1155,9 @@ p.v-plugin {
   flex: 1;
   display: flex;
   flex-flow: row wrap;
-  line-height: 1.2rem;
+  line-height: 0.85rem;
   max-width: 100%;
-  margin-top: 2px;
+  margin-top: 3px;
 
   p {
     width: max-content;

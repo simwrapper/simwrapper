@@ -557,7 +557,7 @@ h4 {
   vertical-align: top;
   background-color: var(--bgCream5);
   // border: var(--borderThin);
-  // border-radius: 5px;
+  border-radius: 5px;
 }
 
 .viz-frame {
@@ -609,7 +609,7 @@ h4 {
   flex-direction: column;
   background-color: var(--bgCream5);
   padding: 0.25rem 0.75rem;
-  // border-radius: 8px;
+  border-radius: 5px;
   word-wrap: break-word;
 }
 
@@ -739,7 +739,7 @@ p.v-plugin {
   color: white;
   background-color: var(--bgCream3);
   padding: 2px 3px;
-  border-radius: 0 0 4px 0;
+  // border-radius: 0 0 4px 0;
 }
 
 .up-folder {

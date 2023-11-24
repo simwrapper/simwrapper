@@ -3,7 +3,7 @@
 
   .top-panel
     .simwrapper-logo(@click="clickedOnFolder({root: ''})")
-      img(src="@/assets/simwrapper-logo/SW_logo_white.png")
+      img(:src="logo")
 
   .middle-panel
 
@@ -44,20 +44,15 @@
           i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
         p.description {{ favorite.hint || `${favorite.root}${favorite.subfolder}` }}
 
-  .bottom-panel
+  //- .bottom-panel
 
-    h3 DOCUMENTATION
-    .items
-      p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
-      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
-      p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
+  //-   h3 DOCUMENTATION
+  //-   .items
+  //-     p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
+  //-     p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
+  //-     p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
 
-  .error-panel-container(v-if="hasErrors")
-      .spacer
-      h3 Debug Issues
-      error-panel.actual-error-panel
-
-  .action-buttons
+  .action-panel
     p.show-hide(@click="$store.commit('setShowLeftBar', false)")
       i.fas.fa-arrow-left
       | &nbsp;&nbsp;hide
@@ -67,9 +62,9 @@
     p.settings-icon(@click="updateLanguage")
       i.fas.fa-globe
       | &nbsp;&nbsp;{{ globalState.locale }}
-    p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
-      i.fas.fa-columns
-      | &nbsp;&nbsp;split
+    //- p.settings-icon(@click="$emit('split', {root, xsubfolder: subfolder})")
+    //-   i.fas.fa-columns
+    //-   | &nbsp;&nbsp;split
 
 </template>
 
@@ -154,7 +149,10 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import AddDataSource from '@/components/left-panels/AddDataSource.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
+import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+
+import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
 
 const components = Object.assign(
   { AddDataSource, FileSystemProjects, TopsheetsFinder, ErrorPanel },
@@ -164,18 +162,19 @@ const components = Object.assign(
 export default defineComponent({
   name: 'SystemPanel',
   i18n,
-  components,
+  components: {},
   data: () => {
     return {
       globalState: globalStore.state,
-      subfolder: '/',
       root: '',
-      summaryYamlFilename: 'viz-summary.yml',
-      highlightedViz: -2, // -2:none, -1: dashboard, 0-x: tile
+      subfolder: '/',
+      activeSection: 'Files',
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
       allRoots: [] as FileSystemConfig[],
       mdRenderer: new markdown({ html: true, linkify: true, typographer: true }),
       showAddDataSource: false,
+      summaryYamlFilename: 'viz-summary.yml',
+      logo: LOGO_SIMWRAPPER,
       myState: {
         errorStatus: '',
         folders: [],
@@ -251,7 +250,6 @@ export default defineComponent({
       this.myState.svnProject = svnProject
       this.myState.subfolder = this.subfolder || ''
       this.myState.readme = ''
-      this.highlightedViz = -2
 
       if (!this.myState.svnProject) return
 
@@ -536,19 +534,29 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 .panel {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr auto auto;
   height: 100%;
   user-select: none;
   font-size: 0.9rem;
   color: #eee;
-  background-color: $themeColorPale;
-  position: relative;
+}
+
+.left-icon-panel {
+  grid-column: 1 / 2;
+  grid-row: 2 / 5;
 }
 
 .top-panel {
+  grid-column: 1 / 3;
+  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
+  border-bottom: 1px solid #ffffff44;
+  margin: 0 16px;
+
+  // background-color: #216a6d; // bgTreeItem;
 }
 
 h4 {
@@ -562,21 +570,25 @@ h4 {
   color: #ddd;
 }
 
+.middle-panel {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+}
+
+.bottom-panel {
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+}
+
 .middle-panel,
 .bottom-panel {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  margin-bottom: 0rem;
-  padding: 0 0.5rem 0 1rem;
+  padding: 0 0.5rem 0 0.75rem;
   overflow-y: auto;
   overflow-x: hidden;
   text-align: left;
   user-select: none;
-
-  h1 {
-    letter-spacing: -1px;
-  }
 
   p,
   a {
@@ -587,7 +599,6 @@ h4 {
 
 .bottom-panel {
   margin-right: 0.5rem;
-  flex: unset;
 }
 
 h2 {
@@ -606,9 +617,8 @@ h2 {
 .project-root {
   display: flex;
   flex-direction: column;
-  margin-left: -8px;
   margin-bottom: 0.25rem;
-  padding: 1px 0 1px 0.5rem;
+  padding: 1px 0 1px 4px;
   border-left: 2px solid #00000000; // #989898;
   color: #ddd;
   opacity: 0.85;
@@ -715,7 +725,7 @@ h2 {
 // hello
 
 .items {
-  margin-left: 0.5rem;
+  // margin-left: 0.5rem;
   margin-right: 0.25rem;
 
   a {
@@ -727,9 +737,9 @@ h2 {
 }
 
 .simwrapper-logo {
-  max-width: 145px;
-  background-color: $appTag;
-  padding: 4px 8px 1px 5px;
+  max-width: 120px;
+  opacity: 0.9;
+  margin: 1rem auto 0.5rem 0;
 }
 
 .simwrapper-logo:hover {
@@ -750,9 +760,11 @@ h2 {
   margin-top: 0.5rem;
 }
 
-.action-buttons {
+.action-panel {
+  grid-column: 2 / 3;
+  grid-row: 4 / 5;
   background-color: #48485f;
-  margin-top: 1.25rem;
+  margin-top: 0.5rem;
   display: flex;
   flex-direction: row;
 
@@ -780,27 +792,8 @@ h3 {
   font-size: 1rem;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
+  margin-left: 6px;
   text-transform: uppercase;
-}
-
-.error-panel-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin-bottom: 24px;
-  background-color: #28385d;
-  overflow-y: auto;
-  max-height: 25rem;
-  padding-left: 0.25rem;
-  margin-top: 12px;
-
-  h3 {
-    border-top: 1px solid white;
-    margin-top: 0rem;
-    margin-left: 2px;
-    margin-right: 0.25rem;
-  }
 }
 
 .actual-error-panel {
