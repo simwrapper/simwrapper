@@ -302,8 +302,13 @@ export default defineComponent({
       // no configs: no project mode.
       if (!allConfigs.length) {
         this.isShowingBreadcrumbs = true
-        this.$store.commit('setShowLeftBar', true)
-        this.$store.commit('setShowShowHideButton', true)
+        if (
+          this.$store.state.isShowingFilesSection &&
+          !this.$store.state.hasUserManuallyHiddenLeftBar
+        ) {
+          this.$store.commit('setShowLeftBar', true)
+          this.$store.commit('setShowShowHideButton', true)
+        }
         return
       }
 

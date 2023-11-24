@@ -50,6 +50,7 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
+    hasUserManuallyHiddenLeftBar: false,
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: false,
@@ -128,6 +129,9 @@ export default new Vuex.Store({
       value: { top: NavigationItem[]; middle: NavigationItem[]; bottom: NavigationItem[] }
     ) {
       state.leftNavItems = value
+    },
+    setManualLeftPanelHidden(state, value: boolean) {
+      state.hasUserManuallyHiddenLeftBar = value
     },
     setShowFilesSection(state, value: boolean) {
       state.isShowingFilesSection = value

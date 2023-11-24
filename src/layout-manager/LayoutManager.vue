@@ -12,7 +12,7 @@
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
  )
   .restore-left-panel-button(v-if="$store.state.isShowingShowHideButton && !$store.state.isShowingLeftBar"
-    @click="$store.commit('setShowLeftBar', true)"
+    @click="restoreLeftPanel"
   )
     p.show-hide: i.fas.fa-arrow-right
 
@@ -759,6 +759,11 @@ export default defineComponent({
         overflow: this.panelsWithScrollbars.includes(panel.component) ? 'auto' : 'hidden',
         // padding: '5px 5px',
       }
+    },
+
+    restoreLeftPanel() {
+      this.$store.commit('setShowLeftBar', true)
+      this.$store.commit('setManualLeftPanelHidden', false)
     },
 
     getContainerStyle(panel: any, x: number, y: number) {

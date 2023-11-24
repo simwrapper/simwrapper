@@ -17,14 +17,14 @@
 
   .middle-panel
 
+      .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
+          p
+            b Drag a folder&nbsp;
+            | from here to the main window area to open side-by-side.
+
+
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
-
-        .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
-          p
-            | You can browse to another folder from here.&nbsp;
-            b Drag folder&nbsp;
-            | into the main window area to open side-by-side.
 
         .is-chrome(v-if="isChrome")
           h3 Local Folders
@@ -1074,14 +1074,10 @@ h2 {
   line-height: 1.2rem;
   opacity: 0;
   transition: opacity 0.2s ease-in;
+  padding: 0.25rem 0.25rem;
 
   p {
-    padding-bottom: 0.5rem;
     text-align: center;
-  }
-
-  b {
-    color: var(--textFancy);
   }
 }
 

@@ -28,7 +28,7 @@
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
 
-  .hide-left-panel-button(@click="$store.commit('setShowLeftBar', false)")
+  .hide-left-panel-button(@click="hideLeftPanel")
     p.show-hide: i.fas.fa-arrow-left
 
   settings-panel.settings-popup(v-if="isShowingSettings"
@@ -107,6 +107,10 @@ export default defineComponent({
 
     toggleSettings() {
       this.isShowingSettings = !this.isShowingSettings
+    },
+    hideLeftPanel() {
+      this.$store.commit('setShowLeftBar', false)
+      this.$store.commit('setManualLeftPanelHidden', true)
     },
   },
 })
