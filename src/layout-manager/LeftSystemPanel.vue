@@ -738,12 +738,13 @@ h2 {
 
 .simwrapper-logo {
   max-width: 120px;
-  opacity: 0.9;
+  opacity: 0.85;
   margin: 1rem auto 0.5rem 0;
 }
 
 .simwrapper-logo:hover {
   cursor: pointer;
+  opacity: 1;
 }
 
 .root {

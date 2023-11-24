@@ -31,7 +31,11 @@
 
           p(v-if="!localFileHandles.length") Chrome & Edge can browse folders directly:
           .project-root.local(v-for="row in localFileHandles" :key="row.key"
-            @click="clickedBrowseChromeLocalFolder(row)")
+            @click="clickedBrowseChromeLocalFolder(row)"
+            draggable
+            @dragstart="dragStart($event, row.slug)"
+            @dragend="dragEnd"
+          )
 
             h5.remove-local(style="flex: 1;") {{ row.handle.name}}
               i.fa.fa-times(@click.stop="clickedDelete(row)")
@@ -43,6 +47,9 @@
 
         .project-root(v-for="project in allRoots" :key="project.slug"
           @click="clickedOnFolder({root: project.slug})"
+          draggable
+          @dragstart="dragStart($event, project.slug)"
+          @dragend="dragEnd"
         )
           h5 {{ project.name }}
           p {{ project.description }}
@@ -867,7 +874,7 @@ export default defineComponent({
   padding-top: 0.25rem;
   user-select: none;
   font-size: 0.9rem;
-  color: var(--text);
+  color: #ddd;
 }
 
 .top-panel {
