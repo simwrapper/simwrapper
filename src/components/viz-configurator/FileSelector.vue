@@ -1,7 +1,7 @@
 <template>
   <div class="fs-file-selector" :class="{ 'fs-drag-enter': isDragEnter }">
     <div class="fs-loader" v-show="isLoading">
-      <slot name="loader"> Loading... </slot>
+      <slot name="loader"> {{ $t("loading") }} </slot>
     </div>
 
     <div
@@ -24,7 +24,7 @@
       <slot name="top"></slot>
 
       <div href="#" class="fs-btn-select" @click="$refs.fsFileInput.click()">
-        <slot>Select</slot>
+        <slot>{{ $t("select") }}</slot>
       </div>
 
       <slot name="bottom"></slot>
@@ -33,9 +33,11 @@
 </template>
 
 <script>
+import i18n from '@/i18n'
+
 export default {
   name: 'FileSelector',
-
+  i18n,
   props: {
     multiple: {
       type: Boolean,

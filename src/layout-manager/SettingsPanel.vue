@@ -29,31 +29,11 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      translate: 'Note: German translations are incomplete, but steadily improving',
-      theme: 'Theme',
-      light: 'Light',
-      dark: 'Dark',
-      language: 'Language',
-      dataSources: 'Data Sources',
-      addDataSources: 'Add Data Source',
-    },
-    de: {
-      translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
-      theme: 'Thema',
-      light: 'Hell',
-      dark: 'Dunkel',
-      language: 'Sprache',
-      dataSources: 'Datenquellen',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 export default defineComponent({
   name: 'SettingsPanel',

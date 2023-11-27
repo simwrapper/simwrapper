@@ -4,9 +4,9 @@
   //- DATA COLUMN
   .widgets
     .widget
-        p.tight Display
+        p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="^")
+          option(label="parent.$t('none')" value="^")
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
                    :label="dataset"
@@ -19,12 +19,12 @@
   //- JOIN COLUMN
   .widgets(v-if="datasetChoices.length > 1")
     .widget
-        p.tight Join by
+        p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="None" value="")
-          option(label="Row count" value="@count")
+          option(label="parent.$t('none')" value="")
+          option(label="parent.$t('rowCount')" value="@count")
 
-          optgroup(label="Join by...")
+          optgroup(label="parent.$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
@@ -34,7 +34,7 @@
   //- NORMALIZE COLUMN
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
-        p.tight Normalize by
+        p.tight {{ $t("normalize") }}
         b-select.selector(expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
@@ -47,7 +47,7 @@
   //- SCALING
   .widgets
     .widget
-      p Scaling
+      p {{ $t("scaling") }}
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 

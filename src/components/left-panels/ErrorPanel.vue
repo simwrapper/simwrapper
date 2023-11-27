@@ -4,7 +4,7 @@
   .warnings
     .no-error(v-if="!state.statusErrors.length && !state.statusWarnings.length")
       p.check ☑️
-      p No issues for this page.
+      p {{$t("noIssues")}}
 
     .has-errors(v-else)
 
@@ -14,7 +14,7 @@
           type="is-warning is-outlined"
           expanded
           @click="clearAllButtons()"
-        ) Clear all messages
+        ) {{$t("clearMessages")}}
 
       .message-area
 
@@ -33,16 +33,11 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { sync: 'Sync folders', theme: 'Light/Dark', lang: 'EN/DE', split: 'Split view' },
-    de: { sync: 'Sync', theme: 'Hell/Dunkel', lang: 'DE/EN', split: 'Aufteilen' },
-  },
-}
 
 import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 export default defineComponent({
   name: 'ErrorPanel',

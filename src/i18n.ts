@@ -12,6 +12,7 @@ const i18n = {
 
     //Folders-Data-Files
     files: 'Files',
+    selectFile: "Select File...",
 
     folders: 'Folders',
     localFolder: "Local Folder",
@@ -30,6 +31,9 @@ const i18n = {
     back: 'Go back',
     close: 'Close panel',
 
+    no: "No",
+    yes: "Yes",
+
     theme: 'Theme',
     dark: "dark",
     light: "light",
@@ -39,9 +43,32 @@ const i18n = {
     translate: 'Note: German translations are incomplete, but steadily improving',
     language: 'Language',
     
-    
+    hideInfo: "Hide Info",
+    showInfo: "Show Info",
+
+    restore: "Restore",
+    enlarge: "Enlarge",
+
+    favorite: "Favorite",
+     
+    noIssues: "No issues for this page.",
+    clearMessages: "Clear all messages.",
+
+    loading: "Loading...",
+    select: "Select",
+    add: "Add",
+
+    config: "Config",
+    saveYAML: "Save YAML config",
+    screenshot: "Take screenshot",
+    export: "Export",
+    toBeAdded: "To be added",
+
     //Site Layout
     topsheet: 'Topsheet',
+    splitView: "Split View",
+    dragFolder: "Drag a Folder from here to the main window area to open side-by-side.",
+    chromeEdge: "Chrome & Edge can browse folders directly:",
 
     
     pinned: "Pinned",
@@ -69,6 +96,32 @@ const i18n = {
     total: 'Totals for',
     origins: 'Origins',
     dest: 'Destinations',
+
+    //Colors
+    display: "Display",
+    singleColor: "Single color",
+    join: "Join by",
+    none: "None",
+    rowCount:"Row count",
+    normalize: "Normalize by",
+    addTwoDatasets: "'Add two datasets to enable comparisons'",
+    compareDatasets: "Compare datasets",
+    flip: "Flip",
+    steps: "Steps",
+    column: "Column",
+    reverse: "Reverse",
+    scaling: "Scaling",
+
+    //Filters
+    activeFilters: "Active Filters",
+    addFilter: "Add New Filter",
+
+    //Errors
+    ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
+    filterKey: "Filter key is not 'dataset.column':",
+
+
+
   },
     de: {
     //Folder Browser
@@ -81,6 +134,7 @@ const i18n = {
 
     //Folders-Data-Files
     files: 'Dateien',
+    selectFile: "Datei auswählen...",
 
     folders: 'Ordner',
     localFolder: "Lokaler Ordner",
@@ -99,18 +153,45 @@ const i18n = {
     back: 'Zurück',
     close: 'Schließen',
 
+    no: "Nein",
+    yes: "Ja",
+
+    theme: 'Design',
     dark: "dunkel",
     light: "hell",
 
     cancel: "Abbrechen",
     settings: "Einstellungen",
-
     translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
     language: 'Sprache',
+
+    hideInfo: "weniger Info",
+    showInfo: "mehr Info",
+
+    restore: "Verkleinern",
+    enlarge: "Vergrößern",
+
+    favorite: "Favorit",
+
+    noIssues: "Keine Probleme auf dieser Seite.",
+    clearMessages: "Alle Benachrichtigungen entfernen.",
+
+    loading: "Laden...",
+    select: "Auswählen",
+    add: "Hinzufügen",
+
+    config: "Konfiguration",
+    saveYAML: "YAML Konfiguration speichern",
+    screenshot: "Screenshot speichern",
+    export: "Exportieren",
+    toBeAdded: "Wird hinzugefügt",
 
     //Site Layout
 
     topsheet: 'Topsheet',
+    splitView: "Geteilte Ansicht",
+    dragFolder: "Ziehe einen Ordner von hier in die Hauptansicht, um sie nebeneinander zu öffnen.",
+    chromeEdge: "Chrome & Edge können Ordner direkt durchsuchen:",
     
     pinned: "Angeheftet",
     documentation: "Dokumentation",
@@ -118,12 +199,11 @@ const i18n = {
     start: "Erste Schritte",
     news: "News & Updates",
     privacy: "SimWrapper ist eine clientseitige Anwendung, d.h. es gibt keinen Upstream-Server, der Daten sammelt oder speichert. SimWrapper sammelt, bearbeitet oder verarbeitet keine Daten über Sie, während Sie die Website nutzen. SimWrapper enthält keine Tracking Devices oder Analysesoftware. Es werden keine Benutzer-Cookies gespeichert oder übertragen.",
-    moreInfo: 'Für weitere Informationen:',
     tagLine: 'Der Modellergebnis-Browser der TU Berlin.',
     fundingPartners: "Kooperationspartner",
     funding: "Gefördert durch die TU Berlin, das Bundesministerium für Bildung und Forschung sowie die Mitglieder des ActivitySim Konsortium:",
     openSource: "SimWrapper ist Open Source und downloadbar von",
-    
+    moreInfo: 'Für weitere Informationen:',   
 
 
     //Chart/Map Layout
@@ -138,7 +218,33 @@ const i18n = {
     showNumbers: 'Show totals',
     total: 'Totals for',
     origins: 'Quellen',
-    dest: 'Ziele',},
+    dest: 'Ziele',
+
+    //Colors
+    display: "Darstellung",
+    singleColor: "Einzelne Farbe",
+    join: "Verknüpfen über",
+    none: "None",
+    rowCount:"Row count",
+    normalize: "Normalize by",
+    addTwoDatasets: "'Add two datasets to enable comparisons'",
+    compareDatasets: "Compare datasets",
+    flip: "Flip",
+    steps: "Steps",
+    column: "Column",
+    reverse: "Reverse",
+    scaling: "Scaling",
+
+    //Filters
+    activeFilters: "Active Filters",
+    addFilter: "Add New Filter",
+
+    //Errors
+    ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
+    filterKey: "Filter key is not 'dataset.column':",
+  
+  
+  },
   },
 }
 

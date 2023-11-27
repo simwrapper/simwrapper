@@ -4,14 +4,14 @@
   .map-actions
     button.button.draw-button.is-tiny(
       v-show="!embedded"
-      title="Config"
+      title="parent$t('config')"
       @click="clickedShowHide"
       :class="{'is-showing': showPanels}"
     )
       i.fa.fa-sliders-h.settings-icon
 
     button.button.draw-button.is-tiny(
-      title="Legend"
+      title="parent$t('legend')"
       @click="clickedLegendShowHide"
       :class="{'is-showing': showLegend}"
     )
@@ -28,13 +28,13 @@
               template(#trigger="{ active }")
                 b-button.is-small.is-white.export-button()
                   i.fa.fa-sm.fa-share
-                  | &nbsp;Export
-              b-dropdown-item(value="yaml" aria-role="listitem") Save YAML config
-              b-dropdown-item(value="png" aria-role="listitem") Take screenshot
+                  | &nbsp;{{ $t("export") }}
+              b-dropdown-item(value="yaml" aria-role="listitem") {{ $t("saveYAML") }}
+              b-dropdown-item(value="png" aria-role="listitem") {{ $t("screenshot") }}
 
           b-button.is-small.is-white.export-button(@click="clickedAddData")
             i.fa.fa-sm.fa-plus
-            | &nbsp;Add Data
+            | &nbsp;{{ $t("addData") }}
 
       .section-panel(v-for="section in getSections()" :key="section.name")
         h1(:class="{h1active: section.name === activeSection}" @click="clickedSection(section.name)") {{ section.name }}
@@ -45,7 +45,7 @@
             :vizConfiguration="vizConfiguration"
             :datasets="datasets"
             @update="handleConfigChanged")
-          p(v-else) To be added
+          p(v-else) {{ $t("toBeAdded") }}
 
     .legend-area
       legend-box.legend-panel(
@@ -67,6 +67,8 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 import { startCase } from 'lodash'
 
+import i18n from '@/i18n'
+
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendStore from '@/js/LegendStore'
 import { FilterDefinition } from '@/js/DashboardDataManager'
@@ -85,6 +87,7 @@ import { FileSystemConfig } from '@/Globals'
 
 export default defineComponent({
   name: 'VizConfigurator',
+  i18n,
   components: {
     AddDatasetsPanel,
     CircleRadiusPanel,

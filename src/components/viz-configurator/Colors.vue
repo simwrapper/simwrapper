@@ -18,7 +18,7 @@
   .more(v-show="dataColumn")
     .widgets
       .widget
-        p Steps
+        p {{$t("steps")}}
         b-input(v-model="steps"
             placeholder="Number"
             type="number"
@@ -26,7 +26,7 @@
             max="15")
 
       .widget
-        p Reverse
+        p {{$t("reverse")}}
         b-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
@@ -51,6 +51,7 @@ import * as d3color from 'd3-color'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 const d3 = Object.assign({}, d3sc, d3color) as any
 
@@ -76,6 +77,7 @@ export interface ColorDefinition {
 
 export default defineComponent({
   name: 'ColorsConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

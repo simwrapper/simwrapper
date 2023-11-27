@@ -2,7 +2,7 @@
 .panel
 
   .top-panel
-    h4 Split View
+    h4 {{$t("splitView")}}
 
 
     .trail(v-if="root")
@@ -19,17 +19,16 @@
 
       .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
           p
-            b Drag a folder&nbsp;
-            | from here to the main window area to open side-by-side.
+            b {{ $t("dragFolder") }}
 
 
       //- Starting point if not in a project root: list all existing roots
       .curated-sections(v-if="!root")
 
         .is-chrome(v-if="isChrome")
-          h3 Local Folders
+          h3 {{ $t("localFolders") }}
 
-          p(v-if="!localFileHandles.length") Chrome & Edge can browse folders directly:
+          p(v-if="!localFileHandles.length") {{ $t("chromeEdge") }}
           .project-root.local(v-for="row in localFileHandles" :key="row.key"
             @click="clickedBrowseChromeLocalFolder(row)"
             draggable
@@ -39,11 +38,11 @@
 
             h5.remove-local(style="flex: 1;") {{ row.handle.name}}
               i.fa.fa-times(@click.stop="clickedDelete(row)")
-            p Local folder
+            p {{ $t("localFolder") }}
 
-          p.config-sources: a(@click="showChromeDirectory") Add local folder...
+          p.config-sources: a(@click="showChromeDirectory") {{$t("addFolder")}}
 
-        h3(style="margin-top: 1rem") Data Sources
+        h3(style="margin-top: 1rem") {{ $t("dataSources") }}
 
         .project-root(v-for="project in allRoots" :key="project.slug"
           @click="clickedOnFolder({root: project.slug})"
@@ -128,28 +127,6 @@ declare const window: any
 const BASE_URL = import.meta.env.BASE_URL
 const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
-const i18n = {
-  messages: {
-    en: {
-      Maps: 'Maps & Dashboards',
-      Images: 'Images',
-      Analysis: 'Analysis',
-      Files: 'Files',
-      Folders: 'Folders',
-      Topsheet: 'Table',
-      privacy:
-        'SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.',
-    },
-    de: {
-      Maps: 'Karten',
-      Images: 'Bilder',
-      Analysis: 'Ergebnisse',
-      Files: 'Dateien',
-      Folders: 'Ordner',
-      Topsheet: 'Tabelle',
-    },
-  },
-}
 
 const tabColors = {
   // blank means dashboard:
@@ -196,6 +173,7 @@ import micromatch from 'micromatch'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'

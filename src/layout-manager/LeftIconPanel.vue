@@ -71,7 +71,7 @@ export default defineComponent({
   data: () => {
     return {
       state: globalStore.state,
-      isShowingSettings: false,
+      isShowingSettings: false,  
       topSections: [
         { name: 'Home', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
         { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },

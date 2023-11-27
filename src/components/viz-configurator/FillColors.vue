@@ -4,9 +4,9 @@
   //- DATA COLUMN
   .widgets
     .widget
-        p.tight Display
+        p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(label="Single color" value="@")
+          option(label="parent$t('singleColor')" value="@")
 
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
@@ -21,12 +21,12 @@
   //- JOIN COLUMN
   .widgets(v-if="datasetChoices.length > 1")
     .widget
-        p.tight Join by
+        p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="None" value="")
-          option(label="Row count" value="@count")
+          option(label="parent.$t('none')" value="")
+          option(label="parent.$t('rowCount')" value="@count")
 
-          optgroup(label="Join by...")
+          optgroup(label="parent.$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :value="col"
                    :label="col"
@@ -35,9 +35,9 @@
   //- NORMALIZE COLUMN
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
-        p.tight Normalize by
+        p.tight {{ $t("normalize") }}
         b-select.selector(expanded v-model="normalSelection")
-          option(label="None" value="")
+          option(label="parent.$t('none')" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
               :key="`${dataset}/${column}`"
@@ -46,10 +46,10 @@
             )
 
   //- DIFF MODE
-  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
+  .more(:title="diffChoices.length<2 ? $t('addTwoDatasets') : ''")
     .widgets
       .widget(style="flex: 3")
-        p.tight Compare datasets
+        p.tight {{ $t("compareDatasets") }}
         b-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
@@ -76,7 +76,7 @@
   .more(v-show="dataColumn && dataColumn.length > 1")
     .widgets
       .widget(style="flex: 3")
-        p Steps
+        p {{ $t("steps") }}
         b-input(v-model="steps"
             placeholder="Number"
             type="number"
@@ -84,7 +84,7 @@
             max="15")
 
       .widget
-        p Flip
+        p {{ $t("flip") }}
         b-checkbox.hello(v-model="flip")
 
     .color-ramp(v-for="choice of colorChoices" :key="choice.ramp"
@@ -105,6 +105,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
 
@@ -136,6 +137,7 @@ const ALL_COLOR_RAMPS = [
 
 export default defineComponent({
   name: 'FillColorsConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
@@ -263,7 +265,7 @@ export default defineComponent({
         diffPieces = config.diff.split(' - ').map(p => p.trim())
       } else {
         diffPieces = config.diff.split('-').map(p => p.trim())
-        if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+        if (diffPieces.length > 2) throw Error("parent$t('ambiguousDiff')")
       }
 
       this.diffDatasets = diffPieces
@@ -278,7 +280,7 @@ export default defineComponent({
     updateDiffLabels() {
       const choices = []
 
-      choices.push(['No', ''])
+      choices.push(["parent$t('no')", ''])
       if (this.datasetLabels.length <= 1) return
 
       // create all combinations of x-y and y-x

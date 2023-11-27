@@ -11,12 +11,12 @@
 
   h3.header-line {{$t("addData")}}
 
-//CONTINUE HERE
+
   .widgets
     .widget
       b {{ $t("chooseData") }}
       b-select.selector(expanded v-model="fileChoice")
-        option(value="" label= "Select file...")
+        option(value="" label= "parent.$t('selectFile')")
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 
   br

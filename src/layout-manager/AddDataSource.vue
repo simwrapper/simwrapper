@@ -51,6 +51,7 @@ See SimWrapper documentation for details.
 export default defineComponent({
   name: 'AddDataSource',
   props: {},
+  i18n,
   data: () => {
     return {
       labelField: '',

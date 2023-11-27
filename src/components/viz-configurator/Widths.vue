@@ -10,7 +10,7 @@
 
   .widgets
     .widget
-      p Scaling
+      p {{ $t("scaling") }}
       b-field
         b-input(:disabled="!dataColumn" v-model="xscaleFactor" placeholder="1.0")
 
@@ -22,6 +22,7 @@ import type { PropType } from 'vue'
 import debounce from 'debounce'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import i18n from '@/i18n'
 
 export type WidthDefinition = {
   dataset?: string
@@ -31,6 +32,7 @@ export type WidthDefinition = {
 
 export default defineComponent({
   name: 'WidthConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

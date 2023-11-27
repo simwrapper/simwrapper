@@ -4,7 +4,7 @@
   //- DATA COLUMN
   .widgets
     .widget
-        p.tight Display
+        p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
 
           option(label="None" value="@0")
@@ -24,12 +24,12 @@
   //- JOIN COLUMN ------------
   .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 2")
     .widget
-        p.tight Join by
+        p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
           option(label="None" value="")
           option(label="Row count" value="@count")
 
-          optgroup(label="Join by...")
+          optgroup(label="parent.$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
@@ -39,15 +39,15 @@
   //- SCALING ----------------
   .widgets(v-if="dataColumn && dataColumn.length > 2")
     .widget
-      p Scaling
+      p {{ $t("scaling") }}
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
   //- DIFF MODE --------------
-  .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
+  .more(:title="diffChoices.length<2 ? $t('addTwoDatasets') : ''")
     .widgets
       .widget(style="flex: 3")
-        p.tight Compare datasets
+        p.tight {{ $t("compareDatasets") }}
         b-select.selector(
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
@@ -82,6 +82,7 @@ import type { PropType } from 'vue'
 import debounce from 'debounce'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import i18n from '@/i18n'
 
 export type LineWidthDefinition = {
   dataset?: string
@@ -95,6 +96,7 @@ export type LineWidthDefinition = {
 
 export default defineComponent({
   name: 'LineWidthsConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

@@ -38,13 +38,13 @@
             button.button.is-small.is-white(
               v-if="card.info"
               @click="handleToggleInfoClick(card)"
-              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
+              :title="infoToggle[card.id] ? $t('hideInfo'):$t('showInfo')"
             )
               i.fa.fa-info-circle
 
             button.button.is-small.is-white(
               @click="toggleZoom(card)"
-              :title="fullScreenCardId ? 'Restore':'Enlarge'"
+              :title="fullScreenCardId ? $t('restore'):$t('enlarge')"
             )
               i.fa.fa-expand
 
@@ -88,7 +88,7 @@ import YAML from 'yaml'
 
 import globalStore from '@/store'
 import i18n from '@/i18n'
-import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
+import { FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
@@ -110,6 +110,7 @@ chartTypes.forEach((key: any) => {
 
 export default defineComponent({
   name: 'Dashboard',
+  i18n,
   components: Object.assign({ TopSheet }, namedCharts),
   props: {
     root: { type: String, required: true },

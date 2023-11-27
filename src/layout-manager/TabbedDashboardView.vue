@@ -9,7 +9,7 @@
           p.title-text {{ finalFolder }}
           p.favorite-icon(
             @click="clickedFavorite"
-            title="Favorite"
+            title= "parent.$t('favorite')"
             :class="{'is-favorite': isFavorite}"
           ): i.fa.fa-star
         bread-crumbs.breadcrumbs(
@@ -68,6 +68,7 @@ import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 import { FavoriteLocation, FileSystemConfig, NavigationItem, Status, YamlConfigs } from '@/Globals'
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import DashBoard from './DashBoard.vue'
@@ -85,6 +86,7 @@ const mdRenderer = new markdown({
 
 export default defineComponent({
   name: 'TabbedDashboardView',
+  i18n,
   components: { BreadCrumbs, DashBoard, FolderBrowser },
   props: {
     root: { type: String, required: true },

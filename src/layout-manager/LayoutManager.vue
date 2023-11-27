@@ -87,17 +87,17 @@
                 v-if="panel.info"
                 @click="handleToggleInfoClicked(panel)"
               ): i.fa.fa-info-circle
-              //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
+              //- :title="infoToggle[panel.id] ? $t('hideInfo'):$t('showInfo')"
 
               .nav-button.is-small.is-white(
                 v-show="panels.length > 1 || panels[0].length > 1"
                 @click="toggleZoom(panel, x, y)"
-                :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
+                :title="fullScreenPanel.x > -1 ? $t('restore'):$t('enlarge')"
               ): i.fa.fa-expand
 
               .nav-button.is-small.is-white(v-if="isMultipanel"
                 @click="onClose(x,y)"
-                title="Close"
+                title="parent.$t('close')"
               ): i.fa.fa-times-circle
 
         .breadcrumb-row(v-if="getShowHeader(panel)")
@@ -149,6 +149,7 @@ import SplashPage from './SplashPage.vue'
 import LeftSplitFolderPanel from './LeftSplitFolderPanel.vue'
 import LeftSystemPanel from './LeftSystemPanel.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
+import SettingsPanel from './SettingsPanel.vue'
 
 import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
@@ -172,6 +173,7 @@ export default defineComponent({
       TopNavBar,
       SplashPage,
       TabbedDashboardView,
+      SettingsPanel,
     },
     pluginComponents
   ),

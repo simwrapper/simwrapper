@@ -6,7 +6,7 @@
 
   .widgets(v-show="filterIds.length")
     .widget
-      h4 Active Filters
+      h4 {{ $t("activeFilters") }}
 
       .filter-items
         .active-filter.filter-details(v-for="f in filterIds" :key="f")
@@ -20,8 +20,8 @@
 
   .widgets
     .widget.boop
-      h4 Add New Filter
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="Select...")
+      h4 {{$t("addFilter")}}
+      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="parent.$t('select')")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"
@@ -37,11 +37,11 @@
       .button-bar(v-if="addDataColumn")
         button.button.add-button.is-small.is-inverted(
           @click="clickedCancel"
-        ) Cancel
+        ) {{ $t("cancel") }}
         button.button.add-button.is-small.is-primary(v-if="addDataColumn"
           :disabled="addOperator !== OPERATORS[0] && addValue===''"
           @click="clickedAddFilter"
-        ) &nbsp;&nbsp;Add&nbsp;&nbsp;
+        ) &nbsp;&nbsp;{{ $t("add") }} &nbsp;&nbsp;
 
 </template>
 
@@ -50,6 +50,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import i18n from '@/i18n'
 
 export type FilterDefinition = {
   dataset: string
@@ -59,6 +60,7 @@ export type FilterDefinition = {
 }
 
 export default defineComponent({
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

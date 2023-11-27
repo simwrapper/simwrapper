@@ -8,7 +8,7 @@
   .middle-panel
 
     .is-chrome(v-if="isChrome")
-      h3 Local Files
+      h3 {{$t("localFolders")}}
       .items
         .project-root.local(v-for="row in localFileHandles" :key="row.key"
           @click="clickedBrowseChromeLocalFolder(row)")
