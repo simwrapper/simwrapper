@@ -47,11 +47,11 @@
 
   //- .bottom-panel
 
-    h3 DOCUMENTATION
+    h3 {{ $t("documentation")}}
     .items
-      p: a(href="https://simwrapper.github.io/docs" target="_blank") Documentation site
-      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") Getting started
-      p: a(href="https://simwrapper.github.io/blog" target="_blank") News &amp; updates
+      p: a(href="https://simwrapper.github.io/docs" target="_blank") {{ $t("documentationLink") }}
+      p: a(href="https://simwrapper.github.io/docs/examples" target="_blank") {{ $t("start") }}
+      p: a(href="https://simwrapper.github.io/blog" target="_blank") {{ $t("news") }}
 
   //- .action-panel
   //-   p.show-hide(@click="$store.commit('setShowLeftBar', false)")

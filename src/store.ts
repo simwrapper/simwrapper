@@ -51,8 +51,6 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
-    hasUserManuallyHiddenLeftBar: false,
-    i18n,
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: false,
