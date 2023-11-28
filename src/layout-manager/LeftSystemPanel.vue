@@ -671,9 +671,18 @@ h2 {
 }
 
 .config-sources {
-  margin-top: 1rem;
+  margin-left: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
   a {
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #00000000;
+    border-radius: 4px;
     color: var(--textLink);
+  }
+
+  a:hover {
+    border: 1px solid #778;
   }
 }
 
@@ -726,7 +735,7 @@ h2 {
 // hello
 
 .items {
-  // margin-left: 0.5rem;
+  margin-left: 0.75rem;
   margin-right: 0.25rem;
 
   a {
