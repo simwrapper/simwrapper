@@ -1,6 +1,8 @@
 <template lang="pug">
 .tabbed-folder-view
 
+  p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
+
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer
       .project-header(v-if="header" v-html="header")
@@ -41,7 +43,7 @@
         :allConfigFiles="allConfigFiles"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
-    )
+      )
 
     folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
       :root="root"
@@ -51,9 +53,7 @@
       @up="goUpOneFolder()"
     )
 
-  p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
-
-  .foot-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
+  footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
@@ -470,10 +470,10 @@ export default defineComponent({
       const html = mdRenderer.render(header)
 
       // sanitize it
-      const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
+      // const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
       // use it
-      return clean
+      return html
     },
 
     // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
@@ -635,7 +635,6 @@ export default defineComponent({
   flex-direction: column;
   background-color: var(--bgDashboard);
   flex-direction: column;
-  overflow-y: auto;
 }
 
 .centered-vessel.wiide {
@@ -653,15 +652,8 @@ export default defineComponent({
   background-color: var(--bgDashboard);
 }
 
-.foot-holder {
-  z-index: 50;
-}
 .tabholder {
-  // max-width: $dashboardWidth + 3;
-  // margin: 0 auto;
   z-index: 50;
-  // position: sticky;
-  // background-color: var(--bgMapPanel);
   padding: 0.75rem 0rem 0.25rem 0rem;
 }
 
@@ -685,6 +677,7 @@ li.is-not-active b a {
   flex-direction: row-reverse;
   margin: 0 $cardSpacing;
   position: relative;
+  overflow-y: auto;
 }
 
 .dashboard-finder.isMultipanel {
@@ -756,19 +749,14 @@ li.is-not-active b a {
 
 .load-error {
   margin: 3rem auto;
-  padding: 1rem 0;
+  padding: 1rem 0.5rem;
   border-radius: 5px;
   text-align: center;
   font-size: 1.2rem;
   color: var(--link);
-  background-color: var(--bgPanel2);
+  background-color: var(--bgPanel);
+  border: 1px solid pink;
   max-width: 40rem;
-}
-
-.load-error:hover {
-  cursor: pointer;
-  color: var(--linkHover);
-  background-color: var(--bgPanel3);
 }
 
 .project-header {
@@ -805,11 +793,19 @@ li.is-not-active b a {
   padding: 1rem 2rem;
 }
 
+.footer-holder {
+  font-size: 0.75rem;
+  z-index: 50;
+  line-height: 0.9rem;
+  margin-top: 0.5rem;
+}
+
 .project-footer {
-  margin: 3rem 0rem 1rem 0rem;
-  padding: 1rem 1rem;
+  width: 100%;
+  margin: 0rem 0rem 0.25rem 0rem;
   color: var(--text);
-  border-top: 2px solid #88888815;
+  padding: 0rem 1rem;
+
   :deep(h1) {
     font-size: 2rem;
     font-weight: bold;
@@ -833,14 +829,6 @@ li.is-not-active b a {
   :deep(ul) {
     list-style: inside;
   }
-}
-
-.project-footer.wiide {
-  margin: 3rem 0rem 1rem 0rem;
-  padding: 1rem 2rem;
-  border-top: none;
-  background-color: #88888815;
-  color: var(--text);
 }
 
 .folder-readme {
@@ -885,5 +873,13 @@ li.is-not-active b a {
 .breadcrumbs {
   padding: 0.25rem 0;
   font-size: 0.9rem;
+}
+
+img {
+  margin-right: 1rem;
+}
+
+.logos img {
+  margin-right: 1rem;
 }
 </style>
