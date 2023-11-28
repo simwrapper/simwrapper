@@ -104,7 +104,7 @@ const i18n = {
     none: "None",
     rowCount:"Row count",
     normalize: "Normalize by",
-    addTwoDatasets: "'Add two datasets to enable comparisons'",
+    addTwoDatasets: "Add two datasets to enable comparisons",
     compareDatasets: "Compare datasets",
     flip: "Flip",
     steps: "Steps",
@@ -115,10 +115,11 @@ const i18n = {
     //Filters
     activeFilters: "Active Filters",
     addFilter: "Add New Filter",
+    
 
     //Errors
     ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
-    filterKey: "Filter key is not 'dataset.column':",
+    filterNotFound: "Filter key is not 'dataset.column'",
 
 
 
@@ -222,26 +223,26 @@ const i18n = {
 
     //Colors
     display: "Darstellung",
-    singleColor: "Einzelne Farbe",
+    singleColor: "Einfarbig",
     join: "Verknüpfen über",
-    none: "None",
-    rowCount:"Row count",
-    normalize: "Normalize by",
-    addTwoDatasets: "'Add two datasets to enable comparisons'",
-    compareDatasets: "Compare datasets",
-    flip: "Flip",
-    steps: "Steps",
-    column: "Column",
-    reverse: "Reverse",
-    scaling: "Scaling",
+    none: "Keine",
+    rowCount:"Anzahl Reihen",
+    normalize: "Normalisieren",
+    addTwoDatasets: "Zwei Datensets hinzufügen für Vergleiche",
+    compareDatasets: "Datensets vergleichen",
+    flip: "Umdrehen",
+    steps: "Abstufungen",
+    column: "Spalte",
+    reverse: "Umkehren",
+    scaling: "Skalieren",
 
     //Filters
-    activeFilters: "Active Filters",
-    addFilter: "Add New Filter",
+    activeFilters: "Aktive Filter",
+    addFilter: "Neuer Filter hinzufügen",
 
     //Errors
     ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
-    filterKey: "Filter key is not 'dataset.column':",
+    filterNotFound: "Filter key is not 'dataset.column'",
   
   
   },

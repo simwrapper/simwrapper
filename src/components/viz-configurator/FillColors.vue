@@ -6,7 +6,7 @@
     .widget
         p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(label="parent$t('singleColor')" value="@")
+          option(:label="parent.$t('singleColor')" value="@")
 
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
@@ -23,10 +23,10 @@
     .widget
         p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="parent.$t('none')" value="")
-          option(label="parent.$t('rowCount')" value="@count")
+          option(:label="parent.$t('none')" value="")
+          option(:label="parent.$t('rowCount')" value="@count")
 
-          optgroup(label="parent.$t('join')")
+          optgroup(:label="parent.$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :value="col"
                    :label="col"

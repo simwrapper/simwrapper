@@ -155,7 +155,8 @@ export default defineComponent({
       for (const key of Object.keys(filterConfig)) {
         const [dataset, column] = key.split('.')
         if (column == undefined) {
-          this.$emit('error', `Filter key is not "dataset.column": ${key}`)
+          //@ts-ignore
+          this.$emit('error', `${this.$t['filterNotFound']}: ${key}`)
           continue
         }
 
