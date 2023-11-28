@@ -15,25 +15,25 @@
           option(label="8px" value="@8")
 
           optgroup(v-for="dataset in datasetChoices"
-                  :key="dataset" :label="dataset")
+                  :key="dataset" :label="parent.$t('dataset')")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :key="`${dataset}/${column}`"
                   :value="`${dataset}/${column}`"
-                  :label="column")
+                  :label="parent.$t('column')")
 
   //- JOIN COLUMN ------------
   .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 2")
     .widget
         p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="None" value="")
-          option(label="Row count" value="@count")
+          option(:label="parent.$t('none')" value="")
+          option(:label="parent.$t('rowCount')" value="@count")
 
-          optgroup(label="parent.$t('join')")
+          optgroup(:label="parent.$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
-                   :label="col"
+                   :label="parent.$t('column')"
             )
 
   //- SCALING ----------------
@@ -71,7 +71,7 @@
   //-           :disabled="!dataColumn"
   //-           :class="{'is-warning': dataColumn && transform==selectedTransform}"
   //-           @click="selectedTransform=transform"
-  //-           :title="dataColumn ? 'Transforms occur after scaling':'Select a data field first'"
+  //-           :title="dataColumn ? $t("transformsAfterScaling")"
   //-           ) {{ transform }}
 
 </template>

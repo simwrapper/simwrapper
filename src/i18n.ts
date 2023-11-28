@@ -25,6 +25,8 @@ const i18n = {
     browseSources: "Browse data sources",
     editSources: "Edit data sources...",
     addDataURL: "Add Data URL",
+
+    datset: "Dataset",
     
 
     //General
@@ -120,7 +122,7 @@ const i18n = {
     //Errors
     ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
     filterNotFound: "Filter key is not 'dataset.column'",
-
+    transformsAfterScaling: "Transforms occur after scaling':'Select a data field first",
 
 
   },

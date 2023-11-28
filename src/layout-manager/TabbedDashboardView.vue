@@ -269,7 +269,7 @@ export default defineComponent({
 
         // Add FileBrowser as "Files" tab
         if (this.globalState.isShowingFilesSection) {
-          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
+          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: "parent.$t('Files' )"} })
         }
 
         // // Start on correct tab
