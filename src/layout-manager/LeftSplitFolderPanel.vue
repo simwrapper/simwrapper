@@ -13,6 +13,9 @@
       .x-breadcrumbs(v-if="root")
         p(v-for="crumb,i in globalState.breadcrumbs.slice(1)" :key="crumb.url"
           @click="clickedBreadcrumb(crumb)"
+          @dragstart="dragBreadCrumb($event, crumb.url)"
+          @dragend="dragEnd"
+          draggable
         ) &nbsp;&bullet;&nbsp;{{ crumb.label }}
 
   .middle-panel
@@ -32,13 +35,12 @@
           p(v-if="!localFileHandles.length") Chrome & Edge can browse folders directly:
           .project-root.local(v-for="row in localFileHandles" :key="row.key"
             @click="clickedBrowseChromeLocalFolder(row)"
-            draggable
             @dragstart="dragStart($event, row.slug)"
             @dragend="dragEnd"
+            draggable
           )
 
             h5.remove-local(style="flex: 1;") {{ row.handle.name}}
-              i.fa.fa-times(@click.stop="clickedDelete(row)")
             p Local folder
 
           p.config-sources: a(@click="showChromeDirectory") Add local folder...
@@ -47,9 +49,9 @@
 
         .project-root(v-for="project in allRoots" :key="project.slug"
           @click="clickedOnFolder({root: project.slug})"
-          draggable
           @dragstart="dragStart($event, project.slug)"
           @dragend="dragEnd"
+          draggable
         )
           h5 {{ project.name }}
           p {{ project.description }}
@@ -59,9 +61,9 @@
       .curated-sections(v-else)
 
         h3.curate-heading(
-          draggable
           @dragstart="dragStart($event, subfolder)"
           @dragend="dragEnd"
+          draggable
         ) {{ globalState.breadcrumbs[globalState.breadcrumbs.length - 1].label }}
 
         .curate-content(v-if="myState.folders.length")
@@ -69,56 +71,16 @@
           .folder-table
 
             .folder(v-for="folder,i in myState.folders" :key="folder"
-              draggable
+              :class="{fade: myState.isLoading, upfolder: i == 0}"
               @dragstart="dragStart($event, `${myState.subfolder}/${folder}`)"
               @dragend="dragEnd"
-              :class="{fade: myState.isLoading, upfolder: i == 0}"
               @click="clickedOnFolder({folder, i})"
+              draggable
             )
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               p {{ cleanName(folder) }}
 
           p(v-if="myState.folders.length==1" style="font-size: 0.9rem; opacity: 0.7; margin: 0.5rem 0; text-align: right") No subfolders.
-
-        //- //- MAPS: thumbnails of each viz map here
-        //- .section-maps(v-if="vizMaps.size")
-
-        //-   h3.curate-heading {{ $t('Maps')}}
-        //-   .curate-content
-        //-     .viz-table
-        //-       .viz-grid-item(
-        //-         v-for="[index, viz] of vizMaps.entries()" :key="index"
-        //-         @click="clickedVisualization(index)"
-        //-       )
-        //-         .viz-frame(
-        //-           :class="{highlighted: index === highlightedViz }"
-        //-           draggable
-        //-           @dragstart="dragStart($event, viz)"
-        //-           @dragend="dragEnd"
-        //-         )
-        //-           p.v-title: b {{ viz.title }}
-        //-           p.v-filename {{ viz.config }}
-        //-           p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
-
-        //-           component.viz-frame-component(
-        //-                 v-show="false"
-        //-                 :is="viz.component"
-        //-                 :root="myState.svnProject.slug"
-        //-                 :subfolder="myState.subfolder"
-        //-                 :yamlConfig="viz.config"
-        //-                 :thumbnail="true"
-        //-                 :fileApi="myState.svnRoot"
-        //-                 :style="{'pointer-events': 'none'}"
-        //-                 @title="updateTitle(index, $event)")
-
-        //-     .hint-clicks(:style="{opacity : needDoubleClickHint ? 1 : 0}")
-        //-       p
-        //-         b Drag
-        //-         | &nbsp;or&nbsp;
-        //-         b double-click
-        //-         | &nbsp;a tile
-        //-         br
-        //-         | to open it in the main panel
 
 </template>
 
@@ -240,7 +202,6 @@ export default defineComponent({
     }
   },
   mounted() {
-    this.setupHints()
     this.updateShortcuts()
     this.getRootAndRoute(this.$route.params.pathMatch)
   },
@@ -265,46 +226,6 @@ export default defineComponent({
     },
   },
   computed: {
-    hasDashboards(): boolean {
-      return !!Object.keys(this.allConfigFiles.dashboards).length
-      // const d = /^dashboard.*ml/
-      // for (const viz of this.myState.files) {
-      //   if (d.test(viz)) return true
-      // }
-      // return false
-    },
-
-    vizImages() {
-      const images: { [index: number]: any } = {}
-      for (let i = 0; i < this.myState.vizes.length; i++) {
-        if (this.myState.vizes[i].component === 'image-view') {
-          images[i] = this.myState.vizes[i]
-        }
-      }
-      return images
-    },
-
-    vizMaps() {
-      const skipList = ['image-view', 'dashboard']
-      const maps = new Map()
-
-      // Dashboards first
-      if (this.hasDashboards) {
-        maps.set(-1, {
-          component: '',
-          title: 'Dashboard Panel',
-        })
-      }
-
-      // Then vizes
-      for (let i = 0; i < this.myState.vizes.length; i++) {
-        if (!skipList.includes(this.myState.vizes[i].component)) {
-          maps.set(i, this.myState.vizes[i])
-        }
-      }
-
-      return maps
-    },
     isChrome() {
       return !!window.showDirectoryPicker
     },
@@ -420,23 +341,6 @@ export default defineComponent({
       // save them!
       globalStore.commit('setBreadCrumbs', crumbs)
       return crumbs
-    },
-
-    setupHints() {
-      // if user has seen the hints a few times, drop them
-      let hints: any = localStorage.getItem('needsClickHint')
-      if (hints) {
-        hints = JSON.parse(hints) as number
-      } else {
-        hints = 0
-      }
-
-      if (hints > 5000) {
-        this.needDoubleClickHint = false
-      } else {
-        hints++
-        localStorage.setItem('needsClickHint', JSON.stringify(hints))
-      }
     },
 
     clickedBreadcrumb(crumb: { url: string }) {
@@ -646,62 +550,8 @@ export default defineComponent({
           this.subfolder = ''
           return
         }
-
-        // Bad things happened! Tell user
-        // const e = err as any
-        // console.log('BAD PAGE')
-        // console.log({ eeee: e })
-
-        // this.myState.folders = []
-        // this.myState.files = []
-
-        // this.myState.errorStatus = '<h3>'
-        // if (e.status) this.myState.errorStatus += `${e.status} `
-        // if (e.statusText) this.myState.errorStatus += `${e.statusText}`
-        // if (this.myState.errorStatus === '<h3>') this.myState.errorStatus += 'Error'
-        // this.myState.errorStatus += `</h3>`
-        // if (e.url) this.myState.errorStatus += `<p>${e.url}</p>`
-        // if (e.message) this.myState.errorStatus += `<p>${e.message}</p>`
-        // if (this.myState.errorStatus === '<h3>Error</h3>') this.myState.errorStatus = '' + e
-
-        // if (this.myState.svnProject) {
-        //   this.myState.errorStatus += `<p><i>${this.myState.svnProject.baseURL}${this.myState.subfolder}</i></p>`
-        // }
-
-        // // maybe it failed because password?
-        // if (this.myState.svnProject && this.myState.svnProject.needPassword && e.status === 401) {
-        //   globalStore.commit('requestLogin', this.myState.svnProject.slug)
-        // }
       } finally {
         this.myState.isLoading = false
-      }
-    },
-
-    clickedVisualization(index: number) {
-      // (props: { folder: string; i: number; root: string }) {
-      if (this.myState.isLoading) return
-
-      const DBL_CLICK_DELAY = 450
-
-      this.highlightedViz = index
-
-      this.clicks++
-      if (this.clicks === 1) {
-        // start timer to see if we get a second click
-        this.clickTimer = setTimeout(() => {
-          // nothing to do, just un-double click
-          // this.handleSingleClickFolder(props)
-          this.needDoubleClickHint = true
-          this.clicks = 0
-          // this.highlightedViz = -1
-        }, DBL_CLICK_DELAY)
-      } else {
-        // got a second click in time!
-        clearTimeout(this.clickTimer)
-        this.needDoubleClickHint = false
-        this.activateVisualization(index)
-        // do my double-click thing here
-        this.clicks = 0
       }
     },
 
@@ -736,51 +586,21 @@ export default defineComponent({
       this.subfolder = subfolder
     },
 
-    handleSingleClickFolder(xprops: { folder: string; i: number; root: string }) {
-      const { folder, root, i } = xprops
-
-      if (root) {
-        this.root = root
-        this.subfolder = ''
-        this.updateRoute()
-        return
-      }
-
-      if (this.myState.isLoading) return
-      if (!this.myState.svnProject) return
-
-      if (i == 0 && folder === 'UP') return
-
-      const target =
-        folder === '..'
-          ? this.myState.subfolder.substring(0, this.myState.subfolder.lastIndexOf('/'))
-          : this.myState.subfolder + '/' + folder
-
-      const props = {
-        root: this.myState.svnProject.slug,
-        xsubfolder: target,
-      }
-
-      // if we are at top of hierarchy, jump to splashpage
-      if (!target && !this.myState.subfolder) {
-        this.$emit('navigate', { component: 'SplashPage', props: {} })
-      } else {
-        this.$emit('navigate', { component: 'TabbedDashboardView', props })
-      }
-    },
-
     dragEnd() {
       this.$emit('isDragging', false)
     },
 
-    dragStart(event: DragEvent, folder: any) {
+    dragStart(event: DragEvent, folder: string) {
       this.$emit('isDragging', true)
 
       const panel = { component: 'TabbedDashboardView', props: {} }
+      const root = this.root || folder // might be at root panel
+      const correctFolder = this.root ? folder : ''
+
       const bundle = Object.assign({}, panel, {
-        root: this.root,
-        subfolder: folder,
-        xsubfolder: folder,
+        root,
+        subfolder: correctFolder,
+        xsubfolder: correctFolder,
       }) as any
 
       bundle.yamlConfig = bundle.config
@@ -790,8 +610,12 @@ export default defineComponent({
       event.dataTransfer?.setData('bundle', text)
     },
 
-    clickedLogo() {
-      this.$router.push('/')
+    dragBreadCrumb(event: DragEvent, url: string) {
+      let folder = url.startsWith('/') ? url.slice(1) : url
+      if (folder.endsWith('/')) folder = folder.slice(0, -1)
+      let subfolder = folder.indexOf('/') > -1 ? folder.slice(folder.indexOf('/')) : ''
+
+      this.dragStart(event, subfolder)
     },
 
     async findAllConfigsAndDashboards() {
@@ -851,15 +675,6 @@ export default defineComponent({
       }
     },
 
-    async clickedDelete(row: { key: string; handle: any }) {
-      const handles = this.$store.state.localFileHandles
-      // just filter out the key I guess?
-      const filtered = handles.filter((f: any) => f.key !== row.key)
-
-      // and save it everywhere
-      await set('fs', filtered)
-      this.$store.commit('setLocalFileSystem', filtered)
-    },
     // - END Chrome File System Access API support
   },
 })
