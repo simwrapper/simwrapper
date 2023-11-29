@@ -400,40 +400,10 @@ export default defineComponent({
 
         this.updateLabels()
         this.updateData()
-        // this.emitValues()
-        console.log(this.state.timeFilter)
 
         this.state.dragStartX = e.clientX
         return
       }
-
-      // FIXED BIN SIZE! CANT STRETCH THE SLIDER!!!
-      // if (DRAGTYPE.START == this.state.dragType) {
-      //   // Handle dragging the start-time handle.
-      //   const newLeft = usableWidth * this.state.leftPosition + deltaX
-      //   this.state.leftPosition = Math.max(0, newLeft / usableWidth)
-
-      //   // Ensure that the start-time does not overlap with the end-time.
-      //   if (this.state.leftPosition > this.state.rightPosition) {
-      //     this.state.rightPosition = this.state.leftPosition
-      //   }
-
-      //   this.state.dragStartX = e.clientX
-      //   return
-      // }
-
-      // if (DRAGTYPE.END == this.state.dragType) {
-      //   // Handle dragging the end-time handle.
-      //   const newRight = usableWidth * this.state.rightPosition + deltaX
-      //   this.state.rightPosition = Math.min(1, newRight / usableWidth)
-
-      //   // Ensure that the end-time does not overlap with the start-time.
-      //   if (this.state.leftPosition > this.state.rightPosition) {
-      //     this.state.leftPosition = this.state.rightPosition
-      //   }
-
-      //   this.state.dragStartX = e.clientX
-      // }
     },
 
     /**
@@ -473,9 +443,6 @@ export default defineComponent({
         this.findIndexLessThanOrEqualTo(
           this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
         ) + 1
-
-      // console.log(newStartTime, newEndTime)
-      // console.log(this.allTimes[newStartTime], this.allTimes[newEndTime])
 
       // Calculate and set time labels.
       this.state.timeLabels = [

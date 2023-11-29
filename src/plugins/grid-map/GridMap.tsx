@@ -16,15 +16,6 @@ const material = {
   specularColor: [51, 51, 51],
 }
 
-// Define initial view configuration for the map.
-// const INITIAL_VIEW = {
-//   zoom: 10,
-//   longitude: 13.45,
-//   latitude: 52.5,
-//   pitch: 0,
-//   bearing: 0,
-// }
-
 // LAYER --------------------------------------------------------
 export default function Layer({
   viewId = 0 as number,
@@ -32,49 +23,48 @@ export default function Layer({
   dark = false as Boolean,
   data = {} as CompleteMapData,
   currentTimeIndex = 0 as number,
-  extrude = true as Boolean,
-  highlights = [],
+  // extrude = true as Boolean,
   mapIsIndependent = false as Boolean,
   maxHeight = 200 as Number,
-  metric = 'Count' as String,
   cellSize = 200 as Number,
   opacity = 0.7 as Number,
-  selectedHexStats = {
-    rows: 0 as Number,
-    numHexagons: 0 as Number,
-    selectedHexagonIds: [] as Number[],
-  },
   upperPercentile = 100 as Number,
-  onClick = {} as any,
-  onHover = {} as any,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   // Handle view state changes
   REACT_VIEW_HANDLES[viewId] = (view: any) => {
-    console.log('REACT_VIEW_HANDLES', view)
     if (view) {
       setViewState(view)
     } else {
       setViewState(globalStore.state.viewState)
     }
-    // console.log(globalStore.state.viewState)
   }
 
   // Function to handle view state changes
   function handleViewState(view: any) {
-    // console.log(view)
-    if (!view.latitude) return
+    // Make shure that latitude and longitude exist in the view object
+    if (!view || typeof view.latitude !== 'number' || typeof view.longitude !== 'number') {
+      return
+    }
 
-    if (!view.center) view.center = [0, 0]
+    // If the view does not have a center, initialize it to [0, 0]
+    if (!view.center) {
+      view.center = [0, 0]
+    }
+
+    // Set the center based on longitude and latitude
     view.center[0] = view.longitude
     view.center[1] = view.latitude
+
+    // Update the view state
     setViewState(view)
 
-    // Update the global store with the map camera view if not independent
-    console.log('76')
-    if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
+    // Update the global map camera position if it's not independent
+    if (!mapIsIndependent) {
+      globalStore.commit('setMapCamera', view)
+    }
   }
 
   // Generate colors for data visualization using the specified color ramp
@@ -84,41 +74,6 @@ export default function Layer({
     format: 'rba',
     alpha: 1,
   }).map((c: number[]) => [c[0], c[1], c[2], 255])
-
-  // Function to get tooltip content for map features
-  function getTooltip({ object }: any) {
-    if (!object || !object.position || !object.position.length) {
-      return null
-    }
-
-    const lat = object.position[1]
-    const lng = object.position[0]
-    const count = object.points.length
-
-    // Construct tooltip HTML content
-    return {
-      html: `<b>${highlights.length ? 'Count' : metric}: ${count} </b><br/>
-        ${Number.isFinite(lat) ? lat.toFixed(4) : ''} / ${
-        Number.isFinite(lng) ? lng.toFixed(4) : ''
-      }`,
-      // Define tooltip style based on dark theme
-      style: dark
-        ? { color: '#ccc', backgroundColor: '#2a3c4f' }
-        : { color: '#223', backgroundColor: 'white' },
-    }
-  }
-
-  // Function to handle click events on map features
-  function handleClick(target: any, event: any) {
-    // if (target.devicePixel != undefined) console.log(event)
-  }
-
-  // Function to handle hover events on map features
-  function handleHover(target: any, event: any) {
-    // if (target.devicePixel != undefined) console.log(target, event)
-  }
-
-  console.log(data)
 
   const layers = [
     new GridCellLayer({
@@ -136,8 +91,6 @@ export default function Layer({
       autoHighlight: true,
       elevationRange: [0, maxHeight],
       elevationScale: maxHeight,
-      extruded: extrude,
-      selectedHexStats,
       pickable: true,
       opacity,
       cellSize,
@@ -148,12 +101,11 @@ export default function Layer({
         opacity: { type: 'interpolation', duration: 200 },
       },
       parameters: {
+        // fixes the z-fighting problem but makes some issues with the opacity...
         // depthTest: false,
       },
     }),
   ]
-
-  console.log('ID: ', viewId)
 
   // Render the Deck.gl map component with specified props
   return (
@@ -162,9 +114,6 @@ export default function Layer({
       controller={true}
       useDevicePixels={false}
       viewState={viewState}
-      getTooltip={getTooltip}
-      onClick={handleClick}
-      onHover={handleHover}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {/* @ts-ignore */}
