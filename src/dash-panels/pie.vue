@@ -162,7 +162,6 @@ export default defineComponent({
       try {
         this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config)
-        console.log(this.config)
 
         // no filter? we are done
         if (!this.config.filters) return dataset
