@@ -1,24 +1,24 @@
 <template lang="pug">
-    .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
-    
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+
       xy-hex-deck-map.hex-layer(
         v-if="!thumbnail && isLoaded"
         v-bind="mapProps"
       )
-    
+
       zoom-buttons(v-if="!thumbnail")
       //- drawing-tool.drawing-tool(v-if="!thumbnail")
 
       .top-right
         .gui-config(:id="configId")
-    
+
       .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
         collapsible-panel(direction="left" :locked="true")
           .panel-items(v-if="hexStats" style="color: #c0f;")
             p.big(style="margin-top: 2rem;") {{ $t('selection') }}:
             h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
             button.button(style="color: #c0f; border-color: #c0f") {{ $t('showDetails') }}
-    
+
       //- .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
             //- :class="{'is-dashboard': config !== undefined }"
 
@@ -39,7 +39,7 @@
             //-     :duration="0" :dotSize="12"
             //-     :tooltip="false"
             //-   )
-    
+
               //- p.ui-label Hex Radius: {{ vizDetails.cellSize }}
               //- b-slider.ui-slider(v-model="vizDetails.cellSize"
               //-   size="is-small"
@@ -58,11 +58,11 @@
             //- .panel-item
             //-   h4 Aktueller Wert
             //-   p(v-if="hoverValue") {{ parseFloat((hoverValue).toFixed(4)) }}
-            //-   p(v-else) - 
-            //-   h4 Letzter Wert 
+            //-   p(v-else) -
+            //-   h4 Letzter Wert
             //-   p(v-if="clickedValue") {{ parseFloat((clickedValue).toFixed(4)) }}
             //-   p(v-else) -
-    
+
       time-slider.time-slider-area(v-if="isLoaded"
         :range="timeRange"
         :allTimes="allTimes"
@@ -71,8 +71,8 @@
 
       .message(v-if="!thumbnail && myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
-    
-    </template>
+
+</template>
 
 <script lang="ts">
 const i18n = {
@@ -228,7 +228,7 @@ const GridMap = defineComponent({
       /////// Data reorgaisation stuff
       allTimePeriodes: [] as any[],
       colors: colormap({
-        colormap: 'chlorophyll',
+        colormap: 'viridis',
         nshades: 10,
         format: 'rba',
         alpha: 1,
@@ -692,7 +692,7 @@ const GridMap = defineComponent({
           time: time,
           values: new Float32Array(numberOfElementsPerTime),
           centroid: new Float32Array(numberOfElementsPerTime * 2),
-          colorData: new Uint8Array(numberOfElementsPerTime * 4),
+          colorData: new Uint8Array(numberOfElementsPerTime * 3),
           numberOfFilledValues: 0,
           numberOfFilledCentroids: 0,
           numberOfFilledColors: 0,
@@ -717,7 +717,7 @@ const GridMap = defineComponent({
         finalData.mapData[index].values[lastValueIndex] = value
 
         // Loop through the colors and add them to the mapData
-        for (let j = 0; j < 4; j++) {
+        for (let j = 0; j < 3; j++) {
           finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
         }
 
@@ -734,7 +734,7 @@ const GridMap = defineComponent({
         // Update the number of values for time array in the mapData
         finalData.mapData[index].numberOfFilledValues = lastValueIndex + 1
         finalData.mapData[index].numberOfFilledCentroids = lastCentroidIndex + 2
-        finalData.mapData[index].numberOfFilledColors = lastColorIndex + 4
+        finalData.mapData[index].numberOfFilledColors = lastColorIndex + 3
       }
 
       // Clean data (delete numberOfFilledXXXX)
@@ -836,8 +836,8 @@ const GridMap = defineComponent({
           // for (let i = 0; i < colors.length; i++) sum += colors[i]
           // if (sum > 0) console.log(sum)
 
-          for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
-            this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
+          for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
+            this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
             // console.log(colorIndex)
           }
         }
@@ -846,7 +846,8 @@ const GridMap = defineComponent({
         // count = 0
       }
 
-      console.log(this.data.mapData)
+      // force Vue to take notice of the change - any prop change will do
+      this.currentTime = [...this.currentTime]
 
       // // figure out min and max
       // // TODO!!!!!!!! REMOVE COMMENT!
