@@ -172,7 +172,8 @@ export default defineComponent({
       : ColorScheme.LightMode
 
     if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
-    document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
+
+    // document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
     this.toggleFullScreen(true)
     this.setOnlineOrOfflineMode()
@@ -628,7 +629,7 @@ p.splash-label {
 
 /* Track */
 ::-webkit-scrollbar-track {
-  background: #00000000;
+  background: #00000080;
 }
 
 /* Handle */
@@ -638,7 +639,7 @@ p.splash-label {
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #888888aa;
+  background: #ffffff40;
 }
 
 .deck-tooltip {

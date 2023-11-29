@@ -147,6 +147,7 @@ export interface FileSystemConfig {
   dashboardFolder?: string
   hidden?: boolean
   handle?: FileSystemAPIHandle
+  example?: boolean
 }
 
 export interface VisualizationPlugin {

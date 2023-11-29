@@ -4,7 +4,7 @@
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
-    .tabholdercontainer
+    .tabholdercontainer.white-text
       .project-header(v-if="header" v-html="header")
       .project-path(v-else)
         .nav-title
@@ -212,6 +212,7 @@ export default defineComponent({
       }
 
       this.$store.commit(this.isFavorite ? 'removeFavorite' : 'addFavorite', favorite)
+      if (this.isFavorite) this.$store.commit('setShowLeftBar', true)
     },
 
     async getFolderReadme() {
@@ -646,7 +647,6 @@ export default defineComponent({
   line-height: 0.8rem;
   border-bottom-width: 5px;
   border-bottom-color: var(--bgDashboard);
-  background-color: var(--bgDashboard);
 }
 
 .tabholder {
@@ -658,6 +658,7 @@ export default defineComponent({
   margin: 0 $cardSpacing;
   display: flex;
   flex-direction: row;
+  // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
 }
 
 .tabholdercontainer.wiide {
@@ -843,7 +844,7 @@ li.is-not-active b a {
 .nav-title {
   display: flex;
   padding: 0.75rem 1rem;
-  background-color: var(--bgDashboardHeader);
+  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
   color: white;
   font-size: 1.4rem;
   font-family: $fancyFont;
@@ -870,6 +871,7 @@ li.is-not-active b a {
 .breadcrumbs {
   padding: 0.25rem 0;
   font-size: 0.9rem;
+  color: var(--text);
 }
 
 img {
@@ -878,5 +880,17 @@ img {
 
 .logos img {
   margin-right: 1rem;
+}
+
+.white-text {
+  color: white;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: white;
+  }
 }
 </style>

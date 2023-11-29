@@ -139,7 +139,6 @@ export default defineComponent({
   flex-direction: column;
   user-select: none;
   color: #fff;
-  // padding-top: 1rem;
 }
 
 .top {
@@ -166,10 +165,6 @@ export default defineComponent({
     font-size: 13px;
     line-height: 1rem;
   }
-}
-
-.is-dark {
-  color: #226;
 }
 
 .item:hover {

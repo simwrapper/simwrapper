@@ -837,13 +837,12 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: yellow;
 }
 
 #split-screen {
   display: flex;
   flex-direction: row;
-  background-color: var(--bgBrowser);
+  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
   flex: 1;
 }
 

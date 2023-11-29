@@ -32,6 +32,7 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
 }
 
 let fileSystems: FileSystemConfig[] = [
+  // DO NOT REMOVE THESE, THEY ARE FOR INTERNAL APP USE
   {
     name: webLiveHostname + ' live folders',
     slug: 'live',
@@ -54,6 +55,9 @@ let fileSystems: FileSystemConfig[] = [
     baseURL: loc.origin + '/data',
     hidden: true,
   },
+
+  // End. Below here, these are editable:
+
   {
     name: 'VSP Public-SVN',
     slug: 'public',
@@ -68,6 +72,7 @@ let fileSystems: FileSystemConfig[] = [
     description: 'Pre-built SimWrapper dashboards',
     thumbnail: 'images/thumb-localfiles.jpg',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+    example: true,
   },
   {
     name: 'Localhost:8000',
@@ -83,6 +88,7 @@ let fileSystems: FileSystemConfig[] = [
     thumbnail: 'images/thumb-localfiles.jpg',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/billy/simwrapper/sample-data',
     hidden: true,
+    example: true,
   },
   {
     name: 'KoMoDnext',
@@ -95,13 +101,6 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
   {
-    name: 'SFCTA Prospector',
-    slug: 'champ',
-    description: 'Shared CHAMP model runs',
-    baseURL: 'http://prospector/champ_runs',
-    hidden: true,
-  },
-  {
     name: 'RealLabHH',
     slug: 'reallabhh',
     description: 'Hamburg, Germany',
@@ -109,6 +108,7 @@ let fileSystems: FileSystemConfig[] = [
     baseURL:
       'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/hamburg/hamburg-v2/hamburg-v2.2/viz',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    example: true,
   },
 ]
 
