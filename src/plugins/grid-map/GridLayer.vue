@@ -49,11 +49,11 @@ const i18n = {
 }
 import Vue from 'vue'
 import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
-import Papa from '@simwrapper/papaparse'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -62,6 +62,7 @@ import { REACT_VIEW_HANDLES } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
+import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -105,6 +106,31 @@ interface VizDetail {
   breakpoints?: string
 }
 
+interface GuiConfig {
+  buckets: number
+  exponent: number
+  radius: number
+  opacity: number
+  height: number
+  'color ramp': String
+  colorRamps: String[]
+  flip: Boolean
+}
+
+interface StandaloneYAMLconfig {
+  title: String
+  description: String
+  file: String
+  projection: String
+  thumbnail: String
+  cellSize: number
+  opacity: number
+  maxHeight: number
+  center: number[]
+  zoom: number
+  mapIsIndependent: boolean
+}
+
 const GridMap = defineComponent({
   name: 'GridMapPlugin',
   i18n,
@@ -122,6 +148,7 @@ const GridMap = defineComponent({
     yamlConfig: String,
     config: Object,
     thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
   data: () => {
     const colorRamps = [
@@ -148,11 +175,11 @@ const GridMap = defineComponent({
         center: null as any,
         zoom: 9,
         mapIsIndependent: false,
-      },
+      } as StandaloneYAMLconfig,
       colorRamps,
       columnLookup: [] as number[],
       gzipWorker: null as Worker | null,
-      colorRamp: colorRamps[0],
+      colorRamp: colorRamps[0] as String,
       globalState: globalStore.state,
       vizDetails: {
         title: '',
@@ -181,7 +208,7 @@ const GridMap = defineComponent({
         nshades: 10,
         format: 'rba',
         alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2], 255]),
+      }).map((c: number[]) => [c[0], c[1], c[2], 255]) as Uint8Array[],
       currentTime: [0, 0] as Number[],
       timeToIndex: new Map<Number, number>(),
       guiConfig: {
@@ -189,18 +216,18 @@ const GridMap = defineComponent({
         exponent: 4,
         radius: 5,
         opacity: 1,
-        maxHeight: 100,
+        height: 100,
         'color ramp': 'viridis',
         colorRamps: colorRamps,
         flip: false,
-      },
-      configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
+      } as GuiConfig,
+      configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
-      minRadius: 50,
-      maxRadius: 300,
-      radiusStep: 5,
-      isLoaded: false,
-      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+      minRadius: 50 as number,
+      maxRadius: 300 as number,
+      radiusStep: 5 as number,
+      isLoaded: false as boolean,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
       resizer: null as ResizeObserver | null,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
@@ -238,7 +265,7 @@ const GridMap = defineComponent({
         data: this.data,
         currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
         mapIsIndependent: this.vizDetails.mapIsIndependent,
-        maxHeight: this.guiConfig.maxHeight,
+        maxHeight: this.guiConfig.height,
         cellSize: this.guiConfig.radius,
         opacity: this.guiConfig.opacity,
         upperPercentile: 100,
@@ -467,34 +494,34 @@ const GridMap = defineComponent({
       }
     },
 
-    async loadFile() {
-      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.file)
-      const csv = Papa.parse(rawText, {
-        comments: '#',
-        delimitersToGuess: [';', '\t', ',', ' '],
-        dynamicTyping: true,
-        header: true,
-        skipEmptyLines: true,
-      })
+    async loadAndPrepareData() {
+      const config = {
+        dataset: this.vizDetails.file,
+      }
 
-      const projection = csv.comments[0].split('#')[1].trim()
-      if (projection) this.vizDetails.projection = projection
+      const csv = await this.datamanager.getDataset(config)
+
+      // The datamanager doesn't return the comments...
+      // const projection = csv.comments[0].split('#')[1].trim()
+      // if (projection) this.vizDetails.projection = projection
 
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
 
       // This for loop collects all the data that's used by
-      for (let i = 0; i < csv.data.length; i++) {
+      for (let i = 0; i < csv.allRows.value.values.length; i++) {
         // Stores all times to calculate the range and the timeBinSize
-        if (!this.allTimes.includes(csv.data[i].time)) this.allTimes.push(csv.data[i].time)
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
 
         // calculate the min and max value
-        if (csv.data[i].value < minValue) minValue = csv.data[i].value
-        if (csv.data[i].value > maxValue) maxValue = csv.data[i].value
+        if (csv.allRows.value.values[i] < minValue) minValue = csv.allRows.value.values[i]
+        if (csv.allRows.value.values[i] > maxValue) maxValue = csv.allRows.value.values[i]
 
         // Store all different times
-        if (!this.allTimes.includes(csv.data[i].time)) this.allTimes.push(csv.data[i].time)
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
       }
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
@@ -503,7 +530,9 @@ const GridMap = defineComponent({
       this.timeRange[1] = Math.max.apply(Math, this.allTimes)
 
       // Count elements per time
-      const numberOfElementsPerTime = Math.ceil(csv.data.length / this.allTimes.length)
+      const numberOfElementsPerTime = Math.ceil(
+        csv.allRows.value.values.length / this.allTimes.length
+      )
 
       // scaleFactor
       const scaleFactor = 100 / maxValue
@@ -530,11 +559,11 @@ const GridMap = defineComponent({
       })
 
       // Loop through the data and create the data object for the map
-      for (let i = 0; i < csv.data.length; i++) {
+      for (let i = 0; i < csv.allRows.value.values.length; i++) {
         // index for the time
-        const index = this.timeToIndex.get(csv.data[i].time) as number
+        const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
 
-        const value = scaleFactor * csv.data[i].value
+        const value = scaleFactor * csv.allRows.value.values[i]
         const colors = this.pickColor(value)
 
         // Save index for next position in the array
@@ -551,9 +580,12 @@ const GridMap = defineComponent({
         }
 
         // Convert coordinates
-        let wgs84 = [csv.data[i].x, csv.data[i].y]
+        let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
         if (this.vizDetails.projection !== 'EPSG:4326') {
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, [csv.data[i].x, csv.data[i].y])
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, [
+            csv.allRows.x.values[i],
+            csv.allRows.y.values[i],
+          ])
         }
 
         // Add centroids to the mapData
@@ -608,7 +640,7 @@ const GridMap = defineComponent({
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
-      config.add(this.guiConfig, 'maxHeight', 0, 250, 5)
+      config.add(this.guiConfig, 'height', 0, 250, 5)
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
@@ -659,7 +691,7 @@ const GridMap = defineComponent({
       }
 
       // Set custom maxHeight
-      if (this.config.maxHeight) this.guiConfig.maxHeight = this.config.maxHeight
+      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
 
       // Set custom opacity
       if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
@@ -681,7 +713,7 @@ const GridMap = defineComponent({
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    this.data = await this.loadFile()
+    this.data = await this.loadAndPrepareData()
     this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
@@ -691,14 +723,6 @@ const GridMap = defineComponent({
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
     delete REACT_VIEW_HANDLES[this.id]
-
-    try {
-      if (this.gzipWorker) {
-        this.gzipWorker.terminate()
-      }
-    } catch (e) {
-      console.warn(e)
-    }
 
     this.$store.commit('setFullScreen', false)
   },
