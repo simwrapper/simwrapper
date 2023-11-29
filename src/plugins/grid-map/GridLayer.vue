@@ -23,30 +23,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      loading: 'Loading data...',
-      sorting: 'Sorting into bins...',
-      aggregate: 'Summary',
-      maxHeight: '3D Height',
-      showDetails: 'Show Details',
-      selection: 'Selection',
-      areas: 'Areas',
-      count: 'Count',
-    },
-    de: {
-      loading: 'Dateien laden...',
-      sorting: 'Sortieren...',
-      aggregate: 'Daten',
-      maxHeight: '3-D Höhe',
-      showDetails: 'Details anzeigen',
-      selection: 'Ausgewählt',
-      areas: 'Orte',
-      count: 'Anzahl',
-    },
-  },
-}
 import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -54,23 +30,20 @@ import type { PropType } from 'vue'
 import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
+import colormap from 'colormap'
 
 import util from '@/js/util'
 import globalStore from '@/store'
 import { REACT_VIEW_HANDLES } from '@/Globals'
-
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
-
-import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
+import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import XyHexDeckMap from './GridMap'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 
-import colormap from 'colormap'
-
+import XyHexDeckMap from './GridMap'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 
 // interface for each time object inside the mapData Array
@@ -129,6 +102,45 @@ interface StandaloneYAMLconfig {
   center: number[]
   zoom: number
   mapIsIndependent: boolean
+}
+
+interface MapProps {
+  viewId: string
+  colorRamp: String
+  coverage: number
+  dark: boolean
+  data: CompleteMapData
+  currentTimeIndex: number | undefined
+  mapIsIndependent: boolean | undefined
+  maxHeight: number
+  cellSize: number
+  opacity: number
+  upperPercentile: number
+}
+
+const i18n = {
+  messages: {
+    en: {
+      loading: 'Loading data...',
+      sorting: 'Sorting into bins...',
+      aggregate: 'Summary',
+      maxHeight: '3D Height',
+      showDetails: 'Show Details',
+      selection: 'Selection',
+      areas: 'Areas',
+      count: 'Count',
+    },
+    de: {
+      loading: 'Dateien laden...',
+      sorting: 'Sortieren...',
+      aggregate: 'Daten',
+      maxHeight: '3-D Höhe',
+      showDetails: 'Details anzeigen',
+      selection: 'Ausgewählt',
+      areas: 'Orte',
+      count: 'Anzahl',
+    },
+  },
 }
 
 const GridMap = defineComponent({
@@ -252,11 +264,7 @@ const GridMap = defineComponent({
       return this.thumbnailUrl
     },
 
-    extrudeTowers(): boolean {
-      return this.vizDetails.maxHeight > 0
-    },
-
-    mapProps(): any {
+    mapProps(): MapProps {
       return {
         viewId: this.id,
         colorRamp: this.colorRamp,
@@ -292,11 +300,25 @@ const GridMap = defineComponent({
     },
   },
   methods: {
-    pickColor(value: number) {
-      if (value == 0) return [0, 0, 0, 0]
+    /**
+     * Selects a color based on the given value.
+     * @param {number} value - The value influencing color selection (0-100).
+     * @returns {number[]} - An RGBA color array [R, G, B, A].
+     */
+    pickColor(value: number): number[] | Uint8Array {
+      // Error handling: If the value is outside the valid range, return a default color.
+      if (value < 0 || value > 100) {
+        console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
+        return [0, 0, 0, 0] // Default color (transparent)
+      }
+
+      // Calculate the index based on the value and the number of colors in the array.
       const index = Math.floor((value / 100) * (this.colors.length - 1))
+
+      // Return the selected color.
       return this.colors[index]
     },
+
     async solveProjection() {
       console.log('solveProjection')
       if (this.thumbnail) return
