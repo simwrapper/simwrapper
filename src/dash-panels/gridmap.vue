@@ -4,6 +4,7 @@
       :subfolder="subfolder"
       :config="config"
       :thumbnail="false"
+      :datamanager="datamanager"
     )
     //- @isLoaded="isLoaded"
     
@@ -25,6 +26,7 @@ export default defineComponent({
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
     config: { type: Object, required: true },
+    datamanager: Object,
   },
   mounted() {
     this.isLoaded()

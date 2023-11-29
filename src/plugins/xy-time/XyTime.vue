@@ -225,7 +225,6 @@ const MyComponent = defineComponent({
   },
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
-    console.log(this.myState)
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
