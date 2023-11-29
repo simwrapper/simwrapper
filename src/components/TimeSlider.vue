@@ -35,7 +35,6 @@ export default defineComponent({
     range: Array as PropType<number[]>,
     activeTimeExtent: Array as PropType<number[]>,
     isAnimating: Boolean,
-    useTimeBins: Boolean,
   },
   data: () => {
     return {
@@ -89,11 +88,6 @@ export default defineComponent({
 
     window.addEventListener('mouseup', this.dragEnd)
     window.addEventListener('mousemove', this.dragging)
-
-    console.log(this.labels) // 0, 1
-    console.log(this.range) // 7200, 82800
-    console.log(this.activeTimeExtent) // 0, 3599
-    console.log(this.isAnimating) // true
   },
 
   beforeDestroy() {
@@ -157,29 +151,13 @@ export default defineComponent({
       if (this.labels) this.state.labels = this.labels
     },
 
-    // TODO: Only when bucket changes
     emitValues() {
       if (!this.state.isSetupComplete) return
 
-      // console.log(this.state.datasetRange[0])
-      // console.log(this.state.leftPosition)
-      // console.log(this.state.rightPosition)
-      // console.log(this.useTimeBins)
-
       const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
       const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
-      // console.log(start, end)
-      // console.log(start % this.state.datasetRange[0])
 
-      if (this.useTimeBins && false) {
-        this.$emit('timeExtent', [start, end])
-      } else {
-        this.$emit('timeExtent', [start, end])
-      }
-
-      // this.$emit('timeExtent', [start, end])
-
-      // this.$emit('timeExtent', [0, 7200])
+      this.$emit('timeExtent', [start, end])
     },
 
     getDimensions() {
