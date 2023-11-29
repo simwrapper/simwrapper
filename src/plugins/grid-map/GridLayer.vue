@@ -6,62 +6,10 @@
         v-bind="mapProps"
       )
 
-      zoom-buttons(v-if="!thumbnail")
-      //- drawing-tool.drawing-tool(v-if="!thumbnail")
+      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
 
       .top-right
         .gui-config(:id="configId")
-
-      .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
-        collapsible-panel(direction="left" :locked="true")
-          .panel-items(v-if="hexStats" style="color: #c0f;")
-            p.big(style="margin-top: 2rem;") {{ $t('selection') }}:
-            h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
-            button.button(style="color: #c0f; border-color: #c0f") {{ $t('showDetails') }}
-
-      //- .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
-            //- :class="{'is-dashboard': config !== undefined }"
-
-            //- viz-configurator(v-if="isLoaded"
-            //-   :embedded="true"
-            //-   :fileSystem="fileSystem"
-            //-   :subfolder="subfolder"
-            //-   :vizDetails="vizDetails"
-            //-   :datasets="data"
-            //-   :legendStore="legendStore"
-            //- )
-
-            //- .panel-item
-            //-   p.ui-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
-            //-   b-slider.ui-slider(v-model="vizDetails.maxHeight"
-            //-     size="is-small"
-            //-     :min="0" :max="250" :step="5"
-            //-     :duration="0" :dotSize="12"
-            //-     :tooltip="false"
-            //-   )
-
-              //- p.ui-label Hex Radius: {{ vizDetails.cellSize }}
-              //- b-slider.ui-slider(v-model="vizDetails.cellSize"
-              //-   size="is-small"
-              //-   :min="50" :max="2000" :step="5"
-              //-   :duration="0" :dotSize="12"
-              //-   :tooltip="false"
-              //- )
-
-              //- p.ui-label Opacity: {{ vizDetails.opacity }}
-              //- b-slider.ui-slider(v-model="vizDetails.opacity"
-              //-   size="is-small"
-              //-   :min="0" :max="1" :step="0.1"
-              //-   :duration="0" :dotSize="12"
-              //-   :tooltip="false"
-              //- )
-            //- .panel-item
-            //-   h4 Aktueller Wert
-            //-   p(v-if="hoverValue") {{ parseFloat((hoverValue).toFixed(4)) }}
-            //-   p(v-else) -
-            //-   h4 Letzter Wert
-            //-   p(v-if="clickedValue") {{ parseFloat((clickedValue).toFixed(4)) }}
-            //-   p(v-else) -
 
       time-slider.time-slider-area(v-if="isLoaded"
         :range="timeRange"
@@ -103,7 +51,6 @@ import Vue from 'vue'
 import { defineComponent } from 'vue'
 
 import GUI from 'lil-gui'
-import LegendStore from '@/js/LegendStore'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import Papa from '@simwrapper/papaparse'
@@ -116,7 +63,6 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
-// import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import XyHexDeckMap from './GridMap'
@@ -168,7 +114,6 @@ const GridMap = defineComponent({
     XyHexDeckMap,
     ToggleButton,
     ZoomButtons,
-    // VizConfigurator,
     TimeSlider,
   },
   props: {
@@ -179,9 +124,17 @@ const GridMap = defineComponent({
     thumbnail: Boolean,
   },
   data: () => {
-    const colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
+    const colorRamps = [
+      'bathymetry',
+      'electric',
+      'inferno',
+      'jet',
+      'magma',
+      'par',
+      'viridis',
+      'chlorophyll',
+    ]
     return {
-      // legendStore: new LegendStore(),
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
         title: '',
@@ -196,9 +149,7 @@ const GridMap = defineComponent({
         zoom: 9,
         mapIsIndependent: false,
       },
-      YAMLrequirementsXY: { file: '', aggregations: {} },
       colorRamps,
-      buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
       columnLookup: [] as number[],
       gzipWorker: null as Worker | null,
       colorRamp: colorRamps[0],
@@ -223,9 +174,7 @@ const GridMap = defineComponent({
         thumbnail: false,
       },
       data: null as any,
-
       selectedTimeData: [] as any[],
-      /////// Data reorgaisation stuff
       allTimePeriodes: [] as any[],
       colors: colormap({
         colormap: 'viridis',
@@ -234,68 +183,27 @@ const GridMap = defineComponent({
         alpha: 1,
       }).map((c: number[]) => [c[0], c[1], c[2], 255]),
       currentTime: [0, 0] as Number[],
-      // Map to map the time to the index of the time array
       timeToIndex: new Map<Number, number>(),
-      // GUI Window
-      showCustomBreakpoints: false,
       guiConfig: {
         buckets: 10,
         exponent: 4,
-        radius: 5, // DONE
+        radius: 5,
         opacity: 1,
-        height: 100,
-        'clip max': 100,
+        maxHeight: 100,
         'color ramp': 'viridis',
-        colorRamps: [
-          'bathymetry',
-          'electric',
-          'inferno',
-          'jet',
-          'magma',
-          'par',
-          'viridis',
-          'chlorophyll',
-        ],
+        colorRamps: colorRamps,
         flip: false,
-        // @ts-ignore ->
-        // 'Custom breakpoints...': this.toggleModalDialog,
-        'Custom breakpoints...': '',
-        'manual breaks': '',
       },
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
       guiController: null as GUI | null,
-      breakpoints: [0.0],
-      legendStore: null as LegendStore | null,
       minRadius: 50,
       maxRadius: 300,
       radiusStep: 5,
-      ///////
-      rowCache: {} as {
-        [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
-      },
-      requests: { raw: new Float32Array(0), length: 0 } as { raw: Float32Array; length: number },
-      highlightedTrips: [] as any[],
-      searchTerm: '',
-      searchEnabled: false,
       isLoaded: false,
-      activeAggregation: '',
-      isHighlightingZone: false,
-      multiSelectedHexagons: {} as { [index: string]: any[] },
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
-      hexStats: null as null | {
-        rows: number
-        numHexagons: number
-        selectedHexagonIds: any[]
-      },
       resizer: null as ResizeObserver | null,
-      hoverValue: null as any,
-      clickedValue: null as any,
-      // startTime: 0 as Number,
-      // isAnimating: false as Boolean,
       timeRange: [Infinity, -Infinity] as Number[],
-      // timeBinSize: Infinity as Number,
       allTimes: [] as number[],
-      // timesliderModuloValue: Number.POSITIVE_INFINITY,
     }
   },
   computed: {
@@ -317,11 +225,6 @@ const GridMap = defineComponent({
       return this.thumbnailUrl
     },
 
-    buttonLabel(): string {
-      // const [group, offset] = this.activeAggregation.split('~') as any[]
-      // return this.aggregations[group][offset].title
-      return ''
-    },
     extrudeTowers(): boolean {
       return this.vizDetails.maxHeight > 0
     },
@@ -332,27 +235,13 @@ const GridMap = defineComponent({
         colorRamp: this.colorRamp,
         coverage: 0.65,
         dark: this.$store.state.isDarkMode,
-        // data: this.requests,
-        // data: this.selectedTimeData,
-        // data: this.data,
-        // data: {},
         data: this.data,
-        // currentTimeIndex: this.currentTime[0],
         currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
-        extrude: this.extrudeTowers,
-        highlights: this.highlightedTrips,
         mapIsIndependent: this.vizDetails.mapIsIndependent,
-        // maxHeight: this.vizDetails.maxHeight,
-        maxHeight: this.guiConfig.height,
-        metric: this.buttonLabel,
-        // cellSize: this.vizDetails.cellSize,
+        maxHeight: this.guiConfig.maxHeight,
         cellSize: this.guiConfig.radius,
-        // opacity: this.vizDetails.opacity,
         opacity: this.guiConfig.opacity,
-        selectedHexStats: this.hexStats,
         upperPercentile: 100,
-        onClick: this.handleClick,
-        onHover: this.handleHover,
       }
     },
     textColor(): any {
@@ -370,39 +259,16 @@ const GridMap = defineComponent({
     },
   },
   watch: {
-    vizDetails() {
-      // console.log(this.vizDetails.maxHeight)
-    },
-    extrudeTowers() {
-      if (this.extrudeTowers && this.globalState.viewState.pitch == 0) {
-        globalStore.commit(
-          'setMapCamera',
-          Object.assign({}, this.globalState.viewState, { pitch: 10 })
-        )
-      }
-    },
     '$store.state.viewState'() {
       if (this.vizDetails.mapIsIndependent) return
       if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
     },
   },
   methods: {
-    toggleModalDialog() {
-      this.showCustomBreakpoints = !this.showCustomBreakpoints
-    },
     pickColor(value: number) {
-      // console.log(value)
       if (value == 0) return [0, 0, 0, 0]
       const index = Math.floor((value / 100) * (this.colors.length - 1))
       return this.colors[index]
-    },
-    handleClick(target: any, event: any) {
-      if (!target.layer) return
-      this.clickedValue = target.object.value
-    },
-    handleHover(target: any, event: any) {
-      if (!target.layer && !target.object) return
-      if (target.object != undefined) this.hoverValue = target.object.value
     },
     async solveProjection() {
       console.log('solveProjection')
@@ -421,7 +287,6 @@ const GridMap = defineComponent({
     },
 
     async getVizDetails() {
-      console.log('getVizDetails')
       if (this.config) {
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as VizDetail
@@ -435,7 +300,6 @@ const GridMap = defineComponent({
       if (hasYaml) {
         await this.loadStandaloneYAMLConfig()
       } else {
-        console.log('loadOutputTripsConfig')
         this.loadOutputTripsConfig()
       }
     },
@@ -477,33 +341,33 @@ const GridMap = defineComponent({
     },
 
     async loadStandaloneYAMLConfig() {
-      console.log('loadStandaloneYAMLConfig')
       try {
-        // might be a project config:
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
+        // Determine the full filename, handling cases where yamlConfig might include '/'
+        const filename = this.myState.yamlConfig.includes('/')
+          ? this.myState.yamlConfig
+          : `${this.myState.subfolder}/${this.myState.yamlConfig}`
 
+        // Load the YAML file and store it in standaloneYAMLconfig
         const text = await this.fileApi.getFileText(filename)
-        this.standaloneYAMLconfig = Object.assign({}, YAML.parse(text))
+        this.standaloneYAMLconfig = YAML.parse(text)
+
+        // YAML file validation
         this.validateYAML()
+
+        // Set visualization details
         this.setVizDetails()
       } catch (err) {
-        const e = err as any
-        console.log('failed')
-
+        // Show error message in the Warning/Error Panel
+        const errorMessage = `File not found: ${this.myState.subfolder}/${this.myState.yamlConfig}`
         this.$store.commit('setStatus', {
           type: Status.ERROR,
-          msg: `File not found`,
-          desc: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
+          msg: 'Error',
+          desc: errorMessage,
         })
       }
     },
 
     validateYAML() {
-      console.log('in yaml validation 2')
-
       const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
       let configuration = {} as any
 
@@ -513,16 +377,6 @@ const GridMap = defineComponent({
       } else {
         console.log('no yaml')
         configuration = this.config
-      }
-
-      for (const key in this.YAMLrequirementsXY) {
-        if (!(key in configuration)) {
-          this.$store.commit('setStatus', {
-            type: Status.ERROR,
-            msg: `${this.yamlConfig}: missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
-          })
-        }
       }
 
       if (configuration.cellSize == 0) {
@@ -548,20 +402,13 @@ const GridMap = defineComponent({
           desc: 'Zoom levels should be between 5 and 20. ',
         })
       }
-    },
 
-    setupLogoMover() {
-      this.resizer = new ResizeObserver(this.moveLogo)
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      this.resizer.observe(deckmap)
-    },
-
-    moveLogo() {
-      const deckmap = document.getElementById(`id-${this.id}`) as HTMLElement
-      const logo = deckmap?.querySelector('.mapboxgl-ctrl-bottom-left') as HTMLElement
-      if (logo) {
-        const right = deckmap.clientWidth > 640 ? '280px' : '36px'
-        logo.style.right = right
+      if (configuration.maxHeight < 0) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `maxHeight is out of the recommended range `,
+          desc: 'maxHeight should be greater than 0',
+        })
       }
     },
 
@@ -590,24 +437,7 @@ const GridMap = defineComponent({
       }
     },
 
-    selectedHexagonStatistics(): {
-      rows: number
-      numHexagons: number
-      selectedHexagonIds: any[]
-    } | null {
-      const selectedHexes = Object.keys(this.multiSelectedHexagons).map(a => parseInt(a))
-      if (!selectedHexes.length) return null
-
-      const arrays = Object.values(this.multiSelectedHexagons)
-      const ll = arrays.reduce((a: number, v: any) => a + v.length, 0)
-
-      return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
-    },
-
     setMapCenter() {
-      console.log(this.vizDetails)
-      //   const data = Object.values(this.rowCache)[0].raw
-
       // If user gave us the center, use it
       if (this.vizDetails.center) {
         if (typeof this.vizDetails.center == 'string') {
@@ -638,7 +468,6 @@ const GridMap = defineComponent({
     },
 
     async loadFile() {
-      console.log('loadFile()')
       const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.file)
       const csv = Papa.parse(rawText, {
         comments: '#',
@@ -744,13 +573,9 @@ const GridMap = defineComponent({
         delete finalData.mapData[index].numberOfFilledColors
       })
 
-      // for (time in timeToIndex)
       this.myState.statusMessage = ''
-      console.log('DATA: ', finalData)
       return finalData
     },
-
-    // TODO: setMapCenter() and moveLogo()
 
     resolveProjection() {
       if (this.vizDetails.projection === 'EPSG:4326') return
@@ -763,13 +588,11 @@ const GridMap = defineComponent({
 
     handleTimeSliderValues(timeValues: any[]) {
       this.currentTime = timeValues
-
       this.selectedTimeData = []
 
       for (let i = 0; i < this.data.length; i++) {
         if (this.data[i].time == timeValues[0]) {
           this.selectedTimeData.push(this.data[i])
-          console.log(this.data[i].time)
         }
       }
     },
@@ -785,23 +608,15 @@ const GridMap = defineComponent({
       const config = this.guiController // .addFolder('Colors')
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
-      config.add(this.guiConfig, 'height', 0, 250, 5)
+      config.add(this.guiConfig, 'maxHeight', 0, 250, 5)
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-
-      const breakpoints = config.addFolder('breakpoints')
-      breakpoints.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
-      breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
-      breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
-      breakpoints.add(this.guiConfig, 'Custom breakpoints...', 1, 100, 1)
     },
 
     setColors() {
-      console.log('this.colors before', this.colors)
-      const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
-
+      // Create the new color ramp and assign this to the colors array
       let colors256 = colormap({
         colormap: this.guiConfig['color ramp'],
         nshades: 256,
@@ -818,133 +633,41 @@ const GridMap = defineComponent({
       }
       colors.push(colors256[255])
 
-      // This is not working, we have to recalculate every single value because the colors are not calculated by the map
       this.colors = colors
-      // this.colors.n
-      // console.log('this.colors after', this.colors)
 
+      // Recalculating the color values for the colorRamp
       for (let i = 0; i < this.data.mapData.length; i++) {
-        let count = 0
-
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
           const colors = this.pickColor(value)
-
-          // if (colors[0] == 0 && colors[3] == 0 && colors[2] == 0) count++
-
-          // let sum = 0
-          // for (let i = 0; i < colors.length; i++) sum += colors[i]
-          // if (sum > 0) console.log(sum)
-
           for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
             this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
-            // console.log(colorIndex)
           }
         }
-
-        // console.log(i + ': ' + count)
-        // count = 0
       }
 
       // force Vue to take notice of the change - any prop change will do
       this.currentTime = [...this.currentTime]
-
-      // // figure out min and max
-      // // TODO!!!!!!!! REMOVE COMMENT!
-      // // const max1 = Math.pow(this.range[1], 1 / EXPONENT)
-      // const max1 = Math.pow(100, 1 / EXPONENT)
-      // const max2 = (max1 * this.guiConfig['clip max']) / 100.0
-      // // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
-      // // console.log({ max1, max2 })
-
-      // // Generate breakpoints only if there are not already set
-      // if (!this.vizDetails.breakpoints) {
-      //   const breakpoints = [] as number[]
-      //   for (let i = 1; i < this.guiConfig.buckets; i++) {
-      //     const raw = (max2 * i) / this.guiConfig.buckets
-      //     const breakpoint = Math.pow(raw, EXPONENT)
-      //     breakpoints.push(breakpoint)
-      //   }
-
-      //   this.breakpoints = breakpoints
-      // }
-
-      // // only update legend if we have the full dataset already
-      // if (this.isLoaded) this.setLegend(colors, this.breakpoints)
-
-      // console.log(this.colors)
-    },
-
-    setLegend(colors: any[], breakpoints: number[]) {
-      // hide the legend if there is no data to show.
-      // TODO!!!!!!!! REMOVE COMMENT!
-      // if (this.range[1] - this.range[0] === 0) return
-
-      this.legendStore = new LegendStore()
-      this.legendStore.setLegendSection({
-        section: 'Legend',
-        column: 'Legend',
-        values: colors.map((rgb, index) => {
-          const breakpoint = breakpoints[index == 0 ? index : index - 1]
-          let label = '' + Math.round(1e6 * breakpoint) / 1e6
-          if (index == 0) label = '< ' + label
-          if (index == colors.length - 1) label = '> ' + label
-          return { label, value: rgb }
-        }),
-      })
-      this.breakpoints = breakpoints
     },
 
     setCustomGuiConfig() {
       if (!this.config) return
-
-      console.log(this.config)
-      console.log(this.config.cellSize, this.minRadius, this.maxRadius)
 
       // Set custom radius
       if (this.config.cellSize >= this.minRadius && this.config.cellSize <= this.maxRadius) {
         this.guiConfig.radius = this.config.cellSize
       }
 
-      console.log(this.guiConfig.radius)
-
       // Set custom maxHeight
-      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
+      if (this.config.maxHeight) this.guiConfig.maxHeight = this.config.maxHeight
 
       // Set custom opacity
       if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
-
-      // if (Object.prototype.toString.call(this.config.breakpoints) === '[object Array]') {
-      //   // Only breakpoints
-      //   this.setManualBreakpoints(this.config.breakpoints)
-      // } else {
-      //   // Set custom breakpoints
-      //   if (this.config.breakpoints) {
-      //     if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
-      //       this.$store.commit('setStatus', {
-      //         type: Status.ERROR,
-      //         msg: `Wrong number of colors and values for the breakpoints.`,
-      //         desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
-      //       })
-      //     } else {
-      //       this.guiConfig.buckets = this.config.breakpoints.colors.length
-      //       this.breakpoints = this.config.breakpoints.values
-      //       this.colors = this.config.breakpoints.colors
-      //     }
-      //   }
-      // }
-    },
-
-    setManualBreakpoints(breakpoints: number[]) {
-      this.breakpoints = breakpoints
-      this.guiConfig.buckets = 1 + breakpoints.length
     },
   },
 
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
-
-    console.log(this.myState)
 
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig || ''
@@ -954,33 +677,14 @@ const GridMap = defineComponent({
 
     if (this.thumbnail) return
 
-    this.setupLogoMover()
-
-    console.log(this.guiConfig)
-
     this.setupGui()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
-    // this.aggregations = this.vizDetails.aggregations
 
-    // console.log('loading files')
-    // await this.loadFiles()
     this.data = await this.loadFile()
-
-    // this.resolveProjection()
-    // this.processData()
-    // this.mapState.center = this.findCenter(this.rawRequests)
-
     this.buildThumbnail()
-
     this.isLoaded = true
-    // this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
-
     this.setMapCenter()
-    console.log('ID: ', this.id)
-
-    console.log(this.data)
-    console.log(this.isLoaded)
   },
 
   beforeDestroy() {
@@ -995,8 +699,6 @@ const GridMap = defineComponent({
     } catch (e) {
       console.warn(e)
     }
-
-    // if (this.animator) window.cancelAnimationFrame(this.animator)
 
     this.$store.commit('setFullScreen', false)
   },
@@ -1171,7 +873,7 @@ input {
   bottom: 0.5rem;
   left: 0;
   right: 0;
-  margin: 0 1rem 0 1rem;
+  margin: 0 9rem 0 1rem;
   filter: $filterShadow;
 }
 

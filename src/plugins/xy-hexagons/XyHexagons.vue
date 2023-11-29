@@ -76,7 +76,6 @@ const i18n = {
 }
 import Vue from 'vue'
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
 
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
