@@ -51,7 +51,7 @@ export default function Component({
   mapIsIndependent = false,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const [viewState, setViewState] = useState(INITIAL_VIEW)
 
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
