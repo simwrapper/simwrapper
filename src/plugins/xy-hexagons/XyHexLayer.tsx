@@ -41,7 +41,7 @@ export default function Layer({
   onClick = {} as any,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
-  const [viewState, setViewState] = useState(INITIAL_VIEW)
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   REACT_VIEW_HANDLES[viewId] = (view: any) => {
     if (view) {
