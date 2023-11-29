@@ -156,7 +156,6 @@ export default defineComponent({
 
       const start = this.state.datasetRange[0] + this.state.leftPosition * this.fullDatasetTimeSpan
       const end = this.state.datasetRange[0] + this.state.rightPosition * this.fullDatasetTimeSpan
-
       this.$emit('timeExtent', [start, end])
     },
 
