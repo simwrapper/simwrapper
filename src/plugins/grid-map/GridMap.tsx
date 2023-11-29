@@ -28,7 +28,7 @@ const material = {
 // LAYER --------------------------------------------------------
 export default function Layer({
   viewId = 0 as number,
-  colorRamp = 'chlorophyll' as String,
+  colorRamp = 'viridis' as String,
   dark = false as Boolean,
   data = {} as CompleteMapData,
   currentTimeIndex = 0 as number,
@@ -127,7 +127,7 @@ export default function Layer({
         length: data.mapData[currentTimeIndex].length,
         attributes: {
           getPosition: { value: data.mapData[currentTimeIndex].centroid, size: 2 },
-          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 4 },
+          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 3 },
           getElevation: { value: data.mapData[currentTimeIndex].values, size: 1 },
         },
       },
