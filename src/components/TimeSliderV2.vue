@@ -82,9 +82,6 @@ export default defineComponent({
       const marginLeft = Math.floor(usableWidth * this.state.leftPosition)
       const marginRight = Math.floor(usableWidth * (1.0 - this.state.rightPosition))
 
-      // Log margin-related values (for debugging).
-      // console.log({ usableWidth, marginLeft, marginRight })
-
       return {
         marginLeft: `${marginLeft}px`,
         marginRight: `${marginRight}px`,
@@ -141,7 +138,6 @@ export default defineComponent({
      * Toggles the animation state and initiates or stops the animation loop accordingly.
      */
     updateAnimation() {
-      console.log('updateAnimation')
       this.isAnimating = !this.isAnimating
 
       if (this.isAnimating) {
