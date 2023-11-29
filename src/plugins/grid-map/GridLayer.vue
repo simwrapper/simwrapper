@@ -8,6 +8,9 @@
     
       zoom-buttons(v-if="!thumbnail")
       //- drawing-tool.drawing-tool(v-if="!thumbnail")
+
+      .top-right
+        .gui-config(:id="configId")
     
       .left-side(v-if="isLoaded && !thumbnail && vizDetails.title")
         collapsible-panel(direction="left" :locked="true")
@@ -16,7 +19,7 @@
             h3(style="margin-top: -1rem;") {{ $t('areas') }}: {{ hexStats.numHexagons }}, {{ $t('count') }}: {{ hexStats.rows }}
             button.button(style="color: #c0f; border-color: #c0f") {{ $t('showDetails') }}
     
-      .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
+      //- .control-panel(v-if="isLoaded && !thumbnail && !myState.statusMessage")
             //- :class="{'is-dashboard': config !== undefined }"
 
             //- viz-configurator(v-if="isLoaded"
@@ -28,44 +31,42 @@
             //-   :legendStore="legendStore"
             //- )
 
-            .panel-item
-              p.ui-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
-              b-slider.ui-slider(v-model="vizDetails.maxHeight"
-                size="is-small"
-                :min="0" :max="250" :step="5"
-                :duration="0" :dotSize="12"
-                :tooltip="false"
-              )
+            //- .panel-item
+            //-   p.ui-label {{ $t('maxHeight') }}: {{ vizDetails.maxHeight }}
+            //-   b-slider.ui-slider(v-model="vizDetails.maxHeight"
+            //-     size="is-small"
+            //-     :min="0" :max="250" :step="5"
+            //-     :duration="0" :dotSize="12"
+            //-     :tooltip="false"
+            //-   )
     
-              p.ui-label Hex Radius: {{ vizDetails.cellSize }}
-              b-slider.ui-slider(v-model="vizDetails.cellSize"
-                size="is-small"
-                :min="50" :max="2000" :step="5"
-                :duration="0" :dotSize="12"
-                :tooltip="false"
-              )
+              //- p.ui-label Hex Radius: {{ vizDetails.cellSize }}
+              //- b-slider.ui-slider(v-model="vizDetails.cellSize"
+              //-   size="is-small"
+              //-   :min="50" :max="2000" :step="5"
+              //-   :duration="0" :dotSize="12"
+              //-   :tooltip="false"
+              //- )
 
-              p.ui-label Opacity: {{ vizDetails.opacity }}
-              b-slider.ui-slider(v-model="vizDetails.opacity"
-                size="is-small"
-                :min="0" :max="1" :step="0.1"
-                :duration="0" :dotSize="12"
-                :tooltip="false"
-              )
-            .panel-item
-              h4 Aktueller Wert
-              p(v-if="hoverValue") {{ parseFloat((hoverValue).toFixed(4)) }}
-              p(v-else) - 
-              h4 Letzter Wert 
-              p(v-if="clickedValue") {{ parseFloat((clickedValue).toFixed(4)) }}
-              p(v-else) -
+              //- p.ui-label Opacity: {{ vizDetails.opacity }}
+              //- b-slider.ui-slider(v-model="vizDetails.opacity"
+              //-   size="is-small"
+              //-   :min="0" :max="1" :step="0.1"
+              //-   :duration="0" :dotSize="12"
+              //-   :tooltip="false"
+              //- )
+            //- .panel-item
+            //-   h4 Aktueller Wert
+            //-   p(v-if="hoverValue") {{ parseFloat((hoverValue).toFixed(4)) }}
+            //-   p(v-else) - 
+            //-   h4 Letzter Wert 
+            //-   p(v-if="clickedValue") {{ parseFloat((clickedValue).toFixed(4)) }}
+            //-   p(v-else) -
     
       time-slider.time-slider-area(v-if="isLoaded"
         :range="timeRange"
-        :timeBinSize="7200"
         :allTimes="allTimes"
         @timeExtent="handleTimeSliderValues"
-        @drag="isAnimating=false"
       )
 
       .message(v-if="!thumbnail && myState.statusMessage")
@@ -101,6 +102,8 @@ const i18n = {
 import Vue from 'vue'
 import { defineComponent } from 'vue'
 
+import GUI from 'lil-gui'
+import LegendStore from '@/js/LegendStore'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import Papa from '@simwrapper/papaparse'
@@ -153,9 +156,10 @@ interface VizDetail {
   center: any
   zoom: number
   mapIsIndependent?: boolean
+  breakpoints?: string
 }
 
-const MyComponent = defineComponent({
+const GridMap = defineComponent({
   name: 'GridMapPlugin',
   i18n,
   components: {
@@ -210,6 +214,7 @@ const MyComponent = defineComponent({
         maxHeight: 0,
         center: null as any,
         zoom: 9,
+        breakpoints: null as any,
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -231,6 +236,39 @@ const MyComponent = defineComponent({
       currentTime: [0, 0] as Number[],
       // Map to map the time to the index of the time array
       timeToIndex: new Map<Number, number>(),
+      // GUI Window
+      showCustomBreakpoints: false,
+      guiConfig: {
+        buckets: 10,
+        exponent: 4,
+        radius: 5, // DONE
+        opacity: 1,
+        height: 100,
+        'clip max': 100,
+        'color ramp': 'viridis',
+        colorRamps: [
+          'bathymetry',
+          'electric',
+          'inferno',
+          'jet',
+          'magma',
+          'par',
+          'viridis',
+          'chlorophyll',
+        ],
+        flip: false,
+        // @ts-ignore ->
+        // 'Custom breakpoints...': this.toggleModalDialog,
+        'Custom breakpoints...': '',
+        'manual breaks': '',
+      },
+      configId: `gui-config-${Math.floor(1e12 * Math.random())}` as any,
+      guiController: null as GUI | null,
+      breakpoints: [0.0],
+      legendStore: null as LegendStore | null,
+      minRadius: 50,
+      maxRadius: 300,
+      radiusStep: 5,
       ///////
       rowCache: {} as {
         [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
@@ -252,17 +290,12 @@ const MyComponent = defineComponent({
       resizer: null as ResizeObserver | null,
       hoverValue: null as any,
       clickedValue: null as any,
-      startTime: 0 as Number,
-      isAnimating: false as Boolean,
-      // animationElapsedTime: 0,
-      // timeFilter: [0, 3599],
+      // startTime: 0 as Number,
+      // isAnimating: false as Boolean,
       timeRange: [Infinity, -Infinity] as Number[],
-      timeBinSize: Infinity as Number,
+      // timeBinSize: Infinity as Number,
       allTimes: [] as number[],
-      // timeLabels: [0, 1] as any[],
-      // ANIMATE_SPEED: 4,
-      // animator: null as any,
-      timesliderModuloValue: Number.POSITIVE_INFINITY,
+      // timesliderModuloValue: Number.POSITIVE_INFINITY,
     }
   },
   computed: {
@@ -309,10 +342,13 @@ const MyComponent = defineComponent({
         extrude: this.extrudeTowers,
         highlights: this.highlightedTrips,
         mapIsIndependent: this.vizDetails.mapIsIndependent,
-        maxHeight: this.vizDetails.maxHeight,
+        // maxHeight: this.vizDetails.maxHeight,
+        maxHeight: this.guiConfig.height,
         metric: this.buttonLabel,
-        cellSize: this.vizDetails.cellSize,
-        opacity: this.vizDetails.opacity,
+        // cellSize: this.vizDetails.cellSize,
+        cellSize: this.guiConfig.radius,
+        // opacity: this.vizDetails.opacity,
+        opacity: this.guiConfig.opacity,
         selectedHexStats: this.hexStats,
         upperPercentile: 100,
         onClick: this.handleClick,
@@ -351,6 +387,9 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
+    toggleModalDialog() {
+      this.showCustomBreakpoints = !this.showCustomBreakpoints
+    },
     pickColor(value: number) {
       // console.log(value)
       if (value == 0) return [0, 0, 0, 0]
@@ -387,6 +426,7 @@ const MyComponent = defineComponent({
         this.validateYAML()
         this.vizDetails = Object.assign({}, this.config) as VizDetail
         this.setRadiusAndHeight()
+        this.setCustomGuiConfig()
         return
       }
 
@@ -564,7 +604,7 @@ const MyComponent = defineComponent({
       return { rows: ll, numHexagons: selectedHexes.length, selectedHexagonIds: selectedHexes }
     },
 
-    async setMapCenter() {
+    setMapCenter() {
       console.log(this.vizDetails)
       //   const data = Object.values(this.rowCache)[0].raw
 
@@ -580,14 +620,18 @@ const MyComponent = defineComponent({
           bearing: 0,
           pitch: 0,
           zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
-          jump: false, // move the map no matter what
+          jump: true, // move the map no matter what
+          center: [this.vizDetails.center[0], this.vizDetails.center[1]],
         }
 
         // bounce our map
-        if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
+        if (REACT_VIEW_HANDLES[this.id]) {
+          REACT_VIEW_HANDLES[this.id](view)
+          console.log(REACT_VIEW_HANDLES)
+        }
 
         // Sets the map to the specified data
-        this.$store.commit('setMapCamera', Object.assign({}, view))
+        this.$store.commit('setMapCamera', view)
 
         return
       }
@@ -725,15 +769,181 @@ const MyComponent = defineComponent({
       for (let i = 0; i < this.data.length; i++) {
         if (this.data[i].time == timeValues[0]) {
           this.selectedTimeData.push(this.data[i])
+          console.log(this.data[i].time)
         }
       }
     },
+
+    setupGui() {
+      this.guiController = new GUI({
+        title: 'Settings',
+        injectStyles: true,
+        width: 200,
+        container: document.getElementById(this.configId) || undefined,
+      })
+
+      const config = this.guiController // .addFolder('Colors')
+      config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
+      config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
+      config.add(this.guiConfig, 'height', 0, 250, 5)
+
+      const colors = config.addFolder('colors')
+      colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+      colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+
+      const breakpoints = config.addFolder('breakpoints')
+      breakpoints.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
+      breakpoints.add(this.guiConfig, 'Custom breakpoints...', 1, 100, 1)
+    },
+
+    setColors() {
+      console.log('this.colors before', this.colors)
+      const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
+
+      let colors256 = colormap({
+        colormap: this.guiConfig['color ramp'],
+        nshades: 256,
+        format: 'rba',
+        alpha: 1,
+      }).map((c: number[]) => [c[0], c[1], c[2]])
+
+      if (this.guiConfig.flip) colors256 = colors256.reverse()
+
+      const step = 256 / (this.guiConfig.buckets - 1)
+      const colors = []
+      for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
+        colors.push(colors256[Math.round(step * i)])
+      }
+      colors.push(colors256[255])
+
+      // This is not working, we have to recalculate every single value because the colors are not calculated by the map
+      this.colors = colors
+      // this.colors.n
+      // console.log('this.colors after', this.colors)
+
+      for (let i = 0; i < this.data.mapData.length; i++) {
+        let count = 0
+
+        for (let j = 0; j < this.data.mapData[i].values.length; j++) {
+          const value = this.data.mapData[i].values[j]
+          const colors = this.pickColor(value)
+
+          // if (colors[0] == 0 && colors[3] == 0 && colors[2] == 0) count++
+
+          // let sum = 0
+          // for (let i = 0; i < colors.length; i++) sum += colors[i]
+          // if (sum > 0) console.log(sum)
+
+          for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
+            this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
+            // console.log(colorIndex)
+          }
+        }
+
+        // console.log(i + ': ' + count)
+        // count = 0
+      }
+
+      console.log(this.data.mapData)
+
+      // // figure out min and max
+      // // TODO!!!!!!!! REMOVE COMMENT!
+      // // const max1 = Math.pow(this.range[1], 1 / EXPONENT)
+      // const max1 = Math.pow(100, 1 / EXPONENT)
+      // const max2 = (max1 * this.guiConfig['clip max']) / 100.0
+      // // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
+      // // console.log({ max1, max2 })
+
+      // // Generate breakpoints only if there are not already set
+      // if (!this.vizDetails.breakpoints) {
+      //   const breakpoints = [] as number[]
+      //   for (let i = 1; i < this.guiConfig.buckets; i++) {
+      //     const raw = (max2 * i) / this.guiConfig.buckets
+      //     const breakpoint = Math.pow(raw, EXPONENT)
+      //     breakpoints.push(breakpoint)
+      //   }
+
+      //   this.breakpoints = breakpoints
+      // }
+
+      // // only update legend if we have the full dataset already
+      // if (this.isLoaded) this.setLegend(colors, this.breakpoints)
+
+      // console.log(this.colors)
+    },
+
+    setLegend(colors: any[], breakpoints: number[]) {
+      // hide the legend if there is no data to show.
+      // TODO!!!!!!!! REMOVE COMMENT!
+      // if (this.range[1] - this.range[0] === 0) return
+
+      this.legendStore = new LegendStore()
+      this.legendStore.setLegendSection({
+        section: 'Legend',
+        column: 'Legend',
+        values: colors.map((rgb, index) => {
+          const breakpoint = breakpoints[index == 0 ? index : index - 1]
+          let label = '' + Math.round(1e6 * breakpoint) / 1e6
+          if (index == 0) label = '< ' + label
+          if (index == colors.length - 1) label = '> ' + label
+          return { label, value: rgb }
+        }),
+      })
+      this.breakpoints = breakpoints
+    },
+
+    setCustomGuiConfig() {
+      if (!this.config) return
+
+      console.log(this.config)
+      console.log(this.config.cellSize, this.minRadius, this.maxRadius)
+
+      // Set custom radius
+      if (this.config.cellSize >= this.minRadius && this.config.cellSize <= this.maxRadius) {
+        this.guiConfig.radius = this.config.cellSize
+      }
+
+      console.log(this.guiConfig.radius)
+
+      // Set custom maxHeight
+      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
+
+      // Set custom opacity
+      if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
+
+      // if (Object.prototype.toString.call(this.config.breakpoints) === '[object Array]') {
+      //   // Only breakpoints
+      //   this.setManualBreakpoints(this.config.breakpoints)
+      // } else {
+      //   // Set custom breakpoints
+      //   if (this.config.breakpoints) {
+      //     if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
+      //       this.$store.commit('setStatus', {
+      //         type: Status.ERROR,
+      //         msg: `Wrong number of colors and values for the breakpoints.`,
+      //         desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
+      //       })
+      //     } else {
+      //       this.guiConfig.buckets = this.config.breakpoints.colors.length
+      //       this.breakpoints = this.config.breakpoints.values
+      //       this.colors = this.config.breakpoints.colors
+      //     }
+      //   }
+      // }
+    },
+
+    setManualBreakpoints(breakpoints: number[]) {
+      this.breakpoints = breakpoints
+      this.guiConfig.buckets = 1 + breakpoints.length
+    },
   },
-  async processData() {
-    // console.log(this.data)
-  },
+
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
+
+    console.log(this.myState)
 
     this.myState.thumbnail = this.thumbnail
     this.myState.yamlConfig = this.yamlConfig || ''
@@ -744,6 +954,10 @@ const MyComponent = defineComponent({
     if (this.thumbnail) return
 
     this.setupLogoMover()
+
+    console.log(this.guiConfig)
+
+    this.setupGui()
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
     // this.aggregations = this.vizDetails.aggregations
@@ -760,6 +974,9 @@ const MyComponent = defineComponent({
 
     this.isLoaded = true
     // this.handleOrigDest(Object.keys(this.aggregations)[0], 0) // show first data
+
+    this.setMapCenter()
+    console.log('ID: ', this.id)
 
     console.log(this.data)
     console.log(this.isLoaded)
@@ -784,7 +1001,7 @@ const MyComponent = defineComponent({
   },
 })
 
-export default MyComponent
+export default GridMap
 </script>
 
 <style scoped lang="scss">
@@ -855,6 +1072,18 @@ export default MyComponent
   font-size: 1.5rem;
   line-height: 1.7rem;
   font-weight: bold;
+}
+
+.top-right {
+  background-color: var(--bgPanel2);
+  color: white;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  border-left: 1px solid #66669940;
+  border-bottom: 1px solid #66669940;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
 }
 
 .left-side {
@@ -941,7 +1170,7 @@ input {
   bottom: 0.5rem;
   left: 0;
   right: 0;
-  margin: 0 1rem 0 20rem;
+  margin: 0 1rem 0 1rem;
   filter: $filterShadow;
 }
 

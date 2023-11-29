@@ -118,13 +118,6 @@ export default defineComponent({
       this.updateExtent()
     },
 
-    // Watch for changes in 'state.timeFilter' and also trigger 'updateExtent'.
-    'state.timeFilter'() {
-      // Uncomment the console log for debugging purposes.
-      // console.log(this.state.timeFilter);
-      this.updateExtent()
-    },
-
     // Watch for changes in 'labels' and trigger 'updateLabels'.
     labels() {
       this.updateLabels()
@@ -171,7 +164,7 @@ export default defineComponent({
     findIndexLessThanOrEqualTo(parameter: number): number {
       let left = 0
       let right = this.allTimes.length - 1
-      let result = -1
+      let result = 0
 
       while (left <= right) {
         const mid = Math.floor((left + right) / 2)
@@ -180,7 +173,7 @@ export default defineComponent({
           return mid
         }
 
-        if (this.allTimes[mid] < parameter) {
+        if (this.allTimes[mid] <= parameter) {
           result = mid
           left = mid + 1
         } else {
@@ -205,9 +198,6 @@ export default defineComponent({
 
       // Update the current time based on the animation clock time.
       this.state.currentTime = this.findIndexLessThanOrEqualTo(animationClockTime)
-
-      // console.log(animationClockTime)
-      // console.log(this.state.currentTime)
 
       // Check if animation has reached the end of the range.
       if (animationClockTime > this.range[1] + this.allTimes[0]) {
@@ -355,8 +345,6 @@ export default defineComponent({
      * @emits drag - Emits a 'drag' event to notify parent components of the drag operation.
      */
     dragStart(e: MouseEvent) {
-      this.$emit('drag')
-
       // Set the 'isDragging' flag to true to indicate a drag operation.
       this.state.isDragging = true
 
@@ -410,7 +398,10 @@ export default defineComponent({
         this.state.leftPosition = newLeft
         this.state.rightPosition = newRight
 
-        this.updateTimeLabel()
+        this.updateLabels()
+        this.updateData()
+        // this.emitValues()
+        console.log(this.state.timeFilter)
 
         this.state.dragStartX = e.clientX
         return
@@ -462,10 +453,18 @@ export default defineComponent({
         (this.allTimes[newStartTime + 1] == undefined
           ? this.allTimes[newStartTime] + this.allTimes[0]
           : this.allTimes[newStartTime + 1] - this.allTimes[0])
+
+      this.state.timeFilter = [
+        this.allTimes[newStartTime] - this.allTimes[0],
+        this.allTimes[newStartTime + 1] == undefined
+          ? this.allTimes[newStartTime] + this.allTimes[0]
+          : this.allTimes[newStartTime + 1] - this.allTimes[0],
+      ]
+
       this.state.isDragging = false
     },
 
-    updateTimeLabel() {
+    updateData() {
       const newStartTime = this.findIndexLessThanOrEqualTo(
         this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
       )
@@ -475,13 +474,16 @@ export default defineComponent({
           this.state.leftPosition * this.fullDatasetTimeSpan + this.allTimes[0]
         ) + 1
 
+      // console.log(newStartTime, newEndTime)
+      // console.log(this.allTimes[newStartTime], this.allTimes[newEndTime])
+
       // Calculate and set time labels.
       this.state.timeLabels = [
         this.convertSecondsToClockTimeMinutes(this.allTimes[newStartTime]),
         this.convertSecondsToClockTimeMinutes(this.allTimes[newEndTime]),
       ]
 
-      this.updateLabels()
+      this.state.timeFilter = [this.allTimes[newStartTime], this.allTimes[newEndTime]]
     },
   },
 })
