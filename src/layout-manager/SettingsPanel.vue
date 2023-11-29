@@ -153,6 +153,7 @@ export default defineComponent({
   user-select: none;
   display: flex;
   flex-direction: column;
+  width: 12.25rem;
 }
 
 h4 {

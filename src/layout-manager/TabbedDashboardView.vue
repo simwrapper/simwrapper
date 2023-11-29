@@ -266,7 +266,7 @@ export default defineComponent({
         await this.setupProjectConfig()
 
         // Add FileBrowser as "Files" tab
-        if (this.globalState.isShowingFilesSection) {
+        if (this.globalState.isShowingFilesTab) {
           Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
         }
 
@@ -302,12 +302,9 @@ export default defineComponent({
       // no configs: no project mode.
       if (!allConfigs.length) {
         this.isShowingBreadcrumbs = true
-        if (
-          this.$store.state.isShowingFilesSection &&
-          !this.$store.state.hasUserManuallyHiddenLeftBar
-        ) {
-          this.$store.commit('setShowLeftBar', true)
-          this.$store.commit('setShowShowHideButton', true)
+        if (this.$store.state.isShowingFilesTab) {
+          // this.$store.commit('setShowLeftBar', true)
+          // this.$store.commit('setShowLeftStrip', true)
         }
         return
       }
@@ -326,11 +323,11 @@ export default defineComponent({
           // always reveal quickview bar unless told not to
           if (yaml.hideLeftBar === true) {
             this.$store.commit('setShowLeftBar', false)
-            this.$store.commit('setShowShowHideButton', false)
+            this.$store.commit('setShowLeftStrip', false)
           }
           if (yaml.hideLeftBar === false) {
             this.$store.commit('setShowLeftBar', true)
-            this.$store.commit('setShowShowHideButton', true)
+            this.$store.commit('setShowLeftStrip', true)
           }
 
           // theme
@@ -345,7 +342,7 @@ export default defineComponent({
           }
 
           if (yaml.hideFilesSection || yaml.hideFiles) {
-            this.$store.commit('setShowFilesSection', false)
+            this.$store.commit('setShowFilesTab', false)
           }
 
           // Breadcrumb-Bar. Delicious!
@@ -388,9 +385,9 @@ export default defineComponent({
             }
 
             // User defined a leftNavBar: so make it visible
-            this.$store.commit('setLeftNavItems', this.leftNavItems)
             this.$store.commit('setShowLeftBar', true)
-            this.$store.commit('setShowShowHideButton', true)
+            this.$store.commit('setShowLeftStrip', false)
+            this.$store.commit('setLeftNavItems', this.leftNavItems)
 
             this.$emit('activate', {
               name: 'Project',

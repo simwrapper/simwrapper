@@ -50,12 +50,11 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
-    hasUserManuallyHiddenLeftBar: false,
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: false,
-    isShowingFilesSection: true,
-    isShowingShowHideButton: false,
+    isShowingLeftStrip: true,
+    isShowingFilesTab: true,
     isDarkMode: true,
     isInitialViewSet: false,
     favoriteLocations: [] as FavoriteLocation[],
@@ -130,14 +129,14 @@ export default new Vuex.Store({
     ) {
       state.leftNavItems = value
     },
-    setManualLeftPanelHidden(state, value: boolean) {
-      state.hasUserManuallyHiddenLeftBar = value
+    setShowFilesTab(state, value: boolean) {
+      state.isShowingFilesTab = value
     },
-    setShowFilesSection(state, value: boolean) {
-      state.isShowingFilesSection = value
+    setShowLeftBar(state, value: boolean) {
+      state.isShowingLeftBar = value
     },
-    setShowShowHideButton(state, value: boolean) {
-      state.isShowingShowHideButton = value
+    setShowLeftStrip(state, value: boolean) {
+      state.isShowingLeftStrip = value
     },
     setTopNavItems(
       state,
@@ -336,10 +335,6 @@ export default new Vuex.Store({
       } catch (e) {
         console.error('' + e)
       }
-    },
-
-    setShowLeftBar(state, value: boolean) {
-      state.isShowingLeftBar = value
     },
     setFileHandleForPermissionRequest(state, handle: any) {
       state.fileHandleAccessRequests.push(handle)

@@ -11,18 +11,15 @@
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
  )
-  .restore-left-panel-button(v-if="$store.state.isShowingShowHideButton && !$store.state.isShowingLeftBar"
-    @click="restoreLeftPanel"
+
+  // do not show left-strip if we are in project mode
+  left-icon-panel.left-icon-panel(
+    v-if="$store.state.isShowingLeftStrip"
+    :activeSection="activeLeftSection.name"
+    @activate="setActiveLeftSection"
   )
-    p.show-hide: i.fas.fa-arrow-right
 
   .left-panel(v-show="showLeftBar")
-    // do not show left-icon bar if we are in project mode
-    left-icon-panel.left-icon-panel(
-      v-if="$store.state.isShowingFilesSection"
-      :activeSection="activeLeftSection.name"
-      @activate="setActiveLeftSection"
-    )
 
     .left-panel-active-section(
       v-show="isShowingActiveSection"
@@ -182,7 +179,7 @@ export default defineComponent({
   ),
   data: () => {
     return {
-      activeLeftSection: { name: 'Home', class: 'LeftSystemPanel' } as Section,
+      activeLeftSection: { name: 'Data', class: 'LeftSystemPanel' } as Section,
       authHandles: [] as any[],
       dragX: -1,
       dragY: -1,
@@ -245,7 +242,6 @@ export default defineComponent({
   },
   methods: {
     setActiveLeftSection(section: Section) {
-      console.log(section)
       // don't open the left bar if it's optional, meaning it's currently closed
       if (section.onlyIfVisible && !this.isShowingActiveSection) return
 
@@ -276,7 +272,8 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-        this.$store.commit('setShowLeftBar', true)
+        // this.$store.commit('setShowLeftBar', false)
+        this.$store.commit('setShowLeftStrip', true)
         return
       }
 
@@ -819,7 +816,7 @@ export default defineComponent({
     //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
     //   }
     // } else {
-    this.activeLeftSection = { name: 'Home', class: 'LeftSystemPanel' }
+    this.activeLeftSection = { name: 'Data', class: 'LeftSystemPanel' }
     // }
 
     this.buildLayoutFromURL()

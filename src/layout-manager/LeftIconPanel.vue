@@ -4,7 +4,7 @@
   .top
 
     .item(v-for="section in topSections" :key="section.name"
-      :class="{'is-active': section.name === activeSection}"
+      :class="{'is-active': section.name === activeSection, 'is-dark': isDarkMode}"
       @click="select(section)"
     )
       .sideways
@@ -30,9 +30,6 @@
         :draggable="false"
         :style="{filter: section.colorize ? issueColor : 'invert(100%)'}"
       )
-
-  .hide-left-panel-button(@click="hideLeftPanel")
-    p.show-hide: i.fas.fa-arrow-left
 
   settings-panel.settings-popup(v-if="isShowingSettings"
     @close="toggleSettings()"
@@ -72,8 +69,9 @@ export default defineComponent({
     return {
       state: globalStore.state,
       isShowingSettings: false,
+      isDarkMode: false,
       topSections: [
-        { name: 'Home', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
+        { name: 'Data', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
         { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
         // { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
         // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
@@ -85,7 +83,18 @@ export default defineComponent({
       ] as Section[],
     }
   },
+
+  watch: {
+    'state.isDarkMode'() {
+      this.isDarkMode = this.state.isDarkMode
+    },
+  },
+
   computed: {
+    isDark() {
+      return this.state.isDarkMode
+    },
+
     issueColor() {
       // red
       if (this.state.statusErrors.length)
@@ -101,17 +110,21 @@ export default defineComponent({
     select(section: Section) {
       if (section.name == 'Settings') {
         this.toggleSettings()
-      } else {
+        return
+      }
+
+      if (section.name !== this.activeSection) {
+        // user picked new tab
+        this.$store.commit('setShowLeftBar', true)
         this.$emit('activate', section)
+      } else {
+        // user picked same tab: toggle left panel!
+        this.$store.commit('setShowLeftBar', !this.$store.state.isShowingLeftBar)
       }
     },
 
     toggleSettings() {
       this.isShowingSettings = !this.isShowingSettings
-    },
-    hideLeftPanel() {
-      this.$store.commit('setShowLeftBar', false)
-      this.$store.commit('setManualLeftPanelHidden', true)
     },
   },
 })
@@ -139,7 +152,7 @@ export default defineComponent({
 .bottom {
   display: flex;
   flex-direction: column;
-  margin-bottom: 4rem;
+  margin-bottom: 0.5rem;
 }
 
 .item {
@@ -147,16 +160,25 @@ export default defineComponent({
   flex-direction: column;
   padding: 1rem 0;
   margin: 0 auto 0 auto;
-  opacity: 0.4;
-  width: 22px;
+  opacity: 0.7;
+  width: 26px;
   p {
-    font-size: 0.8rem;
+    font-size: 13px;
+    line-height: 1rem;
   }
+}
+
+.is-dark {
+  color: #226;
 }
 
 .item:hover {
   cursor: pointer;
   opacity: 1;
+}
+
+.bottom .item {
+  margin-top: 1rem;
 }
 
 .is-active {
@@ -165,8 +187,8 @@ export default defineComponent({
 }
 
 img {
-  margin: 8px auto 0 auto;
-  width: 11px;
+  margin: 10px auto 0 auto;
+  width: 12px;
 }
 
 .sideways {
@@ -175,7 +197,7 @@ img {
 }
 
 .fa-icon {
-  margin: 7px auto 0 auto;
+  margin: 10px auto 0 auto;
   font-size: 10px;
 }
 
@@ -187,35 +209,8 @@ img {
   background-color: #202028;
   padding: 0.5rem 0.5rem 0rem 0.5rem;
   font-size: 0.9rem;
-  z-index: 2;
+  z-index: 10000;
   filter: drop-shadow(0px 0px 8px #00000060);
-}
-
-.hide-button {
-  padding-top: 0;
-  // background-color: #48485f;
-}
-
-.hide-left-panel-button {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 3rem;
-  margin-bottom: 1rem;
-  background-color: #48485f; // $appTag;
-  z-index: 8000;
-  color: #ccc;
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
-  display: flex;
-  flex-direction: column;
-
-  p {
-    margin: auto 0;
-    padding: 0 3px;
-    font-size: 9px;
-    text-align: center;
-  }
 }
 
 .hide-left-panel-button:hover {
