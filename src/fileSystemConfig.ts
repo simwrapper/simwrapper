@@ -110,6 +110,15 @@ let fileSystems: FileSystemConfig[] = [
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
     example: true,
   },
+  {
+    name: 'BENE',
+    slug: 'bene',
+    description: 'Berlin BENE',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/bene/website',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    hidden: true,
+  },
 ]
 
 for (let port = 8000; port < 8049; port++) {
