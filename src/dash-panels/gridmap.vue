@@ -1,22 +1,22 @@
 <template lang="pug">
-    grid-layer.deck-map(
-      :root="fileSystemConfig.slug"
-      :subfolder="subfolder"
-      :config="config"
-      :thumbnail="false"
-      :datamanager="datamanager"
-    )
-    //- @isLoaded="isLoaded"
-    
-    </template>
+grid-layer.deck-map(
+  :root="fileSystemConfig.slug"
+  :subfolder="subfolder"
+  :config="config"
+  :thumbnail="false"
+  :datamanager="datamanager"
+  @isLoaded="isLoaded"
+  @error="$emit('error', $event)"
+)
+
+</template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
-// import XyHexagons from '@/plugins/xy-hexagons/XyHexagons.vue'
-import GridLayer from '@/plugins/grid-map/GridLayer.vue'
+import GridLayer from '@/plugins/grid-map/GridMap.vue'
 
 export default defineComponent({
   name: 'GridPanel',
