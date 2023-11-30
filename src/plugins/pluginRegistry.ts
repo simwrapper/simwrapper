@@ -24,6 +24,11 @@ const plugins = [
     component: defineAsyncComponent(() => import('./carrier-viewer/CarrierViewer.vue')),
   },
   {
+    kebabName: 'grid-map',
+    filePatterns: ['**/viz-grid*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./grid-map/GridMap.vue')),
+  },
+  {
     kebabName: 'vehicle-view',
     filePatterns: ['**/viz-vehicles*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./vehicle-animation/VehicleAnimation.vue')),
