@@ -7,7 +7,7 @@ import colormap from 'colormap'
 import globalStore from '@/store' // Import global state management store.
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals' // Import constants and configurations.
 
-import { CompleteMapData } from './GridLayer.vue' // Import data types.
+import { CompleteMapData } from './GridMap.vue' // Import data types.
 
 const material = {
   ambient: 0.64,

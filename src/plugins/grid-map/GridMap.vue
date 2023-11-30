@@ -1,7 +1,7 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-      xy-hex-deck-map.hex-layer(
+      grid-layer(
         v-if="!thumbnail && isLoaded"
         v-bind="mapProps"
       )
@@ -43,7 +43,7 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 
-import XyHexDeckMap from './GridMap'
+import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 
 // interface for each time object inside the mapData Array
@@ -149,7 +149,7 @@ const GridMap = defineComponent({
   components: {
     CollapsiblePanel,
     DrawingTool,
-    XyHexDeckMap,
+    GridLayer,
     ToggleButton,
     ZoomButtons,
     TimeSlider,
@@ -580,6 +580,13 @@ const GridMap = defineComponent({
         })
       })
 
+      // User must provide projection
+      if (!this.vizDetails.projection) {
+        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
+        this.$emit('error', msg)
+        throw Error(msg)
+      }
+
       // Loop through the data and create the data object for the map
       for (let i = 0; i < csv.allRows.value.values.length; i++) {
         // index for the time
@@ -603,6 +610,7 @@ const GridMap = defineComponent({
 
         // Convert coordinates
         let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
+
         if (this.vizDetails.projection !== 'EPSG:4326') {
           wgs84 = Coords.toLngLat(this.vizDetails.projection, [
             csv.allRows.x.values[i],
@@ -735,7 +743,12 @@ const GridMap = defineComponent({
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    this.data = await this.loadAndPrepareData()
+    try {
+      this.data = await this.loadAndPrepareData()
+    } catch (e) {
+      this.$emit('error', 'Error loading ' + this.vizDetails.file)
+    }
+
     this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
