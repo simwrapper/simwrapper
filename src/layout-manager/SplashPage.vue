@@ -1,8 +1,9 @@
 <template lang="pug">
 .splash-page
+ .centered
   .splash-scroll-area.white-text
 
-    .diagonal.top-logo-area
+    .diagonal.top-logo-area.middle-area
       .content
 
         .top-banner.flex-row
@@ -353,18 +354,26 @@ $angle: 1.25deg;
   bottom: 0;
   left: 0;
   right: 0;
+  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
+}
+
+.centered {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .splash-scroll-area {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
+  max-width: 100rem;
+  margin: 0 auto;
 }
 
 .content {
   transform: skewY($angle);
   margin-bottom: 2rem;
+  // max-width: 90rem;
+  // margin: 0 auto;
 }
 
 .diagonal {

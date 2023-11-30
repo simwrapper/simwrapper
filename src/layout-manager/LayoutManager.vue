@@ -850,8 +850,8 @@ export default defineComponent({
 #split-screen {
   display: flex;
   flex-direction: row;
-  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
   flex: 1;
+  background-color: var(--bgBrowser);
 }
 
 .left-panel {
