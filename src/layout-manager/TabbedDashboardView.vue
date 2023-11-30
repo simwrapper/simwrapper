@@ -303,23 +303,25 @@ export default defineComponent({
       // no configs: no project mode.
       if (!allConfigs.length) {
         this.isShowingBreadcrumbs = true
-        if (this.$store.state.isShowingFilesTab) {
-          // this.$store.commit('setShowLeftBar', true)
-          // this.$store.commit('setShowLeftStrip', true)
-        }
         return
       }
 
-      // configs: set up "project mode" !!
+      // configs: set up "project mode" ----------------------------------
+      let projectFolder = ''
       for (const filename of allConfigs) {
         try {
+          let yamlFolder = ''
           const config = await this.fileApi.getFileText(filename)
           const yaml = YAML.parse(config)
 
           // figure out relative path for config file
-          const yamlFolder = filename.startsWith('http')
-            ? ''
-            : filename.substring(0, filename.indexOf('simwrapper-config.y'))
+          if (!filename.startsWith('http')) {
+            const i = filename.indexOf('simwrapper-config.y')
+            yamlFolder = filename.substring(0, i)
+            // project folder is the folder CONTAINING the simwrapper-config.yaml file
+            const chunks = yamlFolder.split('/')
+            projectFolder = chunks.slice(0, chunks.length - 2).join('/')
+          }
 
           // always reveal quickview bar unless told not to
           if (yaml.hideLeftBar === true) {
@@ -350,6 +352,7 @@ export default defineComponent({
           this.isShowingBreadcrumbs = !yaml.hideBreadcrumbs
           // if (yaml.hideBreadcrumbs) this.isShowingBreadcrumbs = false
 
+          // TOP Nav Bar -----------------------------------
           if (yaml.topNavBar) {
             this.topNavItems = {
               left: [],
@@ -370,7 +373,7 @@ export default defineComponent({
           }
           this.$store.commit('setTopNavItems', this.topNavItems)
 
-          // Left-Nav Panel
+          // Left-Nav Panel --------------------------------
           if (yaml.leftNavBar) {
             // if (!this.leftNavItems) this.leftNavItems = { top: [], middle: [], bottom: [] }
             this.leftNavItems = { top: [], middle: [], bottom: [] }
@@ -422,6 +425,9 @@ export default defineComponent({
           console.error(msg)
         }
       }
+
+      // lastly: if project folder, notify layout manager
+      if (projectFolder) this.$emit('projectFolder', projectFolder)
     },
 
     setProjectTheme(theme: string, configFilepath: string) {

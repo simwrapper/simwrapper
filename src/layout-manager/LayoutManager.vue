@@ -3,6 +3,7 @@
 
  top-nav-bar(v-if="$store.state.topNavItems"
   @navigate="onNavigate($event,0,0)"
+  :projectFolder="firstPanelProjectFolder"
   :currentFolder="firstPanelSubfolder"
  )
 
@@ -31,6 +32,7 @@
         @isDragging="handleDragStartStop"
         @split="splitMainPanel"
         :currentFolder="firstPanelSubfolder"
+        :projectFolder="firstPanelProjectFolder"
         :navRoot="navRoot"
       )
 
@@ -104,7 +106,7 @@
             @navigate="onNavigate($event,x,y)"
           )
 
-        //- here is the actual viz component:
+        //- here is the actual component containing the dashboard, viz, etc
         component.map-tile(
           :is="panel.component"
           :isMultipanel="isMultipanel"
@@ -113,6 +115,7 @@
           @navigate="onNavigate($event,x,y)"
           @title="setCardTitles(panel, $event)"
           @activate="setActiveLeftSection"
+          @projectFolder="setProjectFolder"
         )
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
@@ -186,6 +189,7 @@ export default defineComponent({
       dragQuadrant: null as any,
       dragStartWidth: 0,
       // keep track of URL for highlighting purposes
+      firstPanelProjectFolder: '',
       firstPanelSubfolder: '',
       fullScreenPanel: { x: -1, y: -1 },
       isDraggingDivider: 0,
@@ -263,6 +267,10 @@ export default defineComponent({
       this.activeLeftSection = section
       localStorage.setItem('activeLeftSection', JSON.stringify(section))
       if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+    },
+
+    setProjectFolder(folder: string) {
+      this.firstPanelProjectFolder = folder
     },
 
     buildLayoutFromURL() {

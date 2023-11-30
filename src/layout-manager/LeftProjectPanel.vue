@@ -71,6 +71,7 @@ export default defineComponent({
   components,
   props: {
     currentFolder: { type: String, required: true },
+    projectFolder: { type: String, required: true },
     navRoot: { type: String, required: false },
   },
   data: () => {
@@ -178,9 +179,12 @@ export default defineComponent({
       if (url.startsWith('http')) {
         window.location.href = url
       } else {
+        // is subfolder absolute path or relative to project?
+        const xsubfolder = url.startsWith('/') ? url : `${this.projectFolder}/${url}`
+
         const props = {
           root: this.navRoot || '',
-          xsubfolder: url,
+          xsubfolder,
           thumbnail: false,
         }
 
