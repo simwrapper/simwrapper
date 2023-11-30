@@ -161,7 +161,9 @@ export default defineComponent({
         return this.sections.map(section => {
           const camelCaseName =
             startCase(section.replaceAll('-', ' ')).replaceAll(' ', '') + 'Panel'
-          return { component: camelCaseName, name: section.replaceAll('-', ' ') }
+          const name = section.replaceAll('-', ' ')
+          const translation = this.$t(name)
+          return { component: camelCaseName, name: translation }
         })
       } else {
         return [
