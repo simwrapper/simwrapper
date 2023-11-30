@@ -9,7 +9,7 @@
           p.title-text {{ finalFolder }}
           p.favorite-icon(
             @click="clickedFavorite"
-            title= "parent.$t('favorite')"
+            title= "$t('favorite')"
             :class="{'is-favorite': isFavorite}"
           ): i.fa.fa-star
         bread-crumbs.breadcrumbs(
@@ -269,7 +269,7 @@ export default defineComponent({
 
         // Add FileBrowser as "Files" tab
         if (this.globalState.isShowingFilesSection) {
-          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: "parent.$t('Files' )"} })
+          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: "$t('Files' )"} })
         }
 
         // // Start on correct tab

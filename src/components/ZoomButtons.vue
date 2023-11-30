@@ -39,16 +39,11 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { in: 'Zoom in', out: 'Zoom out', center: 'North' },
-    de: { in: 'Einzoomen', out: 'Auszoomen', center: 'Norden' },
-  },
-}
 
 import { defineComponent } from 'vue'
 import globalStore from '@/store'
 import MapScale from '@/components/MapScale.vue'
+import i18n from '@/i18n'
 
 enum Corner {
   TOP,

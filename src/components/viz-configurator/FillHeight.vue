@@ -6,7 +6,7 @@
     .widget
         p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(label="parent.$t('none')" value="^")
+          option(:label="$t('none')" value="^")
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
                    :label="dataset"
@@ -21,10 +21,10 @@
     .widget
         p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="parent.$t('none')" value="")
-          option(label="parent.$t('rowCount')" value="@count")
+          option(:label="$t('none')" value="")
+          option(:label="$t('rowCount')" value="@count")
 
-          optgroup(label="parent.$t('join')")
+          optgroup(:label="$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
@@ -36,7 +36,7 @@
     .widget
         p.tight {{ $t("normalize") }}
         b-select.selector(expanded v-model="normalSelection")
-          option(label="None" value="")
+          option(:label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                    :key="`${dataset}/${column}`"
@@ -60,6 +60,8 @@ import type { PropType } from 'vue'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 import { debounce } from 'debounce'
 
+import i18n from '@/i18n'
+
 export type FillHeightDefinition = {
   dataset?: string
   columnName?: string
@@ -70,6 +72,7 @@ export type FillHeightDefinition = {
 
 export default defineComponent({
   name: 'FillHeightConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

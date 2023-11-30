@@ -4,7 +4,7 @@
   .modal-card
     header.modal-card-head
       p.modal-card-title {{ title }}
-      button.delete(aria-label="close" @click="clicked('close')")
+      button.delete(:aria-label="$t('close')" @click="clicked('close')")
 
     section.modal-card-body
       .content

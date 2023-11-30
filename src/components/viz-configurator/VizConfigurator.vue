@@ -4,14 +4,14 @@
   .map-actions
     button.button.draw-button.is-tiny(
       v-show="!embedded"
-      :title="parent.$t('config')"
+      :title="$t('config')"
       @click="clickedShowHide"
       :class="{'is-showing': showPanels}"
     )
       i.fa.fa-sliders-h.settings-icon
 
     button.button.draw-button.is-tiny(
-      :title="parent.$t('legend')"
+      :title="$t('legend')"
       @click="clickedLegendShowHide"
       :class="{'is-showing': showLegend}"
     )

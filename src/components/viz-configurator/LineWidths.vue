@@ -7,7 +7,7 @@
         p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
 
-          option(label="None" value="@0")
+          option(:label="$t('none')" value="@0")
           option(label="1px" value="@1")
           option(label="2px" value="@2")
           option(label="3px" value="@3")
@@ -15,25 +15,25 @@
           option(label="8px" value="@8")
 
           optgroup(v-for="dataset in datasetChoices"
-                  :key="dataset" :label="parent.$t('dataset')")
+                  :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
                   :key="`${dataset}/${column}`"
                   :value="`${dataset}/${column}`"
-                  :label="parent.$t('column')")
+                  :label="column")
 
   //- JOIN COLUMN ------------
   .widgets(v-if="datasetChoices.length > 1 && dataColumn && dataColumn.length > 2")
     .widget
         p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(:label="parent.$t('none')" value="")
-          option(:label="parent.$t('rowCount')" value="@count")
+          option(:label="$t('none')" value="")
+          option(:label="$t('rowCount')" value="@count")
 
-          optgroup(:label="parent.$t('join')")
+          optgroup(:label="$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
-                   :label="parent.$t('column')"
+                   :label="col"
             )
 
   //- SCALING ----------------
@@ -181,7 +181,7 @@ export default defineComponent({
         diffPieces = config.diff.split(' - ').map(p => p.trim())
       } else {
         diffPieces = config.diff.split('-').map(p => p.trim())
-        if (diffPieces.length > 2) throw Error('Ambiguous diff, use " - " to separate terms')
+        if (diffPieces.length > 2) throw Error("$t('ambiguousDiff')")
       }
 
       this.diffDatasets = diffPieces

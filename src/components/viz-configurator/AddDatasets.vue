@@ -16,12 +16,12 @@
     .widget
       b {{ $t("chooseData") }}
       b-select.selector(expanded v-model="fileChoice")
-        option(value="" label= "parent.$t('selectFile')")
+        option(value="" label= "$t('selectFile')")
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 
   br
   .drop-zone
-      b Or Drag and Drop any dataset file:
+      b {{$t("dragDrop")}}
 
       file-selector(
         :accept-extensions="validDataTypes.map(m => `.${m}`).join(',')"
@@ -31,19 +31,19 @@
         @changed="handleFilesChanged")
 
           | or&nbsp;
-          b: a browse your files
+          b: a {{ $t("browse") }}
 
           .section-top(slot="top")
             br
-            p Drop files into this area.
-            p No size limit, but large datasets could crash your browser :-)
+            p {{$t("dragDropHere")}}
+            p {{$t("noSizeLimit")}}
             br
-            p Supported file types:&nbsp;
+            p {{$t("supportedFileTypes")}}&nbsp;
               b {{ validDataTypes.join(', ')}}
 
           .section-bottom(slot="loader")
-            p Processing files<br/>
-            p please wait...
+            p {{ $t("processingFiles") }}<br/>
+            p {{ $t("pleaseWait") }}
 
       br
       p.center

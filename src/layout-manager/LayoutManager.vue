@@ -97,7 +97,7 @@
 
               .nav-button.is-small.is-white(v-if="isMultipanel"
                 @click="onClose(x,y)"
-                title="parent.$t('close')"
+                title="$t('close')"
               ): i.fa.fa-times-circle
 
         .breadcrumb-row(v-if="getShowHeader(panel)")

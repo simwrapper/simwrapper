@@ -16,14 +16,14 @@
                 src="@/assets/images/logos/vsp-logo-300dpi.png"
                 alt="TU Berlin VSP Department")
 
-          b-menu-list(label="Login Required")
+          b-menu-list(:label="$t('loginRequired')")
 
-          p.my-label {{ whichLogin }}: access to this site requires a login.
+          p.my-label {{ whichLogin }}: {{$t('accessRequiresLogin')}}
 
-          b-menu-list(label="Username")
-          b-input(v-model="username" placeholder="VSP username" maxlength=30)
+          b-menu-list(:label="$t('username')")
+          b-input(v-model="username" :placeholder="$t('VSPUsername')" maxlength=30)
 
-          b-menu-list(label="Password")
+          b-menu-list(:label="$t('password')")
           b-input(type="password"
             v-model="password"
             password-reveal)

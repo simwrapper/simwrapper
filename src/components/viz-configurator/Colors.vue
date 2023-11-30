@@ -3,7 +3,7 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(label="Single color" value="")
+          option(:label="$t('singleColor')" value="")
           optgroup(v-for="dataset in datasetChoices()"
                   :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
@@ -20,7 +20,7 @@
       .widget
         p {{$t("steps")}}
         b-input(v-model="steps"
-            placeholder="Number"
+            :placeholder="$t('number')"
             type="number"
             min="2"
             max="15")

@@ -21,7 +21,7 @@
   .widgets
     .widget.boop
       h4 {{$t("addFilter")}}
-      b-select.tight.selector(expanded v-model="addDataColumn" placeholder="parent.$t('select')")
+      b-select.tight.selector(expanded v-model="addDataColumn" :placeholder="$t('select')")
         optgroup(v-for="dataset in datasetChoices"
                 :key="dataset" :label="dataset")
           option(v-for="column in numericColumnsInDataset(dataset)"
@@ -32,7 +32,7 @@
         b-select.operator(expanded v-model="addOperator")
           option(v-for="operator in OPERATORS" :value="operator" :label="operator")
         b-field(v-if="addOperator!==OPERATORS[0]")
-          b-input(v-model="addValue" placeholder="1.0")
+          b-input(v-model="addValue" :placeholder="1.0")
 
       .button-bar(v-if="addDataColumn")
         button.button.add-button.is-small.is-inverted(
@@ -156,7 +156,7 @@ export default defineComponent({
         const [dataset, column] = key.split('.')
         if (column == undefined) {
           //@ts-ignore
-          this.$emit('error', `${this.$t['filterNotFound']}: ${key}`)
+          this.$emit('error', `${this.$t('filterNotFound')}: ${key}`)
           continue
         }
 

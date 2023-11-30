@@ -6,7 +6,7 @@
     .widget
         p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(:label="parent.$t('singleColor')" value="@")
+          option(:label="$t('singleColor')" value="@")
 
           optgroup(v-for="dataset in datasetChoices"
                    :key="dataset"
@@ -23,10 +23,10 @@
     .widget
         p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(:label="parent.$t('none')" value="")
-          option(:label="parent.$t('rowCount')" value="@count")
+          option(:label="$t('none')" value="")
+          option(:label="$t('rowCount')" value="@count")
 
-          optgroup(:label="parent.$t('join')")
+          optgroup(:label="$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :value="col"
                    :label="col"
@@ -37,7 +37,7 @@
     .widget
         p.tight {{ $t("normalize") }}
         b-select.selector(expanded v-model="normalSelection")
-          option(label="parent.$t('none')" value="")
+          option(:label="$t('none')" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
               :key="`${dataset}/${column}`"
@@ -78,7 +78,7 @@
       .widget(style="flex: 3")
         p {{ $t("steps") }}
         b-input(v-model="steps"
-            placeholder="Number"
+            :placeholder="$t('number')"
             type="number"
             min="2"
             max="15")
@@ -265,7 +265,7 @@ export default defineComponent({
         diffPieces = config.diff.split(' - ').map(p => p.trim())
       } else {
         diffPieces = config.diff.split('-').map(p => p.trim())
-        if (diffPieces.length > 2) throw Error("parent$t('ambiguousDiff')")
+        if (diffPieces.length > 2) throw Error("$t('ambiguousDiff')")
       }
 
       this.diffDatasets = diffPieces
@@ -280,7 +280,7 @@ export default defineComponent({
     updateDiffLabels() {
       const choices = []
 
-      choices.push(["parent$t('no')", ''])
+      choices.push(["$t('no')", ''])
       if (this.datasetLabels.length <= 1) return
 
       // create all combinations of x-y and y-x

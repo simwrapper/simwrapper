@@ -2,9 +2,9 @@
 .width-panel
   .widgets
     .widget
-        p.tight Display
+        p.tight {{ $t("display") }}
         b-select.selector(expanded v-model="dataColumn")
-          option(label="None" value="@")
+          option(:label="$t('none')" value="@")
           optgroup(v-for="dataset in datasetChoices"
                   :key="dataset" :label="dataset")
             option(v-for="column in numericColumnsInDataset(dataset)"
@@ -14,12 +14,12 @@
   //- JOIN COLUMN ------------
   .widgets(v-if="datasetChoices.length > 1")
     .widget
-        p.tight Join by
+        p.tight {{ $t("join") }}
         b-select.selector(expanded v-model="join")
-          option(label="None" value="")
-          option(label="Row count" value="@count")
+          option(:label="$t('none')" value="")
+          option(label="$t('rowCount')" value="@count")
 
-          optgroup(label="Join by...")
+          optgroup(:label="$t('join')")
             option(v-for="col in columnsInDataset(dataColumn?.slice(0, dataColumn.indexOf('/')) || [])"
                    :key="col"
                    :value="col"
@@ -28,7 +28,7 @@
 
   .widgets
     .widget
-      p Scaling
+      p {{ $t("scaling") }}
       b-field
         b-input(:disabled="!dataColumn" v-model="scaleFactor" placeholder="1.0")
 
@@ -50,6 +50,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
+import i18n from '@/i18n'
 
 export type CircleRadiusDefinition = {
   dataset?: string
@@ -60,6 +61,7 @@ export type CircleRadiusDefinition = {
 
 export default defineComponent({
   name: 'CircleRadiusConfig',
+  i18n,
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },

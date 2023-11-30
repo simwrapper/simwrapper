@@ -3,10 +3,10 @@
   .widgets
     .widget
         b-select.selector(expanded v-model="dataColumn")
-          option(:label="parent.$t('none')" value="")
+          option(:label="$t('none')" value="")
           optgroup(v-for="dataset in datasetChoices"
-                  :key="dataset" :label= "parent.$t('dataset')")
-            option(v-for="column in numericColumnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="parent.$t('column')")
+                  :key="dataset" :label= "dataset")
+            option(v-for="column in numericColumnsInDataset(dataset)" :value="`${dataset}/${column}`" :label="column")
 
   .widgets
     .widget

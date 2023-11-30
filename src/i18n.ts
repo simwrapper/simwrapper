@@ -9,6 +9,13 @@ const i18n = {
     browserDescription: "This browser can access local folders",
     label: "Label",
     note: "Note",
+    dragDrop: "Or Drag and Drop any dataset file:",
+    dragDropHere: "Drop files into this area.",
+    browse: "browse your files",
+    noSizeLimit: "No size limit, but large datasets could crash your browser :-)",
+    supportedFileTypes: "Supported file types:",
+    processingFiles: "Processing files",
+    
 
     //Folders-Data-Files
     files: 'Files',
@@ -66,6 +73,16 @@ const i18n = {
     export: "Export",
     toBeAdded: "To be added",
 
+    pleaseWait: "Please wait...",
+
+    number: "Number",
+
+    loginRequired: "Login Required",
+    accessRequiresLogin: "access to this site requires a login.",
+    username: "Username",
+    VSPUsername: "VSP Username",
+    password: "Password",
+
     //Site Layout
     topsheet: 'Topsheet',
     splitView: "Split View",
@@ -98,6 +115,9 @@ const i18n = {
     total: 'Totals for',
     origins: 'Origins',
     dest: 'Destinations',
+    in: "Zoom in",
+    out: "Zoom out",
+    center: "North",
 
     //Colors
     display: "Display",
@@ -134,6 +154,12 @@ const i18n = {
     browserDescription: "Mit diesem Browser können lokale Dateien geladen werden",
     label: "Bezeichnung",
     note: "Anmerkung",
+    dragDrop: "Oder eine Datei hier hinziehen:",
+    dragDropHere: "Hier Datei hinziehen",
+    browse: "Dateien durchsuchen",
+    noSizeLimit:"Keine Größenbeschränkung, aber große Dateien können zu Browserabstürzen führen :-)",
+    supportedFileTypes: "Unterstützte Dateitypen:",
+    processingFiles: "Dateien werden verarbeitet",
 
     //Folders-Data-Files
     files: 'Dateien',
@@ -189,6 +215,15 @@ const i18n = {
     export: "Exportieren",
     toBeAdded: "Wird hinzugefügt",
 
+    pleaseWait: "Bitte warten...",
+    number: "Zahl",
+
+    loginRequired: "Anmeldung erforderlich",
+    accessRequiresLogin: "Zugang zu dieser Seite nur für angemeldete Nutzer",
+    username: "Benutzername",
+    VSPUsername: "VSP Benutzername",
+    password: "Passwort",
+
     //Site Layout
 
     topsheet: 'Topsheet',
@@ -222,6 +257,9 @@ const i18n = {
     total: 'Totals for',
     origins: 'Quellen',
     dest: 'Ziele',
+    in: "Vergrößern",
+    out: "Verkleinern",
+    center: "Norden",
 
     //Colors
     display: "Darstellung",
