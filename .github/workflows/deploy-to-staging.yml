@@ -6,15 +6,6 @@ on:
       - staging
     repository_dispatch:
 
-# permissions:
-#   contents: read
-#   id-token: write
-#   pages: write
-
-# concurrency:
-#   group: github-pages
-#   cancel-in-progress: true
-
 jobs:
   notify-staging:
     runs-on: ubuntu-latest
