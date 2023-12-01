@@ -1,4 +1,4 @@
-name: Remote Deploy Staging to GitHub Pages.
+name: Remote Deploy Staging to GitHub Pages
 
 on:
   push:
@@ -25,4 +25,4 @@ jobs:
           curl -X POST https://api.github.com/repos/simwrapper/staging/dispatches \
           -H 'Accept: application/vnd.github.everest-preview+json' \
           -u ${{ secrets.BUILD_STAGING }} \
-          --data '{"event_type": "ping", "client_payload": {}}'
+          --data '{"event_type": "ping", "client_payload": { "repository": "'"$GITHUB_REPOSITORY"'" }}'
