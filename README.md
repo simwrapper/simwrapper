@@ -7,7 +7,7 @@ This repo contains the interactive visualization website for **SimWrapper**, ava
 
 This README details build instructions for the website itself.
 
-## Project pre-requisites
+## Project prerequisites
 
 The site uses npm and yarn, and was developed using VS Code.
 
