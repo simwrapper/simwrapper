@@ -1,0 +1,28 @@
+name: Remote Deploy Staging to GitHub Pages
+
+on:
+  push:
+    branches:
+      - staging
+    repository_dispatch:
+
+# permissions:
+#   contents: read
+#   id-token: write
+#   pages: write
+
+# concurrency:
+#   group: github-pages
+#   cancel-in-progress: true
+
+jobs:
+  notify-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PING staging
+        if: github.event.action != 'pong'
+        run: |
+          curl -X POST https://api.github.com/repos/marcnuri-demo/actions-remote-dispatch-b/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.ACCESS_TOKEN }} \
+          --data '{"event_type": "ping", "client_payload": { "repository": "'"$GITHUB_REPOSITORY"'" }}'
