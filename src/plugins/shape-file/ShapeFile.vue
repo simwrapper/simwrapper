@@ -105,6 +105,8 @@ import {
   Status,
 } from '@/Globals'
 
+import i18n from '@/i18n'
+
 import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
@@ -135,6 +137,7 @@ interface FilterDetails {
 
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
+  i18n,
   components: {
     BackgroundMapOnTop,
     GeojsonLayer,
@@ -184,7 +187,7 @@ const MyComponent = defineComponent({
       expColors: false,
       isLoaded: false,
       isAreaMode: true,
-      statusText: 'Loading...',
+      statusText: '' + this.$t("loading"),
 
       // Filters. Key is column id; value array is empty for "all" or a list of "or" values
       filters: {} as { [column: string]: FilterDetails },
@@ -587,7 +590,7 @@ const MyComponent = defineComponent({
         }
       }
 
-      const t = this.vizDetails.title || 'Map'
+      const t = this.vizDetails.title || '' + this.$t("map")
       this.$emit('title', t)
     },
 
@@ -1803,7 +1806,7 @@ const MyComponent = defineComponent({
       let boundaries: any[]
 
       try {
-        this.statusText = 'Loading features...'
+        this.statusText = '' + this.$t("loadingFeatures")
 
         if (filename.startsWith('http')) {
           // geojson from url!
@@ -1958,7 +1961,7 @@ const MyComponent = defineComponent({
     },
 
     async generateCentroidsAndMapCenter() {
-      this.statusText = 'Calculating centroids...'
+      this.statusText = '' + this.$t("calculatingCentroids")
       await this.$nextTick()
       const idField = this.config.shapes.join || 'id'
 
@@ -2005,7 +2008,7 @@ const MyComponent = defineComponent({
     },
 
     async loadShapefileFeatures(filename: string) {
-      this.statusText = 'Loading shapefile...'
+      this.statusText = '' + this.$t("loadingShape")
       console.log('loading', filename)
 
       const url = `${this.subfolder}/${filename}`
@@ -2025,7 +2028,7 @@ const MyComponent = defineComponent({
         const dbfBlob = await (await dbfPromise)?.arrayBuffer()
         if (!shpBlob || !dbfBlob) return []
 
-        this.statusText = 'Generating shapes...'
+        this.statusText = '' + this.$t("generateShape")
 
         geojson = await shapefile.read(shpBlob, dbfBlob)
       } catch (e) {
@@ -2054,7 +2057,7 @@ const MyComponent = defineComponent({
       console.log({ guessCRS })
       // then, reproject if we have a .prj file
       if (guessCRS) {
-        this.statusText = 'Projecting coordinates...'
+        this.statusText = '' + this.$t("projectCoords")
         await this.$nextTick()
         geojson = reproject.toWgs84(geojson, guessCRS, Coords.allEPSGs)
         this.statusText = ''

@@ -46,33 +46,10 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      loading: 'Loading data...',
-      sorting: 'Sorting into bins...',
-      aggregate: 'Summary',
-      maxHeight: '3D Height',
-      showDetails: 'Show Details',
-      selection: 'Selection',
-      areas: 'Areas',
-      count: 'Count',
-      promptCRS: `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`,
-    },
-    de: {
-      loading: 'Dateien laden...',
-      sorting: 'Sortieren...',
-      aggregate: 'Daten',
-      maxHeight: '3-D Höhe',
-      showDetails: 'Details anzeigen',
-      selection: 'Ausgewählt',
-      areas: 'Orte',
-      count: 'Anzahl',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
+
+import i18n from '@/i18n'
 
 import GUI from 'lil-gui'
 import YAML from 'yaml'

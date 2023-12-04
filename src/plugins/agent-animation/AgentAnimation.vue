@@ -6,7 +6,7 @@
     :fileApi="fileApi" :subfolder="subfolder" :yamlConfig="yamlConfig" :vizDetails="vizDetails")
 
   modal-markdown-dialog#help-dialog(v-if="!thumbnail"
-    title='DRT Vehicles'
+    :title="$t('DRT Vehicles')"
     md='@/assets/animation-helptext.md'
     :buttons="[`OK`]"
     :class="{'is-active': showHelp}"
@@ -250,7 +250,7 @@ const MyComponent = defineComponent({
       }
 
       // title
-      const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
+      const t = this.vizDetails.title ? this.vizDetails.title : this.$t('agentAnimation')
       this.$emit('title', t)
 
       this.buildThumbnail()

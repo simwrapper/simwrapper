@@ -20,8 +20,11 @@ import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
+import i18n from '@/i18n'
+
 const MyComponent = defineComponent({
   name: 'VegaPlugin',
+  i18n,
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -165,7 +168,7 @@ const MyComponent = defineComponent({
       const filename = this.myState.subfolder + '/' + this.myState.yamlConfig
 
       try {
-        this.loadingText = 'Loading config...'
+        this.loadingText = '' + this.$t('loadingConfig')
 
         json = await this.fileApi.getFileJson(filename)
 
@@ -222,7 +225,7 @@ const MyComponent = defineComponent({
       let box = document.querySelector(`#${this.cleanConfigId}`) as Element
       if (!box) return
 
-      this.loadingText = 'Building chart...'
+      this.loadingText = '' + this.$t('buildingChart')
 
       const exportActions = { export: true, source: false, compiled: false, editor: false }
 

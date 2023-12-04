@@ -4,7 +4,7 @@
     type="search"
     icon-pack="fas"
     icon="search"
-    placeholder="search..."
+    placeholder= $t("search")
     v-model="searchTerm"
   )
   .viewer
@@ -18,12 +18,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {},
-    de: {},
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -33,6 +27,8 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import TreeView from './TreeView.vue'
 import XmlWorker from '@/workers/NewXmlFetcher.worker?worker'
+
+import i18n from '@/i18n'
 
 import { FileSystemConfig, UI_FONT, BG_COLOR_DASHBOARD } from '@/Globals'
 

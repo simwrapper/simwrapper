@@ -11,12 +11,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { total: 'total', showChanges: 'Only show changes' },
-    de: { total: 'Insgesamt', showChanges: 'Nur Änderungen zeigen' },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -37,6 +31,7 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
+import i18n from '@/i18n'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -395,13 +390,13 @@ const MyComponent = defineComponent({
       if (this.config) {
         this.vizDetails = JSON.parse(JSON.stringify(this.config))
 
-        this.$emit('title', this.vizDetails.title || 'Chart')
+        this.$emit('title', this.vizDetails.title || '' + this.$t("chart"))
         if (this.vizDetails.traces) this.traces = this.vizDetails.traces
         return
       }
 
       // might be a project config:
-      this.loadingText = 'Loading config...'
+      this.loadingText = '' + this.$t("loadingConfig")
       const config = this.yamlConfig ?? ''
       const filename = config.indexOf('/') > -1 ? config : this.subfolder + '/' + config
 
@@ -409,7 +404,7 @@ const MyComponent = defineComponent({
       const parsed = yaml.parse(text)
 
       this.vizDetails = parsed
-      if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
+      if (!this.vizDetails.title) this.vizDetails.title = '' + this.$t("chart")
       this.$emit('title', this.vizDetails.title)
     },
 

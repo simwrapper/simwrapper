@@ -56,12 +56,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { metrics: 'Metrics', viewer: 'Transit Network' },
-    de: { metrics: 'Metrics', viewer: 'ÖV Netzwerk' },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -87,6 +81,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
+import i18n from '@/i18n'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 

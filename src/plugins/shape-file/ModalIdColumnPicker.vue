@@ -1,8 +1,8 @@
 <template lang="pug">
 .join-picker
   .picker-panel
-    p.header: b Select ID Column
-    p.subheader Which property contains the unique ID for each feature?
+    p.header: b {{ $t('selectIDColumn') }}
+    p.subheader {{ $t('uniqueID') }}
     .split-panel
       .column
           p: b {{ data1.title }}
@@ -20,12 +20,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {},
-    de: {},
-  },
-}
 
 interface DataSet {
   title: string
@@ -34,7 +28,7 @@ interface DataSet {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
+import i18n from '@/i18n'
 // Reasonable guesses as to the ID column in the shapefile
 const ID_GUESSES = ['id', 'ID', 'TAZ', 'AB']
 

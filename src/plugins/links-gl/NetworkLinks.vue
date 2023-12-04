@@ -71,28 +71,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      all: 'All',
-      colors: 'Colors',
-      loading: 'Loading',
-      selectColumn: 'Select data column',
-      timeOfDay: 'Time of day',
-      bandwidths: 'Widths: 1 pixel =',
-      showDiffs: 'Show Differences',
-    },
-    de: {
-      all: 'Alle',
-      colors: 'Farben',
-      loading: 'Wird geladen',
-      selectColumn: 'Datenspalte wählen',
-      timeOfDay: 'Uhrzeit',
-      bandwidths: 'Linienbreiten: 1 pixel =',
-      showDiffs: 'Differenzen',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -115,6 +93,8 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
 import { arrayBufferToBase64 } from '@/js/util'
+
+import i18n from '@/i18n'
 
 import {
   ColorScheme,
@@ -311,7 +291,7 @@ const MyComponent = defineComponent({
     },
 
     buttonTitle(): string {
-      return this.csvData.activeColumn || 'Loading...'
+      return this.csvData.activeColumn || '' + this.$t('loading')
     },
   },
   watch: {
@@ -370,7 +350,7 @@ const MyComponent = defineComponent({
         })
       }
 
-      const t = this.vizDetails.title ? this.vizDetails.title : filename || 'Network Links'
+      const t = this.vizDetails.title ? this.vizDetails.title : filename || this.$t('networkLinks')
       this.$emit('title', t)
     },
 
@@ -710,7 +690,7 @@ const MyComponent = defineComponent({
     async loadNetwork(): Promise<any> {
       if (!this.myDataManager) throw Error('links: no datamanager')
 
-      this.myState.statusMessage = 'Loading network...'
+      this.myState.statusMessage = '' + this.$t('loadingNetwork')
 
       const filename = this.vizDetails.network || this.vizDetails.geojsonFile
       try {
@@ -889,7 +869,7 @@ const MyComponent = defineComponent({
     },
 
     loadCSVFiles() {
-      this.myState.statusMessage = 'Loading datasets...'
+      this.myState.statusMessage = '' + this.$t('loadingDatasets')
 
       // Old yaml format listed csvFile and csvBase explicitly.
       // Merge those into vizDetails.datasets if they exist.
@@ -987,7 +967,7 @@ const MyComponent = defineComponent({
         const dataTable = dataset.allRows
 
         console.log('loaded', key)
-        this.myState.statusMessage = 'Analyzing...'
+        this.myState.statusMessage = '' + this.$t('analyzing')
 
         // remove columns without names; we can't use them
         const cleanTable: DataTable = {}

@@ -1,8 +1,8 @@
 <template lang="pug">
 .join-picker
   .picker-panel
-    p.header: b Join datasets
-    p.subheader Select the data columns containing matching IDs
+    p.header: b {{ $t('joinDatasets') }}
+    p.subheader {{ $t("selectJoinColumn") }}
     .split-panel
       .column
           p: b {{ data2.title }}
@@ -30,13 +30,6 @@
 
 </template>
 
-<script lang="ts">
-const i18n = {
-  messages: {
-    en: {},
-    de: {},
-  },
-}
 
 interface DataSet {
   title: string
@@ -45,6 +38,7 @@ interface DataSet {
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import i18n from '@/i18n'
 
 export default defineComponent({
   name: 'ModalJoinColumnPicker',

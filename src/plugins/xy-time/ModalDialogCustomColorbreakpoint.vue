@@ -2,7 +2,7 @@
   // Modal dialog container
   .modal-dialog
     // Title for the modal
-    h2.modal-dialog-heading Custom Breakpoints
+    h2.modal-dialog-heading {{$t("customBreakpoints")}}
     
     // Container for the color table
     .color-table
@@ -57,9 +57,11 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import i18n from '@/i18n'
 
 const MyComponent = defineComponent({
   name: 'ModalDialogCustomColorbreakpoint',
+  i18n,
   props: {
     breakpointsProp: { type: Array as () => number[], required: true }, // Array of breakpoint values
     colorsProp: { type: Array, required: true }, // Array of color values

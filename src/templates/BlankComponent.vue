@@ -1,14 +1,16 @@
 <template lang="pug">
 .my-vue-component
-  h1 Blank
+  h1 {{ $t("blank") }}
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import i18n from '@/i18n';
 
 export default defineComponent({
   name: 'MyVueComponent',
+  i18n,
   components: {},
   props: {
     // prop1: String,

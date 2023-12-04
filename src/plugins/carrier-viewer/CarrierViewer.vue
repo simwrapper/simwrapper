@@ -92,32 +92,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      carriers: 'Carriers',
-      vehicles: 'VEHICLES',
-      services: 'SERVICES',
-      shipments: 'SHIPMENTS',
-      tours: 'TOURS',
-      pickup: 'Pickup',
-      delivery: 'Delivery',
-      flatten: 'Simple&nbsp;tours',
-      shipmentDots: 'Show shipments',
-      scaleSize: 'Widths',
-      scaleFactor: 'Width',
-    },
-    de: {
-      carriers: 'Unternehmen',
-      vehicles: 'FAHRZEUGE',
-      services: 'BETRIEBE',
-      shipments: 'LIEFERUNGEN',
-      tours: 'TOUREN',
-      pickup: 'Abholung',
-      delivery: 'Lieferung',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -137,6 +111,7 @@ import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import TourViz from './TourViz'
+import i18n from '@/i18n'
 
 import {
   FileSystem,

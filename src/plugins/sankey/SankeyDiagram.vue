@@ -15,12 +15,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { total: 'total', showChanges: 'Only show changes' },
-    de: { total: 'Insgesamt', showChanges: 'Nur Änderungen zeigen' },
-  },
-}
 
 import { defineComponent } from 'vue'
 
@@ -38,6 +32,7 @@ import Papa from '@simwrapper/papaparse'
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import i18n from '@/i18n'
 
 interface SankeyYaml {
   csv: string
@@ -155,7 +150,7 @@ const MyComponent = defineComponent({
     },
 
     processInputs() {
-      this.loadingText = 'Building node graph...'
+      this.loadingText = '' + this.$t("buildingNodeGraph")
 
       const fromNodes: any[] = []
       const toNodes: any[] = []

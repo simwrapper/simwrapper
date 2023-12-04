@@ -50,30 +50,7 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      loading: 'Loading data...',
-      sorting: 'Sorting into bins...',
-      aggregate: 'Summary',
-      maxHeight: '3D Height',
-      showDetails: 'Show Details',
-      selection: 'Selection',
-      areas: 'Areas',
-      count: 'Count',
-    },
-    de: {
-      loading: 'Dateien laden...',
-      sorting: 'Sortieren...',
-      aggregate: 'Daten',
-      maxHeight: '3-D Höhe',
-      showDetails: 'Details anzeigen',
-      selection: 'Ausgewählt',
-      areas: 'Orte',
-      count: 'Anzahl',
-    },
-  },
-}
+
 import Vue from 'vue'
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -92,6 +69,7 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import XyHexDeckMap from './XyHexLayer'
+import i18n from '@/i18n' 
 
 import {
   ColorScheme,
@@ -441,8 +419,8 @@ const MyComponent = defineComponent({
         projection,
         aggregations: {
           'Trip Summary': [
-            { title: 'Origins', x: 'start_x', y: 'start_y' },
-            { title: 'Destinations', x: 'end_x', y: 'end_y' },
+            { title: ''+ this.$t("origins"), x: 'start_x', y: 'start_y' },
+            { title: ''+ this.$t("destinations"), x: 'end_x', y: 'end_y' },
           ],
         },
         radius: this.vizDetails.radius,

@@ -13,20 +13,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      light: 'light',
-      dark: 'dark',
-      share: 'share',
-    },
-    de: {
-      light: 'hell',
-      dark: 'dark',
-      share: 'teilen',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import maplibregl from 'maplibre-gl'
@@ -39,6 +25,8 @@ import { addLocalFilesystem } from '@/fileSystemConfig'
 import LoginPanel from '@/components/LoginPanel.vue'
 
 import plugins from '@/plugins/pluginRegistry'
+
+import i18n from './i18n'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript

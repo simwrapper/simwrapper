@@ -41,31 +41,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      loading: 'Loading data...',
-      sorting: 'Sorting into bins...',
-      aggregate: 'Summary',
-      maxHeight: '3D Height',
-      showDetails: 'Show Details',
-      selection: 'Selection',
-      areas: 'Areas',
-      count: 'Count',
-      promptCRS: `Enter the coordinate reference system, e.g. EPSG:25832\n\nThese coordinates are not in long/lat format. To fix this permanently, convert them to long/lat or add "# EPSG:xxxx" to your CSV header`,
-    },
-    de: {
-      loading: 'Dateien laden...',
-      sorting: 'Sortieren...',
-      aggregate: 'Daten',
-      maxHeight: '3-D Höhe',
-      showDetails: 'Details anzeigen',
-      selection: 'Ausgewählt',
-      areas: 'Orte',
-      count: 'Anzahl',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -86,6 +61,8 @@ import EventMap from './EventDeckMap'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import MATSimEventStreamer from '@/workers/MATSimEventStreamer.worker.ts?worker'
+
+import i18n from '@/i18n'
 
 import {
   ColorScheme,
@@ -414,7 +391,7 @@ const MyComponent = defineComponent({
     },
 
     async streamEventFile(filename: string) {
-      this.myState.statusMessage = 'Loading file...'
+      this.myState.statusMessage = '' + this.$t('loading')
       let totalRows = 0
       this.range = [Infinity, -Infinity]
       this.timeRange = [Infinity, -Infinity]

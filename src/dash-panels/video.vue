@@ -6,8 +6,8 @@ figure(class="video_container")
 
     source(v-for="(src, type) in sources" :src="src" :type="type" :key="type")
 
-    p(v-for="(src, type) in sources" :key="type") Video tag not supported. Download the video&nbsp;
-      a(:href="src" target="_blank") here
+    p(v-for="(src, type) in sources" :key="type") {{$t('videoTag')}} &nbsp;
+      a(:href="src" target="_blank") {{$t("here")}}
 
 </template>
 

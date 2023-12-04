@@ -1,6 +1,6 @@
 <template lang="pug">
 .settings-panel-content
-  h4 {{ $t('showhide')}}
+  h4 {{ $t('showHide')}}
 
   .row(:key="label" v-for="label in Object.keys(items)")
     toggle-button.toggle(
@@ -14,33 +14,12 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      requests: 'DRT&nbsp;Requests',
-      passengers: 'Passengers',
-      search: 'Search',
-      showhide: 'Show/Hide',
-      vehicles: 'DRT Vehicles',
-      routes: 'Routes',
-      speed: 'Speed',
-      backgroundTraffic: 'All Traffic',
-    },
-    de: {
-      requests: 'DRT&nbsp;Anfragen',
-      passengers: 'Passagiere',
-      search: 'Suche',
-      showhide: 'Ein-/Ausblenden',
-      vehicles: 'DRT Fahrzeuge',
-      routes: 'Routen',
-      speed: 'Geschwindigkeit',
-      backgroundTraffic: 'Alle Fahrzeuge',
-    },
-  },
-}
+
 
 import { defineComponent } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
+
+import i18n from '@/i18n';
 
 export default defineComponent({
   name: 'XmasSettingsPanel',

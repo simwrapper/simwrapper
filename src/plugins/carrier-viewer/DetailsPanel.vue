@@ -49,24 +49,6 @@ collapsible-panel.right-side(v-if="isLoaded && !thumbnail" :darkMode="true" widt
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      carriers: 'Carriers',
-      vehicles: 'VEHICLES',
-      services: 'SERVICES',
-      shipments: 'SHIPMENTS',
-      tours: 'TOURS',
-    },
-    de: {
-      carriers: 'Unternehmen',
-      vehicles: 'FAHRZEUGE',
-      services: 'BETRIEBE',
-      shipments: 'LIEFERUNGEN',
-      tours: 'TOUREN',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -80,6 +62,8 @@ import PlaybackControls from '@/components/PlaybackControls.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
 
 import { ColorScheme, LIGHT_MODE, DARK_MODE } from '@/Globals'
+
+import i18n from '@/i18n'
 
 naturalSort.insensitive = true
 

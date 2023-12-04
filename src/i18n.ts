@@ -1,21 +1,82 @@
 const i18n = {
   messages: {
     en: {
+    //General
+    back: 'Go back',
+    close: 'Close panel',
 
-    //Folder Browser
-    maps: 'Maps',
-    images: 'Images',
-    analysis: 'Analysis',
-    browserDescription: "This browser can access local folders",
-    label: "Label",
-    note: "Note",
-    dragDrop: "Or Drag and Drop any dataset file:",
-    dragDropHere: "Drop files into this area.",
-    browse: "browse your files",
-    noSizeLimit: "No size limit, but large datasets could crash your browser :-)",
-    supportedFileTypes: "Supported file types:",
-    processingFiles: "Processing files",
+    no: "No",
+    yes: "Yes",
+
+    here: "here",
+
+    theme: 'Theme',
+    dark: "dark",
+    light: "light",
+
+    cancel: "Cancel",
+    settings: "Settings",
+    translate: 'Note: German translations are incomplete, but steadily improving',
+    language: 'Language',
     
+    hideInfo: "Hide Info",
+    showInfo: "Show Info",
+    showHide: "Show/Hide",
+
+    restore: "Restore",
+    enlarge: "Enlarge",
+
+    favorite: "Favorite",
+    
+    selection: "Selection",
+    select: "Select",
+    add: "Add",    
+    
+    config: "Config",
+    saveYAML: "Save YAML config",
+    screenshot: "Take screenshot",
+    export: "Export",
+    toBeAdded: "To be added",
+
+    loginRequired: "Login Required",
+    accessRequiresLogin: "access to this site requires a login.",
+    username: "Username",
+    VSPUsername: "VSP Username",
+    password: "Password",   
+
+    number: "Number",
+    trips: "Trips",
+    count: "Count",
+    areas: "Areas",
+    map: "Map",    
+
+    metrics: "Metrics",
+   
+    blank: "Blank...",
+
+    share: "share",
+    search: "Search...",    
+
+    noIssues: "No issues for this page.",
+    clearMessages: "Clear all messages.",
+
+    //Site Layout
+    topsheet: 'Topsheet',
+    splitView: "Split View",
+    dragFolder: "Drag a Folder from here to the main window area to open side-by-side.",
+    chromeEdge: "Chrome & Edge can browse folders directly:",
+    
+    pinned: "Pinned",
+    documentation: "Documentation",
+    documentationLink: "Documentation site",
+    start: "Getting started",
+    news: "News & Updates",
+    privacy: "SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.",
+    tagLine: 'The simulation browser and data visualizer from TUBerlin.',
+    fundingPartners: "Funding Partners",
+    funding: "Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies below.",
+    openSource: "SimWrapper is open source and available on",
+    moreInfo: "For more information",
 
     //Folders-Data-Files
     files: 'Files',
@@ -34,73 +95,6 @@ const i18n = {
     addDataURL: "Add Data URL",
 
     datset: "Dataset",
-    
-
-    //General
-    back: 'Go back',
-    close: 'Close panel',
-
-    no: "No",
-    yes: "Yes",
-
-    theme: 'Theme',
-    dark: "dark",
-    light: "light",
-
-    cancel: "Cancel",
-    settings: "Settings",
-    translate: 'Note: German translations are incomplete, but steadily improving',
-    language: 'Language',
-    
-    hideInfo: "Hide Info",
-    showInfo: "Show Info",
-
-    restore: "Restore",
-    enlarge: "Enlarge",
-
-    favorite: "Favorite",
-     
-    noIssues: "No issues for this page.",
-    clearMessages: "Clear all messages.",
-
-    loading: "Loading...",
-    select: "Select",
-    add: "Add",
-
-    config: "Config",
-    saveYAML: "Save YAML config",
-    screenshot: "Take screenshot",
-    export: "Export",
-    toBeAdded: "To be added",
-
-    pleaseWait: "Please wait...",
-
-    number: "Number",
-
-    loginRequired: "Login Required",
-    accessRequiresLogin: "access to this site requires a login.",
-    username: "Username",
-    VSPUsername: "VSP Username",
-    password: "Password",
-
-    //Site Layout
-    topsheet: 'Topsheet',
-    splitView: "Split View",
-    dragFolder: "Drag a Folder from here to the main window area to open side-by-side.",
-    chromeEdge: "Chrome & Edge can browse folders directly:",
-
-    
-    pinned: "Pinned",
-    documentation: "Documentation",
-    documentationLink: "Documentation site",
-    start: "Getting started",
-    news: "News & Updates",
-    privacy: "SimWrapper is a client-side app, which means there is no upstream server collecting or storing data.\n\nSimWrapper does not collect, handle or process any data about you while you use the site. SimWrapper does not contain any tracking devices or analytics software. No user cookies are stored or transmitted.",
-    tagLine: 'The simulation browser and data visualizer from TUBerlin.',
-    fundingPartners: "Funding Partners",
-    funding: "Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies below.",
-    openSource: "SimWrapper is open source and available on",
-    moreInfo: "For more information",
 
     //Chart/Map Layout
     legend: 'Legend:',
@@ -118,6 +112,9 @@ const i18n = {
     in: "Zoom in",
     out: "Zoom out",
     center: "North",
+    maxHeight: "3D Height",
+    showChanges: "Only show changes",
+    chart: "chart",
 
     //Colors
     display: "Display",
@@ -133,11 +130,91 @@ const i18n = {
     column: "Column",
     reverse: "Reverse",
     scaling: "Scaling",
-
+    colors: "Colors", 
+    
     //Filters
     activeFilters: "Active Filters",
     addFilter: "Add New Filter",
+
+    //Folder Browser
+    maps: 'Maps',
+    images: 'Images',
+    analysis: 'Analysis',
+    browserDescription: "This browser can access local folders",
+    label: "Label",
+    note: "Note",
+    dragDrop: "Or Drag and Drop any dataset file:",
+    dragDropHere: "Drop files into this area.",
+    browse: "browse your files",
+    noSizeLimit: "No size limit, but large datasets could crash your browser :-)",
+    supportedFileTypes: "Supported file types:",
+    processingFiles: "Processing files",
     
+    //Video
+    videoTag: "Video tag not supported. Download the video",
+
+    //PlugIns
+    drtVehicles: "DRT Vehicles",
+    agentAnimation: "Agent Animation",
+    aggregateOD: "Aggregate OD",
+    table: "Table",
+
+    //CarrierViewer
+    carriers: 'Carriers',
+    vehicles: 'VEHICLES',
+    services: 'SERVICES',
+    shipments: 'SHIPMENTS',
+    tours: 'TOURS',
+    pickup: 'Pickup',
+    delivery: 'Delivery',
+    flatten: 'Simple&nbsp;tours',
+    shipmentDots: 'Show shipments',
+    scaleSize: 'Widths',
+    scaleFactor: 'Width',
+
+    //Flow Map
+    animation: "Animation",
+    labels: "Labels",
+    clustering: "Clustering",
+
+    //Links
+    data: "Daten:",
+    bandwidths: 'Linienbreiten: 1 pixel =:',
+    timeOfDay: 'Time of Day',
+    selectColumn:"Select data column",
+    showDiffs: "Differences",
+    all: "all",
+    networkLinks: "Network Links",
+
+    //ModalJoinColumnPicker
+    joinDatasets: "join Datasets",
+    selectJoinColumn: "Select columns containing matching IDs",
+
+    //ModalIDColumnPicker
+    selectIDColumn: "Select column containing IDs",
+    uniqueID: "Which property contains the unique ID for each feature?",
+
+    //Modal Dialog Custom Color Breakpoint
+    customBreakpoints: "Custom Breakpoints",
+
+    //Event messages
+    loading: "Loading...",
+    loadingNetwork: "Loading Network...",
+    calculatingCoords: "Calculating Coordinates...",
+    loadingCSV: "Loading CSV files...",
+    creatingDiagram: "Creating diagram...",
+    sorting: "Sorting...",
+    loadingDatasets: "Loading Datasets...",
+    analyzing: "Analyzing...",
+    loadingConfig: "Loading Configuration...",
+    buildingNodeGraph: "Building node graph...",
+    loadingFeatures: "Loading features...",
+    calculatingCentroids: "Calculating centroids...",
+    loadingShape: "Loading shape file...",
+    generateShape: "Generating shape ...",
+    projectCoords: "Projecting Coordinates...",
+    buildingChart: "Building chart...",
+    pleaseWait: "Please wait...",
 
     //Errors
     ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
@@ -147,43 +224,14 @@ const i18n = {
 
   },
     de: {
-    //Folder Browser
-    maps: 'Karten',
-    images: 'Bilder',
-    analysis: 'Ergebnisse',
-    browserDescription: "Mit diesem Browser können lokale Dateien geladen werden",
-    label: "Bezeichnung",
-    note: "Anmerkung",
-    dragDrop: "Oder eine Datei hier hinziehen:",
-    dragDropHere: "Hier Datei hinziehen",
-    browse: "Dateien durchsuchen",
-    noSizeLimit:"Keine Größenbeschränkung, aber große Dateien können zu Browserabstürzen führen :-)",
-    supportedFileTypes: "Unterstützte Dateitypen:",
-    processingFiles: "Dateien werden verarbeitet",
-
-    //Folders-Data-Files
-    files: 'Dateien',
-    selectFile: "Datei auswählen...",
-
-    folders: 'Ordner',
-    localFolder: "Lokaler Ordner",
-    localFolders: "Lokale Ordner",
-    openFolder: "Ordner öffnen...",
-    addFolder:"Lokaler Ordner hinzufügen",
-    
-    dataSources: "Datenquellen",
-    addData: "Datenquelle hinzufügen...",    
-    browseSources: "Datenquellen durchsuchen...",
-    editSources: "Datenquellen bearbeiten...",
-    addDataURL: "URL zu Datenquelle hinzufügen",
-    
-
     //General
     back: 'Zurück',
     close: 'Schließen',
 
     no: "Nein",
     yes: "Ja",
+
+    here: "hier",
 
     theme: 'Design',
     dark: "dunkel",
@@ -196,16 +244,14 @@ const i18n = {
 
     hideInfo: "weniger Info",
     showInfo: "mehr Info",
+    showHide: "Ein-/Ausklappen",
 
     restore: "Verkleinern",
     enlarge: "Vergrößern",
 
     favorite: "Favorit",
-
-    noIssues: "Keine Probleme auf dieser Seite.",
-    clearMessages: "Alle Benachrichtigungen entfernen.",
-
-    loading: "Laden...",
+    
+    selection: "Auswahl",
     select: "Auswählen",
     add: "Hinzufügen",
 
@@ -213,16 +259,30 @@ const i18n = {
     saveYAML: "YAML Konfiguration speichern",
     screenshot: "Screenshot speichern",
     export: "Exportieren",
-    toBeAdded: "Wird hinzugefügt",
-
-    pleaseWait: "Bitte warten...",
-    number: "Zahl",
+    toBeAdded: "Wird hinzugefügt",    
 
     loginRequired: "Anmeldung erforderlich",
     accessRequiresLogin: "Zugang zu dieser Seite nur für angemeldete Nutzer",
     username: "Benutzername",
     VSPUsername: "VSP Benutzername",
     password: "Passwort",
+    
+    number: "Zahl",
+    trips: "Fahrten",
+    count: "Anzahl",
+    areas: "Orte",
+    map: "Karte",    
+
+    metrics: "Metrics",
+
+    blank: "Leer...",
+
+    share: "teilen",
+    search: "Suche...",
+
+    noIssues: "Keine Probleme auf dieser Seite.",
+    clearMessages: "Alle Benachrichtigungen entfernen.",
+
 
     //Site Layout
 
@@ -243,6 +303,23 @@ const i18n = {
     openSource: "SimWrapper ist Open Source und downloadbar von",
     moreInfo: 'Für weitere Informationen:',   
 
+    //Folders-Data-Files
+    files: 'Dateien',
+    selectFile: "Datei auswählen...",
+
+    folders: 'Ordner',
+    localFolder: "Lokaler Ordner",
+    localFolders: "Lokale Ordner",
+    openFolder: "Ordner öffnen...",
+    addFolder:"Lokaler Ordner hinzufügen",
+    
+    dataSources: "Datenquellen",
+    addData: "Datenquelle hinzufügen...",    
+    browseSources: "Datenquellen durchsuchen...",
+    editSources: "Datenquellen bearbeiten...",
+    addDataURL: "URL zu Datenquelle hinzufügen",   
+    
+    datset: "Datensatz",
 
     //Chart/Map Layout
     legend: 'Legende:',
@@ -260,7 +337,10 @@ const i18n = {
     in: "Vergrößern",
     out: "Verkleinern",
     center: "Norden",
-
+    maxHeight: "3D-Höhe",
+    showChanges: "Nur Änderungen zeigen",
+    chart: "Diagramm",
+    
     //Colors
     display: "Darstellung",
     singleColor: "Einfarbig",
@@ -275,14 +355,96 @@ const i18n = {
     column: "Spalte",
     reverse: "Umkehren",
     scaling: "Skalieren",
+    colors: "Farben",
 
     //Filters
     activeFilters: "Aktive Filter",
     addFilter: "Neuer Filter hinzufügen",
 
+    //Folder Browser
+    maps: 'Karten',
+    images: 'Bilder',
+    analysis: 'Ergebnisse',
+    browserDescription: "Mit diesem Browser können lokale Dateien geladen werden",
+    label: "Bezeichnung",
+    note: "Anmerkung",
+    dragDrop: "Oder eine Datei hier hinziehen:",
+    dragDropHere: "Hier Datei hinziehen",
+    browse: "Dateien durchsuchen",
+    noSizeLimit:"Keine Größenbeschränkung, aber große Dateien können zu Browserabstürzen führen :-)",
+    supportedFileTypes: "Unterstützte Dateitypen:",
+    processingFiles: "Dateien werden verarbeitet",    
+
+    //Video
+    videoTag: "Video-Tag nicht untersützt. Lade das Video runter:",
+
+    //PlugIns
+    drtVehicles: "DRT Fahrzeuge",
+    agentAnimation: "Agentenanimation",
+    aggregateOD: "Quelle-Ziel-Aggregation",
+    table: "Tabelle",
+    
+    //Carrier Viewer
+    carriers: 'Unternehmen',
+    vehicles: 'FAHRZEUGE',
+    services: 'BETRIEBE',
+    shipments: 'LIEFERUNGEN',
+    tours: 'TOUREN',
+    pickup: 'Abholung',
+    delivery: 'Lieferung',
+    flatten: 'Einfache&nbsp;Touren',
+    shipmentDots: 'Zeige Lieferungen',
+    scaleSize: 'Linienstärke',
+    scaleFactor: 'Skalierung',
+
+    //Flow Map
+    animation: "Animation",
+    labels: "Beschriftungen",
+    clustering: "Clustern",
+
+    //Links
+    data: "Daten:",
+    bandwidths: 'Linienbreiten: 1 pixel =:',
+    timeOfDay: 'Uhrzeit',
+    selectColumn:"Datenspalte wählen",
+    showDiffs: "Differenzen",
+    all: "alle",
+    networkLinks: "Netzwerkkanten",
+
+    //ModalJoinColumnPicker
+    joinDatasets: "Datensätze verknüpfen",
+    selectJoinColumn: "Wähle die Spalten mit den übereinstimmenden IDs",
+
+    //ModalIDColumnPicker
+    selectIDColumn: "Spalte mit IDs auswählen",
+    uniqueID: "Welches Attribut enthält einmalige IDs? Which property contains the unique ID for each feature?",
+
+    //Modal Dialog Custom Color Breakpoint
+    customBreakpoints: "benutzerdefinierte Unterbrechungen",
+
+    //Event Messages
+    loading: "Laden...",
+    loadingNetwork: "Verkehrsnetz bauarbeiten...",
+    calculatingCoords: "Koordinaten berechnen...",
+    loadingCSV: "CSV Daten laden...",
+    creatingDiagram: "Diagramm erstellen...",
+    sorting: "Sortieren...",
+    loadingDatasets: "Datensätze laden...",
+    analyzing: "Analysieren...",
+    loadingConfig: "Konfiguration laden...",
+    buildingNodeGraph: "Knotenpunktnetz wird erstellt...",
+    loadingFeatures: "Elemente laden...",
+    calculatingCentroids: "Zentroiden berechnen...",
+    loadingShape: "Shape laden...",
+    generateShape: "Shape berechnen...",
+    projectCoords: "Koordinaten projizieren...",
+    buildingChart: "Diagramm erstellen...",
+    pleaseWait: "Bitte warten...",
+    
     //Errors
     ambiguousDiff: 'Ambiguous diff, use " - " to separate terms',
     filterNotFound: "Filter key is not 'dataset.column'",
+    promptCRS: 'Koordinatensystem, z.B. EPSG: 25832?\n\n Diese Koordinaten haben keine Längen/Breitengrade, entweder zu einem anderen System konvertieren oder in der Kopfzeile "# EPSG:xxxx" hinzufügen'
   
   
   },

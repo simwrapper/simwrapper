@@ -14,6 +14,7 @@ import YAML from 'yaml'
 
 import util from '@/js/util'
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status } from '@/Globals'
 
@@ -21,6 +22,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const MyComponent = defineComponent({
   name: 'MyComponent',
+  i18n,
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },

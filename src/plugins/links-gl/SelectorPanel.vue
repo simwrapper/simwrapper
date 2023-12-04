@@ -14,7 +14,7 @@
 
   //- Column picker  -- if no slider
   .panel-item(v-if="!vizDetails.useSlider")
-    p: b {{ $t('selectColumn') }}
+    p: b {{ $t('data') }}
 
     .dropdown.is-up.full-width(:class="{'is-active': isButtonActive}")
       .dropdown-trigger
@@ -33,24 +33,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      selectColumn: 'Data:',
-      loading: 'Loading...',
-      bandwidths: 'Widths: 1 pixel =:',
-      timeOfDay: '',
-      colors: 'Colors',
-    },
-    de: {
-      selectColumn: 'Datenmengen:',
-      loading: 'Laden...',
-      bandwidths: 'Linienbreiten: 1 pixel =:',
-      timeOfDay: '',
-      colors: 'Farben',
-    },
-  },
-}
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -60,6 +42,7 @@ import { debounce } from 'debounce'
 import globalStore from '@/store'
 import TimeSlider from './TimeSlider.vue'
 import { ColorScheme, DataTable, DataType, LookupDataset } from '@/Globals'
+import i18n from '@/i18n'
 
 export default defineComponent({
   name: 'SelectorPanel',

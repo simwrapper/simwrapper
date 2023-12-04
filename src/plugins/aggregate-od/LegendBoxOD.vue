@@ -8,13 +8,9 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { linewidth: 'Line widths:', legend: 'Legend:' },
-    de: { linewidth: 'Linienbreite:', legend: 'Legende:' },
-  },
-}
+
 import { defineComponent } from 'vue'
+import i18n from '@/i18n';
 
 export default defineComponent({
   name: 'LegendBoxOD',

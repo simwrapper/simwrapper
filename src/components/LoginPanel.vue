@@ -37,9 +37,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 export default defineComponent({
   name: 'LoginPanel',
+  i18n,
   data: () => {
     const projects = globalStore.state.svnProjects
 

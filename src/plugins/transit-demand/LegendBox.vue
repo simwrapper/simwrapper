@@ -1,6 +1,6 @@
 <template lang="pug">
 .legend-container
-  p.control-label Legend
+  p.control-label {{ $t('legend') }}
   .legend-item(v-for="item in rows" :key="item[0]")
     .legend-col-1(:style="{'background-color': item[0]}")
     span.legend-col-2 {{ item[1] }}
@@ -8,9 +8,11 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import i18n from '@/i18n';
 
 export default defineComponent({
   name: 'LegendBox',
+  i18n,
   props: {
     rows: { type: Array, required: true },
   },

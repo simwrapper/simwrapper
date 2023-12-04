@@ -7,14 +7,9 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: { linewidth: 'Line widths:', legend: 'Legend:', trips: 'trips' },
-    de: { linewidth: 'Linienbreite:', legend: 'Legende:', trips: 'Fahrten' },
-  },
-}
 
 import { defineComponent } from 'vue'
+import i18n from '@/i18n';
 
 export default defineComponent({
   name: 'LineFilterSlider',

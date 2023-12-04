@@ -36,6 +36,7 @@ import YAML from 'yaml'
 
 import util from '@/js/util'
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 import { ColorScheme, FileSystemConfig, VisualizationPlugin, Status, YamlConfigs } from '@/Globals'
 
@@ -98,7 +99,7 @@ const Component = defineComponent({
       } catch (e) {
         console.error('failed')
       }
-      const t = this.vizDetails.title ? this.vizDetails.title : 'Table'
+      const t = this.vizDetails.title ? this.vizDetails.title : this.$t('table')
       this.$emit('title', t)
     },
   },

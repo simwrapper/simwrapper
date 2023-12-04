@@ -51,25 +51,7 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      legend: 'Legend:',
-      lineWidth: 'Line width:',
-      lineWidths: 'Line widths',
-      hide: 'Hide smaller than',
-      time: 'Time of Day',
-      duration: 'Duration',
-      circle: 'Centroids',
-      showCentroids: 'Show centroids',
-      showNumbers: 'Show totals',
-      total: 'Totals for',
-      origins: 'Origins',
-      dest: 'Destinations',
-    },
-    de: {},
-  },
-}
+
 
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
@@ -99,6 +81,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import CSVWorker from './AggregateDatasetStreamer.worker.ts?worker'
 
 import globalStore from '@/store'
+import i18n from '@/i18n'
 
 interface AggOdYaml {
   shpFile: string
@@ -370,7 +353,7 @@ const Component = defineComponent({
     setVizDetails() {
       this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
 
-      const t = this.vizDetails.title ? this.vizDetails.title : 'Aggregate OD'
+      const t = this.vizDetails.title ? this.vizDetails.title : this.$t('aggregateOD')
       this.$emit('title', t)
     },
 
@@ -393,7 +376,7 @@ const Component = defineComponent({
 
     async loadFiles() {
       try {
-        this.loadingText = 'Dateien laden...'
+        this.loadingText = '' + this.$t('loading')
 
         const shpFilename = await this.findFilenameFromWildcard(
           `${this.myState.subfolder}/${this.vizDetails.shpFile}`
@@ -928,14 +911,13 @@ const Component = defineComponent({
     },
 
     async processShapefile(files: any) {
-      this.loadingText = 'Verkehrsnetz bauarbeiten...'
+      this.loadingText = '' + this.$t('loadingNetwork')
       const geojson = await shapefile.read(files.shpFile, files.dbfFile)
 
       // if we have lots of features, then we should filter the LINES for performance
       if (geojson.features.length > 150) this.lineFilter = 10
 
-      this.loadingText = 'Koordinaten berechnen...'
-
+      this.loadingText = '' + this.$t('calculatingCoords')
       for (const feature of geojson.features) {
         const properties = feature.properties as any
 
@@ -1046,7 +1028,7 @@ const Component = defineComponent({
     },
 
     async loadCSVData() {
-      this.loadingText = 'Load CSV data...'
+      this.loadingText = '' + this.$t('loadingCSV')
 
       let csvFilename = ''
       try {
@@ -1085,7 +1067,7 @@ const Component = defineComponent({
 
     async finishedLoadingData(message: any) {
       console.log(222, 'done') // message)
-      this.loadingText = 'Building diagram...'
+      this.loadingText = '' + this.$t('creatingDiagram')
       this.isFinishedLoading = true
       await this.$nextTick()
       this.rowName = message.rowName

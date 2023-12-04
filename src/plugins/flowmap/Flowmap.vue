@@ -21,17 +21,17 @@
         b-checkbox.hello(
               v-model="vizDetails.animationEnabled"
             )
-        p Animation
+        p {{$t('animation')}}
 
         b-checkbox.hello(
               v-model="vizDetails.locationLabelsEnabled"
             )
-        p Labels
+        p {{$t('labels')}}
 
         b-checkbox.hello(
               v-model="vizDetails.clustering"
             )
-        p Clustering
+        p {{$t('clustering')}}
 
 </template>
 
@@ -50,6 +50,8 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
+
+import i18n from '@/i18n'
 
 const MyComponent = defineComponent({
   name: 'FlowMap',
@@ -110,7 +112,7 @@ const MyComponent = defineComponent({
       centroids: [] as any[],
       flows: [] as any[],
       viewId: Math.floor(1e12 * Math.random()),
-      statusText: 'Loading...',
+      statusText: this.$t('loading'),
       needsInitialMapExtent: true,
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
