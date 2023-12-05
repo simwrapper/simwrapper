@@ -1043,7 +1043,7 @@ const CarrierPlugin = defineComponent({
           // fetch list of files in this folder
           const { files } = await this.fileApi.getDirectory(zSubfolder)
           const matchingFiles = findMatchingGlobInFiles(files, zDataset)
-          if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+          if (matchingFiles.length == 0) throw Error (this.$t("noFilesMatched")+ ` "${zDataset}"`)
           if (matchingFiles.length > 1)
             throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
           filepath = `${zSubfolder}/${matchingFiles[0]}`

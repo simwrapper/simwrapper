@@ -156,7 +156,7 @@ export default defineComponent({
     setInitialClockTime() {
       // set specified time, if we got one
       const secondsParam = '' + this.$route.query.start
-      if (secondsParam && parseInt(secondsParam) != NaN) {
+      if (secondsParam && Number.isFinite (parseInt(secondsParam))) {
         const seconds = parseInt(secondsParam)
         // if (seconds >= 0 || seconds < 86400) {
         if (seconds >= 0) {
