@@ -89,6 +89,7 @@ export default defineComponent({
       if (event.altKey && event.shiftKey && event.keyCode === 81) {
         console.log('QUICKVIEW')
         this.$store.commit('toggleShowLeftBar')
+        this.$store.commit('setShowLeftStrip', true)
         this.$store.commit('resize')
       }
       // shift-alt-W: wide screen mode
@@ -171,7 +172,8 @@ export default defineComponent({
       : ColorScheme.LightMode
 
     if (theme === ColorScheme.LightMode) this.$store.commit('rotateColors')
-    document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
+
+    // document.body.style.backgroundColor = theme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
 
     this.toggleFullScreen(true)
     this.setOnlineOrOfflineMode()
@@ -334,7 +336,7 @@ h4 {
 #main-app {
   display: grid;
   color: var(--text);
-  background-color: var(--bgPanel2);
+  // background-color: yellow; // var(--bgPanel2);
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;
@@ -627,7 +629,7 @@ p.splash-label {
 
 /* Track */
 ::-webkit-scrollbar-track {
-  background: #00000000;
+  background: #00000080;
 }
 
 /* Handle */
@@ -637,7 +639,7 @@ p.splash-label {
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #888888aa;
+  background: #ffffff40;
 }
 
 .deck-tooltip {

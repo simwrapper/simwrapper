@@ -153,7 +153,7 @@ export default defineComponent({
       for (const key of Object.keys(filterConfig)) {
         const [dataset, column] = key.split('.')
         if (column == undefined) {
-          this.$store.commit('error', `Filter key is not "dataset.column": ${key}`)
+          this.$emit('error', `Filter key is not "dataset.column": ${key}`)
           continue
         }
 

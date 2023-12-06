@@ -1,65 +1,159 @@
 <template lang="pug">
 .splash-page
-  .scrolly
-    .thing-area
-      .top-area
-        .simwrapper-logo
-          img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
-          img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
+ .centered
+  .splash-scroll-area.white-text
 
-        //- h2.splash-readme(style="text-align: center; margin: -0.5rem auto 0 auto" v-html="$t('tagLine')")
+    .diagonal.top-logo-area.middle-area
+      .content
 
-        //- h2: b {{ $t('more-info') }}
-        //- info-bottom.splash-readme
+        .top-banner.flex-row
+          .flex1
+            img.simwrapper-logo(src="@/assets/simwrapper-logo/SW_logo_white.png")
+            //- img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
+            //- img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
 
-      .middle-area
-        .is-chrome(v-if="isChrome")
-          h3 Local Folders
+        .tagline The transport simulation data visualizer from TU Berlin.
 
-          p(v-if="!localFileHandles.length") Chrome &amp; Edge can browse folders directly:
+    //- DATA SOURCES -------------------------------------------------------------------
+    .diagonal.data-area
+      .content
+
+        h2.section-head Explore Data Sources
+        p
+          | Configure more data sources from the&nbsp;
+          a(@click="openDataStrip()") data
+          | &nbsp;tab on the left-side strip.
+
+        .roots
+          .project-root(v-for="project in mainRoots" :key="project.slug"
+            @click="clickedOnFolder({root: project.slug})"
+          )
+            h5 {{ project.name }}
+            p {{ project.description }}
+
+        .section-head.is-chrome(v-if="isChrome")
+          h2 Local Folders
+
+          p(v-if="!localFileHandles.length") This Chromium-based browser can access local folders that you authorize on a per-folder basis. To explore files on your local filesystem right now:
 
           .roots
-            .project-root.local(v-for="row in localFileHandles" :key="row.key"
+            .project-root.local.mb1(v-for="row in localFileHandles" :key="row.key"
               @click="clickedBrowseChromeLocalFolder(row)")
 
               h5.remove-local(style="flex: 1;") {{ row.handle.name}}
                 i.fa.fa-times(@click.stop="clickedDelete(row)")
               p Local folder
 
-          p.config-sources: a(@click="showChromeDirectory") Add local folder...
+          b-button.config-sources(
+            type="is-success"
+            @click="showChromeDirectory"
+          ) Open local folder...
 
-        h3(style="margin-top: 1rem") Browse Data Sources
+
+    //- WHAT IS SIMWRAPPER  ------------------------------------------------------
+
+    .diagonal.newbie-area.white-text
+      .content
+
+        h2.section-head.mb1 What is SimWrapper?
+
+        img.screenshot(:src="screenshots.berlin")
+
+        p
+          | SimWrapper is a unique, web-based data visualization tool for researchers building disaggregate transportation simulations with software such as&nbsp;
+          a(href="https://matsim.org") MATSim
+          | &nbsp;and&nbsp;
+          a(href="https://activitysim.github.io") ActivitySim.
+
+        p Explore simulation results directly, or create interactive project dashboards with Simwrapper. It provides many statistical views and chart types, just like other visualization frameworks. But SimWrapper also knows a lot about transportation, and has good defaults for producing visualizations of network link volumes, agent movements through time, aggregate area maps, scenario comparison, and a lot more.
+
+        p You don't need to be a coder to use SimWrapper -- you point it at your files and write some small text configuration files to tell SimWrapper what to do. SimWrapper does the rest!
+
+        p If you do know JavaScript, the open-source code and plugin architecture of SimWrapper allows you to fork the project and create your own visualizations, too. But you don't need to know JavaScript if SimWrapper already does what you need.
+
+        p
+          | SimWrapper is a
+          b &nbsp;100% client-side&nbsp;
+          | browser application. There is no back-end database, no tracking cookies, and no data is transferred from your browser to any server; everything on your computer stays on your local computer.
+
+
+    //- GETTING STARTED ------------------------------------------------------
+
+    .diagonal.data-area.white-text
+      .content
+
+        h2.section-head.mb1 Getting started with SimWrapper
+
+        h4.mb1 Tutorials and Documentation
+
+        p SimWrapper is not like other websites. Please read the docs! The main SimWrapper documentation has everything you need to get started.
+
+        b-button.config-sources(
+            type="is-warning"
+            @click="showDocumentation"
+        ) Go to Documentation...
+
+
+        h4.pt1 Example dashboards
+
+        p Explore these example dashboards to get a feeling for what SimWrapper can do:
 
         .roots
-          .project-root(v-for="project in allRoots" :key="project.slug"
+          .project-root.example-root(v-for="project in exampleRoots" :key="project.slug"
             @click="clickedOnFolder({root: project.slug})"
           )
             h5 {{ project.name }}
             p {{ project.description }}
 
-        p.config-sources: a(@click="configureSources") Edit data sources...
+        .chrome-section(v-if="isChrome")
+          h4.pt1 Local files on this computer
+
+          p(v-if="isChrome")
+            | This is a Chromium-based browser. You can start exploring files on your own computer right now (
+            a(href="https://simwrapper.github.io/docs/#how-simwrapper-works") see docs&nbsp;
+            | for file management details):
+
+          b-button.config-sources(
+            type="is-success"
+            @click="showChromeDirectory"
+          ) Open local folder...
 
 
-        p.funding Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies.
+    //- SPONSORS -------------------------------------------------------------------
 
-        .legal
-          p SimWrapper is open source and available on&nbsp;
-            a(href="https://github.com/simwrapper/simwrapper") GitHub.
+    .diagonal.sponsors-area.dark-text
+      .content
 
-        .legal
-          p
+        h2.section-head Funding partners
+
+        .links-and-logos
+          .logos: a(v-for="logo in allLogos"
+                    :href="logo.url"
+                    :title="logo.name"
+                    target="_blank"
+                  ): img.img-logo(:src="logo.image")
+
+        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies above.
+
+
+    //- FOOTER -------------------------------------------------------------------
+
+    .diagonal.footer-area.white-text
+      .content
+
+
+        .flex-row
+          .legal.flex1
+            h4.section-head SimWrapper, © 2024 Technische Universität Berlin
+            p SimWrapper is open source and available on&nbsp;
+              a(href="https://github.com/simwrapper/simwrapper") GitHub.
+            p
               a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;TU&nbsp;Berlin
               a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
               a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
 
-    .links-and-logos
-      .logos
-        a(v-for="logo in allLogos"
-          :href="logo.url"
-          :title="logo.name"
-          target="_blank"
-        )
-          img.img-logo(:src="logo.image")
+          .badges
+            a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
 
 
 </template>
@@ -92,22 +186,24 @@ import InfoBottom from '@/assets/info-bottom.md'
 import { FileSystemConfig } from '@/Globals'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
+import SCREENSHOT_BERLIN from '@/assets/screenshots/berlin.jpg'
+
 const BASE_URL = import.meta.env.BASE_URL
 
 const logos = [
+  { url: 'https://tu.berlin', image: 'tu-logo.png', name: 'TU Berlin' },
   { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
   { url: 'https://matsim.org/', image: 'matsim-logo-blue.png', name: 'MATSim' },
-  { url: 'https://tu.berlin', image: 'tu-logo.png', name: 'TU Berlin' },
   { url: 'https://bmbf.de', image: 'bmbf-logo.png', name: 'German Federal BMBF' },
-  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
   { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
+  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
   { url: 'http://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
   { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
-  { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
   { url: 'https://www.mwcog.org/', image: 'mwcog.png', name: 'MWCOG' },
   { url: 'https://www.oregon.gov/ODOT', image: 'oregondot.png', name: 'Oregon DOT' },
-  { url: 'https://atlantaregional.org/', image: 'arc.png', name: 'ARC' },
   { url: 'https://www.transportation.ohio.gov/', image: 'ohiodot.png', name: 'Ohio DOT' },
+  { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
+  { url: 'https://atlantaregional.org/', image: 'arc.png', name: 'ARC' },
   { url: 'http://semcog.org/', image: 'semcog.jpg', name: 'SEMCOG' },
 ]
 
@@ -119,6 +215,9 @@ export default defineComponent({
     return {
       state: globalStore.state,
       allRoots: [] as FileSystemConfig[],
+      screenshots: {
+        berlin: SCREENSHOT_BERLIN,
+      },
     }
   },
   computed: {
@@ -126,6 +225,14 @@ export default defineComponent({
       return logos.map(p => {
         return { url: p.url, image: `${BASE_URL}images/logos/${p.image}` }
       })
+    },
+
+    exampleRoots(): FileSystemConfig[] {
+      return this.allRoots.filter(f => f.example)
+    },
+
+    mainRoots(): FileSystemConfig[] {
+      return this.allRoots.filter(f => !!!f.example)
     },
 
     isChrome() {
@@ -144,7 +251,13 @@ export default defineComponent({
   methods: {
     onNavigate(event: any) {
       // pass it on up
+      console.log('ZZLDIJFSD', event)
       this.$emit('navigate', event)
+    },
+
+    showDocumentation() {
+      console.log('here')
+      window.location.href = 'https://simwrapper.github.io/docs'
     },
 
     updateShortcuts() {
@@ -165,7 +278,13 @@ export default defineComponent({
       let destination = `${root}`
       if (folder) destination += `/${folder}`
 
-      this.$router.push(destination)
+      this.$emit('navigate', {
+        component: 'TabbedDashboardView',
+        props: {
+          root,
+          xsubfolder: '',
+        },
+      })
     },
 
     async clickedBrowseChromeLocalFolder(row: { key: string; handle: any }) {
@@ -206,6 +325,11 @@ export default defineComponent({
       await set('fs', filtered)
       this.$store.commit('setLocalFileSystem', filtered)
     },
+
+    openDataStrip() {
+      this.$store.commit('setShowLeftStrip', true)
+      this.$store.commit('setShowLeftBar', true)
+    },
   },
   mounted() {
     // set initial breadcrumbs if we don't have any yet
@@ -213,9 +337,6 @@ export default defineComponent({
       const crumbs = [{ label: 'SimWrapper', url: '/' }]
       globalStore.commit('setBreadCrumbs', crumbs)
     }
-
-    // always start with nav bar when loading splashpage
-    // globalStore.commit('setShowLeftBar', true)
 
     this.updateShortcuts()
   },
@@ -225,88 +346,136 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.splash-page {
-  background-color: var(--bgSplash);
-}
+$angle: 1.25deg;
 
-.scrolly {
-  background-color: white;
+.splash-page {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  display: grid;
-  grid-template-columns: 1fr auto;
+  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
+}
+
+.centered {
+  height: 100%;
   overflow-y: auto;
 }
 
-.thing-area {
-  background-color: var(--bgSplash);
-  flex: 1;
+.splash-scroll-area {
+  display: flex;
+  flex-direction: column;
+  max-width: 100rem;
+  margin: 0 auto;
 }
 
-.top-area {
-  margin: 2rem 3rem;
-}
-
-.middle-area {
-  padding: 1.5rem 3rem 1rem 3rem;
-  font-size: 0.9rem;
-  color: var(--textFancy);
-}
-
-a {
-  color: #00499c;
-}
-
-.splash-readme {
-  color: var(--textFancy);
-}
-
-.simwrapper-logo {
-  max-width: 275px;
+.content {
+  transform: skewY($angle);
+  margin-bottom: 2rem;
+  // max-width: 90rem;
   // margin: 0 auto;
 }
 
-.logos {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fill, 6.5rem);
-  padding: 1rem 0rem;
-  margin: 0 auto;
-  a {
-    margin-top: auto;
+.diagonal {
+  transform: skewY(-$angle);
+  padding: 3rem 2rem 0.5rem 2rem;
+}
+
+.top-logo-area {
+  // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
+  margin-top: -2rem;
+  padding-bottom: 1rem;
+}
+
+.sponsors-area {
+  background-color: white;
+  // background-image: linear-gradient(45deg, #edf2fd, #f4effd, #ebf6fa);
+  margin-bottom: 1rem;
+  padding-bottom: 2rem;
+  color: #333;
+}
+
+h2 {
+  font-size: 1.9rem;
+  margin-bottom: 1px;
+}
+
+h4 {
+  padding: 1rem 0 0 0;
+}
+
+.data-area {
+  // background-color: #222a35;
+  background-image: linear-gradient(45deg, rgb(44, 39, 68), #1c242f, #283f42);
+  padding-bottom: 2rem;
+}
+
+.white-text {
+  color: #eee;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #eee;
   }
 }
 
+.dark-text {
+  color: #335;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #335;
+  }
+}
+
+// .footer-area {
+// }
+
+// hello --------------------------
+
+a {
+  color: #65d68f;
+}
+
+a:hover {
+  color: #a8ffc8;
+}
+
+.simwrapper-logo {
+  max-width: 250px;
+  margin-top: 0.75rem;
+}
+
+.vsp-logo {
+  max-width: 300px;
+  margin-top: 0.5rem;
+  margin-bottom: 0rem;
+}
+
 .links-and-logos {
-  padding: 0.5rem 0;
-  width: 9rem;
+  margin-top: 0.5rem;
+  padding: 1rem 0rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   color: #227;
-  background-color: #fff;
+  background-color: white;
+  max-width: 60rem;
 }
+.logos {
+  display: grid;
+  gap: 3rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 2rem 0rem;
 
-.words {
-  line-height: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  margin: auto 0;
-  padding: 0 5rem;
-  text-align: center;
-  font-size: 1rem;
-}
-
-.words a {
-  color: var(--link);
-}
-
-hr {
-  height: 1px;
-  background-color: var(--bgBrowser);
-  margin: 0.75rem 0;
+  a {
+    margin: 0 auto;
+  }
 }
 
 h2.splash-readme {
@@ -318,27 +487,26 @@ h2.splash-readme {
 
 .funding {
   font-size: 0.9rem;
-  margin: 3rem 0 0.5rem 0;
+  margin: 0.5rem 0 0.5rem 0;
 }
 
 .legal {
   // padding: 0rem 2rem 0rem 2rem;
-  display: flex;
+  // display: flex;
   p {
-    margin: 0rem 0 0 0;
-    font-size: 0.9rem;
+    margin: 0 0;
   }
   a {
     margin-right: 0.75rem;
-    color: var(--link);
   }
   a:hover {
-    color: var(--linkHover);
+    color: #a8ffc8;
   }
 }
 
 .img-logo {
-  margin-bottom: auto;
+  height: 5rem;
+  object-fit: contain;
 }
 
 .project-root {
@@ -346,8 +514,8 @@ h2.splash-readme {
   flex-direction: column;
   margin-top: 0.75rem;
   padding: 0.5rem 0.5rem;
-  background-color: var(--bgMapPanel);
-  border-left: 3px solid var(--sliderThumb);
+  background-color: #181818;
+  border-left: 3px solid #29d09a;
   border-right: 1px solid #8888aa00;
   border-top: 1px solid #8888aa00;
   border-bottom: 1px solid #8888aa00;
@@ -368,9 +536,20 @@ h2.splash-readme {
   border-left: 3px solid $matsimBlue;
 }
 
+// .local {
+// }
+
+.mb1 {
+  margin-bottom: 1rem;
+}
+
+.pt1 {
+  padding-top: 2.5rem;
+}
+
 .project-root:hover {
   cursor: pointer;
-  background-color: var(--bgHover);
+  background-color: #34618b;
   transition: background-color 0.1s ease-in-out;
   border-right: 1px solid #66666640;
   border-top: 1px solid #66666640;
@@ -400,25 +579,45 @@ h2.splash-readme {
 }
 
 .config-sources {
-  margin-top: 0.5rem;
-  // text-align: right;
-  a {
-    color: var(--link);
-  }
-}
-
-.config-sources a:hover {
-  cursor: pointer;
-  color: var(--linkHover);
+  opacity: 0.85;
 }
 
 .roots {
   display: grid;
-  gap: 0rem 0.5rem;
+  gap: 0rem 0.75rem;
   grid-template-columns: repeat(auto-fit, 18rem);
   list-style: none;
+  font-size: 0.9rem;
 }
 
-@media only screen and (max-width: 800px) {
+.section-head {
+  margin-top: 0rem;
+}
+
+.tagline {
+  font-size: 1.8rem;
+  margin: 0rem 0 1rem 0rem; // 2.4rem
+  font-weight: 100;
+  line-height: 2rem;
+}
+
+.is-chrome {
+  margin-top: 2rem;
+}
+
+.newbie-area {
+  font-size: 1.1rem;
+  background-image: linear-gradient(45deg, rgb(7, 103, 57), #2a2de0); // #5e1419
+  padding-bottom: 1rem;
+}
+
+.example-root {
+  margin-top: 0;
+}
+
+.screenshot {
+  float: right;
+  width: 20rem;
+  padding: 0.5rem;
 }
 </style>

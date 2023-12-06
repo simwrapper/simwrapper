@@ -6,6 +6,7 @@ link-volumes.deck-map(
   :thumbnail="false"
   :datamanager="datamanager"
   @isLoaded="isLoaded"
+  @error="$emit('error', $event)"
 )
 
 </template>

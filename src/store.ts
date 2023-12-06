@@ -8,8 +8,10 @@ import {
   Warnings,
   ColorScheme,
   FileSystemConfig,
+  NavigationItem,
   Status,
   VisualizationPlugin,
+  FavoriteLocation,
 } from '@/Globals'
 
 import fileSystems from '@/fileSystemConfig'
@@ -49,11 +51,19 @@ export default new Vuex.Store({
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
     isFullScreen: false,
-    isFullWidth: false,
-    isShowingLeftBar: true,
+    isFullWidth: true,
+    isShowingLeftBar: false,
+    isShowingLeftStrip: true,
+    isShowingFilesTab: true,
     isDarkMode: true,
     isInitialViewSet: false,
+    favoriteLocations: [] as FavoriteLocation[],
     fileHandleAccessRequests: [] as any[],
+    leftNavItems: null as null | {
+      top: NavigationItem[]
+      middle: NavigationItem[]
+      bottom: NavigationItem[]
+    },
     mapStyles: MAP_STYLES_ONLINE,
     needLoginForUrl: '',
     statusErrors: [] as Warnings[],
@@ -68,6 +78,12 @@ export default new Vuex.Store({
     runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
+    topNavItems: null as null | {
+      fileSystem: FileSystemConfig
+      subfolder: string
+      left: NavigationItem[]
+      right: NavigationItem[]
+    },
     viewState: initialViewState() as {
       longitude: number
       latitude: number
@@ -107,6 +123,33 @@ export default new Vuex.Store({
     setFullScreen(state, value: boolean) {
       state.isFullScreen = value
     },
+    setLeftNavItems(
+      state,
+      value: { top: NavigationItem[]; middle: NavigationItem[]; bottom: NavigationItem[] }
+    ) {
+      state.leftNavItems = value
+    },
+    setShowFilesTab(state, value: boolean) {
+      state.isShowingFilesTab = value
+    },
+    setShowLeftBar(state, value: boolean) {
+      state.isShowingLeftBar = value
+    },
+    setShowLeftStrip(state, value: boolean) {
+      state.isShowingLeftStrip = value
+    },
+    setTopNavItems(
+      state,
+      value: {
+        left: NavigationItem[]
+        right: NavigationItem[]
+        fileSystem: FileSystemConfig
+        subfolder: string
+      }
+    ) {
+      state.topNavItems = value
+    },
+
     setMapStyles(
       state,
       value: { light: string; dark: string; transparentLight: string; transparentDark: string }
@@ -146,15 +189,19 @@ export default new Vuex.Store({
       }
     },
     error(state, value: string) {
-      if (
-        !state.statusErrors.length ||
-        state.statusErrors[state.statusErrors.length - 1].msg !== value
-      ) {
-        state.statusErrors.push({ msg: value, desc: '' })
-        state.isShowingLeftBar = true
-      }
+      console.error('store.ts: NOT SUPPOSED TO BE HERE!' + value)
+      // if (
+      //   !state.statusErrors.length ||
+      //   state.statusErrors[state.statusErrors.length - 1].msg !== value
+      // ) {
+      //   state.statusErrors.push({ msg: value, desc: '' })
+      //   state.isShowingLeftBar = true
+      // }
     },
     setStatus(state, value: { type: Status; msg: string; desc?: string }) {
+      console.error('store.ts: NOT SUPPOSED TO BE HERE!' + value)
+      return
+
       if (!value.desc?.length) {
         value.desc = ''
       }
@@ -181,11 +228,6 @@ export default new Vuex.Store({
           state.statusErrors.push(warningObj)
           state.isShowingLeftBar = true
         }
-      }
-    },
-    clearError(state, value: number) {
-      if (state.statusErrors.length >= value) {
-        state.statusErrors.splice(value, 1) // remove one element
       }
     },
     clearAllErrors(state) {
@@ -238,9 +280,61 @@ export default new Vuex.Store({
       delete state.localURLShortcuts[shortcut]
       const trimmed = state.svnProjects.filter(root => root.slug !== shortcut)
       state.svnProjects = trimmed
+
+      try {
+        const KEY = 'projectShortcuts'
+        let existingRoot = localStorage.getItem(KEY) || ('{}' as any)
+
+        let roots = JSON.parse(existingRoot)
+        delete roots[shortcut]
+        console.log('NEW ROOTS', roots)
+
+        localStorage.setItem(KEY, JSON.stringify(roots))
+      } catch (e) {
+        // you failed
+        console.error('' + e)
+      }
     },
-    setShowLeftBar(state, value: boolean) {
-      state.isShowingLeftBar = value
+
+    setFavorites(state, favorites: FavoriteLocation[]) {
+      state.favoriteLocations = favorites.map(f => {
+        if (!f.fullPath) f.fullPath = `${f.root}/${f.subfolder}/${f.file || ''}`
+        return f
+      })
+    },
+    addFavorite(state, favorite: FavoriteLocation) {
+      if (!favorite.fullPath)
+        favorite.fullPath = `${favorite.root}${favorite.subfolder}/${favorite.file || ''}`
+
+      // overwrite if user already has it
+      const exists = state.favoriteLocations.findIndex(f => favorite.fullPath === f.fullPath)
+      if (exists > -1) {
+        state.favoriteLocations[exists] = favorite
+      } else {
+        state.favoriteLocations.push(favorite)
+      }
+
+      state.favoriteLocations.sort((a, b) => (a.label < b.label ? -1 : 1))
+      state.favoriteLocations = [...state.favoriteLocations]
+
+      try {
+        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+    removeFavorite(state, favorite: FavoriteLocation) {
+      if (!favorite.fullPath)
+        favorite.fullPath = `${favorite.root}/${favorite.subfolder}/${favorite.file || ''}`
+
+      const exists = state.favoriteLocations.findIndex(f => favorite.fullPath === f.fullPath)
+      if (exists > -1) state.favoriteLocations.splice(exists, 1)
+
+      try {
+        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+      } catch (e) {
+        console.error('' + e)
+      }
     },
     setFileHandleForPermissionRequest(state, handle: any) {
       state.fileHandleAccessRequests.push(handle)

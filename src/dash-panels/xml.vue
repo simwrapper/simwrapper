@@ -5,6 +5,7 @@ xml-viewer.xml-panel(
   :config="config"
   :thumbnail="false"
   :resize="resizeEvent"
+  @error="$emit('error', $event)"
 )
 </template>
 

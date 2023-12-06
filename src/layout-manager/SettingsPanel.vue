@@ -1,45 +1,30 @@
 <template lang="pug">
 .panel
 
-  .top-panel
-    h4 Settings
-
-  .middle-panel
+    .close(@click.stop="$emit('close')")
+      i.fa.fa-times
 
     // theme ------------------
     .option
       h5 {{ $t('theme') }}
-      b-button.button.is-white(@click="setTheme('light')"
+      b-button.button.is-small.is-white(@click="setTheme('light')"
         outlined
         :style="isLight") {{ $t('light') }}
 
-      b-button.button.is-gray(@click="setTheme('dark')"
+      b-button.button.is-small.is-gray(@click="setTheme('dark')"
         outlined
         :style="isDark") {{ $t('dark') }}
 
     // language ---------------
     .option
       h5 {{ $t('language') }}
-      b-button.button.is-white(@click="setLanguage('en')"
+      b-button.button.is-small.is-white(@click="setLanguage('en')"
         outlined
         :style="isEN") EN
 
-      b-button.button.is-gray(@click="setLanguage('de')"
+      b-button.button.is-small.is-gray(@click="setLanguage('de')"
         outlined
         :style="isDE") DE
-
-    .option
-      h5 {{ $t('dataSources') }}
-      .source.flex-row(v-for="root in shortcuts" :key="root.slug")
-        .desc.flex1
-          p: b {{ root.slug }}
-          p {{ root.description}}
-        .delete(@click="deleteShortcut(root.slug)")
-
-    .option
-      h5 {{ $t('addDataSources') }}
-      add-data-source
-
 
 </template>
 
@@ -69,11 +54,9 @@ const i18n = {
 import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
-import AddDataSource from './AddDataSource.vue'
 
 export default defineComponent({
   name: 'SettingsPanel',
-  components: { AddDataSource },
   i18n,
   data: () => {
     return {
@@ -84,12 +67,8 @@ export default defineComponent({
   },
   mounted() {
     this.theme = this.state.isDarkMode ? 'dark' : 'light'
-    this.setupShortcuts()
   },
   watch: {
-    'state.svnProjects'() {
-      this.setupShortcuts()
-    },
     'state.isDarkMode'() {
       console.log('ooop!', this.state.isDarkMode)
       this.theme = this.state.isDarkMode ? 'dark' : 'light'
@@ -153,34 +132,6 @@ export default defineComponent({
     },
   },
   methods: {
-    setupShortcuts() {
-      try {
-        const storedShortcuts = localStorage.getItem('projectShortcuts')
-        if (storedShortcuts) {
-          const roots = JSON.parse(storedShortcuts) as any
-          this.shortcuts = Object.values(roots)
-        }
-      } catch (e) {
-        console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
-      }
-    },
-
-    deleteShortcut(slug: string) {
-      try {
-        const storedShortcuts = localStorage.getItem('projectShortcuts')
-        if (storedShortcuts) {
-          const roots = JSON.parse(storedShortcuts) as any
-          delete roots[slug]
-
-          localStorage.setItem('projectShortcuts', JSON.stringify(roots))
-          globalStore.commit('removeURLShortcut', slug)
-          this.shortcuts = Object.values(roots)
-        }
-      } catch (e) {
-        console.error('ERROR MERGING URL SHORTCUTS:', '' + e)
-      }
-    },
-
     setTheme(theme: string) {
       this.theme = theme
       console.log(this.theme)
@@ -202,10 +153,7 @@ export default defineComponent({
   user-select: none;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 0.25rem 0;
-  color: var(--text);
-  font-size: 0.9rem;
+  width: 12.25rem;
 }
 
 h4 {
@@ -215,11 +163,9 @@ h4 {
   padding: 0.25rem 0.5rem;
   margin-bottom: 0.5rem;
   font-weight: bold;
-  color: #ddd;
 }
 
 h5 {
-  color: var(--textBold);
   font-weight: bold;
   margin-top: 0rem;
   margin-bottom: 0.25rem;
@@ -255,6 +201,7 @@ h5 {
 .button {
   margin-right: 0.25rem;
   width: 60px;
+  margin-bottom: 1rem;
 }
 
 .button:hover {
@@ -262,8 +209,6 @@ h5 {
 }
 
 .option {
-  margin-top: 2rem;
-
   h5 {
     text-transform: uppercase;
   }
@@ -272,17 +217,6 @@ h5 {
     margin-top: 0.5rem;
     line-height: 1.2rem;
   }
-}
-
-.middle-panel {
-  flex: 1;
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  margin-bottom: 0.5rem;
-  padding: 0 0.5rem 0rem 0.5rem;
-  overflow-y: auto;
-  user-select: none;
 }
 
 .slide-right {
@@ -310,6 +244,20 @@ h5 {
   background-color: red;
 }
 
-@media only screen and (max-width: 640px) {
+.close {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  float: right;
+  text-align: right;
+  padding: 0 4px;
+  font-size: 0.8rem;
+  opacity: 0.4;
+}
+
+.close:hover {
+  cursor: pointer;
+  background-color: #444;
+  opacity: 1;
 }
 </style>

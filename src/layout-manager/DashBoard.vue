@@ -1,14 +1,25 @@
 <template lang="pug">
-.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow }" :id="viewId")
-  .dashboard-content(:class="{wiide}" :style="dashWidthCalculator")
+.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
+  .dashboard-content(:class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}" :style="dashWidthCalculator")
+
     .dashboard-header(v-if="!fullScreenCardId && (title + description)"
-      :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
-    )
+      :class="{wiide, 'is-panel-narrow': isPanelNarrow}")
       h2 {{ title }}
       p {{ description }}
 
+    .tabs.is-centered(v-if="subtabs.length")
+      ul.tab-row
+        li.tab-entry(v-for="subtab,index of subtabs" :key="index"
+          :class="{'is-active': index===activeTab, 'is-not-active': index!==activeTab}"
+          :style="{opacity: index===activeTab ? 1.0 : 0.55}"
+        )
+          b: a(@click="switchTab(index)") {{ subtab.title }}
+
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i" :class="getRowClass(row)")
+    .dash-row(v-for="row,i in rows" :key="i"
+      :class="getRowClass(row)"
+      :style="{'flex': rowFlexWeights[i] || 1}"
+    )
 
       //- each card here
       .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
@@ -37,15 +48,16 @@
             )
               i.fa.fa-expand
 
-        // info contents
+        //- info contents
         .info(v-show="infoToggle[card.id]")
           p
           p {{ card.info }}
 
-
         //- card contents
-        .spinner-box(v-if="getCardComponent(card)" :id="card.id" :class="{'is-loaded': card.isLoaded}")
-
+        .spinner-box(v-if="getCardComponent(card)"
+          :id="card.id"
+          :class="{'is-loaded': card.isLoaded}"
+        )
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
@@ -61,7 +73,10 @@
             @isLoaded="handleCardIsLoaded(card)"
             @dimension-resizer="setDimensionResizer"
             @titles="setCardTitles(card, $event)"
+            @error="setCardError(card, $event)"
           )
+          .dash-card-errors(v-if="card.errors.length")
+            p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
 
@@ -72,7 +87,7 @@ import type { PropType } from 'vue'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
-import { FileSystemConfig, YamlConfigs } from '@/Globals'
+import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import TopSheet from '@/components/TopSheet/TopSheet.vue'
@@ -116,13 +131,21 @@ export default defineComponent({
       fullScreenCardId: '',
       resizers: {} as { [id: string]: any },
       infoToggle: {} as { [id: string]: boolean },
+      isFullScreenDashboard: false,
       isResizing: false,
       opacity: {} as any,
       narrowPanelObserver: null as ResizeObserver | null,
       isPanelNarrow: false,
       numberOfShownCards: 1,
+      // subtab state:
+      subtabs: [] as any[],
+      activeTab: 0,
+      dashboardTabWithDelay: -1,
+      showFooter: false,
+      rowFlexWeights: [] as number[],
     }
   },
+
   computed: {
     dashWidthCalculator(): any {
       if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
@@ -137,6 +160,7 @@ export default defineComponent({
       return new HTTPFileSystem(this.fileSystemConfig)
     },
   },
+
   watch: {
     async '$store.state.resizeEvents'() {
       await this.$nextTick()
@@ -146,15 +170,31 @@ export default defineComponent({
       this.updateThemeAndLabels()
     },
   },
+
   methods: {
     /**
      * This only gets triggered when a topsheet has some titles.
      * Remove the dashboard titles and use the ones from the topsheet.
      */
     setCardTitles(card: any, event: any) {
-      console.log(card, event)
       card.title = event
       card.description = ''
+    },
+
+    setCardError(card: any, event: any) {
+      // blank event: clear all errors for this card
+      if (!event) {
+        card.errors = []
+        return
+      }
+
+      if (typeof event === 'string' && event) {
+        // simple string error message
+        card.errors.push(event)
+      } else if (event.msg && event.type === Status.ERROR) {
+        // status object: ignore warnings for now
+        card.errors.push(event.msg)
+      }
     },
 
     resizeAllCards() {
@@ -231,12 +271,13 @@ export default defineComponent({
 
       const flex = card.width || 1
 
-      let style: any = {
-        // margin: '2rem 1rem 2rem 0',
-        flex: flex,
+      let style: any = { flex: flex }
+
+      if (card.backgroundColor || card.background) {
+        style.backgroundColor = card.backgroundColor || card.background
       }
 
-      if (height) {
+      if (height && !this.isFullScreenDashboard) {
         style.minHeight = `${height}px`
       }
 
@@ -250,7 +291,7 @@ export default defineComponent({
             bottom: 0,
             left: 0,
             right: 0,
-            margin: '18px 1rem 0.5rem 1rem',
+            margin: '6px 0px', // '18px 1rem 0.5rem 1rem',
           }
         }
       }
@@ -264,6 +305,46 @@ export default defineComponent({
       )
       if (svnProject.length === 0) throw Error('no such project')
       return svnProject[0]
+    },
+
+    getTabTitle(index: number) {
+      let title = `Tab ${index + 1}`
+      let tab = this.subtabs[index]
+
+      if (this.$store.state.locale === 'de') {
+        title = tab.subtab_de || tab.subtab || tab.subtab_en
+      } else {
+        title = tab.subtab_en || tab.subtab || tab.subtab_de
+      }
+      return title
+    },
+
+    async switchTab(index: number) {
+      if (index === this.activeTab) return
+
+      // Force teardown the dashboard to ensure we start with a clean slate
+      this.dashboardTabWithDelay = -1
+      this.showFooter = false
+
+      await this.$nextTick()
+
+      this.activeTab = index
+      this.rows = []
+      this.rowFlexWeights = []
+
+      // to give browser time to teardown: 0.2 seconds delay
+      setTimeout(() => {
+        this.dashboardTabWithDelay = index
+        const { subtab, ...queryWithoutSubtab } = this.$route.query
+        if (index) {
+          this.$router.replace({
+            query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
+          })
+        } else {
+          this.$router.replace({ query: {} })
+        }
+        this.selectTabLayout()
+      }, 200)
     },
 
     async setupDashboard() {
@@ -280,19 +361,109 @@ export default defineComponent({
       // set header
       this.updateThemeAndLabels()
 
-      // build rows
+      // if there are subtabs, prepare them
+      if (this.yaml.subtabs) this.setupSubtabs()
+
+      this.setFullScreen()
+
+      // // Start on correct subtab
+      if (this.$route.query.subtab) {
+        try {
+          const userSupplied = parseInt('' + this.$route.query.subtab) - 1
+          this.activeTab = userSupplied || 0
+        } catch (e) {
+          // user spam; just use first tab
+          this.activeTab = 0
+        }
+      } else {
+        this.activeTab = 0
+      }
+
+      this.dashboardTabWithDelay = this.activeTab
+      this.selectTabLayout()
+    },
+
+    setupSubtabs() {
+      // YAML definition of subtabs can be:
+      // 1) false/missing: no subtabs.
+      // 2) true: convert each row property of the layout to a subtab
+      // 3) array[] of row IDs that comprise each subtab, e.g.
+      //    subtabs:
+      //    - title: 'Tab1'
+      //      rows: ['modeshare','statistics']
+      //
+      // In cases 2 and 3, this.subtabs will hold an array with the
+      // title and layout object for each subtab.
+
+      let i = 1
+      this.subtabs = []
+      const allRowKeys = new Set(Object.keys(this.yaml.layout))
+
+      if (this.yaml.subtabs === true) {
+        // One subtab per layout object.
+        for (const rowKey of allRowKeys) {
+          this.subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
+        }
+      } else {
+        // subtabs array explicitly assigns rows to subtabs
+        for (const tab of this.yaml.subtabs) {
+          this.subtabs.push({
+            title: this.getObjectLabel(tab, 'title'),
+            layout: tab.rows.map((rowName: string) => {
+              allRowKeys.delete(rowName)
+              return this.yaml.layout[rowName]
+            }),
+          })
+        }
+        // if user missed any rows, add them at the end
+        for (const leftoverKey of allRowKeys) {
+          this.subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
+        }
+      }
+    },
+
+    selectTabLayout() {
+      // Choose subtab or full layout
+
+      if (this.subtabs.length && this.activeTab > -1) {
+        const subtab = this.subtabs[this.activeTab].layout
+        this.setupRows(subtab)
+      } else if (this.yaml.layout) {
+        this.setupRows(this.yaml.layout)
+      } else {
+        this.$store.commit(
+          'error',
+          `Dashboard YAML: could not find current subtab ${this.activeTab}`
+        )
+      }
+    },
+
+    setupRows(layout: any) {
       let numCard = 1
 
-      for (const rowId of Object.keys(this.yaml.layout)) {
-        let cards: any[] = this.yaml.layout[rowId]
+      for (const rowId of Object.keys(layout)) {
+        let cards: any[] = layout[rowId]
 
         // row must be an array - if it isn't, assume it is an array of length one
         if (!cards.forEach) cards = [cards]
+
+        let flexWeight = 1
 
         cards.forEach(card => {
           card.id = `card-id-${numCard}`
           card.isLoaded = false
           card.number = numCard
+
+          // hoist flex weight if card has "height" and we are full-screen
+          try {
+            if (this.isFullScreenDashboard && card.height) {
+              flexWeight = Math.max(flexWeight, card.height)
+            }
+          } catch (e) {
+            console.error('' + e)
+            this.$emit('error', 'Dashboard YAML: non-numeric height')
+            flexWeight = 1
+          }
 
           // make YAML easier to write: merge "props" property with other properties
           // so user doesn't need to specify "props: {...}"
@@ -301,6 +472,7 @@ export default defineComponent({
           // Vue 2 is weird about new properties: use Vue.set() instead
           Vue.set(this.opacity, card.id, 0.5)
           Vue.set(this.infoToggle, card.id, false)
+          Vue.set(card, 'errors', [] as string[])
 
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
@@ -310,6 +482,7 @@ export default defineComponent({
         })
 
         this.rows.push({ id: rowId, cards })
+        this.rowFlexWeights.push(flexWeight)
       }
       this.$emit('layoutComplete')
     },
@@ -322,6 +495,19 @@ export default defineComponent({
         this.$store.commit('setTheme', this.yaml.header.theme)
       }
     },
+
+    getObjectLabel(o: any, prefix: string) {
+      let label = prefix
+
+      if (this.$store.state.locale === 'de') {
+        label = o[`${prefix}_de`] || o[`${prefix}`] || o[`${prefix}_en`] || ''
+      } else {
+        label = o[`${prefix}_en`] || o[`${prefix}`] || o[`${prefix}_de`] || ''
+      }
+
+      return label
+    },
+
     getDashboardLabel(element: 'title' | 'description') {
       const header = this.yaml.header
       let tag = '...'
@@ -350,11 +536,29 @@ export default defineComponent({
     handleResize() {
       const dashboard = document.getElementById(this.viewId) as HTMLElement
       if (dashboard) this.isPanelNarrow = dashboard.clientWidth < 800
+      this.setFullScreen()
       this.$store.commit('resize')
     },
 
+    setFullScreen() {
+      if (this.isPanelNarrow) {
+        // Narrow panels are never fullscreen
+        this.isFullScreenDashboard = false
+      } else {
+        // help user with capitalization
+        this.isFullScreenDashboard =
+          this.yaml.header.fullScreen ||
+          this.yaml.header.fillScreen ||
+          this.yaml.header.fullscreen ||
+          this.yaml.header.fillscreen
+      }
+    },
+
     getRowClass(row: any) {
-      const rowClass = { 'is-panel-narrow': this.isPanelNarrow } as any
+      const rowClass = {
+        'is-panel-narrow': this.isPanelNarrow,
+        'is-fullscreen-dashboard': this.isFullScreenDashboard,
+      } as any
       rowClass[`row-${row.id}`] = true
       return rowClass
     },
@@ -392,7 +596,12 @@ export default defineComponent({
 
 .dashboard {
   margin: 0 0;
-  padding: 1rem 0rem 1rem 1rem;
+  padding: 0 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
 
   .dashboard-content {
     max-width: $dashboardWidth;
@@ -404,38 +613,64 @@ export default defineComponent({
   }
 }
 
-.dashboard.wiide {
-  padding-left: 2rem;
-}
+// .dashboard.wiide {
+//   // padding-left: 1rem;
+// }
 
 .dashboard-header {
   margin: 1rem 3rem 1rem 0rem;
 
   h2 {
-    line-height: 3rem;
+    line-height: 2.1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  p {
+    line-height: 1.4rem;
   }
 }
 
-.dashboard-header.wiide {
-  margin-right: 3rem;
-}
+// .dashboard-header.wiide {
+//   // margin-right: 3rem;
+// }
 
 .dash-row {
   display: flex;
   flex-direction: row;
 }
 
+// FULL-SCREEN-DASHBOARD
+
+.dashboard.is-fullscreen-dashboard {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard .dashboard-content.is-fullscreen-dashboard {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-row.is-fullscreen-dashboard {
+  flex: 1;
+}
+
+// --end--
+
 .dash-card-frame {
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
-  margin: 2rem 2rem 2rem 0;
+  margin: 0 $cardSpacing $cardSpacing 0;
+  background-color: var(--bgCardFrame);
+  padding: 2px 5px;
+  border-radius: 4px;
 
   .dash-card-headers {
     display: flex;
     flex-direction: row;
-    border-top: var(--borderDashboard);
-    padding-top: 0.1rem;
   }
 
   .dash-card-headers.fullscreen {
@@ -460,9 +695,8 @@ export default defineComponent({
 
   h3 {
     grid-row: 1 / 2;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1.5rem;
-    margin-top: 0.1rem;
     margin-bottom: 0.5rem;
     color: var(--link);
   }
@@ -488,9 +722,9 @@ export default defineComponent({
   }
 }
 
-.dash-card-frame.wiide {
-  margin-right: 2rem;
-}
+// .dash-card-frame.wiide {
+//   // margin-right: 2rem;
+// }
 
 .dash-card {
   transition: opacity 0.5s;
@@ -500,9 +734,9 @@ export default defineComponent({
 
 // Observe for narrowness instead of a media-query
 // since the panel might be narrow even if the window is wide.
-.dashboard.is-panel-narrow {
-  padding: 1rem 0rem 1rem 1rem;
-}
+// .dashboard.is-panel-narrow {
+//   // padding: 0rem 0rem;
+// }
 
 .dashboard-header.is-panel-narrow {
   margin: 1rem 1rem 1rem 0rem;
@@ -513,6 +747,45 @@ export default defineComponent({
 }
 
 .dash-card-frame.is-panel-narrow {
-  margin: 2rem 1rem 2rem 0;
+  margin: 0rem 0.5rem 1rem 0;
+}
+
+ul.tab-row {
+  padding: 0 0;
+  margin: 0 0;
+  border-bottom: none;
+}
+
+li.tab-entry b a {
+  color: var(--link);
+  padding-bottom: 2px;
+}
+
+li.is-active b a {
+  border-bottom: 2px solid var(--link);
+}
+
+li.is-not-active b a {
+  color: var(--text);
+}
+
+.dash-card-errors {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bgError);
+  color: var(--textBold);
+  border: 1px solid var(--bgCream4);
+  margin-bottom: 2px;
+  padding: 1rem 0.5rem;
+  z-index: 20000;
+  font-size: 0.95rem;
+  max-height: 50%;
+  overflow-y: auto;
+  p {
+    line-height: 1.2rem;
+    margin: 0 0;
+  }
 }
 </style>

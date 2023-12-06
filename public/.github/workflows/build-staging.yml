@@ -1,0 +1,64 @@
+name: Remote Dispatch Responder
+
+on: [repository_dispatch]
+
+permissions:
+  contents: read
+  id-token: write
+  pages: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Event Information
+        run: |
+          echo "Event '${{ github.event.action }}' received from '${{ github.event.client_payload.repository }}'"
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          registry-url: https://registry.npmjs.org/
+
+      - name: Fetch code
+        run: |
+          git clone https://github.com/simwrapper/simwrapper
+          cd simwrapper
+          git checkout staging
+          cd ..
+          mv simwrapper/* .
+
+      - name: npm ci
+        run: |
+          npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifact
+          path: dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ping
+    environment:
+      name: github-pages
+      url: ${{steps.deployment.outputs.page_url}}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifact
+      - name: Set up Pages
+        uses: actions/configure-pages@v2
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: .
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v1

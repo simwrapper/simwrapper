@@ -8,6 +8,7 @@ flow-map.deck-map(
     :datamanager="datamanager"
     :yamlConfig="'noconfig'"
     @isLoaded="isLoaded"
+    @error="$emit('error', $event)"
 )
 </template>
 

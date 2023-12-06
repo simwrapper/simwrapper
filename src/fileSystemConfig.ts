@@ -32,6 +32,7 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
 }
 
 let fileSystems: FileSystemConfig[] = [
+  // DO NOT REMOVE THESE, THEY ARE FOR INTERNAL APP USE
   {
     name: webLiveHostname + ' live folders',
     slug: 'live',
@@ -54,27 +55,31 @@ let fileSystems: FileSystemConfig[] = [
     baseURL: loc.origin + '/data',
     hidden: true,
   },
+
+  // End. Below here, these are editable:
+
   {
-    name: 'local',
-    slug: 'local',
-    description: 'Files on this computer, shared using "simwrapper serve" tool',
-    baseURL: 'http://localhost:8000',
-    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
-  },
-  {
-    name: 'SimWrapper Examples',
-    slug: 'examples',
-    description: 'Pre-built dashboards for exploration',
-    thumbnail: 'images/thumb-localfiles.jpg',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
-  },
-  {
-    name: 'VSP Public Scenarios',
+    name: 'VSP Public-SVN',
     slug: 'public',
-    description: 'Simulation results from VSP at TU-Berlin',
+    description: 'Public data at TU Berlin',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries',
     thumbnail: '/simwrapper/images/thumb-chart.jpg',
     skipList: ['episim/battery'],
+  },
+  {
+    name: 'Examples',
+    slug: 'examples',
+    description: 'Pre-built SimWrapper dashboards',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+    example: true,
+  },
+  {
+    name: 'Localhost:8000',
+    slug: 'local',
+    description: 'Files shared using "simwrapper serve"',
+    baseURL: 'http://localhost:8000',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
     name: 'Sample Runs',
@@ -83,6 +88,7 @@ let fileSystems: FileSystemConfig[] = [
     thumbnail: 'images/thumb-localfiles.jpg',
     baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/billy/simwrapper/sample-data',
     hidden: true,
+    example: true,
   },
   {
     name: 'KoMoDnext',
@@ -95,20 +101,23 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
   {
-    name: 'SFCTA Prospector',
-    slug: 'champ',
-    description: 'Shared CHAMP model runs',
-    baseURL: 'http://prospector/champ_runs',
-    hidden: true,
-  },
-  {
     name: 'RealLabHH',
     slug: 'reallabhh',
-    description: 'digital mobility of tomorrow is being tested in a metropolis here and now',
-    description_de: 'Digitale Mobilität von morgen im Hier und Jetzt in einer Metropole',
+    description: 'Hamburg, Germany',
+    description_de: 'Hamburg, Deutschland',
     baseURL:
       'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/hamburg/hamburg-v2/hamburg-v2.2/viz',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    example: true,
+  },
+  {
+    name: 'BENE',
+    slug: 'bene',
+    description: 'Berlin BENE',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/bene/website',
+    thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
+    hidden: true,
   },
 ]
 

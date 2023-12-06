@@ -1,5 +1,8 @@
 <template lang="pug">
-.add-data
+.add-data-panel
+  .xtitle
+    i.fa.fa-plus
+    | &nbsp;Add Data Source
   .add
     .markdown(v-html="notes")
     .flex-row
@@ -11,9 +14,19 @@
     .flex-row
       p.flex1: b Note
       b-input.flex5(size="is-small" placeholder="optional" maxlength="255" v-model="noteField")
-    .flex-row
+
+    .flex-row.gap
       p.flex1 &nbsp;
-      b-button.is-primary(
+
+      b-button(
+        size="is-small"
+        type="is-primary"
+        outlined
+        inverted
+        @click="$emit('close')"
+      ) Cancel
+
+      b-button.is-warning(
         size="is-small"
         :disabled="!isValidURL"
         :type="isValidURL ? '' : 'is-outlined'"
@@ -30,12 +43,8 @@ import MarkdownIt from 'markdown-it'
 import globalStore from '@/store'
 
 const mdAddNotes = `
-Add a local shortcut for any URL-based resource.
-SimWrapper requires several server settings, including:
-
-- Open access (no login)
-- File and directory listings
--  CORS "Access-Control-Allow-Origin"
+Add any URL-based data provider.
+See SimWrapper documentation for details.
 `
 
 export default defineComponent({
@@ -91,6 +100,7 @@ export default defineComponent({
         // you failed
         console.error('' + e)
       }
+      this.$emit('close')
     },
 
     fixField() {
@@ -106,7 +116,7 @@ export default defineComponent({
 .add {
   gap: 0.25rem;
   margin: 0.5rem 0.25rem 0rem 0;
-  color: var(--text);
+  color: #eee;
 
   b-field {
     color: white;
@@ -124,13 +134,35 @@ export default defineComponent({
 
 .markdown {
   margin-bottom: 1rem;
-  line-height: 1.3rem;
+  line-height: 1.2rem;
 }
 
 b-button {
   text-align: right;
 }
 
+.add-data-panel {
+  background-color: #557;
+}
+
+.add {
+  padding: 0 0.25rem 0.25rem 0.25rem;
+}
+
+.xtitle {
+  font-weight: bold;
+  background-color: black;
+  padding: 3px 3px;
+  margin-top: 0.5rem;
+}
+
+.is-warning {
+  margin-left: 0.5rem;
+}
+
+.gap {
+  padding-top: 2px;
+}
 @media only screen and (max-width: 640px) {
 }
 </style>

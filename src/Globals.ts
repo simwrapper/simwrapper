@@ -18,9 +18,18 @@ export const MAP_STYLES_OFFLINE = {
   transparentDark: { version: 8, layers: [], sources: {} },
 }
 
+export interface NavigationItem {
+  text?: string
+  text_en?: string
+  text_de?: string
+  url?: string
+  image?: string
+  children?: NavigationItem[]
+}
+
 export const BG_COLOR_DASHBOARD = {
   light: '#fff',
-  dark: '#181818',
+  dark: '#14141a',
 }
 
 export const MAPBOX_TOKEN =
@@ -138,6 +147,7 @@ export interface FileSystemConfig {
   dashboardFolder?: string
   hidden?: boolean
   handle?: FileSystemAPIHandle
+  example?: boolean
 }
 
 export interface VisualizationPlugin {
@@ -160,6 +170,23 @@ export enum ColorScheme {
 export interface BreadCrumb {
   label: string
   url?: string
+  root?: string
+  // IMPORTANT: subfolder never starts or ends with /.
+  // VALID: '', 'data', 'data/berlin'.
+  // INVALID: '/', '/data' etc
+  subfolder?: string
+}
+
+export interface FavoriteLocation {
+  label: string
+  root: string
+  // IMPORTANT: subfolder never starts or ends with /.
+  // INVALID: '/', '/data', '/data/berlin/'
+  // VALID: '', 'data', 'data/berlin'.
+  subfolder: string
+  file?: string
+  fullPath?: string
+  hint?: string
 }
 
 export interface Warnings {

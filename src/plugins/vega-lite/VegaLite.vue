@@ -185,7 +185,7 @@ const MyComponent = defineComponent({
         let msg = 'Error loading: ' + filename
         if (e.statusText === 'File not found') msg = 'File not found: ' + filename
         if (e.name === 'SyntaxError') msg = 'Error parsing JSON: ' + filename
-        this.$store.commit('error', msg)
+        this.$emit('error', msg)
 
         return
       }
@@ -208,7 +208,7 @@ const MyComponent = defineComponent({
           let msg = 'Error loading: ' + path
           if (e.statusText === 'File not found') msg = 'File not found: ' + path
           if (e.name === 'SyntaxError') msg = 'Error parsing JSON: ' + path
-          this.$store.commit('error', msg)
+          this.$emit('error', msg)
         }
       }
 
@@ -278,7 +278,7 @@ const MyComponent = defineComponent({
 
         if (message.indexOf('{') > -1) message = message.substring(0, message.indexOf('{'))
 
-        this.$store.commit('error', 'Vega: ' + message)
+        this.$emit('error', 'Vega: ' + message)
       }
     },
   },

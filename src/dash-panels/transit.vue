@@ -5,6 +5,7 @@ transit-demand.deck-map(
   :config="config"
   :thumbnail="false"
   @isLoaded="isLoaded"
+  @error="$emit('error', $event)"
 )
 
 </template>

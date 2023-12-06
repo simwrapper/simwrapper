@@ -1,14 +1,15 @@
 <template lang="pug">
-    xy-time.deck-map(
-      :root="fileSystemConfig.slug"
-      :subfolder="subfolder"
-      :config="config"
-      :thumbnail="false"
-      :datamanager="datamanager"
-      @isLoaded="isLoaded"
-    )
-    
-    </template>
+xy-time.deck-map(
+  :root="fileSystemConfig.slug"
+  :subfolder="subfolder"
+  :config="config"
+  :thumbnail="false"
+  :datamanager="datamanager"
+  @isLoaded="isLoaded"
+  @error="$emit('error', $event)"
+)
+
+</template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'

@@ -128,13 +128,13 @@ export default defineComponent({
       }
 
       if (!match.length) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `File cannot be loaded...`,
           desc: 'Check filename and path: ' + pattern,
         })
       } else {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `Multiple files match...`,
           desc: 'Check filename and path: ' + pattern,

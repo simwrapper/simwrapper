@@ -34,10 +34,10 @@
   .message(v-if="!thumbnail && myState.statusMessage")
     p.status-message {{ myState.statusMessage }}
 
-  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints" 
-    :breakpointsProp="this.breakpoints" 
-    :colorsProp="this.colors" 
-    @close="showCustomBreakpoints = false" 
+  modal-dialog-custom-colorbreakpoint(v-if="this.showCustomBreakpoints"
+    :breakpointsProp="this.breakpoints"
+    :colorsProp="this.colors"
+    @close="showCustomBreakpoints = false"
     @updateColor="(colorArray) => this.setLegend(colorArray, this.breakpoints)"
     @updateBreakpoint="(breakpointArray) => this.setLegend(this.colors, breakpointArray)"
     @addOrRemoveBreakpoint="(colorArray, breakpointArray) => this.setLegend(colorArray, breakpointArray)"
@@ -382,7 +382,7 @@ const MyComponent = defineComponent({
         // Set custom breakpoints
         if (this.config.breakpoints) {
           if (this.config.breakpoints.values.length + 1 != this.config.breakpoints.colors.length) {
-            this.$store.commit('setStatus', {
+            this.$emit('error', {
               type: Status.ERROR,
               msg: `Wrong number of colors and values for the breakpoints.`,
               desc: `Number of colors: ${this.config.breakpoints.colors.length}, Number of values: ${this.config.breakpoints.values.length}, Must apply: Number of colors = number of values plus one.`,
@@ -434,7 +434,7 @@ const MyComponent = defineComponent({
         const e = err as any
         console.log('failed')
 
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `File not found`,
           desc: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
@@ -456,16 +456,16 @@ const MyComponent = defineComponent({
 
       for (const key in this.YAMLrequirementsXY) {
         if (key in configuration === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `XYTime missing required key: ${key}`,
+            desc: `XYTime requires keys: ${Object.keys(this.YAMLrequirementsXY)}`,
           })
         }
       }
 
       if (configuration.radius == 0) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Radius set to zero`,
           desc: 'Radius can not be zero, preset value used instead. ',
@@ -473,7 +473,7 @@ const MyComponent = defineComponent({
       }
 
       if (configuration.zoom < 5 || configuration.zoom > 50) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Zoom is out of the recommended range `,
           desc: 'Zoom levels should be between 5 and 50. ',
@@ -524,7 +524,7 @@ const MyComponent = defineComponent({
           this.myState.statusMessage = event.data.status
         } else if (event.data.error) {
           this.myState.statusMessage = event.data.error
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `XYT Loading Error`,
             desc: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
@@ -681,7 +681,7 @@ const MyComponent = defineComponent({
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg: `Loading/Parsing Error`,
           desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',

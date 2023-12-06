@@ -1,37 +1,52 @@
 <template lang="pug">
-#split-screen(
+#layout-manager
+
+ top-nav-bar(v-if="$store.state.topNavItems"
+  @navigate="onNavigate($event,0,0)"
+  :projectFolder="firstPanelProjectFolder"
+  :currentFolder="firstPanelSubfolder"
+ )
+
+ #split-screen(
   @mousemove="dividerDragging"
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
-)
-  .left-panel(v-show="showLeftBar")
-    left-icon-panel(
-      :activeSection="activeLeftSection.name"
-      @activate="setActiveLeftSection({section: $event, toggle:true})"
-    )
+ )
 
-    .left-panel-active-section(v-show="isShowingActiveSection"
-                               :style="activeSectionStyle"
+  // do not show left-strip if we are in project mode
+  left-icon-panel.left-icon-panel(
+    v-if="$store.state.isShowingLeftStrip"
+    :activeSection="activeLeftSection.name"
+    @activate="setActiveLeftSection"
+  )
+
+  .left-panel(v-show="showLeftBar")
+
+    .left-panel-active-section(
+      v-show="isShowingActiveSection"
+      :style="activeSectionStyle"
     )
-      component(v-for="section of leftSections" :key="section"
-                :is="section"
-                v-show="section==activeLeftSection.class"
-                @navigate="onNavigate($event,0,0)"
-                @activate="setActiveLeftSection({section: $event, toggle:false})"
-                @isDragging="handleDragStartStop"
+      component.left-component(:is="activeLeftSection.class"
+        @navigate="onNavigate($event,0,0)"
+        @activate="setActiveLeftSection"
+        @isDragging="handleDragStartStop"
+        @split="splitMainPanel"
+        :currentFolder="firstPanelSubfolder"
+        :projectFolder="firstPanelProjectFolder"
+        :navRoot="navRoot"
       )
 
     .left-panel-divider(v-show="activeLeftSection"
-                        @mousedown="dividerDragStart"
-                        @mouseup="dividerDragEnd"
-                        @mousemove.stop="dividerDragging"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
     )
 
   .table-of-tiles(ref="tileTable")
     .authorization-strip(v-if="authHandles.length")
       .auth-row(v-for="auth in authHandles")
         p.flex1 {{ '' + auth }}
-        b-button hello
+        //- b-button hello
 
     .row-drop-target(:style="buildDragHighlightStyle(-1,-1)"
         @drop="onDrop({event: $event, row: 'rowTop'})"
@@ -44,7 +59,6 @@
     .tile-row(v-for="panelRow,y in panels" :key="y"
         v-show="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
     )
-
       .drag-container(
         v-for="panel,x in panelRow" :key="panel.key"
         @drop="onDrop({event: $event,x,y})"
@@ -57,36 +71,51 @@
       )
         .tile-header.flex-row(v-if="getShowHeader(panel)")
 
-          .tile-labels
-            h3(:style="{textAlign: 'left'}") {{ panel.title }}
+          .tile-buttons(v-if="panel.component !== 'SplashPage'")
+            .nav-button.is-small.is-white(
+              @click="onBack(x,y)"
+            ): i.fa.fa-arrow-left
+
+          .tile-labels(:class="{'is-singlepanel': !isMultipanel}")
+            h3(v-if="panel.title" :style="{textAlign: 'left'}") {{ panel.title }}
             p(v-if="panel.description") {{ panel.description }}
 
-          .tile-buttons
-            .nav-button.is-small.is-white(
-              v-if="panel.info"
-              @click="handleToggleInfoClicked(panel)"
-            ): i.fa.fa-info-circle
-            //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
+          .flex-row
+            .tile-buttons
+              .nav-button.is-small.is-white(
+                v-if="panel.info"
+                @click="handleToggleInfoClicked(panel)"
+              ): i.fa.fa-info-circle
+              //- :title="infoToggle[panel.id] ? 'Hide Info':'Show Info'"
 
-            .nav-button.is-small.is-white(
-              v-show="panels.length > 1 || panels[0].length > 1"
-              @click="toggleZoom(panel, x, y)"
-              :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
-            ): i.fa.fa-expand
+              .nav-button.is-small.is-white(
+                v-show="panels.length > 1 || panels[0].length > 1"
+                @click="toggleZoom(panel, x, y)"
+                :title="fullScreenPanel.x > -1 ? 'Restore':'Enlarge'"
+              ): i.fa.fa-expand
 
-            .nav-button.is-small.is-white(
-              @click="onClose(x,y)"
-              title="Close"
-            ): i.fa.fa-times-circle
+              .nav-button.is-small.is-white(v-if="isMultipanel"
+                @click="onClose(x,y)"
+                title="Close"
+              ): i.fa.fa-times-circle
 
-        //- here is the actual viz component:
+        .breadcrumb-row(v-if="getShowHeader(panel)")
+          bread-crumbs.bread-crumbs(
+            :root="panel.props.root || ''"
+            :subfolder="panel.props.xsubfolder || ''"
+            @navigate="onNavigate($event,x,y)"
+          )
+
+        //- here is the actual component containing the dashboard, viz, etc
         component.map-tile(
           :is="panel.component"
+          :isMultipanel="isMultipanel"
           :style="getTileStyle(panel)"
           v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"
           @title="setCardTitles(panel, $event)"
-          @activate="setActiveLeftSection({section: $event, toggle:true})"
+          @activate="setActiveLeftSection"
+          @projectFolder="setProjectFolder"
         )
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
@@ -117,29 +146,35 @@ import micromatch from 'micromatch'
 import globalStore from '@/store'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
-import TabbedDashboardView from './TabbedDashboardView.vue'
-import SplashPage from './SplashPage.vue'
+import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
+import LeftProjectPanel from './LeftProjectPanel.vue'
+import TopNavBar from './TopNavBar.vue'
+import SplashPage from './SplashPage.vue'
+import LeftSplitFolderPanel from './LeftSplitFolderPanel.vue'
+import LeftSystemPanel from './LeftSystemPanel.vue'
+import TabbedDashboardView from './TabbedDashboardView.vue'
 
-import LeftIconPanel, { Section } from '@/components/left-panels/LeftIconPanel.vue'
+import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
-import BrowserPanel from '@/components/left-panels/BrowserPanel.vue'
-import SettingsPanel from '@/components/left-panels/SettingsPanel.vue'
 import { FileSystemConfig } from '@/Globals'
 
 const BASE_URL = import.meta.env.BASE_URL
-const DEFAULT_LEFT_WIDTH = 300
+const DEFAULT_LEFT_WIDTH = 250
 
 export default defineComponent({
   name: 'LayoutManager',
   i18n,
   components: Object.assign(
     {
-      LeftIconPanel,
-      BrowserPanel,
-      FolderBrowser,
+      BreadCrumbs,
       ErrorPanel,
-      SettingsPanel,
+      FolderBrowser,
+      LeftIconPanel,
+      LeftProjectPanel,
+      LeftSplitFolderPanel,
+      LeftSystemPanel,
+      TopNavBar,
       SplashPage,
       TabbedDashboardView,
     },
@@ -147,26 +182,31 @@ export default defineComponent({
   ),
   data: () => {
     return {
+      activeLeftSection: { name: 'Data', class: 'LeftSystemPanel' } as Section,
+      authHandles: [] as any[],
+      dragX: -1,
+      dragY: -1,
+      dragQuadrant: null as any,
+      dragStartWidth: 0,
+      // keep track of URL for highlighting purposes
+      firstPanelProjectFolder: '',
+      firstPanelSubfolder: '',
+      fullScreenPanel: { x: -1, y: -1 },
+      isDraggingDivider: 0,
+      isDragHappening: false,
+      isEmbedded: false,
+      isShowingActiveSection: true,
+      leftSectionWidth: DEFAULT_LEFT_WIDTH,
+      // navigation aids for project pages:
+      navRoot: '',
       // panels is an array of arrays: each row, with its vizes in order.
       panels: [] as any[][],
-      leftSections: ['BrowserPanel', 'ErrorPanel', 'SettingsPanel'],
       // scrollbars for dashboards and kebab-case name of any plugins that need them:
       panelsWithScrollbars: ['TabbedDashboardView', 'FolderBrowser', 'calc-table'],
       zoomed: false,
-      isEmbedded: false,
-      fullScreenPanel: { x: -1, y: -1 },
-      activeLeftSection: { name: 'Files', class: 'BrowserPanel' } as Section,
-      leftSectionWidth: DEFAULT_LEFT_WIDTH,
-      isDraggingDivider: 0,
-      dragStartWidth: 0,
-      quadrant: null as any,
-      dragX: -1,
-      dragY: -1,
-      isDragHappening: false,
-      isShowingActiveSection: false,
-      authHandles: [] as any[],
     }
   },
+
   computed: {
     isMultipanel(): boolean {
       if (this.panels.length > 1) return true
@@ -185,11 +225,12 @@ export default defineComponent({
       } else return { display: 'none' }
     },
   },
+
   watch: {
     '$store.state.statusErrors'() {
-      if (this.$store.state.statusErrors.length) {
-        this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
-      }
+      // if (this.$store.state.statusErrors.length) {
+      //   this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
+      // }
     },
 
     $route(to: Route, from: Route) {
@@ -204,26 +245,32 @@ export default defineComponent({
     },
   },
   methods: {
-    setActiveLeftSection(props: { toggle: boolean; section: Section }) {
+    setActiveLeftSection(section: Section) {
       // don't open the left bar if it's optional, meaning it's currently closed
-      if (props.section.onlyIfVisible && !this.isShowingActiveSection) return
+      if (section.onlyIfVisible && !this.isShowingActiveSection) return
 
       // clicked same section as is already shown
-      if (this.isShowingActiveSection && props.section.name === this.activeLeftSection.name) {
-        if (props.toggle) this.isShowingActiveSection = false
+      if (this.isShowingActiveSection && section.name === this.activeLeftSection.name) {
         return
       }
 
       // if there's a link, open a tab
-      if (props.section.link) {
-        window.open(props.section.link, '_blank')
+      if (section.link) {
+        window.open(section.link, '_blank')
         return
       }
 
+      // help project pages know where they are rooted
+      if (section.navRoot) this.navRoot = section.navRoot
+
       this.isShowingActiveSection = true
-      this.activeLeftSection = props.section
-      localStorage.setItem('activeLeftSection', JSON.stringify(props.section))
+      this.activeLeftSection = section
+      localStorage.setItem('activeLeftSection', JSON.stringify(section))
       if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
+    },
+
+    setProjectFolder(folder: string) {
+      this.firstPanelProjectFolder = folder
     },
 
     buildLayoutFromURL() {
@@ -233,6 +280,8 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
+        // this.$store.commit('setShowLeftBar', false)
+        this.$store.commit('setShowLeftStrip', true)
         return
       }
 
@@ -258,6 +307,8 @@ export default defineComponent({
       if (slash > -1) {
         root = pathMatch.substring(0, slash)
         xsubfolder = pathMatch.substring(slash + 1)
+        if (xsubfolder.startsWith('/')) xsubfolder = xsubfolder.slice(1)
+        if (xsubfolder.endsWith('/')) xsubfolder = xsubfolder.slice(0, -1)
       }
 
       // single visualization?
@@ -272,6 +323,8 @@ export default defineComponent({
             this.panels = [[this.panels[0][0]]]
           } else {
             let key = Math.random()
+            let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
+            if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
             this.panels = [
               [
                 {
@@ -281,7 +334,7 @@ export default defineComponent({
                   description: '',
                   props: {
                     root,
-                    subfolder: xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+                    subfolder, /// : xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
                     yamlConfig: fileNameWithoutPath,
                     thumbnail: false,
                   } as any,
@@ -307,7 +360,9 @@ export default defineComponent({
       const fileSystem = svnProjects[0]
 
       const folder = xsubfolder.startsWith('/') ? xsubfolder.slice(1) : xsubfolder
-      const title = `${fileSystem.name}: ${folder}`
+
+      const lastFolder = folder.substring(1 + folder.lastIndexOf('/'))
+      const title = lastFolder || fileSystem.name
 
       this.panels = [
         [
@@ -315,7 +370,7 @@ export default defineComponent({
             key,
             title,
             component: 'TabbedDashboardView',
-            props: { root, xsubfolder } as any,
+            props: { root, xsubfolder: folder } as any,
           },
         ],
       ]
@@ -328,7 +383,7 @@ export default defineComponent({
     buildDragHighlightStyle(x: number, y: number) {
       // top row
       if (x == -1) {
-        const opacity = this.quadrant == 'rowTop' ? '1' : '0'
+        const opacity = this.dragQuadrant == 'rowTop' ? '1' : '0'
         const pointerEvents = this.isDragHappening ? 'auto' : 'none'
 
         return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
@@ -336,17 +391,17 @@ export default defineComponent({
 
       // bottom row
       if (x == -2) {
-        const opacity = this.quadrant == 'rowBottom' ? '1' : '0'
+        const opacity = this.dragQuadrant == 'rowBottom' ? '1' : '0'
         const pointerEvents = this.isDragHappening ? 'auto' : 'none'
         return { bottom: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
       }
 
       // tiles
-      if (x !== this.dragX || y !== this.dragY || !this.quadrant) return {}
+      if (x !== this.dragX || y !== this.dragY || !this.dragQuadrant) return {}
 
-      const backgroundColor = this.quadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
+      const backgroundColor = this.dragQuadrant.quadrant == 'center' ? '#079f6f80' : '#4444dd90'
       const area: any = { opacity: 1.0, backgroundColor }
-      Object.entries(this.quadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
+      Object.entries(this.dragQuadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
       return area
     },
 
@@ -355,7 +410,7 @@ export default defineComponent({
 
       // row is special
       if (row) {
-        this.quadrant = row
+        this.dragQuadrant = row
         return
       }
 
@@ -375,7 +430,7 @@ export default defineComponent({
       let BORDER = 8
 
       if (pctX < 0.3) {
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'left',
           width: panel.offsetWidth / 2 - BORDER * 2,
           height: panel.offsetHeight - BORDER * 2,
@@ -383,7 +438,7 @@ export default defineComponent({
           marginTop: BORDER,
         }
       } else if (pctX > 0.7) {
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'right',
           width: panel.offsetWidth / 2 - BORDER * 2,
           height: panel.offsetHeight - BORDER * 2,
@@ -410,7 +465,7 @@ export default defineComponent({
         BORDER *= 5
         const w = (panel.offsetWidth - BORDER * 2) * 0.95
         const h = (panel.offsetHeight - BORDER * 2) * 0.95
-        this.quadrant = {
+        this.dragQuadrant = {
           quadrant: 'center',
           width: w,
           height: h,
@@ -421,13 +476,13 @@ export default defineComponent({
     },
 
     dragEnd() {
-      this.quadrant = null
+      this.dragQuadrant = null
       this.dragX = -1
       this.dragY = -1
     },
 
     onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
-      if (!this.quadrant) return
+      if (!this.dragQuadrant) return
 
       const { event, x, y, row } = props
 
@@ -439,12 +494,33 @@ export default defineComponent({
         const component = componentConfig.component || 'TabbedDashboardView'
 
         const viz = { component, props: componentConfig }
-        this.onSplit({ x, y, row, quadrant: this.quadrant.quadrant, viz })
+        this.onSplit({ x, y, row, quadrant: this.dragQuadrant.quadrant, viz })
       } catch (e) {
         console.warn('' + e)
       }
 
       this.dragEnd()
+    },
+
+    splitMainPanel(props: { root: string; xsubfolder?: string }) {
+      let x = 0
+      let y = 0
+
+      const newPanel = {
+        component: 'SplashPage',
+        props: {} as any,
+        key: Math.random(),
+      }
+
+      if (props.root) {
+        newPanel.component = 'TabbedDashboardView'
+        newPanel.props.root = props.root
+        newPanel.props.xsubfolder = props.xsubfolder || ''
+      }
+
+      this.panels[y].splice(x, 0, newPanel)
+      this.updateURL()
+      globalStore.commit('resize')
     },
 
     async onSplit(props: {
@@ -537,23 +613,68 @@ export default defineComponent({
     },
 
     onBack(x: number, y: number) {
-      this.panels[y][x].component = 'TabbedDashboardView'
-      this.panels[y][x].props.xsubfolder = this.panels[y][x].props.subfolder
-      delete this.panels[y][x].props.yamlConfig
+      const panel = this.panels[y][x]
 
+      // can't go above splash screen
+      if (panel.component == 'SplashPage') return
+
+      // is this a viz instead of a folder/dashboard? Go back to folder.
+      if (panel.component !== 'TabbedDashboardView') {
+        panel.component = 'TabbedDashboardView'
+        panel.props.xsubfolder = this.panels[y][x].props.subfolder
+        delete panel.props.yamlConfig
+        this.updateURL()
+        return
+      }
+
+      let folder = '' + panel.props.xsubfolder
+
+      // if we're at the root, switch to SplashPage
+      if (!folder || folder === '/') {
+        panel.component = 'SplashPage'
+        panel.props = {}
+        this.updateURL()
+        return
+      }
+
+      // this is a folder/dashboard: go up one level
+      folder = folder.replaceAll('//', '/')
+      if (folder.endsWith('/')) folder = folder.slice(0, -1)
+      let segments = folder.split('/')
+      let upFolder = segments.slice(0, -1).join('/')
+
+      // new subfolder!
+      panel.props.xsubfolder = upFolder
+      delete panel.props.yamlConfig
       this.updateURL()
     },
 
     getShowHeader(panel: any) {
-      // whether or not to show the panel header is a bit convoluted:
-      if (panel.component === 'SplashPage') return false
-      if (this.showLeftBar) return true
-      if (this.panels.length == 1 && this.panels[0].length == 1) return false
+      // // whether or not to show the panel header is a bit convoluted:
+      // if (panel.component === 'SplashPage') return false
+      // if (this.showLeftBar) return true
+      // if (this.panels.length == 1 && this.panels[0].length == 1) return false
+      // return true
+
+      // some panels don't require header (or provide their own)
+      if (this.panels.length > 1 || this.panels[0].length > 1) return true
+
+      const panelsWithoutHeader = ['SplashPage', 'TabbedDashboardView']
+      if (panelsWithoutHeader.includes(panel.component)) return false
+
       return true
     },
 
     updateURL() {
-      if (this.panels.length === 1 && this.panels[0].length === 1) {
+      // save the first-most panel URL for highlighting purposes
+      this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
+
+      // multipanel has a base64 murky URL:
+      if (this.panels.length > 1 || this.panels[0].length > 1) {
+        const base64 = btoa(JSON.stringify(this.panels))
+        this.$router.push(`${BASE_URL}split/${base64}`)
+      } else {
+        // single panel has user-readable friendly URL:
         const props = this.panels[0][0].props
 
         const root = props.root || ''
@@ -573,9 +694,6 @@ export default defineComponent({
           if (props.config) finalUrl += `/${props.config}`
           this.$router.push(finalUrl)
         }
-      } else {
-        const base64 = btoa(JSON.stringify(this.panels))
-        this.$router.push(`${BASE_URL}split/${base64}`)
       }
     },
 
@@ -648,9 +766,15 @@ export default defineComponent({
       }
     },
 
+    restoreLeftPanel() {
+      this.$store.commit('setShowLeftBar', true)
+      this.$store.commit('setManualLeftPanelHidden', false)
+    },
+
     getContainerStyle(panel: any, x: number, y: number) {
+      const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
       let style: any = {
-        padding: this.isMultipanel ? '5px 5px' : '0px 0px',
+        padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
       }
 
       // // figure out height. If card has registered a resizer with changeDimensions(),
@@ -678,10 +802,9 @@ export default defineComponent({
           bottom: 0,
           left: 0,
           right: 0,
-          margin: '5px 5px',
+          margin: '6px 6px',
         }
       }
-
       return style
     },
   },
@@ -693,33 +816,42 @@ export default defineComponent({
     this.leftSectionWidth = width == null ? DEFAULT_LEFT_WIDTH : parseInt(width)
     if (this.leftSectionWidth < 0) this.leftSectionWidth = 2
 
-    const section = localStorage.getItem('activeLeftSection')
-    if (section) {
-      try {
-        this.activeLeftSection = JSON.parse(section)
-      } catch (e) {
-        this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-      }
-    } else {
-      this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-    }
+    // const section = localStorage.getItem('activeLeftSection')
+    // if (section) {
+    //   try {
+    //     this.activeLeftSection = JSON.parse(section)
+    //   } catch (e) {
+    //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
+    //   }
+    // } else {
+    this.activeLeftSection = { name: 'Data', class: 'LeftSystemPanel' }
+    // }
 
     this.buildLayoutFromURL()
+
+    // save the first-most panel URL for highlighting purposes
+    this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
   },
 })
 </script>
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-#split-screen {
+#layout-manager {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+#split-screen {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  background-color: var(--bgBrowser);
 }
 
 .left-panel {
@@ -733,6 +865,7 @@ export default defineComponent({
   flex: 1;
   display: flex;
   flex-direction: column;
+  filter: drop-shadow(0px 0px 5px #00000040);
 }
 
 .tile-row {
@@ -743,7 +876,7 @@ export default defineComponent({
 }
 
 .map-tile {
-  grid-row: 2 / 3;
+  grid-row: 3 / 4;
   grid-column: 1 / 2;
   position: absolute;
   top: 0;
@@ -758,9 +891,8 @@ export default defineComponent({
   flex: 1;
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: 1fr;
-  background-color: var(--bgBrowser);
 }
 
 .drag-highlight {
@@ -813,7 +945,7 @@ export default defineComponent({
   top: 0;
   bottom: 0;
   right: 0;
-  width: 4px;
+  width: 5px;
   height: 100%;
   background-color: #00000000;
   margin-right: -4px;
@@ -828,10 +960,10 @@ export default defineComponent({
 }
 
 .left-panel-active-section {
-  background-color: var(--bgBrowser);
+  background-color: $themeColorPale;
   color: white;
   width: 300px;
-  padding: 0 0rem 0 0.25rem;
+  padding: 0 0;
 }
 
 .row-drop-target {
@@ -849,18 +981,22 @@ export default defineComponent({
   grid-column: 1 / 2;
   display: flex;
   flex-direction: column;
-  margin-left: 5px;
+  margin-left: 2px;
 
   h3 {
-    font-size: 1.1rem;
-    line-height: 1rem;
-    margin: 4px 0 5px 0;
-    color: var(--textFancy);
+    font-size: 1.2rem;
+    line-height: 1.1rem;
+    margin: 5px 1rem 0 2px;
+    color: white; // var(--textFancy);
   }
   p {
     margin-top: -0.5rem;
     margin-bottom: 0.5rem;
   }
+}
+
+.tile-labels.getpanel {
+  padding: 3px 0;
 }
 
 .tile-buttons {
@@ -872,8 +1008,9 @@ export default defineComponent({
 }
 
 .nav-button {
-  opacity: 0.3;
-  margin-right: 0px;
+  opacity: 0.4;
+  margin-bottom: auto;
+  padding: 2px;
   i {
     font-size: 0.8rem;
     padding: 0px 6px;
@@ -895,8 +1032,9 @@ export default defineComponent({
 .tile-header {
   user-select: none;
   background-color: var(--bgDashboardHeader);
-  padding: 1px 0px;
+  padding: 0px 0px;
   border-bottom: 1px solid #6666cc77;
+  display: flex;
 }
 
 .authorization-strip {
@@ -913,7 +1051,57 @@ export default defineComponent({
   filter: $filterShadow;
 }
 
+.is-white {
+  color: white;
+}
+
 .auth-row {
   display: flex;
+}
+
+.breadcrumb-row {
+  grid-row: 2 / 3;
+  grid-column: 1 / 2;
+  display: flex;
+  color: var(--text);
+  background-color: var(--bgDashboard);
+  padding: 0 0.5rem;
+}
+
+.bread-crumbs {
+  padding: 2px 2rem 2px 0;
+  font-size: 0.9rem;
+}
+
+.restore-left-panel-button {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3rem;
+  margin-bottom: 1rem;
+  background-color: #48485f; // $appTag;
+  z-index: 8000;
+  color: #ccc;
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  display: flex;
+  flex-direction: column;
+
+  p {
+    margin: auto 0;
+    padding: 0 3px;
+    font-size: 9px;
+    text-align: center;
+  }
+}
+
+.restore-left-panel-button:hover {
+  background-color: #666; // #3c3c49;
+  color: #deef6f;
+  cursor: pointer;
+}
+
+.left-component {
+  min-width: 125px;
 }
 </style>

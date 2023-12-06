@@ -5,7 +5,7 @@ plotly-diagram.plotly-panel(
   :config="config"
   :thumbnail="false"
   :resize="resizeEvent"
-
+  @error="$emit('error', $event)"
 )
 </template>
 

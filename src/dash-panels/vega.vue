@@ -6,6 +6,7 @@ vega-lite.dash-element(
   :cardId="cardId"
   :thumbnail="false"
   @dimension-resizer="$emit('dimension-resizer', $event)"
+  @error="$emit('error', $event)"
 )
 
 </template>
@@ -45,6 +46,7 @@ export default defineComponent({
   right: 0;
   display: flex;
   flex-direction: column;
+  background-color: var(--bgCardFrame);
 }
 
 @media only screen and (max-width: 640px) {

@@ -175,11 +175,9 @@ export default defineComponent({
     },
 
     validateYAML() {
-      console.log('in line validation')
-
       for (const key in this.YAMLrequirementsLine) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `line chart: missing required key: ${key}`,
             desc: JSON.stringify(this.config),
@@ -189,7 +187,7 @@ export default defineComponent({
 
       for (const deprecated of this.YAMLdeprecations) {
         if (this.config[deprecated]) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.WARNING,
             msg: `line chart: deprecated field: ${deprecated}`,
             desc: JSON.stringify(this.config),
@@ -207,7 +205,7 @@ export default defineComponent({
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg,
           desc: 'Add a desription...',

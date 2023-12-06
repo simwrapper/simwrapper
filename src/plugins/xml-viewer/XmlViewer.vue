@@ -1,6 +1,6 @@
 <template lang="pug">
 .mycomponent(:class="{'is-thumbnail': thumbnail}")
-  b-input.searchbox(
+  b-input.xml-searchbox(
     type="search"
     icon-pack="fas"
     icon="search"
@@ -262,7 +262,6 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  // margin: 1rem;
 }
 
 .mycomponent.is-thumbnail {
@@ -284,12 +283,15 @@ export default MyComponent
 }
 
 .things {
-  background-color: var(--bgBold);
   width: 100%;
   padding: 0.25rem 0;
 }
+</style>
 
-.searchbox {
-  padding: 1px 0px;
+<style lang="scss">
+.xml-searchbox input {
+  background-color: var(--bgBold);
+  border: 1px solid var(--bgCream3);
+  color: var(--text);
 }
 </style>

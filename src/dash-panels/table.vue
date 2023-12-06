@@ -117,7 +117,7 @@ export default defineComponent({
     validateYAML() {
       for (const key in this.YAMLrequirementsLine) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `tablev2: missing required key: ${key}`,
             desc: JSON.stringify(this.config),
@@ -127,7 +127,7 @@ export default defineComponent({
 
       for (const deprecated of this.YAMLdeprecations) {
         if (this.config[deprecated]) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.WARNING,
             msg: `tablev2: deprecated field: ${deprecated}`,
             desc: JSON.stringify(this.config),

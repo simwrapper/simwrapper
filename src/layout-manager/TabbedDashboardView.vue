@@ -1,49 +1,59 @@
 <template lang="pug">
 .tabbed-folder-view
- .centered-vessel(:class="{wiide}")
-  .tabholder(v-show="!isZoomed" :style="dashWidthCalculator")
-    .tabholdercontainer
-      .project-header(v-if="header" v-html="header")
-      //- .breadcrumbs(v-else)
-      //-   h3 {{ pageHeader }}
-      //-   h4 {{ root }}: {{ xsubfolder && xsubfolder.startsWith('/') ? '' : '/' }}{{ xsubfolder }}
-
-      //- .folder-readme(v-if="folderReadme"
-      //-   :class="{'readme-centered': !this.header}"
-      //-   v-html="folderReadme"
-      //- )
-
-      .tabs.is-centered
-
-        ul(style="margin-right: 1rem")
-          li(v-for="tab,index in Object.keys(dashboards)" :key="tab"
-            :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
-            :style="{opacity: tab===activeTab ? 1.0 : 0.5}"
-          )
-            b: a(v-if="dashboards[tab].header" @click="switchTab(tab,index)") {{ dashboards[tab].header.tab }}
-
-  dash-board(v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
-    :root="root"
-    :xsubfolder="xsubfolder"
-    :config="dashboards[dashboardTabWithDelay]"
-    :datamanager="dashboardDataManager"
-    :zoomed="isZoomed"
-    :allConfigFiles="allConfigFiles"
-    @zoom="handleZoom"
-    @layoutComplete="handleLayoutComplete"
-  )
-
-  folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
-    :root="root"
-    :xsubfolder="xsubfolder"
-    :allConfigFiles="allConfigFiles"
-    @navigate="onNavigate"
-    @up="goUpOneFolder()"
-  )
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
+  .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
+    .tabholdercontainer.white-text
+      .project-header(v-if="header" v-html="header")
+      .project-path(v-else)
+        .nav-title
+          p.title-text {{ finalFolder }}
+          p.favorite-icon(
+            @click="clickedFavorite"
+            title="Favorite"
+            :class="{'is-favorite': isFavorite}"
+          ): i.fa.fa-star
+        bread-crumbs.breadcrumbs(
+            :root="root"
+            :subfolder="xsubfolder"
+            @navigate="onNavigate"
+            @crumbs="updateCrumbs"
+        )
+
+  .dashboard-finder(:class="{isMultipanel, isZoomed}")
+    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
+      li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
+        :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
+        :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
+        @click="switchLeftTab(tab,index)"
+      )
+        a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+
+    .dashboard-content(
+      v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
+      :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
+    )
+      dash-board(
+        :root="root"
+        :xsubfolder="xsubfolder"
+        :config="dashboards[dashboardTabWithDelay]"
+        :datamanager="dashboardDataManager"
+        :zoomed="isZoomed"
+        :allConfigFiles="allConfigFiles"
+        @zoom="handleZoom"
+        @layoutComplete="handleLayoutComplete"
+      )
+
+    folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
+      :root="root"
+      :xsubfolder="xsubfolder"
+      :allConfigFiles="allConfigFiles"
+      @navigate="onNavigate"
+      @up="goUpOneFolder()"
+    )
+
+  footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tabholdercontainer(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
@@ -57,13 +67,13 @@ import micromatch from 'micromatch'
 import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
-import DashBoard from './DashBoard.vue'
-import FolderBrowser from './FolderBrowser.vue'
-
 import globalStore from '@/store'
-import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { FavoriteLocation, FileSystemConfig, NavigationItem, Status, YamlConfigs } from '@/Globals'
+import BreadCrumbs from '@/components/BreadCrumbs.vue'
+import DashBoard from './DashBoard.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import FolderBrowser from './FolderBrowser.vue'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
@@ -75,27 +85,46 @@ const mdRenderer = new markdown({
 
 export default defineComponent({
   name: 'TabbedDashboardView',
-  components: { DashBoard, FolderBrowser },
+  components: { BreadCrumbs, DashBoard, FolderBrowser },
   props: {
     root: { type: String, required: true },
     xsubfolder: { type: String, required: true },
+    isMultipanel: { type: Boolean, required: false },
   },
   data: () => {
     return {
+      activeTab: '',
+      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
+      crumbs: [] as any,
+      customCSS: '',
       dashboards: [] as any[],
       dashboardDataManager: null as DashboardDataManager | null,
-      allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
-      isZoomed: false,
-      styleElement: null as any,
-      loadErrorMessage: '',
-      activeTab: '',
-      pageHeader: '',
-      folderReadme: '',
-      header: '',
-      footer: '',
-      customCSS: '',
       dashboardTabWithDelay: '',
+      finalFolder: '',
+      folderReadme: '',
+      footer: '',
+      globalState: globalStore.state,
+      header: '',
+      isShowingBreadcrumbs: false,
+      isZoomed: false,
+      loadErrorMessage: '',
+      pageHeader: '',
       showFooter: false,
+      styleElement: null as any,
+      // project site navigation
+      leftNavItems: null as null | {
+        top: NavigationItem[]
+        middle: NavigationItem[]
+        bottom: NavigationItem[]
+      },
+      topNavItems: null as null | {
+        fileSystem: FileSystemConfig
+        subfolder: string
+        left: NavigationItem[]
+        right: NavigationItem[]
+        logo?: NavigationItem
+        style?: any
+      },
     }
   },
   computed: {
@@ -122,6 +151,16 @@ export default defineComponent({
       }
       return {}
     },
+
+    isFavorite(): any {
+      let key = this.root
+      if (this.xsubfolder) key += `/${this.xsubfolder}`
+
+      const indexOfPathInFavorites = this.globalState.favoriteLocations.findIndex(
+        f => key == f.fullPath
+      )
+      return indexOfPathInFavorites > -1
+    },
   },
   watch: {
     root() {
@@ -129,6 +168,15 @@ export default defineComponent({
     },
     xsubfolder() {
       this.updateRoute()
+    },
+    'globalState.colorScheme'() {
+      const allConfigs = Object.values(this.allConfigFiles.configs)
+      if (!allConfigs.length) return
+
+      // Set theme for bottommost config only
+      const config = allConfigs[allConfigs.length - 1]
+      const configKey = `theme-${config}`
+      localStorage.setItem(configKey, this.globalState.colorScheme)
     },
   },
   methods: {
@@ -147,6 +195,24 @@ export default defineComponent({
 
     onNavigate(options: any) {
       this.$emit('navigate', options)
+      this.setTitle()
+    },
+
+    clickedFavorite() {
+      let hint = `${this.root}/${this.xsubfolder}`
+      // remove current folder from subfolder
+      hint = hint.substring(0, hint.lastIndexOf('/'))
+
+      const favorite: FavoriteLocation = {
+        root: this.root,
+        subfolder: this.xsubfolder,
+        label: this.finalFolder,
+        fullPath: `${this.root}/${this.xsubfolder}`,
+        hint,
+      }
+
+      this.$store.commit(this.isFavorite ? 'removeFavorite' : 'addFavorite', favorite)
+      if (this.isFavorite) this.$store.commit('setShowLeftBar', true)
     },
 
     async getFolderReadme() {
@@ -197,8 +263,13 @@ export default defineComponent({
           }
         }
 
+        // headers, footers, etc
+        await this.setupProjectConfig()
+
         // Add FileBrowser as "Files" tab
-        Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
+        if (this.globalState.isShowingFilesTab) {
+          Vue.set(this.dashboards, 'FILE__BROWSER', { header: { tab: 'Files' } })
+        }
 
         // // Start on correct tab
         if (this.$route.query.tab) {
@@ -214,9 +285,6 @@ export default defineComponent({
           this.activeTab = Object.keys(this.dashboards)[0]
         }
         this.dashboardTabWithDelay = this.activeTab
-
-        // headers, footers, etc
-        await this.setupProjectConfig()
       } catch (e) {
         // Bad things happened! Tell user
         console.warn({ eeee: e })
@@ -230,27 +298,43 @@ export default defineComponent({
     },
 
     async setupProjectConfig() {
-      // no configs mean no setup is necessary
-      if (!Object.keys(this.allConfigFiles.configs).length) {
-        // no config, so show navbar and be done
-        // this.$store.commit('setShowLeftBar', true)
+      const allConfigs = Object.values(this.allConfigFiles.configs)
+
+      // no configs: no project mode.
+      if (!allConfigs.length) {
+        this.isShowingBreadcrumbs = true
         return
       }
 
-      for (const filename of Object.values(this.allConfigFiles.configs)) {
+      // configs: set up "project mode" ----------------------------------
+      let projectFolder = ''
+      for (const filename of allConfigs) {
         try {
+          let yamlFolder = ''
           const config = await this.fileApi.getFileText(filename)
           const yaml = YAML.parse(config)
 
           // figure out relative path for config file
-          const yamlFolder = filename.startsWith('http')
-            ? ''
-            : filename.substring(0, filename.indexOf('simwrapper-config.y'))
+          if (!filename.startsWith('http')) {
+            const i = filename.indexOf('simwrapper-config.y')
+            yamlFolder = filename.substring(0, i)
+            // project folder is the folder CONTAINING the simwrapper-config.yaml file
+            const chunks = yamlFolder.split('/')
+            projectFolder = chunks.slice(0, chunks.length - 2).join('/')
+          }
 
           // always reveal quickview bar unless told not to
-          // console.log(555, yaml.hideLeftBar)
-          if (yaml.hideLeftBar === true) this.$store.commit('setShowLeftBar', false)
-          if (yaml.hideLeftBar === false) this.$store.commit('setShowLeftBar', true)
+          if (yaml.hideLeftBar === true) {
+            this.$store.commit('setShowLeftBar', false)
+            this.$store.commit('setShowLeftStrip', false)
+          }
+          if (yaml.hideLeftBar === false) {
+            this.$store.commit('setShowLeftBar', true)
+            this.$store.commit('setShowLeftStrip', true)
+          }
+
+          // theme
+          if (yaml.theme) this.setProjectTheme(yaml.theme, filename)
 
           // set margins wide if requested to do so
           this.$store.commit('setFullWidth', !!yaml.fullWidth)
@@ -260,26 +344,114 @@ export default defineComponent({
             this.$store.commit('setFullWidth', true)
           }
 
+          if (yaml.hideFilesSection || yaml.hideFiles) {
+            this.$store.commit('setShowFilesTab', false)
+          }
+
+          // Breadcrumb-Bar. Delicious!
+          this.isShowingBreadcrumbs = !yaml.hideBreadcrumbs
+          // if (yaml.hideBreadcrumbs) this.isShowingBreadcrumbs = false
+
+          // TOP Nav Bar -----------------------------------
+          if (yaml.topNavBar) {
+            this.topNavItems = {
+              left: [],
+              right: [],
+              fileSystem: this.fileSystem,
+              subfolder: this.xsubfolder,
+              style: yaml.topNavBar.style,
+            }
+
+            if (yaml.topNavBar.logo) this.topNavItems.logo = yaml.topNavBar.logo
+
+            if (yaml.topNavBar.left) {
+              this.topNavItems.left = this.topNavItems.left.concat(yaml.topNavBar.left)
+            }
+            if (yaml.topNavBar.right) {
+              this.topNavItems.right = this.topNavItems.right.concat(yaml.topNavBar.right)
+            }
+          }
+          this.$store.commit('setTopNavItems', this.topNavItems)
+
+          // Left-Nav Panel --------------------------------
+          if (yaml.leftNavBar) {
+            // if (!this.leftNavItems) this.leftNavItems = { top: [], middle: [], bottom: [] }
+            this.leftNavItems = { top: [], middle: [], bottom: [] }
+
+            if (yaml.leftNavBar.top) {
+              this.leftNavItems.top = this.leftNavItems.top.concat(yaml.leftNavBar.top)
+            }
+            if (yaml.leftNavBar.middle) {
+              this.leftNavItems.middle = this.leftNavItems.middle.concat(yaml.leftNavBar.middle)
+            }
+            if (yaml.leftNavBar.bottom) {
+              this.leftNavItems.bottom = this.leftNavItems.bottom.concat(yaml.leftNavBar.bottom)
+            }
+
+            // User defined a leftNavBar: so make it visible
+            this.$store.commit('setShowLeftBar', true)
+            this.$store.commit('setShowLeftStrip', false)
+            this.$store.commit('setLeftNavItems', this.leftNavItems)
+
+            this.$emit('activate', {
+              name: 'Project',
+              class: 'LeftProjectPanel',
+              onlyIfVisible: false,
+              navRoot: this.root,
+              navSubfolder: this.xsubfolder,
+            })
+          }
+
+          // CSS
+          const cssFile = `${yamlFolder}${yaml.css}`
           try {
             if (yaml.css) {
-              this.customCSS = await this.fileApi.getFileText(`${yamlFolder}${yaml.css}`)
+              this.customCSS = await this.fileApi.getFileText(cssFile)
               this.styleElement = document.createElement('style')
               this.styleElement.appendChild(document.createTextNode(this.customCSS))
               document.getElementsByTagName('head')[0].appendChild(this.styleElement)
             }
           } catch (e) {
             // no css, oh well
+            console.error(`Error reading ${cssFile}: ` + e)
           }
 
           this.header = await this.buildPanel('header', yaml, yamlFolder)
           this.footer = await this.buildPanel('footer', yaml, yamlFolder)
         } catch (e) {
-          console.error('' + e)
+          // note parsing error and move on
+          const msg = `Error reading ${filename}: ` + e
+          this.$emit('error', msg)
+          console.error(msg)
         }
       }
+
+      // lastly: if project folder, notify layout manager
+      if (projectFolder) this.$emit('projectFolder', projectFolder)
     },
 
-    handleRemoveDashboard() {},
+    setProjectTheme(theme: string, configFilepath: string) {
+      // Encourage the project theme, but don't force user to use it
+
+      // 1) If browser cache has a user theme for this project-config, use it
+      // 2) Otherwise, use theme in project config -- and save it in cache!
+      // 3) Listen for theme changes, save in browser cache for this project
+
+      // 1) If browser cache has a user theme for this project-config, use it
+      const cacheKey = `theme-${configFilepath}`
+      const userTheme = localStorage.getItem(cacheKey)
+      console.log(cacheKey, userTheme)
+      if (userTheme) {
+        this.$store.commit('setTheme', userTheme)
+        return
+      }
+
+      // 2) No user-chosen theme: honor simwrapper-config setting
+      this.$store.commit('setTheme', theme)
+      localStorage.setItem(cacheKey, theme)
+
+      // 3) Watch for theme changes in watch{}
+    },
 
     async buildPanel(which: string, yaml: any, folder: string) {
       // first get the correct/best header for this locale
@@ -302,10 +474,10 @@ export default defineComponent({
       const html = mdRenderer.render(header)
 
       // sanitize it
-      const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
+      // const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } })
 
       // use it
-      return clean
+      return html
     },
 
     // for each dashboard, fetch the yaml, set the tab title, and config the ... switcher?
@@ -319,7 +491,8 @@ export default defineComponent({
           const { files, dirs } = await this.fileApi.getDirectory(this.xsubfolder)
           const allContents = [...files, ...dirs]
 
-          if (micromatch.match(allContents, yaml.header.triggerPattern).length === 0) {
+          const matches = micromatch.match(allContents, yaml.header.triggerPattern).length
+          if (matches === 0) {
             // no files matched trigger; skip this dashboard
             return false
           }
@@ -330,10 +503,10 @@ export default defineComponent({
         if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
         this.dashboards[fullPath] = yaml
-        console.log('DASHBOARD:', fullPath)
+        // console.log('DASHBOARD:', fullPath)
         return true
       } catch (e) {
-        this.$store.commit('setStatus', { type: Status.ERROR, msg: '' + e })
+        this.$emit('error', { type: Status.ERROR, msg: '' + e })
         return false
       }
     },
@@ -348,13 +521,16 @@ export default defineComponent({
       this.dashboards = []
       this.pageHeader = this.getPageHeader()
 
-      // this.generateBreadcrumbs()
-
       // this happens async
       this.findConfigsAndDashboards()
     },
 
-    async switchTab(tab: string, index: number) {
+    updateCrumbs(props: { crumbs: any[]; finalFolder: string }) {
+      this.finalFolder = props.finalFolder || ''
+      this.crumbs = props.crumbs
+    },
+
+    async switchLeftTab(tab: string, index: number) {
       if (tab === this.activeTab) return
 
       // Force teardown the dashboard to ensure we start with a clean slate
@@ -402,7 +578,7 @@ export default defineComponent({
 
     goUpOneFolder() {
       let target = this.xsubfolder
-      if (this.xsubfolder.endsWith('/')) target = this.xsubfolder.slice(0, length - 1)
+      if (this.xsubfolder.endsWith('/')) target = this.xsubfolder.slice(0, -1)
       target = target.substring(0, target.lastIndexOf('/'))
 
       const props = {
@@ -431,15 +607,16 @@ export default defineComponent({
     },
 
     setTitle() {
-      const folder = this.xsubfolder.startsWith('/') ? this.xsubfolder.slice(1) : this.xsubfolder
-      const title = `${this.fileSystem.name}: ${folder}`
+      // Now we have breadcrumbs so just use the current folder name instead of whole path
+      const title = `${this.fileSystem.name}/${this.xsubfolder}`
+      let lastFolder = title.substring(1 + title.lastIndexOf('/'))
+      if (!lastFolder) lastFolder = this.fileSystem.name
 
-      this.$emit('title', title)
+      this.$emit('title', lastFolder)
     },
   },
   mounted() {
     this.updateRoute()
-
     this.setTitle()
   },
   beforeDestroy() {
@@ -456,16 +633,13 @@ export default defineComponent({
   position: absolute;
   top: 0;
   bottom: 0;
-  background-color: var(--bgMapPanel);
+  left: 0;
+  right: 0;
+  display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  background-color: var(--bgDashboard);
+  flex-direction: column;
 }
-
-// .centered-vessel {
-//   // max-width: $dashboardWidth;
-//   // margin: 0 auto;
-//   // padding: 0 2rem;
-// }
 
 .centered-vessel.wiide {
   max-width: unset;
@@ -477,22 +651,20 @@ export default defineComponent({
 
 .tabs ul {
   line-height: 0.8rem;
-  border-bottom-color: var(--bgMapPanel);
   border-bottom-width: 5px;
+  border-bottom-color: var(--bgDashboard);
 }
 
 .tabholder {
-  // max-width: $dashboardWidth + 3;
-  // margin: 0 auto;
   z-index: 50;
-  top: 0px;
-  position: sticky;
-  background-color: var(--bgMapPanel);
+  padding: 0.75rem 0rem 0.25rem 0rem;
 }
 
 .tabholdercontainer {
-  background-image: var(--bgDashboard);
-  // margin: 0 3rem;
+  margin: 0 $cardSpacing;
+  display: flex;
+  flex-direction: row;
+  // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
 }
 
 .tabholdercontainer.wiide {
@@ -500,31 +672,73 @@ export default defineComponent({
 }
 
 li.is-not-active b a {
-  color: var(--text);
+  color: var(--textBlack);
 }
 
-.breadcrumbs {
-  background-image: var(--bgTabBanner);
-  padding: 0.25rem 0 1rem 1rem;
-  color: var(--linkFancy);
-  font-size: 1.5rem;
-  text-align: center;
+.dashboard-finder {
+  display: flex;
+  flex: 1;
+  flex-direction: row-reverse;
+  margin: 0 $cardSpacing;
+  position: relative;
+  overflow-y: auto;
+}
 
-  h3 {
-    color: white;
-    font-weight: bold;
+.dashboard-finder.isMultipanel {
+  margin: 0 0.5rem;
+}
+
+.dashboard-finder.isZoomed {
+  margin: 0 0.5rem;
+}
+
+.dashboard-right-sections {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 0rem 2rem 0rem;
+}
+
+.dashboard-content {
+  flex: 1;
+  position: relative;
+}
+
+.dashboard-content.is-breadcrumbs-hidden {
+  margin-top: 1rem;
+}
+
+.dashboard-folder-browser {
+  // margin: 2rem 2rem 1rem 1rem;
+  // padding-top: 1rem;
+  flex: 1;
+}
+
+.tab-list {
+  font-family: $fancyFont;
+  font-size: 0.9rem;
+  line-height: 1.1rem;
+  padding: 3px 0.5rem 5px 0.5rem;
+  border-right: 5px solid #00000000;
+  user-select: none;
+  margin-bottom: 1px;
+
+  a {
+    color: var(--text);
   }
+}
 
-  h4 {
-    line-height: 1rem;
-    margin: 0;
-    color: #e4e4e4;
-    font-size: 1.1rem;
-  }
+.tab-list:hover {
+  background-color: var(--bgBold);
+  cursor: pointer;
+}
 
-  p {
-    max-width: $dashboardWidth;
-    margin: 0 2rem;
+.tab-list.is-active {
+  background-color: var(--bgBold);
+  border-right: 5px solid var(--highlightActiveSection);
+  border-radius: 3px 0 0 3px;
+  font-weight: bold;
+  a {
+    color: var(--textBold);
   }
 }
 
@@ -539,19 +753,14 @@ li.is-not-active b a {
 
 .load-error {
   margin: 3rem auto;
-  padding: 1rem 0;
+  padding: 1rem 0.5rem;
   border-radius: 5px;
   text-align: center;
   font-size: 1.2rem;
   color: var(--link);
-  background-color: var(--bgPanel2);
+  background-color: var(--bgPanel);
+  border: 1px solid pink;
   max-width: 40rem;
-}
-
-.load-error:hover {
-  cursor: pointer;
-  color: var(--linkHover);
-  background-color: var(--bgPanel3);
 }
 
 .project-header {
@@ -588,11 +797,19 @@ li.is-not-active b a {
   padding: 1rem 2rem;
 }
 
+.footer-holder {
+  font-size: 0.75rem;
+  z-index: 50;
+  line-height: 0.9rem;
+  margin-top: 0.5rem;
+}
+
 .project-footer {
-  margin: 3rem 0rem 1rem 0rem;
-  padding: 1rem 1rem;
+  width: 100%;
+  margin: 0rem 0rem 0.25rem 0rem;
   color: var(--text);
-  border-top: 2px solid #88888815;
+  padding: 0rem 1rem;
+
   :deep(h1) {
     font-size: 2rem;
     font-weight: bold;
@@ -618,14 +835,6 @@ li.is-not-active b a {
   }
 }
 
-.project-footer.wiide {
-  margin: 3rem 0rem 1rem 0rem;
-  padding: 1rem 2rem;
-  border-top: none;
-  background-color: #88888815;
-  color: var(--text);
-}
-
 .folder-readme {
   margin-top: 0.5rem;
 }
@@ -634,9 +843,60 @@ li.is-not-active b a {
   text-align: center;
 }
 
-@media only screen and (max-width: 50em) {
-  .tabholdercontainer {
-    margin: 0 1rem;
+.project-path {
+  flex: 1;
+}
+
+.nav-title {
+  display: flex;
+  padding: 0.75rem 1rem;
+  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
+  color: white;
+  font-size: 1.4rem;
+  font-family: $fancyFont;
+  font-weight: bold;
+}
+
+.title-text {
+  flex: 1;
+}
+
+.favorite-icon {
+  margin: auto 0 auto 1rem;
+  opacity: 0.3;
+  font-size: 1.1rem;
+}
+
+.is-favorite {
+  opacity: 1;
+}
+.favorite-icon:hover {
+  cursor: pointer;
+}
+
+.breadcrumbs {
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+img {
+  margin-right: 1rem;
+}
+
+.logos img {
+  margin-right: 1rem;
+}
+
+.white-text {
+  color: white;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: white;
   }
 }
 </style>

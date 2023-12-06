@@ -1,0 +1,955 @@
+<template lang="pug">
+.xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
+
+      grid-layer(
+        v-if="!thumbnail && isLoaded"
+        v-bind="mapProps"
+      )
+
+      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
+
+      .top-right
+        .gui-config(:id="configId")
+
+      time-slider.time-slider-area(v-if="isLoaded"
+        :range="timeRange"
+        :allTimes="allTimes"
+        @timeExtent="handleTimeSliderValues"
+      )
+
+      .message(v-if="!thumbnail && myState.statusMessage")
+        p.status-message {{ myState.statusMessage }}
+
+</template>
+
+<script lang="ts">
+import Vue from 'vue'
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
+import GUI from 'lil-gui'
+import { ToggleButton } from 'vue-js-toggle-button'
+import YAML from 'yaml'
+import colormap from 'colormap'
+
+import util from '@/js/util'
+import globalStore from '@/store'
+import { REACT_VIEW_HANDLES } from '@/Globals'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import Coords from '@/js/Coords'
+import DashboardDataManager from '@/js/DashboardDataManager'
+import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
+import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
+import TimeSlider from '@/components/TimeSliderV2.vue'
+
+import GridLayer from './GridLayer'
+import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
+
+// interface for each time object inside the mapData Array
+export interface MapData {
+  time: Number
+  colorData: Uint8Array
+  values: Float32Array
+  centroid: Float32Array
+  numberOfFilledColors?: Number
+  numberOfFilledValues?: Number
+  numberOfFilledCentroids?: Number
+  length: Number
+}
+
+export interface CompleteMapData {
+  mapData: MapData[]
+  scaledFactor: Number
+}
+
+interface VizDetail {
+  title: string
+  description?: string
+  file: string
+  projection: any
+  thumbnail?: string
+  elements?: string
+  cellSize: number
+  maxHeight: number
+  opacity: number
+  center: any
+  zoom: number
+  mapIsIndependent?: boolean
+  breakpoints?: string
+}
+
+interface GuiConfig {
+  buckets: number
+  exponent: number
+  radius: number
+  opacity: number
+  height: number
+  'color ramp': String
+  colorRamps: String[]
+  flip: Boolean
+}
+
+interface StandaloneYAMLconfig {
+  title: String
+  description: String
+  file: String
+  projection: String
+  thumbnail: String
+  cellSize: number
+  opacity: number
+  maxHeight: number
+  center: number[]
+  zoom: number
+  mapIsIndependent: boolean
+}
+
+interface MapProps {
+  viewId: string
+  colorRamp: String
+  coverage: number
+  dark: boolean
+  data: CompleteMapData
+  currentTimeIndex: number | undefined
+  mapIsIndependent: boolean | undefined
+  maxHeight: number
+  cellSize: number
+  opacity: number
+  upperPercentile: number
+}
+
+const i18n = {
+  messages: {
+    en: {
+      loading: 'Loading data...',
+      sorting: 'Sorting into bins...',
+      aggregate: 'Summary',
+      maxHeight: '3D Height',
+      showDetails: 'Show Details',
+      selection: 'Selection',
+      areas: 'Areas',
+      count: 'Count',
+    },
+    de: {
+      loading: 'Dateien laden...',
+      sorting: 'Sortieren...',
+      aggregate: 'Daten',
+      maxHeight: '3-D Höhe',
+      showDetails: 'Details anzeigen',
+      selection: 'Ausgewählt',
+      areas: 'Orte',
+      count: 'Anzahl',
+    },
+  },
+}
+
+const GridMap = defineComponent({
+  name: 'GridMapPlugin',
+  i18n,
+  components: {
+    CollapsiblePanel,
+    DrawingTool,
+    GridLayer,
+    ToggleButton,
+    ZoomButtons,
+    TimeSlider,
+  },
+  props: {
+    root: { type: String, required: true },
+    subfolder: { type: String, required: true },
+    yamlConfig: String,
+    config: Object,
+    thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+  },
+  data: () => {
+    const colorRamps = [
+      'bathymetry',
+      'electric',
+      'inferno',
+      'jet',
+      'magma',
+      'par',
+      'viridis',
+      'chlorophyll',
+    ]
+    return {
+      id: `id-${Math.floor(1e12 * Math.random())}` as any,
+      standaloneYAMLconfig: {
+        title: '',
+        description: '',
+        file: '',
+        projection: '',
+        thumbnail: '',
+        cellSize: 250,
+        opacity: 0.7,
+        maxHeight: 0,
+        center: null as any,
+        zoom: 9,
+        mapIsIndependent: false,
+      } as StandaloneYAMLconfig,
+      colorRamps,
+      columnLookup: [] as number[],
+      gzipWorker: null as Worker | null,
+      colorRamp: colorRamps[0] as String,
+      globalState: globalStore.state,
+      vizDetails: {
+        title: '',
+        description: '',
+        file: '',
+        projection: '',
+        thumbnail: '',
+        cellSize: 250,
+        opacity: 0.7,
+        maxHeight: 0,
+        center: null as any,
+        zoom: 9,
+        breakpoints: null as any,
+      } as VizDetail,
+      myState: {
+        statusMessage: '',
+        subfolder: '',
+        yamlConfig: '',
+        thumbnail: false,
+      },
+      data: null as any,
+      selectedTimeData: [] as any[],
+      allTimePeriodes: [] as any[],
+      colors: colormap({
+        colormap: 'viridis',
+        nshades: 10,
+        format: 'rba',
+        alpha: 1,
+      }).map((c: number[]) => [c[0], c[1], c[2], 255]) as Uint8Array[],
+      currentTime: [0, 0] as Number[],
+      timeToIndex: new Map<Number, number>(),
+      guiConfig: {
+        buckets: 10,
+        exponent: 4,
+        radius: 5,
+        opacity: 1,
+        height: 100,
+        'color ramp': 'viridis',
+        colorRamps: colorRamps,
+        flip: false,
+      } as GuiConfig,
+      configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
+      guiController: null as GUI | null,
+      minRadius: 50 as number,
+      maxRadius: 300 as number,
+      radiusStep: 5 as number,
+      isLoaded: false as boolean,
+      thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
+      resizer: null as ResizeObserver | null,
+      timeRange: [Infinity, -Infinity] as Number[],
+      allTimes: [] as number[],
+    }
+  },
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystem, globalStore)
+    },
+    fileSystem(): FileSystemConfig {
+      const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
+        (a: FileSystemConfig) => a.slug === this.root
+      )
+      if (svnProject.length === 0) {
+        console.log('no such project')
+        throw Error
+      }
+      return svnProject[0]
+    },
+
+    urlThumbnail(): any {
+      return this.thumbnailUrl
+    },
+
+    mapProps(): MapProps {
+      return {
+        viewId: this.id,
+        colorRamp: this.colorRamp,
+        coverage: 0.65,
+        dark: this.$store.state.isDarkMode,
+        data: this.data,
+        currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
+        mapIsIndependent: this.vizDetails.mapIsIndependent,
+        maxHeight: this.guiConfig.height,
+        cellSize: this.guiConfig.radius,
+        opacity: this.guiConfig.opacity,
+        upperPercentile: 100,
+      }
+    },
+    textColor(): any {
+      const lightmode = {
+        text: '#3498db',
+        bg: '#eeeef480',
+      }
+
+      const darkmode = {
+        text: 'white',
+        bg: '#181518aa',
+      }
+
+      return this.$store.state.colorScheme === ColorScheme.DarkMode ? darkmode : lightmode
+    },
+  },
+  watch: {
+    '$store.state.viewState'() {
+      if (this.vizDetails.mapIsIndependent) return
+      if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id]()
+    },
+  },
+  methods: {
+    /**
+     * Selects a color based on the given value.
+     * @param {number} value - The value influencing color selection (0-100).
+     * @returns {number[]} - An RGBA color array [R, G, B, A].
+     */
+    pickColor(value: number): number[] | Uint8Array {
+      // Error handling: If the value is outside the valid range, return a default color.
+      if (value < 0 || value > 100) {
+        console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
+        return [0, 0, 0, 0] // Default color (transparent)
+      }
+
+      // Calculate the index based on the value and the number of colors in the array.
+      const index = Math.floor((value / 100) * (this.colors.length - 1))
+
+      // Return the selected color.
+      return this.colors[index]
+    },
+
+    async solveProjection() {
+      console.log('solveProjection')
+      if (this.thumbnail) return
+
+      console.log('WHAT PROJECTION:')
+
+      try {
+        const text = await this.fileApi.getFileText(
+          this.myState.subfolder + '/' + this.myState.yamlConfig
+        )
+        this.vizDetails = YAML.parse(text)
+      } catch (e) {
+        console.error(e)
+      }
+    },
+
+    async getVizDetails() {
+      if (this.config) {
+        this.validateYAML()
+        this.vizDetails = Object.assign({}, this.config) as VizDetail
+        this.setRadiusAndHeight()
+        this.setCustomGuiConfig()
+        return
+      }
+
+      const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+
+      if (hasYaml) {
+        await this.loadStandaloneYAMLConfig()
+      } else {
+        this.loadOutputTripsConfig()
+      }
+    },
+
+    loadOutputTripsConfig() {
+      let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+      if (!this.myState.thumbnail) {
+        projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
+        if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
+      }
+      this.vizDetails = {
+        title: 'Output Trips',
+        description: this.myState.yamlConfig,
+        file: this.myState.yamlConfig,
+        projection,
+        cellSize: this.vizDetails.cellSize,
+        opacity: this.vizDetails.opacity,
+        maxHeight: this.vizDetails.maxHeight,
+        center: this.vizDetails.center,
+        zoom: this.vizDetails.zoom,
+      }
+      this.$emit('title', this.vizDetails.title)
+      this.solveProjection()
+      return
+    },
+
+    setRadiusAndHeight() {
+      if (!this.vizDetails.cellSize) {
+        Vue.set(this.vizDetails, 'cellSize', 250)
+      }
+
+      if (!this.vizDetails.maxHeight) {
+        Vue.set(this.vizDetails, 'maxHeight', 0)
+      }
+
+      if (!this.vizDetails.opacity) {
+        Vue.set(this.vizDetails, 'opacity', 0.7)
+      }
+    },
+
+    async loadStandaloneYAMLConfig() {
+      try {
+        // Determine the full filename, handling cases where yamlConfig might include '/'
+        const filename = this.myState.yamlConfig.includes('/')
+          ? this.myState.yamlConfig
+          : `${this.myState.subfolder}/${this.myState.yamlConfig}`
+
+        // Load the YAML file and store it in standaloneYAMLconfig
+        const text = await this.fileApi.getFileText(filename)
+        this.standaloneYAMLconfig = YAML.parse(text)
+
+        // YAML file validation
+        this.validateYAML()
+
+        // Set visualization details
+        this.setVizDetails()
+      } catch (err) {
+        // Show error message in the Warning/Error Panel
+        const errorMessage = `File not found: ${this.myState.subfolder}/${this.myState.yamlConfig}`
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: 'Error',
+          desc: errorMessage,
+        })
+      }
+    },
+
+    validateYAML() {
+      const hasYaml = new RegExp('.*(yml|yaml)$').test(this.myState.yamlConfig)
+      let configuration = {} as any
+
+      if (hasYaml) {
+        console.log('has yaml')
+        configuration = this.standaloneYAMLconfig
+      } else {
+        console.log('no yaml')
+        configuration = this.config
+      }
+
+      if (configuration.cellSize == 0) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Radius is out of the recommended range`,
+          desc: 'Radius can not be zero, preset value used instead. ',
+        })
+      }
+
+      if (configuration.opacity <= 0 || configuration.opacity > 1) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Opacity set to zero`,
+          desc: 'Opacity levels should be between 0 and 1. ',
+        })
+      }
+
+      if (configuration.zoom < 5 || configuration.zoom > 20) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `Zoom is out of the recommended range `,
+          desc: 'Zoom levels should be between 5 and 20. ',
+        })
+      }
+
+      if (configuration.maxHeight < 0) {
+        this.$store.commit('setStatus', {
+          type: Status.WARNING,
+          msg: `maxHeight is out of the recommended range `,
+          desc: 'maxHeight should be greater than 0',
+        })
+      }
+    },
+
+    setVizDetails() {
+      this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+
+      this.setRadiusAndHeight()
+
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
+      this.$emit('title', t)
+    },
+
+    async buildThumbnail() {
+      if (this.thumbnail && this.vizDetails.thumbnail) {
+        try {
+          const blob = await this.fileApi.getFileBlob(
+            this.myState.subfolder + '/' + this.vizDetails.thumbnail
+          )
+          const buffer = await blob.arrayBuffer()
+          const base64 = util.arrayBufferToBase64(buffer)
+          if (base64)
+            this.thumbnailUrl = `center / cover no-repeat url(data:image/png;base64,${base64})`
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    },
+
+    setMapCenter() {
+      // If user gave us the center, use it
+      if (this.vizDetails.center) {
+        if (typeof this.vizDetails.center == 'string') {
+          this.vizDetails.center = this.vizDetails.center.split(',').map(Number)
+        }
+
+        const view = {
+          longitude: this.vizDetails.center[0],
+          latitude: this.vizDetails.center[1],
+          bearing: 0,
+          pitch: 0,
+          zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
+          jump: true, // move the map no matter what
+          center: [this.vizDetails.center[0], this.vizDetails.center[1]],
+        }
+
+        // bounce our map
+        if (REACT_VIEW_HANDLES[this.id]) {
+          REACT_VIEW_HANDLES[this.id](view)
+          console.log(REACT_VIEW_HANDLES)
+        }
+
+        // Sets the map to the specified data
+        this.$store.commit('setMapCamera', view)
+
+        return
+      }
+    },
+
+    async loadAndPrepareData() {
+      const config = {
+        dataset: this.vizDetails.file,
+      }
+
+      const csv = await this.datamanager.getDataset(config)
+
+      // The datamanager doesn't return the comments...
+      // const projection = csv.comments[0].split('#')[1].trim()
+      // if (projection) this.vizDetails.projection = projection
+
+      // Store the min and max value to calculate the scale factor
+      let minValue = Number.POSITIVE_INFINITY
+      let maxValue = Number.NEGATIVE_INFINITY
+
+      // This for loop collects all the data that's used by
+      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+        // Stores all times to calculate the range and the timeBinSize
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
+
+        // calculate the min and max value
+        if (csv.allRows.value.values[i] < minValue) minValue = csv.allRows.value.values[i]
+        if (csv.allRows.value.values[i] > maxValue) maxValue = csv.allRows.value.values[i]
+
+        // Store all different times
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
+      }
+
+      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
+
+      this.timeRange[0] = Math.min.apply(Math, this.allTimes)
+      this.timeRange[1] = Math.max.apply(Math, this.allTimes)
+
+      // Count elements per time
+      const numberOfElementsPerTime = Math.ceil(
+        csv.allRows.value.values.length / this.allTimes.length
+      )
+
+      // scaleFactor
+      const scaleFactor = 100 / maxValue
+
+      const finalData = {
+        mapData: [] as MapData[],
+        scaledFactor: scaleFactor as Number,
+      } as CompleteMapData
+
+      // map all times to their index and create a mapData object for each time
+      this.allTimes.forEach((time, index) => {
+        this.timeToIndex.set(time, index)
+
+        finalData.mapData.push({
+          time: time,
+          values: new Float32Array(numberOfElementsPerTime),
+          centroid: new Float32Array(numberOfElementsPerTime * 2),
+          colorData: new Uint8Array(numberOfElementsPerTime * 3),
+          numberOfFilledValues: 0,
+          numberOfFilledCentroids: 0,
+          numberOfFilledColors: 0,
+          length: numberOfElementsPerTime,
+        })
+      })
+
+      // User must provide projection
+      if (!this.vizDetails.projection) {
+        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
+        this.$emit('error', msg)
+        throw Error(msg)
+      }
+
+      // Loop through the data and create the data object for the map
+      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+        // index for the time
+        const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
+
+        const value = scaleFactor * csv.allRows.value.values[i]
+        const colors = this.pickColor(value)
+
+        // Save index for next position in the array
+        const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
+        const lastColorIndex = finalData.mapData[index].numberOfFilledColors as number
+        const lastCentroidIndex = finalData.mapData[index].numberOfFilledCentroids as number
+
+        // Save the value
+        finalData.mapData[index].values[lastValueIndex] = value
+
+        // Loop through the colors and add them to the mapData
+        for (let j = 0; j < 3; j++) {
+          finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
+        }
+
+        // Convert coordinates
+        let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
+
+        if (this.vizDetails.projection !== 'EPSG:4326') {
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, [
+            csv.allRows.x.values[i],
+            csv.allRows.y.values[i],
+          ])
+        }
+
+        // Add centroids to the mapData
+        finalData.mapData[index].centroid[lastCentroidIndex] = wgs84[0]
+        finalData.mapData[index].centroid[lastCentroidIndex + 1] = wgs84[1]
+
+        // Update the number of values for time array in the mapData
+        finalData.mapData[index].numberOfFilledValues = lastValueIndex + 1
+        finalData.mapData[index].numberOfFilledCentroids = lastCentroidIndex + 2
+        finalData.mapData[index].numberOfFilledColors = lastColorIndex + 3
+      }
+
+      // Clean data (delete numberOfFilledXXXX)
+      Array.from(this.allTimes.keys()).forEach((index: number) => {
+        delete finalData.mapData[index].numberOfFilledValues
+        delete finalData.mapData[index].numberOfFilledCentroids
+        delete finalData.mapData[index].numberOfFilledColors
+      })
+
+      this.myState.statusMessage = ''
+      return finalData
+    },
+
+    resolveProjection() {
+      if (this.vizDetails.projection === 'EPSG:4326') return
+
+      for (let i = 0; i < this.data.length; i++) {
+        const wgs84 = Coords.toLngLat(this.vizDetails.projection, this.data[i].centroid)
+        this.data[i].centroid = wgs84
+      }
+    },
+
+    handleTimeSliderValues(timeValues: any[]) {
+      this.currentTime = timeValues
+      this.selectedTimeData = []
+
+      for (let i = 0; i < this.data.length; i++) {
+        if (this.data[i].time == timeValues[0]) {
+          this.selectedTimeData.push(this.data[i])
+        }
+      }
+    },
+
+    setupGui() {
+      this.guiController = new GUI({
+        title: 'Settings',
+        injectStyles: true,
+        width: 200,
+        container: document.getElementById(this.configId) || undefined,
+      })
+
+      const config = this.guiController // .addFolder('Colors')
+      config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
+      config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
+      config.add(this.guiConfig, 'height', 0, 250, 5)
+
+      const colors = config.addFolder('colors')
+      colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+      colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+    },
+
+    setColors() {
+      // Create the new color ramp and assign this to the colors array
+      let colors256 = colormap({
+        colormap: this.guiConfig['color ramp'],
+        nshades: 256,
+        format: 'rba',
+        alpha: 1,
+      }).map((c: number[]) => [c[0], c[1], c[2]])
+
+      if (this.guiConfig.flip) colors256 = colors256.reverse()
+
+      const step = 256 / (this.guiConfig.buckets - 1)
+      const colors = []
+      for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
+        colors.push(colors256[Math.round(step * i)])
+      }
+      colors.push(colors256[255])
+
+      this.colors = colors
+
+      // Recalculating the color values for the colorRamp
+      for (let i = 0; i < this.data.mapData.length; i++) {
+        for (let j = 0; j < this.data.mapData[i].values.length; j++) {
+          const value = this.data.mapData[i].values[j]
+          const colors = this.pickColor(value)
+          for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
+            this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
+          }
+        }
+      }
+
+      // force Vue to take notice of the change - any prop change will do
+      this.currentTime = [...this.currentTime]
+    },
+
+    setCustomGuiConfig() {
+      if (!this.config) return
+
+      // Set custom radius
+      if (this.config.cellSize >= this.minRadius && this.config.cellSize <= this.maxRadius) {
+        this.guiConfig.radius = this.config.cellSize
+      }
+
+      // Set custom maxHeight
+      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
+
+      // Set custom opacity
+      if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
+    },
+  },
+
+  async mounted() {
+    this.$store.commit('setFullScreen', !this.thumbnail)
+
+    this.myState.thumbnail = this.thumbnail
+    this.myState.yamlConfig = this.yamlConfig || ''
+    this.myState.subfolder = this.subfolder
+
+    await this.getVizDetails()
+
+    if (this.thumbnail) return
+
+    this.setupGui()
+
+    this.myState.statusMessage = `${this.$i18n.t('loading')}`
+
+    try {
+      this.data = await this.loadAndPrepareData()
+    } catch (e) {
+      this.$emit('error', 'Error loading ' + this.vizDetails.file)
+    }
+
+    this.buildThumbnail()
+    this.isLoaded = true
+    this.setMapCenter()
+  },
+
+  beforeDestroy() {
+    // MUST erase the React view handle to prevent gigantic memory leak!
+    REACT_VIEW_HANDLES[this.id] = undefined
+    delete REACT_VIEW_HANDLES[this.id]
+
+    this.$store.commit('setFullScreen', false)
+  },
+})
+
+export default GridMap
+</script>
+
+<style scoped lang="scss">
+@import '@/styles.scss';
+
+.xy-hexagons {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: $thumbnailHeight;
+  background: url('assets/thumbnail.jpg') center / cover no-repeat;
+  z-index: -1;
+}
+
+.xy-hexagons.hide-thumbnail {
+  background: none;
+  z-index: 0;
+}
+
+.message {
+  z-index: 5;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  box-shadow: 0px 2px 10px #22222222;
+  display: flex;
+  flex-direction: row;
+  margin: auto auto 0 0;
+  background-color: var(--bgPanel);
+  padding: 0.5rem 1.5rem;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &.router-link-exact-active {
+      color: white;
+    }
+  }
+
+  p {
+    font-size: 1.2rem;
+    line-height: 1.5rem;
+    font-weight: normal;
+    color: var(--textFancy);
+  }
+}
+
+.ui-slider {
+  padding: 0 0;
+  margin: 0.2rem 0 0.6rem 0;
+  min-width: 7rem;
+}
+
+.status-message {
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  font-weight: bold;
+}
+
+.big {
+  padding: 0.5rem 0;
+  font-size: 1.5rem;
+  line-height: 1.7rem;
+  font-weight: bold;
+}
+
+.top-right {
+  background-color: var(--bgPanel2);
+  color: white;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  border-left: 1px solid #66669940;
+  border-bottom: 1px solid #66669940;
+  box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
+}
+
+.left-side {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  pointer-events: auto;
+  margin: 0 0 0 0;
+}
+
+.control-panel {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem 0.5rem;
+  pointer-events: auto;
+  background-color: var(--bgPanel);
+  padding: 0.5rem 0.5rem;
+  filter: drop-shadow(0px 2px 4px #22222233);
+}
+
+.is-dashboard {
+  position: static;
+  margin: 0 0;
+  padding: 0.25rem 0 0 0;
+  filter: unset;
+  background-color: unset;
+}
+
+.hex-layer {
+  pointer-events: auto;
+}
+
+.ui-label {
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.tooltip {
+  padding: 5rem 5rem;
+  background-color: #ccc;
+}
+
+.panel-items {
+  margin: 0.5rem 0.5rem;
+}
+
+.panel-item {
+  display: flex;
+  flex-direction: column;
+  margin-right: 1rem;
+  margin-left: 0.25rem;
+}
+
+.right {
+  margin-left: auto;
+}
+
+input {
+  border: none;
+  background-color: #235;
+  color: #ccc;
+}
+
+.row {
+  display: 'grid';
+  grid-template-columns: 'auto 1fr';
+}
+
+.drawing-tool {
+  position: absolute;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.time-slider-area {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0;
+  right: 0;
+  margin: 0 9rem 0 1rem;
+  filter: $filterShadow;
+}
+
+@media only screen and (max-width: 640px) {
+  .message {
+    padding: 0.5rem 0.5rem;
+  }
+
+  .right-side {
+    font-size: 0.7rem;
+  }
+
+  .big {
+    padding: 0 0rem;
+    margin-top: 0.5rem;
+    font-size: 1.3rem;
+    line-height: 2rem;
+  }
+}
+</style>

@@ -667,11 +667,8 @@ function buildColorsBasedOnNumericValues(props: {
 
   // warn user about negative numbers
   if (!isDivergingScale && minimum < 0) {
-    store.commit('setStatus', {
-      type: Status.WARNING,
-      msg: `Column "${data.name}" has negative values: use a diverging color scale`,
-      desc: 'Data containing negative numbers usually require a zero-centered ("diverging") color scale',
-    })
+    throw Error(`Column "${data.name}" has negative values: use a diverging color scale`)
+    // 'Data containing negative numbers usually require a zero-centered ("diverging") color scale'
   }
 
   // // build breakpoints and colors

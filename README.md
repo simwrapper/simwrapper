@@ -3,12 +3,11 @@
 This repo contains the interactive visualization website for **SimWrapper**, available at https://simwrapper.github.io
 
 - VSP TU Berlin also has a departmental SimWrapper site at <https://vsp.berlin/simwrapper>
-
 - DOCS available at: https://simwrapper.github.io/docs
 
 This README details build instructions for the website itself.
 
-## Project pre-requisites
+## Project prerequisites
 
 The site uses npm and yarn, and was developed using VS Code.
 

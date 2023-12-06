@@ -154,7 +154,7 @@ export default defineComponent({
               this.base64Images[i] = `center / cover no-repeat url(data:image/png;base64,${base64})`
           } catch (e) {
             if (e instanceof Response) {
-              this.$store.commit('setStatus', {
+              this.$emit('error', {
                 type: Status.WARNING,
                 msg: e.statusText,
                 desc: `The file ${value[this.tileImageIndex]} was not found in this path ${
@@ -186,7 +186,7 @@ export default defineComponent({
     validateYAML() {
       for (const key in this.YAMLrequirementsOverview) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `YAML file missing required key: ${key}`,
             desc: 'Check this.YAMLrequirementsXY for required keys',

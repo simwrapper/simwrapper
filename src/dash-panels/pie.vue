@@ -38,7 +38,7 @@ export default defineComponent({
       YAMLrequirementsPie: { dataset: '', useLastRow: '' },
       layout: {
         height: 300,
-        margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },
+        margin: { t: 4, b: 4, l: 0, r: 0, pad: 2 },
         font: {
           color: '#444444',
           family: UI_FONT,
@@ -70,7 +70,7 @@ export default defineComponent({
           labels: [] as any[],
           values: [] as any[],
           type: 'pie',
-          hole: 0.1,
+          hole: 0,
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: true,
@@ -189,10 +189,10 @@ export default defineComponent({
     validateYAML() {
       for (const key in this.YAMLrequirementsPie) {
         if (key in this.config === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
-            msg: `YAML file missing required key: ${key}`,
-            desc: 'Check this.YAMLrequirementsXY for required keys',
+            msg: `Pie chart missing required key: ${key}`,
+            desc: `Required keys: ${Object.keys(this.YAMLrequirementsPie)}`,
           })
         }
       }
@@ -204,7 +204,7 @@ export default defineComponent({
         else this.updateChartSimple()
       } catch (e) {
         const msg = '' + e
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg,
           desc: 'Add a desription...',

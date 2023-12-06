@@ -215,7 +215,7 @@ const MyComponent = defineComponent({
       requestEnd: {} as crossfilter.Dimension<any, any>,
       requestVehicle: {} as crossfilter.Dimension<any, any>,
 
-      simulationTime: 8 * 3600, // 8 * 3600 + 10 * 60 + 10
+      simulationTime: 5 * 3600, // 8 * 3600 + 10 * 60 + 10
 
       timeElapsedSinceLastFrame: 0,
 
@@ -227,8 +227,8 @@ const MyComponent = defineComponent({
       isLoaded: true,
       showHelp: false,
 
-      speedStops: [-10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10],
-      speed: 2,
+      speedStops: [-20, -10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10, 20],
+      speed: 10,
 
       legendBits: [] as any[],
       isEmbedded: false,

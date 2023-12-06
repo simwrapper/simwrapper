@@ -410,7 +410,7 @@ const MyComponent = defineComponent({
 
       for (const key in this.YAMLrequirementsLinks) {
         if (key in configuration === false) {
-          this.$store.commit('setStatus', {
+          this.$emit('error', {
             type: Status.ERROR,
             msg: `YAML file missing required key: ${key}`,
             desc: 'Check this.YAMLrequirementsLinks for required keys',
@@ -419,7 +419,7 @@ const MyComponent = defineComponent({
       }
 
       if (configuration.zoom < 5 || configuration.zoom > 20) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Zoom is out of the recommended range `,
           desc: 'Zoom levels should be between 5 and 20. ',
@@ -428,7 +428,7 @@ const MyComponent = defineComponent({
 
       const hasGeoJson = !configuration.network && configuration.geojsonFile
       if (hasGeoJson) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `YAML field geojsonFile deprecated`,
           desc: 'Use YAML field network instad. ',
@@ -436,7 +436,7 @@ const MyComponent = defineComponent({
       }
 
       if (!configuration.display) {
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.WARNING,
           msg: `Display properties not set`,
           desc: 'Standard values are used',
@@ -563,7 +563,7 @@ const MyComponent = defineComponent({
       if (!dataColumn) {
         const msg = `Width: column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
         console.error(msg)
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg,
         })
@@ -606,7 +606,7 @@ const MyComponent = defineComponent({
       if (!column) {
         const msg = `Color: Column "${columnName}" not found in dataset "${this.csvData.datasetKey}"`
         console.error(msg)
-        this.$store.commit('setStatus', {
+        this.$emit('error', {
           type: Status.ERROR,
           msg,
         })
@@ -743,7 +743,7 @@ const MyComponent = defineComponent({
       } catch (e) {
         this.myState.statusMessage = '' + e
         const title = this.vizDetails.title || 'Network map'
-        this.$store.commit('error', `${title}: ` + e)
+        this.$emit('error', `${title}: ` + e)
         this.$emit('isLoaded')
       }
     },
@@ -998,7 +998,7 @@ const MyComponent = defineComponent({
         this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
         this.handleNewDataset({ key, dataTable: cleanTable })
       } catch (e) {
-        this.$store.commit('error', 'Could not load ' + filename)
+        this.$emit('error', 'Could not load ' + filename)
         this.$emit('isLoaded')
       }
     },
