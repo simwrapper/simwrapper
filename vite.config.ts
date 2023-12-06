@@ -9,7 +9,7 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    base: '/staging/',
+    base: '/',
     build: { sourcemap: true },
     plugins: [
       // vue
