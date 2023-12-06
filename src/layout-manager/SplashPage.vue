@@ -153,7 +153,7 @@
               a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
 
           .badges
-            img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
+            a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
 
 
 </template>
@@ -389,6 +389,7 @@ $angle: 1.25deg;
 
 .sponsors-area {
   background-color: white;
+  // background-image: linear-gradient(45deg, #edf2fd, #f4effd, #ebf6fa);
   margin-bottom: 1rem;
   padding-bottom: 2rem;
   color: #333;
@@ -404,7 +405,8 @@ h4 {
 }
 
 .data-area {
-  background-color: #222a35;
+  // background-color: #222a35;
+  background-image: linear-gradient(45deg, rgb(44, 39, 68), #1c242f, #283f42);
   padding-bottom: 2rem;
 }
 
