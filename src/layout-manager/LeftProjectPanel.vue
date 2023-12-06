@@ -2,8 +2,14 @@
 .panel
   .sw-leftpanel-top
     .span(v-for="item,idx of topItems" :key="`top-${idx}`")
-      img.sw-nav-item(v-if="item.image" :src="getUrl(item.image)" :style="getStyle(item)")
+
+      .image-top-thing(v-if="item.image")
+        a(v-if="item.url" @click="navigate(item.url)")
+          img.sw-nav-item(:src="getUrl(item.image)" :style="getStyle(item)")
+        img(v-else).sw-nav-item(:src="getUrl(item.image)" :style="getStyle(item)")
+
       h3.sw-nav-item(v-else-if="item.section") {{ getLabel(item)}}
+
       .sw-nav-item(v-else-if="hasLabel(item)")
         p(v-if="item.url && item.url.startsWith('http')"): a(:href="item.url") {{ getLabel(item) }}
         p(v-else-if="item.url"): a(@click="navigate(item.url)") {{ getLabel(item) }}
@@ -262,7 +268,8 @@ export default defineComponent({
   user-select: none;
   font-size: 0.9rem;
   color: #eee;
-  background-color: $themeColorPale;
+  // background-color: $themeColorPale;
+  background-image: linear-gradient(-125deg, #343549, #141a22);
 }
 
 .sw-leftpanel-top {

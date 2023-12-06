@@ -26,7 +26,7 @@
       v-show="isShowingActiveSection"
       :style="activeSectionStyle"
     )
-      component(:is="activeLeftSection.class"
+      component.left-component(:is="activeLeftSection.class"
         @navigate="onNavigate($event,0,0)"
         @activate="setActiveLeftSection"
         @isDragging="handleDragStartStop"
@@ -1099,5 +1099,9 @@ export default defineComponent({
   background-color: #666; // #3c3c49;
   color: #deef6f;
   cursor: pointer;
+}
+
+.left-component {
+  min-width: 125px;
 }
 </style>
