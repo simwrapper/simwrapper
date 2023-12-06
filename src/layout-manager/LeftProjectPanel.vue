@@ -161,13 +161,12 @@ export default defineComponent({
       let style = {} as any
       if (item.style) Object.assign(style, item.style)
 
+      if (!isLink || !this.currentFolder.length) return style
+
+      const absoluteCurrentFolder = '/' + this.currentFolder
+
       // Current folder gets special highlight
-      if (
-        isLink &&
-        item.url &&
-        this.currentFolder.length > 1 &&
-        item.url.indexOf(this.currentFolder) > -1
-      ) {
+      if (absoluteCurrentFolder.endsWith(item.url)) {
         style.backgroundColor = '#e3e3e0'
         style.borderRadius = '4px'
         style.color = 'black'
