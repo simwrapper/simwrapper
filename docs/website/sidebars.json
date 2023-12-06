@@ -20,6 +20,7 @@
       "calculation-tables",
       "csv",
       "flow-map",
+      "grid-layer",
       "heatmap-charts",
       "pie-charts",
       "plotly",
