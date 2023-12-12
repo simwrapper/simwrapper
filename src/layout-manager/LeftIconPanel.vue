@@ -73,6 +73,7 @@ export default defineComponent({
       topSections: [
         { name: 'Data', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
         { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
+        { name: 'Runs', class: 'LeftRunnerPanel', fontAwesomeIcon: 'fa-network-wired' },
         // { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
         // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
         // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
