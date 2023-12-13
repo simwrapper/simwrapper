@@ -292,9 +292,9 @@ export default defineComponent({
       if (pathMatch.startsWith('runs/')) {
         const serverNickname = pathMatch.substring(5)
         const props = { serverNickname } as any
-        console.log({ props })
         this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
         this.$store.commit('setShowLeftStrip', true)
+        this.activeLeftSection = { name: 'Runs', class: 'LeftRunnerPanel' }
         return
       }
 

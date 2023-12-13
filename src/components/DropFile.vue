@@ -103,6 +103,7 @@ export default {
   padding: 3rem;
   background: #f8f9de55;
   border: 5px dashed #0d7074;
+  border-radius: 16px;
 }
 
 .hidden-input {

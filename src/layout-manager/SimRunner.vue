@@ -1,38 +1,37 @@
 <template lang="pug">
 .panel
+  .scrolly
+    .middle-panel
+      h4 {{ server.serverNickname }} - Run Launcher
 
-  .middle-panel
-    h4 {{ server.serverNickname }} - Run Launcher
+      .new-run
+          //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
+          p(v-if="statusMessage"): b {{ statusMessage }}
 
-    .curated-sections
+          b-button(v-if="!statusMessage" type="is-warning" @click="clickedNewRun") Create new run&nbsp;&nbsp;
+            i.fa(v-if="isShowingRunTemplate").fa-arrow-down
+            i.fa(v-else).fa-arrow-up
 
-      h3(style="margin-top: 1rem") List of runs
+          .new-run-template(v-if="isShowingRunTemplate")
+            b Project/Run folder
+            b-input.b-input(v-model="jobProject" size="is-small" placeholder="/project" maxlength="255")
+            b QSUB script
+            b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
+            b Files
+            drop-file(:server="server" @files="filesUpdated")
+            b-button(type="is-link" @click="submitRun"): b Launch Run
 
-      .connect-here(v-if="jobs.length")
-        vue-good-table.vue-good-table(
-          :columns="jobColumns()"
-          :rows="jobs"
-          styleClass="vgt-table striped condensed"
-          @on-row-click="rowClicked"
-        )
+      .curated-sections
 
-      .new-run(v-if="!isLoading")
-        h3(style="margin-top: 1rem") Create new run
+        h3(style="margin-top: 1rem") List of runs
 
-
-        b-button.is-small(type="is-warning" @click="clickedNewRun") New run&nbsp;
-          i.fa(v-if="isShowingRunTemplate").fa-arrow-up
-          i.fa(v-else).fa-arrow-down
-
-        .new-run-template(v-if="isShowingRunTemplate")
-          b Project/Run folder
-          b-input.b-input(v-model="jobFolder" size="is-small" placeholder="/project" maxlength="255")
-          b QSUB script
-          b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
-          b Files
-          drop-file(:server="server" @files="filesUpdated")
-          b-button.is-small(type="is-link" @click="submitRun"): b Submit
-
+        .connect-here(v-if="jobs.length")
+          vue-good-table.vue-good-table(
+            :columns="jobColumns()"
+            :rows="jobs"
+            styleClass="vgt-table striped condensed"
+            @on-row-click="rowClicked"
+          )
 
 </template>
 
@@ -72,11 +71,13 @@ export default defineComponent({
       isShowingRunTemplate: false,
       jobs: [] as any,
       jobScript: '',
-      jobFolder: '',
+      jobProject: '',
       files: [] as any[],
+      statusMessage: '',
     }
   },
   mounted() {
+    this.$store.commit('setShowLeftBar', true)
     const servers = localStorage.getItem('simrunner-servers') || '{}'
     this.servers = JSON.parse(servers)
     const nickname = this.$route.params.pathMatch.substring(5)
@@ -117,6 +118,10 @@ export default defineComponent({
       console.log(event)
     },
 
+    cleanName(text: string) {
+      return decodeURIComponent(text)
+    },
+
     clickedNewRun() {
       this.isShowingRunTemplate = !this.isShowingRunTemplate
     },
@@ -130,14 +135,22 @@ export default defineComponent({
       console.log('SUBMIT!')
       console.log(this.files)
       if (!this.files.length) return
+      if (!this.jobScript) return
 
       // First, create the run
+      this.statusMessage = 'Creating job...'
       const headers = {
         'Content-Type': 'application/json',
         Authorization: this.server.key,
       }
-      const user = this.server.key.substring(0, this.server.key.indexOf('-'))
-      const data = { qsub: this.jobScript }
+      let project = this.cleanName(this.jobProject)
+      if (project.startsWith('/')) project = project.slice(1)
+      if (project.endsWith('/')) project = project.slice(0, -1)
+
+      const data = {
+        script: this.jobScript,
+        project,
+      }
 
       const job_id = await fetch(`${this.server.url}/jobs/`, {
         method: 'POST',
@@ -147,19 +160,22 @@ export default defineComponent({
       console.log({ job_id })
 
       // Then, upload the files
-      const formData = new FormData()
-      this.files.forEach(file => formData.append('file', file))
-      formData.append('job_id', job_id)
-      const result = await fetch(`${this.server.url}/files/`, {
-        method: 'POST',
-        headers: { Authorization: this.server.key },
-        body: formData,
-      })
-      console.log(51, { result })
-      const result2 = await result.json()
-      console.log(52, { result2 })
+      this.statusMessage = 'Uploading files...'
+      for (const file of this.files) {
+        this.statusMessage = 'Uploading files... ' + file.name
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('job_id', job_id)
+        const result = await fetch(`${this.server.url}/files/`, {
+          method: 'POST',
+          headers: { Authorization: this.server.key },
+          body: formData,
+        })
+        const result2 = await result.json()
+      }
 
       // Then, add to queue
+      this.statusMessage = 'Adding to queue...'
       const result3 = await fetch(`${this.server.url}/jobs/${job_id}`, {
         method: 'PUT',
         body: JSON.stringify({ status: 1 }),
@@ -167,14 +183,11 @@ export default defineComponent({
       }).then(r => r.json())
       console.log({ result3 })
 
-      // axios({
-      //   method: 'POST',
-      //   url: 'http://path/to/api/upload-files',
-      //   data: formData,
-      //   headers: {
-      //     'Content-Type': 'multipart/form-data',
-      //   },
-      // })
+      // update table
+      this.statusMessage = ''
+      this.isLoading = true
+      this.isShowingRunTemplate = false
+      this.buildInitialPage()
     },
   },
 })
@@ -186,11 +199,14 @@ export default defineComponent({
 .panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding-top: 0.25rem;
   user-select: none;
-  font-size: 0.9rem;
+  font-size: 1rem;
   background-color: var(--bgPanel);
+}
+
+.scrolly {
+  overflow-y: auto;
 }
 
 .top-panel {
@@ -200,10 +216,11 @@ export default defineComponent({
 }
 
 h4 {
-  background-color: #00000080;
+  background-image: linear-gradient(45deg, #481e83, #129eb3);
   text-transform: uppercase;
   text-align: center;
-  padding: 0.25rem 0.5rem;
+  padding: 0.5rem 0.5rem;
+  margin-top: 0.25rem;
   margin-bottom: 0.25rem;
   font-weight: bold;
   text-transform: uppercase;
@@ -218,8 +235,6 @@ h4 {
   width: 100%;
   margin: 0 auto;
   padding: 0 1rem;
-  overflow-y: auto;
-  overflow-x: hidden;
   text-align: left;
   user-select: none;
   max-width: 70rem;
@@ -364,10 +379,15 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
+.new-run {
+  margin-top: 1.25rem;
+}
+
 .new-run-template {
-  margin: 2px 0px;
+  margin: 1px 0px;
   padding: 0.5rem 0.5rem;
   background-color: #ccccee33;
+  border: 1px solid #aaaaaa44;
 }
 </style>
 
@@ -378,6 +398,6 @@ h2 {
 .footer__row-count__select,
 .footer__navigation__page-info,
 .footer__navigation__page-btn span {
-  font-size: 12px !important;
+  font-size: 13px !important;
 }
 </style>

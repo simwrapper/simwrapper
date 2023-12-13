@@ -6,34 +6,33 @@
 
   .middle-panel
 
-      .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
-          p Connect to SimWrapper cloud resources here.
+    .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
+        p Connect to SimWrapper cloud resources here.
 
-      //- Starting point if not in a project root: list all existing roots
-      .curated-sections(v-if="!root")
 
-        h3(style="margin-top: 1rem") Connected resources
+    h3(style="margin-top: 1rem") Connected resources
 
-        .curate-content
-          .folder-table
-            .folder(v-for="server in serverNames" :key="server"
-              :class="{fade: isLoading}"
-              @click="clickedOnServer(server)"
-            )
-              i.fa.fa-server
-              p {{ cleanName(server) }}
+    .curate-content
+      .folder-table
+        .folder(v-for="server in serverNames" :key="server"
+          :class="{fade: isLoading}"
+          @click="clickedOnServer(server)"
+        )
+          i.fa.fa-server
+          p &nbsp;{{ cleanName(server) }}
 
-        h3(style="margin-top: 1rem") Add new server
 
-        .connect-here
-          p Server URL
-          b-input.b-input(v-model="addUrl" size="is-small" placeholder="https://server" maxlength="255")
-          p Authentication Key
-          b-input.b-input(v-model="addKey" size="is-small" placeholder="user-123456" maxlength="255")
-          p Nickname
-          b-input.b-input(v-model="addNickname" size="is-small" placeholder="nickname" maxlength="255")
+    .connect-here
+      h3(style="margin-top: 1rem") Add resource
 
-          b-button.is-small(type="is-warning" @click="addServer") Connect
+      p Label
+      b-input.b-input(v-model="addNickname" size="is-small" placeholder="nickname" maxlength="255")
+      p Server URL
+      b-input.b-input(v-model="addUrl" size="is-small" placeholder="https://server" maxlength="255")
+      p Authentication Key
+      b-input.b-input(v-model="addKey" size="is-small" placeholder="user-123456" maxlength="255")
+
+      b-button.is-small(type="is-warning" @click="addServer") Connect
 </template>
 
 <script lang="ts">
@@ -215,7 +214,7 @@ h4 {
   display: flex;
   flex-direction: column;
   // width: 100%;
-  margin-bottom: 0rem;
+  margin: 0 0;
   padding: 0 1rem;
   overflow-y: auto;
   overflow-x: hidden;
@@ -226,10 +225,12 @@ h4 {
     letter-spacing: -1px;
   }
   h3 {
-    font-size: 1.2rem;
+    font-size: 1rem;
     border-bottom: 1px solid #cccccc80;
-    margin-top: 0rem;
     margin-bottom: 0.25rem;
+    padding-bottom: 1px;
+    text-transform: uppercase;
+    // text-align: center;
   }
 
   p,
@@ -387,10 +388,12 @@ h2 {
   line-height: 1.2rem;
   opacity: 0;
   transition: opacity 0.2s ease-in;
-  padding: 0.25rem 0.25rem;
+  // padding: 0.25rem 0.25rem;
 
   p {
+    max-width: 12rem;
     text-align: center;
+    margin: 0 auto;
   }
 }
 
@@ -525,6 +528,7 @@ p.v-plugin {
 }
 
 .connect-here {
+  margin-top: auto;
   padding: 1rem 0;
 }
 </style>
