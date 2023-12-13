@@ -1,37 +1,21 @@
 <template lang="pug">
 .panel
-  .scrolly
-    .middle-panel
-      h4 {{ server.serverNickname }} - Run Launcher
 
-      .new-run
-          //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
-          p(v-if="statusMessage"): b {{ statusMessage }}
+  h2(style="margin-top: 1rem") Run {{ runId }}
 
-          b-button(v-if="!statusMessage" type="is-warning" @click="clickedNewRun") Create new run&nbsp;&nbsp;
-            i.fa(v-if="isShowingRunTemplate").fa-arrow-down
-            i.fa(v-else).fa-arrow-up
+  table.detail-table
+    tr.job-row(v-for="kv in Object.entries(this.job)" :key="kv[0]")
+      td.job-param {{ kv[0] }}
+      td.job-param-value: b {{  kv[1] }}
 
-          .new-run-template(v-if="isShowingRunTemplate")
-            b Project/Run folder
-            b-input.b-input(v-model="jobProject" size="is-small" placeholder="/project" maxlength="255")
-            b QSUB script
-            b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
-            b Files
-            drop-file(:server="server" @files="filesUpdated")
-            b-button(type="is-link" @click="submitRun"): b Launch Run
 
-      .curated-sections
+  .files-table(v-if="files.length")
+    h3 Files
 
-        h3(style="margin-top: 1rem") List of runs
-
-        .connect-here(v-if="jobs.length")
-          vue-good-table.vue-good-table(
-            :columns="jobColumns()"
-            :rows="jobs"
-            styleClass="vgt-table striped condensed"
-            @on-row-click="rowClicked"
-          )
+    table.detail-table
+      tr.job-row(v-for="fileEntry in files" :key="fileEntry.name")
+        td.job-param {{ fileEntry.name }}
+        td.job-param-value {{  getFileSize(fileEntry.sizeof) }}
 
 </template>
 
@@ -48,28 +32,31 @@ const i18n = {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { VueGoodTable } from 'vue-good-table'
+import { filesize } from 'filesize'
 
 import globalStore from '@/store'
-import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DropFile from '@/components/DropFile.vue'
+import DropFile from './DropFile.vue'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
 const STATUS = ['Draft', 'Queued', 'Preparing', 'Launched', 'Complete', 'Cancelled', 'Error']
 
 export default defineComponent({
-  name: 'BrowserPanel',
+  name: 'SimRunDetails',
   i18n,
   components: { DropFile, VueGoodTable },
+
+  props: {
+    runId: { type: String, required: true },
+    server: { type: Object, required: true },
+  },
+
   data: () => {
     return {
       globalState: globalStore.state,
-      servers: {} as { [id: string]: { serverNickname: string; url: string; key: string } },
-      server: {} as { serverNickname: string; url: string; key: string },
       isLoading: true,
       isShowingRunTemplate: false,
-      jobs: [] as any,
+      job: {} as any,
       jobScript: '',
       jobProject: '',
       files: [] as any[],
@@ -78,28 +65,37 @@ export default defineComponent({
   },
   mounted() {
     this.$store.commit('setShowLeftBar', true)
-    const servers = localStorage.getItem('simrunner-servers') || '{}'
-    this.servers = JSON.parse(servers)
-    const nickname = this.$route.params.pathMatch.substring(5)
-    this.server = this.servers[nickname]
-    if (!this.server) console.error('NO SERVER:' + nickname)
 
-    this.buildInitialPage()
+    this.getJobDetails()
+    this.getFileList()
   },
 
   watch: {},
   computed: {},
 
   methods: {
-    jobColumns() {
-      if (!this.jobs.length) return []
-      const columns = Object.keys(this.jobs[0])
-      return columns.map(k => {
-        return { label: k, field: k }
-      })
+    getFileSize(f: any) {
+      return filesize(f, { round: 2, standard: 'si' })
     },
 
-    async buildInitialPage() {
+    async getJobDetails() {
+      const cmd = `${this.server.url}/jobs/?id=${this.runId}`
+      let job: any[] = await fetch(cmd, {
+        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+      }).then(response => response.json())
+      if (job.length == 1) {
+        this.job = job[0]
+        if ('status' in this.job) this.job.status = STATUS[this.job.status]
+      } else {
+        console.error('JOB NOT FOUND')
+      }
+    },
+
+    jobColumns() {
+      return []
+    },
+
+    async buildSummaryPage() {
       // Get list of jobs
       const cmd = `${this.server.url}/jobs/`
       const allJobs: any[] = await fetch(cmd, {
@@ -110,16 +106,21 @@ export default defineComponent({
         row.status = STATUS[row.status]
         return row
       })
-      this.jobs = cleanJobs
+      // reverse sort
+      cleanJobs.sort((a, b) => (a.id > b.id ? -1 : 1))
+
+      // this.jobs = cleanJobs
       this.isLoading = false
     },
 
-    rowClicked(event: any) {
-      console.log(event)
-    },
+    async getFileList() {
+      const cmd = `${this.server.url}/files/?job_id=${this.runId}`
+      const allFiles: any[] = await fetch(cmd, {
+        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+      }).then(response => response.json())
 
-    cleanName(text: string) {
-      return decodeURIComponent(text)
+      console.log({ allFiles })
+      this.files = allFiles
     },
 
     clickedNewRun() {
@@ -129,6 +130,10 @@ export default defineComponent({
     filesUpdated(files: any[]) {
       console.log('GOT YOU', files)
       this.files = files
+    },
+
+    cleanName(text: string) {
+      return decodeURIComponent(text)
     },
 
     async submitRun() {
@@ -187,7 +192,7 @@ export default defineComponent({
       this.statusMessage = ''
       this.isLoading = true
       this.isShowingRunTemplate = false
-      this.buildInitialPage()
+      this.buildSummaryPage()
     },
   },
 })
@@ -202,7 +207,6 @@ export default defineComponent({
   padding-top: 0.25rem;
   user-select: none;
   font-size: 1rem;
-  background-color: var(--bgPanel);
 }
 
 .scrolly {
@@ -321,7 +325,7 @@ h2 {
   pointer-events: none;
 }
 
-.curated-sections {
+.flex-column {
   display: flex;
   flex-direction: column;
 }
@@ -389,15 +393,29 @@ h2 {
   background-color: #ccccee33;
   border: 1px solid #aaaaaa44;
 }
-</style>
+.hint {
+  margin-top: 2rem;
+}
 
-<style lang="scss">
-.vgt-table,
-.vgt-wrap__footer,
-.footer__row-count__label,
-.footer__row-count__select,
-.footer__navigation__page-info,
-.footer__navigation__page-btn span {
-  font-size: 13px !important;
+.detail-table {
+  table-layout: auto;
+  margin-top: 1rem;
+}
+
+.job-param {
+  text-align: right;
+  padding-right: 0.75rem;
+  white-space: nowrap;
+}
+.job-param-value {
+  width: 100%;
+}
+
+.files-table {
+  margin-top: 2rem;
+}
+
+h3 {
+  text-transform: uppercase;
 }
 </style>

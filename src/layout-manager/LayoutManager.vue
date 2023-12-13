@@ -150,7 +150,7 @@ import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
 import LeftProjectPanel from './LeftProjectPanel.vue'
 import TopNavBar from './TopNavBar.vue'
-import SimRunner from './SimRunner.vue'
+import SimRunner from '@/sim-runner/SimRunner.vue'
 import SplashPage from './SplashPage.vue'
 import LeftRunnerPanel from './LeftRunnerPanel.vue'
 import LeftSplitFolderPanel from './LeftSplitFolderPanel.vue'
@@ -289,7 +289,7 @@ export default defineComponent({
       }
 
       // runs page:
-      if (pathMatch.startsWith('runs/')) {
+      if (pathMatch.startsWith('runs')) {
         const serverNickname = pathMatch.substring(5)
         const props = { serverNickname } as any
         this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
