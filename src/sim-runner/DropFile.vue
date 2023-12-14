@@ -18,9 +18,9 @@
     )
     label.file-label(for="fileInput")
       div(v-if="isDragging") Release file here to add
-      div(v-else) Drop files here or
+      div(v-else) Drag files here or
         b &nbsp;click&nbsp;
-        | here to upload
+        | to upload
     .preview-container.mt-4(v-if="files.length")
       .preview-card(v-for="file in files" :key="file.name")
         p {{  file.name }}

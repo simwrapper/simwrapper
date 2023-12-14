@@ -212,7 +212,7 @@ export default defineComponent({
       this.statusMessage = 'Adding to queue...'
       const result3 = await fetch(`${this.server.url}/jobs/${job_id}`, {
         method: 'PUT',
-        body: JSON.stringify({ status: 1 }),
+        body: JSON.stringify({ status: 1 }), // "submitted"
         headers,
       }).then(r => r.json())
       console.log({ result3 })

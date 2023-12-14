@@ -2,11 +2,15 @@
 .panel
 
   h2(style="margin-top: 1rem") Run {{ runId }}
+    b-button.button-run-again.floatright(
+      type="is-warning"
+      @click="clickedRunAgain"
+    ) Run again...
 
   table.detail-table
     tr.job-row(v-for="kv in Object.entries(this.job)" :key="kv[0]")
       td.job-param {{ kv[0] }}
-      td.job-param-value: b {{  kv[1] }}
+      td.job-param-value: b(:style="getFormat(kv)") {{  kv[1] }}
 
 
   .files-table(v-if="files.length")
@@ -14,8 +18,8 @@
 
     table.detail-table
       tr.job-row(v-for="fileEntry in files" :key="fileEntry.name")
-        td.job-param {{ fileEntry.name }}
-        td.job-param-value {{  getFileSize(fileEntry.sizeof) }}
+        td.job-param: b {{ fileEntry.name }}
+        td.job-param-value {{  getFileSize(fileEntry.size_of) }}
 
 </template>
 
@@ -78,6 +82,38 @@ export default defineComponent({
       return filesize(f, { round: 2, standard: 'si' })
     },
 
+    getFormat(kv: any[]) {
+      const [key, value] = kv
+      const style = { padding: '1px 3px' } as any
+      if (key == 'status') {
+        style.color = 'white'
+        switch (value) {
+          case 'Draft':
+            style.backgroundColor = 'blue'
+            break
+          case 'Error':
+          case 'Cancelled':
+            style.backgroundColor = 'red'
+            break
+          case 'Submitted':
+          case 'Preparing':
+          case 'Queued':
+            style.backgroundColor = '#68f'
+            break
+          case 'Running':
+            style.backgroundColor = 'blueviolet'
+            break
+          case 'Complete':
+            style.backgroundColor = 'green'
+            break
+          default:
+            style.backgroundColor = 'orange'
+            break
+        }
+      }
+      return style
+    },
+
     async getJobDetails() {
       const cmd = `${this.server.url}/jobs/?id=${this.runId}`
       let job: any[] = await fetch(cmd, {
@@ -93,6 +129,38 @@ export default defineComponent({
 
     jobColumns() {
       return []
+    },
+
+    async clickedRunAgain() {
+      console.log('click!', this.job)
+
+      // Make new run
+      const body = { project: this.job.project, script: this.job.script }
+      const cmd = `${this.server.url}/jobs/`
+      const jobID = await fetch(cmd, {
+        method: 'POST',
+        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(response => response.json())
+      console.log('NEW JOB:', jobID)
+
+      // Link files to new job
+      for (const file of this.files) {
+        const body = { ...file }
+        delete body.id // old file ID
+        body.job_id = jobID // new job ID
+
+        const cmd = `${this.server.url}/files/`
+        const fileID = await fetch(cmd, {
+          method: 'POST',
+          headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }).then(response => response.json())
+        console.log('NEW FILE:', fileID)
+      }
+
+      // Navigate to the new job
+      this.$router.push(`${jobID}`)
     },
 
     async buildSummaryPage() {
@@ -408,8 +476,20 @@ h2 {
   width: 100%;
 }
 
+.floatright {
+  float: right;
+}
+
 .files-table {
   margin-top: 2rem;
+}
+
+.button-run-again {
+  opacity: 0.9;
+}
+
+.button-run-again:active {
+  opacity: 1;
 }
 
 h3 {
