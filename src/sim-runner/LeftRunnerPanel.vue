@@ -15,24 +15,31 @@
     .curate-content
       .folder-table
         .folder(v-for="server in serverNames" :key="server"
-          :class="{fade: isLoading}"
           @click="clickedOnServer(server)"
         )
           i.fa.fa-server
           p &nbsp;{{ cleanName(server) }}
+          i.fa.fa-times(
+            @click="removeServer(server)"
+            style="margin-left: auto"
+          )
 
 
     .connect-here
-      h3(style="margin-top: 1rem") Add resource
+      h3(@click="showAddResource=!showAddResource" style="margin-top: 1rem") Add new connection
+        i.fa(style="float: right"
+          :class="{'fa-times': showAddResource, 'fa-arrow-up': !showAddResource}"
+        )
 
-      p Label
-      b-input.b-input(v-model="addNickname" size="is-small" placeholder="nickname" maxlength="255")
-      p Server URL
-      b-input.b-input(v-model="addUrl" size="is-small" placeholder="https://server" maxlength="255")
-      p Authentication Key
-      b-input.b-input(v-model="addKey" size="is-small" placeholder="user-123456" maxlength="255")
+      .add-details(v-if="showAddResource")
+        p Label
+        b-input.b-input(v-model="addNickname" size="is-small" placeholder="server" maxlength="255")
+        p Server URL
+        b-input.b-input(v-model="addUrl" size="is-small" placeholder="https://server" maxlength="255")
+        p Authentication Key
+        b-input.b-input(v-model="addKey" size="is-small" placeholder="user-123456" maxlength="255")
 
-      b-button.is-small(type="is-warning" @click="addServer") Connect
+        b-button.add-button.is-small(type="is-warning" @click="addServer") &nbsp;&nbsp;Add&nbsp;&nbsp;
 </template>
 
 <script lang="ts">
@@ -68,6 +75,7 @@ export default defineComponent({
       servers: {} as { [id: string]: { serverNickname: string; url: string; key: string } },
       serverNames: [] as string[],
       isLoading: false,
+      showAddResource: false,
     }
   },
   mounted() {
@@ -75,6 +83,7 @@ export default defineComponent({
     const servers = localStorage.getItem('simrunner-servers') || '{}'
     this.servers = JSON.parse(servers)
     this.serverNames = Object.keys(this.servers).sort()
+    if (!this.serverNames.length) this.showAddResource = true
   },
 
   watch: {
@@ -101,6 +110,12 @@ export default defineComponent({
       }
       this.servers[server.serverNickname] = server
       this.servers = Object.assign({}, this.servers)
+      this.serverNames = Object.keys(this.servers).sort()
+      localStorage.setItem('simrunner-servers', JSON.stringify(this.servers))
+    },
+
+    removeServer(server: string) {
+      delete this.servers[server]
       this.serverNames = Object.keys(this.servers).sort()
       localStorage.setItem('simrunner-servers', JSON.stringify(this.servers))
     },
@@ -491,13 +506,15 @@ p.v-plugin {
   margin-top: 1rem;
 }
 
-.fa-times {
-  opacity: 0;
+.fa-times,
+.fa-arrow-up {
+  opacity: 0.3;
   float: right;
   padding: 1px 1px;
 }
 
 .fa-times:hover {
+  opacity: 1;
   color: red;
 }
 
@@ -529,5 +546,12 @@ p.v-plugin {
 .connect-here {
   margin-top: auto;
   padding: 1rem 0;
+
+  h3 {
+    cursor: pointer;
+  }
+}
+.add-button:active {
+  opacity: 0.8;
 }
 </style>
