@@ -9,7 +9,6 @@
     .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
         p Connect to SimWrapper cloud resources here.
 
-
     h3(style="margin-top: 1rem") Connected resources
 
     .curate-content
@@ -23,7 +22,6 @@
             @click="removeServer(server)"
             style="margin-left: auto"
           )
-
 
     .connect-here
       h3(@click="showAddResource=!showAddResource" style="margin-top: 1rem") Add new connection
