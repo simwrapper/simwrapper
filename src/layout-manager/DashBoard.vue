@@ -667,6 +667,7 @@ export default defineComponent({
   background-color: var(--bgCardFrame);
   padding: 2px 5px;
   border-radius: 4px;
+  overflow-x: auto;
 
   .dash-card-headers {
     display: flex;

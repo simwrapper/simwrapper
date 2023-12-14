@@ -4,6 +4,7 @@
   .top
 
     .item(v-for="section in topSections" :key="section.name"
+      v-show="!section.hidden"
       :class="{'is-active': section.name === activeSection, 'is-dark': isDarkMode}"
       @click="select(section)"
     )
@@ -57,6 +58,7 @@ export interface Section {
   link?: string
   onlyIfVisible?: boolean
   navRoot?: string
+  hidden?: boolean
 }
 
 export default defineComponent({
@@ -73,6 +75,12 @@ export default defineComponent({
       topSections: [
         { name: 'Data', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
         { name: 'Split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
+        {
+          hidden: true,
+          name: 'Runs',
+          class: 'LeftRunnerPanel',
+          fontAwesomeIcon: 'fa-network-wired',
+        },
         // { name: 'Issues', class: 'ErrorPanel', icon: ICON_ISSUES, colorize: true },
         // { name: 'Search', class: 'RunFinderPanel', icon: ICON_ARROW },
         // { name: 'Gallery', class: 'RunFinderPanel', icon: ICON_ARROW },
@@ -106,6 +114,7 @@ export default defineComponent({
       return 'invert(100%)'
     },
   },
+
   methods: {
     select(section: Section) {
       if (section.name == 'Settings') {

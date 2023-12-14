@@ -149,11 +149,13 @@ import { pluginComponents } from '@/plugins/pluginRegistry'
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
 import FolderBrowser from './FolderBrowser.vue'
 import LeftProjectPanel from './LeftProjectPanel.vue'
-import TopNavBar from './TopNavBar.vue'
-import SplashPage from './SplashPage.vue'
+import LeftRunnerPanel from '@/sim-runner/LeftRunnerPanel.vue'
 import LeftSplitFolderPanel from './LeftSplitFolderPanel.vue'
 import LeftSystemPanel from './LeftSystemPanel.vue'
+import SimRunner from '@/sim-runner/SimRunner.vue'
+import SplashPage from './SplashPage.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
+import TopNavBar from './TopNavBar.vue'
 
 import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
@@ -172,9 +174,11 @@ export default defineComponent({
       FolderBrowser,
       LeftIconPanel,
       LeftProjectPanel,
+      LeftRunnerPanel,
       LeftSplitFolderPanel,
       LeftSystemPanel,
       TopNavBar,
+      SimRunner,
       SplashPage,
       TabbedDashboardView,
     },
@@ -280,8 +284,17 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-        // this.$store.commit('setShowLeftBar', false)
         this.$store.commit('setShowLeftStrip', true)
+        return
+      }
+
+      // runs page:
+      if (pathMatch.startsWith('runs')) {
+        const serverNickname = pathMatch.substring(5)
+        const props = { serverNickname } as any
+        this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
+        this.$store.commit('setShowLeftStrip', true)
+        this.activeLeftSection = { name: 'Runs', class: 'LeftRunnerPanel' }
         return
       }
 
@@ -659,7 +672,7 @@ export default defineComponent({
       // some panels don't require header (or provide their own)
       if (this.panels.length > 1 || this.panels[0].length > 1) return true
 
-      const panelsWithoutHeader = ['SplashPage', 'TabbedDashboardView']
+      const panelsWithoutHeader = ['SplashPage', 'TabbedDashboardView', 'SimRunner']
       if (panelsWithoutHeader.includes(panel.component)) return false
 
       return true
@@ -673,27 +686,34 @@ export default defineComponent({
       if (this.panels.length > 1 || this.panels[0].length > 1) {
         const base64 = btoa(JSON.stringify(this.panels))
         this.$router.push(`${BASE_URL}split/${base64}`)
+        return
+      }
+
+      const props = this.panels[0][0].props
+
+      // simrunner is its own thing
+      if (props.serverNickname) {
+        this.$router.replace(`${BASE_URL}runs/${props.serverNickname}`)
+        return
+      }
+
+      // single panel has user-readable friendly URL:
+      const root = props.root || ''
+      const xsubfolder = props.xsubfolder || props.subfolder || ''
+      const yaml = props.yamlConfig || ''
+
+      if (yaml.indexOf('/') > -1) {
+        // a YAML from a config folder will have a path in it:
+        const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
+        this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
+      } else if (yaml) {
+        // YAML config specified
+        this.$router.push(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
       } else {
-        // single panel has user-readable friendly URL:
-        const props = this.panels[0][0].props
-
-        const root = props.root || ''
-        const xsubfolder = props.xsubfolder || props.subfolder || ''
-        const yaml = props.yamlConfig || ''
-
-        if (yaml.indexOf('/') > -1) {
-          // a YAML from a config folder will have a path in it:
-          const yamlFileWithoutPath = yaml.substring(yaml.lastIndexOf('/'))
-          this.$router.replace(`${BASE_URL}${root}/${xsubfolder}/${yamlFileWithoutPath}`)
-        } else if (yaml) {
-          // YAML config specified
-          this.$router.push(`${BASE_URL}${root}/${xsubfolder}/${yaml}`)
-        } else {
-          // Just the folder and viz file itself
-          let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
-          if (props.config) finalUrl += `/${props.config}`
-          this.$router.push(finalUrl)
-        }
+        // Just the folder and viz file itself
+        let finalUrl = `${BASE_URL}${root}/${xsubfolder}`
+        if (props.config) finalUrl += `/${props.config}`
+        this.$router.push(finalUrl)
       }
     },
 

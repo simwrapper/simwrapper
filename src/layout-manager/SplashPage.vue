@@ -8,7 +8,7 @@
 
         .top-banner.flex-row
           .flex1
-            img.simwrapper-logo(src="@/assets/simwrapper-logo/SW_logo_white.png")
+            img.simwrapper-logo(:src="images.logo")
             //- img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
             //- img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
 
@@ -57,7 +57,7 @@
 
         h2.section-head.mb1 What is SimWrapper?
 
-        img.screenshot(:src="screenshots.berlin")
+        img.screenshot(:src="images.berlin")
 
         p
           | SimWrapper is a unique, web-based data visualization tool for researchers building disaggregate transportation simulations with software such as&nbsp;
@@ -187,6 +187,7 @@ import { FileSystemConfig } from '@/Globals'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 import SCREENSHOT_BERLIN from '@/assets/screenshots/berlin.jpg'
+import SIMWRAPPER_FULL_LOGO from '@/assets/simwrapper-logo/SW_logo_white.png'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -215,7 +216,8 @@ export default defineComponent({
     return {
       state: globalStore.state,
       allRoots: [] as FileSystemConfig[],
-      screenshots: {
+      images: {
+        logo: SIMWRAPPER_FULL_LOGO,
         berlin: SCREENSHOT_BERLIN,
       },
     }

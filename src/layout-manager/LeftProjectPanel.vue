@@ -6,7 +6,7 @@
       .image-top-thing(v-if="item.image")
         a(v-if="item.url" @click="navigate(item.url)")
           img.sw-nav-item(:src="getUrl(item.image)" :style="getStyle(item)")
-        img(v-else).sw-nav-item(:src="getUrl(item.image)" :style="getStyle(item)")
+        img.sw-nav-item(v-else :src="getUrl(item.image)" :style="getStyle(item)")
 
       h3.sw-nav-item(v-else-if="item.section") {{ getLabel(item)}}
 

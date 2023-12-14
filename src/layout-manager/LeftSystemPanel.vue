@@ -206,7 +206,8 @@ export default defineComponent({
       // this.fetchFolderContents()
     },
     subfolder() {
-      this.updateRoute()
+      return
+      // if (this.subfolder) this.updateRoute()
     },
     'globalState.authAttempts'() {
       this.authenticationChanged()

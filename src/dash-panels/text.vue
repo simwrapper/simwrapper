@@ -1,9 +1,10 @@
 <template lang="pug">
 .panel-element
-  .curate-content.markdown(
-    v-if="readmeContent"
-    v-html="readmeContent"
-  )
+  .scrollable
+    .curate-content.markdown(
+      v-if="readmeContent"
+      v-html="readmeContent"
+    )
 
 </template>
 
@@ -65,6 +66,9 @@ export default defineComponent({
   right: 0;
 }
 
-@media only screen and (max-width: 640px) {
+.scrollable {
+  overflow: auto;
+  height: 100%;
+  width: 100%;
 }
 </style>

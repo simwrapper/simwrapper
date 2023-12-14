@@ -22,14 +22,6 @@ function convertSecondsToClockTimeMinutes(index: number) {
   }
 }
 
-const INITIAL_VIEW = {
-  pitch: 0,
-  zoom: 11,
-  bearing: 0,
-  longitude: 13.38,
-  latitude: 52.5,
-}
-
 // -------------------------------------------------------------------
 export default function Component({
   viewId = 0,
@@ -51,7 +43,7 @@ export default function Component({
   mapIsIndependent = false,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
-  const [viewState, setViewState] = useState(INITIAL_VIEW)
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
