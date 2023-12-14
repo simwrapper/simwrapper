@@ -101,7 +101,6 @@ export default defineComponent({
       const allJobs: any[] = await fetch(cmd, {
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
-      console.log(allJobs)
       const cleanJobs = allJobs.map(row => {
         row.status = JOBSTATUS[row.status]
         return row
@@ -119,7 +118,6 @@ export default defineComponent({
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
 
-      console.log({ allFiles })
       this.files = allFiles
     },
 
@@ -128,7 +126,6 @@ export default defineComponent({
     },
 
     filesUpdated(files: any[]) {
-      console.log('GOT YOU', files)
       this.files = files
     },
 

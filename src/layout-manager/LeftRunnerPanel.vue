@@ -138,7 +138,6 @@ export default defineComponent({
 
     clickedOnServer(serverName: string) {
       const server = this.servers[serverName]
-      console.log('CLICKED ON', server)
 
       const runnerPage = {
         component: 'SimRunner',

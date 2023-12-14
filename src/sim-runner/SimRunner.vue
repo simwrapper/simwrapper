@@ -95,6 +95,7 @@ export default defineComponent({
       runId: '',
     }
   },
+
   mounted() {
     this.$store.commit('setShowLeftBar', true)
     const servers = localStorage.getItem('simrunner-servers') || '{}'
@@ -102,8 +103,6 @@ export default defineComponent({
 
     // figure out page path
     const pagePath = this.$route.params.pathMatch.substring(5).split('/')
-    console.log({ pagePath })
-
     const serverId = pagePath[0]
     if (!serverId) return
 
@@ -134,11 +133,12 @@ export default defineComponent({
       const allJobs: any[] = await fetch(cmd, {
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
-      console.log(allJobs)
+
       const cleanJobs = allJobs.map(row => {
         row.status = JOBSTATUS[row.status]
         return row
       })
+
       // reverse sort
       cleanJobs.sort((a, b) => (a.id > b.id ? -1 : 1))
 
@@ -147,11 +147,8 @@ export default defineComponent({
     },
 
     rowClicked(event: any) {
-      console.log(event.row)
       this.$router.push(`${this.server.serverNickname}/${event.row.id}`)
       const pagePath = this.$route.params.pathMatch.substring(5).split('/')
-      console.log({ pagePath })
-
       if (pagePath.length > 2) this.runId = pagePath[1] || ''
     },
 
