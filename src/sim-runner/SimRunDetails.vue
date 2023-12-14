@@ -39,7 +39,7 @@ import DropFile from './DropFile.vue'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
-const STATUS = ['Draft', 'Queued', 'Preparing', 'Launched', 'Complete', 'Cancelled', 'Error']
+import { JOBSTATUS } from './SimRunner.vue'
 
 export default defineComponent({
   name: 'SimRunDetails',
@@ -85,7 +85,7 @@ export default defineComponent({
       }).then(response => response.json())
       if (job.length == 1) {
         this.job = job[0]
-        if ('status' in this.job) this.job.status = STATUS[this.job.status]
+        if ('status' in this.job) this.job.status = JOBSTATUS[this.job.status]
       } else {
         console.error('JOB NOT FOUND')
       }
@@ -103,7 +103,7 @@ export default defineComponent({
       }).then(response => response.json())
       console.log(allJobs)
       const cleanJobs = allJobs.map(row => {
-        row.status = STATUS[row.status]
+        row.status = JOBSTATUS[row.status]
         return row
       })
       // reverse sort

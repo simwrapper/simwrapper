@@ -5,8 +5,8 @@
       h4 {{ server.serverNickname }} - Run Launcher
 
       .hint(v-if="!server.serverNickname")
-        p: b Select a server resource.
-        p Or add a new SimWrapper cloud server resource if you have access to one.
+        p: b Select a server resource on the left.
+        p You can connect to any SimWrapper cloud server resources you have access to.
 
       .new-run(v-if="server.serverNickname && !runId")
           //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
@@ -65,7 +65,16 @@ import SimRunDetails from './SimRunDetails.vue'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
-const STATUS = ['Draft', 'Queued', 'Preparing', 'Launched', 'Complete', 'Cancelled', 'Error']
+export const JOBSTATUS = [
+  'Draft', // 0
+  'Submitted', // 1
+  'Preparing', // 2
+  'Queued', // 3
+  'Running', // 4
+  'Complete', // 5
+  'Cancelled', // 6
+  'Error', // 7
+]
 
 export default defineComponent({
   name: 'SimRunner',
@@ -127,7 +136,7 @@ export default defineComponent({
       }).then(response => response.json())
       console.log(allJobs)
       const cleanJobs = allJobs.map(row => {
-        row.status = STATUS[row.status]
+        row.status = JOBSTATUS[row.status]
         return row
       })
       // reverse sort
@@ -230,7 +239,8 @@ export default defineComponent({
   padding-top: 0.25rem;
   user-select: none;
   font-size: 1rem;
-  background-color: var(--bgPanel);
+  // background-color: var(--bgPanel);
+  background-image: var(--gradientEthereal);
 }
 
 .scrolly {
@@ -414,7 +424,7 @@ h2 {
 .new-run-template {
   margin: 1px 0px;
   padding: 0.5rem 0.5rem;
-  background-color: #ccccee33;
+  background-color: #9a9ab433;
   border: 1px solid #aaaaaa44;
 }
 .hint {
