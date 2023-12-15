@@ -1,8 +1,8 @@
 <template lang="pug">
-.panel
+.mpanel
   .scrolly
     .middle-panel
-      h4 {{ server.serverNickname }} - Run Launcher
+      h4 {{ server.serverNickname }} • Run Launcher
 
       .hint(v-if="!server.serverNickname")
         p: b Select a server resource on the left.
@@ -22,7 +22,7 @@
             b QSUB script
             b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
             b Files
-            drop-file(:server="server" @files="filesUpdated")
+            drop-file(@files="filesUpdated")
             b-button(type="is-link" @click="submitRun"): b Launch Run
 
       .flex-column(v-if="runId")
@@ -35,6 +35,7 @@
 
         .connect-here(v-if="jobs.length")
           vue-good-table.vue-good-table(
+            :class="{'darktable': isDark}"
             :columns="jobColumns()"
             :rows="jobs"
             styleClass="vgt-table striped condensed"
@@ -116,7 +117,11 @@ export default defineComponent({
   },
 
   watch: {},
-  computed: {},
+  computed: {
+    isDark() {
+      return this.$store.state.isDarkMode
+    },
+  },
 
   methods: {
     jobColumns() {
@@ -230,13 +235,12 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.panel {
+.mpanel {
   display: flex;
   flex-direction: column;
   padding-top: 0.25rem;
   user-select: none;
   font-size: 1rem;
-  // background-color: var(--bgPanel);
   background-image: var(--gradientEthereal);
 }
 
@@ -437,5 +441,59 @@ h2 {
 .footer__navigation__page-info,
 .footer__navigation__page-btn span {
   font-size: 13px !important;
+}
+
+.darktable table.vgt-table {
+  border: none;
+}
+
+.darktable .vgt-table thead th {
+  color: var(--textBold);
+  background-color: var(--bgMapPanel) !important;
+  background: none;
+  border: none;
+}
+
+.darktable .vgt-table.striped tbody tr:nth-of-type(odd) {
+  background-color: #212121 !important;
+}
+
+.darktable .vgt-table.striped tbody tr:nth-of-type(even) {
+  background-color: var(--bgMapPanel) !important;
+}
+
+.darktable .vgt-table td {
+  color: var(--text);
+  border-color: var(--bgMapPanel);
+}
+
+.darktable .vgt-wrap__footer {
+  background: none;
+  border: none;
+  color: var(--textBold);
+}
+
+.darktable .footer__row-count__select {
+  color: var(--text);
+}
+
+.darktable .footer__navigation__page-info {
+  color: var(--text);
+}
+
+.darktable .footer__navigation__page-btn {
+  color: var(--text);
+}
+
+.darktable .vgt-input {
+  height: 24px;
+  font-size: 12px;
+  color: var(--textBold);
+  background-color: #212121;
+  border: none;
+}
+
+.darktable .vgt-input::placeholder {
+  color: var(--textBold);
 }
 </style>

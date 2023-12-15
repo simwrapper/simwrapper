@@ -238,6 +238,7 @@ h4 {
   }
   h3 {
     font-size: 1rem;
+    line-height: 1.2rem;
     border-bottom: 1px solid #cccccc80;
     margin-bottom: 0.25rem;
     padding-bottom: 1px;

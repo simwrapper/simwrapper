@@ -1,11 +1,17 @@
 <template lang="pug">
-.panel
+.xpanel
 
   h2(style="margin-top: 1rem") Run {{ runId }}
     b-button.button-run-again.floatright(
+      v-if="job.status && 'Draft' !== job.status"
       type="is-warning"
       @click="clickedRunAgain"
     ) Run again...
+    b-button.button-run-again.floatright(
+      v-if="job.status && 'Draft' == job.status"
+      type="is-success"
+      @click="clickedLaunch"
+    ) Launch Run
 
   table.detail-table
     tr.job-row(v-for="kv in Object.entries(this.job)" :key="kv[0]")
@@ -13,18 +19,32 @@
       td.job-param-value: b(:style="getFormat(kv)") {{  kv[1] }}
 
 
-  .files-table(v-if="files.length")
+  .files-table
     h3 Files
 
-    table.detail-table
-      tr.job-row(v-for="fileEntry in files" :key="fileEntry.name")
-        td.job-param: b {{ fileEntry.name }}
-        td.job-param-value {{  getFileSize(fileEntry.size_of) }}
+    .flex-row
+      table.detail-table.flex1
+        tr.job-row(v-for="file in Object.values(files)" :key="file.name")
+          td.file-param(style="text-align: right") {{ getFileSize(file) }}
+          td.file-param-value: b(:class="{'loading': file.isUploading}") {{ file.name }}
+
+      drop-file.dropfile.flex1(v-if="showDropZone && job.status == 'Draft'"
+        :isUploading="!!isUploadingRightNow.size"
+        @files="handleFilesAdded"
+      )
 
 </template>
 
 <script lang="ts">
 const BASE_URL = import.meta.env.BASE_URL
+
+interface FileEntry {
+  name: string
+  job_id: string
+  id?: string
+  size_of?: number
+  isUploading: boolean
+}
 
 const i18n = {
   messages: {
@@ -59,27 +79,33 @@ export default defineComponent({
     return {
       globalState: globalStore.state,
       isLoading: true,
+      isUploadingRightNow: new Set(),
       isShowingRunTemplate: false,
       job: {} as any,
       jobScript: '',
       jobProject: '',
-      files: [] as any[],
+      files: {} as { [name: string]: FileEntry },
+      showDropZone: true,
       statusMessage: '',
     }
   },
   mounted() {
     this.$store.commit('setShowLeftBar', true)
-
-    this.getJobDetails()
-    this.getFileList()
+    this.setupPage()
   },
 
   watch: {},
   computed: {},
 
   methods: {
-    getFileSize(f: any) {
-      return filesize(f, { round: 2, standard: 'si' })
+    async setupPage() {
+      await this.getJobDetails()
+      await this.getFileList()
+    },
+
+    getFileSize(f: FileEntry) {
+      if (f.isUploading) return '....'
+      return filesize(f.size_of || 0, { round: 2, standard: 'si' })
     },
 
     getFormat(kv: any[]) {
@@ -116,19 +142,35 @@ export default defineComponent({
 
     async getJobDetails() {
       const cmd = `${this.server.url}/jobs/?id=${this.runId}`
+      let nice = {} as any
       let job: any[] = await fetch(cmd, {
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
       if (job.length == 1) {
-        this.job = job[0]
-        if ('status' in this.job) this.job.status = JOBSTATUS[this.job.status]
+        nice = job[0]
+        if ('status' in nice) nice.status = JOBSTATUS[nice.status]
       } else {
         console.error('JOB NOT FOUND')
       }
+      // friendly order
+      const { status, folder, project, start, script, qsub_id, owner, id } = nice
+      this.job = { status, folder, project, start, script, qsub_id, owner, id }
     },
 
     jobColumns() {
       return []
+    },
+
+    async clickedLaunch() {
+      console.log('3-2-1 LAUNCH!')
+      this.statusMessage = 'Adding to queue...'
+      const result3 = await fetch(`${this.server.url}/jobs/${this.runId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 1 }),
+        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+      }).then(r => r.json())
+
+      this.$router.push(`../${this.server.serverNickname}`)
     },
 
     async clickedRunAgain() {
@@ -145,7 +187,7 @@ export default defineComponent({
       console.log('NEW JOB:', jobID)
 
       // Link files to new job
-      for (const file of this.files) {
+      for (const file of Object.values(this.files)) {
         const body = { ...file }
         delete body.id // old file ID
         body.job_id = jobID // new job ID
@@ -182,19 +224,63 @@ export default defineComponent({
 
     async getFileList() {
       const cmd = `${this.server.url}/files/?job_id=${this.runId}`
-      const allFiles: any[] = await fetch(cmd, {
+      const allFiles: FileEntry[] = await fetch(cmd, {
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
 
-      this.files = allFiles
+      for (const file of allFiles) this.files[file.name] = file
+      this.sortFiles()
+    },
+
+    sortFiles() {
+      const keys = Object.keys(this.files)
+      keys.sort((a, b) => (a.toLocaleLowerCase() < b.toLocaleLowerCase() ? -1 : 1))
+      const sortedFiles = {} as any
+      for (const key of keys) sortedFiles[key] = this.files[key]
+      this.files = sortedFiles
     },
 
     clickedNewRun() {
       this.isShowingRunTemplate = !this.isShowingRunTemplate
     },
 
-    filesUpdated(files: any[]) {
-      this.files = files
+    async handleFilesAdded(fileSystemObjects: any[]) {
+      console.log('New FILES', fileSystemObjects)
+      const uploadKey = Math.random()
+      this.isUploadingRightNow.add(uploadKey)
+
+      for (const file of fileSystemObjects) {
+        // add new placeholder file to list of files
+        this.files[file.name] = {
+          isUploading: true,
+          name: file.name,
+          job_id: this.runId,
+          size_of: file.size,
+        }
+        this.sortFiles()
+        await this.$nextTick()
+
+        // upload file
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('job_id', this.runId)
+        const result = await fetch(`${this.server.url}/files/`, {
+          method: 'POST',
+          headers: { Authorization: this.server.key },
+          body: formData,
+        })
+        const result2 = await result.json()
+        console.log('UPLOADED:', result, result2)
+
+        // mark as complete
+        this.files[file.name].isUploading = false
+
+        // reset dropzone form
+        this.showDropZone = false
+        await this.$nextTick()
+        this.showDropZone = true
+      }
+      this.isUploadingRightNow.delete(uploadKey)
     },
 
     cleanName(text: string) {
@@ -231,18 +317,18 @@ export default defineComponent({
 
       // Then, upload the files
       this.statusMessage = 'Uploading files...'
-      for (const file of this.files) {
-        this.statusMessage = 'Uploading files... ' + file.name
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('job_id', job_id)
-        const result = await fetch(`${this.server.url}/files/`, {
-          method: 'POST',
-          headers: { Authorization: this.server.key },
-          body: formData,
-        })
-        const result2 = await result.json()
-      }
+      // for (const file of this.files) {
+      //   this.statusMessage = 'Uploading files... ' + file.name
+      //   const formData = new FormData()
+      //   formData.append('file', file)
+      //   formData.append('job_id', job_id)
+      //   const result = await fetch(`${this.server.url}/files/`, {
+      //     method: 'POST',
+      //     headers: { Authorization: this.server.key },
+      //     body: formData,
+      //   })
+      //   const result2 = await result.json()
+      // }
 
       // Then, add to queue
       this.statusMessage = 'Adding to queue...'
@@ -266,7 +352,7 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.panel {
+.xpanel {
   display: flex;
   flex-direction: column;
   padding-top: 0.25rem;
@@ -340,49 +426,6 @@ h4 {
 
 h2 {
   font-size: 1.8rem;
-}
-
-.badnews {
-  border-left: 3rem solid #af232f;
-  margin: 0rem 0rem;
-  padding: 0.5rem 0rem;
-  background-color: #ffc;
-  color: $matsimBlue;
-}
-
-.viz-frame-component {
-  background-color: var(--bgPanel);
-}
-
-.folder-table {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 0.5rem;
-}
-
-.folder {
-  cursor: pointer;
-  display: flex;
-  flex-direction: row;
-  background-color: #14141a;
-  color: #c6c1b9;
-  line-height: 1.05rem;
-  padding: 5px 7px;
-  border-radius: 4px;
-  word-wrap: break-word;
-
-  i {
-    margin-top: 1px;
-  }
-  p {
-    margin-left: 4px;
-  }
-}
-
-.folder:hover {
-  background-color: #21516d;
-  transition: background-color 0.08s ease-in-out;
 }
 
 .fade {
@@ -465,6 +508,7 @@ h2 {
 .detail-table {
   table-layout: auto;
   margin-top: 1rem;
+  margin-bottom: auto;
 }
 
 .job-param {
@@ -474,6 +518,17 @@ h2 {
 }
 .job-param-value {
   width: 100%;
+  white-space: nowrap;
+}
+
+.file-param {
+  white-space: nowrap;
+}
+
+.file-param-value {
+  width: 100%;
+  padding-left: 1rem;
+  white-space: nowrap;
 }
 
 .floatright {
@@ -494,5 +549,34 @@ h2 {
 
 h3 {
   text-transform: uppercase;
+}
+
+b.loading {
+  font-style: italic;
+  animation: glow 1s infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    color: orange;
+    opacity: 0.7;
+    // box-shadow: 0 0 10px -10px #aef4af;
+  }
+  to {
+    color: var(--text);
+    opacity: 1;
+  }
+}
+
+.now-upmoloading {
+  font-style: italic;
+  padding-top: 1rem;
+  font-size: 1.5rem;
+  line-height: 1.7rem;
+  animation: glow 1s infinite alternate;
+}
+
+.dropfile {
+  margin: 1rem 0 auto 1rem;
 }
 </style>

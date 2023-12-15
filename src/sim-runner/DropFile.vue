@@ -16,56 +16,53 @@
       ref="file"
       accept="*"
     )
+
     label.file-label(for="fileInput")
-      div(v-if="isDragging") Release file here to add
+      div.uploading(v-if="isUploading")
+        p Files are uploading! Don't navigate away from this page.
+      div(v-else-if="isDragging") Release file here to add
       div(v-else) Drag files here or
         b &nbsp;click&nbsp;
         | to upload
-    .preview-container.mt-4(v-if="files.length")
-      .preview-card(v-for="file in files" :key="file.name")
-        p {{  file.name }}
-        button.ml-2(type="button"
-          @click="remove(files.indexOf(file))"
-          title="Remove file"
-        )
-          b &nbsp;
-            i.fa.fa-times
+
 </template>
 
 <script lang="ts">
 export default {
   props: {
-    server: { type: Object, required: true },
+    isUploading: { type: Boolean, required: false },
   },
 
   data() {
     return {
       isDragging: false,
-      files: [] as any[],
+      // files: [] as any[],
       showMessage: false,
     }
   },
-  watch: {
-    files() {
-      console.log('files changed')
-      this.$emit('files', this.files)
-    },
-  },
+  // watch: {
+  //   files() {
+  //     console.log('files changed')
+  //     this.$emit('files', this.files)
+  //   },
+  // },
 
   methods: {
     onChange() {
-      const self = this
       const file = this.$refs.file as any
       let incomingFiles = Array.from(file.files) as any[]
-      const fileExists = self.files.some(r =>
-        incomingFiles.some(file => file.name === r.name && file.size === r.size)
-      )
-      if (fileExists) {
-        self.showMessage = true
-        alert('New upload contains files that already exist')
-      } else {
-        self.files.push(...incomingFiles)
-      }
+      // const fileExists = self.files.some(r =>
+      //   incomingFiles.some(file => file.name === r.name && file.size === r.size)
+      // )
+      // if (fileExists) {
+      //   self.showMessage = true
+      //   alert('New upload contains files that already exist')
+      // } else {
+
+      // self.files.push(...incomingFiles)
+      this.$emit('files', incomingFiles)
+
+      // }
     },
     dragover(e: any) {
       e.preventDefault()
@@ -82,7 +79,7 @@ export default {
       this.isDragging = false
     },
     remove(i: number) {
-      this.files.splice(i, 1)
+      // this.files.splice(i, 1)
     },
     uploadFiles() {},
   },
@@ -90,20 +87,23 @@ export default {
 </script>
 
 <style scoped lang="scss">
+@import '@/styles.scss';
+
 .main {
   display: flex;
   flex-grow: 1;
   align-items: center;
-  justify-content: center;
+  justify-content: right;
   text-align: center;
   margin-bottom: 1rem;
 }
 
 .dropzone-container {
   padding: 3rem;
-  background: #f8f9de55;
-  border: 5px dashed #0d7074;
+  background: var(--bgPanel);
+  border: 5px dashed var(--highlightActiveSection);
   border-radius: 16px;
+  filter: $filterShadow;
 }
 
 .hidden-input {
@@ -118,7 +118,7 @@ export default {
   font-size: 1rem;
   display: block;
   cursor: pointer;
-  min-width: 20rem;
+  min-width: 16rem;
 }
 
 .preview-container {
@@ -144,5 +144,22 @@ export default {
 .ml-2:hover {
   cursor: pointer;
   color: #c44;
+}
+
+.uploading {
+  font-style: italic;
+  font-weight: bold;
+  animation: glow 1s infinite alternate;
+  font-size: 1.2rem;
+  line-height: 1.2rem;
+}
+
+@keyframes glow {
+  from {
+    color: #c78509;
+  }
+  to {
+    color: #11a932;
+  }
 }
 </style>
