@@ -498,7 +498,6 @@ export default defineComponent({
       if (!this.dragQuadrant) return
 
       const { event, x, y, row } = props
-
       try {
         const bundle = event.dataTransfer?.getData('bundle') as string
         const componentConfig = JSON.parse(bundle)
@@ -509,7 +508,8 @@ export default defineComponent({
         const viz = { component, props: componentConfig }
         this.onSplit({ x, y, row, quadrant: this.dragQuadrant.quadrant, viz })
       } catch (e) {
-        console.warn('' + e)
+        // drop didn't come from an expected source -- we can just ignore it
+        // console.warn('' + e)
       }
 
       this.dragEnd()

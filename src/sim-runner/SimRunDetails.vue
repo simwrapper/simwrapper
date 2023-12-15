@@ -244,8 +244,30 @@ export default defineComponent({
       this.isShowingRunTemplate = !this.isShowingRunTemplate
     },
 
+    async getExistingFileFromServerOrNull(
+      fileSystemObject: File
+    ): Promise<null | { hash: string; size_of: number }> {
+      // calculate unique SHA-1 hash
+      const buffer = await fileSystemObject.arrayBuffer()
+      const sha1 = await crypto.subtle.digest('SHA-1', buffer)
+      const hashArray = Array.from(new Uint8Array(sha1)) // convert buffer to byte array
+      const sha1hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('') // convert bytes to hex string
+
+      // is hash already on server
+      const result = await fetch(`${this.server.url}/files/?hash=${sha1hex}`, {
+        headers: { 'Content-Type': 'application/json', Authorization: this.server.key },
+      }).then(r => r.json())
+
+      if (result.length) {
+        console.log('EXISTS!', sha1hex)
+        return { hash: result[0].hash, size_of: result[0].size_of }
+      }
+      return null
+    },
+
     async handleFilesAdded(fileSystemObjects: any[]) {
       console.log('New FILES', fileSystemObjects)
+
       const uploadKey = Math.random()
       this.isUploadingRightNow.add(uploadKey)
 
@@ -260,26 +282,38 @@ export default defineComponent({
         this.sortFiles()
         await this.$nextTick()
 
-        // upload file
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('job_id', this.runId)
-        const result = await fetch(`${this.server.url}/files/`, {
-          method: 'POST',
-          headers: { Authorization: this.server.key },
-          body: formData,
-        })
-        const result2 = await result.json()
-        console.log('UPLOADED:', result, result2)
+        const existingFile = await this.getExistingFileFromServerOrNull(file)
+        if (existingFile) {
+          // if it already exists, no need to re-upload
+          const result = await fetch(`${this.server.url}/files/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: this.server.key },
+            body: JSON.stringify({ name: file.name, job_id: this.runId, ...existingFile }),
+          }).then(r => r.json())
+          console.log('Referenced existing file', result)
+        } else {
+          // upload full file
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('job_id', this.runId)
+          const result = await fetch(`${this.server.url}/files/`, {
+            method: 'POST',
+            headers: { Authorization: this.server.key },
+            body: formData,
+          })
+          const result2 = await result.json()
+          console.log('UPLOADED:', result, result2)
+        }
 
         // mark as complete
         this.files[file.name].isUploading = false
-
-        // reset dropzone form
-        this.showDropZone = false
-        await this.$nextTick()
-        this.showDropZone = true
       }
+
+      // reset dropzone form
+      this.showDropZone = false
+      await this.$nextTick()
+      this.showDropZone = true
+
       this.isUploadingRightNow.delete(uploadKey)
     },
 
@@ -566,14 +600,6 @@ b.loading {
     color: var(--text);
     opacity: 1;
   }
-}
-
-.now-upmoloading {
-  font-style: italic;
-  padding-top: 1rem;
-  font-size: 1.5rem;
-  line-height: 1.7rem;
-  animation: glow 1s infinite alternate;
 }
 
 .dropfile {

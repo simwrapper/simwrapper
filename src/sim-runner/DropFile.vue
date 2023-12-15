@@ -4,7 +4,7 @@
     @dragover="dragover"
     @dragleave="dragleave"
     @drop="drop"
-    :style="isDragging && 'border-color: cyan;'"
+    :style="isDragging && 'border-color: yellow;'"
   )
     input.hidden-input(
       type="file"
@@ -21,9 +21,10 @@
       div.uploading(v-if="isUploading")
         p Files are uploading! Don't navigate away from this page.
       div(v-else-if="isDragging") Release file here to add
-      div(v-else) Drag files here or
-        b &nbsp;click&nbsp;
-        | to upload
+      div(v-else) Drag files here
+        p or
+          b &nbsp;click&nbsp;
+          | to select files to upload
 
 </template>
 
@@ -51,18 +52,7 @@ export default {
     onChange() {
       const file = this.$refs.file as any
       let incomingFiles = Array.from(file.files) as any[]
-      // const fileExists = self.files.some(r =>
-      //   incomingFiles.some(file => file.name === r.name && file.size === r.size)
-      // )
-      // if (fileExists) {
-      //   self.showMessage = true
-      //   alert('New upload contains files that already exist')
-      // } else {
-
-      // self.files.push(...incomingFiles)
       this.$emit('files', incomingFiles)
-
-      // }
     },
     dragover(e: any) {
       e.preventDefault()
@@ -150,8 +140,8 @@ export default {
   font-style: italic;
   font-weight: bold;
   animation: glow 1s infinite alternate;
-  font-size: 1.2rem;
-  line-height: 1.2rem;
+  font-size: 1rem;
+  line-height: 1.1rem;
 }
 
 @keyframes glow {
