@@ -23,7 +23,7 @@
             b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
             b Files
             drop-file(@files="filesUpdated")
-            b-button(type="is-link" @click="submitRun"): b Launch Run
+            b-button(type="is-success" @click="submitRun"): b Launch Run
 
       .flex-column(v-if="runId")
 
