@@ -8,16 +8,29 @@
       @click="clickedRunAgain"
     ) Run again...
     b-button.button-run-again.floatright(
-      v-if="job.status && 'Draft' == job.status"
+      v-if="'Draft' == job.status"
       type="is-success"
       @click="clickedLaunch"
     ) Launch Run
 
   table.detail-table
     tr.job-row(v-for="kv in Object.entries(this.job)" :key="kv[0]")
+      //- fieldname
       td.job-param {{ kv[0] }}
-      td.job-param-value: b(:style="getFormat(kv)") {{  kv[1] }}
 
+      //- read-only value
+      td.job-param-value(v-if="job.status && 'Draft' !== job.status")
+        b(:style="getFormat(kv)") {{  kv[1] }}
+
+      //- editable value for draft jobs
+      td.job-param-value(v-if="'Draft'==job.status && !editableFields.has(kv[0])")
+        b(:style="getFormat(kv)") {{  kv[1] }}
+      td.job-param-value(v-else)
+        b: editable-field(
+             :label="kv[1]"
+             v-model="job[kv[0]]"
+             @input="handleFieldChanged(kv[0])"
+           )
 
   .files-table
     h3 Files
@@ -60,6 +73,7 @@ import { filesize } from 'filesize'
 
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
+import EditableField from '@/components/EditableField.vue'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
@@ -68,7 +82,7 @@ import { JOBSTATUS } from './SimRunner.vue'
 export default defineComponent({
   name: 'SimRunDetails',
   i18n,
-  components: { DropFile, VueGoodTable },
+  components: { DropFile, EditableField, VueGoodTable },
 
   props: {
     runId: { type: String, required: true },
@@ -78,13 +92,14 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
+      editableFields: new Set(['project', 'script']),
+      files: {} as { [name: string]: FileEntry },
       isLoading: true,
       isUploadingRightNow: new Set(),
       isShowingRunTemplate: false,
       job: {} as any,
       jobScript: '',
       jobProject: '',
-      files: {} as { [name: string]: FileEntry },
       showDropZone: true,
       statusMessage: '',
     }
@@ -153,12 +168,24 @@ export default defineComponent({
         console.error('JOB NOT FOUND')
       }
       // friendly order
-      const { status, folder, project, start, script, qsub_id, owner, id } = nice
-      this.job = { status, folder, project, start, script, qsub_id, owner, id }
+      const { status, project, folder, start, script, qsub_id, owner, id } = nice
+      this.job = { status, project, script, folder, start, qsub_id, owner, id }
     },
 
     jobColumns() {
       return []
+    },
+
+    async handleFieldChanged(field: string) {
+      const body = {} as any
+      body[field] = this.job[field]
+
+      const cmd = `${this.server.url}/jobs/${this.runId}`
+      const result = await fetch(cmd, {
+        method: 'PUT',
+        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(response => response.json())
     },
 
     async clickedLaunch() {
