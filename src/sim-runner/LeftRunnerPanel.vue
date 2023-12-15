@@ -330,6 +330,14 @@ h2 {
   transition: background-color 0.08s ease-in-out;
 }
 
+.folder .fa-times {
+  opacity: 0;
+}
+
+.folder:hover .fa-times {
+  opacity: 0.3;
+}
+
 .fade {
   opacity: 0.4;
   pointer-events: none;
@@ -518,6 +526,15 @@ p.v-plugin {
 }
 
 .fa-times:active {
+  color: darkred;
+}
+
+.folder:hover .fa-times:hover {
+  opacity: 1;
+  color: red;
+}
+
+.folder:hover .fa-times:active {
   color: darkred;
 }
 
