@@ -1825,12 +1825,12 @@ const MyComponent = defineComponent({
         let hasPoints = false
 
         boundaries.forEach(b => {
-          // create a new properties object for each row
           const properties = b.properties ?? {}
           // geojson sometimes has "id" outside of properties:
           if ('id' in b) properties.id = b.id
+          // create a new properties object for each row;
           // push this new property object to the featureProperties array
-          featureProperties.push(properties)
+          featureProperties.push({ ...properties })
           // clear out actual feature properties; they are now in featureProperties instead
           b.properties = {}
 
@@ -1878,6 +1878,10 @@ const MyComponent = defineComponent({
         } else if (this.needsInitialMapExtent) {
           this.calculateAndMoveToCenter()
         }
+
+        // Need to wait one tick so Vue inserts the Deck.gl view AFTER center is calculated
+        // (not everyone lives in Berlin)
+        await this.$nextTick()
 
         // set features INSIDE react component
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
