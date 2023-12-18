@@ -14,6 +14,36 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.0.0](https://github.com/simwrapper/simwrapper/compare/v2.5.4...v3.0.0) (2023-12-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Project sites which use custom.css, header.md, and
+footer.md should review their dashboards to ensure they still fit with
+the new layout and UI design. In many cases, custom.css is now
+completely unnecessary, as styling can now be included in
+simwrapper-config.yaml
+
+Merge branch 'staging'
+
+### Features
+
+* Dashboard subtabs ([b02322e](https://github.com/simwrapper/simwrapper/commit/b02322e3a6255fdc29594f06bd14d41d5cd37e2a))
+* Improved file navigation with breadcrumbs, and better dashboard layout ([2fbf085](https://github.com/simwrapper/simwrapper/commit/2fbf0854d6df62acc690bd4cfc973ac807fdcf2c))
+* New "grid map" visualization for point-data ([65e5f7d](https://github.com/simwrapper/simwrapper/commit/65e5f7d472a5c3a3e8ec59669d69a0d34b937335))
+* Pinned favorite folders ([c015ef3](https://github.com/simwrapper/simwrapper/commit/c015ef31ba6cd3422cd189e942c38e52d7886742))
+* Project site left-side navigation and dashboard layout improvements ([14f528d](https://github.com/simwrapper/simwrapper/commit/14f528d19f5f2752fbf0c4aee6b987748802e146))
+* Subtabs YAML update for dashboard sections with subtabs ([1dda4b3](https://github.com/simwrapper/simwrapper/commit/1dda4b3a676d1917818bfb8230b077b1598a7acb))
+* Top navigation bar for project pages via simwrapper-config.yaml ([dd51785](https://github.com/simwrapper/simwrapper/commit/dd517859dbf076ad131de46561acb3cff3a2cfec))
+* Updated UI, cleaner dashboard looks, new project site features ([6e71517](https://github.com/simwrapper/simwrapper/commit/6e71517b4f13d8fbfa93edb5a8d26a4f9654a479))
+
+
+### Bug Fixes
+
+* **map:** Map doesn't consistently switch themes ([ccc09c7](https://github.com/simwrapper/simwrapper/commit/ccc09c7557510c18346ba5d55cd8938278224bb7)), closes [#284](https://github.com/simwrapper/simwrapper/issues/284)
+* **text:** Text/Markdown panels could be the wrong size ([ce44e1b](https://github.com/simwrapper/simwrapper/commit/ce44e1be8bbf8702f5b16e2c47b11b2d2340ca97))
+
 ### [2.5.4](https://github.com/simwrapper/simwrapper/compare/v2.5.3...v2.5.4) (2023-11-17)
 
 

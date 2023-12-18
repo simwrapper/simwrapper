@@ -32,11 +32,11 @@ Properties are written in either a standalone `viz-map*.yaml` file, or in a dash
 ## Properties
 
 
-### Dashboard-specific properties
+### Dashboard panel properties
 
 |Property | Usage|
 | ---     | ---  |
-| `type` | In `dashboard-*.yaml` config files, MUST be set to **"map"** |
+|`type` | MUST be set to **"map"** in `dashboard-*.yaml` config files |
 |`height`| Relative height. Larger numbers create taller panels. (default: 5) |
 |`width`| Relative width. The widths of all panels on a single row are summed, and the layout of each panel is then relative to that total width. (default: 1) |
 
@@ -52,41 +52,57 @@ Properties are written in either a standalone `viz-map*.yaml` file, or in a dash
 | `pitch`|  Map pitch (default: 0) |
 | `bearing`|  Map bearing/direction (default:0) |
 
-### **shapes:** the boundaries/areas to be drawn
+---
 
-There are **two separate data types** required for an area map: the boundaries/shapes, and one the dataset (unless the shapefile self-contains all of the required data).
-
-Both files must contain an matching identification column in order to **join the two datasets** together. In other words, the boundary IDs must be present (somewhere) in both datafiles. The names of the columns do not have to be identical, but it helps legibility. See below.
+### **"shapes:"** the features (links, areas, etc) to be drawn
 
 ```yaml
 shapes:
   file: my-taz-shapefile.shp
   join: id
+  keep: AB,LENGTH,TAZ,SQMILES
 ```
+There are **two separate input types** required for a shapefile/geojson map: (1) the boundaries or shapes themselves, which can be geojson or shapefile format; and (2) additional datasets in CSV/DBF tabular format which contain columns of data that can be attached to the features. These datasets are optional, if the shapefile self-contains all of the required data.
 
-Contains two subentries:
+All inputs must contain an _identification column_ in order to **join the datasets** together. In other words, the feature IDs must be present in both datafiles. The names of the columns do not have to be identical, but it helps legibility. See below.
 
-- **file:** String. The filepath containing the data. May include wildcards \* and ?. File can be in _geojson_ format, or a _shapefile_. File type is determined by suffix, so must end in either `.geojson` or `.shp` When loading shapefiles, an identically-named .dbf and .prj file will also be read from the same folder. Be sure to supply a .prj file containing a valid EPSG code if your data is not in lat/long format.
-- **join:** String. The name of the data column containing shape IDs, or 'id' if it is in the id field of geojson.
 
-### **datasets:** the dataset to be joined to the shapefile
+**shapes** section can have the following properties:
+
+|Property | Usage|
+| ---     | ---  |
+|`file` | String. The filepath of the feature dataset. May include wildcards \* and ?. File can be in _geojson_ format, or a _shapefile_. File type is determined by the filename extension, which must end in either `.geojson` or `.shp` When loading shapefiles, an identically-named `.dbf` and `.prj` file will also be read from the same folder. Be sure to supply a .prj file containing a valid EPSG code if your data is not in lat/long format!|
+|`join` | String. The name of the property containing unique shape IDs, or set to `id` if it is in the id field of the geojson itself.|
+|`keep` | String (optional). Comma-separated list of fields to KEEP in memory from the shapefile properties. Some files are very large with many properties that you are not interested in. Use the `keep` property to list the only ones you actually need, in order to save memory and improve performance. If `keep` is not specified then all properties are retained.|
+
+
+### **datasets:** datasets to be joined to the features
 
 ```yaml
 datasets:
+  population: "../pop/2025/population.csv"
   transit-trips:
     file: .summaries/transit-outputs.csv
-    join: TAZ
+    drop: bike,ped,MTCTAZ
+    keep: TAZ,TIME,pm_vol,orig,dest
 ```
 
-Contains an object naming the dataset and providing its filename and join column:
+`datasets:` defines any additional tabular datasets that are linked to the feature dataset from above. Every dataset is defined by a short keyword name followed by a colon, and then the needed properties are provided. In the example above, `population` and `transit-trips` keywords are defined. Use the keyword to refer to the dataset when defining colors and widths (see below).
 
-- **name of dataset:** Give the dataset a simple name, which will be used in the display settings below. e.g. `tazdata`
-  - **file:** String. The filepath containing the data. May include wildcards \* and ?. File can be in _CSV or DBF_ format. Any filename not ending in `.dbf` will be parsed as a CSV file, using either commas, tabs, or spaces as delimiters.
-  - **join:** String. The name of the data column containing the shape IDs for joining.
+- In simple cases a filename can be given directly, as in the `population` example above.
+- Other properties can be defined to keep/drop certain columns, as in `transit-trips`.
 
-### **display:** define the color and value details
+**name of dataset:** Give the dataset a simple name, which will be used in the display settings below. e.g. `tazdata:`
 
-For area maps, the `fill` section defines the color fill, and is (currently) the only section that is required. At a later date we may include borders, etc.
+Each subsection can have the following properties:
+
+|Property | Usage|
+| ---     | ---  |
+|`file`| String. The filepath containing the data. May include wildcards \* and ?. File can be in _CSV or DBF_ format. Any filename not ending in `.dbf` will be parsed as a CSV file, using either commas, tabs, or spaces as delimiters.|
+|`drop`| String (optional). Comma-separated list of column names to be dropped from memory; these columns will be unavailable to this visualization. This can save memory and improve performance.|
+|`keep`| String (optional). Comma-separated list of column names to be kept in memory for this visualization. This can save memory and improve performance.|
+
+### **display:** define the symbology details: colors, widths, etc
 
 ```yaml
 display:
@@ -101,27 +117,28 @@ display:
       steps: 5
 ```
 
-**dataset:** Name of the dataset from above which includes the data.
+The `display` section is where you define the details of your map symbology: the line and fill colors, line widths, circle radii, difference calculations, and so on.
 
-**filters:** (optional) List of any columns which can be used as category filters by the user interactively. Note that _active filters_ will be shown in the URL bar, so curated maps can be shared via URL.
+Different map types allow different properties. This is an attempt at summarizing the capabilities; not all combinations work for every map type. There are many, many configuration options listed here, and they mimic the user interface options available in the configuration panel.
 
-**columnName:** The column name (or names) containing values to be plotted. If multiple rows have a matching shape ID, all values will be summed together. (Other stats to be added)
+**Instead of trying to write this YAML from scratch,** try creating a map interactively on the SimWrapper site, and then choosing `EXPORT` from the configuration panel. SimWrapper will produce a YAML file with most/all of your settings and save it in your browser's Downloads folder. You can move this to your data folder and modify as necessary.
 
-**colorRamp:** Describe the colors themselves:
+|Property | Usage|
+| ---     | ---  |
+|`dataset`| Name of the dataset from above which includes the data.|
+|`columnName`| The column name (or names) containing values to be plotted. If multiple rows have a matching shape ID, all values will be summed together.|
+|`colorRamp`| Describe the colors to be used:<br/>**ramp:** Name of the color ramp to use.<br/>Sequential: `Viridis` `Plasma` `Blues` `Greens` `Purples` `Oranges`<br/>Diverging: `PRGn` `RdBu`<br/>Categorical: `Tableau10` `Paired`. Note categoricals only have ten or twelve categories.|
+| | **reversed:** true/false|
+| | **steps:** Number of steps in the ramp.|
+| | **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.|
+| | **diff:** Example `col1 - col2` will activate diff mode|
+| | **breakpoints:** Work in progress, comma-separated list of manual breakpoints for data values.|
 
-- **ramp:** Name of the color ramp to use.
-  - Sequential: `Viridis` `Plasma` `Blues` `Greens` `Purples` `Oranges`
-  - Diverging: `PRGn` `RdBu`
-  - Categorical: `Tableau10` `Paired`. Note categoricals only have ten or twelve categories.
-- **reversed:** true/false
-- **steps:** Number of steps in the ramp.
-- **exponentColors:** Optional true/false. If true, values will be scaled exponentially before being drawn. This is often useful if values are concentrated in small areas, and much higher in value than in typical areas.
-- **diff:** Example `col1 - col2` will activate diff mode
-  - _(todo: more examples needed )_
+<!-- |`filters`| (optional) List of any columns which can be used as category filters by the user interactively. Note that _active filters_ will be shown in the URL bar, so curated maps can be shared via URL.|
+-->
+
 
 ### filters
-
-In the `filter` section, you can filter dataset with multiple expressions on numerical columns in any dataset.  Keys are of the format `dataset.column: "filter"` and filter can be `==, !=, <, <=, >, >=`
 
 ```yaml
 filters:
@@ -129,9 +146,19 @@ filters:
    shapes.TAZ: "!=0"
 ```
 
-_TODO: more filter examples needed_
+In the `filter` section, you can filter dataset with multiple expressions on numerical columns in any dataset.  Keys are of the format `dataset.column: "filter"` and filter can be `==, !=, <, <=, >, >=`
+
+_More filter examples needed!_
 
 ### Tooltip
+
+```yaml
+tooltip:
+  - AM:TOT_VOL
+  - AM:TNC
+  - freeflow.shp:FACILITY_TYPE
+  - freeflow.shp:SPEED
+```
 
 By default, the tooltip shows all columns in the shapefile, as well as any columns that are actively being displayed as either a color or a width.
 
@@ -141,15 +168,6 @@ You can customize the tooltip to just show what you are interested as follows:
 - Each entry is of format `datasetname:columnname`, so for example `AM_FLOWS:VEHICLE_VOL` will display the AM_FLOWS dataset and VEHICLE_VOL column.
 - Use the shapefile/network filename for its columnar data, or the dataset "key" for joined datasets.
 
-Custom tooltip example:
-
-```yaml
-tooltip:
-  - AM:TOT_VOL
-  - AM:TNC
-  - freeflow.shp:FACILITY_TYPE
-  - freeflow.shp:SPEED
-```
 
 ## Visualization hints
 
@@ -174,10 +192,10 @@ shapes:
 datasets:
   transit-trips:
     file: .dashboard/transit-data.csv
-    join: geoid
 display:
   fill:
     dataset: transit-trips
+    join: geoid
     filters: operator, income
     columnName: trip_origins, trip_boards, trip_reslocs
     colorRamp:
@@ -206,10 +224,10 @@ layout:
       datasets:
         transit-trips:
           file: .dashboard/transit-data.csv
-          join: geoid
       display:
         fill:
           dataset: transit-trips
+          join: geoid
           filters: operator, income
           columnName: trip_origins, trip_boards, trip_reslocs
           colorRamp:
