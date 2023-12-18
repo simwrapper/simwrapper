@@ -14,6 +14,13 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.0.1](https://github.com/simwrapper/simwrapper/compare/v3.0.0...v3.0.1) (2023-12-18)
+
+
+### Bug Fixes
+
+* markdown panels are not scrollable ([8a7c9c3](https://github.com/simwrapper/simwrapper/commit/8a7c9c368d52dc85f83d1af240a9b0ece4422d2d))
+
 ## [3.0.0](https://github.com/simwrapper/simwrapper/compare/v2.5.4...v3.0.0) (2023-12-06)
 
 
