@@ -109,7 +109,7 @@ export default new Vuex.Store({
       state.needLoginForUrl = value
     },
     registerPlugin(state, value: VisualizationPlugin) {
-      console.log('PLUGIN:', value.kebabName)
+      // console.log('PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {
@@ -240,7 +240,7 @@ export default new Vuex.Store({
     setTheme(state, value: string) {
       state.colorScheme = value == 'light' ? ColorScheme.LightMode : ColorScheme.DarkMode
 
-      console.log('NEW COLORS:', state.colorScheme)
+      console.log('THEME:', state.colorScheme)
 
       state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
@@ -252,7 +252,7 @@ export default new Vuex.Store({
       state.colorScheme =
         state.colorScheme === ColorScheme.DarkMode ? ColorScheme.LightMode : ColorScheme.DarkMode
 
-      console.log('NEW COLORS:', state.colorScheme)
+      console.log('THEME:', state.colorScheme)
 
       state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
