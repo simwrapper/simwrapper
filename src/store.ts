@@ -201,34 +201,6 @@ export default new Vuex.Store({
     setStatus(state, value: { type: Status; msg: string; desc?: string }) {
       console.error('store.ts: NOT SUPPOSED TO BE HERE!' + value)
       return
-
-      if (!value.desc?.length) {
-        value.desc = ''
-      }
-      const warningObj = {
-        msg: value.msg,
-        desc: value.desc,
-      }
-      if (value.type === Status.INFO) {
-        state.statusMessage = value.msg
-      } else if (value.type === Status.WARNING) {
-        if (
-          // don't repeat yourself
-          !state.statusWarnings.length ||
-          state.statusWarnings[state.statusWarnings.length - 1].msg !== value.msg
-        ) {
-          state.statusWarnings.push(warningObj)
-        }
-      } else {
-        if (
-          // don't repeat yourself
-          !state.statusErrors.length ||
-          state.statusErrors[state.statusErrors.length - 1].msg !== value.msg
-        ) {
-          state.statusErrors.push(warningObj)
-          state.isShowingLeftBar = true
-        }
-      }
     },
     clearAllErrors(state) {
       state.statusErrors = []

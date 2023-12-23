@@ -1,0 +1,70 @@
+# MATSim run configurator - config.xml edit fields
+
+sections:
+  - title: General settings
+    entries:
+      - xml: controler.param
+        name: runId
+        title: 'Name of the run'
+        type: text
+        value: ''
+
+      - xml: controler.param
+        name: lastIteration
+        title: 'Number of iterations'
+        type: number
+        value: '1'
+
+      - xml: controler.param
+        name: writeEventsInterval
+        title: 'Write events every n iterations'
+        type: number
+        value: '50'
+
+      - xml: controler.param
+        name: writePlansInterval
+        title: 'Write plans every n iterations'
+        type: number
+        value: '50'
+        hint: 'Set to 0 to disable writing plans'
+
+  - title: Mobility simulation
+    entries:
+      - xml: qsim.param
+        name: endTime
+        title: 'End time'
+        type: text
+        value: '24:00:00'
+
+      - xml: qsim.param
+        name: flowCapacityFactor
+        title: 'Flow capacity factor'
+        type: number
+        value: '0.10'
+
+      - xml: qsim.param
+        name: storageCapacityFactor
+        title: 'Storage capacity factor'
+        type: number
+        value: '0.10'
+
+      - xml: qsim.param
+        name: mainMode
+        title: 'Main modes'
+        type: text
+        value: 'car,freight'
+
+      - xml: qsim.param
+        name: stuckTime
+        title: 'Stuck time (minutes)'
+        type: number
+        value: '30.0'
+
+      - xml: qsim.param
+        name: trafficDynamics
+        title: 'Traffic Dynamics'
+        type: selection
+        options:
+          - kinematicWaves
+          - other
+        value: 'kinematicWaves'

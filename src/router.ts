@@ -16,6 +16,13 @@ const routes = [
     }),
   },
   {
+    path: BASE_URL + 'runconfig/:id',
+    component: () => import('@/sim-runner/RunConfigurator.vue'),
+    props: (route: Route) => ({
+      id: route.params.id,
+    }),
+  },
+  {
     path: BASE_URL + '*',
     component: () => import('@/layout-manager/LayoutManager.vue'),
   },
