@@ -91,7 +91,7 @@
     "shallow-equal": "^1.2.1",
     "shapefile": "^0.6.6",
     "the-new-css-reset": "^1.7.3",
-    "threads": "^1.6.5",
+    "threads": "^1.7.0",
     "three": "^0.127.0",
     "vega": "^5.21.0",
     "vega-embed": "^6.20.5",
