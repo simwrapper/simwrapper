@@ -17,16 +17,38 @@
             i.fa(v-else).fa-arrow-right
 
           .new-run-template(v-if="isShowingRunTemplate")
+            b-button.float-right(type="is-success" @click="submitRun" style="marginBottom: 0.5rem")
+              b Launch Run
+
+            b Command / script
+            b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
+
             b Project folder
             b-input.b-input(v-model="jobProject" size="is-small" placeholder="/project" maxlength="255")
-            b QSUB script
-            b-input.b-input(v-model="jobScript" size="is-small" placeholder="run-model.sh" maxlength="255")
+
+            b TU Compute cluster settings
+            .flex-row
+              .flex-col.flex1
+                p Email
+                b-input.b-input(v-model="clusterEmail" size="is-small" placeholder="me@tu-berlin.de" maxlength="255")
+              .flex-col.flex1
+                p Number of processors
+                b-input.b-input(v-model="clusterProcessors" size="is-small" placeholder="4" maxlength="20")
+              .flex-col.flex1
+                p Memory per processor
+                b-input.b-input(v-model="clusterRAM" size="is-small" placeholder="16g" maxlength="20")
+
             b Files
-            drop-file(@files="filesUpdated")
-            b-button(type="is-success" @click="submitRun"): b Launch Run
+            .flex-row
+              table.detail-table.flex1
+                tr.job-row(v-for="file in files" :key="file.name")
+                  td.file-param(style="text-align: right") {{ getFileSize(file) }}
+                  td.file-param-value: b(:class="{'loading': file.isUploading}") {{ file.name }}
+
+              drop-file(@files="filesUpdated")
+
 
       .flex-column(v-if="runId")
-
         sim-run-details(:runId="runId" :server="server")
 
       .flex-column(v-if="server.serverNickname && !runId")
@@ -42,13 +64,9 @@
             @on-row-click="rowClicked"
           )
 
-
-
 </template>
 
 <script lang="ts">
-const BASE_URL = import.meta.env.BASE_URL
-
 const i18n = {
   messages: {
     en: {},
@@ -57,12 +75,12 @@ const i18n = {
 }
 
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
+import { filesize } from 'filesize'
 import { VueGoodTable } from 'vue-good-table'
 
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
-import SimRunDetails from './SimRunDetails.vue'
+import SimRunDetails, { FileEntry } from './SimRunDetails.vue'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
@@ -94,6 +112,9 @@ export default defineComponent({
       files: [] as any[],
       statusMessage: '',
       runId: '',
+      clusterEmail: '',
+      clusterProcessors: 2,
+      clusterRAM: '4g',
     }
   },
 
@@ -132,6 +153,11 @@ export default defineComponent({
       })
     },
 
+    getFileSize(f: FileEntry) {
+      if (f.isUploading) return '....'
+      return filesize(f.size_of || f.size || 0, { round: 2, standard: 'si' })
+    },
+
     async buildSummaryPage() {
       // Get list of jobs
       const cmd = `${this.server.url}/jobs/`
@@ -167,11 +193,10 @@ export default defineComponent({
 
     filesUpdated(files: any[]) {
       console.log('GOT YOU', files)
-      this.files = files
+      this.files = this.files.concat(files)
     },
 
     async submitRun() {
-      console.log('SUBMIT!')
       console.log(this.files)
       if (!this.files.length) return
       if (!this.jobScript) return
@@ -189,8 +214,12 @@ export default defineComponent({
       const data = {
         script: this.jobScript,
         project,
+        cEmail: this.clusterEmail,
+        cProcessors: this.clusterProcessors,
+        cRAM: this.clusterRAM,
       }
 
+      // POST -draft- job to server
       const job_id = await fetch(`${this.server.url}/jobs/`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -198,7 +227,7 @@ export default defineComponent({
       }).then(r => r.json())
       console.log({ job_id })
 
-      // Then, upload the files
+      // Upload the files
       this.statusMessage = 'Uploading files...'
       for (const file of this.files) {
         this.statusMessage = 'Uploading files... ' + file.name
@@ -213,7 +242,7 @@ export default defineComponent({
         const result2 = await result.json()
       }
 
-      // Then, add to queue
+      // Add job to run queue
       this.statusMessage = 'Adding to queue...'
       const result3 = await fetch(`${this.server.url}/jobs/${job_id}`, {
         method: 'PUT',
@@ -495,5 +524,21 @@ h2 {
 
 .darktable .vgt-input::placeholder {
   color: var(--textBold);
+}
+
+.file-param {
+  white-space: nowrap;
+}
+
+.file-param-value {
+  width: 100%;
+  padding-left: 1rem;
+  white-space: nowrap;
+}
+
+.detail-table {
+  table-layout: auto;
+  margin-top: 1rem;
+  margin-bottom: auto;
 }
 </style>

@@ -1,9 +1,11 @@
 <template lang="pug">
 .editable-field
-  span(@click="editing=true" v-show="!editing") {{value || '&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}}
-  span.editor(v-show="editing")
+  span(@click="activateEditor" v-show="!editing") {{value || '&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}}
+  span.editor(v-if="editing"
+  )
     input.finger(
       :value="value"
+      :ref="id"
       @blur="lostFocus($event)"
       @keydown.enter="editing=false"
       type="text"
@@ -25,12 +27,21 @@ export default defineComponent({
   data: () => {
     return {
       editing: false,
+      id: `ref-${Math.random()}`,
     }
   },
 
   mounted() {},
   computed: {},
   methods: {
+    activateEditor() {
+      this.editing = true
+      this.$nextTick(() => {
+        const input = this.$refs[this.id] as HTMLElement
+        input.focus()
+      })
+    },
+
     lostFocus($event: any) {
       this.editing = false
       this.$emit('input', $event.target.value)
@@ -48,7 +59,9 @@ export default defineComponent({
 }
 
 .editor {
-  background-color: #44448822;
+  margin-left: -2px;
+  padding: 2px 2px;
+  background-color: white;
 }
 
 .finger {

@@ -706,6 +706,10 @@ p.splash-label {
   text-align: right;
 }
 
+.float-right {
+  float: right;
+}
+
 .b-input-tight input {
   padding: 0 0.25rem;
   font-size: 0.9rem;

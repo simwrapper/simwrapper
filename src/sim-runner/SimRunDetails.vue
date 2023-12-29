@@ -23,10 +23,12 @@
         b(:style="getFormat(kv)") {{  kv[1] }}
 
       //- editable value for draft jobs
-      td.job-param-value(v-if="'Draft'==job.status && !editableFields.has(kv[0])")
+      td.job-param-value(v-else-if="'Draft'==job.status && !editableFields.has(kv[0])")
         b(:style="getFormat(kv)") {{  kv[1] }}
+
       td.job-param-value(v-else)
         b: editable-field(
+             style="backgroundColor: #ffffff88; margin-bottom: 1px"
              :label="kv[1]"
              v-model="job[kv[0]]"
              @input="handleFieldChanged(kv[0])"
@@ -49,13 +51,12 @@
 </template>
 
 <script lang="ts">
-const BASE_URL = import.meta.env.BASE_URL
-
-interface FileEntry {
+export interface FileEntry {
   name: string
   job_id: string
   id?: string
   size_of?: number
+  size?: number // GET RID OF THIS
   isUploading: boolean
 }
 
@@ -92,7 +93,7 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      editableFields: new Set(['project', 'script']),
+      editableFields: new Set(['project', 'script', 'cRAM', 'cProcessors', 'cEmail']),
       files: {} as { [name: string]: FileEntry },
       isLoading: true,
       isUploadingRightNow: new Set(),
@@ -161,15 +162,41 @@ export default defineComponent({
       let job: any[] = await fetch(cmd, {
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
       }).then(response => response.json())
+
       if (job.length == 1) {
         nice = job[0]
         if ('status' in nice) nice.status = JOBSTATUS[nice.status]
       } else {
         console.error('JOB NOT FOUND')
       }
+      const {
+        status,
+        project,
+        folder,
+        start,
+        script,
+        qsub_id,
+        owner,
+        id,
+        cRAM,
+        cProcessors,
+        cEmail,
+      } = nice
+
       // friendly order
-      const { status, project, folder, start, script, qsub_id, owner, id } = nice
-      this.job = { status, project, script, folder, start, qsub_id, owner, id }
+      this.job = {
+        status,
+        project,
+        script,
+        cRAM,
+        cProcessors,
+        cEmail,
+        folder,
+        start,
+        qsub_id,
+        owner,
+        run_id: id,
+      }
     },
 
     jobColumns() {
@@ -204,12 +231,13 @@ export default defineComponent({
       console.log('click!', this.job)
 
       // Make new run
-      const body = { project: this.job.project, script: this.job.script }
+      const { project, script, cRAM, cEmail, cProcessors, ...stuff } = this.job
+
       const cmd = `${this.server.url}/jobs/`
       const jobID = await fetch(cmd, {
         method: 'POST',
         headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ project, script, cRAM, cEmail, cProcessors }),
       }).then(response => response.json())
       console.log('NEW JOB:', jobID)
 

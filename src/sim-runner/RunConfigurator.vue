@@ -81,8 +81,6 @@ export default defineComponent({
         ignoreAttributes: false,
         preserveOrder: false,
         attributeNamePrefix: '$',
-        processEntities: true,
-        htmlEntities: true,
         // isFirefox: _isFirefox,
         // isArray: undefined as any,
       })
@@ -95,8 +93,6 @@ export default defineComponent({
         console.error('WHAT', e)
         throw Error('' + e)
       }
-
-      console.log(11, this.xmlConfig)
 
       // now connect the parts to the bits
       for (const section of this.sections) {
