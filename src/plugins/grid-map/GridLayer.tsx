@@ -95,7 +95,7 @@ export default function Layer({
       opacity,
       cellSize,
       upperPercentile,
-      material,
+      material: false,
       transitions: {
         elevationScale: { type: 'interpolation', duration: 10 },
         opacity: { type: 'interpolation', duration: 200 },

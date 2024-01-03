@@ -292,6 +292,7 @@ export default function Component({
     stroked: isStroked,
     useDevicePixels: isTakingScreenshot,
     fp64: false,
+    // material: false,
     updateTriggers: {
       getFillColor: fillColors,
       getLineColor: lineColors,
