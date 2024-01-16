@@ -23,7 +23,8 @@
       .hint-clicks(style="margin-bottom: 1rem; opacity: 1")
           p
             b Drag a folder&nbsp;
-            | from here to the main window area to open side-by-side.
+            | from here to the main window area to open side&#8209;by&#8209;side.
+
 
 
       //- Starting point if not in a project root: list all existing roots
@@ -690,6 +691,7 @@ export default defineComponent({
   user-select: none;
   font-size: 0.9rem;
   color: #ddd;
+  position: absolute;
 }
 
 .top-panel {
@@ -709,15 +711,13 @@ h4 {
   color: #ddd;
 }
 
-.middle-panel,
-.bottom-panel {
+.middle-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   // width: 100%;
   margin-bottom: 0rem;
   padding: 0 1rem;
-  overflow-y: auto;
   overflow-x: hidden;
   text-align: left;
   user-select: none;
