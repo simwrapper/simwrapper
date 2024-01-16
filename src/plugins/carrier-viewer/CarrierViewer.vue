@@ -687,6 +687,10 @@ const CarrierPlugin = defineComponent({
 
       if (!this.selectPlan || !this.plans.length) return []
 
+      if (!Array.isArray(this.selectedPlan.tour)) {
+        this.selectedPlan.tour = [this.selectedPlan.tour]
+      }
+
       const tours: any[] = this.selectedPlan.tour.map((tour: any, i: number) => {
         // reconstitute the plan. Our XML library builds
         // two arrays: one for acts and one for legs.
