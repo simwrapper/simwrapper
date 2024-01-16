@@ -667,6 +667,7 @@ const MyComponent = defineComponent({
             desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
           })
         } else {
+          console.log(buffer.data)
           const { rowCache, columnLookup } = buffer.data
           if (this.gzipWorker) this.gzipWorker.terminate()
           this.dataIsLoaded({ rowCache, columnLookup })
@@ -693,6 +694,10 @@ const MyComponent = defineComponent({
       this.myState.statusMessage = ''
     },
 
+    // detectModes() {
+    //   console.log(this.requests)
+    // },
+
     async loadFiles() {
       let dataArray: any = []
       if (!this.fileApi) return { dataArray }
@@ -711,6 +716,7 @@ const MyComponent = defineComponent({
       }
     },
   },
+
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
@@ -729,6 +735,8 @@ const MyComponent = defineComponent({
 
     // console.log('loading files')
     await this.loadFiles()
+
+    // this.detectModes()
 
     // this.mapState.center = this.findCenter(this.rawRequests)
 

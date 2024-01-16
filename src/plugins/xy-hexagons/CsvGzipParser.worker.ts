@@ -17,7 +17,7 @@ onmessage = function (e) {
 // -----------------------------------------------------------
 
 interface RowCache {
-  [id: string]: { raw: Float32Array; length: number; coordColumns: number[] }
+  [id: string]: { raw: Float32Array; length: number; coordColumns: number[]; filter: string[] }
 }
 
 interface Aggregations {
@@ -25,6 +25,7 @@ interface Aggregations {
     title: string
     x: string
     y: string
+    filter?: string
   }[]
 }
 
@@ -160,6 +161,10 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
     for (const agg of aggregations) {
       const xCol = headerColumns.indexOf(agg.x)
       const yCol = headerColumns.indexOf(agg.y)
+      let filter
+      if (agg.filter) {
+        filter = headerColumns.indexOf(agg.filter)
+      }
 
       if (xCol === -1 || yCol === -1) {
         let msg = 'Could not find column '
@@ -171,12 +176,15 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
         return
       }
 
+
+
       columnLookup.push(...[xCol, yCol])
 
       rowCache[`${group}${i}`] = {
         raw: new Float32Array(count * 2),
         coordColumns: [xCol, yCol],
         length: count,
+        filter: new String[count],
       }
       i++
     }
