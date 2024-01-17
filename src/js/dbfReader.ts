@@ -92,7 +92,6 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
       recordNumber++
     }
   } catch (e) {
-    console.log('HEY!!!!!!')
     console.warn(e)
   }
   console.log('dbf total records', recordNumber)
