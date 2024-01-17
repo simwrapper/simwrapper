@@ -14,6 +14,14 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.0.2](https://github.com/simwrapper/simwrapper/compare/v3.0.1...v3.0.2) (2024-01-17)
+
+
+### Bug Fixes
+
+* Incorrect join on single feature when using DBF ([e5669bb](https://github.com/simwrapper/simwrapper/commit/e5669bb1c508fcedf2273e3020ade02c2c946c35)), closes [#322](https://github.com/simwrapper/simwrapper/issues/322)
+* split panel scroll is broken for folders with long lists ([30c426d](https://github.com/simwrapper/simwrapper/commit/30c426d3d8bff424e285e354af62a50a10c8e8a6))
+
 ### [3.0.1](https://github.com/simwrapper/simwrapper/compare/v3.0.0...v3.0.1) (2023-12-18)
 
 
