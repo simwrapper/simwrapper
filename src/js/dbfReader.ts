@@ -47,7 +47,14 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
 
   // prepare storage object -- figure out records and columns
   const dataTable: DataTable = {}
-  const expectedNumberOfRows = (source.byteLength - headerLength - 1) / data._recordLength
+
+  // there was an off-by-one error which led to the ( - 1 ) in the following
+  // But then there was a different off-by-one error which implied that the -1 was incorrect.
+  // So... round the result so that both situations land on the correct expectedNumberOfRows??!
+  const expectedNumberOfRows = Math.round(
+    (source.byteLength - headerLength - 1) / data._recordLength
+  )
+
   const numberOfColumns = data._fields.length
   console.log({ numberOfColumns, expectedNumberOfRows })
 
@@ -85,6 +92,7 @@ export default function (sourceBuffer: ArrayBuffer, decoder: TextDecoder): DataT
       recordNumber++
     }
   } catch (e) {
+    console.log('HEY!!!!!!')
     console.warn(e)
   }
   console.log('dbf total records', recordNumber)
