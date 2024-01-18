@@ -106,6 +106,8 @@ export default defineComponent({
     setupLocalFiles() {
       if (globalStore.state.localFileHandles.length) return
 
+      // this must be completed before the router-view initializes,
+      // or we won't have any Chrome Local Files systems available
       get('fs').then(r => {
         const lfsh = r as { key: string; handle: any }[]
         if (lfsh && lfsh.length) {
