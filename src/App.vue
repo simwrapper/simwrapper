@@ -1,7 +1,7 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
-  .center-area
+  .center-area(v-if="isFileSystemLoaded")
     login-panel.login-panel
     router-view.main-content
     p.splash-label(v-if="showSplash") • Loading SimWrapper •
@@ -65,6 +65,7 @@ export default defineComponent({
       state: globalStore.state,
       showSplash: true,
       splasher: {} as any,
+      isFileSystemLoaded: false,
     }
   },
   computed: {
@@ -102,15 +103,16 @@ export default defineComponent({
     },
 
     // ------ Find Chrome Local File System roots ----
-    async setupLocalFiles() {
+    setupLocalFiles() {
       if (globalStore.state.localFileHandles.length) return
 
-      const lfsh = (await get('fs')) as { key: string; handle: any }[]
-      if (lfsh && lfsh.length) {
-        for (const entry of lfsh) {
-          addLocalFilesystem(entry.handle, entry.key)
+      get('fs').then(r => {
+        const lfsh = r as { key: string; handle: any }[]
+        if (lfsh && lfsh.length) {
+          for (const entry of lfsh) addLocalFilesystem(entry.handle, entry.key)
         }
-      }
+        this.isFileSystemLoaded = true
+      })
     },
 
     /**
@@ -163,7 +165,7 @@ export default defineComponent({
       this.$store.commit('clearFileHandlePermissionRequests')
     },
   },
-  async mounted() {
+  mounted() {
     // theme
     const theme = localStorage.getItem('colorscheme')
       ? localStorage.getItem('colorscheme')
@@ -179,7 +181,7 @@ export default defineComponent({
     this.setOnlineOrOfflineMode()
 
     // local files
-    if (doThisOnceForLocalFiles) await this.setupLocalFiles()
+    if (doThisOnceForLocalFiles) this.setupLocalFiles()
 
     document.addEventListener('keydown', this.toggleUIPanels)
 
