@@ -266,7 +266,12 @@ export default defineComponent({
     getCardStyle(card: any) {
       // figure out height. If card has registered a resizer with changeDimensions(),
       // then it needs a default height (300)
-      const defaultHeight = 300 // plotlyChartTypes[card.type] ? 300 : undefined
+
+      // markdown does not want a default height
+      const defaultHeight = card.type === 'text' ? undefined : 300
+
+      // old version:  plotlyChartTypes[card.type] ? 300 : undefined
+
       const height = card.height ? card.height * 60 : defaultHeight
 
       const flex = card.width || 1
