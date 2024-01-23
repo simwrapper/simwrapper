@@ -1,5 +1,5 @@
 <template lang="pug">
-.panel-element
+.text-panel-element(:class="{absolute: hasHeight}")
   .scrollable
     .curate-content.markdown(
       v-if="readmeContent"
@@ -33,12 +33,15 @@ export default defineComponent({
   data: () => {
     return {
       readmeContent: '',
+      hasHeight: false,
     }
   },
   async mounted() {
     try {
-      const fileApi = new HTTPFileSystem(this.fileSystemConfig)
+      // if height is defined, honor it. Otherwise, panel will stretch to fit content
+      this.hasHeight = !!this.config.height
 
+      const fileApi = new HTTPFileSystem(this.fileSystemConfig)
       const filename = `${this.subfolder}/${this.config.file}`
       const text = await fileApi.getFileText(filename)
       this.readmeContent = mdRenderer.render(text)
@@ -58,12 +61,15 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.panel-element {
-  position: absolute;
+.text-panel-element {
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.text-panel-element.absolute {
+  position: absolute;
 }
 
 .scrollable {

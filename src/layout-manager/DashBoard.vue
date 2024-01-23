@@ -468,6 +468,8 @@ export default defineComponent({
           // make YAML easier to write: merge "props" property with other properties
           // so user doesn't need to specify "props: {...}"
           if (!card.props) card.props = Object.assign({}, card)
+          // markdown plugin really wants to know the height
+          if (card.height !== undefined) card.props.height = card.height
 
           // Vue 2 is weird about new properties: use Vue.set() instead
           Vue.set(this.opacity, card.id, 0.5)
