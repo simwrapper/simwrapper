@@ -50,10 +50,17 @@ export default defineComponent({
 
     // Resolve relative URLs
     for (const k in this.config.sources) {
-      var url = this.config.sources[k]
-
-      if (!this.r.test(url)) url = fileApi.cleanURL(`${this.subfolder}/${url}`)
-      this.sources[k] = url
+      try {
+        let url = this.config.sources[k]
+        if (!this.r.test(url)) url = fileApi.cleanURL(`${this.subfolder}/${url}`)
+        this.sources[k] = url
+      } catch (e) {
+        if (fileApi.hasHandle()) {
+          this.$emit('error', 'Cannot play videos on Chrome local filesystem')
+        } else {
+          this.$emit('error', '' + e)
+        }
+      }
     }
 
     this.$emit('isLoaded')
