@@ -139,10 +139,15 @@ const MyComponent = defineComponent({
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
+    configFromDashboard: { type: Object, required: false },
     yamlConfig: String,
     thumbnail: Boolean,
   },
   data: () => {
+    // const COLOR_OCCUPANCY = {
+    //   Car: [85, 255, 85],
+    //   HCV: [240, 110, 30],
+    // } as any
     const COLOR_OCCUPANCY = {
       0: [140, 140, 160],
       1: [85, 255, 85],
@@ -215,7 +220,7 @@ const MyComponent = defineComponent({
       requestEnd: {} as crossfilter.Dimension<any, any>,
       requestVehicle: {} as crossfilter.Dimension<any, any>,
 
-      simulationTime: 5 * 3600, // 8 * 3600 + 10 * 60 + 10
+      simulationTime: 6 * 3600, // 8 * 3600 + 10 * 60 + 10
 
       timeElapsedSinceLastFrame: 0,
 
@@ -338,21 +343,26 @@ const MyComponent = defineComponent({
 
     async getVizDetails() {
       // first get config
-      try {
-        // might be a project config:
-        const filename =
-          this.myState.yamlConfig.indexOf('/') > -1
-            ? this.myState.yamlConfig
-            : this.myState.subfolder + '/' + this.myState.yamlConfig
 
-        const text = await this.fileApi.getFileText(filename)
-        this.vizDetails = YAML.parse(text)
-      } catch (err) {
-        console.log('failed')
-        const e = err as any
-        // maybe it failed because password?
-        if (this.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.fileSystem.slug)
+      if (this.configFromDashboard)
+        this.vizDetails = JSON.parse(JSON.stringify(this.configFromDashboard))
+      else {
+        try {
+          // might be a project config:
+          const filename =
+            this.myState.yamlConfig.indexOf('/') > -1
+              ? this.myState.yamlConfig
+              : this.myState.subfolder + '/' + this.myState.yamlConfig
+
+          const text = await this.fileApi.getFileText(filename)
+          this.vizDetails = YAML.parse(text)
+        } catch (err) {
+          console.log('failed')
+          const e = err as any
+          // maybe it failed because password?
+          if (this.fileSystem.needPassword && e.status === 401) {
+            globalStore.commit('requestLogin', this.fileSystem.slug)
+          }
         }
       }
 
@@ -823,7 +833,8 @@ export default MyComponent
   font-size: 0.8rem;
   pointer-events: auto;
   margin-top: auto;
-  margin-bottom: 35px;
+  margin-bottom: 0;
+  margin-left: auto;
   z-index: 5;
 }
 
