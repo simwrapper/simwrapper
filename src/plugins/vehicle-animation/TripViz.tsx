@@ -189,7 +189,7 @@ export default function Component(props: {
         currentTime: simulationTime,
         shadowEnabled: false,
         noAlloc: true,
-        iconAtlas: `${BASE_URL}/icon-atlas.png`,
+        iconAtlas: `${BASE_URL}icon-atlas.png`,
         iconMapping: ICON_MAPPING,
         sizeScale: 0.5,
         billboard: false,
