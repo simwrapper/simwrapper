@@ -14,6 +14,14 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.0.3](https://github.com/simwrapper/simwrapper/compare/v3.0.2...v3.0.3) (2024-01-24)
+
+
+### Bug Fixes
+
+* Markdown panels should stretch to fit content unless height is given ([b24f10d](https://github.com/simwrapper/simwrapper/commit/b24f10d54600621072fdafeda910bb8d8a96fd4b))
+* On Chrome, local-files refreshing page often fails and always requires reauthentication ([6f692b4](https://github.com/simwrapper/simwrapper/commit/6f692b4401aa022bbfb50a8898324c777191d39c)), closes [#322](https://github.com/simwrapper/simwrapper/issues/322)
+
 ### [3.0.2](https://github.com/simwrapper/simwrapper/compare/v3.0.1...v3.0.2) (2024-01-17)
 
 
