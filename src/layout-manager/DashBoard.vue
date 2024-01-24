@@ -266,7 +266,12 @@ export default defineComponent({
     getCardStyle(card: any) {
       // figure out height. If card has registered a resizer with changeDimensions(),
       // then it needs a default height (300)
-      const defaultHeight = 300 // plotlyChartTypes[card.type] ? 300 : undefined
+
+      // markdown does not want a default height
+      const defaultHeight = card.type === 'text' ? undefined : 300
+
+      // old version:  plotlyChartTypes[card.type] ? 300 : undefined
+
       const height = card.height ? card.height * 60 : defaultHeight
 
       const flex = card.width || 1
@@ -468,6 +473,8 @@ export default defineComponent({
           // make YAML easier to write: merge "props" property with other properties
           // so user doesn't need to specify "props: {...}"
           if (!card.props) card.props = Object.assign({}, card)
+          // markdown plugin really wants to know the height
+          if (card.height !== undefined) card.props.height = card.height
 
           // Vue 2 is weird about new properties: use Vue.set() instead
           Vue.set(this.opacity, card.id, 0.5)

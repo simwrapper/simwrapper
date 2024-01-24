@@ -29,6 +29,10 @@ class HTTPFileSystem {
     if (!CACHE[this.urlId]) CACHE[this.urlId] = {}
   }
 
+  public hasHandle() {
+    return !!this.fsHandle
+  }
+
   // make sure user has given permission to view this folder
   async getChromePermission(handle: any) {
     if (!handle) return true
