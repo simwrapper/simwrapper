@@ -689,7 +689,8 @@ li.is-not-active b a {
 }
 
 .dashboard-finder.isZoomed {
-  margin: 0 0.5rem;
+  margin: 0 0.25rem;
+  padding: 0 0;
 }
 
 .dashboard-right-sections {
