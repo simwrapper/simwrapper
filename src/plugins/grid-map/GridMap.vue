@@ -31,6 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
+import { colorRamp, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -45,6 +46,7 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
+import { thresholdFreedmanDiaconis } from 'd3-array'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -72,6 +74,7 @@ interface VizDetail {
   elements?: string
   cellSize: number
   maxHeight: number
+  userColorRamp: string
   opacity: number
   center: any
   zoom: number
@@ -85,9 +88,10 @@ interface GuiConfig {
   radius: number
   opacity: number
   height: number
-  'color ramp': String
+  'color ramp': string
   colorRamps: String[]
   flip: Boolean
+  steps: number
 }
 
 interface StandaloneYAMLconfig {
@@ -99,6 +103,7 @@ interface StandaloneYAMLconfig {
   cellSize: number
   opacity: number
   maxHeight: number
+  userColorRamp: string
   center: number[]
   zoom: number
   mapIsIndependent: boolean
@@ -113,6 +118,7 @@ interface MapProps {
   currentTimeIndex: number | undefined
   mapIsIndependent: boolean | undefined
   maxHeight: number
+  userColorRamp: string
   cellSize: number
   opacity: number
   upperPercentile: number
@@ -163,16 +169,7 @@ const GridMap = defineComponent({
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
   data: () => {
-    const colorRamps = [
-      'bathymetry',
-      'electric',
-      'inferno',
-      'jet',
-      'magma',
-      'par',
-      'viridis',
-      'chlorophyll',
-    ]
+    const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
@@ -184,6 +181,7 @@ const GridMap = defineComponent({
         cellSize: 250,
         opacity: 0.7,
         maxHeight: 0,
+        userColorRamp: 'virdis',
         center: null as any,
         zoom: 9,
         mapIsIndependent: false,
@@ -202,6 +200,7 @@ const GridMap = defineComponent({
         cellSize: 250,
         opacity: 0.7,
         maxHeight: 0,
+        userColorRamp: 'virdis',
         center: null as any,
         zoom: 9,
         breakpoints: null as any,
@@ -232,6 +231,7 @@ const GridMap = defineComponent({
         'color ramp': 'viridis',
         colorRamps: colorRamps,
         flip: false,
+        steps: 10,
       } as GuiConfig,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
@@ -274,6 +274,7 @@ const GridMap = defineComponent({
         currentTimeIndex: this.timeToIndex.get(this.currentTime[0]),
         mapIsIndependent: this.vizDetails.mapIsIndependent,
         maxHeight: this.guiConfig.height,
+        userColorRamp: this.guiConfig['color ramp'],
         cellSize: this.guiConfig.radius,
         opacity: this.guiConfig.opacity,
         upperPercentile: 100,
@@ -311,6 +312,10 @@ const GridMap = defineComponent({
         console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
         return [0, 0, 0, 0] // Default color (transparent)
       }
+
+      // if (value.toString() === '0') {
+      //   value = Number.MIN_VALUE
+      // }
 
       // Calculate the index based on the value and the number of colors in the array.
       const index = Math.floor((value / 100) * (this.colors.length - 1))
@@ -367,6 +372,7 @@ const GridMap = defineComponent({
         cellSize: this.vizDetails.cellSize,
         opacity: this.vizDetails.opacity,
         maxHeight: this.vizDetails.maxHeight,
+        userColorRamp: this.vizDetails.userColorRamp,
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
       }
@@ -375,6 +381,7 @@ const GridMap = defineComponent({
       return
     },
 
+    // TODO: Set default values for color attributes
     setRadiusAndHeight() {
       if (!this.vizDetails.cellSize) {
         Vue.set(this.vizDetails, 'cellSize', 250)
@@ -459,6 +466,8 @@ const GridMap = defineComponent({
           desc: 'maxHeight should be greater than 0',
         })
       }
+
+      // TODO: Add warnings for color attributes
     },
 
     setVizDetails() {
@@ -496,7 +505,7 @@ const GridMap = defineComponent({
         const view = {
           longitude: this.vizDetails.center[0],
           latitude: this.vizDetails.center[1],
-          bearing: 0,
+          bearing: 10,
           pitch: 0,
           zoom: this.vizDetails.zoom || 10, // use 10 default if we don't have a zoom
           jump: true, // move the map no matter what
@@ -504,10 +513,7 @@ const GridMap = defineComponent({
         }
 
         // bounce our map
-        if (REACT_VIEW_HANDLES[this.id]) {
-          REACT_VIEW_HANDLES[this.id](view)
-          console.log(REACT_VIEW_HANDLES)
-        }
+        if (REACT_VIEW_HANDLES[this.id]) REACT_VIEW_HANDLES[this.id](view)
 
         // Sets the map to the specified data
         this.$store.commit('setMapCamera', view)
@@ -675,33 +681,56 @@ const GridMap = defineComponent({
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+      // colors.add(this.guiConfig, 'steps').onChange(this.setColors)
     },
 
     setColors() {
-      // Create the new color ramp and assign this to the colors array
-      let colors256 = colormap({
-        colormap: this.guiConfig['color ramp'],
-        nshades: 256,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2]])
+      const ramp = {
+        ramp: this.guiConfig['color ramp'],
+        // style: Style.sequential,
+      } as Ramp
 
-      if (this.guiConfig.flip) colors256 = colors256.reverse()
+      console.log('Ramp: ', this.guiConfig['color ramp'])
+      console.log('n: ', this.guiConfig.steps)
+      const color = colorRamp(ramp, this.guiConfig.steps)
 
-      const step = 256 / (this.guiConfig.buckets - 1)
-      const colors = []
-      for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
-        colors.push(colors256[Math.round(step * i)])
+      if (color.length == 0) {
+        const errorMessage = `Invalid color ramp: ${this.guiConfig['color ramp']}`
+        this.$store.commit('setStatus', {
+          type: Status.ERROR,
+          msg: 'Error',
+          desc: errorMessage,
+        })
       }
-      colors.push(colors256[255])
 
-      this.colors = colors
+      if (color.length) {
+        this.colors = []
+      }
+
+      this.colors = this.hexArrayToRgbArray(color)
+
+      // colors.push(colorRamp({ ramp: this.guiConfig['color ramp'] } as Ramp, this.guiConfig.steps))
+
+      // let colors = [
+      //   ...colorRamp({ ramp: this.guiConfig['color ramp'],  } as Ramp, this.guiConfig.steps || 10),
+      // ]
+
+      // this.colors = this.hexArrayToRgbArray(
+      //   colorRamp({ ramp: this.guiConfig['color ramp'] } as Ramp, this.guiConfig.steps)
+      // )
+
+      if (this.guiConfig.flip) this.colors = this.colors.reverse()
+
+      console.log(this.colors)
 
       // Recalculating the color values for the colorRamp
       for (let i = 0; i < this.data.mapData.length; i++) {
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
           const colors = this.pickColor(value)
+          // if (i < 5) {
+          //   console.log(colors)
+          // }
           for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
             this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
           }
@@ -712,8 +741,33 @@ const GridMap = defineComponent({
       this.currentTime = [...this.currentTime]
     },
 
+    hexArrayToRgbArray(hexArray: string[]): any {
+      const rgbArray = []
+
+      for (let i = 0; i < hexArray.length; i++) {
+        const hex = hexArray[i].replace(/^#/, '')
+        const r = parseInt(hex.substring(0, 2), 16)
+        const g = parseInt(hex.substring(2, 4), 16)
+        const b = parseInt(hex.substring(4, 6), 16)
+        rgbArray.push([r, g, b, 255])
+      }
+
+      return rgbArray
+    },
+
     setCustomGuiConfig() {
       if (!this.config) return
+
+      if (this.config.colorRamp) {
+        if (this.config.colorRamp.ramp != undefined)
+          this.guiConfig['color ramp'] = this.config.colorRamp.ramp
+
+        if (this.config.colorRamp.reverse != undefined)
+          this.guiConfig.flip = this.config.colorRamp.reverse
+
+        if (this.config.colorRamp.steps != undefined)
+          this.guiConfig.steps = this.config.colorRamp.steps
+      }
 
       // Set custom radius
       if (this.config.cellSize >= this.minRadius && this.config.cellSize <= this.maxRadius) {
@@ -749,6 +803,7 @@ const GridMap = defineComponent({
       this.$emit('error', 'Error loading ' + this.vizDetails.file)
     }
 
+    this.setColors()
     this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()

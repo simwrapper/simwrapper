@@ -5,6 +5,7 @@ import { rgb } from 'd3-color'
 import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
 const d3 = { ...d3sc, ...d3color }
+import { customColors } from './customColors'
 
 import { DataTableColumn, DataType, Status } from '@/Globals'
 
@@ -24,8 +25,62 @@ export interface Ramp {
   breakpoints?: string
 }
 
+function generateColorArray(colors: string[], numberOfSteps: number): string[] {
+  if (colors.length < 2) {
+    throw new Error('At least two colors are required for interpolation.')
+  }
+
+  const colorArray: string[] = []
+
+  for (let i = 0; i < colors.length - 1; i++) {
+    const startRGB = hexToRgb(colors[i])
+    const endRGB = hexToRgb(colors[i + 1])
+
+    for (let step = 0; step < numberOfSteps; step++) {
+      const interpolatedColor = interpolateColor(startRGB, endRGB, numberOfSteps, step)
+      colorArray.push(rgbToHex(interpolatedColor))
+    }
+  }
+
+  return colorArray
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const bigint = parseInt(hex.slice(1), 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+  return [r, g, b]
+}
+
+function interpolateColor(
+  startRGB: [number, number, number],
+  endRGB: [number, number, number],
+  steps: number,
+  step: number
+): [number, number, number] {
+  const [startR, startG, startB] = startRGB
+  const [endR, endG, endB] = endRGB
+
+  const r = Math.round(startR + ((endR - startR) * step) / steps)
+  const g = Math.round(startG + ((endG - startG) * step) / steps)
+  const b = Math.round(startB + ((endB - startB) * step) / steps)
+
+  return [r, g, b]
+}
+
+function rgbToHex(rgb: [number, number, number]): string {
+  const [r, g, b] = rgb
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
+}
+
 export function colorRamp(scale: Ramp, n: number): string[] {
   let colors
+
+  console.log(d3)
+
+  if (Object.keys(customColors).includes(scale.ramp))
+    return generateColorArray(customColors[scale.ramp], n)
 
   // categorical
   if (scale.style === Style.categorical) {
