@@ -728,9 +728,7 @@ const GridMap = defineComponent({
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
           const colors = this.pickColor(value)
-          // if (i < 5) {
-          //   console.log(colors)
-          // }
+          if (colors == undefined) break
           for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
             this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
           }
