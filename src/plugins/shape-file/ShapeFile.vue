@@ -1969,9 +1969,17 @@ const MyComponent = defineComponent({
       // Find the map center while we're here
       let centerLong = 0
       let centerLat = 0
+      let count = 0
 
       for (const feature of this.boundaries) {
-        const centroid = turf.centerOfMass(feature as any)
+        let centroid = {} as any
+        try {
+          centroid = turf.centerOfMass(feature as any)
+        } catch (e) {
+          console.warn('no coordinates:')
+          console.warn(feature)
+          continue
+        }
 
         if (!centroid.properties) centroid.properties = {}
 
@@ -1987,11 +1995,12 @@ const MyComponent = defineComponent({
         if (centroid.geometry) {
           centerLong += centroid.geometry.coordinates[0]
           centerLat += centroid.geometry.coordinates[1]
+          count++
         }
       }
 
-      centerLong /= this.centroids.length
-      centerLat /= this.centroids.length
+      centerLong /= count
+      centerLat /= count
 
       console.log('CENTER', centerLong, centerLat)
       if (this.needsInitialMapExtent && !this.vizDetails.center) {
@@ -2032,6 +2041,9 @@ const MyComponent = defineComponent({
         this.statusText = 'Generating shapes...'
 
         geojson = await shapefile.read(shpBlob, dbfBlob)
+
+        // filter out features that don't have geometry: they can't be mapped
+        geojson.features = geojson.features.filter((f: any) => !!f.geometry)
       } catch (e) {
         console.error(e)
         this.$emit('error', '' + e)
