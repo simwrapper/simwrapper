@@ -80,6 +80,7 @@ interface VizDetail {
   zoom: number
   mapIsIndependent?: boolean
   breakpoints?: string
+  valueColumn: string
 }
 
 interface GuiConfig {
@@ -204,6 +205,7 @@ const GridMap = defineComponent({
         center: null as any,
         zoom: 9,
         breakpoints: null as any,
+        valueColumn: 'value',
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -375,6 +377,7 @@ const GridMap = defineComponent({
         userColorRamp: this.vizDetails.userColorRamp,
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
+        valueColumn: this.vizDetails.valueColumn,
       }
       this.$emit('title', this.vizDetails.title)
       this.solveProjection()
@@ -538,14 +541,16 @@ const GridMap = defineComponent({
       let maxValue = Number.NEGATIVE_INFINITY
 
       // This for loop collects all the data that's used by
-      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // Stores all times to calculate the range and the timeBinSize
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
           this.allTimes.push(csv.allRows.time.values[i])
 
         // calculate the min and max value
-        if (csv.allRows.value.values[i] < minValue) minValue = csv.allRows.value.values[i]
-        if (csv.allRows.value.values[i] > maxValue) maxValue = csv.allRows.value.values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] < minValue)
+          minValue = csv.allRows[this.vizDetails.valueColumn].values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] > maxValue)
+          maxValue = csv.allRows[this.vizDetails.valueColumn].values[i]
 
         // Store all different times
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
@@ -559,7 +564,7 @@ const GridMap = defineComponent({
 
       // Count elements per time
       const numberOfElementsPerTime = Math.ceil(
-        csv.allRows.value.values.length / this.allTimes.length
+        csv.allRows[this.vizDetails.valueColumn].values.length / this.allTimes.length
       )
 
       // scaleFactor
@@ -594,11 +599,11 @@ const GridMap = defineComponent({
       }
 
       // Loop through the data and create the data object for the map
-      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // index for the time
         const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
 
-        const value = scaleFactor * csv.allRows.value.values[i]
+        const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
         const colors = this.pickColor(value)
 
         // Save index for next position in the array
@@ -685,6 +690,8 @@ const GridMap = defineComponent({
     },
 
     setColors() {
+      if (!this.data) return
+
       const ramp = {
         ramp: this.guiConfig['color ramp'],
         // style: Style.sequential,
@@ -720,8 +727,6 @@ const GridMap = defineComponent({
       // )
 
       if (this.guiConfig.flip) this.colors = this.colors.reverse()
-
-      console.log(this.colors)
 
       // Recalculating the color values for the colorRamp
       for (let i = 0; i < this.data.mapData.length; i++) {
