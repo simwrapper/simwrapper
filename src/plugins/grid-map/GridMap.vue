@@ -540,6 +540,13 @@ const GridMap = defineComponent({
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
 
+      console.log('csv: ', csv.allRows)
+      console.log('valueColumn: ', this.vizDetails.valueColumn)
+
+      if (this.vizDetails.valueColumn == undefined) {
+        this.vizDetails.valueColumn = 'value'
+      }
+
       // This for loop collects all the data that's used by
       for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // Stores all times to calculate the range and the timeBinSize
