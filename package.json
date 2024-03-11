@@ -43,6 +43,7 @@
     "@simwrapper/papaparse": "^5.3.2-2",
     "@simwrapper/shp-write": "^0.3.3",
     "@turf/turf": "^5.1.6",
+    "avro-js": "^1.11.3",
     "blob-util": "^2.0.2",
     "buefy": "^0.8.20",
     "colormap": "^2.3.1",

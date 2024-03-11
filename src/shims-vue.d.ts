@@ -39,6 +39,7 @@ declare module 'vuera'
 declare module 'zip-loader'
 declare module 'react-toggle'
 declare module 'vue-good-table'
+declare module 'avro-js'
 
 declare module '@turf/point-to-line-distance'
 declare module '@turf/nearest-point-to-line'

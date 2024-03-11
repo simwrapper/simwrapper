@@ -18,6 +18,9 @@ import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
 
+import { parse } from 'avro-js'
+import * as fs from 'fs'
+
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
@@ -31,6 +34,7 @@ interface configuration {
   skipFirstRow?: boolean
   useLastRow?: boolean
   x?: string
+  schemaPath?: string
 }
 
 export interface FilterDefinition {
@@ -608,6 +612,37 @@ export default class DashboardDataManager {
       filterListeners: Set<any>
     }
   } = {}
+
+  public async getAvroDataset(config: configuration): Promise<any> {
+    try {
+      if (!this.datasets[config.dataset]) {
+        console.log('Loading Avro dataset:', config.dataset)
+        const avroDataset = await this._fetchAvroDataset(config)
+        console.log('Avro dataset:', avroDataset)
+      }
+    } catch (error) {
+      console.error('Error loading Avro dataset:', error)
+      return {}
+    }
+  }
+
+  private async _fetchAvroDataset(config: configuration): Promise<any> {
+    if (config.schemaPath === undefined) return Promise.resolve({})
+
+    try {
+      const avroBuffer = fs.readFileSync(config.dataset)
+      const schema = require(config.schemaPath)
+      const type = parse(schema)
+      const avroData = type.fromBuffer(avroBuffer)
+
+      console.log('Avro data:', avroData)
+
+      return Promise.resolve(avroData)
+    } catch (error) {
+      console.error('Error loading Avro dataset:', error)
+      return {}
+    }
+  }
 }
 
 export function checkFilterValue(

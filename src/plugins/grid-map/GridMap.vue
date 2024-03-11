@@ -38,6 +38,7 @@ import globalStore from '@/store'
 import { REACT_VIEW_HANDLES } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
+import AvroDataManager from '@/js/AvroDataManager'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -46,7 +47,6 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
-import { thresholdFreedmanDiaconis } from 'd3-array'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -167,6 +167,7 @@ const GridMap = defineComponent({
     config: Object,
     thumbnail: Boolean,
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    avroDatamanager: { type: Object as PropType<AvroDataManager>, required: true },
   },
   data: () => {
     const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
@@ -525,6 +526,14 @@ const GridMap = defineComponent({
     async loadAndPrepareData() {
       const config = {
         dataset: this.vizDetails.file,
+        schemaPath: 'analysis/noise/schema.avsc',
+      }
+
+      try {
+        const data = await this.datamanager.getAvroDataset(config)
+        console.log(data)
+      } catch (error) {
+        console.error('Error loading and preparing data:', error)
       }
 
       const csv = await this.datamanager.getDataset(config)
