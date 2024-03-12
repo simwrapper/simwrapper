@@ -20,6 +20,7 @@ declare module '*.md' {
   export default Component
 }
 
+declare module '@/js/avro'
 declare module 'colormap'
 declare module 'convert-seconds'
 declare module 'd3-color'
