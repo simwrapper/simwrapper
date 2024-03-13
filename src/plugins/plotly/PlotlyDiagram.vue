@@ -37,6 +37,7 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
+import { f } from 'vitest/dist/reporters-2ff87305'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -100,6 +101,7 @@ const MyComponent = defineComponent({
           x: 1,
           y: 1,
         },
+        grid: { rows: 1, columns: 1 },
       },
       // Plotly options
       options: {
@@ -161,6 +163,12 @@ const MyComponent = defineComponent({
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
+    // traces() {
+    //   console.log('Updated Traces: ', this.traces)
+    // },
+    // layout() {
+    //   console.log('Updated Layout: ', this.layout)
+    // },
   },
 
   async mounted() {
@@ -198,6 +206,7 @@ const MyComponent = defineComponent({
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
     this.layout.margin = { r: 0, t: 8, b: 0, l: 50, pad: 2 }
+    this.createFacets()
   },
 
   beforeDestroy() {
@@ -308,6 +317,76 @@ const MyComponent = defineComponent({
         mergedLayout.yaxis2 = this.layout.yaxis2
       }
       this.layout = mergedLayout
+    },
+
+    createFacets() {
+      if (this.traces[0].facet_col != undefined || this.traces[0].facet_row != undefined) {
+        let facet_col = [] as any[]
+        let facet_row = [] as any[]
+
+        if (this.traces[0].facet_col != undefined)
+          facet_col = this.traces[0].facet_col.filter(
+            (element: any, index: any) => this.traces[0].facet_col.indexOf(element) === index
+          )
+        if (this.traces[0].facet_row != undefined)
+          facet_row = this.traces[0].facet_row.filter(
+            (element: any, index: any) => this.traces[0].facet_row.indexOf(element) === index
+          )
+
+        this.groupTracesByFacets(facet_col, facet_row)
+      }
+    },
+
+    groupTracesByFacets(facet_col: any[], facet_row: any[]) {
+      console.log('Traces input: ', this.traces)
+      let result = [] as any[]
+      for (let i = 0; i < facet_row.length; i++) {
+        for (let j = 0; j < facet_col.length; j++) {
+          const row = facet_row[i]
+          const col = facet_col[j]
+          let filteredTraces = [] as any[]
+
+          for (let k = 0; k < this.traces.length; k++) {
+            const filterTrace = JSON.parse(JSON.stringify(this.traces[k]))
+
+            let xAxis = 'x' + i.toString()
+            let yAxis = 'y' + j.toString()
+
+            const trace = this.traces[k]
+            const filteredX = [] as any[]
+            const filteredY = [] as any[]
+
+            for (let l = 0; l < trace.facet_row.length; l++) {
+              if (trace.facet_row[l] === row && trace.facet_col[l] === col) {
+                filteredX.push(trace.x[l])
+                filteredY.push(trace.y[l])
+              }
+            }
+            filterTrace.x = filteredX
+            filterTrace.y = filteredY
+            filterTrace.xaxis = xAxis
+            filterTrace.yaxis = yAxis
+
+            console.log('trace: ', filterTrace)
+
+            delete filterTrace.facet_row
+            delete filterTrace.facet_col
+            filteredTraces.push(filterTrace)
+          }
+
+          // console.log(
+          //   `Filtered traces for facet row: ${row}, facet col: ${col} is:`,
+          //   filteredTraces
+          // )
+
+          for (let k = 0; k < filteredTraces.length; k++) {
+            result.push(filteredTraces[k])
+          }
+        }
+      }
+      this.traces = result
+      this.layout.grid = { rows: facet_row.length, columns: facet_col.length }
+      console.log('Traces output: ', this.traces)
     },
 
     createMenus(mode: string) {
