@@ -786,7 +786,7 @@ li.is-not-active b a {
   color: var(--textBold);
   border: 1px solid var(--bgCream4);
   margin-bottom: 2px;
-  padding: 1rem 0.5rem;
+  padding: 0.75rem 0.5rem;
   z-index: 20000;
   font-size: 0.95rem;
   max-height: 50%;

@@ -116,7 +116,10 @@
           @title="setCardTitles(panel, $event)"
           @activate="setActiveLeftSection"
           @projectFolder="setProjectFolder"
+          @error="setPanelError"
         )
+
+        p.error-text(v-if="errorPanelText") {{ errorPanelText }}
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
@@ -192,6 +195,7 @@ export default defineComponent({
       dragY: -1,
       dragQuadrant: null as any,
       dragStartWidth: 0,
+      errorPanelText: '',
       // keep track of URL for highlighting purposes
       firstPanelProjectFolder: '',
       firstPanelSubfolder: '',
@@ -275,6 +279,11 @@ export default defineComponent({
 
     setProjectFolder(folder: string) {
       this.firstPanelProjectFolder = folder
+    },
+
+    setPanelError(e: any) {
+      console.error('LAYOUTMANAGER error: ' + e)
+      this.errorPanelText = '' + e
     },
 
     buildLayoutFromURL() {
@@ -857,6 +866,7 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+
 #layout-manager {
   display: flex;
   flex-direction: column;
@@ -904,6 +914,18 @@ export default defineComponent({
   left: 0;
   right: 0;
   overflow-y: hidden;
+}
+
+.error-text {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bgError);
+  z-index: 50;
+  overflow-y: hidden;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.9rem;
 }
 
 .drag-container {
