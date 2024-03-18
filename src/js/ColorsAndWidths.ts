@@ -77,8 +77,6 @@ function rgbToHex(rgb: [number, number, number]): string {
 export function colorRamp(scale: Ramp, n: number): string[] {
   let colors
 
-  console.log(d3)
-
   if (Object.keys(customColors).includes(scale.ramp))
     return generateColorArray(customColors[scale.ramp], n)
 

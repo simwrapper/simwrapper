@@ -231,7 +231,7 @@ export default defineComponent({
 
       // check for x column
       if (!allRows[this.config.x]) {
-        this.$store.commit(
+        this.$emit(
           'error',
           `${this.cardTitle}: "${this.config.dataset}" x column "${this.config.x}" missing`
         )

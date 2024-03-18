@@ -236,7 +236,7 @@ export default defineComponent({
       const check = ['y']
       for (const col of check) {
         if (!allRows[this.config[col]]) {
-          this.$store.commit(
+          this.$emit(
             'error',
             `${this.cardTitle}: "${this.config.dataset}" ${check} column "${col}" missing`
           )
