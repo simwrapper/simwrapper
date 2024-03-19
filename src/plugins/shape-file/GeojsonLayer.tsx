@@ -233,10 +233,8 @@ export default function Component({
 
     // --- boundary feature tooltip lines ---
     let columns = Object.keys(featureDataTable)
-    if (tooltip && tooltip.length) {
-      columns = tooltip.map(tip => {
-        return tip.substring(tip.indexOf('.') + 1)
-      })
+    if (tooltip?.length) {
+      columns = tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
     }
 
     let featureProps = ''
