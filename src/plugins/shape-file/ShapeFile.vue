@@ -688,7 +688,7 @@ const MyComponent = defineComponent({
       fillHeight?: FillHeightDefinition
       filters?: FilterDefinition
     }) {
-      console.log('PROPS', props)
+      // console.log('PROPS', props)
 
       try {
         if (props['fill']) {
@@ -793,46 +793,12 @@ const MyComponent = defineComponent({
       }
 
       const lookupValues = dataTable[dataJoinColumn].values
-
       const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
-      // if user wants specific tooltips based on this dataset, save the values
-      // TODO - this is in the wrong place and probably causes problems with
-      // multi-line datasets
-
-      const tips = this.vizDetails.tooltip || []
-      const relevantTips = tips
-        .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
-        .map(tip => {
-          return { id: tip, column: tip.substring(1 + tip.indexOf('.')) }
-        })
-
-      for (const tip of relevantTips) {
-        // make sure tip column exists
-        if (!dataTable[tip.column]) {
-          this.$emit('error', {
-            type: Status.WARNING,
-            msg: `Tooltip references "${tip.id}" but that column doesn't exist`,
-            desc: `Check the tooltip spec and column names`,
-          })
-        }
-      }
 
       for (let i = 0; i < lookupValues.length; i++) {
         // set lookup data
         const featureOffset = boundaryOffsets[lookupValues[i]]
         lookupColumn.values[i] = featureOffset
-        const feature = this.boundaries[featureOffset]
-        // also set tooltip data
-        for (const tip of relevantTips) {
-          if (!dataTable[tip.column]) continue
-          const value = dataTable[tip.column]?.values[i] && ''
-          if (feature && value) feature.properties[tip.id] = value
-        }
-      }
-
-      // Notify Deck.gl of the new tooltip data
-      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
       }
 
       // add/replace this dataset in the datamanager, with the new lookup column
@@ -856,8 +822,50 @@ const MyComponent = defineComponent({
             : `${this.featureJoinColumn}:${dataJoinColumn}`,
       } as any
 
+      this.prepareTooltipData(props)
+      // Notify Deck.gl of the new tooltip data
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+      }
       // console.log('triggering updates')
       this.datasets[datasetId] = dataTable
+    },
+
+    prepareTooltipData(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+      // if user wants specific tooltips based on this dataset, save the values
+      // TODO - this is in the wrong place and probably causes problems with
+      // survey-style multi-record datasets
+
+      const { dataTable, datasetId, dataJoinColumn } = props
+
+      const tips = this.vizDetails.tooltip || []
+      const relevantTips = tips
+        .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+        .map(tip => {
+          return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+        })
+
+      // no tips for this datasetId
+      if (!relevantTips.length) return
+
+      const lookupValues = dataTable[dataJoinColumn].values
+      const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+      for (const tip of relevantTips) {
+        // make sure tip column exists
+        if (!dataTable[tip.column]) {
+          this.$emit('error', `Tooltip references "${tip.id}" but that column doesn't exist`)
+          continue
+        }
+
+        // set the tooltip data
+        for (let i = 0; i < lookupValues.length; i++) {
+          const featureOffset = boundaryOffsets[lookupValues[i]]
+          const feature = this.boundaries[featureOffset]
+          const value = dataTable[tip.column].values[i]
+          if (feature) feature.properties[tip.id] = value
+        }
+      }
     },
 
     getBoundaryOffsetLookup(joinColumn: string) {
