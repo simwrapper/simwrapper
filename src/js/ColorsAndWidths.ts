@@ -658,10 +658,11 @@ function buildColorsBasedOnNumericValues(props: {
   lookup: DataTableColumn
   normalize?: DataTableColumn
   normalLookup?: DataTableColumn
+  filter?: Float32Array
   options: { colorRamp: Ramp; fixedColors: any[] }
   join?: string
 }) {
-  const { numFeatures, data, lookup, normalize, normalLookup, options, join } = props
+  const { numFeatures, data, lookup, normalize, normalLookup, options, join, filter } = props
   const { colorRamp, fixedColors } = options
 
   const isDivergingScale = colorRamp?.style === Style.diverging
@@ -742,9 +743,9 @@ function buildColorsBasedOnNumericValues(props: {
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < numFeatures; i++) {
-    const value = isDivergingScale
-      ? normalizedValues[i]
-      : normalizedValues[i] / (normalizedMax || 1)
+    let value = isDivergingScale ? normalizedValues[i] : normalizedValues[i] / (normalizedMax || 1)
+
+    if (filter && filter[i] == -1) value = NaN
 
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
     const colorOffset = i * 3
