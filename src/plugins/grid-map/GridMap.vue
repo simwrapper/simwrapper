@@ -47,6 +47,7 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import { thresholdFreedmanDiaconis } from 'd3-array'
+import avro from '@/js/avro'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -161,16 +162,18 @@ const GridMap = defineComponent({
     ZoomButtons,
     TimeSlider,
   },
+
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     yamlConfig: String,
     config: Object,
     thumbnail: Boolean,
-    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
   },
-  data: () => {
-    const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
+
+  data() {
+    const colorRamps = ['Inferno', 'magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
@@ -217,7 +220,7 @@ const GridMap = defineComponent({
       selectedTimeData: [] as any[],
       allTimePeriodes: [] as any[],
       colors: colormap({
-        colormap: 'viridis',
+        colormap: 'Viridis',
         nshades: 10,
         format: 'rba',
         alpha: 1,
@@ -227,10 +230,10 @@ const GridMap = defineComponent({
       guiConfig: {
         buckets: 10,
         exponent: 4,
-        radius: 5,
+        radius: 150,
         opacity: 1,
         height: 100,
-        'color ramp': 'viridis',
+        'color ramp': 'Viridis',
         colorRamps: colorRamps,
         flip: false,
         steps: 10,
@@ -245,6 +248,9 @@ const GridMap = defineComponent({
       resizer: null as ResizeObserver | null,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
     }
   },
   computed: {
@@ -418,11 +424,7 @@ const GridMap = defineComponent({
       } catch (err) {
         // Show error message in the Warning/Error Panel
         const errorMessage = `File not found: ${this.myState.subfolder}/${this.myState.yamlConfig}`
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: 'Error',
-          desc: errorMessage,
-        })
+        this.$emit('error', errorMessage)
       }
     },
 
@@ -478,7 +480,7 @@ const GridMap = defineComponent({
 
       this.setRadiusAndHeight()
 
-      const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Grid Map'
       this.$emit('title', t)
     },
 
@@ -526,11 +528,126 @@ const GridMap = defineComponent({
     },
 
     async loadAndPrepareData() {
-      const config = {
-        dataset: this.vizDetails.file,
+      if (this.vizDetails.file.indexOf('.avro') > -1) {
+        return await this.loadAndPrepareAvroData()
+      } else {
+        return await this.loadAndPrepareCSVData()
+      }
+    },
+
+    async loadAndPrepareAvroData() {
+      const filename = `${this.subfolder}/${this.vizDetails.file}`
+      const blob = await this.fileApi.getFileBlob(filename)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {
+            // console.log(schema)
+          })
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      // console.log({ records })
+
+      // Store the min and max value to calculate the scale factor
+      let minValue = Number.POSITIVE_INFINITY
+      let maxValue = Number.NEGATIVE_INFINITY
+
+      const record = records[0]
+
+      this.allTimes = record.timestamps
+      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
+      this.timeRange[0] = this.allTimes[0]
+      this.timeRange[1] = this.allTimes[this.allTimes.length - 1]
+
+      const tableName = Object.keys(record.data)[0]
+      const dataValues: number[] = record.data[tableName]
+
+      // console.log({ allTimes: this.allTimes, timeRange: this.timeRange, tableName, dataValues })
+
+      // calc scale
+      for (const value of dataValues) maxValue = Math.max(maxValue, value)
+      const scaleFactor = 100 / maxValue
+
+      // console.log({ scaleFactor })
+
+      const finalData = {
+        mapData: [] as MapData[],
+        scaledFactor: scaleFactor as Number,
+      } as CompleteMapData
+
+      const x = record.xCoords
+      const y = record.yCoords
+
+      // console.log({ x, y })
+      if (x.length !== y.length) {
+        const msg = 'xCoords and yCoords must be same length'
+        this.$emit('error', msg)
+        // throw Error(msg)
       }
 
-      const csv = await this.datamanager.getDataset(config)
+      const numPoints = y.length
+
+      // User must provide projection
+      if (!this.vizDetails.projection) {
+        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
+        this.$emit('error', msg)
+        // throw Error(msg)
+      }
+
+      // Build x/y-coordinates (just once - always the same)
+      const centroid = new Float32Array(numPoints * 2)
+      for (let i = 0; i < numPoints; i++) {
+        let wgs84 = [x[i], y[i]]
+        if (this.vizDetails.projection && this.vizDetails.projection !== 'EPSG:4326') {
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
+          centroid[i * 2] = wgs84[0]
+          centroid[i * 2 + 1] = wgs84[1]
+        }
+      }
+
+      // map all times to their index and create a mapData object for each time
+      this.allTimes.forEach((time, index) => {
+        this.timeToIndex.set(time, index)
+
+        finalData.mapData.push({
+          length: numPoints,
+          time: time,
+          centroid,
+          values: new Float32Array(numPoints),
+          colorData: new Uint8Array(numPoints * 3),
+        })
+      })
+
+      // Loop through the data and create the data object for the map
+      for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
+        for (let i = 0; i < numPoints; i++) {
+          const offset = timeIndex * numPoints + i
+          const value = scaleFactor * dataValues[offset]
+          const colors = this.pickColor(value)
+
+          // add final values to the mapData
+          finalData.mapData[timeIndex].values[i] = value
+          for (let j = 0; j < 3; j++) {
+            finalData.mapData[timeIndex].colorData[i * 3 + j] = colors[j]
+          }
+        }
+      }
+
+      this.myState.statusMessage = ''
+      return finalData
+    },
+
+    async loadAndPrepareCSVData() {
+      const config = { dataset: this.vizDetails.file }
+      const csv = await this.myDataManager.getDataset(config)
 
       // The datamanager doesn't return the comments...
       // const projection = csv.comments[0].split('#')[1].trim()
@@ -710,11 +827,7 @@ const GridMap = defineComponent({
 
       if (color.length == 0) {
         const errorMessage = `Invalid color ramp: ${this.guiConfig['color ramp']}`
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: 'Error',
-          desc: errorMessage,
-        })
+        this.$emit('error', errorMessage)
       }
 
       if (color.length) {
@@ -807,14 +920,11 @@ const GridMap = defineComponent({
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    try {
-      this.data = await this.loadAndPrepareData()
-    } catch (e) {
-      this.$emit('error', 'Error loading ' + this.vizDetails.file)
-    }
+    this.data = await this.loadAndPrepareData()
+    // this.$emit('error', 'Error loading ' + this.vizDetails.file)
 
     this.setColors()
-    this.buildThumbnail()
+    // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
   },

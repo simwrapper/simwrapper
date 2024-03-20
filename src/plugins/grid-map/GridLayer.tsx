@@ -19,7 +19,7 @@ const material = {
 // LAYER --------------------------------------------------------
 export default function Layer({
   viewId = 0 as number,
-  colorRamp = 'viridis' as String,
+  colorRamp = 'Viridis' as String,
   dark = false as Boolean,
   data = {} as CompleteMapData,
   currentTimeIndex = 0 as number,
@@ -97,8 +97,8 @@ export default function Layer({
       upperPercentile,
       material: false,
       transitions: {
-        elevationScale: { type: 'interpolation', duration: 10 },
-        opacity: { type: 'interpolation', duration: 200 },
+        elevationScale: { type: 'interpolation', duration: 50 },
+        // opacity: { type: 'interpolation', duration: 50 },
       },
       parameters: {
         // fixes the z-fighting problem but makes some issues with the opacity...
