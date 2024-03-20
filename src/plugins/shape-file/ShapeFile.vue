@@ -688,7 +688,7 @@ const MyComponent = defineComponent({
       fillHeight?: FillHeightDefinition
       filters?: FilterDefinition
     }) {
-      console.log('PROPS', props)
+      // console.log('PROPS', props)
 
       try {
         if (props['fill']) {
@@ -793,46 +793,12 @@ const MyComponent = defineComponent({
       }
 
       const lookupValues = dataTable[dataJoinColumn].values
-
       const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
-      // if user wants specific tooltips based on this dataset, save the values
-      // TODO - this is in the wrong place and probably causes problems with
-      // multi-line datasets
-
-      const tips = this.vizDetails.tooltip || []
-      const relevantTips = tips
-        .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
-        .map(tip => {
-          return { id: tip, column: tip.substring(1 + tip.indexOf('.')) }
-        })
-
-      for (const tip of relevantTips) {
-        // make sure tip column exists
-        if (!dataTable[tip.column]) {
-          this.$emit('error', {
-            type: Status.WARNING,
-            msg: `Tooltip references "${tip.id}" but that column doesn't exist`,
-            desc: `Check the tooltip spec and column names`,
-          })
-        }
-      }
 
       for (let i = 0; i < lookupValues.length; i++) {
         // set lookup data
         const featureOffset = boundaryOffsets[lookupValues[i]]
         lookupColumn.values[i] = featureOffset
-        const feature = this.boundaries[featureOffset]
-        // also set tooltip data
-        for (const tip of relevantTips) {
-          if (!dataTable[tip.column]) continue
-          const value = dataTable[tip.column]?.values[i] && ''
-          if (feature && value) feature.properties[tip.id] = value
-        }
-      }
-
-      // Notify Deck.gl of the new tooltip data
-      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
       }
 
       // add/replace this dataset in the datamanager, with the new lookup column
@@ -841,11 +807,6 @@ const MyComponent = defineComponent({
         key: this.datasetKeyToFilename[datasetId],
         dataTable,
       })
-
-      this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
-        this.processFiltersNow
-      )
 
       this.vizDetails.datasets[datasetId] = {
         file: this.datasetKeyToFilename[datasetId],
@@ -856,8 +817,56 @@ const MyComponent = defineComponent({
             : `${this.featureJoinColumn}:${dataJoinColumn}`,
       } as any
 
+      this.myDataManager.addFilterListener(
+        { dataset: this.datasetKeyToFilename[datasetId] },
+        this.processFiltersNow
+      )
+
+      this.prepareTooltipData(props)
+
+      // Notify Deck.gl of the new tooltip data
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+      }
       // console.log('triggering updates')
       this.datasets[datasetId] = dataTable
+    },
+
+    prepareTooltipData(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+      // if user wants specific tooltips based on this dataset, save the values
+      // TODO - this is in the wrong place and probably causes problems with
+      // survey-style multi-record datasets
+
+      const { dataTable, datasetId, dataJoinColumn } = props
+
+      const tips = this.vizDetails.tooltip || []
+      const relevantTips = tips
+        .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+        .map(tip => {
+          return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+        })
+
+      // no tips for this datasetId
+      if (!relevantTips.length) return
+
+      const lookupValues = dataTable[dataJoinColumn].values
+      const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+      for (const tip of relevantTips) {
+        // make sure tip column exists
+        if (!dataTable[tip.column]) {
+          this.$emit('error', `Tooltip references "${tip.id}" but that column doesn't exist`)
+          continue
+        }
+
+        // set the tooltip data
+        for (let i = 0; i < lookupValues.length; i++) {
+          const featureOffset = boundaryOffsets[lookupValues[i]]
+          const feature = this.boundaries[featureOffset]
+          const value = dataTable[tip.column].values[i]
+          if (feature) feature.properties[tip.id] = value
+        }
+      }
     },
 
     getBoundaryOffsetLookup(joinColumn: string) {
@@ -865,17 +874,22 @@ const MyComponent = defineComponent({
       if (this.boundaryJoinLookups[joinColumn]) return this.boundaryJoinLookups[joinColumn]
 
       // build it
-      this.statusText = 'Joining datasets...'
-      this.boundaryJoinLookups[joinColumn] = {}
-      const lookupValues = this.boundaryJoinLookups[joinColumn]
+      try {
+        this.statusText = 'Joining datasets...'
+        this.boundaryJoinLookups[joinColumn] = {}
+        const lookupValues = this.boundaryJoinLookups[joinColumn]
 
-      const boundaryLookupColumnValues = this.boundaryDataTable[joinColumn].values
+        const boundaryLookupColumnValues = this.boundaryDataTable[joinColumn].values
 
-      for (let i = 0; i < this.boundaries.length; i++) {
-        lookupValues[boundaryLookupColumnValues[i]] = i
+        for (let i = 0; i < this.boundaries.length; i++) {
+          lookupValues[boundaryLookupColumnValues[i]] = i
+        }
+        this.statusText = ''
+        return lookupValues
+      } catch (e) {
+        console.warn('waahaa')
+        return {}
       }
-      this.statusText = ''
-      return lookupValues
     },
 
     removeAnyOldFilters(filters: any) {
@@ -907,12 +921,11 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewFilters(filters: any) {
+    async handleNewFilters(filters: any) {
       // Remove removed filters first!
       this.removeAnyOldFilters(filters)
 
       this.currentUIFilterDefinitions = filters
-
       const newDefinitions = this.parseFilterDefinitions(filters)
       this.filterDefinitions = newDefinitions
 
@@ -920,9 +933,10 @@ const MyComponent = defineComponent({
       this.filterShapesNow()
 
       // Filter attached datasets
-      Object.keys(this.datasets).forEach((datasetKey, i) => {
+      Object.keys(this.datasets).forEach(async (datasetKey, i) => {
         if (i === 0) return // skip shapes, we just did them
-        this.activateFiltersForDataset(datasetKey)
+        await this.activateFiltersForDataset(datasetKey)
+        this.processFiltersNow(datasetKey)
       })
     },
 
@@ -1685,6 +1699,23 @@ const MyComponent = defineComponent({
           for (const row of filteredRows) column.values.push(row[columnId])
           filteredDataTable[columnId] = column
         })
+
+        // TEMPORARY: filter out any shapes that do not pass the test.
+        // TODO: this will need to be revisited when we do layer-mode.
+        const lookups = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+        // hide shapes not in filtered set
+        const hideBoundary = new Float32Array(this.boundaryFilters.length)
+        hideBoundary.fill(1)
+        for (const row of filteredRows) {
+          const joinText = row[this.featureJoinColumn]
+          const boundaryIndex = lookups[joinText]
+          hideBoundary[boundaryIndex] = 0 // keep this one
+        }
+        // merge new hide/show with existing hide/show
+        for (let i = 0; i < this.boundaryFilters.length; i++) {
+          if (hideBoundary[i]) this.boundaryFilters[i] = -1
+        }
       }
 
       // now redraw colors for fills and liness
@@ -2178,6 +2209,7 @@ const MyComponent = defineComponent({
         // Set up filters -- there could be some in YAML already
         this.myDataManager.addFilterListener({ dataset: datasetFilename }, this.processFiltersNow)
         this.activateFiltersForDataset(datasetKey)
+        // this.handleNewFilters(this.vizDetails.filters)
       } catch (e) {
         const msg = '' + e
         console.error(msg)
@@ -2186,11 +2218,10 @@ const MyComponent = defineComponent({
       return []
     },
 
-    activateFiltersForDataset(datasetKey: string) {
+    async activateFiltersForDataset(datasetKey: string) {
       const filters = this.filterDefinitions.filter(f => f.dataset === datasetKey)
 
       for (const filter of filters) {
-        console.log(3, JSON.stringify(filter))
         // if user selected a @categorical, just add it to the thingy
         if (filter.value == '@categorical') {
           if (this.filters[filter.column]) {
@@ -2200,9 +2231,13 @@ const MyComponent = defineComponent({
           }
         } else {
           // actually filter the data
-          this.myDataManager.setFilter(
-            Object.assign(filter, { dataset: this.datasetKeyToFilename[datasetKey] })
-          )
+          try {
+            await this.myDataManager.setFilter(
+              Object.assign(filter, { dataset: this.datasetKeyToFilename[datasetKey] })
+            )
+          } catch (e) {
+            this.$emit('error', `Filter ${datasetKey}.${filter.column}: ` + e)
+          }
         }
       }
     },

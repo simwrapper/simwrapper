@@ -56,6 +56,8 @@ export default function Component({
     setViewState(globalStore.state.viewState)
   }
 
+  // console.log(featureFilter)
+
   // Feature setter hack:
   // Using the array itself causes an enormous memory leak. I am not sure why
   // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
@@ -233,10 +235,8 @@ export default function Component({
 
     // --- boundary feature tooltip lines ---
     let columns = Object.keys(featureDataTable)
-    if (tooltip && tooltip.length) {
-      columns = tooltip.map(tip => {
-        return tip.substring(tip.indexOf('.') + 1)
-      })
+    if (tooltip?.length) {
+      columns = tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
     }
 
     let featureProps = ''

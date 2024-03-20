@@ -252,6 +252,7 @@ export default defineComponent({
       }
     },
   },
+
   methods: {
     setActiveLeftSection(section: Section) {
       // don't open the left bar if it's optional, meaning it's currently closed
@@ -282,7 +283,7 @@ export default defineComponent({
     },
 
     setPanelError(e: any) {
-      console.error('LAYOUTMANAGER error: ' + e)
+      console.error('LMError: ' + e)
       this.errorPanelText = '' + e
     },
 

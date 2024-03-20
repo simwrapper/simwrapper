@@ -291,7 +291,7 @@ export default class DashboardDataManager {
   //   }
   // }
 
-  public setFilter(filter: FilterDefinition) {
+  public async setFilter(filter: FilterDefinition) {
     const { dataset, column, value, invert, range } = filter
 
     if (!this.datasets[dataset]) {
@@ -317,7 +317,7 @@ export default class DashboardDataManager {
     } else {
       allFilters[column] = { values, invert, range }
     }
-    this._updateFilters(dataset) // this is async
+    await this._updateFilters(dataset) // this is async
   }
 
   public addFilterListener(config: { dataset: string }, listener: any) {
