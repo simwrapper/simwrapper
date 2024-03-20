@@ -56,6 +56,8 @@ export default function Component({
     setViewState(globalStore.state.viewState)
   }
 
+  // console.log(featureFilter)
+
   // Feature setter hack:
   // Using the array itself causes an enormous memory leak. I am not sure why
   // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
