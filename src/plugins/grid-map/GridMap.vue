@@ -173,7 +173,7 @@ const GridMap = defineComponent({
   },
 
   data() {
-    const colorRamps = ['Inferno', 'magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
+    const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
@@ -185,7 +185,7 @@ const GridMap = defineComponent({
         cellSize: 250,
         opacity: 0.7,
         maxHeight: 0,
-        userColorRamp: 'virdis',
+        userColorRamp: 'Viridis',
         center: null as any,
         zoom: 9,
         mapIsIndependent: false,
@@ -585,15 +585,7 @@ const GridMap = defineComponent({
 
       const x = record.xCoords
       const y = record.yCoords
-
-      // console.log({ x, y })
-      if (x.length !== y.length) {
-        const msg = 'xCoords and yCoords must be same length'
-        this.$emit('error', msg)
-        // throw Error(msg)
-      }
-
-      const numPoints = y.length
+      const numPoints = x.length * y.length
 
       // User must provide projection
       if (!this.vizDetails.projection) {
@@ -604,15 +596,16 @@ const GridMap = defineComponent({
 
       // Build x/y-coordinates (just once - always the same)
       const centroid = new Float32Array(numPoints * 2)
-      for (let i = 0; i < numPoints; i++) {
-        let wgs84 = [x[i], y[i]]
-        if (this.vizDetails.projection && this.vizDetails.projection !== 'EPSG:4326') {
+      let offset = 0
+      for (let iy = 0; iy < y.length; iy++) {
+        for (let ix = 0; ix < x.length; ix++) {
+          let wgs84 = [x[ix], y[iy]]
           wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
-          centroid[i * 2] = wgs84[0]
-          centroid[i * 2 + 1] = wgs84[1]
+          centroid[offset] = wgs84[0]
+          centroid[offset + 1] = wgs84[1]
+          offset += 2
         }
       }
-
       // map all times to their index and create a mapData object for each time
       this.allTimes.forEach((time, index) => {
         this.timeToIndex.set(time, index)
@@ -628,6 +621,7 @@ const GridMap = defineComponent({
 
       // Loop through the data and create the data object for the map
       for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
+        console.log('time', timeIndex)
         for (let i = 0; i < numPoints; i++) {
           const offset = timeIndex * numPoints + i
           const value = scaleFactor * dataValues[offset]

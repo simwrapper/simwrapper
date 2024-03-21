@@ -925,7 +925,7 @@ export default defineComponent({
   background-color: var(--bgError);
   z-index: 50;
   overflow-y: hidden;
-  padding: 0.75rem 0.5rem;
+  padding: 0.5rem 0.5rem;
   font-size: 0.9rem;
 }
 
