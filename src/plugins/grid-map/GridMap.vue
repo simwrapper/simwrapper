@@ -597,8 +597,8 @@ const GridMap = defineComponent({
       // Build x/y-coordinates (just once - always the same)
       const centroid = new Float32Array(numPoints * 2)
       let offset = 0
-      for (let iy = 0; iy < y.length; iy++) {
-        for (let ix = 0; ix < x.length; ix++) {
+      for (let ix = 0; ix < x.length; ix++) {
+        for (let iy = 0; iy < y.length; iy++) {
           let wgs84 = [x[ix], y[iy]]
           wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
           centroid[offset] = wgs84[0]
