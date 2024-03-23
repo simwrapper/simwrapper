@@ -5,6 +5,8 @@ import Coords from '@/js/Coords'
 let params!: any
 let projection!: string
 let _xml!: any
+let _avro: boolean = false
+
 const _network: any = { nodes: {}, links: {} }
 const _routeData: { [index: string]: RouteDetails } = {}
 const _stopFacilities: { [index: string]: NetworkNode } = {}
@@ -17,11 +19,18 @@ onmessage = function (e) {
   _xml = params.xml
   projection = params.projection
 
-  try {
-    createNodesAndLinksFromXML()
-    convertCoords()
-    const answer = processTransit()
+  // if __numNodes is on the element, this is an avro network
+  // TODO: add an avro version/identifier to avro networks!
+  _avro = !!_xml?.roadXML?.__numNodes
 
+  try {
+    if (_avro) {
+      avroCreateNodesAndLinksFromXML()
+    } else {
+      createNodesAndLinksFromXML()
+      convertCoords()
+    }
+    const answer = processTransit()
     postMessage(answer)
   } catch (e) {
     console.error('' + e)
@@ -29,6 +38,21 @@ onmessage = function (e) {
   }
 }
 // -----------------------------------------------------------
+
+// XML is sent in during worker initialization
+function avroCreateNodesAndLinksFromXML() {
+  postMessage({ status: 'Parsing road network...' })
+
+  _network.nodes = _xml.roadXML.__nodes
+  const numLinks = _xml.roadXML.__numLinks
+
+  // build lookup: {linkID: index}
+  for (let i = 0; i < numLinks; i++) {
+    const id = _xml.roadXML.id[i]
+    _network.links[id] = i
+  }
+  return { data: {}, transferrables: [] }
+}
 
 // XML is sent in during worker initialization
 function createNodesAndLinksFromXML() {
@@ -102,15 +126,18 @@ function processTransit() {
 function generateStopFacilitiesFromXML() {
   const stopFacilities = _xml.transitXML.transitSchedule.transitStops.stopFacility
 
+  const m = { x: 0, y: 0 }
   for (const stop of stopFacilities) {
-    stop.x = parseFloat(stop.x)
-    stop.y = parseFloat(stop.y)
-    // convert coords
-    const z = Coords.toLngLat(projection, stop)
-    stop.x = z.x
-    stop.y = z.y
-
-    _stopFacilities[stop.id] = stop
+    try {
+      m.x = parseFloat(stop.x)
+      m.y = parseFloat(stop.y)
+      const longlat = Coords.toLngLat(projection, m)
+      stop.x = longlat.x
+      stop.y = longlat.y
+      _stopFacilities[stop.id] = stop
+    } catch (e) {
+      console.warn('Stop has bad coords:', stop.id)
+    }
   }
 }
 
@@ -158,18 +185,36 @@ function buildCoordinatesForRoute(transitRoute: RouteDetails) {
   const coords = []
   let previousLink: boolean = false
 
-  for (const linkID of transitRoute.route) {
-    const networkLink = _network.links[linkID]
+  if (_avro) {
+    for (const linkID of transitRoute.route) {
+      const linkIndex = _network.links[linkID]
 
-    if (!previousLink) {
-      const x0 = _network.nodes[networkLink?.from]?.x
-      const y0 = _network.nodes[networkLink?.from]?.y
-      if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
+      const nodeFrom = _xml.roadXML.from[linkIndex]
+      const nodeTo = _xml.roadXML.to[linkIndex]
+
+      if (!previousLink) {
+        const x0 = _network.nodes[nodeFrom][0]
+        const y0 = _network.nodes[nodeFrom][1]
+        if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
+      }
+      const x = _network.nodes[nodeTo][0]
+      const y = _network.nodes[nodeTo][1]
+      if (x !== undefined && y !== undefined) coords.push([x, y])
+      previousLink = true
     }
-    const x = _network.nodes[networkLink?.to]?.x
-    const y = _network.nodes[networkLink?.to]?.y
-    if (x !== undefined && y !== undefined) coords.push([x, y])
-    previousLink = true
+  } else {
+    for (const linkID of transitRoute.route) {
+      const networkLink = _network.links[linkID]
+      if (!previousLink) {
+        const x0 = _network.nodes[networkLink?.from]?.x
+        const y0 = _network.nodes[networkLink?.from]?.y
+        if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
+      }
+      const x = _network.nodes[networkLink?.to]?.x
+      const y = _network.nodes[networkLink?.to]?.y
+      if (x !== undefined && y !== undefined) coords.push([x, y])
+      previousLink = true
+    }
   }
 
   // save the extent of this line so map can zoom in on startup

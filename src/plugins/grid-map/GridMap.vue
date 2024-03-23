@@ -167,7 +167,7 @@ const GridMap = defineComponent({
     yamlConfig: String,
     config: Object,
     thumbnail: Boolean,
-    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
   },
   data: () => {
     const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
