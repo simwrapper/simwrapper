@@ -1464,13 +1464,20 @@ h3 {
 
 .status-corner {
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
+  right: 0;
   z-index: 15;
   display: flex;
   flex-direction: row;
   background-color: var(--bgPanel);
   padding: 0rem 3rem;
+  margin: auto 5rem;
+  height: 4rem;
+  text-align: center;
+  border: 1px solid #cccccc80;
+  filter: $filterShadow;
 
   a {
     color: white;
@@ -1486,8 +1493,9 @@ h3 {
     font-weight: normal;
     font-size: 1.3rem;
     line-height: 2.6rem;
-    margin: auto 0.5rem auto 0;
+    margin: auto auto auto auto;
     padding: 0 0;
+    text-align: center;
   }
 }
 </style>
