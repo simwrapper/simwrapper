@@ -86,11 +86,12 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { group, zip, sum } from 'd3-array'
 
+import * as shapefile from 'shapefile'
+import * as turf from '@turf/turf'
+import avro from '@/js/avro'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
-import * as shapefile from 'shapefile'
-import * as turf from '@turf/turf'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -156,6 +157,7 @@ const MyComponent = defineComponent({
 
   data() {
     return {
+      avroNetwork: null as any,
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -574,8 +576,12 @@ const MyComponent = defineComponent({
         }
 
         // OR is this a bare geojson/shapefile file? - build vizDetails manually
-        if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
-          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${this.yamlConfig}`
+        if (
+          /(\.geojson)(|\.gz)$/.test(filename) ||
+          /\.shp$/.test(filename) ||
+          /network\.avro$/.test(filename)
+        ) {
+          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
             title,
@@ -1819,6 +1825,51 @@ const MyComponent = defineComponent({
     //   console.error('' + e)
     // }
 
+    async loadAvroNetwork(filename: string) {
+      const path = `${this.subfolder}/${filename}`
+      const blob = await this.fileApi.getFileBlob(path)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {})
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      const network = records[0]
+
+      // Build features with geometry, but no properties yet
+      // (properties get added in setFeaturePropertiesAsDataSource)
+      const numLinks = network.__numLinks
+      const features = [] as any
+      for (let i = 0; i < numLinks; i++) {
+        const linkID = network.id[i]
+        const coordFrom = network.__nodes[network.from[i]]
+        const coordTo = network.__nodes[network.to[i]]
+        if (!coordFrom || !coordTo) continue
+
+        const coords = [coordFrom, coordTo]
+
+        const feature = {
+          id: linkID,
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: coords },
+        }
+        features.push(feature)
+      }
+
+      this.avroNetwork = network
+
+      return features
+    },
+
     async loadBoundaries() {
       let now = Date.now()
 
@@ -1839,15 +1890,15 @@ const MyComponent = defineComponent({
         if (filename.startsWith('http')) {
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
-          // this.boundaries = boundaries.features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
-          // this.boundaries = boundaries
+        } else if (filename.toLocaleLowerCase().includes('network.avro')) {
+          // avro network!
+          boundaries = await this.loadAvroNetwork(filename)
         } else {
           // geojson!
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
-          // this.boundaries = boundaries.features
         }
 
         // for a big speedup, move properties to its own nabob
@@ -1937,11 +1988,28 @@ const MyComponent = defineComponent({
       featureProperties: any[],
       config: any
     ) {
-      const dataTable = await this.myDataManager.setFeatureProperties(
-        filename,
-        featureProperties,
-        config
-      )
+      let dataTable
+
+      if (this.avroNetwork) {
+        // create the DataTable right here, we already have everything in memory
+        const avroTable: DataTable = {}
+        const columns = Object.keys(this.avroNetwork).filter(c => !c.startsWith('__'))
+        for (const colName of columns) {
+          const dataColumn: DataTableColumn = {
+            name: colName,
+            type: DataType.NUMBER,
+            values: this.avroNetwork[colName],
+          }
+          avroTable[colName] = dataColumn
+        }
+        dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+      } else {
+        dataTable = await this.myDataManager.setFeatureProperties(
+          filename,
+          featureProperties,
+          config
+        )
+      }
       this.boundaryDataTable = dataTable
 
       const datasetId = filename.substring(1 + filename.lastIndexOf('/'))
@@ -1953,7 +2021,6 @@ const MyComponent = defineComponent({
       } as any
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
-      // console.log(333, this.vizDetails)
 
       // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
       // this.figureOutRemainingFilteringOptions()
@@ -2431,7 +2498,9 @@ const MyComponent = defineComponent({
       this.setEmbeddedMode()
 
       this.clearData()
+
       await this.getVizDetails()
+
       if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
         this.vizDetails.center = this.vizDetails.center
           //@ts-ignore

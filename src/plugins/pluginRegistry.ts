@@ -15,7 +15,7 @@ const plugins = [
   },
   {
     kebabName: 'area-map',
-    filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*.shp'],
+    filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*network.avro', '**/*.shp'],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },
   {
