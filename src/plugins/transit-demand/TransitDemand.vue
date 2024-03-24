@@ -67,6 +67,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import * as turf from '@turf/turf'
+import avro from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
@@ -83,6 +84,7 @@ import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
 import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
 
@@ -109,9 +111,10 @@ const MyComponent = defineComponent({
     yamlConfig: String,
     config: { type: Object as any },
     thumbnail: Boolean,
+    datamanager: { type: Object as PropType<DashboardDataManager> },
   },
 
-  data: () => {
+  data() {
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
@@ -130,11 +133,16 @@ const MyComponent = defineComponent({
         title: '',
         description: '',
       },
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+
       myState: {
         subfolder: '',
         yamlConfig: '',
         thumbnail: true,
       },
+      avroNetwork: null as any,
       isDarkMode: globalStore.state.isDarkMode,
       isMapMoving: false,
       loadingText: 'MATSim Transit Inspector',
@@ -304,6 +312,11 @@ const MyComponent = defineComponent({
       if (this.vizDetails.projection) return this.vizDetails.projection
       if (this.config?.projection) return this.config.projection
 
+      // 0. If it's in the AVRO network, use it
+      if (networks?.roadXML?.attributes?.coordinateReferenceSystem) {
+        return networks?.roadXML?.attributes?.coordinateReferenceSystem
+      }
+
       // 0. If it's in the network, use it
       if (networks?.roadXML?.network?.attributes?.attribute?.name === 'coordinateReferenceSystem') {
         return networks?.roadXML?.network?.attributes?.attribute['#text']
@@ -369,7 +382,8 @@ const MyComponent = defineComponent({
       // if user cancelled, give up
       if (!entry) return ''
       // if user gave bad answer, try again
-      if (isNaN(parseInt(entry, 10)) && !goodEPSG.test(entry)) return this.guessProjection(networks)
+      if (Number.isNaN(parseInt(entry, 10)) && !goodEPSG.test(entry))
+        return this.guessProjection(networks)
 
       // hopefully user gave a good EPSG number
       if (!entry.startsWith('EPSG:')) entry = 'EPSG:' + entry
@@ -519,7 +533,6 @@ const MyComponent = defineComponent({
       const projection = await this.guessProjection(networks)
       this.vizDetails.projection = projection
       this.projection = this.vizDetails.projection
-      console.log(projection)
 
       if (networks) this.processInputs(networks)
 
@@ -573,18 +586,53 @@ const MyComponent = defineComponent({
       return promise
     },
 
+    async updateStatus(message: string) {
+      this.loadingText = message
+    },
+
+    async loadAvroRoadNetwork() {
+      const filename = `${this.subfolder}/${this.vizDetails.network}`
+      const blob = await this.fileApi.getFileBlob(filename)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {
+            // console.log(schema)
+          })
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      // console.log({ records })
+      this.avroNetwork = records[0]
+      return records[0]
+    },
+
     async loadNetworks() {
       try {
         if (!this.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule) return
 
         this.loadingText = 'Loading networks...'
 
-        const roads = this.fetchXML({
-          worker: this._roadFetcher,
-          slug: this.fileSystem.slug,
-          filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-          options: { attributeNamePrefix: '' },
-        })
+        const filename = this.vizDetails.network
+
+        const roads =
+          filename.indexOf('.avro') > -1
+            ? // AVRO networks have a separate reader:
+              this.loadAvroRoadNetwork()
+            : // normal MATSim network
+              this.fetchXML({
+                worker: this._roadFetcher,
+                slug: this.fileSystem.slug,
+                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+                options: { attributeNamePrefix: '' },
+              })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -604,8 +652,8 @@ const MyComponent = defineComponent({
         return { roadXML: results[0], transitXML: results[1], ridership: [] }
       } catch (e) {
         console.error('TRANSIT:', e)
-        this.loadingText = '' + e
-        globalStore.commit('error', 'Transit: ' + e)
+        this.loadingText
+        this.$emit('error', '' + e)
         return null
       }
     },
@@ -722,6 +770,7 @@ const MyComponent = defineComponent({
       }
 
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
+
       this._network = network
       this._routeData = routeData
       this._stopFacilities = stopFacilities
@@ -831,13 +880,31 @@ const MyComponent = defineComponent({
 
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
-          const link = this._network.links[linkID]
-          if (!link) continue
+          const link = this._network.links[linkID] as any
+          if (link == undefined) continue
 
-          const coordinates = [
-            [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
-            [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
-          ]
+          let coordinates
+
+          try {
+            if (this.avroNetwork) {
+              // link is an INDEX to the link column arrays
+              const nodeFrom = this.avroNetwork.from[link]
+              const nodeTo = this.avroNetwork.to[link]
+
+              const coordsFrom = this.avroNetwork.__nodes[nodeFrom]
+              const coordsTo = this.avroNetwork.__nodes[nodeTo]
+              coordinates = [coordsFrom, coordsTo]
+            } else {
+              // link is an object with values
+              coordinates = [
+                [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
+                [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
+              ]
+            }
+          } catch (e) {
+            console.warn('' + e)
+            continue
+          }
 
           const departures = this._departures[linkID].total
 
@@ -1397,13 +1464,20 @@ h3 {
 
 .status-corner {
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
+  right: 0;
   z-index: 15;
   display: flex;
   flex-direction: row;
   background-color: var(--bgPanel);
   padding: 0rem 3rem;
+  margin: auto 5rem;
+  height: 4rem;
+  text-align: center;
+  border: 1px solid #cccccc80;
+  filter: $filterShadow;
 
   a {
     color: white;
@@ -1419,8 +1493,9 @@ h3 {
     font-weight: normal;
     font-size: 1.3rem;
     line-height: 2.6rem;
-    margin: auto 0.5rem auto 0;
+    margin: auto auto auto auto;
     padding: 0 0;
+    text-align: center;
   }
 }
 </style>

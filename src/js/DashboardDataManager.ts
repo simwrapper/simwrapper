@@ -159,6 +159,32 @@ export default class DashboardDataManager {
   }
 
   /**
+   * Convert row-wise columns into a DataTable. This is intended for
+   * columnar data formats such as avro networks
+   * @param fullpath full file path
+   * @param dataColumns map of column: data
+   * @param config data config object
+   */
+  public setRowWisePropertyTable(fullpath: string, dataTable: DataTable, config: any) {
+    const key = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+
+    // merge key with keep/drop params (etc)
+    let fullConfig = { dataset: key }
+    if ('string' !== typeof config) fullConfig = Object.assign(fullConfig, config)
+
+    this.datasets[key] = {
+      activeFilters: {},
+      filteredRows: null,
+      filterListeners: new Set(),
+      dataset: new Promise<DataTable>(resolve => {
+        resolve(dataTable)
+      }),
+    }
+    // this is a promise:
+    return this.datasets[key].dataset
+  }
+
+  /**
    * Convert features array from GeoJSONs and Shapefiles into DataTable
    * @param filename
    * @param featureProperties array of feature objects

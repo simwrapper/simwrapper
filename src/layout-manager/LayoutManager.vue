@@ -120,6 +120,7 @@
         )
 
         p.error-text(v-if="errorPanelText") {{ errorPanelText }}
+          span.clear-error(@click="errorPanelText=''") &times;
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
@@ -1146,5 +1147,18 @@ export default defineComponent({
 
 .left-component {
   min-width: 125px;
+}
+
+.clear-error {
+  float: right;
+  font-weight: bold;
+  margin-right: 4px;
+  padding: 0px 5px;
+}
+
+.clear-error:hover {
+  cursor: pointer;
+  color: red;
+  background-color: #ffffff20;
 }
 </style>
