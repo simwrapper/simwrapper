@@ -1657,6 +1657,13 @@ const MyComponent = defineComponent({
         return this.vizDetails.shapes.join
       }
 
+      // if boundary features have 'id' outside of properties, we're done
+      if (this.boundaries.length && this.boundaries[0].id) return 'id'
+
+      if ('string' !== typeof this.vizDetails.shapes && this.vizDetails.shapes.join) {
+        return this.vizDetails.shapes.join
+      }
+
       // if there's only one column, we're done
       const featureDataset = this.datasets[Object.keys(this.datasets)[0]]
       const availableColumns = Object.keys(featureDataset)
@@ -1900,6 +1907,9 @@ const MyComponent = defineComponent({
           // geojson!
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
         }
+
+        this.statusText = 'Processing data...'
+        await this.$nextTick()
 
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
