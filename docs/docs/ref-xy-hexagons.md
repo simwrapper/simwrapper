@@ -17,15 +17,35 @@ In addition, the presence of the MATSim regular output file `output-trips.xml.gz
 
 ## Dashboards
 
-XY Hexagon plots can be embedded in dashboards using `type: hexagons` and specifying the config details in the props as follows:
+XY Hexagon plots can be embedded in dashboards using `type: hexagons` and specifying the config details in the YAML as follows:
 
 ```yaml
-row:
-  - title: My Hexagon Plot
-    type: hexagons
-    # ...
+layout:
+  row1:
+    - title: My Hexagon Plot
+      type: hexagons
+      # ...etc
 ```
 
+To load the standard MATSim `output_trips` origins/destinations plot, the following code should do the trick:
+
+```yaml
+layout:
+  row1:
+    - type: hexagons
+      file: "*output_trips.csv.gz"
+      title: Output Trips
+      projection: EPSG:25832  # Set your coordinate projection here
+      aggregations:
+        Trips:
+          - title: Origins
+            x: start_x
+            y: start_y
+          - title: Destinations
+            x: end_x
+            y: end_y
+
+```
 
 ## YAML fields explained
 

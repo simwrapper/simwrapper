@@ -24,8 +24,9 @@ A dashboard config requires a top-level `header` containing _tab_ and _title_ an
 header:
   tab: 'Summary'
   title: 'Top-Level Summary Statistics'
-  description: 'At-a-glance figures we usually look at' #optional
-  triggerPattern: "*.drt.csv" #optional
+  description: 'At-a-glance figures we usually look at' # optional
+  fullscreen: true # optional
+  triggerPattern: "*.drt.csv" # optional
 ```
 
 |**Field**|**Description**|**Default**|
@@ -33,6 +34,7 @@ header:
 |title|Header title displayed at top of dashboard|--|
 |tab|Name shown on the tab|Same as title|
 |description|Longer text shown below dashboard title|--|
+|fullscreen|Fill the height of the window instead of assigning specific heights to each row|false|
 |triggerPattern|If specified, the dashboard defined in this YAML will only be generated when a filename matching the given triggerPattern exists in the current folder. For example, if it is set to `triggerPattern: "*.drt.csv"` and the file `output_mode.drt.csv` exists in the current folder, then this dashboard will be created. If no file matches the given pattern, then this dashboard will be skipped. If triggerPattern is not specified, then the dashboard will always be generated.|--|
 
 ## Dashboard Layout
