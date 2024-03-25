@@ -262,6 +262,7 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
+  background-color: var(--bgCardFrame);
 }
 
 .mycomponent.is-thumbnail {
