@@ -139,6 +139,8 @@ const MyComponent = defineComponent({
           header: false,
           dynamicTyping: true,
           skipEmptyLines: true,
+          delimitersToGuess: ['\t', ';', ',', ' '],
+          comments: '#',
         })
         return content.data
       } catch (err) {
@@ -306,6 +308,7 @@ export default MyComponent
   padding-top: 1rem;
   display: flex;
   flex-direction: column;
+  background-color: var(--bgCardFrame);
 }
 
 .sankey-container.is-thumbnail {
