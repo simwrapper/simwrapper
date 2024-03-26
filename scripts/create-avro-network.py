@@ -137,7 +137,7 @@ for attr in network.link_attrs.values:
 
 print('\nbuild link attribute columns')
 nan = float('NaN')
-all_attribute_defs.pop('origid')
+# all_attribute_defs.pop('origid')
 print(1234, all_attribute_defs)
 
 for col in all_attribute_defs:
