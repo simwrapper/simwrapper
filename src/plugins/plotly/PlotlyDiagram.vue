@@ -37,7 +37,6 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
-import { f } from 'vitest/dist/reporters-2ff87305'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -102,6 +101,18 @@ const MyComponent = defineComponent({
           y: 1,
         },
         grid: { rows: 1, columns: 1 },
+        colorway: [
+          '#1f77b4', // muted blue
+          '#ff7f0e', // safety orange
+          '#2ca02c', // cooked asparagus green
+          '#d62728', // brick red
+          '#9467bd', // muted purple
+          '#8c564b', // chestnut brown
+          '#e377c2', // raspberry yogurt pink
+          '#7f7f7f', // middle gray
+          '#bcbd22', // curry yellow-green
+          '#17becf',
+        ],
       },
       // Plotly options
       options: {
@@ -156,24 +167,18 @@ const MyComponent = defineComponent({
     'globalState.resizeEvents'() {
       this.changeDimensions({})
     },
-
     resize(event: any) {
       this.changeDimensions(event)
     },
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
-    // traces() {
-    //   console.log('Updated Traces: ', this.traces)
-    // },
-    // layout() {
-    //   console.log('Updated Layout: ', this.layout)
-    // },
   },
 
   async mounted() {
     this.updateTheme()
     await this.getVizDetails()
+    console.log(this.vizDetails)
     // only continue if we are on a real page and not the file browser
     if (this.thumbnail) return
     try {
@@ -268,6 +273,7 @@ const MyComponent = defineComponent({
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
           this.prevHeight = dim.height
           this.prevWidth = dim.width
+          // TODO: investigate
           this.layout = Object.assign({}, this.layout, dim)
         }
       }
@@ -337,56 +343,68 @@ const MyComponent = defineComponent({
       }
     },
 
+    // TODO: macthes yaxis2 and xaxis2
+    // add annotations
+    // IMmer christian glauben
+    // format long to wide csv
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
-      console.log('Traces input: ', this.traces)
-      let result = [] as any[]
-      for (let i = 0; i < facet_row.length; i++) {
-        for (let j = 0; j < facet_col.length; j++) {
-          const row = facet_row[i]
-          const col = facet_col[j]
-          let filteredTraces = [] as any[]
+      const result = []
+      const numRows = facet_row.length
+      const numCols = facet_col.length
 
-          for (let k = 0; k < this.traces.length; k++) {
-            const filterTrace = JSON.parse(JSON.stringify(this.traces[k]))
+      console.log('Facet row', facet_row)
+      console.log('Facet col', facet_col)
 
-            let xAxis = 'x' + i.toString()
-            let yAxis = 'y' + j.toString()
+      if (facet_col.length == 0) {
+      } else if (facet_row.length == 0) {
+      } else {
+        for (let i = 0; i < numRows; i++) {
+          for (let j = 0; j < numCols; j++) {
+            const row = facet_row[i]
+            const col = facet_col[j]
+            const filteredTraces = []
 
-            const trace = this.traces[k]
-            const filteredX = [] as any[]
-            const filteredY = [] as any[]
+            for (const trace of this.traces) {
+              const filteredX = []
+              const filteredY = []
 
-            for (let l = 0; l < trace.facet_row.length; l++) {
-              if (trace.facet_row[l] === row && trace.facet_col[l] === col) {
-                filteredX.push(trace.x[l])
-                filteredY.push(trace.y[l])
+              for (let l = 0; l < trace.facet_row.length; l++) {
+                if (trace.facet_row[l] === row && trace.facet_col[l] === col) {
+                  filteredX.push(trace.x[l])
+                  filteredY.push(trace.y[l])
+                }
               }
+
+              const filterTrace = {
+                ...trace,
+                x: filteredX,
+                y: filteredY,
+                xaxis: i > 0 ? 'x' + (i + 1) : 'x',
+                yaxis: j > 0 ? 'y' + (j + 1) : 'y',
+              }
+
+              delete filterTrace.facet_row
+              delete filterTrace.facet_col
+
+              // showlegend
+              filterTrace.showlegend = i === 0 && j === 0
+
+              // legendgroup
+              filterTrace.legendgroup = filterTrace.group_name
+              delete filterTrace.group_name
+
+              // filterTrace.marker.color = '#123456'
+
+              filteredTraces.push(filterTrace)
             }
-            filterTrace.x = filteredX
-            filterTrace.y = filteredY
-            filterTrace.xaxis = xAxis
-            filterTrace.yaxis = yAxis
 
-            console.log('trace: ', filterTrace)
-
-            delete filterTrace.facet_row
-            delete filterTrace.facet_col
-            filteredTraces.push(filterTrace)
-          }
-
-          // console.log(
-          //   `Filtered traces for facet row: ${row}, facet col: ${col} is:`,
-          //   filteredTraces
-          // )
-
-          for (let k = 0; k < filteredTraces.length; k++) {
-            result.push(filteredTraces[k])
+            result.push(...filteredTraces)
           }
         }
       }
+
+      this.layout.grid = { rows: numRows, columns: numCols }
       this.traces = result
-      this.layout.grid = { rows: facet_row.length, columns: facet_col.length }
-      console.log('Traces output: ', this.traces)
     },
 
     createMenus(mode: string) {
@@ -586,6 +604,7 @@ const MyComponent = defineComponent({
       this.vizDetails.datasets[name] = ds
       this.transformData(ds)
 
+      console.log('Loaded dataset', ds)
       return ds
     },
 

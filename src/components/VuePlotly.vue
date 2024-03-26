@@ -23,6 +23,7 @@ export default defineComponent({
   watch: {
     data() {
       this.updatePlot()
+      console.log(this.data)
     },
     layout() {
       this.updatePlot()
