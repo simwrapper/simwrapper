@@ -450,9 +450,6 @@ export default defineComponent({
         this.convertSecondsToClockTimeMinutes(this.allTimes[newEndTime]),
       ]
 
-      console.log('###')
-      console.log('Start Time', newStartTime)
-      console.log('End Time', newEndTime)
       this.state.timeFilter = [this.allTimes[newStartTime], this.allTimes[newEndTime]]
     },
   },
