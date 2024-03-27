@@ -70,7 +70,7 @@ const plugins = [
   },
   {
     kebabName: 'matrix',
-    filePatterns: ['**/viz-matrix*.y?(a)ml'],
+    filePatterns: ['**/viz-matrix*.y?(a)ml', '**/*.h5', '**/*.omx'],
     component: defineAsyncComponent(() => import('./matrix/MatrixViewer.vue')),
   },
   {

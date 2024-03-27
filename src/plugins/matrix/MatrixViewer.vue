@@ -37,9 +37,7 @@ const MyComponent = defineComponent({
       globalState: globalStore.state,
       filename: 'HWYALLAM.h5',
       h5file: null as any,
-      subfolder: '',
-      yamlConfig: '',
-      thumbnail: false,
+      useConfig: '',
       vizDetails: { title: '', description: '' } as any,
       loadingText: 'Loading',
       title: '',
@@ -47,9 +45,7 @@ const MyComponent = defineComponent({
     }
   },
   async mounted() {
-    this.thumbnail = this.thumbnail
-    this.yamlConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
-    this.subfolder = this.subfolder
+    this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
 
     // if (this.cardId) {
     //   this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
@@ -81,20 +77,22 @@ const MyComponent = defineComponent({
     },
 
     yamlConfig() {
-      this.yamlConfig = this.yamlConfig || ''
+      this.useConfig = this.yamlConfig || ''
       this.getVizDetails()
     },
 
     subfolder() {
-      this.subfolder = this.subfolder
       this.getVizDetails()
     },
   },
   methods: {
     async loadFile() {
-      const filename = `/${this.filename}`
-      const response = await fetch(filename)
-      const buffer = await response.arrayBuffer()
+      console.log(1)
+      this.filename = '' + this.yamlConfig
+
+      const path = `${this.subfolder}/${this.yamlConfig}`
+      const blob = await this.fileApi.getFileBlob(path)
+      const buffer = await blob.arrayBuffer()
       this.h5file = buffer
     },
 
@@ -111,20 +109,18 @@ const MyComponent = defineComponent({
       const subfolder = params.pathMatch.substring(0, sep)
       const config = params.pathMatch.substring(sep)
 
-      this.subfolder = subfolder
-      this.yamlConfig = config
+      // this.subfolder = subfolder
+      this.useConfig = config
     },
 
     async getVizDetails() {
-      let yaml: any = {}
+      // There is no YAML config for an HDF5 file; we just have the file.
+      // Load it!
 
-      // might be a project config:
-      const filename = this.subfolder + '/' + this.yamlConfig
-      const text = await this.fileApi.getFileText(filename)
-      this.vizDetails = YAML.parse(text)
+      if (this.thumbnail) return
 
-      // this.loadingText = ''
-      // nprogress.done()
+      this.filename = '' + this.yamlConfig
+      this.loadFile()
     },
   },
 })
@@ -144,7 +140,6 @@ export default MyComponent
   bottom: 0;
   display: flex;
   flex-direction: column-reverse;
-  padding: 1rem;
   background-color: var(--bgDashboard);
 }
 
