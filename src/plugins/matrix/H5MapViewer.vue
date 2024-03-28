@@ -11,8 +11,8 @@
         | &nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
 
     .bottom-half.flex1
-      .zone-details(v-if="activeZone > -1")
-        b.zone-header {{ isRowWise ? 'Row' : 'Column' }} {{  activeZone + 1 }}
+      .zone-details(v-if="activeZone !== null")
+        b.zone-header {{ isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
 
         .titles.matrix-data-value
           b.zone-number {{ isRowWise ? 'Column' : 'Row' }}
@@ -26,7 +26,7 @@
       :viewId="layerId"
       :features="features"
       :clickedZone="clickedZone"
-      :activeZoneFeature="features[activeZone]"
+      :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
     )
 
     background-map-on-top
@@ -82,6 +82,7 @@ const MyComponent = defineComponent({
   data() {
     return {
       globalState: globalStore.state,
+      tazToOffsetLookup: {} as { [taz: string]: any },
       isMap: true,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
@@ -92,7 +93,7 @@ const MyComponent = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       tableKeys: [] as { key: string; name: string }[],
       activeTable: null as null | { key: string; name: string },
-      activeZone: -1,
+      activeZone: null as any,
       dataArray: [] as number[],
       prettyDataArray: [] as string[],
     }
@@ -122,7 +123,11 @@ const MyComponent = defineComponent({
       zoom: 11,
     })
 
-    if (this.filenameShapes) this.loadBoundaries()
+    if (this.filenameShapes) {
+      await this.loadBoundaries()
+      this.buildTAZLookup()
+      this.clickedZone({ index: 0, properties: this.features[0].properties })
+    }
   },
 
   computed: {},
@@ -146,6 +151,7 @@ const MyComponent = defineComponent({
     // subfolder() {},
     filenameShapes() {
       this.loadBoundaries()
+      this.buildTAZLookup()
     },
     isRowWise() {
       this.fetchH5ArrayData()
@@ -153,6 +159,16 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    buildTAZLookup() {
+      console.log('BUILDING!')
+      this.tazToOffsetLookup = {}
+      for (let i = 0; i < this.features.length; i++) {
+        const feature = this.features[i]
+        if ('TAZ' in feature.properties) this.tazToOffsetLookup[feature.properties.TAZ] = i
+      }
+      console.log('LOOKUP', this.tazToOffsetLookup)
+    },
+
     getFileKeysAndProperties() {
       if (!this.h5zoneFile) return
 
@@ -205,17 +221,20 @@ const MyComponent = defineComponent({
       // the file has the data, and we want it
       if (!this.h5zoneFile) return
       // User should have selected a zone already
-      if (this.activeZone < 0) return
+      if (this.activeZone == null) return
 
       const key = `/${this.activeTable?.key}`
       let data = this.h5zoneFile.get(key) as Dataset
+
+      // FIX THIS
+      let offset = this.activeZone - 1
+
       let values = [] as number[]
       if (data) {
-        // TODO this assumes zones are 1+offset!! what's the lookup?
         values = (
           this.isRowWise
-            ? data.slice([[this.activeZone, this.activeZone + 1], []])
-            : data.slice([[], [this.activeZone, this.activeZone + 1]])
+            ? data.slice([[offset, offset + 1], []])
+            : data.slice([[], [offset, offset + 1]])
         ) as number[]
       }
       this.dataArray = values
@@ -224,11 +243,11 @@ const MyComponent = defineComponent({
     },
 
     setPrettyValuesForArray() {
-      const pretty = [] as string[]
+      const pretty = [] as any[]
       this.dataArray.forEach(v => {
         if (Number.isNaN(v)) pretty.push('NaN')
         else if (v == 0) pretty.push('0')
-        else if (Math.abs(v) >= 0.0001) pretty.push('' + v)
+        else if (Math.abs(v) >= 0.0001) pretty.push(v)
         else pretty.push(v.toExponential(3))
       })
       this.prettyDataArray = pretty
@@ -243,9 +262,9 @@ const MyComponent = defineComponent({
       console.log({ zone })
 
       // ignore double clicks and same-clicks
-      if (zone.index === this.activeZone) return
+      if (zone.properties.TAZ == this.activeZone) return
 
-      this.activeZone = zone.index
+      this.activeZone = zone.properties.TAZ
       this.fetchH5ArrayData()
     },
 
@@ -253,7 +272,7 @@ const MyComponent = defineComponent({
       const min = Math.min(...values)
       const max = Math.max(...values)
 
-      const colors = colorRamp({ ramp: 'Rainbow', style: Style.sequential }, 21)
+      const colors = colorRamp({ ramp: 'Rainbow', style: Style.sequential }, 19)
 
       // colors.reverse()
       // console.log(colors)
@@ -273,9 +292,18 @@ const MyComponent = defineComponent({
       const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
 
       for (let i = 0; i < this.features.length; i++) {
-        const value = values[i] / max
-        const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
-        this.features[i].properties.color = color || [40, 40, 40]
+        try {
+          const TAZ = this.features[i].properties.TAZ
+          const offset = TAZ - 1 // this.tazToOffsetLookup[TAZ]
+          const value = values[offset] / max
+          console.log(offset, value)
+
+          const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
+          this.features[i].properties.color = color || [40, 40, 40]
+        } catch (e) {
+          console.warn('BAD', i, this.features[i].properties)
+          this.features[i].properties.color = [40, 40, 40]
+        }
       }
       // Tell vue this is new
       this.features = [...this.features]
@@ -285,7 +313,7 @@ const MyComponent = defineComponent({
       // const shapeConfig = this.filenameShapes
 
       // TODO: default is SFCTA "Dist15" zones
-      const shapeConfig = '/dist15.geojson.gz'
+      const shapeConfig = '/staging/dist15.geojson.gz'
 
       if (!shapeConfig) return
 
@@ -300,7 +328,7 @@ const MyComponent = defineComponent({
         } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(shapeConfig)
-        } else if (shapeConfig == '/dist15.geojson.gz') {
+        } else if (shapeConfig == '/staging/dist15.geojson.gz') {
           // special SFCTA test
           console.log('LOADING FAKE geojson:', shapeConfig)
           const blob = await fetch(shapeConfig).then(async r => await r.blob())
@@ -329,7 +357,6 @@ const MyComponent = defineComponent({
       }
 
       if (!this.features) throw Error(`No "features" found in shapes file`)
-      this.clickedZone({ index: 0, properties: boundaries[0].properties })
     },
 
     async loadShapefileFeatures(filename: string) {
