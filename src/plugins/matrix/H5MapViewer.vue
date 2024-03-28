@@ -17,7 +17,7 @@
         .titles.matrix-data-value
           b.zone-number {{ isRowWise ? 'Column' : 'Row' }}
           b.zone-value  {{  activeTable.name || `Table ${activeTable.key}` }}
-        .matrix-data-value(v-for="value,i in dataArray" :key="i")
+        .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
           span.zone-number {{  i+1 }}
           span.zone-value {{  value }}
 
@@ -94,6 +94,7 @@ const MyComponent = defineComponent({
       activeTable: null as null | { key: string; name: string },
       activeZone: -1,
       dataArray: [] as number[],
+      prettyDataArray: [] as string[],
     }
   },
 
@@ -219,6 +220,18 @@ const MyComponent = defineComponent({
       }
       this.dataArray = values
       this.setColorsForArray(this.dataArray)
+      this.setPrettyValuesForArray()
+    },
+
+    setPrettyValuesForArray() {
+      const pretty = [] as string[]
+      this.dataArray.forEach(v => {
+        if (Number.isNaN(v)) pretty.push('NaN')
+        else if (v == 0) pretty.push('0')
+        else if (Math.abs(v) >= 0.0001) pretty.push('' + v)
+        else pretty.push(v.toExponential(3))
+      })
+      this.prettyDataArray = pretty
     },
 
     clickedTable(table: { key: string; name: string }) {
@@ -272,7 +285,7 @@ const MyComponent = defineComponent({
       // const shapeConfig = this.filenameShapes
 
       // TODO: default is SFCTA "Dist15" zones
-      const shapeConfig = '/staging/dist15.geojson.gz'
+      const shapeConfig = '/dist15.geojson.gz'
 
       if (!shapeConfig) return
 
@@ -287,7 +300,7 @@ const MyComponent = defineComponent({
         } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(shapeConfig)
-        } else if (shapeConfig == '/staging/dist15.geojson.gz') {
+        } else if (shapeConfig == '/dist15.geojson.gz') {
           // special SFCTA test
           console.log('LOADING FAKE geojson:', shapeConfig)
           const blob = await fetch(shapeConfig).then(async r => await r.blob())
