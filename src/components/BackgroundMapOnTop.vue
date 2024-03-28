@@ -8,7 +8,7 @@ import { defineComponent } from 'vue'
 import maplibregl, { MapMouseEvent, PositionOptions } from 'maplibre-gl'
 
 import globalStore from '@/store'
-import { ColorScheme } from '@/Globals'
+import { ColorScheme, REACT_VIEW_HANDLES } from '@/Globals'
 
 const Component = defineComponent({
   name: 'BackgroundMapOnTop',
@@ -20,6 +20,7 @@ const Component = defineComponent({
       isDarkMode: false,
       isMapMoving: false,
       mapId: `map-${Math.floor(1e12 * Math.random())}`,
+      layerId: Math.floor(1e12 * Math.random()),
       mymap: {} as maplibregl.Map,
       resizer: null as ResizeObserver | null,
     }
@@ -115,8 +116,10 @@ const Component = defineComponent({
     },
   },
   watch: {
-    '$store.state.viewState'(value: any) {
+    'globalState.viewState'(value: any) {
       this.viewMoved(value)
+      // if (!REACT_VIEW_HANDLES[this.layerId]) return
+      // REACT_VIEW_HANDLES[this.layerId]()
     },
 
     '$store.state.colorScheme'() {

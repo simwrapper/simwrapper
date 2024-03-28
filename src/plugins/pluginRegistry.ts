@@ -69,6 +69,11 @@ const plugins = [
     component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
   },
   {
+    kebabName: 'matrix',
+    filePatterns: ['**/viz-matrix*.y?(a)ml', '**/*.h5', '**/*.omx'],
+    component: defineAsyncComponent(() => import('./matrix/MatrixViewer.vue')),
+  },
+  {
     kebabName: 'plotly',
     filePatterns: ['**/plotly*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
