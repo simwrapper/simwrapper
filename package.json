@@ -78,6 +78,7 @@
     "medium-zoom": "^1.0.5",
     "micromatch": "^4.0.5",
     "moment": "^2.24.0",
+    "nanoid": "^5.0.6",
     "nerdamer": "^1.1.11",
     "nprogress": "^0.2.0",
     "observable-fns": "^0.6.1",

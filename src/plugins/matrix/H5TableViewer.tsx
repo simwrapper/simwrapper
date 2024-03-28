@@ -10,7 +10,7 @@ function MyApp({ filename = '', buffer = undefined as any }) {
   return (
     <div style={{ height: '100%' }}>
       <H5WasmProvider {...h5File}>
-        <App />
+        <App initialPath="/1" />
       </H5WasmProvider>
     </div>
   )

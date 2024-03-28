@@ -1,29 +1,47 @@
 <template lang="pug">
-.matrix-viewer
-  .flex-row
-    b-input(placeholder="filename.h5" v-model="filename")
-    b-button(@click="loadFile") Open
+.matrix-viewer(v-if="!thumbnail")
+  matrix-selector-panel(
+    :isMap="isMap"
+    @setMap="isMap=$event"
+    @shapes="filenameShapes=$event"
+  )
 
-  .thing(v-if="h5file")
-    H5Web.h5web(:filename="filename" :buffer="h5file")
+  .main-area
+    h4.status-text(v-if="statusText") {{ statusText }}
+
+    H5Map-viewer.fill-it(v-if="isMap"
+      :features="features"
+      :fileApi="fileApi"
+      :subfolder="subfolder"
+      :yamlConfig="yamlConfig"
+      :filenameShapes="filenameShapes"
+    )
+
+    H5Web.fill-it.h5web(v-if="h5buffer && !isMap"
+      :filename="filename"
+      :buffer="h5buffer"
+    )
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 
-import nprogress from 'nprogress'
-import YAML from 'yaml'
+import * as shapefile from 'shapefile'
+import * as turf from '@turf/turf'
+import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 
 import globalStore from '@/store'
-import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
-import H5Web from './H5Web'
+import H5Web from './H5TableViewer'
+import H5MapViewer from './H5MapViewer.vue'
+import MatrixSelectorPanel from './MatrixSelectorPanel.vue'
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { H5Web },
+  components: { H5Web, H5MapViewer, MatrixSelectorPanel },
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -34,23 +52,27 @@ const MyComponent = defineComponent({
   },
   data: () => {
     return {
+      isMap: true,
+      isRowWise: true,
+      h5wasm: null as null | Promise<any>,
+      h5zoneFile: null as null | H5WasmFile,
       globalState: globalStore.state,
-      filename: 'HWYALLAM.h5',
-      h5file: null as any,
+      filename: '',
+      filenameShapes: 'dist15.geojson',
+      h5buffer: null as any,
       useConfig: '',
       vizDetails: { title: '', description: '' } as any,
-      loadingText: 'Loading',
+      statusText: 'Loading...',
       title: '',
       description: '',
+      features: [] as any,
+      layerId: Math.floor(1e12 * Math.random()),
+      matrices: ['1', '2'] as string[],
+      activeTable: '1',
     }
   },
   async mounted() {
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
-
-    // if (this.cardId) {
-    //   this.$emit('dimension-resizer', { id: this.cardId, resizer: this.changeDimensions })
-    // }
-
     await this.getVizDetails()
   },
   computed: {
@@ -85,42 +107,24 @@ const MyComponent = defineComponent({
       this.getVizDetails()
     },
   },
+
   methods: {
     async loadFile() {
-      console.log(1)
       this.filename = '' + this.yamlConfig
+      this.statusText = `Loading: ${this.filename}...`
 
       const path = `${this.subfolder}/${this.yamlConfig}`
       const blob = await this.fileApi.getFileBlob(path)
       const buffer = await blob.arrayBuffer()
-      this.h5file = buffer
-    },
-
-    // this happens if viz is the full page, not a thumbnail on a project page
-    buildRouteFromUrl() {
-      const params = this.$route.params
-      if (!params.project || !params.pathMatch) {
-        console.log('I CANT EVEN: NO PROJECT/PARHMATCH')
-        return
-      }
-
-      // subfolder and config file
-      const sep = 1 + params.pathMatch.lastIndexOf('/')
-      const subfolder = params.pathMatch.substring(0, sep)
-      const config = params.pathMatch.substring(sep)
-
-      // this.subfolder = subfolder
-      this.useConfig = config
+      this.h5buffer = buffer
+      this.statusText = ''
     },
 
     async getVizDetails() {
-      // There is no YAML config for an HDF5 file; we just have the file.
-      // Load it!
-
-      if (this.thumbnail) return
-
-      this.filename = '' + this.yamlConfig
-      this.loadFile()
+      if (this.thumbnail) {
+        this.$emit('title', '' + this.yamlConfig)
+        return
+      }
     },
   },
 })
@@ -130,7 +134,6 @@ export default MyComponent
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-// @import '@h5web/app/dist/styles.css';
 
 .matrix-viewer {
   position: absolute;
@@ -139,17 +142,17 @@ export default MyComponent
   right: 0;
   bottom: 0;
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   background-color: var(--bgDashboard);
 }
 
-.thing {
+.main-area {
   flex: 1;
-  background-color: lightyellow;
+  background-color: #636a67; // d5ebe0
   position: relative;
 }
 
-.h5web {
+.fill-it {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -159,5 +162,22 @@ export default MyComponent
 
 .flex-row {
   margin-top: 1rem;
+}
+
+.status-text {
+  text-align: center;
+  // font-weight: bold;
+  padding: 3rem 0;
+  margin-top: 5rem;
+}
+
+.map-layout {
+  display: flex;
+  flex-direction: row;
+  margin: 0rem 0 0 1rem;
+}
+
+.h5web {
+  margin: 1rem;
 }
 </style>

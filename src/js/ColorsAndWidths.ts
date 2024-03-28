@@ -799,7 +799,7 @@ function buildColorsBasedOnNumericValues(props: {
 // helpers ------------------------------------------------------------
 
 // deck.gl colors must be in rgb[] or rgba[] format
-function buildRGBfromHexCodes(hexcodes: string[]) {
+export function buildRGBfromHexCodes(hexcodes: string[]) {
   const colorsAsRGB: any = hexcodes.map(hexcolor => {
     const c = rgb(hexcolor)
     return [c.r, c.g, c.b]
