@@ -115,6 +115,12 @@ const MyComponent = defineComponent({
       this.getFileKeysAndProperties()
     }
 
+    this.$store.commit('setMapCamera', {
+      longitude: -122.435,
+      latitude: 37.75,
+      zoom: 11,
+    })
+
     if (this.filenameShapes) this.loadBoundaries()
   },
 
