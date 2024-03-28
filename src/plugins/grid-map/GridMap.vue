@@ -587,6 +587,9 @@ const GridMap = defineComponent({
       const y = record.yCoords
       const numPoints = x.length * y.length
 
+      // Load CRS/projection from Avro file if exists
+      if (record.crs) this.vizDetails.projection = record.crs
+
       // User must provide projection
       if (!this.vizDetails.projection) {
         const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
