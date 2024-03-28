@@ -109,8 +109,6 @@ const MyComponent = defineComponent({
   async mounted() {
     this.h5wasm = this.initH5Wasm()
 
-    console.log({ buffer: this.buffer })
-
     // load the file into h5wasm
     if (!this.h5zoneFile) {
       this.h5zoneFile = await this.initFile(this.buffer)
@@ -160,7 +158,6 @@ const MyComponent = defineComponent({
 
   methods: {
     buildTAZLookup() {
-      console.log('BUILDING!')
       this.tazToOffsetLookup = {}
       for (let i = 0; i < this.features.length; i++) {
         const feature = this.features[i]
@@ -296,8 +293,6 @@ const MyComponent = defineComponent({
           const TAZ = this.features[i].properties.TAZ
           const offset = TAZ - 1 // this.tazToOffsetLookup[TAZ]
           const value = values[offset] / max
-          console.log(offset, value)
-
           const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
