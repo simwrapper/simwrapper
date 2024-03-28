@@ -121,8 +121,9 @@ export default function Component({
   const highlightLayer = new GeoJsonLayer({
     id: 'HighlightLayer',
     data: highlight,
-    getLineWidth: 5,
+    getLineWidth: 6,
     getLineColor: [255, 255, 255],
+    getFillColor: [0, 0, 0, 0], // fully transparent
     lineJointRounded: true,
     lineWidthUnits: 'pixels',
     lineWidthScale: 1,

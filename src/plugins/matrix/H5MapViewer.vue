@@ -29,7 +29,7 @@
       :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
     )
 
-    background-map-on-top
+    background-map-on-top(v-if="features.length")
 
     zoom-buttons
 
@@ -124,7 +124,9 @@ const MyComponent = defineComponent({
     if (this.filenameShapes) {
       await this.loadBoundaries()
       this.buildTAZLookup()
-      this.clickedZone({ index: 0, properties: this.features[0].properties })
+
+      // FIX!!
+      this.clickedZone({ index: 1871, properties: this.features[1871].properties })
     }
   },
 
@@ -163,7 +165,7 @@ const MyComponent = defineComponent({
         const feature = this.features[i]
         if ('TAZ' in feature.properties) this.tazToOffsetLookup[feature.properties.TAZ] = i
       }
-      console.log('LOOKUP', this.tazToOffsetLookup)
+      // console.log('LOOKUP', this.tazToOffsetLookup)
     },
 
     getFileKeysAndProperties() {
@@ -484,7 +486,7 @@ $bgBeige: #636a67;
   display: flex;
   flex-direction: row;
   background-color: $bgBeige;
-  padding: 0 0 0 1rem;
+  padding: 0 1rem 0 1rem;
 }
 
 .main-area {
