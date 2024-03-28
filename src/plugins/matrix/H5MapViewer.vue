@@ -272,7 +272,7 @@ const MyComponent = defineComponent({
       // const shapeConfig = this.filenameShapes
 
       // TODO: default is SFCTA "Dist15" zones
-      const shapeConfig = '/dist15.geojson.gz'
+      const shapeConfig = '/staging/dist15.geojson.gz'
 
       if (!shapeConfig) return
 
@@ -287,7 +287,7 @@ const MyComponent = defineComponent({
         } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(shapeConfig)
-        } else if (shapeConfig == '/dist15.geojson.gz') {
+        } else if (shapeConfig == '/staging/dist15.geojson.gz') {
           // special SFCTA test
           console.log('LOADING FAKE geojson:', shapeConfig)
           const blob = await fetch(shapeConfig).then(async r => await r.blob())
