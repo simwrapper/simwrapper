@@ -9,11 +9,12 @@
   .main-area
     h4.status-text(v-if="statusText") {{ statusText }}
 
-    H5Map-viewer.fill-it(v-if="isMap"
-      :features="features"
+    H5Map-viewer.fill-it(v-if="isMap && h5buffer"
       :fileApi="fileApi"
       :subfolder="subfolder"
-      :yamlConfig="yamlConfig"
+      :buffer="h5buffer"
+      :features="features"
+      :filenameH5="yamlConfig"
       :filenameShapes="filenameShapes"
     )
 
@@ -59,9 +60,9 @@ const MyComponent = defineComponent({
       globalState: globalStore.state,
       filename: '',
       filenameShapes: 'dist15.geojson',
-      h5buffer: null as any,
+      h5buffer: null as null | ArrayBuffer,
       useConfig: '',
-      vizDetails: { title: '', description: '' } as any,
+      vizDetails: { title: '', description: '' },
       statusText: 'Loading...',
       title: '',
       description: '',
@@ -74,6 +75,11 @@ const MyComponent = defineComponent({
   async mounted() {
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
     await this.getVizDetails()
+
+    // don't actually load any files if we're just in the file browser
+    if (this.thumbnail) return
+
+    this.h5buffer = await this.loadFile()
   },
   computed: {
     fileApi(): HTTPFileSystem {
@@ -116,15 +122,12 @@ const MyComponent = defineComponent({
       const path = `${this.subfolder}/${this.yamlConfig}`
       const blob = await this.fileApi.getFileBlob(path)
       const buffer = await blob.arrayBuffer()
-      this.h5buffer = buffer
       this.statusText = ''
+      return buffer
     },
 
     async getVizDetails() {
-      if (this.thumbnail) {
-        this.$emit('title', '' + this.yamlConfig)
-        return
-      }
+      this.$emit('title', `${this.yamlConfig} - Matrix Explorer`)
     },
   },
 })

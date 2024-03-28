@@ -1,8 +1,8 @@
 <template lang="pug">
 .h5-map-viewer
   .table-selector
-    p.h5-filename {{  filename }}
-    .h5-table(v-for="table in matrices" :key="table"
+    p.h5-filename {{  filenameH5 }}
+    .h5-table(v-for="table in tableKeys" :key="table"
       :class="{'selected-table': table == activeTable}"
       @click="activeTable=table"
     )
@@ -11,7 +11,6 @@
 
   .map-holder
     zone-layer.fill-it(
-      :filename="filename"
       :features="features"
       :clickedZone="clickedZone"
     )
@@ -27,6 +26,7 @@ import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady
 import { nanoid } from 'nanoid'
 import { rgb } from 'd3-color'
 import { scaleThreshold } from 'd3-scale'
+import naturalSort from 'javascript-natural-sort'
 
 import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -34,6 +34,8 @@ import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Glo
 
 import ZoneLayer from './ZoneLayer'
 import { Style, buildRGBfromHexCodes, colorRamp } from '@/js/ColorsAndWidths'
+
+naturalSort.insensitive = true
 
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
@@ -43,12 +45,12 @@ const MyComponent = defineComponent({
 
   props: {
     fileApi: { type: HTTPFileSystem, required: true },
+    buffer: { type: ArrayBuffer, required: true },
     subfolder: String,
-    yamlConfig: String,
+    filenameH5: String,
+    filenameShapes: String,
     config: String,
     thumbnail: Boolean,
-    cardId: String,
-    filenameShapes: String,
   },
 
   data() {
@@ -56,32 +58,37 @@ const MyComponent = defineComponent({
       globalState: globalStore.state,
       isMap: true,
       isRowWise: true,
-      h5buffer: null as any,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
-      filename: '',
       h5file: null as any,
       useConfig: '',
-      vizDetails: { title: '', description: '' } as any,
       statusText: 'Loading...',
-      title: '',
-      description: '',
       features: [] as any,
       layerId: Math.floor(1e12 * Math.random()),
-      matrices: ['1', '2'] as string[],
-      activeTable: '1',
+      tableKeys: [] as string[],
+      activeTable: '',
+      activeZone: -1,
+      dataArray: [] as number[],
     }
   },
 
   async mounted() {
-    this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
-
     this.h5wasm = this.initH5Wasm()
 
-    this.getVizDetails()
-    this.filename = '' + this.yamlConfig
-    this.h5buffer = await this.loadH5Buffer()
-    console.log({ buffer: this.h5buffer })
+    console.log({ buffer: this.buffer })
+
+    // load the file into h5wasm
+    if (!this.h5zoneFile) {
+      this.h5zoneFile = await this.initFile(this.buffer)
+      const keys = this.h5zoneFile.keys()
+
+      // pretty sort the numbers the ways humans like them
+      keys.sort((a: any, b: any) => naturalSort(a, b))
+
+      this.tableKeys = keys
+      if (keys.length) this.activeTable = keys[0]
+    }
+
     if (this.filenameShapes) this.loadBoundaries()
   },
 
@@ -95,14 +102,10 @@ const MyComponent = defineComponent({
       // this.changeDimensions()
     },
 
-    yamlConfig() {
-      this.useConfig = this.yamlConfig || ''
-      this.getVizDetails()
+    activeTable() {
+      this.fetchH5ArrayData()
     },
-
-    subfolder() {
-      this.getVizDetails()
-    },
+    // subfolder() {},
     filenameShapes() {
       this.loadBoundaries()
     },
@@ -136,29 +139,36 @@ const MyComponent = defineComponent({
       return module
     },
 
-    async clickedZone(zone: { index: number; properties: any }) {
-      console.log({ zone })
+    fetchH5ArrayData() {
+      console.log('fetchH5', this.h5zoneFile, this.activeZone)
+      // the file has the data, and we want it
+      if (!this.h5zoneFile) return
+      // User should have selected a zone already
+      if (this.activeZone < 0) return
 
-      if (!this.h5zoneFile) {
-        console.log('build HDF5 file object first time')
-        this.h5zoneFile = await this.initFile(this.h5buffer)
-      }
-
-      // so what do we do now.
       const key = `/${this.activeTable}`
       let data = this.h5zoneFile.get(key) as Dataset
-      let values = []
+      let values = [] as number[]
       if (data) {
         // TODO this assumes zones are 1+offset!! what's the lookup?
         values = (
           this.isRowWise
-            ? data.slice([[zone.index, zone.index + 1], []])
-            : data.slice([[], [zone.index, zone.index + 1]])
+            ? data.slice([[this.activeZone, this.activeZone + 1], []])
+            : data.slice([[], [this.activeZone, this.activeZone + 1]])
         ) as number[]
-        this.setColorsForArray(values)
-      } else {
-        console.error('NOPE', key)
       }
+      this.dataArray = values
+      this.setColorsForArray(this.dataArray)
+    },
+
+    clickedZone(zone: { index: number; properties: any }) {
+      console.log({ zone })
+
+      // ignore double clicks and same-clicks
+      if (zone.index === this.activeZone) return
+
+      this.activeZone = zone.index
+      this.fetchH5ArrayData()
     },
 
     setColorsForArray(values: number[]) {
@@ -189,17 +199,6 @@ const MyComponent = defineComponent({
       }
       // Tell vue this is new
       this.features = [...this.features]
-    },
-
-    async loadH5Buffer() {
-      this.filename = '' + this.yamlConfig
-      this.statusText = `Loading: ${this.filename}...`
-
-      const path = `${this.subfolder}/${this.yamlConfig}`
-      const blob = await this.fileApi.getFileBlob(path)
-      const buffer = await blob.arrayBuffer()
-      this.statusText = ''
-      return buffer
     },
 
     async loadBoundaries() {
@@ -348,13 +347,6 @@ const MyComponent = defineComponent({
         logo.style.right = right
       }
     },
-
-    getVizDetails() {
-      if (this.thumbnail) {
-        this.$emit('title', '' + this.yamlConfig)
-        return
-      }
-    },
   },
 })
 
@@ -426,6 +418,7 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   width: 208px;
+  overflow-y: auto;
 }
 
 .h5-filename {
@@ -442,6 +435,7 @@ export default MyComponent
 
 .h5-table:hover {
   background-color: #76aa5a60;
+  transition: background-color 0.1s ease-out;
 }
 
 .selected-table {

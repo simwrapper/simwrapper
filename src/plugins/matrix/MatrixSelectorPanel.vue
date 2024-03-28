@@ -1,7 +1,7 @@
 <template lang="pug">
 .matrix-selector-panel
   .flex-column
-    p: b Matrix Explorer
+    p: b Matrix File
     .flex-row
       b-input(placeholder="filename.h5" v-model="filename")
 
