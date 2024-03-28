@@ -1,19 +1,37 @@
 <template lang="pug">
 .h5-map-viewer
   .table-selector
-    p.h5-filename {{  filenameH5 }}
-    .h5-table(v-for="table in tableKeys" :key="table"
-      :class="{'selected-table': table == activeTable}"
-      @click="activeTable=table"
-    )
-      i.fa.fa-layer-group
-      | &nbsp;&nbsp;{{ table }}
+    .top-half.flex1
+      p.h5-filename {{  filenameH5 }}
+      .h5-table(v-for="table in tableKeys" :key="table.key"
+        :class="{'selected-table': table == activeTable}"
+        @click="clickedTable(table)"
+      )
+        i.fa.fa-layer-group
+        | &nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
 
-  .map-holder
+    .bottom-half.flex1
+      .zone-details(v-if="activeZone > -1")
+        b.zone-header {{ isRowWise ? 'Row' : 'Column' }} {{  activeZone + 1 }}
+
+        .titles.matrix-data-value
+          b.zone-number {{ isRowWise ? 'Column' : 'Row' }}
+          b.zone-value  {{  activeTable.name || `Table ${activeTable.key}` }}
+        .matrix-data-value(v-for="value,i in dataArray" :key="i")
+          span.zone-number {{  i+1 }}
+          span.zone-value {{  value }}
+
+  .map-holder(oncontextmenu="return false")
     zone-layer.fill-it(
+      :viewId="layerId"
       :features="features"
       :clickedZone="clickedZone"
+      :activeZoneFeature="features[activeZone]"
     )
+
+    background-map-on-top
+
+    zoom-buttons
 
 </template>
 
@@ -29,9 +47,16 @@ import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
 
 import globalStore from '@/store'
+import { gUnzip } from '@/js/util'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Globals'
-
+import {
+  DEFAULT_PROJECTION,
+  REACT_VIEW_HANDLES,
+  FileSystemConfig,
+  VisualizationPlugin,
+} from '@/Globals'
+import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 import ZoneLayer from './ZoneLayer'
 import { Style, buildRGBfromHexCodes, colorRamp } from '@/js/ColorsAndWidths'
 
@@ -41,11 +66,12 @@ const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file sy
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
-  components: { ZoneLayer },
+  components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
 
   props: {
     fileApi: { type: HTTPFileSystem, required: true },
     buffer: { type: ArrayBuffer, required: true },
+    isRowWise: Boolean,
     subfolder: String,
     filenameH5: String,
     filenameShapes: String,
@@ -57,7 +83,6 @@ const MyComponent = defineComponent({
     return {
       globalState: globalStore.state,
       isMap: true,
-      isRowWise: true,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
       h5file: null as any,
@@ -65,11 +90,18 @@ const MyComponent = defineComponent({
       statusText: 'Loading...',
       features: [] as any,
       layerId: Math.floor(1e12 * Math.random()),
-      tableKeys: [] as string[],
-      activeTable: '',
+      tableKeys: [] as { key: string; name: string }[],
+      activeTable: null as null | { key: string; name: string },
       activeZone: -1,
       dataArray: [] as number[],
     }
+  },
+
+  beforeDestroy() {
+    // MUST delete the React view handles to prevent gigantic memory leaks!
+    delete REACT_VIEW_HANDLES[this.layerId]
+    this.h5file = null
+    this.h5wasm = null
   },
 
   async mounted() {
@@ -80,13 +112,7 @@ const MyComponent = defineComponent({
     // load the file into h5wasm
     if (!this.h5zoneFile) {
       this.h5zoneFile = await this.initFile(this.buffer)
-      const keys = this.h5zoneFile.keys()
-
-      // pretty sort the numbers the ways humans like them
-      keys.sort((a: any, b: any) => naturalSort(a, b))
-
-      this.tableKeys = keys
-      if (keys.length) this.activeTable = keys[0]
+      this.getFileKeysAndProperties()
     }
 
     if (this.filenameShapes) this.loadBoundaries()
@@ -95,6 +121,11 @@ const MyComponent = defineComponent({
   computed: {},
 
   watch: {
+    'globalState.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.layerId]) return
+      REACT_VIEW_HANDLES[this.layerId]()
+    },
+
     'globalState.isDarkMode'() {
       // this.embedChart()
     },
@@ -109,9 +140,33 @@ const MyComponent = defineComponent({
     filenameShapes() {
       this.loadBoundaries()
     },
+    isRowWise() {
+      this.fetchH5ArrayData()
+    },
   },
 
   methods: {
+    getFileKeysAndProperties() {
+      if (!this.h5zoneFile) return
+
+      // first get the keys
+      const keys = this.h5zoneFile.keys()
+      // pretty sort the numbers the ways humans like them
+      keys.sort((a: any, b: any) => naturalSort(a, b))
+      this.tableKeys = keys.map(key => {
+        return { key, name: '' }
+      })
+
+      // if there are "name" properties, add them
+      for (const table of this.tableKeys) {
+        const element = this.h5zoneFile.get(table.key) as Dataset
+        const name = element?.attrs['name']?.value as string
+        table.name = name || ''
+      }
+
+      if (this.tableKeys.length) this.activeTable = this.tableKeys[0]
+    },
+
     async initFile(buffer: ArrayBuffer): Promise<H5WasmFile> {
       const h5Module = await this.h5wasm
 
@@ -140,13 +195,12 @@ const MyComponent = defineComponent({
     },
 
     fetchH5ArrayData() {
-      console.log('fetchH5', this.h5zoneFile, this.activeZone)
       // the file has the data, and we want it
       if (!this.h5zoneFile) return
       // User should have selected a zone already
       if (this.activeZone < 0) return
 
-      const key = `/${this.activeTable}`
+      const key = `/${this.activeTable?.key}`
       let data = this.h5zoneFile.get(key) as Dataset
       let values = [] as number[]
       if (data) {
@@ -159,6 +213,11 @@ const MyComponent = defineComponent({
       }
       this.dataArray = values
       this.setColorsForArray(this.dataArray)
+    },
+
+    clickedTable(table: { key: string; name: string }) {
+      console.log('click!', table)
+      this.activeTable = table
     },
 
     clickedZone(zone: { index: number; properties: any }) {
@@ -175,18 +234,20 @@ const MyComponent = defineComponent({
       const min = Math.min(...values)
       const max = Math.max(...values)
 
-      const colors = colorRamp({ ramp: 'Viridis', style: Style.sequential }, 21)
+      const colors = colorRamp({ ramp: 'Rainbow', style: Style.sequential }, 21)
+
       // colors.reverse()
-      console.log(colors)
+      // console.log(colors)
       const colorsAsRGB = buildRGBfromHexCodes(colors)
-      console.log({ colorsAsRGB })
+      // console.log({ colorsAsRGB })
       const numColors = colorsAsRGB.length
       const exponent = 3.0
       const breakpoints = new Array(numColors - 1)
         .fill(0)
         .map((v, i) => Math.pow((1 / numColors) * (i + 1), exponent))
 
-      console.log({ breakpoints })
+      // console.log({ breakpoints })
+
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
@@ -202,10 +263,14 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundaries() {
-      const shapeConfig = this.filenameShapes || 'sftaz.geojson'
+      // const shapeConfig = this.filenameShapes
+
+      // TODO: default is SFCTA "Dist15" zones
+      const shapeConfig = '/dist15.geojson.gz'
+
       if (!shapeConfig) return
 
-      let boundaries: any[]
+      let boundaries: any[] = []
 
       try {
         this.statusText = 'Loading map features...'
@@ -216,6 +281,16 @@ const MyComponent = defineComponent({
         } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(shapeConfig)
+        } else if (shapeConfig == '/dist15.geojson.gz') {
+          // special SFCTA test
+          console.log('LOADING FAKE geojson:', shapeConfig)
+          const blob = await fetch(shapeConfig).then(async r => await r.blob())
+          const buffer = await blob.arrayBuffer()
+          const rawtext = gUnzip(buffer)
+          const text = new TextDecoder('utf-8').decode(rawtext)
+          const json = JSON.parse(text)
+          // finally!
+          boundaries = json.features
         } else {
           // geojson!
           const path = `${this.subfolder}/${shapeConfig}`
@@ -235,6 +310,7 @@ const MyComponent = defineComponent({
       }
 
       if (!this.features) throw Error(`No "features" found in shapes file`)
+      this.clickedZone({ index: 0, properties: boundaries[0].properties })
     },
 
     async loadShapefileFeatures(filename: string) {
@@ -356,6 +432,8 @@ export default MyComponent
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+$bgBeige: #636a67;
+
 .h5-map-viewer {
   position: absolute;
   top: 0;
@@ -364,13 +442,13 @@ export default MyComponent
   bottom: 0;
   display: flex;
   flex-direction: row;
-  background-color: #636a67;
+  background-color: $bgBeige;
   padding: 0 0 0 1rem;
 }
 
 .main-area {
   flex: 1;
-  background-color: #636a67; // d5ebe0
+  background-color: $bgBeige;
   position: relative;
 }
 
@@ -408,7 +486,7 @@ export default MyComponent
 .map-holder {
   flex: 1;
   position: relative;
-  margin: 1rem 1rem 1rem 0;
+  margin: 1rem 0rem;
 }
 
 .table-selector {
@@ -417,8 +495,11 @@ export default MyComponent
   margin: 1rem 0;
   display: flex;
   flex-direction: column;
-  width: 208px;
-  overflow-y: auto;
+  width: 180px;
+}
+
+.zone-details {
+  font-size: 0.9rem;
 }
 
 .h5-filename {
@@ -444,5 +525,35 @@ export default MyComponent
 }
 .selected-table:hover {
   background-color: #76aa5a;
+}
+
+.matrix-data-value {
+  display: flex;
+  padding: 0 0.5rem;
+}
+
+.zone-header {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  padding: 0.5rem;
+}
+.zone-number {
+  flex: 1;
+  padding-right: 0.5rem;
+}
+
+.zone-value {
+  text-align: right;
+  flex: 1;
+}
+
+.top-half {
+  overflow-y: auto;
+}
+.bottom-half {
+  margin-top: 1rem;
+  border-top: 1rem solid $bgBeige;
+  overflow-y: auto;
 }
 </style>

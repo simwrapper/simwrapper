@@ -25,6 +25,7 @@ export default function Component({
   tooltip = [] as string[],
   cbTooltip = {} as any,
   clickedZone = {} as any,
+  activeZoneFeature = null as any,
 }) {
   const PRECISION = 4
   const DEFAULT_FILL = [32, 64, 128, 255]
@@ -34,9 +35,9 @@ export default function Component({
   const _mapRef = useRef<MapRef>() as any
 
   // // MAP VIEW -------------------------------------------------------------------------
-  // REACT_VIEW_HANDLES[viewId] = () => {
-  //   setViewState(globalStore.state.viewState)
-  // }
+  REACT_VIEW_HANDLES[viewId] = () => {
+    setViewState(globalStore.state.viewState)
+  }
 
   // SCREENSHOT -----------------------------------------------------------------------
   let isTakingScreenshot = screenshot > screenshotCount
@@ -115,6 +116,25 @@ export default function Component({
     // return 'boop'
   }
 
+  const highlight = activeZoneFeature ? [activeZoneFeature] : []
+
+  const highlightLayer = new GeoJsonLayer({
+    id: 'HighlightLayer',
+    data: highlight,
+    getLineWidth: 5,
+    getLineColor: [255, 255, 255],
+    lineJointRounded: true,
+    lineWidthUnits: 'pixels',
+    lineWidthScale: 1,
+    opacity: 1.0,
+    pickable: false,
+    fp64: false,
+    parameters: {
+      depthTest: false,
+      fp64: false,
+    },
+  }) as any
+
   const layer = new GeoJsonLayer({
     id: 'ZonalLayer',
     data: features,
@@ -168,7 +188,7 @@ export default function Component({
     /*
       //@ts-ignore */
     <DeckGL
-      layers={[layer]}
+      layers={[layer, highlightLayer]}
       viewState={viewState}
       controller={true}
       pickingRadius={4}

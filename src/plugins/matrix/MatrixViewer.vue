@@ -2,7 +2,9 @@
 .matrix-viewer(v-if="!thumbnail")
   matrix-selector-panel(
     :isMap="isMap"
+    :isRowWise="isRowWise"
     @setMap="isMap=$event"
+    @rows="isRowWise=$event"
     @shapes="filenameShapes=$event"
   )
 
@@ -16,6 +18,7 @@
       :features="features"
       :filenameH5="yamlConfig"
       :filenameShapes="filenameShapes"
+      :isRowWise="isRowWise"
     )
 
     H5Web.fill-it.h5web(v-if="h5buffer && !isMap"
@@ -59,7 +62,7 @@ const MyComponent = defineComponent({
       h5zoneFile: null as null | H5WasmFile,
       globalState: globalStore.state,
       filename: '',
-      filenameShapes: 'dist15.geojson',
+      filenameShapes: '/dist15.geojson',
       h5buffer: null as null | ArrayBuffer,
       useConfig: '',
       vizDetails: { title: '', description: '' },
