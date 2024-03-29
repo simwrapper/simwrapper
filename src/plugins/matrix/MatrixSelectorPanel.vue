@@ -1,10 +1,9 @@
 <template lang="pug">
 .matrix-selector-panel
   .flex-column
-    p: b Matrix File
+    //- p: b Matrix File
     .flex-row
       b-input(disabled placeholder="filename.h5" v-model="filename")
-
 
   .flex-column
     .flex-row
@@ -19,25 +18,10 @@
           i.fa.fa-ruler-combined
           span &nbsp;Data
 
-
   .flex-column(v-if="isMap")
-    p  Map features
+    //- p  Map features
     .flex-row
       b-input(disabled placeholder="zones.geojson" v-model="filenameShapes")
-
-  .flex-column(v-if="isMap")
-    p Display axis
-    .flex-row
-      b-field.which-data
-        b-button.button(:type="isRowWise ? 'is-white' : 'is-white is-outlined'"
-                        @click="$emit('rows', true)")
-          i.fa.fa-bars
-          span &nbsp;Rows
-
-        b-button.button(:type="!isRowWise ? 'is-white' : 'is-white is-outlined'"
-                        @click="$emit('rows', false)")
-          i.fa.fa-bars(style="rotate: 90deg;")
-          span &nbsp;Columns
 
   //- .flex-column.flex1.drop-hint
   //-   p.right  Drag/drop an HDF5 file anywhere to open it
@@ -49,6 +33,7 @@ import { defineComponent } from 'vue'
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
+  components: {},
   props: { isMap: Boolean, isRowWise: Boolean },
   data: () => {
     return {
@@ -85,11 +70,11 @@ export default MyComponent
 }
 
 .flex-column {
+  margin-top: 4px;
   margin-right: 1rem;
 }
 
 .button {
-  margin-top: 4px;
   border-radius: 0px;
   opacity: 0.83;
 }
@@ -103,7 +88,6 @@ export default MyComponent
 }
 
 .which-view {
-  margin-top: 17px;
   padding: 0 1rem;
 }
 
