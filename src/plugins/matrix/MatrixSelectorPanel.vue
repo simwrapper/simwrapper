@@ -1,42 +1,40 @@
 <template lang="pug">
 .matrix-selector-panel
-  .flex-column
-    //- p: b Matrix File
-    b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
-
-  .flex-column
-    //- Shapefile selector
-    b-input.binput(disabled placeholder="zones.geojson" v-model="filenameShapes")
+  //- .flex-column
+  //-   //- p: b Matrix File
+  //-   b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
 
   //- which view
-  .flex-column
-    .flex-row
-      b-field.which-view
-        b-button.button.is-small(:type="isMap ? 'is-dark' : 'is-dark is-outlined'"
-                        @click="$emit('setMap',true)")
-          i.fa.fa-map
-          span &nbsp;Map
+  .flex-row
+    b-field.which-data
+      b-button.button.is-small(:type="!isMap ? 'is-warning' : 'is-gray is-outlined'"
+                      @click="$emit('setMap',false)")
+        i.fa.fa-ruler-combined
+        span &nbsp;Data
 
-        b-button.button.is-small(:type="!isMap ? 'is-dark' : 'is-dark is-outlined'"
-                        @click="$emit('setMap',false)")
-          i.fa.fa-ruler-combined
-          span &nbsp;Data
+      b-button.button.is-small(:type="isMap ? 'is-warning' : 'is-gray is-outlined'"
+                      @click="$emit('setMap',true)")
+        i.fa.fa-map
+        span &nbsp;Map
 
-      b-field.which-data.flex1.zapit(v-if="isMap")
-        b-button.button.is-small(
-          :type="mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-          @click="$emit('changeRowWise', true)"
-        )
-          i.fa.fa-bars
-          span &nbsp;Row
+    b-field.which-data(v-if="isMap")
+      b-button.button.is-small(
+        :type="mapConfig.isRowWise ? 'is-link' : 'is-gray is-outlined'"
+        @click="$emit('changeRowWise', true)"
+      )
+        i.fa.fa-bars
+        span &nbsp;Row
 
-        b-button.button.is-small(
-          :type="!mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-          @click="$emit('changeRowWise', false)"
-        )
-          i.fa.fa-bars(style="rotate: 90deg;")
-          span &nbsp;Col
+      b-button.button.is-small(
+        :type="!mapConfig.isRowWise ? 'is-link' : 'is-gray is-outlined'"
+        @click="$emit('changeRowWise', false)"
+      )
+        i.fa.fa-bars(style="rotate: 90deg;")
+        span &nbsp;Col
 
+  //- .flex-column
+  //-   //- Shapefile selector
+  //-   b-input.binput(disabled placeholder="zones.geojson" v-model="filenameShapes")
 
 
   //- Map configuration
@@ -116,13 +114,12 @@ $bgDarkerCyan: #def3ec;
 .matrix-selector-panel {
   display: flex;
   flex-direction: row;
-  padding: 0.5rem 1rem 0rem 1rem;
+  padding: 0.5rem;
   background-color: #e6eaf1;
   border-bottom: 1px solid #bbbbcc88;
 }
 
 .flex-column {
-  margin-top: 4px;
   margin-right: 1rem;
 }
 
@@ -144,7 +141,7 @@ $bgDarkerCyan: #def3ec;
 }
 
 .which-data {
-  margin-left: 1rem;
+  margin: 1px 1rem 0 0;
 }
 
 .drop-hint {
@@ -157,7 +154,7 @@ $bgDarkerCyan: #def3ec;
 
 .map-config {
   z-index: 20000;
-  margin: auto 0 9px auto;
+  margin: 0 0 0 auto;
   color: black;
   font-size: 0.9rem;
 }

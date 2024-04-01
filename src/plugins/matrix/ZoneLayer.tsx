@@ -12,18 +12,11 @@ export default function Component({
   viewId = 0,
   features = [] as any[],
   fillColors = '#59a14f' as string | Uint8Array,
-  lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 0 as number | Float32Array,
   fillHeights = 0 as number | Float32Array,
-  calculatedValues = null as null | Float32Array,
-  calculatedValueLabel = '',
-  normalizedValues = null as null | Float32Array,
-  opacity = 1,
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
-  featureDataTable = {} as DataTable,
-  tooltip = [] as string[],
-  cbTooltip = {} as any,
+  cbTooltip = null as any,
   clickedZone = {} as any,
   activeZoneFeature = null as any,
 }) {
@@ -111,11 +104,12 @@ export default function Component({
   }
 
   // TOOLTIP ------------------------------------------------------------------
-  function getTooltip({ object, index }: { object: any; index: number }) {
-    if (object == null) return null
-    // return 'boop'
+  function getTooltip(event: any) {
+    const { index, object } = event
+    if (cbTooltip) cbTooltip({ index, object })
   }
 
+  // --------------------------------------------------------------------------
   const highlight = activeZoneFeature ? [activeZoneFeature] : []
 
   const highlightLayer = new GeoJsonLayer({
@@ -194,11 +188,11 @@ export default function Component({
       controller={true}
       pickingRadius={4}
       getTooltip={getTooltip}
-      onClick={(e: any) => handleClick(e)}
-      onViewStateChange={(e: any) => handleViewState(e.viewState)}
       getCursor={({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
       }
+      onClick={(e: any) => handleClick(e)}
+      onViewStateChange={(e: any) => handleViewState(e.viewState)}
       onAfterRender={async () => {
         if (screenshot > screenshotCount) {
           await screenshots.savePNG(

@@ -29,11 +29,15 @@
         :features="features"
         :clickedZone="clickedZone"
         :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
+        :cbTooltip="showTooltip"
       )
 
       background-map-on-top(v-if="isMapReady")
 
       zoom-buttons
+
+      .tooltip-area(v-if="tooltip" v-html="tooltip")
+
 
 </template>
 
@@ -86,7 +90,6 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
     filenameH5: String,
     filenameShapes: String,
-    isRowWise: Boolean,
     isInvertedColor: Boolean,
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
   },
@@ -109,6 +112,7 @@ const MyComponent = defineComponent({
       activeZone: null as any,
       dataArray: [] as number[],
       prettyDataArray: [] as string[],
+      tooltip: '',
     }
   },
 
@@ -185,6 +189,31 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    showTooltip(props: { index: number; object: any }) {
+      const { index, object } = props
+      const id = object?.properties?.TAZ
+      if (id === undefined) {
+        this.tooltip = ''
+        return
+      }
+
+      let html = [] as any[]
+
+      //TODO fix this!
+      const value = this.dataArray[id - 1]
+      const tableName = this.activeTable?.name || this.activeTable?.key || 'Value'
+
+      if (this.mapConfig.isRowWise) {
+        html.push(`<p><b>Row ${this.activeZone} Col ${id}</b></p>`)
+      } else {
+        html.push(`<p><b>Row ${id} Col ${this.activeZone}</b></p>`)
+      }
+
+      html.push(`<p>${tableName} ${value}</p>`)
+
+      this.tooltip = html.join('\n')
+    },
+
     setMapCenter() {
       const previousView = localStorage.getItem('H5MapViewer_view')
       if (previousView) {
@@ -193,22 +222,22 @@ const MyComponent = defineComponent({
       }
 
       // If we have no map center, create one
-      const features = [this.features[0], this.features[this.features.length - 1]]
-      const points = features
+      const aFewFeatures = [
+        this.features[0],
+        this.features[Math.floor(length / 2)],
+        this.features[this.features.length - 1],
+      ]
+
+      // get first coordinate of each feature, average them
+      const points = aFewFeatures
         .map(f => {
           const geom = f.geometry.coordinates
           if (Number.isFinite(geom[0][0])) return geom[0]
           if (Number.isFinite(geom[0][0][0])) return geom[0][0]
           if (Number.isFinite(geom[0][0][0][0])) return geom[0][0][0]
         })
-        .reduce(
-          (a, b) => {
-            console.log(a, b)
-            return [a[0] + b[0], a[1] + b[1]]
-          },
-          [0, 0]
-        )
-        .map((p: number) => p / features.length)
+        .reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0])
+        .map((p: number) => p / aFewFeatures.length)
       this.$store.commit('setMapCamera', { longitude: points[0], latitude: points[1], zoom: 7 })
     },
 
@@ -278,7 +307,7 @@ const MyComponent = defineComponent({
       const key = `/${this.activeTable?.key}`
       let data = this.h5zoneFile.get(key) as Dataset
 
-      // FIX THIS
+      //TODO FIX THIS
       let offset = this.activeZone - 1
 
       let values = [] as number[]
@@ -596,7 +625,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .h5-filename {
   padding: 8px;
   font-weight: bold;
-  background-color: #eee;
+  background-color: white;
+  color: #444;
 }
 
 .h5-table {
@@ -611,12 +641,12 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 }
 
 .selected-table {
-  background-color: #76aa5a;
+  background-color: #8b71da;
   color: white;
   font-weight: bold;
 }
 .selected-table:hover {
-  background-color: #76aa5a;
+  background-color: #8b71da;
   color: white;
 }
 
@@ -629,6 +659,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   background-color: white;
+  color: #444;
   padding: 0.5rem;
 }
 .zone-number {
@@ -668,7 +699,16 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   margin-left: 1px;
 }
 
-.zapit {
-  margin-bottom: 0;
+.tooltip-area {
+  position: absolute;
+  z-index: 30000;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--bgBold);
+  min-width: 10rem;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
 }
 </style>

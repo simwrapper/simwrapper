@@ -204,10 +204,4 @@ export default MyComponent
   padding: 3rem 0;
   margin-top: 5rem;
 }
-
-.map-layout {
-  display: flex;
-  flex-direction: row;
-  margin: 0rem 0 0 1rem;
-}
 </style>
