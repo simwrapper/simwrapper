@@ -80,8 +80,7 @@ const MyComponent = defineComponent({
     mapConfig: { type: Object as PropType<MapConfig> },
   },
   data() {
-    // const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
-    const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog]
+    const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
 
     return {
       filename: '',

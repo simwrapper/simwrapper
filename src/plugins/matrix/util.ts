@@ -22,6 +22,10 @@ const scalers: { [scale: string]: any } = {
     const negativeBreakpoints = [...positiveBreakpoints].reverse().map(n => -1 * n)
     return [...negativeBreakpoints, ...positiveBreakpoints]
   },
+  sqrt: (bins: number) => {
+    const breakpoints = new Array(bins - 1).fill(0).map((v, i) => Math.sqrt((i + 1) / bins))
+    return breakpoints
+  },
 }
 
 export default scalers
