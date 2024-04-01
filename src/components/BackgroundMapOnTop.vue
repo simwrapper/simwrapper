@@ -61,8 +61,9 @@ const Component = defineComponent({
         })
 
         // make sure it starts up aligned with main map
-        const view = { ...this.globalState.viewState } as any
-        this.mymap.jumpTo({ zoom: view.zoom, center: [view.longitude, view.latitude] })
+        const { jump, initial, startup, ...viewState } = this.globalState.viewState
+        viewState.center = [viewState.longitude, viewState.latitude]
+        this.mymap.jumpTo(viewState as any)
       } catch (e) {
         console.error('HUH?' + e)
         return
@@ -71,23 +72,17 @@ const Component = defineComponent({
       // Start doing stuff AFTER the MapLibre library has fully initialized
       this.mymap.on('load', this.mapIsReady)
 
-      // We are always in thumbnail mode oo-/
-      // if (this.thumbnail) {
-      if (true) {
-        let baubles = document.getElementsByClassName(
-          'mapboxgl-ctrl mapboxgl-ctrl-attrib mapboxgl-compact'
-        )
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
+      // Always hide map controls
+      let baubles = document.getElementsByClassName(
+        'mapboxgl-ctrl mapboxgl-ctrl-attrib mapboxgl-compact'
+      )
+      for (const elem of baubles) elem.setAttribute('style', 'display: none')
 
-        baubles = document.getElementsByClassName('mapboxgl-ctrl mapboxgl-ctrl-group')
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
+      baubles = document.getElementsByClassName('mapboxgl-ctrl mapboxgl-ctrl-group')
+      for (const elem of baubles) elem.setAttribute('style', 'display: none')
 
-        baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-        for (const elem of baubles) elem.setAttribute('style', 'display: none')
-      } else {
-        let baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
-        for (const elem of baubles) elem.setAttribute('style', 'margin-bottom: 3rem;')
-      }
+      baubles = document.getElementsByClassName('mapboxgl-ctrl-logo')
+      for (const elem of baubles) elem.setAttribute('style', 'display: none')
     },
 
     async mapIsReady() {
