@@ -25,14 +25,14 @@
       b-field.which-data.flex1.zapit(v-if="isMap")
         b-button.button.is-small(
           :type="mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-          @click="$emit('changeRowWise', $event)"
+          @click="$emit('changeRowWise', true)"
         )
           i.fa.fa-bars
           span &nbsp;Row
 
         b-button.button.is-small(
           :type="!mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-          @click="$emit('changeRowWise', $event)"
+          @click="$emit('changeRowWise', false)"
         )
           i.fa.fa-bars(style="rotate: 90deg;")
           span &nbsp;Col

@@ -7,7 +7,7 @@
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
     @changeScale="mapConfig.scale=$event"
-    @changeRowWise="mapConfig.isRowWise=!mapConfig.isRowWise"
+    @changeRowWise="mapConfig.isRowWise=$event"
   )
 
   .main-area
@@ -209,8 +209,5 @@ export default MyComponent
   display: flex;
   flex-direction: row;
   margin: 0rem 0 0 1rem;
-}
-
-.h5web {
 }
 </style>
