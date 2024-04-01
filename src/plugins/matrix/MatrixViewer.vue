@@ -2,10 +2,12 @@
 .matrix-viewer(v-if="!thumbnail")
   matrix-selector-panel(
     :isMap="isMap"
-    :isRowWise="isRowWise"
+    :mapConfig="mapConfig"
     @setMap="isMap=$event"
-    @rows="isRowWise=$event"
     @shapes="filenameShapes=$event"
+    @changeColor="changeColor"
+    @changeScale="mapConfig.scale=$event"
+    @changeRowWise="mapConfig.isRowWise=!mapConfig.isRowWise"
   )
 
   .main-area
@@ -15,10 +17,9 @@
       :fileApi="fileApi"
       :subfolder="subfolder"
       :buffer="h5buffer"
-      :features="features"
       :filenameH5="yamlConfig"
       :filenameShapes="filenameShapes"
-      :isRowWise="isRowWise"
+      :mapConfig="mapConfig"
     )
 
     H5Web.fill-it.h5web(v-if="h5buffer && !isMap"
@@ -43,6 +44,16 @@ import H5Web from './H5TableViewer'
 import H5MapViewer from './H5MapViewer.vue'
 import MatrixSelectorPanel from './MatrixSelectorPanel.vue'
 
+import { ColorMap } from '@/components/ColorMapSelector/models'
+import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
+
+export interface MapConfig {
+  scale: ScaleType
+  colormap: ColorMap
+  isInvertedColor: Boolean
+  isRowWise: Boolean
+}
+
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
   components: { H5Web, H5MapViewer, MatrixSelectorPanel },
@@ -56,8 +67,9 @@ const MyComponent = defineComponent({
   },
   data: () => {
     return {
+      title: '',
+      description: '',
       isMap: true,
-      isRowWise: true,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
       globalState: globalStore.state,
@@ -67,12 +79,15 @@ const MyComponent = defineComponent({
       useConfig: '',
       vizDetails: { title: '', description: '' },
       statusText: 'Loading...',
-      title: '',
-      description: '',
-      features: [] as any,
       layerId: Math.floor(1e12 * Math.random()),
       matrices: ['1', '2'] as string[],
       activeTable: '1',
+      mapConfig: {
+        scale: ScaleType.Linear,
+        colormap: 'Viridis',
+        isInvertedColor: false,
+        isRowWise: true,
+      } as MapConfig,
     }
   },
   async mounted() {
@@ -130,7 +145,20 @@ const MyComponent = defineComponent({
     },
 
     async getVizDetails() {
-      this.$emit('title', `${this.yamlConfig} - Matrix Explorer`)
+      this.$emit('title', `Matrix - ${this.yamlConfig}`)
+    },
+
+    changeColor(event: any) {
+      // inversion
+      if (!event) {
+        this.mapConfig.isInvertedColor = !this.mapConfig.isInvertedColor
+      } else {
+        this.mapConfig.colormap = event
+      }
+    },
+
+    changeMapConfig(event: any) {
+      console.log('BOOP', event)
     },
   },
 })
@@ -149,7 +177,7 @@ export default MyComponent
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgDashboard);
+  background-color: var(--bgCardFrame);
 }
 
 .main-area {
@@ -184,6 +212,5 @@ export default MyComponent
 }
 
 .h5web {
-  margin: 1rem;
 }
 </style>

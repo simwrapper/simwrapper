@@ -8,49 +8,20 @@
         @click="clickedTable(table)"
       )
         i.fa.fa-layer-group
-        | &nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
+        |&nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
 
     .bottom-half.flex1
       .zone-details(v-if="activeZone !== null")
-        b.zone-header {{ isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
+        b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
 
         .titles.matrix-data-value
-          b.zone-number {{ isRowWise ? 'Column' : 'Row' }}
+          b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
           b.zone-value  {{  activeTable.name || `Table ${activeTable.key}` }}
         .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
           span.zone-number {{  i+1 }}
           span.zone-value {{  value }}
 
   .right-container.fill-it
-    .view-settings
-      b-field.which-data.flex1.zapit
-        b-button.button.is-small(
-          :type="isRowWise ? 'is-link' : 'is-link is-outlined'"
-          @click="$emit('rows', true)"
-        )
-          i.fa.fa-bars
-          span &nbsp;Rows
-
-        b-button.button.is-small(
-          :type="!isRowWise ? 'is-link' : 'is-default is-outlined'"
-          @click="$emit('rows', false)"
-        )
-          i.fa.fa-bars(style="rotate: 90deg;")
-          span &nbsp;Columns
-
-      ColorMapSelector(
-        :value="colormap",
-        :invert="isInvertedColor"
-        @onValueChange="chooseColors"
-        @onInversionChange="chooseColors"
-      )
-
-      ScaleSelector(
-        :options="COLOR_SCALE_TYPES"
-        :value="scale"
-        @onScaleChange="chooseScale"
-      )
-
     .map-holder(oncontextmenu="return false")
 
       zone-layer.zone-layer.fill-it(
@@ -68,6 +39,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
@@ -86,42 +58,40 @@ import {
   FileSystemConfig,
   VisualizationPlugin,
 } from '@/Globals'
+
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ZoneLayer from './ZoneLayer'
 import { Style, buildRGBfromHexCodes, colorRamp } from '@/js/ColorsAndWidths'
 
-import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
-import { ColorMap } from '@/components/ColorMapSelector/models'
-import ScaleSelector from '@/components/ScaleSelector/ScaleSelector'
-import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
-
 import dataScalers from './util'
+
+import { MapConfig } from './MatrixViewer.vue'
+
+import { ColorMap } from '@/components/ColorMapSelector/models'
+import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 
 naturalSort.insensitive = true
 
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
-export type ColorScaleType = Exclude<ScaleType, 'gamma'>
-
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
-  components: { ZoneLayer, ScaleSelector, ColorMapSelector, BackgroundMapOnTop, ZoomButtons },
+  components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
-    fileApi: { type: HTTPFileSystem, required: true },
+    fileApi: { type: Object as PropType<HTTPFileSystem>, required: true },
     buffer: { type: ArrayBuffer, required: true },
-    isRowWise: Boolean,
     subfolder: String,
-    filenameH5: String,
-    filenameShapes: String,
     config: String,
     thumbnail: Boolean,
+    filenameH5: String,
+    filenameShapes: String,
+    isRowWise: Boolean,
+    isInvertedColor: Boolean,
+    mapConfig: { type: Object as PropType<MapConfig>, required: true },
   },
 
   data() {
-    // const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
-    const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog]
-
     return {
       globalState: globalStore.state,
       tazToOffsetLookup: {} as { [taz: string]: any },
@@ -138,10 +108,6 @@ const MyComponent = defineComponent({
       activeZone: null as any,
       dataArray: [] as number[],
       prettyDataArray: [] as string[],
-      colormap: 'Viridis',
-      isInvertedColor: false,
-      scale: COLOR_SCALE_TYPES[0],
-      COLOR_SCALE_TYPES,
     }
   },
 
@@ -192,36 +158,28 @@ const MyComponent = defineComponent({
     },
 
     activeTable() {
-      this.fetchH5ArrayData()
+      this.extractH5ArrayData()
     },
     // subfolder() {},
     filenameShapes() {
       this.loadBoundaries()
       this.buildTAZLookup()
     },
-    isRowWise() {
-      this.fetchH5ArrayData()
+    'mapConfig.isRowWise'() {
+      this.extractH5ArrayData()
+    },
+    'mapConfig.colormap'() {
+      this.setColorsForArray()
+    },
+    'mapConfig.isInvertedColor'() {
+      this.setColorsForArray()
+    },
+    'mapConfig.scale'() {
+      this.setColorsForArray()
     },
   },
 
   methods: {
-    chooseColors(color: ColorMap) {
-      if (!color) {
-        // user pressed 'Invert'
-        this.isInvertedColor = !this.isInvertedColor
-      } else {
-        // user picked a rainbow
-        this.colormap = color
-      }
-      this.setColorsForArray()
-    },
-
-    chooseScale(scale: any) {
-      console.log(scale)
-      this.scale = scale
-      this.setColorsForArray()
-    },
-
     buildTAZLookup() {
       this.tazToOffsetLookup = {}
       for (let i = 0; i < this.features.length; i++) {
@@ -279,7 +237,8 @@ const MyComponent = defineComponent({
       return module
     },
 
-    fetchH5ArrayData() {
+    extractH5ArrayData() {
+      console.log('extract')
       // the file has the data, and we want it
       if (!this.h5zoneFile) return
       // User should have selected a zone already
@@ -294,14 +253,16 @@ const MyComponent = defineComponent({
       let values = [] as number[]
       if (data) {
         values = (
-          this.isRowWise
+          this.mapConfig.isRowWise
             ? data.slice([[offset, offset + 1], []])
             : data.slice([[], [offset, offset + 1]])
         ) as number[]
       }
+      console.log('here')
       this.dataArray = values
       this.setColorsForArray()
       this.setPrettyValuesForArray()
+      console.log(this.dataArray)
     },
 
     setPrettyValuesForArray() {
@@ -327,7 +288,7 @@ const MyComponent = defineComponent({
       if (zone.properties.TAZ == this.activeZone) return
 
       this.activeZone = zone.properties.TAZ
-      this.fetchH5ArrayData()
+      this.extractH5ArrayData()
     },
 
     setColorsForArray() {
@@ -338,10 +299,13 @@ const MyComponent = defineComponent({
       const NUM_COLORS = 15
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
-      const breakpoints = dataScalers[this.scale](NUM_COLORS)
+      const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
 
-      const colors = colorRamp({ ramp: this.colormap, style: Style.sequential }, NUM_COLORS)
-      if (this.isInvertedColor) colors.reverse()
+      const colors = colorRamp(
+        { ramp: this.mapConfig.colormap, style: Style.sequential },
+        NUM_COLORS
+      )
+      if (this.mapConfig.isInvertedColor) colors.reverse()
       const colorsAsRGB = buildRGBfromHexCodes(colors)
 
       console.log({ colorsAsRGB, breakpoints })
@@ -538,7 +502,7 @@ export default MyComponent
 
 $bgBeige: #636a67;
 $bgLightGreen: #d2e4c9;
-$bgLightCyan: #f5fbf0;
+$bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .h5-map-viewer {
   position: absolute;
@@ -549,7 +513,6 @@ $bgLightCyan: #f5fbf0;
   display: flex;
   flex-direction: row;
   background-color: $bgBeige;
-  padding: 0 1rem 0 1rem;
 }
 
 .main-area {
@@ -566,10 +529,6 @@ $bgLightCyan: #f5fbf0;
   right: 0;
 }
 
-.flex-row {
-  margin-top: 1rem;
-}
-
 .status-text {
   text-align: center;
   // font-weight: bold;
@@ -580,7 +539,6 @@ $bgLightCyan: #f5fbf0;
 .map-layout {
   display: flex;
   flex-direction: row;
-  margin: 0rem 0 0 1rem;
 }
 
 .zones {
@@ -592,13 +550,11 @@ $bgLightCyan: #f5fbf0;
 .map-holder {
   flex: 1;
   position: relative;
-  margin-bottom: 1rem;
 }
 
 .left-bar {
-  color: #222;
+  color: var(--text);
   background-color: $bgLightCyan;
-  margin: 1rem 0;
   display: flex;
   flex-direction: column;
   width: 180px;
@@ -627,10 +583,12 @@ $bgLightCyan: #f5fbf0;
 
 .selected-table {
   background-color: #76aa5a;
+  color: white;
   font-weight: bold;
 }
 .selected-table:hover {
   background-color: #76aa5a;
+  color: white;
 }
 
 .matrix-data-value {
@@ -663,16 +621,6 @@ $bgLightCyan: #f5fbf0;
   overflow-y: auto;
 }
 
-.view-settings {
-  display: flex;
-  z-index: 10;
-  bottom: unset;
-  font-size: 0.9rem;
-  padding: 10px;
-  color: black;
-  background-color: #d9f5ec;
-}
-
 .swidget {
   padding: 0 8px;
 }
@@ -689,8 +637,7 @@ $bgLightCyan: #f5fbf0;
   flex-direction: column;
   position: relative;
   width: 100%;
-  margin-top: 1rem;
-  margin-left: 4px;
+  margin-left: 1px;
 }
 
 .zapit {
