@@ -23,6 +23,7 @@ const Component = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       mymap: {} as maplibregl.Map,
       resizer: null as ResizeObserver | null,
+      isMapReady: false,
     }
   },
   computed: {},
@@ -36,6 +37,8 @@ const Component = defineComponent({
       this.resizer.observe(viz)
     },
     handleMapMotion() {
+      if (!this.isMapReady) return
+
       const mapCamera = {
         longitude: this.mymap.getCenter().lng,
         latitude: this.mymap.getCenter().lat,
@@ -48,7 +51,7 @@ const Component = defineComponent({
       if (!this.isMapMoving) this.isMapMoving = true
     },
 
-    async setupMap() {
+    setupMap() {
       const styles = globalStore.state.mapStyles
       try {
         this.mymap = new maplibregl.Map({
@@ -59,7 +62,7 @@ const Component = defineComponent({
 
         // make sure it starts up aligned with main map
         const view = { ...this.globalState.viewState } as any
-        this.mymap.jumpTo(view)
+        this.mymap.jumpTo({ zoom: view.zoom, center: [view.longitude, view.latitude] })
       } catch (e) {
         console.error('HUH?' + e)
         return
@@ -67,7 +70,6 @@ const Component = defineComponent({
 
       // Start doing stuff AFTER the MapLibre library has fully initialized
       this.mymap.on('load', this.mapIsReady)
-      this.mymap.on('move', this.handleMapMotion)
 
       // We are always in thumbnail mode oo-/
       // if (this.thumbnail) {
@@ -89,10 +91,14 @@ const Component = defineComponent({
     },
 
     async mapIsReady() {
+      this.isMapReady = true
       this.setupResizer()
+      this.mymap.on('move', this.handleMapMotion)
     },
 
     viewMoved(value: any) {
+      if (!this.isMapReady) return
+
       if (!this.mymap || this.isMapMoving) {
         this.isMapMoving = false
         return
@@ -101,7 +107,9 @@ const Component = defineComponent({
       const { bearing, longitude, latitude, zoom, pitch } = value
 
       // sometimes closing a view returns a null map, ignore it!
-      if (!zoom) return
+      if (!longitude || !latitude || !zoom) {
+        return
+      }
 
       this.mymap.off('move', this.handleMapMotion)
 
@@ -115,11 +123,10 @@ const Component = defineComponent({
       this.mymap.on('move', this.handleMapMotion)
     },
   },
+
   watch: {
     'globalState.viewState'(value: any) {
       this.viewMoved(value)
-      // if (!REACT_VIEW_HANDLES[this.layerId]) return
-      // REACT_VIEW_HANDLES[this.layerId]()
     },
 
     '$store.state.colorScheme'() {
@@ -136,7 +143,8 @@ const Component = defineComponent({
       if (this.mymap) this.mymap.resize()
     },
   },
-  async mounted() {
+
+  mounted() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
     this.setupMap()
   },

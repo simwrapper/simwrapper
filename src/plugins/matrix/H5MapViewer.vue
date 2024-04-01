@@ -31,7 +31,7 @@
         :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
       )
 
-      background-map-on-top(v-if="features.length")
+      background-map-on-top(v-if="isMapReady")
 
       zoom-buttons
 
@@ -96,6 +96,7 @@ const MyComponent = defineComponent({
       globalState: globalStore.state,
       tazToOffsetLookup: {} as { [taz: string]: any },
       isMap: true,
+      isMapReady: false,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
       h5file: null as any,
@@ -127,18 +128,14 @@ const MyComponent = defineComponent({
       this.getFileKeysAndProperties()
     }
 
-    this.$store.commit('setMapCamera', {
-      longitude: -122.435,
-      latitude: 37.75,
-      zoom: 11,
-    })
-
     if (this.filenameShapes) {
       await this.loadBoundaries()
       this.buildTAZLookup()
 
+      this.setMapCenter()
       // FIX!!
       this.clickedZone({ index: 1871, properties: this.features[1871].properties })
+      this.isMapReady = true
     }
   },
 
@@ -146,8 +143,16 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.viewState'() {
+      if (!this.isMapReady) return
       if (!REACT_VIEW_HANDLES[this.layerId]) return
+
       REACT_VIEW_HANDLES[this.layerId]()
+
+      const { latitude, longitude, zoom, bearing, pitch } = this.globalState.viewState
+      localStorage.setItem(
+        'H5MapViewer_view',
+        JSON.stringify({ latitude, longitude, zoom, bearing, pitch })
+      )
     },
 
     'globalState.isDarkMode'() {
@@ -180,6 +185,33 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    setMapCenter() {
+      const previousView = localStorage.getItem('H5MapViewer_view')
+      if (previousView) {
+        this.$store.commit('setMapCamera', JSON.parse(previousView))
+        return
+      }
+
+      // If we have no map center, create one
+      const features = [this.features[0], this.features[this.features.length - 1]]
+      const points = features
+        .map(f => {
+          const geom = f.geometry.coordinates
+          if (Number.isFinite(geom[0][0])) return geom[0]
+          if (Number.isFinite(geom[0][0][0])) return geom[0][0]
+          if (Number.isFinite(geom[0][0][0][0])) return geom[0][0][0]
+        })
+        .reduce(
+          (a, b) => {
+            console.log(a, b)
+            return [a[0] + b[0], a[1] + b[1]]
+          },
+          [0, 0]
+        )
+        .map((p: number) => p / features.length)
+      this.$store.commit('setMapCamera', { longitude: points[0], latitude: points[1], zoom: 7 })
+    },
+
     buildTAZLookup() {
       this.tazToOffsetLookup = {}
       for (let i = 0; i < this.features.length; i++) {
@@ -238,7 +270,6 @@ const MyComponent = defineComponent({
     },
 
     extractH5ArrayData() {
-      console.log('extract')
       // the file has the data, and we want it
       if (!this.h5zoneFile) return
       // User should have selected a zone already
@@ -258,11 +289,9 @@ const MyComponent = defineComponent({
             : data.slice([[], [offset, offset + 1]])
         ) as number[]
       }
-      console.log('here')
       this.dataArray = values
       this.setColorsForArray()
       this.setPrettyValuesForArray()
-      console.log(this.dataArray)
     },
 
     setPrettyValuesForArray() {
@@ -616,8 +645,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   overflow-y: auto;
 }
 .bottom-half {
-  margin-top: 1rem;
-  border-top: 0.25rem solid $bgBeige;
+  border-top: 1px solid $bgBeige;
   overflow-y: auto;
 }
 
