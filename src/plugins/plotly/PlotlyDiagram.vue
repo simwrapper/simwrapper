@@ -62,6 +62,19 @@ const MyComponent = defineComponent({
       traces: [] as any[],
       prevWidth: -1,
       prevHeight: -1,
+      attributeColorMap: new Map(),
+      colorway: [
+        '#1f77b4', // muted blue
+        '#ff7f0e', // safety orange
+        '#2ca02c', // cooked asparagus green
+        '#d62728', // brick red
+        '#9467bd', // muted purple
+        '#8c564b', // chestnut brown
+        '#e377c2', // raspberry yogurt pink
+        '#7f7f7f', // middle gray
+        '#bcbd22', // curry yellow-green
+        '#17becf',
+      ],
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
@@ -94,25 +107,15 @@ const MyComponent = defineComponent({
           title: { text: '', standoff: 16 },
           animate: true,
           rangemode: 'tozero',
+          matches: 'y',
         },
         legend: {
           orientation: 'v',
           x: 1,
           y: 1,
         },
+        annotations: [] as any[],
         grid: { rows: 1, columns: 1 },
-        colorway: [
-          '#1f77b4', // muted blue
-          '#ff7f0e', // safety orange
-          '#2ca02c', // cooked asparagus green
-          '#d62728', // brick red
-          '#9467bd', // muted purple
-          '#8c564b', // chestnut brown
-          '#e377c2', // raspberry yogurt pink
-          '#7f7f7f', // middle gray
-          '#bcbd22', // curry yellow-green
-          '#17becf',
-        ],
       },
       // Plotly options
       options: {
@@ -178,7 +181,6 @@ const MyComponent = defineComponent({
   async mounted() {
     this.updateTheme()
     await this.getVizDetails()
-    console.log(this.vizDetails)
     // only continue if we are on a real page and not the file browser
     if (this.thumbnail) return
     try {
@@ -349,15 +351,136 @@ const MyComponent = defineComponent({
     // format long to wide csv
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
       const result = []
-      const numRows = facet_row.length
-      const numCols = facet_col.length
+      let numRows = facet_row.length
+      let numCols = facet_col.length
 
-      console.log('Facet row', facet_row)
-      console.log('Facet col', facet_col)
+      if (numRows == 0) numRows = 1
+      if (numCols == 0) numCols = 1
 
       if (facet_col.length == 0) {
+        const annotations = [] as any[]
+        for (let j = 0; j < numRows; j++) {
+          const row = facet_row[j]
+          const filteredTraces = []
+
+          for (const trace of this.traces) {
+            const filteredX = []
+            // const filteredY = []
+
+            for (let l = 0; l < trace.facet_row.length; l++) {
+              if (trace.facet_row[l] === row) {
+                filteredX.push(trace.x[l])
+                // filteredY.push(trace.y[l])
+              }
+            }
+
+            const filterTrace = {
+              ...trace,
+              x: filteredX,
+              // y: filteredY,
+              xaxis: 'x',
+              yaxis: j > 0 ? 'y' + (j + 1) : 'y',
+            }
+
+            delete filterTrace.facet_row
+            delete filterTrace.facet_col
+
+            // showlegend
+            filterTrace.showlegend = j === 0
+
+            // legendgroup
+            filterTrace.legendgroup = filterTrace.group_name
+            delete filterTrace.group_name
+
+            for (let l = 0; l < filterTrace.x.length; l++) {
+              if (filterTrace.x[l] === undefined) {
+                filterTrace.x.splice(l, 1)
+                l--
+              }
+            }
+
+            const color = this.assignColor(filterTrace)
+            filterTrace.marker = {
+              color: color,
+            }
+
+            filteredTraces.push(filterTrace)
+          }
+
+          annotations.push({
+            showarrow: false,
+            text: facet_row[j],
+            textangle: -90,
+            y: 1 / (numRows * 2) + 2 * j * (1 / (numRows * 2)),
+            xanchor: 'center',
+            xref: 'paper',
+            x: -0.05,
+            yanchor: 'bottom',
+            yref: 'paper',
+          })
+
+          result.push(...filteredTraces)
+        }
+        this.layout.annotations = annotations
+        this.layout.margin.l = 80
       } else if (facet_row.length == 0) {
+        const annotations = [] as any[]
+        for (let j = 0; j < numCols; j++) {
+          const col = facet_col[j]
+          const filteredTraces = []
+
+          for (const trace of this.traces) {
+            const filteredY = []
+
+            for (let l = 0; l < trace.facet_col.length; l++) {
+              if (trace.facet_col[l] === col) {
+                filteredY.push(trace.y[l])
+              }
+            }
+
+            const filterTrace = {
+              ...trace,
+              y: filteredY,
+              xaxis: j > 0 ? 'x' + (j + 1) : 'x',
+              yaxis: 'y',
+            }
+
+            delete filterTrace.facet_row
+            delete filterTrace.facet_col
+
+            // showlegend
+            filterTrace.showlegend = j === 0
+
+            // legendgroup
+            filterTrace.legendgroup = filterTrace.group_name
+            delete filterTrace.group_name
+
+            const color = this.assignColor(filterTrace)
+            filterTrace.marker = {
+              color: color,
+            }
+
+            filteredTraces.push(filterTrace)
+          }
+
+          annotations.push({
+            showarrow: false,
+            text: this.config.traces[0].facet_col + ' = ' + facet_col[j],
+            x: 1 / (numCols * 2) + 2 * j * (1 / (numCols * 2)),
+            xanchor: 'center',
+            xref: 'paper',
+            y: 1.0,
+            yanchor: 'bottom',
+            yref: 'paper',
+          })
+
+          result.push(...filteredTraces)
+        }
+        this.layout.annotations = annotations
+        this.layout.margin.t = 20
       } else {
+        const annotations = [] as any[]
+
         for (let i = 0; i < numRows; i++) {
           for (let j = 0; j < numCols; j++) {
             const row = facet_row[i]
@@ -394,17 +517,46 @@ const MyComponent = defineComponent({
               delete filterTrace.group_name
 
               // filterTrace.marker.color = '#123456'
+              const color = this.assignColor(filterTrace)
+              filterTrace.marker = {
+                color: color,
+              }
 
               filteredTraces.push(filterTrace)
             }
 
             result.push(...filteredTraces)
           }
+
+          annotations.push({
+            showarrow: false,
+            text: this.config.traces[0].facet_row + ' = ' + facet_row[i],
+            x: 1 / (numRows * 2) + 2 * i * (1 / (numRows * 2)),
+            xanchor: 'center',
+            xref: 'paper',
+            y: 1.0,
+            yanchor: 'bottom',
+            yref: 'paper',
+          })
         }
+
+        this.layout.margin.t = 20
+        this.layout.annotations = annotations
       }
 
       this.layout.grid = { rows: numRows, columns: numCols }
       this.traces = result
+    },
+
+    assignColor(filterTrace: any) {
+      if (this.attributeColorMap.has(filterTrace.legendgroup)) {
+        return this.attributeColorMap.get(filterTrace.legendgroup)
+      } else {
+        const colorIndex = this.attributeColorMap.size % this.colorway.length
+        const color = this.colorway[colorIndex]
+        this.attributeColorMap.set(filterTrace.legendgroup, color)
+        return color
+      }
     },
 
     createMenus(mode: string) {
