@@ -291,6 +291,7 @@ const MyComponent = defineComponent({
         this.vizDetails = YAML.parse(text)
       } catch (e) {
         console.error(e)
+        this.$emit('error', '' + e)
       }
     },
 

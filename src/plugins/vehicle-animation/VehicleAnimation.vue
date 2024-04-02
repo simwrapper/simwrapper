@@ -362,6 +362,8 @@ const MyComponent = defineComponent({
           // maybe it failed because password?
           if (this.fileSystem.needPassword && e.status === 401) {
             globalStore.commit('requestLogin', this.fileSystem.slug)
+          } else {
+            this.$emit('error', '' + e)
           }
         }
       }

@@ -405,12 +405,15 @@ const MyComponent = defineComponent({
       const config = this.yamlConfig ?? ''
       const filename = config.indexOf('/') > -1 ? config : this.subfolder + '/' + config
 
-      const text = await this.fileApi.getFileText(filename)
-      const parsed = yaml.parse(text)
-
-      this.vizDetails = parsed
-      if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
-      this.$emit('title', this.vizDetails.title)
+      try {
+        const text = await this.fileApi.getFileText(filename)
+        const parsed = yaml.parse(text)
+        this.vizDetails = parsed
+        if (!this.vizDetails.title) this.vizDetails.title = 'Chart'
+        this.$emit('title', this.vizDetails.title)
+      } catch (e) {
+        this.$emit('error', '' + e)
+      }
     },
 
     async prepareData(): Promise<any> {

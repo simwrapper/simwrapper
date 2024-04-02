@@ -241,11 +241,12 @@ const MyComponent = defineComponent({
         const text = await this.myState.fileApi.getFileText(filename)
         this.vizDetails = yaml.parse(text)
       } catch (e) {
-        console.log('failed')
         // maybe it failed because password?
         const err = e as any
         if (this.myState.fileSystem && this.myState.fileSystem.needPassword && err.status === 401) {
           globalStore.commit('requestLogin', this.myState.fileSystem.slug)
+        } else {
+          this.$emit('error', '' + e)
         }
       }
 

@@ -478,14 +478,8 @@ const MyComponent = defineComponent({
         this.validateYAML()
         this.setVizDetails()
       } catch (err) {
-        const e = err as any
-        console.log('failed')
-
-        this.$emit('error', {
-          type: Status.ERROR,
-          msg: `File not found`,
-          desc: `Could not find: ${this.myState.subfolder}/${this.myState.yamlConfig}`,
-        })
+        console.error('failed', '' + err)
+        this.$emit('error', `File not found: ${this.myState.subfolder}/${this.myState.yamlConfig}`)
       }
     },
 

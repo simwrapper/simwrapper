@@ -332,6 +332,7 @@ const Component = defineComponent({
           this.setVizDetails()
         } catch (e) {
           console.error('' + e)
+          this.$emit('error', '' + e)
         }
       }
 

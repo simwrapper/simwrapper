@@ -923,11 +923,13 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
+  color: #800;
   background-color: var(--bgError);
   z-index: 50;
   overflow-y: hidden;
   padding: 0.5rem 0.5rem;
   font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .drag-container {
@@ -1076,7 +1078,7 @@ export default defineComponent({
 .tile-header {
   user-select: none;
   background-color: var(--bgDashboardHeader);
-  padding: 0px 0px;
+  padding: 2px 0px;
   border-bottom: 1px solid #6666cc77;
   display: flex;
 }
