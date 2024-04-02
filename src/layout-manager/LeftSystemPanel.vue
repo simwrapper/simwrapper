@@ -536,29 +536,23 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 .panel {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto 1fr auto auto;
-  height: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
   user-select: none;
   font-size: 0.9rem;
   color: #eee;
 }
 
-.left-icon-panel {
-  grid-column: 1 / 2;
-  grid-row: 2 / 5;
-}
-
 .top-panel {
-  grid-column: 1 / 3;
-  grid-row: 1 / 2;
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid #ffffff44;
   margin: 0 16px;
-
-  // background-color: #216a6d; // bgTreeItem;
 }
 
 h4 {
@@ -566,28 +560,16 @@ h4 {
   text-transform: uppercase;
   text-align: center;
   padding: 0.25rem 0.5rem;
-  margin-bottom: 0.25rem;
   font-weight: bold;
   text-transform: uppercase;
   color: #ddd;
-}
-
-.middle-panel {
-  grid-column: 2 / 3;
-  grid-row: 2 / 3;
-}
-
-.bottom-panel {
-  grid-column: 2 / 3;
-  grid-row: 3 / 4;
 }
 
 .middle-panel,
 .bottom-panel {
   display: flex;
   flex-direction: column;
-  padding: 0 0.5rem 0 0.75rem;
-  overflow-y: auto;
+  padding: 0 0.5rem 0.5rem 0.75rem;
   overflow-x: hidden;
   text-align: left;
   user-select: none;

@@ -26,15 +26,16 @@
       v-show="isShowingActiveSection"
       :style="activeSectionStyle"
     )
-      component.left-component(:is="activeLeftSection.class"
-        @navigate="onNavigate($event,0,0)"
-        @activate="setActiveLeftSection"
-        @isDragging="handleDragStartStop"
-        @split="splitMainPanel"
-        :currentFolder="firstPanelSubfolder"
-        :projectFolder="firstPanelProjectFolder"
-        :navRoot="navRoot"
-      )
+      .left-component
+        component(:is="activeLeftSection.class"
+          @navigate="onNavigate($event,0,0)"
+          @activate="setActiveLeftSection"
+          @isDragging="handleDragStartStop"
+          @split="splitMainPanel"
+          :currentFolder="firstPanelSubfolder"
+          :projectFolder="firstPanelProjectFolder"
+          :navRoot="navRoot"
+        )
 
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
@@ -1149,6 +1150,8 @@ export default defineComponent({
 
 .left-component {
   min-width: 125px;
+  // background-color: sandybrown;
+  margin-bottom: 2rem;
 }
 
 .clear-error {
