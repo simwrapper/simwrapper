@@ -37,6 +37,7 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
+import { string } from 'mathjs'
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -186,6 +187,7 @@ const MyComponent = defineComponent({
     try {
       if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
+      // this.traces = this.renameValues()
 
       // merge user-supplied layout with SimWrapper layout defaults
       if (this.vizDetails.layout) this.mergeLayouts()
@@ -270,6 +272,10 @@ const MyComponent = defineComponent({
       //     ']'
       // )
     },
+    // renameValues() {
+    //   console.log('VizDetails', this.vizDetails)
+    //   return this.traces
+    // },
     changeDimensions(dim: any) {
       if (dim?.height && dim?.width) {
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
@@ -345,10 +351,6 @@ const MyComponent = defineComponent({
       }
     },
 
-    // TODO: macthes yaxis2 and xaxis2
-    // add annotations
-    // IMmer christian glauben
-    // format long to wide csv
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
       const result = []
       let numRows = facet_row.length
@@ -365,19 +367,16 @@ const MyComponent = defineComponent({
 
           for (const trace of this.traces) {
             const filteredX = []
-            // const filteredY = []
 
             for (let l = 0; l < trace.facet_row.length; l++) {
               if (trace.facet_row[l] === row) {
                 filteredX.push(trace.x[l])
-                // filteredY.push(trace.y[l])
               }
             }
 
             const filterTrace = {
               ...trace,
               x: filteredX,
-              // y: filteredY,
               xaxis: 'x',
               yaxis: j > 0 ? 'y' + (j + 1) : 'y',
             }
@@ -411,10 +410,10 @@ const MyComponent = defineComponent({
             showarrow: false,
             text: facet_row[j],
             textangle: -90,
-            y: 1 / (numRows * 2) + 2 * j * (1 / (numRows * 2)),
+            y: 1 / (numRows * 2) - 0.06 + 2 * j * (1 / (numRows * 2)), // 0.06 is a magic number and an offset to display the text more
             xanchor: 'center',
             xref: 'paper',
-            x: -0.05,
+            x: -0.03,
             yanchor: 'bottom',
             yref: 'paper',
           })
@@ -422,7 +421,6 @@ const MyComponent = defineComponent({
           result.push(...filteredTraces)
         }
         this.layout.annotations = annotations
-        this.layout.margin.l = 80
       } else if (facet_row.length == 0) {
         const annotations = [] as any[]
         for (let j = 0; j < numCols; j++) {
@@ -465,7 +463,7 @@ const MyComponent = defineComponent({
 
           annotations.push({
             showarrow: false,
-            text: this.config.traces[0].facet_col + ' = ' + facet_col[j],
+            text: facet_col[j],
             x: 1 / (numCols * 2) + 2 * j * (1 / (numCols * 2)),
             xanchor: 'center',
             xref: 'paper',
@@ -476,10 +474,12 @@ const MyComponent = defineComponent({
 
           result.push(...filteredTraces)
         }
+
         this.layout.annotations = annotations
-        this.layout.margin.t = 20
       } else {
         const annotations = [] as any[]
+
+        console.log('Trace', this.config)
 
         for (let i = 0; i < numRows; i++) {
           for (let j = 0; j < numCols; j++) {
@@ -525,26 +525,39 @@ const MyComponent = defineComponent({
               filteredTraces.push(filterTrace)
             }
 
+            annotations.push({
+              showarrow: false,
+              text: facet_row[i],
+              x: 1 / (numRows * 2) + 2 * i * (1 / (numRows * 2)),
+              xanchor: 'center',
+              xref: 'paper',
+              y: 1.0,
+              yanchor: 'bottom',
+              yref: 'paper',
+            })
+
+            annotations.push({
+              showarrow: false,
+              text: facet_col[j],
+              textangle: -90,
+              x: -0.03,
+              xanchor: 'center',
+              xref: 'paper',
+              y: 1 / (numRows * 2) - 0.06 + 2 * j * (1 / (numRows * 2)), // 0.06 is a magic number and an offset to display the text more
+              yanchor: 'bottom',
+              yref: 'paper',
+            })
+
             result.push(...filteredTraces)
           }
-
-          annotations.push({
-            showarrow: false,
-            text: this.config.traces[0].facet_row + ' = ' + facet_row[i],
-            x: 1 / (numRows * 2) + 2 * i * (1 / (numRows * 2)),
-            xanchor: 'center',
-            xref: 'paper',
-            y: 1.0,
-            yanchor: 'bottom',
-            yref: 'paper',
-          })
         }
-
-        this.layout.margin.t = 20
         this.layout.annotations = annotations
       }
 
+      this.layout.margin = { t: 20, b: 10, l: 60, r: 0, pad: 2 }
       this.layout.grid = { rows: numRows, columns: numCols }
+      this.layout.xaxis.title = { text: '', standoff: 0 }
+      this.layout.yaxis.title = { text: '', standoff: 0 }
       this.traces = result
     },
 
@@ -689,6 +702,7 @@ const MyComponent = defineComponent({
       }
 
       const datasets = Object.values(this.vizDetails.datasets) as DataSet[]
+      // console.log('Datasets', datasets)
       const traces = [] as any[]
 
       const color = this.getColors(this.vizDetails, this.vizDetails.traces.length)
@@ -700,6 +714,7 @@ const MyComponent = defineComponent({
         datasets.forEach((ds: DataSet) => {
           // This data uses array as name and needs to be split into multiple traces.
           const name = '$' + ds.name
+          console.log('Name', name)
 
           if (tr.name?.startsWith(name)) {
             const ref = tr.name.replace(name + '.', '')
@@ -756,7 +771,6 @@ const MyComponent = defineComponent({
       this.vizDetails.datasets[name] = ds
       this.transformData(ds)
 
-      console.log('Loaded dataset', ds)
       return ds
     },
 
@@ -778,7 +792,9 @@ const MyComponent = defineComponent({
           ds.data as DataTable,
           ds.pivot.exclude,
           ds.pivot.valuesTo,
-          ds.pivot.namesTo
+          ds.pivot.namesTo,
+          ds.pivot.rename,
+          ds.pivot.normalize
         )
       }
 
@@ -894,7 +910,15 @@ const MyComponent = defineComponent({
     },
 
     // Pivot wide to long format
-    pivot(name: string, dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
+    pivot(
+      name: string,
+      dataTable: DataTable,
+      exclude: any[],
+      valuesTo: string,
+      namesTo: string,
+      rename: any,
+      normalize: any
+    ) {
       // Columns to pivot
       const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
 
@@ -913,8 +937,6 @@ const MyComponent = defineComponent({
 
       const n = dataTable[Object.keys(dataTable)[0]].values.length
 
-      //console.log('Columns', columns, 'Pivot', pivot, 'n', n)
-
       for (let i = 0; i < n; i++) {
         pivot.forEach(c => {
           exclude.forEach(c => columns[c].push(dataTable[c].values[i]))
@@ -923,13 +945,49 @@ const MyComponent = defineComponent({
         })
       }
 
-      //console.log('Columns', columns, 'Values', values, 'Names', names)
-
       exclude.forEach(c => {
         dataTable[c].values = columns[c]
       })
       dataTable[valuesTo] = { name: valuesTo, values: values } as DataTableColumn
       dataTable[namesTo] = { name: namesTo, values: names } as DataTableColumn
+
+      // rename columns
+      if (rename) {
+        for (let i = 0; i < dataTable.names.values.length; i++) {
+          if (dataTable.names.values[i] in rename) {
+            dataTable.names.values[i] = rename[dataTable.names.values[i]]
+          }
+        }
+      }
+
+      // normalize values
+      if (normalize) {
+        const { groupBy, target } = normalize
+
+        const sumMap: { [key: string]: number } = {}
+
+        for (let i = 0; i < dataTable[target].values.length; i++) {
+          let key = ''
+          for (let j = 0; j < groupBy.length; j++) {
+            key += dataTable[groupBy[j]].values[i]
+          }
+
+          if (sumMap[key] === undefined) {
+            sumMap[key] = dataTable[target].values[i]
+          } else {
+            sumMap[key] += dataTable[target].values[i]
+          }
+        }
+
+        for (let i = 0; i < dataTable[target].values.length; i++) {
+          let key = ''
+          for (let j = 0; j < groupBy.length; j++) {
+            key += dataTable[groupBy[j]].values[i]
+          }
+
+          dataTable[target].values[i] /= sumMap[key]
+        }
+      }
     },
 
     mergeDatasets(datasets: DataSet[]): DataTable {
