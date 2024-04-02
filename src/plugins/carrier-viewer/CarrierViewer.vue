@@ -806,11 +806,13 @@ const CarrierPlugin = defineComponent({
           this.vizDetails = YAML.parse(text)
           return
         } catch (e) {
-          console.log('failed')
+          console.log('failed' + e)
           // maybe it failed because password?
           const err = e as any
           if (this.fileSystem.needPassword && err.status === 401) {
             globalStore.commit('requestLogin', this.fileSystem.slug)
+          } else {
+            this.$emit('error', '' + e)
           }
           return
         }

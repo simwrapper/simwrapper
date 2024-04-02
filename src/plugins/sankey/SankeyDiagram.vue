@@ -284,9 +284,13 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
-    await this.getVizDetails()
-    this.csvData = await this.loadFiles()
-    this.jsonChart = this.processInputs()
+    try {
+      await this.getVizDetails()
+      this.csvData = await this.loadFiles()
+      this.jsonChart = this.processInputs()
+    } catch (e) {
+      this.$emit('error', '' + e)
+    }
 
     window.addEventListener('resize', this.changeDimensions)
 
