@@ -1421,8 +1421,6 @@ const MyComponent = defineComponent({
 
         // Calculate colors for each feature
 
-        console.log('121', color)
-
         const ramp = {
           ramp: color.colorRamp?.ramp || 'Viridis',
           style: color.colorRamp?.style || 0,
@@ -2448,7 +2446,7 @@ const MyComponent = defineComponent({
       this.$router.replace({ query })
 
       this.maxValue = this.boundaryDataTable[this.datasetValuesColumn].max || 0
-      console.log('MAXVALUE', this.maxValue)
+      // console.log('MAXVALUE', this.maxValue)
 
       this.vizDetails.display.fill.columnName = this.datasetValuesColumn
       this.vizDetails = Object.assign({}, this.vizDetails)

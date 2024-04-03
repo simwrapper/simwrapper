@@ -42,19 +42,16 @@ interface VizProperties {
 function getColorsForDataColumn(props: VizProperties) {
   // First: if there is no dataColumn yet, return empty everything
   if (!props.data) {
-    console.log('NO DATA')
+    console.log('NO DATA YET')
     return { rgbArray: null, legend: [], calculatedValues: null }
   }
 
   // Figure out what kind of thing the user wants
   if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
-    console.log(41)
     return buildColorsBasedOnCategories(props)
   } else if (props.data2) {
-    console.log(42)
     return generateDiffColorsBasedOnNumericValues(props)
   } else {
-    console.log(43)
     return generateColorsBasedOnNumericValues(props)
   }
 }
@@ -62,7 +59,7 @@ function getColorsForDataColumn(props: VizProperties) {
 function generateColorsBasedOnNumericValues(props: VizProperties) {
   // Generate the values that user asked for: raw, diff, %diff, etc
   const { metric, max, min } = calculateMetric(props)
-  console.log({ metric, max, min })
+  // console.log({ metric, max, min })
   // Generate numeric breakpoints that divide the values into the color buckets
   const breakpoints = calculateBreakpoints({ metric, options: props.options, max, min })
   // Generate RGB for each feature and a legend dazu
@@ -75,7 +72,7 @@ function generateColorsBasedOnNumericValues(props: VizProperties) {
     fixedColors: props.options.fixedColors || [],
   })
 
-  console.log(rgbArray, legend)
+  // console.log(rgbArray, legend)
   return { rgbArray, legend, calculatedValues: metric }
 }
 
@@ -556,7 +553,6 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
 
   const displayTheseDiffs = relative ? pctDiffValues : diffValues
 
-  console.log({ displayTheseDiffs })
   const minDiff = displayTheseDiffs.reduce(
     (a, b) => (Number.isFinite(a) ? Math.min(a, b) : b),
     Infinity
@@ -735,7 +731,7 @@ function calculateBreakpoints(props: {
   for (let i = 0; i < numColors - 1; i++) {
     breakpoints.push(props.min + fullRange * proportionalDomain[i])
   }
-  console.log({ proportionalDomain, fullRange, breakpoints })
+  // console.log({ proportionalDomain, fullRange, breakpoints })
   return breakpoints
 }
 
@@ -951,7 +947,7 @@ function buildColorsBasedOnNumericValues(props: {
     max: normalizedMax,
   })
 
-  console.log({ breakpoints })
+  // console.log({ breakpoints })
 
   // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
   // *range* is the list of colors;
