@@ -105,7 +105,7 @@ import type { PropType } from 'vue'
 
 import globalStore from '@/store'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
-import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
+import { Style, Ramp, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 export interface LineColorDefinition {
   dataset: string
@@ -127,7 +127,7 @@ const ALL_COLOR_RAMPS = [
   { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
   { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
   { ramp: 'RdBu', style: Style.diverging, reverse: true },
-  { ramp: 'RdYlBu', style: Style.sequential },  // Not sequential, but otherwise the middle color is replaced
+  { ramp: 'RdYlBu', style: Style.sequential }, // Not sequential, but otherwise the middle color is replaced
   { ramp: 'PRGn', style: Style.diverging, reverse: true },
   { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
   { ramp: 'Paired', style: Style.categorical }, // , reverse: true },
@@ -394,7 +394,7 @@ export default defineComponent({
     },
 
     buildColors(scale: Ramp, count?: number): string[] {
-      let colors = [...colorRamp(scale, count || parseInt(this.steps))]
+      let colors = [...getColorRampHexCodes(scale, count || parseInt(this.steps))]
 
       // many reasons to flip the colorscale:
       // (1) the scale preset; (2) the checkbox (3) dark mode

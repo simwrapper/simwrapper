@@ -30,8 +30,8 @@
       :tooltip="vizDetails.tooltip"
       :cbTooltip="cbTooltip"
     )
-    //- :features="useCircles ? centroids: boundaries"
 
+    //- :features="useCircles ? centroids: boundaries"
     //- background-map-on-top(v-if="isLoaded")
 
     viz-configurator(v-if="isLoaded"
@@ -1001,9 +1001,9 @@ const MyComponent = defineComponent({
           data2: dataCol2,
           lookup: lookup1,
           lookup2: lookup2,
-          normalize: normalColumn,
+          normalColumn: normalColumn,
           normalLookup,
-          options: color,
+          options: { colorRamp: color },
           filter: this.boundaryFilters,
           relative,
         })
@@ -1054,8 +1054,8 @@ const MyComponent = defineComponent({
       const props = {
         numFeatures: this.boundaries.length,
         data: dataTable[columnName],
-        normalize: normalColumn,
         lookup: lookupColumn,
+        normalColumn,
         filter: this.boundaryFilters,
         options: currentDefinition,
         join: currentDefinition.join,
@@ -1114,101 +1114,105 @@ const MyComponent = defineComponent({
         // *** diff mode *************************
         this.handleColorDiffMode('fill', color)
         return
-      } else if (!columnName) {
+      }
+
+      if (!columnName) {
         // *** simple color **********************
         this.dataFillColors = color.fixedColors[0]
         this.dataCalculatedValueLabel = ''
         this.legendStore.clear('FillColor')
         return
+      }
+
+      // *** Data column mode *************************************************************
+      const datasetKey = color.dataset || ''
+      const selectedDataset = this.datasets[datasetKey]
+      this.dataCalculatedValueLabel = ''
+
+      // no selected dataset or datacol missing? Not sure what to do here, just give up...
+      if (!selectedDataset) {
+        console.warn('color: no selected dataset yet, maybe still loading')
+        return
+      }
+      const dataColumn = selectedDataset[columnName]
+      if (!dataColumn) throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
+      this.dataCalculatedValueLabel = columnName ?? ''
+
+      // Do we need a join? Join it
+      let dataJoinColumn = ''
+      if (color.join && color.join !== '@count') {
+        // join column name set by user
+        dataJoinColumn = color.join
+      } else if (color.join === '@count') {
+        // rowcount specified: join on the column name itself
+        dataJoinColumn = columnName
       } else {
-        // *** Data column mode ******************
-        const datasetKey = color.dataset || ''
-        const selectedDataset = this.datasets[datasetKey]
-        this.dataCalculatedValueLabel = ''
-
-        // no selected dataset or datacol missing? Not sure what to do here, just give up...
-        if (!selectedDataset) {
-          console.warn('color: no selected dataset yet, maybe still loading')
-          return
+        // nothing specified: let's hope they didn't want to join
+        if (this.datasetChoices.length > 1) {
+          console.warn('No join; lets hope user just wants to display data in boundary file')
         }
-        const dataColumn = selectedDataset[columnName]
-        if (!dataColumn) {
-          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+      }
+
+      this.setupJoin({
+        datasetId: datasetKey,
+        dataTable: selectedDataset,
+        dataJoinColumn,
+      })
+
+      const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+
+      // NORMALIZE if we need to
+      let normalColumn
+      let normalLookup
+      if (color.normalize) {
+        const [dataset, column] = color.normalize.split(':')
+        if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
+          throw Error(`${dataset} does not contain column "${column}"`)
         }
-
-        this.dataCalculatedValueLabel = columnName ?? ''
-
-        // Do we need a join? Join it
-        let dataJoinColumn = ''
-        if (color.join && color.join !== '@count') {
-          // join column name set by user
-          dataJoinColumn = color.join
-        } else if (color.join === '@count') {
-          // rowcount specified: join on the column name itself
-          dataJoinColumn = columnName
-        } else {
-          // nothing specified: let's hope they didn't want to join
-          if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
-          }
+        this.dataCalculatedValueLabel += `/ ${column}`
+        normalColumn = this.datasets[dataset][column]
+        // Create yet one more join for the normal column if it's not from the featureset itself
+        if (this.datasetChoices[0] !== dataset) {
+          this.setupJoin({
+            datasetId: dataset,
+            dataTable: this.datasets[dataset],
+            dataJoinColumn,
+          })
+          normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
         }
+      }
 
-        this.setupJoin({
-          datasetId: datasetKey,
-          dataTable: selectedDataset,
-          dataJoinColumn,
+      const ramp = {
+        ramp: color.colorRamp?.ramp || 'Viridis',
+        style: color.colorRamp?.style || 0,
+        reverse: color.colorRamp?.reverse || false,
+        steps: color.colorRamp?.steps || 9,
+      }
+
+      // Calculate colors for each feature
+      const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+        numFeatures: this.boundaries.length,
+        data: dataColumn,
+        normalColumn,
+        normalLookup,
+        lookup: lookupColumn,
+        filter: this.boundaryFilters,
+        options: { colorRamp: ramp, fixedColors: color.fixedColors },
+        join: color.join,
+      })
+
+      if (rgbArray) {
+        this.dataFillColors = rgbArray
+        this.dataCalculatedValues = calculatedValues
+        this.dataNormalizedValues = calculatedValues || null
+
+        this.legendStore.setLegendSection({
+          section: 'FillColor',
+          column: dataColumn.name,
+          values: legend,
+          normalColumn: normalColumn ? normalColumn.name : '',
         })
-
-        const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
-
-        // Figure out the normal
-        let normalColumn
-
-        // NORMALIZE if we need to
-        let normalLookup
-        if (color.normalize) {
-          const [dataset, column] = color.normalize.split(':')
-          if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
-            throw Error(`${dataset} does not contain column "${column}"`)
-          }
-          this.dataCalculatedValueLabel += `/ ${column}`
-          normalColumn = this.datasets[dataset][column]
-          // Create yet one more join for the normal column if it's not from the featureset itself
-          if (this.datasetChoices[0] !== dataset) {
-            this.setupJoin({
-              datasetId: dataset,
-              dataTable: this.datasets[dataset],
-              dataJoinColumn,
-            })
-            normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
-          }
-        }
-
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues, normalizedValues } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            normalize: normalColumn,
-            normalLookup,
-            lookup: lookupColumn,
-            filter: this.boundaryFilters,
-            options: color,
-            join: color.join,
-          })
-
-        if (array) {
-          this.dataFillColors = array
-          this.dataCalculatedValues = calculatedValues
-          this.dataNormalizedValues = normalizedValues || null
-
-          this.legendStore.setLegendSection({
-            section: 'FillColor',
-            column: dataColumn.name,
-            values: legend,
-            normalColumn: normalColumn ? normalColumn.name : '',
-          })
-        }
       }
     },
 
@@ -1269,6 +1273,7 @@ const MyComponent = defineComponent({
           console.warn('color: no selected dataset yet, maybe still loading')
           return
         }
+
         const dataColumn = selectedDataset[columnName]
         if (!dataColumn) {
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
@@ -1299,10 +1304,8 @@ const MyComponent = defineComponent({
 
         const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
-        // Figure out the normal
-        let normalColumn
-
         // NORMALIZE if we need to
+        let normalColumn
         let normalLookup
         if (color.normalize) {
           const [dataset, column] = color.normalize.split(':')
@@ -1323,24 +1326,36 @@ const MyComponent = defineComponent({
         }
 
         // Calculate colors for each feature
-        const colors = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataColumn,
-          normalize: normalColumn,
-          normalLookup,
-          lookup: lookupColumn,
-          filter: this.boundaryFilters,
-          options: color,
-          join: color.join,
-        })
 
-        const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+        console.log('121', color)
 
-        if (!array) return
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+          breakpoints: color.colorRamp?.breakpoints,
+        }
 
-        this.dataLineColors = array
+        const { rgbArray, legend, calculatedValues, hasCategory } =
+          ColorWidthSymbologizer.getColorsForDataColumn({
+            numFeatures: this.boundaries.length,
+            data: dataColumn,
+            lookup: lookupColumn,
+            normalColumn,
+            normalLookup,
+            filter: this.boundaryFilters,
+            options: { colorRamp: ramp, fixedColors: color.fixedColors },
+            join: color.join,
+          })
+
+        // const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+
+        if (!rgbArray) return
+
+        this.dataLineColors = rgbArray
         this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = normalizedValues || null
+        this.dataNormalizedValues = calculatedValues || null
 
         // If colors are based on category and line widths are constant, then use a
         // 1-pixel line width when the category is undefined.
@@ -1731,17 +1746,21 @@ const MyComponent = defineComponent({
         }
       }
 
-      // now redraw colors for fills and liness
-      if (this.currentUIFillColorDefinitions?.dataset) {
-        this.handleNewFillColor(
-          filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
-        )
-      }
+      try {
+        // now redraw colors for fills and liness
+        if (this.currentUIFillColorDefinitions?.dataset) {
+          this.handleNewFillColor(
+            filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
+          )
+        }
 
-      if (this.currentUILineColorDefinitions?.dataset) {
-        this.handleNewLineColor(
-          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
-        )
+        if (this.currentUILineColorDefinitions?.dataset) {
+          this.handleNewLineColor(
+            filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
+          )
+        }
+      } catch (e) {
+        this.$emit('error', '' + e)
       }
     },
 
@@ -2611,8 +2630,10 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  // one unit, full height/width. Layers will go on top:
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
@@ -2626,7 +2647,9 @@ export default MyComponent
 
 .area-map {
   position: relative;
-  flex: 1;
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  height: 100%;
   background-color: var(--bgBold);
 }
 
@@ -2709,10 +2732,10 @@ export default MyComponent
 }
 
 .details-panel {
-  text-align: left;
   position: absolute;
   bottom: 0;
   left: 0;
+  text-align: left;
   background-color: var(--bgPanel);
   display: flex;
   filter: $filterShadow;

@@ -25,6 +25,40 @@ export interface Ramp {
   breakpoints?: string
 }
 
+interface VizProperties {
+  numFeatures: number
+  data: DataTableColumn
+  data2?: DataTableColumn
+  lookup: DataTableColumn
+  lookup2?: DataTableColumn
+  normalColumn?: DataTableColumn
+  normalLookup?: DataTableColumn
+  filter: Float32Array
+  options: { colorRamp: Ramp; fixedColors?: string[] }
+  relative?: boolean
+  join?: string
+}
+
+function getColorsForDataColumn(props: VizProperties) {
+  // Generate the values that user asked for: raw, diff, %diff, etc
+  const { metric, max, min } = calculateMetric(props)
+  console.log({ metric, max, min })
+  // Generate numeric breakpoints that divide the values into the color buckets
+  const breakpoints = calculateBreakpoints({ metric, options: props.options, max, min })
+  // Generate RGB for each feature and a legend dazu
+  const { rgbArray, legend } = generateColors({
+    numFeatures: props.numFeatures,
+    metric,
+    breakpoints,
+    max,
+    min,
+    fixedColors: props.options.fixedColors || [],
+  })
+
+  console.log(rgbArray, legend)
+  return { rgbArray, legend, calculatedValues: metric }
+}
+
 function generateColorArray(colors: string[], numberOfSteps: number): string[] {
   if (colors.length < 2) {
     throw new Error('At least two colors are required for interpolation.')
@@ -74,7 +108,7 @@ function rgbToHex(rgb: [number, number, number]): string {
   return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
 }
 
-export function colorRamp(scale: Ramp, n: number): string[] {
+export function getColorRampHexCodes(scale: Ramp, n: number): string[] {
   let colors
 
   if (Object.keys(customColors).includes(scale.ramp))
@@ -103,7 +137,7 @@ export function colorRamp(scale: Ramp, n: number): string[] {
       }
     } catch (e) {
       // some ramps cannot be interpolated, give the highest one instead.
-      return colorRamp(scale, n - 1)
+      return getColorRampHexCodes(scale, n - 1)
     }
   }
 
@@ -115,7 +149,7 @@ export function colorRamp(scale: Ramp, n: number): string[] {
   return colors
 }
 
-function getColorsForDataColumn(props: {
+function OLDgetColorsForDataColumn(props: {
   numFeatures: number
   data: DataTableColumn
   data2?: DataTableColumn
@@ -639,6 +673,23 @@ function buildBreakpointsForNumericValues(props: {
     return buildDiffDomainBreakpoints({ colorRamp, fixedColors, minDiff: min, maxDiff: max })
   }
 
+  // MANUAL BREAKPOINTS
+  if (colorRamp.breakpoints) {
+    const breakpoints = colorRamp.breakpoints.split(',').map(b => parseFloat(b))
+
+    // must have correct number of breakpoints
+    if (colorRamp.steps !== breakpoints.length + 1) {
+      throw Error('Color ramp "steps" must be one larger than number of breakpoints')
+    }
+    // must be increasing
+    let min = -Infinity
+    for (const breakpoint of breakpoints) {
+      if (breakpoint < min) throw Error('Breakpoints must be in lowest to highest order')
+      min = breakpoint
+    }
+    return breakpoints
+  }
+
   // Continuous (non-diverging) scale:
   // Build breakpoints between 0.0 - 1.0 to match the number of color swatches
   // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
@@ -650,6 +701,166 @@ function buildBreakpointsForNumericValues(props: {
     .map((v, i) => Math.pow((1 / numColors) * (i + 1), exponent))
 
   return domain
+}
+
+function calculateMetric(props: VizProperties) {
+  // CALCULATE aggregated values. This might be a job for crossfilter2 later
+  const calculatedValues = new Float32Array(props.numFeatures)
+  if (props.join === '@count') {
+    // *** COUNT rows that have this lookup
+    for (let i = 0; i < props.data.values.length; i++) {
+      const offset = props.lookup ? props.lookup.values[i] : i
+      calculatedValues[offset] += 1
+    }
+  } else {
+    // *** SUM values in rows (always sum, for now)
+    for (let i = 0; i < props.data.values.length; i++) {
+      const offset = props.lookup ? props.lookup.values[i] : i
+      calculatedValues[offset] += props.data.values[i]
+    }
+  }
+
+  // get max and min of calculated values
+  let min = Infinity
+  let max = -Infinity
+  for (let i = 0; i < props.numFeatures; i++) {
+    min = Math.min(min, calculatedValues[i])
+    max = Math.max(max, calculatedValues[i])
+  }
+  min = min ?? Infinity
+  max = max ?? -Infinity
+
+  return { metric: calculatedValues, max, min }
+}
+
+function calculateBreakpoints(props: {
+  metric: any[] | Float32Array
+  options: { colorRamp: Ramp; fixedColors?: string[] }
+  max: number
+  min: number
+}) {
+  // MANUAL BREAKPOINTS
+  console.log(555, props.options)
+  if (props.options.colorRamp.breakpoints) return calculateManualBreakpoints(props)
+
+  // AUTO BREAKPOINTS: calc breakpoints based on color ramp, min, and max.
+
+  // Build breakpoints to match the number of color swatches
+  // e.g. If there are five colors, then we need 4 breakpoints: 0.2, 0.4, 0.6, 0.8.
+  let numColors = 9
+  numColors = props.options.colorRamp?.steps || numColors
+  numColors = props.options.fixedColors?.length || numColors
+
+  // An exponent reduces visual dominance of very large values at the high end of the scale
+  // This is always 0.0-1.0:
+  const exponent = 3.0
+  const proportionalDomain = new Array(numColors - 1)
+    .fill(0)
+    .map((v, i) => Math.pow((1 / numColors) * (i + 1), exponent))
+
+  // Convert 0.0-1.0 to values in our dataset
+  let breakpoints = [] as number[]
+  let fullRange = props.max - props.min || 1.0
+  for (let i = 0; i < numColors - 1; i++) {
+    breakpoints.push(props.min + fullRange * proportionalDomain[i])
+  }
+  console.log({ proportionalDomain, fullRange, breakpoints })
+  return breakpoints
+}
+
+function calculateManualBreakpoints(props: {
+  metric: any[] | Float32Array
+  options: { colorRamp: Ramp; fixedColors?: string[] }
+}) {
+  if (!props.options.colorRamp.breakpoints) return []
+
+  const breakpoints = props.options.colorRamp.breakpoints.split(',').map(b => parseFloat(b))
+  // must have correct number of breakpoints
+  if (props.options.colorRamp.steps !== breakpoints.length + 1) {
+    throw Error('Color ramp "steps" must be one larger than number of breakpoints')
+  }
+  // must be increasing
+  let min = -Infinity
+  for (const breakpoint of breakpoints) {
+    if (breakpoint < min) throw Error('Breakpoints must be in lowest to highest order')
+    min = breakpoint
+  }
+  return breakpoints
+}
+
+function generateColors(props: {
+  numFeatures: number
+  metric: any[] | Float32Array
+  breakpoints: number[]
+  fixedColors: string[]
+  max: number
+  min: number
+}) {
+  // TODO FIX
+  let filter = null
+
+  // // build breakpoints and colors
+  const colorsAsRGB = buildRGBfromHexCodes(props.fixedColors)
+
+  // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
+  // *range* is the list of colors;
+  // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
+  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(props.breakpoints)
+
+  const rgbArray = new Uint8Array(props.numFeatures * 3)
+  const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
+
+  for (let i = 0; i < props.numFeatures; i++) {
+    // let value = isDivergingScale ? normalizedValues[i] : normalizedValues[i] / (normalizedMax || 1)
+    let value = props.metric[i]
+
+    if (filter && filter[i] == -1) value = NaN
+
+    const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
+    const colorOffset = i * 3
+    rgbArray[colorOffset + 0] = color[0]
+    rgbArray[colorOffset + 1] = color[1]
+    rgbArray[colorOffset + 2] = color[2]
+  }
+
+  // Generate LEGEND ranges ---------------------------------
+
+  const legend = [] as any[]
+  const domainBreakpoints = setColorBasedOnValue.domain() as any[]
+  const colors = setColorBasedOnValue.range() as any[]
+
+  let precision = props.max >= 1000 ? 0 : 3
+  let lowerBound = props.min
+
+  for (let i = 0; i < domainBreakpoints.length; i++) {
+    let upperBound = domainBreakpoints[i]
+    // Scale the legend labels if we are in regular scale mode (non-divergent)
+    // if (!isDivergingScale) {
+    //   // lowerBound *= normalizedMax
+    //   upperBound *= normalizedMax
+    // }
+    const lowerLabel = truncateFractionalPart({ value: lowerBound, precision })
+    const upperLabel = truncateFractionalPart({ value: upperBound, precision })
+    legend.push({
+      label: `${lowerLabel} — ${upperLabel}`,
+      value: colors[i],
+    })
+    lowerBound = upperBound
+  }
+
+  // final bucket:
+  legend.push({
+    label: `${truncateFractionalPart({
+      value: lowerBound, // isDivergingScale ? lowerBound : lowerBound * normalizedMax,
+      precision,
+    })} — ${truncateFractionalPart({ value: props.max, precision })}`,
+    value: colors[domainBreakpoints.length],
+  })
+
+  return {
+    rgbArray: rgbArray,
+    legend,
+  }
 }
 
 function buildColorsBasedOnNumericValues(props: {
@@ -734,6 +945,8 @@ function buildColorsBasedOnNumericValues(props: {
     max: normalizedMax,
   })
 
+  console.log({ breakpoints })
+
   // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
   // *range* is the list of colors;
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
@@ -743,7 +956,8 @@ function buildColorsBasedOnNumericValues(props: {
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < numFeatures; i++) {
-    let value = isDivergingScale ? normalizedValues[i] : normalizedValues[i] / (normalizedMax || 1)
+    // let value = isDivergingScale ? normalizedValues[i] : normalizedValues[i] / (normalizedMax || 1)
+    let value = normalizedValues[i]
 
     if (filter && filter[i] == -1) value = NaN
 
@@ -766,10 +980,10 @@ function buildColorsBasedOnNumericValues(props: {
   for (let i = 0; i < domainBreakpoints.length; i++) {
     let upperBound = domainBreakpoints[i]
     // Scale the legend labels if we are in regular scale mode (non-divergent)
-    if (!isDivergingScale) {
-      // lowerBound *= normalizedMax
-      upperBound *= normalizedMax
-    }
+    // if (!isDivergingScale) {
+    //   // lowerBound *= normalizedMax
+    //   upperBound *= normalizedMax
+    // }
     const lowerLabel = truncateFractionalPart({ value: lowerBound, precision })
     const upperLabel = truncateFractionalPart({ value: upperBound, precision })
     legend.push({
