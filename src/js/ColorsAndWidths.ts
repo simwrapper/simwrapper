@@ -40,6 +40,26 @@ interface VizProperties {
 }
 
 function getColorsForDataColumn(props: VizProperties) {
+  // First: if there is no dataColumn yet, return empty everything
+  if (!props.data) {
+    console.log('NO DATA')
+    return { rgbArray: null, legend: [], calculatedValues: null }
+  }
+
+  // Figure out what kind of thing the user wants
+  if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
+    console.log(41)
+    return buildColorsBasedOnCategories(props)
+  } else if (props.data2) {
+    console.log(42)
+    return generateDiffColorsBasedOnNumericValues(props)
+  } else {
+    console.log(43)
+    return generateColorsBasedOnNumericValues(props)
+  }
+}
+
+function generateColorsBasedOnNumericValues(props: VizProperties) {
   // Generate the values that user asked for: raw, diff, %diff, etc
   const { metric, max, min } = calculateMetric(props)
   console.log({ metric, max, min })
@@ -147,38 +167,6 @@ export function getColorRampHexCodes(scale: Ramp, n: number): string[] {
   }
 
   return colors
-}
-
-function OLDgetColorsForDataColumn(props: {
-  numFeatures: number
-  data: DataTableColumn
-  data2?: DataTableColumn
-  lookup: DataTableColumn
-  lookup2?: DataTableColumn
-  normalize?: DataTableColumn
-  normalLookup?: DataTableColumn
-  filter: Float32Array
-  options: any
-  relative?: boolean
-  join?: string
-}) {
-  // First: if there is no dataColumn yet, return empty everything
-  if (!props.data)
-    return {
-      array: null,
-      legend: [],
-      calculatedValues: null,
-      normalizedValues: null,
-    }
-
-  // Figure out what kind of thing the user wants
-  if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
-    return buildColorsBasedOnCategories(props)
-  } else if (props.data2) {
-    return buildDiffColorsBasedOnNumericValues(props)
-  } else {
-    return buildColorsBasedOnNumericValues(props)
-  }
 }
 
 function getWidthsForDataColumn(props: {
@@ -463,11 +451,9 @@ function buildColorsBasedOnCategories(props: {
   keys.forEach((key, index) => legend.push({ label: key, value: colors[index % colors.length] }))
   legend.sort((a, b) => (a.label < b.label ? -1 : 1))
 
-  // console.log({ legend })
-
   // build the hasCategory thing
   const hasCategory = calculatedValues.map(v => !!v)
-  return { array: rgbArray, legend, calculatedValues: null, normalizedValues: null, hasCategory }
+  return { rgbArray, legend, calculatedValues: null, normalizedValues: null, hasCategory }
 }
 
 function buildDiffDomainBreakpoints(props: {
@@ -536,24 +522,13 @@ function buildDiffDomainBreakpoints(props: {
   }
 }
 
-function buildDiffColorsBasedOnNumericValues(props: {
-  numFeatures: number
-  data: DataTableColumn
-  data2?: DataTableColumn
-  lookup: DataTableColumn
-  lookup2?: DataTableColumn
-  normalize?: DataTableColumn
-  normalLookup?: DataTableColumn
-  relative?: boolean
-  options: any
-}) {
-  const { numFeatures, data, data2, lookup, lookup2, normalize, normalLookup, relative, options } =
-    props
-  const { colorRamp, columnName, dataset, fixedColors } = options
+function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
+  const { numFeatures, options, relative, data, data2, lookup, lookup2 } = props
+  const { colorRamp, fixedColors } = options
 
   // Calculate the raw values for each feature
-  const rawValues1 = new Float32Array(numFeatures)
-  const rawValues2 = new Float32Array(numFeatures)
+  let rawValues1 = new Float32Array(numFeatures) as Float32Array
+  let rawValues2 = new Float32Array(numFeatures) as Float32Array
 
   if (data2 && lookup2) {
     data.values.forEach((value, index) => {
@@ -565,21 +540,9 @@ function buildDiffColorsBasedOnNumericValues(props: {
     })
   }
 
-  if (normalize) {
-    // build denominator
-    const normalDenominator = new Float32Array(numFeatures)
-    normalize.values.forEach((value, index) => {
-      // use normal value directly if it comes from featureset; otherwise use normalLookup
-      const offset = normalLookup ? normalLookup.values[index] : index
-      normalDenominator[offset] = value
-    })
-
-    // scale by denominator
-    for (let i = 0; i < numFeatures; i++) {
-      rawValues1[i] /= normalDenominator[i]
-      rawValues2[i] /= normalDenominator[i]
-    }
-  }
+  // Normalize if requested (this is a no-op if there is no lookupColumn)
+  rawValues1 = normalizeData(rawValues1, props)
+  rawValues2 = normalizeData(rawValues2, props)
 
   // Calc the differences
   const diffValues = new Float32Array(numFeatures)
@@ -593,6 +556,7 @@ function buildDiffColorsBasedOnNumericValues(props: {
 
   const displayTheseDiffs = relative ? pctDiffValues : diffValues
 
+  console.log({ displayTheseDiffs })
   const minDiff = displayTheseDiffs.reduce(
     (a, b) => (Number.isFinite(a) ? Math.min(a, b) : b),
     Infinity
@@ -615,16 +579,16 @@ function buildDiffColorsBasedOnNumericValues(props: {
     // if min is POSITIVE, do a normal sequence
     domain = buildBreakpointsForNumericValues({
       colorRamp,
-      fixedColors,
+      fixedColors: fixedColors || [],
       min: minDiff,
       max: maxDiff,
     }).map(breakpoint => (colorRamp.style === Style.diverging ? breakpoint : breakpoint * maxDiff))
   }
 
-  const colorsAsRGB = buildRGBfromHexCodes(fixedColors)
+  const colorsAsRGB = buildRGBfromHexCodes(fixedColors || [])
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(domain)
 
-  const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
+  const gray = store.state.isDarkMode ? [48, 48, 48] : [232, 232, 232]
 
   const rgbArray = new Uint8Array(numFeatures * 3)
 
@@ -657,7 +621,12 @@ function buildDiffColorsBasedOnNumericValues(props: {
     value: colors[keys.length],
   })
 
-  return { array: rgbArray, legend, calculatedValues: displayTheseDiffs, normalizedValues: null }
+  return {
+    rgbArray,
+    legend,
+    calculatedValues: displayTheseDiffs,
+    normalizedValues: null,
+  }
 }
 
 function buildBreakpointsForNumericValues(props: {
@@ -720,17 +689,20 @@ function calculateMetric(props: VizProperties) {
     }
   }
 
-  // get max and min of calculated values
+  // normalize data if requested  (will be no-op if there is no normalColumn)
+  const normalizedValues = normalizeData(calculatedValues, props)
+
+  // Get max and min of calculated values
   let min = Infinity
   let max = -Infinity
   for (let i = 0; i < props.numFeatures; i++) {
-    min = Math.min(min, calculatedValues[i])
-    max = Math.max(max, calculatedValues[i])
+    min = Math.min(min, normalizedValues[i])
+    max = Math.max(max, normalizedValues[i])
   }
   min = min ?? Infinity
   max = max ?? -Infinity
 
-  return { metric: calculatedValues, max, min }
+  return { metric: normalizedValues, max, min }
 }
 
 function calculateBreakpoints(props: {
@@ -740,7 +712,6 @@ function calculateBreakpoints(props: {
   min: number
 }) {
   // MANUAL BREAKPOINTS
-  console.log(555, props.options)
   if (props.options.colorRamp.breakpoints) return calculateManualBreakpoints(props)
 
   // AUTO BREAKPOINTS: calc breakpoints based on color ramp, min, and max.
@@ -861,6 +832,41 @@ function generateColors(props: {
     rgbArray: rgbArray,
     legend,
   }
+}
+
+function normalizeData(calculatedValues: Float32Array, props: VizProperties) {
+  // normie values are just regular values if there's no normalization
+  if (!props.normalColumn) return calculatedValues
+
+  const normalizedValues = new Float32Array(props.numFeatures)
+  let normalizedMax = -Infinity
+
+  // build denominator
+  const normalDenominator = new Float32Array(props.numFeatures)
+  props.normalColumn.values.forEach((value, index) => {
+    // use normal value directly if it comes from featureset; otherwise use normalLookup
+    const offset = props.normalLookup ? props.normalLookup.values[index] : index
+    normalDenominator[offset] = value
+  })
+
+  // scale by denominator
+  for (let i = 0; i < props.numFeatures; i++) {
+    normalizedValues[i] = calculatedValues[i] / normalDenominator[i]
+    normalizedMax = Math.max(normalizedValues[i], normalizedMax)
+  }
+
+  const minimum = normalizedValues.reduce(
+    (a, b) => (Number.isFinite(a) ? Math.min(a, b) : b),
+    Infinity
+  )
+
+  // warn user about negative numbers
+  const isDivergingScale = props.options.colorRamp?.style === Style.diverging
+  if (!isDivergingScale && minimum < 0) {
+    throw Error(`Column "${props.data.name}" has negative values: use a diverging color scale`)
+  }
+
+  return normalizedValues
 }
 
 function buildColorsBasedOnNumericValues(props: {

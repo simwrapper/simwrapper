@@ -994,26 +994,34 @@ const MyComponent = defineComponent({
           }
         }
 
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataCol1,
-          data2: dataCol2,
-          lookup: lookup1,
-          lookup2: lookup2,
-          normalColumn: normalColumn,
-          normalLookup,
-          options: { colorRamp: color },
-          filter: this.boundaryFilters,
-          relative,
-        })
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+        }
 
-        if (!array) return
+        // Calculate colors for each feature
+        const { rgbArray, legend, calculatedValues } =
+          ColorWidthSymbologizer.getColorsForDataColumn({
+            numFeatures: this.boundaries.length,
+            data: dataCol1,
+            data2: dataCol2,
+            lookup: lookup1,
+            lookup2: lookup2,
+            normalColumn: normalColumn,
+            normalLookup,
+            options: { colorRamp: ramp, fixedColors: color.fixedColors },
+            filter: this.boundaryFilters,
+            relative,
+          })
+
+        if (!rgbArray) return
 
         if (section === 'fill') {
-          this.dataFillColors = array
+          this.dataFillColors = rgbArray
         } else {
-          this.dataLineColors = array
+          this.dataLineColors = rgbArray
         }
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
@@ -1061,18 +1069,19 @@ const MyComponent = defineComponent({
         join: currentDefinition.join,
       }
 
-      const { array, legend, calculatedValues } =
+      const { rgbArray, legend, calculatedValues } =
         ColorWidthSymbologizer.getColorsForDataColumn(props)
 
-      if (!array) return
+      if (!rgbArray) return
 
       if (section === 'fill') {
-        this.dataFillColors = array
+        this.dataFillColors = rgbArray
       } else {
-        this.dataLineColors = array
+        this.dataLineColors = rgbArray
       }
 
       this.dataCalculatedValues = calculatedValues
+
       this.legendStore.setLegendSection({
         section: section === 'fill' ? 'FillColor' : 'Line Color',
         column: columnName,
@@ -1337,32 +1346,32 @@ const MyComponent = defineComponent({
           breakpoints: color.colorRamp?.breakpoints,
         }
 
-        const { rgbArray, legend, calculatedValues, hasCategory } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            lookup: lookupColumn,
-            normalColumn,
-            normalLookup,
-            filter: this.boundaryFilters,
-            options: { colorRamp: ramp, fixedColors: color.fixedColors },
-            join: color.join,
-          })
+        const result = ColorWidthSymbologizer.getColorsForDataColumn({
+          numFeatures: this.boundaries.length,
+          data: dataColumn,
+          lookup: lookupColumn,
+          normalColumn,
+          normalLookup,
+          filter: this.boundaryFilters,
+          options: { colorRamp: ramp, fixedColors: color.fixedColors },
+          join: color.join,
+        }) as any
 
-        // const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+        const { rgbArray, legend, calculatedValues } = result
 
         if (!rgbArray) return
 
         this.dataLineColors = rgbArray
+
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = calculatedValues || null
 
         // If colors are based on category and line widths are constant, then use a
         // 1-pixel line width when the category is undefined.
-        if (hasCategory && this.constantLineWidth !== null) {
+        if (result.hasCategory && this.constantLineWidth !== null) {
           const lineWidth = this.constantLineWidth as number
           const variableConstantWidth = new Float32Array(this.boundaries.length).fill(1)
-          Object.keys(hasCategory).forEach((i: any) => {
+          Object.keys(result.hasCategory).forEach((i: any) => {
             variableConstantWidth[i] = lineWidth
           })
           this.dataLineWidths = variableConstantWidth
