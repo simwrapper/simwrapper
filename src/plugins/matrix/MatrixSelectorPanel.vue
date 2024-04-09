@@ -7,15 +7,15 @@
   //- which view
   .flex-row
     b-field.which-data
+      b-button.button.is-small(:type="isMap ? 'is-warning' : 'is-gray is-outlined'"
+                      @click="$emit('setMap',true)")
+        i.fa.fa-map
+        span &nbsp;Map
       b-button.button.is-small(:type="!isMap ? 'is-warning' : 'is-gray is-outlined'"
                       @click="$emit('setMap',false)")
         i.fa.fa-ruler-combined
         span &nbsp;Data
 
-      b-button.button.is-small(:type="isMap ? 'is-warning' : 'is-gray is-outlined'"
-                      @click="$emit('setMap',true)")
-        i.fa.fa-map
-        span &nbsp;Map
 
     b-field.which-data(v-if="isMap")
       b-button.button.is-small(

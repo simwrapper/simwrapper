@@ -16,6 +16,14 @@ const routes = [
     }),
   },
   {
+    path: BASE_URL + 'matrix',
+    component: () => import('@/plugins/matrix/MatrixViewer.vue'),
+    props: (route: Route) => ({
+      root: '',
+      subfolder: '',
+    }),
+  },
+  {
     path: BASE_URL + 'runconfig/:id',
     component: () => import('@/sim-runner/RunConfigurator.vue'),
     props: (route: Route) => ({

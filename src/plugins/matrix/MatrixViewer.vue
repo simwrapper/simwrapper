@@ -10,14 +10,23 @@
     @changeRowWise="mapConfig.isRowWise=$event"
   )
 
-  .main-area
-    h4.status-text(v-if="statusText") {{ statusText }}
+  .main-area(
+    :class="{'is-dragging': isDragging}"
+    @drop="onDrop"
+    @dragover="stillDragging"
+    @dragleave="dragEnd"
+    @dragover.prevent
+    @dragenter.prevent
+  )
+
+    .status-text(v-if="statusText")
+      h4  {{ statusText }}
 
     H5Map-viewer.fill-it(v-if="isMap && h5buffer"
       :fileApi="fileApi"
       :subfolder="subfolder"
       :buffer="h5buffer"
-      :filenameH5="yamlConfig"
+      :filenameH5="filename"
       :filenameShapes="filenameShapes"
       :mapConfig="mapConfig"
     )
@@ -69,6 +78,7 @@ const MyComponent = defineComponent({
     return {
       title: '',
       description: '',
+      isDragging: false,
       isMap: true,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
@@ -100,16 +110,18 @@ const MyComponent = defineComponent({
     this.h5buffer = await this.loadFile()
   },
   computed: {
-    fileApi(): HTTPFileSystem {
+    fileApi(): HTTPFileSystem | null {
+      if (!this.fileSystem) return null
       return new HTTPFileSystem(this.fileSystem, globalStore)
     },
-    fileSystem(): FileSystemConfig {
+
+    fileSystem(): FileSystemConfig | null {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
         (a: FileSystemConfig) => a.slug === this.root
       )
       if (svnProject.length === 0) {
-        console.log('no such project')
-        throw Error
+        console.log('no project - browse mode')
+        return null
       }
       return svnProject[0]
     },
@@ -134,12 +146,17 @@ const MyComponent = defineComponent({
 
   methods: {
     async loadFile() {
+      if (!this.yamlConfig) {
+        this.statusText = `Drop an HDF5 file here to view it`
+        return null
+      }
+
       this.filename = '' + this.yamlConfig
       this.statusText = `Loading: ${this.filename}...`
 
       const path = `${this.subfolder}/${this.yamlConfig}`
-      const blob = await this.fileApi.getFileBlob(path)
-      const buffer = await blob.arrayBuffer()
+      const blob = await this.fileApi?.getFileBlob(path)
+      const buffer = (await blob?.arrayBuffer()) || null
       this.statusText = ''
       return buffer
     },
@@ -159,6 +176,39 @@ const MyComponent = defineComponent({
 
     changeMapConfig(event: any) {
       console.log('BOOP', event)
+    },
+
+    getContainerStyle(panel: any, x: number, y: number) {
+      let style: any = {}
+      return style
+      // const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
+      // padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+    },
+
+    async onDrop(event: any) {
+      event.preventDefault()
+      this.isDragging = false
+      try {
+        console.log('onDrop', event)
+        const files = event.dataTransfer?.files as FileList
+        console.log({ files })
+        this.h5buffer = (await files.item(0)?.arrayBuffer()) || null
+        if (this.h5buffer) {
+          this.statusText = ''
+          this.filename = files.item(0)?.name || 'File'
+        }
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
+    stillDragging(event: any) {
+      this.isDragging = true
+    },
+
+    dragEnd(event: any) {
+      // console.log('dragEnd', event)
+      this.isDragging = false
     },
   },
 })
@@ -200,8 +250,20 @@ export default MyComponent
 
 .status-text {
   text-align: center;
-  // font-weight: bold;
+  font-weight: bold;
+  height: 100%;
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-text h4 {
+  margin: auto 2rem;
   padding: 3rem 0;
-  margin-top: 5rem;
+  background-color: #ffffff20;
+}
+
+.is-dragging {
+  border: 1rem solid yellow;
 }
 </style>
