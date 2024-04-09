@@ -13,14 +13,15 @@
   .main-area(
     :class="{'is-dragging': isDragging}"
     @drop="onDrop"
+    @dragstart="dragStart"
     @dragover="stillDragging"
-    @dragleave="dragEnd"
+    @dragleave="debounceDragEnd"
     @dragover.prevent
     @dragenter.prevent
   )
 
     .status-text(v-if="statusText")
-      h4  {{ statusText }}
+      h4 {{ statusText }}
 
     H5Map-viewer.fill-it(v-if="isMap && h5buffer"
       :fileApi="fileApi"
@@ -43,6 +44,7 @@ import { defineComponent } from 'vue'
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
+import { debounce } from 'debounce'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 
 import globalStore from '@/store'
@@ -92,6 +94,7 @@ const MyComponent = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       matrices: ['1', '2'] as string[],
       activeTable: '1',
+      debounceDragEnd: {} as any,
       mapConfig: {
         scale: ScaleType.Linear,
         colormap: 'Viridis',
@@ -101,6 +104,8 @@ const MyComponent = defineComponent({
     }
   },
   async mounted() {
+    this.debounceDragEnd = debounce(this.dragEnd, 500)
+
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
     await this.getVizDetails()
 
@@ -187,14 +192,17 @@ const MyComponent = defineComponent({
 
     async onDrop(event: any) {
       event.preventDefault()
+      // clear current buffer
       this.isDragging = false
+      this.h5buffer = null
+      this.statusText = 'Loading...'
+      await this.$nextTick()
       try {
-        console.log('onDrop', event)
         const files = event.dataTransfer?.files as FileList
         console.log({ files })
         this.h5buffer = (await files.item(0)?.arrayBuffer()) || null
+        this.statusText = ''
         if (this.h5buffer) {
-          this.statusText = ''
           this.filename = files.item(0)?.name || 'File'
         }
       } catch (e) {
@@ -202,13 +210,19 @@ const MyComponent = defineComponent({
       }
     },
 
-    stillDragging(event: any) {
+    dragStart(event: any) {
       this.isDragging = true
+      this.statusText = 'Drop to load file'
     },
 
-    dragEnd(event: any) {
-      // console.log('dragEnd', event)
+    stillDragging(event: any) {
+      this.isDragging = true
+      this.statusText = 'Drop to load file'
+    },
+
+    async dragEnd(event: any) {
       this.isDragging = false
+      this.statusText = ''
     },
   },
 })
@@ -249,21 +263,28 @@ export default MyComponent
 }
 
 .status-text {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   text-align: center;
   font-weight: bold;
   height: 100%;
   color: white;
   display: flex;
   flex-direction: column;
+  z-index: 50;
 }
 
 .status-text h4 {
-  margin: auto 2rem;
+  margin: auto 0rem;
   padding: 3rem 0;
-  background-color: #ffffff20;
+  background-color: #444455ee;
 }
 
 .is-dragging {
-  border: 1rem solid yellow;
+  border: 0.5rem dashed #06e07e;
+  background-color: black;
 }
 </style>

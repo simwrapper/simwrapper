@@ -83,7 +83,7 @@ const MyComponent = defineComponent({
   name: 'H5MapViewer',
   components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
-    fileApi: { type: Object as PropType<HTTPFileSystem>, required: true },
+    fileApi: { type: Object as PropType<HTTPFileSystem> },
     buffer: { type: ArrayBuffer, required: true },
     subfolder: String,
     config: String,
