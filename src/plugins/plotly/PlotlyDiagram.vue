@@ -37,7 +37,6 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
-import { over } from 'lodash'
 
 interface Layout {
   [key: string]: any
@@ -120,7 +119,6 @@ const MyComponent = defineComponent({
           x: 1,
           y: 1,
         },
-        annotations: [] as any[],
         grid: { rows: 1, columns: 1 },
       } as Layout,
       // Plotly options
@@ -182,9 +180,6 @@ const MyComponent = defineComponent({
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
-    // layout() {
-    //   console.log('layout changed: ', this.layout)
-    // },
   },
 
   async mounted() {
@@ -195,7 +190,6 @@ const MyComponent = defineComponent({
     try {
       if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
-      // this.traces = this.renameValues()
 
       // merge user-supplied layout with SimWrapper layout defaults
       if (this.vizDetails.layout) this.mergeLayouts()
