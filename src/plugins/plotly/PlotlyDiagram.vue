@@ -702,6 +702,7 @@ const MyComponent = defineComponent({
       }
     },
 
+    // TODO: Small changes to separate the plots from the backgroud
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
