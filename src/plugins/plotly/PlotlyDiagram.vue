@@ -331,6 +331,7 @@ const MyComponent = defineComponent({
       this.layout = mergedLayout
     },
 
+    // This method checks if facet_col and/or facet_row are defined in the traces
     createFacets() {
       if (this.traces[0].facet_col != undefined || this.traces[0].facet_row != undefined) {
         let facet_col = [] as any[]
@@ -348,6 +349,7 @@ const MyComponent = defineComponent({
         this.groupTracesByFacets(facet_col, facet_row)
       }
     },
+    // If facet_col and/or facet_row are defined in the traces, this method groups the traces by the facets
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
       const yAxisTitle = this.layout.yaxis.title
       const xAxisTitle = this.layout.xaxis.title
