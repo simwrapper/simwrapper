@@ -27,7 +27,7 @@ import globalStore from '@/store'
 import VuePlotly from '@/components/VuePlotly.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { colorRamp, Ramp } from '@/js/ColorsAndWidths'
+import { colorRamp } from '@/js/ColorsAndWidths'
 import { mergeTypedArrays } from '@/js/util'
 import {
   FileSystemConfig,
@@ -37,7 +37,11 @@ import {
   DataSet,
   DataTableColumn,
 } from '@/Globals'
-import { string } from 'mathjs'
+import { over } from 'lodash'
+
+interface Layout {
+  [key: string]: any
+}
 
 const MyComponent = defineComponent({
   name: 'PlotlyPlugin',
@@ -109,6 +113,7 @@ const MyComponent = defineComponent({
           animate: true,
           rangemode: 'tozero',
           matches: 'y',
+          anchor: 'x2',
         },
         legend: {
           orientation: 'v',
@@ -117,7 +122,7 @@ const MyComponent = defineComponent({
         },
         annotations: [] as any[],
         grid: { rows: 1, columns: 1 },
-      },
+      } as Layout,
       // Plotly options
       options: {
         displaylogo: false,
@@ -177,6 +182,9 @@ const MyComponent = defineComponent({
     'globalState.isDarkMode'() {
       this.updateTheme()
     },
+    // layout() {
+    //   console.log('layout changed: ', this.layout)
+    // },
   },
 
   async mounted() {
@@ -272,10 +280,6 @@ const MyComponent = defineComponent({
       //     ']'
       // )
     },
-    // renameValues() {
-    //   console.log('VizDetails', this.vizDetails)
-    //   return this.traces
-    // },
     changeDimensions(dim: any) {
       if (dim?.height && dim?.width) {
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
@@ -350,8 +354,9 @@ const MyComponent = defineComponent({
         this.groupTracesByFacets(facet_col, facet_row)
       }
     },
-
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
+      const yAxisTitle = this.layout.yaxis.title
+      const xAxisTitle = this.layout.xaxis.title
       const result = []
       let numRows = facet_row.length
       let numCols = facet_col.length
@@ -359,8 +364,9 @@ const MyComponent = defineComponent({
       if (numRows == 0) numRows = 1
       if (numCols == 0) numCols = 1
 
+      const annotations = [] as any[]
+      // Create facet traces if there are multiple rows but only one column
       if (facet_col.length == 0) {
-        const annotations = [] as any[]
         for (let j = 0; j < numRows; j++) {
           const row = facet_row[j]
           const filteredTraces = []
@@ -391,13 +397,6 @@ const MyComponent = defineComponent({
             filterTrace.legendgroup = filterTrace.group_name
             delete filterTrace.group_name
 
-            for (let l = 0; l < filterTrace.x.length; l++) {
-              if (filterTrace.x[l] === undefined) {
-                filterTrace.x.splice(l, 1)
-                l--
-              }
-            }
-
             const color = this.assignColor(filterTrace)
             filterTrace.marker = {
               color: color,
@@ -406,23 +405,39 @@ const MyComponent = defineComponent({
             filteredTraces.push(filterTrace)
           }
 
-          annotations.push({
-            showarrow: false,
-            text: facet_row[j],
-            textangle: -90,
-            y: 1 / (numRows * 2) - 0.06 + 2 * j * (1 / (numRows * 2)), // 0.06 is a magic number and an offset to display the text more
-            xanchor: 'center',
-            xref: 'paper',
-            x: -0.03,
-            yanchor: 'bottom',
-            yref: 'paper',
-          })
+          // Left: Axis Text
+          const yAxisIndex = j === 0 ? 'yaxis' : 'yaxis' + (j + 1)
+          if (this.layout[yAxisIndex] == undefined) {
+            this.layout[yAxisIndex] = {
+              title: {
+                text:
+                  yAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_row.split('.')[1] +
+                  ' = ' +
+                  facet_row[j],
+              },
+              anchor: 'y',
+              autorange: true,
+            }
+          } else {
+            this.layout[yAxisIndex].title = ''
+            this.layout[yAxisIndex].title = {
+              text:
+                yAxisTitle +
+                '<br>' +
+                this.config.traces[0].facet_row.split('.')[1] +
+                ' = ' +
+                facet_row[j],
+            }
+            this.layout[yAxisIndex].anchor = 'y'
+          }
 
           result.push(...filteredTraces)
         }
         this.layout.annotations = annotations
+        // Create facet traces if there are multiple columns but only one row
       } else if (facet_row.length == 0) {
-        const annotations = [] as any[]
         for (let j = 0; j < numCols; j++) {
           const col = facet_col[j]
           const filteredTraces = []
@@ -461,26 +476,41 @@ const MyComponent = defineComponent({
             filteredTraces.push(filterTrace)
           }
 
-          annotations.push({
-            showarrow: false,
-            text: facet_col[j],
-            x: 1 / (numCols * 2) + 2 * j * (1 / (numCols * 2)),
-            xanchor: 'center',
-            xref: 'paper',
-            y: 1.0,
-            yanchor: 'bottom',
-            yref: 'paper',
-          })
+          // Bottom: Axis Text
+          const xAxisIndex = j === 0 ? 'xaxis' : 'xaxis' + (j + 1)
+          if (this.layout[xAxisIndex] == undefined) {
+            this.layout[xAxisIndex] = {
+              title: {
+                text:
+                  xAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_col.split('.')[1] +
+                  ' = ' +
+                  facet_col[j],
+              },
+              anchor: 'y',
+              autorange: true,
+              matches: 'x',
+            }
+          } else {
+            this.layout[xAxisIndex].title = ''
+            this.layout[xAxisIndex].title = {
+              text:
+                xAxisTitle +
+                '<br>' +
+                this.config.traces[0].facet_col.split('.')[1] +
+                ' = ' +
+                facet_col[j],
+            }
+            this.layout[xAxisIndex].anchor = 'y'
+          }
 
           result.push(...filteredTraces)
         }
 
         this.layout.annotations = annotations
+        // Create facet traces if there are multiple columns and rows
       } else {
-        const annotations = [] as any[]
-
-        console.log('Trace', this.config)
-
         for (let i = 0; i < numRows; i++) {
           for (let j = 0; j < numCols; j++) {
             const row = facet_row[i]
@@ -525,28 +555,62 @@ const MyComponent = defineComponent({
               filteredTraces.push(filterTrace)
             }
 
-            annotations.push({
-              showarrow: false,
-              text: facet_row[i],
-              x: 1 / (numRows * 2) + 2 * i * (1 / (numRows * 2)),
-              xanchor: 'center',
-              xref: 'paper',
-              y: 1.0,
-              yanchor: 'bottom',
-              yref: 'paper',
-            })
+            let xAxisIndex = i === 0 ? 'xaxis' : 'xaxis' + (i + 1)
+            let yAxisIndex = j === 0 ? 'yaxis' : 'yaxis' + (j + 1)
 
-            annotations.push({
-              showarrow: false,
-              text: facet_col[j],
-              textangle: -90,
-              x: -0.03,
-              xanchor: 'center',
-              xref: 'paper',
-              y: 1 / (numRows * 2) - 0.06 + 2 * j * (1 / (numRows * 2)), // 0.06 is a magic number and an offset to display the text more
-              yanchor: 'bottom',
-              yref: 'paper',
-            })
+            // Left: Axis Text
+            if (this.layout[yAxisIndex] == undefined) {
+              this.layout[yAxisIndex] = {
+                title: {
+                  text:
+                    yAxisTitle +
+                    '<br>' +
+                    this.config.traces[0].facet_row.split('.')[1] +
+                    ' = ' +
+                    facet_row[i],
+                },
+                anchor: 'y',
+                autorange: true,
+              }
+            } else {
+              this.layout[yAxisIndex].title = ''
+              this.layout[yAxisIndex].title = {
+                text:
+                  yAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_row.split('.')[1] +
+                  ' = ' +
+                  facet_row[i],
+              }
+              this.layout[yAxisIndex].anchor = 'y'
+            }
+
+            // Bottom: Axis Text
+            if (this.layout[xAxisIndex] == undefined) {
+              this.layout[xAxisIndex] = {
+                title: {
+                  text:
+                    xAxisTitle +
+                    '<br>' +
+                    this.config.traces[0].facet_col.split('.')[1] +
+                    ' = ' +
+                    facet_col[j],
+                },
+                anchor: 'x',
+                autorange: true,
+              }
+            } else {
+              this.layout[xAxisIndex].title = ''
+              this.layout[xAxisIndex].title = {
+                text:
+                  xAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_col.split('.')[1] +
+                  ' = ' +
+                  facet_col[j],
+              }
+              this.layout[xAxisIndex].anchor = 'x'
+            }
 
             result.push(...filteredTraces)
           }
@@ -554,10 +618,8 @@ const MyComponent = defineComponent({
         this.layout.annotations = annotations
       }
 
-      this.layout.margin = { t: 20, b: 10, l: 60, r: 0, pad: 2 }
+      this.layout.margin = { t: 10, b: 20, l: 60, r: 60, pad: 2 }
       this.layout.grid = { rows: numRows, columns: numCols }
-      this.layout.xaxis.title = { text: '', standoff: 0 }
-      this.layout.yaxis.title = { text: '', standoff: 0 }
       this.traces = result
     },
 
@@ -714,7 +776,6 @@ const MyComponent = defineComponent({
         datasets.forEach((ds: DataSet) => {
           // This data uses array as name and needs to be split into multiple traces.
           const name = '$' + ds.name
-          console.log('Name', name)
 
           if (tr.name?.startsWith(name)) {
             const ref = tr.name.replace(name + '.', '')
