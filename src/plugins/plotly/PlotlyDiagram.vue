@@ -279,7 +279,6 @@ const MyComponent = defineComponent({
         if (dim.height !== this.prevHeight || dim.width !== this.prevWidth) {
           this.prevHeight = dim.height
           this.prevWidth = dim.width
-          // TODO: investigate
           this.layout = Object.assign({}, this.layout, dim)
         }
       }
@@ -702,7 +701,6 @@ const MyComponent = defineComponent({
       }
     },
 
-    // TODO: Small changes to separate the plots from the backgroud
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
@@ -850,10 +848,16 @@ const MyComponent = defineComponent({
           ds.data as DataTable,
           ds.pivot.exclude,
           ds.pivot.valuesTo,
-          ds.pivot.namesTo,
-          ds.pivot.rename,
-          ds.pivot.normalize
+          ds.pivot.namesTo
         )
+      }
+
+      if ('rename' in ds) {
+        this.renameColumns(ds.data as DataTable, ds.rename)
+      }
+
+      if ('normalize' in ds) {
+        this.normalizeColumns(ds.data as DataTable, ds.normalize)
       }
 
       if ('aggregate' in ds) {
@@ -967,16 +971,50 @@ const MyComponent = defineComponent({
       })
     },
 
+    renameColumns(dataTable: DataTable, rename: any) {
+      // rename columns
+      if (rename) {
+        for (let i = 0; i < dataTable.names.values.length; i++) {
+          if (dataTable.names.values[i] in rename) {
+            dataTable.names.values[i] = rename[dataTable.names.values[i]]
+          }
+        }
+      }
+    },
+
+    normalizeColumns(dataTable: DataTable, normalize: any) {
+      // normalize values
+      if (normalize) {
+        const { groupBy, target } = normalize
+
+        const sumMap: { [key: string]: number } = {}
+
+        for (let i = 0; i < dataTable[target].values.length; i++) {
+          let key = ''
+          for (let j = 0; j < groupBy.length; j++) {
+            key += dataTable[groupBy[j]].values[i]
+          }
+
+          if (sumMap[key] === undefined) {
+            sumMap[key] = dataTable[target].values[i]
+          } else {
+            sumMap[key] += dataTable[target].values[i]
+          }
+        }
+
+        for (let i = 0; i < dataTable[target].values.length; i++) {
+          let key = ''
+          for (let j = 0; j < groupBy.length; j++) {
+            key += dataTable[groupBy[j]].values[i]
+          }
+
+          dataTable[target].values[i] /= sumMap[key]
+        }
+      }
+    },
+
     // Pivot wide to long format
-    pivot(
-      name: string,
-      dataTable: DataTable,
-      exclude: any[],
-      valuesTo: string,
-      namesTo: string,
-      rename: any,
-      normalize: any
-    ) {
+    pivot(name: string, dataTable: DataTable, exclude: any[], valuesTo: string, namesTo: string) {
       // Columns to pivot
       const pivot = Object.keys(dataTable).filter(k => exclude.indexOf(k) == -1)
 
@@ -1008,44 +1046,6 @@ const MyComponent = defineComponent({
       })
       dataTable[valuesTo] = { name: valuesTo, values: values } as DataTableColumn
       dataTable[namesTo] = { name: namesTo, values: names } as DataTableColumn
-
-      // rename columns
-      if (rename) {
-        for (let i = 0; i < dataTable.names.values.length; i++) {
-          if (dataTable.names.values[i] in rename) {
-            dataTable.names.values[i] = rename[dataTable.names.values[i]]
-          }
-        }
-      }
-
-      // normalize values
-      if (normalize) {
-        const { groupBy, target } = normalize
-
-        const sumMap: { [key: string]: number } = {}
-
-        for (let i = 0; i < dataTable[target].values.length; i++) {
-          let key = ''
-          for (let j = 0; j < groupBy.length; j++) {
-            key += dataTable[groupBy[j]].values[i]
-          }
-
-          if (sumMap[key] === undefined) {
-            sumMap[key] = dataTable[target].values[i]
-          } else {
-            sumMap[key] += dataTable[target].values[i]
-          }
-        }
-
-        for (let i = 0; i < dataTable[target].values.length; i++) {
-          let key = ''
-          for (let j = 0; j < groupBy.length; j++) {
-            key += dataTable[groupBy[j]].values[i]
-          }
-
-          dataTable[target].values[i] /= sumMap[key]
-        }
-      }
     },
 
     mergeDatasets(datasets: DataSet[]): DataTable {
