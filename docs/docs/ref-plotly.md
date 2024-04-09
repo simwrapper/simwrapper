@@ -105,3 +105,64 @@ layout:
 | educ_higher    |   7   |    2.587991718426501E-4  | 5.175983436853002E-4    |
 | ...    |   ...   |    ...  | ... |
 
+### Pivot
+
+With the pivot attribute, you can modify the dataset by converting it from wide to long format.
+
+|**Field**|**Description**|
+|---------|---------------|
+|exclude|Array of column names which should be ignored by the converting|
+|namesTo|name of the new column that contains the attributes|
+|valuesTo|name of the new column that contains the values|
+
+Besides converting, it is also possible to rename columns and normalize values. These two options can also be configured in the pivot attribute.
+
+|**Field**|**Description**|
+|---------|---------------|
+|rename|The rename Object contains a map where the keys specify the old column name and the values specify the new column name|
+|normalize|The normalize Object contains two entries. The `target` entry accepts a column name as a `String` for the columns that should be normalized, while the `groupBy` attribute takes an array of column names as `Strings`. The values will be normalized for the rows where the values from the `groupBy` attribute are identical.|
+
+#### Example pivot data snippet
+
+```yaml
+pivot:
+  exclude:
+    - age
+    - dist_group
+    - main_mode
+  namesTo: names
+  valuesTo: values
+  rename:
+    ref_share: Ref.
+    sim_share: Sim.
+  normalize:
+    target: values
+    groupBy:
+      - names
+      - dist_group
+      - age
+```
+
+### Facets
+
+![plotly example](assets/plotly_facet.png)
+
+To create facets you have to specify the facet_col/facet_row attribute inside the traces array
+
+|**Field**|**Description**|**Example**|
+|---------|---------------|-----------|
+|facet_col|Defines which values in wich row in the dataset should be seperated into facet columns|`$dataset.age`|
+|facet_row|Defines which values in wich row in the dataset should be seperated into facet rows|`$dataset.mode`|
+
+#### Example facets data snippet
+
+```yaml
+traces:
+- x: $dataset.distance_group
+  y: $dataset.share
+  orientation: v
+  type: bar
+  name: $dataset.vehicle
+  facet_col: $dataset.sex
+  facet_row: $dataset.monthly_pass
+```
