@@ -759,9 +759,7 @@ const MyComponent = defineComponent({
       }
 
       const datasets = Object.values(this.vizDetails.datasets) as DataSet[]
-      // console.log('Datasets', datasets)
       const traces = [] as any[]
-
       const color = this.getColors(this.vizDetails, this.vizDetails.traces.length)
 
       this.vizDetails.traces.forEach((tr: any, trIdx: number) => {
