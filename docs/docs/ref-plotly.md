@@ -115,7 +115,7 @@ With the pivot attribute, you can modify the dataset by converting it from wide 
 |namesTo|name of the new column that contains the attributes|
 |valuesTo|name of the new column that contains the values|
 
-Besides converting, it is also possible to rename columns and normalize values. These two options can also be configured in the pivot attribute.
+Besides converting, it is also possible to rename columns and normalize values. These two options can also be configured in the dataset attribute.
 
 |**Field**|**Description**|
 |---------|---------------|
@@ -125,22 +125,23 @@ Besides converting, it is also possible to rename columns and normalize values. 
 #### Example pivot data snippet
 
 ```yaml
-pivot:
-  exclude:
-    - age
-    - dist_group
-    - main_mode
-  namesTo: names
-  valuesTo: values
-  rename:
-    ref_share: Ref.
-    sim_share: Sim.
-  normalize:
-    target: values
-    groupBy:
-      - names
-      - dist_group
+dataset:
+  pivot:
+    exclude:
       - age
+      - dist_group
+      - main_mode
+    namesTo: names
+    valuesTo: values
+  rename:
+      ref_share: Ref.
+      sim_share: Sim.
+  normalize:
+      target: values
+      groupBy:
+        - names
+        - dist_group
+        - age
 ```
 
 ### Facets
