@@ -32,7 +32,7 @@
       :mapConfig="mapConfig"
     )
 
-    H5Web.fill-it.h5web(v-if="h5buffer && !isMap"
+    H5Web.fill-it.h5-table-viewer(v-if="h5buffer && !isMap"
       :filename="filename"
       :buffer="h5buffer"
     )
@@ -286,5 +286,11 @@ export default MyComponent
 .is-dragging {
   border: 0.5rem dashed #06e07e;
   background-color: black;
+}
+
+.h5-table-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 </style>

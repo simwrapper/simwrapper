@@ -8,7 +8,7 @@ function MyApp({ filename = '', buffer = undefined as any }) {
   const h5File = { filename, buffer }
 
   return (
-    <div style={{ height: '100%' }}>
+    <div style={{ flex: 1 }}>
       <H5WasmProvider {...h5File}>
         <App initialPath="/1" />
       </H5WasmProvider>
