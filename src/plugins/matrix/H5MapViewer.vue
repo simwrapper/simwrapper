@@ -65,15 +65,11 @@ import {
 
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import ZoneLayer from './ZoneLayer'
 import { Style, buildRGBfromHexCodes, colorRamp } from '@/js/ColorsAndWidths'
 
+import ZoneLayer from './ZoneLayer'
+import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
 import dataScalers from './util'
-
-import { MapConfig } from './MatrixViewer.vue'
-
-import { ColorMap } from '@/components/ColorMapSelector/models'
-import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 
 naturalSort.insensitive = true
 
@@ -91,28 +87,31 @@ const MyComponent = defineComponent({
     filenameH5: String,
     filenameShapes: String,
     isInvertedColor: Boolean,
+    shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
+    zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
   },
 
   data() {
     return {
       globalState: globalStore.state,
-      tazToOffsetLookup: {} as { [taz: string]: any },
-      isMap: true,
-      isMapReady: false,
-      h5wasm: null as null | Promise<any>,
-      h5zoneFile: null as null | H5WasmFile,
-      h5file: null as any,
-      useConfig: '',
-      statusText: 'Loading...',
-      features: [] as any,
-      layerId: Math.floor(1e12 * Math.random()),
-      tableKeys: [] as { key: string; name: string }[],
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
       dataArray: [] as number[],
+      features: [] as any,
+      h5wasm: null as null | Promise<any>,
+      h5zoneFile: null as null | H5WasmFile,
+      h5file: null as any,
+      isMapReady: false,
+      layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as string[],
+      statusText: 'Loading...',
+      tableKeys: [] as { key: string; name: string }[],
+      tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
+      useConfig: '',
+      zoneID: 'TAZ',
+      matrixSize: 0,
     }
   },
 
@@ -124,23 +123,16 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
+    // Load H5Wasm library and matrix file
     this.h5wasm = this.initH5Wasm()
 
-    // load the file into h5wasm
     if (!this.h5zoneFile) {
       this.h5zoneFile = await this.initFile(this.buffer)
       this.getFileKeysAndProperties()
     }
 
-    if (this.filenameShapes) {
-      await this.loadBoundaries()
-      this.buildTAZLookup()
-
-      this.setMapCenter()
-      // FIX!!
-      this.clickedZone({ index: 1871, properties: this.features[1871].properties })
-      this.isMapReady = true
-    }
+    // Load GeoJSON features
+    await this.setupBoundaries()
   },
 
   computed: {},
@@ -171,7 +163,7 @@ const MyComponent = defineComponent({
     },
     // subfolder() {},
     filenameShapes() {
-      this.loadBoundaries()
+      this.loadBoundaries(this.filenameShapes || '')
       this.buildTAZLookup()
     },
     'mapConfig.isRowWise'() {
@@ -189,9 +181,31 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async setupBoundaries() {
+      if (this.shapes) {
+        // Shapes may already be dropped in from drag/drop
+        this.features = this.shapes
+      } else if (this.filenameShapes) {
+        // We have a filename from the configbar, load that file
+        await this.loadBoundaries(this.filenameShapes)
+      } else {
+        // We need to guess shapefile based on matrix size
+        await this.loadBoundariesBasedOnMatrixSize()
+      }
+
+      this.buildTAZLookup()
+      this.setMapCenter()
+
+      // FIX!!
+      this.clickedZone({ index: 0, properties: this.features[0].properties })
+
+      this.isMapReady = true
+    },
+
     showTooltip(props: { index: number; object: any }) {
       const { index, object } = props
-      const id = object?.properties?.TAZ
+      const id = object?.properties[this.zoneID]
+
       if (id === undefined) {
         this.tooltip = ''
         return
@@ -245,9 +259,12 @@ const MyComponent = defineComponent({
       this.tazToOffsetLookup = {}
       for (let i = 0; i < this.features.length; i++) {
         const feature = this.features[i]
-        if ('TAZ' in feature.properties) this.tazToOffsetLookup[feature.properties.TAZ] = i
+        if (this.zoneID in feature.properties) {
+          this.tazToOffsetLookup[feature.properties[this.zoneID]] = i
+        } else {
+          console.warn(`FEATURE ${i} missing ${this.zoneID}`, feature)
+        }
       }
-      // console.log('LOOKUP', this.tazToOffsetLookup)
     },
 
     getFileKeysAndProperties() {
@@ -268,7 +285,13 @@ const MyComponent = defineComponent({
         table.name = name || ''
       }
 
-      if (this.tableKeys.length) this.activeTable = this.tableKeys[0]
+      // Get first matrix dimension, for guessing a useful/correct shapefile
+      if (this.tableKeys.length) {
+        this.activeTable = this.tableKeys[0]
+        const element = this.h5zoneFile.get(this.tableKeys[0].key) as Dataset
+        const shape = element.shape
+        this.matrixSize = shape[0]
+      }
     },
 
     async initFile(buffer: ArrayBuffer): Promise<H5WasmFile> {
@@ -343,9 +366,9 @@ const MyComponent = defineComponent({
       console.log({ zone })
 
       // ignore double clicks and same-clicks
-      if (zone.properties.TAZ == this.activeZone) return
+      if (zone.properties[this.zoneID] == this.activeZone) return
 
-      this.activeZone = zone.properties.TAZ
+      this.activeZone = zone.properties[this.zoneID]
       this.extractH5ArrayData()
     },
 
@@ -375,9 +398,12 @@ const MyComponent = defineComponent({
 
       for (let i = 0; i < this.features.length; i++) {
         try {
-          const TAZ = this.features[i].properties.TAZ
-          const offset = TAZ - 1 // this.tazToOffsetLookup[TAZ]
-          const value = values[offset] / max
+          const TAZ = this.features[i].properties[this.zoneID]
+
+          //TODO - this assumes zones are off-by-one, in order, in matrix data
+          const matrixOffset = TAZ - 1
+
+          const value = values[matrixOffset] / max
           const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
@@ -389,18 +415,31 @@ const MyComponent = defineComponent({
       this.features = [...this.features]
     },
 
-    async loadBoundaries() {
-      // const shapeConfig = this.filenameShapes
+    async loadBoundariesBasedOnMatrixSize() {
+      const zoneSystem = this.zoneSystems.bySize[this.matrixSize]
+      if (!zoneSystem) {
+        console.error('NOOOO UNKNOWN MATRIX SIZE')
+        return []
+      }
 
-      // TODO: default is SFCTA "Dist15" zones
-      const shapeConfig = '/staging/dist15.geojson.gz'
+      console.log('ZONE SYSTEM', zoneSystem)
+      // which column has the TAZ ID
+      this.zoneID = zoneSystem.lookup
 
+      return this.loadBoundaries(zoneSystem.url)
+    },
+
+    async loadBoundaries(url: string) {
+      const shapeConfig = url
+
+      if (!this.fileApi) return
       if (!shapeConfig) return
 
       let boundaries: any[] = []
 
       try {
         this.statusText = 'Loading map features...'
+        await this.$nextTick()
 
         if (shapeConfig.startsWith('http')) {
           // geojson from url!
@@ -408,18 +447,17 @@ const MyComponent = defineComponent({
         } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(shapeConfig)
-        } else if (shapeConfig == '/staging/dist15.geojson.gz') {
-          // special SFCTA test
-          console.log('LOADING FAKE geojson:', shapeConfig)
+        } else if (shapeConfig.startsWith('/')) {
+          // hard-coded shapefile from /public folder, special treatment
+          console.log('LOADING LOCAL geojson:', shapeConfig)
           const blob = await fetch(shapeConfig).then(async r => await r.blob())
           const buffer = await blob.arrayBuffer()
           const rawtext = gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
           const json = JSON.parse(text)
-          // finally!
           boundaries = json.features
         } else {
-          // geojson!
+          // geojson from simwrapper filesystem!
           const path = `${this.subfolder}/${shapeConfig}`
           console.log('LOADING geojson:', path)
           boundaries = (await this.fileApi.getFileJson(path)).features
@@ -440,6 +478,8 @@ const MyComponent = defineComponent({
     },
 
     async loadShapefileFeatures(filename: string) {
+      if (!this.fileApi) return []
+
       this.statusText = 'Loading shapefile...'
       console.log('loading', filename)
 
@@ -613,7 +653,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .left-bar {
   color: var(--text);
-  background-color: $bgLightCyan;
   display: flex;
   flex-direction: column;
   width: 180px;
@@ -674,11 +713,14 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 }
 
 .top-half {
-  overflow-y: auto;
+  background-color: $bgLightCyan;
+  overflow-y: scroll;
+  margin-bottom: 0.25rem;
 }
+
 .bottom-half {
-  border-top: 1px solid $bgBeige;
-  overflow-y: auto;
+  background-color: $bgLightCyan;
+  overflow-y: scroll;
 }
 
 .swidget {
@@ -697,7 +739,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   flex-direction: column;
   position: relative;
   width: 100%;
-  margin-left: 0.75rem;
+  margin-left: 0.25rem;
 }
 
 .tooltip-area {

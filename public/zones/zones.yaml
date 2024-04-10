@@ -1,0 +1,21 @@
+# Zone system configurations for matrix plugin
+#
+# Only GeoJSON files are supported. Shapefiles are too slow and often have coordinate problems.
+# Use GeoJSON and pre-convert all coordinates to long/lat (WGS84 or EPSG:4326)
+#
+# URLs can be 
+# - `/zones/filename.geojson` if you place the file in the /zones folder of the SimWrapper build
+# - full HTTP urls if the remote server allows external access
+
+# 'sizes' helps SimWrapper guess which zone systems are appropriate for which matrix sizes.
+
+SF-2454:
+  url: /staging/zones/dist15.geojson.gz
+  lookup: TAZ
+  sizes: 981,2454,2475,3717
+
+MTC-1454:
+  url: /staging/zones/mtc1454.geojson.gz
+  lookup: TAZ1454
+  sizes: 1454,1475
+

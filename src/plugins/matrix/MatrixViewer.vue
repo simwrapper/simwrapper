@@ -29,7 +29,9 @@
       :buffer="h5buffer"
       :filenameH5="filename"
       :filenameShapes="filenameShapes"
+      :shapes="shapes"
       :mapConfig="mapConfig"
+      :zoneSystems="zoneSystems"
     )
 
     H5Web.fill-it.h5-table-viewer(v-if="h5buffer && !isMap"
@@ -44,6 +46,7 @@ import { defineComponent } from 'vue'
 
 import * as shapefile from 'shapefile'
 import * as turf from '@turf/turf'
+import YAML from 'yaml'
 import { debounce } from 'debounce'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 
@@ -64,6 +67,19 @@ export interface MapConfig {
   isInvertedColor: Boolean
   isRowWise: Boolean
 }
+
+export interface ZoneSystem {
+  url: string
+  lookup: string
+  sizes: number[]
+}
+
+export interface ZoneSystems {
+  bySize: { [size: number]: ZoneSystem }
+  byID: { [id: string]: ZoneSystem }
+}
+
+const BASE_URL = import.meta.env.BASE_URL
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
@@ -86,7 +102,8 @@ const MyComponent = defineComponent({
       h5zoneFile: null as null | H5WasmFile,
       globalState: globalStore.state,
       filename: '',
-      filenameShapes: '/dist15.geojson',
+      filenameShapes: '',
+      shapes: null as null | any[],
       h5buffer: null as null | ArrayBuffer,
       useConfig: '',
       vizDetails: { title: '', description: '' },
@@ -101,9 +118,12 @@ const MyComponent = defineComponent({
         isInvertedColor: false,
         isRowWise: true,
       } as MapConfig,
+      zoneSystems: { byID: {}, bySize: {} } as ZoneSystems,
     }
   },
   async mounted() {
+    await this.setupAvailableZoneSystems()
+
     this.debounceDragEnd = debounce(this.dragEnd, 500)
 
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
@@ -192,19 +212,22 @@ const MyComponent = defineComponent({
 
     async onDrop(event: any) {
       event.preventDefault()
-      // clear current buffer
       this.isDragging = false
-      this.h5buffer = null
-      this.statusText = 'Loading...'
-      await this.$nextTick()
+
       try {
         const files = event.dataTransfer?.files as FileList
-        console.log({ files })
-        this.h5buffer = (await files.item(0)?.arrayBuffer()) || null
-        this.statusText = ''
-        if (this.h5buffer) {
-          this.filename = files.item(0)?.name || 'File'
-        }
+        const file0 = files.item(0)
+        if (!file0) return
+
+        this.handleDroppedMatrix(file0)
+
+        // if (/(geojson|geojson\.gz)$/.test(file0.name)) {
+        //   console.log('GeoJSON!')
+        //   this.handleDroppedBoundaries(event)
+        // } else {
+        //   console.log('Not GeoJSON!')
+        //   this.handleDroppedMatrix(event)
+        // }
       } catch (e) {
         console.error('' + e)
       }
@@ -223,6 +246,61 @@ const MyComponent = defineComponent({
     async dragEnd(event: any) {
       this.isDragging = false
       this.statusText = ''
+    },
+
+    async handleDroppedMatrix(file: File) {
+      // clear current buffer
+      this.isDragging = false
+      this.h5buffer = null
+      this.statusText = 'Loading...'
+      await this.$nextTick()
+      try {
+        this.h5buffer = await file.arrayBuffer()
+        this.statusText = ''
+        if (this.h5buffer) {
+          this.filename = file.name || 'File'
+        }
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
+    async handleDroppedBoundaries(file: File) {
+      this.isDragging = false
+      this.statusText = 'Loading geography...'
+      await this.$nextTick()
+      try {
+        const geojson = JSON.parse(await file.text())
+        this.filenameShapes = file.name || 'File'
+        this.shapes = geojson.features
+        this.statusText = ''
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
+    async setupAvailableZoneSystems() {
+      try {
+        const url = BASE_URL + '/zones/zones.yaml'
+        const config = await (await fetch(url)).text()
+        const zoneSystemConfigs = YAML.parse(config)
+
+        for (const key of Object.keys(zoneSystemConfigs)) {
+          const zs = zoneSystemConfigs[key]
+
+          // parse sizes and turn into an array
+          let sizes = zs.sizes as any
+          if (Number.isInteger(sizes)) sizes = `${sizes}`
+          console.log(1, sizes)
+          sizes = sizes.split(',').map((n: any) => parseInt(n)) as number[]
+
+          const system = { url: zs.url, lookup: zs.lookup, sizes }
+          this.zoneSystems.byID[key] = system
+          sizes.forEach((size: any) => (this.zoneSystems.bySize[size] = system))
+        }
+      } catch (e) {
+        console.error('ZONESYSTEM: ' + e)
+      }
     },
   },
 })
