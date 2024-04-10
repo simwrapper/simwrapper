@@ -1,6 +1,6 @@
 <template lang="pug">
 .matrix-viewer(v-if="!thumbnail")
-  matrix-selector-panel(
+  config-panel(
     :isMap="isMap"
     :mapConfig="mapConfig"
     @setMap="isMap=$event"
@@ -53,7 +53,7 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import H5Web from './H5TableViewer'
 import H5MapViewer from './H5MapViewer.vue'
-import MatrixSelectorPanel from './MatrixSelectorPanel.vue'
+import ConfigPanel from './ConfigPanel.vue'
 
 import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
@@ -67,7 +67,7 @@ export interface MapConfig {
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { H5Web, H5MapViewer, MatrixSelectorPanel },
+  components: { H5Web, H5MapViewer, ConfigPanel },
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
