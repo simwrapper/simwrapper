@@ -570,7 +570,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   bottom: 0;
   display: flex;
   flex-direction: row;
-  background-color: $bgBeige;
+  // background-color: $bgBeige;
+  padding: 0.75rem;
 }
 
 .main-area {
@@ -696,7 +697,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   flex-direction: column;
   position: relative;
   width: 100%;
-  margin-left: 1px;
+  margin-left: 0.75rem;
 }
 
 .tooltip-area {

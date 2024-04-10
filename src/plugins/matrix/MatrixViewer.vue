@@ -291,6 +291,7 @@ export default MyComponent
 .h5-table-viewer {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  padding: 0.75rem;
 }
 </style>
