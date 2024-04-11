@@ -12,7 +12,7 @@
 SF-2454:
   url: /zones/dist15.geojson.gz
   lookup: TAZ
-  sizes: 981,2454,2475,3717
+  sizes: 981,2454,2475,3681,3717
 
 MTC-1454:
   url: /zones/mtc1454.geojson.gz

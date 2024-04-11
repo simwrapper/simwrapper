@@ -7,15 +7,14 @@
   //- which view
   .flex-row
     b-field.which-data
-      b-button.button.is-small(:type="isMap ? 'is-warning' : 'is-gray is-outlined'"
+      b-button.button.is-small(:type="!isMap ? 'is-info' : 'is-outlined is-info'"
+                      @click="$emit('setMap',false)")
+        i.fa.fa-border-none
+        span &nbsp;Data
+      b-button.button.is-small(:type="isMap ? 'is-info' : 'is-info is-outlined'"
                       @click="$emit('setMap',true)")
         i.fa.fa-map
         span &nbsp;Map
-      b-button.button.is-small(:type="!isMap ? 'is-warning' : 'is-gray is-outlined'"
-                      @click="$emit('setMap',false)")
-        i.fa.fa-ruler-combined
-        span &nbsp;Data
-
 
     b-field.which-data(v-if="isMap")
       b-button.button.is-small(
@@ -26,16 +25,19 @@
         span &nbsp;Row
 
       b-button.button.is-small(
-        :type="!mapConfig.isRowWise ? 'is-link' : 'is-gray is-outlined'"
+        :type="!mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
         @click="$emit('changeRowWise', false)"
       )
         i.fa.fa-bars(style="rotate: 90deg;")
         span &nbsp;Col
 
-  //- .flex-column
-  //-   //- Shapefile selector
-  //-   b-input.binput(disabled placeholder="zones.geojson" v-model="filenameShapes")
-
+  //- Diff mode selector
+  .flex-column(v-if="isMap")
+    ComparisonSelector(
+      :comparators="comparators"
+      @addBase="$emit('addBase')"
+      @change="$emit('compare', $event)"
+    )
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
@@ -65,16 +67,18 @@ import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
 import { ColorMap } from '@/components/ColorMapSelector/models'
 import ScaleSelector from '@/components/ScaleSelector/ScaleSelector'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
+import ComparisonSelector from './ComparisonSelector.vue'
 
 export type ColorScaleType = Exclude<ScaleType, 'gamma'>
 
-import { MapConfig } from './MatrixViewer.vue'
+import { ComparisonMatrix, MapConfig } from './MatrixViewer.vue'
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { ScaleSelector, ColorMapSelector },
+  components: { ComparisonSelector, ScaleSelector, ColorMapSelector },
   props: {
     isMap: Boolean,
+    comparators: { type: Array as PropType<ComparisonMatrix[]> },
     mapConfig: { type: Object as PropType<MapConfig> },
   },
   data() {
@@ -87,12 +91,9 @@ const MyComponent = defineComponent({
       COLOR_SCALE_TYPES,
     }
   },
-  async mounted() {},
+  mounted() {},
   computed: {},
   watch: {
-    'globalState.isDarkMode'() {
-      // this.embedChart()
-    },
     filenameShapes() {
       this.$emit('shapes', this.filenameShapes)
     },

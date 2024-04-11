@@ -83,6 +83,7 @@ const MyComponent = defineComponent({
   props: {
     fileApi: { type: Object as PropType<HTTPFileSystem> },
     buffer: { type: ArrayBuffer, required: true },
+    diffBuffer: { type: ArrayBuffer, required: false },
     subfolder: String,
     config: String,
     thumbnail: Boolean,
@@ -103,6 +104,7 @@ const MyComponent = defineComponent({
       features: [] as any,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
+      h5diffFile: null as null | H5WasmFile,
       h5file: null as any,
       isMapReady: false,
       layerId: Math.floor(1e12 * Math.random()),
@@ -151,6 +153,15 @@ const MyComponent = defineComponent({
         'H5MapViewer_view',
         JSON.stringify({ latitude, longitude, zoom, bearing, pitch })
       )
+    },
+
+    async diffBuffer() {
+      console.log('DIFFBUFFGERER')
+      if (this.diffBuffer) {
+        this.h5diffFile = await this.initFile(this.diffBuffer)
+      } else {
+        this.h5diffFile = null
+      }
     },
 
     'globalState.isDarkMode'() {
@@ -335,17 +346,37 @@ const MyComponent = defineComponent({
       //TODO FIX THIS
       let offset = this.activeZone - 1
 
-      let values = [] as number[]
-      if (data) {
-        values = (
-          this.mapConfig.isRowWise
-            ? data.slice([[offset, offset + 1], []])
-            : data.slice([[], [offset, offset + 1]])
-        ) as number[]
+      try {
+        let values = [] as number[]
+        if (data) {
+          values = (
+            this.mapConfig.isRowWise
+              ? data.slice([[offset, offset + 1], []])
+              : data.slice([[], [offset, offset + 1]])
+          ) as number[]
+        }
+
+        // DIFF MODE
+        if (this.h5diffFile) {
+          let diffData = this.h5diffFile.get(key) as Dataset
+          let baseValues = [] as number[]
+          if (diffData) {
+            baseValues = (
+              this.mapConfig.isRowWise
+                ? diffData.slice([[offset, offset + 1], []])
+                : diffData.slice([[], [offset, offset + 1]])
+            ) as number[]
+          }
+          // do the diff
+          values = values.map((v, i) => v - baseValues[i])
+        }
+
+        this.dataArray = values
+        this.setColorsForArray()
+        this.setPrettyValuesForArray()
+      } catch (e) {
+        console.warn('Offset not found in HDF5 file:', offset)
       }
-      this.dataArray = values
-      this.setColorsForArray()
-      this.setPrettyValuesForArray()
     },
 
     setPrettyValuesForArray() {
@@ -428,7 +459,7 @@ const MyComponent = defineComponent({
       // which column has the TAZ ID
       this.zoneID = zoneSystem.lookup
 
-      return this.loadBoundaries(zoneSystem.url)
+      await this.loadBoundaries(zoneSystem.url)
     },
 
     async loadBoundaries(url: string) {

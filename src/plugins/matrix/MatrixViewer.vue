@@ -3,11 +3,14 @@
   config-panel(
     :isMap="isMap"
     :mapConfig="mapConfig"
+    :comparators="comparators"
     @setMap="isMap=$event"
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
     @changeScale="mapConfig.scale=$event"
     @changeRowWise="mapConfig.isRowWise=$event"
+    @addBase="addBase"
+    @compare="compareToBase"
   )
 
   .main-area(
@@ -27,6 +30,7 @@
       :fileApi="fileApi"
       :subfolder="subfolder"
       :buffer="h5buffer"
+      :diffBuffer="h5DiffBuffer"
       :filenameH5="filename"
       :filenameShapes="filenameShapes"
       :shapes="shapes"
@@ -60,6 +64,12 @@ import ConfigPanel from './ConfigPanel.vue'
 
 import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
+
+export interface ComparisonMatrix {
+  root: string
+  subfolder: string
+  filename: string
+}
 
 export interface MapConfig {
   scale: ScaleType
@@ -96,6 +106,7 @@ const MyComponent = defineComponent({
     return {
       title: '',
       description: '',
+      comparators: [] as ComparisonMatrix[],
       isDragging: false,
       isMap: true,
       h5wasm: null as null | Promise<any>,
@@ -105,6 +116,7 @@ const MyComponent = defineComponent({
       filenameShapes: '',
       shapes: null as null | any[],
       h5buffer: null as null | ArrayBuffer,
+      h5DiffBuffer: null as null | ArrayBuffer,
       useConfig: '',
       vizDetails: { title: '', description: '' },
       statusText: 'Loading...',
@@ -123,6 +135,8 @@ const MyComponent = defineComponent({
   },
   async mounted() {
     await this.setupAvailableZoneSystems()
+
+    this.comparators = this.setupComparisons()
 
     this.debounceDragEnd = debounce(this.dragEnd, 500)
 
@@ -208,6 +222,49 @@ const MyComponent = defineComponent({
       return style
       // const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
       // padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+    },
+
+    setupComparisons() {
+      const comparisons = localStorage.getItem('h5mapComparators')
+      if (!comparisons) return []
+
+      return JSON.parse(comparisons)
+    },
+
+    addBase() {
+      this.comparators = [
+        {
+          root: this.root,
+          subfolder: this.subfolder,
+          filename: this.filename,
+        },
+      ]
+      localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
+    },
+
+    async compareToBase(base: ComparisonMatrix) {
+      console.log('COMPARE', base)
+
+      try {
+        const path = `${base.subfolder}/${base.filename}`
+        this.statusText = `Loading: ${base.filename}...`
+
+        const fileSystem: FileSystemConfig = this.$store.state.svnProjects.find(
+          (a: FileSystemConfig) => a.slug === base.root
+        )
+        const baseFileApi = new HTTPFileSystem(fileSystem, globalStore)
+
+        const blob = await baseFileApi.getFileBlob(path)
+        const buffer = await blob?.arrayBuffer()
+
+        this.h5DiffBuffer = buffer
+        this.statusText = ''
+        console.log({ h5DiffBuffer: this.h5DiffBuffer })
+      } catch (e) {
+        console.error('' + e)
+        this.h5DiffBuffer = null
+      }
+      this.statusText = ''
     },
 
     async onDrop(event: any) {
