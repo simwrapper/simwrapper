@@ -484,7 +484,7 @@ const MyComponent = defineComponent({
           // hard-coded shapefile from /public folder, special treatment
           const localPath = BASE_URL + url.substring(1) // no double-slash at beginning
           console.log('LOADING LOCAL geojson:', localPath)
-          const blob = await fetch(shapeConfig).then(async r => await r.blob())
+          const blob = await fetch(localPath).then(async r => await r.blob())
           const buffer = await blob.arrayBuffer()
           const rawtext = gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
