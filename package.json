@@ -47,6 +47,7 @@
     "@turf/turf": "^5.1.6",
     "blob-util": "^2.0.2",
     "buefy": "^0.8.20",
+    "bulma": "^1.0.0",
     "colormap": "^2.3.1",
     "convert-seconds": "^1.0.1",
     "crossfilter2": "^1.5.4",
