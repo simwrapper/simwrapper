@@ -71,6 +71,8 @@ import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
 import dataScalers from './util'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 naturalSort.insensitive = true
 
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
@@ -449,7 +451,8 @@ const MyComponent = defineComponent({
           boundaries = await this.loadShapefileFeatures(shapeConfig)
         } else if (shapeConfig.startsWith('/')) {
           // hard-coded shapefile from /public folder, special treatment
-          console.log('LOADING LOCAL geojson:', shapeConfig)
+          const localPath = BASE_URL + url.substring(1) // no double-slash at beginning
+          console.log('LOADING LOCAL geojson:', localPath)
           const blob = await fetch(shapeConfig).then(async r => await r.blob())
           const buffer = await blob.arrayBuffer()
           const rawtext = gUnzip(buffer)

@@ -281,7 +281,8 @@ const MyComponent = defineComponent({
 
     async setupAvailableZoneSystems() {
       try {
-        const url = BASE_URL + '/zones/zones.yaml'
+        const url = BASE_URL + 'zones/zones.yaml'
+
         const config = await (await fetch(url)).text()
         const zoneSystemConfigs = YAML.parse(config)
 
