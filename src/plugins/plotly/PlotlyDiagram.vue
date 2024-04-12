@@ -704,7 +704,9 @@ const MyComponent = defineComponent({
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-        plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        // plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        // plot_bgcolor: '#EEE',
+        plot_bgcolor: '#e3eaf4',
         font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
       }
       this.layout = Object.assign({}, this.layout, colors)
