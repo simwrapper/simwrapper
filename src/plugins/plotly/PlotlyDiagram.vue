@@ -359,125 +359,38 @@ const MyComponent = defineComponent({
       if (numRows == 0) numRows = 1
       if (numCols == 0) numCols = 1
 
-      const annotations = [] as any[]
       // Create facet traces if there are multiple rows but only one column
       if (facet_col.length == 0) {
-        // groupTracesByFacetsForOneColumnOrRow(numRows, yAxisTitle, facet_row)
         result.push(
-          ...this.groupTracesByFacetsForOneColumnOrRow(numRows, yAxisTitle, facet_row, 'y')
+          ...this.groupTracesByFacetsForOneColumnOrRow(
+            numRows,
+            yAxisTitle,
+            facet_row,
+            'y',
+            'facet_row'
+          )
         )
-        // Create facet traces if there are multiple columns but only one row
       } else if (facet_row.length == 0) {
         result.push(
-          ...this.groupTracesByFacetsForOneColumnOrRow(numCols, xAxisTitle, facet_col, 'x')
+          ...this.groupTracesByFacetsForOneColumnOrRow(
+            numCols,
+            xAxisTitle,
+            facet_col,
+            'x',
+            'facet_col'
+          )
         )
-        // Create facet traces if there are multiple columns and rows
       } else {
-        for (let i = 0; i < numRows; i++) {
-          for (let j = 0; j < numCols; j++) {
-            const row = facet_row[i]
-            const col = facet_col[j]
-            const filteredTraces = []
-
-            for (const trace of this.traces) {
-              const filteredX = []
-              const filteredY = []
-
-              for (let l = 0; l < trace.facet_row.length; l++) {
-                if (trace.facet_row[l] === row && trace.facet_col[l] === col) {
-                  filteredX.push(trace.x[l])
-                  filteredY.push(trace.y[l])
-                }
-              }
-
-              const filterTrace = {
-                ...trace,
-                x: filteredX,
-                y: filteredY,
-                xaxis: i > 0 ? 'x' + (i + 1) : 'x',
-                yaxis: j > 0 ? 'y' + (j + 1) : 'y',
-              }
-
-              delete filterTrace.facet_row
-              delete filterTrace.facet_col
-
-              // showlegend
-              filterTrace.showlegend = i === 0 && j === 0
-
-              // legendgroup
-              filterTrace.legendgroup = filterTrace.group_name
-              delete filterTrace.group_name
-
-              // filterTrace.marker.color = '#123456'
-              const color = this.assignColor(filterTrace)
-              filterTrace.marker = {
-                color: color,
-              }
-
-              filteredTraces.push(filterTrace)
-            }
-
-            let xAxisIndex = i === 0 ? 'xaxis' : 'xaxis' + (i + 1)
-            let yAxisIndex = j === 0 ? 'yaxis' : 'yaxis' + (j + 1)
-
-            // Left: Axis Text
-            if (this.layout[yAxisIndex] == undefined) {
-              this.layout[yAxisIndex] = {
-                title: {
-                  text:
-                    yAxisTitle +
-                    '<br>' +
-                    this.config.traces[0].facet_row.split('.')[1] +
-                    ' = ' +
-                    facet_row[i],
-                },
-                anchor: 'y',
-                autorange: true,
-              }
-            } else {
-              this.layout[yAxisIndex].title = ''
-              this.layout[yAxisIndex].title = {
-                text:
-                  yAxisTitle +
-                  '<br>' +
-                  this.config.traces[0].facet_row.split('.')[1] +
-                  ' = ' +
-                  facet_row[i],
-              }
-              this.layout[yAxisIndex].anchor = 'y'
-            }
-
-            // Bottom: Axis Text
-            if (this.layout[xAxisIndex] == undefined) {
-              this.layout[xAxisIndex] = {
-                title: {
-                  text:
-                    xAxisTitle +
-                    '<br>' +
-                    this.config.traces[0].facet_col.split('.')[1] +
-                    ' = ' +
-                    facet_col[j],
-                },
-                anchor: 'x',
-                autorange: true,
-              }
-            } else {
-              this.layout[xAxisIndex].title = ''
-              this.layout[xAxisIndex].title = {
-                text:
-                  xAxisTitle +
-                  '<br>' +
-                  this.config.traces[0].facet_col.split('.')[1] +
-                  ' = ' +
-                  facet_col[j],
-              }
-              this.layout[xAxisIndex].anchor = 'x'
-            }
-
-            result.push(...filteredTraces)
-          }
-        }
-        this.layout.annotations = annotations
+        result.push(
+          ...this.groupTracesByFacetsColumnsAndRows(
+            numCols,
+            numRows,
+            facet_col,
+            facet_row,
+            xAxisTitle,
+            yAxisTitle
+          )
+        )
       }
 
       this.layout.margin = { t: 10, b: 20, l: 60, r: 60, pad: 2 }
@@ -496,15 +409,131 @@ const MyComponent = defineComponent({
       }
     },
 
-    // numRows -> numberOfFacets
+    // If only one column or one row is defined in the traces, this method groups the traces by the facet
+    groupTracesByFacetsColumnsAndRows(
+      numberOfColumns: number,
+      numberOfRows: number,
+      facet_col: any[],
+      facet_row: any[],
+      xAxisTitle: string,
+      yAxisTitle: string
+    ) {
+      const result = []
+      for (let i = 0; i < numberOfRows; i++) {
+        for (let j = 0; j < numberOfColumns; j++) {
+          const row = facet_row[i]
+          const col = facet_col[j]
+          const filteredTraces = []
+
+          for (const trace of this.traces) {
+            const filteredX = []
+            const filteredY = []
+
+            for (let l = 0; l < trace.facet_row.length; l++) {
+              if (trace.facet_row[l] === row && trace.facet_col[l] === col) {
+                filteredX.push(trace.x[l])
+                filteredY.push(trace.y[l])
+              }
+            }
+
+            const filterTrace = {
+              ...trace,
+              x: filteredX,
+              y: filteredY,
+              xaxis: i > 0 ? 'x' + (i + 1) : 'x',
+              yaxis: j > 0 ? 'y' + (j + 1) : 'y',
+            }
+
+            delete filterTrace.facet_row
+            delete filterTrace.facet_col
+
+            // showlegend
+            filterTrace.showlegend = i === 0 && j === 0
+
+            // legendgroup
+            filterTrace.legendgroup = filterTrace.group_name
+            delete filterTrace.group_name
+
+            // filterTrace.marker.color = '#123456'
+            const color = this.assignColor(filterTrace)
+            filterTrace.marker = {
+              color: color,
+            }
+
+            filteredTraces.push(filterTrace)
+          }
+
+          let xAxisIndex = i === 0 ? 'xaxis' : 'xaxis' + (i + 1)
+          let yAxisIndex = j === 0 ? 'yaxis' : 'yaxis' + (j + 1)
+
+          // Left: Axis Text
+          if (this.layout[yAxisIndex] == undefined) {
+            this.layout[yAxisIndex] = {
+              title: {
+                text:
+                  yAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_row.split('.')[1] +
+                  ' = ' +
+                  facet_row[i],
+              },
+              anchor: 'y',
+              autorange: true,
+            }
+          } else {
+            this.layout[yAxisIndex].title = ''
+            this.layout[yAxisIndex].title = {
+              text:
+                yAxisTitle +
+                '<br>' +
+                this.config.traces[0].facet_row.split('.')[1] +
+                ' = ' +
+                facet_row[i],
+            }
+            this.layout[yAxisIndex].anchor = 'y'
+          }
+
+          // Bottom: Axis Text
+          if (this.layout[xAxisIndex] == undefined) {
+            this.layout[xAxisIndex] = {
+              title: {
+                text:
+                  xAxisTitle +
+                  '<br>' +
+                  this.config.traces[0].facet_col.split('.')[1] +
+                  ' = ' +
+                  facet_col[j],
+              },
+              anchor: 'x',
+              autorange: true,
+            }
+          } else {
+            this.layout[xAxisIndex].title = ''
+            this.layout[xAxisIndex].title = {
+              text:
+                xAxisTitle +
+                '<br>' +
+                this.config.traces[0].facet_col.split('.')[1] +
+                ' = ' +
+                facet_col[j],
+            }
+            this.layout[xAxisIndex].anchor = 'x'
+          }
+          result.push(...filteredTraces)
+        }
+      }
+      return result
+    },
+
+    // THis method groups the traces by the facet if more than one column and one row is defined in the traces
     groupTracesByFacetsForOneColumnOrRow(
       numberOfFacets: number,
       axisTitle: string,
       facets: any[],
-      axis: string
+      axis: string,
+      facetObjectKey: string
     ) {
       const result = []
-      const annotations = [] as any[]
       for (let j = 0; j < numberOfFacets; j++) {
         const row = facets[j]
         const filteredTraces = []
@@ -512,8 +541,8 @@ const MyComponent = defineComponent({
         for (const trace of this.traces) {
           const filteredX = []
 
-          for (let l = 0; l < trace[facets.toString()].length; l++) {
-            if (trace[facets.toString()][l] === row) {
+          for (let l = 0; l < trace[facetObjectKey].length; l++) {
+            if (trace[facetObjectKey][l] === row) {
               filteredX.push(trace[axis == 'x' ? 'y' : 'x'][l])
             }
           }
@@ -552,12 +581,10 @@ const MyComponent = defineComponent({
               text:
                 axisTitle +
                 '<br>' +
-                this.config.traces[0][facets.toString()].split('.')[1] +
+                this.config.traces[0][facetObjectKey].split('.')[1] +
                 ' = ' +
                 facets[j],
             },
-            // anchor: 'y',
-            // autorange: true,
           }
         } else {
           this.layout[axisIndex].title = ''
@@ -565,7 +592,7 @@ const MyComponent = defineComponent({
             text:
               axisTitle +
               '<br>' +
-              this.config.traces[0][facets.toString()].split('.')[1] +
+              this.config.traces[0][facetObjectKey].split('.')[1] +
               ' = ' +
               facets[j],
           }
@@ -574,8 +601,6 @@ const MyComponent = defineComponent({
 
         result.push(...filteredTraces)
       }
-      this.layout.annotations = annotations
-      console.log(result)
       return result
     },
 
