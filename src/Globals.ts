@@ -32,6 +32,11 @@ export const BG_COLOR_DASHBOARD = {
   dark: '#14141a',
 }
 
+export const BG_COLOR_PLOTLY = {
+  light: '#eee',
+  dark: '#222',
+}
+
 export const MAPBOX_TOKEN =
   'pk.eyJ1IjoidnNwLXR1LWJlcmxpbiIsImEiOiJjamNpemh1bmEzNmF0MndudHI5aGFmeXpoIn0.u9f04rjFo7ZbWiSceTTXyA'
 
