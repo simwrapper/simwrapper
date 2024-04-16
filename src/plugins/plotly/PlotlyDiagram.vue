@@ -333,21 +333,21 @@ const MyComponent = defineComponent({
 
     // This method checks if facet_col and/or facet_row are defined in the traces
     createFacets() {
-      if (this.traces[0].facet_col != undefined || this.traces[0].facet_row != undefined) {
-        let facet_col = [] as any[]
-        let facet_row = [] as any[]
+      if (this.traces[0].facet_col == undefined && this.traces[0].facet_row == undefined) return
 
-        if (this.traces[0].facet_col != undefined)
-          facet_col = this.traces[0].facet_col.filter(
-            (element: any, index: any) => this.traces[0].facet_col.indexOf(element) === index
-          )
-        if (this.traces[0].facet_row != undefined)
-          facet_row = this.traces[0].facet_row.filter(
-            (element: any, index: any) => this.traces[0].facet_row.indexOf(element) === index
-          )
+      let facet_col = [] as any[]
+      let facet_row = [] as any[]
 
-        this.groupTracesByFacets(facet_col, facet_row)
-      }
+      if (this.traces[0].facet_col != undefined)
+        facet_col = this.traces[0].facet_col.filter(
+          (element: any, index: any) => this.traces[0].facet_col.indexOf(element) === index
+        )
+      if (this.traces[0].facet_row != undefined)
+        facet_row = this.traces[0].facet_row.filter(
+          (element: any, index: any) => this.traces[0].facet_row.indexOf(element) === index
+        )
+
+      this.groupTracesByFacets(facet_col, facet_row)
     },
     // If facet_col and/or facet_row are defined in the traces, this method groups the traces by the facets
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
