@@ -465,7 +465,6 @@ const MyComponent = defineComponent({
     async loadBoundaries(url: string) {
       const shapeConfig = url
 
-      if (!this.fileApi) return
       if (!shapeConfig) return
 
       let boundaries: any[] = []
@@ -492,6 +491,7 @@ const MyComponent = defineComponent({
           boundaries = json.features
         } else {
           // geojson from simwrapper filesystem!
+          if (!this.fileApi) return []
           const path = `${this.subfolder}/${shapeConfig}`
           console.log('LOADING geojson:', path)
           boundaries = (await this.fileApi.getFileJson(path)).features

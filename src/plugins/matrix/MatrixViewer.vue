@@ -134,18 +134,17 @@ const MyComponent = defineComponent({
     }
   },
   async mounted() {
-    await this.setupAvailableZoneSystems()
-
-    this.comparators = this.setupComparisons()
-
     this.debounceDragEnd = debounce(this.dragEnd, 500)
-
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
+
     await this.getVizDetails()
 
     // don't actually load any files if we're just in the file browser
     if (this.thumbnail) return
 
+    await this.setupAvailableZoneSystems()
+
+    this.comparators = this.setupComparisons()
     this.h5buffer = await this.loadFile()
   },
   computed: {
