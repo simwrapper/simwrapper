@@ -362,148 +362,15 @@ const MyComponent = defineComponent({
       const annotations = [] as any[]
       // Create facet traces if there are multiple rows but only one column
       if (facet_col.length == 0) {
-        for (let j = 0; j < numRows; j++) {
-          const row = facet_row[j]
-          const filteredTraces = []
-
-          for (const trace of this.traces) {
-            const filteredX = []
-
-            for (let l = 0; l < trace.facet_row.length; l++) {
-              if (trace.facet_row[l] === row) {
-                filteredX.push(trace.x[l])
-              }
-            }
-
-            const filterTrace = {
-              ...trace,
-              x: filteredX,
-              xaxis: 'x',
-              yaxis: j > 0 ? 'y' + (j + 1) : 'y',
-            }
-
-            delete filterTrace.facet_row
-            delete filterTrace.facet_col
-
-            // showlegend
-            filterTrace.showlegend = j === 0
-
-            // legendgroup
-            filterTrace.legendgroup = filterTrace.group_name
-            delete filterTrace.group_name
-
-            const color = this.assignColor(filterTrace)
-            filterTrace.marker = {
-              color: color,
-            }
-
-            filteredTraces.push(filterTrace)
-          }
-
-          // Left: Axis Text
-          const yAxisIndex = j === 0 ? 'yaxis' : 'yaxis' + (j + 1)
-          if (this.layout[yAxisIndex] == undefined) {
-            this.layout[yAxisIndex] = {
-              title: {
-                text:
-                  yAxisTitle +
-                  '<br>' +
-                  this.config.traces[0].facet_row.split('.')[1] +
-                  ' = ' +
-                  facet_row[j],
-              },
-              anchor: 'y',
-              autorange: true,
-            }
-          } else {
-            this.layout[yAxisIndex].title = ''
-            this.layout[yAxisIndex].title = {
-              text:
-                yAxisTitle +
-                '<br>' +
-                this.config.traces[0].facet_row.split('.')[1] +
-                ' = ' +
-                facet_row[j],
-            }
-            this.layout[yAxisIndex].anchor = 'y'
-          }
-
-          result.push(...filteredTraces)
-        }
-        this.layout.annotations = annotations
+        // groupTracesByFacetsForOneColumnOrRow(numRows, yAxisTitle, facet_row)
+        result.push(
+          ...this.groupTracesByFacetsForOneColumnOrRow(numRows, yAxisTitle, facet_row, 'y')
+        )
         // Create facet traces if there are multiple columns but only one row
       } else if (facet_row.length == 0) {
-        for (let j = 0; j < numCols; j++) {
-          const col = facet_col[j]
-          const filteredTraces = []
-
-          for (const trace of this.traces) {
-            const filteredY = []
-
-            for (let l = 0; l < trace.facet_col.length; l++) {
-              if (trace.facet_col[l] === col) {
-                filteredY.push(trace.y[l])
-              }
-            }
-
-            const filterTrace = {
-              ...trace,
-              y: filteredY,
-              xaxis: j > 0 ? 'x' + (j + 1) : 'x',
-              yaxis: 'y',
-            }
-
-            delete filterTrace.facet_row
-            delete filterTrace.facet_col
-
-            // showlegend
-            filterTrace.showlegend = j === 0
-
-            // legendgroup
-            filterTrace.legendgroup = filterTrace.group_name
-            delete filterTrace.group_name
-
-            const color = this.assignColor(filterTrace)
-            filterTrace.marker = {
-              color: color,
-            }
-
-            filteredTraces.push(filterTrace)
-          }
-
-          // Bottom: Axis Text
-          const xAxisIndex = j === 0 ? 'xaxis' : 'xaxis' + (j + 1)
-          if (this.layout[xAxisIndex] == undefined) {
-            this.layout[xAxisIndex] = {
-              title: {
-                text:
-                  xAxisTitle +
-                  '<br>' +
-                  this.config.traces[0].facet_col.split('.')[1] +
-                  ' = ' +
-                  facet_col[j],
-              },
-              anchor: 'y',
-              autorange: true,
-              matches: 'x',
-            }
-          } else {
-            this.layout[xAxisIndex].title = ''
-            this.layout[xAxisIndex].title = {
-              text:
-                xAxisTitle +
-                '<br>' +
-                this.config.traces[0].facet_col.split('.')[1] +
-                ' = ' +
-                facet_col[j],
-            }
-            this.layout[xAxisIndex].anchor = 'y'
-          }
-
-          result.push(...filteredTraces)
-        }
-
-        this.layout.annotations = annotations
+        result.push(
+          ...this.groupTracesByFacetsForOneColumnOrRow(numCols, xAxisTitle, facet_col, 'x')
+        )
         // Create facet traces if there are multiple columns and rows
       } else {
         for (let i = 0; i < numRows; i++) {
@@ -629,6 +496,89 @@ const MyComponent = defineComponent({
       }
     },
 
+    // numRows -> numberOfFacets
+    groupTracesByFacetsForOneColumnOrRow(
+      numberOfFacets: number,
+      axisTitle: string,
+      facets: any[],
+      axis: string
+    ) {
+      const result = []
+      const annotations = [] as any[]
+      for (let j = 0; j < numberOfFacets; j++) {
+        const row = facets[j]
+        const filteredTraces = []
+
+        for (const trace of this.traces) {
+          const filteredX = []
+
+          for (let l = 0; l < trace[facets.toString()].length; l++) {
+            if (trace[facets.toString()][l] === row) {
+              filteredX.push(trace[axis == 'x' ? 'y' : 'x'][l])
+            }
+          }
+
+          const filterTrace = {
+            ...trace,
+            x: axis == 'y' ? filteredX : trace.x,
+            y: axis == 'x' ? filteredX : trace.y,
+            xaxis: axis == 'y' ? 'x' : j > 0 ? 'x' + (j + 1) : 'x',
+            yaxis: axis == 'y' ? (j > 0 ? 'y' + (j + 1) : 'y') : 'y',
+          }
+
+          delete filterTrace.facet_row
+          delete filterTrace.facet_col
+
+          // showlegend
+          filterTrace.showlegend = j === 0
+
+          // legendgroup
+          filterTrace.legendgroup = filterTrace.group_name
+          delete filterTrace.group_name
+
+          const color = this.assignColor(filterTrace)
+          filterTrace.marker = {
+            color: color,
+          }
+
+          filteredTraces.push(filterTrace)
+        }
+
+        // Left: Axis Text
+        const axisIndex = j === 0 ? axis + 'axis' : axis + 'axis' + (j + 1)
+        if (this.layout[axisIndex] == undefined) {
+          this.layout[axisIndex] = {
+            title: {
+              text:
+                axisTitle +
+                '<br>' +
+                this.config.traces[0][facets.toString()].split('.')[1] +
+                ' = ' +
+                facets[j],
+            },
+            // anchor: 'y',
+            // autorange: true,
+          }
+        } else {
+          this.layout[axisIndex].title = ''
+          this.layout[axisIndex].title = {
+            text:
+              axisTitle +
+              '<br>' +
+              this.config.traces[0][facets.toString()].split('.')[1] +
+              ' = ' +
+              facets[j],
+          }
+          this.layout[axisIndex].anchor = 'y'
+        }
+
+        result.push(...filteredTraces)
+      }
+      this.layout.annotations = annotations
+      console.log(result)
+      return result
+    },
+
     createMenus(mode: string) {
       if (mode == 'none') return
 
@@ -704,9 +654,9 @@ const MyComponent = defineComponent({
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-        // plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
         // plot_bgcolor: '#EEE',
-        plot_bgcolor: '#e3eaf4',
+        // plot_bgcolor: '#222',
         font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
       }
       this.layout = Object.assign({}, this.layout, colors)
