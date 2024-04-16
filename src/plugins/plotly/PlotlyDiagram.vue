@@ -33,6 +33,7 @@ import {
   FileSystemConfig,
   UI_FONT,
   BG_COLOR_DASHBOARD,
+  BG_COLOR_PLOTLY,
   DataTable,
   DataSet,
   DataTableColumn,
@@ -679,7 +680,7 @@ const MyComponent = defineComponent({
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-        plot_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
+        plot_bgcolor: BG_COLOR_PLOTLY[this.globalState.colorScheme],
         // plot_bgcolor: '#EEE',
         // plot_bgcolor: '#222',
         font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
