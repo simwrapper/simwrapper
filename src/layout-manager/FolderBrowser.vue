@@ -359,8 +359,12 @@ export default defineComponent({
         const folderContents = await this.myState.svnRoot.getDirectory(this.myState.subfolder)
 
         // hide dot folders
-        const folders = folderContents.dirs.filter(f => !f.startsWith('.')).sort()
-        const files = folderContents.files.filter(f => !f.startsWith('.')).sort()
+        const folders = folderContents.dirs
+          .filter(f => !f.startsWith('.'))
+          .sort((a, b) => (a.toLocaleLowerCase() < b.toLocaleLowerCase() ? -1 : 1))
+        const files = folderContents.files
+          .filter(f => !f.startsWith('.'))
+          .sort((a, b) => (a.toLocaleLowerCase() < b.toLocaleLowerCase() ? -1 : 1))
 
         // Also show any project-level viz thumbnails from other folders
         // (but, ensure that files in this folder supercede any project viz files

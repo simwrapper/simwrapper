@@ -25,19 +25,12 @@ export default function Component({
   lineColors = '#4e79a7' as string | Uint8Array,
   lineWidths = 0 as number | Float32Array,
   fillHeights = 0 as number | Float32Array,
-  calculatedValues = null as null | Float32Array,
-  calculatedValueLabel = '',
-  normalizedValues = null as null | Float32Array,
   opacity = 1,
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
-  featureDataTable = {} as DataTable,
   featureFilter = new Float32Array(0),
-  tooltip = [] as string[],
   cbTooltip = {} as any,
 }) {
-  const PRECISION = 4
-
   // const features = globalStore.state.globalCache[viewId] as any[]
   const [features, setFeatures] = useState([] as any[])
 
@@ -167,102 +160,9 @@ export default function Component({
     console.log('click!')
   }
 
-  // this will only round a number if it is a plain old regular number with
-  // a fractional part to the right of the decimal point.
-  function truncateFractionalPart({ value, precision }: { value: any; precision: number }) {
-    if (typeof value !== 'number') return value
-
-    let printValue = '' + value
-    if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
-      if (/\d$/.test(printValue))
-        return printValue.substring(0, 1 + PRECISION + printValue.lastIndexOf('.')) // precise(value, precision)
-    }
-    return value
-  }
-
   // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
-    // tooltip will show values for color settings and for width settings.
-    // if there is base data, it will also show values and diff vs. base for both color and width.
-
-    if (!cbTooltip) return null
-
-    if (object === null || !features[index]?.properties) {
-      cbTooltip(null)
-      return null
-    }
-
-    const propList = []
-
-    // normalized value first
-    if (normalizedValues) {
-      const label = calculatedValueLabel ?? 'Normalized Value'
-      let value = truncateFractionalPart({ value: normalizedValues[index], precision: PRECISION })
-
-      propList.push(
-        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
-      )
-    }
-
-    // calculated value
-    if (calculatedValues) {
-      let cLabel = calculatedValueLabel ?? 'Value'
-
-      const label = normalizedValues ? cLabel.substring(0, cLabel.lastIndexOf('/')) : cLabel
-      let value = truncateFractionalPart({ value: calculatedValues[index], precision: PRECISION })
-
-      if (calculatedValueLabel.startsWith('%')) value = `${value} %`
-
-      propList.push(
-        `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
-         <tr><td>&nbsp;</td></tr>`
-      )
-    }
-
-    // --- dataset tooltip lines ---
-    let datasetProps = ''
-    const featureTips = Object.entries(features[index].properties)
-
-    for (const [tipKey, tipValue] of featureTips) {
-      if (tipValue === null) continue
-
-      // Truncate fractional digits IF it is a simple number that has a fraction
-      let value = truncateFractionalPart({ value: tipValue, precision: 4 })
-      datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
-    }
-
-    if (datasetProps) propList.push(datasetProps)
-
-    // --- boundary feature tooltip lines ---
-    let columns = Object.keys(featureDataTable)
-    if (tooltip?.length) {
-      columns = tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
-    }
-
-    let featureProps = ''
-    columns.forEach(column => {
-      if (featureDataTable[column]) {
-        let value = featureDataTable[column].values[index]
-        if (value == null) return
-        if (typeof value == 'number') value = truncateFractionalPart({ value, precision: 4 })
-
-        featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
-      }
-    })
-    if (featureProps) propList.push(featureProps)
-
-    // nothing to show? no tooltip
-    if (!propList.length) {
-      cbTooltip(null)
-      return
-    }
-
-    let finalHTML = propList.join('')
-    const html = `<table>${finalHTML}</table>`
-
-    cbTooltip(html)
-
-    return null
+    if (cbTooltip) cbTooltip(index, object)
   }
 
   const layer = new GeojsonOffsetLayer({

@@ -569,7 +569,6 @@ h4 {
 .bottom-panel {
   display: flex;
   flex-direction: column;
-  // padding: 0 0.5rem 0.5rem 0.75rem;
   padding: 0 0rem 0.5rem 0;
   overflow-y: auto;
   text-align: left;
