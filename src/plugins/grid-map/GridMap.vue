@@ -31,7 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
-import { colorRamp, Ramp, Style } from '@/js/ColorsAndWidths'
+import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -820,7 +820,7 @@ const GridMap = defineComponent({
 
       console.log('Ramp: ', this.guiConfig['color ramp'])
       console.log('n: ', this.guiConfig.steps)
-      const color = colorRamp(ramp, this.guiConfig.steps)
+      const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
 
       if (color.length == 0) {
         const errorMessage = `Invalid color ramp: ${this.guiConfig['color ramp']}`

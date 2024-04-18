@@ -109,6 +109,10 @@ export default defineComponent({
   // border: var(--borderThin);
 }
 
+.legend-section {
+  width: max-content;
+}
+
 .section-row {
   display: flex;
   flex-direction: row;

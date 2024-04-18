@@ -588,9 +588,14 @@ export default defineComponent({
 
     this.fileList = await this.getFiles()
 
-    await this.setupDashboard()
-    // await this.$nextTick()
-    this.resizeAllCards()
+    try {
+      await this.setupDashboard()
+      // await this.$nextTick()
+      this.resizeAllCards()
+    } catch (e) {
+      console.error('oh nooo' + e)
+      this.$emit('error', 'Error setting up dashboard, check YAML?')
+    }
   },
   beforeDestroy() {
     this.resizers = {}

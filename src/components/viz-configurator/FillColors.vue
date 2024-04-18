@@ -106,7 +106,7 @@ import type { PropType } from 'vue'
 
 import globalStore from '@/store'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
-import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
+import { Style, Ramp, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 export interface FillColorDefinition {
   dataset: string
@@ -393,7 +393,7 @@ export default defineComponent({
     },
 
     buildColors(scale: Ramp, count?: number): string[] {
-      let colors = [...colorRamp(scale, count || parseInt(this.steps))]
+      let colors = [...getColorRampHexCodes(scale, count || parseInt(this.steps))]
 
       // many reasons to flip the colorscale:
       // (1) the scale preset; (2) the checkbox (3) dark mode

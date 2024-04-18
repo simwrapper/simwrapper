@@ -16,22 +16,17 @@
     geojson-layer(v-if="!needsInitialMapExtent"
       :viewId="layerId"
       :fillColors="dataFillColors"
-      :featureDataTable="boundaryDataTable"
       :lineColors="dataLineColors"
       :lineWidths="dataLineWidths"
       :fillHeights="dataFillHeights"
       :screenshot="triggerScreenshot"
-      :calculatedValues="dataCalculatedValues"
-      :calculatedValueLabel="dataCalculatedValueLabel"
-      :normalizedValues="dataNormalizedValues"
       :featureFilter="boundaryFilters"
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
-      :tooltip="vizDetails.tooltip"
       :cbTooltip="cbTooltip"
     )
-    //- :features="useCircles ? centroids: boundaries"
 
+    //- :features="useCircles ? centroids: boundaries"
     //- background-map-on-top(v-if="isLoaded")
 
     viz-configurator(v-if="isLoaded"
@@ -418,7 +413,97 @@ const MyComponent = defineComponent({
       }
     },
 
-    cbTooltip(html: string) {
+    // this will only round a number if it is a plain old regular number with
+    // a fractional part to the right of the decimal point.
+    truncateFractionalPart(value: any, precision: number) {
+      if (typeof value !== 'number') return value
+
+      let printValue = '' + value
+      if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
+        if (/\d$/.test(printValue))
+          return printValue.substring(0, 1 + precision + printValue.lastIndexOf('.')) // precise(value, precision)
+      }
+      return value
+    },
+
+    cbTooltip(index: number, object: any) {
+      // tooltip will show values for color settings and for width settings.
+      // if there is base data, it will also show values and diff vs. base
+      // for both color and width.
+
+      const PRECISION = 4
+
+      if (object === null || !this.boundaries[index]?.properties) {
+        this.tooltipHtml = ''
+        return
+      }
+
+      const propList = []
+
+      // normalized value first
+      if (this.dataNormalizedValues) {
+        const label = this.dataCalculatedValueLabel ?? 'Normalized Value'
+        let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
+
+        propList.push(
+          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
+        )
+      }
+
+      // calculated value
+      if (this.dataCalculatedValues) {
+        let cLabel = this.dataCalculatedValueLabel ?? 'Value'
+
+        const label = this.dataNormalizedValues
+          ? cLabel.substring(0, cLabel.lastIndexOf('/'))
+          : cLabel
+        let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
+        if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
+
+        propList.push(
+          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
+         <tr><td>&nbsp;</td></tr>`
+        )
+      }
+
+      // --- dataset tooltip lines ---
+      let datasetProps = ''
+      const featureTips = Object.entries(this.boundaries[index].properties)
+
+      for (const [tipKey, tipValue] of featureTips) {
+        if (tipValue === null) continue
+
+        // Truncate fractional digits IF it is a simple number that has a fraction
+        let value = this.truncateFractionalPart(tipValue, PRECISION)
+        datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
+      }
+      if (datasetProps) propList.push(datasetProps)
+
+      // --- boundary feature tooltip lines ---
+      let columns = Object.keys(this.boundaryDataTable)
+      if (this.vizDetails.tooltip?.length) {
+        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
+      }
+
+      let featureProps = ''
+      columns.forEach(column => {
+        if (this.boundaryDataTable[column]) {
+          let value = this.boundaryDataTable[column].values[index]
+          if (value == null) return
+          if (typeof value == 'number') value = this.truncateFractionalPart(value, PRECISION)
+          featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
+        }
+      })
+      if (featureProps) propList.push(featureProps)
+
+      // nothing to show? no tooltip
+      if (!propList.length) {
+        this.tooltipHtml = ''
+        return
+      }
+
+      let finalHTML = propList.join('')
+      const html = `<table>${finalHTML}</table>`
       this.tooltipHtml = html
     },
 
@@ -994,26 +1079,34 @@ const MyComponent = defineComponent({
           }
         }
 
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataCol1,
-          data2: dataCol2,
-          lookup: lookup1,
-          lookup2: lookup2,
-          normalize: normalColumn,
-          normalLookup,
-          options: color,
-          filter: this.boundaryFilters,
-          relative,
-        })
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+        }
 
-        if (!array) return
+        // Calculate colors for each feature
+        const { rgbArray, legend, calculatedValues } =
+          ColorWidthSymbologizer.getColorsForDataColumn({
+            numFeatures: this.boundaries.length,
+            data: dataCol1,
+            data2: dataCol2,
+            lookup: lookup1,
+            lookup2: lookup2,
+            normalColumn: normalColumn,
+            normalLookup,
+            options: { colorRamp: ramp, fixedColors: color.fixedColors },
+            filter: this.boundaryFilters,
+            relative,
+          })
+
+        if (!rgbArray) return
 
         if (section === 'fill') {
-          this.dataFillColors = array
+          this.dataFillColors = rgbArray
         } else {
-          this.dataLineColors = array
+          this.dataLineColors = rgbArray
         }
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
@@ -1054,25 +1147,26 @@ const MyComponent = defineComponent({
       const props = {
         numFeatures: this.boundaries.length,
         data: dataTable[columnName],
-        normalize: normalColumn,
         lookup: lookupColumn,
+        normalColumn,
         filter: this.boundaryFilters,
         options: currentDefinition,
         join: currentDefinition.join,
       }
 
-      const { array, legend, calculatedValues } =
+      const { rgbArray, legend, calculatedValues } =
         ColorWidthSymbologizer.getColorsForDataColumn(props)
 
-      if (!array) return
+      if (!rgbArray) return
 
       if (section === 'fill') {
-        this.dataFillColors = array
+        this.dataFillColors = rgbArray
       } else {
-        this.dataLineColors = array
+        this.dataLineColors = rgbArray
       }
 
       this.dataCalculatedValues = calculatedValues
+
       this.legendStore.setLegendSection({
         section: section === 'fill' ? 'FillColor' : 'Line Color',
         column: columnName,
@@ -1114,101 +1208,105 @@ const MyComponent = defineComponent({
         // *** diff mode *************************
         this.handleColorDiffMode('fill', color)
         return
-      } else if (!columnName) {
+      }
+
+      if (!columnName) {
         // *** simple color **********************
         this.dataFillColors = color.fixedColors[0]
         this.dataCalculatedValueLabel = ''
         this.legendStore.clear('FillColor')
         return
+      }
+
+      // *** Data column mode *************************************************************
+      const datasetKey = color.dataset || ''
+      const selectedDataset = this.datasets[datasetKey]
+      this.dataCalculatedValueLabel = ''
+
+      // no selected dataset or datacol missing? Not sure what to do here, just give up...
+      if (!selectedDataset) {
+        console.warn('color: no selected dataset yet, maybe still loading')
+        return
+      }
+      const dataColumn = selectedDataset[columnName]
+      if (!dataColumn) throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
+      this.dataCalculatedValueLabel = columnName ?? ''
+
+      // Do we need a join? Join it
+      let dataJoinColumn = ''
+      if (color.join && color.join !== '@count') {
+        // join column name set by user
+        dataJoinColumn = color.join
+      } else if (color.join === '@count') {
+        // rowcount specified: join on the column name itself
+        dataJoinColumn = columnName
       } else {
-        // *** Data column mode ******************
-        const datasetKey = color.dataset || ''
-        const selectedDataset = this.datasets[datasetKey]
-        this.dataCalculatedValueLabel = ''
-
-        // no selected dataset or datacol missing? Not sure what to do here, just give up...
-        if (!selectedDataset) {
-          console.warn('color: no selected dataset yet, maybe still loading')
-          return
+        // nothing specified: let's hope they didn't want to join
+        if (this.datasetChoices.length > 1) {
+          console.warn('No join; lets hope user just wants to display data in boundary file')
         }
-        const dataColumn = selectedDataset[columnName]
-        if (!dataColumn) {
-          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+      }
+
+      this.setupJoin({
+        datasetId: datasetKey,
+        dataTable: selectedDataset,
+        dataJoinColumn,
+      })
+
+      const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+
+      // NORMALIZE if we need to
+      let normalColumn
+      let normalLookup
+      if (color.normalize) {
+        const [dataset, column] = color.normalize.split(':')
+        if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
+          throw Error(`${dataset} does not contain column "${column}"`)
         }
-
-        this.dataCalculatedValueLabel = columnName ?? ''
-
-        // Do we need a join? Join it
-        let dataJoinColumn = ''
-        if (color.join && color.join !== '@count') {
-          // join column name set by user
-          dataJoinColumn = color.join
-        } else if (color.join === '@count') {
-          // rowcount specified: join on the column name itself
-          dataJoinColumn = columnName
-        } else {
-          // nothing specified: let's hope they didn't want to join
-          if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
-          }
+        this.dataCalculatedValueLabel += `/ ${column}`
+        normalColumn = this.datasets[dataset][column]
+        // Create yet one more join for the normal column if it's not from the featureset itself
+        if (this.datasetChoices[0] !== dataset) {
+          this.setupJoin({
+            datasetId: dataset,
+            dataTable: this.datasets[dataset],
+            dataJoinColumn,
+          })
+          normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
         }
+      }
 
-        this.setupJoin({
-          datasetId: datasetKey,
-          dataTable: selectedDataset,
-          dataJoinColumn,
+      const ramp = {
+        ramp: color.colorRamp?.ramp || 'Viridis',
+        style: color.colorRamp?.style || 0,
+        reverse: color.colorRamp?.reverse || false,
+        steps: color.colorRamp?.steps || 9,
+      }
+
+      // Calculate colors for each feature
+      const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+        numFeatures: this.boundaries.length,
+        data: dataColumn,
+        normalColumn,
+        normalLookup,
+        lookup: lookupColumn,
+        filter: this.boundaryFilters,
+        options: { colorRamp: ramp, fixedColors: color.fixedColors },
+        join: color.join,
+      })
+
+      if (rgbArray) {
+        this.dataFillColors = rgbArray
+        this.dataCalculatedValues = calculatedValues
+        this.dataNormalizedValues = calculatedValues || null
+
+        this.legendStore.setLegendSection({
+          section: 'FillColor',
+          column: dataColumn.name,
+          values: legend,
+          normalColumn: normalColumn ? normalColumn.name : '',
         })
-
-        const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
-
-        // Figure out the normal
-        let normalColumn
-
-        // NORMALIZE if we need to
-        let normalLookup
-        if (color.normalize) {
-          const [dataset, column] = color.normalize.split(':')
-          if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
-            throw Error(`${dataset} does not contain column "${column}"`)
-          }
-          this.dataCalculatedValueLabel += `/ ${column}`
-          normalColumn = this.datasets[dataset][column]
-          // Create yet one more join for the normal column if it's not from the featureset itself
-          if (this.datasetChoices[0] !== dataset) {
-            this.setupJoin({
-              datasetId: dataset,
-              dataTable: this.datasets[dataset],
-              dataJoinColumn,
-            })
-            normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
-          }
-        }
-
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues, normalizedValues } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            normalize: normalColumn,
-            normalLookup,
-            lookup: lookupColumn,
-            filter: this.boundaryFilters,
-            options: color,
-            join: color.join,
-          })
-
-        if (array) {
-          this.dataFillColors = array
-          this.dataCalculatedValues = calculatedValues
-          this.dataNormalizedValues = normalizedValues || null
-
-          this.legendStore.setLegendSection({
-            section: 'FillColor',
-            column: dataColumn.name,
-            values: legend,
-            normalColumn: normalColumn ? normalColumn.name : '',
-          })
-        }
       }
     },
 
@@ -1269,6 +1367,7 @@ const MyComponent = defineComponent({
           console.warn('color: no selected dataset yet, maybe still loading')
           return
         }
+
         const dataColumn = selectedDataset[columnName]
         if (!dataColumn) {
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
@@ -1299,10 +1398,8 @@ const MyComponent = defineComponent({
 
         const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
-        // Figure out the normal
-        let normalColumn
-
         // NORMALIZE if we need to
+        let normalColumn
         let normalLookup
         if (color.normalize) {
           const [dataset, column] = color.normalize.split(':')
@@ -1323,31 +1420,41 @@ const MyComponent = defineComponent({
         }
 
         // Calculate colors for each feature
-        const colors = ColorWidthSymbologizer.getColorsForDataColumn({
+
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+          breakpoints: color.colorRamp?.breakpoints,
+        }
+
+        const result = ColorWidthSymbologizer.getColorsForDataColumn({
           numFeatures: this.boundaries.length,
           data: dataColumn,
-          normalize: normalColumn,
-          normalLookup,
           lookup: lookupColumn,
+          normalColumn,
+          normalLookup,
           filter: this.boundaryFilters,
-          options: color,
+          options: { colorRamp: ramp, fixedColors: color.fixedColors },
           join: color.join,
-        })
+        }) as any
 
-        const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+        const { rgbArray, legend, calculatedValues } = result
 
-        if (!array) return
+        if (!rgbArray) return
 
-        this.dataLineColors = array
+        this.dataLineColors = rgbArray
+
         this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = normalizedValues || null
+        this.dataNormalizedValues = calculatedValues || null
 
         // If colors are based on category and line widths are constant, then use a
         // 1-pixel line width when the category is undefined.
-        if (hasCategory && this.constantLineWidth !== null) {
+        if (result.hasCategory && this.constantLineWidth !== null) {
           const lineWidth = this.constantLineWidth as number
           const variableConstantWidth = new Float32Array(this.boundaries.length).fill(1)
-          Object.keys(hasCategory).forEach((i: any) => {
+          Object.keys(result.hasCategory).forEach((i: any) => {
             variableConstantWidth[i] = lineWidth
           })
           this.dataLineWidths = variableConstantWidth
@@ -1731,17 +1838,21 @@ const MyComponent = defineComponent({
         }
       }
 
-      // now redraw colors for fills and liness
-      if (this.currentUIFillColorDefinitions?.dataset) {
-        this.handleNewFillColor(
-          filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
-        )
-      }
+      try {
+        // now redraw colors for fills and liness
+        if (this.currentUIFillColorDefinitions?.dataset) {
+          this.handleNewFillColor(
+            filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
+          )
+        }
 
-      if (this.currentUILineColorDefinitions?.dataset) {
-        this.handleNewLineColor(
-          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
-        )
+        if (this.currentUILineColorDefinitions?.dataset) {
+          this.handleNewLineColor(
+            filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
+          )
+        }
+      } catch (e) {
+        this.$emit('error', '' + e)
       }
     },
 
@@ -2335,7 +2446,7 @@ const MyComponent = defineComponent({
       this.$router.replace({ query })
 
       this.maxValue = this.boundaryDataTable[this.datasetValuesColumn].max || 0
-      console.log('MAXVALUE', this.maxValue)
+      // console.log('MAXVALUE', this.maxValue)
 
       this.vizDetails.display.fill.columnName = this.datasetValuesColumn
       this.vizDetails = Object.assign({}, this.vizDetails)
@@ -2611,8 +2722,10 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  // one unit, full height/width. Layers will go on top:
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
@@ -2626,7 +2739,9 @@ export default MyComponent
 
 .area-map {
   position: relative;
-  flex: 1;
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  height: 100%;
   background-color: var(--bgBold);
 }
 
@@ -2709,10 +2824,10 @@ export default MyComponent
 }
 
 .details-panel {
-  text-align: left;
   position: absolute;
   bottom: 0;
   left: 0;
+  text-align: left;
   background-color: var(--bgPanel);
   display: flex;
   filter: $filterShadow;

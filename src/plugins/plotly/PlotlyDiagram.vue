@@ -27,7 +27,7 @@ import globalStore from '@/store'
 import VuePlotly from '@/components/VuePlotly.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import { colorRamp } from '@/js/ColorsAndWidths'
+import { getColorRampHexCodes } from '@/js/ColorsAndWidths'
 import { mergeTypedArrays } from '@/js/util'
 import {
   FileSystemConfig,
@@ -818,7 +818,7 @@ const MyComponent = defineComponent({
       if ('colorRamp' in conf) {
         const ramp = typeof conf.colorRamp === 'string' ? { ramp: conf.colorRamp } : conf.colorRamp
         // Produce at least two color or strange effects happen
-        return colorRamp(ramp, n >= 2 ? n : 2)
+        return getColorRampHexCodes(ramp, n >= 2 ? n : 2)
       }
 
       return null

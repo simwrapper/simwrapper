@@ -422,7 +422,6 @@ export default defineComponent({
           // note parsing error and move on
           const msg = `Error reading ${filename}: ` + e
           this.$emit('error', msg)
-          console.error(msg)
         }
       }
 
@@ -506,7 +505,7 @@ export default defineComponent({
         // console.log('DASHBOARD:', fullPath)
         return true
       } catch (e) {
-        this.$emit('error', { type: Status.ERROR, msg: '' + e })
+        this.$emit('error', `Error parsing: ${fullPath}`)
         return false
       }
     },

@@ -65,7 +65,7 @@ import {
 
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { Style, buildRGBfromHexCodes, colorRamp } from '@/js/ColorsAndWidths'
+import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
@@ -415,7 +415,7 @@ const MyComponent = defineComponent({
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
       const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
 
-      const colors = colorRamp(
+      const colors = getColorRampHexCodes(
         { ramp: this.mapConfig.colormap, style: Style.sequential },
         NUM_COLORS
       )
@@ -465,7 +465,6 @@ const MyComponent = defineComponent({
     async loadBoundaries(url: string) {
       const shapeConfig = url
 
-      if (!this.fileApi) return
       if (!shapeConfig) return
 
       let boundaries: any[] = []
@@ -492,6 +491,7 @@ const MyComponent = defineComponent({
           boundaries = json.features
         } else {
           // geojson from simwrapper filesystem!
+          if (!this.fileApi) return []
           const path = `${this.subfolder}/${shapeConfig}`
           console.log('LOADING geojson:', path)
           boundaries = (await this.fileApi.getFileJson(path)).features
