@@ -33,7 +33,7 @@ import {
   FileSystemConfig,
   UI_FONT,
   BG_COLOR_DASHBOARD,
-  BG_COLOR_PLOTLY,
+  BG_COLOR_PLOTLY_FACETS,
   DataTable,
   DataSet,
   DataTableColumn,
@@ -151,6 +151,7 @@ const MyComponent = defineComponent({
       minYValue: Number.POSITIVE_INFINITY,
       maxXValue: Number.NEGATIVE_INFINITY,
       maxYValue: Number.NEGATIVE_INFINITY,
+      isUsingFacets: false,
     }
   },
 
@@ -334,6 +335,10 @@ const MyComponent = defineComponent({
     // This method checks if facet_col and/or facet_row are defined in the traces
     createFacets() {
       if (this.traces[0].facet_col == undefined && this.traces[0].facet_row == undefined) return
+
+      // Set different bg colors for facet plots to seperate them from each other
+      this.isUsingFacets = true
+      this.updateTheme()
 
       let facet_col = [] as any[]
       let facet_row = [] as any[]
@@ -680,9 +685,9 @@ const MyComponent = defineComponent({
     updateTheme() {
       const colors = {
         paper_bgcolor: BG_COLOR_DASHBOARD[this.globalState.colorScheme],
-        plot_bgcolor: BG_COLOR_PLOTLY[this.globalState.colorScheme],
-        // plot_bgcolor: '#EEE',
-        // plot_bgcolor: '#222',
+        plot_bgcolor: this.isUsingFacets
+          ? BG_COLOR_PLOTLY_FACETS[this.globalState.colorScheme]
+          : BG_COLOR_DASHBOARD[this.globalState.colorScheme],
         font: { color: this.globalState.isDarkMode ? '#cccccc' : '#444444' },
       }
       this.layout = Object.assign({}, this.layout, colors)

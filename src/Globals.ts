@@ -32,9 +32,10 @@ export const BG_COLOR_DASHBOARD = {
   dark: '#14141a',
 }
 
-export const BG_COLOR_PLOTLY = {
-  light: '#eee',
-  dark: '#222',
+// same colors as the table plot
+export const BG_COLOR_PLOTLY_FACETS = {
+  light: '#f6f6f6',
+  dark: '#212121',
 }
 
 export const MAPBOX_TOKEN =

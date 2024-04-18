@@ -285,8 +285,8 @@ export default defineComponent({
     },
 
     setPanelError(e: any) {
-      console.error('LMError: ' + e)
-      this.errorPanelText = '' + e
+      console.error('LMError: ' + e.msg)
+      this.errorPanelText = '' + e.msg
     },
 
     buildLayoutFromURL() {
