@@ -98,7 +98,7 @@ const MyComponent = defineComponent({
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     yamlConfig: String,
-    config: String,
+    configFromDashboard: { type: Object as any },
     thumbnail: Boolean,
     cardId: String,
   },
@@ -106,6 +106,7 @@ const MyComponent = defineComponent({
     return {
       title: '',
       description: '',
+      config: null as any,
       comparators: [] as ComparisonMatrix[],
       isDragging: false,
       isMap: true,
@@ -189,18 +190,73 @@ const MyComponent = defineComponent({
         return null
       }
 
+      // if we have a yaml config, use it
       this.filename = '' + this.yamlConfig
+      console.log(12451234, this.config)
+      if (this.config) {
+        this.filename = this.config.dataset
+      }
+
       this.statusText = `Loading: ${this.filename}...`
 
-      const path = `${this.subfolder}/${this.yamlConfig}`
+      const path = `${this.subfolder}/${this.filename}`
       const blob = await this.fileApi?.getFileBlob(path)
       const buffer = (await blob?.arrayBuffer()) || null
       this.statusText = ''
       return buffer
     },
 
+    async loadYamlConfig() {
+      const config = this.yamlConfig ?? ''
+      const filename = config.indexOf('/') > -1 ? config : this.subfolder + '/' + config
+
+      if (!this.fileApi) {
+        this.$emit('error', 'Could not load YAML: ' + filename)
+        return
+      }
+
+      // 1. First try loading the file directly
+      try {
+        const text = await this.fileApi.getFileText(filename)
+        return YAML.parse(text)
+      } catch (err) {
+        const message = '' + err
+        if (message.startsWith('YAMLSemantic')) {
+          this.$emit('error', `${filename}: ${message}`)
+        }
+        console.log(`${filename} not found, trying config folders`)
+      }
+
+      // 2. Try loading from a config folder instead
+      const { vizes } = await this.fileApi.findAllYamlConfigs(this.subfolder)
+      if (vizes[config]) {
+        try {
+          const text = await this.fileApi.getFileText(vizes[config])
+          return YAML.parse(text)
+        } catch (err) {
+          console.error(`Also failed to load ${vizes[config]}`)
+        }
+      }
+      this.$emit('error', 'Could not load YAML: ' + filename)
+    },
+
     async getVizDetails() {
-      this.$emit('title', `Matrix - ${this.yamlConfig}`)
+      // are we in a dashboard?
+      if (this.configFromDashboard) {
+        this.config = JSON.parse(JSON.stringify(this.configFromDashboard))
+        this.vizDetails = Object.assign({}, this.configFromDashboard)
+      } else {
+        // was a YAML file was passed in?
+        const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
+
+        if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
+          const ycfg = await this.loadYamlConfig()
+          this.config = ycfg
+          this.vizDetails = Object.assign({}, ycfg)
+        }
+      }
+
+      if (this.config) this.$emit('title', this.config.title || `Matrix - ${this.yamlConfig}`)
     },
 
     changeColor(event: any) {
