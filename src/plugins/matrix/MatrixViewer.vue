@@ -231,14 +231,15 @@ const MyComponent = defineComponent({
     },
 
     addBase() {
-      this.comparators = [
-        {
-          root: this.root,
-          subfolder: this.subfolder,
-          filename: this.filename,
-        },
-      ]
+      const comparator = {
+        root: this.root,
+        subfolder: this.subfolder,
+        filename: this.filename,
+      }
+
+      this.comparators = [comparator]
       localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
+      this.compareToBase(comparator)
     },
 
     async compareToBase(base: ComparisonMatrix) {
@@ -310,7 +311,6 @@ const MyComponent = defineComponent({
 
       this.statusText = 'Loading...'
 
-      let oldbuffer = this.h5buffer
       let dropbuffer = null
       this.h5buffer = null
 
@@ -322,26 +322,14 @@ const MyComponent = defineComponent({
         this.statusText = ''
         if (dropbuffer) {
           this.filename = file.name || 'File'
+          this.$emit('title', this.filename)
         }
       } catch (e) {
         console.error('' + e)
         dropbuffer = null
       }
 
-      // WHAT DID USER wANt??
-
-      if (!oldbuffer && !this.h5DiffBuffer) {
-        // if none are set, this is normal data
-        this.h5buffer = dropbuffer
-      } else if (oldbuffer && !this.h5DiffBuffer) {
-        // if no base set but normal data already set,
-        // then move normal -> base, and this is new normal
-        this.h5DiffBuffer = oldbuffer
-        this.h5buffer = dropbuffer
-      } else {
-        // if base is already set, replace normal data and keep base as-is
-        this.h5buffer = dropbuffer
-      }
+      this.h5buffer = dropbuffer
     },
 
     async handleDroppedBoundaries(file: File) {

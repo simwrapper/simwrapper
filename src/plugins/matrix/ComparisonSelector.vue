@@ -21,7 +21,7 @@
 
       b-dropdown-item(aria-role="listitem" @click="addToComparators")
         i.fa.fa-exchange-alt
-        span &nbsp;&nbsp;&nbsp;Set this file as a base for comparisons
+        span &nbsp;&nbsp;&nbsp;Set this file as the base for comparisons
 
 </template>
 

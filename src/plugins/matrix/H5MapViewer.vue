@@ -127,7 +127,6 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
-    console.log('MOUNTD')
     // Load H5Wasm library and matrix file
     this.h5wasm = this.initH5Wasm()
 
@@ -395,8 +394,12 @@ const MyComponent = defineComponent({
       this.dataArray.forEach(v => {
         if (Number.isNaN(v)) pretty.push('NaN')
         else if (v == 0) pretty.push('0')
-        else if (Math.abs(v) >= 0.0001) pretty.push(v)
-        else pretty.push(v.toExponential(3))
+        else if (Math.abs(v) >= 0.0001) {
+          const trimmed = Math.round(10000 * v) / 10000
+          pretty.push('' + trimmed)
+        } else {
+          pretty.push(v.toExponential(3))
+        }
       })
       this.prettyDataArray = pretty
     },
