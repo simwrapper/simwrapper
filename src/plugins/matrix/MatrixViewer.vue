@@ -245,6 +245,12 @@ const MyComponent = defineComponent({
     async compareToBase(base: ComparisonMatrix) {
       console.log('COMPARE', base)
 
+      // drag/drop mode, no "root" filesystem. Just set this as base.
+      if (base.root === '') {
+        this.h5DiffBuffer = this.h5buffer
+        return
+      }
+
       try {
         const path = `${base.subfolder}/${base.filename}`
         this.statusText = `Loading: ${base.filename}...`
