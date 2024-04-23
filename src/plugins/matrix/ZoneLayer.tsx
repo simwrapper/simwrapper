@@ -12,9 +12,7 @@ export default function Component({
   viewId = 0,
   features = [] as any[],
   fillColors = '#59a14f' as string | Uint8Array,
-  lineWidths = 0 as number | Float32Array,
   fillHeights = 0 as number | Float32Array,
-  pointRadii = 4 as number | Float32Array,
   screenshot = 0,
   cbTooltip = null as any,
   clickedZone = {} as any,
@@ -50,29 +48,6 @@ export default function Component({
         fillColors[o.index * 3 + 2], // b
         255, // no opacity, for now
       ]
-    }
-  }
-
-  // CIRCLE RADIISESS ---------------------------------------------------------------
-  let cbPointRadius // can be callback OR a plain string in simple mode
-  if (typeof pointRadii == 'number') {
-    // simple radius mode
-    cbPointRadius = pointRadii
-  } else {
-    cbPointRadius = (_: any, o: any) => {
-      return pointRadii[o.index]
-    }
-  }
-
-  // FILL HEIGHTS -----------------------------------------------------------------
-  let cbFillHeight // can be callback OR a plain string in simple mode
-  if (typeof fillHeights == 'number') {
-    // simple mode
-    cbFillHeight = fillHeights
-  } else {
-    // array function
-    cbFillHeight = (_: any, o: any) => {
-      return fillHeights[o.index]
     }
   }
 
@@ -133,40 +108,18 @@ export default function Component({
   const layer = new GeoJsonLayer({
     id: 'ZonalLayer',
     data: features,
-    // function callbacks: --------------
-    getLineWidth: 1,
     getFillColor: (d: any) => d.properties.color || DEFAULT_FILL,
-    // getElevation: cbFillHeight,
     autoHighlight: true,
     extruded: !!fillHeights,
-    highlightColor: [255, 0, 224, 128],
-    // lineJointRounded: true,
-    lineWidthUnits: 'pixels',
-    lineWidthScale: 1,
-    lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
-    lineWidthMaxPixels: 50,
     opacity: 1.0, // fillHeights ? 1.0 : 0.8, // 3D must be opaque
     pickable: true,
-    // points
-    getPointRadius: (d: any) => d.pointRadius,
-    pointRadiusUnits: 'pixels',
-    pointRadiusMinPixels: 2,
-    // pointRadiusMaxPixels: 50,
     stroked: false,
+    highlightColor: [255, 0, 224, 128],
     useDevicePixels: isTakingScreenshot,
     fp64: false,
     material: false,
-    // updateTriggers: {
-    //   getFillColor: fillColors,
-    //   getLineColor: lineColors,
-    //   getLineWidth: lineWidths,
-    //   getPointRadius: pointRadii,
-    //   getElevation: fillHeights,
-    //   getFilterValue: featureFilter,
-    // },
     transitions: {
       getFillColor: 250,
-      getPointRadius: 250,
     },
     parameters: {
       depthTest: !!fillHeights,
