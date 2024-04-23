@@ -305,19 +305,42 @@ const MyComponent = defineComponent({
     },
 
     async handleDroppedMatrix(file: File) {
-      // clear current buffer
+      console.log('HANDLE DROPPED MATRIX')
       this.isDragging = false
-      this.h5buffer = null
+
       this.statusText = 'Loading...'
+
+      let oldbuffer = this.h5buffer
+      let dropbuffer = null
+      this.h5buffer = null
+
+      // clear old buffer from UI
       await this.$nextTick()
+
       try {
-        this.h5buffer = await file.arrayBuffer()
+        dropbuffer = await file.arrayBuffer()
         this.statusText = ''
-        if (this.h5buffer) {
+        if (dropbuffer) {
           this.filename = file.name || 'File'
         }
       } catch (e) {
         console.error('' + e)
+        dropbuffer = null
+      }
+
+      // WHAT DID USER wANt??
+
+      if (!oldbuffer && !this.h5DiffBuffer) {
+        // if none are set, this is normal data
+        this.h5buffer = dropbuffer
+      } else if (oldbuffer && !this.h5DiffBuffer) {
+        // if no base set but normal data already set,
+        // then move normal -> base, and this is new normal
+        this.h5DiffBuffer = oldbuffer
+        this.h5buffer = dropbuffer
+      } else {
+        // if base is already set, replace normal data and keep base as-is
+        this.h5buffer = dropbuffer
       }
     },
 

@@ -127,6 +127,7 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
+    console.log('MOUNTD')
     // Load H5Wasm library and matrix file
     this.h5wasm = this.initH5Wasm()
 
@@ -137,6 +138,9 @@ const MyComponent = defineComponent({
 
     // Load GeoJSON features
     await this.setupBoundaries()
+
+    // DIFF mode ?
+    if (this.diffBuffer) this.activateDiffMode()
   },
 
   computed: {},
@@ -155,13 +159,8 @@ const MyComponent = defineComponent({
       )
     },
 
-    async diffBuffer() {
-      console.log('DIFFBUFFGERER')
-      if (this.diffBuffer) {
-        this.h5diffFile = await this.initFile(this.diffBuffer)
-      } else {
-        this.h5diffFile = null
-      }
+    diffBuffer() {
+      this.activateDiffMode()
     },
 
     'globalState.isDarkMode'() {
@@ -194,6 +193,18 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async activateDiffMode() {
+      console.log('DIFFBUFFGERER')
+      if (this.diffBuffer) {
+        this.h5diffFile = await this.initFile(this.diffBuffer)
+      } else {
+        this.h5diffFile = null
+      }
+
+      this.h5zoneFile = await this.initFile(this.buffer)
+      this.getFileKeysAndProperties()
+    },
+
     async setupBoundaries() {
       if (this.shapes) {
         // Shapes may already be dropped in from drag/drop
