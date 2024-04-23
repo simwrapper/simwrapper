@@ -2,24 +2,26 @@
 .h5-map-viewer
   .left-bar
     .top-half.flex1
-      p.h5-filename {{  filenameH5 }}
-      .h5-table(v-for="table in tableKeys" :key="table.key"
-        :class="{'selected-table': table == activeTable}"
-        @click="clickedTable(table)"
-      )
-        i.fa.fa-layer-group
-        |&nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
+      .zone-details
+        p.h5-filename {{  filenameH5 }}
+        .scrolly
+          .h5-table(v-for="table in tableKeys" :key="table.key"
+            :class="{'selected-table': table == activeTable}"
+            @click="clickedTable(table)"
+          )
+            i.fa.fa-layer-group
+            |&nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
 
     .bottom-half.flex1
       .zone-details(v-if="activeZone !== null")
         b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
-
         .titles.matrix-data-value
           b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
           b.zone-value  {{  activeTable.name || `Table ${activeTable.key}` }}
-        .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
-          span.zone-number {{  i+1 }}
-          span.zone-value {{  value }}
+        .scrolly
+          .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
+            span.zone-number {{  i+1 }}
+            span.zone-value {{  value }}
 
   .right-container.fill-it
     .map-holder(oncontextmenu="return false")
@@ -707,6 +709,14 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 }
 
 .zone-details {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   font-size: 0.9rem;
 }
 
@@ -762,13 +772,15 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .top-half {
   background-color: $bgLightCyan;
-  overflow-y: scroll;
   margin-bottom: 0.25rem;
+  position: relative;
 }
 
 .bottom-half {
   background-color: $bgLightCyan;
-  overflow-y: scroll;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .swidget {
@@ -801,5 +813,10 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   font-size: 0.9rem;
+}
+
+.scrolly {
+  flex: 1;
+  overflow-y: scroll;
 }
 </style>
