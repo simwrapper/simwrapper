@@ -124,7 +124,14 @@ const MyComponent = defineComponent({
       h5buffer: null as null | ArrayBuffer,
       h5DiffBuffer: null as null | ArrayBuffer,
       useConfig: '',
-      vizDetails: { title: '', description: '' },
+      vizDetails: {
+        title: '',
+        description: '',
+        dataset: '',
+        basedata: '',
+        shapes: null as null | { file: string; id: string },
+        colors: null as null | { ramp: string; invert: boolean; scale: string },
+      },
       statusText: 'Loading...',
       layerId: Math.floor(1e12 * Math.random()),
       matrices: ['1', '2'] as string[],
@@ -156,10 +163,16 @@ const MyComponent = defineComponent({
 
     this.fetchLastSettings()
 
+    // not really done loading yet but the spinny is ugly
     this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
+
     this.h5buffer = await this.loadFile()
+    this.h5DiffBuffer = await this.loadBaseFile()
+    if (this.h5DiffBuffer) {
+      this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
+    }
   },
 
   computed: {
@@ -199,16 +212,47 @@ const MyComponent = defineComponent({
 
   methods: {
     fetchLastSettings() {
-      const config = localStorage.getItem('matrixviewer-map-config')
-      if (config) {
-        const json = JSON.parse(config)
-        this.mapConfig = json
+      if (this.vizDetails.colors) {
+        // Use config if we have one
+
+        // @ts-ignore
+        const scale = ScaleType[this.vizDetails.colors.scale]
+
+        this.mapConfig = {
+          colormap: this.vizDetails.colors.ramp as any,
+          isInvertedColor: this.vizDetails.colors.invert,
+          scale,
+          isRowWise: true,
+        }
+      } else {
+        // use last settings if there are some
+        const config = localStorage.getItem('matrixviewer-map-config')
+        if (config) {
+          const json = JSON.parse(config)
+          this.mapConfig = json
+        }
       }
     },
 
     saveMapSettings() {
       const json = JSON.stringify(this.mapConfig)
       localStorage.setItem('matrixviewer-map-config', json)
+    },
+
+    async loadBaseFile() {
+      if (!this.yamlConfig) return null
+
+      if (this.config) {
+        this.filenameBase = this.config.basedata
+      }
+
+      this.statusText = `Loading: ${this.filenameBase}...`
+
+      const path = `${this.subfolder}/${this.filenameBase}`
+      const blob = await this.fileApi?.getFileBlob(path)
+      const buffer = (await blob?.arrayBuffer()) || null
+      this.statusText = ''
+      return buffer
     },
 
     async loadFile() {
