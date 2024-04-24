@@ -250,7 +250,10 @@ const MyComponent = defineComponent({
         html.push(`<p><b>Row ${id} Col ${this.activeZone}</b></p>`)
       }
 
-      html.push(`<p>${tableName} ${value}</p>`)
+      // always returns an array
+      const prettyValues = this.setPrettyValuesForArray([value])
+
+      html.push(`<p>${tableName} ${prettyValues[0]}</p>`)
 
       this.tooltip = html.join('\n')
     },
@@ -387,15 +390,15 @@ const MyComponent = defineComponent({
 
         this.dataArray = values
         this.setColorsForArray()
-        this.setPrettyValuesForArray()
+        this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
       } catch (e) {
         console.warn('Offset not found in HDF5 file:', offset)
       }
     },
 
-    setPrettyValuesForArray() {
+    setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
-      this.dataArray.forEach(v => {
+      array.forEach(v => {
         if (Number.isNaN(v)) pretty.push('NaN')
         else if (v == 0) pretty.push('0')
         else if (Math.abs(v) >= 0.0001) {
@@ -405,7 +408,7 @@ const MyComponent = defineComponent({
           pretty.push(v.toExponential(3))
         }
       })
-      this.prettyDataArray = pretty
+      return pretty
     },
 
     clickedTable(table: { key: string; name: string }) {
