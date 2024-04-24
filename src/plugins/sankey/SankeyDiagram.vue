@@ -139,6 +139,8 @@ const MyComponent = defineComponent({
           header: false,
           dynamicTyping: true,
           skipEmptyLines: true,
+          delimitersToGuess: ['\t', ';', ',', ' '],
+          comments: '#',
         })
         return content.data
       } catch (err) {
@@ -282,9 +284,13 @@ const MyComponent = defineComponent({
   },
 
   async mounted() {
-    await this.getVizDetails()
-    this.csvData = await this.loadFiles()
-    this.jsonChart = this.processInputs()
+    try {
+      await this.getVizDetails()
+      this.csvData = await this.loadFiles()
+      this.jsonChart = this.processInputs()
+    } catch (e) {
+      this.$emit('error', '' + e)
+    }
 
     window.addEventListener('resize', this.changeDimensions)
 
@@ -306,6 +312,7 @@ export default MyComponent
   padding-top: 1rem;
   display: flex;
   flex-direction: column;
+  background-color: var(--bgCardFrame);
 }
 
 .sankey-container.is-thumbnail {

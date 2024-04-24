@@ -1,0 +1,17 @@
+.selectorWrapper {
+  display: flex;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gradient {
+  position: relative;
+  top: 1px;
+  width: 2rem;
+  height: 1.25em;
+  margin-left: 0.625rem;
+}

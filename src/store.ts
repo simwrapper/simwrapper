@@ -33,8 +33,11 @@ const initialViewState = () => {
   return {
     // Set your startup city long/lat here!
     startup: true,
-    longitude: 13.45,
-    latitude: 52.5,
+    // longitude: 13.45,
+    // latitude: 52.5,
+    // zoom: 7,
+    longitude: -122.435,
+    latitude: 37.75,
     zoom: 7,
     pitch: 0,
     bearing: 0,

@@ -90,13 +90,13 @@ const Component = defineComponent({
     async getVizDetails() {
       if (!this.fileApi) return
 
-      console.log(this.yamlConfig)
       // first get config
       try {
         const text = await this.fileApi.getFileText(this.subfolder + '/' + this.yamlConfig)
         this.vizDetails = YAML.parse(text)
       } catch (e) {
-        console.error('failed')
+        console.error('failed ' + e)
+        this.$emit('error', '' + e)
       }
       const t = this.vizDetails.title ? this.vizDetails.title : 'Table'
       this.$emit('title', t)

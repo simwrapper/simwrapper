@@ -102,10 +102,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
-import { Style, Ramp, colorRamp } from '@/js/ColorsAndWidths'
+import { Style, Ramp, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 export interface LineColorDefinition {
   dataset: string
@@ -127,7 +128,7 @@ const ALL_COLOR_RAMPS = [
   { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
   { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
   { ramp: 'RdBu', style: Style.diverging, reverse: true },
-  { ramp: 'RdYlBu', style: Style.sequential },  // Not sequential, but otherwise the middle color is replaced
+  { ramp: 'RdYlBu', style: Style.sequential }, // Not sequential, but otherwise the middle color is replaced
   { ramp: 'PRGn', style: Style.diverging, reverse: true },
   { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
   { ramp: 'Paired', style: Style.categorical }, // , reverse: true },
@@ -166,6 +167,7 @@ export default defineComponent({
       diffRelative: false,
       diffUISelection: '',
       diffChoices: [] as any[],
+      emitColorSpecification: {} as any,
       flip: false,
       isCurrentlyDiffMode: false,
       join: '',
@@ -177,6 +179,8 @@ export default defineComponent({
     }
   },
   mounted() {
+    this.emitColorSpecification = debounce(this.emitColorSpecificationDebounced, 150)
+
     this.selectedSingleColor = this.simpleColors[0]
     this.selectedColor = this.colorChoices[0]
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -312,7 +316,7 @@ export default defineComponent({
       this.isCurrentlyDiffMode = !!this.diffUISelection
     },
 
-    emitColorSpecification() {
+    emitColorSpecificationDebounced() {
       // no data
       if (!this.dataColumn) return
 
@@ -361,7 +365,7 @@ export default defineComponent({
           this.vizConfiguration.display?.lineColor?.colorRamp?.breakpoints
       }
 
-      setTimeout(() => this.$emit('update', { lineColor }), 50)
+      this.$emit('update', { lineColor })
     },
 
     clickedSingleColor(swatch: string) {
@@ -375,7 +379,7 @@ export default defineComponent({
 
       // the viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { lineColor }), 50)
+      this.$emit('update', { lineColor })
     },
 
     columnsInDataset(datasetId: string): string[] {
@@ -394,7 +398,7 @@ export default defineComponent({
     },
 
     buildColors(scale: Ramp, count?: number): string[] {
-      let colors = [...colorRamp(scale, count || parseInt(this.steps))]
+      let colors = [...getColorRampHexCodes(scale, count || parseInt(this.steps))]
 
       // many reasons to flip the colorscale:
       // (1) the scale preset; (2) the checkbox (3) dark mode

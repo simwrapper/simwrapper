@@ -203,6 +203,7 @@ export default defineComponent({
 @import '~/the-new-css-reset/css/reset.css';
 @import '~/lil-gui/dist/lil-gui.min.css';
 @import '~/maplibre-gl/dist/maplibre-gl.css';
+@import '~/bulma/css/bulma.min.css';
 @import '~/buefy/dist/buefy.css';
 
 @import '@/styles.scss';

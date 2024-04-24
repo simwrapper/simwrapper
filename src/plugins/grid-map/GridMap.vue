@@ -31,7 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
-import { colorRamp, Ramp, Style } from '@/js/ColorsAndWidths'
+import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -47,6 +47,7 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import { thresholdFreedmanDiaconis } from 'd3-array'
+import avro from '@/js/avro'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -80,6 +81,7 @@ interface VizDetail {
   zoom: number
   mapIsIndependent?: boolean
   breakpoints?: string
+  valueColumn: string
 }
 
 interface GuiConfig {
@@ -160,15 +162,17 @@ const GridMap = defineComponent({
     ZoomButtons,
     TimeSlider,
   },
+
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     yamlConfig: String,
     config: Object,
     thumbnail: Boolean,
-    datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
   },
-  data: () => {
+
+  data() {
     const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
@@ -181,7 +185,7 @@ const GridMap = defineComponent({
         cellSize: 250,
         opacity: 0.7,
         maxHeight: 0,
-        userColorRamp: 'virdis',
+        userColorRamp: 'Viridis',
         center: null as any,
         zoom: 9,
         mapIsIndependent: false,
@@ -204,6 +208,7 @@ const GridMap = defineComponent({
         center: null as any,
         zoom: 9,
         breakpoints: null as any,
+        valueColumn: 'value',
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -215,7 +220,7 @@ const GridMap = defineComponent({
       selectedTimeData: [] as any[],
       allTimePeriodes: [] as any[],
       colors: colormap({
-        colormap: 'viridis',
+        colormap: 'Viridis',
         nshades: 10,
         format: 'rba',
         alpha: 1,
@@ -225,10 +230,10 @@ const GridMap = defineComponent({
       guiConfig: {
         buckets: 10,
         exponent: 4,
-        radius: 5,
+        radius: 150,
         opacity: 1,
         height: 100,
-        'color ramp': 'viridis',
+        'color ramp': 'Viridis',
         colorRamps: colorRamps,
         flip: false,
         steps: 10,
@@ -243,6 +248,9 @@ const GridMap = defineComponent({
       resizer: null as ResizeObserver | null,
       timeRange: [Infinity, -Infinity] as Number[],
       allTimes: [] as number[],
+      // DataManager might be passed in from the dashboard; or we might be
+      // in single-view mode, in which case we need to create one for ourselves
+      myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
     }
   },
   computed: {
@@ -375,6 +383,7 @@ const GridMap = defineComponent({
         userColorRamp: this.vizDetails.userColorRamp,
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
+        valueColumn: this.vizDetails.valueColumn,
       }
       this.$emit('title', this.vizDetails.title)
       this.solveProjection()
@@ -415,11 +424,7 @@ const GridMap = defineComponent({
       } catch (err) {
         // Show error message in the Warning/Error Panel
         const errorMessage = `File not found: ${this.myState.subfolder}/${this.myState.yamlConfig}`
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: 'Error',
-          desc: errorMessage,
-        })
+        this.$emit('error', errorMessage)
       }
     },
 
@@ -475,7 +480,7 @@ const GridMap = defineComponent({
 
       this.setRadiusAndHeight()
 
-      const t = this.vizDetails.title ? this.vizDetails.title : 'Hex Aggregation'
+      const t = this.vizDetails.title ? this.vizDetails.title : 'Grid Map'
       this.$emit('title', t)
     },
 
@@ -523,11 +528,123 @@ const GridMap = defineComponent({
     },
 
     async loadAndPrepareData() {
-      const config = {
-        dataset: this.vizDetails.file,
+      if (this.vizDetails.file.indexOf('.avro') > -1) {
+        return await this.loadAndPrepareAvroData()
+      } else {
+        return await this.loadAndPrepareCSVData()
+      }
+    },
+
+    async loadAndPrepareAvroData() {
+      const filename = `${this.subfolder}/${this.vizDetails.file}`
+      const blob = await this.fileApi.getFileBlob(filename)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {
+            // console.log(schema)
+          })
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      // console.log({ records })
+
+      // Store the min and max value to calculate the scale factor
+      let minValue = Number.POSITIVE_INFINITY
+      let maxValue = Number.NEGATIVE_INFINITY
+
+      const record = records[0]
+
+      this.allTimes = record.timestamps
+      this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
+      this.timeRange[0] = this.allTimes[0]
+      this.timeRange[1] = this.allTimes[this.allTimes.length - 1]
+
+      const tableName = Object.keys(record.data)[0]
+      const dataValues: number[] = record.data[tableName]
+
+      // console.log({ allTimes: this.allTimes, timeRange: this.timeRange, tableName, dataValues })
+
+      // calc scale
+      for (const value of dataValues) maxValue = Math.max(maxValue, value)
+      const scaleFactor = 100 / maxValue
+
+      // console.log({ scaleFactor })
+
+      const finalData = {
+        mapData: [] as MapData[],
+        scaledFactor: scaleFactor as Number,
+      } as CompleteMapData
+
+      const x = record.xCoords
+      const y = record.yCoords
+      const numPoints = x.length * y.length
+
+      // Load CRS/projection from Avro file if exists
+      if (record.crs) this.vizDetails.projection = record.crs
+
+      // User must provide projection
+      if (!this.vizDetails.projection) {
+        const msg = 'No coordinate projection. Add "projection: EPSG:xxxx" to config'
+        this.$emit('error', msg)
+        // throw Error(msg)
       }
 
-      const csv = await this.datamanager.getDataset(config)
+      // Build x/y-coordinates (just once - always the same)
+      const centroid = new Float32Array(numPoints * 2)
+      let offset = 0
+      for (let ix = 0; ix < x.length; ix++) {
+        for (let iy = 0; iy < y.length; iy++) {
+          let wgs84 = [x[ix], y[iy]]
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
+          centroid[offset] = wgs84[0]
+          centroid[offset + 1] = wgs84[1]
+          offset += 2
+        }
+      }
+      // map all times to their index and create a mapData object for each time
+      this.allTimes.forEach((time, index) => {
+        this.timeToIndex.set(time, index)
+
+        finalData.mapData.push({
+          length: numPoints,
+          time: time,
+          centroid,
+          values: new Float32Array(numPoints),
+          colorData: new Uint8Array(numPoints * 3),
+        })
+      })
+
+      // Loop through the data and create the data object for the map
+      for (let timeIndex = 0; timeIndex < this.allTimes.length; timeIndex++) {
+        console.log('time', timeIndex)
+        for (let i = 0; i < numPoints; i++) {
+          const offset = timeIndex * numPoints + i
+          const value = scaleFactor * dataValues[offset]
+          const colors = this.pickColor(value)
+
+          // add final values to the mapData
+          finalData.mapData[timeIndex].values[i] = value
+          for (let j = 0; j < 3; j++) {
+            finalData.mapData[timeIndex].colorData[i * 3 + j] = colors[j]
+          }
+        }
+      }
+
+      this.myState.statusMessage = ''
+      return finalData
+    },
+
+    async loadAndPrepareCSVData() {
+      const config = { dataset: this.vizDetails.file }
+      const csv = await this.myDataManager.getDataset(config)
 
       // The datamanager doesn't return the comments...
       // const projection = csv.comments[0].split('#')[1].trim()
@@ -537,15 +654,24 @@ const GridMap = defineComponent({
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
 
+      console.log('csv: ', csv.allRows)
+      console.log('valueColumn: ', this.vizDetails.valueColumn)
+
+      if (this.vizDetails.valueColumn == undefined) {
+        this.vizDetails.valueColumn = 'value'
+      }
+
       // This for loop collects all the data that's used by
-      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // Stores all times to calculate the range and the timeBinSize
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
           this.allTimes.push(csv.allRows.time.values[i])
 
         // calculate the min and max value
-        if (csv.allRows.value.values[i] < minValue) minValue = csv.allRows.value.values[i]
-        if (csv.allRows.value.values[i] > maxValue) maxValue = csv.allRows.value.values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] < minValue)
+          minValue = csv.allRows[this.vizDetails.valueColumn].values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] > maxValue)
+          maxValue = csv.allRows[this.vizDetails.valueColumn].values[i]
 
         // Store all different times
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
@@ -559,7 +685,7 @@ const GridMap = defineComponent({
 
       // Count elements per time
       const numberOfElementsPerTime = Math.ceil(
-        csv.allRows.value.values.length / this.allTimes.length
+        csv.allRows[this.vizDetails.valueColumn].values.length / this.allTimes.length
       )
 
       // scaleFactor
@@ -594,11 +720,11 @@ const GridMap = defineComponent({
       }
 
       // Loop through the data and create the data object for the map
-      for (let i = 0; i < csv.allRows.value.values.length; i++) {
+      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // index for the time
         const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
 
-        const value = scaleFactor * csv.allRows.value.values[i]
+        const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
         const colors = this.pickColor(value)
 
         // Save index for next position in the array
@@ -685,6 +811,8 @@ const GridMap = defineComponent({
     },
 
     setColors() {
+      if (!this.data) return
+
       const ramp = {
         ramp: this.guiConfig['color ramp'],
         // style: Style.sequential,
@@ -692,15 +820,11 @@ const GridMap = defineComponent({
 
       console.log('Ramp: ', this.guiConfig['color ramp'])
       console.log('n: ', this.guiConfig.steps)
-      const color = colorRamp(ramp, this.guiConfig.steps)
+      const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
 
       if (color.length == 0) {
         const errorMessage = `Invalid color ramp: ${this.guiConfig['color ramp']}`
-        this.$store.commit('setStatus', {
-          type: Status.ERROR,
-          msg: 'Error',
-          desc: errorMessage,
-        })
+        this.$emit('error', errorMessage)
       }
 
       if (color.length) {
@@ -720,8 +844,6 @@ const GridMap = defineComponent({
       // )
 
       if (this.guiConfig.flip) this.colors = this.colors.reverse()
-
-      console.log(this.colors)
 
       // Recalculating the color values for the colorRamp
       for (let i = 0; i < this.data.mapData.length; i++) {
@@ -795,14 +917,11 @@ const GridMap = defineComponent({
 
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
-    try {
-      this.data = await this.loadAndPrepareData()
-    } catch (e) {
-      this.$emit('error', 'Error loading ' + this.vizDetails.file)
-    }
+    this.data = await this.loadAndPrepareData()
+    // this.$emit('error', 'Error loading ' + this.vizDetails.file)
 
     this.setColors()
-    this.buildThumbnail()
+    // this.buildThumbnail()
     this.isLoaded = true
     this.setMapCenter()
   },

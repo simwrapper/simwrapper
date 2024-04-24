@@ -16,22 +16,17 @@
     geojson-layer(v-if="!needsInitialMapExtent"
       :viewId="layerId"
       :fillColors="dataFillColors"
-      :featureDataTable="boundaryDataTable"
       :lineColors="dataLineColors"
       :lineWidths="dataLineWidths"
       :fillHeights="dataFillHeights"
       :screenshot="triggerScreenshot"
-      :calculatedValues="dataCalculatedValues"
-      :calculatedValueLabel="dataCalculatedValueLabel"
-      :normalizedValues="dataNormalizedValues"
       :featureFilter="boundaryFilters"
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
-      :tooltip="vizDetails.tooltip"
       :cbTooltip="cbTooltip"
     )
-    //- :features="useCircles ? centroids: boundaries"
 
+    //- :features="useCircles ? centroids: boundaries"
     //- background-map-on-top(v-if="isLoaded")
 
     viz-configurator(v-if="isLoaded"
@@ -86,11 +81,12 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { group, zip, sum } from 'd3-array'
 
+import * as shapefile from 'shapefile'
+import * as turf from '@turf/turf'
+import avro from '@/js/avro'
 import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
-import * as shapefile from 'shapefile'
-import * as turf from '@turf/turf'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -156,6 +152,7 @@ const MyComponent = defineComponent({
 
   data() {
     return {
+      avroNetwork: null as any,
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -416,7 +413,97 @@ const MyComponent = defineComponent({
       }
     },
 
-    cbTooltip(html: string) {
+    // this will only round a number if it is a plain old regular number with
+    // a fractional part to the right of the decimal point.
+    truncateFractionalPart(value: any, precision: number) {
+      if (typeof value !== 'number') return value
+
+      let printValue = '' + value
+      if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
+        if (/\d$/.test(printValue))
+          return printValue.substring(0, 1 + precision + printValue.lastIndexOf('.')) // precise(value, precision)
+      }
+      return value
+    },
+
+    cbTooltip(index: number, object: any) {
+      // tooltip will show values for color settings and for width settings.
+      // if there is base data, it will also show values and diff vs. base
+      // for both color and width.
+
+      const PRECISION = 4
+
+      if (object === null || !this.boundaries[index]?.properties) {
+        this.tooltipHtml = ''
+        return
+      }
+
+      const propList = []
+
+      // normalized value first
+      if (this.dataNormalizedValues) {
+        const label = this.dataCalculatedValueLabel ?? 'Normalized Value'
+        let value = this.truncateFractionalPart(this.dataNormalizedValues[index], PRECISION)
+
+        propList.push(
+          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>`
+        )
+      }
+
+      // calculated value
+      if (this.dataCalculatedValues) {
+        let cLabel = this.dataCalculatedValueLabel ?? 'Value'
+
+        const label = this.dataNormalizedValues
+          ? cLabel.substring(0, cLabel.lastIndexOf('/'))
+          : cLabel
+        let value = this.truncateFractionalPart(this.dataCalculatedValues[index], PRECISION)
+        if (this.dataCalculatedValueLabel.startsWith('%')) value = `${value} %`
+
+        propList.push(
+          `<tr><td style="text-align: right; padding-right: 0.5rem;">${label}</td><td><b>${value}</b></td></tr>
+         <tr><td>&nbsp;</td></tr>`
+        )
+      }
+
+      // --- dataset tooltip lines ---
+      let datasetProps = ''
+      const featureTips = Object.entries(this.boundaries[index].properties)
+
+      for (const [tipKey, tipValue] of featureTips) {
+        if (tipValue === null) continue
+
+        // Truncate fractional digits IF it is a simple number that has a fraction
+        let value = this.truncateFractionalPart(tipValue, PRECISION)
+        datasetProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${tipKey}</td><td><b>${value}</b></td></tr>`
+      }
+      if (datasetProps) propList.push(datasetProps)
+
+      // --- boundary feature tooltip lines ---
+      let columns = Object.keys(this.boundaryDataTable)
+      if (this.vizDetails.tooltip?.length) {
+        columns = this.vizDetails.tooltip.map(tip => tip.substring(tip.indexOf(':') + 1))
+      }
+
+      let featureProps = ''
+      columns.forEach(column => {
+        if (this.boundaryDataTable[column]) {
+          let value = this.boundaryDataTable[column].values[index]
+          if (value == null) return
+          if (typeof value == 'number') value = this.truncateFractionalPart(value, PRECISION)
+          featureProps += `<tr><td style="text-align: right; padding-right: 0.5rem;">${column}</td><td><b>${value}</b></td></tr>`
+        }
+      })
+      if (featureProps) propList.push(featureProps)
+
+      // nothing to show? no tooltip
+      if (!propList.length) {
+        this.tooltipHtml = ''
+        return
+      }
+
+      let finalHTML = propList.join('')
+      const html = `<table>${finalHTML}</table>`
       this.tooltipHtml = html
     },
 
@@ -574,8 +661,12 @@ const MyComponent = defineComponent({
         }
 
         // OR is this a bare geojson/shapefile file? - build vizDetails manually
-        if (/(\.geojson)(|\.gz)$/.test(filename) || /\.shp$/.test(filename)) {
-          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'GeoJSON'}: ${this.yamlConfig}`
+        if (
+          /(\.geojson)(|\.gz)$/.test(filename) ||
+          /\.shp$/.test(filename) ||
+          /network\.avro$/.test(filename)
+        ) {
+          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
             title,
@@ -688,7 +779,7 @@ const MyComponent = defineComponent({
       fillHeight?: FillHeightDefinition
       filters?: FilterDefinition
     }) {
-      console.log('PROPS', props)
+      // console.log('PROPS', props)
 
       try {
         if (props['fill']) {
@@ -793,46 +884,12 @@ const MyComponent = defineComponent({
       }
 
       const lookupValues = dataTable[dataJoinColumn].values
-
       const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
-      // if user wants specific tooltips based on this dataset, save the values
-      // TODO - this is in the wrong place and probably causes problems with
-      // multi-line datasets
-
-      const tips = this.vizDetails.tooltip || []
-      const relevantTips = tips
-        .filter(tip => tip.substring(0, tip.indexOf('.')).startsWith(datasetId))
-        .map(tip => {
-          return { id: tip, column: tip.substring(1 + tip.indexOf('.')) }
-        })
-
-      for (const tip of relevantTips) {
-        // make sure tip column exists
-        if (!dataTable[tip.column]) {
-          this.$emit('error', {
-            type: Status.WARNING,
-            msg: `Tooltip references "${tip.id}" but that column doesn't exist`,
-            desc: `Check the tooltip spec and column names`,
-          })
-        }
-      }
 
       for (let i = 0; i < lookupValues.length; i++) {
         // set lookup data
         const featureOffset = boundaryOffsets[lookupValues[i]]
         lookupColumn.values[i] = featureOffset
-        const feature = this.boundaries[featureOffset]
-        // also set tooltip data
-        for (const tip of relevantTips) {
-          if (!dataTable[tip.column]) continue
-          const value = dataTable[tip.column]?.values[i] && ''
-          if (feature && value) feature.properties[tip.id] = value
-        }
-      }
-
-      // Notify Deck.gl of the new tooltip data
-      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
       }
 
       // add/replace this dataset in the datamanager, with the new lookup column
@@ -841,11 +898,6 @@ const MyComponent = defineComponent({
         key: this.datasetKeyToFilename[datasetId],
         dataTable,
       })
-
-      this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
-        this.processFiltersNow
-      )
 
       this.vizDetails.datasets[datasetId] = {
         file: this.datasetKeyToFilename[datasetId],
@@ -856,8 +908,56 @@ const MyComponent = defineComponent({
             : `${this.featureJoinColumn}:${dataJoinColumn}`,
       } as any
 
+      this.myDataManager.addFilterListener(
+        { dataset: this.datasetKeyToFilename[datasetId] },
+        this.processFiltersNow
+      )
+
+      this.prepareTooltipData(props)
+
+      // Notify Deck.gl of the new tooltip data
+      if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+        REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+      }
       // console.log('triggering updates')
       this.datasets[datasetId] = dataTable
+    },
+
+    prepareTooltipData(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+      // if user wants specific tooltips based on this dataset, save the values
+      // TODO - this is in the wrong place and probably causes problems with
+      // survey-style multi-record datasets
+
+      const { dataTable, datasetId, dataJoinColumn } = props
+
+      const tips = this.vizDetails.tooltip || []
+      const relevantTips = tips
+        .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+        .map(tip => {
+          return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+        })
+
+      // no tips for this datasetId
+      if (!relevantTips.length) return
+
+      const lookupValues = dataTable[dataJoinColumn].values
+      const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+      for (const tip of relevantTips) {
+        // make sure tip column exists
+        if (!dataTable[tip.column]) {
+          this.$emit('error', `Tooltip references "${tip.id}" but that column doesn't exist`)
+          continue
+        }
+
+        // set the tooltip data
+        for (let i = 0; i < lookupValues.length; i++) {
+          const featureOffset = boundaryOffsets[lookupValues[i]]
+          const feature = this.boundaries[featureOffset]
+          const value = dataTable[tip.column].values[i]
+          if (feature) feature.properties[tip.id] = value
+        }
+      }
     },
 
     getBoundaryOffsetLookup(joinColumn: string) {
@@ -865,17 +965,22 @@ const MyComponent = defineComponent({
       if (this.boundaryJoinLookups[joinColumn]) return this.boundaryJoinLookups[joinColumn]
 
       // build it
-      this.statusText = 'Joining datasets...'
-      this.boundaryJoinLookups[joinColumn] = {}
-      const lookupValues = this.boundaryJoinLookups[joinColumn]
+      try {
+        this.statusText = 'Joining datasets...'
+        this.boundaryJoinLookups[joinColumn] = {}
+        const lookupValues = this.boundaryJoinLookups[joinColumn]
 
-      const boundaryLookupColumnValues = this.boundaryDataTable[joinColumn].values
+        const boundaryLookupColumnValues = this.boundaryDataTable[joinColumn].values
 
-      for (let i = 0; i < this.boundaries.length; i++) {
-        lookupValues[boundaryLookupColumnValues[i]] = i
+        for (let i = 0; i < this.boundaries.length; i++) {
+          lookupValues[boundaryLookupColumnValues[i]] = i
+        }
+        this.statusText = ''
+        return lookupValues
+      } catch (e) {
+        console.warn('waahaa')
+        return {}
       }
-      this.statusText = ''
-      return lookupValues
     },
 
     removeAnyOldFilters(filters: any) {
@@ -907,12 +1012,11 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewFilters(filters: any) {
+    async handleNewFilters(filters: any) {
       // Remove removed filters first!
       this.removeAnyOldFilters(filters)
 
       this.currentUIFilterDefinitions = filters
-
       const newDefinitions = this.parseFilterDefinitions(filters)
       this.filterDefinitions = newDefinitions
 
@@ -920,9 +1024,10 @@ const MyComponent = defineComponent({
       this.filterShapesNow()
 
       // Filter attached datasets
-      Object.keys(this.datasets).forEach((datasetKey, i) => {
+      Object.keys(this.datasets).forEach(async (datasetKey, i) => {
         if (i === 0) return // skip shapes, we just did them
-        this.activateFiltersForDataset(datasetKey)
+        await this.activateFiltersForDataset(datasetKey)
+        this.processFiltersNow(datasetKey)
       })
     },
 
@@ -936,8 +1041,6 @@ const MyComponent = defineComponent({
       const key2 = color.diffDatasets[1] || ''
       const dataset2 = this.datasets[key2]
       const relative = !!color.relative
-
-      // console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
 
       if (dataset1 && dataset2) {
         // generate the lookup columns we need
@@ -974,26 +1077,35 @@ const MyComponent = defineComponent({
           }
         }
 
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-          numFeatures: this.boundaries.length,
-          data: dataCol1,
-          data2: dataCol2,
-          lookup: lookup1,
-          lookup2: lookup2,
-          normalize: normalColumn,
-          normalLookup,
-          options: color,
-          filter: this.boundaryFilters,
-          relative,
-        })
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+          breakpoints: color.colorRamp?.breakpoints,
+        }
 
-        if (!array) return
+        // Calculate colors for each feature
+        const { rgbArray, legend, calculatedValues } =
+          ColorWidthSymbologizer.getColorsForDataColumn({
+            numFeatures: this.boundaries.length,
+            data: dataCol1,
+            data2: dataCol2,
+            lookup: lookup1,
+            lookup2: lookup2,
+            normalColumn: normalColumn,
+            normalLookup,
+            options: { colorRamp: ramp, fixedColors: color.fixedColors },
+            filter: this.boundaryFilters,
+            relative,
+          })
+
+        if (!rgbArray) return
 
         if (section === 'fill') {
-          this.dataFillColors = array
+          this.dataFillColors = rgbArray
         } else {
-          this.dataLineColors = array
+          this.dataLineColors = rgbArray
         }
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
@@ -1034,25 +1146,26 @@ const MyComponent = defineComponent({
       const props = {
         numFeatures: this.boundaries.length,
         data: dataTable[columnName],
-        normalize: normalColumn,
         lookup: lookupColumn,
+        normalColumn,
         filter: this.boundaryFilters,
         options: currentDefinition,
         join: currentDefinition.join,
       }
 
-      const { array, legend, calculatedValues } =
+      const { rgbArray, legend, calculatedValues } =
         ColorWidthSymbologizer.getColorsForDataColumn(props)
 
-      if (!array) return
+      if (!rgbArray) return
 
       if (section === 'fill') {
-        this.dataFillColors = array
+        this.dataFillColors = rgbArray
       } else {
-        this.dataLineColors = array
+        this.dataLineColors = rgbArray
       }
 
       this.dataCalculatedValues = calculatedValues
+
       this.legendStore.setLegendSection({
         section: section === 'fill' ? 'FillColor' : 'Line Color',
         column: columnName,
@@ -1094,101 +1207,106 @@ const MyComponent = defineComponent({
         // *** diff mode *************************
         this.handleColorDiffMode('fill', color)
         return
-      } else if (!columnName) {
+      }
+
+      if (!columnName) {
         // *** simple color **********************
         this.dataFillColors = color.fixedColors[0]
         this.dataCalculatedValueLabel = ''
         this.legendStore.clear('FillColor')
         return
+      }
+
+      // *** Data column mode *************************************************************
+      const datasetKey = color.dataset || ''
+      const selectedDataset = this.datasets[datasetKey]
+      this.dataCalculatedValueLabel = ''
+
+      // no selected dataset or datacol missing? Not sure what to do here, just give up...
+      if (!selectedDataset) {
+        console.warn('color: no selected dataset yet, maybe still loading')
+        return
+      }
+      const dataColumn = selectedDataset[columnName]
+      if (!dataColumn) throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+
+      this.dataCalculatedValueLabel = columnName ?? ''
+
+      // Do we need a join? Join it
+      let dataJoinColumn = ''
+      if (color.join && color.join !== '@count') {
+        // join column name set by user
+        dataJoinColumn = color.join
+      } else if (color.join === '@count') {
+        // rowcount specified: join on the column name itself
+        dataJoinColumn = columnName
       } else {
-        // *** Data column mode ******************
-        const datasetKey = color.dataset || ''
-        const selectedDataset = this.datasets[datasetKey]
-        this.dataCalculatedValueLabel = ''
-
-        // no selected dataset or datacol missing? Not sure what to do here, just give up...
-        if (!selectedDataset) {
-          console.warn('color: no selected dataset yet, maybe still loading')
-          return
+        // nothing specified: let's hope they didn't want to join
+        if (this.datasetChoices.length > 1) {
+          console.warn('No join; lets hope user just wants to display data in boundary file')
         }
-        const dataColumn = selectedDataset[columnName]
-        if (!dataColumn) {
-          throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+      }
+
+      this.setupJoin({
+        datasetId: datasetKey,
+        dataTable: selectedDataset,
+        dataJoinColumn,
+      })
+
+      const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+
+      // NORMALIZE if we need to
+      let normalColumn
+      let normalLookup
+      if (color.normalize) {
+        const [dataset, column] = color.normalize.split(':')
+        if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
+          throw Error(`${dataset} does not contain column "${column}"`)
         }
-
-        this.dataCalculatedValueLabel = columnName ?? ''
-
-        // Do we need a join? Join it
-        let dataJoinColumn = ''
-        if (color.join && color.join !== '@count') {
-          // join column name set by user
-          dataJoinColumn = color.join
-        } else if (color.join === '@count') {
-          // rowcount specified: join on the column name itself
-          dataJoinColumn = columnName
-        } else {
-          // nothing specified: let's hope they didn't want to join
-          if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
-          }
+        this.dataCalculatedValueLabel += `/ ${column}`
+        normalColumn = this.datasets[dataset][column]
+        // Create yet one more join for the normal column if it's not from the featureset itself
+        if (this.datasetChoices[0] !== dataset) {
+          this.setupJoin({
+            datasetId: dataset,
+            dataTable: this.datasets[dataset],
+            dataJoinColumn,
+          })
+          normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
         }
+      }
 
-        this.setupJoin({
-          datasetId: datasetKey,
-          dataTable: selectedDataset,
-          dataJoinColumn,
+      const ramp = {
+        ramp: color.colorRamp?.ramp || 'Viridis',
+        style: color.colorRamp?.style || 0,
+        reverse: color.colorRamp?.reverse || false,
+        steps: color.colorRamp?.steps || 9,
+        breakpoints: color.colorRamp?.breakpoints || undefined,
+      }
+
+      // Calculate colors for each feature
+      const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+        numFeatures: this.boundaries.length,
+        data: dataColumn,
+        normalColumn,
+        normalLookup,
+        lookup: lookupColumn,
+        filter: this.boundaryFilters,
+        options: { colorRamp: ramp, fixedColors: color.fixedColors },
+        join: color.join,
+      })
+
+      if (rgbArray) {
+        this.dataFillColors = rgbArray
+        this.dataCalculatedValues = calculatedValues
+        this.dataNormalizedValues = calculatedValues || null
+
+        this.legendStore.setLegendSection({
+          section: 'FillColor',
+          column: dataColumn.name,
+          values: legend,
+          normalColumn: normalColumn ? normalColumn.name : '',
         })
-
-        const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
-
-        // Figure out the normal
-        let normalColumn
-
-        // NORMALIZE if we need to
-        let normalLookup
-        if (color.normalize) {
-          const [dataset, column] = color.normalize.split(':')
-          if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
-            throw Error(`${dataset} does not contain column "${column}"`)
-          }
-          this.dataCalculatedValueLabel += `/ ${column}`
-          normalColumn = this.datasets[dataset][column]
-          // Create yet one more join for the normal column if it's not from the featureset itself
-          if (this.datasetChoices[0] !== dataset) {
-            this.setupJoin({
-              datasetId: dataset,
-              dataTable: this.datasets[dataset],
-              dataJoinColumn,
-            })
-            normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
-          }
-        }
-
-        // Calculate colors for each feature
-        const { array, legend, calculatedValues, normalizedValues } =
-          ColorWidthSymbologizer.getColorsForDataColumn({
-            numFeatures: this.boundaries.length,
-            data: dataColumn,
-            normalize: normalColumn,
-            normalLookup,
-            lookup: lookupColumn,
-            filter: this.boundaryFilters,
-            options: color,
-            join: color.join,
-          })
-
-        if (array) {
-          this.dataFillColors = array
-          this.dataCalculatedValues = calculatedValues
-          this.dataNormalizedValues = normalizedValues || null
-
-          this.legendStore.setLegendSection({
-            section: 'FillColor',
-            column: dataColumn.name,
-            values: legend,
-            normalColumn: normalColumn ? normalColumn.name : '',
-          })
-        }
       }
     },
 
@@ -1249,6 +1367,7 @@ const MyComponent = defineComponent({
           console.warn('color: no selected dataset yet, maybe still loading')
           return
         }
+
         const dataColumn = selectedDataset[columnName]
         if (!dataColumn) {
           throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
@@ -1279,10 +1398,8 @@ const MyComponent = defineComponent({
 
         const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
 
-        // Figure out the normal
-        let normalColumn
-
         // NORMALIZE if we need to
+        let normalColumn
         let normalLookup
         if (color.normalize) {
           const [dataset, column] = color.normalize.split(':')
@@ -1303,31 +1420,41 @@ const MyComponent = defineComponent({
         }
 
         // Calculate colors for each feature
-        const colors = ColorWidthSymbologizer.getColorsForDataColumn({
+
+        const ramp = {
+          ramp: color.colorRamp?.ramp || 'Viridis',
+          style: color.colorRamp?.style || 0,
+          reverse: color.colorRamp?.reverse || false,
+          steps: color.colorRamp?.steps || 9,
+          breakpoints: color.colorRamp?.breakpoints,
+        }
+
+        const result = ColorWidthSymbologizer.getColorsForDataColumn({
           numFeatures: this.boundaries.length,
           data: dataColumn,
-          normalize: normalColumn,
-          normalLookup,
           lookup: lookupColumn,
+          normalColumn,
+          normalLookup,
           filter: this.boundaryFilters,
-          options: color,
+          options: { colorRamp: ramp, fixedColors: color.fixedColors },
           join: color.join,
-        })
+        }) as any
 
-        const { array, legend, calculatedValues, normalizedValues, hasCategory } = colors as any
+        const { rgbArray, legend, calculatedValues } = result
 
-        if (!array) return
+        if (!rgbArray) return
 
-        this.dataLineColors = array
+        this.dataLineColors = rgbArray
+
         this.dataCalculatedValues = calculatedValues
-        this.dataNormalizedValues = normalizedValues || null
+        this.dataNormalizedValues = calculatedValues || null
 
         // If colors are based on category and line widths are constant, then use a
         // 1-pixel line width when the category is undefined.
-        if (hasCategory && this.constantLineWidth !== null) {
+        if (result.hasCategory && this.constantLineWidth !== null) {
           const lineWidth = this.constantLineWidth as number
           const variableConstantWidth = new Float32Array(this.boundaries.length).fill(1)
-          Object.keys(hasCategory).forEach((i: any) => {
+          Object.keys(result.hasCategory).forEach((i: any) => {
             variableConstantWidth[i] = lineWidth
           })
           this.dataLineWidths = variableConstantWidth
@@ -1637,6 +1764,13 @@ const MyComponent = defineComponent({
         return this.vizDetails.shapes.join
       }
 
+      // if boundary features have 'id' outside of properties, we're done
+      if (this.boundaries.length && this.boundaries[0].id) return 'id'
+
+      if ('string' !== typeof this.vizDetails.shapes && this.vizDetails.shapes.join) {
+        return this.vizDetails.shapes.join
+      }
+
       // if there's only one column, we're done
       const featureDataset = this.datasets[Object.keys(this.datasets)[0]]
       const availableColumns = Object.keys(featureDataset)
@@ -1685,19 +1819,40 @@ const MyComponent = defineComponent({
           for (const row of filteredRows) column.values.push(row[columnId])
           filteredDataTable[columnId] = column
         })
+
+        // TEMPORARY: filter out any shapes that do not pass the test.
+        // TODO: this will need to be revisited when we do layer-mode.
+        const lookups = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+        // hide shapes not in filtered set
+        const hideBoundary = new Float32Array(this.boundaryFilters.length)
+        hideBoundary.fill(1)
+        for (const row of filteredRows) {
+          const joinText = row[this.featureJoinColumn]
+          const boundaryIndex = lookups[joinText]
+          hideBoundary[boundaryIndex] = 0 // keep this one
+        }
+        // merge new hide/show with existing hide/show
+        for (let i = 0; i < this.boundaryFilters.length; i++) {
+          if (hideBoundary[i]) this.boundaryFilters[i] = -1
+        }
       }
 
-      // now redraw colors for fills and liness
-      if (this.currentUIFillColorDefinitions?.dataset) {
-        this.handleNewFillColor(
-          filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
-        )
-      }
+      try {
+        // now redraw colors for fills and liness
+        if (this.currentUIFillColorDefinitions?.dataset) {
+          this.handleNewFillColor(
+            filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
+          )
+        }
 
-      if (this.currentUILineColorDefinitions?.dataset) {
-        this.handleNewLineColor(
-          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
-        )
+        if (this.currentUILineColorDefinitions?.dataset) {
+          this.handleNewLineColor(
+            filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
+          )
+        }
+      } catch (e) {
+        this.$emit('error', '' + e)
       }
     },
 
@@ -1788,6 +1943,51 @@ const MyComponent = defineComponent({
     //   console.error('' + e)
     // }
 
+    async loadAvroNetwork(filename: string) {
+      const path = `${this.subfolder}/${filename}`
+      const blob = await this.fileApi.getFileBlob(path)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {})
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      const network = records[0]
+
+      // Build features with geometry, but no properties yet
+      // (properties get added in setFeaturePropertiesAsDataSource)
+      const numLinks = network.__numLinks
+      const features = [] as any
+      for (let i = 0; i < numLinks; i++) {
+        const linkID = network.id[i]
+        const coordFrom = network.__nodes[network.from[i]]
+        const coordTo = network.__nodes[network.to[i]]
+        if (!coordFrom || !coordTo) continue
+
+        const coords = [coordFrom, coordTo]
+
+        const feature = {
+          id: linkID,
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: coords },
+        }
+        features.push(feature)
+      }
+
+      this.avroNetwork = network
+
+      return features
+    },
+
     async loadBoundaries() {
       let now = Date.now()
 
@@ -1808,16 +2008,19 @@ const MyComponent = defineComponent({
         if (filename.startsWith('http')) {
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
-          // this.boundaries = boundaries.features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
-          // this.boundaries = boundaries
+        } else if (filename.toLocaleLowerCase().includes('network.avro')) {
+          // avro network!
+          boundaries = await this.loadAvroNetwork(filename)
         } else {
           // geojson!
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
-          // this.boundaries = boundaries.features
         }
+
+        this.statusText = 'Processing data...'
+        await this.$nextTick()
 
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
@@ -1906,11 +2109,28 @@ const MyComponent = defineComponent({
       featureProperties: any[],
       config: any
     ) {
-      const dataTable = await this.myDataManager.setFeatureProperties(
-        filename,
-        featureProperties,
-        config
-      )
+      let dataTable
+
+      if (this.avroNetwork) {
+        // create the DataTable right here, we already have everything in memory
+        const avroTable: DataTable = {}
+        const columns = Object.keys(this.avroNetwork).filter(c => !c.startsWith('__'))
+        for (const colName of columns) {
+          const dataColumn: DataTableColumn = {
+            name: colName,
+            type: DataType.NUMBER,
+            values: this.avroNetwork[colName],
+          }
+          avroTable[colName] = dataColumn
+        }
+        dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+      } else {
+        dataTable = await this.myDataManager.setFeatureProperties(
+          filename,
+          featureProperties,
+          config
+        )
+      }
       this.boundaryDataTable = dataTable
 
       const datasetId = filename.substring(1 + filename.lastIndexOf('/'))
@@ -1922,7 +2142,6 @@ const MyComponent = defineComponent({
       } as any
 
       this.config.datasets = Object.assign({}, this.vizDetails.datasets)
-      // console.log(333, this.vizDetails)
 
       // this.myDataManager.addFilterListener({ dataset: datasetId }, this.filterListener)
       // this.figureOutRemainingFilteringOptions()
@@ -2178,6 +2397,7 @@ const MyComponent = defineComponent({
         // Set up filters -- there could be some in YAML already
         this.myDataManager.addFilterListener({ dataset: datasetFilename }, this.processFiltersNow)
         this.activateFiltersForDataset(datasetKey)
+        // this.handleNewFilters(this.vizDetails.filters)
       } catch (e) {
         const msg = '' + e
         console.error(msg)
@@ -2186,11 +2406,10 @@ const MyComponent = defineComponent({
       return []
     },
 
-    activateFiltersForDataset(datasetKey: string) {
+    async activateFiltersForDataset(datasetKey: string) {
       const filters = this.filterDefinitions.filter(f => f.dataset === datasetKey)
 
       for (const filter of filters) {
-        console.log(3, JSON.stringify(filter))
         // if user selected a @categorical, just add it to the thingy
         if (filter.value == '@categorical') {
           if (this.filters[filter.column]) {
@@ -2200,9 +2419,13 @@ const MyComponent = defineComponent({
           }
         } else {
           // actually filter the data
-          this.myDataManager.setFilter(
-            Object.assign(filter, { dataset: this.datasetKeyToFilename[datasetKey] })
-          )
+          try {
+            await this.myDataManager.setFilter(
+              Object.assign(filter, { dataset: this.datasetKeyToFilename[datasetKey] })
+            )
+          } catch (e) {
+            this.$emit('error', `Filter ${datasetKey}.${filter.column}: ` + e)
+          }
         }
       }
     },
@@ -2223,7 +2446,7 @@ const MyComponent = defineComponent({
       this.$router.replace({ query })
 
       this.maxValue = this.boundaryDataTable[this.datasetValuesColumn].max || 0
-      console.log('MAXVALUE', this.maxValue)
+      // console.log('MAXVALUE', this.maxValue)
 
       this.vizDetails.display.fill.columnName = this.datasetValuesColumn
       this.vizDetails = Object.assign({}, this.vizDetails)
@@ -2396,7 +2619,9 @@ const MyComponent = defineComponent({
       this.setEmbeddedMode()
 
       this.clearData()
+
       await this.getVizDetails()
+
       if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
         this.vizDetails.center = this.vizDetails.center
           //@ts-ignore
@@ -2497,8 +2722,10 @@ export default MyComponent
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  // one unit, full height/width. Layers will go on top:
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
@@ -2512,7 +2739,9 @@ export default MyComponent
 
 .area-map {
   position: relative;
-  flex: 1;
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  height: 100%;
   background-color: var(--bgBold);
 }
 
@@ -2595,10 +2824,10 @@ export default MyComponent
 }
 
 .details-panel {
-  text-align: left;
   position: absolute;
   bottom: 0;
   left: 0;
+  text-align: left;
   background-color: var(--bgPanel);
   display: flex;
   filter: $filterShadow;

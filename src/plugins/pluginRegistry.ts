@@ -15,7 +15,7 @@ const plugins = [
   },
   {
     kebabName: 'area-map',
-    filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*.shp'],
+    filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*network.avro', '**/*.shp'],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },
   {
@@ -69,6 +69,11 @@ const plugins = [
     component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
   },
   {
+    kebabName: 'matrix',
+    filePatterns: ['**/viz-matrix*.y?(a)ml', '**/*.h5', '**/*.omx'],
+    component: defineAsyncComponent(() => import('./matrix/MatrixViewer.vue')),
+  },
+  {
     kebabName: 'plotly',
     filePatterns: ['**/plotly*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
@@ -83,11 +88,11 @@ const plugins = [
     filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./sankey/SankeyDiagram.vue')),
   },
-  {
-    kebabName: 'events',
-    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
-    component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
-  },
+  // {
+  //   kebabName: 'events',
+  //   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+  //   component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
+  // },
   {
     kebabName: 'image-view',
     filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!

@@ -20,6 +20,8 @@ declare module '*.md' {
   export default Component
 }
 
+declare module '@/js/avro'
+declare module 'react-aria-menubutton'
 declare module 'colormap'
 declare module 'convert-seconds'
 declare module 'd3-color'

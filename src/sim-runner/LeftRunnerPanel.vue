@@ -196,7 +196,6 @@ export default defineComponent({
 .panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
   padding-top: 0.25rem;
   user-select: none;
   font-size: 0.9rem;

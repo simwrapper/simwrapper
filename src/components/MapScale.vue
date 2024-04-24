@@ -1,10 +1,16 @@
 <template lang="pug">
 .map-scale(v-show="showScale")
 
-  .feet(:style="{width: `${miles.pixels}px`}")
+  .feet(
+    :style="{width: `${miles.pixels}px`}"
+    :class="{leftside: corner == 'top-left'}"
+  )
     p {{miles.length}}&nbsp;{{miles.label}}
 
-  .meters(:style="{width: `${metric.pixels}px`}")
+  .meters(
+    :style="{width: `${metric.pixels}px`}"
+    :class="{leftside: corner == 'top-left'}"
+  )
     p {{metric.length}}&nbsp;{{metric.label}}
 
 </template>
@@ -48,6 +54,9 @@ const breakpointsMiles = [
 
 export default defineComponent({
   name: 'MapScale',
+  props: {
+    corner: { type: String, required: false },
+  },
   data: () => {
     return {
       globalState: globalStore.state,
@@ -80,6 +89,12 @@ export default defineComponent({
 
       this.showScale = true
 
+      // window.devicePixelRatio depends on the page zoom level (user-chosen) and also
+      // whether screen is "retina" or not. we'll guess that >1.5 is retina.
+      // Actually none of this makes any sense, but let's optimize for retina for now
+      const pixelDPI = 2 // window.devicePixelRatio < 1.5 ? 1.0 : 2.0
+      // console.log(window.devicePixelRatio, pixelDPI)
+
       // generate scale based on latitude and zoom
       // https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Resolution_and_Scale
       const metersPerPixelAtEquator = 156543.03
@@ -87,7 +102,7 @@ export default defineComponent({
       const zoomLevel = this.globalState.viewState.zoom
       const metersPerPixel = (metersPerPixelAtEquator * Math.cos(latitude)) / 2.0 ** zoomLevel
 
-      const pixelsForOneKM = (window.devicePixelRatio * 1000) / metersPerPixel
+      const pixelsForOneKM = (pixelDPI * 1000) / metersPerPixel
       this.calculateBestMeasurements(pixelsForOneKM)
     },
     calculateBestMeasurements(pixelsForOneKM: number) {
@@ -159,6 +174,10 @@ p {
   border-left: var(--scaleBorder);
   border-right: var(--scaleBorder);
   border-top: var(--scaleBorder);
+}
+
+.leftside {
+  margin-left: 10px;
 }
 
 @media only screen and (max-width: 640px) {

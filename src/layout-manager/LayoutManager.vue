@@ -26,15 +26,16 @@
       v-show="isShowingActiveSection"
       :style="activeSectionStyle"
     )
-      component.left-component(:is="activeLeftSection.class"
-        @navigate="onNavigate($event,0,0)"
-        @activate="setActiveLeftSection"
-        @isDragging="handleDragStartStop"
-        @split="splitMainPanel"
-        :currentFolder="firstPanelSubfolder"
-        :projectFolder="firstPanelProjectFolder"
-        :navRoot="navRoot"
-      )
+      .left-component
+        component(:is="activeLeftSection.class"
+          @navigate="onNavigate($event,0,0)"
+          @activate="setActiveLeftSection"
+          @isDragging="handleDragStartStop"
+          @split="splitMainPanel"
+          :currentFolder="firstPanelSubfolder"
+          :projectFolder="firstPanelProjectFolder"
+          :navRoot="navRoot"
+        )
 
     .left-panel-divider(v-show="activeLeftSection"
       @mousedown="dividerDragStart"
@@ -120,6 +121,7 @@
         )
 
         p.error-text(v-if="errorPanelText") {{ errorPanelText }}
+          span.clear-error(@click="errorPanelText=''") &times;
 
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
@@ -252,6 +254,7 @@ export default defineComponent({
       }
     },
   },
+
   methods: {
     setActiveLeftSection(section: Section) {
       // don't open the left bar if it's optional, meaning it's currently closed
@@ -282,8 +285,8 @@ export default defineComponent({
     },
 
     setPanelError(e: any) {
-      console.error('LAYOUTMANAGER error: ' + e)
-      this.errorPanelText = '' + e
+      console.error('LMError: ' + (e.msg || e))
+      this.errorPanelText = '' + (e.msg || e)
     },
 
     buildLayoutFromURL() {
@@ -921,11 +924,13 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
+  color: #800;
   background-color: var(--bgError);
   z-index: 50;
   overflow-y: hidden;
-  padding: 0.75rem 0.5rem;
+  padding: 0.5rem 0.5rem;
   font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .drag-container {
@@ -1074,7 +1079,7 @@ export default defineComponent({
 .tile-header {
   user-select: none;
   background-color: var(--bgDashboardHeader);
-  padding: 0px 0px;
+  padding: 2px 0px;
   border-bottom: 1px solid #6666cc77;
   display: flex;
 }
@@ -1145,5 +1150,20 @@ export default defineComponent({
 
 .left-component {
   min-width: 125px;
+  // background-color: sandybrown;
+  margin-bottom: 2rem;
+}
+
+.clear-error {
+  float: right;
+  font-weight: bold;
+  margin-right: 4px;
+  padding: 0px 5px;
+}
+
+.clear-error:hover {
+  cursor: pointer;
+  color: red;
+  background-color: #ffffff20;
 }
 </style>

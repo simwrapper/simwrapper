@@ -75,7 +75,8 @@
             @titles="setCardTitles(card, $event)"
             @error="setCardError(card, $event)"
           )
-          .dash-card-errors(v-if="card.errors.length")
+          .error-text(v-if="card.errors.length")
+            span.clear-error(@click="card.errors=[]") &times;
             p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
@@ -587,9 +588,14 @@ export default defineComponent({
 
     this.fileList = await this.getFiles()
 
-    await this.setupDashboard()
-    // await this.$nextTick()
-    this.resizeAllCards()
+    try {
+      await this.setupDashboard()
+      // await this.$nextTick()
+      this.resizeAllCards()
+    } catch (e) {
+      console.error('oh nooo' + e)
+      this.$emit('error', 'Error setting up dashboard, check YAML?')
+    }
   },
   beforeDestroy() {
     this.resizers = {}
@@ -777,23 +783,37 @@ li.is-not-active b a {
   color: var(--text);
 }
 
-.dash-card-errors {
+.error-text {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   background-color: var(--bgError);
-  color: var(--textBold);
+  color: #800;
   border: 1px solid var(--bgCream4);
   margin-bottom: 2px;
-  padding: 0.75rem 0.5rem;
-  z-index: 20000;
-  font-size: 0.95rem;
+  padding: 0.5rem 0.5rem;
+  z-index: 25000;
+  font-size: 0.9rem;
+  font-weight: bold;
   max-height: 50%;
   overflow-y: auto;
   p {
     line-height: 1.2rem;
     margin: 0 0;
   }
+}
+
+.clear-error {
+  float: right;
+  font-weight: bold;
+  margin-right: 4px;
+  padding: 0px 5px;
+}
+
+.clear-error:hover {
+  cursor: pointer;
+  color: red;
+  background-color: #88888833;
 }
 </style>
