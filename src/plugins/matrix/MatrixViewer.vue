@@ -7,8 +7,8 @@
     @setMap="isMap=$event"
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
-    @changeScale="mapConfig.scale=$event"
-    @changeRowWise="mapConfig.isRowWise=$event"
+    @changeScale="changeScale"
+    @changeRowWise="changeRowWise"
     @addBase="addBase"
     @compare="compareToBase"
   )
@@ -150,6 +150,8 @@ const MyComponent = defineComponent({
 
     await this.setupAvailableZoneSystems()
 
+    this.fetchLastSettings()
+
     this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
@@ -192,6 +194,19 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    fetchLastSettings() {
+      const config = localStorage.getItem('matrixviewer-map-config')
+      if (config) {
+        const json = JSON.parse(config)
+        this.mapConfig = json
+      }
+    },
+
+    saveMapSettings() {
+      const json = JSON.stringify(this.mapConfig)
+      localStorage.setItem('matrixviewer-map-config', json)
+    },
+
     async loadFile() {
       if (!this.yamlConfig) {
         this.statusText = `Drop an HDF5 file here to view it`
@@ -265,24 +280,26 @@ const MyComponent = defineComponent({
       }
     },
 
+    changeRowWise(event: any) {
+      this.mapConfig.isRowWise = event
+      this.saveMapSettings()
+    },
+
+    changeScale(event: any) {
+      this.mapConfig.scale = event
+      this.saveMapSettings()
+    },
+
     changeColor(event: any) {
-      // inversion
       if (!event) {
+        // inversion
         this.mapConfig.isInvertedColor = !this.mapConfig.isInvertedColor
       } else {
+        // all other config
         this.mapConfig.colormap = event
       }
-    },
 
-    changeMapConfig(event: any) {
-      console.log('BOOP', event)
-    },
-
-    getContainerStyle(panel: any, x: number, y: number) {
-      let style: any = {}
-      return style
-      // const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
-      // padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+      this.saveMapSettings()
     },
 
     setupComparisons() {
