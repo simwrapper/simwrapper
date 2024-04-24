@@ -1042,8 +1042,6 @@ const MyComponent = defineComponent({
       const dataset2 = this.datasets[key2]
       const relative = !!color.relative
 
-      // console.log('999 DIFF', relative, key1, key2, dataset1, dataset2)
-
       if (dataset1 && dataset2) {
         // generate the lookup columns we need
         this.setupJoin({ datasetId: key1, dataTable: dataset1, dataJoinColumn: lookupColumn })
@@ -1084,6 +1082,7 @@ const MyComponent = defineComponent({
           style: color.colorRamp?.style || 0,
           reverse: color.colorRamp?.reverse || false,
           steps: color.colorRamp?.steps || 9,
+          breakpoints: color.colorRamp?.breakpoints,
         }
 
         // Calculate colors for each feature
@@ -1282,6 +1281,7 @@ const MyComponent = defineComponent({
         style: color.colorRamp?.style || 0,
         reverse: color.colorRamp?.reverse || false,
         steps: color.colorRamp?.steps || 9,
+        breakpoints: color.colorRamp?.breakpoints || undefined,
       }
 
       // Calculate colors for each feature

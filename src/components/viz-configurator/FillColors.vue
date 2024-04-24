@@ -103,6 +103,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
@@ -166,6 +167,7 @@ export default defineComponent({
       diffRelative: false,
       diffUISelection: '',
       diffChoices: [] as any[],
+      emitColorSpecification: {} as any,
       flip: false,
       isCurrentlyDiffMode: false,
       join: '',
@@ -177,6 +179,8 @@ export default defineComponent({
     }
   },
   mounted() {
+    this.emitColorSpecification = debounce(this.emitColorSpecificationDebounced, 150)
+
     this.selectedSingleColor = this.simpleColors[0]
     this.selectedColor = this.colorChoices[0]
     this.datasetLabels = Object.keys(this.vizConfiguration.datasets)
@@ -312,7 +316,7 @@ export default defineComponent({
       this.isCurrentlyDiffMode = !!this.diffUISelection
     },
 
-    emitColorSpecification() {
+    emitColorSpecificationDebounced() {
       // no fill
       if (!this.dataColumn) return
 
@@ -360,7 +364,7 @@ export default defineComponent({
         fill.colorRamp.breakpoints = this.vizConfiguration.display?.fill?.colorRamp?.breakpoints
       }
 
-      setTimeout(() => this.$emit('update', { fill }), 50)
+      this.$emit('update', { fill })
     },
 
     clickedSingleColor(swatch: string) {
@@ -374,7 +378,7 @@ export default defineComponent({
 
       // the viewer is on main thread so lets make
       // sure user gets some visual feedback
-      setTimeout(() => this.$emit('update', { fill }), 25)
+      this.$emit('update', { fill })
     },
 
     columnsInDataset(datasetId: string): string[] {
