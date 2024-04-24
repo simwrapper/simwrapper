@@ -4,7 +4,7 @@
       template(#trigger="{active}")
         b-button.is-small(
           :icon-right="active ? 'menu-up' : 'menu-down'"
-        ) Compare
+        ) {{ compareLabel }}
 
       b-dropdown-item(aria-role="listitem" :value="matrix"
         v-for="matrix in comparators" :key="`${matrix.root}/${matrix.subfolder}/${matrix.filename}`"
@@ -35,6 +35,7 @@ const MyComponent = defineComponent({
   components: {},
   props: {
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
+    compareLabel: String,
   },
   data() {
     return {

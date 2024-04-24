@@ -35,6 +35,7 @@
   .flex-column(v-if="isMap")
     ComparisonSelector(
       :comparators="comparators"
+      :compareLabel="compareLabel"
       @addBase="$emit('addBase')"
       @change="$emit('compare', $event)"
     )
@@ -79,6 +80,7 @@ const MyComponent = defineComponent({
   props: {
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
+    compareLabel: String,
     mapConfig: { type: Object as PropType<MapConfig> },
   },
   data() {

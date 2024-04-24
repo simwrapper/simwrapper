@@ -4,6 +4,7 @@
     :isMap="isMap"
     :mapConfig="mapConfig"
     :comparators="comparators"
+    :compareLabel="compareLabel"
     @setMap="isMap=$event"
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
@@ -64,6 +65,7 @@ import ConfigPanel from './ConfigPanel.vue'
 
 import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
+import { COLORMAP_GROUPS } from '@/components/ColorMapSelector/groups'
 
 export interface ComparisonMatrix {
   root: string
@@ -109,6 +111,7 @@ const MyComponent = defineComponent({
       description: '',
       config: null as any,
       comparators: [] as ComparisonMatrix[],
+      compareLabel: 'Compare...',
       isDragging: false,
       isMap: true,
       h5wasm: null as null | Promise<any>,
@@ -116,6 +119,7 @@ const MyComponent = defineComponent({
       globalState: globalStore.state,
       filename: '',
       filenameShapes: '',
+      filenameBase: '',
       shapes: null as null | any[],
       h5buffer: null as null | ArrayBuffer,
       h5DiffBuffer: null as null | ArrayBuffer,
@@ -291,6 +295,7 @@ const MyComponent = defineComponent({
     },
 
     changeColor(event: any) {
+      console.log('33333', event)
       if (!event) {
         // inversion
         this.mapConfig.isInvertedColor = !this.mapConfig.isInvertedColor
@@ -316,17 +321,28 @@ const MyComponent = defineComponent({
         filename: this.filename,
       }
 
+      // just save the last one
       this.comparators = [comparator]
-      localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
+
+      // only save this as a possible comparator matrix IF we have a root filesystem
+      // since those are the only ones we can retrieve later...
+      // (drag/drop files don't have a path associated with them)
+      if (this.root) {
+        localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
+      }
+
       this.compareToBase(comparator)
     },
 
     async compareToBase(base: ComparisonMatrix) {
       console.log('COMPARE', base)
 
+      this.filenameBase = base.filename
+
       // drag/drop mode, no "root" filesystem. Just set this as base.
       if (base.root === '') {
         this.h5DiffBuffer = this.h5buffer
+        this.setCompareLabel(base.filename)
         return
       }
 
@@ -343,13 +359,37 @@ const MyComponent = defineComponent({
         const buffer = await blob?.arrayBuffer()
 
         this.h5DiffBuffer = buffer
+        this.compareLabel = `Compare: ${this.filename} to ${base.filename}`
         this.statusText = ''
+        this.setCompareLabel(base.filename)
+        this.setDivergingColors()
         console.log({ h5DiffBuffer: this.h5DiffBuffer })
       } catch (e) {
         console.error('' + e)
         this.h5DiffBuffer = null
       }
       this.statusText = ''
+    },
+
+    setDivergingColors() {
+      const badcolors = [...COLORMAP_GROUPS['Multi hue'], ...COLORMAP_GROUPS['Single hue']]
+
+      if (badcolors.includes(this.mapConfig.colormap)) {
+        this.changeColor('RdBu')
+      }
+    },
+
+    setCompareLabel(filename: string) {
+      console.log('BASE:', this.filenameBase)
+      console.log('THIS:', filename)
+
+      if (!this.filenameBase) {
+        this.compareLabel = 'Compare...'
+      } else if (filename == this.filenameBase) {
+        this.compareLabel = 'Base: ' + this.filename
+      } else {
+        this.compareLabel = `Compare: ${this.filename} to ${this.filenameBase}`
+      }
     },
 
     async onDrop(event: any) {
@@ -408,6 +448,7 @@ const MyComponent = defineComponent({
         if (dropbuffer) {
           this.filename = file.name || 'File'
           this.$emit('title', this.filename)
+          this.setCompareLabel(file.name)
         }
       } catch (e) {
         console.error('' + e)

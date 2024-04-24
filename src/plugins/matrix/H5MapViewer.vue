@@ -91,6 +91,7 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
     filenameH5: String,
     filenameShapes: String,
+    filenameBase: String,
     isInvertedColor: Boolean,
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
