@@ -76,6 +76,9 @@
           b &nbsp;100% client-side&nbsp;
           | browser application. There is no back-end database, no tracking cookies, and no data is transferred from your browser to any server; everything on your computer stays on your local computer.
 
+        .skimwrapper
+          router-link.skimwrapper-link(:to="skimwrapper") NEW! HDF5 Matrix table and skim visualizer
+
 
     //- GETTING STARTED ------------------------------------------------------
 
@@ -85,7 +88,6 @@
         h2.section-head.mb1 Getting started with SimWrapper
 
         h4.mb1 Tutorials and Documentation
-
         p SimWrapper is not like other websites. Please read the docs! The main SimWrapper documentation has everything you need to get started.
 
         b-button.config-sources(
@@ -95,7 +97,6 @@
 
 
         h4.pt1 Example dashboards
-
         p Explore these example dashboards to get a feeling for what SimWrapper can do:
 
         .roots
@@ -220,6 +221,7 @@ export default defineComponent({
         logo: SIMWRAPPER_FULL_LOGO,
         berlin: SCREENSHOT_BERLIN,
       },
+      skimwrapper: `${BASE_URL}matrix`,
     }
   },
   computed: {
@@ -621,5 +623,22 @@ h2.splash-readme {
   float: right;
   width: 20rem;
   padding: 0.5rem;
+}
+
+.skimwrapper {
+  margin: 2.5rem 0;
+}
+
+.skimwrapper-link {
+  background-image: linear-gradient(45deg, #080e55, #6a11ae); // #5e1419
+  padding: 1rem;
+  color: #ffffff;
+  font-weight: bold;
+  border-radius: 10px;
+  border: 1px solid #ffffff00;
+}
+.skimwrapper-link:hover {
+  background-image: linear-gradient(45deg, #080e55, #6a11ae); // #5e1419
+  border: 1px solid #ccf;
 }
 </style>
