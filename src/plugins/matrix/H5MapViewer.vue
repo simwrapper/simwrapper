@@ -195,7 +195,6 @@ const MyComponent = defineComponent({
 
   methods: {
     async activateDiffMode() {
-      console.log('DIFFBUFFGERER')
       if (this.diffBuffer) {
         this.h5diffFile = await this.initFile(this.diffBuffer)
       } else {
@@ -221,8 +220,8 @@ const MyComponent = defineComponent({
       this.buildTAZLookup()
       this.setMapCenter()
 
-      // FIX!!
-      this.clickedZone({ index: 0, properties: this.features[0].properties })
+      const taz1 = this.tazToOffsetLookup['1']
+      this.clickedZone({ index: taz1, properties: this.features[taz1].properties })
 
       this.isMapReady = true
     },
@@ -412,7 +411,7 @@ const MyComponent = defineComponent({
     },
 
     clickedZone(zone: { index: number; properties: any }) {
-      console.log({ zone })
+      console.log('ZONE', zone)
 
       // ignore double clicks and same-clicks
       if (zone.properties[this.zoneID] == this.activeZone) return
@@ -438,7 +437,7 @@ const MyComponent = defineComponent({
       if (this.mapConfig.isInvertedColor) colors.reverse()
       const colorsAsRGB = buildRGBfromHexCodes(colors)
 
-      console.log({ colorsAsRGB, breakpoints })
+      // console.log({ colorsAsRGB, breakpoints })
 
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;

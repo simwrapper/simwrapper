@@ -102,7 +102,8 @@ const MyComponent = defineComponent({
     thumbnail: Boolean,
     cardId: String,
   },
-  data: () => {
+
+  data() {
     return {
       title: '',
       description: '',
@@ -134,6 +135,7 @@ const MyComponent = defineComponent({
       zoneSystems: { byID: {}, bySize: {} } as ZoneSystems,
     }
   },
+
   async mounted() {
     this.debounceDragEnd = debounce(this.dragEnd, 500)
     this.useConfig = this.config || this.yamlConfig || '' // use whichever one was sent to us
@@ -141,13 +143,19 @@ const MyComponent = defineComponent({
     await this.getVizDetails()
 
     // don't actually load any files if we're just in the file browser
-    if (this.thumbnail) return
+    if (this.thumbnail) {
+      this.$emit('isLoaded')
+      return
+    }
 
     await this.setupAvailableZoneSystems()
+
+    this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
     this.h5buffer = await this.loadFile()
   },
+
   computed: {
     fileApi(): HTTPFileSystem | null {
       if (!this.fileSystem) return null
@@ -192,7 +200,6 @@ const MyComponent = defineComponent({
 
       // if we have a yaml config, use it
       this.filename = '' + this.yamlConfig
-      console.log(12451234, this.config)
       if (this.config) {
         this.filename = this.config.dataset
       }
@@ -241,22 +248,21 @@ const MyComponent = defineComponent({
     },
 
     async getVizDetails() {
-      // are we in a dashboard?
       if (this.configFromDashboard) {
+        // are we in a dashboard?
         this.config = JSON.parse(JSON.stringify(this.configFromDashboard))
         this.vizDetails = Object.assign({}, this.configFromDashboard)
+        this.$emit('title', this.config.title || `Matrix - ${this.yamlConfig}`)
       } else {
         // was a YAML file was passed in?
         const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
-
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
           const ycfg = await this.loadYamlConfig()
           this.config = ycfg
           this.vizDetails = Object.assign({}, ycfg)
         }
+        this.$emit('title', this.config?.title || `Matrix - ${filename}`)
       }
-
-      if (this.config) this.$emit('title', this.config.title || `Matrix - ${this.yamlConfig}`)
     },
 
     changeColor(event: any) {
@@ -421,7 +427,6 @@ const MyComponent = defineComponent({
           // parse sizes and turn into an array
           let sizes = zs.sizes as any
           if (Number.isInteger(sizes)) sizes = `${sizes}`
-          console.log(1, sizes)
           sizes = sizes.split(',').map((n: any) => parseInt(n)) as number[]
 
           const system = { url: zs.url, lookup: zs.lookup, sizes }
