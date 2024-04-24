@@ -22,6 +22,7 @@
       "flow-map",
       "grid-layer",
       "heatmap-charts",
+      "matrix",
       "pie-charts",
       "plotly",
       "sankey",

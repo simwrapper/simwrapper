@@ -14,6 +14,32 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://github.com/simwrapper/simwrapper/compare/v3.0.4...v3.1.0) (2024-04-24)
+
+
+### Features
+
+* New HDF5 Matrix viewer ([c52ab5b](https://github.com/simwrapper/simwrapper/commit/c52ab5b0acd4b24b99438f1d9a4d459406d0af66))
+* **shapefile:** Add experimental MATSim network support to shapefile map ([05d9d3f](https://github.com/simwrapper/simwrapper/commit/05d9d3f216ef8b382a66d76293960b26e62151ec))
+
+
+### Bug Fixes
+
+* annotations ([10bcd73](https://github.com/simwrapper/simwrapper/commit/10bcd73779a0bbd9d8560d781aa552875b6c6e65))
+* error handling on layout-manager ([c904f8e](https://github.com/simwrapper/simwrapper/commit/c904f8e49e6db1d34524b0d90ed9466c347ad0b7))
+* **gridmap:** Timeslider "off-by-one" error ([#337](https://github.com/simwrapper/simwrapper/issues/337)) ([f67380e](https://github.com/simwrapper/simwrapper/commit/f67380e7b9675204c5e0da9e174cfc2264177d72))
+* Manual breakpoints in gridlayer not being honored ([1d12c48](https://github.com/simwrapper/simwrapper/commit/1d12c482240bad9bdbc250181a8396fcf71d04b9)), closes [#344](https://github.com/simwrapper/simwrapper/issues/344)
+* Manual color breakpoints sometimes not honored ([9e07d4f](https://github.com/simwrapper/simwrapper/commit/9e07d4f2a767efff1836203181ddac9b12fd6f9a))
+* Map scale is wrong on non-retina screens ([fee654e](https://github.com/simwrapper/simwrapper/commit/fee654ed71297a0d2ffa33381da0c90037961390)), closes [#333](https://github.com/simwrapper/simwrapper/issues/333)
+* Restore missing error messages in single-panel mode ([775f6f9](https://github.com/simwrapper/simwrapper/commit/775f6f9c6cb57f3107b46fef31d1449f8c152b62))
+* **sankey:** Allow CSVs with any delimiter ,;\t ([2caf737](https://github.com/simwrapper/simwrapper/commit/2caf73750c76f9fd6446445796160218708247bc))
+* **shapefile:** filter boundaries/shapes when DATA filters match ([b6a582e](https://github.com/simwrapper/simwrapper/commit/b6a582ed28fd16ad0dbfdae3921d340b1fb50ab4))
+* **shapefile:** filter boundaries/shapes when DATA filters match ([a272479](https://github.com/simwrapper/simwrapper/commit/a2724792c50860fd7326e169e6ccd92375cafdbc))
+* **shapefile:** tooltips in YAML not displaying properly ([19f5b5a](https://github.com/simwrapper/simwrapper/commit/19f5b5adbffc6fe3cb946986afac1ff9c88e52a9))
+* **shapefile:** tooltips in YAML not displaying properly ([decf58b](https://github.com/simwrapper/simwrapper/commit/decf58b5484ded160a89a5d5c13288862c3897f3))
+* Show better error messages if YAML fails to parse when loading viz details ([#343](https://github.com/simwrapper/simwrapper/issues/343)) ([b622d17](https://github.com/simwrapper/simwrapper/commit/b622d176f2797e09bbf6a475c9fefd6117ce6564)), closes [#340](https://github.com/simwrapper/simwrapper/issues/340)
+* **transit:** Experimental AVRO large network file support for transit ([4496252](https://github.com/simwrapper/simwrapper/commit/4496252d7cfe6616fef082bdfff51a37039a6f5f))
+
 ### [3.0.4](https://github.com/simwrapper/simwrapper/compare/v3.0.3...v3.0.4) (2024-03-18)
 
 
