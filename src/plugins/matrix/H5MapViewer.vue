@@ -96,6 +96,7 @@ const MyComponent = defineComponent({
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
+    userSuppliedZoneID: String,
   },
 
   data() {
@@ -210,6 +211,7 @@ const MyComponent = defineComponent({
       if (this.shapes) {
         // Shapes may already be dropped in from drag/drop
         this.features = this.shapes
+        this.zoneID = this.userSuppliedZoneID || 'TAZ'
       } else if (this.filenameShapes) {
         // We have a filename from the configbar, load that file
         await this.loadBoundaries(this.filenameShapes)

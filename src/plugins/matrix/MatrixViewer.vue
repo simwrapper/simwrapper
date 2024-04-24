@@ -35,6 +35,7 @@
       :filenameH5="filename"
       :filenameShapes="filenameShapes"
       :shapes="shapes"
+      :userSuppliedZoneID="zoneID"
       :mapConfig="mapConfig"
       :zoneSystems="zoneSystems"
     )
@@ -144,6 +145,7 @@ const MyComponent = defineComponent({
         isRowWise: true,
       } as MapConfig,
       zoneSystems: { byID: {}, bySize: {} } as ZoneSystems,
+      zoneID: 'TAZ',
     }
   },
 
@@ -168,6 +170,7 @@ const MyComponent = defineComponent({
 
     this.comparators = this.setupComparisons()
 
+    this.shapes = await this.loadShapes()
     this.h5buffer = await this.loadFile()
     this.h5DiffBuffer = await this.loadBaseFile()
     if (this.h5DiffBuffer) {
@@ -237,6 +240,26 @@ const MyComponent = defineComponent({
     saveMapSettings() {
       const json = JSON.stringify(this.mapConfig)
       localStorage.setItem('matrixviewer-map-config', json)
+    },
+
+    async loadShapes() {
+      if (!this.vizDetails.shapes || !this.fileApi) return null
+
+      // User passed in a geojson and column ID; use them.
+      this.statusText = `Loading: ${this.vizDetails.shapes.file}...`
+      const path = `${this.subfolder}/${this.vizDetails.shapes.file}`
+      await this.$nextTick()
+      try {
+        const geojson = await this.fileApi.getFileJson(path)
+        this.filenameShapes = this.vizDetails.shapes.file || 'File'
+        this.zoneID = this.vizDetails.shapes.id || 'TAZ'
+        this.statusText = ''
+        return geojson.features
+      } catch (e) {
+        this.$emit('error', 'Error loading ' + path)
+        console.error('' + e)
+      }
+      return null
     },
 
     async loadBaseFile() {
