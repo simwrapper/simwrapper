@@ -38,6 +38,7 @@
       :userSuppliedZoneID="zoneID"
       :mapConfig="mapConfig"
       :zoneSystems="zoneSystems"
+      @nozones="isMap=false"
     )
 
     H5Web.fill-it.h5-table-viewer(v-if="h5buffer && !isMap"
@@ -59,6 +60,7 @@ import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady
 import globalStore from '@/store'
 import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { gUnzip } from '@/js/util'
 
 import H5Web from './H5TableViewer'
 import H5MapViewer from './H5MapViewer.vue'
@@ -264,10 +266,8 @@ const MyComponent = defineComponent({
 
     async loadBaseFile() {
       if (!this.yamlConfig) return null
-
-      if (this.config) {
-        this.filenameBase = this.config.basedata
-      }
+      if (this.config) this.filenameBase = this.config.basedata
+      if (!this.filenameBase) return null
 
       this.statusText = `Loading: ${this.filenameBase}...`
 
@@ -280,7 +280,7 @@ const MyComponent = defineComponent({
 
     async loadFile() {
       if (!this.yamlConfig) {
-        this.statusText = `Drop an HDF5 file here to view it`
+        this.statusText = `Drop an HDF5 or GeoJSON file here to view it`
         return null
       }
 
@@ -468,15 +468,13 @@ const MyComponent = defineComponent({
         const file0 = files.item(0)
         if (!file0) return
 
-        this.handleDroppedMatrix(file0)
-
-        // if (/(geojson|geojson\.gz)$/.test(file0.name)) {
-        //   console.log('GeoJSON!')
-        //   this.handleDroppedBoundaries(event)
-        // } else {
-        //   console.log('Not GeoJSON!')
-        //   this.handleDroppedMatrix(event)
-        // }
+        if (/(geojson|geojson\.gz)$/.test(file0.name.toLocaleLowerCase())) {
+          console.log('GeoJSON!')
+          this.handleDroppedBoundaries(file0)
+        } else {
+          console.log('Not GeoJSON!')
+          this.handleDroppedMatrix(file0)
+        }
       } catch (e) {
         console.error('' + e)
       }
@@ -529,11 +527,23 @@ const MyComponent = defineComponent({
       this.isDragging = false
       this.statusText = 'Loading geography...'
       await this.$nextTick()
+
       try {
-        const geojson = JSON.parse(await file.text())
+        const buffer = await file.arrayBuffer()
+        const rawtext = gUnzip(buffer)
+        const text = new TextDecoder('utf-8').decode(rawtext)
+        const geojson = JSON.parse(text)
+
+        const id = await new Promise<string>(resolve => {
+          const m = prompt('ID / TAZ Column') || 'TAZ'
+          resolve(m)
+        })
+
         this.filenameShapes = file.name || 'File'
         this.shapes = geojson.features
-        this.statusText = ''
+        this.zoneID = id
+        this.statusText = this.h5buffer ? '' : `Shapes loaded. Drop an HDF5 here to view it`
+        this.isMap = true
       } catch (e) {
         console.error('' + e)
       }

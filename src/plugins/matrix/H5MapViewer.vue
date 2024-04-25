@@ -224,7 +224,9 @@ const MyComponent = defineComponent({
       this.setMapCenter()
 
       const taz1 = this.tazToOffsetLookup['1']
-      this.clickedZone({ index: taz1, properties: this.features[taz1].properties })
+      if (taz1 !== undefined) {
+        this.clickedZone({ index: taz1, properties: this.features[taz1].properties })
+      }
 
       this.isMapReady = true
     },
@@ -473,6 +475,7 @@ const MyComponent = defineComponent({
       const zoneSystem = this.zoneSystems.bySize[this.matrixSize]
       if (!zoneSystem) {
         console.error('NOOOO UNKNOWN MATRIX SIZE')
+        this.$emit('nozones')
         return []
       }
 
