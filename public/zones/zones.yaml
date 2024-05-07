@@ -18,3 +18,9 @@ MTC-1454:
   url: /zones/mtc1454.geojson.gz
   lookup: TAZ1454
   sizes: 1454,1475
+
+SANDAG:
+  url: /zones/sandag.geojson.gz
+  lookup: TAZ
+  sizes: 4947
+

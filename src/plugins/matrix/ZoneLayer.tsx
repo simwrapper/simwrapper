@@ -17,6 +17,7 @@ export default function Component({
   cbTooltip = null as any,
   clickedZone = {} as any,
   activeZoneFeature = null as any,
+  isLoading = false,
 }) {
   const PRECISION = 4
   const DEFAULT_FILL = [32, 64, 128, 255]
@@ -111,7 +112,7 @@ export default function Component({
     getFillColor: (d: any) => d.properties.color || DEFAULT_FILL,
     autoHighlight: true,
     extruded: !!fillHeights,
-    opacity: 1.0, // fillHeights ? 1.0 : 0.8, // 3D must be opaque
+    opacity: isLoading ? 0.8 : 1.0, // fillHeights ? 1.0 : 0.8, // 3D must be opaque
     pickable: true,
     stroked: false,
     highlightColor: [255, 0, 224, 128],
