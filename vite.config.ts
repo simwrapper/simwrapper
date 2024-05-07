@@ -19,6 +19,7 @@ export default defineConfig(({ command, mode }) => {
       // pluginRewriteAll allows pages ending in http://path/blah.yaml to load
       pluginRewriteAll(),
     ],
+    assetsInclude: ['**/*.so'],
     test: {
       globals: true,
       environment: 'jsdom',
