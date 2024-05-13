@@ -4,6 +4,11 @@ import { AsyncComponent, defineAsyncComponent } from 'vue'
 
 const plugins = [
   {
+    kebabName: 'layer-map',
+    filePatterns: ['**/viz-layers*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
+  },
+  {
     kebabName: 'xmas-kelheim',
     filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
