@@ -3,11 +3,18 @@
 # Only GeoJSON files are supported. Shapefiles are too slow and often have coordinate problems.
 # Use GeoJSON and pre-convert all coordinates to long/lat (WGS84 or EPSG:4326)
 #
-# URLs can be
+# URL:
+# ------
 # - `/zones/filename.geojson` if you place the file in the /zones folder of the SimWrapper build
 # - full HTTP urls if the remote server allows external access
-
-# 'sizes' helps SimWrapper guess which zone systems are appropriate for which matrix sizes.
+#
+# LOOKUP:
+# -------
+# 'lookup' is name of the property/column containing the zone ID / TAZ number
+#
+# SIZES:
+# ------
+# 'sizes' tells SimWrapper which zone systems are appropriate for which matrix sizes.
 
 SF-2454:
   url: /zones/dist15.geojson.gz
@@ -23,4 +30,3 @@ SANDAG:
   url: /zones/sandag.geojson.gz
   lookup: TAZ
   sizes: 4947
-
