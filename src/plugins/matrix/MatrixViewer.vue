@@ -51,15 +51,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 
-import * as shapefile from 'shapefile'
-import * as turf from '@turf/turf'
 import YAML from 'yaml'
 import { debounce } from 'debounce'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
-import { H5WasmLocalFileProvider, H5WasmProvider } from '@h5web/h5wasm'
 
 import globalStore from '@/store'
-import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Globals'
+import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { gUnzip } from '@/js/util'
 
