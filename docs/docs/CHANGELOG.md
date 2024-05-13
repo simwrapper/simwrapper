@@ -14,6 +14,16 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.1.1](https://github.com/simwrapper/simwrapper/compare/v3.1.0...v3.1.1) (2024-05-13)
+
+
+### Bug Fixes
+
+* "simwrapper" and ".simwrapper" config folders should allow any capitalization ([d7a0791](https://github.com/simwrapper/simwrapper/commit/d7a07919b778f6b26df4329c953311b215102326)), closes [#341](https://github.com/simwrapper/simwrapper/issues/341)
+* Chrome Local Files system tiles were sorted incorrectly ([6e4e6ab](https://github.com/simwrapper/simwrapper/commit/6e4e6ab56335eeaeeb512c03f8067b2cc06bf92f)), closes [#348](https://github.com/simwrapper/simwrapper/issues/348)
+* **matrix:** Matrix viewer can now handle huge larger-than-RAM datasets ([2393f0c](https://github.com/simwrapper/simwrapper/commit/2393f0ca00d75008828c214f68c4f52fceb6f6f6))
+* **plotly:** resize/maximize sometimes confuses scatterplot axes ([2eb913b](https://github.com/simwrapper/simwrapper/commit/2eb913b9007c9acbe1d20386f7dfd156fc87a9f3)), closes [#347](https://github.com/simwrapper/simwrapper/issues/347)
+
 ## [3.1.0](https://github.com/simwrapper/simwrapper/compare/v3.0.4...v3.1.0) (2024-04-24)
 
 
