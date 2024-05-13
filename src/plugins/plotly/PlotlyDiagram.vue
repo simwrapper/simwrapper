@@ -189,12 +189,14 @@ const MyComponent = defineComponent({
     await this.getVizDetails()
     // only continue if we are on a real page and not the file browser
     if (this.thumbnail) return
+
     try {
       if (this.vizDetails.datasets) await this.prepareData()
       if (this.vizDetails.traces) this.traces = this.vizDetails.traces
 
       // merge user-supplied layout with SimWrapper layout defaults
       if (this.vizDetails.layout) this.mergeLayouts()
+
       if (this.vizDetails.fixedRatio) {
         this.vizDetails.layout.xaxis = Object.assign(this.vizDetails.layout.xaxis, {
           constrain: 'domain',
@@ -205,6 +207,7 @@ const MyComponent = defineComponent({
           scaleration: 1,
         })
       }
+
       // Backwards compatiblity with the older "dropdownMenu" option
       if (this.vizDetails.dropdownMenu) this.vizDetails.interactive = 'dropdown'
       // create interactive elements
@@ -214,6 +217,7 @@ const MyComponent = defineComponent({
     } catch (err) {
       const e = err as any
       console.error({ e })
+      this.$emit('error', '' + e)
       this.loadingText = '' + e
     }
     this.updateTheme()
@@ -314,7 +318,11 @@ const MyComponent = defineComponent({
         mergedLayout.yaxis.automargin = true
         mergedLayout.yaxis.autorange = true
         mergedLayout.yaxis.animate = true
-        if (!mergedLayout.yaxis.rangemode) mergedLayout.yaxis.rangemode = 'tozero'
+
+        // bug #357: scatterplots fail if rangemode is set
+        if (!this.traces.find(a => a?.type == 'scatter')) {
+          if (!mergedLayout.yaxis.rangemode) mergedLayout.yaxis.rangemode = 'tozero'
+        }
         if (!mergedLayout.yaxis.title) mergedLayout.yaxis.title = this.layout.yaxis.title
       } else {
         mergedLayout.yaxis = this.layout.yaxis
@@ -329,6 +337,7 @@ const MyComponent = defineComponent({
       } else {
         mergedLayout.yaxis2 = this.layout.yaxis2
       }
+
       this.layout = mergedLayout
     },
 
@@ -800,18 +809,23 @@ const MyComponent = defineComponent({
     async loadDataset(name: string, ds: DataSet): Promise<DataSet> {
       this.loadingText = 'Loading datasets...'
 
-      const csvData = await this.myDataManager.getDataset(
-        { dataset: ds.file },
-        { highPrecision: true }
-      )
+      try {
+        const csvData = await this.myDataManager.getDataset(
+          { dataset: ds.file },
+          { highPrecision: true }
+        )
 
-      ds.data = csvData.allRows
-      ds.name = name
+        ds.data = csvData.allRows
+        ds.name = name
 
-      this.vizDetails.datasets[name] = ds
-      this.transformData(ds)
+        this.vizDetails.datasets[name] = ds
+        this.transformData(ds)
 
-      return ds
+        return ds
+      } catch {
+        this.$emit('error', 'Error loading ' + ds.file)
+        return { file: name }
+      }
     },
 
     getColors(conf: any, n: number): null | string[] {
