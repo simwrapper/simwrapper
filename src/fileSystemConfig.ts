@@ -24,10 +24,11 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
 
   // commit to app state
   globalStore.commit('addLocalFileSystem', { key: system.slug, handle: handle })
-  // console.log(globalStore.state.localFileHandles)
 
   // write it out to indexed-db so we have it on next startup
-  set('fs', globalStore.state.localFileHandles)
+  const sorted = [...globalStore.state.localFileHandles]
+  sorted.sort((a, b) => (a.handle.name < b.handle.name ? -1 : 1))
+  set('fs', sorted)
   return system.slug
 }
 
