@@ -18,7 +18,7 @@
 
     b-field.which-data(v-if="isMap")
       b-button.button.is-small(
-        :type="mapConfig.isRowWise ? 'is-link' : 'is-gray is-outlined'"
+        :type="mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
         @click="$emit('changeRowWise', true)"
       )
         i.fa.fa-bars

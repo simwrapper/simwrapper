@@ -27,11 +27,11 @@
     .status-text(v-if="statusText")
       h4 {{ statusText }}
 
-    H5Map-viewer.fill-it(v-if="isMap && h5buffer"
+    H5Map-viewer.fill-it(v-if="isMap && h5fileBlob"
       :fileApi="fileApi"
       :subfolder="subfolder"
-      :buffer="h5buffer"
-      :diffBuffer="h5DiffBuffer"
+      :blob="h5fileBlob"
+      :baseBlob="h5baseBlob"
       :filenameH5="filename"
       :filenameShapes="filenameShapes"
       :shapes="shapes"
@@ -41,9 +41,9 @@
       @nozones="isMap=false"
     )
 
-    H5Web.fill-it.h5-table-viewer(v-if="h5buffer && !isMap"
+    H5Web.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
       :filename="filename"
-      :buffer="h5buffer"
+      :blob="h5fileBlob"
     )
 
 </template>
@@ -56,6 +56,7 @@ import * as turf from '@turf/turf'
 import YAML from 'yaml'
 import { debounce } from 'debounce'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
+import { H5WasmLocalFileProvider, H5WasmProvider } from '@h5web/h5wasm'
 
 import globalStore from '@/store'
 import { DEFAULT_PROJECTION, FileSystemConfig, VisualizationPlugin } from '@/Globals'
@@ -119,13 +120,13 @@ const MyComponent = defineComponent({
       isMap: true,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
+      h5fileBlob: null as null | File | Blob,
+      h5baseBlob: null as null | File | Blob,
       globalState: globalStore.state,
       filename: '',
       filenameShapes: '',
       filenameBase: '',
       shapes: null as null | any[],
-      h5buffer: null as null | ArrayBuffer,
-      h5DiffBuffer: null as null | ArrayBuffer,
       useConfig: '',
       vizDetails: {
         title: '',
@@ -138,7 +139,7 @@ const MyComponent = defineComponent({
       statusText: 'Loading...',
       layerId: Math.floor(1e12 * Math.random()),
       matrices: ['1', '2'] as string[],
-      activeTable: '1',
+      activeTable: '',
       debounceDragEnd: {} as any,
       mapConfig: {
         scale: ScaleType.Linear,
@@ -173,11 +174,10 @@ const MyComponent = defineComponent({
     this.comparators = this.setupComparisons()
 
     this.shapes = await this.loadShapes()
-    this.h5buffer = await this.loadFile()
-    this.h5DiffBuffer = await this.loadBaseFile()
-    if (this.h5DiffBuffer) {
-      this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
-    }
+    this.h5fileBlob = (await this.loadFile()) || null
+    this.h5baseBlob = (await this.loadBaseFile()) || null
+
+    if (this.h5baseBlob) this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
   },
 
   computed: {
@@ -273,9 +273,8 @@ const MyComponent = defineComponent({
 
       const path = `${this.subfolder}/${this.filenameBase}`
       const blob = await this.fileApi?.getFileBlob(path)
-      const buffer = (await blob?.arrayBuffer()) || null
       this.statusText = ''
-      return buffer
+      return blob
     },
 
     async loadFile() {
@@ -294,9 +293,8 @@ const MyComponent = defineComponent({
 
       const path = `${this.subfolder}/${this.filename}`
       const blob = await this.fileApi?.getFileBlob(path)
-      const buffer = (await blob?.arrayBuffer()) || null
       this.statusText = ''
-      return buffer
+      return blob
     },
 
     async loadYamlConfig() {
@@ -408,7 +406,7 @@ const MyComponent = defineComponent({
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
       if (base.root === '') {
-        this.h5DiffBuffer = this.h5buffer
+        this.h5baseBlob = this.h5fileBlob
         this.setCompareLabel(base.filename)
         return
       }
@@ -423,17 +421,16 @@ const MyComponent = defineComponent({
         const baseFileApi = new HTTPFileSystem(fileSystem, globalStore)
 
         const blob = await baseFileApi.getFileBlob(path)
-        const buffer = await blob?.arrayBuffer()
 
-        this.h5DiffBuffer = buffer
+        this.h5baseBlob = blob
         this.compareLabel = `Compare: ${this.filename} to ${base.filename}`
         this.statusText = ''
         this.setCompareLabel(base.filename)
         this.setDivergingColors()
-        console.log({ h5DiffBuffer: this.h5DiffBuffer })
+        console.log({ h5BaseBlob: this.h5baseBlob })
       } catch (e) {
         console.error('' + e)
-        this.h5DiffBuffer = null
+        this.h5baseBlob = null
       }
       this.statusText = ''
     },
@@ -501,26 +498,17 @@ const MyComponent = defineComponent({
 
       this.statusText = 'Loading...'
 
-      let dropbuffer = null
-      this.h5buffer = null
-
       // clear old buffer from UI
+      this.h5fileBlob = null
       await this.$nextTick()
 
-      try {
-        dropbuffer = await file.arrayBuffer()
-        this.statusText = ''
-        if (dropbuffer) {
-          this.filename = file.name || 'File'
-          this.$emit('title', this.filename)
-          this.setCompareLabel(file.name)
-        }
-      } catch (e) {
-        console.error('' + e)
-        dropbuffer = null
-      }
+      this.h5fileBlob = file
+      this.filename = file.name || 'File'
+      this.$emit('title', this.filename)
+      this.setCompareLabel(file.name)
+      this.statusText = ''
 
-      this.h5buffer = dropbuffer
+      return
     },
 
     async handleDroppedBoundaries(file: File) {
@@ -535,14 +523,14 @@ const MyComponent = defineComponent({
         const geojson = JSON.parse(text)
 
         const id = await new Promise<string>(resolve => {
-          const m = prompt('ID / TAZ Column') || 'TAZ'
+          const m = prompt('ID / TAZ Column', 'TAZ') || 'TAZ'
           resolve(m)
         })
 
         this.filenameShapes = file.name || 'File'
         this.shapes = geojson.features
         this.zoneID = id
-        this.statusText = this.h5buffer ? '' : `Shapes loaded. Drop an HDF5 here to view it`
+        this.statusText = this.h5fileBlob ? '' : `Shapes loaded. Drop an HDF5 file here to view it`
         this.isMap = true
       } catch (e) {
         console.error('' + e)

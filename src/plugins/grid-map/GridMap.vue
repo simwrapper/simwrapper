@@ -31,7 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
-import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import { hexToRgb, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -67,6 +67,7 @@ export interface CompleteMapData {
 }
 
 interface VizDetail {
+  colorRamp: any
   title: string
   description?: string
   file: string
@@ -321,15 +322,44 @@ const GridMap = defineComponent({
         return [0, 0, 0, 0] // Default color (transparent)
       }
 
-      // if (value.toString() === '0') {
-      //   value = Number.MIN_VALUE
-      // }
+      // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
+      if (
+        this.vizDetails.colorRamp.breakpoints.length ==
+        this.vizDetails.colorRamp.fixedColors.length - 1
+      ) {
+        // If the value is within the range of the colorRamp, return the corresponding color.
+        for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
+          if (
+            value > this.vizDetails.colorRamp.breakpoints[i] &&
+            value <= this.vizDetails.colorRamp.breakpoints[i + 1]
+          ) {
+            return hexToRgb(this.vizDetails.colorRamp.fixedColors[i + 1])
+          }
+        }
 
-      // Calculate the index based on the value and the number of colors in the array.
-      const index = Math.floor((value / 100) * (this.colors.length - 1))
+        // If the value is below the first breakpoint, return the first color.
+        if (value < this.vizDetails.colorRamp.breakpoints[0]) {
+          return hexToRgb(this.vizDetails.colorRamp.fixedColors[0])
+        }
 
-      // Return the selected color.
-      return this.colors[index]
+        // If the value is above the last breakpoint, return the last color.
+        if (
+          value >=
+          this.vizDetails.colorRamp.breakpoints[this.vizDetails.colorRamp.breakpoints.length - 1]
+        ) {
+          return hexToRgb(
+            this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
+          )
+        }
+
+        return new Uint8Array([255, 255, 255, 255])
+      } else {
+        // Calculate the index based on the value and the number of colors in the array.
+        const index = Math.floor((value / 100) * (this.colors.length - 1))
+
+        // Return the selected color.
+        return this.colors[index]
+      }
     },
 
     async solveProjection() {
@@ -378,6 +408,7 @@ const GridMap = defineComponent({
         file: this.myState.yamlConfig,
         projection,
         cellSize: this.vizDetails.cellSize,
+        colorRamp: this.vizDetails.colorRamp,
         opacity: this.vizDetails.opacity,
         maxHeight: this.vizDetails.maxHeight,
         userColorRamp: this.vizDetails.userColorRamp,
@@ -803,6 +834,14 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'radius', this.minRadius, this.maxRadius, this.radiusStep)
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
+
+      // Remove color ramp selector if the colorRamp is fixed
+      if (
+        this.vizDetails.colorRamp.breakpoints.length ==
+        this.vizDetails.colorRamp.fixedColors.length - 1
+      ) {
+        return
+      }
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)

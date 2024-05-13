@@ -297,9 +297,9 @@ class HTTPFileSystem {
 
       try {
         const { dirs } = await this.getDirectory(currentPath)
-        for (const folder of YAML_FOLDERS) {
-          if (dirs.includes(folder)) {
-            configFolders.push(`${currentPath}/${folder}`.replaceAll('//', '/'))
+        for (const dir of dirs) {
+          if (YAML_FOLDERS.includes(dir.toLocaleLowerCase())) {
+            configFolders.push(`${currentPath}/${dir}`.replaceAll('//', '/'))
           }
         }
       } catch (e) {}

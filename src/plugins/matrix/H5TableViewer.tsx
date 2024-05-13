@@ -2,15 +2,14 @@ import '@h5web/app/styles.css'
 
 import React from 'react'
 import { App } from '@h5web/app'
-import { H5WasmProvider } from '@h5web/h5wasm'
+import { H5WasmLocalFileProvider, H5WasmProvider } from '@h5web/h5wasm'
+import { getPlugin } from './plugin-utils'
 
-function MyApp({ filename = '', buffer = undefined as any }) {
-  const h5File = { filename, buffer }
-
+function MyApp({ blob = null as any, filename = '' }) {
   return (
-    <H5WasmProvider {...h5File}>
-      <App initialPath="/1" />
-    </H5WasmProvider>
+    <H5WasmLocalFileProvider file={blob} getPlugin={getPlugin}>
+      <App />
+    </H5WasmLocalFileProvider>
   )
 }
 

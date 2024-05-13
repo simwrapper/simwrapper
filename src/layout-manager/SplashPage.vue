@@ -245,11 +245,10 @@ export default defineComponent({
 
     localFileHandles(): any[] {
       // sort a copy of the array so we don't get an infinite loop
-      return this.$store.state.localFileHandles
-        .concat()
-        .sort((a: any, b: any) =>
-          parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
-        )
+      return this.$store.state.localFileHandles.concat().sort((a: any, b: any) =>
+        // parseInt(a.key.substring(2)) < parseInt(b.key.substring(2)) ? -1 : 1
+        a.handle.name < b.handle.name ? -1 : 1
+      )
     },
   },
   methods: {
@@ -516,7 +515,7 @@ h2.splash-readme {
 .project-root {
   display: flex;
   flex-direction: column;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   padding: 0.5rem 0.5rem;
   background-color: #181818;
   border-left: 3px solid #29d09a;
@@ -542,10 +541,6 @@ h2.splash-readme {
 
 // .local {
 // }
-
-.mb1 {
-  margin-bottom: 1rem;
-}
 
 .pt1 {
   padding-top: 2.5rem;
@@ -592,6 +587,7 @@ h2.splash-readme {
   grid-template-columns: repeat(auto-fit, 18rem);
   list-style: none;
   font-size: 0.9rem;
+  margin: 0.5rem 0 1rem 0;
 }
 
 .section-head {

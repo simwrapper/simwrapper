@@ -1,6 +1,9 @@
 <template lang="pug">
-.h5-map-viewer
-  .left-bar
+.h5-map-viewer(
+  @mouseup="dividerDragEnd"
+  @mousemove.stop="dividerDragging"
+)
+  .left-bar(:style="{width: `${leftSectionWidth-11}px`}")
     .top-half.flex1
       .zone-details
         p.h5-filename {{  filenameH5 }}
@@ -10,20 +13,21 @@
             @click="clickedTable(table)"
           )
             i.fa.fa-layer-group
-            |&nbsp;&nbsp;{{ table.key }}&nbsp;&nbsp;{{ table.name}}
+            span &nbsp;&nbsp;
+            span(v-html="table.name")
 
     .bottom-half.flex1
       .zone-details(v-if="activeZone !== null")
         b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
           b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
-          b.zone-value  {{  activeTable.name || `Table ${activeTable.key}` }}
+          b.zone-value(v-html="activeTable.name || `Table ${activeTable.key}`")
         .scrolly
           .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
             span.zone-number {{  i+1 }}
             span.zone-value {{  value }}
 
-  .right-container.fill-it
+  .right-container
     .map-holder(oncontextmenu="return false")
 
       zone-layer.zone-layer.fill-it(
@@ -32,6 +36,7 @@
         :clickedZone="clickedZone"
         :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
         :cbTooltip="showTooltip"
+        :isLoading="isLoading"
       )
 
       background-map-on-top(v-if="isMapReady")
@@ -40,6 +45,10 @@
 
       .tooltip-area(v-if="tooltip" v-html="tooltip")
 
+  .left-grabby(
+    @mousedown="dividerDragStart"
+    :style="{left: `${this.leftSectionWidth}px`}"
+  )
 
 </template>
 
@@ -48,26 +57,21 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
-import * as turf from '@turf/turf'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
-import { nanoid } from 'nanoid'
-import { rgb } from 'd3-color'
 import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
 
 import globalStore from '@/store'
 import { gUnzip } from '@/js/util'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import {
-  DEFAULT_PROJECTION,
-  REACT_VIEW_HANDLES,
-  FileSystemConfig,
-  VisualizationPlugin,
-} from '@/Globals'
+import { DEFAULT_PROJECTION, REACT_VIEW_HANDLES } from '@/Globals'
 
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAndWidths'
+
+import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
+import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
@@ -84,14 +88,14 @@ const MyComponent = defineComponent({
   components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
     fileApi: { type: Object as PropType<HTTPFileSystem> },
-    buffer: { type: ArrayBuffer, required: true },
-    diffBuffer: { type: ArrayBuffer, required: false },
-    subfolder: String,
     config: String,
-    thumbnail: Boolean,
+    subfolder: String,
+    blob: { required: true },
+    baseBlob: { required: false },
     filenameH5: String,
-    filenameShapes: String,
     filenameBase: String,
+    filenameShapes: String,
+    thumbnail: Boolean,
     isInvertedColor: Boolean,
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
@@ -102,16 +106,21 @@ const MyComponent = defineComponent({
   data() {
     return {
       globalState: globalStore.state,
+      dragDividerWidth: 0,
+      dragStartWidth: 196,
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
+      currentData: [] as Float32Array | any[],
+      currentBaseData: [] as Float32Array | any[],
+      currentKey: '',
       dataArray: [] as number[],
       features: [] as any,
-      h5wasm: null as null | Promise<any>,
-      h5zoneFile: null as null | H5WasmFile,
-      h5diffFile: null as null | H5WasmFile,
-      h5file: null as any,
+      h5fileApi: null as null | H5WasmLocalFileApi,
+      h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
+      isLoading: false,
       layerId: Math.floor(1e12 * Math.random()),
+      leftSectionWidth: 196,
       prettyDataArray: [] as string[],
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
@@ -126,24 +135,21 @@ const MyComponent = defineComponent({
   beforeDestroy() {
     // MUST delete the React view handles to prevent gigantic memory leaks!
     delete REACT_VIEW_HANDLES[this.layerId]
-    this.h5file = null
-    this.h5wasm = null
   },
 
   async mounted() {
-    // Load H5Wasm library and matrix file
-    this.h5wasm = this.initH5Wasm()
+    const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
+    this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
 
-    if (!this.h5zoneFile) {
-      this.h5zoneFile = await this.initFile(this.buffer)
-      this.getFileKeysAndProperties()
-    }
+    // blob is always a File here
+    this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
+    await this.getFileKeysAndProperties()
 
     // Load GeoJSON features
     await this.setupBoundaries()
 
     // DIFF mode ?
-    if (this.diffBuffer) this.activateDiffMode()
+    if (this.baseBlob) this.activateDiffMode()
   },
 
   computed: {},
@@ -162,25 +168,25 @@ const MyComponent = defineComponent({
       )
     },
 
-    diffBuffer() {
+    baseBlob() {
       this.activateDiffMode()
     },
 
     'globalState.isDarkMode'() {
       // this.embedChart()
     },
-    'globalState.resizeEvents'() {
-      // this.changeDimensions()
-    },
 
     activeTable() {
       this.extractH5ArrayData()
     },
+
     // subfolder() {},
+
     filenameShapes() {
       this.loadBoundaries(this.filenameShapes || '')
       this.buildTAZLookup()
     },
+
     'mapConfig.isRowWise'() {
       this.extractH5ArrayData()
     },
@@ -196,14 +202,34 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      this.dragDividerWidth = e.clientX
+      this.dragStartWidth = this.leftSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.dragDividerWidth = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.dragDividerWidth) return
+
+      const deltaX = e.clientX - this.dragDividerWidth
+      this.leftSectionWidth = Math.max(5, this.dragStartWidth + deltaX)
+      localStorage.setItem('matrixLeftPanelWidth', `${this.leftSectionWidth}`)
+    },
+
     async activateDiffMode() {
-      if (this.diffBuffer) {
-        this.h5diffFile = await this.initFile(this.diffBuffer)
+      if (this.baseBlob) {
+        // blob is always a File here
+        this.h5baseApi = new H5WasmLocalFileApi(this.baseBlob as File, undefined, getPlugin)
       } else {
-        this.h5diffFile = null
+        await this.h5baseApi?.cleanUp() //  = null
+        this.h5baseApi = null
       }
 
-      this.h5zoneFile = await this.initFile(this.buffer)
+      // TODO do we need this:
+      // this.h5zoneFile = await this.initFile(this.buffer)
       this.getFileKeysAndProperties()
     },
 
@@ -244,7 +270,16 @@ const MyComponent = defineComponent({
 
       //TODO fix this!
       const value = this.dataArray[id - 1]
-      const tableName = this.activeTable?.name || this.activeTable?.key || 'Value'
+      let tableName = this.activeTable?.name || this.activeTable?.key || 'Value'
+      if (tableName.indexOf('•') > -1) tableName = tableName.substring(1 + tableName.indexOf('•'))
+      tableName = tableName.replaceAll('&nbsp;', '')
+
+      if (value === undefined) {
+        this.tooltip = ''
+        return
+      }
+
+      // console.log({ value, tableName })
 
       if (this.mapConfig.isRowWise) {
         html.push(`<p><b>Row ${this.activeZone} Col ${id}</b></p>`)
@@ -299,42 +334,44 @@ const MyComponent = defineComponent({
       }
     },
 
-    getFileKeysAndProperties() {
-      if (!this.h5zoneFile) return
+    async getFileKeysAndProperties() {
+      if (!this.h5fileApi) return
 
       // first get the keys
-      const keys = this.h5zoneFile.keys()
+      let keys = await this.h5fileApi.getSearchablePaths('/')
+      console.log({ keys })
+
+      // OMX has a '/data' prefix on each matrix
+      if (keys.indexOf('/data') > -1) {
+        keys = keys.filter(key => key.startsWith('/data/'))
+        console.log({ keys2: keys })
+      }
+
       // pretty sort the numbers the ways humans like them
       keys.sort((a: any, b: any) => naturalSort(a, b))
       this.tableKeys = keys.map(key => {
-        return { key, name: '' }
+        return { key, name: key.startsWith('/data') ? key.substring(6) : '' }
       })
 
       // if there are "name" properties, add them
       for (const table of this.tableKeys) {
-        const element = this.h5zoneFile.get(table.key) as Dataset
-        const name = element?.attrs['name']?.value as string
-        table.name = name || ''
+        const element = await this.h5fileApi.getEntity(table.key)
+        const attrValues = await this.h5fileApi.getAttrValues(element)
+        if (attrValues.name)
+          table.name = `${table.key.substring(1)}&nbsp;•&nbsp;${attrValues?.name || ''}`
       }
 
       // Get first matrix dimension, for guessing a useful/correct shapefile
       if (this.tableKeys.length) {
         this.activeTable = this.tableKeys[0]
-        const element = this.h5zoneFile.get(this.tableKeys[0].key) as Dataset
+
+        const element: any = await this.h5fileApi.getEntity(this.tableKeys[0].key)
+        console.log({ element })
+        // .get(this.tableKeys[0].key) as Dataset
         const shape = element.shape
-        this.matrixSize = shape[0]
+        if (shape) this.matrixSize = shape[0]
+        else this.matrixSize = 4947
       }
-    },
-
-    async initFile(buffer: ArrayBuffer): Promise<H5WasmFile> {
-      const h5Module = await this.h5wasm
-
-      // Write HDF5 file to Emscripten virtual file system
-      // https://emscripten.org/docs/api_reference/Filesystem-API.html#FS.writeFile
-      const id = nanoid() // use unique ID instead of `this.filepath` to avoid slashes and other unsupported characters
-      h5Module.FS.writeFile(id, new Uint8Array(buffer), { flags: 'w+' })
-
-      return new H5WasmFile(id, 'r')
     },
 
     async initH5Wasm(): Promise<any> {
@@ -353,49 +390,77 @@ const MyComponent = defineComponent({
       return module
     },
 
-    extractH5ArrayData() {
-      // the file has the data, and we want it
-      if (!this.h5zoneFile) return
-      // User should have selected a zone already
-      if (this.activeZone == null) return
+    async fetchMatrix(h5api: H5WasmLocalFileApi) {
+      if (!h5api || this.activeZone == null) return []
+      const key = this.activeTable?.key || ''
+      let dataset = await h5api.getEntity(key)
+      let data = (await h5api.getValue({ dataset } as any)) as Float32Array
+      return data
+    },
 
-      const key = `/${this.activeTable?.key}`
-      let data = this.h5zoneFile.get(key) as Dataset
+    async extractH5ArrayData() {
+      // the file has the data, and we want it
+      if (!this.h5fileApi || this.activeZone == null) return
+
+      this.isLoading = true
+      await this.$nextTick()
+
+      // async get the matrix itself first
+      if (this.currentKey !== this.activeTable?.key) {
+        this.currentData = await this.fetchMatrix(this.h5fileApi as any)
+        this.currentKey = this.activeTable?.key || ''
+        // also get base matrix if we're in diffmode
+        if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
+      }
 
       //TODO FIX THIS
       let offset = this.activeZone - 1
 
-      try {
-        let values = [] as number[]
-        if (data) {
-          values = (
-            this.mapConfig.isRowWise
-              ? data.slice([[offset, offset + 1], []])
-              : data.slice([[], [offset, offset + 1]])
-          ) as number[]
-        }
+      // try {
+      let values = [] as any
 
-        // DIFF MODE
-        if (this.h5diffFile) {
-          let diffData = this.h5diffFile.get(key) as Dataset
-          let baseValues = [] as number[]
-          if (diffData) {
-            baseValues = (
-              this.mapConfig.isRowWise
-                ? diffData.slice([[offset, offset + 1], []])
-                : diffData.slice([[], [offset, offset + 1]])
-            ) as number[]
+      if (this.currentData) {
+        if (this.mapConfig.isRowWise) {
+          values = this.currentData.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
+        } else {
+          for (let i = 0; i < this.matrixSize; i++) {
+            values.push(this.currentData[i * this.matrixSize + offset])
           }
-          // do the diff
-          values = values.map((v, i) => v - baseValues[i])
+        }
+      }
+
+      console.log(5555, 'VALUES', values.length)
+
+      // DIFF MODE
+
+      if (this.h5baseApi && this.currentBaseData) {
+        console.log('DO THE DIFF!')
+        let baseValues = [] as any
+
+        if (this.mapConfig.isRowWise) {
+          baseValues = this.currentBaseData.slice(
+            this.matrixSize * offset,
+            this.matrixSize * (1 + offset)
+          )
+        } else {
+          for (let i = 0; i < this.matrixSize; i++) {
+            baseValues.push(this.currentBaseData[i * this.matrixSize + offset])
+          }
         }
 
-        this.dataArray = values
-        this.setColorsForArray()
-        this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
-      } catch (e) {
-        console.warn('Offset not found in HDF5 file:', offset)
+        console.log('6666', 'BASEVALUES', baseValues)
+        // do the diff
+        values = values.map((v: any, i: any) => v - baseValues[i])
       }
+
+      this.dataArray = values
+      this.setColorsForArray()
+      this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
+
+      // } catch (e) {
+      //   console.warn('Offset not found in HDF5 file:', offset)
+      // }
+      this.isLoading = false
     },
 
     setPrettyValuesForArray(array: any[]) {
@@ -430,8 +495,13 @@ const MyComponent = defineComponent({
 
     setColorsForArray() {
       const values = this.dataArray
-      const min = Math.min(...values)
-      const max = Math.max(...values)
+      let min = Infinity
+      let max = -Infinity
+      // too many for spread
+      for (let i = 0; i < values.length; i++) {
+        min = Math.min(min, values[i])
+        max = Math.max(max, values[i])
+      }
 
       const NUM_COLORS = 15
 
@@ -472,6 +542,7 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundariesBasedOnMatrixSize() {
+      console.log('HAHAHHAA', this.matrixSize)
       const zoneSystem = this.zoneSystems.bySize[this.matrixSize]
       if (!zoneSystem) {
         console.error('NOOOO UNKNOWN MATRIX SIZE')
@@ -669,7 +740,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: row;
   // background-color: $bgBeige;
-  padding: 0.75rem;
+  padding: 11px;
 }
 
 .main-area {
@@ -713,7 +784,24 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   color: var(--text);
   display: flex;
   flex-direction: column;
-  width: 180px;
+  user-select: none;
+}
+
+.left-grabby {
+  z-index: 500;
+  width: 0.5rem;
+  background-color: #1eb7ea;
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 180px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.left-grabby:hover {
+  opacity: 1;
+  cursor: ew-resize;
 }
 
 .zone-details {
@@ -739,6 +827,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   padding: 4px 8px;
   font-size: 0.9rem;
   cursor: pointer;
+  width: max-content;
 }
 
 .h5-table:hover {
@@ -806,8 +895,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   position: relative;
-  width: 100%;
   margin-left: 0.25rem;
+  flex: 1;
 }
 
 .tooltip-area {
