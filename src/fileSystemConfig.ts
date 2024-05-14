@@ -9,8 +9,27 @@ const loc = window.location
 const webLiveHostname = loc.hostname
 const websiteLiveHost = `${loc.protocol}//${webLiveHostname}`
 
+export function addInitialLocalFilesystems(
+  filesystems: { handle: FileSystemAPIHandle; key: string | null }[]
+) {
+  for (let i = 0; i < filesystems.length; i++) {
+    const slug = 'fs' + (1 + i)
+    const system: FileSystemConfig = {
+      name: filesystems[i].handle.name,
+      slug: slug,
+      description: 'Local folder',
+      handle: filesystems[i].handle,
+      baseURL: '',
+    }
+    fileSystems.unshift(system)
+    globalStore.commit('addLocalFileSystem', { key: system.slug, handle: system.handle })
+  }
+
+  // hang onto count so that we don't overlap as Christian removes and re-adds folders
+}
+
 export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | null) {
-  const slug = key || 'fs' + (1 + Object.keys(globalStore.state.localFileHandles).length)
+  const slug = key || 'fs' + (1 + globalStore.state.numLocalFileSystems)
 
   const system: FileSystemConfig = {
     name: handle.name,

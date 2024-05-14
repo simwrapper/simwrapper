@@ -34,7 +34,7 @@ import { get } from 'idb-keyval'
 
 import globalStore from '@/store'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
-import { addLocalFilesystem } from '@/fileSystemConfig'
+import { addInitialLocalFilesystems, addLocalFilesystem } from '@/fileSystemConfig'
 
 import LoginPanel from '@/components/LoginPanel.vue'
 
@@ -109,9 +109,9 @@ export default defineComponent({
       // this must be completed before the router-view initializes,
       // or we won't have any Chrome Local Files systems available
       get('fs').then(r => {
-        const lfsh = r as { key: string; handle: any }[]
-        if (lfsh && lfsh.length) {
-          for (const entry of lfsh) addLocalFilesystem(entry.handle, entry.key)
+        const localFileSystems = r as { key: string; handle: any }[]
+        if (localFileSystems && localFileSystems.length) {
+          addInitialLocalFilesystems(localFileSystems)
         }
         this.isFileSystemLoaded = true
       })
