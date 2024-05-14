@@ -78,6 +78,7 @@ export default new Vuex.Store({
     locale: 'en',
     localFileHandles: [] as any[],
     localURLShortcuts: {} as { [id: string]: FileSystemConfig },
+    numLocalFileSystems: 0,
     runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
@@ -241,6 +242,7 @@ export default new Vuex.Store({
     },
     addLocalFileSystem(state, value: any) {
       state.localFileHandles.unshift(value)
+      state.numLocalFileSystems += 1
     },
     setLocalFileSystem(state, value: any) {
       state.localFileHandles = value
