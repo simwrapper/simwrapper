@@ -14,6 +14,13 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.1.2](https://github.com/simwrapper/simwrapper/compare/v3.1.1...v3.1.2) (2024-05-16)
+
+
+### Bug Fixes
+
+* Links to local filesystem handles get mixed after delete/re-add ([3dc661d](https://github.com/simwrapper/simwrapper/commit/3dc661d987ccdf4195d3393cef9c3f00cd17b9c0))
+
 ### [3.1.1](https://github.com/simwrapper/simwrapper/compare/v3.1.0...v3.1.1) (2024-05-13)
 
 
