@@ -4,33 +4,21 @@
         oncontextmenu="return false")
 
     .map-layout
-       flow-map-layer.map-layer(v-if="centroids.length"
+      flow-map-layer.map-layer(v-if="centroids.length"
         :viewId="viewId"
-        :props="mapProps"
-        )
-
-
-    .title-panel(v-if="vizDetails.title && !thumbnail && !configFromDashboard")
-      h3 {{ vizDetails.title }}
-      p {{ vizDetails.description }}
+        :props="mapProps")
 
     zoom-buttons(v-if="!thumbnail")
 
     .bottom-panel(v-if="!thumbnail")
 
-        b-checkbox.hello(
-              v-model="vizDetails.animationEnabled"
-            )
+        b-checkbox.tight(v-model="vizDetails.animationEnabled")
         p Animation
 
-        b-checkbox.hello(
-              v-model="vizDetails.locationLabelsEnabled"
-            )
+        b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
         p Labels
 
-        b-checkbox.hello(
-              v-model="vizDetails.clustering"
-            )
+        b-checkbox.tight(v-model="vizDetails.clustering")
         p Clustering
 
 </template>
@@ -58,8 +46,6 @@ const MyComponent = defineComponent({
   props: {
     config: Object,
     datamanager: { type: Object as PropType<DashboardDataManager> },
-    fileSystemConfig: { type: Object as PropType<FileSystemConfig>, required: true },
-    files: { type: Array, required: true },
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
     thumbnail: Boolean,
@@ -139,6 +125,7 @@ const MyComponent = defineComponent({
         boundariesJoinCol: '',
         boundariesLabels: '',
         boundariesLabel: '',
+        boundariesCentroids: '',
         dataset: '',
         origin: '',
         destination: '',
@@ -173,6 +160,8 @@ const MyComponent = defineComponent({
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
 
       await this.getVizDetails()
+
+      if (this.vizDetails.title) this.$emit('title', this.vizDetails.title)
 
       if (this.thumbnail) {
         this.buildThumbnail()
@@ -289,7 +278,6 @@ const MyComponent = defineComponent({
           const boundaries = await fetch(this.vizDetails.boundaries).then(async r => await r.json())
           this.boundaries = boundaries.features
         } else {
-          const filepath = `${this.subfolder}/${this.vizDetails.boundaries}`
           const boundaries = await this.fileApi.getFileJson(
             `${this.subfolder}/${this.vizDetails.boundaries}`
           )
@@ -297,6 +285,7 @@ const MyComponent = defineComponent({
           this.boundaries = boundaries.features
         }
       } catch (e) {
+        this.$emit('error', 'Boundaries: ' + e)
         console.error(e)
         return
       }
@@ -307,18 +296,31 @@ const MyComponent = defineComponent({
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
       for (const feature of this.boundaries) {
-        const centroid: any = turf.centerOfMass(feature as any)
+        let centroid
+        if (this.vizDetails.boundariesCentroids) {
+          centroid = feature.properties[this.vizDetails.boundariesCentroids]
+          if (!Array.isArray(centroid)) {
+            centroid = centroid.split(',').map((c: any) => parseFloat(c))
+          }
+          this.centroids.push({
+            id: '' + feature.properties[this.vizDetails.boundariesJoinCol],
+            lon: centroid[0],
+            lat: centroid[1],
+          })
+        } else {
+          centroid = turf.centerOfMass(feature as any) as any
 
-        if (feature.properties[boundaryLabelField]) {
-          centroid.properties.label = feature.properties[boundaryLabelField]
+          if (feature.properties[boundaryLabelField]) {
+            centroid.properties.label = feature.properties[boundaryLabelField]
+          }
+          centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
+
+          this.centroids.push({
+            id: `${centroid.properties.id}`,
+            lon: centroid.geometry.coordinates[0],
+            lat: centroid.geometry.coordinates[1],
+          })
         }
-        centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
-
-        this.centroids.push({
-          id: `${centroid.properties.id}`,
-          lon: centroid.geometry.coordinates[0],
-          lat: centroid.geometry.coordinates[1],
-        })
       }
       console.log({ centroids: this.centroids })
       // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
@@ -384,26 +386,35 @@ const MyComponent = defineComponent({
         const data = dataset.allRows || ({} as any)
         console.log('data:', data)
 
-        // assumes flow data has "origin,destination,count" columns
-        const origin = data.origin.values
-        const destination = data.destination.values
-        const count = data.count.values
+        // Use config columns for origin/dest/flow -- if they exist
+        const oColumn = this.vizDetails.origin || 'origin'
+        const dColumn = this.vizDetails.destination || 'destination'
+        const flowColumn = this.vizDetails.flow || 'flow'
+
+        const origin = data[oColumn].values
+        const destination = data[dColumn].values
+        const count = data[flowColumn].values
 
         console.log('in loadDataset')
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
-          flows.push({
-            o: `${origin[i]}`,
-            d: `${destination[i]}`,
-            v: count[i],
-          })
+          try {
+            flows.push({
+              o: `${origin[i]}`,
+              d: `${destination[i]}`,
+              v: count[i],
+            })
+          } catch {
+            // missing data; ignore
+          }
         }
         this.flows = flows
       } catch (e) {
         const message = '' + e
         console.log(message)
         this.flows = []
+        this.$emit('error', message)
       }
       console.log({ flows: this.flows })
     },
@@ -496,7 +507,7 @@ export default MyComponent
   flex: 1;
 }
 
-.hello {
+.tight {
   margin-left: 0;
   margin-right: 0;
   padding: 0;
