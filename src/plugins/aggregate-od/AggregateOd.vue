@@ -58,7 +58,7 @@ const i18n = {
       lineWidth: 'Line width:',
       lineWidths: 'Line widths',
       hide: 'Hide smaller than',
-      time: 'Time of Day',
+      time: 'Filter',
       duration: 'Duration',
       circle: 'Centroids',
       showCentroids: 'Show centroids',
@@ -109,13 +109,15 @@ interface AggOdYaml {
   title?: string
   description?: string
   idColumn?: string
+  centroidColumn?: string
   lineWidth?: number
   lineWidths?: number
   hideSmallerThan?: number
   mapIsIndependent?: boolean
 }
 
-const TOTAL_MSG = 'Alle >>'
+const TOTAL_MSG = globalStore.state.locale.startsWith('de') ? 'Alle >>' : 'All >>'
+
 const FADED = 0.0 // 0.15
 
 const SCALE_WIDTH = [1, 3, 5, 10, 25, 50, 100, 150, 200, 300, 400, 450, 500, 1000, 5000]
@@ -751,7 +753,7 @@ const Component = defineComponent({
       const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
       for (const feature of this.geojson.features) {
-        const centroid: any = turf.centerOfMass(feature as any)
+        const centroid = this.buildSingleCentroid(feature)
 
         centroid.properties.id = feature.id
 
@@ -788,7 +790,7 @@ const Component = defineComponent({
       let to = 0
 
       // daily
-      if (timePeriod === 'Alle >>') {
+      if (timePeriod === TOTAL_MSG) {
         to = feature.properties.dailyTo
         from = feature.properties.dailyFrom
         return { from, to }
@@ -820,42 +822,71 @@ const Component = defineComponent({
       return { from, to }
     },
 
+    buildSingleCentroid(feature: Feature) {
+      if (!feature.properties) feature.properties = {}
+
+      let centroid: any
+      if (this.vizDetails.centroidColumn) {
+        let c: any = feature.properties[this.vizDetails.centroidColumn]
+        if (!Array.isArray(c)) {
+          c = c.split(',').map((c: any) => parseFloat(c))
+        }
+
+        centroid = {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: c },
+          properties: { id: feature.id },
+          id: feature.id,
+        }
+      } else {
+        centroid = turf.centerOfMass(feature as any)
+        centroid.properties.id = feature.id
+        centroid.id = feature.id
+      }
+
+      return centroid
+    },
+
     buildCentroids(geojson: FeatureCollection) {
       const centroids: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
-      for (const feature of geojson.features) {
-        if (!feature.id) continue
+      try {
+        for (const feature of geojson.features) {
+          if (!feature.id) continue
 
-        const centroid: any = turf.centerOfMass(feature as any)
-        centroid.properties.id = feature.id
-        centroid.id = feature.id
+          if (!feature.properties) feature.properties = {}
 
-        let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
-        let dailyTo = Math.round(this.marginals.colTotal[feature.id])
+          const centroid = this.buildSingleCentroid(feature)
 
-        if (!dailyFrom) dailyFrom = 0
-        if (!dailyTo) dailyTo = 0
+          let dailyFrom = Math.round(this.marginals.rowTotal[feature.id])
+          let dailyTo = Math.round(this.marginals.colTotal[feature.id])
 
-        centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
-        centroid.properties.dailyTo = dailyTo * this.scaleFactor
+          if (!dailyFrom) dailyFrom = 0
+          if (!dailyTo) dailyTo = 0
 
-        let digits = Math.log10(centroid.properties.dailyFrom)
-        centroid.properties.widthFrom = 6 + digits * 3.5
-        digits = Math.log10(centroid.properties.dailyTo)
-        centroid.properties.widthTo = 6 + digits * 3.5
+          centroid.properties.dailyFrom = dailyFrom * this.scaleFactor
+          centroid.properties.dailyTo = dailyTo * this.scaleFactor
 
-        if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
-        if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
+          let digits = Math.log10(centroid.properties.dailyFrom)
+          centroid.properties.widthFrom = 6 + digits * 3.5
+          digits = Math.log10(centroid.properties.dailyTo)
+          centroid.properties.widthTo = 6 + digits * 3.5
 
-        if (!feature.properties) feature.properties = {}
-        feature.properties.dailyFrom = dailyFrom
-        feature.properties.dailyTo = dailyTo
+          if (dailyFrom) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyFrom)
+          if (dailyTo) this.maxZonalTotal = Math.max(this.maxZonalTotal, dailyTo)
 
-        if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
-          centroids.features.push(centroid)
-          if (feature.properties) this.centroids[feature.id] = centroid
-          this.updateMapExtent(centroid.geometry.coordinates)
+          if (!feature.properties) feature.properties = {}
+          feature.properties.dailyFrom = dailyFrom
+          feature.properties.dailyTo = dailyTo
+
+          if (centroid.properties.dailyFrom + centroid.properties.dailyTo > 0) {
+            centroids.features.push(centroid)
+            if (feature.properties) this.centroids[feature.id] = centroid
+            this.updateMapExtent(centroid.geometry.coordinates)
+          }
         }
+      } catch (e) {
+        this.$emit('error', 'Error creating centroids, does centroid column exist?')
       }
 
       this.centroidSource = centroids
@@ -1258,7 +1289,7 @@ const Component = defineComponent({
     },
 
     changedLineFilter(value: any) {
-      if (value === 'Alle') this.lineFilter = Infinity
+      if (value === TOTAL_MSG) this.lineFilter = Infinity
       else this.lineFilter = value
 
       this.updateSpiderLinks()
