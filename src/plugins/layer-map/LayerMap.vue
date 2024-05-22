@@ -13,6 +13,7 @@
 
     layer-configurator.layer-configurator(
       :layers="mapLayers"
+      :datasets="datasets"
       @update="updateLayers"
     )
 
@@ -465,6 +466,7 @@ export default defineComponent({
     },
 
     async loadDataset(datasetKey: string) {
+      console.log('### LOAD', datasetKey)
       try {
         if (!datasetKey) return
 
@@ -535,7 +537,6 @@ export default defineComponent({
     },
 
     setMapCenter() {
-      console.log(1)
       if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
         this.vizDetails.center = this.vizDetails.center
           //@ts-ignore
@@ -545,10 +546,8 @@ export default defineComponent({
       }
 
       if (!this.vizDetails.center) this.vizDetails.center = [13.45, 52.5]
-      console.log(2)
 
       if (this.needsInitialMapExtent && this.vizDetails.center) {
-        console.log(3)
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
           zoom: this.vizDetails.zoom || 9,

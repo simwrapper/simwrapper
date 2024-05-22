@@ -6,6 +6,7 @@
     .layer(v-for="layer,i in layers" :key="i"
       :is="layer.configPanel()"
       :options="layer.layerOptions"
+      :datasets="datasets"
       @update="updatePanelConfig(layer, $event)"
     )
 
@@ -35,6 +36,7 @@ export default defineComponent({
 
   props: {
     layers: { type: Array, required: true },
+    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
 
   data() {
@@ -43,6 +45,10 @@ export default defineComponent({
 
   computed: {},
   watch: {},
+
+  mounted() {},
+  beforeDestroy() {},
+
   methods: {
     getLayerConfig(layerData: any) {
       const layer = LAYER_CATALOG[layerData.layerOptions.type]
@@ -56,12 +62,6 @@ export default defineComponent({
       this.$emit('update')
     },
   },
-
-  mounted() {
-    console.log('7LAYERS', this.layers)
-  },
-
-  beforeDestroy() {},
 })
 </script>
 
@@ -69,13 +69,13 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .layer-configurator {
+  display: flex;
+  flex-direction: column;
   background-color: var(--bgPanel2);
   opacity: 0.9;
   padding: 3px;
   filter: drop-shadow(0 0 3px #00000040);
   user-select: none;
-  display: flex;
-  flex-direction: column;
 }
 
 .scrollable {
@@ -88,7 +88,6 @@ export default defineComponent({
 }
 
 .layer {
-  overflow-y: auto;
   background-color: var(--bgPanel);
   padding: 4px;
   margin: 0px 2px 5px 2px;

@@ -86,7 +86,7 @@ export default class PointsLayer extends BaseLayer {
     const latCol = this.layerOptions.lat.substring(1 + this.layerOptions.lat.indexOf(':'))
     const dataset = this.datasets[datasetKey]
 
-    if (!dataset) throw Error(`Dataset not found`)
+    if (!dataset) throw Error(`Point layer cannot load data, are columns correct?`)
 
     if (!(lonCol in dataset))
       throw Error(`Dataset '${datasetKey}' does not contain column '${lonCol}'`)

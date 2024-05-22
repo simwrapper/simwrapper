@@ -3,12 +3,17 @@
   .pale
     p.center: b Points
 
-  p Longitude
-  b-input.zinput(v-model="lon")
-  p Latitude
-  b-input.zinput(v-model="lat")
-  p Radius
-  b-input.zinput(v-model="radius")
+  column-selector(v-model="lon" :datasets="datasets" @update="lon=$event")
+    p.tight Longitude
+
+  column-selector(v-model="lat" :datasets="datasets" @update="lat=$event")
+    p.tight Latitude
+
+  column-selector(v-model="radius" :datasets="datasets" @update="radius=$event")
+    p.tight Radius
+
+  column-selector(v-model="color" :datasets="datasets" @update="color=$event")
+    p.tight Color
 
 </template>
 
@@ -16,8 +21,11 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
+
 import globalStore from '@/store'
 import {
+  DataSet,
   DataTable,
   DataTableColumn,
   DataType,
@@ -27,12 +35,14 @@ import {
   REACT_VIEW_HANDLES,
   Status,
 } from '@/Globals'
+import DashboardDataManager from '@/js/DashboardDataManager'
 
 export default defineComponent({
   name: 'PointsLayerConfig',
-  components: {},
+  components: { ColumnSelector },
 
   props: {
+    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
     options: { type: Object, required: true },
   },
 
@@ -41,12 +51,16 @@ export default defineComponent({
       lon: '',
       lat: '',
       radius: '',
+      color: '',
       isInitialized: false,
     }
   },
 
   computed: {},
   watch: {
+    color() {
+      this.updateConfig()
+    },
     lon() {
       this.updateConfig()
     },
@@ -63,6 +77,7 @@ export default defineComponent({
 
       console.log('GOT NEW CONFIG')
       const update = JSON.parse(JSON.stringify(this.options))
+      update.color = this.color
       update.lon = this.lon
       update.lat = this.lat
       update.radius = this.radius
@@ -73,6 +88,8 @@ export default defineComponent({
 
   async mounted() {
     console.log('POINTS options', this.options)
+
+    this.color = this.options.color
     this.lon = this.options.lon
     this.lat = this.options.lat
     this.radius = this.options.radius
@@ -96,10 +113,9 @@ export default defineComponent({
 
 .pale {
   background-color: #88888822;
-  margin-bottom: 0.5rem;
 }
 
-.zinput {
-  margin-bottom: 0.5rem;
+.tight {
+  margin-top: 0.5rem;
 }
 </style>
