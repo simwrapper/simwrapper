@@ -8,7 +8,7 @@
     all-layers(v-show="!needsInitialMapExtent"
       :viewId="viewId"
       :layers="mapLayers"
-      :emitter="$emit"
+      :cbError="emitError"
     )
 
     layer-configurator.layer-configurator(
@@ -266,6 +266,10 @@ export default defineComponent({
   },
 
   methods: {
+    emitError(msg: string) {
+      this.$emit('error', msg)
+    },
+
     updateLayers() {
       this.mapLayers = [...this.mapLayers]
     },

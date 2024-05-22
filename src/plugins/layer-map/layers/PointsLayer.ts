@@ -34,7 +34,7 @@ export default class PointsLayer extends BaseLayer {
   features: any[]
   datamanager: DashboardDataManager
   datasets: { [id: string]: DataTable }
-  emitter: any
+  error: string
   layerOptions: any
 
   constructor(
@@ -55,12 +55,8 @@ export default class PointsLayer extends BaseLayer {
     this.datasets = systemProps.datasets
     this.features = []
     this.layerOptions = layerOptions
+    this.error = ''
     this.assembleData()
-  }
-
-  setEmitter(emitter: any) {
-    console.log('SET EMITTER', emitter)
-    this.emitter = emitter
   }
 
   configPanel() {
@@ -75,12 +71,14 @@ export default class PointsLayer extends BaseLayer {
     } catch (e) {
       console.error(e)
       this.features = []
-      // this.emitter('error', '' + e)
+      this.error = '' + e
     }
   }
 
   assembleData() {
     // data should already be loaded before this layer is mounted
+
+    this.error = ''
 
     // position
     const datasetKey = this.layerOptions.lon.substring(0, this.layerOptions.lon.indexOf(':'))
@@ -132,6 +130,8 @@ export default class PointsLayer extends BaseLayer {
   }
 
   deckLayer() {
+    if (this.error) throw Error(this.error)
+
     return new GeoJsonLayer({
       id: 'pointLayer-' + Math.random() * 1e12,
       data: this.features,

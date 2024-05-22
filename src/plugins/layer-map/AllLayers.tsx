@@ -19,7 +19,7 @@ export default function Component({
   layers = [] as any[],
   screenshot = 0,
   cbTooltip = null as any,
-  emitter = null as any,
+  cbError = null as any,
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
@@ -57,8 +57,11 @@ export default function Component({
   }
 
   const mapLayers = layers.map(layer => {
-    // if (emitter) layer.setEmitter(emitter)
-    return layer.deckLayer()
+    try {
+      return layer.deckLayer()
+    } catch (e) {
+      if (cbError) cbError(e)
+    }
   })
 
   const deckInstance = (
