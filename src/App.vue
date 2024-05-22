@@ -683,6 +683,11 @@ p.splash-label {
   height: unset;
 }
 
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .flex-row {
   display: flex;
   flex-direction: row;

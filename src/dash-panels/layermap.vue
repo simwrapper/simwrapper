@@ -16,7 +16,6 @@ layer-map.deck-map(
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-
 import LayerMap from '@/plugins/layer-map/LayerMap.vue'
 
 export default defineComponent({
@@ -34,7 +33,7 @@ export default defineComponent({
       this.$emit('isLoaded')
     },
   },
-}
+})
 </script>
 
 <style scoped lang="scss">

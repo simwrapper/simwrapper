@@ -1,11 +1,20 @@
 <template lang="pug">
-.layer-map(oncontextmenu="return false")
+.layer-map(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
   .status-bar(v-show="statusText") {{ statusText }}
 
   .my-map(v-if="!thumbnail" :id="`container-${viewId}`")
 
-    all-layers()
+    all-layers(v-show="!needsInitialMapExtent"
+      :viewId="viewId"
+      :layers="mapLayers"
+      :emitter="$emit"
+    )
+
+    layer-configurator.layer-configurator(
+      :layers="mapLayers"
+      @update="updateLayers"
+    )
 
     zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -94,6 +103,7 @@ import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
+import LayerConfigurator from './LayerConfigurator.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
@@ -107,6 +117,8 @@ import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue
 import Coords from '@/js/Coords'
 import LegendStore from '@/js/LegendStore'
 
+import layerCatalog from './layers/layerCatalog'
+
 interface FilterDetails {
   column: string
   label?: string
@@ -118,25 +130,27 @@ interface FilterDetails {
 export default defineComponent({
   name: 'ShapeFilePlugin',
   components: {
-    BackgroundMapOnTop,
     AllLayers,
+    BackgroundMapOnTop,
+    LayerConfigurator,
     VizConfigurator,
     ZoomButtons,
     DrawingTool,
   },
 
   props: {
+    configFromDashboard: { type: Object as any },
+    datamanager: { type: Object as PropType<DashboardDataManager> },
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
-    datamanager: { type: Object as PropType<DashboardDataManager> },
-    configFromDashboard: { type: Object as any },
-    yamlConfig: String,
     thumbnail: Boolean,
-    // fsConfig: { type: Object as PropType<FileSystemConfig> },
+    yamlConfig: String,
   },
 
   data() {
     return {
+      mapLayers: [] as any[],
+
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
       globalStore,
@@ -196,6 +210,7 @@ export default defineComponent({
           radius: {} as any,
         },
         tooltip: [] as string[],
+        layers: [] as any[],
       },
     }
   },
@@ -251,6 +266,10 @@ export default defineComponent({
   },
 
   methods: {
+    updateLayers() {
+      this.mapLayers = [...this.mapLayers]
+    },
+
     // incrementing screenshot count triggers the screenshot.
     takeScreenshot() {
       this.triggerScreenshot++
@@ -487,7 +506,7 @@ export default defineComponent({
       } catch (e) {
         const msg = '' + e
         console.error(msg)
-        this.$emit('error', msg)
+        this.$emit('error', `Error loading ${datasetKey}: ${msg}`)
       }
       return []
     },
@@ -510,17 +529,9 @@ export default defineComponent({
       // this.dataCalculatedValues = null
       // this.dataCalculatedValueLabel = ''
     },
-  },
 
-  async mounted() {
-    try {
-      // EMBED MODE?
-      this.setEmbeddedMode()
-
-      this.clearData()
-
-      await this.getVizDetails()
-
+    setMapCenter() {
+      console.log(1)
       if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
         this.vizDetails.center = this.vizDetails.center
           //@ts-ignore
@@ -529,17 +540,11 @@ export default defineComponent({
         this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
       }
 
-      if (this.thumbnail) return
-
-      // -----------------------------
-
-      this.setupLogoMover()
-
-      // this.buildOldJoinLookups()
-
-      // this.filterDefinitions = this.parseFilterDefinitions(this.vizDetails.filters)
+      if (!this.vizDetails.center) this.vizDetails.center = [13.45, 52.5]
+      console.log(2)
 
       if (this.needsInitialMapExtent && this.vizDetails.center) {
+        console.log(3)
         this.$store.commit('setMapCamera', {
           center: this.vizDetails.center,
           zoom: this.vizDetails.zoom || 9,
@@ -551,24 +556,71 @@ export default defineComponent({
         })
         this.needsInitialMapExtent = false
       }
+    },
+
+    initializeLayers() {
+      console.log('INIT LAYERS')
+
+      for (const layerProps of this.vizDetails.layers) {
+        this.setupLayer(layerProps)
+      }
+    },
+
+    setupLayer(layerProps: { type: string; title: string; description: string }) {
+      const Layer = layerCatalog[layerProps.type]
+
+      if (Layer) {
+        console.log('INIT', layerProps.type)
+
+        const systemProps = {
+          datasets: this.datasets,
+          datamanager: this.myDataManager,
+        }
+
+        try {
+          const mapLayer = new Layer(systemProps, layerProps)
+          this.mapLayers.push(mapLayer)
+        } catch (e) {
+          this.$emit('error', e)
+        }
+      }
+    },
+  },
+
+  async mounted() {
+    try {
+      this.clearData()
+      await this.getVizDetails()
+
+      if (this.thumbnail) return
+
+      // -----------------------------
+
+      this.setEmbeddedMode()
+      this.setupLogoMover()
+
+      await this.loadDatasets()
+
+      console.log('DATA LOADED', this.datasets)
 
       this.isLoaded = true
       this.$emit('isLoaded')
 
-      await this.loadDatasets()
-
-      // Check URL query parameters
-
+      // set map-wide globals
       this.datasets = Object.assign({}, this.datasets)
       this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
       this.vizDetails = Object.assign({}, this.vizDetails)
 
       this.honorQueryParameters()
+      this.setMapCenter()
+      this.initializeLayers()
+
+      // console.log(5, this.needsInitialMapExtent)
 
       this.statusText = ''
     } catch (e) {
-      this.$emit('error', '' + e)
       this.statusText = ''
+      this.$emit('error', '' + e)
       this.$emit('isLoaded')
     }
   },
@@ -603,26 +655,35 @@ export default defineComponent({
   left: 0;
   right: 0;
   display: grid;
-  // one unit, full height/width. Layers will go on top:
   grid-template-rows: 1fr;
-  grid-template-columns: 1fr;
+  grid-template-columns: auto 1fr;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   z-index: -1;
 }
 
-.map-layout.hide-thumbnail {
+.layer-map.hide-thumbnail {
   background: unset;
   z-index: 0;
 }
 
-.my-map {
-  position: relative;
+.layer-configurator {
+  width: 20rem;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
+  z-index: 2;
+  margin: 0.75rem;
   height: 100%;
+}
+
+.my-map {
+  display: flex;
+  flex-direction: column;
+  grid-row: 1 / 2;
+  grid-column: 1 / 3;
   background-color: var(--bgBold);
+  height: 100%;
 }
 
 .config-bar {

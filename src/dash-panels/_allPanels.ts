@@ -32,7 +32,7 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
   flowmap: defineAsyncComponent(() => import('./flowmap.vue')),
   links: defineAsyncComponent(() => import('./links.vue')),
   map: defineAsyncComponent(() => import('./area-map.vue')),
-  layers: defineAsyncComponent(() => import('./layer-map.vue')),
+  layers: defineAsyncComponent(() => import('./layermap.vue')),
   matrix: defineAsyncComponent(() => import('./matrix.vue')),
   xytime: defineAsyncComponent(() => import('./xytime.vue')),
 }

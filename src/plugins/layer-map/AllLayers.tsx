@@ -16,9 +16,10 @@ interface DeckObject {
 
 export default function Component({
   viewId = 0,
-  layers = [],
+  layers = [] as any[],
   screenshot = 0,
   cbTooltip = null as any,
+  emitter = null as any,
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
@@ -55,11 +56,16 @@ export default function Component({
     if (cbTooltip) cbTooltip(index, object)
   }
 
+  const mapLayers = layers.map(layer => {
+    // if (emitter) layer.setEmitter(emitter)
+    return layer.deckLayer()
+  })
+
   const deckInstance = (
     /*
     //@ts-ignore */
     <DeckGL
-      layers={layers}
+      layers={mapLayers}
       viewState={viewState}
       controller={true}
       pickingRadius={4}
