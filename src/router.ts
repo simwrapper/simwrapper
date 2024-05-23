@@ -24,6 +24,22 @@ const routes = [
     }),
   },
   {
+    path: BASE_URL + 'map',
+    component: () => import('@/plugins/layer-map/LayerMap.vue'),
+    props: (route: Route) => ({
+      root: '',
+      subfolder: '',
+    }),
+  },
+  {
+    path: BASE_URL + 'maps',
+    component: () => import('@/plugins/layer-map/LayerMap.vue'),
+    props: (route: Route) => ({
+      root: '',
+      subfolder: '',
+    }),
+  },
+  {
     path: BASE_URL + 'runconfig/:id',
     component: () => import('@/sim-runner/RunConfigurator.vue'),
     props: (route: Route) => ({

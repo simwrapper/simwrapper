@@ -1,7 +1,7 @@
 <template lang="pug">
 .column-widget
   slot.tight Column
-  b-select.selector(expanded v-model="dataColumn")
+  b-select.column-selector(expanded v-model="dataColumn")
     //- option(label="Single color" value="@")
 
     optgroup(v-for="dataset in datasetChoices"
@@ -130,39 +130,18 @@ export default defineComponent({
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-.color-ramp-picker {
-  padding-right: 0rem;
-}
 
-.widgets {
-  display: flex;
-  margin-bottom: 0.5rem;
-
-  p {
-    margin-top: 0.25rem;
-    font-size: 1rem;
-    margin-right: 1rem;
-  }
-}
-
-.selector {
+.column-selector {
   margin-top: 0.75rem;
   overflow-x: auto;
   max-width: 100%;
 }
 
-.widget {
-  flex: 1;
-  margin-right: 0.75rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.hello {
-  margin-top: 0.5rem;
-}
-
 .tight {
   margin: 0 0 -10px 1px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--link);
 }
 </style>

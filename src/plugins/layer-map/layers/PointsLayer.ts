@@ -81,17 +81,23 @@ export default class PointsLayer extends BaseLayer {
     this.error = ''
 
     // position
-    const datasetKey = this.layerOptions.lon.substring(0, this.layerOptions.lon.indexOf(':'))
-    const lonCol = this.layerOptions.lon.substring(1 + this.layerOptions.lon.indexOf(':'))
-    const latCol = this.layerOptions.lat.substring(1 + this.layerOptions.lat.indexOf(':'))
+    const datasetKey = this.layerOptions.lon?.substring(0, this.layerOptions.lon.indexOf(':'))
+    const lonCol = this.layerOptions.lon?.substring(1 + this.layerOptions.lon.indexOf(':'))
+    const latCol = this.layerOptions.lat?.substring(1 + this.layerOptions.lat.indexOf(':'))
     const dataset = this.datasets[datasetKey]
 
-    if (!dataset) throw Error(`Point layer cannot load data, are columns correct?`)
+    try {
+      if (!dataset) throw Error(`Point layer cannot load data, are columns correct?`)
 
-    if (!(lonCol in dataset))
-      throw Error(`Dataset '${datasetKey}' does not contain column '${lonCol}'`)
-    if (!(latCol in dataset))
-      throw Error(`Dataset '${datasetKey}' does not contain column '${latCol}'`)
+      if (!(lonCol in dataset))
+        throw Error(`Dataset '${datasetKey}' does not contain column '${lonCol}'`)
+
+      if (!(latCol in dataset))
+        throw Error(`Dataset '${datasetKey}' does not contain column '${latCol}'`)
+    } catch (e) {
+      this.features = []
+      return
+    }
 
     const lon = dataset[lonCol].values
     const lat = dataset[latCol].values

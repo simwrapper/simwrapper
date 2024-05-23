@@ -3,17 +3,19 @@
   .pale
     p.center: b Points
 
-  column-selector(v-model="lon" :datasets="datasets" @update="lon=$event")
-    p.tight Longitude
+  .coordinates.flex-row(style="gap: 0.25rem")
+    column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
+      p.tight Longitude
 
-  column-selector(v-model="lat" :datasets="datasets" @update="lat=$event")
-    p.tight Latitude
+    column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
+      p.tight Latitude
 
-  column-selector(v-model="radius" :datasets="datasets" @update="radius=$event")
-    p.tight Radius
+  .coordinates.flex-row(style="gap: 0.25rem")
+    column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
+      p.tight Radius
 
-  column-selector(v-model="color" :datasets="datasets" @update="color=$event")
-    p.tight Color
+    column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
+      p.tight Color
 
 </template>
 
@@ -116,6 +118,7 @@ export default defineComponent({
 }
 
 .tight {
+  margin-left: 0.25rem;
   margin-top: 0.5rem;
 }
 </style>

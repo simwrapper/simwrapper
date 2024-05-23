@@ -2,6 +2,9 @@
 .layer-configurator
   p: b(style="margin-left: 4px") LAYERS
 
+  .add-buttons
+    b-button.is-small(@click="addPoints") New Points Layer
+
   .scrollable
     .layer(v-for="layer,i in layers" :key="i"
       :is="layer.configPanel()"
@@ -50,6 +53,10 @@ export default defineComponent({
   beforeDestroy() {},
 
   methods: {
+    addPoints() {
+      this.$emit('add', 'points')
+    },
+
     getLayerConfig(layerData: any) {
       const layer = LAYER_CATALOG[layerData.layerOptions.type]
       const config = layer.configPanel()
@@ -74,7 +81,7 @@ export default defineComponent({
   background-color: var(--bgPanel2);
   opacity: 0.9;
   padding: 3px;
-  filter: drop-shadow(0 0 3px #00000040);
+  filter: $filterShadow; // drop-shadow(0 0 3px #00000040);
   user-select: none;
 }
 
@@ -91,5 +98,9 @@ export default defineComponent({
   background-color: var(--bgPanel);
   padding: 4px;
   margin: 0px 2px 5px 2px;
+}
+
+.add-buttons {
+  display: flex;
 }
 </style>

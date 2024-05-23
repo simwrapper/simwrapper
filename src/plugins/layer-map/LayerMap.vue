@@ -15,62 +15,17 @@
       :layers="mapLayers"
       :datasets="datasets"
       @update="updateLayers"
+      @add="addNewLayer"
     )
 
     zoom-buttons(v-if="isLoaded && !thumbnail")
 
-    //- geojson-layer(v-if="!needsInitialMapExtent"
-    //-   :viewId="viewId"
-    //-   :fillColors="dataFillColors"
-    //-   :lineColors="dataLineColors"
-    //-   :lineWidths="dataLineWidths"
-    //-   :fillHeights="dataFillHeights"
-    //-   :screenshot="triggerScreenshot"
-    //-   :featureFilter="boundaryFilters"
-    //-   :opacity="sliderOpacity"
-    //-   :pointRadii="dataPointRadii"
-    //-   :cbTooltip="cbTooltip"
-    //- )
-
-    //- viz-configurator(v-if="isLoaded"
-    //-   :embedded="isEmbedded"
-    //-   :sections="configuratorSections"
-    //-   :fileSystem="fileSystem"
-    //-   :subfolder="subfolder"
-    //-   :yamlConfig="generatedExportFilename"
-    //-   :vizDetails="vizDetails"
-    //-   :datasets="datasets"
-    //-   :legendStore="legendStore"
-    //-   :filterDefinitions="currentUIFilterDefinitions"
-    //-   @update="changeConfiguration"
-    //-   @screenshot="takeScreenshot"
-    //- )
-
     //- .details-panel(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
 
-
-  //- .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
-  //-   :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
-
-  //-   //- Filter pickers
-  //-   .filter(v-for="filter in Object.keys(filters)")
-  //-     p {{ filter }}
-  //-     b-dropdown(
-  //-       v-model="filters[filter].active"
-  //-       :scrollable="filters[filter].active.length > 10"
-  //-       max-height="250"
-  //-       multiple
-  //-       @change="handleUserSelectedNewFilters(filter)"
-  //-       aria-role="list" :mobile-modal="false" :close-on-click="true"
-  //-     )
-  //-       template(#trigger="{ active }")
-  //-         b-button.is-primary(
-  //-           :type="filters[filter].active.length ? '' : 'is-outlined'"
-  //-           :label="filterLabel(filter)"
-  //-         )
-
-  //-       b-dropdown-item(v-for="option in filters[filter].options"
-  //-         :key="option" :value="option" aria-role="listitem") {{ option }}
+  add-data-modal(v-if="showAddData"
+    @close="showAddData=false"
+    @update="addDataset"
+  )
 
 </template>
 
@@ -105,6 +60,7 @@ import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import LayerConfigurator from './LayerConfigurator.vue'
+import AddDataModal from './AddDataModal.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
@@ -129,12 +85,12 @@ interface FilterDetails {
 }
 
 export default defineComponent({
-  name: 'ShapeFilePlugin',
+  name: 'LayerMap',
   components: {
+    AddDataModal,
     AllLayers,
     BackgroundMapOnTop,
     LayerConfigurator,
-    VizConfigurator,
     ZoomButtons,
     DrawingTool,
   },
@@ -151,6 +107,7 @@ export default defineComponent({
   data() {
     return {
       mapLayers: [] as any[],
+      showAddData: false,
 
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
@@ -164,8 +121,8 @@ export default defineComponent({
       triggerScreenshot: 0,
       datasets: {} as { [id: string]: DataTable },
       datasetKeyToFilename: {} as any,
-      datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
-      showJoiner: false,
+      // datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
+      // showJoiner: false,
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -186,30 +143,13 @@ export default defineComponent({
         description: '',
         datasets: {} as { [id: string]: { file: string; join: string } },
         useSlider: false,
-        showDifferences: false,
-        shpFile: '',
-        dbfFile: '',
-        network: '',
-        geojsonFile: '',
         projection: '',
-        widthFactor: null as any,
         thumbnail: '',
-        sum: false,
         filters: [] as { [filterId: string]: any }[],
-        shapes: '' as string | { file: string; join: string },
         zoom: null as number | null,
         center: null as any[] | null,
         pitch: null as number | null,
         bearing: null as number | null,
-        display: {
-          fill: {} as any,
-          fillHeight: {} as any,
-          color: {} as any,
-          width: {} as any,
-          lineColor: {} as any,
-          lineWidth: {} as any,
-          radius: {} as any,
-        },
         tooltip: [] as string[],
         layers: [] as any[],
       },
@@ -260,8 +200,7 @@ export default defineComponent({
     'globalState.colorScheme'() {
       // change one element to force a deck.gl redraw
       this.$nextTick().then(p => {
-        const tooltips = this.vizDetails.tooltip || []
-        this.vizDetails.tooltip = [...tooltips]
+        this.mapLayers = [...this.mapLayers]
       })
     },
   },
@@ -269,6 +208,28 @@ export default defineComponent({
   methods: {
     emitError(msg: string) {
       this.$emit('error', msg)
+    },
+
+    addNewLayer(layerType: string) {
+      const Layer = layerCatalog[layerType]
+
+      if (Layer) {
+        console.log('NEW LAYER', layerType)
+
+        const systemProps = {
+          datasets: this.datasets,
+          datamanager: this.myDataManager,
+        }
+
+        try {
+          const mapLayer = new Layer(systemProps, {})
+          this.mapLayers.push(mapLayer)
+          this.mapLayers = [...this.mapLayers]
+        } catch (e) {
+          console.error('' + e)
+          this.$emit('error', e)
+        }
+      }
     },
 
     updateLayers() {
@@ -465,8 +426,16 @@ export default defineComponent({
       }
     },
 
+    addDataset(props: any) {
+      console.log({ props })
+      this.myDataManager.setPreloadedDataset({ key: 'data', dataTable: props.dataset.dataTable })
+      this.showAddData = false
+      this.datasets['data'] = props.dataset.dataTable
+    },
+
     async loadDataset(datasetKey: string) {
       console.log('### LOAD', datasetKey)
+
       try {
         if (!datasetKey) return
 
@@ -518,22 +487,19 @@ export default defineComponent({
     },
 
     clearData() {
-      // these lines change the properties of these objects
-      // WITHOUT reassigning them to new objects; this is
-      // essential for the garbage-collection to work properly.
-      // Otherwise we get a 500Mb memory leak on every view :-D
-      // this.boundaries = []
-      // this.centroids = []
-      // this.boundaryDataTable = {}
-      // this.boundaryFilters = new Float32Array(0)
       this.datasets = {}
-      // this.dataFillColors = '#888'
-      // this.dataLineColors = ''
-      // this.dataLineWidths = 1
-      // this.dataPointRadii = 5
-      // this.dataFillHeights = 0
-      // this.dataCalculatedValues = null
-      // this.dataCalculatedValueLabel = ''
+    },
+
+    setStartingMap() {
+      this.$store.commit('setMapCamera', {
+        zoom: this.vizDetails.zoom || 4,
+        bearing: this.vizDetails.bearing || 0,
+        pitch: this.vizDetails.pitch || 0,
+        longitude: 15,
+        latitude: 45,
+        initial: true,
+      })
+      this.needsInitialMapExtent = false
     },
 
     setMapCenter() {
@@ -588,44 +554,71 @@ export default defineComponent({
         }
       }
     },
+
+    async loadConfig() {
+      try {
+        this.clearData()
+
+        await this.getVizDetails()
+
+        if (this.thumbnail) return
+
+        // -----------------------------
+
+        this.setEmbeddedMode()
+        this.setupLogoMover()
+
+        await this.loadDatasets()
+
+        console.log('DATA LOADED', this.datasets)
+
+        this.isLoaded = true
+        this.$emit('isLoaded')
+
+        // set map-wide globals
+        this.datasets = Object.assign({}, this.datasets)
+        this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
+        this.vizDetails = Object.assign({}, this.vizDetails)
+
+        this.honorQueryParameters()
+        this.setMapCenter()
+        this.initializeLayers()
+
+        // console.log(5, this.needsInitialMapExtent)
+
+        this.statusText = ''
+      } catch (e) {
+        this.statusText = ''
+        this.$emit('error', '' + e)
+        this.$emit('isLoaded')
+      }
+    },
   },
 
   async mounted() {
-    try {
-      this.clearData()
-      await this.getVizDetails()
+    // we have a filepath --------
 
-      if (this.thumbnail) return
-
-      // -----------------------------
-
-      this.setEmbeddedMode()
-      this.setupLogoMover()
-
-      await this.loadDatasets()
-
-      console.log('DATA LOADED', this.datasets)
-
-      this.isLoaded = true
-      this.$emit('isLoaded')
-
-      // set map-wide globals
-      this.datasets = Object.assign({}, this.datasets)
-      this.config.datasets = JSON.parse(JSON.stringify(this.datasets))
-      this.vizDetails = Object.assign({}, this.vizDetails)
-
-      this.honorQueryParameters()
-      this.setMapCenter()
-      this.initializeLayers()
-
-      // console.log(5, this.needsInitialMapExtent)
-
-      this.statusText = ''
-    } catch (e) {
-      this.statusText = ''
-      this.$emit('error', '' + e)
-      this.$emit('isLoaded')
+    if (this.root) {
+      this.loadConfig()
+      return
     }
+
+    // we are starting with a blank map --------
+
+    this.clearData()
+    this.setEmbeddedMode()
+    this.setupLogoMover()
+
+    // this.honorQueryParameters()
+    this.setStartingMap()
+
+    this.$emit('isLoaded')
+    this.isLoaded = true
+    this.statusText = ''
+
+    setTimeout(() => {
+      this.showAddData = true
+    }, 500)
   },
 
   beforeDestroy() {
@@ -681,64 +674,13 @@ export default defineComponent({
 }
 
 .my-map {
+  position: relative;
   display: flex;
   flex-direction: column;
   grid-row: 1 / 2;
   grid-column: 1 / 3;
   background-color: var(--bgBold);
   height: 100%;
-}
-
-.config-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: flex;
-  flex-direction: row;
-  margin: 0.5rem;
-  padding: 0.25rem 0rem 0.5rem 0.5rem;
-  background-color: var(--bgPanel);
-  z-index: 9;
-  opacity: 0.93;
-  input.slider {
-    margin: auto 0 0.5rem auto;
-    width: 8rem;
-  }
-
-  .map-type-buttons {
-    margin: auto 0 0 0.5rem;
-  }
-
-  .img-button {
-    margin: 0 0rem -5px 0.5rem;
-    height: 2.3rem;
-    width: 2.3rem;
-    border: var(--borderThin);
-    border-radius: 4px;
-  }
-  .img-button:hover {
-    border: 2px solid var(--linkHover);
-  }
-}
-
-.config-bar.is-disabled {
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-.filter {
-  margin-right: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-.filter p {
-  margin: -0.25rem 0 0 0;
-  font-weight: bold;
 }
 
 .title-panel {
@@ -786,8 +728,5 @@ export default defineComponent({
   overflow-x: hidden;
   overflow-y: auto;
   white-space: nowrap;
-}
-
-@media only screen and (max-width: 640px) {
 }
 </style>

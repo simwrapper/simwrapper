@@ -8,7 +8,8 @@
       class="fs-droppable"
       ref="fsDroppable"
       :style="{ height: height + 'px' }"
-      @dragenter.stop.prevent="isDragEnter = true"
+      :class="{ isDragEnter: 'is-dragging' }"
+      @dragenter.stop.prevent="startDrag()"
       @dragover.stop.prevent="() => {}"
       @dragleave.stop.prevent="isDragEnter = false"
       @drop.stop.prevent="handleDrop"
@@ -76,6 +77,10 @@ export default {
   },
 
   methods: {
+    startDrag() {
+      this.isDragEnter = true
+    },
+
     handleFilesChange($event) {
       this.preprocessFiles($event.target.files)
     },
@@ -154,7 +159,6 @@ export default {
 <style lang="scss" scoped>
 .fs-file-selector {
   position: relative;
-  padding-bottom: 0.5rem;
 
   .fs-loader {
     position: absolute;
@@ -175,6 +179,7 @@ export default {
     align-items: center;
     justify-content: center;
     position: relative;
+    padding-bottom: 1rem;
 
     input[type='file'] {
       visibility: hidden;
@@ -194,6 +199,8 @@ export default {
       width: 100%;
       height: 100%;
       z-index: 9999999;
+      border: 5px dashed #00ffae;
+      border-radius: 10px;
     }
   }
 }
