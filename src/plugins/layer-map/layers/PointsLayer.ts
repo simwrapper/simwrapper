@@ -86,10 +86,30 @@ export default class PointsLayer extends BaseLayer {
     }
   }
 
+  guessInitialParameters() {
+    // if we already have a longitude the user has tried to give us something.
+    if (this.layerOptions.lon) return
+
+    // if there's just one dataset, maybe it has *lon and *lat columns
+    const keys = Object.keys(this.datasets)
+    if (keys.length == 1) {
+      const dataset = this.datasets[keys[0]]
+      const columns = Object.keys(dataset)
+      const lon = columns.filter(c => c.toLocaleLowerCase().endsWith('lon'))
+      const lat = columns.filter(c => c.toLocaleLowerCase().endsWith('lat'))
+      if (lon.length && lat.length) {
+        this.layerOptions.lon = `${keys[0]}:${lon[0]}`
+        this.layerOptions.lat = `${keys[0]}:${lat[0]}`
+      }
+    }
+  }
+
   assembleData() {
     // data should already be loaded before this layer is mounted
 
     this.error = ''
+
+    this.guessInitialParameters()
 
     // position
     const datasetKey = this.layerOptions.lon?.substring(0, this.layerOptions.lon.indexOf(':'))
@@ -114,17 +134,26 @@ export default class PointsLayer extends BaseLayer {
     const lat = dataset[latCol].values
 
     // radius
-    const radiusKey = this.layerOptions.radius?.substring(0, this.layerOptions.radius.indexOf(':'))
-    const radiusSpec = this.layerOptions.radius?.substring(
-      1 + this.layerOptions.radius.indexOf(':')
-    )
-    let radius = 3 as any
-    if (radiusKey && radiusSpec in this.datasets[radiusKey]) {
-      radius = this.datasets[radiusKey][radiusSpec].values
+    let radius = new Float32Array(lon.length).fill(5) as any
+
+    try {
+      const radiusKey = this.layerOptions.radius?.substring(
+        0,
+        this.layerOptions.radius.indexOf(':')
+      )
+      const radiusSpec = this.layerOptions.radius?.substring(
+        1 + this.layerOptions.radius.indexOf(':')
+      )
+      if (radiusKey && radiusSpec in this.datasets[radiusKey]) {
+        radius = this.datasets[radiusKey][radiusSpec].values
+      }
+    } catch (e) {
+      console.error(e)
     }
 
     // color
-    let color = 'blue' as any
+    let color = new Array(lon.length).fill('#33f1b3') as any
+
     if (typeof this.layerOptions.color == 'string') {
       const colorKey = this.layerOptions.color.substring(0, this.layerOptions.color.indexOf(':'))
       const colorCol = this.layerOptions.color.substring(1 + this.layerOptions.color.indexOf(':'))
