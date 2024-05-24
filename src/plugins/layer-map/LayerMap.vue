@@ -222,7 +222,7 @@ export default defineComponent({
         }
 
         try {
-          const mapLayer = new Layer(systemProps, {})
+          const mapLayer = new Layer(systemProps, { type: layerType })
           this.mapLayers.push(mapLayer)
           this.mapLayers = [...this.mapLayers]
         } catch (e) {

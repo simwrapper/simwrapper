@@ -1,10 +1,10 @@
 <template lang="pug">
 .layer-config.flex-col
-  .panel-title.flex-row
+  .panel-title.flex-row(@click="$emit('open')")
     p.center.flex1: b Points
     span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
 
-  .panel-content
+  .panel-content(v-if="open")
     .coordinates.flex-row(style="gap: 0.25rem")
       column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
         p.tight Longitude
@@ -48,6 +48,7 @@ export default defineComponent({
   props: {
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
     options: { type: Object, required: true },
+    open: Boolean,
   },
 
   data() {

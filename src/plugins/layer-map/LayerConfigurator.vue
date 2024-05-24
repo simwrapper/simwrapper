@@ -1,5 +1,10 @@
 <template lang="pug">
 .layer-configurator
+  .flex-row
+    .simwrapper-logo.flex1
+      img(:width="110" :src="swLogo")
+      p.save-button(@click="save") SAVE&hellip;
+
   .sections.flex-row
     p.s1
       span.section-title(
@@ -25,11 +30,13 @@
         :is="layer.configPanel()"
         :options="layer.layerOptions"
         :datasets="datasets"
+        :open="i == openSection"
+        @open="openSection=i"
         @update="updatePanelConfig(layer, i, $event)"
       )
 
   //- DATA SECTION  -------------------------------
-  .data-section.flex-col(v-show="section==1")
+  .data-section.flex1.flex-col(v-show="section==1")
     b-button.is-small.btn-add-data(@click="$emit('addData')") Add Data...
 
     p.dataset-label Datasets
@@ -40,7 +47,7 @@
 
 
   //- THEME SECTION  -------------------------------
-  .theme-section.flex-col(v-show="section==2")
+  .theme-section.flex1.flex-col(v-show="section==2")
     .flex-row
       p.flex2 Map theme
       .flex3.flex-row
@@ -77,12 +84,12 @@
           @click="$emit('theme', {labels: 'on'})"
           :class="{'is-link': theme.labels == 'on'}") &nbsp;On&nbsp;
 
-
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import YAML from 'yaml'
 
 import globalStore from '@/store'
 import {
@@ -97,6 +104,7 @@ import {
 } from '@/Globals'
 
 import LAYER_CATALOG from './layers/layerCatalog'
+import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
 
 export default defineComponent({
   name: 'ShapeFilePlugin',
@@ -113,7 +121,9 @@ export default defineComponent({
 
   data() {
     return {
+      swLogo: LOGO_SIMWRAPPER,
       section: 0,
+      openSection: 0,
     }
   },
 
@@ -128,6 +138,52 @@ export default defineComponent({
   beforeDestroy() {},
 
   methods: {
+    save() {
+      const output = {
+        title: 'My Map',
+        description: '',
+        type: 'layers',
+        theme: this.theme.bg,
+        roads: this.theme.roads,
+      } as any
+
+      const layers = this.layers.map((l: any) => {
+        console.log({ l })
+        const options = Object.assign({ type: l.type }, { ...l.layerOptions })
+        return options
+      })
+
+      output.layers = layers
+
+      output.datasets = {}
+
+      for (const key of Object.keys(this.datasets)) {
+        output.datasets[key] = key
+
+        //   // Or: Save actual datasets
+        //   const dataset = this.datasets[key]
+        //   const columns = {} as any
+        //   for (const column of Object.keys(dataset)) {
+        //     columns[column] = [...dataset[column].values]
+        //   }
+        //   output.datasets[key] = columns
+      }
+
+      const yaml = YAML.stringify(output)
+      console.log(yaml)
+      console.log(JSON.stringify(output, null, '  '))
+
+      // download file
+      var element = document.createElement('a')
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(yaml))
+      element.setAttribute('download', 'viz-layers-map.yml')
+      element.style.display = 'none'
+
+      document.body.appendChild(element)
+      element.click()
+      document.body.removeChild(element)
+    },
+
     addPoints() {
       this.$emit('add', 'points')
     },
@@ -158,7 +214,7 @@ export default defineComponent({
   flex-direction: column;
   background-color: var(--bgPanel3);
   opacity: 0.95;
-  padding: 5px;
+  // padding: 5px;
   filter: $filterShadow; // drop-shadow(0 0 3px #00000040);
   user-select: none;
   min-height: 0;
@@ -169,12 +225,12 @@ export default defineComponent({
   flex-direction: column;
   overflow-y: auto;
   max-height: 100%;
-  padding-bottom: 6rem;
+  padding-bottom: 9rem;
 }
 
 .layer {
   background-color: var(--bgCardFrame2);
-  margin: 0px 2px 8px 2px;
+  margin: 0px 2px 12px 2px;
 }
 
 .add-buttons {
@@ -214,7 +270,8 @@ export default defineComponent({
 }
 
 .data-section,
-.theme-section {
+.theme-section,
+.layers-section {
   padding: 0.5rem;
 }
 
@@ -252,5 +309,24 @@ export default defineComponent({
 
 .bb {
   border-radius: 0;
+}
+
+.simwrapper-logo {
+  background-color: $panelTitle;
+  padding: 7px 0px 3px 8px;
+  margin-bottom: 8px;
+}
+
+.save-button {
+  color: #ddd;
+  float: right;
+  font-size: 0.9rem;
+  margin-right: 8px;
+  margin-top: 2px;
+}
+
+.save-button:hover {
+  cursor: pointer;
+  color: var(--link);
 }
 </style>
