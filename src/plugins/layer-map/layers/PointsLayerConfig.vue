@@ -124,8 +124,13 @@ export default defineComponent({
   color: red !important;
 }
 
+.closer {
+  color: #00000000;
+  margin-right: 0.25rem;
+}
+
 .panel-title {
-  background-color: #5555ccbb;
+  background-color: $panelTitle;
   color: white;
   padding: 1px 0;
 }
@@ -137,10 +142,5 @@ export default defineComponent({
 .tight {
   margin-left: 0.25rem;
   margin-top: 0.75rem;
-}
-
-.closer {
-  color: #00000000;
-  margin-right: 0.25rem;
 }
 </style>

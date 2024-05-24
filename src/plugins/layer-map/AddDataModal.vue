@@ -33,7 +33,6 @@
         p Processing files<br/>
         p please wait...
 
-    br
     p.center
       input(style="display: none;" name="dataBrowser" id="dataBrowser" type="file")
 
@@ -130,11 +129,11 @@ export default defineComponent({
         if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
 
         const dataset: DatasetDefinition = {
-          key,
+          key: file.name,
           dataTable,
           filename: file,
         }
-        this.$emit('update', { dataset })
+        this.$emit('update', dataset)
       }
 
       this.isLoading = false
@@ -254,6 +253,7 @@ a {
 
 .section-bottom {
   background-color: #c8ffef;
-  padding: 1rem;
+  padding: 1.5rem;
+  filter: $filterShadow;
 }
 </style>

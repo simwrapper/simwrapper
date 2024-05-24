@@ -6,9 +6,11 @@
   layer-configurator.layer-configurator(
     :layers="mapLayers"
     :datasets="datasets"
+    :theme="theme"
     @add="addNewLayer"
     @addData="showAddData=true"
     @update="updateLayers"
+    @theme="updateTheme"
   )
 
   .my-map(v-if="!thumbnail" :id="`container-${viewId}`")
@@ -18,6 +20,8 @@
       :layers="mapLayers"
       :cbError="emitError"
     )
+
+    background-map-on-top(v-if="theme.roads=='above'")
 
     zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -46,6 +50,7 @@ import {
   DEFAULT_PROJECTION,
   REACT_VIEW_HANDLES,
   Status,
+  DataSet,
 } from '@/Globals'
 
 import AllLayers from './AllLayers'
@@ -102,7 +107,7 @@ export default defineComponent({
     return {
       mapLayers: [] as any[],
       showAddData: false,
-
+      theme: { bg: globalStore.state.isDarkMode ? 'dark' : 'light', roads: 'below', labels: 'on' },
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
       globalStore,
@@ -194,6 +199,7 @@ export default defineComponent({
     'globalState.colorScheme'() {
       // change one element to force a deck.gl redraw
       this.$nextTick().then(p => {
+        this.theme.bg = this.globalState.isDarkMode ? 'dark' : 'light'
         this.mapLayers = [...this.mapLayers]
       })
     },
@@ -224,6 +230,11 @@ export default defineComponent({
           this.$emit('error', e)
         }
       }
+    },
+
+    updateTheme(props: { bg?: string; roads?: string; labels?: string }) {
+      if (props.bg) this.$store.commit('setTheme', props.bg)
+      if (props.roads) this.theme.roads = props.roads
     },
 
     updateLayers(props: null | { command: string; index: number }) {
@@ -424,11 +435,11 @@ export default defineComponent({
       }
     },
 
-    addDataset(props: any) {
-      console.log({ props })
-      this.myDataManager.setPreloadedDataset({ key: 'data', dataTable: props.dataset.dataTable })
+    addDataset(dataset: DatasetDefinition) {
+      console.log('ADDING', dataset)
+      this.myDataManager.setPreloadedDataset(dataset)
       this.showAddData = false
-      this.datasets['data'] = props.dataset.dataTable
+      this.datasets[dataset.key] = dataset.dataTable
       this.datasets = { ...this.datasets }
     },
 

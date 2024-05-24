@@ -34,25 +34,48 @@
 
     p.dataset-label Datasets
 
-    .show-dataset(v-for="dataset in Object.keys(datasets)")
-      p {{ dataset }}
+    .show-dataset.flex-row(v-for="dataset in Object.keys(datasets)")
+      p.flex1 {{ dataset }}
+      span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
+
 
   //- THEME SECTION  -------------------------------
   .theme-section.flex-col(v-show="section==2")
     .flex-row
-      p.flex1 Background map
-      b-button.is-small &nbsp;Off&nbsp;
-      b-button.is-small Light
-      b-button.is-small Dark
+      p.flex2 Map theme
+      .flex3.flex-row
+        b-button.bb.is-small(expanded
+          @click="$emit('theme', {bg: 'off'})"
+          :class="{'is-link': theme.bg == 'off'}") &nbsp;Off&nbsp;
+        b-button.bb.is-small(expanded
+          @click="$emit('theme', {bg:   'light'})"
+          :class="{'is-link': theme.bg == 'light'}") Light
+        b-button.bb.is-small(expanded
+          @click="$emit('theme', {bg: 'dark'})"
+          :class="{'is-link': theme.bg == 'dark'}") Dark
+
     .flex-row(style="margin-top: 1rem")
-      p.flex1 Show roads
-      b-button.is-small &nbsp;Off&nbsp;
-      b-button.is-small Above
-      b-button.is-small Below
-    .flex-row(style="margin-top: 1rem")
-      p.flex1 Place names
-      b-button.is-small &nbsp;Off&nbsp;
-      b-button.is-small &nbsp;On&nbsp;
+      p.flex2 Show roads
+      .flex3.flex-row
+        b-button.is-small(expanded
+          @click="$emit('theme', {roads: 'off'})"
+          :class="{'is-link': theme.roads == 'off'}") &nbsp;Off&nbsp;
+        b-button.is-small(expanded
+          @click="$emit('theme', {roads: 'above'})"
+          :class="{'is-link': theme.roads == 'above'}") Above
+        b-button.is-small(expanded
+          @click="$emit('theme', {roads: 'below'})"
+          :class="{'is-link': theme.roads == 'below'}") Below
+
+    .flex-row(v-show="false" style="margin-top: 1rem")
+      p.flex2 Place names
+      .flex3.flex-row
+        b-button.is-small(expanded
+          @click="$emit('theme', {labels: 'off'})"
+          :class="{'is-link': theme.labels == 'off'}") &nbsp;Off&nbsp;
+        b-button.is-small(expanded
+          @click="$emit('theme', {labels: 'on'})"
+          :class="{'is-link': theme.labels == 'on'}") &nbsp;On&nbsp;
 
 
 </template>
@@ -82,6 +105,10 @@ export default defineComponent({
   props: {
     layers: { type: Array, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+    theme: {
+      type: Object as PropType<{ bg: string; roads: string; labels: string }>,
+      required: true,
+    },
   },
 
   data() {
@@ -162,7 +189,7 @@ export default defineComponent({
 }
 
 .section-title {
-  // text-transform: uppercase;
+  text-transform: uppercase;
   padding-bottom: 3px;
   letter-spacing: 1px;
 }
@@ -200,5 +227,30 @@ export default defineComponent({
 
 .layers-section {
   max-height: 100%;
+}
+
+.show-dataset {
+  padding: 5px 8px;
+  background-color: $panelTitle;
+  border-radius: 3px;
+  color: white;
+}
+
+.show-dataset:hover .closer {
+  color: #aaaaaa88;
+}
+
+.closer:hover {
+  cursor: pointer;
+  color: red !important;
+}
+
+.closer {
+  color: #00000000;
+  margin-right: 0.25rem;
+}
+
+.bb {
+  border-radius: 0;
 }
 </style>
