@@ -193,10 +193,11 @@ $textBlue: #196096;
   display: flex;
   flex-direction: column;
   background-color: #00000088;
+  padding: 2rem;
 }
 
 .modal-content {
-  margin: 4rem auto auto auto;
+  margin: 2rem auto auto auto;
   padding: 1.5rem;
   border-radius: 5px;
   filter: drop-shadow(0 0 20px #000011aa);

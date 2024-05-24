@@ -56,13 +56,15 @@ export default function Component({
     if (cbTooltip) cbTooltip(index, object)
   }
 
-  const mapLayers = layers.map(layer => {
-    try {
-      return layer.deckLayer()
-    } catch (e) {
-      if (cbError) cbError(e)
-    }
-  })
+  const mapLayers = layers
+    .map(layer => {
+      try {
+        return layer.deckLayer()
+      } catch (e) {
+        if (cbError) cbError(e)
+      }
+    })
+    .reverse()
 
   const deckInstance = (
     /*

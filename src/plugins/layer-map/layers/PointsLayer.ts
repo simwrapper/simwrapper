@@ -36,6 +36,7 @@ export default class PointsLayer extends BaseLayer {
   datasets: { [id: string]: DataTable }
   error: string
   layerOptions: any
+  key: number
 
   constructor(
     systemProps: {
@@ -51,12 +52,17 @@ export default class PointsLayer extends BaseLayer {
     layerOptions: any
   ) {
     super(systemProps)
+    this.key = Math.random() * 1e12
     this.datamanager = systemProps.datamanager
     this.datasets = systemProps.datasets
     this.features = []
     this.layerOptions = layerOptions
     this.error = ''
     this.assembleData()
+  }
+
+  getKey() {
+    return this.key
   }
 
   configPanel() {
@@ -66,6 +72,11 @@ export default class PointsLayer extends BaseLayer {
   updateConfig(options: any) {
     console.log('I GOT IT!', options)
     this.layerOptions = options
+
+    // we're done if options set to 'delete'
+    // system will remove this panel automatically
+    if (options === 'delete') return
+
     try {
       this.assembleData()
     } catch (e) {

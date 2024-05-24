@@ -1,21 +1,23 @@
 <template lang="pug">
 .layer-config.flex-col
-  .pale
-    p.center: b Points
+  .panel-title.flex-row
+    p.center.flex1: b Points
+    span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
 
-  .coordinates.flex-row(style="gap: 0.25rem")
-    column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
-      p.tight Longitude
+  .panel-content
+    .coordinates.flex-row(style="gap: 0.25rem")
+      column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
+        p.tight Longitude
 
-    column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
-      p.tight Latitude
+      column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
+        p.tight Latitude
 
-  .coordinates.flex-row(style="gap: 0.25rem")
-    column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
-      p.tight Radius
+    .coordinates.flex-row(style="gap: 0.25rem")
+      column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
+        p.tight Radius
 
-    column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
-      p.tight Color
+      column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
+        p.tight Color
 
 </template>
 
@@ -113,12 +115,32 @@ export default defineComponent({
   flex-direction: column;
 }
 
-.pale {
-  background-color: #88888822;
+.layer-config:hover .panel-title .closer {
+  color: #aaaaaa88;
+}
+
+.closer:hover {
+  cursor: pointer;
+  color: red !important;
+}
+
+.panel-title {
+  background-color: #5555ccbb;
+  color: white;
+  padding: 1px 0;
+}
+
+.panel-content {
+  padding: 0 5px 7px 5px;
 }
 
 .tight {
   margin-left: 0.25rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.closer {
+  color: #00000000;
+  margin-right: 0.25rem;
 }
 </style>

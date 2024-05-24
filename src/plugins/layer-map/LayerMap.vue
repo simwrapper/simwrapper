@@ -1,7 +1,15 @@
 <template lang="pug">
 .layer-map(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
 
-  .status-bar(v-show="statusText") {{ statusText }}
+  //- .status-bar(v-show="statusText") {{ statusText }}
+
+  layer-configurator.layer-configurator(
+    :layers="mapLayers"
+    :datasets="datasets"
+    @add="addNewLayer"
+    @addData="showAddData=true"
+    @update="updateLayers"
+  )
 
   .my-map(v-if="!thumbnail" :id="`container-${viewId}`")
 
@@ -9,13 +17,6 @@
       :viewId="viewId"
       :layers="mapLayers"
       :cbError="emitError"
-    )
-
-    layer-configurator.layer-configurator(
-      :layers="mapLayers"
-      :datasets="datasets"
-      @update="updateLayers"
-      @add="addNewLayer"
     )
 
     zoom-buttons(v-if="isLoaded && !thumbnail")
@@ -32,13 +33,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { group, zip, sum } from 'd3-array'
-
-import * as shapefile from 'shapefile'
-import * as turf from '@turf/turf'
-import avro from '@/js/avro'
-import readBlob from 'read-blob'
-import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
 
@@ -232,8 +226,12 @@ export default defineComponent({
       }
     },
 
-    updateLayers() {
-      this.mapLayers = [...this.mapLayers]
+    updateLayers(props: null | { command: string; index: number }) {
+      this.mapLayers = this.mapLayers.filter((l: any, i: number) => {
+        if (!props) return true
+        if ((props.command = 'delete')) return i !== props.index
+        return true
+      })
     },
 
     // incrementing screenshot count triggers the screenshot.
@@ -431,6 +429,7 @@ export default defineComponent({
       this.myDataManager.setPreloadedDataset({ key: 'data', dataTable: props.dataset.dataTable })
       this.showAddData = false
       this.datasets['data'] = props.dataset.dataTable
+      this.datasets = { ...this.datasets }
     },
 
     async loadDataset(datasetKey: string) {
@@ -657,6 +656,8 @@ export default defineComponent({
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
   z-index: -1;
+  height: 100%;
+  max-height: 100%;
 }
 
 .layer-map.hide-thumbnail {
@@ -668,9 +669,6 @@ export default defineComponent({
   width: 20rem;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  z-index: 2;
-  margin: 0.75rem;
-  height: 100%;
 }
 
 .my-map {
@@ -680,53 +678,9 @@ export default defineComponent({
   grid-row: 1 / 2;
   grid-column: 1 / 3;
   background-color: var(--bgBold);
-  height: 100%;
-}
-
-.title-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 0 1rem 0.25rem 2rem;
-  background-color: var(--bgPanel);
-  filter: $filterShadow;
-  z-index: 2;
-}
-
-.status-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  z-index: 200;
-  background-color: var(--bgPanel2);
-  padding: 1rem 1rem;
-  font-size: 1.1rem;
-  margin-bottom: 6px;
-  border: 1px solid var(--);
 }
 
 .right {
   margin-left: auto;
-}
-
-.details-panel {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  text-align: left;
-  background-color: var(--bgPanel);
-  display: flex;
-  filter: $filterShadow;
-  flex-direction: row;
-  margin: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  // width: 15rem;
-  font-size: 0.8rem;
-  color: var(--bold);
-  opacity: 0.95;
-  max-height: 75%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  white-space: nowrap;
 }
 </style>
