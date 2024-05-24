@@ -11,6 +11,7 @@ $colorBoldBackground: $steelGray;
 $colorPurple: #6a1b9a;
 $colorYellow: #ffdf80;
 $paleBackground: #dbd9d7;
+$panelTitle: #5555ccdd;
 $darkBackground: #181a1b;
 $navHeight: 3.25rem;
 $bannerHighlight: #1d3355;
@@ -21,7 +22,6 @@ $dashboardWidth: 70rem;
 $filterShadow: drop-shadow(0px 2px 4px #22222244);
 $yellowHighlight: #deef6f;
 $cardSpacing: 1.25rem;
-$panelTitle: #5555ccbb;
 
 :root {
   --bg: #edebe4;
@@ -41,6 +41,8 @@ $panelTitle: #5555ccbb;
   --bgHideButton: #ece9f5;
   --bgHover: #eaeaea;
   --bgHover2: #9191bd; // #9cbafb;
+  --bgLayerPanel: linear-gradient(150deg, #d5dcf1, #dbf2ea);
+
   --bgPanel: #fff;
   --bgPanel2: #ededed;
   --bgPanel3: #e4e4e4;
@@ -99,6 +101,7 @@ $panelTitle: #5555ccbb;
   --bgHover: #433b53;
   --bgHover2: #34618b;
   // --bgIconBar: #344f6c;
+  --bgLayerPanel: linear-gradient(150deg, #3d3753, #183d36);
   --bgMapPanel: #181818;
   --bgMapWater: #1e3048;
   --bgPanel: #2a3c4f;

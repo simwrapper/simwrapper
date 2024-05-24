@@ -26,18 +26,21 @@
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
-      .layer(v-for="layer,i in layers" :key="layer.getKey()"
-        :is="layer.configPanel()"
-        :options="layer.layerOptions"
-        :datasets="datasets"
-        :open="i == openSection"
-        @open="openSection=i"
-        @update="updatePanelConfig(layer, i, $event)"
-      )
+
+      Draggable(v-model="layerList")
+        transition-group
+          .layer(v-for="layer,i in layerList" :key="layer.getKey()"
+            :is="layer.configPanel()"
+            :options="layer.layerOptions"
+            :datasets="datasets"
+            :open="i == openSection"
+            @open="openSection=i"
+            @update="updatePanelConfig(layer, i, $event)"
+          )
 
   //- DATA SECTION  -------------------------------
   .data-section.flex1.flex-col(v-show="section==1")
-    b-button.is-small.btn-add-data(@click="$emit('addData')") Add Data...
+    b-button.btn-add-data(@click="$emit('addData')") Add Data...
 
     p.dataset-label Datasets
 
@@ -89,9 +92,10 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import YAML from 'yaml'
 
-import globalStore from '@/store'
+import YAML from 'yaml'
+import Draggable from 'vuedraggable'
+
 import {
   DataTable,
   DataTableColumn,
@@ -103,12 +107,13 @@ import {
   Status,
 } from '@/Globals'
 
+import globalStore from '@/store'
 import LAYER_CATALOG from './layers/layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
 
 export default defineComponent({
   name: 'ShapeFilePlugin',
-  components: {},
+  components: { Draggable },
 
   props: {
     layers: { type: Array, required: true },
@@ -124,6 +129,8 @@ export default defineComponent({
       swLogo: LOGO_SIMWRAPPER,
       section: 0,
       openSection: 0,
+      layerList: [] as any,
+      isReordering: false,
     }
   },
 
@@ -132,9 +139,26 @@ export default defineComponent({
       return Object.keys(this.datasets)
     },
   },
-  watch: {},
+  watch: {
+    layers() {
+      if (this.isReordering) return
+      this.layerList = this.layers
+    },
 
-  mounted() {},
+    async layerList() {
+      // do the nextTick thing so we don't have an endless update loop
+      console.log('CHANGED')
+      this.isReordering = true
+      this.$emit('update', { command: 'reorder', layers: this.layerList })
+      await this.$nextTick()
+      this.isReordering = false
+    },
+  },
+
+  mounted() {
+    this.layerList = [...this.layers]
+  },
+
   beforeDestroy() {},
 
   methods: {
@@ -209,10 +233,10 @@ export default defineComponent({
 
 .layer-configurator {
   z-index: 2;
-  margin: 0.75rem;
+  margin: 0.5rem;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgPanel3);
+  background: var(--bgLayerPanel);
   opacity: 0.95;
   // padding: 5px;
   filter: $filterShadow; // drop-shadow(0 0 3px #00000040);

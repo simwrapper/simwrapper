@@ -237,7 +237,11 @@ export default defineComponent({
       if (props.roads) this.theme.roads = props.roads
     },
 
-    updateLayers(props: null | { command: string; index: number }) {
+    updateLayers(props: null | { command: string; layers?: any[]; index?: number }) {
+      if (props?.command == 'reorder' && props.layers) {
+        this.mapLayers = [...props.layers]
+      }
+
       this.mapLayers = this.mapLayers.filter((l: any, i: number) => {
         if (!props) return true
         if ((props.command = 'delete')) return i !== props.index
