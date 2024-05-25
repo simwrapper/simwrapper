@@ -237,9 +237,7 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
   background: var(--bgLayerPanel);
-  opacity: 0.95;
-  // padding: 5px;
-  filter: $filterShadow; // drop-shadow(0 0 3px #00000040);
+  filter: $filterShadow;
   user-select: none;
   min-height: 0;
 }

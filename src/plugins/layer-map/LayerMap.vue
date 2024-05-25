@@ -3,7 +3,8 @@
 
   //- .status-bar(v-show="statusText") {{ statusText }}
 
-  layer-configurator.layer-configurator(
+  layer-configurator.layer-configurator(v-show="!isPanelReallyHidden"
+    :class="{'is-hide-me': isPanelHidden}"
     :layers="mapLayers"
     :datasets="datasets"
     :theme="theme"
@@ -14,6 +15,12 @@
   )
 
   .my-map(v-if="!thumbnail" :id="`container-${viewId}`")
+
+    p.btn-show-hide
+      i.fas(
+        :class="`fa-chevron-circle-${isPanelReallyHidden ? 'right': 'left'}`"
+        @click="toggleHidePanel()"
+      )
 
     all-layers(v-show="!needsInitialMapExtent"
       :viewId="viewId"
@@ -105,6 +112,8 @@ export default defineComponent({
 
   data() {
     return {
+      isPanelHidden: false,
+      isPanelReallyHidden: false,
       mapLayers: [] as any[],
       showAddData: false,
       theme: { bg: globalStore.state.isDarkMode ? 'dark' : 'light', roads: 'below', labels: 'on' },
@@ -206,6 +215,25 @@ export default defineComponent({
   },
 
   methods: {
+    async toggleHidePanel() {
+      if (this.isPanelReallyHidden) {
+        console.log('show')
+        // show the panel
+        this.isPanelReallyHidden = false
+        setTimeout(() => {
+          this.isPanelReallyHidden = false
+          this.isPanelHidden = false
+        }, 50)
+      } else {
+        // hide the panel
+        this.isPanelHidden = true
+        this.isPanelReallyHidden = false
+        setTimeout(() => {
+          this.isPanelReallyHidden = true
+        }, 250)
+      }
+    },
+
     emitError(msg: string) {
       this.$emit('error', msg)
     },
@@ -684,6 +712,13 @@ export default defineComponent({
   width: 20rem;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
+  transition: transform 0.25s ease-in;
+  opacity: 0.95;
+  transform: translateX(0rem);
+}
+
+.layer-configurator.is-hide-me {
+  transform: translateX(-22rem);
 }
 
 .my-map {
@@ -697,5 +732,24 @@ export default defineComponent({
 
 .right {
   margin-left: auto;
+}
+
+.btn-show-hide {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  z-index: 50;
+  border: none;
+  font-size: 24px;
+  line-height: 24px;
+  color: #37d3b1;
+  padding: 2px;
+  border-radius: 8px;
+  background-color: var(--iconShowHide);
+}
+
+.btn-show-hide:hover {
+  cursor: pointer;
+  color: #379ec1;
 }
 </style>

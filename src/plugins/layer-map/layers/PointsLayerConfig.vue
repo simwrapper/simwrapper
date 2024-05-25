@@ -1,23 +1,25 @@
 <template lang="pug">
 .layer-config.flex-col
   .panel-title.flex-row(@click="$emit('open')")
+
     p.center.flex1: b Points
     span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
 
   .panel-content(v-if="open")
-    .coordinates.flex-row(style="gap: 0.25rem")
-      column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
-        p.tight Longitude
-
-      column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
-        p.tight Latitude
 
     .coordinates.flex-row(style="gap: 0.25rem")
-      column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
-        p.tight Radius
+        column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
+          p.tight Longitude
 
-      column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
-        p.tight Color
+        column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
+          p.tight Latitude
+
+    .coordinates.flex-row(style="gap: 0.25rem")
+        column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
+          p.tight Radius
+
+        column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
+          p.tight Color
 
 </template>
 

@@ -161,7 +161,7 @@ export default defineComponent({
 $textBlue: #196096;
 
 .blue {
-  color: $textBlue;
+  color: var(--link); // $textBlue;
 }
 
 .fade-in {
@@ -192,7 +192,7 @@ $textBlue: #196096;
   display: flex;
   flex-direction: column;
   background-color: #00000088;
-  padding: 2rem;
+  padding: 2.5rem;
 }
 
 .modal-content {
@@ -200,8 +200,8 @@ $textBlue: #196096;
   padding: 1.5rem;
   border-radius: 5px;
   filter: drop-shadow(0 0 20px #000011aa);
-  background-color: white;
-  color: #444;
+  background: var(--bgLayerPanel);
+  color: var(--text); // #444;
 }
 
 h1 {
