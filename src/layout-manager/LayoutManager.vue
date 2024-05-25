@@ -149,6 +149,8 @@ import { Route } from 'vue-router'
 import micromatch from 'micromatch'
 
 import globalStore from '@/store'
+import GIST from '@/js/gist'
+
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import BreadCrumbs from '@/components/BreadCrumbs.vue'
@@ -189,6 +191,7 @@ export default defineComponent({
     },
     pluginComponents
   ),
+
   data: () => {
     return {
       activeLeftSection: { name: 'Data', class: 'LeftSystemPanel' } as Section,
@@ -243,13 +246,13 @@ export default defineComponent({
       // }
     },
 
-    $route(to: Route, from: Route) {
+    async $route(to: Route, from: Route) {
       if (to.path === BASE_URL) {
         // root node is not a normal splitpane, so we instead replace
         // with a brand new clean startpage.
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
       } else {
-        this.buildLayoutFromURL()
+        await this.buildLayoutFromURL()
         globalStore.commit('resize')
       }
     },
@@ -289,14 +292,43 @@ export default defineComponent({
       this.errorPanelText = '' + (e.msg || e)
     },
 
-    buildLayoutFromURL() {
+    async buildGistPage(pathMatch: string) {
+      const gistId = pathMatch.substring(pathMatch.indexOf('/') + 1)
+      const yaml = await GIST.load(gistId, this.$route.params)
+
+      this.panels = [
+        [
+          {
+            key: Math.random(),
+            component: yaml.type || 'map',
+            title: '',
+            description: '',
+            props: {
+              root: '',
+              subfolder: '',
+              configFromDashboard: yaml,
+              thumbnail: false,
+            } as any,
+          },
+        ],
+      ]
+    },
+
+    async buildLayoutFromURL() {
       let pathMatch = this.$route.params.pathMatch
+      console.log({ pathMatch })
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
         this.$store.commit('setShowLeftStrip', true)
+        return
+      }
+
+      // gist page:
+      if (pathMatch.startsWith('gist')) {
+        await this.buildGistPage(pathMatch)
         return
       }
 
@@ -359,7 +391,7 @@ export default defineComponent({
                   description: '',
                   props: {
                     root,
-                    subfolder, /// : xsubfolder.substring(0, xsubfolder.lastIndexOf('/')),
+                    subfolder,
                     yamlConfig: fileNameWithoutPath,
                     thumbnail: false,
                   } as any,
@@ -470,22 +502,6 @@ export default defineComponent({
           marginLeft: panel.offsetWidth / 2 + BORDER,
           marginTop: BORDER,
         }
-        // } else if (pctY < 0.4) {
-        //   this.quadrant = {
-        //     quadrant: 'top',
-        //     width: panel.offsetWidth - BORDER * 2,
-        //     height: panel.offsetHeight / 2 - BORDER * 2,
-        //     marginLeft: BORDER,
-        //     marginTop: BORDER,
-        //   }
-        // } else if (pctY > 0.6) {
-        //   this.quadrant = {
-        //     quadrant: 'bottom',
-        //     width: panel.offsetWidth - BORDER * 2,
-        //     height: panel.offsetHeight / 2 - BORDER * 2,
-        //     marginLeft: BORDER,
-        //     marginTop: panel.offsetHeight / 2 + BORDER,
-        //   }
       } else {
         BORDER *= 5
         const w = (panel.offsetWidth - BORDER * 2) * 0.95
@@ -840,7 +856,8 @@ export default defineComponent({
       return style
     },
   },
-  mounted() {
+
+  async mounted() {
     // EMBEDDED MODE? We'll hide some chrome
     if ('embed' in this.$route.query) this.isEmbedded = true
 
@@ -859,7 +876,7 @@ export default defineComponent({
     this.activeLeftSection = { name: 'Data', class: 'LeftSystemPanel' }
     // }
 
-    this.buildLayoutFromURL()
+    await this.buildLayoutFromURL()
 
     // save the first-most panel URL for highlighting purposes
     this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''

@@ -639,7 +639,7 @@ export default defineComponent({
           pitch: this.vizDetails.pitch || 0,
           longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
           latitude: this.vizDetails.center ? this.vizDetails.center[1] : 0,
-          initial: true,
+          initial: false,
         })
         this.needsInitialMapExtent = false
       }
@@ -716,7 +716,7 @@ export default defineComponent({
   async mounted() {
     // we have a filepath --------
 
-    if (this.root) {
+    if (this.root || this.configFromDashboard) {
       this.loadConfig()
       return
     }
@@ -728,7 +728,7 @@ export default defineComponent({
     this.setupLogoMover()
 
     // this.honorQueryParameters()
-    this.setStartingMap()
+    this.setMapCenter()
 
     this.$emit('isLoaded')
     this.isLoaded = true
