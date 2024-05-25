@@ -93,7 +93,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import YAML from 'yaml'
+import YAML from 'js-yaml'
 import Draggable from 'vuedraggable'
 
 import {
@@ -108,6 +108,8 @@ import {
 } from '@/Globals'
 
 import globalStore from '@/store'
+import UTIL from '@/js/util'
+
 import LAYER_CATALOG from './layers/layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
 
@@ -162,15 +164,22 @@ export default defineComponent({
   beforeDestroy() {},
 
   methods: {
-    save() {
+    async save() {
+      const { zoom, bearing, pitch, center } = globalStore.state.viewState
+
       const output = {
         title: 'My Map',
         description: '',
         type: 'layers',
         theme: this.theme.bg,
         roads: this.theme.roads,
+        zoom,
+        bearing,
+        pitch,
+        center,
       } as any
 
+      output
       const layers = this.layers.map((l: any) => {
         console.log({ l })
         const options = Object.assign({ type: l.type }, { ...l.layerOptions })
@@ -182,20 +191,29 @@ export default defineComponent({
       output.datasets = {}
 
       for (const key of Object.keys(this.datasets)) {
-        output.datasets[key] = key
+        // output.datasets[key] = key
 
         //   // Or: Save actual datasets
-        //   const dataset = this.datasets[key]
-        //   const columns = {} as any
-        //   for (const column of Object.keys(dataset)) {
-        //     columns[column] = [...dataset[column].values]
-        //   }
-        //   output.datasets[key] = columns
+        const dataset = this.datasets[key]
+        const columns = {} as any
+        for (const column of Object.keys(dataset)) {
+          const values = dataset[column].values as any
+          if (UTIL.identifyTypedArray(values).startsWith('Float')) {
+            // convert float32array to base64
+            const base64 = await UTIL.bytesToBase64DataUrl(values.buffer)
+            columns[column] = { type: UTIL.identifyTypedArray(values), data: base64 }
+          } else {
+            columns[column] = [...dataset[column].values]
+          }
+        }
+        output.datasets[key] = columns
       }
 
-      const yaml = YAML.stringify(output)
+      // const yaml = YAML.stringify(output)
+      const yaml = YAML.dump(output, { flowLevel: 3 })
+
       console.log(yaml)
-      console.log(JSON.stringify(output, null, '  '))
+      // console.log(JSON.stringify(output, null, '  '))
 
       // download file
       var element = document.createElement('a')

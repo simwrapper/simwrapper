@@ -45,7 +45,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import Sanitize from 'sanitize-filename'
-import YAML from 'yaml'
+import YAML from 'js-yaml'
 
 import globalStore from '@/store'
 import {
@@ -70,7 +70,7 @@ import AddDataModal from './AddDataModal.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
-import { arrayBufferToBase64 } from '@/js/util'
+import UTIL from '@/js/util'
 import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
 import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vue'
@@ -363,9 +363,9 @@ export default defineComponent({
         const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
 
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
-          const ycfg = await this.loadYamlConfig()
-          this.config = ycfg
-          this.vizDetails = Object.assign({}, emptyState, ycfg)
+          const yconfig = await this.loadYamlConfig()
+          this.config = yconfig
+          this.vizDetails = Object.assign({}, emptyState, yconfig)
         }
 
         // OR is this a bare geojson/shapefile file? - build vizDetails manually
@@ -397,7 +397,7 @@ export default defineComponent({
       // 1. First try loading the file directly
       try {
         const text = await this.fileApi.getFileText(filename)
-        return YAML.parse(text)
+        return YAML.load(text) as any
       } catch (err) {
         const message = '' + err
         if (message.startsWith('YAMLSemantic')) {
@@ -411,7 +411,7 @@ export default defineComponent({
       if (vizes[config]) {
         try {
           const text = await this.fileApi.getFileText(vizes[config])
-          return YAML.parse(text)
+          return YAML.load(text) as any
         } catch (err) {
           console.error(`Also failed to load ${vizes[config]}`)
         }
@@ -477,55 +477,131 @@ export default defineComponent({
 
     async loadDataset(datasetKey: string) {
       console.log('### LOAD', datasetKey)
+      if (!datasetKey) return
 
       try {
-        if (!datasetKey) return
-
         // dataset could be  { dataset: myfile.csv }
         //               or  { dataset: { file: myfile.csv, join: TAZ }}
-        const datasetFilename =
-          'string' === typeof this.config.datasets[datasetKey]
-            ? this.config.datasets[datasetKey]
-            : this.config.datasets[datasetKey].file
+        //               or  ['red','blue','green']
+        //               or  { type: 'Float32Array', data: 'data:base64,Mzs23fshER3592'}
 
-        this.statusText = `Loading dataset ${datasetFilename} ...`
+        const datasetConfig = this.config.datasets[datasetKey]
 
-        await this.$nextTick()
+        console.log({ datasetConfig })
 
-        let loaderConfig = { dataset: datasetFilename }
-        if ('string' !== typeof this.config.datasets[datasetKey]) {
-          loaderConfig = Object.assign(loaderConfig, this.config.datasets[datasetKey])
+        // 1. dataset: filename.csv
+        if ('string' === typeof datasetConfig) {
+          return await this.loadDatasetFromFile(datasetKey)
         }
 
-        // save the filename and key for later lookups
-        this.datasetKeyToFilename[datasetKey] = datasetFilename
+        // 2. dataset: { file: filename.csv, join: TAZ }
+        if (datasetConfig.file) {
+          return await this.loadDatasetFromFile(datasetKey)
+        }
 
-        const dataset = await this.myDataManager.getDataset(loaderConfig)
+        // 3. dataset: ['red','green', 'blue']
+        if (Array.isArray(datasetConfig)) {
+          return await this.loadDatasetEmbedded(datasetKey)
+        }
 
-        // figure out join - use ".join" or first column key
-        const joiner =
-          'string' === typeof this.config.datasets[datasetKey]
-            ? Object.keys(dataset.allRows)[0]
-            : this.config.datasets[datasetKey].join
+        // 4. dataset: { type: 'Float32Array', data: 'data:base64,Mzs23fshER3592'}
+        // ... but it's hard to test for this because we don't know column names
+        // ... so we just try it:
+        return await this.loadDatasetEmbedded(datasetKey)
 
-        const joinColumns = joiner?.split(':') || []
-
-        // TODO if join is one column then really we should just ignore it but for now...
-        if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
-
-        // save it!
-        this.datasets[datasetKey] = dataset.allRows
-
-        await this.$nextTick()
-
-        // Set up filters -- there could be some in YAML already
-        // this.activateFiltersForDataset(datasetKey)
+        // console.error('DONT KNOW WHAT TO DO WITH', datasetKey)
       } catch (e) {
         const msg = '' + e
         console.error(msg)
         this.$emit('error', `Error loading ${datasetKey}: ${msg}`)
       }
-      return []
+    },
+
+    async loadDatasetFromFile(datasetKey: string) {
+      const datasetFilename =
+        'string' === typeof this.config.datasets[datasetKey]
+          ? this.config.datasets[datasetKey]
+          : this.config.datasets[datasetKey].file
+
+      this.statusText = `Loading dataset ${datasetFilename} ...`
+
+      await this.$nextTick()
+
+      let loaderConfig = { dataset: datasetFilename }
+      if ('string' !== typeof this.config.datasets[datasetKey]) {
+        loaderConfig = Object.assign(loaderConfig, this.config.datasets[datasetKey])
+      }
+
+      // save the filename and key for later lookups
+      this.datasetKeyToFilename[datasetKey] = datasetFilename
+
+      const dataset = await this.myDataManager.getDataset(loaderConfig)
+
+      // figure out join - use ".join" or first column key
+      const joiner =
+        'string' === typeof this.config.datasets[datasetKey]
+          ? Object.keys(dataset.allRows)[0]
+          : this.config.datasets[datasetKey].join
+
+      const joinColumns = joiner?.split(':') || []
+
+      // TODO if join is one column then really we should just ignore it but for now...
+      if (joinColumns.length == 1) joinColumns.push(joinColumns[0])
+
+      // save it!
+      this.datasets[datasetKey] = dataset.allRows
+
+      await this.$nextTick()
+
+      // Set up filters -- there could be some in YAML already
+      // this.activateFiltersForDataset(datasetKey)
+    },
+
+    async loadDatasetEmbedded(datasetKey: string) {
+      const datasetConfig = this.config.datasets[datasetKey]
+
+      const dataset = {} as DataTable
+
+      for (const columnName of Object.keys(datasetConfig)) {
+        let myArray
+        let dataColumn = { name: columnName } as DataTableColumn
+
+        const column = datasetConfig[columnName]
+
+        // plain javascript array
+        if (Array.isArray(column)) {
+          myArray = column
+          dataColumn.type = DataType.STRING
+        }
+
+        // convert data if needed
+        if (column.data) {
+          const rawData = await UTIL.dataUrlToBytes(column.data)
+          if (column.type == 'Float32Array') {
+            dataColumn.type = DataType.NUMBER
+            myArray = new Float32Array(rawData.buffer)
+          }
+          if (column.type == 'Float64Array') {
+            dataColumn.type = DataType.NUMBER
+            myArray = new Float64Array(rawData.buffer)
+          }
+        }
+        if (!myArray) {
+          console.error('Unable to parse', datasetKey, columnName)
+          continue
+        }
+
+        // ok we have the array now!
+        dataColumn.values = myArray
+        dataset[columnName] = dataColumn
+
+        // save memory: delete the embedded data
+        delete this.config.datasets[datasetKey]
+      }
+
+      // all done
+      this.myDataManager.setPreloadedDataset({ key: datasetKey, dataTable: dataset })
+      this.datasets[datasetKey] = dataset
     },
 
     clearData() {
