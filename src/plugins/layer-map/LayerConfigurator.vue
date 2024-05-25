@@ -109,6 +109,7 @@ import {
 
 import globalStore from '@/store'
 import UTIL from '@/js/util'
+import GIST from '@/js/gist'
 
 import LAYER_CATALOG from './layers/layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
@@ -218,12 +219,26 @@ export default defineComponent({
       // download file
       var element = document.createElement('a')
       element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(yaml))
-      element.setAttribute('download', 'viz-layers-map.yml')
+      element.setAttribute('download', 'viz-layers-map.yaml')
       element.style.display = 'none'
 
       document.body.appendChild(element)
       element.click()
       document.body.removeChild(element)
+
+      // NOW ALSO SAVE THE GIST
+      this.uploadGist('viz-layers-map.yaml', yaml)
+    },
+
+    uploadGist(filename: string, text: string) {
+      const auth = GIST.generate_request_auth()
+
+      localStorage.setItem('gist-code-verifier', auth.codeVerifier)
+      localStorage.setItem('gist-map-filename', filename)
+      localStorage.setItem('gist-map-yaml', text)
+
+      // redirect! BYE
+      window.location.href = auth.authURL
     },
 
     addPoints() {
