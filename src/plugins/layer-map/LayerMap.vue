@@ -586,8 +586,10 @@ export default defineComponent({
             myArray = new Float64Array(rawData.buffer)
           }
         }
+
+        // none of the above worked?
         if (!myArray) {
-          console.error('Unable to parse', datasetKey, columnName)
+          this.$emit('error', `Unable to parse ${datasetKey} ${columnName}`)
           continue
         }
 
