@@ -9,10 +9,6 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const routes = [
   {
-    path: BASE_URL + 'github_callback',
-    component: () => import('@/layout-manager/GithubCallback.vue'),
-  },
-  {
     path: BASE_URL + 'matrix',
     component: () => import('@/plugins/matrix/MatrixViewer.vue'),
     props: (route: Route) => ({

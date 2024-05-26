@@ -134,6 +134,7 @@ export default defineComponent({
       openSection: 0,
       layerList: [] as any,
       isReordering: false,
+      isStillActive: true,
     }
   },
 
@@ -162,7 +163,9 @@ export default defineComponent({
     this.layerList = [...this.layers]
   },
 
-  beforeDestroy() {},
+  beforeDestroy() {
+    this.isStillActive = false
+  },
 
   methods: {
     async save() {
@@ -180,21 +183,19 @@ export default defineComponent({
         center,
       } as any
 
-      output
       const layers = this.layers.map((l: any) => {
-        console.log({ l })
         const options = Object.assign({ type: l.type }, { ...l.layerOptions })
         return options
       })
 
       output.layers = layers
-
       output.datasets = {}
 
       for (const key of Object.keys(this.datasets)) {
+        // what if we have the real filename? (but in interactive mode we don't)
         // output.datasets[key] = key
 
-        //   // Or: Save actual datasets
+        // Embed actual datasets
         const dataset = this.datasets[key]
         const columns = {} as any
         for (const column of Object.keys(dataset)) {
@@ -204,41 +205,16 @@ export default defineComponent({
             const base64 = await UTIL.bytesToBase64DataUrl(values.buffer)
             columns[column] = { type: UTIL.identifyTypedArray(values), data: base64 }
           } else {
-            columns[column] = [...dataset[column].values]
+            columns[column] = { type: 'String', data: dataset[column].values }
           }
         }
         output.datasets[key] = columns
       }
 
-      // const yaml = YAML.stringify(output)
       const yaml = YAML.dump(output, { flowLevel: 3 })
-
       console.log(yaml)
-      // console.log(JSON.stringify(output, null, '  '))
 
-      // download file
-      var element = document.createElement('a')
-      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(yaml))
-      element.setAttribute('download', 'viz-layers-map.yaml')
-      element.style.display = 'none'
-
-      document.body.appendChild(element)
-      element.click()
-      document.body.removeChild(element)
-
-      // NOW ALSO SAVE THE GIST
-      this.uploadGist('viz-layers-map.yaml', yaml)
-    },
-
-    uploadGist(filename: string, text: string) {
-      const auth = GIST.generate_request_auth()
-
-      localStorage.setItem('gist-code-verifier', auth.codeVerifier)
-      localStorage.setItem('gist-map-filename', filename)
-      localStorage.setItem('gist-map-yaml', text)
-
-      // redirect! BYE
-      window.location.href = auth.authURL
+      this.$emit('save', yaml)
     },
 
     addPoints() {

@@ -9,6 +9,7 @@
     :datasets="datasets"
     :theme="theme"
     @add="addNewLayer"
+    @save="showSaveMapYAML=$event"
     @addData="showAddData=true"
     @update="updateLayers"
     @theme="updateTheme"
@@ -39,6 +40,11 @@
     @update="addDataset"
   )
 
+  save-map-modal(v-if="showSaveMapYAML"
+    :yaml="showSaveMapYAML"
+    @close="showSaveMapYAML=''"
+  )
+
 </template>
 
 <script lang="ts">
@@ -61,12 +67,12 @@ import {
 } from '@/Globals'
 
 import AllLayers from './AllLayers'
+import AddDataModal from './AddDataModal.vue'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
-import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
-import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import LayerConfigurator from './LayerConfigurator.vue'
-import AddDataModal from './AddDataModal.vue'
+import SaveMapModal from './SaveMapModal.vue'
+import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
@@ -93,12 +99,13 @@ interface FilterDetails {
 export default defineComponent({
   name: 'LayerMap',
   components: {
-    AddDataModal,
     AllLayers,
+    AddDataModal,
+    SaveMapModal,
     BackgroundMapOnTop,
+    DrawingTool,
     LayerConfigurator,
     ZoomButtons,
-    DrawingTool,
   },
 
   props: {
@@ -116,6 +123,7 @@ export default defineComponent({
       isPanelReallyHidden: false,
       mapLayers: [] as any[],
       showAddData: false,
+      showSaveMapYAML: '',
       theme: { bg: globalStore.state.isDarkMode ? 'dark' : 'light', roads: 'below', labels: 'on' },
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
@@ -576,12 +584,17 @@ export default defineComponent({
 
         // convert data if needed
         if (column.data) {
-          const rawData = await UTIL.dataUrlToBytes(column.data)
+          if (column.type == 'String') {
+            dataColumn.type = DataType.STRING
+            myArray = column.data
+          }
           if (column.type == 'Float32Array') {
+            const rawData = await UTIL.dataUrlToBytes(column.data)
             dataColumn.type = DataType.NUMBER
             myArray = new Float32Array(rawData.buffer)
           }
           if (column.type == 'Float64Array') {
+            const rawData = await UTIL.dataUrlToBytes(column.data)
             dataColumn.type = DataType.NUMBER
             myArray = new Float64Array(rawData.buffer)
           }
@@ -824,6 +837,7 @@ export default defineComponent({
   padding: 2px;
   border-radius: 8px;
   background-color: var(--iconShowHide);
+  user-select: none;
 }
 
 .btn-show-hide:hover {
