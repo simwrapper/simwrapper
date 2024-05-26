@@ -54,6 +54,13 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
 let fileSystems: FileSystemConfig[] = [
   // DO NOT REMOVE THESE, THEY ARE FOR INTERNAL APP USE
   {
+    name: 'interactive',
+    slug: '',
+    description: 'Drag and Drop"',
+    baseURL: '',
+    hidden: true,
+  },
+  {
     name: webLiveHostname + ' live folders',
     slug: 'live',
     description: 'Files served using "simwrapper here"',

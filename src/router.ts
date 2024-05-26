@@ -9,15 +9,24 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const routes = [
   {
-    path: BASE_URL + 'gist/:id',
-    component: () => import('@/layout-manager/GistView.vue'),
+    path: BASE_URL + 'matrix',
+    component: () => import('@/plugins/matrix/MatrixViewer.vue'),
     props: (route: Route) => ({
-      id: route.params.id,
+      root: '',
+      subfolder: '',
     }),
   },
   {
-    path: BASE_URL + 'matrix',
-    component: () => import('@/plugins/matrix/MatrixViewer.vue'),
+    path: BASE_URL + 'map',
+    component: () => import('@/plugins/layer-map/LayerMap.vue'),
+    props: (route: Route) => ({
+      root: '',
+      subfolder: '',
+    }),
+  },
+  {
+    path: BASE_URL + 'maps',
+    component: () => import('@/plugins/layer-map/LayerMap.vue'),
     props: (route: Route) => ({
       root: '',
       subfolder: '',

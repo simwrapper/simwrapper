@@ -338,6 +338,14 @@ h4 {
   font-size: 1.15rem;
 }
 
+.column-selector {
+  select {
+    background-color: var(--bgColor) !important;
+    color: var(--text) !important;
+    border-color: #88888866 !important;
+  }
+}
+
 #main-app {
   display: grid;
   color: var(--text);
@@ -681,6 +689,11 @@ p.splash-label {
   background-color: unset;
   text-align: unset;
   height: unset;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
 }
 
 .flex-row {
