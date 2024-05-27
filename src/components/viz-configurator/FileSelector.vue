@@ -10,8 +10,8 @@
       :style="{ height: height + 'px' }"
       :class="{ isDragEnter: 'is-dragging' }"
       @dragenter.stop.prevent="startDrag()"
-      @dragover.stop.prevent="() => {}"
-      @dragleave.stop.prevent="isDragEnter = false"
+      @dragover.stop.prevent="startDrag()"
+      @dragleave="isDragEnter = false"
       @drop.stop.prevent="handleDrop"
     >
       <input
