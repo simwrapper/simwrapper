@@ -22,8 +22,9 @@
 
   .layers-section.flex1(v-show="section==0")
     .add-buttons
-      b-button.is-small(@click="$emit('add','points')") New Points
-      b-button.is-small(@click="$emit('add','arcs')") New Arcs
+      b-button.is-small(@click="$emit('add','polygons')") + Polygons
+      b-button.is-small(@click="$emit('add','points')") + Points
+      b-button.is-small(@click="$emit('add','arcs')") + Arcs
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
@@ -59,7 +60,7 @@
           @click="$emit('theme', {bg: 'off'})"
           :class="{'is-link': theme.bg == 'off'}") &nbsp;Off&nbsp;
         b-button.bb.is-small(expanded
-          @click="$emit('theme', {bg:   'light'})"
+          @click="$emit('theme', {bg: 'light'})"
           :class="{'is-link': theme.bg == 'light'}") Light
         b-button.bb.is-small(expanded
           @click="$emit('theme', {bg: 'dark'})"
@@ -68,13 +69,13 @@
     .flex-row(style="margin-top: 1rem")
       p.flex2 Show roads
       .flex3.flex-row
-        b-button.is-small(expanded
+        b-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'off'})"
           :class="{'is-link': theme.roads == 'off'}") &nbsp;Off&nbsp;
-        b-button.is-small(expanded
+        b-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'above'})"
           :class="{'is-link': theme.roads == 'above'}") Above
-        b-button.is-small(expanded
+        b-button.bb.is-small(expanded
           @click="$emit('theme', {roads: 'below'})"
           :class="{'is-link': theme.roads == 'below'}") Below
 
@@ -281,6 +282,7 @@ export default defineComponent({
   display: flex;
   margin-bottom: 1rem;
   margin-left: 2px;
+  gap: 3px;
 }
 
 .sections {

@@ -68,6 +68,7 @@ export default class DashboardDataManager {
   private root = ''
   private fileApi: FileSystemConfig
   private networks: { [id: string]: Promise<NetworkLinks> } = {}
+  private featureCollections: { [id: string]: any } = {}
 
   public kill() {
     for (const worker of this.threads) worker.terminate()
@@ -184,9 +185,18 @@ export default class DashboardDataManager {
     return this.datasets[key].dataset
   }
 
+  public getFeatureCollection(id: string) {
+    return this.featureCollections[id]
+  }
+
+  public registerFeatures(fullpath: string, featureCollection: any[], config: any) {
+    this.featureCollections[fullpath] = featureCollection
+    this.setFeatureProperties(fullpath, featureCollection, config)
+  }
+
   /**
    * Convert features array from GeoJSONs and Shapefiles into DataTable
-   * @param filename
+   * @param fullpath name of shape/geo file
    * @param featureProperties array of feature objects
    */
   public setFeatureProperties(fullpath: string, featureProperties: any[], config: any) {

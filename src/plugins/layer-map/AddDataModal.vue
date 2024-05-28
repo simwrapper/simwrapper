@@ -5,7 +5,6 @@
       p.close-button(@click="$emit('close')"): i.fas.fa-times
     hr
 
-
     file-selector.zz(
       :accept-extensions="validDataTypes.map(m => `.${m}`).join(',')"
       :multiple="true"
@@ -61,7 +60,7 @@ export default defineComponent({
   data() {
     return {
       validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT', 'GeoJSON'],
-      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT)(\.GZ)?$/,
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|GEOJSON)(\.GZ)?$/,
       fileChoice: '',
       filesInFolder: [] as string[],
       isLoading: false,
@@ -121,22 +120,55 @@ export default defineComponent({
       for (const file of list) {
         let result = (await this.loadDataUrl(file)) as any
         const buffer = result.buffer || result
-        const dataTable = await this.processBuffer(file.name, buffer)
 
-        // create a human-readable key for this file based on filename
-        let key = file.name
-        const pieces = this.validRegex.exec(key.toLocaleUpperCase())
-        if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
-
-        const dataset: DatasetDefinition = {
-          key: file.name,
-          dataTable,
-          filename: file,
+        if (file.name.toLocaleLowerCase().indexOf('.geojson') > -1) {
+          // GEOJSON
+          await this.loadGeoJSON(file, buffer)
+          continue
+        } else {
+          // otherwise assume CSV
+          await this.loadCSV(file, buffer)
+          continue
         }
-        this.$emit('update', dataset)
       }
-
       this.isLoading = false
+    },
+
+    async loadGeoJSON(file: any, buffer: any) {
+      console.log('GOT GEOJSON')
+      const text = new TextDecoder().decode(new Uint8Array(buffer))
+      const geojson = JSON.parse(text)
+      console.log({ geojson })
+
+      this.$emit('update', { geojson })
+
+      // // create a human-readable key for this file based on filename
+      // let key = file.name
+      // const pieces = this.validRegex.exec(key.toLocaleUpperCase())
+      // if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
+
+      // const dataset: DatasetDefinition = {
+      //   key,
+      //   dataTable,
+      //   filename: file,
+      // }
+      // this.$emit('update', { dataset })
+    },
+
+    async loadCSV(file: any, buffer: any) {
+      const dataTable = await this.processBuffer(file.name, buffer)
+
+      // create a human-readable key for this file based on filename
+      let key = file.name
+      const pieces = this.validRegex.exec(key.toLocaleUpperCase())
+      if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
+
+      const dataset: DatasetDefinition = {
+        key,
+        dataTable,
+        filename: file,
+      }
+      this.$emit('update', { dataset })
     },
 
     keyListener(event: KeyboardEvent) {

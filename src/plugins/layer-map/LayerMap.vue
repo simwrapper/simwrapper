@@ -478,12 +478,24 @@ export default defineComponent({
       }
     },
 
-    addDataset(dataset: DatasetDefinition) {
-      console.log('ADDING', dataset)
-      this.myDataManager.setPreloadedDataset(dataset)
-      this.showAddData = false
-      this.datasets[dataset.key] = dataset.dataTable
-      this.datasets = { ...this.datasets }
+    addDataset(props: { dataset?: DatasetDefinition; geojson: any }) {
+      const { dataset, geojson } = props
+
+      if (dataset) {
+        console.log('ADDING', dataset)
+        this.myDataManager.setPreloadedDataset(dataset)
+        this.showAddData = false
+        this.datasets[dataset.key] = dataset.dataTable
+        this.datasets = { ...this.datasets }
+      }
+
+      if (geojson) {
+        console.log('FEATURES', geojson)
+        this.myDataManager.registerFeatures('Polygons', geojson.features, {})
+        this.showAddData = false
+        this.datasets['Polygons'] = geojson
+        this.datasets = { ...this.datasets }
+      }
     },
 
     async loadDataset(datasetKey: string) {

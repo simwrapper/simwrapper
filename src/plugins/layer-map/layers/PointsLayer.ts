@@ -218,7 +218,7 @@ export default class PointsLayer extends BaseLayer {
       filled: true,
       autoHighlight: true,
       highlightColor: [255, 0, 224],
-      opacity: 0.7,
+      opacity: 1.0,
       pickable: true,
       pointRadiusUnits: 'pixels',
       // pointRadiusMinPixels: 2,
