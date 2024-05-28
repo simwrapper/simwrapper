@@ -253,7 +253,9 @@ a {
 
 .section-bottom {
   background-color: #c8ffef;
-  padding: 1.5rem;
+  color: black;
+  padding: 1.5rem 3rem;
   filter: $filterShadow;
+  border-color: 2px solid white;
 }
 </style>

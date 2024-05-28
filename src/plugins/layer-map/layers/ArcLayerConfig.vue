@@ -2,22 +2,26 @@
 .layer-config.flex-col
   .panel-title.flex-row(@click="$emit('open')")
 
-    p.center.flex1: b Points
+    p.center.flex1: b Arcs
     span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
 
   .panel-content(v-if="open")
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="lon" :datasets="datasets" @update="lon=$event")
-          p.tight Longitude/X
+        column-selector.flex1(v-model="startx" :datasets="datasets" @update="startx=$event")
+          p.tight Start-Lon/X
 
-        column-selector.flex1(v-model="lat" :datasets="datasets" @update="lat=$event")
-          p.tight Latitude/Y
+        column-selector.flex1(v-model="starty" :datasets="datasets" @update="starty=$event")
+          p.tight Start-Lat/Y
 
     .coordinates.flex-row(style="gap: 0.25rem")
-        column-selector.flex1(v-model="radius" :datasets="datasets" @update="radius=$event")
-          p.tight Radius
+        column-selector.flex1(v-model="endx" :datasets="datasets" @update="endx=$event")
+          p.tight End-Lon//X
 
+        column-selector.flex1(v-model="endy" :datasets="datasets" @update="endy=$event")
+          p.tight End-Lat/Y
+
+    .coordinates.flex-row(style="gap: 0.25rem")
         column-selector.flex1(v-model="color" :datasets="datasets" @update="color=$event")
           p.tight Color
 
@@ -49,7 +53,7 @@ import {
 } from '@/Globals'
 
 export default defineComponent({
-  name: 'PointsLayerConfig',
+  name: 'ArcLayerConfig',
   components: { ColumnSelector, TextSelector },
 
   props: {
@@ -60,8 +64,10 @@ export default defineComponent({
 
   data() {
     return {
-      lon: '',
-      lat: '',
+      startx: '',
+      starty: '',
+      endx: '',
+      endy: '',
       radius: '',
       color: '',
       projection: '',
@@ -74,10 +80,16 @@ export default defineComponent({
     color() {
       this.updateConfig()
     },
-    lon() {
+    startx() {
       this.updateConfig()
     },
-    lat() {
+    starty() {
+      this.updateConfig()
+    },
+    endx() {
+      this.updateConfig()
+    },
+    endy() {
       this.updateConfig()
     },
     radius() {
@@ -94,8 +106,10 @@ export default defineComponent({
       console.log('GOT NEW CONFIG')
       const update = JSON.parse(JSON.stringify(this.options))
       update.color = this.color
-      update.lon = this.lon
-      update.lat = this.lat
+      update.startx = this.startx
+      update.starty = this.starty
+      update.endx = this.endx
+      update.endy = this.endy
       update.radius = this.radius
       update.projection = this.projection
 
@@ -107,8 +121,10 @@ export default defineComponent({
     console.log('POINTS options', this.options)
 
     this.color = this.options.color
-    this.lon = this.options.lon
-    this.lat = this.options.lat
+    this.startx = this.options.startx
+    this.starty = this.options.starty
+    this.endx = this.options.endx
+    this.endy = this.options.endy
     this.radius = this.options.radius
     this.projection = this.options.projection
 

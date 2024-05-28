@@ -20,6 +20,7 @@ import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadi
 import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
+import Coords from '@/js/Coords'
 
 import BaseLayer from './BaseLayer'
 import LayerConfig from './PointsLayerConfig.vue'
@@ -133,8 +134,25 @@ export default class PointsLayer extends BaseLayer {
     const lon = dataset[lonCol].values
     const lat = dataset[latCol].values
 
+    const ignore = ['EPSG:4326', '4326', 'WGS84']
+
+    // projections
+    let projection = this.layerOptions.projection || 'WGS84'
+    if (Number.isFinite(parseInt(projection))) projection = 'EPSG:' + projection
+
+    let wgs84
+    if (this.layerOptions.projection && !(this.layerOptions.projection in ignore)) {
+      wgs84 = new Float32Array(lon.length * 2)
+      lon.forEach((_: any, i: number) => {
+        const ll = Coords.toLngLat(projection, [lon[i], lat[i]])
+        wgs84[i * 2] = ll[0]
+        wgs84[i * 2 + 1] = ll[1]
+      })
+      console.log({ wgs84 })
+    }
+
     // radius
-    let radius = new Float32Array(lon.length).fill(5) as any
+    let radius = new Float32Array(lon.length).fill(1) as any
 
     try {
       const radiusKey = this.layerOptions.radius?.substring(
@@ -168,7 +186,10 @@ export default class PointsLayer extends BaseLayer {
     for (let i = 0; i < lon.length; i++) {
       const c = ColorString.get.rgb(color[i])
       this.features.push({
-        geometry: { type: 'Point', coordinates: [lon[i], lat[i]] },
+        geometry: {
+          type: 'Point',
+          coordinates: wgs84 ? wgs84.subarray(i * 2, i * 2 + 2) : [lon[i], lat[i]],
+        },
         properties: { radius: radius[i], color: c ? c.slice(0, 3) : [64, 64, 64, 64] },
       })
     }
@@ -176,6 +197,16 @@ export default class PointsLayer extends BaseLayer {
   }
 
   deckLayer() {
+    const getMapBounds = (viewport: any) => {
+      const bounds = viewport.getBounds()
+      return {
+        west: bounds[0][0],
+        south: bounds[0][1],
+        east: bounds[1][0],
+        north: bounds[1][1],
+      }
+    }
+
     if (this.error) throw Error(this.error)
 
     return new GeoJsonLayer({
@@ -183,9 +214,11 @@ export default class PointsLayer extends BaseLayer {
       data: this.features,
       getFillColor: (d: any) => d.properties.color,
       getPointRadius: (d: any) => d.properties.radius,
+      stroked: false,
+      filled: true,
       autoHighlight: true,
       highlightColor: [255, 0, 224],
-      opacity: 1.0,
+      opacity: 0.7,
       pickable: true,
       pointRadiusUnits: 'pixels',
       // pointRadiusMinPixels: 2,

@@ -86,7 +86,7 @@ import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue
 import Coords from '@/js/Coords'
 import LegendStore from '@/js/LegendStore'
 
-import layerCatalog from './layers/layerCatalog'
+import layerCatalog from './layers/_layerCatalog'
 
 interface FilterDetails {
   column: string
@@ -95,6 +95,9 @@ interface FilterDetails {
   active: any[]
   dataset?: any
 }
+
+//@ts-ignore
+const FLATE = window.flate
 
 export default defineComponent({
   name: 'LayerMap',
@@ -259,7 +262,7 @@ export default defineComponent({
 
         try {
           const mapLayer = new Layer(systemProps, { type: layerType })
-          this.mapLayers.push(mapLayer)
+          this.mapLayers.unshift(mapLayer)
           this.mapLayers = [...this.mapLayers]
         } catch (e) {
           console.error('' + e)
@@ -590,13 +593,15 @@ export default defineComponent({
           }
           if (column.type == 'Float32Array') {
             const rawData = await UTIL.dataUrlToBytes(column.data)
+            const ungzipped = FLATE.gzip_decode_raw(rawData)
             dataColumn.type = DataType.NUMBER
-            myArray = new Float32Array(rawData.buffer)
+            myArray = new Float32Array(ungzipped.buffer)
           }
           if (column.type == 'Float64Array') {
             const rawData = await UTIL.dataUrlToBytes(column.data)
+            const ungzipped = FLATE.gzip_decode_raw(rawData)
             dataColumn.type = DataType.NUMBER
-            myArray = new Float64Array(rawData.buffer)
+            myArray = new Float64Array(ungzipped.buffer)
           }
         }
 
@@ -845,3 +850,4 @@ export default defineComponent({
   color: #379ec1;
 }
 </style>
+./layers/_layerCatalog

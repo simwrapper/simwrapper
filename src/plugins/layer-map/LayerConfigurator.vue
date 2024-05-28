@@ -22,7 +22,8 @@
 
   .layers-section.flex1(v-show="section==0")
     .add-buttons
-      b-button.is-small(@click="addPoints") New Points Layer
+      b-button.is-small(@click="$emit('add','points')") New Points
+      b-button.is-small(@click="$emit('add','arcs')") New Arcs
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
@@ -111,8 +112,11 @@ import globalStore from '@/store'
 import UTIL from '@/js/util'
 import GIST from '@/js/gist'
 
-import LAYER_CATALOG from './layers/layerCatalog'
+import LAYER_CATALOG from './layers/_layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
+
+//@ts-ignore
+const FLATE = window.flate
 
 export default defineComponent({
   name: 'ShapeFilePlugin',
@@ -191,6 +195,9 @@ export default defineComponent({
       output.layers = layers
       output.datasets = {}
 
+      // we will do a text search for dataset columns next
+      const layerConfigText = JSON.stringify(output.layers)
+      console.log({ layerConfigText })
       for (const key of Object.keys(this.datasets)) {
         // what if we have the real filename? (but in interactive mode we don't)
         // output.datasets[key] = key
@@ -198,11 +205,21 @@ export default defineComponent({
         // Embed actual datasets
         const dataset = this.datasets[key]
         const columns = {} as any
+
         for (const column of Object.keys(dataset)) {
+          // skip columns that are not referenced in config
+          const check = `${key}:${column}`
+          console.log(check)
+          if (!layerConfigText.includes(check)) continue
+          console.log('  saving it')
           const values = dataset[column].values as any
+
           if (UTIL.identifyTypedArray(values).startsWith('Float')) {
             // convert float32array to base64
-            const base64 = await UTIL.bytesToBase64DataUrl(values.buffer)
+
+            const deflated = FLATE.gzip_encode_raw(new Uint8Array(values.buffer))
+            const base64 = await UTIL.bytesToBase64DataUrl(deflated) //values.buffer)
+            console.log({ column, base64 })
             columns[column] = { type: UTIL.identifyTypedArray(values), data: base64 }
           } else {
             columns[column] = { type: 'String', data: dataset[column].values }
@@ -215,10 +232,6 @@ export default defineComponent({
       console.log(yaml)
 
       this.$emit('save', yaml)
-    },
-
-    addPoints() {
-      this.$emit('add', 'points')
     },
 
     getLayerConfig(layerData: any) {
@@ -322,6 +335,7 @@ export default defineComponent({
   background-color: $panelTitle;
   border-radius: 3px;
   color: white;
+  margin-bottom: 0.75rem;
 }
 
 .show-dataset:hover .closer {
@@ -361,3 +375,4 @@ export default defineComponent({
   color: var(--link);
 }
 </style>
+./layers/_layerCatalog

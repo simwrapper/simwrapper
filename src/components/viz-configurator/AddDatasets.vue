@@ -41,8 +41,8 @@
               b {{ validDataTypes.join(', ')}}
 
           .section-bottom(slot="loader")
-            p Processing files<br/>
-            p please wait...
+            p: b Processing files<br/>
+            p: i Please wait...
 
       br
       p.center
