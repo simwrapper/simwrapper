@@ -1,5 +1,5 @@
 import { Deck } from '@deck.gl/core'
-import { GeoJsonLayer } from '@deck.gl/layers'
+import { ScatterplotLayer } from '@deck.gl/layers'
 import ColorString from 'color-string'
 
 import globalStore from '@/store'
@@ -38,6 +38,7 @@ export default class PointsLayer extends BaseLayer {
   error: string
   layerOptions: any
   key: number
+  deckData: { coordinates: Float32Array; radius: Float32Array; colors: Float32Array }
 
   constructor(
     systemProps: {
@@ -60,6 +61,11 @@ export default class PointsLayer extends BaseLayer {
     this.layerOptions = layerOptions
     this.error = ''
     this.assembleData()
+    this.deckData = {
+      coordinates: new Float32Array(),
+      radius: new Float32Array(),
+      colors: new Float32Array(),
+    }
   }
 
   getKey() {
@@ -140,30 +146,24 @@ export default class PointsLayer extends BaseLayer {
     let projection = this.layerOptions.projection || 'WGS84'
     if (Number.isFinite(parseInt(projection))) projection = 'EPSG:' + projection
 
-    let wgs84
+    const wgs84 = new Float32Array(lon.length * 2)
     if (this.layerOptions.projection && !(this.layerOptions.projection in ignore)) {
-      wgs84 = new Float32Array(lon.length * 2)
       lon.forEach((_: any, i: number) => {
         const ll = Coords.toLngLat(projection, [lon[i], lat[i]])
         wgs84[i * 2] = ll[0]
         wgs84[i * 2 + 1] = ll[1]
       })
-      console.log({ wgs84 })
     }
 
     // radius
-    let radius = new Float32Array(lon.length).fill(1) as any
+    let radius = new Float32Array(lon.length).fill(15) as any
 
+    const colon = this.layerOptions.radius.indexOf(':')
     try {
-      const radiusKey = this.layerOptions.radius?.substring(
-        0,
-        this.layerOptions.radius.indexOf(':')
-      )
-      const radiusSpec = this.layerOptions.radius?.substring(
-        1 + this.layerOptions.radius.indexOf(':')
-      )
+      const radiusKey = this.layerOptions.radius?.substring(0, colon)
+      const radiusSpec = this.layerOptions.radius?.substring(1 + colon)
       if (radiusKey && radiusSpec in this.datasets[radiusKey]) {
-        radius = this.datasets[radiusKey][radiusSpec].values
+        radius = radius.map((_: any, i: number) => this.datasets[radiusKey][radiusSpec].values[i])
       }
     } catch (e) {
       console.error(e)
@@ -180,20 +180,19 @@ export default class PointsLayer extends BaseLayer {
       }
     }
 
-    // build geojson
-    this.features = []
+    let colors = new Float32Array(4 * lon.length).fill(NaN) as any
 
     for (let i = 0; i < lon.length; i++) {
       const c = ColorString.get.rgb(color[i])
-      this.features.push({
-        geometry: {
-          type: 'Point',
-          coordinates: wgs84 ? wgs84.subarray(i * 2, i * 2 + 2) : [lon[i], lat[i]],
-        },
-        properties: { radius: radius[i], color: c ? c.slice(0, 3) : [64, 64, 64, 64] },
-      })
+      if (c) {
+        colors[i * 3] = c[0]
+        colors[i * 3 + 1] = c[1]
+        colors[i * 3 + 2] = c[2]
+        colors[i * 3 + 3] = 255
+      }
     }
-    console.log({ features: this.features })
+
+    this.deckData = { coordinates: wgs84, radius, colors }
   }
 
   deckLayer() {
@@ -209,18 +208,23 @@ export default class PointsLayer extends BaseLayer {
 
     if (this.error) throw Error(this.error)
 
-    return new GeoJsonLayer({
-      id: 'pointLayer-' + Math.random() * 1e12,
-      data: this.features,
-      getFillColor: (d: any) => d.properties.color,
-      getPointRadius: (d: any) => d.properties.radius,
+    return new ScatterplotLayer({
+      id: 'pointlayer-' + Math.random() * 1e12,
+      data: {
+        length: this.deckData.radius.length,
+        attributes: {
+          getPosition: { value: this.deckData.coordinates, size: 2 },
+          getRadius: { value: this.deckData.radius, size: 1 },
+        },
+      },
+      getFillColor: [24, 255, 204], // { value: this.deckData.colors, size: 3 },
       stroked: false,
       filled: true,
       autoHighlight: true,
       highlightColor: [255, 0, 224],
       opacity: 1.0,
       pickable: true,
-      pointRadiusUnits: 'pixels',
+      // pointRadiusUnits: 'pixels',
       // pointRadiusMinPixels: 2,
       // pointRadiusMaxPixels: 50,
       // useDevicePixels: isTakingScreenshot,
@@ -229,10 +233,7 @@ export default class PointsLayer extends BaseLayer {
       //   getFillColor: fillColors,
       //   getPointRadius: pointRadii,
       // },
-      transitions: {
-        getFillColor: 300,
-        getPointRadius: 300,
-      },
+      transitions: {},
       parameters: { depthTest: false },
       glOptions: {
         // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
