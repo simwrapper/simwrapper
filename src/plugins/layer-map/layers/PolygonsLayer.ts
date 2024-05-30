@@ -33,11 +33,9 @@ interface DeckObject {
 
 export default class PolygonsLayer extends BaseLayer {
   features: any[]
-  datamanager: DashboardDataManager
   datasets: { [id: string]: DataTable }
   error: string
   layerOptions: any
-  key: number
 
   constructor(
     systemProps: {
@@ -53,17 +51,12 @@ export default class PolygonsLayer extends BaseLayer {
     layerOptions: any
   ) {
     super(systemProps)
-    this.key = Math.random() * 1e12
-    this.datamanager = systemProps.datamanager
+
     this.datasets = systemProps.datasets
     this.features = []
     this.layerOptions = layerOptions
     this.error = ''
     this.assembleData()
-  }
-
-  getKey() {
-    return this.key
   }
 
   configPanel() {

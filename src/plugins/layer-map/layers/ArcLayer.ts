@@ -27,19 +27,11 @@ import Coords from '@/js/Coords'
 import BaseLayer from './BaseLayer'
 import LayerConfig from './ArcLayerConfig.vue'
 
-interface DeckObject {
-  index: number
-  target: number[]
-  data: any
-}
-
 export default class ArcsLayer extends BaseLayer {
-  datamanager: DashboardDataManager
   datasets: { [id: string]: DataTable }
+  deckData: any
   error: string
   layerOptions: any
-  key: number
-  deckData: any
 
   constructor(
     systemProps: {
@@ -50,23 +42,17 @@ export default class ArcsLayer extends BaseLayer {
       subfolder: string
       thumbnail: boolean
       yamlConfig: string
-      emitter: any
     },
     layerOptions: any
   ) {
     super(systemProps)
-    this.key = Math.random() * 1e12
-    this.datamanager = systemProps.datamanager
+
     this.datasets = systemProps.datasets
     this.layerOptions = layerOptions
     this.error = ''
+
     this.deckData = {}
-
     this.assembleData()
-  }
-
-  getKey() {
-    return this.key
   }
 
   configPanel() {
