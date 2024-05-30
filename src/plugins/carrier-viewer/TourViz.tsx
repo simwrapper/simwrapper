@@ -72,7 +72,7 @@ export default function Component(props: {
   const { simplifyTours, scaleFactor, shipmentDotsOnTourMap } = settings
 
   // range is (1/) 16384 - 0.000001
-  // slider is 0-100, which we invert and scale to [14 to -6], then 2^value is scaleFactor.
+  // scaleFactor is 0-100, which we invert and shift to [14 to -6], then 2^value is widthScale.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
 
   const layers: any = []

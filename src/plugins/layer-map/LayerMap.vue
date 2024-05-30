@@ -195,16 +195,6 @@ export default defineComponent({
       return Object.keys(this.datasets)
     },
 
-    generatedExportFilename(): string {
-      let filename = Sanitize(this.yamlConfig ?? '')
-      filename = filename.replaceAll(' ', '-')
-
-      if (!filename.startsWith('viz-map-')) filename = 'viz-map-' + filename
-      if (!filename.endsWith('.yml') && !filename.endsWith('.yaml')) filename = filename + '.yaml'
-
-      return filename
-    },
-
     urlThumbnail(): string {
       return this.thumbnailUrl
     },
@@ -217,7 +207,6 @@ export default defineComponent({
     },
 
     'globalState.colorScheme'() {
-      // change one element to force a deck.gl redraw
       this.$nextTick().then(p => {
         this.theme.bg = this.globalState.isDarkMode ? 'dark' : 'light'
         this.mapLayers = [...this.mapLayers]
@@ -228,7 +217,6 @@ export default defineComponent({
   methods: {
     async toggleHidePanel() {
       if (this.isPanelReallyHidden) {
-        console.log('show')
         // show the panel
         this.isPanelReallyHidden = false
         setTimeout(() => {
@@ -260,14 +248,14 @@ export default defineComponent({
           datamanager: this.myDataManager,
         }
 
-        try {
-          const mapLayer = new Layer(systemProps, { type: layerType })
-          this.mapLayers.unshift(mapLayer)
-          this.mapLayers = [...this.mapLayers]
-        } catch (e) {
-          console.error('' + e)
-          this.$emit('error', e)
-        }
+        // try {
+        const mapLayer = new Layer(systemProps, { type: layerType })
+        this.mapLayers.unshift(mapLayer)
+        this.mapLayers = [...this.mapLayers]
+        // } catch (e) {
+        //   console.error('' + e)
+        //   this.$emit('error', e)
+        // }
       }
     },
 
@@ -510,8 +498,6 @@ export default defineComponent({
 
         const datasetConfig = this.config.datasets[datasetKey]
 
-        console.log({ datasetConfig })
-
         // 1. dataset: filename.csv
         if ('string' === typeof datasetConfig) {
           return await this.loadDatasetFromFile(datasetKey)
@@ -678,8 +664,6 @@ export default defineComponent({
     },
 
     initializeLayers() {
-      console.log('INIT LAYERS')
-
       for (const layerProps of this.vizDetails.layers) {
         this.setupLayer(layerProps)
       }
@@ -820,9 +804,12 @@ export default defineComponent({
   width: 20rem;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
+  z-index: 2;
+  margin: 1rem;
+  filter: $filterShadow;
+  transform: translateX(0rem);
   transition: transform 0.25s ease-in;
   opacity: 0.95;
-  transform: translateX(0rem);
 }
 
 .layer-configurator.is-hide-me {
@@ -844,8 +831,8 @@ export default defineComponent({
 
 .btn-show-hide {
   position: absolute;
-  bottom: 0.75rem;
-  left: 0.75rem;
+  bottom: 1.25rem;
+  left: 1.25rem;
   z-index: 50;
   border: none;
   font-size: 24px;

@@ -255,12 +255,9 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .layer-configurator {
-  z-index: 2;
-  margin: 0.5rem;
   display: flex;
   flex-direction: column;
   background: var(--bgLayerPanel);
-  filter: $filterShadow;
   user-select: none;
   min-height: 0;
 }
