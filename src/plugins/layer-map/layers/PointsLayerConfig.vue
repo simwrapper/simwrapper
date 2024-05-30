@@ -25,12 +25,17 @@
         text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
           p.tight() EPSG Projection
 
+    .coordinates.flex-column()
+        p.field-label Scale
+        b-slider.slider(:tooltip="false" v-model="scaleFactor" @input="debScale")
 
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+
+import debounce from 'debounce'
 
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
@@ -58,19 +63,25 @@ export default defineComponent({
     open: Boolean,
   },
 
-  data() {
+  data: () => {
     return {
       lon: '',
       lat: '',
       radius: '',
       color: '',
       projection: '',
+      scaleFactor: 50,
       isInitialized: false,
+      debScale: {} as any,
     }
   },
 
   computed: {},
   watch: {
+    scaleFactor() {
+      // now handled by debounce function updateScaleFactor()
+      // this.updateConfig()
+    },
     color() {
       this.updateConfig()
     },
@@ -98,23 +109,34 @@ export default defineComponent({
       update.lat = this.lat
       update.radius = this.radius
       update.projection = this.projection
+      update.scaleFactor = this.scaleFactor
 
+      console.log('SCALEFACTOR: ', this.scaleFactor)
       this.$emit('update', update)
+    },
+
+    updateScaleFactor(event: any) {
+      this.scaleFactor = event
+      this.updateConfig()
     },
   },
 
   async mounted() {
     console.log('POINTS options', this.options)
 
+    this.debScale = debounce(this.updateScaleFactor, 125)
+
     this.color = this.options.color
     this.lon = this.options.lon
     this.lat = this.options.lat
     this.radius = this.options.radius
     this.projection = this.options.projection
+    this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 10
 
     // don't send update events on first draw
     await this.$nextTick()
     this.isInitialized = true
+    this.updateConfig()
   },
 
   beforeDestroy() {},
@@ -156,5 +178,18 @@ export default defineComponent({
 .tight {
   margin-left: 0.25rem;
   margin-top: 0.75rem;
+}
+
+.field-label {
+  margin: 0.75rem 0 -6px 4px;
+  text-transform: uppercase;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--link);
+}
+
+.slider {
+  padding: 0rem 6px;
 }
 </style>

@@ -16,29 +16,21 @@ import {
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
-import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
-import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
-import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
 
 import BaseLayer from './BaseLayer'
 import LayerConfig from './PointsLayerConfig.vue'
 
-interface DeckObject {
-  index: number
-  target: number[]
-  data: any
-}
-
 export default class PointsLayer extends BaseLayer {
-  features: any[]
-  datamanager: DashboardDataManager
   datasets: { [id: string]: DataTable }
+  deckData: null | {
+    coordinates: Float32Array
+    radius: Float32Array
+    colors: Uint8ClampedArray
+  }
   error: string
   layerOptions: any
-  key: number
-  deckData: { coordinates: Float32Array; radius: Float32Array; colors: Float32Array }
 
   constructor(
     systemProps: {
@@ -49,27 +41,15 @@ export default class PointsLayer extends BaseLayer {
       subfolder: string
       thumbnail: boolean
       yamlConfig: string
-      emitter: any
     },
     layerOptions: any
   ) {
     super(systemProps)
-    this.key = Math.random() * 1e12
-    this.datamanager = systemProps.datamanager
+
     this.datasets = systemProps.datasets
-    this.features = []
     this.layerOptions = layerOptions
     this.error = ''
-    this.assembleData()
-    this.deckData = {
-      coordinates: new Float32Array(),
-      radius: new Float32Array(),
-      colors: new Float32Array(),
-    }
-  }
-
-  getKey() {
-    return this.key
+    this.deckData = null
   }
 
   configPanel() {
@@ -77,7 +57,6 @@ export default class PointsLayer extends BaseLayer {
   }
 
   updateConfig(options: any) {
-    console.log('I GOT IT!', options)
     this.layerOptions = options
 
     // we're done if options set to 'delete'
@@ -88,7 +67,6 @@ export default class PointsLayer extends BaseLayer {
       this.assembleData()
     } catch (e) {
       console.error(e)
-      this.features = []
       this.error = '' + e
     }
   }
@@ -113,16 +91,15 @@ export default class PointsLayer extends BaseLayer {
 
   assembleData() {
     // data should already be loaded before this layer is mounted
-
     this.error = ''
 
     this.guessInitialParameters()
 
     // position
     const datasetKey = this.layerOptions.lon?.substring(0, this.layerOptions.lon.indexOf(':'))
+    const dataset = this.datasets[datasetKey]
     const lonCol = this.layerOptions.lon?.substring(1 + this.layerOptions.lon.indexOf(':'))
     const latCol = this.layerOptions.lat?.substring(1 + this.layerOptions.lat.indexOf(':'))
-    const dataset = this.datasets[datasetKey]
 
     try {
       if (!dataset) throw Error(`Point layer cannot load data, are columns correct?`)
@@ -133,44 +110,44 @@ export default class PointsLayer extends BaseLayer {
       if (!(latCol in dataset))
         throw Error(`Dataset '${datasetKey}' does not contain column '${latCol}'`)
     } catch (e) {
-      this.features = []
+      console.error(e)
       return
     }
 
     const lon = dataset[lonCol].values
     const lat = dataset[latCol].values
 
-    const ignore = ['EPSG:4326', '4326', 'WGS84']
+    const numFeatures = lon.length
 
     // projections
     let projection = this.layerOptions.projection || 'WGS84'
     if (Number.isFinite(parseInt(projection))) projection = 'EPSG:' + projection
 
-    const wgs84 = new Float32Array(lon.length * 2)
-    if (this.layerOptions.projection && !(this.layerOptions.projection in ignore)) {
-      lon.forEach((_: any, i: number) => {
+    const wgs84 = new Float32Array(numFeatures * 2)
+
+    lon.forEach((_: any, i: number) => {
+      try {
         const ll = Coords.toLngLat(projection, [lon[i], lat[i]])
         wgs84[i * 2] = ll[0]
         wgs84[i * 2 + 1] = ll[1]
-      })
-    }
+      } catch {}
+    })
 
     // radius
-    let radius = new Float32Array(lon.length).fill(15) as any
+    let radius = new Float32Array(numFeatures).fill(100) as any
 
-    const colon = this.layerOptions.radius.indexOf(':')
     try {
-      const radiusKey = this.layerOptions.radius?.substring(0, colon)
-      const radiusSpec = this.layerOptions.radius?.substring(1 + colon)
-      if (radiusKey && radiusSpec in this.datasets[radiusKey]) {
-        radius = radius.map((_: any, i: number) => this.datasets[radiusKey][radiusSpec].values[i])
+      const key = this.layerOptions.radius?.substring(0, this.layerOptions.radius?.indexOf(':'))
+      const spec = this.layerOptions.radius?.substring(1 + this.layerOptions.radius?.indexOf(':'))
+      if (key && spec in this.datasets[key]) {
+        radius.forEach((_: any, i: number) => (radius[i] = this.datasets[key][spec].values[i]))
       }
     } catch (e) {
       console.error(e)
     }
 
     // color
-    let color = new Array(lon.length).fill('#33f1b3') as any
+    let color = new Array(numFeatures).fill('#dd00dd') as any
 
     if (typeof this.layerOptions.color == 'string') {
       const colorKey = this.layerOptions.color.substring(0, this.layerOptions.color.indexOf(':'))
@@ -180,15 +157,14 @@ export default class PointsLayer extends BaseLayer {
       }
     }
 
-    let colors = new Float32Array(4 * lon.length).fill(NaN) as any
+    let colors = new Uint8ClampedArray(3 * numFeatures).fill(0) as any
 
-    for (let i = 0; i < lon.length; i++) {
+    for (let i = 0; i < numFeatures; i++) {
       const c = ColorString.get.rgb(color[i])
       if (c) {
         colors[i * 3] = c[0]
         colors[i * 3 + 1] = c[1]
         colors[i * 3 + 2] = c[2]
-        colors[i * 3 + 3] = 255
       }
     }
 
@@ -196,43 +172,44 @@ export default class PointsLayer extends BaseLayer {
   }
 
   deckLayer() {
-    const getMapBounds = (viewport: any) => {
-      const bounds = viewport.getBounds()
-      return {
-        west: bounds[0][0],
-        south: bounds[0][1],
-        east: bounds[1][0],
-        north: bounds[1][1],
-      }
-    }
+    // const getMapBounds = (viewport: any) => {
+    //   const bounds = viewport.getBounds()
+    //   return {
+    //     west: bounds[0][0],
+    //     south: bounds[0][1],
+    //     east: bounds[1][0],
+    //     north: bounds[1][1],
+    //   }
+    // }
+
+    if (!this.deckData) return null
+
+    let radiusScale =
+      this.layerOptions.scaleFactor == 0
+        ? 1e-6
+        : 1 / Math.pow(2, (100 - this.layerOptions.scaleFactor) / 5 - 6.0)
+    if (Number.isNaN(radiusScale)) radiusScale = 1
 
     if (this.error) throw Error(this.error)
 
     return new ScatterplotLayer({
-      id: 'pointlayer-' + Math.random() * 1e12,
+      id: 'pointlayer-' + this.getKey(),
       data: {
         length: this.deckData.radius.length,
         attributes: {
           getPosition: { value: this.deckData.coordinates, size: 2 },
           getRadius: { value: this.deckData.radius, size: 1 },
+          getFillColor: { value: this.deckData.colors, size: 3 },
         },
       },
-      getFillColor: [24, 255, 204], // { value: this.deckData.colors, size: 3 },
+      radiusScale: radiusScale,
       stroked: false,
       filled: true,
       autoHighlight: true,
       highlightColor: [255, 0, 224],
       opacity: 1.0,
       pickable: true,
-      // pointRadiusUnits: 'pixels',
-      // pointRadiusMinPixels: 2,
-      // pointRadiusMaxPixels: 50,
-      // useDevicePixels: isTakingScreenshot,
-
-      // updateTriggers: {
-      //   getFillColor: fillColors,
-      //   getPointRadius: pointRadii,
-      // },
+      useDevicePixels: false, // isTakingScreenshot,
       transitions: {},
       parameters: { depthTest: false },
       glOptions: {
@@ -240,6 +217,14 @@ export default class PointsLayer extends BaseLayer {
         preserveDrawingBuffer: true,
         fp64: false,
       },
+      // pointRadiusUnits: 'pixels',
+      // pointRadiusMinPixels: 2,
+      // pointRadiusMaxPixels: 50,
+
+      // updateTriggers: {
+      //   getFillColor: fillColors,
+      //   getPointRadius: pointRadii,
+      // },
       // filter shapes
       // extensions: [new DataFilterExtension({ filterSize: 1 })],
       // filterRange: [0, 1], // set filter to -1 to filter element out
