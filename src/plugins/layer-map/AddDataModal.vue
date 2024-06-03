@@ -140,7 +140,7 @@ export default defineComponent({
       const geojson = JSON.parse(text)
       console.log({ geojson })
 
-      this.$emit('update', { geojson })
+      this.$emit('update', { geojson, file })
 
       // // create a human-readable key for this file based on filename
       // let key = file.name

@@ -16,26 +16,38 @@ import {
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
-import { CircleRadiusDefinition } from '@/components/viz-configurator/CircleRadius.vue'
-import { FillColorDefinition } from '@/components/viz-configurator/FillColors.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
+import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import BaseLayer from './BaseLayer'
 import LayerConfig from './PolygonsLayerConfig.vue'
 
-interface DeckObject {
-  index: number
-  target: number[]
-  data: any
+// -----------------------------------------------
+export interface PolygonsDefinition {
+  shapes: string
+  metric: string
+  outline: string
+  normalize: string
+  diff?: string
+  diffDatasets?: string[]
+  relative?: boolean
+  join?: string
+  colorRamp?: Ramp
+  fixedColors: string[]
 }
+// -----------------------------------------------
 
 export default class PolygonsLayer extends BaseLayer {
   features: any[]
   datasets: { [id: string]: DataTable }
   error: string
-  layerOptions: any
+  layerOptions: PolygonsDefinition
+  deckData: {
+    colors: Float32Array | String | Number[]
+    outline: String | Number[]
+  }
 
   constructor(
     systemProps: {
@@ -56,7 +68,7 @@ export default class PolygonsLayer extends BaseLayer {
     this.features = []
     this.layerOptions = layerOptions
     this.error = ''
-    this.assembleData()
+    this.deckData = { colors: '', outline: '' }
   }
 
   configPanel() {
@@ -64,8 +76,8 @@ export default class PolygonsLayer extends BaseLayer {
   }
 
   updateConfig(options: any) {
-    console.log('I GOT IT!', options)
-    this.layerOptions = options
+    console.log('NEW OPTIONS!', options)
+    this.layerOptions = { ...options }
 
     // we're done if options set to 'delete'
     // system will remove this panel automatically
@@ -82,12 +94,11 @@ export default class PolygonsLayer extends BaseLayer {
 
   guessInitialParameters() {
     const keys = Object.keys(this.datasets)
+
     for (const key of keys) {
-      const dataset = this.datasets[key]
-      console.log('found dataset', dataset)
-      if (dataset.features) {
-        const df = dataset.features as unknown
-        this.features = df as any[]
+      const features = this.datamanager.getFeatureCollection(key)
+      if (features) {
+        this.layerOptions.shapes = key
         break
       }
     }
@@ -95,12 +106,30 @@ export default class PolygonsLayer extends BaseLayer {
 
   assembleData() {
     // data should already be loaded before this layer is mounted
-
     this.error = ''
 
-    this.guessInitialParameters()
+    // if we already have shapes, then the user has tried to give us something.
+    // if (!this.layerOptions.shapes) this.guessInitialParameters()
 
-    console.log({ features: this.features })
+    // no features? We're done
+    // if (!this.layerOptions.shapes) {
+    //   this.features = []
+    //   return
+    // }
+
+    if (this.layerOptions.shapes) {
+      this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes)
+    }
+
+    if (this.layerOptions.metric?.startsWith('#')) {
+      this.deckData.colors = ColorString.get.rgb(this.layerOptions.metric).slice(0, 3)
+    }
+
+    if (this.layerOptions.outline) {
+      this.deckData.outline = ColorString.get.rgb(this.layerOptions.outline).slice(0, 3)
+    }
+
+    const numFeatures = this.features.length
   }
 
   deckLayer() {
@@ -117,11 +146,11 @@ export default class PolygonsLayer extends BaseLayer {
     if (this.error) throw Error(this.error)
 
     return new GeoJsonLayer({
-      id: 'polygonLayer-' + Math.random() * 1e12,
+      id: 'polygonLayer-' + this.getKey(),
       data: this.features,
-      getFillColor: [40, 90, 170, 255], // (d: any) => d.properties.color,
-      getLineColor: [255, 255, 255, 255],
-      stroked: true,
+      getFillColor: this.deckData.colors || [78, 121, 167, 255],
+      getLineColor: this.deckData.outline,
+      stroked: !!this.deckData.outline,
       filled: true,
       getLineWidth: 15,
       // lineWidthUnits: 'pixels',

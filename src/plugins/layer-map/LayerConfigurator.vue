@@ -156,7 +156,6 @@ export default defineComponent({
 
     async layerList() {
       // do the nextTick thing so we don't have an endless update loop
-      console.log('CHANGED')
       this.isReordering = true
       this.$emit('update', { command: 'reorder', layers: this.layerList })
       await this.$nextTick()

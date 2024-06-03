@@ -466,8 +466,8 @@ export default defineComponent({
       }
     },
 
-    addDataset(props: { dataset?: DatasetDefinition; geojson: any }) {
-      const { dataset, geojson } = props
+    async addDataset(props: { dataset?: DatasetDefinition; geojson?: any; file?: any }) {
+      const { dataset, geojson, file } = props
 
       if (dataset) {
         console.log('ADDING', dataset)
@@ -478,10 +478,16 @@ export default defineComponent({
       }
 
       if (geojson) {
-        console.log('FEATURES', geojson)
-        this.myDataManager.registerFeatures('Polygons', geojson.features, {})
+        console.log('FEATURES', geojson, file)
+        let filename = '' + (file?.name || 'GeoJSON')
+        if (filename.toLocaleLowerCase().endsWith('.geojson')) {
+          filename = filename.substring(0, filename.length - 8)
+        }
+        await this.myDataManager.registerFeatures(filename, geojson.features, {})
         this.showAddData = false
-        this.datasets['Polygons'] = geojson
+        const dataset = await this.myDataManager.getDataset({ dataset: filename })
+
+        this.datasets[filename] = dataset.allRows
         this.datasets = { ...this.datasets }
       }
     },

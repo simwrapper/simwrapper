@@ -9,11 +9,6 @@ const plugins = [
     component: defineAsyncComponent(() => import('./layer-map/LayerMap.vue')),
   },
   {
-    kebabName: 'xmas-kelheim',
-    filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
-    component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
-  },
-  {
     kebabName: 'xytime',
     filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],
     component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
@@ -113,9 +108,15 @@ const plugins = [
     filePatterns: ['**/*config*.xml*'],
     component: defineAsyncComponent(() => import('./xml-viewer/XmlViewer.vue')),
   },
+  {
+    kebabName: 'xmas-kelheim',
+    filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
+    component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: AsyncComponent } = {}
+
 plugins.forEach(p => {
   pluginComponents[p.kebabName] = p.component
 })
