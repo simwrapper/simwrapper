@@ -1966,16 +1966,24 @@ const MyComponent = defineComponent({
       // (properties get added in setFeaturePropertiesAsDataSource)
       const numLinks = network.linkId.length
       const features = [] as any
+      const crs = network.crs || 'EPSG:4326'
+      const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+
       for (let i = 0; i < numLinks; i++) {
         const linkID = network.linkId[i]
         const fromOffset = 2 * network.from[i]
         const toOffset = 2 * network.to[i]
-        const coordFrom = [
+        let coordFrom = [
           network.nodeCoordinates[fromOffset],
           network.nodeCoordinates[1 + fromOffset],
         ]
-        const coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
+        let coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
         if (!coordFrom || !coordTo) continue
+
+        if (needsProjection) {
+          coordFrom = Coords.toLngLat(crs, coordFrom)
+          coordTo = Coords.toLngLat(crs, coordTo)
+        }
 
         const coords = [coordFrom, coordTo]
 

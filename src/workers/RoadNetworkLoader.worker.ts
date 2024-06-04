@@ -485,7 +485,7 @@ async function fetchGeojson(filePath: string, fileSystem: FileSystemConfig) {
     // Geojson spec is unclear on where the ID should go.
     // - Section 3 says if there is a general ID, it "should" go
     //   in the top level of the feature itself, ie. feature.id
-    //   https://datatracker.ietf.org/doc/html/rfc7946#section-6
+    //   https://datatracker.ietf.org/doc/html/rfc7946#section-3
     // - Section 6 says that all properties of the feature
     //   should go in the "properties" object and putting anything
     //   outside of the geometry or properties will cause

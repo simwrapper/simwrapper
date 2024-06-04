@@ -17,9 +17,11 @@ import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
 import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
+import avro from '@/js/avro'
 
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
+import Coords from './Coords'
 
 interface configuration {
   dataset: string
@@ -551,6 +553,74 @@ export default class DashboardDataManager {
     })
   }
 
+  private async _getAvroNetwork(props: {
+    subfolder: string
+    filename: string
+    vizDetails: any
+    cbStatus?: any
+  }): Promise<NetworkLinks> {
+    const httpFileSystem = new HTTPFileSystem(this.fileApi)
+    const blob = await httpFileSystem.getFileBlob(`${props.subfolder}/${props.filename}`)
+
+    const records: any[] = await new Promise(async (resolve, reject) => {
+      const rows = [] as any[]
+
+      avro
+        .createBlobDecoder(blob)
+        .on('metadata', (schema: any) => {})
+        .on('data', (row: any) => {
+          rows.push(row)
+        })
+        .on('end', () => {
+          resolve(rows)
+        })
+    })
+
+    const network = records[0]
+
+    // Build bare network with no attributes, just like other networks
+    // TODO: at some point this should merge with Shapefile reader
+
+    const numLinks = network.linkId.length
+
+    const crs = network.crs || 'EPSG:4326'
+    const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+
+    const source: Float32Array = new Float32Array(2 * numLinks)
+    const dest: Float32Array = new Float32Array(2 * numLinks)
+    const linkIds: any = []
+
+    let coordFrom = [0, 0]
+    let coordTo = [0, 0]
+
+    for (let i = 0; i < numLinks; i++) {
+      const linkID = network.linkId[i]
+      const fromOffset = 2 * network.from[i]
+      const toOffset = 2 * network.to[i]
+
+      coordFrom[0] = network.nodeCoordinates[fromOffset]
+      coordFrom[1] = network.nodeCoordinates[1 + fromOffset]
+      coordTo[0] = network.nodeCoordinates[toOffset]
+      coordTo[1] = network.nodeCoordinates[1 + toOffset]
+
+      if (needsProjection) {
+        coordFrom = Coords.toLngLat(crs, coordFrom)
+        coordTo = Coords.toLngLat(crs, coordTo)
+      }
+
+      source[2 * i + 0] = coordFrom[0]
+      source[2 * i + 1] = coordFrom[1]
+      dest[2 * i + 0] = coordTo[0]
+      dest[2 * i + 1] = coordTo[1]
+
+      linkIds[i] = linkID
+    }
+
+    const links = { source, dest, linkIds, projection: 'EPSG:4326' }
+
+    return links
+  }
+
   private async _fetchNetwork(props: {
     subfolder: string
     filename: string
@@ -576,6 +646,13 @@ export default class DashboardDataManager {
       } catch (e) {
         // Could not get directory listing!
         reject('Error reading folder: ' + folder)
+      }
+
+      // AVRO NETWORK: can't get crummy library to work in a web-worker
+      if (filename.toLocaleLowerCase().endsWith('.avro')) {
+        const result = await this._getAvroNetwork(props)
+        resolve(result)
+        return
       }
 
       const thread = new RoadNetworkLoader() as any
