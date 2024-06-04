@@ -316,7 +316,6 @@ export default defineComponent({
 
     async buildLayoutFromURL() {
       let pathMatch = this.$route.params.pathMatch
-      console.log({ pathMatch })
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
       // splash page:

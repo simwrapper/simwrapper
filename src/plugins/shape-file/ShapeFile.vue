@@ -1964,10 +1964,10 @@ const MyComponent = defineComponent({
 
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
-      const numLinks = network.linkIds.length
+      const numLinks = network.linkId.length
       const features = [] as any
       for (let i = 0; i < numLinks; i++) {
-        const linkID = network.linkIds[i]
+        const linkID = network.linkId[i]
         const fromOffset = 2 * network.from[i]
         const toOffset = 2 * network.to[i]
         const coordFrom = [
@@ -2116,22 +2116,14 @@ const MyComponent = defineComponent({
     ) {
       let dataTable
 
-      console.log(100, this.avroNetwork)
       if (this.avroNetwork) {
         // AVRO
         // create the DataTable right here, we already have everything in memory
         const avroTable: DataTable = {}
-        const skipColumns = [
-          'allowedModes',
-          'crs',
-          'modes',
-          'nodeAttributes',
-          'nodeCoordinates',
-          'nodeIds',
-          'node_type',
-        ]
 
-        const columns = Object.keys(this.avroNetwork).filter(c => !c.startsWith('__'))
+        const columns = this.avroNetwork.linkAttributes as string[]
+        columns.sort()
+
         for (const colName of columns) {
           const values = this.avroNetwork[colName]
           const type =
@@ -2145,7 +2137,16 @@ const MyComponent = defineComponent({
           }
           avroTable[colName] = dataColumn
         }
+
+        // special case: allowedModes
+        const modeLookup = this.avroNetwork['modes']
+        const allowedModes = avroTable['allowedModes']
+        allowedModes.type = DataType.STRING
+        allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
+
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+        // save memory: no longer need the avro input file
+        this.avroNetwork = null
       } else {
         // NON-AVRO
         dataTable = await this.myDataManager.setFeatureProperties(
