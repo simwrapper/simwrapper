@@ -241,9 +241,9 @@ export default defineComponent({
       return config
     },
 
-    updatePanelConfig(layer: any, i: number, event: any) {
+    async updatePanelConfig(layer: any, i: number, event: any) {
       const command = event == 'delete' ? { command: 'delete', index: i } : null
-      if (!command) layer.updateConfig(event)
+      if (!command) await layer.updateConfig(event)
       this.$emit('update', command)
     },
   },
@@ -266,7 +266,7 @@ export default defineComponent({
   flex-direction: column;
   overflow-y: auto;
   max-height: 100%;
-  padding-bottom: 9rem;
+  padding-bottom: 20rem;
 }
 
 .layer {

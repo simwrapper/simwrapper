@@ -420,7 +420,7 @@ function buildColorsBasedOnCategories(props: {
   const setColorBasedOnCategory = scaleOrdinal().range(colorsAsRGB)
 
   const gray = store.state.isDarkMode ? 48 : 228
-  const rgbArray = new Uint8Array(numFeatures * 3).fill(gray)
+  const rgbArray = new Uint8ClampedArray(numFeatures * 3).fill(gray)
 
   const calculatedValues = []
 
@@ -586,7 +586,7 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
 
   const gray = store.state.isDarkMode ? [48, 48, 48] : [232, 232, 232]
 
-  const rgbArray = new Uint8Array(numFeatures * 3)
+  const rgbArray = new Uint8ClampedArray(numFeatures * 3)
 
   displayTheseDiffs.forEach((value, index) => {
     const color = Number.isFinite(value) ? setColorBasedOnValue(value) : gray
@@ -774,7 +774,7 @@ function generateColors(props: {
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(props.breakpoints)
 
-  const rgbArray = new Uint8Array(props.numFeatures * 3)
+  const rgbArray = new Uint8ClampedArray(props.numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < props.numFeatures; i++) {
@@ -954,7 +954,7 @@ function buildColorsBasedOnNumericValues(props: {
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
 
-  const rgbArray = new Uint8Array(numFeatures * 3)
+  const rgbArray = new Uint8ClampedArray(numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < numFeatures; i++) {

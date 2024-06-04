@@ -21,6 +21,33 @@
           :class="{active: fillSingleColor == swatch }"
           @click="clickedSingleColor('metric', swatch)")
 
+    .widget-row(v-show="metric.indexOf(':') > -1")
+      //- JOIN BY ---
+      //- (v-if="datasetChoices.length > 1"))
+      .widget.flex1
+        column-selector(v-model="join"
+          :extra="joinOptions" :datasets="getJoinOptions" @update="join=$event"
+        )
+            p.tight Join by
+
+
+      //- NORMALIZE COLUMN ---
+      //- v-if="dataColumn && dataColumn.length > 1"
+      .widget.flex1
+        column-selector(v-model="normalize"
+          :extra="['None']" :datasets="datasets" @update="normalize=$event"
+        )
+            p.tight Normalize
+
+    .widget-row(v-if="metric.indexOf(':') > -1").flex-col
+      p.tight Colors
+      ColorMapSelector.color-map-selector(
+        :value="colormap",
+        :invert="isInvertedColor"
+        @onValueChange="colormap=$event"
+        @onInversionChange="isInvertedColor=!isInvertedColor"
+      )
+
     .widget-row.flex-col
       column-selector(v-model="outline" :extra="solidColors" :datasets="{}" @update="outline=$event")
         p.tight Outline
@@ -45,7 +72,10 @@ import FillColors from './FillColors.vue'
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
-import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+
+import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
+import { ColorMap } from '@/components/ColorMapSelector/models'
 
 import globalStore from '@/store'
 import {
@@ -63,7 +93,7 @@ import {
 
 export default defineComponent({
   name: 'PolygonsLayerConfig',
-  components: { ColumnSelector, DatasetSelector, TextSelector, FillColors },
+  components: { ColumnSelector, DatasetSelector, TextSelector, FillColors, ColorMapSelector },
 
   props: {
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
@@ -80,6 +110,10 @@ export default defineComponent({
       outline: '@1',
       fillSingleColor: '',
       outlineSingleColor: '',
+      join: '@1',
+      normalize: '@1',
+      colormap: 'Viridis',
+      isInvertedColor: false,
       // stuff
       isInitialized: false,
       projection: '',
@@ -87,27 +121,57 @@ export default defineComponent({
       steps: '9',
       vizConfiguration: { datasets: this.options } as VizLayerConfiguration,
       solidColors: ['None', 'Single color'],
+      joinOptions: ['None', 'Row Count'],
     }
   },
 
   computed: {
+    getJoinOptions(): any {
+      const colonLoc = this.metric.indexOf(':')
+      if (colonLoc == -1) return {}
+
+      const dataset = this.datasets[this.metric.substring(0, colonLoc)]
+      if (!dataset) return {}
+
+      const allColumns = Object.keys(dataset).filter(
+        colName => dataset[colName].type !== DataType.LOOKUP
+      )
+
+      const answer = {} as any
+      allColumns.forEach(col => (answer[col] = { type: dataset[col].type }))
+
+      return { 'Join by...': answer }
+    },
+
     simpleColors(): any {
       const simple = this.buildColors({ ramp: 'Tableau10', style: Style.categorical }, 10)
       return simple.concat(['#f4f4f4', '#111111'])
     },
   },
   watch: {
-    shapes() {
-      if (this.shapes && !this.metric) this.metric = '@2'
+    colormap() {
+      this.updateConfig()
+    },
+    isInvertedColor() {
+      this.updateConfig()
+    },
+    join() {
       this.updateConfig()
     },
     metric() {
+      this.updateConfig()
+    },
+    normalize() {
       this.updateConfig()
     },
     outline() {
       this.updateConfig()
     },
     projection() {
+      this.updateConfig()
+    },
+    shapes() {
+      if (this.shapes && !this.metric) this.metric = '@2'
       this.updateConfig()
     },
   },
@@ -127,13 +191,6 @@ export default defineComponent({
   },
 
   methods: {
-    // setOptions(onMount?: boolean) {
-    //   // don't spray update events during initial mount
-    //   if (onMount || !this.isInitialized) return
-
-    //   console.log('SETTING OPTIONS')
-    // },
-
     clickedSingleColor(option: string, color: string) {
       if (option == 'outline') {
         this.outlineSingleColor = color
@@ -160,15 +217,30 @@ export default defineComponent({
       if (!this.isInitialized) return
 
       const update = JSON.parse(JSON.stringify(this.options))
-      update.projection = this.projection
+
       update.shapes = this.shapes
+      if (this.projection) update.projection = this.projection
 
       update.metric = this.metric
       if (update.metric == '@2') update.metric = this.fillSingleColor || '#4e79a7'
+      if (this.metric == '@1' || this.metric == '@2') {
+        this.join = '@1'
+        this.normalize = '@1'
+      }
+
+      update.join = this.join == '@1' ? '' : this.join.substring(1 + this.join.indexOf(':'))
+      update.normalize = this.normalize == '@1' ? '' : this.normalize
 
       update.outline = this.outline
       if (update.outline == '@1') update.outline = ''
-      if (update.outline == '@2') update.outline = this.outlineSingleColor || 'white'
+      if (update.outline == '@2') update.outline = this.outlineSingleColor || '#f4f4f4' // white default
+
+      if (this.metric.indexOf(':') > -1) {
+        const colors = getColorRampHexCodes({ ramp: this.colormap, style: Style.sequential }, 9)
+        if (this.isInvertedColor) colors.reverse()
+        // const colorsAsRGB = buildRGBfromHexCodes(colors)
+        update.fixedColors = colors // ['#300', '#502', '#835', '#858', '#46c', '#73f']
+      }
 
       this.$emit('update', update)
     },
@@ -209,13 +281,18 @@ export default defineComponent({
 }
 
 .tight {
-  margin-left: 0.25rem;
+  margin-left: 2px;
   margin-top: 0.5rem;
+  color: var(--link);
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 0.8rem;
 }
 
 .widget-row {
   display: flex;
-  margin-bottom: 0.5rem;
+  margin: 0.25rem 0;
+  gap: 0 0.25rem;
 
   p {
     margin-top: 0.25rem;
@@ -224,13 +301,13 @@ export default defineComponent({
 }
 
 .single {
-  margin: 6px auto;
-  height: 18px;
+  margin: 6px auto 0px 4px;
+  height: 16px;
 }
 
 .single-color {
   margin-right: 1px;
-  width: 18px;
+  width: 16px;
   border: 1px solid #e2e5f2;
   border-radius: 2px;
   flex: 1;
@@ -242,5 +319,13 @@ export default defineComponent({
 }
 .single-color.active {
   border-color: black;
+}
+.color-map-selector {
+  margin-top: 0.25rem;
+  border: var(--borderFaint);
+  padding: 3px 0;
+  border-radius: 4px;
+  background-color: var(--bgCardFrame2);
+  // color: #333;
 }
 </style>

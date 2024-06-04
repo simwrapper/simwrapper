@@ -1,6 +1,6 @@
-import { Deck } from '@deck.gl/core'
 import { GeoJsonLayer } from '@deck.gl/layers'
 import ColorString from 'color-string'
+import * as Comlink from 'comlink'
 
 import globalStore from '@/store'
 import {
@@ -24,6 +24,8 @@ import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 import BaseLayer from './BaseLayer'
 import LayerConfig from './PolygonsLayerConfig.vue'
 
+import ColorWorker from './PolygonsLayer.worker?worker'
+
 // -----------------------------------------------
 export interface PolygonsDefinition {
   shapes: string
@@ -39,14 +41,20 @@ export interface PolygonsDefinition {
 }
 // -----------------------------------------------
 
+interface DeckObject {
+  index: number
+  target: number[]
+  data: any
+}
+
 export default class PolygonsLayer extends BaseLayer {
   features: any[]
   datasets: { [id: string]: DataTable }
   error: string
   layerOptions: PolygonsDefinition
   deckData: {
-    colors: Float32Array | String | Number[]
-    outline: String | Number[]
+    colors: Uint8ClampedArray | string | number[]
+    outline: string | number[]
   }
 
   constructor(
@@ -75,7 +83,7 @@ export default class PolygonsLayer extends BaseLayer {
     return LayerConfig
   }
 
-  updateConfig(options: any) {
+  async updateConfig(options: any) {
     console.log('NEW OPTIONS!', options)
     this.layerOptions = { ...options }
 
@@ -84,7 +92,7 @@ export default class PolygonsLayer extends BaseLayer {
     if (options === 'delete') return
 
     try {
-      this.assembleData()
+      await this.assembleData()
     } catch (e) {
       console.error(e)
       this.features = []
@@ -104,12 +112,12 @@ export default class PolygonsLayer extends BaseLayer {
     }
   }
 
-  assembleData() {
+  async assembleData() {
     // data should already be loaded before this layer is mounted
     this.error = ''
 
     // if we already have shapes, then the user has tried to give us something.
-    // if (!this.layerOptions.shapes) this.guessInitialParameters()
+    if (!this.layerOptions.shapes) this.guessInitialParameters()
 
     // no features? We're done
     // if (!this.layerOptions.shapes) {
@@ -119,17 +127,45 @@ export default class PolygonsLayer extends BaseLayer {
 
     if (this.layerOptions.shapes) {
       this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes)
+      // console.log(20, this.features)
     }
 
-    if (this.layerOptions.metric?.startsWith('#')) {
+    if (this.layerOptions.metric == '@1') {
+      this.deckData.colors = ''
+    } else if (this.layerOptions.metric?.startsWith('#')) {
       this.deckData.colors = ColorString.get.rgb(this.layerOptions.metric).slice(0, 3)
     }
 
     if (this.layerOptions.outline) {
       this.deckData.outline = ColorString.get.rgb(this.layerOptions.outline).slice(0, 3)
+    } else {
+      this.deckData.outline = ''
     }
 
     const numFeatures = this.features.length
+
+    // Generate colors from data
+    if (this.layerOptions.metric.indexOf(':') > -1) {
+      this.deckData.colors = await this.generateColors()
+    }
+  }
+
+  updateStatus(text: string) {
+    console.log('NEED TO SEND STATUS:', text)
+  }
+
+  async generateColors() {
+    const colorWorker = Comlink.wrap(new ColorWorker()) as any
+
+    const colors = await colorWorker.buildColorArray(
+      {
+        options: this.layerOptions,
+        datasets: this.datasets,
+        features: this.features,
+      },
+      Comlink.proxy(this.updateStatus)
+    )
+    return colors
   }
 
   deckLayer() {
@@ -145,21 +181,44 @@ export default class PolygonsLayer extends BaseLayer {
 
     if (this.error) throw Error(this.error)
 
+    let fillColors = [78, 121, 167, 255] as any // default blue
+    if (Array.isArray(this.deckData.colors)) fillColors = this.deckData.colors
+    if (ArrayBuffer.isView(this.deckData.colors)) {
+      fillColors = (feature: any, o: DeckObject) => {
+        return [
+          this.deckData.colors[o.index * 3 + 0], // r
+          this.deckData.colors[o.index * 3 + 1], // g
+          this.deckData.colors[o.index * 3 + 2], // b
+          255, // no opacity, for now
+        ]
+      }
+    }
+
     return new GeoJsonLayer({
       id: 'polygonLayer-' + this.getKey(),
       data: this.features,
-      getFillColor: this.deckData.colors || [78, 121, 167, 255],
+
+      // data: {
+      //   length: this.deckData.radius.length,
+      //   attributes: {
+      //     getPosition: { value: this.deckData.coordinates, size: 2 },
+      //     getRadius: { value: this.deckData.radius, size: 1 },
+      //     getFillColor: { value: this.deckData.colors, size: 3 },
+      //   },
+      // },
+
+      getFillColor: fillColors,
       getLineColor: this.deckData.outline,
       stroked: !!this.deckData.outline,
-      filled: true,
-      getLineWidth: 15,
+      filled: !!this.deckData.colors,
+      getLineWidth: 16,
       // lineWidthUnits: 'pixels',
       highlightColor: [255, 255, 255, 128],
       autoHighlight: true,
       opacity: 1,
       pickable: true,
       updateTriggers: {
-        // getFillColor: fillColors,
+        getFillColor: fillColors,
       },
       transitions: {
         getFillColor: 300,
