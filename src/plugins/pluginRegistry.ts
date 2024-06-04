@@ -19,7 +19,7 @@ const plugins = [
     component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
   },
   {
-    kebabName: 'map',
+    kebabName: 'area-map',
     filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*network.avro', '**/*.shp'],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },

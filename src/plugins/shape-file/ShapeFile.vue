@@ -1964,12 +1964,17 @@ const MyComponent = defineComponent({
 
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
-      const numLinks = network.__numLinks
+      const numLinks = network.linkIds.length
       const features = [] as any
       for (let i = 0; i < numLinks; i++) {
-        const linkID = network.id[i]
-        const coordFrom = network.__nodes[network.from[i]]
-        const coordTo = network.__nodes[network.to[i]]
+        const linkID = network.linkIds[i]
+        const fromOffset = 2 * network.from[i]
+        const toOffset = 2 * network.to[i]
+        const coordFrom = [
+          network.nodeCoordinates[fromOffset],
+          network.nodeCoordinates[1 + fromOffset],
+        ]
+        const coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
         if (!coordFrom || !coordTo) continue
 
         const coords = [coordFrom, coordTo]
@@ -2111,20 +2116,38 @@ const MyComponent = defineComponent({
     ) {
       let dataTable
 
+      console.log(100, this.avroNetwork)
       if (this.avroNetwork) {
+        // AVRO
         // create the DataTable right here, we already have everything in memory
         const avroTable: DataTable = {}
+        const skipColumns = [
+          'allowedModes',
+          'crs',
+          'modes',
+          'nodeAttributes',
+          'nodeCoordinates',
+          'nodeIds',
+          'node_type',
+        ]
+
         const columns = Object.keys(this.avroNetwork).filter(c => !c.startsWith('__'))
         for (const colName of columns) {
+          const values = this.avroNetwork[colName]
+          const type =
+            Number.isFinite(values[0]) || Number.isNaN(values[0])
+              ? DataType.NUMBER
+              : DataType.STRING
           const dataColumn: DataTableColumn = {
             name: colName,
-            type: DataType.NUMBER,
-            values: this.avroNetwork[colName],
+            values,
+            type,
           }
           avroTable[colName] = dataColumn
         }
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
       } else {
+        // NON-AVRO
         dataTable = await this.myDataManager.setFeatureProperties(
           filename,
           featureProperties,
