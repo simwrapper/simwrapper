@@ -322,6 +322,9 @@ const GridMap = defineComponent({
         return [0, 0, 0, 0] // Default color (transparent)
       }
 
+      // if (!this.vizDetails.colorRamp.breakpoints || !this.vizDetails.colorRamp.fixedColors)
+      //   return new Uint8Array([255, 255, 255, 255])
+
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
       if (
         this.vizDetails.colorRamp.breakpoints.length ==
@@ -835,7 +838,17 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
 
+      // if (!this.vizDetails.colorRamp.breakpoints) {
+      //   return
+      // }
+
+      // if (!this.vizDetails.colorRamp.fixedColors) {
+      //   return
+      // }
+
       // Remove color ramp selector if the colorRamp is fixed
+      if (!this.vizDetails.colorRamp.breakpoints || !this.vizDetails.colorRamp.fixedColors) return
+
       if (
         this.vizDetails.colorRamp.breakpoints.length ==
         this.vizDetails.colorRamp.fixedColors.length - 1
