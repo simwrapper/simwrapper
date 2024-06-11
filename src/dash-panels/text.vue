@@ -41,10 +41,14 @@ export default defineComponent({
       // if height is defined, honor it. Otherwise, panel will stretch to fit content
       this.hasHeight = !!this.config.height
 
-      const fileApi = new HTTPFileSystem(this.fileSystemConfig)
-      const filename = `${this.subfolder}/${this.config.file}`
-      const text = await fileApi.getFileText(filename)
-      this.readmeContent = mdRenderer.render(text)
+      if (!this.config.content) {
+        const fileApi = new HTTPFileSystem(this.fileSystemConfig)
+        const filename = `${this.subfolder}/${this.config.file}`
+        const text = await fileApi.getFileText(filename)
+        this.readmeContent = mdRenderer.render(text)
+      } else {
+        this.readmeContent = this.config.content
+      }
     } catch (e: any) {
       console.error({ e })
       let error = '' + e
