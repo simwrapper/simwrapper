@@ -17,15 +17,16 @@ const myWorker = {
   boundaryFilters: new Float32Array(0),
   dataLookupColumns: {} as DataTable,
 
+  datasetIds: [] as string[],
+  dataColumn: null as null | DataTableColumn,
+  normalColumn: null as null | DataTableColumn,
+
+  finalFillColors: '#888' as string | Uint8ClampedArray,
+
   // these are the settings defined in the UI
   currentUIFilterDefinitions: {} as any,
   currentUIFillColorDefinitions: {} as any,
   currentUILineColorDefinitions: {} as any,
-  datasets: {} as { [id: string]: DataTable },
-  datasetChoices: [] as string[],
-  datasetJoinColumn: '',
-  featureJoinColumn: '',
-  dataFillColors: '#888' as string | Uint8ClampedArray,
   dataCalculatedValues: null as Float32Array | null,
   dataNormalizedValues: null as Float32Array | null,
   dataCalculatedValueLabel: '',
@@ -119,17 +120,24 @@ const myWorker = {
   },
 
   buildColorArray(
-    props: { numFeatures: number; datasets: any; options: PolygonsDefinition },
+    props: {
+      numFeatures: number
+      dataColumn: DataTableColumn | null
+      normalColumn: DataTableColumn | null
+      options: PolygonsDefinition
+      datasetIds: string[]
+    },
     cbStatus: any
   ): string | Uint8ClampedArray {
     this.cbStatus = cbStatus
     this.numFeatures = props.numFeatures
-    this.datasets = props.datasets
-    this.datasetChoices = Object.keys(this.datasets)
+    this.dataColumn = props.dataColumn
+    this.normalColumn = props.normalColumn
+    this.datasetIds = props.datasetIds
 
     this.handleNewFillColor(props.options)
 
-    return this.dataFillColors
+    return this.finalFillColors
   },
 
   statusUpdate(text: string) {
@@ -170,7 +178,7 @@ const myWorker = {
       const hideBoundary = new Float32Array(this.boundaryFilters.length)
       hideBoundary.fill(1)
       for (const row of filteredRows) {
-        const joinText = row[this.featureJoinColumn]
+        const joinText = '' // row[this.featureJoinColumn] // TODO BILLY
         const boundaryIndex = lookups[joinText]
         hideBoundary[boundaryIndex] = 0 // keep this one
       }
@@ -245,9 +253,9 @@ const myWorker = {
       this.dataCalculatedValueLabel = columnName + '/' + keys[1]
       const datasetKey = currentDefinition.dataset
 
-      if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
-        throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-      }
+      // if (!this.datasets[keys[0]] || !this.datasets[keys[0]][keys[1]]) {
+      //   throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
+      // }
       normalColumn = dataTable[keys[1]]
     }
 
@@ -267,7 +275,7 @@ const myWorker = {
     if (!rgbArray) return
 
     if (section === 'fill') {
-      this.dataFillColors = rgbArray
+      this.finalFillColors = rgbArray
     }
 
     this.dataCalculatedValues = calculatedValues
@@ -329,17 +337,6 @@ const myWorker = {
     }
 
     // *** Data column mode *************************************************************
-    const selectedDataset = this.datasets[datasetKey]
-    this.dataCalculatedValueLabel = ''
-
-    // no selected dataset or datacol missing? Not sure what to do here, just give up...
-    if (!selectedDataset) {
-      console.warn('color: no selected dataset yet, maybe still loading')
-      return
-    }
-    const dataColumn = selectedDataset[columnName]
-    if (!dataColumn) throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
-
     this.dataCalculatedValueLabel = columnName ?? ''
 
     // Do we need a join? Join it
@@ -352,47 +349,21 @@ const myWorker = {
       dataJoinColumn = columnName
     } else {
       // nothing specified: let's hope they didn't want to join
-      if (this.datasetChoices.length > 1) {
+      if (this.datasetIds.length > 1) {
         console.warn('No join; lets hope user just wants to display data in boundary file')
       }
     }
 
-    // this.setupJoin({
-    //   datasetId: datasetKey,
-    //   dataTable: selectedDataset,
-    //   dataJoinColumn,
-    // })
-
-    const xlookupColumn = selectedDataset[`@@${dataJoinColumn}`]
-    // console.log(17, { lookupColumn })
-
     // NORMALIZE if we need to
-    let normalColumn
     let normalLookup
+
     if (color.normalize) {
       const [dataset, column] = color.normalize.split(':')
-      if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
-        const msg = `${dataset} does not contain column "${column}"`
-        console.error(151, msg)
-        throw Error(msg)
-      }
-
       this.dataCalculatedValueLabel += `/ ${column}`
-      normalColumn = this.datasets[dataset][column]
 
-      // Create yet one more join for the normal column if it's not from the featureset itself
-      if (this.datasetChoices[0] !== dataset) {
-        // this.buildDatasetLookup({joinColumns: color.join || '', dataColumn: dataJoinColumn})
-
-        // this.setupJoin({
-        //   datasetId: dataset,
-        //   dataTable: this.datasets[dataset],
-        //   dataJoinColumn,
-        // })
-
-        const [j1, j2] = dataJoinColumn.split(':')
-        normalLookup = this.datasets[dataset][`@@${j2}`]
-      }
+      // TODO Create a join for the normal column if it's not from the featureset itself
+      const [j1, j2] = dataJoinColumn.split(':')
+      normalLookup = this.dataLookupColumns[`@@${j2}`]
     }
 
     const ramp = {
@@ -403,18 +374,14 @@ const myWorker = {
       breakpoints: color.colorRamp?.breakpoints || undefined,
     }
 
-    console.log(21, this.dataLookupColumns, dataJoinColumn)
     const [j1, j2] = dataJoinColumn.split(':')
-
     const lookup = this.dataLookupColumns[`@@${j2}`]
-
-    console.log({ lookup })
 
     // Calculate colors for each feature
     const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
       numFeatures: this.numFeatures,
-      data: dataColumn,
-      normalColumn,
+      data: this.dataColumn as any,
+      normalColumn: this.normalColumn as any,
       normalLookup,
       lookup,
       filter: this.boundaryFilters,
@@ -424,7 +391,7 @@ const myWorker = {
 
     console.log('GOT IT!', { rgbArray, calculatedValues })
     if (rgbArray) {
-      this.dataFillColors = rgbArray
+      this.finalFillColors = rgbArray
       this.dataCalculatedValues = calculatedValues
       this.dataNormalizedValues = calculatedValues || null
 

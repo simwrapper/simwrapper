@@ -158,24 +158,23 @@ export default class PolygonsLayer extends BaseLayer {
     let featureLookupValues
     let dataLookupValues
 
+    const [m1, m2] = this.layerOptions.metric.split(':')
+    const [n1, n2] = this.layerOptions.normalize.split(':')
+
     // Build joins if we need them
     if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
-      console.log('1 we need join')
-      // shapes
       const [join1, join2] = this.layerOptions.join.split(':')
+      // shapes
       const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
       featureLookupValues = await colorWorker.buildFeatureLookup(join1, shapeValues)
-      console.log({ featureLookupValues })
 
-      const [m1, m2] = this.layerOptions.metric.split(':')
       const datasetCol = this.datasets[m1][join2] // datasetname:joincolumn
-      console.log(15, datasetCol)
+
       const dataLookupColumn = await colorWorker.buildDatasetLookup({
         joinColumns: this.layerOptions.join,
         dataColumn: datasetCol,
       })
 
-      console.log(7, dataLookupColumn)
       dataLookupValues = dataLookupColumn.values
 
       // add/replace this dataset in the datamanager, with the new lookup column
@@ -187,11 +186,16 @@ export default class PolygonsLayer extends BaseLayer {
       // })
     }
 
+    const dataColumn = this.datasets[m1][m2]
+    const normalColumn = n1 && n2 ? this.datasets[n1][n2] : null
+
     const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
       {
         numFeatures: this.features.length,
+        dataColumn,
+        normalColumn,
         options: this.layerOptions,
-        datasets: this.datasets,
+        datasetIds: Object.keys(this.datasets),
       },
       Comlink.proxy(this.updateStatus)
     )
