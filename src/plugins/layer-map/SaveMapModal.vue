@@ -5,14 +5,20 @@
       p.close-button(@click="$emit('close')"): i.fas.fa-times
 
     .save-options.flex-row
-      b-button.is-outlined.is-white.save-option.flex1(@click="downloadYaml()")
+      b-button.is-outlined.save-option.flex1(
+        :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
+        @click="downloadYaml()"
+      )
         i(style="font-size: 20px; margin-bottom: 5px").fas.fa-download
         br
         | Download
         br
         | YAML file
 
-      b-button.is-outlined.is-white.save-option.flex1(@click="uploadGist()")
+      b-button.is-outlined.is-white.save-option.flex1(
+        :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
+        @click="uploadGist()"
+      )
         i(style="font-size: 20px; margin-bottom: 5px").fas.fa-cloud-upload-alt
         br
         | Upload as
@@ -29,6 +35,8 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import { Octokit } from '@octokit/rest'
+
+// import globalStore from '@/store'
 
 export default defineComponent({
   name: 'SaveMapModal',

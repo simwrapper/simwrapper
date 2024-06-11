@@ -142,8 +142,6 @@ export default class PolygonsLayer extends BaseLayer {
       this.deckData.outline = ''
     }
 
-    const numFeatures = this.features.length
-
     // Generate colors from data
     if (this.layerOptions.metric.indexOf(':') > -1) {
       this.deckData.colors = await this.generateColors()
@@ -157,11 +155,43 @@ export default class PolygonsLayer extends BaseLayer {
   async generateColors() {
     const colorWorker = Comlink.wrap(new ColorWorker()) as any
 
-    const colors = await colorWorker.buildColorArray(
+    let featureLookupValues
+    let dataLookupValues
+
+    // Build joins if we need them
+    if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
+      console.log('1 we need join')
+      // shapes
+      const [join1, join2] = this.layerOptions.join.split(':')
+      const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
+      featureLookupValues = await colorWorker.buildFeatureLookup(join1, shapeValues)
+      console.log({ featureLookupValues })
+
+      const [m1, m2] = this.layerOptions.metric.split(':')
+      const datasetCol = this.datasets[m1][join2] // datasetname:joincolumn
+      console.log(15, datasetCol)
+      const dataLookupColumn = await colorWorker.buildDatasetLookup({
+        joinColumns: this.layerOptions.join,
+        dataColumn: datasetCol,
+      })
+
+      console.log(7, dataLookupColumn)
+      dataLookupValues = dataLookupColumn.values
+
+      // add/replace this dataset in the datamanager, with the new lookup column
+      // this.datamanager.getDataset({dataset: })
+      // dataTable[`@@${dataJoinColumn}`] = lookupColumn
+      // this.myDataManager.setPreloadedDataset({
+      //   key: this.datasetKeyToFilename[datasetId],
+      //   dataTable,
+      // })
+    }
+
+    const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
       {
+        numFeatures: this.features.length,
         options: this.layerOptions,
         datasets: this.datasets,
-        features: this.features,
       },
       Comlink.proxy(this.updateStatus)
     )

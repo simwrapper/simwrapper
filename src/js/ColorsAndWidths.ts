@@ -692,8 +692,11 @@ function calculateMetric(props: VizProperties) {
   let min = Infinity
   let max = -Infinity
   for (let i = 0; i < props.numFeatures; i++) {
-    min = Math.min(min, normalizedValues[i])
-    max = Math.max(max, normalizedValues[i])
+    const v = normalizedValues[i]
+    if (Number.isFinite(v)) {
+      min = Math.min(min, v)
+      max = Math.max(max, v)
+    }
   }
   min = min ?? Infinity
   max = max ?? -Infinity

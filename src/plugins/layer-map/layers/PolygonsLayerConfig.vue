@@ -25,11 +25,13 @@
       //- JOIN BY ---
       //- (v-if="datasetChoices.length > 1"))
       .widget.flex1
-        column-selector(v-model="join"
-          :extra="joinOptions" :datasets="getJoinOptions" @update="join=$event"
+        column-selector(
+          v-model="join"
+          :extra="joinOptions"
+          :datasets="getJoinOptions"
+          @update="join=$event"
         )
-            p.tight Join by
-
+          p.tight Join/Count
 
       //- NORMALIZE COLUMN ---
       //- v-if="dataColumn && dataColumn.length > 1"
@@ -62,6 +64,11 @@
     //-     text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
     //-       p.tight() Transform (EPSG)
 
+  modal-id-column-picker(v-if="showJoinPicker"
+    :data1="{ columns: Object.keys(this.datasets[this.shapes]  || {} ) } "
+    @join="joinClicked($event)"
+  )
+
 </template>
 
 <script lang="ts">
@@ -74,6 +81,7 @@ import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
 import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
+import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
 import { ColorMap } from '@/components/ColorMapSelector/models'
 
@@ -93,7 +101,14 @@ import {
 
 export default defineComponent({
   name: 'PolygonsLayerConfig',
-  components: { ColumnSelector, DatasetSelector, TextSelector, FillColors, ColorMapSelector },
+  components: {
+    ColumnSelector,
+    DatasetSelector,
+    TextSelector,
+    FillColors,
+    ColorMapSelector,
+    ModalIdColumnPicker,
+  },
 
   props: {
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
@@ -111,6 +126,7 @@ export default defineComponent({
       fillSingleColor: '',
       outlineSingleColor: '',
       join: '@1',
+      shapeJoin: '',
       normalize: '@1',
       colormap: 'Viridis',
       isInvertedColor: false,
@@ -122,6 +138,7 @@ export default defineComponent({
       vizConfiguration: { datasets: this.options } as VizLayerConfiguration,
       solidColors: ['None', 'Single color'],
       joinOptions: ['None', 'Row Count'],
+      showJoinPicker: false,
     }
   },
 
@@ -156,6 +173,8 @@ export default defineComponent({
       this.updateConfig()
     },
     join() {
+      this.thinkAboutJoin()
+      console.log('upon thinking, join is:', this.shapeJoin)
       this.updateConfig()
     },
     metric() {
@@ -191,6 +210,31 @@ export default defineComponent({
   },
 
   methods: {
+    thinkAboutJoin() {
+      // already joined shapefile:
+      if (this.shapeJoin) return
+
+      // if user chose a join and we don't know about the shapefile, ask them
+      // TODO: this should happen on load not on watch
+      if (this.join.indexOf(':') > -1) {
+        // only one ID in shapefile? Use it
+        const shapeColumns = Object.keys(this.datasets[this.shapes] || {})
+        if (shapeColumns.length == 1) {
+          this.shapeJoin = shapeColumns[0]
+        } else {
+          this.showJoinPicker = true
+        }
+      }
+    },
+
+    joinClicked(columns: string[]) {
+      console.log(columns)
+      if (!columns.length) {
+        this.showJoinPicker = false
+        return
+      }
+    },
+
     clickedSingleColor(option: string, color: string) {
       if (option == 'outline') {
         this.outlineSingleColor = color
@@ -228,7 +272,12 @@ export default defineComponent({
         this.normalize = '@1'
       }
 
-      update.join = this.join == '@1' ? '' : this.join.substring(1 + this.join.indexOf(':'))
+      // JOIN
+      update.join =
+        this.join == '@1'
+          ? ''
+          : `${this.shapeJoin}:${this.join.substring(1 + this.join.indexOf(':'))}`
+
       update.normalize = this.normalize == '@1' ? '' : this.normalize
 
       update.outline = this.outline

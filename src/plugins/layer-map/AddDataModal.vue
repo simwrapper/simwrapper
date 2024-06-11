@@ -26,7 +26,7 @@
 
           p.spacing Supported file types:&nbsp;
             b {{ validDataTypes.join(', ')}}
-          p No file size limit, but large datasets could crash your browser :-)
+          p No size limit, but large datasets could crash your browser :-)
 
       .section-bottom(slot="loader")
         p Processing files<br/>

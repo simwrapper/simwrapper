@@ -13,8 +13,10 @@ const myWorker = {
   cbStatus: null as any,
   boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
   boundaryDataTable: {} as DataTable,
-  boundaries: [] as any[],
+  numFeatures: 0,
   boundaryFilters: new Float32Array(0),
+  dataLookupColumns: {} as DataTable,
+
   // these are the settings defined in the UI
   currentUIFilterDefinitions: {} as any,
   currentUIFillColorDefinitions: {} as any,
@@ -33,20 +35,104 @@ const myWorker = {
   // dataFillHeights: 0 as number | Float32Array,
   // constantLineWidth: null as null | number,
 
+  buildFeatureLookup(joinColumn: string, joinValues: any[]) {
+    // return it if we already built it
+    if (this.boundaryJoinLookups[joinColumn]) return this.boundaryJoinLookups[joinColumn]
+
+    try {
+      this.statusUpdate('Joining datasets...')
+
+      this.boundaryJoinLookups[joinColumn] = {}
+      const lookupValues = this.boundaryJoinLookups[joinColumn]
+
+      for (let i = 0; i < joinValues.length; i++) lookupValues[joinValues[i]] = i
+
+      this.numFeatures = joinValues.length
+      this.statusUpdate('')
+      return lookupValues
+    } catch (e) {
+      console.warn('waahaa')
+      return {}
+    }
+  },
+
+  buildDatasetLookup(props: { joinColumns: string; dataColumn: DataTableColumn }) {
+    // , dataTable: DataTable; datasetId: string; dataJoinColumns: string }) {
+
+    const { joinColumns, dataColumn } = props
+    console.log('> setupJoin', joinColumns, dataColumn)
+
+    // if no join at all, don't do anything
+    if (!joinColumns || joinColumns.indexOf(':') == -1) {
+      console.log('NOT a VALID JOIN', joinColumns)
+      return
+    }
+
+    // shapefilejoincol, datatablejoincol
+    const [join1, join2] = joinColumns.split(':')
+
+    // make sure columns exist!
+    // if (!this.boundaryDataTable[this.featureJoinColumn])
+    //   throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
+    // if (!dataTable[dataJoinColumn])
+    //   throw Error(`Dataset ${datasetId} does not have column ${dataJoinColumn}`)
+
+    // create lookup column and write lookup offsets
+    const lookupDataColumn: DataTableColumn = {
+      type: DataType.LOOKUP,
+      values: [],
+      name: `@@${join2}`,
+    }
+
+    const lookupValues = dataColumn.values
+
+    const boundaryOffsets = this.boundaryJoinLookups[join1] // this.getBoundaryOffsetLookup(this.featureJoinColumn)
+    console.log({ boundaryjoinlookups: this.boundaryJoinLookups, offsets: boundaryOffsets })
+
+    // set lookup data
+    for (let i = 0; i < lookupValues.length; i++) {
+      const v = lookupValues[i]
+      const featureOffset = boundaryOffsets[v]
+      lookupDataColumn.values[i] = featureOffset
+    }
+
+    // save it
+    this.dataLookupColumns[`@@${join2}`] = lookupDataColumn
+
+    return lookupDataColumn
+
+    // @@@@@@@@@@@@@@@@@@@@@@@
+
+    // this.myDataManager.addFilterListener(
+    //   { dataset: this.datasetKeyToFilename[datasetId] },
+    //   this.processFiltersNow
+    // )
+
+    // this.prepareTooltipData(props)
+
+    // // Notify Deck.gl of the new tooltip data
+    // if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
+    //   REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
+    // }
+    // // console.log('triggering updates')
+    // this.datasets[datasetId] = dataTable
+  },
+
   buildColorArray(
-    props: { features: any[]; datasets: any; options: PolygonsDefinition },
+    props: { numFeatures: number; datasets: any; options: PolygonsDefinition },
     cbStatus: any
-  ) {
+  ): string | Uint8ClampedArray {
     this.cbStatus = cbStatus
-    this.boundaries = props.features
+    this.numFeatures = props.numFeatures
     this.datasets = props.datasets
     this.datasetChoices = Object.keys(this.datasets)
 
     this.handleNewFillColor(props.options)
+
     return this.dataFillColors
   },
 
-  sendStatusUpdate(text: string) {
+  statusUpdate(text: string) {
     if (this.cbStatus) this.cbStatus(text)
   },
 
@@ -55,7 +141,10 @@ const myWorker = {
 
     console.log('> processFiltersNow', datasetName)
 
-    const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
+    // TODO
+    // const { filteredRows } = this.myDataManager.getFilteredDataset({ dataset: datasetName || '' })
+    const filteredRows = [] as any
+
     const filteredDataTable: { [id: string]: DataTableColumn } = {}
 
     // if we got NULL, remove this filter totally
@@ -73,7 +162,9 @@ const myWorker = {
 
       // TEMPORARY: filter out any shapes that do not pass the test.
       // TODO: this will need to be revisited when we do layer-mode.
-      const lookups = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+
+      // const lookups = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+      const lookups = {} as any
 
       // hide shapes not in filtered set
       const hideBoundary = new Float32Array(this.boundaryFilters.length)
@@ -96,139 +187,47 @@ const myWorker = {
           filteredRows ? filteredDataTable : this.currentUIFillColorDefinitions
         )
       }
-
-      if (this.currentUILineColorDefinitions?.dataset) {
-        this.handleNewLineColor(
-          filteredRows ? filteredDataTable : this.currentUILineColorDefinitions
-        )
-      }
     } catch (e) {
-      this.$emit('error', '' + e)
+      this.statusUpdate('error ' + e)
     }
   },
 
-  prepareTooltipData(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-    // if user wants specific tooltips based on this dataset, save the values
-    // TODO - this is in the wrong place and probably causes problems with
-    // survey-style multi-record datasets
+  // prepareTooltipData(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+  //   // if user wants specific tooltips based on this dataset, save the values
+  //   // TODO - this is in the wrong place and probably causes problems with
+  //   // survey-style multi-record datasets
 
-    const { dataTable, datasetId, dataJoinColumn } = props
+  //   const { dataTable, datasetId, dataJoinColumn } = props
 
-    const tips = this.vizDetails.tooltip || []
-    const relevantTips = tips
-      .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
-      .map(tip => {
-        return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
-      })
+  //   const tips = this.vizDetails.tooltip || []
+  //   const relevantTips = tips
+  //     .filter(tip => tip.substring(0, tip.indexOf(':')).startsWith(datasetId))
+  //     .map(tip => {
+  //       return { id: tip, column: tip.substring(1 + tip.indexOf(':')) }
+  //     })
 
-    // no tips for this datasetId
-    if (!relevantTips.length) return
+  //   // no tips for this datasetId
+  //   if (!relevantTips.length) return
 
-    const lookupValues = dataTable[dataJoinColumn].values
-    const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
+  //   const lookupValues = dataTable[dataJoinColumn].values
+  //   const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
 
-    for (const tip of relevantTips) {
-      // make sure tip column exists
-      if (!dataTable[tip.column]) {
-        this.$emit('error', `Tooltip references "${tip.id}" but that column doesn't exist`)
-        continue
-      }
+  //   for (const tip of relevantTips) {
+  //     // make sure tip column exists
+  //     if (!dataTable[tip.column]) {
+  //       this.$emit('error', `Tooltip references "${tip.id}" but that column doesn't exist`)
+  //       continue
+  //     }
 
-      // set the tooltip data
-      for (let i = 0; i < lookupValues.length; i++) {
-        const featureOffset = boundaryOffsets[lookupValues[i]]
-        const feature = this.boundaries[featureOffset]
-        const value = dataTable[tip.column].values[i]
-        if (feature) feature.properties[tip.id] = value
-      }
-    }
-  },
-
-  getBoundaryOffsetLookup(joinColumn: string) {
-    // return it if we already built it
-    if (this.boundaryJoinLookups[joinColumn]) return this.boundaryJoinLookups[joinColumn]
-
-    // build it
-    try {
-      this.sendStatusUpdate('Joining datasets...')
-      this.boundaryJoinLookups[joinColumn] = {}
-      const lookupValues = this.boundaryJoinLookups[joinColumn]
-
-      const boundaryLookupColumnValues = this.boundaryDataTable[joinColumn].values
-
-      for (let i = 0; i < this.boundaries.length; i++) {
-        lookupValues[boundaryLookupColumnValues[i]] = i
-      }
-      this.sendStatusUpdate('')
-      return lookupValues
-    } catch (e) {
-      console.warn('waahaa')
-      return {}
-    }
-  },
-
-  setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-    const { dataTable, datasetId, dataJoinColumn } = props
-    // console.log('> setupJoin', datasetId, dataJoinColumn)
-
-    // if no join at all, don't do anything
-    if (!dataJoinColumn) return
-
-    // if join already exists, don't do anything
-    if (`@@${dataJoinColumn}` in dataTable) return
-
-    // make sure columns exist!
-    if (!this.boundaryDataTable[this.featureJoinColumn])
-      throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
-    if (!dataTable[dataJoinColumn])
-      throw Error(`Dataset ${datasetId} does not have column ${dataJoinColumn}`)
-
-    // create lookup column and write lookup offsets
-    const lookupColumn: DataTableColumn = {
-      type: DataType.LOOKUP,
-      values: [],
-      name: `@@${dataJoinColumn}`,
-    }
-
-    const lookupValues = dataTable[dataJoinColumn].values
-    const boundaryOffsets = this.getBoundaryOffsetLookup(this.featureJoinColumn)
-
-    for (let i = 0; i < lookupValues.length; i++) {
-      // set lookup data
-      const featureOffset = boundaryOffsets[lookupValues[i]]
-      lookupColumn.values[i] = featureOffset
-    }
-
-    // add/replace this dataset in the datamanager, with the new lookup column
-    dataTable[`@@${dataJoinColumn}`] = lookupColumn
-    this.myDataManager.setPreloadedDataset({
-      key: this.datasetKeyToFilename[datasetId],
-      dataTable,
-    })
-
-    this.vizDetails.datasets[datasetId] = {
-      file: this.datasetKeyToFilename[datasetId],
-      // if join columns are not named identically, use "this:that" format
-      join:
-        this.featureJoinColumn === dataJoinColumn
-          ? this.featureJoinColumn
-          : `${this.featureJoinColumn}:${dataJoinColumn}`,
-    } as any
-
-    this.myDataManager.addFilterListener(
-      { dataset: this.datasetKeyToFilename[datasetId] },
-      this.processFiltersNow
-    )
-
-    this.prepareTooltipData(props)
-
-    // Notify Deck.gl of the new tooltip data
-    if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
-      REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
-    }
-    // console.log('triggering updates')
-    this.datasets[datasetId] = dataTable
-  },
+  //     // set the tooltip data
+  //     for (let i = 0; i < lookupValues.length; i++) {
+  //       const featureOffset = boundaryOffsets[lookupValues[i]]
+  //       const feature = this.boundaries[featureOffset]
+  //       const value = dataTable[tip.column].values[i]
+  //       if (feature) feature.properties[tip.id] = value
+  //     }
+  //   }
+  // },
 
   paintColorsWithFilter(section: string, dataTable: DataTable) {
     const currentDefinition =
@@ -253,7 +252,7 @@ const myWorker = {
     }
 
     const props = {
-      numFeatures: this.boundaries.length,
+      numFeatures: this.numFeatures,
       data: dataTable[columnName],
       lookup: lookupColumn,
       normalColumn,
@@ -269,17 +268,15 @@ const myWorker = {
 
     if (section === 'fill') {
       this.dataFillColors = rgbArray
-    } else {
-      this.dataLineColors = rgbArray
     }
 
     this.dataCalculatedValues = calculatedValues
 
-    this.legendStore.setLegendSection({
-      section: section === 'fill' ? 'FillColor' : 'Line Color',
-      column: columnName,
-      values: legend,
-    })
+    // this.legendStore.setLegendSection({
+    //   section: section === 'fill' ? 'FillColor' : 'Line Color',
+    //   column: columnName,
+    //   values: legend,
+    // })
   },
 
   handleNewFillColor(fillOrFilteredDataTable: PolygonsDefinition | DataTable) {
@@ -290,20 +287,20 @@ const myWorker = {
     // If we received a new fill color definition AND the dataset is filtered,
     // then bookmark that definition and process the filter first/instead.
     // (note, processFiltersNow() will call this function again once the calcs are done)
+
     // TODO BILLY - filters
-    if (false) {
-      // if (isFillColorDefinition) {
-      const definition: PolygonsDefinition = fillOrFilteredDataTable as any
-      const dataset = definition.metric
-      const { filteredRows } = this.myDataManager.getFilteredDataset({
-        dataset: `${dataset}` || '',
-      })
-      if (filteredRows && filteredRows.length) {
-        this.currentUIFillColorDefinitions = fillOrFilteredDataTable
-        this.processFiltersNow(dataset)
-        return
-      }
-    }
+    // if (isFillColorDefinition) {
+    //   const definition: PolygonsDefinition = fillOrFilteredDataTable as any
+    //   const dataset = definition.metric
+    //   const { filteredRows } = this.myDataManager.getFilteredDataset({
+    //     dataset: `${dataset}` || '',
+    //   })
+    //   if (filteredRows && filteredRows.length) {
+    //     this.currentUIFillColorDefinitions = fillOrFilteredDataTable
+    //     this.processFiltersNow(dataset)
+    //     return
+    //   }
+    // }
 
     if (isFilterTable) {
       this.paintColorsWithFilter('fill', fillOrFilteredDataTable)
@@ -317,7 +314,8 @@ const myWorker = {
 
     if (color.diffDatasets) {
       // *** diff mode *************************
-      this.handleColorDiffMode('fill', color)
+      // TODO
+      // this.handleColorDiffMode('fill', color)
       return
     }
 
@@ -359,14 +357,14 @@ const myWorker = {
       }
     }
 
-    this.setupJoin({
-      datasetId: datasetKey,
-      dataTable: selectedDataset,
-      dataJoinColumn,
-    })
+    // this.setupJoin({
+    //   datasetId: datasetKey,
+    //   dataTable: selectedDataset,
+    //   dataJoinColumn,
+    // })
 
-    const lookupColumn = selectedDataset[`@@${dataJoinColumn}`]
-    console.log(17, { lookupColumn })
+    const xlookupColumn = selectedDataset[`@@${dataJoinColumn}`]
+    // console.log(17, { lookupColumn })
 
     // NORMALIZE if we need to
     let normalColumn
@@ -374,18 +372,26 @@ const myWorker = {
     if (color.normalize) {
       const [dataset, column] = color.normalize.split(':')
       if (!this.datasets[dataset] || !this.datasets[dataset][column]) {
-        throw Error(`${dataset} does not contain column "${column}"`)
+        const msg = `${dataset} does not contain column "${column}"`
+        console.error(151, msg)
+        throw Error(msg)
       }
+
       this.dataCalculatedValueLabel += `/ ${column}`
       normalColumn = this.datasets[dataset][column]
+
       // Create yet one more join for the normal column if it's not from the featureset itself
       if (this.datasetChoices[0] !== dataset) {
-        this.setupJoin({
-          datasetId: dataset,
-          dataTable: this.datasets[dataset],
-          dataJoinColumn,
-        })
-        normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
+        // this.buildDatasetLookup({joinColumns: color.join || '', dataColumn: dataJoinColumn})
+
+        // this.setupJoin({
+        //   datasetId: dataset,
+        //   dataTable: this.datasets[dataset],
+        //   dataJoinColumn,
+        // })
+
+        const [j1, j2] = dataJoinColumn.split(':')
+        normalLookup = this.datasets[dataset][`@@${j2}`]
       }
     }
 
@@ -397,18 +403,26 @@ const myWorker = {
       breakpoints: color.colorRamp?.breakpoints || undefined,
     }
 
+    console.log(21, this.dataLookupColumns, dataJoinColumn)
+    const [j1, j2] = dataJoinColumn.split(':')
+
+    const lookup = this.dataLookupColumns[`@@${j2}`]
+
+    console.log({ lookup })
+
     // Calculate colors for each feature
     const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-      numFeatures: this.boundaries.length,
+      numFeatures: this.numFeatures,
       data: dataColumn,
       normalColumn,
       normalLookup,
-      lookup: lookupColumn,
+      lookup,
       filter: this.boundaryFilters,
       options: { colorRamp: ramp, fixedColors: color.fixedColors },
       join: color.join,
     })
 
+    console.log('GOT IT!', { rgbArray, calculatedValues })
     if (rgbArray) {
       this.dataFillColors = rgbArray
       this.dataCalculatedValues = calculatedValues
