@@ -851,7 +851,7 @@ const MyComponent = defineComponent({
       }
 
       if ('rename' in ds) {
-        this.renameColumns(ds.data as DataTable, ds.rename)
+        this.renameColumns(ds.data as DataTable, ds.rename, ds.pivot?.namesTo || 'names')
       }
 
       if ('normalize' in ds) {
@@ -969,12 +969,13 @@ const MyComponent = defineComponent({
       })
     },
 
-    renameColumns(dataTable: DataTable, rename: any) {
+    renameColumns(dataTable: DataTable, rename: any, column: string) {
       // rename columns
-      if (rename) {
-        for (let i = 0; i < dataTable.names.values.length; i++) {
-          if (dataTable.names.values[i] in rename) {
-            dataTable.names.values[i] = rename[dataTable.names.values[i]]
+      if (rename && column in dataTable) {
+        const values = dataTable[column].values
+        for (let i = 0; i < values.length; i++) {
+          if (values[i] in rename) {
+            values[i] = rename[values[i]]
           }
         }
       }
