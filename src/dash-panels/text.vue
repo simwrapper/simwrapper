@@ -47,7 +47,7 @@ export default defineComponent({
         const text = await fileApi.getFileText(filename)
         this.readmeContent = mdRenderer.render(text)
       } else {
-        this.readmeContent = this.config.content
+        this.readmeContent = mdRenderer.render(this.config.content)
       }
     } catch (e: any) {
       console.error({ e })
