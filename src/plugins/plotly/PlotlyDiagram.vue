@@ -543,11 +543,14 @@ const MyComponent = defineComponent({
     // THis method groups the traces by the facet if more than one column and one row is defined in the traces
     groupTracesByFacetsForOneColumnOrRow(
       numberOfFacets: number,
-      axisTitle: string,
+      axisTitle: any,
       facets: any[],
       axis: string,
       facetObjectKey: string
     ) {
+      // Extract text from the axis title
+      if (axisTitle instanceof Object && 'text' in axisTitle) axisTitle = axisTitle.text
+
       const result = []
       for (let j = 0; j < numberOfFacets; j++) {
         const row = facets[j]
@@ -595,7 +598,7 @@ const MyComponent = defineComponent({
             title: {
               text:
                 axisTitle +
-                '<br>' +
+                (axisTitle ? '<br>' : '') +
                 this.config.traces[0][facetObjectKey].split('.')[1] +
                 ' = ' +
                 facets[j],
@@ -606,7 +609,7 @@ const MyComponent = defineComponent({
           this.layout[axisIndex].title = {
             text:
               axisTitle +
-              '<br>' +
+              (axisTitle ? '<br>' : '') +
               this.config.traces[0][facetObjectKey].split('.')[1] +
               ' = ' +
               facets[j],
