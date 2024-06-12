@@ -23,7 +23,6 @@
 
     .widget-row(v-show="metric.indexOf(':') > -1")
       //- JOIN BY ---
-      //- (v-if="datasetChoices.length > 1"))
       .widget.flex1
         column-selector(
           v-model="join"
@@ -34,12 +33,23 @@
           p.tight Join/Count
 
       //- NORMALIZE COLUMN ---
-      //- v-if="dataColumn && dataColumn.length > 1"
       .widget.flex1
         column-selector(v-model="normalize"
           :extra="['None']" :datasets="datasets" @update="normalize=$event"
         )
             p.tight Normalize
+
+    //- DIFF MODE
+    .widget-row(v-show="metric.indexOf(':') > -1")
+      .widget.flex1
+        column-selector(v-model="diff"
+          :extra="['None']" :datasets="datasets" @update="diff=$event"
+        )
+            p.tight Diff vs.
+
+      .widget.flex1
+        p.tight(style="margin-bottom: 6px;") % Diff
+        b-switch(v-model="diffRelative").is-small
 
     .widget-row(v-if="metric.indexOf(':') > -1").flex-col
       p.tight Colors
@@ -79,7 +89,12 @@ import FillColors from './FillColors.vue'
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
-import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import {
+  buildRGBfromHexCodes,
+  getColorRampHexCodes,
+  Ramp,
+  Style,
+} from '@/js/ColorsAndWidths'
 
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
@@ -122,6 +137,8 @@ export default defineComponent({
       // view model
       shapes: '',
       metric: '',
+      diff: '',
+      diffRelative: false,
       outline: '@1',
       fillSingleColor: '',
       outlineSingleColor: '',
@@ -143,6 +160,32 @@ export default defineComponent({
   },
 
   computed: {
+    datasetKeys(): string[] {
+      return Object.keys(this.datasets)
+    },
+
+    datasetKeysWithoutShapeKey(): string[] {
+      return this.datasetKeys.filter(key => key !== this.shapes)
+    },
+
+    getDiffOptions(): string[] {
+      const options = ['None']
+      const keys = this.datasetKeysWithoutShapeKey
+      if (keys.length == 2) {
+        options.push(`${keys[1]} - ${keys[0]}`)
+        options.push(`${keys[0]} - ${keys[1]}`)
+      }
+      if (keys.length == 3) {
+        options.push(`${keys[1]} - ${keys[0]}`)
+        options.push(`${keys[0]} - ${keys[1]}`)
+        options.push(`${keys[2]} - ${keys[0]}`)
+        options.push(`${keys[0]} - ${keys[2]}`)
+        options.push(`${keys[2]} - ${keys[1]}`)
+        options.push(`${keys[1]} - ${keys[2]}`)
+      }
+      return options
+    },
+
     getJoinOptions(): any {
       const colonLoc = this.metric.indexOf(':')
       if (colonLoc == -1) return {}
@@ -170,6 +213,12 @@ export default defineComponent({
       this.updateConfig()
     },
     isInvertedColor() {
+      this.updateConfig()
+    },
+    diff() {
+      this.updateConfig()
+    },
+    diffRelative() {
       this.updateConfig()
     },
     join() {
@@ -272,6 +321,12 @@ export default defineComponent({
         this.normalize = '@1'
       }
 
+      // DIFF Vs.
+      if (this.diff && this.diff !== 'None') {
+        update.diff = this.diff
+        update.diffRelative = this.diffRelative
+      }
+
       // JOIN
       update.join =
         this.join == '@1'
@@ -285,7 +340,10 @@ export default defineComponent({
       if (update.outline == '@2') update.outline = this.outlineSingleColor || '#f4f4f4' // white default
 
       if (this.metric.indexOf(':') > -1) {
-        const colors = getColorRampHexCodes({ ramp: this.colormap, style: Style.sequential }, 9)
+        const colors = getColorRampHexCodes(
+          { ramp: this.colormap, style: Style.sequential },
+          9
+        )
         if (this.isInvertedColor) colors.reverse()
         // const colorsAsRGB = buildRGBfromHexCodes(colors)
         update.fixedColors = colors // ['#300', '#502', '#835', '#858', '#46c', '#73f']

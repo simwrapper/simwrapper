@@ -15,7 +15,10 @@ import {
 } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
+import DashboardDataManager, {
+  FilterDefinition,
+  checkFilterValue,
+} from '@/js/DashboardDataManager'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
@@ -127,15 +130,16 @@ export default class PolygonsLayer extends BaseLayer {
 
     if (this.layerOptions.shapes) {
       this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes)
-      // console.log(20, this.features)
     }
 
+    // simple fill color
     if (this.layerOptions.metric == '@1') {
       this.deckData.colors = ''
     } else if (this.layerOptions.metric?.startsWith('#')) {
       this.deckData.colors = ColorString.get.rgb(this.layerOptions.metric).slice(0, 3)
     }
 
+    // shape outlines
     if (this.layerOptions.outline) {
       this.deckData.outline = ColorString.get.rgb(this.layerOptions.outline).slice(0, 3)
     } else {
@@ -158,8 +162,9 @@ export default class PolygonsLayer extends BaseLayer {
     let featureLookupValues
     let dataLookupValues
 
-    const [m1, m2] = this.layerOptions.metric.split(':')
-    const [n1, n2] = this.layerOptions.normalize.split(':')
+    const [m1, m2] = this.layerOptions.metric.split(':') || []
+    const [n1, n2] = this.layerOptions.normalize?.split(':') || []
+    const [d1, d2] = this.layerOptions.diff?.split(':') || []
 
     // Build joins if we need them
     if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
@@ -188,11 +193,13 @@ export default class PolygonsLayer extends BaseLayer {
 
     const dataColumn = this.datasets[m1][m2]
     const normalColumn = n1 && n2 ? this.datasets[n1][n2] : null
+    const diffColumn = d1 && d2 ? this.datasets[d1][d2] : null
 
     const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
       {
         numFeatures: this.features.length,
         dataColumn,
+        diffColumn,
         normalColumn,
         options: this.layerOptions,
         datasetIds: Object.keys(this.datasets),

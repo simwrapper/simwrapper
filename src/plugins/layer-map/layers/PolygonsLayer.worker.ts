@@ -19,6 +19,7 @@ const myWorker = {
 
   datasetIds: [] as string[],
   dataColumn: null as null | DataTableColumn,
+  diffColumn: null as null | DataTableColumn,
   normalColumn: null as null | DataTableColumn,
 
   finalFillColors: '#888' as string | Uint8ClampedArray,
@@ -88,7 +89,10 @@ const myWorker = {
     const lookupValues = dataColumn.values
 
     const boundaryOffsets = this.boundaryJoinLookups[join1] // this.getBoundaryOffsetLookup(this.featureJoinColumn)
-    console.log({ boundaryjoinlookups: this.boundaryJoinLookups, offsets: boundaryOffsets })
+    console.log({
+      boundaryjoinlookups: this.boundaryJoinLookups,
+      offsets: boundaryOffsets,
+    })
 
     // set lookup data
     for (let i = 0; i < lookupValues.length; i++) {
@@ -124,6 +128,7 @@ const myWorker = {
       numFeatures: number
       dataColumn: DataTableColumn | null
       normalColumn: DataTableColumn | null
+      diffColumn: DataTableColumn | null
       options: PolygonsDefinition
       datasetIds: string[]
     },
@@ -132,6 +137,7 @@ const myWorker = {
     this.cbStatus = cbStatus
     this.numFeatures = props.numFeatures
     this.dataColumn = props.dataColumn
+    this.diffColumn = props.diffColumn
     this.normalColumn = props.normalColumn
     this.datasetIds = props.datasetIds
 
@@ -239,7 +245,9 @@ const myWorker = {
 
   paintColorsWithFilter(section: string, dataTable: DataTable) {
     const currentDefinition =
-      section === 'fill' ? this.currentUIFillColorDefinitions : this.currentUILineColorDefinitions
+      section === 'fill'
+        ? this.currentUIFillColorDefinitions
+        : this.currentUILineColorDefinitions
 
     const columnName = currentDefinition.columnName
     const lookupColumn =
@@ -320,12 +328,12 @@ const myWorker = {
 
     const [datasetKey, columnName] = color.metric.split(':')
 
-    if (color.diffDatasets) {
-      // *** diff mode *************************
-      // TODO
-      // this.handleColorDiffMode('fill', color)
-      return
-    }
+    // if (color.diffDatasets) {
+    //   // *** diff mode *************************
+    //   // TODO
+    //   // this.handleColorDiffMode('fill', color)
+    //   return
+    // }
 
     if (!columnName) {
       console.error('NO COLUMN NAME')
@@ -350,7 +358,9 @@ const myWorker = {
     } else {
       // nothing specified: let's hope they didn't want to join
       if (this.datasetIds.length > 1) {
-        console.warn('No join; lets hope user just wants to display data in boundary file')
+        console.warn(
+          'No join; lets hope user just wants to display data in boundary file'
+        )
       }
     }
 
@@ -378,18 +388,21 @@ const myWorker = {
     const lookup = this.dataLookupColumns[`@@${j2}`]
 
     // Calculate colors for each feature
-    const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
-      numFeatures: this.numFeatures,
-      data: this.dataColumn as any,
-      normalColumn: this.normalColumn as any,
-      normalLookup,
-      lookup,
-      filter: this.boundaryFilters,
-      options: { colorRamp: ramp, fixedColors: color.fixedColors },
-      join: color.join,
-    })
+    const { rgbArray, legend, calculatedValues } =
+      ColorWidthSymbologizer.getColorsForDataColumn({
+        numFeatures: this.numFeatures,
+        data: this.dataColumn as any,
+        data2: this.diffColumn as any,
+        normalColumn: this.normalColumn as any,
+        normalLookup,
+        lookup,
+        lookup2: this.diffColumn ? lookup : undefined,
+        filter: this.boundaryFilters,
+        options: { colorRamp: ramp, fixedColors: color.fixedColors },
+        join: color.join,
+        relative: color.relative,
+      })
 
-    console.log('GOT IT!', { rgbArray, calculatedValues })
     if (rgbArray) {
       this.finalFillColors = rgbArray
       this.dataCalculatedValues = calculatedValues
