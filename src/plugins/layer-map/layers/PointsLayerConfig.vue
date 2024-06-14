@@ -124,14 +124,14 @@ export default defineComponent({
   async mounted() {
     console.log('POINTS options', this.options)
 
-    this.debScale = debounce(this.updateScaleFactor, 125)
+    this.debScale = debounce(this.updateScaleFactor, 16.6667 * 5)
 
     this.color = this.options.color
     this.lon = this.options.lon
     this.lat = this.options.lat
     this.radius = this.options.radius
     this.projection = this.options.projection
-    this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 10
+    this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 70
 
     // don't send update events on first draw
     await this.$nextTick()

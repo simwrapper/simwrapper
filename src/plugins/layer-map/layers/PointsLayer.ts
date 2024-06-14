@@ -15,7 +15,10 @@ import {
 } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
+import DashboardDataManager, {
+  FilterDefinition,
+  checkFilterValue,
+} from '@/js/DashboardDataManager'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
 
@@ -96,10 +99,17 @@ export default class PointsLayer extends BaseLayer {
     this.guessInitialParameters()
 
     // position
-    const datasetKey = this.layerOptions.lon?.substring(0, this.layerOptions.lon.indexOf(':'))
+    const datasetKey = this.layerOptions.lon?.substring(
+      0,
+      this.layerOptions.lon.indexOf(':')
+    )
     const dataset = this.datasets[datasetKey]
-    const lonCol = this.layerOptions.lon?.substring(1 + this.layerOptions.lon.indexOf(':'))
-    const latCol = this.layerOptions.lat?.substring(1 + this.layerOptions.lat.indexOf(':'))
+    const lonCol = this.layerOptions.lon?.substring(
+      1 + this.layerOptions.lon.indexOf(':')
+    )
+    const latCol = this.layerOptions.lat?.substring(
+      1 + this.layerOptions.lat.indexOf(':')
+    )
 
     try {
       if (!dataset) throw Error(`Point layer cannot load data, are columns correct?`)
@@ -137,10 +147,17 @@ export default class PointsLayer extends BaseLayer {
     let radius = new Float32Array(numFeatures).fill(100) as any
 
     try {
-      const key = this.layerOptions.radius?.substring(0, this.layerOptions.radius?.indexOf(':'))
-      const spec = this.layerOptions.radius?.substring(1 + this.layerOptions.radius?.indexOf(':'))
+      const key = this.layerOptions.radius?.substring(
+        0,
+        this.layerOptions.radius?.indexOf(':')
+      )
+      const spec = this.layerOptions.radius?.substring(
+        1 + this.layerOptions.radius?.indexOf(':')
+      )
       if (key && spec in this.datasets[key]) {
-        radius.forEach((_: any, i: number) => (radius[i] = this.datasets[key][spec].values[i]))
+        radius.forEach(
+          (_: any, i: number) => (radius[i] = this.datasets[key][spec].values[i])
+        )
       }
     } catch (e) {
       console.error(e)
@@ -150,8 +167,13 @@ export default class PointsLayer extends BaseLayer {
     let color = new Array(numFeatures).fill('#dd00dd') as any
 
     if (typeof this.layerOptions.color == 'string') {
-      const colorKey = this.layerOptions.color.substring(0, this.layerOptions.color.indexOf(':'))
-      const colorCol = this.layerOptions.color.substring(1 + this.layerOptions.color.indexOf(':'))
+      const colorKey = this.layerOptions.color.substring(
+        0,
+        this.layerOptions.color.indexOf(':')
+      )
+      const colorCol = this.layerOptions.color.substring(
+        1 + this.layerOptions.color.indexOf(':')
+      )
       if (colorKey && colorCol in this.datasets[colorKey]) {
         color = this.datasets[colorKey][colorCol].values
       }
@@ -184,12 +206,14 @@ export default class PointsLayer extends BaseLayer {
 
     if (!this.deckData) return null
 
+    console.log('OK WE HAVE A SCALefACtoR OF', this.layerOptions.scaleFactor)
     let radiusScale =
       this.layerOptions.scaleFactor == 0
         ? 1e-6
-        : 1 / Math.pow(2, (100 - this.layerOptions.scaleFactor) / 5 - 6.0)
+        : 1 / Math.pow(2, (100 - this.layerOptions.scaleFactor) / 5 - 7.0)
     if (Number.isNaN(radiusScale)) radiusScale = 1
 
+    console.log(radiusScale)
     if (this.error) throw Error(this.error)
 
     return new ScatterplotLayer({
