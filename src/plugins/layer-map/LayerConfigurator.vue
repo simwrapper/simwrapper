@@ -22,9 +22,16 @@
 
   .layers-section.flex1(v-show="section==0")
     .add-buttons
-      b-button.is-small(@click="$emit('add','polygons')") + Polygons
-      b-button.is-small(@click="$emit('add','points')") + Points
-      b-button.is-small(@click="$emit('add','arcs')") + Arcs
+      .add-button(v-for="icon in Object.keys(allThumbs)"
+        :key="`${icon}`"
+        @click="$emit('add',`${icon}`)"
+      )
+        img(:src="allThumbs[icon]" width=36)
+        p +{{ icon }}
+
+      //- b-button.is-small(@click="$emit('add','polygons')") + Polygons
+      //- b-button.is-small(@click="$emit('add','points')") + Points
+      //- b-button.is-small(@click="$emit('add','arcs')") + Arcs
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
@@ -98,6 +105,10 @@ import type { PropType } from 'vue'
 import YAML from 'js-yaml'
 import Draggable from 'vuedraggable'
 
+import allThumbIcons from './images/allThumbIcons'
+
+console.log({ allThumbIcons })
+
 import {
   DataTable,
   DataTableColumn,
@@ -140,6 +151,7 @@ export default defineComponent({
       layerList: [] as any,
       isReordering: false,
       isStillActive: true,
+      allThumbs: allThumbIcons,
     }
   },
 
@@ -275,12 +287,37 @@ export default defineComponent({
 }
 
 .add-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   margin-bottom: 1rem;
   margin-left: 2px;
-  gap: 3px;
+  gap: 6px;
 }
 
+.add-button {
+  border: 1px solid #aaaaaa80;
+  padding: 3px;
+  border-radius: 4px;
+  filter: saturate(0%) brightness(90%);
+
+  p {
+    font-size: 0.9rem;
+    text-transform: capitalize;
+    margin-top: -4px;
+    margin-bottom: -4px;
+  }
+
+  img {
+    border-radius: 3px;
+  }
+}
+
+.add-button:hover {
+  border: 1px solid var(--link);
+  cursor: pointer;
+  filter: none;
+  color: var(--textBold);
+}
 .sections {
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
@@ -373,4 +410,3 @@ export default defineComponent({
   color: var(--link);
 }
 </style>
-./layers/_layerCatalog
