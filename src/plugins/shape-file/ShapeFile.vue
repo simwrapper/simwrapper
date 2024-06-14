@@ -153,6 +153,7 @@ const MyComponent = defineComponent({
   data() {
     return {
       avroNetwork: null as any,
+      isAvroFile: false,
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -1756,6 +1757,10 @@ const MyComponent = defineComponent({
     },
 
     async figureOutFeatureIdColumn() {
+      if (this.isAvroFile) {
+        this.featureJoinColumn = 'linkId'
+      }
+
       // if user specified it in a data join in the YAML, we're done
       if (this.featureJoinColumn) return this.featureJoinColumn
 
@@ -1997,6 +2002,7 @@ const MyComponent = defineComponent({
       }
 
       this.avroNetwork = network
+      this.isAvroFile = true
 
       return features
     },
@@ -2543,7 +2549,7 @@ const MyComponent = defineComponent({
       // console.log(this.datasets)
       if (!this.config.display || !this.config.datasets) return
 
-      let joinShapesBy = 'id'
+      let joinShapesBy = 'linkId'
 
       if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
       // throw Error('Need "join" property to link shapes to datasets')
