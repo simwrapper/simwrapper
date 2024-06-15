@@ -44,11 +44,16 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
+import DashboardDataManager, {
+  FilterDefinition,
+  checkFilterValue,
+} from '@/js/DashboardDataManager'
 import FileSelector from '@/components/viz-configurator/FileSelector.vue'
 import { DataTable } from '@/Globals'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
+import RoadNetworkWorker from '@/workers/RoadNetworkLoader.worker.ts?worker'
+
 import { gUnzip } from '@/js/util'
 
 export default defineComponent({
@@ -121,7 +126,12 @@ export default defineComponent({
         let result = (await this.loadDataUrl(file)) as any
         const buffer = result.buffer || result
 
-        if (file.name.toLocaleLowerCase().indexOf('.geojson') > -1) {
+        if (file.name.toLocaleLowerCase().indexOf('network.xml') > -1) {
+          // MATSIM
+          const geojson = await this.loadMatsimXML(file, buffer)
+          this.$emit('update', { geojson, file })
+          continue
+        } else if (file.name.toLocaleLowerCase().indexOf('.geojson') > -1) {
           // GEOJSON
           await this.loadGeoJSON(file, buffer)
           continue
@@ -134,6 +144,61 @@ export default defineComponent({
       this.isLoading = false
     },
 
+    async loadMatsimXML(file: any, buffer: any) {
+      console.log('LOAD MATSIM XML')
+      return new Promise<any>((resolve, reject) => {
+        const thread = new RoadNetworkWorker()
+        try {
+          thread.onmessage = e => {
+            if (e.data.status) {
+              console.log('status: ', '' + e.data.status)
+              return
+            }
+
+            thread.terminate()
+
+            // console.log('GOT YOU', e.data)
+
+            const json = []
+            const links = e.data.links
+            const numLinks = links.linkIds.length
+            for (let i = 0; i < numLinks; i++) {
+              const offset = i * 2
+              const feature = {
+                id: links.linkIds[i],
+                geometry: {
+                  type: 'LineString',
+                  coordinates: [
+                    [links.source[offset], links.source[offset + 1]],
+                    [links.dest[offset], links.dest[offset + 1]],
+                  ],
+                },
+              }
+              json.push(feature)
+            }
+
+            const geojson = {
+              type: 'FeatureCollection',
+              features: json,
+            }
+
+            resolve(geojson)
+          }
+
+          thread.postMessage(
+            {
+              xmlBuffer: buffer,
+              config: { dataset: file },
+            },
+            [buffer]
+          )
+        } catch (err) {
+          thread.terminate()
+          reject(err)
+        }
+      })
+    },
+
     async loadGeoJSON(file: any, buffer: any) {
       console.log('GOT GEOJSON')
       const text = new TextDecoder().decode(new Uint8Array(buffer))
@@ -141,18 +206,6 @@ export default defineComponent({
       console.log({ geojson })
 
       this.$emit('update', { geojson, file })
-
-      // // create a human-readable key for this file based on filename
-      // let key = file.name
-      // const pieces = this.validRegex.exec(key.toLocaleUpperCase())
-      // if (pieces && pieces[0]) key = key.substring(0, key.length - pieces[0].length)
-
-      // const dataset: DatasetDefinition = {
-      //   key,
-      //   dataTable,
-      //   filename: file,
-      // }
-      // this.$emit('update', { dataset })
     },
 
     async loadCSV(file: any, buffer: any) {
