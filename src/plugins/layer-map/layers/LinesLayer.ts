@@ -1,4 +1,4 @@
-import { GeoJsonLayer } from '@deck.gl/layers'
+import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 import ColorString from 'color-string'
 import * as Comlink from 'comlink'
 
@@ -15,25 +15,22 @@ import {
 } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, {
-  FilterDefinition,
-  checkFilterValue,
-} from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'
 import { getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import BaseLayer from './BaseLayer'
-import LayerConfig from './PolygonsLayerConfig.vue'
-
+import LayerConfig from './LinesLayerConfig.vue'
 import ColorWorker from './PolygonsLayer.worker?worker'
+import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
 
 // -----------------------------------------------
-export interface PolygonsDefinition {
+export interface LinesDefinition {
   shapes: string
-  metric: string
-  outline: string
+  width: string
+  color: string
   normalize: string
   diff?: string
   diffDatasets?: string[]
@@ -41,6 +38,7 @@ export interface PolygonsDefinition {
   join?: string
   colorRamp?: Ramp
   fixedColors: string[]
+  scaleFactor: number
 }
 // -----------------------------------------------
 
@@ -50,14 +48,15 @@ interface DeckObject {
   data: any
 }
 
-export default class PolygonsLayer extends BaseLayer {
+export default class LinesLayer extends BaseLayer {
   features: any[]
   datasets: { [id: string]: DataTable }
   error: string
-  layerOptions: PolygonsDefinition
+  layerOptions: LinesDefinition
+  worker: any
   deckData: {
     colors: Uint8ClampedArray | string | number[]
-    outline: string | number[]
+    widths: Float32Array | string
   }
 
   constructor(
@@ -79,7 +78,7 @@ export default class PolygonsLayer extends BaseLayer {
     this.features = []
     this.layerOptions = layerOptions
     this.error = ''
-    this.deckData = { colors: '', outline: '' }
+    this.deckData = { colors: '', widths: '' }
   }
 
   configPanel() {
@@ -132,22 +131,50 @@ export default class PolygonsLayer extends BaseLayer {
       this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes)
     }
 
-    // simple fill color
-    if (this.layerOptions.metric == '@1') {
-      this.deckData.colors = ''
-    } else if (this.layerOptions.metric?.startsWith('#')) {
-      this.deckData.colors = ColorString.get.rgb(this.layerOptions.metric).slice(0, 3)
+    const numFeatures = this.features.length
+
+    // width
+    let width = new Float32Array(numFeatures).fill(1)
+
+    try {
+      // simple constant width
+      const simpleWidth = parseInt(this.layerOptions?.width, 10)
+      if (Number.isFinite(simpleWidth)) {
+        width.fill(simpleWidth)
+      }
+
+      // data based width
+      const key = this.layerOptions.width?.substring(0, this.layerOptions.width?.indexOf(':'))
+      const spec = this.layerOptions.width?.substring(1 + this.layerOptions.width?.indexOf(':'))
+
+      await this.buildLookup(key)
+
+      if (key && spec in this.datasets[key]) {
+        const { array, legend, calculatedValues } = ColorWidthSymbologizer.getWidthsForDataColumn({
+          numFeatures: this.features.length,
+          data: this.datasets[key][spec],
+          lookup: this.datasets[key]['@@AB'],
+          options: this.layerOptions,
+        })
+
+        if (calculatedValues) width = calculatedValues
+        // width.forEach((_: any, i: number) => (width[i] = 10 * this.datasets[key][spec].values[i]))
+      }
+    } catch (e) {
+      console.error(e)
     }
 
-    // shape outlines
-    if (this.layerOptions.outline) {
-      this.deckData.outline = ColorString.get.rgb(this.layerOptions.outline).slice(0, 3)
-    } else {
-      this.deckData.outline = ''
+    this.deckData.widths = width
+
+    // simple fill color
+    if (this.layerOptions.color == '@1') {
+      this.deckData.colors = ''
+    } else if (this.layerOptions.color?.startsWith('#')) {
+      this.deckData.colors = ColorString.get.rgb(this.layerOptions.color).slice(0, 3)
     }
 
     // Generate colors from data
-    if (this.layerOptions.metric.indexOf(':') > -1) {
+    if (this.layerOptions.color.indexOf(':') > -1) {
       this.deckData.colors = await this.generateColors()
     }
   }
@@ -156,13 +183,44 @@ export default class PolygonsLayer extends BaseLayer {
     console.log('NEED TO SEND STATUS:', text)
   }
 
+  async buildLookup(m1key: string) {
+    if (!this.worker) this.worker = Comlink.wrap(new ColorWorker()) as any
+
+    let featureLookupValues
+
+    if (this.layerOptions?.join && this.layerOptions?.join.indexOf(':') > -1) {
+      const [join1, join2] = this.layerOptions.join.split(':')
+      // shapes
+      const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
+      featureLookupValues = await this.worker.buildFeatureLookup(join1, shapeValues)
+
+      const datasetCol = this.datasets[m1key][join2] // datasetname:joincolumn
+
+      const dataLookupColumn: DataTableColumn = await this.worker.buildDatasetLookup({
+        joinColumns: this.layerOptions.join,
+        dataColumn: datasetCol,
+      })
+
+      // dataLookupValues = dataLookupColumn.values
+      console.log({ dataLookupColumn })
+
+      // add/replace this dataset in the datamanager, with the new lookup column
+      const dataTable = this.datasets[m1key]
+      dataTable[`@@${join2}`] = dataLookupColumn
+      this.datamanager.setPreloadedDataset({
+        key: m1key,
+        dataTable,
+      })
+    }
+  }
+
   async generateColors() {
-    const colorWorker = Comlink.wrap(new ColorWorker()) as any
+    if (!this.worker) this.worker = Comlink.wrap(new ColorWorker()) as any
 
     let featureLookupValues
     let dataLookupValues
 
-    const [m1, m2] = this.layerOptions.metric.split(':') || []
+    const [m1, m2] = this.layerOptions.color.split(':') || []
     const [n1, n2] = this.layerOptions.normalize?.split(':') || []
     const [d1, d2] = this.layerOptions.diff?.split(':') || []
 
@@ -171,31 +229,33 @@ export default class PolygonsLayer extends BaseLayer {
       const [join1, join2] = this.layerOptions.join.split(':')
       // shapes
       const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
-      featureLookupValues = await colorWorker.buildFeatureLookup(join1, shapeValues)
+      featureLookupValues = await this.worker.buildFeatureLookup(join1, shapeValues)
 
       const datasetCol = this.datasets[m1][join2] // datasetname:joincolumn
 
-      const dataLookupColumn = await colorWorker.buildDatasetLookup({
+      const dataLookupColumn: DataTableColumn = await this.worker.buildDatasetLookup({
         joinColumns: this.layerOptions.join,
         dataColumn: datasetCol,
       })
 
-      dataLookupValues = dataLookupColumn.values
+      // dataLookupValues = dataLookupColumn.values
+      console.log({ dataLookupColumn })
 
       // add/replace this dataset in the datamanager, with the new lookup column
-      // this.datamanager.getDataset({dataset: })
-      // dataTable[`@@${dataJoinColumn}`] = lookupColumn
-      // this.myDataManager.setPreloadedDataset({
-      //   key: this.datasetKeyToFilename[datasetId],
-      //   dataTable,
-      // })
+      const dataTable = this.datasets[m1]
+      dataTable[`@@${join2}`] = dataLookupColumn
+      this.datamanager.setPreloadedDataset({
+        key: m1,
+        dataTable,
+      })
     }
 
     const dataColumn = this.datasets[m1][m2]
     const normalColumn = n1 && n2 ? this.datasets[n1][n2] : null
     const diffColumn = d1 && d2 ? this.datasets[d1][d2] : null
 
-    const colors: string | Uint8ClampedArray = await colorWorker.buildColorArray(
+    console.log('ABOUT TO COLOR', { dataColumn, options: this.layerOptions })
+    const colors: string | Uint8ClampedArray = await this.worker.buildColorArray(
       {
         numFeatures: this.features.length,
         dataColumn,
@@ -222,10 +282,22 @@ export default class PolygonsLayer extends BaseLayer {
 
     if (this.error) throw Error(this.error)
 
-    let fillColors = [78, 121, 167, 255] as any // default blue
-    if (Array.isArray(this.deckData.colors)) fillColors = this.deckData.colors
+    let widthScale =
+      this.layerOptions.scaleFactor == 0
+        ? 1e-6
+        : 1 / Math.pow(2, (100 - this.layerOptions.scaleFactor) / 5 - 7.0)
+    if (Number.isNaN(widthScale)) widthScale = 1
+
+    let lineWidths = (_: any, o: DeckObject) => {
+      return this.deckData.widths[o.index]
+    }
+
+    // COLORS
+
+    let lineColors = [78, 121, 167, 255] as any // default blue
+    if (Array.isArray(this.deckData.colors)) lineColors = this.deckData.colors
     if (ArrayBuffer.isView(this.deckData.colors)) {
-      fillColors = (feature: any, o: DeckObject) => {
+      lineColors = (feature: any, o: DeckObject) => {
         return [
           this.deckData.colors[o.index * 3 + 0], // r
           this.deckData.colors[o.index * 3 + 1], // g
@@ -235,34 +307,27 @@ export default class PolygonsLayer extends BaseLayer {
       }
     }
 
-    return new GeoJsonLayer({
-      id: 'polygonLayer-' + this.getKey(),
-      data: this.features,
+    return new GeojsonOffsetLayer({
+      id: 'lineLayer-' + this.getKey(),
+      // data: this.features,
 
-      // data: {
-      //   length: this.deckData.radius.length,
-      //   attributes: {
-      //     getPosition: { value: this.deckData.coordinates, size: 2 },
-      //     getRadius: { value: this.deckData.radius, size: 1 },
-      //     getFillColor: { value: this.deckData.colors, size: 3 },
-      //   },
-      // },
+      data: this.features, // this.deckData.radius.length,
 
-      getFillColor: fillColors,
-      getLineColor: this.deckData.outline,
-      stroked: !!this.deckData.outline,
-      filled: !!this.deckData.colors,
-      getLineWidth: 16,
+      getLineColor: lineColors,
+      getLineWidth: lineWidths, // this.deckData.widths,
+      lineWidthScale: widthScale,
       // lineWidthUnits: 'pixels',
       highlightColor: [255, 255, 255, 128],
       autoHighlight: true,
       opacity: 1,
       pickable: true,
       updateTriggers: {
-        getFillColor: fillColors,
+        getLineColor: lineColors,
+        getLineWidth: lineWidths,
       },
       transitions: {
-        getFillColor: 300,
+        getLineColor: 300,
+        getLineWidth: 300,
       },
       parameters: { depthTest: false },
       glOptions: {

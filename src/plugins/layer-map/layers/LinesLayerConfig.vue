@@ -2,33 +2,49 @@
 .layer-config.flex-col
   .panel-title.flex-row(@click="$emit('open')")
 
-    p.center.flex1: b Polygons
+    p.center.flex1: b Lines
     span.closer(title="Remove layer" @click="$emit('update', 'delete')"): i.fas.fa-trash
 
   .panel-content.flex-col(v-show="open")
 
     .widget-row
       dataset-selector(v-model="shapes" :datasets="datasets" @update="shapes=$event")
-        p.tight Shapes
+        p.tight Lines
+
+    .widget-row
+      column-selector.flex1(v-model="width" :extra="widthOptions"  :datasets="datasets" @update="width=$event")
+        p.tight Width
+
+      column-selector.flex1(
+        v-model="join"
+        :extra="joinOptions"
+        :datasets="getJoinOptions"
+        @update="join=$event"
+      )
+        p.tight Join
 
     .widget-row.flex-col
-      column-selector(v-model="metric" :extra="solidColors" :datasets="datasets" @update="metric=$event")
-        p.tight Fill
+      p.tight Scale
+      b-slider.slider(:tooltip="false" v-model="scaleFactor" @input="debScale")
 
-      .colorbar.flex-row.single(v-show="metric=='@2'")
+    .widget-row.flex-col
+      column-selector(v-model="color" :extra="solidColors" :datasets="datasets" @update="color=$event")
+        p.tight Color by
+
+      .colorbar.flex-row.single(v-show="color=='@2'")
         .single-color(v-for="swatch of simpleColors" :key="swatch"
           :style="{backgroundColor: `${swatch}`}"
-          :class="{active: fillSingleColor == swatch }"
-          @click="clickedSingleColor('metric', swatch)")
+          :class="{active: lineSingleColor == swatch }"
+          @click="clickedSingleColor('color', swatch)")
 
-    .widget-row(v-show="metric.indexOf(':') > -1")
+    .widget-row(v-show="color.indexOf(':') > -1")
       //- JOIN BY ---
       .widget.flex1
         column-selector(
-          v-model="join"
+          v-model="join2"
           :extra="joinOptions"
           :datasets="getJoinOptions"
-          @update="join=$event"
+          @update="join2=$event"
         )
           p.tight Join/Count
 
@@ -40,7 +56,7 @@
             p.tight Normalize
 
     //- DIFF MODE
-    .widget-row(v-show="metric.indexOf(':') > -1")
+    .widget-row(v-show="color.indexOf(':') > -1")
       .widget.flex1
         column-selector(v-model="diff"
           :extra="['None']" :datasets="datasets" @update="diff=$event"
@@ -51,7 +67,7 @@
         p.tight(style="margin-bottom: 6px;") % Diff
         b-switch(v-model="diffRelative").is-small
 
-    .widget-row(v-if="metric.indexOf(':') > -1").flex-col
+    .widget-row(v-if="color.indexOf(':') > -1").flex-col
       p.tight Colors
       ColorMapSelector.color-map-selector(
         :value="colormap",
@@ -59,16 +75,6 @@
         @onValueChange="colormap=$event"
         @onInversionChange="isInvertedColor=!isInvertedColor"
       )
-
-    .widget-row.flex-col
-      column-selector(v-model="outline" :extra="solidColors" :datasets="{}" @update="outline=$event")
-        p.tight Outline
-
-      .colorbar.flex-row.single(v-show="outline=='@2'")
-        .single-color(v-for="swatch of simpleColors" :key="swatch"
-          :style="{backgroundColor: `${swatch}`}"
-          :class="{active: outlineSingleColor == swatch }"
-          @click="clickedSingleColor('outline', swatch)")
 
     //- .coordidnates.flex-row(style="gap: 0.25rem" title="EPSG code for transforming non-lat/long coordinates")
     //-     text-selector.flex1(v-model="projection" :datasets="datasets" @update="projection=$event")
@@ -85,11 +91,18 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import debounce from 'debounce'
+
 import FillColors from './FillColors.vue'
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
-import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import {
+  buildRGBfromHexCodes,
+  getColorRampHexCodes,
+  Ramp,
+  Style,
+} from '@/js/ColorsAndWidths'
 
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
@@ -129,15 +142,18 @@ export default defineComponent({
   data() {
     return {
       globalState: globalStore.state,
+      debScale: {} as any,
+
       // view model
       shapes: '',
-      metric: '',
+      width: '',
+      color: '',
       diff: '',
+      lineSingleColor: '',
       diffRelative: false,
-      outline: '@1',
-      fillSingleColor: '',
-      outlineSingleColor: '',
+      scaleFactor: 50,
       join: '@1',
+      join2: '@1',
       shapeJoin: '',
       normalize: '@1',
       colormap: 'Viridis',
@@ -150,6 +166,7 @@ export default defineComponent({
       vizConfiguration: { datasets: this.options } as VizLayerConfiguration,
       solidColors: ['None', 'Single color'],
       joinOptions: ['None', 'Row Count'],
+      widthOptions: ['1 pt', '2 pt', '4 pt'],
       showJoinPicker: false,
     }
   },
@@ -182,10 +199,10 @@ export default defineComponent({
     },
 
     getJoinOptions(): any {
-      const colonLoc = this.metric.indexOf(':')
+      const colonLoc = this.width.indexOf(':')
       if (colonLoc == -1) return {}
 
-      const dataset = this.datasets[this.metric.substring(0, colonLoc)]
+      const dataset = this.datasets[this.width.substring(0, colonLoc)]
       if (!dataset) return {}
 
       const allColumns = Object.keys(dataset).filter(
@@ -221,31 +238,34 @@ export default defineComponent({
       console.log('upon thinking, join is:', this.shapeJoin)
       this.updateConfig()
     },
-    metric() {
+    width() {
+      this.updateConfig()
+    },
+    color() {
       this.updateConfig()
     },
     normalize() {
-      this.updateConfig()
-    },
-    outline() {
       this.updateConfig()
     },
     projection() {
       this.updateConfig()
     },
     shapes() {
-      if (this.shapes && !this.metric) this.metric = '@2'
+      if (this.shapes && !this.color) this.color = '@2'
       this.updateConfig()
     },
   },
 
   async mounted() {
-    console.log('POLYGONS options', this.options)
+    console.log('LINES options', this.options)
+
+    this.debScale = debounce(this.updateScaleFactor, 16.6667 * 5)
 
     this.projection = this.options.projection
-    this.metric = this.options.metric || '@2'
-    this.outline = this.options.outline || '@1'
+    this.color = this.options.color || '@2'
     this.shapes = this.options.shapes
+    this.width = this.options.width || '@1'
+    this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 70
 
     // start listening to update events after initial mount
     await this.$nextTick()
@@ -278,11 +298,7 @@ export default defineComponent({
     },
 
     clickedSingleColor(option: string, color: string) {
-      if (option == 'outline') {
-        this.outlineSingleColor = color
-      } else {
-        this.fillSingleColor = color
-      }
+      this.lineSingleColor = color
       this.updateConfig()
     },
 
@@ -298,6 +314,11 @@ export default defineComponent({
       return colors
     },
 
+    updateScaleFactor(event: any) {
+      this.scaleFactor = event
+      this.updateConfig()
+    },
+
     updateConfig() {
       // don't spray update events during initial mount
       if (!this.isInitialized) return
@@ -307,10 +328,17 @@ export default defineComponent({
       update.shapes = this.shapes
       if (this.projection) update.projection = this.projection
 
-      update.metric = this.metric
-      if (update.metric == '@2') update.metric = this.fillSingleColor || '#4e79a7'
-      if (this.metric == '@1' || this.metric == '@2') {
-        this.join = '@1'
+      update.width = this.width
+      if (update.width == '@1') update.width = '1'
+      if (update.width == '@2') update.width = '2'
+      if (update.width == '@3') update.width = '4'
+
+      update.scaleFactor = this.scaleFactor || 1
+
+      update.color = this.color
+      if (update.color == '@2') update.color = this.lineSingleColor || '#4e79a7'
+      if (this.color == '@1' || this.color == '@2') {
+        // this.join = '@1'
         this.normalize = '@1'
       }
 
@@ -328,12 +356,11 @@ export default defineComponent({
 
       update.normalize = this.normalize == '@1' ? '' : this.normalize
 
-      update.outline = this.outline
-      if (update.outline == '@1') update.outline = ''
-      if (update.outline == '@2') update.outline = this.outlineSingleColor || '#f4f4f4' // white default
-
-      if (this.metric.indexOf(':') > -1) {
-        const colors = getColorRampHexCodes({ ramp: this.colormap, style: Style.sequential }, 9)
+      if (this.color.indexOf(':') > -1) {
+        const colors = getColorRampHexCodes(
+          { ramp: this.colormap, style: Style.sequential },
+          9
+        )
         if (this.isInvertedColor) colors.reverse()
         // const colorsAsRGB = buildRGBfromHexCodes(colors)
         update.fixedColors = colors // ['#300', '#502', '#835', '#858', '#46c', '#73f']
@@ -424,5 +451,9 @@ export default defineComponent({
   border-radius: 4px;
   background-color: var(--bgCardFrame2);
   // color: #333;
+}
+
+.slider {
+  padding: 0rem 6px;
 }
 </style>

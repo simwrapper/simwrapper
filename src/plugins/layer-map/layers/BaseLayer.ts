@@ -52,4 +52,5 @@ export default abstract class BaseLayer {
   abstract assembleData(): any
   abstract configPanel(): any
   abstract updateConfig(options: any): any
+  // abstract iconThumb(): any
 }

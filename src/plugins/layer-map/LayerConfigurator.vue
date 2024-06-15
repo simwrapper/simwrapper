@@ -21,13 +21,14 @@
         @click="section=2") Theme
 
   .layers-section.flex1(v-show="section==0")
+    p.tight Add Layer +
     .add-buttons
       .add-button(v-for="icon in Object.keys(allThumbs)"
         :key="`${icon}`"
         @click="$emit('add',`${icon}`)"
       )
-        img(:src="allThumbs[icon]" width=36)
-        p +{{ icon }}
+        img(:src="allThumbs[icon]" width=32)
+        p {{ icon }}
 
       //- b-button.is-small(@click="$emit('add','polygons')") + Polygons
       //- b-button.is-small(@click="$emit('add','points')") + Points
@@ -288,7 +289,7 @@ export default defineComponent({
 
 .add-buttons {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 1rem;
   margin-left: 2px;
   gap: 6px;
@@ -301,7 +302,7 @@ export default defineComponent({
   filter: saturate(0%) brightness(90%);
 
   p {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     text-transform: capitalize;
     margin-top: -4px;
     margin-bottom: -4px;
@@ -408,5 +409,14 @@ export default defineComponent({
 .save-button:hover {
   cursor: pointer;
   color: var(--link);
+}
+
+.tight {
+  color: var(--link);
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 0.8rem;
+  margin-left: 4px;
+  margin-bottom: 2px;
 }
 </style>

@@ -6,6 +6,7 @@ import type { PolygonsDefinition } from './PolygonsLayer'
 // import Coords from '@/js/Coords'
 import { DataTable, DataTableColumn, DataType } from '@/Globals'
 import ColorWidthSymbologizer, { Style } from '@/js/ColorsAndWidths'
+import { LinesDefinition } from './LinesLayer'
 
 // import { FillColorDefinition } from './FillColors.vue'
 
@@ -129,7 +130,7 @@ const myWorker = {
       dataColumn: DataTableColumn | null
       normalColumn: DataTableColumn | null
       diffColumn: DataTableColumn | null
-      options: PolygonsDefinition
+      options: PolygonsDefinition | LinesDefinition
       datasetIds: string[]
     },
     cbStatus: any
@@ -141,7 +142,11 @@ const myWorker = {
     this.normalColumn = props.normalColumn
     this.datasetIds = props.datasetIds
 
-    this.handleNewFillColor(props.options)
+    if (props.options.width) {
+      this.handleNewLineColor(props.options)
+    } else {
+      this.handleNewFillColor(props.options)
+    }
 
     return this.finalFillColors
   },
@@ -401,6 +406,130 @@ const myWorker = {
         options: { colorRamp: ramp, fixedColors: color.fixedColors },
         join: color.join,
         relative: color.relative,
+      })
+
+    if (rgbArray) {
+      this.finalFillColors = rgbArray
+      this.dataCalculatedValues = calculatedValues
+      this.dataNormalizedValues = calculatedValues || null
+
+      // TODO BILLY - legends
+
+      // this.legendStore.setLegendSection({
+      //   section: 'FillColor',
+      //   column: dataColumn.name,
+      //   values: legend,
+      //   normalColumn: normalColumn ? normalColumn.name : '',
+      // })
+    }
+  },
+
+  handleNewLineColor(fillOrFilteredDataTable: LinesDefinition | DataTable) {
+    // *** FILTER: if prop has a metric, then this is a FillColorDefinition
+    const isLinesColorDefinition = 'width' in fillOrFilteredDataTable
+    const isFilterTable = !isLinesColorDefinition
+
+    // If we received a new fill color definition AND the dataset is filtered,
+    // then bookmark that definition and process the filter first/instead.
+    // (note, processFiltersNow() will call this function again once the calcs are done)
+
+    // TODO BILLY - filters
+    // if (isFillColorDefinition) {
+    //   const definition: PolygonsDefinition = fillOrFilteredDataTable as any
+    //   const dataset = definition.metric
+    //   const { filteredRows } = this.myDataManager.getFilteredDataset({
+    //     dataset: `${dataset}` || '',
+    //   })
+    //   if (filteredRows && filteredRows.length) {
+    //     this.currentUIFillColorDefinitions = fillOrFilteredDataTable
+    //     this.processFiltersNow(dataset)
+    //     return
+    //   }
+    // }
+
+    if (isFilterTable) {
+      this.paintColorsWithFilter('fill', fillOrFilteredDataTable)
+      return
+    }
+
+    const lineDef = fillOrFilteredDataTable as LinesDefinition
+    this.currentUILineColorDefinitions = lineDef
+
+    const [datasetKey, columnName] = lineDef.color.split(':')
+
+    // if (color.diffDatasets) {
+    //   // *** diff mode *************************
+    //   // TODO
+    //   // this.handleColorDiffMode('fill', color)
+    //   return
+    // }
+
+    if (!columnName) {
+      console.error('NO COLUMN NAME')
+      // // *** simple color **********************
+      // this.dataFillColors = color.fixedColors[0]
+      // this.dataCalculatedValueLabel = ''
+      // this.legendStore.clear('FillColor')
+      return
+    }
+
+    // *** Data column mode *************************************************************
+    this.dataCalculatedValueLabel = columnName ?? ''
+
+    // Do we need a join? Join it
+    let dataJoinColumn = ''
+    if (lineDef.join && lineDef.join !== '@count') {
+      // join column name set by user
+      dataJoinColumn = lineDef.join
+    } else if (lineDef.join === '@count') {
+      // rowcount specified: join on the column name itself
+      dataJoinColumn = columnName
+    } else {
+      // nothing specified: let's hope they didn't want to join
+      if (this.datasetIds.length > 1) {
+        console.warn(
+          'No join; lets hope user just wants to display data in boundary file'
+        )
+      }
+    }
+
+    // NORMALIZE if we need to
+    let normalLookup
+
+    if (lineDef.normalize) {
+      const [dataset, column] = lineDef.normalize.split(':')
+      this.dataCalculatedValueLabel += `/ ${column}`
+
+      // TODO Create a join for the normal column if it's not from the featureset itself
+      const [j1, j2] = dataJoinColumn.split(':')
+      normalLookup = this.dataLookupColumns[`@@${j2}`]
+    }
+
+    const ramp = {
+      ramp: lineDef.colorRamp?.ramp || 'Viridis',
+      style: lineDef.colorRamp?.style || Style.sequential,
+      reverse: lineDef.colorRamp?.reverse || false,
+      steps: lineDef.colorRamp?.steps || 9,
+      breakpoints: lineDef.colorRamp?.breakpoints || undefined,
+    }
+
+    const [j1, j2] = dataJoinColumn.split(':')
+    const lookup = this.dataLookupColumns[`@@${j2}`]
+
+    // Calculate colors for each feature
+    const { rgbArray, legend, calculatedValues } =
+      ColorWidthSymbologizer.getColorsForDataColumn({
+        numFeatures: this.numFeatures,
+        data: this.dataColumn as any,
+        data2: this.diffColumn as any,
+        normalColumn: this.normalColumn as any,
+        normalLookup,
+        lookup,
+        lookup2: this.diffColumn ? lookup : undefined,
+        filter: this.boundaryFilters,
+        options: { colorRamp: ramp, fixedColors: lineDef.fixedColors },
+        join: lineDef.join,
+        relative: lineDef.relative,
       })
 
     if (rgbArray) {
