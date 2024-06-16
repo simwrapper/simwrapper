@@ -21,10 +21,18 @@
         @click="section=2") Theme
 
   .layers-section.flex1(v-show="section==0")
+    p.tight Add Layer +
     .add-buttons
-      b-button.is-small(@click="$emit('add','polygons')") + Polygons
-      b-button.is-small(@click="$emit('add','points')") + Points
-      b-button.is-small(@click="$emit('add','arcs')") + Arcs
+      .add-button(v-for="icon in Object.keys(allThumbs)"
+        :key="`${icon}`"
+        @click="$emit('add',`${icon}`)"
+      )
+        img(:src="allThumbs[icon]" width=32)
+        p {{ icon }}
+
+      //- b-button.is-small(@click="$emit('add','polygons')") + Polygons
+      //- b-button.is-small(@click="$emit('add','points')") + Points
+      //- b-button.is-small(@click="$emit('add','arcs')") + Arcs
 
     //- SCROLLABLE LIST OF ACTIVE LAYERS -------------------------------
     .scrollable
@@ -98,6 +106,10 @@ import type { PropType } from 'vue'
 import YAML from 'js-yaml'
 import Draggable from 'vuedraggable'
 
+import allThumbIcons from './images/allThumbIcons'
+
+console.log({ allThumbIcons })
+
 import {
   DataTable,
   DataTableColumn,
@@ -111,7 +123,6 @@ import {
 
 import globalStore from '@/store'
 import UTIL from '@/js/util'
-import GIST from '@/js/gist'
 
 import LAYER_CATALOG from './layers/_layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
@@ -140,6 +151,7 @@ export default defineComponent({
       layerList: [] as any,
       isReordering: false,
       isStillActive: true,
+      allThumbs: allThumbIcons,
     }
   },
 
@@ -156,7 +168,6 @@ export default defineComponent({
 
     async layerList() {
       // do the nextTick thing so we don't have an endless update loop
-      console.log('CHANGED')
       this.isReordering = true
       this.$emit('update', { command: 'reorder', layers: this.layerList })
       await this.$nextTick()
@@ -174,7 +185,9 @@ export default defineComponent({
 
   methods: {
     async save() {
-      const { zoom, bearing, pitch, center } = globalStore.state.viewState
+      let { zoom, bearing, pitch, center, longitude, latitude } = globalStore.state.viewState
+
+      if (!center) center = [longitude, latitude]
 
       const output = {
         title: 'My Map',
@@ -242,9 +255,9 @@ export default defineComponent({
       return config
     },
 
-    updatePanelConfig(layer: any, i: number, event: any) {
+    async updatePanelConfig(layer: any, i: number, event: any) {
       const command = event == 'delete' ? { command: 'delete', index: i } : null
-      if (!command) layer.updateConfig(event)
+      if (!command) await layer.updateConfig(event)
       this.$emit('update', command)
     },
   },
@@ -255,12 +268,9 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .layer-configurator {
-  z-index: 2;
-  margin: 0.5rem;
   display: flex;
   flex-direction: column;
   background: var(--bgLayerPanel);
-  filter: $filterShadow;
   user-select: none;
   min-height: 0;
 }
@@ -270,7 +280,7 @@ export default defineComponent({
   flex-direction: column;
   overflow-y: auto;
   max-height: 100%;
-  padding-bottom: 9rem;
+  padding-bottom: 20rem;
 }
 
 .layer {
@@ -279,12 +289,37 @@ export default defineComponent({
 }
 
 .add-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 1rem;
   margin-left: 2px;
-  gap: 3px;
+  gap: 6px;
 }
 
+.add-button {
+  border: 1px solid #aaaaaa80;
+  padding: 3px;
+  border-radius: 4px;
+  filter: saturate(0%) brightness(90%);
+
+  p {
+    font-size: 0.8rem;
+    text-transform: capitalize;
+    margin-top: -4px;
+    margin-bottom: -4px;
+  }
+
+  img {
+    border-radius: 3px;
+  }
+}
+
+.add-button:hover {
+  border: 1px solid var(--link);
+  cursor: pointer;
+  filter: none;
+  color: var(--textBold);
+}
 .sections {
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
@@ -376,5 +411,13 @@ export default defineComponent({
   cursor: pointer;
   color: var(--link);
 }
+
+.tight {
+  color: var(--link);
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 0.8rem;
+  margin-left: 4px;
+  margin-bottom: 2px;
+}
 </style>
-./layers/_layerCatalog

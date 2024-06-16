@@ -2,7 +2,10 @@
 .column-widget
   slot.tight Column
   b-select.column-selector(expanded v-model="dataColumn")
-    //- option(label="Single color" value="@")
+    option(v-if="extra" v-for="extraOption,i in extra" :key="i"
+      :value="`@${i+1}`"
+      :label="extraOption"
+    )
 
     optgroup(v-for="dataset in datasetChoices"
               :key="dataset"
@@ -30,6 +33,7 @@ export default defineComponent({
   props: {
     // vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
     datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
+    extra: { type: Array as PropType<String[]>, required: false },
   },
   computed: {
     datasetChoices() {
@@ -49,14 +53,13 @@ export default defineComponent({
   async mounted() {
     this.emitSpecification = debounce(this.emitSpecificationDebounced, 150)
     this.datasetsAreLoaded()
-    this.vizConfigChanged()
 
     await this.$nextTick()
     this.dataColumn = this.$attrs.value
   },
   watch: {
-    vizConfiguration() {
-      this.vizConfigChanged()
+    '$attrs.value'() {
+      // this.dataColumn = this.$attrs.value
     },
     datasets() {
       this.datasetsAreLoaded()
@@ -66,15 +69,6 @@ export default defineComponent({
     },
   },
   methods: {
-    vizConfigChanged() {
-      // const config = this.vizConfiguration.display?.lineColor
-      // if (config?.columnName) {
-      //   const selectedColumn = `${config.dataset}:${config.columnName}`
-      //   this.dataColumn = selectedColumn
-      //   this.datasetLabels = [...this.datasetLabels]
-      // }
-    },
-
     datasetsAreLoaded() {
       this.datasetLabels = Object.keys(this.datasets)
     },

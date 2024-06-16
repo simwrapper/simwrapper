@@ -118,7 +118,7 @@ $bgDarkerCyan: #def3ec;
   display: flex;
   flex-direction: row;
   padding: 0.5rem;
-  background-color: #e6eaf1;
+  background-color: var(--bg);
   border-bottom: 1px solid #bbbbcc88;
 }
 
@@ -158,7 +158,7 @@ $bgDarkerCyan: #def3ec;
 .map-config {
   z-index: 20000;
   margin: 0 0 0 auto;
-  color: black;
+  color: var(--textBold);
   font-size: 0.9rem;
 }
 </style>

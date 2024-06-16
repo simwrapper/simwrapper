@@ -1,13 +1,15 @@
 // EVERY map layer must be registered here:
 
-import ArcLayer from './ArcLayer'
-import PointsLayer from './PointsLayer'
-import PolygonsLayer from './PolygonsLayer'
+import arcs from './ArcLayer'
+import lines from './LinesLayer'
+import points from './PointsLayer'
+import polygons from './PolygonsLayer'
 
 const layers = {
-  arcs: ArcLayer,
-  points: PointsLayer,
-  polygons: PolygonsLayer,
+  arcs,
+  lines,
+  points,
+  polygons,
 } as { [layerType: string]: any }
 
 export default layers

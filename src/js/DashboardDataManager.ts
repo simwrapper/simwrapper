@@ -187,19 +187,27 @@ export default class DashboardDataManager {
     return this.datasets[key].dataset
   }
 
-  public getFeatureCollection(id: string) {
+  public getFeatureCollection(id: string): any[] {
     return this.featureCollections[id]
   }
 
-  public registerFeatures(fullpath: string, featureCollection: any[], config: any) {
-    this.featureCollections[fullpath] = featureCollection
-    this.setFeatureProperties(fullpath, featureCollection, config)
+  public async registerFeatures(fullpath: string, features: any[], config: any) {
+    this.featureCollections[fullpath] = features
+
+    // set up feature-properties as dataset
+    const featureProperties = features.map((f: any) => f.properties || {})
+    await this.setFeatureProperties(fullpath, featureProperties, config)
+
+    // clear out memory, properties have been moved to column-data
+    features.forEach(feature => {
+      feature.properties = {}
+    })
   }
 
   /**
    * Convert features array from GeoJSONs and Shapefiles into DataTable
    * @param fullpath name of shape/geo file
-   * @param featureProperties array of feature objects
+   * @param featureProperties array of feature PROPERTIES -- feature objects MAPPED to just be the props
    */
   public setFeatureProperties(fullpath: string, featureProperties: any[], config: any) {
     const key = fullpath.substring(fullpath.lastIndexOf('/') + 1)
