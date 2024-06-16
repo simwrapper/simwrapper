@@ -85,7 +85,6 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
-import FillColors from './FillColors.vue'
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
@@ -115,7 +114,6 @@ export default defineComponent({
     ColumnSelector,
     DatasetSelector,
     TextSelector,
-    FillColors,
     ColorMapSelector,
     ModalIdColumnPicker,
   },
