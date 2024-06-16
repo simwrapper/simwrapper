@@ -97,12 +97,7 @@ import FillColors from './FillColors.vue'
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
 import TextSelector from '@/plugins/layer-map/components/TextSelector.vue'
-import {
-  buildRGBfromHexCodes,
-  getColorRampHexCodes,
-  Ramp,
-  Style,
-} from '@/js/ColorsAndWidths'
+import { buildRGBfromHexCodes, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
 
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ColorMapSelector from '@/components/ColorMapSelector/ColorMapSelector'
@@ -156,6 +151,7 @@ export default defineComponent({
       join2: '@1',
       shapeJoin: '',
       normalize: '@1',
+      fixedColors: [] as string[],
       colormap: 'Viridis',
       isInvertedColor: false,
       // stuff
@@ -222,9 +218,11 @@ export default defineComponent({
   },
   watch: {
     colormap() {
+      this.fixedColors = []
       this.updateConfig()
     },
     isInvertedColor() {
+      this.fixedColors = []
       this.updateConfig()
     },
     diff() {
@@ -261,11 +259,18 @@ export default defineComponent({
 
     this.debScale = debounce(this.updateScaleFactor, 16.6667 * 5)
 
+    this.shapes = this.options.shapes
     this.projection = this.options.projection
     this.color = this.options.color || '@2'
-    this.shapes = this.options.shapes
     this.width = this.options.width || '@1'
     this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 70
+    this.fixedColors = this.options.fixedColors || []
+
+    this.join = this.options.join || '@1'
+    if (this.join && this.join.indexOf(':') > -1) {
+      this.shapeJoin = this.join.split(':')[0]
+      console.log({ join: this.join, shapejoin: this.shapeJoin })
+    }
 
     // start listening to update events after initial mount
     await this.$nextTick()
@@ -280,14 +285,14 @@ export default defineComponent({
 
       // if user chose a join and we don't know about the shapefile, ask them
       // TODO: this should happen on load not on watch
-      if (this.join.indexOf(':') > -1) {
-        // only one ID in shapefile? Use it
-        const shapeColumns = Object.keys(this.datasets[this.shapes] || {})
-        if (shapeColumns.length == 1) {
-          this.shapeJoin = shapeColumns[0]
-        } else {
-          this.showJoinPicker = true
-        }
+
+      // maybe only one ID in shapefile? Use it
+      const shapeColumns = Object.keys(this.datasets[this.shapes] || {})
+      if (shapeColumns.length == 1) {
+        this.shapeJoin = shapeColumns[0]
+      } else {
+        // no luck, ask user
+        this.showJoinPicker = true
       }
     },
 
@@ -356,14 +361,15 @@ export default defineComponent({
 
       update.normalize = this.normalize == '@1' ? '' : this.normalize
 
-      if (this.color.indexOf(':') > -1) {
-        const colors = getColorRampHexCodes(
-          { ramp: this.colormap, style: Style.sequential },
-          9
-        )
-        if (this.isInvertedColor) colors.reverse()
-        // const colorsAsRGB = buildRGBfromHexCodes(colors)
-        update.fixedColors = colors // ['#300', '#502', '#835', '#858', '#46c', '#73f']
+      if (this.fixedColors.length) {
+        update.fixedColors = [...this.fixedColors]
+      } else {
+        if (this.color.indexOf(':') > -1) {
+          const colors = getColorRampHexCodes({ ramp: this.colormap, style: Style.sequential }, 9)
+          if (this.isInvertedColor) colors.reverse()
+          // const colorsAsRGB = buildRGBfromHexCodes(colors)
+          update.fixedColors = colors // ['#300', '#502', '#835', '#858', '#46c', '#73f']
+        }
       }
 
       this.$emit('update', update)

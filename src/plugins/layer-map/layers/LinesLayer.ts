@@ -128,7 +128,7 @@ export default class LinesLayer extends BaseLayer {
     // }
 
     if (this.layerOptions.shapes) {
-      this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes)
+      this.features = this.datamanager.getFeatureCollection(this.layerOptions.shapes) || []
     }
 
     const numFeatures = this.features.length
@@ -146,6 +146,7 @@ export default class LinesLayer extends BaseLayer {
       // data based width
       const key = this.layerOptions.width?.substring(0, this.layerOptions.width?.indexOf(':'))
       const spec = this.layerOptions.width?.substring(1 + this.layerOptions.width?.indexOf(':'))
+      const joinKey = this.layerOptions.join?.substring(1 + this.layerOptions.join?.indexOf(':'))
 
       await this.buildLookup(key)
 
@@ -153,11 +154,12 @@ export default class LinesLayer extends BaseLayer {
         const { array, legend, calculatedValues } = ColorWidthSymbologizer.getWidthsForDataColumn({
           numFeatures: this.features.length,
           data: this.datasets[key][spec],
-          lookup: this.datasets[key]['@@AB'],
+          lookup: this.datasets[key][`@@${joinKey}`],
           options: this.layerOptions,
         })
 
         if (calculatedValues) width = calculatedValues
+
         // width.forEach((_: any, i: number) => (width[i] = 10 * this.datasets[key][spec].values[i]))
       }
     } catch (e) {
@@ -194,7 +196,8 @@ export default class LinesLayer extends BaseLayer {
       const shapeValues = this.datasets[this.layerOptions.shapes][join1].values
       featureLookupValues = await this.worker.buildFeatureLookup(join1, shapeValues)
 
-      const datasetCol = this.datasets[m1key][join2] // datasetname:joincolumn
+      const dset = this.datasets[m1key]
+      const datasetCol = dset[join2] // datasetname:joincolumn
 
       const dataLookupColumn: DataTableColumn = await this.worker.buildDatasetLookup({
         joinColumns: this.layerOptions.join,
@@ -202,7 +205,6 @@ export default class LinesLayer extends BaseLayer {
       })
 
       // dataLookupValues = dataLookupColumn.values
-      console.log({ dataLookupColumn })
 
       // add/replace this dataset in the datamanager, with the new lookup column
       const dataTable = this.datasets[m1key]

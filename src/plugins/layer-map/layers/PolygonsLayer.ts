@@ -15,10 +15,7 @@ import {
 } from '@/Globals'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, {
-  FilterDefinition,
-  checkFilterValue,
-} from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
 import LegendStore from '@/js/LegendStore'
 import Coords from '@/js/Coords'

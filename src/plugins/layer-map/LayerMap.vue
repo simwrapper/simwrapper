@@ -540,6 +540,13 @@ export default defineComponent({
 
       this.statusText = `Loading dataset ${datasetFilename} ...`
 
+      // GEOJSON IS SPECIAL
+      if (datasetFilename.toLocaleLowerCase().indexOf('geojson') > -1) {
+        const geojson = await this.fileApi.getFileJson(`${this.subfolder}/${datasetFilename}`)
+        await this.addDataset({ geojson, file: { name: datasetKey } })
+        return
+      }
+
       await this.$nextTick()
 
       let loaderConfig = { dataset: datasetFilename }
