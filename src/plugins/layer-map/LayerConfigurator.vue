@@ -123,7 +123,6 @@ import {
 
 import globalStore from '@/store'
 import UTIL from '@/js/util'
-import GIST from '@/js/gist'
 
 import LAYER_CATALOG from './layers/_layerCatalog'
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
@@ -186,7 +185,9 @@ export default defineComponent({
 
   methods: {
     async save() {
-      const { zoom, bearing, pitch, center } = globalStore.state.viewState
+      let { zoom, bearing, pitch, center, longitude, latitude } = globalStore.state.viewState
+
+      if (!center) center = [longitude, latitude]
 
       const output = {
         title: 'My Map',

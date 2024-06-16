@@ -130,8 +130,8 @@ export default defineComponent({
     this.lon = this.options.lon
     this.lat = this.options.lat
     this.radius = this.options.radius
-    this.projection = this.options.projection
     this.scaleFactor = 'scaleFactor' in this.options ? this.options.scaleFactor : 70
+    this.projection = this.options.projection
 
     // don't send update events on first draw
     await this.$nextTick()

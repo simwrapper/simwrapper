@@ -201,7 +201,7 @@ export default class ArcsLayer extends BaseLayer {
         preserveDrawingBuffer: false,
         fp64: false,
       },
-      brushingRadius: 500,
+      brushingRadius: 200,
       brushingEnabled: true,
       // brushingTarget: 'custom',
 
