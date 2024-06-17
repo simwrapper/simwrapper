@@ -199,7 +199,7 @@ export default {
       width: 100%;
       height: 100%;
       z-index: 9999999;
-      border: 5px dashed #00ffae;
+      border: 5px dashed #2a5af8;
       border-radius: 10px;
     }
   }

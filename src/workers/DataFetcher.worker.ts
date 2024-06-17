@@ -36,7 +36,7 @@ async function fetchData(props: {
   _dataset = _config.dataset
   if (props.options?.highPrecision) _highPrecision = true
 
-  // Did we get featureProperties array? Just need to convert it to DataTable
+  // Did we get featureProperties array? Convert it to DataTable
   if (props.featureProperties) {
     convertFeaturePropertiesToDataTable(props.featureProperties)
     postMessage(_fileData[_dataset])

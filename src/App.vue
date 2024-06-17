@@ -2,7 +2,7 @@
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
   .center-area(v-if="isFileSystemLoaded")
-    login-panel.login-panel
+    //- login-panel.login-panel
     router-view.main-content
     p.splash-label(v-if="showSplash") • Loading SimWrapper •
 
@@ -36,7 +36,7 @@ import globalStore from '@/store'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import { addInitialLocalFilesystems, addLocalFilesystem } from '@/fileSystemConfig'
 
-import LoginPanel from '@/components/LoginPanel.vue'
+// import LoginPanel from '@/components/LoginPanel.vue'
 
 import plugins from '@/plugins/pluginRegistry'
 
@@ -59,7 +59,7 @@ plugins.forEach(p => {
 export default defineComponent({
   name: 'SimWrapper',
   i18n,
-  components: Object.assign({ LoginPanel }),
+  components: {},
   data: () => {
     return {
       state: globalStore.state,

@@ -5,9 +5,15 @@ import globalStore from '@/store'
 const BASE_URL = import.meta.env.BASE_URL
 
 // The URL contains the websiteLiveHost, calculated at runtime
-const loc = window.location
-const webLiveHostname = loc.hostname
-const websiteLiveHost = `${loc.protocol}//${webLiveHostname}`
+let loc = {} as any
+let webLiveHostname = 'NOPE'
+let websiteLiveHost = 'NOPE'
+
+if (typeof window !== 'undefined') {
+  loc = window.location
+  webLiveHostname = loc?.hostname
+  websiteLiveHost = `${loc?.protocol}//${webLiveHostname}`
+}
 
 export function addInitialLocalFilesystems(
   filesystems: { handle: FileSystemAPIHandle; key: string | null }[]
@@ -172,11 +178,13 @@ for (let port = 8050; port < 8099; port++) {
 
 // merge user shortcuts
 try {
-  const storedShortcuts = localStorage.getItem('projectShortcuts')
-  if (storedShortcuts) {
-    const shortcuts = JSON.parse(storedShortcuts) as any[]
-    const unique = fileSystems.filter(root => !(root.slug in shortcuts))
-    fileSystems = [...Object.values(shortcuts), ...unique]
+  if (typeof localStorage !== 'undefined') {
+    const storedShortcuts = localStorage.getItem('projectShortcuts')
+    if (storedShortcuts) {
+      const shortcuts = JSON.parse(storedShortcuts) as any[]
+      const unique = fileSystems.filter(root => !(root.slug in shortcuts))
+      fileSystems = [...Object.values(shortcuts), ...unique]
+    }
   }
 } catch (e) {
   console.error('ERROR MERGING URL SHORTCUTS:', '' + e)

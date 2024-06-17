@@ -5,14 +5,20 @@
       p.close-button(@click="$emit('close')"): i.fas.fa-times
 
     .save-options.flex-row
-      b-button.is-outlined.is-white.save-option.flex1(@click="downloadYaml()")
+      b-button.is-outlined.save-option.flex1(
+        :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
+        @click="downloadYaml()"
+      )
         i(style="font-size: 20px; margin-bottom: 5px").fas.fa-download
         br
         | Download
         br
         | YAML file
 
-      b-button.is-outlined.is-white.save-option.flex1(@click="uploadGist()")
+      b-button.is-outlined.is-white.save-option.flex1(
+        :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
+        @click="uploadGist()"
+      )
         i(style="font-size: 20px; margin-bottom: 5px").fas.fa-cloud-upload-alt
         br
         | Upload as
@@ -29,6 +35,8 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import { Octokit } from '@octokit/rest'
+
+const BASE_URL = import.meta.env.BASE_URL
 
 export default defineComponent({
   name: 'SaveMapModal',
@@ -85,13 +93,22 @@ export default defineComponent({
             public: true,
             files,
           })
+
           console.log('Gist created:', gist.data.html_url)
           console.log('Gist created:', gist.data.id)
+          const url = `simwrapper.github.io${BASE_URL}gist/${gist.data.id}`
+
+          this.statusText = `<p>Gist id: <b>${gist.data.id}</b></p>
+            <p>Saved on GitHub at <a href="https://gist.github.com/${gist.data.id}">gist.github.com</a></p>
+            <p><br/>View on SimWrapper at<br/><a target="_blank" href="https://${url}">${url}</a></p>`
+
           return gist.data.html_url
+          //
         } catch (e) {
           console.error('GIST FAIL', e)
+          alert('Failed to save GitHub Gist: ' + e)
         } finally {
-          this.$emit('close')
+          // this.$emit('close')
         }
       }
 

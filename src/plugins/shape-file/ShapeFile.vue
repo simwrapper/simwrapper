@@ -105,7 +105,7 @@ import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
-import ModalIdColumnPicker from './ModalIdColumnPicker.vue'
+import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
@@ -160,8 +160,8 @@ const MyComponent = defineComponent({
       legendStore: new LegendStore(),
       chosenNewFilterColumn: '',
       boundaryDataTable: {} as DataTable,
-      dataFillColors: '#888' as string | Uint8Array,
-      dataLineColors: '' as string | Uint8Array,
+      dataFillColors: '#888' as string | Uint8ClampedArray,
+      dataLineColors: '' as string | Uint8ClampedArray,
       dataLineWidths: 1 as number | Float32Array,
       dataPointRadii: 5 as number | Float32Array,
       dataFillHeights: 0 as number | Float32Array,

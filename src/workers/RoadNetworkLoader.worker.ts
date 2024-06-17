@@ -40,6 +40,13 @@ let _crs = ''
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
+  // pre-filled buffer?
+  if (e.data.xmlBuffer) {
+    const cargo = gUnzip(e.data.xmlBuffer)
+    memorySafeXMLParser(new Uint8Array(cargo), {})
+    return
+  }
+
   if (e.data.crs) {
     _crs = e.data.crs || 'Atlantis'
 
@@ -105,7 +112,11 @@ async function fetchNodesAndLinks(props: {
   }
 }
 
-async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig, vizDetails: any) {
+async function fetchSFCTANetwork(
+  filePath: string,
+  fileSystem: FileSystemConfig,
+  vizDetails: any
+) {
   console.log('WORKER loading shapefile', filePath)
 
   _fileApi = new HTTPFileSystem(fileSystem)
@@ -197,7 +208,8 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
 
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
 
-  if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
+  if (warnings)
+    console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
 }
 
 async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
@@ -270,7 +282,9 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // store (converted) coordinates in lookup
   for (const node of network.network.nodes.node as any) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
-    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
+    const longlat = crs
+      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
+      : coordinates
     nodes[node.$id] = longlat
   }
 
@@ -344,7 +358,9 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   while (true) {
     startByte = endByte
     endByte = startByte + chunkBytes
-    postMessage({ status: `Parsing links... ${Math.floor((100 * startByte) / _rawData.length)}%` })
+    postMessage({
+      status: `Parsing links... ${Math.floor((100 * startByte) / _rawData.length)}%`,
+    })
     const nextChunk = _rawData.subarray(startByte, endByte)
 
     decoded = leftovers + decoder.decode(nextChunk)
@@ -408,7 +424,11 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]): Float32Array[
   return [source, dest]
 }
 
-async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
+async function fetchMatsimXmlNetwork(
+  filePath: string,
+  fileSystem: FileSystemConfig,
+  options: any
+) {
   const rawData = await fetchGzip(filePath, fileSystem)
 
   try {
@@ -434,7 +454,9 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
 
     // convert coordinates to long/lat if necessary
-    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
+    const longlat = crs
+      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
+      : coordinates
 
     nodes[node.$id] = longlat
   }
