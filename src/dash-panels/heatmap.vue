@@ -37,7 +37,8 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: DataTable },
       id: ('heatmap-' + Math.floor(1e12 * Math.random())) as any,
-      YAMLrequirementsHeatmap: { dataset: '', y: '', columns: [] },
+      // YAMLrequirementsHeatmap: { dataset: '', y: '', columns: [] },
+      YAMLrequirementsHeatmap: { dataset: '', y: '' },
       layout: {
         margin: { t: 8, b: 50 },
         font: {
@@ -228,7 +229,20 @@ export default defineComponent({
 
       const allRows = this.dataSet.allRows || ({} as any)
 
-      const columns = this.config.columns || this.config.usedCol || []
+      let columns = this.config.columns || this.config.usedCol || []
+
+      // Add all columns except the y column if no columns are specified
+      if (!columns.length) {
+        let allColumns = Object.keys(allRows)
+        const y = this.config.y
+
+        const index = allColumns.indexOf(y, 0)
+        if (index > -1) {
+          allColumns.splice(index, 1)
+        }
+        columns = allColumns
+      }
+
       if (!columns.length) return
 
       // check for valid columns
@@ -256,10 +270,13 @@ export default defineComponent({
       }
 
       // Converts all data to the matrix format of the heatmap
-      let i = 0
-      for (const column of this.config.columns) {
-        matrix[i++] = allRows[column].values
+      for (let i = 0; i < columns.length; i++) {
+        matrix[i] = allRows[columns[i]].values
       }
+
+      // Transposes the matric to get the same orientation as in the .csv file
+      matrix = matrix.reverse()
+      xaxis = xaxis.reverse()
 
       if (!this.config.flipAxes) matrix = transpose(matrix)
 
