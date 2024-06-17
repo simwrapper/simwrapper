@@ -1757,15 +1757,17 @@ const MyComponent = defineComponent({
     },
 
     async figureOutFeatureIdColumn() {
-      if (this.isAvroFile) {
-        this.featureJoinColumn = 'linkId'
-      }
-
       // if user specified it in a data join in the YAML, we're done
       if (this.featureJoinColumn) return this.featureJoinColumn
 
       // if user specified it in the shapefile yaml, we're done
       if ('string' !== typeof this.vizDetails.shapes && this.vizDetails.shapes.join) {
+        // Special case for backwards compatibility with Avro networkd. In older avro networdk the join column was 'id' but the shapefile had 'linkId'
+        // TODO: check if the column id does not exist in the avro network
+        if (this.isAvroFile && this.vizDetails.shapes.join === 'id') {
+          return 'linkId'
+        }
+
         return this.vizDetails.shapes.join
       }
 
