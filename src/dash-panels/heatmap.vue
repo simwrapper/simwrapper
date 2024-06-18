@@ -17,6 +17,7 @@ import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManage
 import { DataTable, FileSystemConfig, BG_COLOR_DASHBOARD, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from './_allPanels'
+import { round } from 'lodash'
 
 export default defineComponent({
   name: 'HeatmapPanel',
@@ -60,6 +61,7 @@ export default defineComponent({
           xanchor: 'right',
           y: 1,
         },
+        annotations: [],
       } as any,
       data: [] as any[],
       options: {
@@ -291,6 +293,30 @@ export default defineComponent({
           automargin: true,
         },
       ]
+
+      if (this.config.showLabels) {
+        // Clear all annotations
+        this.layout.annotations.length = 0
+
+        const d = this.data[0]
+        for (let i = 0; i < d.x.length; i++) {
+          for (let j = 0; j < d.y.length; j++) {
+            const result = {
+              x: d.x[i],
+              y: d.y[j],
+              text: round(d.z[j][i], 2),
+              showarrow: false,
+              font: {
+                family: 'Arial Black',                
+                size: 12,
+                color: 'white',              
+              },
+            }
+            this.layout.annotations.push(result)
+          }
+        }
+      }
+
     },
 
     // Check this plot for warnings and errors
