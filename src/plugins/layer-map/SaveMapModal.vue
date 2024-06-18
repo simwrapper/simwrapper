@@ -15,15 +15,15 @@
         br
         | YAML file
 
-      b-button.is-outlined.is-white.save-option.flex1(
-        :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
-        @click="uploadGist()"
-      )
-        i(style="font-size: 20px; margin-bottom: 5px").fas.fa-cloud-upload-alt
-        br
-        | Upload as
-        br
-        | GitHub Gist
+      //- b-button.is-outlined.is-white.save-option.flex1(
+      //-   :class="$store.state.isDarkMode ? 'is-white' : 'is-link'"
+      //-   @click="uploadGist()"
+      //- )
+      //-   i(style="font-size: 20px; margin-bottom: 5px").fas.fa-cloud-upload-alt
+      //-   br
+      //-   | Upload as
+      //-   br
+      //-   | GitHub Gist
 
     p.status-text(v-html="`<p>${statusText}</p>`") {{ statusText }}
 
