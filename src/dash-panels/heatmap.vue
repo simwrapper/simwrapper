@@ -10,13 +10,13 @@ VuePlotly.myplot(
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-import { transpose } from 'mathjs'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import { DataTable, FileSystemConfig, BG_COLOR_DASHBOARD, UI_FONT, Status } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from './_allPanels'
+import { round } from 'lodash'
 
 export default defineComponent({
   name: 'HeatmapPanel',
@@ -60,6 +60,7 @@ export default defineComponent({
           xanchor: 'right',
           y: 1,
         },
+        annotations: [],
       } as any,
       data: [] as any[],
       options: {
@@ -274,11 +275,12 @@ export default defineComponent({
         matrix[i] = allRows[columns[i]].values
       }
 
-      // Transposes the matric to get the same orientation as in the .csv file
-      matrix = matrix.reverse()
-      xaxis = xaxis.reverse()
-
-      if (!this.config.flipAxes) matrix = transpose(matrix)
+      if (!this.config.flipAxes) {
+        // Transposes the matrix to get the same orientation as in the .csv file
+        yaxis = yaxis.reverse()
+        this.transpose(matrix)
+        matrix = matrix.reverse()
+      }
 
       // Pushes the data into the chart
       this.data = [
@@ -291,6 +293,39 @@ export default defineComponent({
           automargin: true,
         },
       ]
+
+      if (this.config.showLabels) {
+        // Clear all annotations
+        this.layout.annotations.length = 0
+
+        const d = this.data[0]
+        for (let i = 0; i < d.x.length; i++) {
+          for (let j = 0; j < d.y.length; j++) {
+            const result = {
+              x: d.x[i],
+              y: d.y[j],
+              text: round(d.z[j][i], 2),
+              showarrow: false,
+              font: {
+                family: 'Arial Black',
+                size: 12,
+                color: 'white',
+              },
+            }
+            this.layout.annotations.push(result)
+          }
+        }
+      }
+    },
+
+    transpose(matrix: any) {
+      for (let i = 0; i < matrix.length; i++) {
+        for (let j = 0; j < i; j++) {
+          const tmp = matrix[i][j]
+          matrix[i][j] = matrix[j][i]
+          matrix[j][i] = tmp
+        }
+      }
     },
 
     // Check this plot for warnings and errors
