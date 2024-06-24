@@ -591,28 +591,27 @@ const MyComponent = defineComponent({
           filteredTraces.push(filterTrace)
         }
 
+        let label = this.config.traces[0][facetObjectKey].split('.')[1] + ' = ' + facets[j]
+
+        // Insert an additional line break if the label is presumably too long
+        // This does not known about the actual width of the plot
+        if (numberOfFacets * label.length > 150 && axis == 'x') {
+          const idx = label.indexOf(' = ')
+          label = label.substring(0, idx) + '<br>' + label.substring(idx)
+        }
+
         // Left: Axis Text
         const axisIndex = j === 0 ? axis + 'axis' : axis + 'axis' + (j + 1)
         if (this.layout[axisIndex] == undefined) {
           this.layout[axisIndex] = {
             title: {
-              text:
-                axisTitle +
-                (axisTitle ? '<br>' : '') +
-                this.config.traces[0][facetObjectKey].split('.')[1] +
-                ' = ' +
-                facets[j],
+              text: axisTitle + (axisTitle ? '<br>' : '') + label,
             },
           }
         } else {
           this.layout[axisIndex].title = ''
           this.layout[axisIndex].title = {
-            text:
-              axisTitle +
-              (axisTitle ? '<br>' : '') +
-              this.config.traces[0][facetObjectKey].split('.')[1] +
-              ' = ' +
-              facets[j],
+            text: axisTitle + (axisTitle ? '<br>' : '') + label,
           }
           this.layout[axisIndex].anchor = 'y'
         }
