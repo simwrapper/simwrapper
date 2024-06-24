@@ -43,11 +43,11 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import * as shapefile from 'shapefile'
+import reproject from 'reproject'
+
 import HTTPFileSystem from '@/js/HTTPFileSystem'
-import DashboardDataManager, {
-  FilterDefinition,
-  checkFilterValue,
-} from '@/js/DashboardDataManager'
+import DashboardDataManager, { FilterDefinition, checkFilterValue } from '@/js/DashboardDataManager'
 import FileSelector from '@/components/viz-configurator/FileSelector.vue'
 import { DataTable } from '@/Globals'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
@@ -64,8 +64,8 @@ export default defineComponent({
 
   data() {
     return {
-      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT', 'GeoJSON'],
-      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|GEOJSON)(\.GZ)?$/,
+      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT', 'SHP', 'GeoJSON'],
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|SHP|GEOJSON)(\.GZ)?$/,
       fileChoice: '',
       filesInFolder: [] as string[],
       isLoading: false,
@@ -126,7 +126,12 @@ export default defineComponent({
         let result = (await this.loadDataUrl(file)) as any
         const buffer = result.buffer || result
 
-        if (file.name.toLocaleLowerCase().indexOf('network.xml') > -1) {
+        if (file.name.toLocaleLowerCase().endsWith('.shp')) {
+          // SHAPEFILE
+          const geojson = await this.loadShapefile(file, buffer)
+          this.$emit('update', { geojson, file })
+          continue
+        } else if (file.name.toLocaleLowerCase().indexOf('network.xml') > -1) {
           // MATSIM
           const geojson = await this.loadMatsimXML(file, buffer)
           this.$emit('update', { geojson, file })
@@ -142,6 +147,33 @@ export default defineComponent({
         }
       }
       this.isLoading = false
+    },
+
+    async loadShapefile(file: any, buffer: ArrayBuffer) {
+      // this.statusText = 'Loading shapefile...'
+      console.log('shapefile', file.name)
+
+      try {
+        // this.statusText = 'Generating shapes...'
+        const shpBlob = new Blob([buffer], { type: 'application/octet-stream' })
+        let geojson = await shapefile.read(buffer)
+
+        console.log('hello', geojson)
+        // filter out features that don't have geometry: they can't be mapped
+        geojson.features = geojson.features.filter((f: any) => !!f.geometry)
+
+        let epsg = prompt('Enter EPSG code', '')
+        if (epsg && Number.isFinite(parseInt(epsg))) epsg = `EPSG:${epsg}`
+
+        // reproject
+        if (epsg) geojson = reproject.toWgs84(geojson, 'EPSG:2227') // guessCRS) //, Coords.allEPSGs)
+
+        return geojson
+      } catch (e) {
+        console.error(e)
+        this.$emit('error', '' + e)
+        return []
+      }
     },
 
     async loadMatsimXML(file: any, buffer: any) {

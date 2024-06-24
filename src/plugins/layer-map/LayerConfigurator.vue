@@ -187,7 +187,9 @@ export default defineComponent({
     async save() {
       let { zoom, bearing, pitch, center, longitude, latitude } = globalStore.state.viewState
 
-      if (!center) center = [longitude, latitude]
+      let ctr = center as any
+      if (!ctr) ctr = `${longitude}, ${latitude}` // [longitude, latitude]
+      if (Array.isArray(ctr)) ctr = `${longitude}, ${latitude}` // [longitude, latitude]
 
       const output = {
         title: 'My Map',
@@ -195,10 +197,10 @@ export default defineComponent({
         type: 'layers',
         theme: this.theme.bg,
         roads: this.theme.roads,
+        center: ctr,
         zoom,
         bearing,
         pitch,
-        center,
       } as any
 
       const layers = this.layers.map((l: any) => {
@@ -206,21 +208,22 @@ export default defineComponent({
         return options
       })
 
-      output.layers = layers
       output.datasets = {}
+      output.layers = layers
 
       // we will do a text search for dataset columns next
       const layerConfigText = JSON.stringify(output.layers)
       console.log({ layerConfigText })
-      for (const key of Object.keys(this.datasets)) {
-        // what if we have the real filename? (but in interactive mode we don't)
-        // output.datasets[key] = key
 
+      for (const key of Object.keys(this.datasets)) {
         // Embed actual datasets
         const dataset = this.datasets[key]
         const columns = {} as any
 
-        for (const column of Object.keys(dataset)) {
+        // TODO FOR NOW: no embedded datasets
+
+        for (const column of []) {
+          // Object.keys(dataset)) {
           // skip columns that are not referenced in config
           const check = `${key}:${column}`
           console.log(check)
@@ -240,7 +243,15 @@ export default defineComponent({
           }
         }
         output.datasets[key] = columns
+
+        // what if we have the real filename? (but in interactive mode we don't)
+        output.datasets[key] = `#${key} path/filename goes here #`
       }
+
+      // clean up
+      if (!output.bearing) delete output.bearing
+      if (!output.pitch) delete output.pitch
+      if (output.roads == 'below') delete output.roads
 
       const yaml = YAML.dump(output, { flowLevel: 3 })
       console.log(yaml)
