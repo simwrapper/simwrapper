@@ -208,8 +208,6 @@ const MyComponent = defineComponent({
         })
       }
 
-      this.createFacets()
-
       // Backwards compatiblity with the older "dropdownMenu" option
       if (this.vizDetails.dropdownMenu) this.vizDetails.interactive = 'dropdown'
       // create interactive elements
@@ -225,6 +223,7 @@ const MyComponent = defineComponent({
     this.updateTheme()
     window.addEventListener('resize', this.changeDimensions)
     this.layout.margin = { r: 0, t: 8, b: 0, l: 50, pad: 2 }
+    this.createFacets()
   },
 
   beforeDestroy() {
@@ -346,11 +345,9 @@ const MyComponent = defineComponent({
     createFacets() {
       if (this.traces[0].facet_col == undefined && this.traces[0].facet_row == undefined) return
 
-      // Facets are disabled when interactive mode is used
-      this.isUsingFacets = !(this.vizDetails.interactive || this.vizDetails.interactive == 'none')
-
       // Set different bg colors for facet plots to seperate them from each other
-      if (this.isUsingFacets) this.updateTheme()
+      this.isUsingFacets = true
+      this.updateTheme()
 
       let facet_col = [] as any[]
       let facet_row = [] as any[]
@@ -586,8 +583,6 @@ const MyComponent = defineComponent({
           filterTrace.legendgroup = filterTrace.group_name
           delete filterTrace.group_name
 
-          filterTrace.facet_name = row
-
           const color = this.assignColor(filterTrace)
           filterTrace.marker = {
             color: color,
@@ -595,11 +590,6 @@ const MyComponent = defineComponent({
 
           filteredTraces.push(filterTrace)
         }
-
-        result.push(...filteredTraces)
-
-        // Skip layout if facets are disabled
-        if (!this.isUsingFacets) continue
 
         // Left: Axis Text
         const axisIndex = j === 0 ? axis + 'axis' : axis + 'axis' + (j + 1)
@@ -626,6 +616,8 @@ const MyComponent = defineComponent({
           }
           this.layout[axisIndex].anchor = 'y'
         }
+
+        result.push(...filteredTraces)
       }
       return result
     },
@@ -640,19 +632,15 @@ const MyComponent = defineComponent({
 
       const n = Object.values(this.traces).length
 
-      // TODO: not yet working
-
       Object.values(this.traces).forEach((tr, idx) => {
-        // restore the intended legend label
+        // restore the indended legend label
         if ('original_name' in tr) {
           tr.name = tr.original_name
         }
 
-        const gr = 'facet_name' in tr ? tr.facet_name : tr.group_name
+        if (!(tr.group_name in groups)) groups[tr.group_name] = []
 
-        if (!(gr in groups)) groups[gr] = []
-
-        groups[gr].push(idx)
+        groups[tr.group_name].push(idx)
 
         tr.visible = false
       })
