@@ -1,3 +1,5 @@
+@import '@/styles.scss';
+
 .toolbar {
   flex: 1 1 0%;
   position: relative; /* for `z-index` below, in case parent doesn't have `display: flex` */
@@ -59,9 +61,7 @@ a.btn {
   height: var(--h5w-btn--height, 1.875rem);
   padding: 0 0.5rem;
   border-radius: 0.5rem;
-  transition:
-    background-color 0.05s ease-in-out,
-    box-shadow 0.05s ease-in-out;
+  transition: background-color 0.05s ease-in-out, box-shadow 0.05s ease-in-out;
   white-space: nowrap;
 }
 
@@ -72,8 +72,7 @@ a.btn {
 }
 
 .btn[data-raised] > .btnLike {
-  box-shadow:
-    0 0 1px inset var(--h5w-btnRaised--shadowColor, gray),
+  box-shadow: 0 0 1px inset var(--h5w-btnRaised--shadowColor, gray),
     -1px -1px 2px inset var(--h5w-btnRaised--shadowColor, gray);
 }
 
@@ -100,13 +99,13 @@ a.btn {
 }
 
 .btn:hover > .btnLike {
-  background-color: var(--h5w-btn-hover--bgColor, whitesmoke);
+  /* background-color: var(--h5w-btn-hover--bgColor, whitesmoke); */
+  background-color: var(--bgBold);
   box-shadow: -1px -1px 2px inset var(--h5w-btn-hover--shadowColor, var(--h5w-btnRaised--shadowColor, gray));
 }
 
 .btn[data-raised]:hover > .btnLike {
-  box-shadow:
-    0 0 1px inset var(--h5w-btnRaised-hover--shadowColor, dimgray),
+  box-shadow: 0 0 1px inset var(--h5w-btnRaised-hover--shadowColor, dimgray),
     -1px -1px 2px inset var(--h5w-btnRaised-hover--shadowColor, dimgray);
 }
 
@@ -116,6 +115,8 @@ a.btn {
 .btn[aria-checked='true'] > .btnLike, /* toggle group buttons */
 .btn[aria-haspopup][aria-expanded='true'] > .btnLike  /* selectors and overflow menu buttons */ {
   background-color: var(--h5w-btnPressed--bgColor, white);
+  background-color: var(--bgBold);
+
   box-shadow: 1px 1px 2px inset
     var(--h5w-btnPressed--shadowColor, var(--h5w-btnRaised--shadowColor, gray));
 }
@@ -123,11 +124,9 @@ a.btn {
 .btn[aria-pressed='true']:hover > .btnLike,
 .btn[aria-checked='true']:hover > .btnLike,
 .btn[aria-haspopup][aria-expanded='true']:hover > .btnLike {
+  background-color: var(--bgBold);
   box-shadow: 1px 1px 2px inset
-    var(
-      --h5w-btnPressed-hover--shadowColor,
-      var(--h5w-btnRaised-hover--shadowColor, dimgray)
-    );
+    var(--h5w-btnPressed-hover--shadowColor, var(--h5w-btnRaised-hover--shadowColor, dimgray));
 }
 
 .popup {
@@ -139,7 +138,5 @@ a.btn {
 
 .popupInner {
   background-color: var(--h5w-toolbar-popup--bgColor, rgba(255, 255, 255, 0.9));
-  box-shadow:
-    rgba(0, 0, 0, 0.1) 0px 0px 0px 1px,
-    rgba(0, 0, 0, 0.1) 0px 4px 11px;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.1) 0px 4px 11px;
 }

@@ -23,10 +23,10 @@
           b-menu-list(label="Username")
           b-input(v-model="username" placeholder="VSP username" maxlength=30)
 
-          b-menu-list(label="Password")
-          b-input(type="password"
-            v-model="password"
-            password-reveal)
+          //- b-menu-list(label="Password")
+          //- b-input(type="password"
+          //-   v-model="password"
+          //-   password-reveal)
 
           b-button.my-space.is-primary(
             @click="clickedLogin"

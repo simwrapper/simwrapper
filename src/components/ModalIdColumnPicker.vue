@@ -85,11 +85,13 @@ export default defineComponent({
 .join-picker {
   background-color: #000022aa;
   z-index: 10000;
-  position: absolute;
+  position: fixed;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  width: 100vw;
+  height: 100vh;
   user-select: none;
   color: #333;
 }

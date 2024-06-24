@@ -17,6 +17,32 @@ export function arrayBufferToBase64(buffer: any) {
   return window.btoa(binary)
 }
 
+async function bytesToBase64DataUrl(bytes: any, type = 'application/octet-stream') {
+  return await new Promise((resolve, reject) => {
+    const reader = Object.assign(new FileReader(), {
+      onload: () => resolve(reader.result),
+      onerror: () => reject(reader.error),
+    })
+    reader.readAsDataURL(new File([bytes], '', { type }))
+  })
+}
+
+async function dataUrlToBytes(dataUrl: string) {
+  const res = await fetch(dataUrl)
+  return new Uint8Array(await res.arrayBuffer())
+}
+
+function identifyTypedArray(arr: any) {
+  if (arr instanceof Float32Array) {
+    return 'Float32Array'
+  } else if (arr instanceof Float64Array) {
+    return 'Float64Array'
+  } else if (arr instanceof Array) {
+    return 'Array'
+  }
+  return 'Unknown'
+}
+
 /**
  * Concat multiple typed arrays into one.
  * @param arrays a list of  typed arrays
@@ -136,4 +162,13 @@ export function gUnzip(buffer: ArrayBuffer): any {
   return buffer
 }
 
-export default { arrayBufferToBase64, debounce, findMatchingGlobInFiles, gUnzip, parseXML }
+export default {
+  arrayBufferToBase64,
+  dataUrlToBytes,
+  bytesToBase64DataUrl,
+  debounce,
+  findMatchingGlobInFiles,
+  identifyTypedArray,
+  gUnzip,
+  parseXML,
+}

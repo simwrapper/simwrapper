@@ -105,7 +105,7 @@ import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
-import ModalIdColumnPicker from './ModalIdColumnPicker.vue'
+import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 
@@ -153,14 +153,15 @@ const MyComponent = defineComponent({
   data() {
     return {
       avroNetwork: null as any,
+      isAvroFile: false,
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
       legendStore: new LegendStore(),
       chosenNewFilterColumn: '',
       boundaryDataTable: {} as DataTable,
-      dataFillColors: '#888' as string | Uint8Array,
-      dataLineColors: '' as string | Uint8Array,
+      dataFillColors: '#888' as string | Uint8ClampedArray,
+      dataLineColors: '' as string | Uint8ClampedArray,
       dataLineWidths: 1 as number | Float32Array,
       dataPointRadii: 5 as number | Float32Array,
       dataFillHeights: 0 as number | Float32Array,
@@ -1761,6 +1762,12 @@ const MyComponent = defineComponent({
 
       // if user specified it in the shapefile yaml, we're done
       if ('string' !== typeof this.vizDetails.shapes && this.vizDetails.shapes.join) {
+        // Special case for backwards compatibility with Avro networkd. In older avro networdk the join column was 'id' but the shapefile had 'linkId'
+        // TODO: check if the column id does not exist in the avro network
+        if (this.isAvroFile && this.vizDetails.shapes.join === 'id') {
+          return 'linkId'
+        }
+
         return this.vizDetails.shapes.join
       }
 
@@ -1964,13 +1971,26 @@ const MyComponent = defineComponent({
 
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
-      const numLinks = network.__numLinks
+      const numLinks = network.linkId.length
       const features = [] as any
+      const crs = network.crs || 'EPSG:4326'
+      const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
+
       for (let i = 0; i < numLinks; i++) {
-        const linkID = network.id[i]
-        const coordFrom = network.__nodes[network.from[i]]
-        const coordTo = network.__nodes[network.to[i]]
+        const linkID = network.linkId[i]
+        const fromOffset = 2 * network.from[i]
+        const toOffset = 2 * network.to[i]
+        let coordFrom = [
+          network.nodeCoordinates[fromOffset],
+          network.nodeCoordinates[1 + fromOffset],
+        ]
+        let coordTo = [network.nodeCoordinates[toOffset], network.nodeCoordinates[1 + toOffset]]
         if (!coordFrom || !coordTo) continue
+
+        if (needsProjection) {
+          coordFrom = Coords.toLngLat(crs, coordFrom)
+          coordTo = Coords.toLngLat(crs, coordTo)
+        }
 
         const coords = [coordFrom, coordTo]
 
@@ -1984,6 +2004,7 @@ const MyComponent = defineComponent({
       }
 
       this.avroNetwork = network
+      this.isAvroFile = true
 
       return features
     },
@@ -2112,19 +2133,38 @@ const MyComponent = defineComponent({
       let dataTable
 
       if (this.avroNetwork) {
+        // AVRO
         // create the DataTable right here, we already have everything in memory
         const avroTable: DataTable = {}
-        const columns = Object.keys(this.avroNetwork).filter(c => !c.startsWith('__'))
+
+        const columns = this.avroNetwork.linkAttributes as string[]
+        columns.sort()
+
         for (const colName of columns) {
+          const values = this.avroNetwork[colName]
+          const type =
+            Number.isFinite(values[0]) || Number.isNaN(values[0])
+              ? DataType.NUMBER
+              : DataType.STRING
           const dataColumn: DataTableColumn = {
             name: colName,
-            type: DataType.NUMBER,
-            values: this.avroNetwork[colName],
+            values,
+            type,
           }
           avroTable[colName] = dataColumn
         }
+
+        // special case: allowedModes
+        const modeLookup = this.avroNetwork['modes']
+        const allowedModes = avroTable['allowedModes']
+        allowedModes.type = DataType.STRING
+        allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
+
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+        // save memory: no longer need the avro input file
+        this.avroNetwork = null
       } else {
+        // NON-AVRO
         dataTable = await this.myDataManager.setFeatureProperties(
           filename,
           featureProperties,
@@ -2511,7 +2551,7 @@ const MyComponent = defineComponent({
       // console.log(this.datasets)
       if (!this.config.display || !this.config.datasets) return
 
-      let joinShapesBy = 'id'
+      let joinShapesBy = 'linkId'
 
       if (this.config.shapes?.join) joinShapesBy = this.config.shapes.join
       // throw Error('Need "join" property to link shapes to datasets')
