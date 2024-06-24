@@ -19,7 +19,7 @@
 
     p.btn-show-hide
       i.fas(
-        :class="`fa-chevron-circle-${isPanelReallyHidden ? 'left': 'right'}`"
+        :class="`fa-chevron-circle-${isPanelReallyHidden ? 'right': 'left'}`"
         @click="toggleHidePanel()"
       )
 
@@ -31,7 +31,7 @@
 
     background-map-on-top(v-if="theme.roads=='above'")
 
-    zoom-buttons.zooom(v-if="isLoaded && !thumbnail" :class="{'is-hide-me': !isPanelReallyHidden}" )
+    zoom-buttons(v-if="isLoaded && !thumbnail")
 
     //- .details-panel(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
 
@@ -799,7 +799,7 @@ export default defineComponent({
   right: 0;
   display: grid;
   grid-template-rows: 1fr;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
@@ -816,9 +816,9 @@ export default defineComponent({
 .layer-configurator {
   width: 20rem;
   grid-row: 1 / 2;
-  grid-column: 2 / 3;
+  grid-column: 1 / 2;
   z-index: 2;
-  margin: 0rem 0rem 1.6rem 1rem;
+  margin: 1rem;
   filter: $filterShadow;
   transform: translateX(0rem);
   transition: transform 0.25s ease-in;
@@ -826,7 +826,7 @@ export default defineComponent({
 }
 
 .layer-configurator.is-hide-me {
-  transform: translateX(22rem);
+  transform: translateX(-22rem);
 }
 
 .my-map {
@@ -844,8 +844,8 @@ export default defineComponent({
 
 .btn-show-hide {
   position: absolute;
-  bottom: 1.8rem;
-  right: 0.5rem;
+  bottom: 1.25rem;
+  left: 1.25rem;
   z-index: 50;
   border: none;
   font-size: 24px;
@@ -860,11 +860,6 @@ export default defineComponent({
 .btn-show-hide:hover {
   cursor: pointer;
   color: #379ec1;
-}
-
-.zooom.is-hide-me {
-  // margin-top: 0.25rem;
-  margin-right: 20.25rem;
 }
 </style>
 ./layers/_layerCatalog
