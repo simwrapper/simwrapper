@@ -543,11 +543,14 @@ const MyComponent = defineComponent({
     // THis method groups the traces by the facet if more than one column and one row is defined in the traces
     groupTracesByFacetsForOneColumnOrRow(
       numberOfFacets: number,
-      axisTitle: string,
+      axisTitle: any,
       facets: any[],
       axis: string,
       facetObjectKey: string
     ) {
+      // Extract text from the axis title
+      if (axisTitle instanceof Object && 'text' in axisTitle) axisTitle = axisTitle.text
+
       const result = []
       for (let j = 0; j < numberOfFacets; j++) {
         const row = facets[j]
@@ -588,28 +591,27 @@ const MyComponent = defineComponent({
           filteredTraces.push(filterTrace)
         }
 
+        let label = this.config.traces[0][facetObjectKey].split('.')[1] + ' = ' + facets[j]
+
+        // Insert an additional line break if the label is presumably too long
+        // This does not known about the actual width of the plot
+        if (numberOfFacets * label.length > 150 && axis == 'x') {
+          const idx = label.indexOf(' = ')
+          label = label.substring(0, idx) + '<br>' + label.substring(idx)
+        }
+
         // Left: Axis Text
         const axisIndex = j === 0 ? axis + 'axis' : axis + 'axis' + (j + 1)
         if (this.layout[axisIndex] == undefined) {
           this.layout[axisIndex] = {
             title: {
-              text:
-                axisTitle +
-                '<br>' +
-                this.config.traces[0][facetObjectKey].split('.')[1] +
-                ' = ' +
-                facets[j],
+              text: axisTitle + (axisTitle ? '<br>' : '') + label,
             },
           }
         } else {
           this.layout[axisIndex].title = ''
           this.layout[axisIndex].title = {
-            text:
-              axisTitle +
-              '<br>' +
-              this.config.traces[0][facetObjectKey].split('.')[1] +
-              ' = ' +
-              facets[j],
+            text: axisTitle + (axisTitle ? '<br>' : '') + label,
           }
           this.layout[axisIndex].anchor = 'y'
         }
@@ -851,7 +853,7 @@ const MyComponent = defineComponent({
       }
 
       if ('rename' in ds) {
-        this.renameColumns(ds.data as DataTable, ds.rename)
+        this.renameColumns(ds.data as DataTable, ds.rename, ds.pivot?.namesTo || 'names')
       }
 
       if ('normalize' in ds) {
@@ -969,12 +971,13 @@ const MyComponent = defineComponent({
       })
     },
 
-    renameColumns(dataTable: DataTable, rename: any) {
+    renameColumns(dataTable: DataTable, rename: any, column: string) {
       // rename columns
-      if (rename) {
-        for (let i = 0; i < dataTable.names.values.length; i++) {
-          if (dataTable.names.values[i] in rename) {
-            dataTable.names.values[i] = rename[dataTable.names.values[i]]
+      if (rename && column in dataTable) {
+        const values = dataTable[column].values
+        for (let i = 0; i < values.length; i++) {
+          if (values[i] in rename) {
+            values[i] = rename[values[i]]
           }
         }
       }
