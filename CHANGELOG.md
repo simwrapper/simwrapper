@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.2.0](https://github.com/simwrapper/simwrapper/compare/v3.1.2...v3.2.0) (2024-06-25)
+
+
+### Features
+
+* add line break for long titles on facets ([f1ff14d](https://github.com/simwrapper/simwrapper/commit/f1ff14d75332b761a5cdefdd0f71e035cecd2de6))
+* Option to add labels to heatmap using 'showLabels' ([7f8bccf](https://github.com/simwrapper/simwrapper/commit/7f8bccf802a2e66b0ada19d2b23efc505cea2cae))
+
+
+### Bug Fixes
+
+* **aggregate-od:** add manual centroid capability ([f359355](https://github.com/simwrapper/simwrapper/commit/f359355135aec2d39d312819aa3d8f5351b3b318))
+* **aggregate-od:** add manual centroid capability ([881c2f0](https://github.com/simwrapper/simwrapper/commit/881c2f0c646018fefa06dfa1830f95342e24d9cf))
+* Fix min/max calculation on colors and widths when NaNs are present ([b9020d6](https://github.com/simwrapper/simwrapper/commit/b9020d66054a194a641a983c9066cc8501b5fa61))
+* **flowmap:** allow manual centroid property on geojson ([c8da7a0](https://github.com/simwrapper/simwrapper/commit/c8da7a0fb86116f72ef5af228d5e4611f0e8113b))
+* **flowmap:** allow manual centroid property on geojson ([1f5d005](https://github.com/simwrapper/simwrapper/commit/1f5d005956f7a66b5d4b613e3ff0f1cfd68e1ded))
+* Links to local filesystem handles get mixed after delete/re-add ([65eab6f](https://github.com/simwrapper/simwrapper/commit/65eab6fcf9896d3a1ba8684f13430ab66083cd3d))
+
 ### [3.1.2](https://github.com/simwrapper/simwrapper/compare/v3.1.1...v3.1.2) (2024-05-16)
 
 
