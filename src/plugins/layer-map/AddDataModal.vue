@@ -198,6 +198,7 @@ export default defineComponent({
               const offset = i * 2
               const feature = {
                 id: links.linkIds[i],
+                properties: { id: links.linkIds[i] },
                 geometry: {
                   type: 'LineString',
                   coordinates: [

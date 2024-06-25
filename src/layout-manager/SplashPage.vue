@@ -8,7 +8,7 @@
 
         .top-banner.flex-row
           .flex1
-            img.simwrapper-logo(:src="images.logo")
+            img.simwrapper-logo(v-if="images.logo" :src="images.logo")
             //- img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
             //- img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
 
@@ -156,7 +156,6 @@
           .badges
             a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
 
-
 </template>
 
 <script lang="ts">
@@ -259,7 +258,6 @@ export default defineComponent({
     },
 
     showDocumentation() {
-      console.log('here')
       window.location.href = 'https://simwrapper.github.io/docs'
     },
 
