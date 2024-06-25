@@ -38,6 +38,7 @@ export interface PolygonsDefinition {
   join?: string
   colorRamp?: Ramp
   fixedColors: string[]
+  opacity: number
 }
 // -----------------------------------------------
 
@@ -253,7 +254,7 @@ export default class PolygonsLayer extends BaseLayer {
       // lineWidthUnits: 'pixels',
       highlightColor: [255, 255, 255, 128],
       autoHighlight: true,
-      opacity: 1,
+      opacity: 'opacity' in this.layerOptions ? this.layerOptions.opacity : 1.0,
       pickable: true,
       updateTriggers: {
         getFillColor: fillColors,

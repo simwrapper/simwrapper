@@ -61,6 +61,10 @@
       )
 
     .widget-row.flex-col
+      p.tight Opacity
+      b-slider.slider(:tooltip="false" v-model="opacity" @input="debOpacity")
+
+    .widget-row.flex-col
       column-selector(v-model="outline" :extra="solidColors" :datasets="{}" @update="outline=$event")
         p.tight Outline
 
@@ -84,6 +88,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+
+import debounce from 'debounce'
 
 import DatasetSelector from '@/plugins/layer-map/components/DatasetSelector.vue'
 import ColumnSelector from '@/plugins/layer-map/components/ColumnSelector.vue'
@@ -127,9 +133,12 @@ export default defineComponent({
   data() {
     return {
       globalState: globalStore.state,
+      debOpacity: {} as any,
+
       // view model
       shapes: '',
       metric: '',
+      opacity: 100,
       diff: '',
       diffRelative: false,
       outline: '@1',
@@ -243,6 +252,8 @@ export default defineComponent({
   async mounted() {
     console.log('POLYGONS options', this.options)
 
+    this.debOpacity = debounce(this.updateOpacity, 16.6667 * 2)
+
     this.projection = this.options.projection
     this.metric = this.options.metric || '@2'
     this.outline = this.options.outline || '@1'
@@ -262,6 +273,11 @@ export default defineComponent({
   },
 
   methods: {
+    updateOpacity(event: any) {
+      this.opacity = event
+      this.updateConfig()
+    },
+
     thinkAboutJoin() {
       // already joined shapefile:
       if (this.shapeJoin) return
@@ -351,6 +367,8 @@ export default defineComponent({
         }
       }
 
+      if (this.opacity !== 100) update.opacity = this.opacity / 100
+
       this.$emit('update', update)
     },
   },
@@ -436,5 +454,10 @@ export default defineComponent({
   border-radius: 4px;
   background-color: var(--bgCardFrame2);
   // color: #333;
+}
+
+.slider {
+  margin-top: 6px;
+  padding: 0rem 6px;
 }
 </style>
