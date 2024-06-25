@@ -367,7 +367,7 @@ export default defineComponent({
         }
       }
 
-      if (this.opacity !== 100) update.opacity = this.opacity / 100
+      update.opacity = this.opacity / 100
 
       this.$emit('update', update)
     },
