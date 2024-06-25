@@ -660,7 +660,7 @@ export default defineComponent({
         this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
       }
 
-      if (!this.vizDetails.center) this.vizDetails.center = [13.45, 52.5]
+      if (!this.vizDetails.center) this.vizDetails.center = [-122.4, 37.75]
 
       if (this.needsInitialMapExtent && this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
