@@ -224,6 +224,11 @@ const MyComponent = defineComponent({
     window.addEventListener('resize', this.changeDimensions)
     this.layout.margin = { r: 0, t: 8, b: 0, l: 50, pad: 2 }
     this.createFacets()
+
+    // Fix: If two x axes are used, the x-axis labels are not displayed correctly.
+    if (Array.isArray(this.traces[0].x[0])) {
+      this.layout.xaxis.autotickangles = [0, 90]
+    }
   },
 
   beforeDestroy() {
@@ -362,6 +367,12 @@ const MyComponent = defineComponent({
         )
 
       this.groupTracesByFacets(facet_col, facet_row)
+
+      // If the plot is interactive, the traces are displayed in one plot so the grid is set to 1x1
+      if (this.vizDetails.interactive == 'dropdown') {
+        this.layout.grid = { rows: 1, columns: 1 }
+        this.createMenus(this.vizDetails.interactive)
+      }
     },
     // If facet_col and/or facet_row are defined in the traces, this method groups the traces by the facets
     groupTracesByFacets(facet_col: any[], facet_row: any[]) {
@@ -565,23 +576,41 @@ const MyComponent = defineComponent({
             }
           }
 
-          const filterTrace = {
-            ...trace,
-            x: axis == 'y' ? filteredX : trace.x,
-            y: axis == 'x' ? filteredX : trace.y,
-            xaxis: axis == 'y' ? 'x' : j > 0 ? 'x' + (j + 1) : 'x',
-            yaxis: axis == 'y' ? (j > 0 ? 'y' + (j + 1) : 'y') : 'y',
+          let filterTrace = { ...trace }
+
+          // If the the plot is interactive (e. g. dropdown menu), the traces are displayed in one plot
+          if (this.vizDetails.interactive == 'dropdown') {
+            filterTrace = {
+              ...trace,
+              x: axis == 'y' ? filteredX : trace.x,
+              y: axis == 'x' ? filteredX : trace.y,
+              xaxis: axis == 'y',
+              yaxis: axis == 'y',
+            }
+          } else {
+            filterTrace = {
+              ...trace,
+              x: axis == 'y' ? filteredX : trace.x,
+              y: axis == 'x' ? filteredX : trace.y,
+              xaxis: axis == 'y' ? 'x' : j > 0 ? 'x' + (j + 1) : 'x',
+              yaxis: axis == 'y' ? (j > 0 ? 'y' + (j + 1) : 'y') : 'y',
+            }
           }
 
           delete filterTrace.facet_row
           delete filterTrace.facet_col
 
           // showlegend
-          filterTrace.showlegend = j === 0
+          if (this.vizDetails.interactive == 'dropdown') {
+            filterTrace.showlegend = true
+          } else {
+            filterTrace.showlegend = j === 0
+          }
 
           // legendgroup
           filterTrace.legendgroup = filterTrace.group_name
           delete filterTrace.group_name
+          filterTrace.facet_name = row
 
           const color = this.assignColor(filterTrace)
           filterTrace.marker = {
@@ -609,11 +638,13 @@ const MyComponent = defineComponent({
             },
           }
         } else {
-          this.layout[axisIndex].title = ''
-          this.layout[axisIndex].title = {
-            text: axisTitle + (axisTitle ? '<br>' : '') + label,
+          if (!this.vizDetails.interactive) {
+            this.layout[axisIndex].title = ''
+            this.layout[axisIndex].title = {
+              text: axisTitle + (axisTitle ? '<br>' : '') + label,
+            }
+            this.layout[axisIndex].anchor = 'y'
           }
-          this.layout[axisIndex].anchor = 'y'
         }
 
         result.push(...filteredTraces)
@@ -631,15 +662,21 @@ const MyComponent = defineComponent({
 
       const n = Object.values(this.traces).length
 
+      // If the plot is a facetplot the dropdown menu should be created based on the facet_name. otherwise based on the group_name
+      let dropdownLabel = 'group_name'
+      if (this.vizDetails.interactive == 'dropdown') {
+        dropdownLabel = 'facet_name'
+      }
+
       Object.values(this.traces).forEach((tr, idx) => {
         // restore the indended legend label
         if ('original_name' in tr) {
           tr.name = tr.original_name
         }
 
-        if (!(tr.group_name in groups)) groups[tr.group_name] = []
+        if (!(tr[dropdownLabel] in groups)) groups[tr[dropdownLabel]] = []
 
-        groups[tr.group_name].push(idx)
+        groups[tr[dropdownLabel]].push(idx)
 
         tr.visible = false
       })
