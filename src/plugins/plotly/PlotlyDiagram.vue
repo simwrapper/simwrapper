@@ -364,7 +364,7 @@ const MyComponent = defineComponent({
       this.groupTracesByFacets(facet_col, facet_row)
 
       // If the plot is interactive, the traces are displayed in one plot so the grid is set to 1x1
-      if (this.vizDetails.interactive) {
+      if (this.vizDetails.interactive == 'dropdown') {
         this.layout.grid = { rows: 1, columns: 1 }
         this.createMenus(this.vizDetails.interactive)
       }
@@ -574,7 +574,7 @@ const MyComponent = defineComponent({
           let filterTrace = { ...trace }
 
           // If the the plot is interactive (e. g. dropdown menu), the traces are displayed in one plot
-          if (this.vizDetails.interactive) {
+          if (this.vizDetails.interactive == 'dropdown') {
             filterTrace = {
               ...trace,
               x: axis == 'y' ? filteredX : trace.x,
@@ -596,7 +596,7 @@ const MyComponent = defineComponent({
           delete filterTrace.facet_col
 
           // showlegend
-          if (this.vizDetails.interactive) {
+          if (this.vizDetails.interactive == 'dropdown') {
             filterTrace.showlegend = true
           } else {
             filterTrace.showlegend = j === 0
@@ -659,7 +659,7 @@ const MyComponent = defineComponent({
 
       // If the plot is a facetplot the dropdown menu should be created based on the facet_name. otherwise based on the group_name
       let dropdownLabel = 'group_name'
-      if (this.vizDetails.interactive) {
+      if (this.vizDetails.interactive == 'dropdown') {
         dropdownLabel = 'facet_name'
       }
 
