@@ -224,6 +224,11 @@ const MyComponent = defineComponent({
     window.addEventListener('resize', this.changeDimensions)
     this.layout.margin = { r: 0, t: 8, b: 0, l: 50, pad: 2 }
     this.createFacets()
+
+    // Fix: If two x axes are used, the x-axis labels are not displayed correctly.
+    if (Array.isArray(this.traces[0].x[0])) {
+      this.layout.xaxis.autotickangles = [0, 90]
+    }
   },
 
   beforeDestroy() {
