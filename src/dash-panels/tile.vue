@@ -6,7 +6,7 @@
         p.tile-title {{ value[tileNameIndex] }}
         p.tile-value {{ value[tileValueIndex] }}
         .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
+        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'https://raw.githubusercontent.com/simwrapper/simwrapper/master/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
         font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
@@ -136,7 +136,7 @@ export default defineComponent({
     },
     async loadImages() {
       this.imagesAreLoaded = false
-
+      console.log(this.dataSet.data[2])
       for (let i = 0; i < this.dataSet.data.length; i++) {
         const value = this.dataSet.data[i] as any
         if (this.checkIfItIsACustomIcon(value[this.tileImageIndex])) {
@@ -178,7 +178,6 @@ export default defineComponent({
         header: false,
         skipEmptyLines: true,
       })
-
       return csv
     },
 
