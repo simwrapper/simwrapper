@@ -579,7 +579,7 @@ const MyComponent = defineComponent({
           let filterTrace = { ...trace }
 
           // If the the plot is interactive (e. g. dropdown menu), the traces are displayed in one plot
-          if (this.vizDetails.interactive == 'dropdown') {
+          if (this.vizDetails.interactive == 'dropdown' && this.isUsingFacets) {
             filterTrace = {
               ...trace,
               x: axis == 'y' ? filteredX : trace.x,
@@ -601,7 +601,7 @@ const MyComponent = defineComponent({
           delete filterTrace.facet_col
 
           // showlegend
-          if (this.vizDetails.interactive == 'dropdown') {
+          if (this.vizDetails.interactive == 'dropdown' && this.isUsingFacets) {
             filterTrace.showlegend = true
           } else {
             filterTrace.showlegend = j === 0
@@ -664,7 +664,7 @@ const MyComponent = defineComponent({
 
       // If the plot is a facetplot the dropdown menu should be created based on the facet_name. otherwise based on the group_name
       let dropdownLabel = 'group_name'
-      if (this.vizDetails.interactive == 'dropdown') {
+      if (this.vizDetails.interactive == 'dropdown' && this.isUsingFacets) {
         dropdownLabel = 'facet_name'
       }
 
