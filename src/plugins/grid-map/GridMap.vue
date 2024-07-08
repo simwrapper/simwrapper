@@ -31,7 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
-import { hexToRgb, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -46,7 +46,6 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
-import { thresholdFreedmanDiaconis } from 'd3-array'
 import avro from '@/js/avro'
 
 // interface for each time object inside the mapData Array
@@ -64,6 +63,7 @@ export interface MapData {
 export interface CompleteMapData {
   mapData: MapData[]
   scaledFactor: Number
+  unit: String
 }
 
 interface VizDetail {
@@ -613,6 +613,7 @@ const GridMap = defineComponent({
       const finalData = {
         mapData: [] as MapData[],
         scaledFactor: scaleFactor as Number,
+        unit: tableName as String,
       } as CompleteMapData
 
       const x = record.xCoords

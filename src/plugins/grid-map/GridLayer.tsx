@@ -9,12 +9,15 @@ import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals' // Import constants
 
 import { CompleteMapData } from './GridMap.vue' // Import data types.
 
-const material = {
-  ambient: 0.64,
-  diffuse: 0.6,
-  shininess: 32,
-  specularColor: [51, 51, 51],
+type TooltipStyle = {
+  color: string
+  backgroundColor: string
 }
+
+type Tooltip = {
+  html: string
+  style: TooltipStyle
+} | null
 
 // LAYER --------------------------------------------------------
 export default function Layer({
@@ -67,6 +70,32 @@ export default function Layer({
     }
   }
 
+  function getTooltip(object: any): Tooltip {
+    if (!object?.coordinate) return null
+
+    const currentData = data.mapData[currentTimeIndex]?.values
+    if (!currentData || !currentData[object.index]) return null
+
+    const [lng, lat] = object.coordinate // Koordinaten (Längengrad, Breitengrad)
+    const rawValue = currentData[object.index]
+    const value = rawValue / (data.scaledFactor as number)
+    const roundedValue = Number(value.toFixed(6))
+    const unit = data.unit
+
+    const latDisplay = Number.isFinite(lat) ? lat.toFixed(4) : ''
+    const lngDisplay = Number.isFinite(lng) ? lng.toFixed(4) : ''
+
+    const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}`
+    const tooltipStyle: TooltipStyle = dark
+      ? { color: '#ccc', backgroundColor: '#2a3c4f' }
+      : { color: '#223', backgroundColor: 'white' }
+
+    return {
+      html: tooltipHtml,
+      style: tooltipStyle,
+    }
+  }
+
   // Generate colors for data visualization using the specified color ramp
   const colors = colormap({
     colormap: colorRamp,
@@ -114,6 +143,7 @@ export default function Layer({
       controller={true}
       useDevicePixels={false}
       viewState={viewState}
+      getTooltip={getTooltip}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {/* @ts-ignore */}
