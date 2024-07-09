@@ -24,6 +24,7 @@
       :opacity="sliderOpacity"
       :pointRadii="dataPointRadii"
       :cbTooltip="cbTooltip"
+      :bgLayers="bgLayers"
     )
 
     //- :features="useCircles ? centroids: boundaries"
@@ -43,7 +44,13 @@
       @screenshot="takeScreenshot"
     )
 
-    .details-panel(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
+    .details-panel
+      .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
+      .bglayer-section
+        b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)"
+          @input="updateBgLayers" v-model="bgLayers[layer].visible"
+        ) {{  layer }}
+
 
   zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -89,6 +96,11 @@ import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
 
+import * as d3ScaleChromatic from 'd3-scale-chromatic'
+import * as d3Interpolate from 'd3-interpolate'
+import { scaleSequential } from 'd3-scale'
+import { rgb } from 'd3-color'
+
 import globalStore from '@/store'
 import {
   DataTable,
@@ -103,7 +115,7 @@ import {
 
 import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
-import ColorWidthSymbologizer from '@/js/ColorsAndWidths'
+import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
@@ -127,6 +139,14 @@ interface FilterDetails {
   options: any[]
   active: any[]
   dataset?: any
+}
+
+export interface BackgroundLayer {
+  features: any[]
+  opacity: number
+  borderWidth: number
+  borderColor: number[]
+  visible: boolean
 }
 
 const MyComponent = defineComponent({
@@ -219,6 +239,8 @@ const MyComponent = defineComponent({
 
       tooltipHtml: '',
 
+      bgLayers: {} as { [name: string]: BackgroundLayer },
+
       vizDetails: {
         title: '',
         description: '',
@@ -249,6 +271,19 @@ const MyComponent = defineComponent({
           radius: {} as any,
         },
         tooltip: [] as string[],
+        backgroundLayers: {} as {
+          [name: string]: {
+            shapes: string
+            projection: string
+            fill: string
+            opacity: number
+            colorRamp: string
+            borderWidth: any
+            borderColor: string
+            label: string
+            visible: boolean
+          }
+        },
       },
 
       datasets: {} as { [id: string]: DataTable },
@@ -2303,6 +2338,7 @@ const MyComponent = defineComponent({
 
         // filter out features that don't have geometry: they can't be mapped
         geojson.features = geojson.features.filter((f: any) => !!f.geometry)
+        this.statusText = ''
       } catch (e) {
         console.error(e)
         this.$emit('error', '' + e)
@@ -2651,6 +2687,90 @@ const MyComponent = defineComponent({
       this.dataCalculatedValues = null
       this.dataCalculatedValueLabel = ''
     },
+
+    updateBgLayers() {
+      this.bgLayers = { ...this.bgLayers }
+    },
+
+    async loadBackgroundLayers() {
+      if (!this.vizDetails.backgroundLayers) return
+
+      for (const layerName of Object.keys(this.vizDetails.backgroundLayers)) {
+        console.log('LOADING', layerName)
+        const layerDetails = this.vizDetails.backgroundLayers[layerName]
+
+        // load boundaries ---
+        let features = [] as any[]
+        const filename = layerDetails.shapes
+        if (filename.startsWith('http'))
+          features = (await fetch(filename).then(async r => await r.json())).features
+        else if (filename.toLocaleLowerCase().endsWith('.shp'))
+          features = await this.loadShapefileFeatures(filename)
+        else features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+
+        // Fill colors ---
+        let colors = null as any
+        if (layerDetails.fill && !layerDetails.fill.startsWith('#')) {
+          const whichScale = layerDetails.fill.startsWith('scheme')
+            ? layerDetails.fill
+            : `interpolate${layerDetails.fill}`
+          // @ts-ignore
+          const scale = d3ScaleChromatic[whichScale]
+          if (scale) {
+            const ramp = scaleSequential(scale)
+            colors = Array.from({ length: features.length }, (_, i) => {
+              const c = rgb(ramp(i / features.length - 1))
+              return [c.r, c.g, c.b]
+            })
+          }
+        }
+
+        for (let i = 0; i < features.length; i++) {
+          const feature = features[i]
+          let __fill__ = [64, 64, 192]
+          if (layerDetails.fill) {
+            if (layerDetails.fill.startsWith('#')) {
+              __fill__ = buildRGBfromHexCodes([layerDetails.fill])[0]
+            } else if (colors) {
+              __fill__ = colors[i]
+            }
+          }
+          feature.properties.__fill__ = __fill__
+        }
+
+        // Text labels ---
+        if (layerDetails.label) {
+          const labels = [] as any
+          for (const feature of features) {
+            const centroid = turf.centerOfMass(feature)
+            if (!centroid.properties) centroid.properties = {}
+            centroid.properties.label = feature.properties[layerDetails.label]
+            labels.push(centroid)
+          }
+          features = features.concat(labels)
+        }
+
+        // borders ---
+        const borderColor = layerDetails.borderColor
+          ? buildRGBfromHexCodes([layerDetails.borderColor])[0]
+          : [255, 255, 255]
+        const borderWidth = 'borderWidth' in layerDetails ? layerDetails.borderWidth : 2
+        const opacity = layerDetails.opacity || 0.25
+
+        let visible = true
+        if ('visible' in layerDetails) visible = layerDetails.visible
+
+        console.log('FINAL FEATURES', features)
+        const details = {
+          features,
+          opacity,
+          borderWidth,
+          borderColor,
+          visible,
+        }
+        this.bgLayers[layerName] = details
+      }
+    },
   },
 
   async mounted() {
@@ -2724,6 +2844,8 @@ const MyComponent = defineComponent({
 
       // Ask for shapes feature ID if it's not obvious/specified already
       this.featureJoinColumn = await this.figureOutFeatureIdColumn()
+
+      this.loadBackgroundLayers()
     } catch (e) {
       this.$emit('error', '' + e)
       this.statusText = ''
@@ -2822,6 +2944,17 @@ export default MyComponent
   opacity: 0.5;
 }
 
+.bglayer-section {
+  display: flex;
+  flex-direction: column;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  background-color: var(--bgPanel);
+  width: min-content;
+}
+
 .filter {
   margin-right: 0.5rem;
   display: flex;
@@ -2867,13 +3000,10 @@ export default MyComponent
   position: absolute;
   bottom: 0;
   left: 0;
-  text-align: left;
-  background-color: var(--bgPanel);
   display: flex;
-  filter: $filterShadow;
-  flex-direction: row;
+  flex-direction: column;
+  gap: 0.25rem;
   margin: 0.5rem;
-  padding: 0.25rem 0.5rem;
   // width: 15rem;
   font-size: 0.8rem;
   color: var(--bold);
@@ -2882,6 +3012,21 @@ export default MyComponent
   overflow-x: hidden;
   overflow-y: auto;
   white-space: nowrap;
+}
+
+.tooltip-html {
+  padding: 0.25rem;
+  text-align: left;
+  filter: $filterShadow;
+  background-color: var(--bgPanel);
+}
+
+.simple-checkbox {
+  padding: 0.25rem;
+}
+
+.simple-checkbox:hover {
+  color: unset;
 }
 
 @media only screen and (max-width: 640px) {
