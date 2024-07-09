@@ -31,7 +31,7 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
-import { hexToRgb, getColorRampHexCodes, Ramp, Style } from '@/js/ColorsAndWidths'
+import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
 import util from '@/js/util'
 import globalStore from '@/store'
@@ -46,7 +46,6 @@ import TimeSlider from '@/components/TimeSliderV2.vue'
 
 import GridLayer from './GridLayer'
 import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
-import { thresholdFreedmanDiaconis } from 'd3-array'
 import avro from '@/js/avro'
 
 // interface for each time object inside the mapData Array
@@ -64,6 +63,7 @@ export interface MapData {
 export interface CompleteMapData {
   mapData: MapData[]
   scaledFactor: Number
+  unit: String
 }
 
 interface VizDetail {
@@ -83,6 +83,7 @@ interface VizDetail {
   mapIsIndependent?: boolean
   breakpoints?: string
   valueColumn: string
+  unit: string
 }
 
 interface GuiConfig {
@@ -210,6 +211,7 @@ const GridMap = defineComponent({
         zoom: 9,
         breakpoints: null as any,
         valueColumn: 'value',
+        unit: '',
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -416,6 +418,7 @@ const GridMap = defineComponent({
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
         valueColumn: this.vizDetails.valueColumn,
+        unit: this.vizDetails.unit,
       }
       this.$emit('title', this.vizDetails.title)
       this.solveProjection()
@@ -610,9 +613,14 @@ const GridMap = defineComponent({
 
       // console.log({ scaleFactor })
 
+      if (this.vizDetails.unit == undefined) {
+        this.vizDetails.unit = ''
+      }
+
       const finalData = {
         mapData: [] as MapData[],
         scaledFactor: scaleFactor as Number,
+        unit: this.vizDetails.unit,
       } as CompleteMapData
 
       const x = record.xCoords
@@ -693,6 +701,10 @@ const GridMap = defineComponent({
         this.vizDetails.valueColumn = 'value'
       }
 
+      if (this.vizDetails.unit == undefined) {
+        this.vizDetails.unit = ''
+      }
+
       // This for loop collects all the data that's used by
       for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // Stores all times to calculate the range and the timeBinSize
@@ -726,6 +738,7 @@ const GridMap = defineComponent({
       const finalData = {
         mapData: [] as MapData[],
         scaledFactor: scaleFactor as Number,
+        unit: this.vizDetails.unit,
       } as CompleteMapData
 
       // map all times to their index and create a mapData object for each time
