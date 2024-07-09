@@ -722,6 +722,8 @@ const MyComponent = defineComponent({
         }
       }
 
+      if (!this.vizDetails.backgroundLayers) this.vizDetails.backgroundLayers = {}
+
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
     },
@@ -2722,21 +2724,29 @@ const MyComponent = defineComponent({
     async loadBackgroundLayers() {
       this.bgLayers = {}
 
-      if (!this.vizDetails.backgroundLayers) return
+      if (!this.vizDetails.backgroundLayers) {
+        this.vizDetails.backgroundLayers = {}
+        return
+      }
 
       for (const layerName of Object.keys(this.vizDetails.backgroundLayers)) {
         try {
           console.log('LOADING', layerName)
           const layerDetails = this.vizDetails.backgroundLayers[layerName]
 
-          // load boundaries ---
           let features = [] as any[]
-          const filename = layerDetails.shapes
-          if (filename.startsWith('http'))
-            features = (await fetch(filename).then(async r => await r.json())).features
-          else if (filename.toLocaleLowerCase().endsWith('.shp'))
-            features = await this.loadShapefileFeatures(filename)
-          else features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+          try {
+            // load boundaries ---
+            const filename = layerDetails.shapes
+            if (filename.startsWith('http'))
+              features = (await fetch(filename).then(async r => await r.json())).features
+            else if (filename.toLocaleLowerCase().endsWith('.shp'))
+              features = await this.loadShapefileFeatures(filename)
+            else
+              features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+          } catch (e) {
+            console.error('' + e)
+          }
 
           // Fill colors ---
           let colors = null as any
@@ -2791,6 +2801,7 @@ const MyComponent = defineComponent({
           if ('visible' in layerDetails) visible = layerDetails.visible
 
           console.log('FINAL FEATURES', features)
+
           const details = {
             features,
             opacity,
@@ -2799,6 +2810,8 @@ const MyComponent = defineComponent({
             visible,
           }
           this.bgLayers[layerName] = details
+
+          console.log(75, this.bgLayers)
         } catch (e) {
           console.error('' + e)
         }

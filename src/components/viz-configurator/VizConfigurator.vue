@@ -147,7 +147,7 @@ export default defineComponent({
         datasets: this.vizDetails.datasets,
         display: this.vizDetails.display,
         filters: this.vizDetails.filters,
-        backgroundLayers: this.vizDetails.backgroundLayers,
+        backgroundLayers: this.vizDetails.backgroundLayers || {},
       }
     },
 
