@@ -308,8 +308,16 @@ const MyComponent = defineComponent({
 
     configuratorSections(): string[] {
       if (this.isAreaMode)
-        return ['fill-color', 'fill-height', 'line-color', 'line-width', 'circle-radius', 'filters']
-      else return ['line-color', 'line-width', 'filters']
+        return [
+          'fill-color',
+          'fill-height',
+          'line-color',
+          'line-width',
+          'circle-radius',
+          'layers',
+          'filters',
+        ]
+      else return ['line-color', 'line-width', 'layers', 'filters']
     },
 
     datasetChoices(): string[] {
@@ -852,6 +860,11 @@ const MyComponent = defineComponent({
           this.handleNewDataset(props.dataset)
         }
 
+        if (props['layers']) {
+          // this.vizDetails.display.radius = props.radius
+          this.handleNewLayers(props.layers)
+        }
+
         if (props['filters']) {
           this.handleNewFilters(props.filters)
         }
@@ -862,12 +875,26 @@ const MyComponent = defineComponent({
       }
     },
 
+    handleNewLayers(props: any[]) {
+      const layers = {} as any
+      for (const layer of props) {
+        const { title, ...details } = layer
+        layers[title] = details
+      }
+      this.vizDetails.backgroundLayers = layers
+      try {
+        this.loadBackgroundLayers()
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
     async handleNewDataset(props: DatasetDefinition) {
       const { key, dataTable, filename } = props
       const datasetId = key
       const datasetFilename = filename || datasetId
 
-      console.log('HANDLE NEW DATSET:', datasetId, datasetFilename)
+      console.log('HANDLE NEW DATASET:', datasetId, datasetFilename)
 
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
@@ -2693,82 +2720,88 @@ const MyComponent = defineComponent({
     },
 
     async loadBackgroundLayers() {
+      this.bgLayers = {}
+
       if (!this.vizDetails.backgroundLayers) return
 
       for (const layerName of Object.keys(this.vizDetails.backgroundLayers)) {
-        console.log('LOADING', layerName)
-        const layerDetails = this.vizDetails.backgroundLayers[layerName]
+        try {
+          console.log('LOADING', layerName)
+          const layerDetails = this.vizDetails.backgroundLayers[layerName]
 
-        // load boundaries ---
-        let features = [] as any[]
-        const filename = layerDetails.shapes
-        if (filename.startsWith('http'))
-          features = (await fetch(filename).then(async r => await r.json())).features
-        else if (filename.toLocaleLowerCase().endsWith('.shp'))
-          features = await this.loadShapefileFeatures(filename)
-        else features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+          // load boundaries ---
+          let features = [] as any[]
+          const filename = layerDetails.shapes
+          if (filename.startsWith('http'))
+            features = (await fetch(filename).then(async r => await r.json())).features
+          else if (filename.toLocaleLowerCase().endsWith('.shp'))
+            features = await this.loadShapefileFeatures(filename)
+          else features = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
 
-        // Fill colors ---
-        let colors = null as any
-        if (layerDetails.fill && !layerDetails.fill.startsWith('#')) {
-          const whichScale = layerDetails.fill.startsWith('scheme')
-            ? layerDetails.fill
-            : `interpolate${layerDetails.fill}`
-          // @ts-ignore
-          const scale = d3ScaleChromatic[whichScale]
-          if (scale) {
-            const ramp = scaleSequential(scale)
-            colors = Array.from({ length: features.length }, (_, i) => {
-              const c = rgb(ramp(i / features.length - 1))
-              return [c.r, c.g, c.b]
-            })
-          }
-        }
-
-        for (let i = 0; i < features.length; i++) {
-          const feature = features[i]
-          let __fill__ = [64, 64, 192]
-          if (layerDetails.fill) {
-            if (layerDetails.fill.startsWith('#')) {
-              __fill__ = buildRGBfromHexCodes([layerDetails.fill])[0]
-            } else if (colors) {
-              __fill__ = colors[i]
+          // Fill colors ---
+          let colors = null as any
+          if (layerDetails.fill && !layerDetails.fill.startsWith('#')) {
+            const whichScale = layerDetails.fill.startsWith('scheme')
+              ? layerDetails.fill
+              : `interpolate${layerDetails.fill}`
+            // @ts-ignore
+            const scale = d3ScaleChromatic[whichScale]
+            if (scale) {
+              const ramp = scaleSequential(scale)
+              colors = Array.from({ length: features.length }, (_, i) => {
+                const c = rgb(ramp(i / features.length - 1))
+                return [c.r, c.g, c.b]
+              })
             }
           }
-          feature.properties.__fill__ = __fill__
-        }
 
-        // Text labels ---
-        if (layerDetails.label) {
-          const labels = [] as any
-          for (const feature of features) {
-            const centroid = turf.centerOfMass(feature)
-            if (!centroid.properties) centroid.properties = {}
-            centroid.properties.label = feature.properties[layerDetails.label]
-            labels.push(centroid)
+          for (let i = 0; i < features.length; i++) {
+            const feature = features[i]
+            let __fill__ = [64, 64, 192]
+            if (layerDetails.fill) {
+              if (layerDetails.fill.startsWith('#')) {
+                __fill__ = buildRGBfromHexCodes([layerDetails.fill])[0]
+              } else if (colors) {
+                __fill__ = colors[i]
+              }
+            }
+            feature.properties.__fill__ = __fill__
           }
-          features = features.concat(labels)
+
+          // Text labels ---
+          if (layerDetails.label) {
+            const labels = [] as any
+            for (const feature of features) {
+              const centroid = turf.centerOfMass(feature)
+              if (!centroid.properties) centroid.properties = {}
+              centroid.properties.label = feature.properties[layerDetails.label]
+              labels.push(centroid)
+            }
+            features = features.concat(labels)
+          }
+
+          // borders ---
+          const borderColor = layerDetails.borderColor
+            ? buildRGBfromHexCodes([layerDetails.borderColor])[0]
+            : [255, 255, 255]
+          const borderWidth = 'borderWidth' in layerDetails ? parseInt(layerDetails.borderWidth) : 0
+          const opacity = layerDetails.opacity || 0.25
+
+          let visible = true
+          if ('visible' in layerDetails) visible = layerDetails.visible
+
+          console.log('FINAL FEATURES', features)
+          const details = {
+            features,
+            opacity,
+            borderWidth,
+            borderColor,
+            visible,
+          }
+          this.bgLayers[layerName] = details
+        } catch (e) {
+          console.error('' + e)
         }
-
-        // borders ---
-        const borderColor = layerDetails.borderColor
-          ? buildRGBfromHexCodes([layerDetails.borderColor])[0]
-          : [255, 255, 255]
-        const borderWidth = 'borderWidth' in layerDetails ? layerDetails.borderWidth : 2
-        const opacity = layerDetails.opacity || 0.25
-
-        let visible = true
-        if ('visible' in layerDetails) visible = layerDetails.visible
-
-        console.log('FINAL FEATURES', features)
-        const details = {
-          features,
-          opacity,
-          borderWidth,
-          borderColor,
-          visible,
-        }
-        this.bgLayers[layerName] = details
       }
     },
   },
@@ -3004,7 +3037,6 @@ export default MyComponent
   flex-direction: column;
   gap: 0.25rem;
   margin: 0.5rem;
-  // width: 15rem;
   font-size: 0.8rem;
   color: var(--bold);
   opacity: 0.95;

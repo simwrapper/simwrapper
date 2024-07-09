@@ -193,7 +193,7 @@ export default function Component({
       autohighlight: false,
       opacity: layerDetails.opacity,
       pickable: false,
-      stroked: true,
+      stroked: layerDetails.borderWidth ? true : false,
       fp64: false,
       parameters: { depthTest: false },
     })
