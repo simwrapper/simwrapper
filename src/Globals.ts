@@ -120,6 +120,7 @@ export type VizLayerConfiguration = {
     radius: any
   }
   filters: any
+  backgroundLayers: { [id: string]: any }
 }
 
 export type YamlConfigs = {
