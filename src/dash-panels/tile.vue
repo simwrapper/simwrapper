@@ -23,6 +23,9 @@ import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
+const BASE_URL = import.meta.env.BASE_URL
+
+
 export default defineComponent({
   name: 'Tile',
   components: { FontAwesomeIcon },
@@ -194,7 +197,7 @@ export default defineComponent({
     },
 
     getLocalImage(image: string) {
-      return new URL('../assets/tile-icons/' + image + '.svg', import.meta.url).href
+      return `${BASE_URL}images/tile-icons/` + image + '.svg'
     },
 
     validateDataSet() {
