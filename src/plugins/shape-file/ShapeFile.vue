@@ -47,7 +47,7 @@
     .details-panel
       .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
       .bglayer-section
-        b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)"
+        b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
           @input="updateBgLayers" v-model="bgLayers[layer].visible"
         ) {{  layer }}
 
@@ -130,6 +130,7 @@ import { LineColorDefinition } from '@/components/viz-configurator/LineColors.vu
 import { LineWidthDefinition } from '@/components/viz-configurator/LineWidths.vue'
 import { FillHeightDefinition } from '@/components/viz-configurator/FillHeight.vue'
 import { DatasetDefinition } from '@/components/viz-configurator/AddDatasets.vue'
+import { LayerDefinition } from '@/components/viz-configurator/Layers.vue'
 import Coords from '@/js/Coords'
 import LegendStore from '@/js/LegendStore'
 
@@ -277,7 +278,6 @@ const MyComponent = defineComponent({
             projection: string
             fill: string
             opacity: number
-            colorRamp: string
             borderWidth: any
             borderColor: string
             label: string
@@ -824,6 +824,7 @@ const MyComponent = defineComponent({
       radius?: CircleRadiusDefinition
       fillHeight?: FillHeightDefinition
       filters?: FilterDefinition
+      layers?: LayerDefinition[]
     }) {
       // console.log('PROPS', props)
 
@@ -877,7 +878,7 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleNewLayers(props: any[]) {
+    handleNewLayers(props: LayerDefinition[]) {
       const layers = {} as any
       for (const layer of props) {
         const { title, ...details } = layer
@@ -886,8 +887,9 @@ const MyComponent = defineComponent({
       this.vizDetails.backgroundLayers = layers
       try {
         this.loadBackgroundLayers()
+        this.bgLayers = { ...this.bgLayers }
       } catch (e) {
-        console.error('' + e)
+        console.error('Error handling layers, check filenames and parameters: ' + e)
       }
     },
 
@@ -2370,7 +2372,7 @@ const MyComponent = defineComponent({
         this.statusText = ''
       } catch (e) {
         console.error(e)
-        this.$emit('error', '' + e)
+        this.$emit('error', `Could not load ${filename}: ` + e)
         return []
       }
 
@@ -2734,6 +2736,8 @@ const MyComponent = defineComponent({
           console.log('LOADING', layerName)
           const layerDetails = this.vizDetails.backgroundLayers[layerName]
 
+          if (!layerDetails.shapes) continue
+
           let features = [] as any[]
           try {
             // load boundaries ---
@@ -2810,8 +2814,6 @@ const MyComponent = defineComponent({
             visible,
           }
           this.bgLayers[layerName] = details
-
-          console.log(75, this.bgLayers)
         } catch (e) {
           console.error('' + e)
         }

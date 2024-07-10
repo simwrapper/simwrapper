@@ -171,7 +171,7 @@ export default function Component({
 
   // BACKGROUND-LAYERS --------------------------------------------------
   const backgroundLayers = [] as any[]
-  for (const name of Object.keys(bgLayers)) {
+  for (const name of Object.keys(bgLayers).reverse()) {
     const layerDetails = bgLayers[name]
 
     if (layerDetails.visible == false) continue

@@ -64,15 +64,21 @@ import debounce from 'debounce'
 
 import { VizLayerConfiguration, DataTable, DataType } from '@/Globals'
 
-export type BackgroundLayerDefinition = {
+export type LayerDefinition = {
   title: string
+  shapes: string
+  fill: string
+  opacity: number
+  borderColor: string
+  borderWidth: number
+  label: string
+  visible: boolean
 }
 
 export default defineComponent({
   name: 'LayersConfig',
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
-    datasets: { type: Object as PropType<{ [id: string]: DataTable }>, required: true },
   },
   data: () => {
     return {
@@ -80,10 +86,7 @@ export default defineComponent({
         'File types supported:\nURLs, GeoJSON, Shapefiles.\n\nNote: Browsers do not support relative paths, so you may need to edit the YAML after saving.',
     }
   },
-  mounted() {
-    // this.datasetsAreLoaded()
-    // this.vizConfigChanged()
-  },
+  mounted() {},
 
   computed: {
     layers() {
@@ -136,7 +139,7 @@ export default defineComponent({
     addLayer() {
       this.layers.unshift({
         title: `Layer ${1 + this.layers.length}`,
-        shapes: 'filename.geojson',
+        shapes: '',
         fill: 'Rainbow',
         opacity: 0.5,
         borderColor: '#fff',
@@ -148,8 +151,9 @@ export default defineComponent({
     },
 
     updateLayers() {
-      console.log('UPDATE!')
-      this.$emit('update', { layers: this.layers })
+      setTimeout(() => {
+        this.$emit('update', { layers: this.layers })
+      }, 50)
     },
 
     getLayer(id: string) {
