@@ -1,13 +1,13 @@
 <template lang="pug">
 .content
-    .tiles-container(v-if="imagesAreLoaded")
-      .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}" @click="")
-        a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
-          p.tile-title {{ value[tileNameIndex] }}
-          p.tile-value {{ value[tileValueIndex] }}
-          .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
-          img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="'/src/assets/tile-icons/' + value[tileImageIndex].trim() + '.svg'" :style="{'background': ''}")
-          font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
+  .tiles-container(v-if="imagesAreLoaded")
+    .tile(v-for="(value, index) in this.dataSet.data" v-bind:style="{ 'background-color': colors[index % colors.length]}" @click="")
+      a(:href="value[urlIndex]" target="_blank" :class="{ 'is-not-clickable': !value[urlIndex] }")
+        p.tile-title {{ value[tileNameIndex] }}
+        p.tile-value {{ value[tileValueIndex] }}
+        .tile-image(v-if="value[tileImageIndex] != undefined && checkIfItIsACustomIcon(value[tileImageIndex])" :style="{'background': base64Images[index], 'background-size': 'contain'}")
+        img.tile-image(v-else-if="value[tileImageIndex] != undefined && checkIfIconIsInAssetsFolder(value[tileImageIndex])" v-bind:src="getLocalImage(value[tileImageIndex].trim())" :style="{'background': ''}")
+        font-awesome-icon.tile-image(v-else-if="value[tileImageIndex] != undefined" :icon="value[tileImageIndex].trim()" size="2xl" :style="{'background': '', 'color': 'black'}")
 </template>
 
 <script lang="ts">
@@ -22,6 +22,9 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import globalStore from '@/store'
 import { arrayBufferToBase64 } from '@/js/util'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+
+const BASE_URL = import.meta.env.BASE_URL
+
 
 export default defineComponent({
   name: 'Tile',
@@ -136,17 +139,17 @@ export default defineComponent({
     },
     async loadImages() {
       this.imagesAreLoaded = false
-
+      console.log(this.dataSet.data[2])
       for (let i = 0; i < this.dataSet.data.length; i++) {
         const value = this.dataSet.data[i] as any
         if (this.checkIfItIsACustomIcon(value[this.tileImageIndex])) {
           try {
             const blob = await this.fileApi.getFileBlob(
               this.subfolder +
-                '/' +
-                this.config.dataset +
-                '/../' +
-                value[this.tileImageIndex].trim()
+              '/' +
+              this.config.dataset +
+              '/../' +
+              value[this.tileImageIndex].trim()
             )
             const buffer = await readBlob.arraybuffer(blob)
             const base64 = arrayBufferToBase64(buffer)
@@ -157,9 +160,8 @@ export default defineComponent({
               this.$emit('error', {
                 type: Status.WARNING,
                 msg: e.statusText,
-                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${
-                  this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
-                }.`,
+                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
+                  }.`,
               })
             }
           }
@@ -179,7 +181,6 @@ export default defineComponent({
         header: false,
         skipEmptyLines: true,
       })
-
       return csv
     },
 
@@ -193,6 +194,10 @@ export default defineComponent({
           })
         }
       }
+    },
+
+    getLocalImage(image: string) {
+      return `${BASE_URL}images/tile-icons/` + image + '.svg'
     },
 
     validateDataSet() {
@@ -300,6 +305,5 @@ export default defineComponent({
   cursor: default;
 }
 
-@media only screen and (max-width: 640px) {
-}
+@media only screen and (max-width: 640px) {}
 </style>
