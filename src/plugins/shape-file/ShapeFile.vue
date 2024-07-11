@@ -476,16 +476,17 @@ const MyComponent = defineComponent({
 
     async handleClickEvent(event: any) {
       if (event.index != -1) {
-        this.cbTooltip(event.index, event)
+        this.cbTooltip(event.index, event, true)
         this.tooltipIsFixed = true
       } else {
         this.tooltipIsFixed = false
         this.highlightedLinkIndex = -1
+        this.tooltipHtml = ''
       }
     },
 
-    cbTooltip(index: number, object: any) {
-      if (this.tooltipIsFixed) return
+    cbTooltip(index: number, object: any, forceUpdate: boolean = false) {
+      if (this.tooltipIsFixed && !forceUpdate) return
 
       this.highlightedLinkIndex = index
 
