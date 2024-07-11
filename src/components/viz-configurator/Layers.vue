@@ -6,13 +6,13 @@
   .layer(v-for="layer,i in layers")
     .delete-button(@click="deleteLayer(i)") x
 
-    .xlabel: b Layer Title
+    .xlabel(style="margin-top: 0;"): b Layer Title
     b-input(size="is-small" v-model="layer.title" @input="updateLayers")
 
     .xlabel(:title="helpFileText") File / URL ℹ️
     .flex-row(style="gap: 0.25rem")
       b-input.flex1(size="is-small" v-model="layer.shapes" @input="updateLayers")
-      b-button.is-small(@click="openFileDialog") &hellip;
+      b-button.is-small(title="Open file..." @click="openFileDialog(layer)"): i.fas.fa-folder
 
     .flex-row(style="gap: 0.25rem")
       .flex-col.flex1
@@ -79,11 +79,13 @@ export default defineComponent({
   name: 'LayersConfig',
   props: {
     vizConfiguration: { type: Object as PropType<VizLayerConfiguration>, required: true },
+    subfolder: String,
   },
   data: () => {
     return {
       helpFileText:
-        'File types supported:\nURLs, GeoJSON, Shapefiles.\n\nNote: Browsers do not support relative paths, so you may need to edit the YAML after saving.',
+        'File types supported:\nURLs, GeoJSON, Shapefiles.\n\nNote: The browser "Open" dialog does not provide the relative path,\nso you may need to add the relative folder location here.',
+      rawFileData: {} as { [id: string]: any },
     }
   },
   mounted() {},
@@ -103,9 +105,15 @@ export default defineComponent({
   watch: {},
 
   methods: {
-    async openFileDialog() {
+    async openFileDialog(layer: LayerDefinition) {
       const result = (await this.loadFile()) as any
-      console.log(result)
+      if (!result.file) return
+
+      layer.shapes = result.file.name
+      alert(
+        `Note: If the selected file is not in the current folder:\n/${this.subfolder}\n\nthen you must manually add the relative path, e.g.\n../../${result.file.name}.\n\nThis is a browser security limitation.`
+      )
+      this.updateLayers()
     },
 
     loadFile() {
@@ -120,7 +128,7 @@ export default defineComponent({
             const reader = new FileReader()
             reader.onload = (e: any) => resolve({ file, content: e.target.result })
             reader.onerror = e => reject(e)
-            reader.readAsText(file)
+            reader.readAsArrayBuffer(file)
           }
         }
         input.click()
@@ -177,10 +185,11 @@ export default defineComponent({
 
 .layer {
   margin-top: 0.5rem;
-  margin-right: 0.5rem;
-  padding-left: 0.25rem;
-  background-color: var(--bgPanel3);
+  margin-right: 0.25rem;
+  padding: 0 0.2rem;
+  background-color: var(--bgCardFrame2);
   font-size: 0.9rem;
+  border: 1px solid #80808080;
 }
 
 .xlabel {
@@ -190,7 +199,6 @@ export default defineComponent({
 .delete-button {
   float: right;
   opacity: 0.5;
-  margin-right: 0.25rem;
   text-align: center;
   padding: 2px 3px;
   border: 1px solid #00000000;

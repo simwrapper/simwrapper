@@ -44,6 +44,7 @@
             :is="section.component"
             :vizConfiguration="vizConfiguration"
             :datasets="datasets"
+            :subfolder="subfolder"
             @update="handleConfigChanged")
           p(v-else) To be added
 
