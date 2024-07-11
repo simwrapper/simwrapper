@@ -14,6 +14,18 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.3.0](https://github.com/simwrapper/simwrapper/compare/v3.2.0...v3.3.0) (2024-07-11)
+
+
+### Features
+
+* Background layers for shapefile/geojson maps ([9efe6d4](https://github.com/simwrapper/simwrapper/commit/9efe6d42253cde09d87bdd9b962d07853da60d36))
+
+
+### Bug Fixes
+
+* tile panel icons not always appearing ([a229cb5](https://github.com/simwrapper/simwrapper/commit/a229cb595064b17d8ed49012eb7e4e0e8d0886a9)), closes [#274](https://github.com/simwrapper/simwrapper/issues/274) [#370](https://github.com/simwrapper/simwrapper/issues/370)
+
 ## [3.2.0](https://github.com/simwrapper/simwrapper/compare/v3.1.2...v3.2.0) (2024-06-25)
 
 
