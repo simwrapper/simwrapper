@@ -25,6 +25,8 @@
       :pointRadii="dataPointRadii"
       :cbTooltip="cbTooltip"
       :bgLayers="bgLayers"
+      :handleClickEvent="handleClickEvent"
+      :highlightedLinkIndex="highlightedLinkIndex"
     )
 
     //- :features="useCircles ? centroids: boundaries"
@@ -238,7 +240,9 @@ const MyComponent = defineComponent({
       boundaryJoinLookups: {} as { [column: string]: { [lookup: string | number]: number } },
       datasetValuesColumn: '',
 
-      tooltipHtml: '',
+      tooltipHtml: '' as string,
+      tooltipIsFixed: false as boolean,
+      highlightedLinkIndex: -1 as number,
 
       bgLayers: {} as { [name: string]: BackgroundLayer },
 
@@ -470,7 +474,21 @@ const MyComponent = defineComponent({
       return value
     },
 
+    async handleClickEvent(event: any) {
+      if (event.index != -1) {
+        this.cbTooltip(event.index, event)
+        this.tooltipIsFixed = true
+      } else {
+        this.tooltipIsFixed = false
+        this.highlightedLinkIndex = -1
+      }
+    },
+
     cbTooltip(index: number, object: any) {
+      if (this.tooltipIsFixed) return
+
+      this.highlightedLinkIndex = index
+
       // tooltip will show values for color settings and for width settings.
       // if there is base data, it will also show values and diff vs. base
       // for both color and width.

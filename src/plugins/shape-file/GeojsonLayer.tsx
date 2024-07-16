@@ -34,6 +34,8 @@ export default function Component({
   featureFilter = new Float32Array(0),
   cbTooltip = {} as any,
   bgLayers = {} as { [name: string]: BackgroundLayer },
+  handleClickEvent = {} as any,
+  highlightedLinkIndex = -1 as number,
 }) {
   // const features = globalStore.state.globalCache[viewId] as any[]
   const [features, setFeatures] = useState([] as any[])
@@ -160,8 +162,11 @@ export default function Component({
   }
 
   // CLICK  ---------------------------------------------------------------------
-  function handleClick() {
-    console.log('click!')
+  function handleClick(event: any) {
+    // console.log('click!')
+    // console.log(event)
+    // TODO: send click event to parent
+    if (handleClickEvent) handleClickEvent(event)
   }
 
   // TOOLTIP ------------------------------------------------------------------
@@ -211,8 +216,8 @@ export default function Component({
     getPointRadius: cbPointRadius,
     getElevation: cbFillHeight,
     // settings: ------------------------
-    autoHighlight: true,
     extruded: !!fillHeights,
+    highlightedObjectIndex: highlightedLinkIndex,
     highlightColor: [255, 0, 224],
     // lineJointRounded: true,
     lineWidthUnits: 'pixels',
