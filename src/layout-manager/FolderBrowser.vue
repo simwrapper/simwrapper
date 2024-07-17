@@ -13,21 +13,22 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections
 
-      //- file system folders
+      //- FOLDERS: file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
       .curate-content(v-if="myState.folders.length")
         .folder-table
           .folder(v-for="folder,i in myState.folders"
-                  :key="folder.name"
+                  :key="folder"
                   :class="{fade: myState.isLoading, 'up-folder': i == 0}"
                   @click="openOutputFolder(folder)"
           )
+            .is-favorite(v-if="isFavorite(folder)")
             p
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
               | &nbsp;{{ cleanName(folder) }}
 
-      //- this is the content of readme.md, if it exists
+      //- README: content of readme.md, if it exists
       .readme-header.markdown(v-if="myState.readme")
         .curate-content.markdown(v-html="myState.readme")
 
@@ -140,7 +141,7 @@ import micromatch from 'micromatch'
 import yaml from 'yaml'
 
 import globalStore from '@/store'
-import { BreadCrumb, FileSystemConfig, YamlConfigs } from '@/Globals'
+import { BreadCrumb, FavoriteLocation, FileSystemConfig, YamlConfigs } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
@@ -197,6 +198,16 @@ export default defineComponent({
     }
   },
   computed: {
+    favoriteLocations(): string[] {
+      const faves = this.$store.state.favoriteLocations.filter((fave: FavoriteLocation) => {
+        if (fave.root !== this.root) return false
+        if (!fave.subfolder.startsWith('' + this.xsubfolder)) return false
+        return true
+      }) as FavoriteLocation[]
+
+      return faves.map(f => f.fullPath || '')
+    },
+
     vizImages(): any {
       const images: { [index: number]: any } = {}
       for (let i = 0; i < this.myState.vizes.length; i++) {
@@ -218,6 +229,13 @@ export default defineComponent({
     },
   },
   methods: {
+    isFavorite(folder: string) {
+      let thing = `${this.root}`
+      if (this.xsubfolder) thing += `/${this.xsubfolder}`
+      thing += `/${folder}`
+      return this.favoriteLocations.indexOf(thing) > -1
+    },
+
     cleanName(text: string) {
       return decodeURIComponent(text)
     },
@@ -615,6 +633,7 @@ h4 {
   padding: 0.25rem 0.75rem;
   border-radius: 5px;
   word-wrap: break-word;
+  position: relative;
 }
 
 .folder:hover {
@@ -748,5 +767,26 @@ p.v-plugin {
 
 .up-folder {
   background-color: var(--bgTreeItem);
+}
+
+.is-favorite {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 25px 25px 0;
+  border-color: transparent #4444ff transparent transparent;
+  transform: rotate(0deg);
+}
+
+.is-favorite::after {
+  content: '★';
+  position: absolute;
+  top: -3px;
+  right: -23px;
+  font-size: 13px;
+  color: white;
 }
 </style>
