@@ -135,7 +135,9 @@ interface IMyState {
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
+import katex from 'katex'
 import markdown from 'markdown-it'
+import markdownTex from 'markdown-it-texmath'
 import mediumZoom from 'medium-zoom'
 import micromatch from 'micromatch'
 import yaml from 'yaml'
@@ -146,6 +148,16 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
+
+const mdRenderer = new markdown({
+  html: true,
+  linkify: true,
+  typographer: true,
+}).use(markdownTex, {
+  engine: katex,
+  delimiters: 'dollars',
+  katexOptions: { macros: { '\\RR': '\\mathbb{R}' } },
+})
 
 const tabColors = {
   // blank means dashboard:
@@ -177,11 +189,7 @@ export default defineComponent({
     return {
       globalState: globalStore.state,
       summaryYamlFilename: 'viz-summary.yml',
-      mdRenderer: new markdown({
-        html: true,
-        linkify: true,
-        typographer: true,
-      }),
+      mdRenderer,
       myState: {
         errorStatus: '',
         folders: [],

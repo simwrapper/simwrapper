@@ -12,6 +12,8 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import markdown from 'markdown-it'
+import markdownTex from 'markdown-it-texmath'
+import katex from 'katex'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -20,6 +22,10 @@ const mdRenderer = new markdown({
   html: true,
   linkify: true,
   typographer: true,
+}).use(markdownTex, {
+  engine: katex,
+  delimiters: 'dollars',
+  katexOptions: { macros: { '\\RR': '\\mathbb{R}' } },
 })
 
 export default defineComponent({

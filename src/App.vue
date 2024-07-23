@@ -742,6 +742,10 @@ p.splash-label {
   top: 0;
 }
 
+.katex-html {
+  display: none !important;
+}
+
 @media only screen and (max-width: 640px) {
   .top-bar {
     padding-left: 1rem;
