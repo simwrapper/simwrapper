@@ -932,22 +932,20 @@ const LogisticsPlugin = defineComponent({
       const root: any = await parseXML(lspsXML, {
         // these elements should always be arrays, even if there's just one element:
         alwaysArray: [
-          'lspsDefinitions.LSPs.lsp',
-          'lspsDefinitions.LSPs.lsp.resources.carrier',
-          'lspsDefinitions.LSPs.lsp.resources.hub',
-          'lspsDefinitions.LSPs.lsp.shipments.shipment',
-          'lspsDefinitions.LSPs.LspPlan',
-          'lspsDefinitions.LSPs.LspPlan.logisticChains.logisticChain',
-          'lspsDefinitions.LSPs.LspPlan.logisticChains.logisticChain.logisticChainElement',
-          'lspsDefinitions.LSPs.LspPlan.shipmentPlans.shipmentPlan',
-          'lspsDefinitions.LSPs.LspPlan.shipmentPlans.shipmentPlan.element',
+          'lsps.lsp',
+          'lsps.lsp.resources.carrier',
+          'lsps.lsp.resources.hub',
+          'lsps.lsp.shipments.shipment',
+          'lsps.lsp.LspPlans.LspPlan',
+          'lsps.lsp.LspPlans.LspPlan.logisticChains.logisticChain',
+          'lsps.lsp.LspPlans.LspPlan.logisticChains.logisticChain.logisticChainElement',
+          'lsps.lsp.LspPlans.LspPlan.shipmentPlans.shipmentPlan',
+          'lsps.lsp.LspPlans.LspPlan.shipmentPlans.shipmentPlan.element',
         ],
       })
 
       // sort by '$id' attribute
-      const lspList = root.lspsDefinitions.LSPs.lsp.sort((a: any, b: any) =>
-        naturalSort(a.$id, b.$id)
-      )
+      const lspList = root.lsps.lsp.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
       console.log(lspList)
       return lspList
     },
