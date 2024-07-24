@@ -716,6 +716,7 @@ const MyComponent = defineComponent({
       } else {
         // was a YAML file was passed in?
         const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
+        console.log(333, filename)
 
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
           const ycfg = await this.loadYamlConfig()
@@ -725,10 +726,12 @@ const MyComponent = defineComponent({
 
         // OR is this a bare geojson/shapefile file? - build vizDetails manually
         if (
+          /(network\.xml)(|\.gz)$/.test(filename) ||
           /(\.geojson)(|\.gz)$/.test(filename) ||
           /\.shp$/.test(filename) ||
           /network\.avro$/.test(filename)
         ) {
+          console.log('yes')
           const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
@@ -745,6 +748,8 @@ const MyComponent = defineComponent({
 
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
+
+      console.log(555, this.config)
     },
 
     // figure out old-style joins
@@ -2094,6 +2099,45 @@ const MyComponent = defineComponent({
       return features
     },
 
+    async loadXMLNetwork(filename: string): Promise<any> {
+      if (!this.myDataManager) throw Error('links: no datamanager')
+
+      this.statusText = 'Loading XML network...'
+
+      try {
+        const network = await this.myDataManager.getRoadNetwork(
+          filename,
+          this.subfolder,
+          this.vizDetails,
+          (message: string) => {
+            this.statusText = message
+          }
+        )
+        // for now convert to shapefile
+        const numLinks = network.source.length / 2
+        const boundaries = [] as any[]
+        for (let i = 0; i < numLinks; i++) {
+          const offset = i * 2
+          const feature = {
+            type: 'Feature',
+            id: network.linkIds[i],
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [network.source[offset], network.source[offset + 1]],
+                [network.dest[offset], network.dest[offset + 1]],
+              ],
+            },
+          }
+          boundaries.push(feature)
+        }
+        return boundaries
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
     async loadBoundaries() {
       let now = Date.now()
 
@@ -2117,6 +2161,10 @@ const MyComponent = defineComponent({
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
+        } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
+          // MATSim XML Network
+          boundaries = await this.loadXMLNetwork(filename)
+          console.log(777, { boundaries })
         } else if (filename.toLocaleLowerCase().includes('network.avro')) {
           // avro network!
           boundaries = await this.loadAvroNetwork(filename)
