@@ -14,11 +14,11 @@
  )
 
   // do not show left-strip if we are in project mode
-  left-icon-panel.left-icon-panel(
-    v-if="$store.state.isShowingLeftStrip"
-    :activeSection="activeLeftSection.name"
-    @activate="setActiveLeftSection"
-  )
+  //- left-icon-panel.left-icon-panel(
+  //-   v-if="$store.state.isShowingLeftStrip"
+  //-   :activeSection="activeLeftSection.name"
+  //-   @activate="setActiveLeftSection"
+  //- )
 
   .left-panel(v-show="showLeftBar")
 
