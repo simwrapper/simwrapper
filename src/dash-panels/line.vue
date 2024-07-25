@@ -10,6 +10,7 @@ VuePlotly.myplot(
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { buildColors } from '@/js/ColorsAndWidths'
 
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
@@ -36,6 +37,7 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       id: ('line-' + Math.floor(1e12 * Math.random())) as any,
+      colorMap: {} as { [category: string]: string },
       YAMLrequirementsLine: { dataset: '', x: '' },
       YAMLdeprecations: ['usedCol'],
       layout: {
@@ -249,6 +251,9 @@ export default defineComponent({
         columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
       const lines = [] as any[]
 
       for (let i = 0; i < columns.length; i++) {
@@ -269,6 +274,7 @@ export default defineComponent({
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: false,
+          marker: { color: this.colorMap[col] },
         })
       }
       this.data = lines

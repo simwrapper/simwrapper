@@ -37,6 +37,7 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       id: 'bubble-' + Math.floor(1e12 * Math.random()),
+      colorMap: {} as { [category: string]: string },
       layout: {
         height: 300,
         margin: { t: 8, b: 0, l: 0, r: 0, pad: 2 },

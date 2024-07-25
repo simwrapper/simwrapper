@@ -10,11 +10,14 @@ VuePlotly.myplot(
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { scaleOrdinal } from 'd3-scale'
+import * as d3scales from 'd3-scale-chromatic'
 
 import VuePlotly from '@/components/VuePlotly.vue'
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import { buildCleanTitle } from './_allPanels'
+import { buildColors } from '@/js/ColorsAndWidths'
 
 import globalStore from '@/store'
 
@@ -37,6 +40,7 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       id: 'area-' + Math.floor(1e12 * Math.random()),
+      colorMap: {} as { [category: string]: string },
       YAMLrequirementsArea: { dataset: '', x: '' },
       data: [] as any[],
       layout: {
@@ -225,6 +229,9 @@ export default defineComponent({
         columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
       // old legendname field
       if (this.config.legendName) this.config.legendTitles = this.config.legendName
       if (this.config.legendTitles?.length) useOwnNames = true
@@ -258,6 +265,7 @@ export default defineComponent({
           y: values,
           stackgroup: 'one', // so they stack
           mode: 'none', // no background lines
+          marker: { color: this.colorMap[col] },
         }
       }
 
