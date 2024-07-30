@@ -150,6 +150,7 @@ export interface BackgroundLayer {
   borderWidth: number
   borderColor: number[]
   visible: boolean
+  onTop: boolean
 }
 
 const MyComponent = defineComponent({
@@ -2881,6 +2882,8 @@ const MyComponent = defineComponent({
 
           let visible = true
           if ('visible' in layerDetails) visible = layerDetails.visible
+          let onTop = false
+          if ('onTop' in layerDetails) onTop = !!layerDetails.onTop
 
           console.log('FINAL FEATURES', features)
 
@@ -2890,6 +2893,7 @@ const MyComponent = defineComponent({
             borderWidth,
             borderColor,
             visible,
+            onTop,
           }
           this.bgLayers[layerName] = details
         } catch (e) {

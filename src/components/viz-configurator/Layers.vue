@@ -33,7 +33,9 @@
     .xlabel Label Column
     b-input(size="is-small" v-model="layer.label" @input="updateLayers")
 
-    b-checkbox.simple-checkbox(v-model="layer.visible" @input="updateLayers") Visible
+    .flex-row
+      b-checkbox.flex1.simple-checkbox(v-model="layer.visible" @input="updateLayers") Visible
+      b-checkbox.flex1.simple-checkbox(v-model="layer.onTop" @input="updateLayers") On top
 
   //- //- DATA COLUMN
   //- .widgets
@@ -73,6 +75,7 @@ export type LayerDefinition = {
   borderWidth: number
   label: string
   visible: boolean
+  onTop: boolean
 }
 
 export default defineComponent({
@@ -154,6 +157,7 @@ export default defineComponent({
         borderWidth: 3,
         label: '',
         visible: true,
+        onTop: false,
       })
       this.updateLayers()
     },
@@ -161,7 +165,7 @@ export default defineComponent({
     updateLayers() {
       setTimeout(() => {
         this.$emit('update', { layers: this.layers })
-      }, 50)
+      }, 100)
     },
 
     getLayer(id: string) {
@@ -221,6 +225,7 @@ export default defineComponent({
 
 .simple-checkbox {
   margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
 }
 
 .simple-checkbox:hover {

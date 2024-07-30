@@ -176,6 +176,8 @@ export default function Component({
 
   // BACKGROUND-LAYERS --------------------------------------------------
   const backgroundLayers = [] as any[]
+  const onTopLayers = [] as any[]
+
   for (const name of Object.keys(bgLayers).reverse()) {
     const layerDetails = bgLayers[name]
 
@@ -203,7 +205,12 @@ export default function Component({
       parameters: { depthTest: false },
       visible: layerDetails.visible,
     })
-    backgroundLayers.push(bgLayer)
+
+    if (layerDetails.onTop) {
+      onTopLayers.push(bgLayer)
+    } else {
+      backgroundLayers.push(bgLayer)
+    }
   }
 
   // ----------------------------------------------------------------------------
@@ -270,7 +277,7 @@ export default function Component({
     /*
     //@ts-ignore */
     <DeckGL
-      layers={[...backgroundLayers, mainLayer]}
+      layers={[...backgroundLayers, mainLayer, ...onTopLayers]}
       viewState={viewState}
       controller={true}
       pickingRadius={4}
