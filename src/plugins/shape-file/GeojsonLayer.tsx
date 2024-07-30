@@ -179,7 +179,7 @@ export default function Component({
   for (const name of Object.keys(bgLayers).reverse()) {
     const layerDetails = bgLayers[name]
 
-    if (layerDetails.visible == false) continue
+    // if (layerDetails.visible == false) continue
 
     const bgLayer = new GeoJsonLayer({
       id: `background-layer-${name}`,
@@ -201,6 +201,7 @@ export default function Component({
       stroked: layerDetails.borderWidth ? true : false,
       fp64: false,
       parameters: { depthTest: false },
+      visible: layerDetails.visible,
     })
     backgroundLayers.push(bgLayer)
   }
