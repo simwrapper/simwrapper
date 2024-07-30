@@ -2414,21 +2414,31 @@ const MyComponent = defineComponent({
       console.log('loading', filename)
 
       const url = `${this.subfolder}/${filename}`
+      let shpPromise, dbfPromise, dbfBlob
 
       // first, get shp/dbf files
       let geojson: any = {}
       try {
-        const shpPromise = this.fileApi.getFileBlob(url)
+        shpPromise = await this.fileApi.getFileBlob(url)
+      } catch (e) {
+        this.$emit('error', 'Error loading ' + url)
+        return []
+      }
+
+      try {
         const dbfFilename = url
           .replace('.shp', '.dbf')
           .replace('.SHP', '.DBF')
           .replace('.Shp', '.Dbf')
-        const dbfPromise = this.fileApi.getFileBlob(dbfFilename)
-        await Promise.all([shpPromise, dbfPromise])
+        dbfPromise = await this.fileApi.getFileBlob(dbfFilename)
+        dbfBlob = await (await dbfPromise)?.arrayBuffer()
+      } catch {
+        // no DBF: we will live
+      }
 
+      try {
         const shpBlob = await (await shpPromise)?.arrayBuffer()
-        const dbfBlob = await (await dbfPromise)?.arrayBuffer()
-        if (!shpBlob || !dbfBlob) return []
+        if (!shpBlob) return []
 
         this.statusText = 'Generating shapes...'
 
@@ -2439,7 +2449,7 @@ const MyComponent = defineComponent({
         this.statusText = ''
       } catch (e) {
         console.error(e)
-        this.$emit('error', `Could not load ${filename}: ` + e)
+        this.$emit('error', `Error loading shapefile ${url}`)
         return []
       }
 
@@ -2454,6 +2464,7 @@ const MyComponent = defineComponent({
       try {
         projection = await this.fileApi.getFileText(prjFilename)
       } catch (e) {
+        console.error('' + e)
         // lol we can live without a projection right? ;-O
       }
 
@@ -2478,11 +2489,11 @@ const MyComponent = defineComponent({
       const firstPoint = getFirstPoint(geojson.features[0].geometry.coordinates)
       if (Math.abs(firstPoint[0]) > 180 || Math.abs(firstPoint[1]) > 90) {
         // this ain't lon/lat
-        const msg = `Coordinates not lon/lat. Try providing ${prjFilename.substring(
+        const msg = `Coordinates not lon/lat. Try adding projection to YAML, or provide ${prjFilename.substring(
           1 + prjFilename.lastIndexOf('/')
         )}`
         this.$emit('error', msg)
-        this.statusText = msg
+        this.statusText = ''
         return []
       }
 
