@@ -27,6 +27,7 @@
       :bgLayers="bgLayers"
       :handleClickEvent="handleClickEvent"
       :highlightedLinkIndex="highlightedLinkIndex"
+      :redraw="redraw"
     )
 
     //- :features="useCircles ? centroids: boundaries"
@@ -215,6 +216,7 @@ const MyComponent = defineComponent({
       datasetJoinColumn: '',
       featureJoinColumn: '',
       triggerScreenshot: 0,
+      redraw: 0,
 
       datasetKeyToFilename: {} as any,
 
@@ -2900,6 +2902,7 @@ const MyComponent = defineComponent({
           console.error('' + e)
         }
       }
+      this.redraw += 1
     },
   },
 

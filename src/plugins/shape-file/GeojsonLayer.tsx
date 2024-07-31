@@ -31,6 +31,7 @@ export default function Component({
   opacity = 1,
   pointRadii = 4 as number | Float32Array,
   screenshot = 0,
+  redraw = 0,
   featureFilter = new Float32Array(0),
   cbTooltip = {} as any,
   bgLayers = {} as { [name: string]: BackgroundLayer },
