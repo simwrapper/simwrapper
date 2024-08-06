@@ -6,14 +6,17 @@
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
     .tabholdercontainer.white-text
       .project-header(v-if="header" v-html="header")
+
       .project-path(v-else)
-        .nav-title
-          p.title-text {{ finalFolder }}
-          p.favorite-icon(
-            @click="clickedFavorite"
-            title="Favorite"
-            :class="{'is-favorite': isFavorite}"
-          ): i.fa.fa-star
+
+        //- .nav-title
+        //-   p.title-text {{ finalFolder }}
+        //-   p.favorite-icon(
+        //-     @click="clickedFavorite"
+        //-     title="Favorite"
+        //-     :class="{'is-favorite': isFavorite}"
+        //-   ): i.fa.fa-star
+
         bread-crumbs.breadcrumbs(
             :root="root"
             :subfolder="xsubfolder"
@@ -526,6 +529,9 @@ export default defineComponent({
 
     updateCrumbs(props: { crumbs: any[]; finalFolder: string }) {
       this.finalFolder = props.finalFolder || ''
+      if (this.finalFolder !== this.$store.state.windowTitle) {
+        this.$store.commit('setWindowTitle', this.finalFolder)
+      }
       this.crumbs = props.crumbs
     },
 
@@ -875,7 +881,7 @@ li.is-not-active b a {
 }
 
 .breadcrumbs {
-  padding: 0.25rem 0;
+  padding: 0;
   font-size: 0.9rem;
   color: var(--text);
 }

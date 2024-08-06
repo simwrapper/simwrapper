@@ -1,18 +1,38 @@
 <template lang="pug">
-.my-navbar.flex-row
+.my-navbar.flex-row(@mouseleave="showSidebarMenu=false")
 
-  .brand.flex-row
-    .simwrapper-logo
-      img(:src="imgLogo")
+  .brand.flex-row(@mouseover="showSidebarMenu=true"
+    :class="{'is-highlighted': showSidebarMenu}"
+  )
     .sidebar-button
       img(:src="imgSidebar")
+    .simwrapper-logo
+      img(:src="imgLogo")
 
-  .left-section.flex1
-    p Dashboard
+  .title-section.flex1
+    p {{  $store.state.windowTitle }}
 
   .right-section
     p: i.fas.fa-cog
 
+  .dropdown-holder.flex-col(v-if="showSidebarMenu"
+    @mouseover="showSidebarMenu=true"
+    @mouseleave="showSidebarMenu=false"
+  )
+    .xsection Sidebar
+    .x-item(:class="{'is-active-side': currentSection===''}" @click="activate('')")
+      p: i.x-menu-icon.fas.fa-check
+      p Hide sidebar
+    hr
+    .x-item(:class="{'is-active-side': currentSection=='data'}" @click="activate('data')")
+      p: i.x-menu-icon.fas.fa-sitemap
+      p Data sources and folders
+    .x-item(:class="{'is-active-side': currentSection=='split'}" @click="activate('split')")
+      p: i.x-menu-icon.fas.fa-columns
+      p Split view
+    .x-item(:class="{'is-active-side': currentSection=='runs'}" @click="activate('runs')")
+      p: i.x-menu-icon.fas.fa-play-circle
+      p Run manager
 
 //- b-navbar#site-nav-bar(
 //-   :style="getNavbarStyle(navbar)"
@@ -59,6 +79,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import isDarkColor from 'is-dark-color'
 
+import globalStore from '@/store'
 import type { NavigationItem } from '@/Globals'
 
 import imgLogo from '@/assets/simwrapper-logo/SW_logo_white.png'
@@ -69,8 +90,8 @@ export default defineComponent({
   components: {},
 
   props: {
-    // currentFolder: { type: String, required: true },
-    // projectFolder: { type: String, required: true },
+    currentFolder: { type: String, required: false },
+    projectFolder: { type: String, required: false },
   },
 
   data() {
@@ -88,9 +109,23 @@ export default defineComponent({
     }
   },
 
-  computed: {},
+  computed: {
+    currentSection() {
+      const section = globalStore.state.activeLeftSection
+      console.log(123, section)
+      return section
+    },
+  },
 
   methods: {
+    activate(item: string) {
+      console.log(5555, item)
+      this.$store.commit('setActiveLeftSection', item)
+
+      this.$store.commit('setShowLeftBar', !!item)
+      this.showSidebarMenu = false
+    },
+
     hasLabel(item: NavigationItem): any {
       return item.text || item.text_de || item.text_en
     },
@@ -162,6 +197,8 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
+$appTag: #32926f;
+
 .my-navbar {
   user-select: none;
   gap: 1rem;
@@ -171,12 +208,12 @@ export default defineComponent({
 }
 
 .simwrapper-logo {
-  margin-top: 3px;
-  width: 104px;
+  margin-top: 4px;
+  width: 100px;
 }
 
 .sidebar-button {
-  margin-top: 4px;
+  margin-top: 5px;
   width: 20px;
   filter: brightness(0) invert(1);
 }
@@ -187,19 +224,67 @@ export default defineComponent({
 }
 
 .brand:hover {
-  background-color: #317d68;
+  background-color: $appTag;
   cursor: pointer;
 }
 
-.left-section {
-  margin: auto 0;
+.brand.is-highlighted {
+  background-color: $appTag;
+}
+
+.title-section {
+  margin: auto auto;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1.2rem;
+  margin-left: -9rem;
 }
 
 .right-section {
   margin: auto 0.75rem auto 0;
 }
 
-.my-dropdown {
+.x-menu-icon {
+  width: 20px;
+}
+
+.is-active-side {
+  background-color: white;
+  font-weight: bold;
+}
+
+.dropdown-holder {
   position: absolute;
+  top: 34px;
+  background-color: #eee;
+  color: #333;
+  filter: $filterShadow;
+  padding-bottom: 0.25rem;
+
+  .xsection {
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: $appTag;
+    padding: 0.5rem 5px 5px 0.5rem;
+  }
+
+  .x-item {
+    display: flex;
+    padding: 0 0.75rem 0 0.25rem;
+  }
+
+  .x-item:hover {
+    cursor: pointer;
+    background-color: $appTag;
+    color: white;
+  }
+  hr {
+    margin: 4px 0;
+    background-color: #00000011;
+  }
+  p {
+    padding: 4px 0 4px 0.5rem;
+  }
 }
 </style>

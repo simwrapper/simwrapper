@@ -45,6 +45,9 @@ const initialViewState = () => {
   }
 }
 
+const initialLeftSection = localStorage.getItem('activeLeftSection') || ''
+
+console.log('INITIAL LEFT SECTION', initialLeftSection)
 export default new Vuex.Store({
   state: {
     app: 'SimWrapper',
@@ -53,9 +56,10 @@ export default new Vuex.Store({
     breadcrumbs: [] as BreadCrumb[],
     credentials: { fake: 'fake' } as { [url: string]: string },
     dashboardWidth: '',
+    activeLeftSection: initialLeftSection,
     isFullScreen: false,
     isFullWidth: true,
-    isShowingLeftBar: false,
+    isShowingLeftBar: true,
     isShowingLeftStrip: true,
     isShowingFilesTab: true,
     isDarkMode: true,
@@ -82,6 +86,7 @@ export default new Vuex.Store({
     runFolders: {} as { [root: string]: any[] },
     runFolderCount: 0,
     resizeEvents: 0,
+    windowTitle: '',
     topNavItems: null as null | {
       fileSystem: FileSystemConfig
       subfolder: string
@@ -115,6 +120,10 @@ export default new Vuex.Store({
     registerPlugin(state, value: VisualizationPlugin) {
       // console.log('PLUGIN:', value.kebabName)
       state.visualizationTypes.set(value.kebabName, value)
+    },
+    setActiveLeftSection(state, value: string) {
+      state.activeLeftSection = value
+      localStorage.setItem('activeLeftSection', value)
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {
       state.breadcrumbs = value
@@ -330,6 +339,13 @@ export default new Vuex.Store({
     },
     toggleFullWidth(state) {
       state.isFullWidth = !state.isFullWidth
+    },
+    setWindowTitle(state, title: string) {
+      console.log('TITLE', title)
+      if (title !== state.windowTitle) {
+        state.windowTitle = title
+        document.title = title ? title + ' - SimWrapper' : 'SimWrapper'
+      }
     },
   },
   actions: {},

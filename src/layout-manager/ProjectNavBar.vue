@@ -46,7 +46,7 @@ import isDarkColor from 'is-dark-color'
 
 import type { NavigationItem } from '@/Globals'
 export default defineComponent({
-  name: 'SiteNavBar',
+  name: 'ProjectNavBar',
   components: {},
 
   props: {
