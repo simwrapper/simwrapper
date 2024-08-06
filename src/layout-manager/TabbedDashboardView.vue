@@ -67,7 +67,6 @@ import Vue, { defineComponent } from 'vue'
 
 import markdown from 'markdown-it'
 import micromatch from 'micromatch'
-import DOMPurify from 'dompurify'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -662,7 +661,7 @@ export default defineComponent({
 
 .tabholder {
   z-index: 50;
-  padding: 0.75rem 0rem 0.25rem 0rem;
+  padding: 0.5rem 0rem 0.5rem 0rem;
 }
 
 .tabholdercontainer {
@@ -683,8 +682,8 @@ li.is-not-active b a {
 .dashboard-finder {
   display: flex;
   flex: 1;
-  flex-direction: row-reverse;
-  padding: 0 $cardSpacing;
+  flex-direction: row;
+  padding: 0 0.5rem; // $cardSpacing;
   position: relative;
   overflow-y: auto;
 }
@@ -701,7 +700,7 @@ li.is-not-active b a {
 .dashboard-right-sections {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem 0rem 2rem 0rem;
+  padding: 1.25rem 1.5rem 2rem 0.5rem;
 }
 
 .dashboard-content {
@@ -724,7 +723,7 @@ li.is-not-active b a {
   font-size: 0.9rem;
   line-height: 1.1rem;
   padding: 3px 0.5rem 5px 0.5rem;
-  border-right: 5px solid #00000000;
+  border-left: 5px solid #00000000;
   user-select: none;
   margin-bottom: 1px;
 
@@ -740,7 +739,7 @@ li.is-not-active b a {
 
 .tab-list.is-active {
   background-color: var(--bgBold);
-  border-right: 5px solid var(--highlightActiveSection);
+  border-left: 5px solid var(--highlightActiveSection);
   border-radius: 3px 0 0 3px;
   font-weight: bold;
   a {

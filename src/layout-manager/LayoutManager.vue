@@ -7,7 +7,7 @@
   :currentFolder="firstPanelSubfolder"
  )
 
- #split-screen(f
+ #split-screen(
   @mousemove="dividerDragging"
   @mouseup="dividerDragEnd"
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
@@ -860,21 +860,18 @@ export default defineComponent({
     getContainerStyle(panel: any, x: number, y: number) {
       const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
       let style: any = {
-        padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+        // padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+        padding: `6px ${rightPadding} 6px 6px`,
       }
 
-      // // figure out height. If card has registered a resizer with changeDimensions(),
-      // // then it needs a default height (300)
-      // const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
-      // const height = card.height ? card.height * 60 : defaultHeight
-
-      // const flex = card.width || 1
-
-      // let style: any = {
-      //   flex: flex,
-      // }
-
-      // if (height) style.minHeight = `${height}px`
+      // single file browser: no padding
+      if (this.panels[y].length == 1 && this.panels[x].length == 1) {
+        const singlePanel = this.panels[0][0]
+        console.log('SINGLEPANEL!', singlePanel)
+        if (['TabbedDashboardView', 'SplashPage'].indexOf(singlePanel.component) > -1) {
+          style.padding = '0px 0px'
+        }
+      }
 
       if (this.fullScreenPanel.x == -1) return style
 

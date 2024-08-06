@@ -537,8 +537,9 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .folder-browser {
-  padding: 0 0.5rem;
+  padding: 0 0.75rem;
 }
+
 .vessel {
   margin: 0 0;
   padding: 0rem 0rem 2rem 0rem;
