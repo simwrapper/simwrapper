@@ -39,47 +39,9 @@
     .x-item(:class="{'is-active-side': currentSection=='split'}" @click="activate('split')")
       p: i.x-menu-icon.fas.fa-columns
       p Split view
-    .x-item(:class="{'is-active-side': currentSection=='runs'}" @click="activate('runs')")
-      p: i.x-menu-icon.fas.fa-play-circle
-      p Run manager
-
-//- b-navbar#site-nav-bar(
-//-   :style="getNavbarStyle(navbar)"
-//-   :type="isDark ? 'is-black' : 'is-white'"
-//- )
-
-//-   template("#brand" v-if="navbar.logo")
-//-     b-navbar-item(
-//-       @click="navigate(navbar.logo.url)" :style="getStyle(navbar.logo)"
-//-     ): img(:src="logo" :style="getStyle()")
-
-//-   template("#start")
-
-//-     component(v-for="item,i in navbar.left" :key="`${i}`"
-//-       hoverable
-//-       :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
-//-       :style="getStyle(item)"
-//-       :label="item.dropdown ? getLabel(item) : undefined"
-//-       @click="navigate(item.url)"
-//-     ) {{ item.dropdown ? undefined : getLabel(item) }}
-
-//-       b-navbar-item(v-for="child in item.dropdown" :key="`child-${i}`"
-//-         @click="navigate(child.url)"
-//-       ) {{ getLabel(child) }}
-
-//-   template("#end")
-
-//-     component(v-for="item,i in navbar.right" :key="`${i}`"
-//-       hoverable
-//-       :is="item.dropdown ? 'BNavbarDropdown' : 'BNavbarItem'"
-//-       :style="getStyle(item)"
-//-       :label="item.dropdown ? getLabel(item) : undefined"
-//-       @click="navigate(item.url)"
-//-     ) {{ item.dropdown ? undefined : getLabel(item) }}
-
-//-       b-navbar-item(v-for="child,j in item.dropdown" :key="`child-${j}`"
-//-         @click="navigate(child.url)"
-//-       ) {{ getLabel(child) }}
+    //- .x-item(:class="{'is-active-side': currentSection=='runs'}" @click="activate('runs')")
+    //-   p: i.x-menu-icon.fas.fa-play-circle
+    //-   p Run manager
 
 </template>
 

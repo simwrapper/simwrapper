@@ -341,7 +341,6 @@ export default new Vuex.Store({
       state.isFullWidth = !state.isFullWidth
     },
     setWindowTitle(state, title: string) {
-      console.log('TITLE', title)
       if (title !== state.windowTitle) {
         state.windowTitle = title
         document.title = title ? title + ' - SimWrapper' : 'SimWrapper'

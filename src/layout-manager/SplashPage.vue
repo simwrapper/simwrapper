@@ -340,6 +340,7 @@ export default defineComponent({
     }
 
     this.updateShortcuts()
+    this.$store.commit('setWindowTitle', '')
   },
 })
 </script>
