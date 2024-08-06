@@ -39,7 +39,7 @@ import plugins from '@/plugins/pluginRegistry'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import { addInitialLocalFilesystems, addLocalFilesystem } from '@/fileSystemConfig'
 
-import TopNavBar from '@/layout-manager/TopNavBarNeu.vue'
+import TopNavBar from '@/layout-manager/TopNavBar.vue'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript

@@ -19,11 +19,15 @@
     @mouseover="showSidebarMenu=true"
     @mouseleave="showSidebarMenu=false"
   )
+    router-link.x-item(to="/")
+      p Home
+    a.x-item(href="https://simwrapper.github.io/docs" target="_blank")
+      p Documentation
+
     .xsection Sidebar
     .x-item(:class="{'is-active-side': currentSection===''}" @click="activate('')")
       p: i.x-menu-icon.fas.fa-check
       p Hide sidebar
-    hr
     .x-item(:class="{'is-active-side': currentSection=='data'}" @click="activate('data')")
       p: i.x-menu-icon.fas.fa-sitemap
       p Data sources and folders
@@ -259,7 +263,11 @@ $appTag: #32926f;
   background-color: #eee;
   color: #333;
   filter: $filterShadow;
-  padding-bottom: 0.25rem;
+  padding: 0.25rem 0;
+
+  a {
+    color: #333;
+  }
 
   .xsection {
     text-transform: uppercase;
