@@ -13,7 +13,12 @@
     p {{  $store.state.windowTitle }}
 
   .right-section
-    p: i.fas.fa-cog
+    p: i.fas.fa-cog(@click="toggleSettings()")
+
+  settings-panel.settings-popup(v-if="showSettings"
+    @close="toggleSettings()"
+  )
+
 
   .dropdown-holder.flex-col(v-if="showSidebarMenu"
     @mouseover="showSidebarMenu=true"
@@ -88,10 +93,11 @@ import type { NavigationItem } from '@/Globals'
 
 import imgLogo from '@/assets/simwrapper-logo/SW_logo_white.png'
 import imgSidebar from '@/assets/icons/sidebar.png'
+import SettingsPanel from './SettingsPanel.vue'
 
 export default defineComponent({
   name: 'SiteNavBar',
-  components: {},
+  components: { SettingsPanel },
 
   props: {
     currentFolder: { type: String, required: false },
@@ -101,6 +107,7 @@ export default defineComponent({
   data() {
     return {
       showSidebarMenu: false,
+      showSettings: false,
       selectedGroup: -1,
       isDark: false,
       imgLogo,
@@ -171,6 +178,10 @@ export default defineComponent({
       // override text color
       if ('useDarkText' in style) this.isDark = !style.useDarkText
       return style
+    },
+
+    toggleSettings() {
+      this.showSettings = !this.showSettings
     },
 
     navigate(url: string, group: number) {
@@ -246,6 +257,7 @@ $appTag: #32926f;
 
 .right-section {
   margin: auto 0.75rem auto 0;
+  cursor: pointer;
 }
 
 .x-menu-icon {
@@ -255,6 +267,19 @@ $appTag: #32926f;
 .is-active-side {
   background-color: white;
   font-weight: bold;
+}
+
+.settings-popup {
+  position: absolute;
+  top: 34px;
+  right: 5px;
+  background-color: white;
+  color: #333;
+  padding: 0.5rem 0.5rem 0rem 0.5rem;
+  font-size: 0.9rem;
+  z-index: 10000;
+  border-radius: 0;
+  filter: $filterShadow;
 }
 
 .dropdown-holder {
@@ -267,6 +292,10 @@ $appTag: #32926f;
 
   a {
     color: #333;
+  }
+
+  .fa-cog {
+    cursor: pointer;
   }
 
   .xsection {

@@ -1,8 +1,8 @@
 <template lang="pug">
 .panel
 
-    .close(@click.stop="$emit('close')")
-      i.fa.fa-times
+    //- .close(@click.stop="$emit('close')")
+    //-   i.fa.fa-times
 
     // theme ------------------
     .option
@@ -136,11 +136,13 @@ export default defineComponent({
       this.theme = theme
       console.log(this.theme)
       globalStore.commit('setTheme', theme)
+      setTimeout(() => this.$emit('close'), 500)
     },
 
     setLanguage(lang: string) {
       this.$store.commit('setLocale', lang)
       this.$root.$i18n.locale = lang
+      setTimeout(() => this.$emit('close'), 500)
     },
   },
 })
@@ -153,7 +155,7 @@ export default defineComponent({
   user-select: none;
   display: flex;
   flex-direction: column;
-  width: 12.25rem;
+  // width: 12rem;
 }
 
 h4 {
