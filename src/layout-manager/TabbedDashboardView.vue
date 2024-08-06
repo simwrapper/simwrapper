@@ -254,6 +254,10 @@ export default defineComponent({
           }
         })
 
+        // headers, footers, etc
+        await this.setupProjectConfig()
+        await this.$nextTick()
+
         if (showDashboards) {
           for (const fullPath of Object.values(this.allConfigFiles.dashboards)) {
             // add the tab now
@@ -264,9 +268,6 @@ export default defineComponent({
             if (!showThisDashboard) delete this.dashboards[fullPath as any]
           }
         }
-
-        // headers, footers, etc
-        await this.setupProjectConfig()
 
         // Add FileBrowser as "Files" tab
         if (this.globalState.isShowingFilesTab) {

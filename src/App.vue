@@ -1,7 +1,7 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
-  top-nav-bar.top-bar
+  top-nav-bar.top-bar(v-if="(!$store.state.topNavItems && !$store.state.leftNavItems)")
 
   .center-area(v-if="isFileSystemLoaded")
     //- login-panel.login-panel
