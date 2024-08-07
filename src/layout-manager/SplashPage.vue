@@ -348,7 +348,7 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-$angle: 1.25deg;
+$angle: 1deg;
 
 .splash-page {
   position: absolute;
@@ -356,7 +356,7 @@ $angle: 1.25deg;
   bottom: 0;
   left: 0;
   right: 0;
-  background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
+  background-image: var(--bgSplashPage);
 }
 
 .centered {
@@ -391,7 +391,6 @@ $angle: 1.25deg;
 
 .sponsors-area {
   background-color: white;
-  // background-image: linear-gradient(45deg, #edf2fd, #f4effd, #ebf6fa);
   margin-bottom: 1rem;
   padding-bottom: 2rem;
   color: #333;
@@ -407,7 +406,6 @@ h4 {
 }
 
 .data-area {
-  // background-color: #222a35;
   background-image: linear-gradient(45deg, rgb(44, 39, 68), #1c242f, #283f42);
   padding-bottom: 2rem;
 }

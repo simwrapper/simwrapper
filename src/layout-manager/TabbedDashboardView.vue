@@ -275,17 +275,18 @@ export default defineComponent({
         }
 
         // // Start on correct tab
+        const dashboardKeys = Object.keys(this.dashboards)
         if (this.$route.query.tab) {
           try {
             const userSupplied = parseInt('' + this.$route.query.tab) - 1
-            const userTab = Object.keys(this.dashboards)[userSupplied]
-            this.activeTab = userTab || Object.keys(this.dashboards)[0]
+            const userTab = dashboardKeys[userSupplied]
+            this.activeTab = userTab || dashboardKeys[0]
           } catch (e) {
             // user spam; just use first tab
-            this.activeTab = Object.keys(this.dashboards)[0]
+            this.activeTab = dashboardKeys[0]
           }
         } else {
-          this.activeTab = Object.keys(this.dashboards)[0]
+          this.activeTab = dashboardKeys[0]
         }
         this.dashboardTabWithDelay = this.activeTab
       } catch (e) {

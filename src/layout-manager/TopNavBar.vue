@@ -24,24 +24,49 @@
     @mouseover="showSidebarMenu=true"
     @mouseleave="showSidebarMenu=false"
   )
-    router-link.x-item(to="/")
+    a.x-item(href="/")
+      p: i.x-menu-icon.fas.fa-home
       p Home
-    a.x-item(href="https://simwrapper.github.io/docs" target="_blank")
-      p Documentation
 
-    .xsection Sidebar
-    .x-item(:class="{'is-active-side': currentSection===''}" @click="activate('')")
-      p: i.x-menu-icon.fas.fa-check
-      p Hide sidebar
-    .x-item(:class="{'is-active-side': currentSection=='data'}" @click="activate('data')")
-      p: i.x-menu-icon.fas.fa-sitemap
-      p Data sources and folders
-    .x-item(:class="{'is-active-side': currentSection=='split'}" @click="activate('split')")
-      p: i.x-menu-icon.fas.fa-columns
-      p Split view
-    //- .x-item(:class="{'is-active-side': currentSection=='runs'}" @click="activate('runs')")
-    //-   p: i.x-menu-icon.fas.fa-play-circle
-    //-   p Run manager
+    .space
+      .xsection Sidebar
+      .x-item(:class="{'is-active-side': currentSection===''}" @click="activate('')")
+        p: i.x-menu-icon.fas.fa-check
+        p Hide sidebar
+      .x-item(:class="{'is-active-side': currentSection=='data'}" @click="activate('data')")
+        p: i.x-menu-icon.fas.fa-sitemap
+        p Data sources and folders
+      .x-item(:class="{'is-active-side': currentSection=='split'}" @click="activate('split')")
+        p: i.x-menu-icon.fas.fa-columns
+        p Split view
+      //- .x-item(:class="{'is-active-side': currentSection=='runs'}" @click="activate('runs')")
+      //-   p: i.x-menu-icon.fas.fa-play-circle
+      //-   p Run manager
+
+    .space
+      .xsection Tools
+      .x-item(@click="go('/map')")
+        p: i.x-menu-icon.fas.fa-map
+        p Map Builder
+      .x-item(@click="go('/matrix')")
+        p: i.x-menu-icon.fas.fa-th
+        p Matrix Viewer
+
+    .space
+      .xsection Documentation &amp; Help
+
+      a.x-item(href="https://simwrapper.github.io/docs" target="_blank")
+        p: i.x-menu-icon.fas.fa-book-open
+        p Documentation
+      a.x-item(href="https://simwrapper.github.io/docs/guide-getting-started " target="_blank")
+        p: i.x-menu-icon.fas.fa-flag-checkered
+        p Tutorial
+      a.x-item(href="https://github.com/orgs/simwrapper/discussions" target="_blank")
+        p: i.x-menu-icon.fas.fa-comments
+        p Discussion Board
+      a.x-item(href="https://github.com/simwrapper/simwrapper/issues" target="_blank")
+        p: i.x-menu-icon.fas.fa-spider
+        p Bugs/Feature Requests
 
 </template>
 
@@ -91,8 +116,12 @@ export default defineComponent({
   },
 
   methods: {
+    go(path: string) {
+      this.showSidebarMenu = false
+      this.$router.push(path)
+    },
+
     activate(item: string) {
-      console.log(5555, item)
       this.$store.commit('setActiveLeftSection', item)
 
       this.$store.commit('setShowLeftBar', !!item)
@@ -242,6 +271,10 @@ $appTag: #32926f;
   z-index: 10000;
   border-radius: 0;
   filter: $filterShadow;
+}
+
+.space {
+  margin: 0.5rem 0 0 0.25rem;
 }
 
 .dropdown-holder {

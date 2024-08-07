@@ -1,10 +1,6 @@
 <template lang="pug">
 .panel
 
-  .top-panel
-    .simwrapper-logo(@click="clickedOnFolder({root: ''})")
-      img(:src="logo")
-
   .middle-panel
 
     .is-chrome(v-if="isChrome")
@@ -546,6 +542,8 @@ export default defineComponent({
   user-select: none;
   font-size: 0.9rem;
   color: #eee;
+  background: linear-gradient(150deg, #2e3f5a, #0c2f23);
+  border-radius: 0px;
 }
 
 .top-panel {
