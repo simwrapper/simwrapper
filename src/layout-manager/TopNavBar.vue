@@ -24,7 +24,7 @@
     @mouseover="showSidebarMenu=true"
     @mouseleave="showSidebarMenu=false"
   )
-    a.x-item(href="/")
+    .x-item(@click="go('/')")
       p: i.x-menu-icon.fas.fa-home
       p Home
 
@@ -82,6 +82,8 @@ import imgLogo from '@/assets/simwrapper-logo/SW_logo_white.png'
 import imgSidebar from '@/assets/icons/sidebar.png'
 import SettingsPanel from './SettingsPanel.vue'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export default defineComponent({
   name: 'SiteNavBar',
   components: { SettingsPanel },
@@ -118,7 +120,8 @@ export default defineComponent({
   methods: {
     go(path: string) {
       this.showSidebarMenu = false
-      this.$router.push(path)
+      const fullPath = `${BASE_URL}${path}`.replaceAll('//', '/')
+      this.$router.push(fullPath)
     },
 
     activate(item: string) {
