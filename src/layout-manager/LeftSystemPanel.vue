@@ -4,7 +4,7 @@
   .middle-panel
 
     .is-chrome(v-if="isChrome")
-      h3 Local Files
+      h3 Browse Local Files
       .items
         .project-root.local(v-for="row in localFileHandles" :key="row.key"
           @click="clickedBrowseChromeLocalFolder(row)")
@@ -658,7 +658,7 @@ h2 {
   font-size: 0.75rem;
   a {
     padding: 0.25rem 0.4rem;
-    border: 1px solid #00000000;
+    border: 1px solid #ccc;
     border-radius: 4px;
     color: var(--textLink);
   }

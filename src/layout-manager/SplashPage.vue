@@ -18,23 +18,10 @@
     .diagonal.data-area
       .content
 
-        h2.section-head Explore Data Sources
-        p
-          | Configure more data sources from the&nbsp;
-          a(@click="openDataStrip()") data
-          | &nbsp;tab on the left-side strip.
-
-        .roots
-          .project-root(v-for="project in mainRoots" :key="project.slug"
-            @click="clickedOnFolder({root: project.slug})"
-          )
-            h5 {{ project.name }}
-            p {{ project.description }}
-
         .section-head.is-chrome(v-if="isChrome")
           h2 Local Folders
 
-          p(v-if="!localFileHandles.length") This Chromium-based browser can access local folders that you authorize on a per-folder basis. To explore files on your local filesystem right now:
+          p(v-if="!localFileHandles.length") You can authorize this Chromium-based browser to securely access local folders. Your data is never uploaded to any server.<br> To explore files on your local filesystem right now:
 
           .roots
             .project-root.local.mb1(v-for="row in localFileHandles" :key="row.key"
@@ -49,6 +36,19 @@
             @click="showChromeDirectory"
           ) Open local folder...
 
+
+        h2.section-head Data Sources
+        p
+          | Configure more data sources from the&nbsp;
+          a(@click="openDataStrip()") data
+          | &nbsp;tab on the left-side strip.
+
+        .roots
+          .project-root(v-for="project in mainRoots" :key="project.slug"
+            @click="clickedOnFolder({root: project.slug})"
+          )
+            h5 {{ project.name }}
+            p {{ project.description }}
 
     //- WHAT IS SIMWRAPPER  ------------------------------------------------------
 
@@ -599,7 +599,7 @@ h2.splash-readme {
 }
 
 .is-chrome {
-  margin-top: 2rem;
+  margin-top: 0rem;
 }
 
 .newbie-area {
