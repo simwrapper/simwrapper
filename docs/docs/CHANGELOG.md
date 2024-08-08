@@ -14,6 +14,24 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.4.0](https://github.com/simwrapper/simwrapper/compare/v3.3.0...v3.4.0) (2024-08-08)
+
+
+### Features
+
+* Plotly bar/line/area/pie/scatter plots learned stable "category" colors ([7eb1933](https://github.com/simwrapper/simwrapper/commit/7eb1933d3ab373a714cd5b63e5555dee99321522))
+* Shapefile "On top": layers can now be above or below main dataset ([d94a775](https://github.com/simwrapper/simwrapper/commit/d94a775fafc58b6c8d08ae4a4076da59d6f28485)), closes [#380](https://github.com/simwrapper/simwrapper/issues/380)
+* Support TeX math equations in Markdown panels ([2f26513](https://github.com/simwrapper/simwrapper/commit/2f26513082d15b9aae55a34c6c6e71bdf453ddcb))
+
+
+### Bug Fixes
+
+* Redraw Shapefile layers when extra layers are reloaded ([2eb5cdd](https://github.com/simwrapper/simwrapper/commit/2eb5cddf7a1816377ef94769bb13c03ae081425d)), closes [#379](https://github.com/simwrapper/simwrapper/issues/379)
+* Shapefile background layers show/hide slowly ([6ece149](https://github.com/simwrapper/simwrapper/commit/6ece14984a20003975ad8e5305eb6077daffd3b9)), closes [#379](https://github.com/simwrapper/simwrapper/issues/379)
+* Shapefile click-to-lock tooltip ([8e6d160](https://github.com/simwrapper/simwrapper/commit/8e6d160bf54a5c3b9232da1d4ebd133e20bebaf3)), closes [#372](https://github.com/simwrapper/simwrapper/issues/372)
+* Shapefile should load even if DBF file is missing. ([9bac1e3](https://github.com/simwrapper/simwrapper/commit/9bac1e31f22798d44b5af28170ebb1db72abac8b))
+* Shapefile viewer should be able to open MATSim networks ([745c37e](https://github.com/simwrapper/simwrapper/commit/745c37e3722be4a46559438147dbf7fd39617d6d))
+
 ## [3.3.0](https://github.com/simwrapper/simwrapper/compare/v3.2.0...v3.3.0) (2024-07-11)
 
 
