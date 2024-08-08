@@ -18,9 +18,9 @@
 
     h3 Data Sources
     .items(v-if="!showAddDataSource")
-      .project-root(v-for="project in allRoots" :key="project.slug"
-        @click="clickedOnFolder({root: project.slug})")
-
+      .project-root(v-for="project in allRoots.filter(p => !p.example)" :key="project.slug"
+        @click="clickedOnFolder({root: project.slug})"
+      )
         p.root {{ project.name }}
           i.fa.fa-times(@click.stop="clickedDataSourceDelete(project)")
         p.description {{ project.description }}
@@ -33,7 +33,16 @@
     .items(v-if="showAddDataSource")
       add-data-source(@close="showAddDataSource=false" )
 
-    h3 PINNED
+    h3 Example Dashboards
+    .items
+      .project-root(v-for="project in allRoots.filter(p => p.example)" :key="project.slug"
+        @click="clickedOnFolder({root: project.slug})"
+      )
+        p.root {{ project.name }}
+          i.fa.fa-times(@click.stop="clickedDataSourceDelete(project)")
+        p.description {{ project.description }}
+
+    h3 Starred Locations
     .items
       .project-root(v-for="favorite in globalState.favoriteLocations" :key="favorite.fullPath"
         @click="clickedOnFavorite(favorite)")
@@ -783,7 +792,7 @@ h2 {
 h3 {
   font-family: $mainFont;
   font-size: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   margin-bottom: 0.5rem;
   margin-left: 6px;
   text-transform: uppercase;

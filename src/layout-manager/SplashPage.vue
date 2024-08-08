@@ -21,7 +21,7 @@
         .section-head.is-chrome(v-if="isChrome")
           h2 Local Folders
 
-          p(v-if="!localFileHandles.length") You can authorize this Chromium-based browser to securely access local folders. Your data is never uploaded to any server.<br> To explore files on your local filesystem right now:
+          p(v-if="!localFileHandles.length") You can securely browse simulation outputs with this Chromium-based browser. Your data is <b>never uploaded to any server:</b> everything stays right here in your browser. To explore files on your local filesystem right now:
 
           .roots
             .project-root.local.mb1(v-for="row in localFileHandles" :key="row.key"
