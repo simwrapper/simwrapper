@@ -45,7 +45,7 @@ const initialViewState = () => {
   }
 }
 
-const initialLeftSection = localStorage.getItem('activeLeftSection') || ''
+const initialLeftSection = localStorage ? localStorage.getItem('activeLeftSection') || '' : ''
 
 console.log('INITIAL LEFT SECTION', initialLeftSection)
 export default new Vuex.Store({
@@ -123,7 +123,7 @@ export default new Vuex.Store({
     },
     setActiveLeftSection(state, value: string) {
       state.activeLeftSection = value
-      localStorage.setItem('activeLeftSection', value)
+      if (localStorage) localStorage.setItem('activeLeftSection', value)
     },
     setBreadCrumbs(state, value: BreadCrumb[]) {
       state.breadcrumbs = value
@@ -229,7 +229,7 @@ export default new Vuex.Store({
 
       state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
-      localStorage.setItem('colorscheme', state.colorScheme)
+      if (localStorage) localStorage.setItem('colorscheme', state.colorScheme)
       document.body.style.backgroundColor =
         state.colorScheme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
     },
@@ -241,13 +241,13 @@ export default new Vuex.Store({
 
       state.isDarkMode = state.colorScheme === ColorScheme.DarkMode
 
-      localStorage.setItem('colorscheme', state.colorScheme)
+      if (localStorage) localStorage.setItem('colorscheme', state.colorScheme)
       document.body.style.backgroundColor =
         state.colorScheme === ColorScheme.LightMode ? '#edebe4' : '#2d3133'
     },
     setLocale(state, value: string) {
       state.locale = value.toLocaleLowerCase()
-      localStorage.setItem('locale', state.locale)
+      if (localStorage) localStorage.setItem('locale', state.locale)
     },
     addLocalFileSystem(state, value: any) {
       state.localFileHandles.unshift(value)
@@ -269,13 +269,13 @@ export default new Vuex.Store({
 
       try {
         const KEY = 'projectShortcuts'
-        let existingRoot = localStorage.getItem(KEY) || ('{}' as any)
+        let existingRoot = localStorage ? localStorage.getItem(KEY) || ('{}' as any) : {}
 
         let roots = JSON.parse(existingRoot)
         delete roots[shortcut]
         console.log('NEW ROOTS', roots)
 
-        localStorage.setItem(KEY, JSON.stringify(roots))
+        if (localStorage) localStorage.setItem(KEY, JSON.stringify(roots))
       } catch (e) {
         // you failed
         console.error('' + e)
@@ -304,7 +304,8 @@ export default new Vuex.Store({
       state.favoriteLocations = [...state.favoriteLocations]
 
       try {
-        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+        if (localStorage)
+          localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
       } catch (e) {
         console.error('' + e)
       }
@@ -317,7 +318,8 @@ export default new Vuex.Store({
       if (exists > -1) state.favoriteLocations.splice(exists, 1)
 
       try {
-        localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
+        if (localStorage)
+          localStorage.setItem('favoriteLocations', JSON.stringify(state.favoriteLocations))
       } catch (e) {
         console.error('' + e)
       }
