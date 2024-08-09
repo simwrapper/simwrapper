@@ -96,7 +96,7 @@ There are three ways to add icons. When adding icons, these three options are al
 |![departure_board](assets/local_gas_station.svg)|local_gas_station| 
 |And many more...|And many more...|
 
-For a complete overview, you can check [here](https://github.com/simwrapper/simwrapper/tree/overview-panel/src/assets/tile-icons). You can also add more icons and save them in this folder. Please use this [link](https://fonts.google.com/icons) and select these options for a consistent design: Grade: 0; Fill: true; Weight: 400; Optical Size: 48px.
+For a complete overview, you can check [here](https://github.com/simwrapper/simwrapper/tree/master/public/images/tile-icons). You can also add more icons and save them in this folder. Please use this [link](https://fonts.google.com/icons) and select these options for a consistent design: Grade: 0; Fill: true; Weight: 400; Optical Size: 48px.
 
 ---
 
