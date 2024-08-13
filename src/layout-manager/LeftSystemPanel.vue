@@ -155,15 +155,9 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import AddDataSource from './AddDataSource.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
-
-const components = Object.assign(
-  { AddDataSource, FileSystemProjects, TopsheetsFinder, ErrorPanel },
-  pluginComponents
-)
 
 export default defineComponent({
   name: 'SystemPanel',

@@ -61,7 +61,6 @@ export default new Vuex.Store({
     isFullScreen: false,
     isFullWidth: true,
     isShowingLeftBar: true,
-    isShowingLeftStrip: true,
     isShowingFilesTab: true,
     isDarkMode: true,
     isInitialViewSet: false,
@@ -148,9 +147,6 @@ export default new Vuex.Store({
     },
     setShowLeftBar(state, value: boolean) {
       state.isShowingLeftBar = value
-    },
-    setShowLeftStrip(state, value: boolean) {
-      state.isShowingLeftStrip = value
     },
     setTopNavItems(
       state,

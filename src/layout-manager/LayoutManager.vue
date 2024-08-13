@@ -13,13 +13,6 @@
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
  )
 
-  //- do not show left-strip if we are in project mode  NEVER SHOW ACTUALLY :-)
-  //- left-icon-panel.left-icon-panel(
-  //-   v-if="$store.state.isShowingLeftStrip"
-  //-   :activeSection="activeLeftSection.name"
-  //-   @activate="setActiveLeftSection"
-  //- )
-
   //-  :class="{'is-hide-me': isLeftPanelHidden}"
   .left-panel(v-show="showLeftBar")
 
@@ -168,9 +161,19 @@ import SplashPage from './SplashPage.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
 import ProjectNavBar from './ProjectNavBar.vue'
 
-import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import { FileSystemConfig } from '@/Globals'
+
+export interface Section {
+  name: string
+  class: string
+  icon?: string
+  colorize?: boolean
+  link?: string
+  onlyIfVisible?: boolean
+  navRoot?: string
+  hidden?: boolean
+}
 
 const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_LEFT_WIDTH = 250
@@ -195,7 +198,6 @@ export default defineComponent({
       BreadCrumbs,
       ErrorPanel,
       FolderBrowser,
-      LeftIconPanel,
       LeftProjectPanel,
       LeftRunnerPanel,
       LeftSplitFolderPanel,
@@ -360,7 +362,6 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-        this.$store.commit('setShowLeftStrip', true)
         return
       }
 
@@ -375,7 +376,6 @@ export default defineComponent({
         const serverNickname = pathMatch.substring(5)
         const props = { serverNickname } as any
         this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
-        this.$store.commit('setShowLeftStrip', true)
         this.activeLeftSection = { name: 'Runs', class: 'LeftRunnerPanel' }
         return
       }

@@ -328,7 +328,6 @@ export default defineComponent({
     },
 
     openDataStrip() {
-      this.$store.commit('setShowLeftStrip', true)
       this.$store.commit('setShowLeftBar', true)
     },
   },
