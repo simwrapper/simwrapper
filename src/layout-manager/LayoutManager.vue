@@ -867,7 +867,7 @@ export default defineComponent({
       // single file browser: no padding
       if (this.panels[y].length == 1 && this.panels[x].length == 1) {
         const singlePanel = this.panels[0][0]
-        console.log('SINGLEPANEL!', singlePanel)
+        // console.log('SINGLEPANEL!', singlePanel)
         if (['TabbedDashboardView', 'SplashPage'].indexOf(singlePanel.component) > -1) {
           style.padding = '0px 0px'
         }

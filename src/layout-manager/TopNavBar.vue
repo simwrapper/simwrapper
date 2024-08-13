@@ -112,7 +112,7 @@ export default defineComponent({
   computed: {
     currentSection() {
       const section = globalStore.state.activeLeftSection
-      console.log(123, section)
+      // console.log(123, section)
       return section
     },
   },
