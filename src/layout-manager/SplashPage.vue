@@ -146,6 +146,14 @@
         .flex-row
           .legal.flex1
             h4.section-head SimWrapper, © 2024 Technische Universität Berlin
+
+            h4(style="margin: 0") Build information:
+            p Version: &nbsp;
+              b {{  git.tag }}
+            p Built from commit: &nbsp;
+              b {{  git.commit }}
+            br
+
             p SimWrapper is open source and available on&nbsp;
               a(href="https://github.com/simwrapper/simwrapper") GitHub.
             p
@@ -191,6 +199,13 @@ import SIMWRAPPER_FULL_LOGO from '@/assets/simwrapper-logo/SW_logo_white.png'
 
 const BASE_URL = import.meta.env.BASE_URL
 
+const SIMWRAPPER_COMMIT = import.meta.env.VITE_COMMIT
+const SIMWRAPPER_TAG = import.meta.env.VITE_TAG
+const GIT = {
+  commit: SIMWRAPPER_COMMIT,
+  tag: SIMWRAPPER_TAG,
+}
+
 const logos = [
   { url: 'https://tu.berlin', image: 'tu-logo.png', name: 'TU Berlin' },
   { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
@@ -221,6 +236,7 @@ export default defineComponent({
         berlin: SCREENSHOT_BERLIN,
       },
       skimwrapper: `${BASE_URL}matrix`,
+      git: GIT,
     }
   },
   computed: {
