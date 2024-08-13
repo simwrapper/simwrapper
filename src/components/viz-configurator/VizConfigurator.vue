@@ -438,18 +438,17 @@ h1:hover {
   user-select: none;
   border-radius: 3px;
   pointer-events: auto;
-  margin: 0 0.5rem 2rem 0;
+  margin: 0 0.5rem 0rem 0;
   filter: $filterShadow;
   z-index: 10;
 }
 
 .map-actions {
-  pointer-events: all;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  margin-top: 72px;
-  margin-right: 0px;
+  margin: 72px 0px auto 0px;
+  pointer-events: auto;
   z-index: 5;
 }
 
@@ -527,6 +526,11 @@ h1:hover {
 .right-panels {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 10;
+  pointer-events: all;
+  gap: 2rem;
 }
 
 @media only screen and (max-width: 640px) {
