@@ -7,15 +7,7 @@
     .tabholdercontainer.white-text
       .project-header(v-if="header" v-html="header")
 
-      .project-path(v-else)
-
-        //- .nav-title
-        //-   p.title-text {{ finalFolder }}
-        //-   p.favorite-icon(
-        //-     @click="clickedFavorite"
-        //-     title="Favorite"
-        //-     :class="{'is-favorite': isFavorite}"
-        //-   ): i.fa.fa-star
+      .project-path.flex-row(v-else)
 
         bread-crumbs.breadcrumbs(
             :root="root"
@@ -23,6 +15,12 @@
             @navigate="onNavigate"
             @crumbs="updateCrumbs"
         )
+
+        p.favorite-icon(
+            @click="clickedFavorite"
+            title="Favorite"
+            :class="{'is-favorite': isFavorite}"
+          ): i.fa.fa-star
 
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
     ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
@@ -862,19 +860,25 @@ li.is-not-active b a {
 }
 
 .favorite-icon {
-  margin: auto 0 auto 1rem;
-  opacity: 0.3;
+  margin: auto -0.5rem auto 1rem;
+  opacity: 0.6;
   font-size: 1.1rem;
+  color: #757bff;
+  // text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
 }
 
 .is-favorite {
   opacity: 1;
+  color: #4f58ff;
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
 }
+
 .favorite-icon:hover {
   cursor: pointer;
 }
 
 .breadcrumbs {
+  flex: 1;
   padding: 0;
   font-size: 0.9rem;
   color: var(--text);
