@@ -155,6 +155,7 @@ export default defineComponent({
     isFavorite(): any {
       let key = this.root
       if (this.xsubfolder) key += `/${this.xsubfolder}`
+      if (key.endsWith('/')) key = key.substring(0, key.length - 1)
 
       const indexOfPathInFavorites = this.globalState.favoriteLocations.findIndex(
         f => key == f.fullPath
@@ -203,11 +204,14 @@ export default defineComponent({
       // remove current folder from subfolder
       hint = hint.substring(0, hint.lastIndexOf('/'))
 
+      let fullPath = `${this.root}/${this.xsubfolder}`
+      if (fullPath.endsWith('/')) fullPath = fullPath.substring(0, fullPath.length - 1)
+
       const favorite: FavoriteLocation = {
         root: this.root,
         subfolder: this.xsubfolder,
         label: this.finalFolder,
-        fullPath: `${this.root}/${this.xsubfolder}`,
+        fullPath,
         hint,
       }
 

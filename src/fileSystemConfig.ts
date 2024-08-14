@@ -100,6 +100,15 @@ let fileSystems: FileSystemConfig[] = [
     skipList: ['episim/battery'],
   },
   {
+    name: 'Berlin Open Scenario v6.3',
+    slug: 'open-berlin',
+    description: 'Standard dashboard from the MATSim SimWrapper contrib',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL:
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/output/berlin-v6.3-10pct/',
+    example: true,
+  },
+  {
     name: 'Visualization Examples',
     slug: 'examples',
     description: 'Various SimWrapper data vis types',
