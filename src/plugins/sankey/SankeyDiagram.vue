@@ -296,7 +296,7 @@ const MyComponent = defineComponent({
 
     // resizer for bigger fonts
     const resizeObserver = new ResizeObserver(() => {
-      this.dbChangeDimensions()
+      this.changeDimensions()
     })
     const targetDiv = document.querySelector(`#${this.cleanConfigId}`)
     if (targetDiv) resizeObserver.observe(targetDiv)
