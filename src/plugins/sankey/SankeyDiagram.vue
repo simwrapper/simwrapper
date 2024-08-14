@@ -1,9 +1,5 @@
 <template lang="pug">
-.sankey-container(:class="{'is-thumbnail': thumbnail}")
-
-  //- .labels(v-if="!thumbnail")
-  //-   h3.center {{ vizDetails.title }}
-  //-   h5.center {{ vizDetails.description }}
+.sankey-container(:class="{'is-thumbnail': thumbnail, 'is-wide': isWide}")
 
   svg.chart-area(:id="cleanConfigId" :class="{'is-thumbnail': thumbnail}")
 
@@ -27,7 +23,7 @@ import { defineComponent } from 'vue'
 import yaml from 'yaml'
 import { sankey, sankeyDiagram } from '@simwrapper/d3-sankey-diagram'
 import { select } from 'd3-selection'
-import { scaleOrdinal } from 'd3-scale'
+
 import {
   interpolateRainbow as interpolator,
   schemeCategory10 as colorScheme,
@@ -67,6 +63,7 @@ const MyComponent = defineComponent({
       onlyShowChanges: false,
       csvData: [] as any[],
       colorRamp: [] as string[],
+      isWide: false,
     }
   },
 
@@ -108,6 +105,11 @@ const MyComponent = defineComponent({
 
   methods: {
     changeDimensions() {
+      // set font size based on width
+      const panel = document.querySelector(`#${this.cleanConfigId}`)
+      if (panel) this.isWide = panel.clientWidth > 650
+
+      // redraw
       if (this.jsonChart?.nodes) this.doD3()
     },
 
@@ -240,7 +242,7 @@ const MyComponent = defineComponent({
       const context = canvas.getContext('2d')
       if (!context) return 120
 
-      context.font = '16px Arial'
+      context.font = this.isWide ? 'bold 33px Arial' : '16px Arial'
 
       let max = 0
 
@@ -292,13 +294,14 @@ const MyComponent = defineComponent({
       this.$emit('error', '' + e)
     }
 
-    window.addEventListener('resize', this.changeDimensions)
+    // resizer for bigger fonts
+    const resizeObserver = new ResizeObserver(() => {
+      this.dbChangeDimensions()
+    })
+    const targetDiv = document.querySelector(`#${this.cleanConfigId}`)
+    if (targetDiv) resizeObserver.observe(targetDiv)
 
     this.doD3()
-  },
-
-  beforeDestroy() {
-    window.removeEventListener('resize', this.changeDimensions)
   },
 })
 
@@ -313,11 +316,18 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   background-color: var(--bgCardFrame);
+  font-size: 16px;
+  font-weight: normal;
 }
 
 .sankey-container.is-thumbnail {
   padding-top: 0;
   height: $thumbnailHeight;
+}
+
+.sankey-container.is-wide {
+  font-size: 32px;
+  font-weight: bold;
 }
 
 h1 {

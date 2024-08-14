@@ -746,11 +746,6 @@ p.splash-label {
 }
 
 @media only screen and (max-width: 640px) {
-  .top-bar {
-    // padding-left: 1rem;
-    // padding-right: 1rem;
-  }
-
   .breadcrumbs {
     padding-left: 1rem;
     padding-right: 1rem;
