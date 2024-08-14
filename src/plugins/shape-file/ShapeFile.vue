@@ -3098,8 +3098,8 @@ export default MyComponent
 .dragger:hover,
 .dragger:active {
   background-color: var(--sliderThumb);
-  transition: background-color 0.5s ease;
-  transition-delay: 0.3s;
+  transition: background-color 0.3s ease;
+  transition-delay: 0.2s;
   cursor: ew-resize;
 }
 
@@ -3108,7 +3108,7 @@ export default MyComponent
   grid-column: 3 / 4;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgBold);
+  background-color: var(--bgCardFrame);
   position: relative;
 
   .legend-panel {
@@ -3118,6 +3118,7 @@ export default MyComponent
     right: 0;
     display: flex;
     flex-direction: column;
+    background-color: var(--bgCardFrame);
 
     .description {
       margin-top: 0.5rem;
@@ -3128,7 +3129,7 @@ export default MyComponent
     font-size: 0.8rem;
     padding: 0.25rem;
     text-align: left;
-    background-color: var(--bgBold);
+    background-color: var(--bgCardFrame);
     position: absolute;
     bottom: 0;
     left: 0;

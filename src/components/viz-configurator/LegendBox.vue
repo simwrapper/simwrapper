@@ -106,7 +106,7 @@ export default defineComponent({
   font-size: 0.85rem;
   padding: 0.5rem 0.25rem;
   color: var(--text);
-  background-color: var(--bgBold);
+  background-color: var(--bgCardFrame);
 
   h4 {
     font-weight: bold;
