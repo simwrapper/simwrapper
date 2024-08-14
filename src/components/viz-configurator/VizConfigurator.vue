@@ -48,11 +48,11 @@
             @update="handleConfigChanged")
           p(v-else) To be added
 
-    .legend-area
-      legend-box.legend-panel(
-        v-show="showLegend"
-        :legendStore="legendStore"
-      )
+    //- .legend-area
+    //-   legend-box.legend-panel(
+    //-     v-show="showLegend"
+    //-     :legendStore="legendStore"
+    //-   )
 
   add-datasets-panel(v-if="showAddDatasets"
     :vizConfiguration="vizConfiguration"
@@ -116,7 +116,7 @@ export default defineComponent({
   data: () => {
     return {
       showPanels: false,
-      showLegend: false,
+      showLegend: true,
       activeSection: '',
       showAddDatasets: false,
       selectedExportAction: '',
@@ -178,6 +178,7 @@ export default defineComponent({
     },
 
     clickedLegendShowHide() {
+      this.$emit('toggleLegend')
       this.showLegend = !this.showLegend
     },
 

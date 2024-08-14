@@ -1,88 +1,101 @@
 <template lang="pug">
-.map-layout(:class="{'hide-thumbnail': !thumbnail}"
-            :style='{"background": urlThumbnail}'
-            oncontextmenu="return false")
+.shapefile-viewer(:class="{'hide-thumbnail': !thumbnail}" :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .status-bar(v-show="statusText") {{ statusText }}
+  modal-id-column-picker(v-if="showJoiner" v-bind="datasetJoinSelector" @join="cbDatasetJoined")
 
-  modal-id-column-picker(v-if="showJoiner"
-    v-bind="datasetJoinSelector"
-    @join="cbDatasetJoined"
+  .main-layout(
+      @mousemove.stop="dividerDragging"
   )
 
-  .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
-    //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
-
-    geojson-layer(v-if="!needsInitialMapExtent"
-      :viewId="layerId"
-      :fillColors="dataFillColors"
-      :lineColors="dataLineColors"
-      :lineWidths="dataLineWidths"
-      :fillHeights="dataFillHeights"
-      :screenshot="triggerScreenshot"
-      :featureFilter="boundaryFilters"
-      :opacity="sliderOpacity"
-      :pointRadii="dataPointRadii"
-      :cbTooltip="cbTooltip"
-      :bgLayers="bgLayers"
-      :handleClickEvent="handleClickEvent"
-      :highlightedLinkIndex="highlightedLinkIndex"
-      :redraw="redraw"
+    .dragger(v-show="showLegend"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
     )
 
-    //- :features="useCircles ? centroids: boundaries"
-    //- background-map-on-top(v-if="isLoaded")
+    .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-    viz-configurator(v-if="isLoaded"
-      :embedded="isEmbedded"
-      :sections="configuratorSections"
-      :fileSystem="fileSystem"
-      :subfolder="subfolder"
-      :yamlConfig="generatedExportFilename"
-      :vizDetails="vizDetails"
-      :datasets="datasets"
-      :legendStore="legendStore"
-      :filterDefinitions="currentUIFilterDefinitions"
-      @update="changeConfiguration"
-      @screenshot="takeScreenshot"
-    )
+      .legend-panel
+        legend-box(:legendStore="legendStore")
+        //- .description(v-if="vizDetails.description" v-html="vizDetails.description")
 
-    .details-panel
       .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
-      .bglayer-section
-        b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
-          @input="updateBgLayers" v-model="bgLayers[layer].visible"
-        ) {{  layer }}
+        .bglayer-section
+          b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
+            @input="updateBgLayers" v-model="bgLayers[layer].visible"
+          ) {{  layer }}
 
+    .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
+      .status-bar(v-show="false && statusText") {{ statusText }}
 
-  zoom-buttons(v-if="isLoaded && !thumbnail")
+      //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
-  .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
-    :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
-
-    //- Filter pickers
-    .filter(v-for="filter in Object.keys(filters)")
-      p {{ filter }}
-      b-dropdown(
-        v-model="filters[filter].active"
-        :scrollable="filters[filter].active.length > 10"
-        max-height="250"
-        multiple
-        @change="handleUserSelectedNewFilters(filter)"
-        aria-role="list" :mobile-modal="false" :close-on-click="true"
+      geojson-layer.map-layers(v-if="!needsInitialMapExtent"
+        :viewId="layerId"
+        :fillColors="dataFillColors"
+        :lineColors="dataLineColors"
+        :lineWidths="dataLineWidths"
+        :fillHeights="dataFillHeights"
+        :screenshot="triggerScreenshot"
+        :featureFilter="boundaryFilters"
+        :opacity="sliderOpacity"
+        :pointRadii="dataPointRadii"
+        :cbTooltip="cbTooltip"
+        :bgLayers="bgLayers"
+        :handleClickEvent="handleClickEvent"
+        :highlightedLinkIndex="highlightedLinkIndex"
+        :redraw="redraw"
       )
-        template(#trigger="{ active }")
-          b-button.is-primary(
-            :type="filters[filter].active.length ? '' : 'is-outlined'"
-            :label="filterLabel(filter)"
-          )
 
-        b-dropdown-item(v-for="option in filters[filter].options"
-          :key="option" :value="option" aria-role="listitem") {{ option }}
+      //- :features="useCircles ? centroids: boundaries"
+      //- background-map-on-top(v-if="isLoaded")
 
-    //- .map-type-buttons(v-if="isAreaMode")
-    //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
-    //-   img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
+      viz-configurator(v-if="isLoaded"
+        :embedded="isEmbedded"
+        :sections="configuratorSections"
+        :fileSystem="fileSystem"
+        :subfolder="subfolder"
+        :yamlConfig="generatedExportFilename"
+        :vizDetails="vizDetails"
+        :datasets="datasets"
+        :legendStore="legendStore"
+        :filterDefinitions="currentUIFilterDefinitions"
+        @update="changeConfiguration"
+        @screenshot="takeScreenshot"
+        @toggleLegend="showLegend=!showLegend"
+      )
+
+      .details-panel
+
+
+      zoom-buttons(v-if="isLoaded && !thumbnail")
+
+      .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
+        :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
+
+      //- Filter pickers
+      .filter(v-for="filter in Object.keys(filters)")
+        p {{ filter }}
+        b-dropdown(
+          v-model="filters[filter].active"
+          :scrollable="filters[filter].active.length > 10"
+          max-height="250"
+          multiple
+          @change="handleUserSelectedNewFilters(filter)"
+          aria-role="list" :mobile-modal="false" :close-on-click="true"
+        )
+          template(#trigger="{ active }")
+            b-button.is-primary(
+              :type="filters[filter].active.length ? '' : 'is-outlined'"
+              :label="filterLabel(filter)"
+            )
+
+          b-dropdown-item(v-for="option in filters[filter].options"
+            :key="option" :value="option" aria-role="listitem") {{ option }}
+
+      //- .map-type-buttons(v-if="isAreaMode")
+      //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
+      //-   img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -120,6 +133,7 @@ import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -158,6 +172,7 @@ const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
   components: {
     BackgroundMapOnTop,
+    LegendBox,
     GeojsonLayer,
     ModalIdColumnPicker,
     VizConfigurator,
@@ -179,6 +194,12 @@ const MyComponent = defineComponent({
     return {
       avroNetwork: null as any,
       isAvroFile: false,
+      //drag
+      isDraggingDivider: 0,
+      isDragHappening: false,
+      dragStartWidth: 200,
+      legendSectionWidth: 200,
+      //
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -222,6 +243,7 @@ const MyComponent = defineComponent({
 
       datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
       showJoiner: false,
+      showLegend: true,
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -362,6 +384,24 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      console.log('dragStart', e)
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+      // localStorage.setItem('leftPanelWidth', `${this.legendSectionWidth}`)
+    },
+
     // incrementing screenshot count triggers the screenshot.
     takeScreenshot() {
       this.triggerScreenshot++
@@ -379,7 +419,7 @@ const MyComponent = defineComponent({
     setupLogoMover() {
       this.resizer = new ResizeObserver(this.moveLogo)
       const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      this.resizer.observe(deckmap)
+      if (deckmap) this.resizer.observe(deckmap)
     },
 
     moveLogo() {
@@ -3010,21 +3050,21 @@ export default MyComponent
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-.map-layout {
+.shapefile-viewer {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.main-layout {
   display: grid;
   // one unit, full height/width. Layers will go on top:
   grid-template-rows: 1fr;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr auto auto;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
-  z-index: -1;
+  height: 100%;
 }
 
 .map-layout.hide-thumbnail {
@@ -3033,11 +3073,68 @@ export default MyComponent
 }
 
 .area-map {
-  position: relative;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  height: 100%;
   background-color: var(--bgBold);
+  position: relative;
+}
+
+.map-layers {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.5rem;
+  background-color: #00000000;
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.5s ease;
+  transition-delay: 0.3s;
+  cursor: ew-resize;
+}
+
+.new-rightside-info-panel {
+  grid-row: 1 / 2;
+  grid-column: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgBold);
+  position: relative;
+
+  .legend-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+
+    .description {
+      margin-top: 0.5rem;
+    }
+  }
+
+  .tooltip-html {
+    font-size: 0.8rem;
+    padding: 0.25rem;
+    text-align: left;
+    background-color: var(--bgBold);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #88888880;
+  }
 }
 
 .config-bar {
@@ -3132,7 +3229,7 @@ export default MyComponent
 .details-panel {
   position: absolute;
   bottom: 0;
-  left: 0;
+  right: 20rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -3146,21 +3243,11 @@ export default MyComponent
   white-space: nowrap;
 }
 
-.tooltip-html {
-  padding: 0.25rem;
-  text-align: left;
-  filter: $filterShadow;
-  background-color: var(--bgPanel);
-}
-
 .simple-checkbox {
   padding: 0.25rem;
 }
 
 .simple-checkbox:hover {
   color: unset;
-}
-
-@media only screen and (max-width: 640px) {
 }
 </style>
