@@ -8,6 +8,7 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { formatScalarComplex } from '../matrix/local/vis-utils'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -26,6 +27,20 @@ interface Shipment {
   toY: number
 }
 
+interface lspShipmentChain {
+  chainId: string
+  from: number
+  hubs: []
+  isDirectChain: boolean
+  shipmentId: string
+  toX: number
+  toY: number
+  fromX: number
+  fromY: number
+  route: []
+  color: number
+}
+
 const ActivityColor = {
   pickup: [0, 150, 255],
   delivery: [240, 0, 60],
@@ -35,6 +50,7 @@ const ActivityColor = {
 export default function Component(props: {
   activeTab: string
   shipments: Shipment[]
+  lspShipmentChains: lspShipmentChain[]
   legs: any[]
   stopActivities: any[]
   depots: { link: string; midpoint: number[]; coords: number[] }[]
@@ -59,6 +75,7 @@ export default function Component(props: {
     dark,
     activeTab,
     numSelectedTours,
+    lspShipmentChains,
     shipments,
     depots,
     legs,
@@ -124,6 +141,7 @@ export default function Component(props: {
   }
 
   function renderTooltip(hoverInfo: any) {
+
     const { object } = hoverInfo
     if (!object) return null
 
@@ -138,7 +156,6 @@ export default function Component(props: {
 
   function renderActivityTooltip(hoverInfo: any, activity: string) {
     const { object, x, y } = hoverInfo
-
     return (
       <div
         className="tooltip"
@@ -167,6 +184,36 @@ export default function Component(props: {
     )
   }
 
+  function renderActivityChainTooltip(hoverInfo: any, activity: string) {
+    const { object, x, y } = hoverInfo
+    return (
+      <div
+        className="tooltip"
+        style={{
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          opacity: 0.9,
+          left: x + 20,
+          top: y + 20,
+        }}
+      >
+        {/* <table style={{ maxWidth: '30rem', fontSize: '0.8rem' }}>
+          <tbody>
+            <tr>
+              <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
+                {activity}:
+              </td>
+              <td style={{ paddingTop: '0.2rem' }}>{object.lspShipmentChain.join(', ')}</td>
+            </tr>
+          </tbody>
+        </table> */}
+      </div>
+    )
+  }
+
   function renderLegTooltip(hoverInfo: any) {
     const { object, x, y } = hoverInfo
 
@@ -184,11 +231,8 @@ export default function Component(props: {
           top: y - 30,
         }}
       >
-        <b>{object?.tour?.vehicleId}</b>
-        <br />
-        Leg # {1 + object?.count} <br />
-        Shipments on board: {object?.shipmentsOnBoard?.length} <br />
-        Total size: {object?.totalSize}
+        Shipment # {object?.shipmentId} <br />
+        Chain Type: {object?.chainId} <br />
       </div>
     )
   }
@@ -279,9 +323,10 @@ export default function Component(props: {
     )
   }
 
-  function clickedDepot() {}
+  function clickedDepot() { }
 
   if (activeTab == 'tours') {
+
     layers.push(
       //@ts-ignore:
       new PathLayer({
@@ -456,6 +501,157 @@ export default function Component(props: {
         transitions: { getWidth: 200 },
       })
     )
+  }
+
+  // Shipment chains
+  if (activeTab == "lspShipmentChains") {
+    // console.log(lspShipmentChains[0].fromY)
+    const opacity = shipments.length > 1 ? 32 : 255
+
+    if (lspShipmentChains[0].isDirectChain == true) {
+      layers.push(
+        //@ts-ignore:
+        new ArcLayer({
+          id: 'shipmentdirectchains',
+          data: lspShipmentChains,
+          getSourcePosition: (d: any) => [d.fromX, d.fromY],
+          getTargetPosition: (d: any) => [d.toX, d.toY],
+          getSourceColor: [0, 228, 255, opacity],
+          getTargetColor: [240, 0, 60, 224],
+          getWidth: 1,
+          widthUnits: 'pixels',
+          getHeight: 0.5,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          widthScale: widthScale,
+          widthMinPixels: 1,
+          widthMaxPixels: 100,
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 200 },
+        })
+      )
+
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'deliveriesHubChain',
+          data: lspShipmentChains,
+          getPosition: (d: any) => [d.toX, d.toY],
+          getColor: ActivityColor.delivery,
+          getRadius: 3,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          onHover: setHoverInfo,
+        })
+      )
+
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'pickupsHubChain',
+          data: lspShipmentChains,
+          getPosition: (d: any) => [d.fromX, d.fromY],
+          getColor: ActivityColor.pickup,
+          getRadius: 2,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          // onHover: setHoverInfo,
+        })
+      )
+    } else {
+      function getLineWidth(chainIndex: number, shipmentChain: any) {
+        if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+          return 0.1;
+        } else {
+          return 20;
+        }
+      }
+
+      function getSourceColor(chainIndex: number, shipmentChain: any) {
+        if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+          return [0, 228, 255, opacity];
+        } else {
+          return [255, 255, 255, opacity];
+        }
+      }
+
+      function getTargetColor(chainIndex: number, shipmentChain: any) {
+        if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+          return [240, 0, 60, 224];
+        } else {
+          return [255, 255, 255, opacity];
+        }
+      }
+
+
+      lspShipmentChains.forEach(lspShipmentChain => {
+        for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
+          layers.push(
+            //@ts-ignore:
+            new ArcLayer({
+              id: 'shipmenthubchains',
+              data: lspShipmentChains,
+              getSourcePosition: (d: any) => [d.route[i][0], d.route[i][1]],
+              getTargetPosition: (d: any) => [d.route[i + 1][0], d.route[i + 1][1]],
+              getSourceColor: getSourceColor(i, lspShipmentChain),
+              getTargetColor: getTargetColor(i, lspShipmentChain),
+              getWidth: getLineWidth(i, lspShipmentChain),
+              widthUnits: 'pixels',
+              getHeight: 0.5,
+              opacity: 0.9,
+              parameters: { depthTest: false },
+              widthScale: widthScale,
+              widthMinPixels: 1,
+              widthMaxPixels: 100,
+              updateTriggers: { getWidth: [scaleFactor] },
+              transitions: { getWidth: 200 },
+            })
+          )
+        }
+      })
+
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'deliveriesHubChain',
+          data: lspShipmentChains,
+          getPosition: (d: any) => [d.toX, d.toY],
+          getColor: ActivityColor.delivery,
+          getRadius: 3,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          onHover: setHoverInfo,
+        })
+      )
+
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'pickupsHubChain',
+          data: lspShipmentChains,
+          getPosition: (d: any) => [d.fromX, d.fromY],
+          getColor: ActivityColor.pickup,
+          getRadius: 2,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          // onHover: setHoverInfo,
+        })
+      )
+    }
+
+
+
+
+
+
   }
 
   // DEPOTS ------
