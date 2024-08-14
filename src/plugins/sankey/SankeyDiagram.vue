@@ -1,5 +1,5 @@
 <template lang="pug">
-.sankey-container(:class="{'is-thumbnail': thumbnail, 'is-wide': isWide}")
+.sankey-container(:class="{'is-thumbnail': thumbnail, 'is-large': textSize==2, 'is-medium': textSize==1}")
 
   svg.chart-area(:id="cleanConfigId" :class="{'is-thumbnail': thumbnail}")
 
@@ -35,6 +35,12 @@ import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
+enum Size {
+  small,
+  med,
+  large,
+}
+
 interface SankeyYaml {
   csv: string
   title?: string
@@ -63,7 +69,7 @@ const MyComponent = defineComponent({
       onlyShowChanges: false,
       csvData: [] as any[],
       colorRamp: [] as string[],
-      isWide: false,
+      textSize: Size.small,
     }
   },
 
@@ -107,8 +113,10 @@ const MyComponent = defineComponent({
     changeDimensions() {
       // set font size based on width
       const panel = document.querySelector(`#${this.cleanConfigId}`)
-      if (panel) this.isWide = panel.clientWidth > 650
-
+      if (panel) {
+        this.textSize =
+          panel.clientWidth > 900 ? Size.large : panel.clientWidth > 600 ? Size.med : Size.small
+      }
       // redraw
       if (this.jsonChart?.nodes) this.doD3()
     },
@@ -242,7 +250,12 @@ const MyComponent = defineComponent({
       const context = canvas.getContext('2d')
       if (!context) return 120
 
-      context.font = this.isWide ? 'bold 33px Arial' : '16px Arial'
+      context.font =
+        this.textSize == Size.large
+          ? 'bold 33px Arial'
+          : this.textSize == Size.med
+          ? '24px Arial'
+          : '16px Arial'
 
       let max = 0
 
@@ -325,7 +338,11 @@ export default MyComponent
   height: $thumbnailHeight;
 }
 
-.sankey-container.is-wide {
+.sankey-container.is-medium {
+  font-size: 24px;
+}
+
+.sankey-container.is-large {
   font-size: 32px;
   font-weight: bold;
 }
