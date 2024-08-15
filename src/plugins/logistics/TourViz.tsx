@@ -325,7 +325,8 @@ export default function Component(props: {
 
   function clickedDepot() { }
 
-  if (activeTab == 'tours') {
+  if (activeTab == 'Shipment Chain Tours') {
+    console.log(legs)
 
     layers.push(
       //@ts-ignore:
@@ -575,7 +576,7 @@ export default function Component(props: {
         if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
           return [0, 228, 255, opacity];
         } else {
-          return [255, 255, 255, opacity];
+          return [255, 255, 255];
         }
       }
 
@@ -583,7 +584,7 @@ export default function Component(props: {
         if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
           return [240, 0, 60, 224];
         } else {
-          return [255, 255, 255, opacity];
+          return [255, 255, 255];
         }
       }
 
