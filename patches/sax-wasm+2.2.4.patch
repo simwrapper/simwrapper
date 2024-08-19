@@ -1,0 +1,21 @@
+diff --git a/node_modules/sax-wasm/lib/module/index.js b/node_modules/sax-wasm/lib/module/index.js
+index 05ab47c..3eb40f7 100644
+--- a/node_modules/sax-wasm/lib/module/index.js
++++ b/node_modules/sax-wasm/lib/module/index.js
+@@ -238,7 +238,15 @@ class SAXParser {
+             });
+         }
+         else {
+-            result = await WebAssembly.instantiateStreaming(saxWasm);
++            result = await WebAssembly.instantiateStreaming(saxWasm, {
++                env: {
++                    memoryBase: 0,
++                    tableBase: 0,
++                    memory: new WebAssembly.Memory({ initial: 10 }),
++                    table: new WebAssembly.Table({ initial: 1, element: 'anyfunc' }),
++                    event_listener: this.eventTrap
++                }
++            });
+         }
+         if (result && typeof this.events === 'number') {
+             const { parser } = this.wasmSaxParser = result.instance.exports;
