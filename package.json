@@ -177,7 +177,7 @@
     "eslint-plugin-react-hooks": "^4.3.0",
     "eslint-plugin-vue": "^7.20.0",
     "jsdom": "^19.0.0",
-    "patch-package": "^8.0.0",
+    "patch-package": "^6.4.7",
     "prettier": "^2.4.1",
     "pug": "^3.0.2",
     "sass": "^1.55.0",

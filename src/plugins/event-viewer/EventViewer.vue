@@ -73,7 +73,7 @@ import type { PropType } from 'vue'
 import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
-
+import * as Comlink from 'comlink'
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -85,7 +85,8 @@ import TimeSlider from '@/components/TimeSlider.vue'
 import EventMap from './EventDeckMap'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import MATSimEventStreamer from '@/workers/MATSimEventStreamer.worker.ts?worker'
+import WASMEventStreamer from '@/workers/WASMEventStreamer.worker.ts?worker'
+import type { EventTask } from '@/workers/WASMEventStreamer.worker'
 
 import {
   ColorScheme,
@@ -415,6 +416,19 @@ const MyComponent = defineComponent({
     },
 
     async streamEventFile(filename: string) {
+      this.myState.statusMessage = 'Loading events: ' + filename
+
+      if (this.gzipWorker) this.gzipWorker.terminate()
+      this.gzipWorker = new WASMEventStreamer()
+      const task = Comlink.wrap(this.gzipWorker) as unknown as EventTask
+
+      const fsConfig = Object.assign({}, this.fileSystem)
+      console.log({ fsConfig })
+      await task.startStream(filename, fsConfig)
+      console.log(1000)
+    },
+
+    async slowStreamEventFile(filename: string) {
       this.myState.statusMessage = 'Loading file...'
       let totalRows = 0
       this.range = [Infinity, -Infinity]
@@ -425,7 +439,7 @@ const MyComponent = defineComponent({
       // get the raw unzipped arraybuffer
       if (this.gzipWorker) this.gzipWorker.terminate()
       this.eventLayers = []
-      this.gzipWorker = new MATSimEventStreamer()
+      this.gzipWorker = new WASMEventStreamer()
 
       const formatter = Intl.NumberFormat()
 
@@ -651,24 +665,24 @@ const MyComponent = defineComponent({
     },
 
     async loadFiles() {
-      const { network, linkIdLookup } = await this.loadNetwork()
-      this.network = network
-      this.linkIdLookup = linkIdLookup
+      // const { network, linkIdLookup } = await this.loadNetwork()
+      // this.network = network
+      // this.linkIdLookup = linkIdLookup
 
-      let dataArray: any = []
-      if (!this.fileApi) return { dataArray }
+      // let dataArray: any = []
+      // if (!this.fileApi) return { dataArray }
 
       try {
         let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
+        console.log(2, filename)
         await this.streamEventFile(filename)
       } catch (e) {
         console.error(e)
         this.myState.statusMessage = '' + e
-        this.$emit('error', {
-          type: Status.ERROR,
-          msg: `Loading/Parsing Error`,
-          desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
-        })
+        this.$emit(
+          'error',
+          `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`
+        )
       }
     },
 
