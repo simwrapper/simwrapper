@@ -149,8 +149,11 @@ export default function Component(props: {
 
     // console.log(555, object)
 
+    console.log(object)
+
     if (object?.type == 'pickup') return renderActivityTooltip(hoverInfo, 'pickup')
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
+    if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
     if (object?.type == 'depot') return null
     return renderStopTooltip(hoverInfo)
@@ -187,38 +190,59 @@ export default function Component(props: {
     )
   }
 
-  function renderActivityChainTooltip(hoverInfo: any, activity: string) {
+
+  function renderLegTooltip(hoverInfo: any) {
+
     const { object, x, y } = hoverInfo
+
+    if (hoverInfo.layer.id == "HubChain") {
+      console.log(object.shipmentId)
+
     return (
       <div
         className="tooltip"
         style={{
+          fontSize: '0.8rem',
           backgroundColor: '#334455ee',
           boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
           color: '#eee',
           padding: '0.5rem 0.5rem',
           position: 'absolute',
-          opacity: 0.9,
           left: x + 20,
-          top: y + 20,
+          top: y - 30,
         }}
       >
-        {/* <table style={{ maxWidth: '30rem', fontSize: '0.8rem' }}>
-          <tbody>
-            <tr>
-              <td style={{ textAlign: 'right', paddingRight: '0.5rem', paddingTop: '0.2rem' }}>
-                {activity}:
-              </td>
-              <td style={{ paddingTop: '0.2rem' }}>{object.lspShipmentChain.join(', ')}</td>
-            </tr>
-          </tbody>
-        </table> */}
+        Total Shipment Count: {totalShipments} <br />
+        Chain Type: {object?.chainId} <br />
       </div>
     )
+  } else {
+
+      return (
+
+        <div
+          className="tooltip"
+          style={{
+            fontSize: '0.8rem',
+            backgroundColor: '#334455ee',
+            boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+            color: '#eee',
+            padding: '0.5rem 0.5rem',
+            position: 'absolute',
+            left: x + 20,
+            top: y - 30,
+          }}
+        >
+          Shipment Id: {object.shipmentId} <br />
+
+        </div>
+      )
+    }
+    
   }
 
-  function renderLegTooltip(hoverInfo: any) {
-    totalShipments++
+  function renderTourTooltip(hoverInfo: any) {
+
     const { object, x, y } = hoverInfo
 
     return (
@@ -235,11 +259,12 @@ export default function Component(props: {
           top: y - 30,
         }}
       >
-        Shipments # {totalShipments} <br />
-        Chain Type: {object?.chainId} <br />
+        Vehicle Id: {object?.tour.vehicleId} <br />
+        Tour Id: {object?.tour.tourId} <br />
       </div>
     )
-  }
+  } 
+
 
   function renderStopTooltip(hoverInfo: any) {
     const { object, x, y } = hoverInfo
@@ -330,7 +355,6 @@ export default function Component(props: {
   function clickedDepot() { }
 
   if (activeTab == 'tours') {
-    console.log(stopActivities)
 
     const opacity = shipments.length > 1 ? 32 : 255
 
@@ -339,7 +363,7 @@ export default function Component(props: {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
         return 0.1;
       } else {
-        return 20;
+        return 2;
       }
     }
 
@@ -360,7 +384,7 @@ export default function Component(props: {
     }
 
 
-    lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
+    lspShipmentChains[0].hubsChains.forEach((lspShipmentChain: any) => {
       for (let i = 0; i < lspShipmentChain.route.length - 2; i++) {
         layers.push(
           //@ts-ignore:
@@ -434,7 +458,6 @@ export default function Component(props: {
         })
       )
     } else {
-      console.log(legs)
       layers.push(
         //@ts-ignore:
         new PathOffsetLayer({
@@ -460,35 +483,10 @@ export default function Component(props: {
           transitions: { getWidth: 150 },
         })
       )
-      // layers.push(
-      //   //@ts-ignore:
-      //   new PathOffsetLayer({
-      //     id: 'deliveryroutes2',
-      //     data: legs[1],
-      //     getPath: (d: any) => d.points,
-      //     getColor: (d: any) => [255, 255, 255],
-      //     getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
-      //     getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
-      //     opacity: 1,
-      //     widthMinPixels: 3,
-      //     widthMaxPixels: 200,
-      //     widthUnits: 'pixels',
-      //     widthScale: widthScale,
-      //     rounded: true,
-      //     shadowEnabled: false,
-      //     pickable: true,
-      //     autoHighlight: true,
-      //     highlightColor: [255, 255, 255], // [64, 255, 64],
-      //     onHover: setHoverInfo,
-      //     parameters: { depthTest: false },
-      //     updateTriggers: { getWidth: [scaleFactor] },
-      //     transitions: { getWidth: 150 },
-      //   })
-      // )
     }
 
     // destination labels
-    console.log(stopActivities)
+
 
     layers.push(
       //@ts-ignore
@@ -595,7 +593,7 @@ export default function Component(props: {
   }
 
   // Shipment chains
-  if (activeTab == "lspShipmentChains") {
+  if (activeTab == "lspShipmentChains" ) {
     const opacity = shipments.length > 1 ? 32 : 255
 
     if (lspShipmentChains[0].hubsChains.length == 0) {
@@ -613,7 +611,7 @@ export default function Component(props: {
           getHeight: 0.5,
           opacity: 0.9,
           parameters: { depthTest: false },
-          widthScale: widthScale,
+          // widthScale: widthScale,
           widthMinPixels: 1,
           widthMaxPixels: 100,
           updateTriggers: { getWidth: [scaleFactor] },
@@ -679,8 +677,8 @@ export default function Component(props: {
 
       totalShipments = 0
       lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
+        totalShipments++
         for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
-          totalShipments++
           layers.push(
             //@ts-ignore:
             new ArcLayer({
@@ -755,32 +753,6 @@ export default function Component(props: {
       )
     }
   }
-
-  // DEPOTS ------
-  layers.push(
-    //@ts-ignore:
-    new TextLayer({
-      id: 'depots',
-      data: depots,
-      background: true,
-      backgroundPadding: [3, 2, 3, 1],
-      getColor: [255, 255, 255],
-      getBackgroundColor: [0, 150, 240],
-      getPosition: (d: any) => d.midpoint,
-      getText: (d: any) => 'Depot',
-      getTextAnchor: 'middle',
-      getAlignmentBaseline: 'center',
-      getSize: 11,
-      opacity: 1,
-      noAlloc: false,
-      billboard: true,
-      sizeScale: 1,
-      pickable: true,
-      autoHighlight: true,
-      highlightColor: [255, 255, 255],
-      onHover: setHoverInfo,
-    })
-  )
 
   const showBackgroundMap = projection && projection !== 'Atlantis'
 
