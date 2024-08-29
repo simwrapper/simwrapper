@@ -39,6 +39,8 @@ interface lspShipmentChain {
   fromY: number
   route: []
   color: number
+  hubsChains: any[]
+  directChains: any[]
 }
 
 const ActivityColor = {
@@ -146,10 +148,6 @@ export default function Component(props: {
 
     const { object } = hoverInfo
     if (!object) return null
-
-    // console.log(555, object)
-
-    console.log(object)
 
     if (object?.type == 'pickup') return renderActivityTooltip(hoverInfo, 'pickup')
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
@@ -318,20 +316,6 @@ export default function Component(props: {
                 </tr>
               )
             })}
-
-            {/* <tr>
-              <td
-                style={{
-                  fontSize: '1rem',
-                  fontWeight: 'bold',
-                  textAlign: 'right',
-                  paddingRight: '0.5rem',
-                }}
-              >
-                {object.type} {object.count}:
-              </td>
-              <td style={{ fontSize: '1rem', fontWeight: 'bold' }}> {object.id}</td>
-            </tr> */}
 
             {numPickupsAndDeliveries == 1 &&
               Object.keys(object.details).map((a: any) => {
@@ -596,7 +580,7 @@ export default function Component(props: {
   if (activeTab == "lspShipmentChains" ) {
     const opacity = shipments.length > 1 ? 32 : 255
 
-    if (lspShipmentChains[0].hubsChains.length == 0) {
+    if (lspShipmentChains[0].hubsChains.length == 0) { 
       layers.push(
         //@ts-ignore:
         new ArcLayer({
