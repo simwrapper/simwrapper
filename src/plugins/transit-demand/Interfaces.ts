@@ -18,6 +18,9 @@ export interface Network {
 export interface NetworkNode {
   x: number
   y: number
+  name?: string
+  id?: string
+  linkRefId?: string
 }
 
 export interface NetworkInputs {

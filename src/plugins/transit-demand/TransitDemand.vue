@@ -41,7 +41,11 @@
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }")
       div.map-styles(:id="mapID")
-        .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
+        .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
+          :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
+        )
+        .stop-marker(v-for="stop in stopMarkers" :key="stop.name"
+          @mouseenter="hoverOverStop(stop, $event)"
           :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
         )
 
@@ -142,7 +146,7 @@ const MyComponent = defineComponent({
       legendSectionWidth: 200,
       showLegend: true,
       //
-
+      stopHTML: { html: '', x: 0, y: 0 },
       mapPopup: new Popup({
         closeButton: false,
         closeOnClick: false,
@@ -270,6 +274,18 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    hoverOverStop(stop: any, e: MouseEvent) {
+      this.stopHTML.html = ''
+      const lines = [] as string[]
+      if (stop.name) lines.push(`<b>${stop.name}</b>`)
+      for (const attr of ['id', 'linkRefId']) {
+        if (stop[attr]) lines.push(`${attr}: ${stop[attr]}`)
+      }
+      this.stopHTML.html = '<p>' + lines.join('<br/>') + '</p>'
+      this.stopHTML.x = stop.xy.x + 8
+      this.stopHTML.y = stop.xy.y - 36
+    },
+
     dividerDragStart(e: MouseEvent) {
       console.log('dragstart')
       // console.log('dragStart', e)
@@ -550,6 +566,7 @@ const MyComponent = defineComponent({
       this.isMapMoving = true
 
       if (this.stopMarkers.length > 0) this.showTransitStops()
+      this.stopHTML.html = ''
     },
 
     handleEmptyClick(e: mapboxgl.MapMouseEvent) {
@@ -557,6 +574,7 @@ const MyComponent = defineComponent({
       this.removeSelectedRoute()
       this.removeAttachedRoutes()
       this.routesOnLink = []
+      this.stopHTML.html = ''
     },
 
     showRouteDetails(routeID: string) {
@@ -1012,9 +1030,10 @@ const MyComponent = defineComponent({
 
     removeStopMarkers() {
       this.stopMarkers = []
+      this.stopHTML.html = ''
     },
 
-    async showTransitStops() {
+    showTransitStops() {
       this.removeStopMarkers()
 
       const route = this.selectedRoute
@@ -1023,8 +1042,13 @@ const MyComponent = defineComponent({
 
       let bearing
 
+      const markers = []
+
       for (const [i, stop] of route.routeProfile.entries()) {
-        const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
+        const stopFacility = this._stopFacilities[stop.refId]
+        const coord = [stopFacility.x, stopFacility.y]
+        // const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
+
         // recalc bearing for every node except the last
         if (i < route.routeProfile.length - 1) {
           const point1 = turf.point([coord[0], coord[1]])
@@ -1038,13 +1062,23 @@ const MyComponent = defineComponent({
         const xy = this.mymap.project([coord[0], coord[1]])
 
         // every marker has a latlng coord and a bearing
-        const marker = { i, bearing, xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) } }
-        this.stopMarkers.push(marker)
+        const marker = {
+          i,
+          bearing,
+          xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) },
+          name: stopFacility.name || '',
+          id: stopFacility.id || '',
+          linkRefId: stopFacility.linkRefId || '',
+        }
+        markers.push(marker)
       }
+      this.stopMarkers = markers
     },
 
     showTransitRoute(routeID: string) {
       if (!routeID) return
+
+      this.stopHTML.html = ''
 
       const route = this._routeData[routeID]
       // console.log({ selectedRoute: route })
@@ -1404,6 +1438,16 @@ h3 {
   }
 }
 
+.stop-html {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: var(--bgPanel);
+  padding: 0.25rem;
+  line-height: 1.1rem;
+  z-index: 2;
+}
+
 .stop-marker {
   position: absolute;
   width: 12px;
@@ -1411,7 +1455,8 @@ h3 {
   background: url('assets/icon-stop-triangle.png') no-repeat;
   transform: translate(-50%, -50%);
   background-size: 100%;
-  pointer-events: none;
+  // pointer-events: none;
+  z-index: 1;
   cursor: pointer;
 }
 
