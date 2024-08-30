@@ -1,57 +1,66 @@
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
-  .map-container(:class="{'hide-thumbnail': !thumbnail }")
-    div.map-styles(:id="mapID")
-      .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
-        :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
-      )
 
-    legend-box.legend(v-if="!thumbnail"
-      :rows="legendRows"
-    )
-
-  zoom-buttons(v-if="!thumbnail")
-  //- drawing-tool(v-if="!thumbnail")
-
-  collapsible-panel.left-side(v-if="!thumbnail"
-    :darkMode="isDarkMode"
-    :locked="true"
-    direction="left")
-
-    .panel-items
-      //- .panel-item(v-if="vizDetails.title")
-      //-   h3 {{ vizDetails.title }}
-      //-   p {{ vizDetails.description }}
-
-      .route-list(v-if="routesOnLink.length > 0")
-        .route(v-for="route in routesOnLink"
-            :key="route.uniqueRouteID"
-            :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
-            @click="showRouteDetails(route.id)")
-          .route-title {{route.id}}
-          .detailed-route-data
-            .col
-              p: b {{route.departures}} departures
-              p First: {{route.firstDeparture}}
-              p Last: {{route.lastDeparture}}
-            .col(v-if="route.passengersAtArrival")
-              p: b {{ route.passengersAtArrival }} passengers
-              p {{ route.totalVehicleCapacity }} capacity
-
-  .control-panel(v-if="!thumbnail"
-    :class="{'is-dashboard': config !== undefined }"
+  .main-layout(v-if="!thumbnail"
+    @mousemove.stop="dividerDragging"
+    @mouseup="dividerDragEnd"
   )
 
-    .panel-item
-      p.control-label {{  $t('metrics') }}:
-      .metric-buttons
-        button.button.is-small.metric-button(
-          v-for="metric,i in metrics" :key="metric.field"
-          :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-          @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+    .dragger(v-show="showLegend"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
+    )
 
-  .status-corner(v-if="!thumbnail && loadingText")
-    p {{ loadingText }}
+    .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
+
+      p: b(style="font-size: 0.9rem") ROUTES
+      p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
+      .panel-items
+        .route-list(v-if="routesOnLink.length > 0")
+          .route(v-for="route in routesOnLink"
+              :key="route.uniqueRouteID"
+              :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
+              @click="showRouteDetails(route.id)")
+            .route-title {{route.id}}
+            .detailed-route-data
+              .col
+                p: b {{route.departures}} departures
+                p First: {{route.firstDeparture}}
+                p Last: {{route.lastDeparture}}
+              .col(v-if="route.passengersAtArrival")
+                p: b {{ route.passengersAtArrival }} passengers
+                p {{ route.totalVehicleCapacity }} capacity
+
+      legend-box.legend(v-if="!thumbnail"
+        :rows="legendRows"
+      )
+
+
+      //-   .status-bar(v-show="false && statusText") {{ statusText }}
+
+    .map-container(:class="{'hide-thumbnail': !thumbnail }")
+      div.map-styles(:id="mapID")
+        .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
+          :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
+        )
+
+      zoom-buttons
+      //- drawing-tool(v-if="!thumbnail")
+
+      .status-corner(v-if="loadingText")
+        p {{ loadingText }}
+
+    .control-panel(:class="{'is-dashboard': config !== undefined }")
+
+      .panel-item
+        p.control-label {{  $t('metrics') }}:
+        .metric-buttons
+          button.button.is-small.metric-button(
+            v-for="metric,i in metrics" :key="metric.field"
+            :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+            @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+
 
 </template>
 
@@ -73,6 +82,7 @@ import crossfilter from 'crossfilter2'
 import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
+import match from 'micromatch'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -94,6 +104,14 @@ const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 
 const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
+
+const DEFAULT_ROUTE_COLORS = [
+  { match: 'S*', color: 'darkgreen', label: 'S-Bahn' },
+  { match: 'U*', color: 'yellow', label: 'U-Bahn' },
+  { match: 'M*', color: 'red', label: 'Tram' },
+  { match: ['IC*', 'RE*', 'RB*'], color: 'purple', label: 'Rail' },
+  { match: ['**'], color: 'blue', label: 'Bus/Other' },
+]
 
 class Departure {
   public total: number = 0
@@ -118,6 +136,13 @@ const MyComponent = defineComponent({
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
+      //drag
+      isDraggingDivider: 0,
+      dragStartWidth: 200,
+      legendSectionWidth: 200,
+      showLegend: true,
+      //
+
       mapPopup: new Popup({
         closeButton: false,
         closeOnClick: false,
@@ -195,10 +220,7 @@ const MyComponent = defineComponent({
     },
 
     legendRows(): string[][] {
-      return [
-        ['#a03919', 'Rail'],
-        ['#448', 'Bus'],
-      ]
+      return DEFAULT_ROUTE_COLORS.map(r => [r.color, r.label])
     },
   },
 
@@ -248,6 +270,26 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    dividerDragStart(e: MouseEvent) {
+      console.log('dragstart')
+      // console.log('dragStart', e)
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+      // localStorage.setItem('leftPanelWidth', `${this.legendSectionWidth}`)
+      this.mymap.resize()
+    },
+
     async getVizDetails() {
       // are we in a dashboard?
       if (this.config) {
@@ -909,14 +951,19 @@ const MyComponent = defineComponent({
           const departures = this._departures[linkID].total
 
           // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
-          const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
-          const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
+          // const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
+          // const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
 
           let isRail = true
+          let color = '#888'
           for (const route of this._departures[linkID].routes) {
-            if (this._routeData[route].transportMode === 'bus') {
-              isRail = false
+            for (const config of DEFAULT_ROUTE_COLORS) {
+              if (match.isMatch(route, config.match)) {
+                color = config.color
+                break
+              }
             }
+            if (color == '#888') console.log('OHE NOES', route)
           }
 
           let line = {
@@ -926,8 +973,8 @@ const MyComponent = defineComponent({
               coordinates: coordinates,
             },
             properties: {
-              color: isRail ? '#a03919' : _colorScale[colorBin],
-              colorBin: colorBin,
+              color: color, // isRail ? '#a03919' : _colorScale[colorBin],
+              // colorBin: colorBin,
               departures: departures,
               // pax: 0,
               // loadfac: 0,
@@ -1022,7 +1069,7 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 1.0,
             'line-width': 5, // ['get', 'width'],
-            'line-color': '#097c43', // ['get', 'color'],
+            'line-color': '#f4c', // ['get', 'color'],
           },
         })
       }
@@ -1210,7 +1257,7 @@ export default MyComponent
 
 h4,
 p {
-  margin: 0px 10px;
+  margin: 0px 0px;
 }
 
 .transit-popup {
@@ -1226,9 +1273,9 @@ p {
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
+  // background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  pointer-events: none;
+  // pointer-events: none;
 }
 
 .map-container {
@@ -1270,9 +1317,6 @@ p {
 .legend {
   background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
-  position: absolute;
-  bottom: 3.5rem;
-  right: 0.5rem;
 }
 
 .control-label {
@@ -1285,8 +1329,6 @@ p {
   padding: 5px 0px;
   text-align: left;
   color: var(--text);
-  border-left: solid 8px #00000000;
-  border-right: solid 8px #00000000;
 }
 
 .route:hover {
@@ -1304,7 +1346,7 @@ h3 {
   font-size: 1rem;
   font-weight: bold;
   line-height: 1.2rem;
-  margin-left: 10px;
+  margin: 0 0.25rem;
   color: var(--link);
 }
 
@@ -1323,7 +1365,6 @@ h3 {
 
 .highlightedRoute {
   background-color: #faffae;
-  border-left: solid 8px #606aff;
   color: black;
 }
 
@@ -1370,6 +1411,7 @@ h3 {
   background: url('assets/icon-stop-triangle.png') no-repeat;
   transform: translate(-50%, -50%);
   background-size: 100%;
+  pointer-events: none;
   cursor: pointer;
 }
 
@@ -1377,37 +1419,15 @@ h3 {
   color: #ccc;
 }
 
-.left-side {
-  position: absolute;
-  top: 0;
-  left: 0;
-  margin-bottom: auto;
-  margin-right: auto;
-  display: flex;
-  flex-direction: row;
-  pointer-events: auto;
-  max-height: 40%;
-  max-width: 80%;
-  opacity: 0.96;
-}
-
-.right-side {
-  z-index: 1;
-  position: absolute;
-  bottom: 3.75rem;
-  right: 0;
-  color: white;
-  display: flex;
-  flex-direction: row;
-  pointer-events: auto;
-}
-
 .panel-items {
+  flex: 1;
   color: var(--text);
   display: flex;
   flex-direction: column;
-  margin: 0 0;
-  max-height: 100%;
+  overflow-y: auto;
+  position: relative;
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .panel-item {
@@ -1420,14 +1440,15 @@ h3 {
 }
 
 .route-list {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   user-select: none;
-  position: relative;
-  flex: 1;
-  overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
   scrollbar-color: #888 var(--bgCream);
   -webkit-scrollbar-color: #888 var(--bgCream);
+  width: 100%;
 
   h3 {
     font-size: 1.2rem;
@@ -1451,11 +1472,13 @@ h3 {
 .detailed-route-data {
   display: flex;
   flex-direction: row;
+  padding: 0 0.25rem;
 }
 
 .col {
   display: flex;
   flex-direction: column;
+  line-height: 1rem;
 }
 
 .map-styles {
@@ -1496,6 +1519,84 @@ h3 {
     margin: auto auto auto auto;
     padding: 0 0;
     text-align: center;
+  }
+}
+
+.main-layout {
+  display: grid;
+  // one unit, full height/width. Layers will go on top:
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr auto auto;
+  min-height: $thumbnailHeight;
+  height: 100%;
+  background-color: var(--bg);
+}
+
+.map-layout.hide-thumbnail {
+  background: unset;
+  z-index: 0;
+}
+
+.area-map {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  background-color: var(--bgBold);
+  position: relative;
+}
+
+.map-layers {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.5rem;
+  background-color: var(--bgBold);
+  user-select: none;
+  z-index: 20;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
+}
+
+.new-rightside-info-panel {
+  grid-row: 1 / 2;
+  grid-column: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgCardFrame);
+
+  .legend {
+    margin: 0.5rem 0.25rem 0.25rem 0rem;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bgCardFrame);
+    border: 1px solid #88888844;
+    .description {
+      margin-top: 0.5rem;
+    }
+  }
+
+  .tooltip-html {
+    font-size: 0.8rem;
+    padding: 0.25rem;
+    text-align: left;
+    background-color: var(--bgCardFrame);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #88888880;
   }
 }
 </style>
