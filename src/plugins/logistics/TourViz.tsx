@@ -55,6 +55,7 @@ export default function Component(props: {
   activeTab: string
   shipments: Shipment[]
   lspShipmentChains: lspShipmentChain[]
+  carrierTours: lspShipmentChain[]
   legs: any[]
   stopActivities: any[]
   depots: { link: string; midpoint: number[]; coords: number[] }[]
@@ -337,6 +338,177 @@ export default function Component(props: {
   }
 
   function clickedDepot() { }
+
+  if (activeTab == 'lspTours') {
+    console.log(lspShipmentChains)
+
+    const opacity = shipments.length > 1 ? 32 : 255
+
+
+    function getLineWidth(chainIndex: number, shipmentChain: any) {
+      if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+        return 0.1;
+      } else {
+        return 2;
+      }
+    }
+
+    function getSourceColor(chainIndex: number, shipmentChain: any) {
+      if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+        return [0, 228, 255, opacity];
+      } else {
+        return [255, 255, 255];
+      }
+    }
+
+    function getTargetColor(chainIndex: number, shipmentChain: any) {
+      if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
+        return [240, 0, 60, 224];
+      } else {
+        return [255, 255, 255];
+      }
+    }
+
+    function getLspTourColor(vehicleId: string) {
+      // Simple hash function to generate a number from the string
+      let hash = 0;
+      for (let i = 0; i < vehicleId.length; i++) {
+          hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      
+      // Generate RGB values by mapping parts of the hash to the 0-255 range
+      const r = (hash & 0xFF0000) >> 16;
+      const g = (hash & 0x00FF00) >> 8;
+      const b = hash & 0x0000FF;
+  
+      return [r, g, b];
+  }
+  
+
+    layers.push(
+      //@ts-ignore:
+      new PathLayer({
+        id: 'shipmentLocationDashedLine',
+        data: stopActivities,
+        getPath: (d: any) => [d.ptFrom, d.ptTo],
+        getColor: [128, 128, 128],
+        getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+        opacity: 1,
+        widthMinPixels: 3,
+        rounded: true,
+        shadowEnabled: false,
+        pickable: false,
+        autoHighlight: false,
+        highlightColor: [255, 255, 255],
+        parameters: { depthTest: false },
+        getDashArray: [3, 2],
+        dashJustified: true,
+        extensions: [new PathStyleExtension({ dash: true })],
+      })
+    )
+    if (simplifyTours) {
+      layers.push(
+        //@ts-ignore:
+        new ArcLayer({
+          id: 'leg-arcs',
+          data: legs,
+          getSourcePosition: (d: any) => d.points[0],
+          getTargetPosition: (d: any) => d.points[d.points.length - 1],
+          getSourceColor: (d: any) => d.color, // [200, 32, 224],
+          getTargetColor: (d: any) => d.color, // [200, 32, 224],
+          getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
+          getHeight: 0.5,
+          widthMinPixels: 2,
+          widthMaxPixels: 200,
+          widthUnits: 'pixels',
+          widthScale: widthScale,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 150 },
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255], // [64, 255, 64],
+          onHover: setHoverInfo,
+        })
+      )
+    } else {
+      console.log(legs)
+      layers.push(
+        //@ts-ignore:
+        new PathOffsetLayer({
+          id: 'deliveryroutes1',
+          data: legs,
+          getPath: (d: any) => d.points,
+          getColor: (d: any) => getLspTourColor(d.tour.vehicleId),
+          getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
+          getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
+          opacity: 1,
+          widthMinPixels: 3,
+          widthMaxPixels: 200,
+          widthUnits: 'pixels',
+          widthScale: widthScale,
+          rounded: true,
+          shadowEnabled: false,
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [255, 255, 255], // [64, 255, 64],
+          onHover: setHoverInfo,
+          parameters: { depthTest: false },
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 150 },
+        })
+      )
+    }
+
+    // destination labels
+
+
+    layers.push(
+      //@ts-ignore
+      new TextLayer({
+        id: 'dest-labels',
+        data: stopActivities,
+        background: true,
+        backgroundPadding: numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
+        getColor: [255, 255, 255],
+        getBackgroundColor: (d: any) => {
+          const pickups = d.visits.reduce(
+            (prev: number, visit: any) => prev + visit.pickup.length,
+            0
+          )
+          const deliveries = d.visits.reduce(
+            (prev: number, visit: any) => prev + visit.delivery.length,
+            0
+          )
+          const services = d.visits.reduce(
+            (prev: number, visit: any) => prev + visit.service.length,
+            0
+          )
+          if (pickups && deliveries) return [0, 0, 255]
+          if (pickups) return ActivityColor.pickup
+          if (deliveries) return ActivityColor.delivery
+          if (services) return ActivityColor.delivery
+          return [240, 130, 0]
+        },
+        getPosition: (d: any) => d.midpoint,
+        getText: (d: any) =>
+          d.label == 'Depot' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
+        getSize: (d: any) => (d.label == 'Depot' ? 11 : numSelectedTours !== 1 ? 4 : 11),
+        getTextAnchor: 'middle',
+        getAlignmentBaseline: 'center',
+        opacity: 1,
+        noAlloc: false,
+        billboard: true,
+        sizeScale: 1,
+        pickable: true,
+        autoHighlight: true,
+        highlightColor: [255, 255, 255],
+        onHover: setHoverInfo,
+        visible: shipmentDotsOnTourMap,
+      })
+    )
+  }
 
   if (activeTab == 'tours') {
 
