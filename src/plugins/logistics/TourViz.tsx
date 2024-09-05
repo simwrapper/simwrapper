@@ -154,7 +154,7 @@ export default function Component(props: {
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
     if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
-    if (object?.type == 'depot') return null
+    if (object?.type == 'hub') return renderHubInfo(hoverInfo)
     return renderStopTooltip(hoverInfo)
   }
 
@@ -263,6 +263,33 @@ export default function Component(props: {
       </div>
     )
   } 
+
+  function renderHubInfo(hoverInfo: any) {
+
+    const { object, x, y } = hoverInfo
+
+    console.log(object)
+
+    // return (
+    //   <div
+    //     className="tooltip"
+    //     style={{
+    //       fontSize: '0.8rem',
+    //       backgroundColor: '#334455ee',
+    //       boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+    //       color: '#eee',
+    //       padding: '0.5rem 0.5rem',
+    //       position: 'absolute',
+    //       left: x + 20,
+    //       top: y - 30,
+    //     }}
+    //   >
+    //     Vehicle Id: {object?.tour.vehicleId} <br />
+    //     Tour Id: {object?.tour.tourId} <br />
+    //   </div>
+    // )
+  } 
+
 
 
   function renderStopTooltip(hoverInfo: any) {
@@ -383,6 +410,9 @@ export default function Component(props: {
   
       return [r, g, b];
   }
+
+
+
   
 
     layers.push(
@@ -433,7 +463,7 @@ export default function Component(props: {
         })
       )
     } else {
-      console.log(legs)
+      // console.log(legs)
       layers.push(
         //@ts-ignore:
         new PathOffsetLayer({
@@ -493,8 +523,8 @@ export default function Component(props: {
         },
         getPosition: (d: any) => d.midpoint,
         getText: (d: any) =>
-          d.label == 'Depot' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
-        getSize: (d: any) => (d.label == 'Depot' ? 11 : numSelectedTours !== 1 ? 4 : 11),
+          d.label == 'Hub' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
+        getSize: (d: any) => (d.label == 'Hub' ? 11 : numSelectedTours !== 1 ? 4 : 11),
         getTextAnchor: 'middle',
         getAlignmentBaseline: 'center',
         opacity: 1,
@@ -673,8 +703,8 @@ export default function Component(props: {
         },
         getPosition: (d: any) => d.midpoint,
         getText: (d: any) =>
-          d.label == 'Depot' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
-        getSize: (d: any) => (d.label == 'Depot' ? 11 : numSelectedTours !== 1 ? 4 : 11),
+          d.label == 'Hub' ? d.label : numSelectedTours !== 1 ? ' ' : `${d.label}`,
+        getSize: (d: any) => (d.label == 'Hub' ? 11 : numSelectedTours !== 1 ? 4 : 11),
         getTextAnchor: 'middle',
         getAlignmentBaseline: 'center',
         opacity: 1,
