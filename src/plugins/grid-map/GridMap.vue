@@ -384,7 +384,7 @@ const GridMap = defineComponent({
     async getVizDetails() {
       if (this.config) {
         this.validateYAML()
-        this.vizDetails = Object.assign({}, this.config) as VizDetail
+        this.vizDetails = Object.assign({ colorRamp: '' }, this.config) as VizDetail
         this.setRadiusAndHeight()
         this.setCustomGuiConfig()
         return
@@ -400,7 +400,7 @@ const GridMap = defineComponent({
     },
 
     loadOutputTripsConfig() {
-      let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
+      let projection = '' // 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
       if (!this.myState.thumbnail) {
         projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
         if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
@@ -687,8 +687,14 @@ const GridMap = defineComponent({
       const csv = await this.myDataManager.getDataset(config)
 
       // The datamanager doesn't return the comments...
-      // const projection = csv.comments[0].split('#')[1].trim()
-      // if (projection) this.vizDetails.projection = projection
+      if (csv.comments && csv.comments.length) {
+        csv.comments.forEach(comment => {
+          if (comment.indexOf('EPSG') > -1) {
+            const projection = comment.substring(comment.lastIndexOf('EPSG')).trim()
+            if (projection) this.vizDetails.projection = projection
+          }
+        })
+      }
 
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
@@ -696,7 +702,7 @@ const GridMap = defineComponent({
 
       console.log('csv: ', csv.allRows)
       console.log('valueColumn: ', this.vizDetails.valueColumn)
-
+      console.log('csv:', { csv })
       if (this.vizDetails.valueColumn == undefined) {
         this.vizDetails.valueColumn = 'value'
       }
@@ -850,18 +856,23 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'height', 0, 250, 5)
 
       // Remove color ramp selector if the colorRamp is fixed
-      if (
-        this.vizDetails.colorRamp.breakpoints &&
-        this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
-      ) {
+      if (this.vizDetails.colorRamp) {
+        // let's make sure details user provided make sense
+        if (
+          this.vizDetails.colorRamp.breakpoints &&
+          this.vizDetails.colorRamp.fixedColors &&
+          this.vizDetails.colorRamp.breakpoints.length !==
+            this.vizDetails.colorRamp.fixedColors.length - 1
+        ) {
+          this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
+        }
         return
       }
 
       const colors = config.addFolder('colors')
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-      // colors.add(this.guiConfig, 'steps').onChange(this.setColors)
+      this.setColors()
     },
 
     setColors() {

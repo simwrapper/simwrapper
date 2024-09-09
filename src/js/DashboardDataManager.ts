@@ -135,9 +135,12 @@ export default class DashboardDataManager {
       // (this will immediately return dataset if it is already loaded)
       let myDataset = await this.datasets[config.dataset].dataset
 
+      let { _comments, ...allRows } = myDataset
+      let comments = _comments as unknown as string[]
+
       // make a copy because each viz in a dashboard might be hacking it differently
       // TODO: be more "functional" and return the object itself, and let views create copies if they need to
-      let allRows = { ...myDataset }
+      // let allRows = { ...myDataset }
 
       // remove ignored columns
       if (config.ignoreColumns) {
@@ -154,10 +157,10 @@ export default class DashboardDataManager {
         })
       }
 
-      return { allRows }
+      return { allRows, comments }
     } catch (e) {
       // const message = '' + e
-      return { allRows: {} }
+      return { allRows: {}, comments: [] }
     }
   }
 
