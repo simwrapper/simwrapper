@@ -570,31 +570,31 @@ export default function Component(props: {
     }
 
 
-    lspShipmentChains[0].hubsChains.forEach((lspShipmentChain: any) => {
-      for (let i = 0; i < lspShipmentChain.route.length - 2; i++) {
-        layers.push(
-          //@ts-ignore:
-          new ArcLayer({
-            id: 'shipmenthubchains',
-            data: lspShipmentChains[0].hubsChains,
-            getSourcePosition: (d: any) => [d.route[i][0], d.route[i][1]],
-            getTargetPosition: (d: any) => [d.route[i + 1][0], d.route[i + 1][1]],
-            getSourceColor: getSourceColor(i, lspShipmentChain),
-            getTargetColor: getTargetColor(i, lspShipmentChain),
-            getWidth: getLineWidth(i, lspShipmentChain),
-            widthUnits: 'pixels',
-            getHeight: 0.5,
-            opacity: 0.9,
-            parameters: { depthTest: false },
-            widthScale: widthScale,
-            widthMinPixels: 1,
-            widthMaxPixels: 100,
-            updateTriggers: { getWidth: [scaleFactor] },
-            transitions: { getWidth: 200 },
-          })
-        )
-      }
-    })
+    // lspShipmentChains[0].hubsChains.forEach((lspShipmentChain: any) => {
+    //   for (let i = 0; i < lspShipmentChain.route.length - 2; i++) {
+    //     layers.push(
+    //       //@ts-ignore:
+    //       new ArcLayer({
+    //         id: 'shipmenthubchains',
+    //         data: lspShipmentChains[0].hubsChains,
+    //         getSourcePosition: (d: any) => [d.route[i][0], d.route[i][1]],
+    //         getTargetPosition: (d: any) => [d.route[i + 1][0], d.route[i + 1][1]],
+    //         getSourceColor: getSourceColor(i, lspShipmentChain),
+    //         getTargetColor: getTargetColor(i, lspShipmentChain),
+    //         getWidth: getLineWidth(i, lspShipmentChain),
+    //         widthUnits: 'pixels',
+    //         getHeight: 0.5,
+    //         opacity: 0.9,
+    //         parameters: { depthTest: false },
+    //         widthScale: widthScale,
+    //         widthMinPixels: 1,
+    //         widthMaxPixels: 100,
+    //         updateTriggers: { getWidth: [scaleFactor] },
+    //         transitions: { getWidth: 200 },
+    //       })
+    //     )
+    //   }
+    // })
 
     layers.push(
       //@ts-ignore:
@@ -781,7 +781,6 @@ export default function Component(props: {
   // Shipment chains
   if (activeTab == "lspShipmentChains" ) {
     const opacity = shipments.length > 1 ? 32 : 255
-
     if (lspShipmentChains[0].hubsChains.length == 0) { 
       layers.push(
         //@ts-ignore:
