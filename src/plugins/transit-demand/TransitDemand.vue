@@ -14,8 +14,15 @@
 
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-      p: b(style="font-size: 0.9rem") TRANSIT ROUTES
+      p(style="margin-top: 0.5rem; font-size: 0.9rem")
+        b TRANSIT ROUTES
+
+      b-input(
+        v-model="searchText" style="padding: 0.5rem 0.5rem 1rem 0" size="is-small" placeholder="Search..."
+      )
+
       p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
+
       .panel-items
         .route-list(v-if="routesOnLink.length > 0")
           .route(v-for="route in routesOnLink"
@@ -36,7 +43,6 @@
         :rows="legendRows"
       )
 
-
       //-   .status-bar(v-show="false && statusText") {{ statusText }}
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }")
@@ -44,7 +50,7 @@
         .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
           :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
         )
-        .stop-marker(v-for="stop in stopMarkers" :key="stop.name"
+        .stop-marker(v-for="stop,i in stopMarkers" :key="`${i}${stop.name}`"
           @mouseenter="hoverOverStop(stop, $event)"
           :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
         )
@@ -140,10 +146,11 @@ const MyComponent = defineComponent({
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
+      searchText: '',
       //drag
       isDraggingDivider: 0,
-      dragStartWidth: 200,
-      legendSectionWidth: 200,
+      dragStartWidth: 250,
+      legendSectionWidth: 250,
       showLegend: true,
       //
       stopHTML: { html: '', x: 0, y: 0 },
@@ -180,7 +187,7 @@ const MyComponent = defineComponent({
 
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as any[],
-      selectedRoute: {} as any,
+      selectedRoute: null as any,
       stopMarkers: [] as any[],
 
       _attachedRouteLayers: [] as string[],
@@ -229,6 +236,10 @@ const MyComponent = defineComponent({
   },
 
   watch: {
+    searchText() {
+      this.handleSearchText()
+    },
+
     '$store.state.resizeEvents'() {
       if (this.mymap) this.mymap.resize()
     },
@@ -274,6 +285,23 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    handleSearchText() {
+      let foundRoutes = [] as any[]
+      const searchTerm = this.searchText.trim().toLocaleLowerCase()
+
+      if (searchTerm) {
+        foundRoutes = Object.keys(this._routeData).filter(
+          routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
+        )
+      }
+
+      // show/hide background transit routes
+      this.showAllTransit(!foundRoutes.length)
+      // show selected routes
+      this.routesOnLink = foundRoutes.map(id => this._routeData[id])
+      this.highlightAllAttachedRoutes()
+    },
+
     hoverOverStop(stop: any, e: MouseEvent) {
       this.stopHTML.html = ''
       const lines = [] as string[]
@@ -570,6 +598,9 @@ const MyComponent = defineComponent({
     },
 
     handleEmptyClick(e: mapboxgl.MapMouseEvent) {
+      // don't clear map if search box has text
+      if (this.searchText) return
+
       this.removeStopMarkers()
       this.removeSelectedRoute()
       this.removeAttachedRoutes()
@@ -878,25 +909,24 @@ const MyComponent = defineComponent({
       }
     },
 
-    addTransitToMap(geodata: any) {
-      this._geoTransitLinks = geodata
+    showAllTransit(show: boolean) {
+      if (!show) {
+        if (this.mymap.getLayer('transit-link')) this.mymap.removeLayer('transit-link')
+        return
+      }
 
-      this.mymap.addSource('transit-source', {
-        data: geodata,
-        type: 'geojson',
-      } as any)
-
-      this.mymap.addLayer({
-        id: 'transit-link',
-        source: 'transit-source',
-        type: 'line',
-        paint: {
-          'line-opacity': 1.0,
-          'line-width': 1,
-          'line-color': ['get', 'color'],
-        },
-      })
-
+      if (!this.mymap.getLayer('transit-link')) {
+        this.mymap.addLayer({
+          id: 'transit-link',
+          source: 'transit-source',
+          type: 'line',
+          paint: {
+            'line-opacity': 1.0,
+            'line-width': 1,
+            'line-color': ['get', 'color'],
+          },
+        })
+      }
       this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
         this.clickedOnTransitLink(e)
       })
@@ -912,6 +942,17 @@ const MyComponent = defineComponent({
         this.mymap.getCanvas().style.cursor = 'grab'
         this.mapPopup.remove()
       })
+    },
+
+    addTransitToMap(geodata: any) {
+      this._geoTransitLinks = geodata
+
+      this.mymap.addSource('transit-source', {
+        data: geodata,
+        type: 'geojson',
+      } as any)
+
+      this.showAllTransit(true)
     },
 
     hoveredOnElement(event: any) {
@@ -1132,7 +1173,7 @@ const MyComponent = defineComponent({
     removeSelectedRoute() {
       if (this.selectedRoute) {
         try {
-          this.mymap.removeLayer('selected-route')
+          if (this.mymap.getLayer('selected-route')) this.mymap.removeLayer('selected-route')
         } catch (e) {
           // oh well
         }
@@ -1209,10 +1250,14 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 0.7,
             'line-width': 8, // ['get', 'width'],
-            'line-color': '#ff44cc', // '#ccff33', // ['get', 'color'],
+            'line-color': '#fd4', // '#ccff33', // ['get', 'color'],
           },
         })
         this._attachedRouteLayers.push(route.id)
+        this.mymap.on('click', 'route-' + route.id, (e: maplibregl.MapMouseEvent) => {
+          console.log('click!', e)
+          this.clickedOnTransitLink(e)
+        })
       }
     },
 

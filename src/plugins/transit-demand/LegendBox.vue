@@ -46,7 +46,7 @@ export default defineComponent({
 }
 
 .legend-col-1 {
-  width: 3rem;
+  width: 2rem;
 }
 
 .legend-col-2 {
