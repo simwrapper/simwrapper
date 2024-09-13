@@ -89,7 +89,7 @@ function convertCoords() {
 }
 
 function processTransit() {
-  postMessage({ status: 'Crunching transit network...' })
+  postMessage({ status: 'Analyzing route database...' })
 
   generateStopFacilitiesFromXML()
   let uniqueRouteID = 0

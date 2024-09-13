@@ -14,7 +14,7 @@
 
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-      p: b(style="font-size: 0.9rem") ROUTES
+      p: b(style="font-size: 0.9rem") TRANSIT ROUTES
       p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
       .panel-items
         .route-list(v-if="routesOnLink.length > 0")
@@ -110,12 +110,12 @@ const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 const DEFAULT_ROUTE_COLORS = [
-  { match: 'S*', color: 'darkgreen', label: 'S-Bahn' },
-  { match: 'U*', color: 'yellow', label: 'U-Bahn' },
-  { match: 'M*', color: 'red', label: 'Tram' },
-  { match: ['IC*', 'RE*', 'RB*'], color: 'purple', label: 'Rail' },
-  { match: ['**'], color: 'blue', label: 'Bus/Other' },
-]
+  { match: { transportMode: 'rail', id: 'S*' }, color: '#393', label: 'S-Bahn' },
+  { match: { transportMode: 'rail', id: 'U*' }, color: '#44a', label: 'U-Bahn' },
+  { match: { transportMode: 'tram' }, color: '#b00', label: 'Tram' },
+  { match: { transportMode: 'rail' /* id: ['IC*', 'RE*', 'RB*'] */ }, color: 'red', label: 'Rail' },
+  { match: { id: ['**'] }, color: 'purple', label: 'Bus & Other' },
+] as { match: any; color: string; label: string }[]
 
 class Departure {
   public total: number = 0
@@ -974,13 +974,33 @@ const MyComponent = defineComponent({
 
           let isRail = true
           let color = '#888'
+
           for (const route of this._departures[linkID].routes) {
+            const props = this._routeData[route] as any
+
+            // all match entries must match to select a color
             for (const config of DEFAULT_ROUTE_COLORS) {
-              if (match.isMatch(route, config.match)) {
+              let matched = true
+              for (const [key, pattern] of Object.entries(config.match) as any[]) {
+                const valueForThisProp = props[key]
+                // quit if route doesn't include this match property
+                if (!valueForThisProp) {
+                  matched = false
+                  break
+                }
+                // quit if match fails
+                if (!match.isMatch(valueForThisProp, pattern)) {
+                  matched = false
+                  break
+                }
+              }
+              // Set color and quit searching after first successful match
+              if (matched) {
                 color = config.color
                 break
               }
             }
+            // no rules matched; sad!
             if (color == '#888') console.log('OHE NOES', route)
           }
 
@@ -1102,8 +1122,8 @@ const MyComponent = defineComponent({
           type: 'line',
           paint: {
             'line-opacity': 1.0,
-            'line-width': 5, // ['get', 'width'],
-            'line-color': '#f4c', // ['get', 'color'],
+            'line-width': 7, // ['get', 'width'],
+            'line-color': '#95f', // ['get', 'color'],
           },
         })
       }
@@ -1189,7 +1209,7 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 0.7,
             'line-width': 8, // ['get', 'width'],
-            'line-color': '#ccff33', // ['get', 'color'],
+            'line-color': '#ff44cc', // '#ccff33', // ['get', 'color'],
           },
         })
         this._attachedRouteLayers.push(route.id)
