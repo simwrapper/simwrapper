@@ -558,8 +558,6 @@ const MyComponent = defineComponent({
     showRouteDetails(routeID: string) {
       if (!routeID && !this.selectedRoute) return
 
-      console.log({ routeID })
-
       if (routeID) this.showTransitRoute(routeID)
       else this.showTransitRoute(this.selectedRoute.id)
 
@@ -989,7 +987,7 @@ const MyComponent = defineComponent({
             },
           }
 
-          line = this.offsetLineByMeters(line, 15)
+          // line = this.offsetLineByMeters(line, 15)
           geojson.push(line)
         }
       }
@@ -1103,7 +1101,7 @@ const MyComponent = defineComponent({
         try {
           this.mymap.removeLayer('selected-route')
         } catch (e) {
-          // oh well
+          console.error('could not remove selected route layer')
         }
         this.selectedRoute = null
       }
