@@ -1,7 +1,7 @@
 <template lang="pug">
 .legend-container
   p.control-label Legend
-  .legend-item(v-for="item in rows" :key="item[0]")
+  .legend-item(v-for="item in rows" :key="item[0]" @click="handleClick(item)")
     .legend-col-1(:style="{'background-color': item[0]}")
     span.legend-col-2 {{ item[1] }}
 </template>
@@ -17,7 +17,6 @@ export default defineComponent({
   methods: {
     handleClick(item: [string, string]) {
       this.$emit('item-clicked', item)
-      console.log('item-clicked', item)
     },
   },
 })

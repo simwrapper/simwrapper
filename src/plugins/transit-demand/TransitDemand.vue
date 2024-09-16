@@ -8,6 +8,7 @@
 
     legend-box.legend(v-if="!thumbnail"
       :rows="calculateLegendRows()"
+      @item-clicked="toggleFeaturesOnTransitLink([$event[0]])"
     )
 
   zoom-buttons(v-if="!thumbnail")
@@ -220,6 +221,7 @@ const MyComponent = defineComponent({
 
       // transitModes: TransitModes.RAIL,
       facilityNameMap: {} as any,
+      hiddenColors: new Set<string>(),
     }
   },
 
@@ -1036,7 +1038,6 @@ const MyComponent = defineComponent({
     },
 
     async showTransitStops() {
-      console.log('showTransitStops')
       this.removeStopMarkers()
 
       const route = this.selectedRoute
@@ -1245,6 +1246,26 @@ const MyComponent = defineComponent({
       }
 
       return legend
+    },
+
+    // Show/Unshow a route type on the mapo by filter by the color
+    toggleFeaturesOnTransitLink(featureColors: string[]) {
+      if (this.mymap.getLayer('transit-link')) {
+        featureColors.forEach(color => {
+          if (this.hiddenColors.has(color)) {
+            this.hiddenColors.delete(color)
+          } else {
+            this.hiddenColors.add(color)
+          }
+        })
+
+        let filter: any = ['all']
+        if (this.hiddenColors.size > 0) {
+          filter.push(['!in', 'color', ...Array.from(this.hiddenColors)])
+        }
+
+        this.mymap.setFilter('transit-link', filter)
+      }
     },
   },
 
