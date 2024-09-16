@@ -33,4 +33,5 @@ export interface NetworkLink {
 export interface TransitLine {
   id: string
   transitRoutes: RouteDetails[]
+  gtfsRouteType: number
 }

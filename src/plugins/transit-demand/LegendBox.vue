@@ -14,6 +14,12 @@ export default defineComponent({
   props: {
     rows: { type: Array, required: true },
   },
+  methods: {
+    handleClick(item: [string, string]) {
+      this.$emit('item-clicked', item)
+      console.log('item-clicked', item)
+    },
+  },
 })
 </script>
 

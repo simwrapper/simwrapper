@@ -95,11 +95,14 @@ function processTransit() {
   let uniqueRouteID = 0
 
   const transitLines = _xml.transitXML.transitSchedule.transitLine
+  // console.log('transitLines:', transitLines)
 
   for (const line of transitLines) {
+    // console.log('line:', line.attributes.attribute[2]['#text'])
     const attr: TransitLine = {
       id: line.id,
       transitRoutes: [],
+      gtfsRouteType: line.attributes.attribute[2]['#text'],
     }
 
     if (!line.transitRoute) continue

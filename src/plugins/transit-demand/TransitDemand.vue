@@ -7,7 +7,7 @@
       )
 
     legend-box.legend(v-if="!thumbnail"
-      :rows="legendRows"
+      :rows="calculateLegendRows()"
     )
 
   zoom-buttons(v-if="!thumbnail")
@@ -34,6 +34,7 @@
               p: b {{route.departures}} departures
               p First: {{route.firstDeparture}}
               p Last: {{route.lastDeparture}}
+              //- p Last: {{route.}}
             .col(v-if="route.passengersAtArrival")
               p: b {{ route.passengersAtArrival }} passengers
               p {{ route.totalVehicleCapacity }} capacity
@@ -98,7 +99,48 @@ const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 class Departure {
   public total: number = 0
   public routes: Set<string> = new Set()
+  public gtfsRouteType: number = 0
 }
+
+// Default color mapping for different transit modes
+const colorMapping = [
+  {
+    name: 'Rail',
+    routeTypes: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
+    color: '#ec0116',
+    isUsed: false,
+  },
+  {
+    name: 'S-Bahn',
+    routeTypes: [109],
+    color: '#408335',
+    isUsed: false,
+  },
+  {
+    name: 'Bus',
+    routeTypes: [3, 700, 701, 702, 703, 704],
+    color: '#95276E',
+    isUsed: false,
+  },
+  {
+    name: 'Tram',
+    routeTypes: [0, 900, 901, 902, 903, 904, 905, 906],
+    color: '#BE1414',
+    isUsed: false,
+  },
+  {
+    name: 'Ferry',
+    routeTypes: [4, 1000, 1200],
+    color: '#0480c1',
+    isUsed: false,
+  },
+  {
+    name: 'Subway',
+    routeTypes: [1, 400, 401, 402, 403, 404, 405],
+    color: '#115D91',
+    isUsed: false,
+  },
+]
 
 const MyComponent = defineComponent({
   name: 'TransitViewer',
@@ -175,6 +217,9 @@ const MyComponent = defineComponent({
       cfDemand: null as crossfilter.Crossfilter<any> | null,
       cfDemandLink: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
+
+      // transitModes: TransitModes.RAIL,
+      facilityNameMap: {} as any,
     }
   },
 
@@ -192,13 +237,6 @@ const MyComponent = defineComponent({
         throw Error
       }
       return svnProject[0]
-    },
-
-    legendRows(): string[][] {
-      return [
-        ['#a03919', 'Rail'],
-        ['#448', 'Bus'],
-      ]
     },
   },
 
@@ -472,8 +510,6 @@ const MyComponent = defineComponent({
     },
 
     handleClickedMetric(metric: { field: string }) {
-      console.log('transit metric:', metric.field)
-
       this.activeMetric = metric.field
 
       let widthExpression: any = 3
@@ -779,6 +815,15 @@ const MyComponent = defineComponent({
 
       this._transitHelper.terminate()
 
+      // Map names to linkRefId
+      this.facilityNameMap = {} as any
+      for (const key in this._stopFacilities) {
+        if (this._stopFacilities.hasOwnProperty(key)) {
+          const item = this._stopFacilities[key] as any
+          this.facilityNameMap[item.linkRefId] = item.name
+        }
+      }
+
       this.loadingText = 'Summarizing departures...'
 
       await this.processDepartures()
@@ -806,10 +851,11 @@ const MyComponent = defineComponent({
           for (const route of transitLine.transitRoutes) {
             for (const linkID of route.route) {
               if (!(linkID in this._departures))
-                this._departures[linkID] = { total: 0, routes: new Set() }
+                this._departures[linkID] = { total: 0, routes: new Set(), gtfsRouteType: 0 }
 
               this._departures[linkID].total += route.departures
               this._departures[linkID].routes.add(route.id)
+              this._departures[linkID].gtfsRouteType = this._transitLines[id].gtfsRouteType
 
               this._maximum = Math.max(this._maximum, this._departures[linkID].total)
             }
@@ -858,7 +904,6 @@ const MyComponent = defineComponent({
       const props = event.features[0].properties
 
       let content = '<div class="map-popup">'
-
       for (const metric of this.metrics) {
         let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
         label = label.replaceAll(' ', '&nbsp;')
@@ -870,6 +915,12 @@ const MyComponent = defineComponent({
             <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
           </div>`
       }
+
+      content += `
+    <div style="display: flex">
+      <div>Name:&nbsp;&nbsp;</div>
+      <b style="margin-left: auto; text-align: right">${this.facilityNameMap[props.id]}</b>
+    </div>`
 
       content += '<div>'
       this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
@@ -908,16 +959,14 @@ const MyComponent = defineComponent({
 
           const departures = this._departures[linkID].total
 
+          // Color Mapping
+          let colorMapping = this.convertGTFSRouteTypeToColor(
+            this._departures[linkID].gtfsRouteType
+          )
+
           // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
           const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
           const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
-
-          let isRail = true
-          for (const route of this._departures[linkID].routes) {
-            if (this._routeData[route].transportMode === 'bus') {
-              isRail = false
-            }
-          }
 
           let line = {
             type: 'Feature',
@@ -926,14 +975,13 @@ const MyComponent = defineComponent({
               coordinates: coordinates,
             },
             properties: {
-              color: isRail ? '#a03919' : _colorScale[colorBin],
+              color: colorMapping,
               colorBin: colorBin,
               departures: departures,
               // pax: 0,
               // loadfac: 0,
               // cap: 0,
               id: linkID,
-              isRail: isRail,
               from: link.from, // _stopFacilities[fromNode].name || fromNode,
               to: link.to, // _stopFacilities[toNode].name || toNode,
             },
@@ -953,6 +1001,26 @@ const MyComponent = defineComponent({
       return { type: 'FeatureCollection', features: geojson }
     },
 
+    convertGTFSRouteTypeToColor(gtfsRouteType: number) {
+      if (this.config.customRouteTypes) {
+        for (let i = 0; i < this.config.customRouteTypes.length; i++) {
+          if (this.config.customRouteTypes[i].routeTypes.includes(gtfsRouteType)) {
+            this.config.customRouteTypes[i].isUsed = true
+            return this.config.customRouteTypes[i].color
+          }
+        }
+      } else {
+        for (let i = 0; i < colorMapping.length; i++) {
+          if (colorMapping[i].routeTypes.includes(gtfsRouteType)) {
+            colorMapping[i].isUsed = true
+            return colorMapping[i].color
+          }
+        }
+      }
+
+      return '#000000'
+    },
+
     offsetLineByMeters(line: any, metersToTheRight: number) {
       try {
         const offsetLine = turf.lineOffset(line, metersToTheRight, { units: 'meters' })
@@ -968,6 +1036,7 @@ const MyComponent = defineComponent({
     },
 
     async showTransitStops() {
+      console.log('showTransitStops')
       this.removeStopMarkers()
 
       const route = this.selectedRoute
@@ -1154,6 +1223,28 @@ const MyComponent = defineComponent({
       this.stopMarkers = []
       this._linkData = null
       this._geoTransitLinks = null
+    },
+
+    calculateLegendRows(): string[][] {
+      const legend = []
+
+      if (this.config) {
+        if (this.config.customRouteTypes) {
+          for (let i = 0; i < this.config.customRouteTypes.length; i++) {
+            if (this.config.customRouteTypes[i].isUsed)
+              legend.push([
+                this.config.customRouteTypes[i].color,
+                this.config.customRouteTypes[i].name,
+              ])
+          }
+        }
+      } else {
+        for (let i = 0; i < colorMapping.length; i++) {
+          if (colorMapping[i].isUsed) legend.push([colorMapping[i].color, colorMapping[i].name])
+        }
+      }
+
+      return legend
     },
   },
 
