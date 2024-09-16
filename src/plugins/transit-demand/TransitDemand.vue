@@ -243,7 +243,48 @@ const DEFAULT_ROUTE_COLORS = [
 class Departure {
   public total: number = 0
   public routes: Set<string> = new Set()
+  public gtfsRouteType: number = 0
 }
+
+// Default color mapping for different transit modes
+const colorMapping = [
+  {
+    name: 'Rail',
+    routeTypes: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
+    color: '#ec0116',
+    isUsed: false,
+  },
+  {
+    name: 'S-Bahn',
+    routeTypes: [109],
+    color: '#408335',
+    isUsed: false,
+  },
+  {
+    name: 'Bus',
+    routeTypes: [3, 700, 701, 702, 703, 704],
+    color: '#95276E',
+    isUsed: false,
+  },
+  {
+    name: 'Tram',
+    routeTypes: [0, 900, 901, 902, 903, 904, 905, 906],
+    color: '#BE1414',
+    isUsed: false,
+  },
+  {
+    name: 'Ferry',
+    routeTypes: [4, 1000, 1200],
+    color: '#0480c1',
+    isUsed: false,
+  },
+  {
+    name: 'Subway',
+    routeTypes: [1, 400, 401, 402, 403, 404, 405],
+    color: '#115D91',
+    isUsed: false,
+  },
+]
 
 const MyComponent = defineComponent({
   name: 'TransitViewer',
@@ -1277,6 +1318,15 @@ const MyComponent = defineComponent({
 
       this._transitHelper.terminate()
 
+      // Map names to linkRefId
+      this.facilityNameMap = {} as any
+      for (const key in this._stopFacilities) {
+        if (this._stopFacilities.hasOwnProperty(key)) {
+          const item = this._stopFacilities[key] as any
+          this.facilityNameMap[item.linkRefId] = item.name
+        }
+      }
+
       this.loadingText = 'Summarizing departures...'
       this.incrementLoadProgress()
 
@@ -1512,6 +1562,26 @@ const MyComponent = defineComponent({
       } catch (error) {
         return [0, 0, 0]
       }
+    },
+
+    convertGTFSRouteTypeToColor(gtfsRouteType: number) {
+      if (this.config.customRouteTypes) {
+        for (let i = 0; i < this.config.customRouteTypes.length; i++) {
+          if (this.config.customRouteTypes[i].routeTypes.includes(gtfsRouteType)) {
+            this.config.customRouteTypes[i].isUsed = true
+            return this.config.customRouteTypes[i].color
+          }
+        }
+      } else {
+        for (let i = 0; i < colorMapping.length; i++) {
+          if (colorMapping[i].routeTypes.includes(gtfsRouteType)) {
+            colorMapping[i].isUsed = true
+            return colorMapping[i].color
+          }
+        }
+      }
+
+      return '#000000'
     },
 
     offsetLineByMeters(line: any, metersToTheRight: number) {
@@ -1765,6 +1835,28 @@ const MyComponent = defineComponent({
       this.routesOnLink = []
       this.stopMarkers = []
       this.searchText = ''
+    },
+
+    calculateLegendRows(): string[][] {
+      const legend = []
+
+      if (this.config) {
+        if (this.config.customRouteTypes) {
+          for (let i = 0; i < this.config.customRouteTypes.length; i++) {
+            if (this.config.customRouteTypes[i].isUsed)
+              legend.push([
+                this.config.customRouteTypes[i].color,
+                this.config.customRouteTypes[i].name,
+              ])
+          }
+        }
+      } else {
+        for (let i = 0; i < colorMapping.length; i++) {
+          if (colorMapping[i].isUsed) legend.push([colorMapping[i].color, colorMapping[i].name])
+        }
+      }
+
+      return legend
     },
   },
 
