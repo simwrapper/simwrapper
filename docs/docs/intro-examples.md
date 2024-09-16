@@ -104,6 +104,14 @@ These visualizations work with any dataset, generally using CSV text format or X
 <div class="visualization">
 <!--   -----------------------   -->
 
+#### Griadmap
+[![Gridmap](assets/gridmap.png)](ref-gridmap.md)
+
+
+</div>
+<div class="visualization">
+<!--   -----------------------   -->
+
 #### Heat map plot
 [![](assets/thumb-heatmap.png)](ref-heatmap.md)
 
