@@ -154,7 +154,7 @@ export default function Component(props: {
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
     if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
-    if (object?.type == 'hub') return renderHubInfo(hoverInfo)
+    if (object?.label == 'Depot') return renderHubInfo(hoverInfo)
     return renderStopTooltip(hoverInfo)
   }
 
@@ -848,17 +848,25 @@ export default function Component(props: {
         if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
           return [0, 228, 255, opacity];
         } else {
-          return [255, 255, 255];
+          if (dark) {
+            return [255, 255, 255]
+          } else {
+            return [240, 130, 0]
+          }
         }
       }
 
       function getTargetColor(chainIndex: number, shipmentChain: any) {
         if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
           return [240, 0, 60, 224];
-        } else {
-          return [255, 255, 255];
-        }
+        }  else {
+          if (dark) {
+            return [255, 255, 255]
+          } else {
+            return [240, 130, 0]
+          }
       }
+    }
 
       totalShipments = 0
       lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
@@ -891,13 +899,31 @@ export default function Component(props: {
               id: 'HubChain',
               data: lspShipmentChains[0].hubsChains,
               getPosition: (d: any) => [d.route[i][0], d.route[i][1]],
-              getColor: [255, 255, 255],
+              getColor: ActivityColor.pickup,
               getRadius: 3,
               opacity: 0.9,
               parameters: { depthTest: false },
               pickable: true,
               radiusUnits: 'pixels',
-              onHover: setHoverInfo,
+            })
+          )
+          layers.push(
+            //@ts-ignore
+            new TextLayer({
+              id: 'labels',
+              data: lspShipmentChains[0].hubsChains,
+              getPosition: (d:any) => [d.hubs[0].locationX, d.hubs[0].locationY],
+              getText: (d:any) => d.hubs[0].id,
+              getAlignmentBaseline: 'center',
+              getColor: [255, 255, 255],
+              getBackgroundColor: [240, 130, 0],
+              background: true,
+              backgroundPadding: [2,2,2,2],
+              fontWeight: 'normal',
+              getSize: 10,
+              getTextAnchor: 'middle',
+              pickable: true,
+              onHover: setHoverInfo
             })
           )
         }
