@@ -119,6 +119,11 @@ const plugins = [
     filePatterns: ['**/xmas-kelheim*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./xmas-kelheim/VehicleAnimation.vue')),
   },
+  {
+    kebabName: 'logistics',
+    filePatterns: ['**/*lsps.xml*', '**/viz-logistic*.y?(a)ml*'],
+    component: defineAsyncComponent(() => import('./logistics/LogisticsViewer.vue')),
+  },
 ]
 
 export const pluginComponents: { [key: string]: AsyncComponent } = {}
