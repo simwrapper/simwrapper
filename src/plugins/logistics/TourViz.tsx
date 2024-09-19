@@ -195,7 +195,6 @@ export default function Component(props: {
     const { object, x, y } = hoverInfo
 
     if (hoverInfo.layer.id == "HubChain") {
-      console.log(object.shipmentId)
 
     return (
       <div
@@ -213,7 +212,7 @@ export default function Component(props: {
       >
         Total Shipment Count: {totalShipments} <br />
         Chain Type: {object?.chainId} <br />
-      </div>
+      </div>  
     )
   } else {
 
@@ -268,8 +267,6 @@ export default function Component(props: {
 
     const { object, x, y } = hoverInfo
 
-    console.log(object)
-
     // return (
     //   <div
     //     className="tooltip"
@@ -306,8 +303,13 @@ export default function Component(props: {
       0
     )
 
+    const services = object.visits.reduce(
+      (prev: number, visit: any) => prev + visit.service.length,
+      0
+    )
+
     const numPickupsAndDeliveries = pickups + deliveries
-    const overview = { visits, pickups, deliveries } as any
+    const overview = { visits, pickups, deliveries, services } as any
 
     // delivery stop has complicated position stuff
     const tipHeight = Object.keys(object).length * 20 + 32 // good guess
@@ -367,7 +369,6 @@ export default function Component(props: {
   function clickedDepot() { }
 
   if (activeTab == 'lspTours') {
-    console.log(lspShipmentChains)
 
     const opacity = shipments.length > 1 ? 32 : 255
 
@@ -568,33 +569,6 @@ export default function Component(props: {
         return [255, 255, 255];
       }
     }
-
-
-    // lspShipmentChains[0].hubsChains.forEach((lspShipmentChain: any) => {
-    //   for (let i = 0; i < lspShipmentChain.route.length - 2; i++) {
-    //     layers.push(
-    //       //@ts-ignore:
-    //       new ArcLayer({
-    //         id: 'shipmenthubchains',
-    //         data: lspShipmentChains[0].hubsChains,
-    //         getSourcePosition: (d: any) => [d.route[i][0], d.route[i][1]],
-    //         getTargetPosition: (d: any) => [d.route[i + 1][0], d.route[i + 1][1]],
-    //         getSourceColor: getSourceColor(i, lspShipmentChain),
-    //         getTargetColor: getTargetColor(i, lspShipmentChain),
-    //         getWidth: getLineWidth(i, lspShipmentChain),
-    //         widthUnits: 'pixels',
-    //         getHeight: 0.5,
-    //         opacity: 0.9,
-    //         parameters: { depthTest: false },
-    //         widthScale: widthScale,
-    //         widthMinPixels: 1,
-    //         widthMaxPixels: 100,
-    //         updateTriggers: { getWidth: [scaleFactor] },
-    //         transitions: { getWidth: 200 },
-    //       })
-    //     )
-    //   }
-    // })
 
     layers.push(
       //@ts-ignore:
@@ -910,7 +884,7 @@ export default function Component(props: {
           layers.push(
             //@ts-ignore
             new TextLayer({
-              id: 'labels',
+              id: 'HubChain',
               data: lspShipmentChains[0].hubsChains,
               getPosition: (d:any) => [d.hubs[0].locationX, d.hubs[0].locationY],
               getText: (d:any) => d.hubs[0].id,
@@ -963,6 +937,9 @@ export default function Component(props: {
         })
       )
     }
+
+    console.log("test")
+
   }
 
   const showBackgroundMap = projection && projection !== 'Atlantis'

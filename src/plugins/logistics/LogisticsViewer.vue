@@ -49,7 +49,14 @@
       h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
 
       .carrier-list
+        h5(style="font-weight:bold") {{"Direct Chain Carriers:"}}
         .carrier(v-for="carrier in lspCarriers" :key="carrier.$id"
+          :class="{selected: carrier.$id===selectedCarrier}"
+          @click="handleSelectCarrier(carrier)")
+          .carrier-title {{ carrier.$id }}
+        br
+        h5(style="font-weight:bold") {{"Hub Chain Carriers:"}}
+        .carrier(v-for="carrier in lspHubChainCarriers" :key="carrier.$id"
           :class="{selected: carrier.$id===selectedCarrier}"
           @click="handleSelectCarrier(carrier)")
           .carrier-title {{ carrier.$id }}
@@ -173,6 +180,8 @@ import {
 } from '@/Globals'
 import { concat, forEach } from 'lodash'
 import { typeOf } from 'mathjs'
+import { diff } from 'nerdamer'
+import { any } from 'micromatch'
 
 interface NetworkLinks {
   source: Float32Array
@@ -219,6 +228,11 @@ interface lspShipmentChain {
   chainId: string
   shipmentId: string
 }
+
+interface carrierServices {
+      carrierId: String,
+      carrierServiceIds: String[]
+    }
 
 interface lspShipmentChains {
   hubsChains: any[],
@@ -312,6 +326,7 @@ const LogisticsPlugin = defineComponent({
       lspChainToursAll: [] as any[],
       lspToursAll: [] as any[], // only used for details section (not viz)
       lspCarriers: [] as any[],
+      lspHubChainCarriers: [] as any[],
       lspHubCarriers: [] as any[],
       lspDirectCarriers: [] as any[],
       lspCarrier: {} as any,
@@ -882,10 +897,8 @@ const LogisticsPlugin = defineComponent({
     handleSelectLspFromList(lsp: any) {
       if (this.lspShipmentHubChains.length > 0) {
         this.activeTab = "lspShipmentChains"
-        console.log(this.activeTab)
       } else {
         this.activeTab = "shipments"
-        console.log(this.activeTab)
       }
       this.selectedCarrier = lsp.resources.carrier[0].$id
       this.handleSelectLsp(lsp)
@@ -901,8 +914,10 @@ const LogisticsPlugin = defineComponent({
       }
       this.lspToursAll = []
 
-      this.lspCarriers = []
-      this.lspCarriers = lsp.resources.carrier
+      this.lspCarriers = []      
+      this.lspHubChainCarriers = []
+      this.lspCarriers = lsp.resources.carrier.filter((x:any) => !this.lspHubCarriers.includes(x.$id))
+      this.lspHubChainCarriers = lsp.resources.carrier.filter((x:any) => this.lspHubCarriers.includes(x.$id))
 
       const id = lsp.$id
 
@@ -947,7 +962,7 @@ const LogisticsPlugin = defineComponent({
     handleSelectCarrier(carrierId: any) {
       /// make new carrier specific data object with tours and shipments 
 
-      let carrier = {}
+      let carrier:any = {}
 
       if (typeOf(carrierId) == 'string') {
         carrier = this.carriers.find(c => c.$id === carrierId)
@@ -995,9 +1010,6 @@ const LogisticsPlugin = defineComponent({
       this.shipments = this.processShipments(carrier)
       this.lspShipmentChains = []
       this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
-
-      console.log(carrier)
-
       // fix TS error
       if (carrier.services?.service?.length)
         this.services = carrier?.services.service
@@ -1076,19 +1088,13 @@ const LogisticsPlugin = defineComponent({
 
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.lspShipmentChains[0].directChains.length > 0) {
           this.activeTab = "shipments"
-          console.log(this.activeTab)
         }
 
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.lspShipmentChains[0].hubsChains.length > 0) {
           this.activeTab = "lspShipmentChains"
-          console.log(this.activeTab)
         }
 
       this.selectAllTours()
-
-
-
-
     },
 
     getAllPlans(carrier: any) {
@@ -1314,7 +1320,7 @@ const LogisticsPlugin = defineComponent({
       // )
 
       try {
-        for (const shipment of shipments) {
+        shipments.forEach((shipment:any) => {
           // shipment has link id, so we go from link.from to link.to
           shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
           shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
@@ -1322,7 +1328,9 @@ const LogisticsPlugin = defineComponent({
           shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
 
           this.shipmentLookup[shipment.$id] = shipment
-        }
+        })
+
+        
       } catch (e) {
         // if xy are missing, skip this -- just means network isn't loaded yet.
       }
@@ -1728,20 +1736,42 @@ const LogisticsPlugin = defineComponent({
     this.setMapCenter()
     this.myState.statusMessage = ''
 
+    let carrierServicesArray:carrierServices[] = []
+
+    this.carriers.forEach((carrier:any) => {
+      let newCarriersServices : carrierServices = {
+        carrierId: carrier.$id,
+        carrierServiceIds: []
+      }
+      carrier.services.service.forEach((service:any) => {
+        newCarriersServices.carrierServiceIds.push(service.$id)
+      })
+      carrierServicesArray.push(newCarriersServices) 
+    })
+
+    for(let i = 0; i < carrierServicesArray.length; i++) {
+      for(let j = i+1; j < carrierServicesArray.length; j++) {
+        let difference = carrierServicesArray[i].carrierServiceIds.filter(x => !carrierServicesArray[j].carrierServiceIds.includes(x))
+        if (difference.length == 0 && (!this.lspHubCarriers.includes(carrierServicesArray[i].carrierId) || !this.lspHubCarriers.includes(carrierServicesArray[j].carrierId))) {
+          this.lspHubCarriers.push(carrierServicesArray[i].carrierId)
+          this.lspHubCarriers.push(carrierServicesArray[j].carrierId)
+        }
+      }
+    }
+
+    console.log(carrierServicesArray)
+    console.log(this.lspHubCarriers)
+
     // Select the first carrier if the carriers are loaded
     // if (this.carriers.length) this.handleSelectCarrier(this.carriers[0])
     if (this.lsps.length) this.handleSelectLsp(this.lsps[0])
     if (this.lspShipmentHubChains.length > 0) {
       this.activeTab = "lspShipmentChains"
-      console.log(this.activeTab)
     } else {
       this.activeTab = "shipments"
-      console.log(this.activeTab)
     }
 
     this.selectedCarrier = this.lsps[0].resources.carrier[0].$id
-
-
 
     // Select the first tour if the tours are loaded
 
