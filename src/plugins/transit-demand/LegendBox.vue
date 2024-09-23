@@ -38,7 +38,7 @@ export default defineComponent({
 
 .control-label {
   margin: 0 0;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: bold;
 }
 
@@ -47,14 +47,15 @@ export default defineComponent({
   flex-direction: row;
   margin-bottom: 0.25rem;
   font-size: 0.8rem;
+  line-height: 0.75rem;
 }
 
 .legend-col-1 {
-  width: 3rem;
+  width: 2rem;
 }
 
 .legend-col-2 {
-  margin-left: 1rem;
+  margin-left: 0.5rem;
 }
 
 p.title {

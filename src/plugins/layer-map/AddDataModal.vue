@@ -242,7 +242,8 @@ export default defineComponent({
     },
 
     async loadCSV(file: any, buffer: any) {
-      const dataTable = await this.processBuffer(file.name, buffer)
+      const data = await this.processBuffer(file.name, buffer)
+      const { comments, ...dataTable } = data
 
       // create a human-readable key for this file based on filename
       let key = file.name
