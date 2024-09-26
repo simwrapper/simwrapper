@@ -7,12 +7,12 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent, PropType } from 'vue'
 
 export default defineComponent({
   name: 'LegendBox',
   props: {
-    rows: { type: Array, required: true },
+    rows: { type: Array as PropType<[string, string][]>, required: true },
   },
 })
 </script>
