@@ -262,8 +262,6 @@ const MyComponent = defineComponent({
       cfDemand: null as crossfilter.Crossfilter<any> | null,
       cfDemandLink: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
-
-      forceLegendUpdate: 0,
       routeColors: [] as { match: any; color: string; label: string }[],
     }
   },
@@ -285,7 +283,6 @@ const MyComponent = defineComponent({
     },
 
     legendRows(): string[][] {
-      this.forceLegendUpdate
       return this.routeColors.map(r => [r.color, r.label])
     },
   },
@@ -934,8 +931,6 @@ const MyComponent = defineComponent({
         this.routeColors = DEFAULT_ROUTE_COLORS
       }
 
-      console.log('routeColors', this.routeColors)
-
       await this.processDepartures()
 
       // Build the links layer and add it
@@ -1043,9 +1038,6 @@ const MyComponent = defineComponent({
     async constructDepartureFrequencyGeoJson() {
       const geojson = []
 
-      // console.log(this._departures)
-      // console.log(this._routeData)
-
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
           const link = this._network.links[linkID] as any
@@ -1091,7 +1083,6 @@ const MyComponent = defineComponent({
             for (const config of this.routeColors) {
               let matched = true
               for (const [key, pattern] of Object.entries(config.match) as any[]) {
-                // console.log({ key, pattern })
                 const valueForThisProp = props[key]
                 // quit if route doesn't include this match property
                 if (!valueForThisProp) {
@@ -1099,6 +1090,7 @@ const MyComponent = defineComponent({
                   break
                 }
 
+                // if its the gtfsRoute type we must used inludes() instead of isMatch()
                 if (key === 'gtfsRouteType') {
                   if (!pattern.includes(valueForThisProp)) {
                     matched = false
@@ -1119,7 +1111,7 @@ const MyComponent = defineComponent({
               }
             }
             // no rules matched; sad!
-            // if (color == '#888') console.log('OHE NOES', route)
+            if (color == '#888') console.log('OHE NOES', route)
           }
 
           let line = {
@@ -1155,150 +1147,6 @@ const MyComponent = defineComponent({
 
       return { type: 'FeatureCollection', features: geojson }
     },
-
-    // async constructDepartureFrequencyGeoJson() {
-    //   const geojson = []
-
-    //   for (const linkID in this._departures) {
-    //     if (this._departures.hasOwnProperty(linkID)) {
-    //       const link = this._network.links[linkID] as any
-    //       if (!link) continue
-
-    //       let coordinates
-    //       try {
-    //         // If avroNetwork is available, get coordinates from the compressed node data
-    //         if (this.avroNetwork) {
-    //           const nodeFrom = this.avroNetwork.from[link]
-    //           const nodeTo = this.avroNetwork.to[link]
-    //           const coordsFrom = this.avroNetwork.__nodes[nodeFrom]
-    //           const coordsTo = this.avroNetwork.__nodes[nodeTo]
-    //           coordinates = [coordsFrom, coordsTo]
-    //         } else {
-    //           // Otherwise, calculate the coordinates from the direct network node data
-    //           coordinates = [
-    //             [this._network.nodes[link.from].x, this._network.nodes[link.from].y],
-    //             [this._network.nodes[link.to].x, this._network.nodes[link.to].y],
-    //           ]
-    //         }
-    //       } catch (e) {
-    //         console.warn(e)
-    //         continue
-    //       }
-
-    //       const departures = this._departures[linkID].total
-    //       let color = '#888' // Default color if no match is found
-    //       let isRail = true // Default transprtMode if no match is found
-
-    //       for (const route of this._departures[linkID].routes) {
-    //         const props = this._routeData[route] as RouteDetails
-    //         let matched = false
-
-    //         for (const config of this.routeColors) {
-    //           // Check if the regex should be preferred
-    //           if (config.match.preferRegex) {
-    //             if (config.match.id && match.isMatch(props.id, config.match.id)) {
-    //               color = config.color
-    //               matched = true
-    //               this.$set(config, 'isUsed', true)
-    //               break
-    //             }
-
-    //             // If no ID match, check the gtfsType
-    //             if (
-    //               config.match.gtfsType &&
-    //               props.gtfsRouteType &&
-    //               config.match.gtfsType.includes(props.gtfsRouteType)
-    //             ) {
-    //               color = config.color
-    //               this.$set(config, 'isUsed', true)
-    //               matched = true
-    //               break
-    //             }
-    //           } else {
-    //             // Match the gtfsType directly
-    //             if (
-    //               config.match.gtfsType &&
-    //               props.gtfsRouteType &&
-    //               config.match.gtfsType.includes(props.gtfsRouteType)
-    //             ) {
-    //               color = config.color
-    //               this.$set(config, 'isUsed', true)
-    //               matched = true
-    //               break
-    //             }
-
-    //             // Match based on regex
-    //             if (config.match.id && match.isMatch(props.id, config.match.id)) {
-    //               color = config.color
-    //               this.$set(config, 'isUsed', true)
-    //               matched = true
-    //               break
-    //             }
-    //           }
-
-    //           // Final fallback: match based on the transportMode
-    //           if (
-    //             config.match.transportMode &&
-    //             props.transportMode === config.match.transportMode
-    //           ) {
-    //             color = config.color
-    //             this.$set(config, 'isUsed', true)
-    //             matched = true
-    //             break
-    //           }
-    //         }
-    //       }
-
-    //       // Construct the line (Feature) for the current link with the calculated properties
-    //       const line = this.offsetLineByMeters(
-    //         {
-    //           type: 'Feature',
-    //           geometry: {
-    //             type: 'LineString',
-    //             coordinates: coordinates,
-    //           },
-    //           properties: {
-    //             color: color,
-    //             departures: departures,
-    //             id: linkID,
-    //             isRail: isRail,
-    //             from: link.from,
-    //             to: link.to,
-    //           },
-    //         },
-    //         15
-    //       )
-
-    //       geojson.push(line)
-    //     }
-    //   }
-
-    //   geojson.sort((a: any, b: any) => {
-    //     if (a.isRail && !b.isRail) return -1
-    //     if (b.isRail && !a.isRail) return 1
-    //     return 0
-    //   })
-
-    //   this.forceLegendUpdate++
-
-    //   return { type: 'FeatureCollection', features: geojson }
-    // },
-
-    // formatCustomRouteTypes(customRouteTypes: any) {
-    //   return customRouteTypes.map((customRoute: any) => {
-    //     return {
-    //       match: {
-    //         transportMode: customRoute.transportMode || undefined,
-    //         id: customRoute.regexp || undefined, // Falls keine regexp vorhanden ist, bleibt id undefined
-    //         gtfsType: customRoute.routeTypes || undefined, // Wenn keine routeTypes vorhanden sind, wird gtfsType undefined
-    //         preferRegex: customRoute.preferRegex || false, // Standardwert für preferRegex ist false
-    //       },
-    //       color: customRoute.color || '#000000', // Standardfarbe, falls keine definiert
-    //       label: customRoute.name || 'Unknown', // Standardlabel "Unknown", falls name fehlt
-    //       isUsed: false, // isUsed wird immer auf false gesetzt
-    //     }
-    //   })
-    // },
 
     offsetLineByMeters(line: any, metersToTheRight: number) {
       try {
