@@ -126,14 +126,6 @@ const DEFAULT_ROUTE_COLORS = [
   },
   {
     match: {
-      transportMode: 'tram',
-      // gtfsRouteType: [0, 900, 901, 902, 903, 904, 905, 906]
-    },
-    color: '#BE1414',
-    label: 'Tram',
-  },
-  {
-    match: {
       transportMode: 'rail',
       id: 'U*',
       // gtfsRouteType: [1, 400, 401, 402, 403, 404, 405],
@@ -165,6 +157,24 @@ const DEFAULT_ROUTE_COLORS = [
     },
     color: '#0480c1',
     label: 'Ferry',
+  },
+  {
+    match: {
+      transportMode: 'tram',
+      // gtfsRouteType: [0, 900, 901, 902, 903, 904, 905, 906]
+    },
+    color: '#BE1414',
+    label: 'Tram',
+  },
+  {
+    match: { transportMode: 'pt' },
+    color: '#00a',
+    label: 'Public Transport',
+  },
+  {
+    match: { transportMode: 'train' },
+    color: '#0a0',
+    label: 'Rail',
   },
   {
     match: { id: '**' },
@@ -263,6 +273,7 @@ const MyComponent = defineComponent({
       cfDemandLink: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
       routeColors: [] as { match: any; color: string; label: string }[],
+      usedLabels: [] as string[],
     }
   },
 
@@ -283,7 +294,9 @@ const MyComponent = defineComponent({
     },
 
     legendRows(): string[][] {
-      return this.routeColors.map(r => [r.color, r.label])
+      return this.routeColors
+        .filter(r => this.usedLabels.includes(r.label))
+        .map(r => [r.color, r.label])
     },
   },
 
@@ -925,7 +938,8 @@ const MyComponent = defineComponent({
 
       this.loadingText = 'Summarizing departures...'
 
-      if (this.vizDetails.customRouteTypes) {
+      // Use custom colors if they exist, otherwise use defaults
+      if (this.vizDetails.customRouteTypes.length > 0) {
         this.routeColors = this.vizDetails.customRouteTypes
       } else {
         this.routeColors = DEFAULT_ROUTE_COLORS
@@ -1037,6 +1051,7 @@ const MyComponent = defineComponent({
 
     async constructDepartureFrequencyGeoJson() {
       const geojson = []
+      this.usedLabels = []
 
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
@@ -1107,6 +1122,7 @@ const MyComponent = defineComponent({
               // Set color and quit searching after first successful match
               if (matched) {
                 color = config.color
+                if (!this.usedLabels.includes(config.label)) this.usedLabels.push(config.label)
                 break
               }
             }
