@@ -115,86 +115,20 @@ const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
-// const DEFAULT_ROUTE_COLORS = [
-//   {
-//     match: { transportMode: 'rail', id: 'S*', gtfsType: [109], preferRegex: true },
-//     color: '#408335',
-//     label: 'S-Bahn',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'rail',
-//       id: 'U*',
-//       gtfsType: [1, 400, 401, 402, 403, 404, 405],
-//       preferRegex: true,
-//     },
-//     color: '#115D91',
-//     label: 'U-Bahn',
-//     isUsed: false,
-//   },
-//   {
-//     match: { transportMode: 'tram', gtfsType: [0, 900, 901, 902, 903, 904, 905, 906] },
-//     color: '#BE1414',
-//     label: 'Tram',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'rail',
-//       gtfsType: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
-//     },
-//     color: 'red',
-//     label: 'Rail',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'bus',
-//       gtfsType: [3, 700, 701, 702, 703, 704],
-//     },
-//     color: '#95276E',
-//     label: 'Bus',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'ferry',
-//       gtfsType: [4, 1000, 1200],
-//     },
-//     color: '#0480c1',
-//     label: 'Ferry',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'pt',
-//     },
-//     color: '#00f',
-//     label: 'Public Transport',
-//     isUsed: false,
-//   },
-//   {
-//     match: {
-//       transportMode: 'train',
-//     },
-//     color: '#080',
-//     label: 'Train Transport',
-//     isUsed: false,
-//   },
-//   { match: { id: ['**'] }, color: 'yellow', label: 'Other' },
-// ] as { match: any; color: string; label: string; isUsed: boolean }[]
-
 const DEFAULT_ROUTE_COLORS = [
   {
     match: {
       transportMode: 'bus',
+      // gtfsRouteType: [3, 700, 701, 702, 703, 704],
     },
     color: '#95276E',
     label: 'Bus',
   },
   {
-    match: { transportMode: 'tram' },
+    match: {
+      transportMode: 'tram',
+      // gtfsRouteType: [0, 900, 901, 902, 903, 904, 905, 906]
+    },
     color: '#BE1414',
     label: 'Tram',
   },
@@ -202,24 +136,33 @@ const DEFAULT_ROUTE_COLORS = [
     match: {
       transportMode: 'rail',
       id: 'U*',
+      // gtfsRouteType: [1, 400, 401, 402, 403, 404, 405],
     },
     color: '#115D91',
     label: 'U-Bahn',
   },
   {
-    match: { transportMode: 'rail', id: 'S*' },
+    match: {
+      transportMode: 'rail',
+      id: 'S*',
+      // gtfsRouteType: [109],
+    },
     color: '#408335',
     label: 'S-Bahn',
   },
   {
     match: {
       transportMode: 'rail',
+      // gtfsRouteType: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
     },
     color: '#EC0016 ',
     label: 'Long-distance train services',
   },
   {
-    match: { transportMode: 'ferry' },
+    match: {
+      transportMode: 'ferry',
+      // gtfsRouteType: [4, 1000, 1200],
+    },
     color: '#0480c1',
     label: 'Ferry',
   },
@@ -990,6 +933,8 @@ const MyComponent = defineComponent({
       } else {
         this.routeColors = DEFAULT_ROUTE_COLORS
       }
+
+      console.log('routeColors', this.routeColors)
 
       await this.processDepartures()
 
