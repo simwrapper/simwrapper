@@ -1092,7 +1092,6 @@ const MyComponent = defineComponent({
 
           for (const route of this._departures[linkID].routes) {
             const props = this._routeData[route] as any
-            // console.log({ props })
 
             // all match entries must match to select a color
             for (const config of this.routeColors) {
