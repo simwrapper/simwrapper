@@ -209,6 +209,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // pick up where we left off if user interactively gave us the CRS
   if (rawData) _rawData = rawData
   if (options) _options = options
+  if (options?.crs) _crs = options.crs
 
   if (!_rawData) {
     console.error("can't restart: no data")
@@ -222,7 +223,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // Be careful to only split chunks at the border between </link> and <link>
 
   // 9% at a time seems nice
-  let chunkBytes = Math.floor(_rawData.length / 11)
+  let chunkBytes = _rawData.length < 16384 ? _rawData.length : Math.floor(_rawData.length / 11)
 
   let decoded = ''
   let currentBytePosition = chunkBytes
@@ -231,7 +232,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // Find end of nodes; close them and close network. Parse it.
   postMessage({ status: 'Parsing nodes...' })
 
-  while (currentBytePosition < _rawData.length) {
+  while (currentBytePosition <= _rawData.length) {
     const text = decoder.decode(firstChunk)
     decoded += text
 
@@ -247,8 +248,6 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   let networkNodes = decoded.slice(0, endNodes) + '\n</network>\n'
 
   let network = parseXML(networkNodes)
-
-  // console.log({ network })
 
   // What is the CRS?
   let coordinateReferenceSystem = _crs
@@ -325,7 +324,6 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   let endLinks = decoded.lastIndexOf('</link>')
   let closeTagLength = 7
 
-  console.log(80, endLinks)
   // old MATSim networks used <link blah=.../> instead of <link asdfasdf>...</link>
   if (endLinks === -1) {
     endLinks = decoded.lastIndexOf('/>')
