@@ -11,7 +11,7 @@
    .vessel
 
     //- these are sections defined by viz-summary.yml etc
-    .curated-sections
+    .curated-sections(:id="idFolderTable")
 
       //- FOLDERS: file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
@@ -186,10 +186,13 @@ export default defineComponent({
     xsubfolder: String,
   },
   data: () => {
+    const idFolderTable = `id-${Math.random()}`
     return {
       globalState: globalStore.state,
       summaryYamlFilename: 'viz-summary.yml',
       mdRenderer,
+      idFolderTable,
+      resizeObserver: {} as any,
       myState: {
         errorStatus: '',
         folders: [],
@@ -405,6 +408,8 @@ export default defineComponent({
         this.myState.errorStatus = ''
         this.myState.folders = [' UP'].concat(folders)
         this.myState.files = allVizes
+
+        await this.updateFolderLayout()
       } catch (err) {
         // Bad things happened! Tell user
         const e = err as any
@@ -482,6 +487,23 @@ export default defineComponent({
       // this happens async
       this.fetchFolderContents()
     },
+
+    async updateFolderLayout() {
+      await this.$nextTick()
+      const container = document.getElementById(this.idFolderTable) as any
+      if (!container) return
+
+      const items = this.myState.folders.length
+      const itemHeight = 36 // Approximate height of each item
+      const containerWidth = container.offsetWidth
+      const itemWidth = 300 // Minimum width of each item
+      const maxColumns = 1 + Math.floor(containerWidth / itemWidth)
+
+      let numRows = Math.ceil(items / maxColumns) // Math.sqrt(items))
+      if (containerWidth < 500) numRows = 10000
+
+      container.style.setProperty('--num-rows', numRows)
+    },
   },
   watch: {
     'globalState.colorScheme'() {
@@ -527,8 +549,15 @@ export default defineComponent({
       }
     },
   },
+
   mounted() {
     this.updateRoute()
+
+    const dashboard = document.getElementById(this.idFolderTable) as HTMLElement
+    this.resizeObserver = new ResizeObserver(entries => {
+      this.updateFolderLayout()
+    })
+    this.resizeObserver.observe(dashboard)
   },
 })
 </script>
@@ -627,11 +656,15 @@ h4 {
 
 .folder-table {
   display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 3px;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-rows: repeat(var(--num-rows, 20), min-content);
   list-style: none;
   margin-bottom: 0px;
   padding-left: 0px;
+  font-size: 0.9rem;
+  line-height: 0.9rem;
 }
 
 .folder {
