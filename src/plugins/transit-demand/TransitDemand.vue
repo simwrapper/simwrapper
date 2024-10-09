@@ -171,17 +171,17 @@ const DEFAULT_ROUTE_COLORS = [
     color: '#00a',
     label: 'Public Transport',
   },
-  {
-    match: { transportMode: 'train' },
-    color: '#0a0',
-    label: 'Rail',
-  },
+  // {
+  //   match: { transportMode: 'train' },
+  //   color: '#0a0',
+  //   label: 'Rail',
+  // },
   {
     match: { id: '**' },
-    color: '#000',
+    color: '#aae',
     label: 'Other',
   },
-] as { match: any; color: string; label: string }[]
+] as { match: any; color: string; label: string; hide: boolean }[]
 
 class Departure {
   public total: number = 0
@@ -228,7 +228,7 @@ const MyComponent = defineComponent({
         projection: '',
         title: '',
         description: '',
-        customRouteTypes: [] as { match: any; color: string; label: string }[],
+        customRouteTypes: [] as { match: any; color: string; label: string; hide: boolean }[],
       },
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -272,7 +272,7 @@ const MyComponent = defineComponent({
       cfDemand: null as crossfilter.Crossfilter<any> | null,
       cfDemandLink: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
-      routeColors: [] as { match: any; color: string; label: string }[],
+      routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
     }
   },
@@ -1089,12 +1089,16 @@ const MyComponent = defineComponent({
 
           let isRail = true
           let color = '#888'
+          let hideThisLine = false // stores if this line should be hidden
 
           for (const route of this._departures[linkID].routes) {
             const props = this._routeData[route] as any
 
             // all match entries must match to select a color
             for (const config of this.routeColors) {
+              hideThisLine = false
+              if (config.hide) hideThisLine = true
+
               let matched = true
               for (const [key, pattern] of Object.entries(config.match) as any[]) {
                 const valueForThisProp = props[key]
@@ -1104,9 +1108,14 @@ const MyComponent = defineComponent({
                   break
                 }
 
-                // if its the gtfsRoute type we must used inludes() instead of isMatch()
+                // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
                 if (key === 'gtfsRouteType') {
-                  if (!pattern.includes(valueForThisProp)) {
+                  if (Array.isArray(pattern) && !pattern.includes(valueForThisProp)) {
+                    matched = false
+                    break
+                  }
+
+                  if (Number.isInteger(pattern) && valueForThisProp !== pattern) {
                     matched = false
                     break
                   }
@@ -1119,9 +1128,11 @@ const MyComponent = defineComponent({
                 }
               }
               // Set color and quit searching after first successful match
+              // the label will only be added if the route should not be hidden
               if (matched) {
                 color = config.color
-                if (!this.usedLabels.includes(config.label)) this.usedLabels.push(config.label)
+                if (!this.usedLabels.includes(config.label) && !hideThisLine)
+                  this.usedLabels.push(config.label)
                 break
               }
             }
@@ -1150,7 +1161,9 @@ const MyComponent = defineComponent({
           }
 
           line = this.offsetLineByMeters(line, 15)
-          geojson.push(line)
+
+          // Add the line to the geojson array only if the line should not be hidden
+          if (!hideThisLine) geojson.push(line)
         }
       }
 
