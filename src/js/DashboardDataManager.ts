@@ -131,9 +131,19 @@ export default class DashboardDataManager {
         }
       }
 
+      // Firefox just silently dies if the text is too large. Set a timeout...
+      const withTimeout = (promise: Promise<any>, timeout: number) => {
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Operation timed out after ${timeout}ms`))
+          }, timeout)
+        })
+        return Promise.race([promise, timeoutPromise])
+      }
+
       // wait for dataset to load
-      // (this will immediately return dataset if it is already loaded)
-      let myDataset = await this.datasets[config.dataset].dataset
+      // this will immediately return dataset if it is already loaded
+      let myDataset = await withTimeout(this.datasets[config.dataset].dataset, 60 * 1000)
 
       let { _comments, ...allRows } = myDataset
       let comments = _comments as unknown as string[]
@@ -159,7 +169,8 @@ export default class DashboardDataManager {
 
       return { allRows, comments }
     } catch (e) {
-      // const message = '' + e
+      console.error('' + e)
+      throw Error(`loading ${config.dataset}. Missing? CSV too large?`)
       return { allRows: {}, comments: [] }
     }
   }
@@ -555,8 +566,8 @@ export default class DashboardDataManager {
 
         thread.onmessage = e => {
           thread.terminate()
-          if (e.data.error) {
-            let msg = '' + e.data.error
+          if (!e.data || e.data.error) {
+            let msg = '' + (e.data?.error || 'Error loading file')
             msg = msg.replace('[object Response]', 'Error loading file')
 
             if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`

@@ -222,6 +222,11 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
     },
   })
 
+  if (!csv.data?.length) {
+    console.error('NODATA - Papaparse returned nothing!')
+    throw Error('Failed loading CSV file. Perhaps too large? Bad format?')
+  }
+
   let headers = csv.meta.fields || []
 
   if (_config.drop) {
@@ -283,6 +288,7 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       }
     }
   }
+
   calculateMaxValues(fileKey, dataTable)
   _fileData[fileKey] = dataTable
 
