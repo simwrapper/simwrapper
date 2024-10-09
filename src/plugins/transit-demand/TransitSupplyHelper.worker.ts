@@ -97,6 +97,7 @@ function processTransit() {
   const transitLines = _xml.transitXML.transitSchedule.transitLine
 
   for (const line of transitLines) {
+    // get the GTFS route type from the attributes
     const gtfsRoute =
       line.attributes?.attribute instanceof Array
         ? (line.attributes.attribute as any[]).find(
