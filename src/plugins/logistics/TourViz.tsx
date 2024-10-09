@@ -416,9 +416,6 @@ export default function Component(props: {
     }
 
 
-
-
-
     layers.push(
       //@ts-ignore:
       new PathLayer({
@@ -448,8 +445,8 @@ export default function Component(props: {
           data: legs,
           getSourcePosition: (d: any) => d.points[0],
           getTargetPosition: (d: any) => d.points[d.points.length - 1],
-          getSourceColor: (d: any) => d.color, // [200, 32, 224],
-          getTargetColor: (d: any) => d.color, // [200, 32, 224],
+          getSourceColor: (d: any) => getLspTourColor(d.tour.vehicleId),
+          getTargetColor: (d: any) => getLspTourColor(d.tour.vehicleId),
           getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
           getHeight: 0.5,
           widthMinPixels: 2,
@@ -467,7 +464,6 @@ export default function Component(props: {
         })
       )
     } else {
-      // console.log(legs)
       layers.push(
         //@ts-ignore:
         new PathOffsetLayer({
@@ -573,6 +569,39 @@ export default function Component(props: {
       }
     }
 
+    function getCarrierToursColors(leg: any) {
+        // Simple hash function to generate a number from the string
+        let hash = 0;
+        for (let i = 0; i < leg.tour.tourId.length; i++) {
+          hash = leg.tour.tourId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        hash *= leg.tour.tourNumber
+        // Use the hash to generate a hue value (0 - 360)
+        const hue = (hash % 360 + 360) % 360; // Ensures hue is positive
+      
+        // Use fixed saturation and lightness to keep the colors vivid and distinct
+        const saturation = 70;  // Percentage (70%)
+        const lightness = 50;   // Percentage (50%)
+      
+        // Convert HSL to RGB for use in most systems
+        return hslToRgb(hue, saturation, lightness);
+
+      }
+      
+      // Helper function to convert HSL to RGB
+      function hslToRgb(h: number, s: number, l: number) {
+        s /= 100;
+        l /= 100;
+      
+        const k = (n:any) => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = (n:any) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      
+        return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+      }
+      
+
     layers.push(
       //@ts-ignore:
       new PathLayer({
@@ -602,8 +631,8 @@ export default function Component(props: {
           data: legs,
           getSourcePosition: (d: any) => d.points[0],
           getTargetPosition: (d: any) => d.points[d.points.length - 1],
-          getSourceColor: (d: any) => d.color, // [200, 32, 224],
-          getTargetColor: (d: any) => d.color, // [200, 32, 224],
+          getSourceColor: (d: any) => getCarrierToursColors(d),
+          getTargetColor: (d: any) => getCarrierToursColors(d),
           getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
           getHeight: 0.5,
           widthMinPixels: 2,
@@ -627,7 +656,8 @@ export default function Component(props: {
           id: 'deliveryroutes1',
           data: legs,
           getPath: (d: any) => d.points,
-          getColor: (d: any) => d.color,
+          // getColor: (d: any) => d.color,
+          getColor: (d: any) => getCarrierToursColors(d),
           getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
@@ -741,7 +771,7 @@ export default function Component(props: {
         getTargetPosition: (d: any) => [d.toX, d.toY],
         getSourceColor: [0, 228, 255, opacity],
         getTargetColor: [240, 0, 60, 224],
-        getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
+        getWidth: parseInt("100") || 1.0 * 0.5,
         widthUnits: 'pixels',
         getHeight: 0.5,
         opacity: 0.9,

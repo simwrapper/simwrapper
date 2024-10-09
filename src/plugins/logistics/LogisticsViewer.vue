@@ -39,7 +39,7 @@
       b-field.detail-buttons(v-if="selectedLsp" size="is-small")
         // watch array and if the length changes, change value of boolean for v-if
         b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
-          span {{ $t('Shipments') }}
+          span {{ $t('Shipment Chains') }}
         b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning")
           span {{ $t('Shipment Chains') }}
         b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
@@ -60,7 +60,7 @@
         br
         h5(style="font-weight:bold") {{"Hub Chain Carriers:"}}
           .carrierHub(v-for="hubChain in allHubChains" :key="hubChain.chainIndex")
-            h7(style="font-weight:bold") {{"Hub Chain " + hubChain.chainIndex + ":"}}
+            h7(name="" style="font-weight:bold") {{"Hub Chain " + hubChain.chainIndex + ":"}}
             .carrier(v-for="carrier in hubChain.chainIds" :key="carrier"
               :class="{selected: carrier===selectedCarrier}"
               @click="handleSelectCarrier(carrier)")
@@ -77,7 +77,7 @@
       .detail-area
 
         .lspShipmentChains(v-if="activeTab=='lspShipmentChains'")
-          span {{ $t('lspShipmentChains')}}: {{ lspShipmentHubChains.length}}
+          span {{ $t('Lsp Shipments')}}: {{ lspShipmentHubChains.length}}
           .leaf.tour(v-for="lspShipmentChain,i in lspShipmentHubChains" :key="`${i}-${lspShipmentChain.shipmentId}`"
           @click="handleSelectShipmentChain(lspShipmentChain)"     
           ) {{ `${lspShipmentChain.shipmentId}: ${lspShipmentChain.chainId}` }}
@@ -92,15 +92,20 @@
           .leaf.tour(v-for="tour,i in carrierTours[0]" :key="`${i}-${tour.$id}`"
             @click="handleSelectTour(tour)"
             :class="{selected: selectedTours.includes(tour)}")
-            div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
-            div(v-else) {{ `${tour.vehicleId}` }}
+            .carrier-tours(v-if="tour.tourId")
+              div(v-if="tour.tourId && showCarrierToursList" id="tourColor" :style="{ backgroundColor: getTourColor(tour.tourId, tour.tourNumber) }")
+              div(v-if="tour.tourId && !showCarrierToursList" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+              div(v-if="tour.tourId" id="tour") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
+              div(v-else) {{ `${tour.vehicleId}` }}
         .lsptours(v-if="activeTab=='lspTours' && selectedCarrier == ''")
           span {{ $t('tours')}}: {{ lspToursAll.length }}
           .leaf.tour(v-for="tour,i in lspToursAll" :key="`${i}-${tour.$id}`"
             @click="handleSelectTour(tour)"
             :class="{selected: selectedTours.includes(tour)}")
-            div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
-            div(v-else) {{ `${tour.vehicleId}` }}
+            .lsp-tours(v-if="tour.tourId")
+              div(v-if="tour.tourId" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+              div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
+              div(v-else) {{ `${tour.vehicleId}` }}
 
 
       .switchbox
@@ -351,6 +356,7 @@ const LogisticsPlugin = defineComponent({
       carriers: [] as any[],
       carrierTours: [] as any[],
       showCarrierTours: false,
+      showCarrierToursList: false,
       vehicles: [] as any[],
       shipments: [] as any[],
       shipmentLookup: {} as any, // keyed on $id
@@ -459,7 +465,6 @@ const LogisticsPlugin = defineComponent({
     },
 
     checkIfDirectChain() {
-      this.showCarrierTours = false
       if (this.lspShipmentDirectChains.length > 0 && this.lspShipmentHubChains.length == 0) {
         return true
       } else {
@@ -816,6 +821,57 @@ const LogisticsPlugin = defineComponent({
       }
     },
 
+    // Helper function to convert HSL to RGB
+    hslToRgb(h: number, s: number, l: number) {
+      s /= 100;
+      l /= 100;
+
+      const k = (n: any) => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n: any) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+    },
+
+    getTourColor(tourId: any, tourNumber: any) {
+      // Simple hash function to generate a number from the string
+      let hash = 0;
+      for (let i = 0; i < tourId.length; i++) {
+        hash = tourId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      hash *= tourNumber
+      // Use the hash to generate a hue value (0 - 360)
+      const hue = (hash % 360 + 360) % 360; // Ensures hue is positive
+
+      // Use fixed saturation and lightness to keep the colors vivid and distinct
+      const saturation = 70;  // Percentage (70%)
+      const lightness = 50;   // Percentage (50%)
+     
+
+      // Convert HSL to RGB for use in most systems
+      let color = this.hslToRgb(hue, saturation, lightness)
+
+      return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    },
+
+
+    getLspTourColor(vehicleId: string) {
+      // Simple hash function to generate a number from the string
+      let hash = 0;
+      for (let i = 0; i < vehicleId.length; i++) {
+        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      // Generate RGB values by mapping parts of the hash to the 0-255 range
+      const r = (hash & 0xFF0000) >> 16;
+      const g = (hash & 0x00FF00) >> 8;
+      const b = hash & 0x0000FF;
+
+      return `rgb(${r}, ${g}, ${b})`;
+    },
+
+
     async handleSelectTour(tour: any) {
       // add the legs from the shipmentLookup if the tour has no route data
       if (!tour.legs.length) {
@@ -906,12 +962,14 @@ const LogisticsPlugin = defineComponent({
     },
 
     handleSelectLspButton(lsp: any) {
+      this.showCarrierToursList = false
       this.activeTab = 'lspTours'
       this.selectedCarrier = ''
       this.handleSelectLsp(lsp)
     },
 
     handleSelectLspFromList(lsp: any) {
+      this.showCarrierToursList = false
       if (this.lspShipmentDirectChains.length == 0 && this.lspShipmentHubChains.length == 0) {
         this.activeTab = "lspShipmentChains"
       } else {
@@ -1007,12 +1065,15 @@ const LogisticsPlugin = defineComponent({
     },
 
     handleSelectCarrierTours(carrierId: any) {
+      this.showCarrierToursList = true;
       this.handleSelectCarrier(carrierId)
       this.selectedCarrier = carrierId
 
     },
 
     handleSelectCarrier(carrierId: any) {
+
+      console.log(this.showCarrierToursList)
       /// make new carrier specific data object with tours and shipments 
       let carrier: any = {}
 
@@ -1153,12 +1214,10 @@ const LogisticsPlugin = defineComponent({
       }
 
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && !this.allCarrierHubIds.includes(carrierId)) {
-        console.log("direct")
         this.activeTab = "shipments"
       }
 
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.allCarrierHubIds.includes(carrierId)) {
-        console.log("chain")
         this.activeTab = "lspShipmentChains"
       }
 
@@ -2070,6 +2129,22 @@ input {
   cursor: pointer;
 }
 
+.carrier-tours {
+  display: flex;
+  margin-bottom: 0.25rem;
+}
+
+#tourColor {
+  width: 15px;
+  // flex: .1;
+  margin-right: 5px;
+}
+
+.lsp-tours {
+  display: flex;
+  margin-bottom: 0.25rem;
+}
+
 .lsp {
   padding: 0.25rem 0.5rem;
   margin: 0 0rem;
@@ -2161,7 +2236,7 @@ input {
 }
 
 .leaf {
-  padding-left: 1rem;
+  padding-left: 0.5rem;
 }
 
 .leaf:hover {
