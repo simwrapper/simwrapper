@@ -939,7 +939,7 @@ const MyComponent = defineComponent({
       this.loadingText = 'Summarizing departures...'
 
       // Use custom colors if they exist, otherwise use defaults
-      if (this.vizDetails.customRouteTypes.length > 0) {
+      if (this.vizDetails.customRouteTypes && this.vizDetails.customRouteTypes.length > 0) {
         this.routeColors = this.vizDetails.customRouteTypes
       } else {
         this.routeColors = DEFAULT_ROUTE_COLORS
