@@ -496,10 +496,10 @@ export default defineComponent({
       const items = this.myState.folders.length
       const itemHeight = 36 // Approximate height of each item
       const containerWidth = container.offsetWidth
-      const itemWidth = 300 // Minimum width of each item
+      const itemWidth = 200 // Minimum width of each item
       const maxColumns = 1 + Math.floor(containerWidth / itemWidth)
 
-      let numRows = Math.ceil(items / maxColumns) // Math.sqrt(items))
+      let numRows = 8 + Math.ceil(items / maxColumns)
       if (containerWidth < 500) numRows = 10000
 
       container.style.setProperty('--num-rows', numRows)
@@ -658,13 +658,12 @@ h4 {
   display: grid;
   gap: 3px;
   grid-auto-flow: column;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, max-content);
   grid-template-rows: repeat(var(--num-rows, 20), min-content);
   list-style: none;
   margin-bottom: 0px;
   padding-left: 0px;
-  font-size: 0.9rem;
-  line-height: 0.9rem;
+  line-height: 1.1rem;
 }
 
 .folder {
