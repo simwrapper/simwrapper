@@ -195,7 +195,7 @@ export default function Component({
       getTextSize: 12,
       getTextColor: [255, 255, 255, 255],
       getTextBackgroundColor: [0, 0, 0, 255],
-      pointType: 'text',
+      pointType: 'circle+text',
       textFontWeight: 'bold',
       lineWidthUnits: 'pixels',
       autohighlight: false,

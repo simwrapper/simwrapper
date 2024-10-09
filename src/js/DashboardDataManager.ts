@@ -277,9 +277,18 @@ export default class DashboardDataManager {
     cbStatus?: any
   ) {
     const path = `/${subfolder}/${filename}`
+    const options = {} as any
+    if (vizDetails.projection) options.crs = vizDetails.projection
+
     // Get the dataset the first time it is requested
     if (!this.networks[path]) {
-      this.networks[path] = this._fetchNetwork({ subfolder, filename, vizDetails, cbStatus })
+      this.networks[path] = this._fetchNetwork({
+        subfolder,
+        filename,
+        vizDetails,
+        cbStatus,
+        options,
+      })
     }
 
     // wait for the worker to provide the network
@@ -637,9 +646,10 @@ export default class DashboardDataManager {
     filename: string
     vizDetails: any
     cbStatus?: any
+    options: { crs?: string }
   }) {
     return new Promise<NetworkLinks>(async (resolve, reject) => {
-      const { subfolder, filename, vizDetails, cbStatus } = props
+      const { subfolder, filename, vizDetails, cbStatus, options } = props
 
       const path = `/${subfolder}/${filename}`
       console.log('load network:', path)
@@ -702,6 +712,7 @@ export default class DashboardDataManager {
           filePath: path,
           fileSystem: this.fileApi,
           vizDetails,
+          options,
           isFirefox, // we need this for now, because Firefox bug #260
         })
       } catch (err) {

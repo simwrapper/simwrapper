@@ -53,8 +53,9 @@ const plugins = [
     kebabName: 'links',
     component: defineAsyncComponent(() => import('./links-gl/NetworkLinks.vue')),
     filePatterns: [
-      '**/*network.xml?(.gz)',
-      '**/*network.geo?(.)json?(.gz)',
+      // deprecated! Use shapefile/map viewer instead
+      // '**/*network.xml?(.gz)',
+      // '**/*network.geo?(.)json?(.gz)',
       '**/viz-gl-link*.y?(a)ml',
       '**/viz-link*.y?(a)ml',
     ],

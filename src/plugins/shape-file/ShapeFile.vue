@@ -17,7 +17,6 @@
 
       .legend-panel
         legend-box(:legendStore="legendStore")
-        //- .description(v-if="vizDetails.description" v-html="vizDetails.description")
 
       .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
         .bglayer-section
@@ -3091,7 +3090,7 @@ export default MyComponent
   grid-row: 1 / 2;
   grid-column: 2 / 3;
   width: 0.5rem;
-  background-color: #00000000;
+  background-color: var(--bgCardFrame);
   user-select: none;
 }
 
