@@ -684,7 +684,12 @@ const GridMap = defineComponent({
 
     async loadAndPrepareCSVData() {
       const config = { dataset: this.vizDetails.file }
-      const csv = await this.myDataManager.getDataset(config)
+      let csv = {} as any
+      try {
+        csv = await this.myDataManager.getDataset(config)
+      } catch (e) {
+        this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
+      }
 
       // The datamanager doesn't return the comments...
       if (csv.comments && csv.comments.length) {
@@ -700,9 +705,10 @@ const GridMap = defineComponent({
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
 
-      console.log('csv: ', csv.allRows)
-      console.log('valueColumn: ', this.vizDetails.valueColumn)
-      console.log('csv:', { csv })
+      // console.log('csv: ', csv.allRows)
+      // console.log('valueColumn: ', this.vizDetails.valueColumn)
+      // console.log('csv:', { csv })
+
       if (this.vizDetails.valueColumn == undefined) {
         this.vizDetails.valueColumn = 'value'
       }
@@ -995,7 +1001,6 @@ const GridMap = defineComponent({
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
     delete REACT_VIEW_HANDLES[this.id]
-
     this.$store.commit('setFullScreen', false)
   },
 })
