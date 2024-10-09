@@ -97,15 +97,24 @@ function processTransit() {
   const transitLines = _xml.transitXML.transitSchedule.transitLine
 
   for (const line of transitLines) {
+    // get the GTFS route type from the attributes
+    const gtfsRoute =
+      line.attributes?.attribute instanceof Array
+        ? (line.attributes.attribute as any[]).find(
+            attribute => attribute.name === 'gtfs_route_type'
+          )?.['#text'] ?? -1
+        : -1
+
     const attr: TransitLine = {
       id: line.id,
       transitRoutes: [],
+      gtfsRouteType: gtfsRoute,
     }
 
     if (!line.transitRoute) continue
 
     for (const route of line.transitRoute) {
-      const details: RouteDetails = buildTransitRouteDetails(line.id, route)
+      const details: RouteDetails = buildTransitRouteDetails(line.id, route, gtfsRoute)
       details.uniqueRouteID = uniqueRouteID++
       attr.transitRoutes.push(details)
     }
@@ -141,7 +150,7 @@ function generateStopFacilitiesFromXML() {
   }
 }
 
-function buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
+function buildTransitRouteDetails(lineId: string, route: any, gtfsRoute: number): RouteDetails {
   const allDepartures = route.departures.departure
   allDepartures.sort(function (a: any, b: any) {
     const timeA = a.departureTime
@@ -160,6 +169,7 @@ function buildTransitRouteDetails(lineId: string, route: any): RouteDetails {
     firstDeparture: allDepartures[0].departureTime,
     lastDeparture: allDepartures[allDepartures.length - 1].departureTime,
     geojson: '',
+    gtfsRouteType: gtfsRoute,
   }
 
   if (Array.isArray(route.routeProfile.stop)) {

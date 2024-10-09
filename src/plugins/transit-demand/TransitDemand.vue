@@ -116,12 +116,72 @@ const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 const DEFAULT_ROUTE_COLORS = [
-  { match: { transportMode: 'rail', id: 'S*' }, color: '#393', label: 'S-Bahn' },
-  { match: { transportMode: 'rail', id: 'U*' }, color: '#44a', label: 'U-Bahn' },
-  { match: { transportMode: 'tram' }, color: '#b00', label: 'Tram' },
-  { match: { transportMode: 'rail' /* id: ['IC*', 'RE*', 'RB*'] */ }, color: 'red', label: 'Rail' },
-  { match: { id: ['**'] }, color: 'purple', label: 'Bus & Other' },
-] as { match: any; color: string; label: string }[]
+  {
+    match: {
+      transportMode: 'bus',
+      // gtfsRouteType: [3, 700, 701, 702, 703, 704],
+    },
+    color: '#95276E',
+    label: 'Bus',
+  },
+  {
+    match: {
+      transportMode: 'rail',
+      id: 'U*',
+      // gtfsRouteType: [1, 400, 401, 402, 403, 404, 405],
+    },
+    color: '#115D91',
+    label: 'U-Bahn',
+  },
+  {
+    match: {
+      transportMode: 'rail',
+      id: 'S*',
+      // gtfsRouteType: [109],
+    },
+    color: '#408335',
+    label: 'S-Bahn',
+  },
+  {
+    match: {
+      transportMode: 'rail',
+      // gtfsRouteType: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
+    },
+    color: '#EC0016 ',
+    label: 'Long-distance train services',
+  },
+  {
+    match: {
+      transportMode: 'ferry',
+      // gtfsRouteType: [4, 1000, 1200],
+    },
+    color: '#0480c1',
+    label: 'Ferry',
+  },
+  {
+    match: {
+      transportMode: 'tram',
+      // gtfsRouteType: [0, 900, 901, 902, 903, 904, 905, 906]
+    },
+    color: '#BE1414',
+    label: 'Tram',
+  },
+  {
+    match: { transportMode: 'pt' },
+    color: '#00a',
+    label: 'Public Transport',
+  },
+  // {
+  //   match: { transportMode: 'train' },
+  //   color: '#0a0',
+  //   label: 'Rail',
+  // },
+  {
+    match: { id: '**' },
+    color: '#aae',
+    label: 'Other',
+  },
+] as { match: any; color: string; label: string; hide: boolean }[]
 
 class Departure {
   public total: number = 0
@@ -168,6 +228,7 @@ const MyComponent = defineComponent({
         projection: '',
         title: '',
         description: '',
+        customRouteTypes: [] as { match: any; color: string; label: string; hide: boolean }[],
       },
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -211,6 +272,8 @@ const MyComponent = defineComponent({
       cfDemand: null as crossfilter.Crossfilter<any> | null,
       cfDemandLink: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
+      routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
+      usedLabels: [] as string[],
     }
   },
 
@@ -231,7 +294,9 @@ const MyComponent = defineComponent({
     },
 
     legendRows(): string[][] {
-      return DEFAULT_ROUTE_COLORS.map(r => [r.color, r.label])
+      return this.routeColors
+        .filter(r => this.usedLabels.includes(r.label))
+        .map(r => [r.color, r.label])
     },
   },
 
@@ -359,6 +424,7 @@ const MyComponent = defineComponent({
         description: '',
         demand: '',
         projection: '',
+        customRouteTypes: [],
       }
 
       this.$emit('title', title)
@@ -872,6 +938,13 @@ const MyComponent = defineComponent({
 
       this.loadingText = 'Summarizing departures...'
 
+      // Use custom colors if they exist, otherwise use defaults
+      if (this.vizDetails.customRouteTypes && this.vizDetails.customRouteTypes.length > 0) {
+        this.routeColors = this.vizDetails.customRouteTypes
+      } else {
+        this.routeColors = DEFAULT_ROUTE_COLORS
+      }
+
       await this.processDepartures()
 
       // Build the links layer and add it
@@ -978,6 +1051,7 @@ const MyComponent = defineComponent({
 
     async constructDepartureFrequencyGeoJson() {
       const geojson = []
+      this.usedLabels = []
 
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
@@ -1015,12 +1089,16 @@ const MyComponent = defineComponent({
 
           let isRail = true
           let color = '#888'
+          let hideThisLine = false // stores if this line should be hidden
 
           for (const route of this._departures[linkID].routes) {
             const props = this._routeData[route] as any
 
             // all match entries must match to select a color
-            for (const config of DEFAULT_ROUTE_COLORS) {
+            for (const config of this.routeColors) {
+              hideThisLine = false
+              if (config.hide) hideThisLine = true
+
               let matched = true
               for (const [key, pattern] of Object.entries(config.match) as any[]) {
                 const valueForThisProp = props[key]
@@ -1029,15 +1107,36 @@ const MyComponent = defineComponent({
                   matched = false
                   break
                 }
-                // quit if match fails
-                if (!match.isMatch(valueForThisProp, pattern)) {
-                  matched = false
-                  break
+
+                // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
+                if (key === 'gtfsRouteType') {
+                  if (Array.isArray(pattern)) {
+                    // array of gtfs values
+                    if (!pattern.includes(valueForThisProp)) {
+                      matched = false
+                      break
+                    }
+                  } else {
+                    // numeric - just one value
+                    if (valueForThisProp !== pattern) {
+                      matched = false
+                      break
+                    }
+                  }
+                } else {
+                  // text-match the pattern
+                  if (!match.isMatch(valueForThisProp, pattern)) {
+                    matched = false
+                    break
+                  }
                 }
               }
               // Set color and quit searching after first successful match
+              // the label will only be added if the route should not be hidden
               if (matched) {
                 color = config.color
+                if (!this.usedLabels.includes(config.label) && !hideThisLine)
+                  this.usedLabels.push(config.label)
                 break
               }
             }
@@ -1066,7 +1165,9 @@ const MyComponent = defineComponent({
           }
 
           line = this.offsetLineByMeters(line, 15)
-          geojson.push(line)
+
+          // Add the line to the geojson array only if the line should not be hidden
+          if (!hideThisLine) geojson.push(line)
         }
       }
 
