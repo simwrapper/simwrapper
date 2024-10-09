@@ -1110,17 +1110,21 @@ const MyComponent = defineComponent({
 
                 // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
                 if (key === 'gtfsRouteType') {
-                  if (Array.isArray(pattern) && !pattern.includes(valueForThisProp)) {
-                    matched = false
-                    break
-                  }
-
-                  if (Number.isInteger(pattern) && valueForThisProp !== pattern) {
-                    matched = false
-                    break
+                  if (Array.isArray(pattern)) {
+                    // array of gtfs values
+                    if (!pattern.includes(valueForThisProp)) {
+                      matched = false
+                      break
+                    }
+                  } else {
+                    // numeric - just one value
+                    if (valueForThisProp !== pattern) {
+                      matched = false
+                      break
+                    }
                   }
                 } else {
-                  // quit if match fails
+                  // text-match the pattern
                   if (!match.isMatch(valueForThisProp, pattern)) {
                     matched = false
                     break
