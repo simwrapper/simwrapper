@@ -17,7 +17,14 @@
       p(style="margin-top: 0.5rem; font-size: 0.9rem")
         b TRANSIT ROUTES
 
-      b-input(
+      .panel-item(v-if="metrics.length > 1")
+        .metric-buttons
+          button.button.is-small.metric-button(
+            v-for="metric,i in metrics" :key="metric.field"
+            :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+            @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+
+      b-input.searchbox(
         v-model="searchText" style="padding: 0.5rem 0.5rem 1rem 0" size="is-small" placeholder="Search..."
       )
 
@@ -25,16 +32,25 @@
 
       .panel-items
         .route-list(v-if="routesOnLink.length > 0")
+
+          .link-summary.flex-col(v-if="summaryStats.departures")
+            p: b LINK SUMMARY
+            .indent.flex-col(style="margin-left: 0.5rem")
+              p Departures: {{ summaryStats.departures }}
+              p(v-if="cfDemand") Passengers: {{ summaryStats.pax }}
+              p(v-if="cfDemand") Load factor: {{ summaryStats.loadfac }}
+
+          p: b ROUTES ON LINK
           .route(v-for="route in routesOnLink"
               :key="route.uniqueRouteID"
               :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
-              @click="showRouteDetails(route.id)")
+              @click="showRouteDetails(route.id)"
+          )
             .route-title {{route.id}}
             .detailed-route-data
               .col
                 p: b {{route.departures}} departures
-                p First: {{route.firstDeparture}}
-                p Last: {{route.lastDeparture}}
+                p {{route.firstDeparture}} — {{route.lastDeparture}}
               .col(v-if="route.passengersAtArrival")
                 p: b {{ route.passengersAtArrival }} passengers
                 p {{ route.totalVehicleCapacity }} capacity
@@ -60,17 +76,6 @@
 
       .status-corner(v-if="loadingText")
         p {{ loadingText }}
-
-    .control-panel(:class="{'is-dashboard': config !== undefined }")
-
-      .panel-item
-        p.control-label {{  $t('metrics') }}:
-        .metric-buttons
-          button.button.is-small.metric-button(
-            v-for="metric,i in metrics" :key="metric.field"
-            :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-            @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
-
 
 </template>
 
@@ -249,8 +254,8 @@ const MyComponent = defineComponent({
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as any[],
       selectedRoute: null as any,
+      summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
-
       _attachedRouteLayers: [] as string[],
       _departures: {} as { [linkID: string]: Departure },
       _linkData: null as any,
@@ -672,6 +677,7 @@ const MyComponent = defineComponent({
       this.removeAttachedRoutes()
       this.routesOnLink = []
       this.stopHTML.html = ''
+      this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
     },
 
     showRouteDetails(routeID: string) {
@@ -823,8 +829,15 @@ const MyComponent = defineComponent({
 
         worker.onmessage = (event: MessageEvent) => {
           this.loadingText = 'Processing demand...'
-          const csvData = new TextDecoder('utf-8').decode(event.data)
           worker.terminate()
+
+          if (event.data.error) {
+            this.$emit('error', event.data.error)
+            this.loadingText = ''
+            return
+          }
+
+          const csvData = new TextDecoder('utf-8').decode(event.data)
 
           Papa.parse(csvData, {
             // preview: 10000,
@@ -1288,6 +1301,9 @@ const MyComponent = defineComponent({
 
       // the browser delivers some details that we need, in the fn argument 'e'
       const props = e.features[0].properties
+
+      console.log('CLICKED ON', props.id)
+
       const routeIDs = this._departures[props.id].routes
 
       this.calculatePassengerVolumes(props.id)
@@ -1310,19 +1326,30 @@ const MyComponent = defineComponent({
     },
 
     calculatePassengerVolumes(id: string) {
-      if (!this.cfDemandLink || !this.cfDemand) return
+      let empty = { departures: 0, pax: 0, loadfac: 0 }
 
-      this.cfDemandLink.filter(id)
+      const found = this._transitLinks.features.find((link: any) => link.properties.id == id)
 
-      const allLinks = this.cfDemand.allFiltered()
-      let sum = 0
+      console.log({ found })
 
-      allLinks.map(d => {
-        sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
-      })
-
-      // console.log({ sum, allLinks })
+      this.summaryStats = found ? found.properties : empty
     },
+
+    //   if (!this.cfDemandLink || !this.cfDemand) return
+
+    //   this.cfDemandLink.filter(id)
+
+    //   const allLinks = this.cfDemand.allFiltered()
+    //   let sum = 0
+
+    //   allLinks.map(d => {
+    //     // sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
+    //     sum += d.passengersAtArrival
+    //   })
+
+    //   console.log({ sum, allLinks })
+    //   this.currentLinkPax = sum
+    // },
 
     removeAttachedRoutes() {
       for (const layerID of this._attachedRouteLayers) {
@@ -1543,7 +1570,6 @@ h3 {
 }
 
 .route-title {
-  font-size: 1rem;
   font-weight: bold;
   line-height: 1.2rem;
   margin: 0 0.25rem;
@@ -1674,10 +1700,13 @@ h3 {
 .metric-buttons {
   display: flex;
   flex-direction: row;
+  gap: 0px;
+  margin: 0.25rem 0.5rem 0.25rem 0;
 }
 
 .metric-button {
-  margin-right: 0.5rem;
+  border-radius: 0;
+  flex: 1;
 }
 
 .detailed-route-data {
@@ -1689,7 +1718,7 @@ h3 {
 .col {
   display: flex;
   flex-direction: column;
-  line-height: 1rem;
+  line-height: 1.1rem;
 }
 
 .map-styles {
@@ -1707,10 +1736,10 @@ h3 {
   flex-direction: row;
   background-color: var(--bgPanel);
   padding: 0rem 3rem;
-  margin: auto 5rem;
+  margin: auto auto;
+  width: 25rem;
   height: 4rem;
-  text-align: center;
-  border: 1px solid #cccccc80;
+  border: 3px solid #cccccc80;
   filter: $filterShadow;
 
   a {
@@ -1778,6 +1807,17 @@ h3 {
   transition: background-color 0.3s ease;
   transition-delay: 0.1s;
   cursor: ew-resize;
+}
+
+.link-summary {
+  margin-bottom: 1rem;
+  margin-right: 0.5rem;
+  // border: 1px solid #80808066;
+  // padding: 0.25rem;
+}
+
+.searchbox {
+  margin-top: 0.25rem;
 }
 
 .new-rightside-info-panel {
