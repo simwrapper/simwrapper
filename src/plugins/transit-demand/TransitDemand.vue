@@ -94,6 +94,7 @@ import * as turf from '@turf/turf'
 import avro from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
+import { debounce } from 'debounce'
 import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
@@ -238,6 +239,7 @@ const MyComponent = defineComponent({
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      debounceHandleSearchText: {} as any,
 
       myState: {
         subfolder: '',
@@ -250,7 +252,6 @@ const MyComponent = defineComponent({
       loadingText: 'MATSim Transit Inspector',
       mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
-
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as any[],
       selectedRoute: null as any,
@@ -307,7 +308,7 @@ const MyComponent = defineComponent({
 
   watch: {
     searchText() {
-      this.handleSearchText()
+      this.debounceHandleSearchText()
     },
 
     '$store.state.resizeEvents'() {
@@ -356,6 +357,7 @@ const MyComponent = defineComponent({
 
   methods: {
     handleSearchText() {
+      this.handleEmptyClick(null, true)
       let foundRoutes = [] as any[]
       const searchTerm = this.searchText.trim().toLocaleLowerCase()
 
@@ -366,10 +368,15 @@ const MyComponent = defineComponent({
       }
 
       // show/hide background transit routes
-      this.showAllTransit(!foundRoutes.length)
+      // this.showAllTransit(!foundRoutes.length)
+
       // show selected routes
       this.routesOnLink = foundRoutes.map(id => this._routeData[id])
       this.highlightAllAttachedRoutes()
+      if (this.routesOnLink.length) {
+        this.selectedRoute = this.routesOnLink[0].id
+        this.showTransitRoute(this.selectedRoute)
+      }
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
@@ -628,14 +635,10 @@ const MyComponent = defineComponent({
       }
     },
 
-    handleClickedMetric(metric: { field: string }) {
-      console.log('transit metric:', metric.field)
-
-      this.activeMetric = metric.field
-
+    drawMetric() {
       let widthExpression: any = 3
 
-      switch (metric.field) {
+      switch (this.activeMetric) {
         case 'departures':
           widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
           break
@@ -650,6 +653,12 @@ const MyComponent = defineComponent({
       }
 
       this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
+    },
+
+    handleClickedMetric(metric: { field: string }) {
+      console.log('transit metric:', metric.field)
+      this.activeMetric = metric.field
+      this.drawMetric()
     },
 
     handleMapMotion() {
@@ -668,9 +677,12 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
     },
 
-    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
+    handleEmptyClick(e: any, force?: boolean) {
+      // clear search box if user clicked away
+      if (!force) this.searchText = ''
+
       // don't clear map if search box has text
-      if (this.searchText) return
+      if (this.searchText && !force) return
 
       this.removeStopMarkers()
       this.removeSelectedRoute()
@@ -1013,6 +1025,7 @@ const MyComponent = defineComponent({
           },
         })
       }
+
       this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
         this.clickedOnTransitLink(e)
       })
@@ -1028,6 +1041,8 @@ const MyComponent = defineComponent({
         this.mymap.getCanvas().style.cursor = 'grab'
         this.mapPopup.remove()
       })
+
+      this.drawMetric()
     },
 
     addTransitToMap(geodata: any) {
@@ -1278,7 +1293,7 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 1.0,
             'line-width': 7, // ['get', 'width'],
-            'line-color': '#95f', // ['get', 'color'],
+            'line-color': '#fbff66', // 95f', // ['get', 'color'],
           },
         })
       }
@@ -1376,9 +1391,9 @@ const MyComponent = defineComponent({
           source: 'source-route-' + route.id,
           type: 'line',
           paint: {
-            'line-opacity': 0.7,
-            'line-width': 8, // ['get', 'width'],
-            'line-color': '#fd4', // '#ccff33', // ['get', 'color'],
+            'line-opacity': 0.9,
+            'line-width': 10, // ['get', 'width'],
+            'line-color': '#44c378', // '#ccff33', // ['get', 'color'],
           },
         })
         this._attachedRouteLayers.push(route.id)
@@ -1434,6 +1449,7 @@ const MyComponent = defineComponent({
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
+    this.debounceHandleSearchText = debounce(this.handleSearchText, 350)
     this.clearData()
 
     this._roadFetcher = new NewXmlFetcher()
@@ -1740,7 +1756,7 @@ h3 {
   width: 25rem;
   height: 4rem;
   border: 3px solid #cccccc80;
-  filter: $filterShadow;
+  // filter: $filterShadow;
 
   a {
     color: white;
