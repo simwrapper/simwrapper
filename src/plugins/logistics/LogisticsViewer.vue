@@ -26,7 +26,7 @@
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
     .right-panel(v-if="!thumbnail" :darkMode="true")
-      h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'LSPs' }}
+      h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Service Providers' }}
 
       .lsp-list
         .lsp(v-for="lsp in lsps" :key="lsp.$id"
@@ -60,7 +60,7 @@
         br
         h5(style="font-weight:bold") {{"Hub Chain Carriers:"}}
           .carrierHub(v-for="hubChain in allHubChains" :key="hubChain.chainIndex")
-            h7(name="" style="font-weight:bold") {{"Hub Chain " + hubChain.chainIndex + ":"}}
+            h6(name="" style="font-weight:bold") {{"Hub Chain " + hubChain.chainIndex + ":"}}
             .carrier(v-for="carrier in hubChain.chainIds" :key="carrier"
               :class="{selected: carrier===selectedCarrier}"
               @click="handleSelectCarrier(carrier)")
@@ -498,14 +498,6 @@ const LogisticsPlugin = defineComponent({
       if (this.lspShipmentHubChains[0] === shipmentChain) {
         this.selectedShipment = null
         this.shownShipments = []
-
-        // if everything is deselected, reset view
-        // if (!this.selectedTours.length) {
-        //   const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
-        //   this.selectedCarrier = ''
-        //   this.handleSelectCarrier(carrier[0])
-        // }
-
         return
       }
 
@@ -847,7 +839,7 @@ const LogisticsPlugin = defineComponent({
       // Use fixed saturation and lightness to keep the colors vivid and distinct
       const saturation = 70;  // Percentage (70%)
       const lightness = 50;   // Percentage (50%)
-     
+
 
       // Convert HSL to RGB for use in most systems
       let color = this.hslToRgb(hue, saturation, lightness)
@@ -1073,7 +1065,6 @@ const LogisticsPlugin = defineComponent({
 
     handleSelectCarrier(carrierId: any) {
 
-      console.log(this.showCarrierToursList)
       /// make new carrier specific data object with tours and shipments 
       let carrier: any = {}
 
@@ -1106,9 +1097,7 @@ const LogisticsPlugin = defineComponent({
 
       this.vehicles = []
       this.shipments = []
-      // this.logisticChains = {}
       this.services = []
-      // this.tours = []
       this.plans = []
       this.shownShipments = []
       this.shownDepots = []
@@ -1139,15 +1128,13 @@ const LogisticsPlugin = defineComponent({
       this.shipments = this.processShipments(carrier)
       this.lspShipmentChains = []
       this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
-      // fix TS error
+
       if (carrier.services?.service?.length)
         this.services = carrier?.services.service
           .map((s: any) => s.$)
           .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
 
-
-
-      // select all everything
+      // select everything
       this.shownShipments = this.shipments
 
       this.lspChainTours = []
@@ -1213,6 +1200,7 @@ const LogisticsPlugin = defineComponent({
         this.lspChainToursAll.concat(this.carrierTours)
       }
 
+      // computed option?
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && !this.allCarrierHubIds.includes(carrierId)) {
         this.activeTab = "shipments"
       }
