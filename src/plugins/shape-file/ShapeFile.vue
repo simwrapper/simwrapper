@@ -16,6 +16,7 @@
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
       .legend-panel
+        p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
         legend-box(:legendStore="legendStore")
 
       .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
