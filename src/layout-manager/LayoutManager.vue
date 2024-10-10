@@ -284,22 +284,9 @@ export default defineComponent({
 
   methods: {
     async setActiveLeftSection(section: Section) {
-      console.log('HERE', section)
-
       this.isLeftPanelHidden = !!!section
 
       if (!section) return
-
-      // if (!section) {
-      //   setTimeout(() => {
-      //     this.$store.commit('setShowLeftBar', false)
-      //   }, 250)
-      //   return
-      // } else {
-      //   this.$store.commit('setShowLeftBar', true)
-      // }
-
-      // await this.$nextTick()
 
       // don't open the left bar if it's optional, meaning it's currently closed
       if (section.onlyIfVisible && !this.isShowingActiveSection) return

@@ -70,7 +70,6 @@ export default defineComponent({
   },
   watch: {
     'state.isDarkMode'() {
-      console.log('ooop!', this.state.isDarkMode)
       this.theme = this.state.isDarkMode ? 'dark' : 'light'
     },
   },
@@ -134,7 +133,6 @@ export default defineComponent({
   methods: {
     setTheme(theme: string) {
       this.theme = theme
-      console.log(this.theme)
       globalStore.commit('setTheme', theme)
       setTimeout(() => this.$emit('close'), 500)
     },

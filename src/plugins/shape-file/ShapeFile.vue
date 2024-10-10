@@ -758,7 +758,6 @@ const MyComponent = defineComponent({
       } else {
         // was a YAML file was passed in?
         const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
-        console.log(333, filename)
 
         if (filename?.endsWith('yaml') || filename?.endsWith('yml')) {
           const ycfg = await this.loadYamlConfig()
@@ -773,7 +772,6 @@ const MyComponent = defineComponent({
           /\.shp$/.test(filename) ||
           /network\.avro$/.test(filename)
         ) {
-          console.log('yes')
           const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
@@ -790,8 +788,6 @@ const MyComponent = defineComponent({
 
       const t = this.vizDetails.title || 'Map'
       this.$emit('title', t)
-
-      console.log(555, this.config)
     },
 
     // figure out old-style joins
