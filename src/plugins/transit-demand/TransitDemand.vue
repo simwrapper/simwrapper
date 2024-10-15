@@ -678,6 +678,8 @@ const MyComponent = defineComponent({
     },
 
     handleEmptyClick(e: any, force?: boolean) {
+      this.setTransitLayerOpacity(1.0)
+
       // clear search box if user clicked away
       if (!force) this.searchText = ''
 
@@ -1005,6 +1007,18 @@ const MyComponent = defineComponent({
           }
         }
       }
+    },
+
+    setTransitLayerOpacity(opacity: number) {
+      const layer = this.mymap.getLayer('transit-link')
+      if (!layer) return
+
+      this.mymap.setPaintProperty('transit-link', 'line-opacity', opacity)
+      this.mymap.setPaintProperty(
+        'transit-link',
+        'line-color',
+        opacity == 1 ? ['get', 'color'] : '#888888'
+      )
     },
 
     showAllTransit(show: boolean) {
@@ -1338,6 +1352,8 @@ const MyComponent = defineComponent({
 
       // highlight the first route, if there is one
       if (routes.length > 0) this.showRouteDetails(routes[0].id)
+
+      this.setTransitLayerOpacity(0.2)
     },
 
     calculatePassengerVolumes(id: string) {
