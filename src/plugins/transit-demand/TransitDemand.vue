@@ -372,11 +372,14 @@ const MyComponent = defineComponent({
 
       // show selected routes
       this.routesOnLink = foundRoutes.map(id => this._routeData[id])
+
       this.highlightAllAttachedRoutes()
       if (this.routesOnLink.length) {
         this.selectedRoute = this.routesOnLink[0].id
         this.showTransitRoute(this.selectedRoute)
       }
+
+      this.setTransitLayerOpacity(searchTerm ? 0.2 : 1.0)
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
