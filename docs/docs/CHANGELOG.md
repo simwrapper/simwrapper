@@ -14,6 +14,29 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.4.2](https://github.com/simwrapper/simwrapper/compare/v3.4.1...v3.4.2) (2024-10-15)
+
+
+### Bug Fixes
+
+* Dataset manager - handle Firefox hangs when CSV too large for memory ([80f8f3f](https://github.com/simwrapper/simwrapper/commit/80f8f3fed63ec9e899a8fe70921430566073a23c))
+* GridMap doesn't load if projection isn't specified in YAML ([9636e34](https://github.com/simwrapper/simwrapper/commit/9636e34b15e0610013fb4d0be5050bbbf14c4835))
+* if no customRouteType is defined ([675701e](https://github.com/simwrapper/simwrapper/commit/675701ec79b12233c7e77d412ff140f6ad4a5053))
+* Matrix viewer displays a loading spinner while data is loading ([22503aa](https://github.com/simwrapper/simwrapper/commit/22503aa6a4c9a1127a41cef36e6641546655ff42)), closes [#391](https://github.com/simwrapper/simwrapper/issues/391)
+* Sankey chart font size is sometimes too small ([87baad5](https://github.com/simwrapper/simwrapper/commit/87baad5665cdb961feb01e429e95495da337ed98)), closes [#309](https://github.com/simwrapper/simwrapper/issues/309)
+* Shapefile background layers were not showing dots/circles ([1c3af1c](https://github.com/simwrapper/simwrapper/commit/1c3af1c4e32aa33080536b7cf79e115995789c64)), closes [#198](https://github.com/simwrapper/simwrapper/issues/198)
+* Shapefile info panel moved to right, so tooltips no longer flicker ([2870f0d](https://github.com/simwrapper/simwrapper/commit/2870f0dab8f379d84227350a530411405f4d593f)), closes [#384](https://github.com/simwrapper/simwrapper/issues/384)
+* XML network loader failed on very small networks ([ccfb045](https://github.com/simwrapper/simwrapper/commit/ccfb045706277c865c2cfab8ff69d203da91fb60))
+
+### [3.4.1](https://github.com/simwrapper/simwrapper/compare/v3.4.0...v3.4.1) (2024-08-13)
+
+
+### Bug Fixes
+
+* Add build commit/tag info to splash page ([f5c4e04](https://github.com/simwrapper/simwrapper/commit/f5c4e04a6b1a7b0fbdcc4e5033bb43b874634e04)), closes [#360](https://github.com/simwrapper/simwrapper/issues/360)
+* Add proper scrollbar for map view configurators ([bdd1d47](https://github.com/simwrapper/simwrapper/commit/bdd1d4789f7eec05b83887e98b69b6d3de453216))
+* Favorite folder star went missing ([8a4b17d](https://github.com/simwrapper/simwrapper/commit/8a4b17d6e47f3c9bad78dcbf8787f7fc4bc8d3b0))
+
 ## [3.4.0](https://github.com/simwrapper/simwrapper/compare/v3.3.0...v3.4.0) (2024-08-08)
 
 
