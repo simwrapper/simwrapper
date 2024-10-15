@@ -693,7 +693,7 @@ const GridMap = defineComponent({
 
       // The datamanager doesn't return the comments...
       if (csv.comments && csv.comments.length) {
-        csv.comments.forEach(comment => {
+        csv.comments.forEach((comment: string) => {
           if (comment.indexOf('EPSG') > -1) {
             const projection = comment.substring(comment.lastIndexOf('EPSG')).trim()
             if (projection) this.vizDetails.projection = projection
@@ -1001,6 +1001,9 @@ const GridMap = defineComponent({
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
     delete REACT_VIEW_HANDLES[this.id]
+
+    this.data = null
+
     this.$store.commit('setFullScreen', false)
   },
 })

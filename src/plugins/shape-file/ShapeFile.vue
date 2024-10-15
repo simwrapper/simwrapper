@@ -2834,6 +2834,7 @@ const MyComponent = defineComponent({
       this.dataFillHeights = 0
       this.dataCalculatedValues = null
       this.dataCalculatedValueLabel = ''
+      this.bgLayers = {}
     },
 
     updateBgLayers() {

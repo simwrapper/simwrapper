@@ -743,9 +743,8 @@ const MyComponent = defineComponent({
         // then load CSVs in background
         this.loadCSVFiles()
       } catch (e) {
-        this.myState.statusMessage = '' + e
-        const title = this.vizDetails.title || 'Network map'
-        this.$emit('error', `${title}: ` + e)
+        this.myState.statusMessage = ''
+        this.$emit('error', `` + e)
         this.$emit('isLoaded')
       }
     },
