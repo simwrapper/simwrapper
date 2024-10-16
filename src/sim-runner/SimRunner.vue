@@ -2,7 +2,7 @@
 .mpanel
   .scrolly
     .middle-panel
-      h4 {{ server.serverNickname }} • Run Launcher
+      h2 Run Launcher: {{ server.serverNickname }}
 
       .hint(v-if="!server.serverNickname")
         p: b Select a server resource on the left.
@@ -12,7 +12,7 @@
           //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
           p(v-if="statusMessage"): b {{ statusMessage }}
 
-          b-button(v-if="!statusMessage" type="is-warning" @click="clickedNewRun") Create new run&nbsp;&nbsp;
+          b-button(v-if="!statusMessage" type="is-danger" @click="clickedNewRun") Create new run&nbsp;&nbsp;
             i.fa(v-if="isShowingRunTemplate").fa-arrow-down
             i.fa(v-else).fa-arrow-right
 
@@ -48,12 +48,38 @@
               drop-file(@files="filesUpdated")
 
 
-      .flex-column(v-if="runId")
+      .flex-col(v-if="runId")
         sim-run-details(:runId="runId" :server="server")
 
-      .flex-column(v-if="server.serverNickname && !runId")
+      .flex-col(v-if="server.serverNickname && !runId")
 
-        h3(style="margin-top: 1rem") List of runs
+        //- h3(style="margin-top: 1rem") List of runs
+
+        h3(style="margin-top: 2rem") RUNNING
+        .run(v-for="job in jobsRunning" :key="job.JOBID"
+          @click="rowClicked({row: job})"
+        )
+          p: b {{ job.COMMAND }}
+          p(style="margin-left: 0.5rem") Job {{ job.JOBID}} ({{ job.USER }})
+          table(style="color: var(--link); border-spacing: 0.5rem 0; border-collapse: separate")
+            tr
+              td Submitted:
+              td.mono {{ job.SUBMIT_TIME}}
+            tr
+              td Started:
+              td.mono {{ job.START_TIME}}
+            tr
+              td Timeout:
+              td.mono {{ job.END_TIME}}
+
+        h3(style="margin-top: 2rem") QUEUED
+        .run(v-for="job in jobsQueued" :key="job.JOBID")
+          p {{ job.USER }} {{ job.JOBID}}
+
+        h3(style="margin-top: 2rem") OTHER
+        .run(v-for="job in jobsOther" :key="job.JOBID")
+          p {{ job.USER }} {{ job.JOBID}}
+
 
         .connect-here(v-if="jobs.length")
           vue-good-table.vue-good-table(
@@ -81,6 +107,7 @@ import { VueGoodTable } from 'vue-good-table'
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
 import SimRunDetails, { FileEntry } from './SimRunDetails.vue'
+import Papa from '@simwrapper/papaparse'
 
 import 'vue-good-table/dist/vue-good-table.css'
 
@@ -95,6 +122,26 @@ export const JOBSTATUS = [
   'Error', // 7
 ]
 
+export const SQUEUE_STATUS: any = {
+  BF: 'Error',
+  CA: 'Cancelled',
+  CD: 'Complete',
+  CF: 'Preparing',
+  CG: 'Running',
+  DL: 'Cancelled',
+  F: 'Error',
+  NF: 'Error',
+  OOM: 'Error',
+  PD: 'Submitted',
+  PR: 'Cancelled',
+  R: 'Running',
+  RD: 'Submitted',
+  SO: 'Running',
+  ST: 'Cancelled',
+  S: 'Queued',
+  TO: 'Cancelled',
+}
+
 export default defineComponent({
   name: 'SimRunner',
   i18n,
@@ -106,7 +153,7 @@ export default defineComponent({
       server: {} as { serverNickname: string; url: string; key: string },
       isLoading: true,
       isShowingRunTemplate: false,
-      jobs: [] as any,
+      jobs: [] as any[],
       jobScript: '',
       jobProject: '',
       files: [] as any[],
@@ -142,6 +189,26 @@ export default defineComponent({
     isDark() {
       return this.$store.state.isDarkMode
     },
+
+    jobsRunning() {
+      return this.jobs
+        .filter(job => {
+          return ['R', 'CF', 'CG'].includes(job.ST)
+        })
+        .sort((a, b) => (a.JOBID > b.JOBID ? -1 : 1))
+    },
+
+    jobsQueued() {
+      return this.jobs.filter(job => {
+        return ['S', 'PD', 'RD'].includes(job.ST)
+      })
+    },
+
+    jobsOther() {
+      return this.jobs.filter(job => {
+        return !['R', 'CF', 'CG', 'S', 'PD', 'RD'].includes(job.ST)
+      })
+    },
   },
 
   methods: {
@@ -160,18 +227,50 @@ export default defineComponent({
 
     async buildSummaryPage() {
       // Get list of jobs
-      const cmd = `${this.server.url}/jobs/`
-      const allJobs: any[] = await fetch(cmd, {
-        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
-      }).then(response => response.json())
+      const cmd = `${this.server.url}/squeue_jobs/`
+      const tsv = await fetch(cmd, {
+        headers: {
+          Authorization: this.server.key,
+          'Content-Type': 'application/json',
+          'cache-control': 'no-cache',
+          pragma: 'no-cache',
+        },
+      })
+      const json = await tsv.json()
 
-      const cleanJobs = allJobs.map(row => {
-        row.status = JOBSTATUS[row.status]
+      console.log(json.squeue)
+
+      if (!json.squeue.length) {
+        this.jobs = []
+        return
+      }
+
+      // convert csv to table
+      const parse = Papa.parse(json.squeue, {
+        delimiter: ',',
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+      })
+      const allJobs = parse.data
+      console.log({ allJobs })
+
+      const cleanJobs = allJobs.map((row: any) => {
+        row.status = SQUEUE_STATUS[row.ST]
+
+        row.SUBMIT_TIME = row.SUBMIT_TIME.replace('T', ' : ')
+        row.START_TIME = row.START_TIME.replace('T', ' : ')
+        row.END_TIME = row.END_TIME.replace('T', ' : ')
+
+        if (row['"COMMAND']) {
+          row.COMMAND = row['"COMMAND']
+          delete row['"COMMAND']
+        }
         return row
       })
 
       // reverse sort
-      cleanJobs.sort((a, b) => (a.id > b.id ? -1 : 1))
+      cleanJobs.sort((a: any, b: any) => (a.id > b.id ? -1 : 1))
 
       this.jobs = cleanJobs
       this.isLoading = false
@@ -305,7 +404,7 @@ h4 {
   padding: 0 1rem;
   text-align: left;
   user-select: none;
-  max-width: 70rem;
+  // max-width: 70rem;
 
   h1 {
     letter-spacing: -1px;
@@ -540,5 +639,17 @@ h2 {
   table-layout: auto;
   margin-top: 1rem;
   margin-bottom: auto;
+}
+
+.run {
+  margin: 0.25rem 0;
+  padding: 0.5rem;
+  background-color: var(--bgBold);
+}
+
+.mono {
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 21px;
 }
 </style>
