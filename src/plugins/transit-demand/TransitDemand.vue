@@ -1018,13 +1018,11 @@ const MyComponent = defineComponent({
       if (!layer) return
 
       this.mymap.setPaintProperty('transit-link', 'line-opacity', opacity)
-      setTimeout(() => {
-        this.mymap.setPaintProperty(
-          'transit-link',
-          'line-color',
-          opacity == 1 ? ['get', 'color'] : '#888888'
-        )
-      }, 200)
+      this.mymap.setPaintProperty(
+        'transit-link',
+        'line-color',
+        opacity == 1 ? ['get', 'color'] : '#888888'
+      )
     },
 
     showAllTransit(show: boolean) {
