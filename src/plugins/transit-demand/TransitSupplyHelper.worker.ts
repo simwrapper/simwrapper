@@ -114,9 +114,15 @@ function processTransit() {
     if (!line.transitRoute) continue
 
     for (const route of line.transitRoute) {
-      const details: RouteDetails = buildTransitRouteDetails(line.id, route, gtfsRoute)
-      details.uniqueRouteID = uniqueRouteID++
-      attr.transitRoutes.push(details)
+      try {
+        const details: RouteDetails = buildTransitRouteDetails(line.id, route, gtfsRoute)
+        details.uniqueRouteID = uniqueRouteID++
+        attr.transitRoutes.push(details)
+      } catch (e) {
+        postMessage({
+          error: `Error:: ${route.id} :: cannot parse route. Network or coord mismatch?`,
+        })
+      }
     }
 
     // attr.transitRoutes.sort((a, b) => (a.id < b.id ? -1 : 1))

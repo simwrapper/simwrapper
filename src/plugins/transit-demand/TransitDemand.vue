@@ -952,7 +952,8 @@ const MyComponent = defineComponent({
 
       if (buffer.data.error) {
         console.error(buffer.data.error)
-        this.$emit('error', buffer.data.error)
+        this.$emit('error', '' + buffer.data.error)
+        this.loadingText = ''
         return
       }
 
@@ -1017,11 +1018,13 @@ const MyComponent = defineComponent({
       if (!layer) return
 
       this.mymap.setPaintProperty('transit-link', 'line-opacity', opacity)
-      this.mymap.setPaintProperty(
-        'transit-link',
-        'line-color',
-        opacity == 1 ? ['get', 'color'] : '#888888'
-      )
+      setTimeout(() => {
+        this.mymap.setPaintProperty(
+          'transit-link',
+          'line-color',
+          opacity == 1 ? ['get', 'color'] : '#888888'
+        )
+      }, 200)
     },
 
     showAllTransit(show: boolean) {
