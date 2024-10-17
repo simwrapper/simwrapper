@@ -2,11 +2,30 @@
 .mpanel
   .scrolly
     .middle-panel
-      h2 Run Launcher: {{ server.serverNickname }}
+      h2 {{ server.serverNickname }}
 
       .hint(v-if="!server.serverNickname")
         p: b Select a server resource on the left.
         p You can connect to any SimWrapper cloud server resources you have access to.
+
+      .flex-col(v-if="server.serverNickname && !runId")
+        .summary-stats.flex-row
+          .flex-col.flex1
+            p: b Current Load (ILS only)
+            p
+              b {{ summaryStats.runCPUS }}
+              | &nbsp;CPUs running
+            p
+              b {{ summaryStats.runGB }} GB
+              | &nbsp;memory allocated
+          .flex-col.flex1
+            p: b Queued Jobs (ILS only)
+            p
+              b {{ summaryStats.queueCPUS }}
+              | &nbsp;CPUs requested
+            p
+              b {{ summaryStats.queueGB }} GB
+              | &nbsp;memory requested
 
       .new-run(v-if="server.serverNickname && !runId")
           //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
@@ -47,30 +66,26 @@
 
               drop-file(@files="filesUpdated")
 
-
       .flex-col(v-if="runId")
         sim-run-details(:runId="runId" :server="server")
 
       .flex-col(v-if="server.serverNickname && !runId")
-
-        //- h3(style="margin-top: 1rem") List of runs
 
         h3(style="margin-top: 2rem") RUNNING
         .run(v-for="job in jobsRunning" :key="job.JOBID"
           @click="rowClicked({row: job})"
         )
           p: b {{ job.COMMAND }}
-          p(style="margin-left: 0.5rem") Job {{ job.JOBID}} ({{ job.USER }})
-          table(style="color: var(--link); border-spacing: 0.5rem 0; border-collapse: separate")
-            tr
-              td Submitted:
-              td.mono {{ job.SUBMIT_TIME}}
-            tr
-              td Started:
-              td.mono {{ job.START_TIME}}
-            tr
-              td Timeout:
-              td.mono {{ job.END_TIME}}
+
+          p
+            b.mr1(style="color: var(--link);") {{ job.ELAPSED_TIME ? `Elapsed: ${job.ELAPSED_TIME}` : '' }}
+            span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
+            span.mr1(style="color: purple") Started: {{ job.START_TIME}}
+          p
+            | Job {{ job.JOBID}} ({{ job.USER }}),
+            | {{ job.MIN_MEMORY }} Memory,
+            | {{ job.CPUS }} CPUs,
+            | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
 
         h3(style="margin-top: 2rem") QUEUED
         .run(v-for="job in jobsQueued" :key="job.JOBID")
@@ -102,14 +117,17 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import { filesize } from 'filesize'
+import Papa from '@simwrapper/papaparse'
 import { VueGoodTable } from 'vue-good-table'
+import 'vue-good-table/dist/vue-good-table.css'
+
+import { Temporal, Intl, toTemporalInstant } from '@js-temporal/polyfill'
+//@ts-ignore
+Date.prototype.toTemporalInstant = toTemporalInstant
 
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
 import SimRunDetails, { FileEntry } from './SimRunDetails.vue'
-import Papa from '@simwrapper/papaparse'
-
-import 'vue-good-table/dist/vue-good-table.css'
 
 export const JOBSTATUS = [
   'Draft', // 0
@@ -162,7 +180,13 @@ export default defineComponent({
       clusterEmail: '',
       clusterProcessors: 2,
       clusterRAM: '4g',
+      summaryStats: { runCPUS: 0, runGB: 0, queueCPUS: 0, queueGB: 0 },
+      cbRefresher: null as any,
     }
+  },
+
+  beforeDestroy() {
+    clearInterval(this.cbRefresher)
   },
 
   mounted() {
@@ -173,6 +197,7 @@ export default defineComponent({
     // figure out page path
     const pagePath = this.$route.params.pathMatch.substring(5).split('/')
     const serverId = pagePath[0]
+
     if (!serverId) return
 
     this.server = this.servers[serverId]
@@ -180,8 +205,13 @@ export default defineComponent({
 
     this.runId = pagePath[1] || ''
 
+    this.$store.commit('setWindowTitle', `${serverId} : SimWrapper Run Manager`)
+
     // no runId: build summary page
-    this.buildSummaryPage()
+    if (!this.runId) {
+      this.cbRefresher = setInterval(this.buildSummaryPage, 75 * 1000)
+      this.buildSummaryPage()
+    }
   },
 
   watch: {},
@@ -195,7 +225,7 @@ export default defineComponent({
         .filter(job => {
           return ['R', 'CF', 'CG'].includes(job.ST)
         })
-        .sort((a, b) => (a.JOBID > b.JOBID ? -1 : 1))
+        .sort((a, b) => (a.JOBID < b.JOBID ? -1 : 1))
     },
 
     jobsQueued() {
@@ -238,9 +268,9 @@ export default defineComponent({
       })
       const json = await tsv.json()
 
-      console.log(json.squeue)
+      // console.log(json.squeue)
 
-      if (!json.squeue.length) {
+      if (!json.squeue?.length) {
         this.jobs = []
         return
       }
@@ -253,11 +283,31 @@ export default defineComponent({
         skipEmptyLines: true,
       })
       const allJobs = parse.data
-      console.log({ allJobs })
+
+      const now = Temporal.Now.plainDateTimeISO()
+
+      // Summary metricvalues
+      let runGB = 0
+      let runCPUS = 0
+      let queueGB = 0
+      let queueCPUS = 0
 
       const cleanJobs = allJobs.map((row: any) => {
         row.status = SQUEUE_STATUS[row.ST]
 
+        // calc elapsed time
+        try {
+          const start = Temporal.PlainDateTime.from(row.START_TIME)
+          const since = now.since(start)
+
+          row.ELAPSED_TIME =
+            `${since.days ? since.days + 'd ' : ''}` +
+            `${since.hours}h ` +
+            `${since.minutes}`.padStart(2, '0') +
+            'm'
+        } catch {}
+
+        // pretty-print ISO datetimes
         row.SUBMIT_TIME = row.SUBMIT_TIME.replace('T', ' : ')
         row.START_TIME = row.START_TIME.replace('T', ' : ')
         row.END_TIME = row.END_TIME.replace('T', ' : ')
@@ -266,6 +316,24 @@ export default defineComponent({
           row.COMMAND = row['"COMMAND']
           delete row['"COMMAND']
         }
+
+        // summary stats
+        if (['R', 'CF', 'CG'].includes(row.ST)) {
+          runCPUS += row.CPUS
+          if (row.MIN_MEMORY.endsWith('G')) runGB += parseInt(row.MIN_MEMORY.slice(0, -1))
+        }
+        if (['S', 'PD', 'RD'].includes(row.ST)) {
+          queueCPUS += row.CPUS
+          if (row.MIN_MEMORY.endsWith('G')) queueGB += parseInt(row.MIN_MEMORY.slice(0, -1))
+        }
+
+        this.summaryStats = {
+          runCPUS,
+          runGB,
+          queueCPUS,
+          queueGB,
+        }
+
         return row
       })
 
@@ -421,6 +489,10 @@ h4 {
     max-width: 100%;
     overflow-wrap: break-word;
   }
+}
+
+.middle-panel {
+  margin-top: 0.5rem;
 }
 
 .bottom-panel {
@@ -645,11 +717,28 @@ h2 {
   margin: 0.25rem 0;
   padding: 0.5rem;
   background-color: var(--bgBold);
+  cursor: pointer;
+}
+
+.run:hover {
+  filter: drop-shadow(0px 0px 4px #22222244);
 }
 
 .mono {
   font-family: monospace;
   font-size: 13px;
   line-height: 21px;
+}
+
+.summary-stats {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: var(--bgError);
+  color: #357;
+  border: 1px solid #88888860;
+}
+
+.mr1 {
+  margin-right: 1rem;
 }
 </style>
