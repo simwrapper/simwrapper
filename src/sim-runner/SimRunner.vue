@@ -69,41 +69,50 @@
       .flex-col(v-if="runId")
         sim-run-details(:runId="runId" :server="server")
 
-      .flex-col(v-if="server.serverNickname && !runId")
+      .flex-row(v-if="server.serverNickname && !runId" style="gap: 1rem;")
 
-        h3(style="margin-top: 2rem") RUNNING
-        .run(v-for="job in jobsRunning" :key="job.JOBID"
-          @click="rowClicked({row: job})"
+       .flex-col.flex1.mb1
+          h3(style="margin-top: 2rem") RUNNING
+          .run(v-for="job in jobsRunning" :key="job.JOBID" @click="rowClicked({row: job})")
+            p
+              b {{ job.USER }}:&nbsp;
+              | Job {{ job.JOBID}},&nbsp;
+              | {{ job.MIN_MEMORY }} Memory,
+              | {{ job.CPUS }} CPUs,
+              | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
+
+            p.ml1
+              b.mr1(style="color: var(--link);") {{ job.ELAPSED_TIME ? `Elapsed: ${job.ELAPSED_TIME}` : '' }}
+            p.ml1
+              span.mr1(style="color: purple") Started: {{ job.START_TIME}}
+              span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
+
+            p.ml1.cmdline {{ job.COMMAND }}
+
+      //-  .flex-col.flex1
+      //-     h3(style="margin-top: 2rem") QUEUED
+      //-     .run(v-for="job in jobsQueued" :key="job.JOBID" @click="rowClicked({row: job})")
+      //-       p
+      //-         b {{ job.USER }}:&nbsp;
+      //-         | Job {{ job.JOBID}},&nbsp;
+      //-         | {{ job.MIN_MEMORY }} Memory,
+      //-         | {{ job.CPUS }} CPUs,
+      //-         | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
+
+      //-       p.ml1
+      //-         span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
+
+      //-       p.ml1.cmdline {{ job.COMMAND }}
+
+
+      .connect-here(v-if="jobs.length")
+        vue-good-table.vue-good-table(
+          :class="{'darktable': isDark}"
+          :columns="jobColumns()"
+          :rows="jobs"
+          styleClass="vgt-table striped condensed"
+          @on-row-click="rowClicked"
         )
-          p: b {{ job.COMMAND }}
-
-          p
-            b.mr1(style="color: var(--link);") {{ job.ELAPSED_TIME ? `Elapsed: ${job.ELAPSED_TIME}` : '' }}
-            span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
-            span.mr1(style="color: purple") Started: {{ job.START_TIME}}
-          p
-            | Job {{ job.JOBID}} ({{ job.USER }}),
-            | {{ job.MIN_MEMORY }} Memory,
-            | {{ job.CPUS }} CPUs,
-            | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
-
-        h3(style="margin-top: 2rem") QUEUED
-        .run(v-for="job in jobsQueued" :key="job.JOBID")
-          p {{ job.USER }} {{ job.JOBID}}
-
-        h3(style="margin-top: 2rem") OTHER
-        .run(v-for="job in jobsOther" :key="job.JOBID")
-          p {{ job.USER }} {{ job.JOBID}}
-
-
-        .connect-here(v-if="jobs.length")
-          vue-good-table.vue-good-table(
-            :class="{'darktable': isDark}"
-            :columns="jobColumns()"
-            :rows="jobs"
-            styleClass="vgt-table striped condensed"
-            @on-row-click="rowClicked"
-          )
 
 </template>
 
@@ -128,6 +137,13 @@ Date.prototype.toTemporalInstant = toTemporalInstant
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
 import SimRunDetails, { FileEntry } from './SimRunDetails.vue'
+
+interface ServerDetails {
+  serverNickname: string
+  url: string
+  key: string
+  rootFolder?: string
+}
 
 export const JOBSTATUS = [
   'Draft', // 0
@@ -167,8 +183,8 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      servers: {} as { [id: string]: { serverNickname: string; url: string; key: string } },
-      server: {} as { serverNickname: string; url: string; key: string },
+      servers: {} as { [id: string]: ServerDetails },
+      server: {} as ServerDetails,
       isLoading: true,
       isShowingRunTemplate: false,
       jobs: [] as any[],
@@ -205,7 +221,7 @@ export default defineComponent({
 
     this.runId = pagePath[1] || ''
 
-    this.$store.commit('setWindowTitle', `${serverId} : SimWrapper Run Manager`)
+    this.$store.commit('setWindowTitle', `${serverId} — SimWrapper Run Manager`)
 
     // no runId: build summary page
     if (!this.runId) {
@@ -308,9 +324,9 @@ export default defineComponent({
         } catch {}
 
         // pretty-print ISO datetimes
-        row.SUBMIT_TIME = row.SUBMIT_TIME.replace('T', ' : ')
-        row.START_TIME = row.START_TIME.replace('T', ' : ')
-        row.END_TIME = row.END_TIME.replace('T', ' : ')
+        row.SUBMIT_TIME = row.SUBMIT_TIME.replace('T', ' • ')
+        row.START_TIME = row.START_TIME.replace('T', ' • ')
+        row.END_TIME = row.END_TIME.replace('T', ' • ')
 
         if (row['"COMMAND']) {
           row.COMMAND = row['"COMMAND']
@@ -619,7 +635,7 @@ h2 {
 }
 
 .new-run {
-  margin-top: 1.25rem;
+  margin-top: 2rem;
 }
 
 .new-run-template {
@@ -717,11 +733,17 @@ h2 {
   margin: 0.25rem 0;
   padding: 0.5rem;
   background-color: var(--bgBold);
+  border-radius: 5px;
   cursor: pointer;
 }
 
 .run:hover {
   filter: drop-shadow(0px 0px 4px #22222244);
+}
+
+.cmdline {
+  line-height: 1.3rem;
+  color: var(--link);
 }
 
 .mono {
@@ -740,5 +762,13 @@ h2 {
 
 .mr1 {
   margin-right: 1rem;
+}
+
+.ml1 {
+  margin-left: 1rem;
+}
+
+.mb1 {
+  margin-bottom: 1rem;
 }
 </style>
