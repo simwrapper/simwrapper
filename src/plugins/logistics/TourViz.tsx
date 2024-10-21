@@ -58,6 +58,7 @@ export default function Component(props: {
   lspShipmentChains: lspShipmentChain[]
   carrierTours: lspShipmentChain[]
   legs: any[]
+  carrierServices: {}
   showHub: boolean
   hubLocation: any[]
   hubName: string
@@ -358,6 +359,8 @@ export default function Component(props: {
     )
   }
 
+  console.log(props.carrierServices)
+
   if (activeTab == 'lspTours') {
 
     layers = []
@@ -619,10 +622,6 @@ export default function Component(props: {
     }
   }
 
-
-  console.log(activeTab)
-  console.log(layers)
-
   // shipment panel
   if (activeTab == 'shipments') {
 
@@ -715,7 +714,6 @@ export default function Component(props: {
     let lspChainsCopy = lspShipmentChains
     lspShipmentChains = []
     lspShipmentChains = lspChainsCopy
-    console.log("test")
     layers.push(
       //@ts-ignore:
       new TextLayer({
@@ -869,27 +867,28 @@ export default function Component(props: {
                 radiusUnits: 'pixels',
               })
             )
-            newLayers.push(
-              //@ts-ignore
-              new TextLayer({
-                id: 'HubChain',
-                data: lspShipmentChains[0].hubsChains,
-                getPosition: (d: any) => [d.hubs[0].locationX, d.hubs[0].locationY],
-                getText: (d: any) => d.hubs[0].id,
-                getAlignmentBaseline: 'center',
-                getColor: [255, 255, 255],
-                getBackgroundColor: [240, 130, 0],
-                background: true,
-                backgroundPadding: [2, 2, 2, 2],
-                fontWeight: 'normal',
-                getSize: 10,
-                getTextAnchor: 'middle',
-                pickable: true,
-                onHover: setHoverInfo
-              })
-            )
           }
         })
+
+         newLayers.push(
+            //@ts-ignore
+            new TextLayer({
+              id: 'HubChain',
+              data: lspShipmentChains[0].hubsChains,
+              getPosition: (d: any) => [d.hubs[0].locationX, d.hubs[0].locationY],
+              getText: (d: any) => d.hubs[0].id,
+              getAlignmentBaseline: 'center',
+              getColor: [255, 255, 255],
+              getBackgroundColor: [240, 130, 0],
+              background: true,
+              backgroundPadding: [2, 2, 2, 2],
+              fontWeight: 'normal',
+              getSize: 10,
+              getTextAnchor: 'middle',
+              pickable: true,
+              onHover: setHoverInfo
+            })
+          )
 
         newLayers.push(
           //@ts-ignore:
