@@ -8,8 +8,13 @@
         :shipments="shownShipments"
         :lspShipmentChains="lspShipmentChains"
         :carrierTours="carrierTours"
+        :carrierServices="carrierServicesAll"
+        :showCompleteHubChain="showCompleteHubChain"
         :depots="shownDepots"
         :legs="shownLegs"
+        :showHub="showHub"
+        :hubLocation="hubLocation"
+        :hubName="hubName"
         :stopActivities="stopActivities"
         :dark="globalState.isDarkMode"
         :center="vizDetails.center"
@@ -23,7 +28,7 @@
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
 
     .right-panel(v-if="!thumbnail" :darkMode="true")
-      h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'LSPs' }}
+      h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Service Providers' }}
 
       .lsp-list
         .lsp(v-for="lsp in lsps" :key="lsp.$id"
@@ -36,7 +41,7 @@
       b-field.detail-buttons(v-if="selectedLsp" size="is-small")
         // watch array and if the length changes, change value of boolean for v-if
         b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
-          span {{ $t('Shipments') }}
+          span {{ $t('Shipment Chains') }}
         b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning")
           span {{ $t('Shipment Chains') }}
         b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
@@ -49,52 +54,69 @@
       h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
 
       .carrier-list
+        h5(style="font-weight:bold") {{"Direct Chain Carriers:"}}
         .carrier(v-for="carrier in lspCarriers" :key="carrier.$id"
           :class="{selected: carrier.$id===selectedCarrier}"
           @click="handleSelectCarrier(carrier)")
           .carrier-title {{ carrier.$id }}
+        br
+        h5(style="font-weight:bold") {{"Hub Chain Carriers:"}}
+          .carrierHub(v-for="hubChain in allHubChains" :key="hubChain.chainIndex")
+            h6(name="" style="font-weight:bold" @click="getCarrierServicesForHubChain(selectedLsp)") {{"Hub Chain " + hubChain.chainIndex + ":"}}
+            .carrier(v-for="carrier in hubChain.chainIds" :key="carrier"
+              :class="{selected: carrier===selectedCarrier}"
+              @click="handleSelectCarrier(carrier)")
+              .carrier-title {{ carrier }}
+
 
       h4 {{ selectedCarrier || 'Details' }}
 
-      b-field.detail-buttons(size="is-small")
-        // watch array and if the length changes, change value of boolean for v-if
-        b-radio-button(v-if="(activeTab == 'lspTours' || activeTab == 'tours') && selectedCarrier != ''" v-model="activeTab" native-value="tours" size="is-small" type="is-warning" @click.native="handleSelectCarrierTours(selectedCarrier)")
-          span {{ $t('Carrier Tours') }}
+      .switchbox
+        .switches
+          b-switch(v-if="(activeTab == 'lspTours' || activeTab == 'tours') && selectedCarrier != ''" v-model="vizSettings.showEachCarrierTour")
+            span(v-html="$t('Carrier Tours')")
 
       .detail-area
 
         .lspShipmentChains(v-if="activeTab=='lspShipmentChains'")
-          span {{ $t('lspShipmentChains')}}: {{ lspShipmentHubChains.length}}
+          span {{ $t('Lsp Shipments')}}: {{ lspShipmentHubChains.length}}
           .leaf.tour(v-for="lspShipmentChain,i in lspShipmentHubChains" :key="`${i}-${lspShipmentChain.shipmentId}`"
-          @click="handleSelectShipmentChain(lspShipmentChain)"     
+          @click="handleSelectShipmentChain(lspShipmentChain)"
+          :class="{selected: lspShipmentChain==selectedLSPChain}"        
           ) {{ `${lspShipmentChain.shipmentId}: ${lspShipmentChain.chainId}` }}
         .lspShipmentChains(v-if="activeTab=='shipments'")
           span {{ $t('Shipments')}}: {{ shipments.length}}
           .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
           @click="handleSelectShipment(shipment)"   
-          :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"       
+          :class="{selected: shipment==selectedShipment}"       
           ) {{ `${shipment.$id}` }}
-        .tours(v-if="activeTab=='tours' || (activeTab=='lspTours' && selectedCarrier != '')")
+        .tours(v-if="activeTab=='lspTours' && selectedCarrier && hubLocation.length == 0")
           span {{ $t('tours')}}: {{ carrierTours[0].length }}
           .leaf.tour(v-for="tour,i in carrierTours[0]" :key="`${i}-${tour.$id}`"
             @click="handleSelectTour(tour)"
             :class="{selected: selectedTours.includes(tour)}")
-            div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
-            div(v-else) {{ `${tour.vehicleId}` }}
-        .lsptours(v-if="activeTab=='lspTours' && selectedCarrier == ''")
+            .carrier-tours(v-if="tour.tourId")
+              div(v-if="tour.tourId && vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getTourColor(tour.tourId, tour.tourNumber) }")
+              div(v-if="tour.tourId && !vizSettings.showEachCarrierTour" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+              div(v-if="tour.tourId" id="tour") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
+              div(v-else) {{ `${tour.vehicleId}` }}
+        .lsptours(v-if="activeTab=='lspTours' && !selectedCarrier")
           span {{ $t('tours')}}: {{ lspToursAll.length }}
           .leaf.tour(v-for="tour,i in lspToursAll" :key="`${i}-${tour.$id}`"
             @click="handleSelectTour(tour)"
             :class="{selected: selectedTours.includes(tour)}")
-            div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
-            div(v-else) {{ `${tour.vehicleId}` }}
-
+            .lsp-tours(v-if="tour.tourId")
+              div(v-if="tour.tourId" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
+              div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
+              div(v-else) {{ `${tour.vehicleId}` }}
 
       .switchbox
-        .switches
+        .switches(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'")
           p {{$t('scaleSize')}}
-          b-slider.slider(:tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
-        .switches
+          b-slider.slider(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+        .addedSpace(v-if="activeTab == 'tours' || activeTab=='lspTours'")
+          br
+        .switches(v-if="activeTab == 'tours' || activeTab=='lspTours'")
           b-switch(v-model="vizSettings.shipmentDotsOnTourMap")
             span(v-html="$t('shipmentDots')")
           b-switch(v-model="vizSettings.simplifyTours")
@@ -140,7 +162,7 @@ const i18n = {
   },
 }
 
-import { defineComponent } from 'vue'
+import { defineComponent, shallowReactive } from 'vue'
 import type { PropType } from 'vue'
 
 import { ToggleButton } from 'vue-js-toggle-button'
@@ -173,6 +195,9 @@ import {
 } from '@/Globals'
 import { concat, forEach } from 'lodash'
 import { typeOf } from 'mathjs'
+import { diff } from 'nerdamer'
+import { any } from 'micromatch'
+import { id, None } from 'vega'
 
 interface NetworkLinks {
   source: Float32Array
@@ -220,6 +245,18 @@ interface lspShipmentChain {
   shipmentId: string
 }
 
+interface carrierServices {
+  carrierId: String,
+  carrierServices: [],
+  hubChainIndex: Number,
+  carrierDepotId: String
+}
+
+interface hubChainIds {
+  chainIds: any[],
+  chainIndex: Number
+}
+
 interface lspShipmentChains {
   hubsChains: any[],
   directChains: any[]
@@ -247,6 +284,7 @@ const LogisticsPlugin = defineComponent({
 
       vizSettings: {
         simplifyTours: false,
+        showEachCarrierTour: false,
         scaleShipmentSizes: true,
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
@@ -306,19 +344,29 @@ const LogisticsPlugin = defineComponent({
       lspPlan: {} as any,
       resources: [] as any[],
       lspShipmentChains: [] as any[], // may not need this - can be replaced with interface 
-      lspShipmentDirectChains: [] as any[], 
+      lspShipmentDirectChains: [] as any[],
       lspShipmentHubChains: [] as any[],
       lspChainTours: [] as any[],
       lspChainToursAll: [] as any[],
       lspToursAll: [] as any[], // only used for details section (not viz)
       lspCarriers: [] as any[],
+      lspHubChainCarriers: [] as any[],
       lspHubCarriers: [] as any[],
       lspDirectCarriers: [] as any[],
       lspCarrier: {} as any,
 
+      allHubChains: [] as any[],
+      allCarrierHubIds: [] as any[],
+      hubLocation: [] as any[],
+      showHub: false,
+      hubName: "",
+
       carriers: [] as any[],
       carrierTours: [] as any[],
+      carrierServicesAll: new Set(),
+      showCompleteHubChain: false,
       showCarrierTours: false,
+      showCarrierToursList: false,
       vehicles: [] as any[],
       shipments: [] as any[],
       shipmentLookup: {} as any, // keyed on $id
@@ -414,6 +462,10 @@ const LogisticsPlugin = defineComponent({
       if (!this.yamlConfig) this.buildRouteFromUrl()
       await this.getVizDetails()
     },
+
+    'this.activeTab'() {
+      console.log(this.activeTab)
+    },
   },
 
   methods: {
@@ -427,7 +479,6 @@ const LogisticsPlugin = defineComponent({
     },
 
     checkIfDirectChain() {
-      this.showCarrierTours = false
       if (this.lspShipmentDirectChains.length > 0 && this.lspShipmentHubChains.length == 0) {
         return true
       } else {
@@ -458,17 +509,25 @@ const LogisticsPlugin = defineComponent({
 
     handleSelectShipmentChain(shipmentChain: any) {
 
-      if (this.lspShipmentHubChains[0] === shipmentChain) {
-        this.selectedShipment = null
+      if (this.selectedLSPChain === shipmentChain) {
+        this.selectedLSPChain = null
         this.shownShipments = []
 
-        // if everything is deselected, reset view
-        // if (!this.selectedTours.length) {
-        //   const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
-        //   this.selectedCarrier = ''
-        //   this.handleSelectCarrier(carrier[0])
-        // }
+        if (this.selectedLSPChain == null) {
+        const lsp = this.lsps.filter(c => c.$id == this.selectedLsp)
 
+        let lspCarrier
+        lsp[0].resources.carrier.forEach((carrier:any) => {
+          if (carrier.$id == this.selectedCarrier) {
+            lspCarrier = carrier
+          }
+        })
+
+        this.shipments = this.processShipments(lspCarrier)
+        this.lspShipmentChains = []
+        this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
+        this.shownShipments = this.shipments
+      }
         return
       }
 
@@ -483,6 +542,8 @@ const LogisticsPlugin = defineComponent({
       this.lspShipmentChains = []
 
       this.lspShipmentChains.push(newLspShipmentChains)
+      this.selectedLSPChain = shipmentChain
+
     },
 
 
@@ -784,6 +845,57 @@ const LogisticsPlugin = defineComponent({
       }
     },
 
+    // Helper function to convert HSL to RGB
+    hslToRgb(h: number, s: number, l: number) {
+      s /= 100;
+      l /= 100;
+
+      const k = (n: any) => (n + h / 30) % 12;
+      const a = s * Math.min(l, 1 - l);
+      const f = (n: any) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+
+      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+    },
+
+    getTourColor(tourId: any, tourNumber: any) {
+      // Simple hash function to generate a number from the string
+      let hash = 0;
+      for (let i = 0; i < tourId.length; i++) {
+        hash = tourId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      hash *= tourNumber
+      // Use the hash to generate a hue value (0 - 360)
+      const hue = (hash % 360 + 360) % 360; // Ensures hue is positive
+
+      // Use fixed saturation and lightness to keep the colors vivid and distinct
+      const saturation = 70;  // Percentage (70%)
+      const lightness = 50;   // Percentage (50%)
+
+
+      // Convert HSL to RGB for use in most systems
+      let color = this.hslToRgb(hue, saturation, lightness)
+
+      return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    },
+
+
+    getLspTourColor(vehicleId: string) {
+      // Simple hash function to generate a number from the string
+      let hash = 0;
+      for (let i = 0; i < vehicleId.length; i++) {
+        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      // Generate RGB values by mapping parts of the hash to the 0-255 range
+      const r = (hash & 0xFF0000) >> 16;
+      const g = (hash & 0x00FF00) >> 8;
+      const b = hash & 0x0000FF;
+
+      return `rgb(${r}, ${g}, ${b})`;
+    },
+
+
     async handleSelectTour(tour: any) {
       // add the legs from the shipmentLookup if the tour has no route data
       if (!tour.legs.length) {
@@ -874,18 +986,18 @@ const LogisticsPlugin = defineComponent({
     },
 
     handleSelectLspButton(lsp: any) {
+      this.showCarrierToursList = false
       this.activeTab = 'lspTours'
       this.selectedCarrier = ''
       this.handleSelectLsp(lsp)
     },
 
     handleSelectLspFromList(lsp: any) {
-      if (this.lspShipmentHubChains.length > 0) {
+      this.showCarrierToursList = false
+      if (this.lspShipmentDirectChains.length == 0 && this.lspShipmentHubChains.length == 0) {
         this.activeTab = "lspShipmentChains"
-        console.log(this.activeTab)
       } else {
         this.activeTab = "shipments"
-        console.log(this.activeTab)
       }
       this.selectedCarrier = lsp.resources.carrier[0].$id
       this.handleSelectLsp(lsp)
@@ -897,16 +1009,17 @@ const LogisticsPlugin = defineComponent({
 
       if (typeof (lsp) == 'string') {
         lsp = this.lsps.find((c: any) => c.$id === lsp)
-        console.log(lsp)
       }
       this.lspToursAll = []
 
       this.lspCarriers = []
-      this.lspCarriers = lsp.resources.carrier
+      this.lspHubChainCarriers = []
+      this.allHubChains = []
+      // this.lspHubChainCarriers = lsp.resources.carrier.filter((x: any) => this.lspHubCarriers.includes(x.$id))
+      this.lspHubChainCarriers = this.findLspHubChainCarriers(lsp)
+      this.lspCarriers = lsp.resources.carrier.filter((x: any) => !this.allCarrierHubIds.includes(x.$id))
 
       const id = lsp.$id
-
-
 
       this.selectedLsp = id
       let lspCarrier = this.carriers.find(c => c.$id === lsp.resources.carrier[0].$id)
@@ -938,16 +1051,57 @@ const LogisticsPlugin = defineComponent({
 
     },
 
-    handleSelectCarrierTours(carrierId: any) {
-      this.handleSelectCarrier(carrierId)
-      this.selectedCarrier = carrierId
-
+    getCarrierServicesForHubChain(lsp: any) {
+      this.showCompleteHubChain = true
+      this.handleSelectLsp(lsp)
     },
 
-    handleSelectCarrier(carrierId: any) {
-      /// make new carrier specific data object with tours and shipments 
+    findLspHubChainCarriers(lsp: any) {
+      let carrierLspPlan = {} as any
+      lsp.LspPlans.LspPlan.forEach((plan: any) => {
+        if (plan.$selected === "true") {
+          carrierLspPlan = plan
+        }
+      })
 
-      let carrier = {}
+      let hubChains: any = []
+
+      carrierLspPlan.logisticChains.logisticChain.forEach((logisticChain: any) => {
+        if (logisticChain.$id == "hubChain") {
+          hubChains.push(logisticChain)
+        }
+      });
+      let i = 0
+
+      hubChains.forEach((hubChain: any) => {
+        let hubChainCopy: hubChainIds = {
+          chainIds: [],
+          chainIndex: i
+        }
+
+        hubChain.logisticChainElement.forEach((chain: any) => {
+          hubChainCopy.chainIds.push(chain.$resourceId)
+          this.allCarrierHubIds.push(chain.$resourceId)
+        })
+        this.allHubChains.push(hubChainCopy)
+        i++
+      });
+
+      return this.allHubChains
+    },
+
+    // handleSelectCarrierTours(carrierId: any) {
+    //   console.log("tets")
+    //   // this.showCarrierToursList = true;
+    //   // this.handleSelectCarrier(carrierId)
+    //   // this.selectedCarrier = carrierId
+
+    // },
+
+    handleSelectCarrier(carrierId: any) {
+
+      /// make new carrier specific data object with tours and shipments 
+      let carrier: any = {}
 
       if (typeOf(carrierId) == 'string') {
         carrier = this.carriers.find(c => c.$id === carrierId)
@@ -955,17 +1109,33 @@ const LogisticsPlugin = defineComponent({
         carrier = this.carriers.find(c => c.$id === carrierId.$id)
       }
 
+      this.showHub = false
+      this.hubLocation = []
+
+      if (carrier == undefined) {
+        this.shipments = []
+        this.hubLocation = []
+        // // it's a hub - how to handle?
+        this.lspShipmentChains = []
+        let currentLsp = this.lsps.find((c: any) => c.$id == this.selectedLsp)
+        let resourceHub = currentLsp.resources.hub.find((c: any) => c.$id == carrierId)
+        this.hubLocation.push(0.5 * (this.links[resourceHub.$location][0] + this.links[resourceHub.$location][2]))
+        this.hubLocation.push(0.5 * (this.links[resourceHub.$location][1] + this.links[resourceHub.$location][3]))
+        this.hubName = carrierId
+        // this.activeTab = ''
+        this.showHub = true
+        this.selectedCarrier = carrierId
+        return
+      }
+
       this.dropdownIsActive = false
       if (!this.links) return
 
-
-      const id = carrierId.$id
+      const id = carrier.$id
 
       this.vehicles = []
       this.shipments = []
-      // this.logisticChains = {}
       this.services = []
-      // this.tours = []
       this.plans = []
       this.shownShipments = []
       this.shownDepots = []
@@ -984,10 +1154,6 @@ const LogisticsPlugin = defineComponent({
 
       this.selectedCarrier = id
 
-      // vehicles
-      // let vehicles = carrier.capabilities.vehicles.vehicle || []
-      // this.vehicles = vehicles.sort((a: any, b: any) => naturalSort(a, b))
-
       // depots
       this.setupDepots()
 
@@ -996,17 +1162,12 @@ const LogisticsPlugin = defineComponent({
       this.lspShipmentChains = []
       this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
 
-      console.log(carrier)
-
-      // fix TS error
       if (carrier.services?.service?.length)
         this.services = carrier?.services.service
           .map((s: any) => s.$)
           .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
 
-
-
-      // select all everything
+      // select everything
       this.shownShipments = this.shipments
 
       this.lspChainTours = []
@@ -1035,7 +1196,6 @@ const LogisticsPlugin = defineComponent({
 
 
       if (directChainId) {
-
         directChainId.logisticChainElement.forEach((chain: any) => {
           directChainsIds.push(chain.$resourceId)
         }
@@ -1043,7 +1203,6 @@ const LogisticsPlugin = defineComponent({
       }
 
       if (hubChainId) {
-       
         hubChainId.logisticChainElement.forEach((chain: any) => {
           hubChainsIds.push(chain.$resourceId)
         }
@@ -1074,21 +1233,16 @@ const LogisticsPlugin = defineComponent({
         this.lspChainToursAll.concat(this.carrierTours)
       }
 
-      if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.lspShipmentChains[0].directChains.length > 0) {
-          this.activeTab = "shipments"
-          console.log(this.activeTab)
-        }
+      // computed option?
+      if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && !this.allCarrierHubIds.includes(carrierId)) {
+        this.activeTab = "shipments"
+      }
 
-      if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.lspShipmentChains[0].hubsChains.length > 0) {
-          this.activeTab = "lspShipmentChains"
-          console.log(this.activeTab)
-        }
+      if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.allCarrierHubIds.includes(carrierId)) {
+        this.activeTab = "lspShipmentChains"
+      }
 
       this.selectAllTours()
-
-
-
-
     },
 
     getAllPlans(carrier: any) {
@@ -1196,6 +1350,7 @@ const LogisticsPlugin = defineComponent({
       this.lspShipmentHubChains = []
       this.lspShipmentDirectChains = []
       let lspCopy = this.lsps.find(c => c.$id === this.selectedLsp)
+      
 
       // get correct Plan
       for (let i = 0; i < lspCopy.LspPlans.LspPlan.length; i++) {
@@ -1204,6 +1359,7 @@ const LogisticsPlugin = defineComponent({
         }
       }
 
+      console.log(this.lspPlan)
       // build new data object with shipment & shipment plan data
       try {
         for (let i = 0; i < this.lspPlan.shipmentPlans.shipmentPlan.length; i++) {
@@ -1280,7 +1436,38 @@ const LogisticsPlugin = defineComponent({
         }
       }
       )
+
       if (!carrierLsp.shipments?.shipment?.length) return []
+
+      let carrierInfo = {} as any
+
+      this.carriers.forEach(car => {
+        if (car.$id == carrier.$id) {
+          carrierInfo = carrier
+        }
+      })
+
+      // let carrierInfoServices = [] as any
+
+      // carrierInfo.services.service.forEach((service: any) => {
+      //   carrierInfoServices.push(service)
+      // });
+
+
+      // let newCarrierService: carrierServices = {
+      //   carrierId: carrierInfo.$id,
+      //   hubChainIndex: None,
+      //   carrierDepotId: carrierInfo.capabilities.vehicles.vehicle[0].$depotLinkId,
+      //   carrierServices: carrierInfoServices
+      // }
+
+      // this.allHubChains.forEach(element => {
+      //   if (element.chainIds.includes(newCarrierService.carrierId)) {
+      //     newCarrierService.hubChainIndex = element.chainIndex
+      //   } 
+      // });
+
+      // this.addToSet(this.carrierServicesAll, newCarrierService)
 
       const shipmentPlan = carrierLsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true")
       const shipmentPlanIds = [] as String[]
@@ -1314,7 +1501,7 @@ const LogisticsPlugin = defineComponent({
       // )
 
       try {
-        for (const shipment of shipments) {
+        shipments.forEach((shipment: any) => {
           // shipment has link id, so we go from link.from to link.to
           shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
           shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
@@ -1322,13 +1509,24 @@ const LogisticsPlugin = defineComponent({
           shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
 
           this.shipmentLookup[shipment.$id] = shipment
-        }
+        })
+
+
       } catch (e) {
         // if xy are missing, skip this -- just means network isn't loaded yet.
       }
 
-      // console.log(shipments)
       return shipments
+    },
+
+    addToSet(set: any, obj: any) {
+      const hasDuplicate = Array.from(set).some(item =>
+        JSON.stringify(item) === JSON.stringify(obj)  // Compare based on content
+      );
+
+      if (!hasDuplicate) {
+        set.add(obj); // Add the object directly if no duplicate is found
+      }
     },
 
     // this happens if viz is the full page, not a thumbnail on a project page
@@ -1733,15 +1931,11 @@ const LogisticsPlugin = defineComponent({
     if (this.lsps.length) this.handleSelectLsp(this.lsps[0])
     if (this.lspShipmentHubChains.length > 0) {
       this.activeTab = "lspShipmentChains"
-      console.log(this.activeTab)
     } else {
       this.activeTab = "shipments"
-      console.log(this.activeTab)
     }
 
     this.selectedCarrier = this.lsps[0].resources.carrier[0].$id
-
-
 
     // Select the first tour if the tours are loaded
 
@@ -1929,6 +2123,20 @@ input {
   color: var(--text);
 }
 
+.carrierHub {
+  padding: 0.25rem 0.5rem;
+  margin: 0 0rem;
+  color: var(--text);
+}
+
+.carrierHub {
+  background: none;
+}
+
+.carrierHub:hover {
+  color: var(--link);
+}
+
 .carrier:nth-of-type(odd) {
   background: var(--bgPanel2);
 }
@@ -1953,6 +2161,7 @@ input {
   margin-top: 0.1rem;
   display: flex;
   flex-direction: row;
+  font-weight: normal;
 
   i {
     opacity: 0.3;
@@ -1981,6 +2190,22 @@ input {
   overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
+}
+
+.carrier-tours {
+  display: flex;
+  margin-bottom: 0.25rem;
+}
+
+#tourColor {
+  width: 15px;
+  // flex: .1;
+  margin-right: 5px;
+}
+
+.lsp-tours {
+  display: flex;
+  margin-bottom: 0.25rem;
 }
 
 .lsp {
@@ -2074,7 +2299,7 @@ input {
 }
 
 .leaf {
-  padding-left: 1rem;
+  padding-left: 0.5rem;
 }
 
 .leaf:hover {
