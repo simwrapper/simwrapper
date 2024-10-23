@@ -119,6 +119,7 @@ function processTransit() {
         details.uniqueRouteID = uniqueRouteID++
         attr.transitRoutes.push(details)
       } catch (e) {
+        console.warn('' + e)
         postMessage({
           error: `Error:: ${route.id} :: cannot parse route. Network or coord mismatch?`,
         })
@@ -157,7 +158,7 @@ function generateStopFacilitiesFromXML() {
 }
 
 function buildTransitRouteDetails(lineId: string, route: any, gtfsRoute: number): RouteDetails {
-  const allDepartures = route.departures.departure
+  const allDepartures = route.departures.departure || [] // might be empty
   allDepartures.sort(function (a: any, b: any) {
     const timeA = a.departureTime
     const timeB = b.departureTime
@@ -172,9 +173,11 @@ function buildTransitRouteDetails(lineId: string, route: any, gtfsRoute: number)
     transportMode: route.transportMode,
     routeProfile: [],
     route: [],
-    departures: route.departures.departure.length,
-    firstDeparture: allDepartures[0].departureTime,
-    lastDeparture: allDepartures[allDepartures.length - 1].departureTime,
+    departures: allDepartures.length,
+    firstDeparture: allDepartures.length ? allDepartures[0].departureTime : '',
+    lastDeparture: allDepartures.length
+      ? allDepartures[allDepartures.length - 1].departureTime
+      : '',
     geojson: '',
     gtfsRouteType: gtfsRoute,
   }
