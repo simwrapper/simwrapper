@@ -6,7 +6,7 @@
   .labels(v-if="!thumbnail")
     p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges") {{ $t('showChanges')}}
+  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="is-small") {{ $t('showChanges')}}
 
 </template>
 
@@ -116,6 +116,7 @@ const MyComponent = defineComponent({
       if (panel) {
         this.textSize =
           panel.clientWidth > 900 ? Size.large : panel.clientWidth > 600 ? Size.med : Size.small
+        // panel.clientWidth > 900 ? Size.small : panel.clientWidth > 600 ? Size.small : Size.small
       }
       // redraw
       if (this.jsonChart?.nodes) this.doD3()
@@ -278,7 +279,7 @@ const MyComponent = defineComponent({
       let width = box ? box.clientWidth : 100
       let height = box ? box.clientHeight : 100
 
-      let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
+      let labelWidth = 10 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
 
       const layout = sankey()
         .nodeWidth(8)
@@ -325,7 +326,7 @@ export default MyComponent
 @import '@/styles.scss';
 
 .sankey-container {
-  padding-top: 1rem;
+  // padding-top: 1rem;
   display: flex;
   flex-direction: column;
   background-color: var(--bgCardFrame);
@@ -420,7 +421,7 @@ p {
 
 .chart-area {
   height: 100%;
-  width: 100%;
+  width: 95%;
   flex: 1;
   margin: 0 auto;
 }
