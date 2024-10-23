@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.4.3](https://github.com/simwrapper/simwrapper/compare/v3.4.2...v3.4.3) (2024-10-23)
+
+
+### Bug Fixes
+
+* Small design changes on the sankey plot ([#397](https://github.com/simwrapper/simwrapper/issues/397)) ([5888a2a](https://github.com/simwrapper/simwrapper/commit/5888a2a844c55c000c7a062db38ef784b18e35c3))
+* **transit:** handle transit lines that contain zero routes ([5aea47c](https://github.com/simwrapper/simwrapper/commit/5aea47c305478c31b5ad763e895d82fa75bbdee7))
+* **transit:** transit viewer hangs if roadway and transit schedule are not in sync ([2d8a9c9](https://github.com/simwrapper/simwrapper/commit/2d8a9c9515f254a938a01aa1ec2ac81a0fcf97ad)), closes [#339](https://github.com/simwrapper/simwrapper/issues/339)
+
 ### [3.4.2](https://github.com/simwrapper/simwrapper/compare/v3.4.1...v3.4.2) (2024-10-15)
 
 
