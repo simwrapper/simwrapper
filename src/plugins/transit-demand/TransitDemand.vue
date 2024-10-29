@@ -76,6 +76,8 @@
 
       .status-corner(v-if="loadingText")
         p {{ loadingText }}
+        b-progress.load-progress(v-if="loadProgress > 0"
+          :value="loadProgress" :rounded="false" type='is-success')
 
 </template>
 
@@ -212,6 +214,9 @@ const MyComponent = defineComponent({
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
+      loadProgress: 0,
+      loadSteps: 0,
+      totalLoadSteps: 7,
       searchText: '',
       //drag
       isDraggingDivider: 0,
@@ -356,6 +361,11 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    incrementLoadProgress() {
+      this.loadSteps += 1
+      this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
+    },
+
     handleSearchText() {
       this.handleEmptyClick(null, true)
       let foundRoutes = [] as any[]
@@ -449,9 +459,20 @@ const MyComponent = defineComponent({
     async prepareView() {
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
-      // Road network: first try the most obvious network filename:
-      let network =
-        this.vizDetails.network ?? this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+      let network = this.vizDetails.network
+      // First see if we have an avro network
+      if (!network) {
+        const avroFilename =
+          this.myState.yamlConfig.substring(
+            0,
+            this.myState.yamlConfig.indexOf('transitSchedule.')
+          ) + 'network.avro'
+        if (files.indexOf(avroFilename) > -1) network = avroFilename
+      }
+
+      // Try the most obvious network filename:
+
+      if (!network) network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
@@ -771,6 +792,7 @@ const MyComponent = defineComponent({
     },
 
     async loadAvroRoadNetwork() {
+      console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
 
@@ -799,6 +821,7 @@ const MyComponent = defineComponent({
         if (!this.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule) return
 
         this.loadingText = 'Loading networks...'
+        this.incrementLoadProgress()
 
         const filename = this.vizDetails.network
 
@@ -839,13 +862,19 @@ const MyComponent = defineComponent({
     },
 
     loadDemandData(filename: string): Promise<any[]> {
+      this.totalLoadSteps += 3
+
       const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
         if (!filename) resolve([])
         this.loadingText = 'Loading demand...'
+        this.incrementLoadProgress()
+
         const worker = new GzipWorker() as Worker
 
         worker.onmessage = (event: MessageEvent) => {
           this.loadingText = 'Processing demand...'
+          this.incrementLoadProgress()
+
           worker.terminate()
 
           if (event.data.error) {
@@ -862,8 +891,9 @@ const MyComponent = defineComponent({
             skipEmptyLines: true,
             dynamicTyping: true,
             worker: true,
-            complete: (results: any) => {
-              resolve(this.processDemand(results))
+            complete: async (results: any) => {
+              const result = await this.processDemand(results)
+              resolve(result)
             },
           })
         }
@@ -876,9 +906,10 @@ const MyComponent = defineComponent({
       return promise
     },
 
-    processDemand(results: any) {
+    async processDemand(results: any) {
       // todo: make sure meta contains fields we need!
       this.loadingText = 'Processing demand data...'
+      this.incrementLoadProgress()
 
       // build crossfilter
       console.log('BUILD crossfilter')
@@ -925,12 +956,19 @@ const MyComponent = defineComponent({
       const source = this.mymap.getSource('transit-source') as GeoJSONSource
       source.setData(this._transitLinks)
 
-      this.loadingText = ''
+      this.loadProgress = 100
+      await new Promise(resolve => {
+        setTimeout(() => {
+          resolve(true)
+        }, 250)
+      })
       return []
     },
 
     async processInputs(networks: NetworkInputs) {
-      this.loadingText = 'Preparing...'
+      this.loadingText = 'Examining networks...'
+      this.incrementLoadProgress()
+
       // spawn transit helper web worker
       this._transitHelper = new TransitSupplyWorker()
 
@@ -947,6 +985,7 @@ const MyComponent = defineComponent({
     async receivedProcessedTransit(buffer: MessageEvent) {
       if (buffer.data.status) {
         this.loadingText = buffer.data.status
+        this.incrementLoadProgress()
         return
       }
 
@@ -968,6 +1007,7 @@ const MyComponent = defineComponent({
       this._transitHelper.terminate()
 
       this.loadingText = 'Summarizing departures...'
+      this.incrementLoadProgress()
 
       // Use custom colors if they exist, otherwise use defaults
       if (this.vizDetails.customRouteTypes && this.vizDetails.customRouteTypes.length > 0) {
@@ -994,23 +1034,23 @@ const MyComponent = defineComponent({
 
     async processDepartures() {
       this.loadingText = 'Processing departures...'
+      this.incrementLoadProgress()
 
-      for (const id in this._transitLines) {
-        if (this._transitLines.hasOwnProperty(id)) {
-          const transitLine = this._transitLines[id]
-          for (const route of transitLine.transitRoutes) {
-            for (const linkID of route.route) {
-              if (!(linkID in this._departures))
-                this._departures[linkID] = { total: 0, routes: new Set() }
-
-              this._departures[linkID].total += route.departures
-              this._departures[linkID].routes.add(route.id)
-
-              this._maximum = Math.max(this._maximum, this._departures[linkID].total)
+      for (const transitLine of Object.values(this._transitLines)) {
+        for (const route of transitLine.transitRoutes) {
+          for (const linkID of route.route) {
+            if (!(linkID in this._departures)) {
+              this._departures[linkID] = { total: 0, routes: new Set() }
             }
+            this._departures[linkID].total += route.departures
+            this._departures[linkID].routes.add(route.id)
           }
         }
       }
+      // get max so we can scale line widths nicely
+      Object.values(this._departures).forEach(
+        e => (this._maximum = Math.max(this._maximum, e.total))
+      )
     },
 
     setTransitLayerOpacity(opacity: number) {
@@ -1769,9 +1809,9 @@ h3 {
   right: 0;
   z-index: 15;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   background-color: var(--bgPanel);
-  padding: 0rem 3rem;
+  padding: 0.5rem 3rem;
   margin: auto auto;
   width: 25rem;
   height: 4rem;
@@ -1791,8 +1831,8 @@ h3 {
     color: var(--textFancy);
     font-weight: normal;
     font-size: 1.3rem;
-    line-height: 2.6rem;
-    margin: auto auto auto auto;
+    line-height: 1rem;
+    margin: auto 0;
     padding: 0 0;
     text-align: center;
   }
@@ -1853,6 +1893,11 @@ h3 {
 }
 
 .searchbox {
+  margin-top: 0.25rem;
+}
+
+.load-progress {
+  height: 3px;
   margin-top: 0.25rem;
 }
 

@@ -51,7 +51,7 @@
     "@types/color-string": "^1.5.5",
     "@types/js-yaml": "^4.0.9",
     "blob-util": "^2.0.2",
-    "buefy": "^0.8.20",
+    "buefy": "^0.9.29",
     "bulma": "^1.0.0",
     "color-string": "^1.9.1",
     "colormap": "^2.3.1",
