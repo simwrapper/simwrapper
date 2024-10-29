@@ -167,9 +167,10 @@ function buildTransitRouteDetails(lineId: string, route: any, gtfsRoute: number)
     return 0
   })
 
-  const niceId = lineId == route.id ? lineId : `${lineId} (${route.id})`
+  // const niceId = lineId == route.id ? lineId : `${lineId} (${route.id})`
   const routeDetails: RouteDetails = {
-    id: niceId,
+    id: route.id,
+    lineId,
     transportMode: route.transportMode,
     routeProfile: [],
     route: [],

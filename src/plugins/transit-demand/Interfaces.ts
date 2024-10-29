@@ -1,6 +1,6 @@
 export interface RouteDetails {
   id: string
-  departures: number
+  lineId: string
   firstDeparture: string
   lastDeparture: string
   geojson: any
@@ -9,6 +9,9 @@ export interface RouteDetails {
   transportMode: string
   uniqueRouteID?: number
   gtfsRouteType?: number
+  departures: number
+  pax?: number
+  cap?: number
 }
 
 export interface Network {

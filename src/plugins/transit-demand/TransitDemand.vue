@@ -14,7 +14,7 @@
 
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-      p(style="margin-top: 0.5rem; font-size: 0.9rem")
+      p(style="margin-top: 0.25rem")
         b TRANSIT ROUTES
 
       .panel-item(v-if="metrics.length > 1")
@@ -30,36 +30,43 @@
 
       p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
 
+      .link-summary.flex-col(v-if="summaryStats.departures")
+          p: b LINK SUMMARY
+          .indent.flex-col(style="margin-top: 0.5rem; margin-left: 0.5rem; font-size: 0.9rem")
+            p Departures: {{ summaryStats.departures }}
+            p(v-if="cfDemand") Passengers: {{ summaryStats.pax }}
+            p(v-if="cfDemand") Load factor: {{ summaryStats.loadfac }}
+
+      p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
+
       .panel-items
-        .route-list(v-if="routesOnLink.length > 0")
 
-          .link-summary.flex-col(v-if="summaryStats.departures")
-            p: b LINK SUMMARY
-            .indent.flex-col(style="margin-left: 0.5rem")
-              p Departures: {{ summaryStats.departures }}
-              p(v-if="cfDemand") Passengers: {{ summaryStats.pax }}
-              p(v-if="cfDemand") Load factor: {{ summaryStats.loadfac }}
 
-          p: b ROUTES ON LINK
-          .route(v-for="route in routesOnLink"
-              :key="route.uniqueRouteID"
-              :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
-              @click="showRouteDetails(route.id)"
-          )
-            .route-title {{route.id}}
-            .detailed-route-data
-              .col
-                p: b {{route.departures}} departures
-                p {{route.firstDeparture}} — {{route.lastDeparture}}
-              .col(v-if="route.passengersAtArrival")
-                p: b {{ route.passengersAtArrival }} passengers
-                p {{ route.totalVehicleCapacity }} capacity
+        .transit-lines
+          .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
+
+            .line-header(@click="toggleTransitLine(line)")
+              p {{ line.id }}
+              .stats.flex-row
+                .stat {{ line.stats.departures }} dep
+                .stat {{ line.stats.pax }} pax
+                .stat {{ line.stats.cap }} cap
+
+            .route-list-items.flex-col(v-if="line.isOpen")
+              .route.flex-col(v-for="route in line.routes" :key="route.id"
+                :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
+                @click="showRouteDetails(route.id)"
+              )
+                .route-title {{route.id}}
+                .detailed-route-data
+                    .stat {{ route.departures }} dep
+                    .stat(v-if="route.pax") {{ route.pax }} pax
+                    .stat(v-if="route.pax") {{ route.cap }} cap
+                .col {{route.firstDeparture}} — {{route.lastDeparture}}
 
       legend-box.legend(v-if="!thumbnail"
         :rows="legendRows"
       )
-
-      //-   .status-bar(v-show="false && statusText") {{ statusText }}
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }")
       div.map-styles(:id="mapID")
@@ -101,6 +108,7 @@ import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from '
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
 import match from 'micromatch'
+import naturalSort from 'javascript-natural-sort'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -232,6 +240,7 @@ const MyComponent = defineComponent({
       buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
       metrics: metrics,
       activeMetric: metrics[0].field as any,
+      activeRoutes: [] as RouteDetails[],
       vizDetails: {
         transitSchedule: '',
         network: '',
@@ -258,13 +267,13 @@ const MyComponent = defineComponent({
       mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
       projection: DEFAULT_PROJECTION,
-      routesOnLink: [] as any[],
+      routesOnLink: [] as RouteDetails[],
       selectedRoute: null as any,
+      selectedLinkId: '',
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
       _attachedRouteLayers: [] as string[],
       _departures: {} as { [linkID: string]: Departure },
-      _linkData: null as any,
       _mapExtentXYXY: null as any,
       _maximum: -Infinity,
       _network: {} as Network,
@@ -302,6 +311,70 @@ const MyComponent = defineComponent({
         throw Error
       }
       return svnProject[0]
+    },
+
+    activeTransitLines() {
+      const lines = {} as {
+        [id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }
+      }
+
+      this.routesOnLink.forEach(route => {
+        if (!(route.lineId in lines)) {
+          lines[route.lineId] = {
+            id: route.lineId,
+            routes: [],
+            isOpen: false,
+            stats: {
+              departures: 0,
+              pax: 0,
+              cap: 0,
+            },
+          }
+        }
+        lines[route.lineId].routes.push(route)
+      })
+
+      // fetch demand data for these links
+      const demandLookup = {} as { [routeId: string]: any[] }
+      this.cfDemandLink?.filter(this.selectedLinkId)
+      const demandData = this.cfDemand?.allFiltered()
+
+      if (demandData) {
+        demandData.forEach(row => {
+          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+          demandLookup[row.transitRoute].push(row)
+        })
+      }
+
+      // sort the routes
+      Object.values(lines).forEach(line => {
+        // frequentiest routes first
+        line.routes.sort((a, b) => (a.departures < b.departures ? 1 : -1)) // naturalSort(a.id, b.id))
+        // statistics
+        line.routes.forEach(route => {
+          route.pax = 0
+          route.cap = 0
+          line.stats.departures += route.departures
+          const routeRuns = demandLookup[route.id]
+          if (routeRuns) {
+            const pax = routeRuns.reduce((a, b) => {
+              return a + b.passengersAtArrival
+            }, 0)
+            line.stats.pax += pax
+            route.pax += pax
+
+            const cap = routeRuns.reduce((a, b) => {
+              return a + b.totalVehicleCapacity
+            }, 0)
+            line.stats.cap += cap
+            route.cap += cap
+          }
+        })
+      })
+
+      // sort the lines
+      const rows = Object.values(lines).sort((a, b) => naturalSort(a.id, b.id))
+      return rows
     },
 
     legendRows(): string[][] {
@@ -361,6 +434,11 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    toggleTransitLine(line: any) {
+      line.isOpen = !line.isOpen
+      this.$forceUpdate()
+    },
+
     incrementLoadProgress() {
       this.loadSteps += 1
       this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
@@ -389,7 +467,8 @@ const MyComponent = defineComponent({
         this.showTransitRoute(this.selectedRoute)
       }
 
-      this.setTransitLayerOpacity(searchTerm ? 0.2 : 1.0)
+      console.log({ searchTerm })
+      this.setTransitLayerOpacity(searchTerm ? 0.2 : 1)
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
@@ -702,7 +781,7 @@ const MyComponent = defineComponent({
     },
 
     handleEmptyClick(e: any, force?: boolean) {
-      this.setTransitLayerOpacity(1.0)
+      this.setTransitLayerOpacity(1)
 
       // clear search box if user clicked away
       if (!force) this.searchText = ''
@@ -721,7 +800,7 @@ const MyComponent = defineComponent({
     showRouteDetails(routeID: string) {
       if (!routeID && !this.selectedRoute) return
 
-      console.log({ routeID })
+      // console.log({ routeID })
 
       if (routeID) this.showTransitRoute(routeID)
       else this.showTransitRoute(this.selectedRoute.id)
@@ -891,8 +970,8 @@ const MyComponent = defineComponent({
             skipEmptyLines: true,
             dynamicTyping: true,
             worker: true,
-            complete: async (results: any) => {
-              const result = await this.processDemand(results)
+            complete: (results: any) => {
+              const result = this.processDemand(results)
               resolve(result)
             },
           })
@@ -906,7 +985,7 @@ const MyComponent = defineComponent({
       return promise
     },
 
-    async processDemand(results: any) {
+    processDemand(results: any) {
       // todo: make sure meta contains fields we need!
       this.loadingText = 'Processing demand data...'
       this.incrementLoadProgress()
@@ -957,11 +1036,6 @@ const MyComponent = defineComponent({
       source.setData(this._transitLinks)
 
       this.loadProgress = 100
-      await new Promise(resolve => {
-        setTimeout(() => {
-          resolve(true)
-        }, 250)
-      })
       return []
     },
 
@@ -1057,11 +1131,12 @@ const MyComponent = defineComponent({
       const layer = this.mymap.getLayer('transit-link')
       if (!layer) return
 
+      const gray = this.isDarkMode ? '#444455' : '#ccccdd'
       this.mymap.setPaintProperty('transit-link', 'line-opacity', opacity)
       this.mymap.setPaintProperty(
         'transit-link',
         'line-color',
-        opacity == 1 ? ['get', 'color'] : '#888888'
+        opacity == 1 ? ['get', 'color'] : gray
       )
     },
 
@@ -1377,6 +1452,8 @@ const MyComponent = defineComponent({
 
       console.log('CLICKED ON', props.id)
 
+      this.selectedLinkId = props.id
+
       const routeIDs = this._departures[props.id].routes
 
       this.calculatePassengerVolumes(props.id)
@@ -1391,13 +1468,15 @@ const MyComponent = defineComponent({
         return a.departures > b.departures ? -1 : 1
       })
 
+      // console.log({ routes })
+
       this.routesOnLink = routes
       this.highlightAllAttachedRoutes()
 
       // highlight the first route, if there is one
       if (routes.length > 0) this.showRouteDetails(routes[0].id)
 
-      this.setTransitLayerOpacity(0.2)
+      this.setTransitLayerOpacity(0.99)
     },
 
     calculatePassengerVolumes(id: string) {
@@ -1405,7 +1484,7 @@ const MyComponent = defineComponent({
 
       const found = this._transitLinks.features.find((link: any) => link.properties.id == id)
 
-      console.log({ found })
+      // console.log({ found })
 
       this.summaryStats = found ? found.properties : empty
     },
@@ -1501,7 +1580,6 @@ const MyComponent = defineComponent({
       this.routesOnLink = []
       this.selectedRoute = {}
       this.stopMarkers = []
-      this._linkData = null
       this._geoTransitLinks = null
     },
   },
@@ -1629,7 +1707,7 @@ p {
 }
 
 .route {
-  padding: 5px 0px;
+  padding: 5px 0px 5px 1.5rem;
   text-align: left;
   color: var(--text);
 }
@@ -1648,7 +1726,7 @@ h3 {
 .route-title {
   font-weight: bold;
   line-height: 1.2rem;
-  margin: 0 0.25rem;
+  margin: 0;
   color: var(--link);
 }
 
@@ -1788,13 +1866,16 @@ h3 {
 .detailed-route-data {
   display: flex;
   flex-direction: row;
-  padding: 0 0.25rem;
+  color: #666;
+  font-weight: normal;
+  gap: 0.5rem;
 }
 
 .col {
   display: flex;
   flex-direction: column;
   line-height: 1.1rem;
+  color: #666;
 }
 
 .map-styles {
@@ -1814,7 +1895,7 @@ h3 {
   padding: 0.5rem 3rem;
   margin: auto auto;
   width: 25rem;
-  height: 4rem;
+  height: 5rem;
   border: 3px solid #cccccc80;
   // filter: $filterShadow;
 
@@ -1897,8 +1978,9 @@ h3 {
 }
 
 .load-progress {
+  padding: 0 5rem;
   height: 3px;
-  margin-top: 0.25rem;
+  margin-top: 0rem;
 }
 
 .new-rightside-info-panel {
@@ -1929,6 +2011,38 @@ h3 {
     left: 0;
     right: 0;
     border-top: 1px solid #88888880;
+  }
+}
+
+.transit-lines {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  user-select: none;
+  overflow-x: hidden;
+  cursor: pointer;
+  scrollbar-color: #888 var(--bgCream);
+  -webkit-scrollbar-color: #888 var(--bgCream);
+  width: 100%;
+
+  h3 {
+    font-size: 1.2rem;
+  }
+}
+
+.transit-line {
+  .line-header {
+    padding: 0.5rem 0.5rem;
+    background-color: var(--bgPanel3);
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 1px;
+  }
+  .stats {
+    gap: 0.5rem;
+    background-color: var(--bgPanel3);
+    font-size: 0.9rem;
+    font-weight: normal;
   }
 }
 </style>
