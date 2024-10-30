@@ -12,6 +12,8 @@ export interface RouteDetails {
   departures: number
   pax?: number
   cap?: number
+  color?: string
+  currentColor?: string
 }
 
 export interface Network {

@@ -104,7 +104,7 @@ import avro from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import { debounce } from 'debounce'
-import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
+import maplibregl, { GeoJSONSource, Popup } from 'maplibre-gl'
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
 import match from 'micromatch'
@@ -132,19 +132,49 @@ const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 const DEFAULT_ROUTE_COLORS = [
+  // ---------------------------------------------------
+  // GTFS codes first, they are most accurate.
   {
     match: {
-      transportMode: 'bus',
-      // gtfsRouteType: [3, 700, 701, 702, 703, 704],
+      gtfsRouteType: [3, 700, 701, 702, 703, 704],
     },
     color: '#95276E',
-    label: 'Bus',
+    label: 'Bus (GTFS)',
   },
   {
     match: {
-      transportMode: 'rail',
+      gtfsRouteType: [109],
+    },
+    color: '#408335',
+    label: 'S-Bahn (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [401, 402],
+    },
+    color: '#115D91',
+    label: 'U-Bahn (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [0, 3, 900, 901, 902, 903, 904, 905, 906],
+    },
+    color: '#BE1414',
+    label: 'Tram (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [4, 1000, 1200],
+    },
+    color: '#0480c1',
+    label: 'Ferry (GTFS)',
+  },
+  // ---------------------------------------------------
+  // MATSim transportMode and string-id next; less accurate but consistent.
+  {
+    match: {
+      transportMode: ['rail', 'subway'],
       id: 'U*',
-      // gtfsRouteType: [1, 400, 401, 402, 403, 404, 405],
     },
     color: '#115D91',
     label: 'U-Bahn',
@@ -153,23 +183,13 @@ const DEFAULT_ROUTE_COLORS = [
     match: {
       transportMode: 'rail',
       id: 'S*',
-      // gtfsRouteType: [109],
     },
     color: '#408335',
     label: 'S-Bahn',
   },
   {
     match: {
-      transportMode: 'rail',
-      // gtfsRouteType: [2, 100, 101, 102, 103, 104, 105, 106, 107, 108],
-    },
-    color: '#EC0016 ',
-    label: 'Long-distance train services',
-  },
-  {
-    match: {
       transportMode: 'ferry',
-      // gtfsRouteType: [4, 1000, 1200],
     },
     color: '#0480c1',
     label: 'Ferry',
@@ -177,7 +197,6 @@ const DEFAULT_ROUTE_COLORS = [
   {
     match: {
       transportMode: 'tram',
-      // gtfsRouteType: [0, 900, 901, 902, 903, 904, 905, 906]
     },
     color: '#BE1414',
     label: 'Tram',
@@ -187,11 +206,25 @@ const DEFAULT_ROUTE_COLORS = [
     color: '#00a',
     label: 'Public Transport',
   },
-  // {
-  //   match: { transportMode: 'train' },
-  //   color: '#0a0',
-  //   label: 'Rail',
-  // },
+  {
+    match: {
+      transportMode: 'rail',
+    },
+    color: '#EC0016 ',
+    label: 'Long-distance train',
+  },
+  {
+    match: { transportMode: 'train' },
+    color: '#0a0',
+    label: 'Rail',
+  },
+  {
+    match: {
+      transportMode: 'bus',
+    },
+    color: '#95276E',
+    label: 'Bus',
+  },
   {
     match: { id: '**' },
     color: '#aae',
@@ -263,6 +296,7 @@ const MyComponent = defineComponent({
       avroNetwork: null as any,
       isDarkMode: globalStore.state.isDarkMode,
       isMapMoving: false,
+      isHighlightingLink: false,
       loadingText: 'MATSim Transit Inspector',
       mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
@@ -272,19 +306,19 @@ const MyComponent = defineComponent({
       selectedLinkId: '',
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
-      _attachedRouteLayers: [] as string[],
       _departures: {} as { [linkID: string]: Departure },
       _mapExtentXYXY: null as any,
       _maximum: -Infinity,
       _network: {} as Network,
+      _transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
+      _transitLinkOffset: {} as { [linkId: string]: number },
+      _geoTransitLinks: null as any,
       _routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
       _transitLines: {} as { [index: string]: TransitLine },
       _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
-      _transitLinks: null as any,
-      _geoTransitLinks: null as any,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
@@ -421,7 +455,7 @@ const MyComponent = defineComponent({
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
       if (!this.mymap) return
 
-      this.removeAttachedRoutes()
+      this.resetLinkColors()
 
       this.mymap.setStyle(globalStore.getters.mapStyle)
 
@@ -446,29 +480,29 @@ const MyComponent = defineComponent({
 
     handleSearchText() {
       this.handleEmptyClick(null, true)
+      this.selectedLinkId = ''
+
       let foundRoutes = [] as any[]
       const searchTerm = this.searchText.trim().toLocaleLowerCase()
 
-      if (searchTerm) {
-        foundRoutes = Object.keys(this._routeData).filter(
-          routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
-        )
+      if (!searchTerm) {
+        this.resetLinkColors()
+        return
       }
 
-      // show/hide background transit routes
-      // this.showAllTransit(!foundRoutes.length)
+      foundRoutes = Object.keys(this._routeData).filter(
+        routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
+      )
 
       // show selected routes
       this.routesOnLink = foundRoutes.map(id => this._routeData[id])
 
       this.highlightAllAttachedRoutes()
-      if (this.routesOnLink.length) {
-        this.selectedRoute = this.routesOnLink[0].id
-        this.showTransitRoute(this.selectedRoute)
-      }
 
-      console.log({ searchTerm })
-      this.setTransitLayerOpacity(searchTerm ? 0.2 : 1)
+      // if (this.routesOnLink.length) {
+      //   this.selectedRoute = this.routesOnLink[0].id
+      //   this.showTransitRoute(this.selectedRoute)
+      // }
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
@@ -759,7 +793,7 @@ const MyComponent = defineComponent({
     },
 
     handleClickedMetric(metric: { field: string }) {
-      console.log('transit metric:', metric.field)
+      console.log('metric:', metric.field)
       this.activeMetric = metric.field
       this.drawMetric()
     },
@@ -781,7 +815,14 @@ const MyComponent = defineComponent({
     },
 
     handleEmptyClick(e: any, force?: boolean) {
-      this.setTransitLayerOpacity(1)
+      // this is here because zeroing out the search box also cascades the zeroing out
+      // of our selected link. Bad!
+      if (!e && this.isHighlightingLink) {
+        this.isHighlightingLink = false
+        return
+      }
+
+      this.isHighlightingLink = false
 
       // clear search box if user clicked away
       if (!force) this.searchText = ''
@@ -791,16 +832,20 @@ const MyComponent = defineComponent({
 
       this.removeStopMarkers()
       this.removeSelectedRoute()
-      this.removeAttachedRoutes()
+      this.resetLinkColors()
+
       this.routesOnLink = []
       this.stopHTML.html = ''
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
+
+      const source = this.mymap.getSource('transit-source') as GeoJSONSource
+      source.setData(this._transitLinks)
     },
 
     showRouteDetails(routeID: string) {
       if (!routeID && !this.selectedRoute) return
 
-      // console.log({ routeID })
+      console.log('SELECTED', routeID)
 
       if (routeID) this.showTransitRoute(routeID)
       else this.showTransitRoute(this.selectedRoute.id)
@@ -1018,6 +1063,7 @@ const MyComponent = defineComponent({
 
       // update passenger value in the transit-link geojson.
       for (const transitLink of this._transitLinks.features) {
+        if (!transitLink.properties) transitLink.properties = {}
         transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
         transitLink.properties['cap'] = capacity[transitLink.properties.id]
         transitLink.properties['loadfac'] =
@@ -1094,6 +1140,12 @@ const MyComponent = defineComponent({
 
       // Build the links layer and add it
       this._transitLinks = await this.constructDepartureFrequencyGeoJson()
+      this._transitLinkOffset = {}
+      this._transitLinks.features.forEach((feature: any, i: number) => {
+        //@ts-ignore
+        this._transitLinkOffset[feature.properties.id] = i
+      })
+
       this.addTransitToMap(this._transitLinks)
 
       this.handleClickedMetric({ field: 'departures' })
@@ -1104,6 +1156,21 @@ const MyComponent = defineComponent({
       if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
 
       this.loadingText = ''
+    },
+
+    visualSortTransitLinks() {
+      // sort by importance:
+      // 0=grey 1=routecolor 2=highlightedroute 3=selectedroute 4=selectedlink
+
+      //@ts-ignore
+      this._transitLinks.features.sort((a, b) => (a.properties.sort < b.properties.sort ? -1 : 1))
+
+      // recalc offsets
+      this._transitLinkOffset = {}
+      this._transitLinks.features.forEach((feature: any, i: number) => {
+        //@ts-ignore
+        this._transitLinkOffset[feature.properties.id] = i
+      })
     },
 
     async processDepartures() {
@@ -1121,22 +1188,10 @@ const MyComponent = defineComponent({
           }
         }
       }
+
       // get max so we can scale line widths nicely
       Object.values(this._departures).forEach(
         e => (this._maximum = Math.max(this._maximum, e.total))
-      )
-    },
-
-    setTransitLayerOpacity(opacity: number) {
-      const layer = this.mymap.getLayer('transit-link')
-      if (!layer) return
-
-      const gray = this.isDarkMode ? '#444455' : '#ccccdd'
-      this.mymap.setPaintProperty('transit-link', 'line-opacity', opacity)
-      this.mymap.setPaintProperty(
-        'transit-link',
-        'line-color',
-        opacity == 1 ? ['get', 'color'] : gray
       )
     },
 
@@ -1154,13 +1209,14 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 1.0,
             'line-width': 1,
-            'line-color': ['get', 'color'],
+            'line-color': ['get', 'currentColor'],
           },
         })
       }
 
       this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
         this.clickedOnTransitLink(e)
+        // e.originalEvent.stopPropagation()
       })
 
       // turn "hover cursor" into a pointer, so user knows they can click.
@@ -1211,7 +1267,7 @@ const MyComponent = defineComponent({
     },
 
     async constructDepartureFrequencyGeoJson() {
-      const geojson = []
+      const geojson = [] as any
       this.usedLabels = []
 
       for (const linkID in this._departures) {
@@ -1244,66 +1300,12 @@ const MyComponent = defineComponent({
 
           const departures = this._departures[linkID].total
 
-          // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
-          // const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
-          // const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
+          const routes = [...this._departures[linkID].routes]
+          // TODO for now take color from... first route?
+          // for (const routeId of this._departures[linkID].routes) {
+          const routeId = routes[0]
 
-          let isRail = true
-          let color = '#888'
-          let hideThisLine = false // stores if this line should be hidden
-
-          for (const route of this._departures[linkID].routes) {
-            const props = this._routeData[route] as any
-
-            // all match entries must match to select a color
-            for (const config of this.routeColors) {
-              hideThisLine = false
-              if (config.hide) hideThisLine = true
-
-              let matched = true
-              for (const [key, pattern] of Object.entries(config.match) as any[]) {
-                const valueForThisProp = props[key]
-                // quit if route doesn't include this match property
-                if (!valueForThisProp) {
-                  matched = false
-                  break
-                }
-
-                // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
-                if (key === 'gtfsRouteType') {
-                  if (Array.isArray(pattern)) {
-                    // array of gtfs values
-                    if (!pattern.includes(valueForThisProp)) {
-                      matched = false
-                      break
-                    }
-                  } else {
-                    // numeric - just one value
-                    if (valueForThisProp !== pattern) {
-                      matched = false
-                      break
-                    }
-                  }
-                } else {
-                  // text-match the pattern
-                  if (!match.isMatch(valueForThisProp, pattern)) {
-                    matched = false
-                    break
-                  }
-                }
-              }
-              // Set color and quit searching after first successful match
-              // the label will only be added if the route should not be hidden
-              if (matched) {
-                color = config.color
-                if (!this.usedLabels.includes(config.label) && !hideThisLine)
-                  this.usedLabels.push(config.label)
-                break
-              }
-            }
-            // no rules matched; sad!
-            if (color == '#888') console.log('OHE NOES', route)
-          }
+          const { color, hideThisLine } = this.determineRouteColor(routeId)
 
           let line = {
             type: 'Feature',
@@ -1312,16 +1314,13 @@ const MyComponent = defineComponent({
               coordinates: coordinates,
             },
             properties: {
-              color: color, // isRail ? '#a03919' : _colorScale[colorBin],
-              // colorBin: colorBin,
+              ...this.$props,
+              color,
               departures: departures,
-              // pax: 0,
-              // loadfac: 0,
-              // cap: 0,
               id: linkID,
-              isRail: isRail,
-              from: link.from, // _stopFacilities[fromNode].name || fromNode,
-              to: link.to, // _stopFacilities[toNode].name || toNode,
+              from: link.from,
+              to: link.to,
+              currentColor: color,
             },
           }
 
@@ -1332,13 +1331,68 @@ const MyComponent = defineComponent({
         }
       }
 
-      geojson.sort(function (a: any, b: any) {
-        if (a.isRail && !b.isRail) return -1
-        if (b.isRail && !a.isRail) return 1
-        return 0
-      })
+      return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
+    },
 
-      return { type: 'FeatureCollection', features: geojson }
+    determineRouteColor(id: string) {
+      let color = '#888'
+      let hideThisLine = false // stores if this line should be hidden from view
+
+      const props = this._routeData[id] as any
+      // routeColors is a list of possible matches by GTFS code, modestring, etc.
+      // For each route, we loop through the list of metrics.  The first set of
+      // match conditions that match all parameters determines the route color.
+      for (const config of this.routeColors) {
+        hideThisLine = false
+        if (config.hide) hideThisLine = true
+
+        let matched = true
+
+        // loop through all parameters in this match definition
+        for (const [key, pattern] of Object.entries(config.match) as any[]) {
+          const valueForThisProp = props[key]
+          // fail if route doesn't include this match property
+          if (!valueForThisProp) {
+            matched = false
+            break
+          }
+
+          // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
+          if (key === 'gtfsRouteType') {
+            if (Array.isArray(pattern)) {
+              // array of gtfs values
+              if (!pattern.includes(valueForThisProp)) {
+                matched = false
+                break
+              }
+            } else {
+              // numeric - just one value
+              if (valueForThisProp !== pattern) {
+                matched = false
+                break
+              }
+            }
+          } else {
+            // text-match the pattern
+            if (!match.isMatch(valueForThisProp, pattern)) {
+              matched = false
+              break
+            }
+          }
+        }
+        // Set color and stop searching after first successful match
+        // the label will only be added if the route should not be hidden
+        if (matched) {
+          color = config.color
+          if (!this.usedLabels.includes(config.label) && !hideThisLine)
+            this.usedLabels.push(config.label)
+          break
+        }
+      }
+      // no rules matched; sad!
+      if (color == '#888') console.log('OHE NOES', id)
+
+      return { color, hideThisLine }
     },
 
     offsetLineByMeters(line: any, metersToTheRight: number) {
@@ -1425,7 +1479,7 @@ const MyComponent = defineComponent({
           type: 'line',
           paint: {
             'line-opacity': 1.0,
-            'line-width': 7, // ['get', 'width'],
+            'line-width': 3, // ['get', 'width'],
             'line-color': '#fbff66', // 95f', // ['get', 'color'],
           },
         })
@@ -1444,109 +1498,94 @@ const MyComponent = defineComponent({
     },
 
     clickedOnTransitLink(e: any) {
+      this.isHighlightingLink = true
       this.removeStopMarkers()
       this.removeSelectedRoute()
 
       // the browser delivers some details that we need, in the fn argument 'e'
       const props = e.features[0].properties
-
-      console.log('CLICKED ON', props.id)
-
       this.selectedLinkId = props.id
-
       const routeIDs = this._departures[props.id].routes
 
-      this.calculatePassengerVolumes(props.id)
+      // overall link statistics
+      let empty = { departures: 0, pax: 0, loadfac: 0 }
+      const found = this._transitLinks.features.find((link: any) => link.properties.id == props.id)
+      this.summaryStats = found ? found.properties : empty
 
+      // routes on this link
       const routes = []
       for (const id of routeIDs) {
-        routes.push(this._routeData[id])
+        const details = this._routeData[id]
+        details.color = props.color
+        details.currentColor = props.color
+        routes.push(details)
       }
+
+      // const allRouteDetails = [...this._departures[props.id].routes]
 
       // sort by highest departures first
       routes.sort(function (a, b) {
         return a.departures > b.departures ? -1 : 1
       })
 
-      // console.log({ routes })
-
       this.routesOnLink = routes
+
+      // highlight selected routes
       this.highlightAllAttachedRoutes()
 
-      // highlight the first route, if there is one
-      if (routes.length > 0) this.showRouteDetails(routes[0].id)
-
-      this.setTransitLayerOpacity(0.99)
+      // and select the first highlighted route
+      // if (routes.length > 0) this.showRouteDetails(routes[0].id)
     },
 
-    calculatePassengerVolumes(id: string) {
-      let empty = { departures: 0, pax: 0, loadfac: 0 }
-
-      const found = this._transitLinks.features.find((link: any) => link.properties.id == id)
-
-      // console.log({ found })
-
-      this.summaryStats = found ? found.properties : empty
-    },
-
-    //   if (!this.cfDemandLink || !this.cfDemand) return
-
-    //   this.cfDemandLink.filter(id)
-
-    //   const allLinks = this.cfDemand.allFiltered()
-    //   let sum = 0
-
-    //   allLinks.map(d => {
-    //     // sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
-    //     sum += d.passengersAtArrival
-    //   })
-
-    //   console.log({ sum, allLinks })
-    //   this.currentLinkPax = sum
-    // },
-
-    removeAttachedRoutes() {
-      for (const layerID of this._attachedRouteLayers) {
-        try {
-          this.mymap.removeLayer('route-' + layerID)
-          this.mymap.removeSource('source-route-' + layerID)
-        } catch (e) {
-          //meh
+    resetLinkColors(color?: string) {
+      if (color) {
+        for (const link of this._transitLinks.features) {
+          link.properties.currentColor = color
+          link.properties.sort = 0
+        }
+      } else {
+        for (const link of this._transitLinks.features) {
+          link.properties.currentColor = link.properties.color
+          link.properties.sort = 0
         }
       }
-      this._attachedRouteLayers = []
     },
 
     highlightAllAttachedRoutes() {
-      this.removeAttachedRoutes()
+      const gray = this.isDarkMode ? '#444455' : '#ccccdd'
+      this.resetLinkColors(gray)
 
-      for (const route of this.routesOnLink) {
-        this.mymap.addSource('source-route-' + route.id, {
-          data: route.geojson,
-          type: 'geojson',
-        })
-        this.mymap.addLayer({
-          id: 'route-' + route.id,
-          source: 'source-route-' + route.id,
-          type: 'line',
-          paint: {
-            'line-opacity': 0.9,
-            'line-width': 10, // ['get', 'width'],
-            'line-color': '#44c378', // '#ccff33', // ['get', 'color'],
-          },
-        })
-        this._attachedRouteLayers.push(route.id)
-        this.mymap.on('click', 'route-' + route.id, (e: maplibregl.MapMouseEvent) => {
-          console.log('click!', e)
-          this.clickedOnTransitLink(e)
-        })
+      for (const routeDetails of this.routesOnLink) {
+        for (const linkId of routeDetails.route) {
+          const offset = this._transitLinkOffset[linkId]
+          const transitLink = this._transitLinks.features[offset]
+          transitLink.properties.currentColor = transitLink.properties.color
+          transitLink.properties.sort = 2
+        }
       }
+
+      // selected link all the way on top
+      if (this.selectedLinkId) {
+        const selectedLink =
+          this._transitLinks.features[this._transitLinkOffset[this.selectedLinkId]]
+        selectedLink.properties.currentColor = '#f0f'
+        selectedLink.properties.sort = 4
+      }
+
+      // sort by visual importance
+      this.visualSortTransitLinks()
+
+      const source = this.mymap.getSource('transit-source') as GeoJSONSource
+      source.setData(this._transitLinks)
+
+      this.mymap.setPaintProperty('transit-link', 'line-color', ['get', 'currentColor'])
     },
 
     pressedEscape() {
+      console.log('ESC')
       this.removeSelectedRoute()
       this.removeStopMarkers()
-      this.removeAttachedRoutes()
+      this.resetLinkColors()
 
       this.selectedRoute = null
       this.routesOnLink = []
@@ -1564,14 +1603,13 @@ const MyComponent = defineComponent({
     },
 
     clearData() {
-      this._attachedRouteLayers = []
       this._departures = {}
       this._mapExtentXYXY = [180, 90, -180, -90]
       this._maximum = 0
       this._network = { nodes: {}, links: {} }
       this._routeData = {}
       this._stopFacilities = {}
-      this._transitLinks = null
+      this._transitLinks = { type: 'FeatureCollection', features: [] }
       this._transitLines = {}
       this.selectedRoute = null
       this.cfDemand = null

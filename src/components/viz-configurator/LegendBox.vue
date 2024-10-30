@@ -1,7 +1,7 @@
 <template lang="pug">
 .legend-box(v-if="sections.length")
   h4 Legend
-  .legend-section(v-for="section,i in sections" :key="section.section")
+  .legend-section(v-for="section,i in sections" :key="`${section.section}${i}`")
     p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ sectionTitle(section) }}
     .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
       .row-value(:style="getRowStyle(row)")
