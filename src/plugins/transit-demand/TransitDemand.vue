@@ -49,8 +49,8 @@
               p {{ line.id }}
               .stats.flex-row
                 .stat {{ line.stats.departures }} dep
-                .stat {{ line.stats.pax }} pax
-                .stat {{ line.stats.cap }} cap
+                .stat(v-if="cfDemand") {{ line.stats.pax }} pax
+                .stat(v-if="cfDemand") {{ line.stats.cap }} cap
 
             .route-list-items.flex-col(v-if="line.isOpen")
               .route.flex-col(v-for="route in line.routes" :key="route.id"
