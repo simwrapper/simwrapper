@@ -85,10 +85,10 @@ export default function Component(props: { viewId: number; pies: PieInfo[]; scal
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   // useEffect for long calculations - like creating the piechart polygons
-  // const pieElements = useMemo(
-  //   () => calculatePieSlicePaths(props.pies, props.scale),
-  //   [props.pies, props.scale]
-  // )
+  const pieElements = useMemo(
+    () => calculatePieSlicePaths(props.pies, props.scale),
+    [props.pies, props.scale]
+  )
 
   REACT_VIEW_HANDLES[props.viewId] = () => {
     setViewState(globalStore.state.viewState)
@@ -99,8 +99,6 @@ export default function Component(props: { viewId: number; pies: PieInfo[]; scal
     view.center = [view.longitude, view.latitude]
     globalStore.commit('setMapCamera', view)
   }
-
-  const pieElements = calculatePieSlicePaths(props.pies, props.scale)
 
   const layers: any = []
 

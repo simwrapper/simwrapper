@@ -146,7 +146,7 @@ const PiePlugin = defineComponent({
   },
 
   mounted() {
-    this.allPies = this.generateRandomPies(20)
+    this.allPies = this.generateRandomPies(75)
   },
 
   beforeDestroy() {
