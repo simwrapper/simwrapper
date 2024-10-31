@@ -41,7 +41,6 @@
 
       .panel-items
 
-
         .transit-lines
           .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
 
@@ -211,7 +210,7 @@ const DEFAULT_ROUTE_COLORS = [
       transportMode: 'rail',
     },
     color: '#EC0016 ',
-    label: 'Long-distance train',
+    label: 'Train',
   },
   {
     match: { transportMode: 'train' },
@@ -323,8 +322,10 @@ const MyComponent = defineComponent({
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       xmlWorker: null as null | Worker,
-      cfDemand: null as crossfilter.Crossfilter<any> | null,
-      cfDemandLink: null as crossfilter.Dimension<any, any> | null,
+      cfDemand1: null as crossfilter.Crossfilter<any> | null,
+      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
+      cfDemand2: null as crossfilter.Crossfilter<any> | null,
+      cfDemandLink2: null as crossfilter.Dimension<any, any> | null,
       hoverWait: false,
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
@@ -370,9 +371,17 @@ const MyComponent = defineComponent({
 
       // fetch demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
-      this.cfDemandLink?.filter(this.selectedLinkId)
-      const demandData = this.cfDemand?.allFiltered()
 
+      this.cfDemandLink1?.filter(this.selectedLinkId)
+      let demandData = this.cfDemand1?.allFiltered()
+      if (demandData) {
+        demandData.forEach(row => {
+          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+          demandLookup[row.transitRoute].push(row)
+        })
+      }
+      this.cfDemandLink2?.filter(this.selectedLinkId)
+      demandData = this.cfDemand2?.allFiltered()
       if (demandData) {
         demandData.forEach(row => {
           if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
@@ -384,6 +393,7 @@ const MyComponent = defineComponent({
       Object.values(lines).forEach(line => {
         // frequentiest routes first
         line.routes.sort((a, b) => (a.departures < b.departures ? 1 : -1)) // naturalSort(a.id, b.id))
+
         // statistics
         line.routes.forEach(route => {
           route.pax = 0
@@ -987,10 +997,10 @@ const MyComponent = defineComponent({
 
     loadDemandData(filename: string): Promise<any[]> {
       this.totalLoadSteps += 3
+      this.loadingText = 'Loading demand...'
 
       const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
         if (!filename) resolve([])
-        this.loadingText = 'Loading demand...'
         this.incrementLoadProgress()
 
         const worker = new GzipWorker() as Worker
@@ -1032,33 +1042,56 @@ const MyComponent = defineComponent({
 
     processDemand(results: any) {
       // todo: make sure meta contains fields we need!
-      this.loadingText = 'Processing demand data...'
+      this.loadingText = 'Summarizing demand data...'
       this.incrementLoadProgress()
 
-      // build crossfilter
+      // build TWO crossfilters so memory doesn't freak out
       console.log('BUILD crossfilter')
-      this.cfDemand = crossfilter(results.data)
-      this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
+      const midpoint = Math.floor(results.data.length / 2)
+      const data1 = results.data.slice(0, midpoint)
+      const data2 = results.data.slice(midpoint)
+
+      this.cfDemand1 = crossfilter(data1)
+      this.cfDemand2 = crossfilter(data2)
+      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
+      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
       // build link-level passenger ridership
       console.log('COUNTING RIDERSHIP')
-
       const linkPassengersById = {} as any
-      const group = this.cfDemandLink.group()
-      group
+
+      const group1 = this.cfDemandLink1.group()
+      const group2 = this.cfDemandLink2.group()
+
+      // pax ridership
+      group1
         .reduceSum((d: any) => d.passengersAtArrival)
         .all()
         .map(link => {
           linkPassengersById[link.key as any] = link.value
         })
+      group2
+        .reduceSum((d: any) => d.passengersAtArrival)
+        .all()
+        .map(link => {
+          if (!linkPassengersById[link.key as any]) linkPassengersById[link.key as any] = link.value
+          linkPassengersById[link.key as any] += link.value
+        })
 
-      // and pax load-factors
+      // veh capacities
       const capacity = {} as any
-      group
+      group1
         .reduceSum((d: any) => d.totalVehicleCapacity)
         .all()
         .map(link => {
           capacity[link.key as any] = link.value
+        })
+      group2
+        .reduceSum((d: any) => d.totalVehicleCapacity)
+        .all()
+        .map(link => {
+          if (!capacity[link.key as any]) capacity[link.key as any] = link.value
+          capacity[link.key as any] += link.value
         })
 
       // update passenger value in the transit-link geojson.
@@ -1216,7 +1249,6 @@ const MyComponent = defineComponent({
 
       this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
         this.clickedOnTransitLink(e)
-        // e.originalEvent.stopPropagation()
       })
 
       // turn "hover cursor" into a pointer, so user knows they can click.
@@ -1521,8 +1553,6 @@ const MyComponent = defineComponent({
         routes.push(details)
       }
 
-      // const allRouteDetails = [...this._departures[props.id].routes]
-
       // sort by highest departures first
       routes.sort(function (a, b) {
         return a.departures > b.departures ? -1 : 1
@@ -1612,8 +1642,10 @@ const MyComponent = defineComponent({
       this._transitLinks = { type: 'FeatureCollection', features: [] }
       this._transitLines = {}
       this.selectedRoute = null
-      this.cfDemand = null
-      this.cfDemandLink?.dispose()
+      this.cfDemand1 = null
+      this.cfDemand2 = null
+      this.cfDemandLink1?.dispose()
+      this.cfDemandLink2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
       this.selectedRoute = {}
