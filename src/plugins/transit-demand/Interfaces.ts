@@ -4,7 +4,7 @@ export interface RouteDetails {
   firstDeparture: string
   lastDeparture: string
   geojson: any
-  routeProfile: string[]
+  routeProfile: any[]
   route: string[]
   transportMode: string
   uniqueRouteID?: number

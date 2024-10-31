@@ -53,7 +53,7 @@
 
             .route-list-items.flex-col(v-if="line.isOpen")
               .route.flex-col(v-for="route in line.routes" :key="route.id"
-                :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
+                :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
                 @click="showRouteDetails(route.id)"
               )
                 .route-title {{route.id}}
@@ -197,12 +197,12 @@ const DEFAULT_ROUTE_COLORS = [
     match: {
       transportMode: 'tram',
     },
-    color: '#BE1414',
+    color: '#9E1444',
     label: 'Tram',
   },
   {
     match: { transportMode: 'pt' },
-    color: '#00a',
+    color: '#05c',
     label: 'Public Transport',
   },
   {
@@ -302,8 +302,8 @@ const MyComponent = defineComponent({
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as RouteDetails[],
-      selectedRoute: null as any,
       selectedLinkId: '',
+      selectedRouteIds: [] as string[],
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
       _departures: {} as { [linkID: string]: Departure },
@@ -473,17 +473,13 @@ const MyComponent = defineComponent({
       this.mymap.on('style.load', () => {
         if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
         this.highlightAllAttachedRoutes()
-        if (this.selectedRoute) this.showTransitRoute(this.selectedRoute.id)
+
+        if (this.selectedRouteIds.length) this.showTransitRoutes()
       })
     },
   },
 
   methods: {
-    toggleTransitLine(line: any) {
-      line.isOpen = !line.isOpen
-      this.$forceUpdate()
-    },
-
     incrementLoadProgress() {
       this.loadSteps += 1
       this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
@@ -509,11 +505,6 @@ const MyComponent = defineComponent({
       this.routesOnLink = foundRoutes.map(id => this._routeData[id])
 
       this.highlightAllAttachedRoutes()
-
-      // if (this.routesOnLink.length) {
-      //   this.selectedRoute = this.routesOnLink[0].id
-      //   this.showTransitRoute(this.selectedRoute)
-      // }
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
@@ -851,17 +842,6 @@ const MyComponent = defineComponent({
 
       const source = this.mymap.getSource('transit-source') as GeoJSONSource
       source.setData(this._transitLinks)
-    },
-
-    showRouteDetails(routeID: string) {
-      if (!routeID && !this.selectedRoute) return
-
-      console.log('SELECTED', routeID)
-
-      if (routeID) this.showTransitRoute(routeID)
-      else this.showTransitRoute(this.selectedRoute.id)
-
-      this.showTransitStops()
     },
 
     async mapIsReady() {
@@ -1443,68 +1423,116 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
     },
 
-    showTransitStops() {
-      this.removeStopMarkers()
+    toggleTransitLine(line: any) {
+      line.isOpen = !line.isOpen
 
-      const route = this.selectedRoute
-      const stopSizeClass = 'stopmarker' // this.mymap.getZoom() > SHOW_STOPS_AT_ZOOM_LEVEL ? 'stop-marker-big' : 'stop-marker'
-      const mapBearing = this.mymap.getBearing()
-
-      let bearing
-
-      const markers = []
-
-      for (const [i, stop] of route.routeProfile.entries()) {
-        const stopFacility = this._stopFacilities[stop.refId]
-        const coord = [stopFacility.x, stopFacility.y]
-        // const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
-
-        // recalc bearing for every node except the last
-        if (i < route.routeProfile.length - 1) {
-          const point1 = turf.point([coord[0], coord[1]])
-          const point2 = turf.point([
-            this._stopFacilities[route.routeProfile[i + 1].refId].x,
-            this._stopFacilities[route.routeProfile[i + 1].refId].y,
-          ])
-          bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
-        }
-
-        const xy = this.mymap.project([coord[0], coord[1]])
-
-        // every marker has a latlng coord and a bearing
-        const marker = {
-          i,
-          bearing,
-          xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) },
-          name: stopFacility.name || '',
-          id: stopFacility.id || '',
-          linkRefId: stopFacility.linkRefId || '',
-        }
-        markers.push(marker)
+      if (line.isOpen) {
+        // upon open, highlight ALL routes that are in this transit-line
+        this.selectAllRoutesInLine(line)
+      } else {
+        // de-highlight upon closing
+        this.removeStopMarkers()
+        this.removeSelectedRoute()
       }
-      this.stopMarkers = markers
+
+      this.$forceUpdate()
     },
 
-    showTransitRoute(routeID: string) {
-      if (!routeID) return
+    selectAllRoutesInLine(line: { routes: RouteDetails[] }) {
+      const selectedIds = line.routes.map(route => route.id)
+      this.selectedRouteIds = selectedIds
+      this.showTransitRoutes()
+      this.showTransitStops()
+    },
 
+    showRouteDetails(routeID: string) {
+      // special case: if ALL routes in the current line are selected, AND nothing else is selected,
+      // AND the user just asked to remove "one" route, they probably want to see JUST that route
+      // (TODO)
+
+      const shownRoutes = new Set(this.selectedRouteIds)
+      if (shownRoutes.has(routeID)) {
+        shownRoutes.delete(routeID)
+      } else {
+        shownRoutes.add(routeID)
+      }
+
+      this.selectedRouteIds = [...shownRoutes]
+      this.showTransitRoutes()
+      this.showTransitStops()
+    },
+
+    showTransitStops() {
+      const mapBearing = this.mymap.getBearing()
+      const markers = {} as { [stopId: string]: any }
+
+      this.selectedRouteIds.forEach(routeId => {
+        const route = this._routeData[routeId]
+
+        for (const [i, stop] of route.routeProfile.entries()) {
+          const stopFacility = this._stopFacilities[stop.refId]
+          const coord = [stopFacility.x, stopFacility.y]
+          let bearing
+
+          // recalc bearing for every node except the last
+          if (i < route.routeProfile.length - 1) {
+            const point1 = turf.point([coord[0], coord[1]])
+            const point2 = turf.point([
+              this._stopFacilities[route.routeProfile[i + 1].refId].x,
+              this._stopFacilities[route.routeProfile[i + 1].refId].y,
+            ])
+            bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
+          }
+
+          const xy = this.mymap.project([coord[0], coord[1]])
+
+          // every marker has a latlng coord and a bearing
+          const marker = {
+            i,
+            bearing,
+            xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) },
+            name: stopFacility.name || '',
+            id: stopFacility.id || '',
+            linkRefId: stopFacility.linkRefId || '',
+          }
+          markers[marker.id] = marker
+        }
+      })
+
+      this.stopMarkers = Object.values(markers)
+    },
+
+    showTransitRoutes() {
       this.stopHTML.html = ''
 
-      const route = this._routeData[routeID]
-      // console.log({ selectedRoute: route })
+      if (!this.selectedRouteIds.length) {
+        this.removeSelectedRoute()
+        this.removeStopMarkers()
+        return
+      }
 
-      this.selectedRoute = route
+      const featureCollection = {
+        type: 'FeatureCollection',
+        features: [],
+      } as any
 
+      this.selectedRouteIds.forEach(id => {
+        const route = this._routeData[id]
+        featureCollection.features.push(route.geojson)
+      })
+
+      // set DATA SOURCE for yellow highlight line
       const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
       if (source) {
-        source.setData(route.geojson)
+        source.setData(featureCollection)
       } else {
         this.mymap.addSource('selected-route-data', {
-          data: route.geojson,
+          data: featureCollection,
           type: 'geojson',
         })
       }
 
+      // and SHOW the yellow highlight line
       if (!this.mymap.getLayer('selected-route')) {
         this.mymap.addLayer({
           id: 'selected-route',
@@ -1513,21 +1541,19 @@ const MyComponent = defineComponent({
           paint: {
             'line-opacity': 1.0,
             'line-width': 2, // ['get', 'width'],
-            'line-color': '#fbff66', // 95f', // ['get', 'color'],
+            'line-color': this.isDarkMode ? '#fbff66' : '#aaff66',
           },
         })
       }
     },
 
     removeSelectedRoute() {
-      if (this.selectedRoute) {
-        try {
-          if (this.mymap.getLayer('selected-route')) this.mymap.removeLayer('selected-route')
-        } catch (e) {
-          // oh well
-        }
-        this.selectedRoute = null
+      try {
+        if (this.mymap.getLayer('selected-route')) this.mymap.removeLayer('selected-route')
+      } catch (e) {
+        // oh well
       }
+      this.selectedRouteIds = []
     },
 
     clickedOnTransitLink(e: any) {
@@ -1617,20 +1643,19 @@ const MyComponent = defineComponent({
       this.removeSelectedRoute()
       this.removeStopMarkers()
       this.resetLinkColors()
-
-      this.selectedRoute = null
       this.routesOnLink = []
     },
 
     pressedArrowKey(delta: number) {
-      if (!this.selectedRoute) return
+      return
+      // if (!this.selectedRouteIds.length) return
 
-      let i = this.routesOnLink.indexOf(this.selectedRoute)
-      i = i + delta
+      // let i = this.routesOnLink.indexOf(this.selectedRoute)
+      // i = i + delta
 
-      if (i < 0 || i >= this.routesOnLink.length) return
+      // if (i < 0 || i >= this.routesOnLink.length) return
 
-      this.showRouteDetails(this.routesOnLink[i].id)
+      // this.showRouteDetails(this.routesOnLink[i].id)
     },
 
     clearData() {
@@ -1642,14 +1667,13 @@ const MyComponent = defineComponent({
       this._stopFacilities = {}
       this._transitLinks = { type: 'FeatureCollection', features: [] }
       this._transitLines = {}
-      this.selectedRoute = null
+      this.selectedRouteIds = []
       this.cfDemand1 = null
       this.cfDemand2 = null
       this.cfDemandLink1?.dispose()
       this.cfDemandLink2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
-      this.selectedRoute = {}
       this.stopMarkers = []
       this._geoTransitLinks = null
     },
