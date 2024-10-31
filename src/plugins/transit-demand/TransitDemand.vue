@@ -54,7 +54,7 @@
             .route-list-items.flex-col(v-if="line.isOpen")
               .route.flex-col(v-for="route in line.routes" :key="route.id"
                 :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
-                @click="showRouteDetails(route.id)"
+                @click="showRouteDetails(route.id, line.routes.length)"
               )
                 .route-title {{route.id}}
                 .detailed-route-data
@@ -304,6 +304,7 @@ const MyComponent = defineComponent({
       routesOnLink: [] as RouteDetails[],
       selectedLinkId: '',
       selectedRouteIds: [] as string[],
+      selectedTransitLine: '',
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
       _departures: {} as { [linkID: string]: Departure },
@@ -841,7 +842,7 @@ const MyComponent = defineComponent({
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
 
       const source = this.mymap.getSource('transit-source') as GeoJSONSource
-      source.setData(this._transitLinks)
+      if (source) source.setData(this._transitLinks)
     },
 
     async mapIsReady() {
@@ -1428,9 +1429,12 @@ const MyComponent = defineComponent({
 
       if (line.isOpen) {
         // upon open, highlight ALL routes that are in this transit-line
+        this.selectedTransitLine = line.id
+
         this.selectAllRoutesInLine(line)
       } else {
         // de-highlight upon closing
+        this.selectedTransitLine = ''
         this.removeStopMarkers()
         this.removeSelectedRoute()
       }
@@ -1445,19 +1449,18 @@ const MyComponent = defineComponent({
       this.showTransitStops()
     },
 
-    showRouteDetails(routeID: string) {
+    showRouteDetails(routeID: string, numRoutes: number) {
       // special case: if ALL routes in the current line are selected, AND nothing else is selected,
       // AND the user just asked to remove "one" route, they probably want to see JUST that route
-      // (TODO)
-
-      const shownRoutes = new Set(this.selectedRouteIds)
-      if (shownRoutes.has(routeID)) {
-        shownRoutes.delete(routeID)
+      if (numRoutes > 1 && this.selectedRouteIds.length == numRoutes) {
+        this.selectedRouteIds = [routeID]
       } else {
-        shownRoutes.add(routeID)
+        const shownRoutes = new Set(this.selectedRouteIds)
+        if (shownRoutes.has(routeID)) shownRoutes.delete(routeID)
+        else shownRoutes.add(routeID)
+        this.selectedRouteIds = [...shownRoutes]
       }
 
-      this.selectedRouteIds = [...shownRoutes]
       this.showTransitRoutes()
       this.showTransitStops()
     },
@@ -1609,6 +1612,8 @@ const MyComponent = defineComponent({
     },
 
     highlightAllAttachedRoutes() {
+      if (!this._transitLinks) return
+
       const gray = this.isDarkMode ? '#444455' : '#ccccdd'
       this.resetLinkColors(gray)
 
