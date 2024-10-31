@@ -67,15 +67,24 @@
         :rows="legendRows"
       )
 
-    .map-container(:class="{'hide-thumbnail': !thumbnail }")
-      div.map-styles(:id="mapID")
-        .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
-          :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
-        )
-        .stop-marker(v-for="stop,i in stopMarkers" :key="`${i}${stop.name}`"
-          @mouseenter="hoverOverStop(stop, $event)"
-          :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
-        )
+    .map-container(:class="{'hide-thumbnail': !thumbnail }"   oncontextmenu="return false"    )
+
+      .oldmap(:id="mapID" v-show="false")
+
+      transit-layers.map-styles(v-if="transitLinks?.features.length"
+        :viewId="viewId"
+        :links="transitLinks"
+        :selectedFeatures="selectedFeatures"
+        :stopMarkers="stopMarkers"
+        :handleClickEvent="handleMapClick"
+      )
+        //- .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
+        //-   :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
+        //- )
+        //- .stop-marker(v-for="stop,i in stopMarkers" :key="`${i}${stop.name}`"
+        //-   @mouseenter="hoverOverStop(stop, $event)"
+        //-   :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
+        //- )
 
       zoom-buttons
       //- drawing-tool(v-if="!thumbnail")
@@ -103,7 +112,6 @@ import avro from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
 import { debounce } from 'debounce'
-import maplibregl, { GeoJSONSource, Popup } from 'maplibre-gl'
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
 import match from 'micromatch'
@@ -120,8 +128,15 @@ import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import TransitLayers from './TransitLayers'
 
-import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
+import {
+  FileSystem,
+  FileSystemConfig,
+  ColorScheme,
+  VisualizationPlugin,
+  REACT_VIEW_HANDLES,
+} from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
 
@@ -239,7 +254,14 @@ class Departure {
 const MyComponent = defineComponent({
   name: 'TransitViewer',
   i18n,
-  components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool, ZoomButtons },
+  components: {
+    CollapsiblePanel,
+    LeftDataPanel,
+    LegendBox,
+    DrawingTool,
+    ZoomButtons,
+    TransitLayers,
+  },
 
   props: {
     root: { type: String, required: true },
@@ -254,6 +276,7 @@ const MyComponent = defineComponent({
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
+      viewId: Math.floor(1e12 * Math.random()),
       loadProgress: 0,
       loadSteps: 0,
       totalLoadSteps: 7,
@@ -265,10 +288,6 @@ const MyComponent = defineComponent({
       showLegend: true,
       //
       stopHTML: { html: '', x: 0, y: 0 },
-      mapPopup: new Popup({
-        closeButton: false,
-        closeOnClick: false,
-      }),
       buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
       metrics: metrics,
       activeMetric: metrics[0].field as any,
@@ -298,21 +317,21 @@ const MyComponent = defineComponent({
       isMapMoving: false,
       isHighlightingLink: false,
       loadingText: 'MATSim Transit Inspector',
-      mymap: null as any,
       mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as RouteDetails[],
       selectedLinkId: '',
       selectedRouteIds: [] as string[],
       selectedTransitLine: '',
+      selectedFeatures: [] as any[],
       summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
       _departures: {} as { [linkID: string]: Departure },
       _mapExtentXYXY: null as any,
       _maximum: -Infinity,
       _network: {} as Network,
-      _transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
-      _transitLinkOffset: {} as { [linkId: string]: number },
+      transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
+      transitLinkOffset: {} as { [linkId: string]: number },
       _geoTransitLinks: null as any,
       _routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
@@ -431,56 +450,42 @@ const MyComponent = defineComponent({
   },
 
   watch: {
-    searchText() {
-      this.debounceHandleSearchText()
-    },
-
-    '$store.state.resizeEvents'() {
-      if (this.mymap) this.mymap.resize()
-    },
-
-    '$store.state.viewState'({ bearing, longitude, latitude, zoom, pitch }: any) {
-      // ignore my own farts; they smell like roses
-      if (!this.mymap || this.isMapMoving) {
-        this.isMapMoving = false
-        return
-      }
-
-      // sometimes closing a view returns a null map, ignore it!
-      if (!zoom) return
-
-      this.mymap.off('move', this.handleMapMotion)
-
-      this.mymap.jumpTo({
-        bearing,
-        zoom,
-        center: [longitude, latitude],
-        pitch,
-      })
-
-      this.mymap.on('move', this.handleMapMotion)
+    '$store.state.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.viewId]) return
+      REACT_VIEW_HANDLES[this.viewId]()
 
       if (this.stopMarkers.length > 0) this.showTransitStops()
     },
 
+    // 'globalState.colorScheme'() {
+    //   // change one element to force a deck.gl redraw
+    //   this.$nextTick().then(p => {
+    //     // const tooltips = this.vizDetails. || []
+    //     // this.vizDetails.tooltip = [...tooltips]
+    //   })
+    // },
+
+    searchText() {
+      this.debounceHandleSearchText()
+    },
+
     '$store.state.colorScheme'() {
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-      if (!this.mymap) return
-
-      this.resetLinkColors()
-
-      this.mymap.setStyle(globalStore.getters.mapStyle)
-
-      this.mymap.on('style.load', () => {
-        if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
-        this.highlightAllAttachedRoutes()
-
-        if (this.selectedRouteIds.length) this.showTransitRoutes()
-      })
+      this.highlightAllAttachedRoutes()
     },
   },
 
   methods: {
+    handleMapClick(e: any) {
+      if (e.index > -1) {
+        // clicked on a thing
+        this.clickedOnTransitLink(e.index)
+      } else {
+        // empty map click
+        this.handleEmptyClick(true, false)
+      }
+    },
+
     incrementLoadProgress() {
       this.loadSteps += 1
       this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
@@ -536,8 +541,6 @@ const MyComponent = defineComponent({
 
       const deltaX = this.isDraggingDivider - e.clientX
       this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
-      // localStorage.setItem('leftPanelWidth', `${this.legendSectionWidth}`)
-      this.mymap.resize()
     },
 
     async getVizDetails() {
@@ -738,14 +741,6 @@ const MyComponent = defineComponent({
 
     setupMap() {
       try {
-        this.mymap = new maplibregl.Map({
-          bearing: 0,
-          container: this.mapID,
-          logoPosition: 'bottom-left',
-          style: globalStore.getters.mapStyle,
-          pitch: 0,
-        })
-
         const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
         if (extent) {
@@ -753,23 +748,12 @@ const MyComponent = defineComponent({
             const lnglat = JSON.parse(extent)
             const mFac = this.isMobile() ? 0 : 1
             const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-
-            this.mymap.fitBounds(lnglat, {
-              animate: false,
-              padding,
-            })
           } catch (e) {
             // ignore this, it's ok
           }
         }
-        // Start doing stuff AFTER the MapBox library has fully initialized
-        this.mymap.on('load', this.mapIsReady)
-        this.mymap.on('move', this.handleMapMotion)
-        this.mymap.on('click', this.handleEmptyClick)
-
-        this.mymap.keyboard.disable() // so arrow keys don't pan
       } catch (e) {
-        console.error('' + e)
+        console.warn('' + e)
 
         // no worries
       }
@@ -778,43 +762,29 @@ const MyComponent = defineComponent({
     drawMetric() {
       let widthExpression: any = 3
 
-      switch (this.activeMetric) {
-        case 'departures':
-          widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
-          break
+      this.transitLinks.features.forEach((link: any) => {
+        let width = 1
+        switch (this.activeMetric) {
+          case 'departures':
+            width = link.properties.departures * 0.025
+            break
+          case 'pax':
+            width = link.properties.pax * 0.0015
+            break
+          case 'loadfac':
+            width = link.properties.loadfac * 200
+            break
+        }
+        link.properties.width = width
+      })
 
-        case 'pax':
-          widthExpression = ['max', 2, ['*', 0.003, ['get', 'pax']]]
-          break
-
-        case 'loadfac':
-          widthExpression = ['max', 2, ['*', 200, ['get', 'loadfac']]]
-          break
-      }
-
-      this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
+      this.transitLinks = { ...this.transitLinks }
     },
 
     handleClickedMetric(metric: { field: string }) {
       console.log('metric:', metric.field)
       this.activeMetric = metric.field
       this.drawMetric()
-    },
-
-    handleMapMotion() {
-      const mapCamera = {
-        longitude: this.mymap.getCenter().lng,
-        latitude: this.mymap.getCenter().lat,
-        bearing: this.mymap.getBearing(),
-        zoom: this.mymap.getZoom(),
-        pitch: this.mymap.getPitch(),
-      }
-
-      if (!this.isMapMoving) this.$store.commit('setMapCamera', mapCamera)
-      this.isMapMoving = true
-
-      if (this.stopMarkers.length > 0) this.showTransitStops()
-      this.stopHTML.html = ''
     },
 
     handleEmptyClick(e: any, force?: boolean) {
@@ -841,11 +811,10 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
 
-      const source = this.mymap.getSource('transit-source') as GeoJSONSource
-      if (source) source.setData(this._transitLinks)
+      this.transitLinks = { ...this.transitLinks }
     },
 
-    async mapIsReady() {
+    async loadEverything() {
       const networks = await this.loadNetworks()
       const projection = await this.guessProjection(networks)
       this.vizDetails.projection = projection
@@ -1028,7 +997,6 @@ const MyComponent = defineComponent({
       this.incrementLoadProgress()
 
       // build TWO crossfilters so memory doesn't freak out
-      console.log('BUILD crossfilter')
       const midpoint = Math.floor(results.data.length / 2)
       const data1 = results.data.slice(0, midpoint)
       const data2 = results.data.slice(midpoint)
@@ -1039,7 +1007,6 @@ const MyComponent = defineComponent({
       this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
       // build link-level passenger ridership
-      console.log('COUNTING RIDERSHIP')
       const linkPassengersById = {} as any
 
       const group1 = this.cfDemandLink1.group()
@@ -1077,7 +1044,7 @@ const MyComponent = defineComponent({
         })
 
       // update passenger value in the transit-link geojson.
-      for (const transitLink of this._transitLinks.features) {
+      for (const transitLink of this.transitLinks.features) {
         if (!transitLink.properties) transitLink.properties = {}
         transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
         transitLink.properties['cap'] = capacity[transitLink.properties.id]
@@ -1092,9 +1059,6 @@ const MyComponent = defineComponent({
         { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
         { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
       ])
-
-      const source = this.mymap.getSource('transit-source') as GeoJSONSource
-      source.setData(this._transitLinks)
 
       this.loadProgress = 100
       return []
@@ -1154,19 +1118,20 @@ const MyComponent = defineComponent({
       await this.processDepartures()
 
       // Build the links layer and add it
-      this._transitLinks = await this.constructDepartureFrequencyGeoJson()
-      this._transitLinkOffset = {}
-      this._transitLinks.features.forEach((feature: any, i: number) => {
+      this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      this.transitLinkOffset = {}
+      this.transitLinks.features.forEach((feature: any, i: number) => {
         //@ts-ignore
-        this._transitLinkOffset[feature.properties.id] = i
+        this.transitLinkOffset[feature.properties.id] = i
       })
 
-      this.addTransitToMap(this._transitLinks)
+      this._geoTransitLinks = this.transitLinks
+
+      this.drawMetric()
 
       this.handleClickedMetric({ field: 'departures' })
 
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-      this.mymap.fitBounds(this._mapExtentXYXY, { animate: false })
 
       if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
 
@@ -1178,14 +1143,15 @@ const MyComponent = defineComponent({
       // 0=grey 1=routecolor 2=highlightedroute 3=selectedroute 4=selectedlink
 
       //@ts-ignore
-      this._transitLinks.features.sort((a, b) => (a.properties.sort < b.properties.sort ? -1 : 1))
+      this.transitLinks.features.sort((a, b) => (a.properties.sort < b.properties.sort ? -1 : 1))
 
       // recalc offsets
-      this._transitLinkOffset = {}
-      this._transitLinks.features.forEach((feature: any, i: number) => {
+      this.transitLinkOffset = {}
+      this.transitLinks.features.forEach((feature: any, i: number) => {
         //@ts-ignore
-        this._transitLinkOffset[feature.properties.id] = i
+        this.transitLinkOffset[feature.properties.id] = i
       })
+      this.transitLinks = { ...this.transitLinks }
     },
 
     async processDepartures() {
@@ -1208,76 +1174,6 @@ const MyComponent = defineComponent({
       Object.values(this._departures).forEach(
         e => (this._maximum = Math.max(this._maximum, e.total))
       )
-    },
-
-    showAllTransit(show: boolean) {
-      if (!show) {
-        if (this.mymap.getLayer('transit-link')) this.mymap.removeLayer('transit-link')
-        return
-      }
-
-      if (!this.mymap.getLayer('transit-link')) {
-        this.mymap.addLayer({
-          id: 'transit-link',
-          source: 'transit-source',
-          type: 'line',
-          paint: {
-            'line-opacity': 1.0,
-            'line-width': 1,
-            'line-color': ['get', 'currentColor'],
-          },
-        })
-      }
-
-      this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
-        this.clickedOnTransitLink(e)
-      })
-
-      // turn "hover cursor" into a pointer, so user knows they can click.
-      this.mymap.on('mousemove', 'transit-link', (e: maplibregl.MapLayerMouseEvent) => {
-        this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
-        this.hoveredOnElement(e)
-      })
-
-      // and back to normal when they mouse away
-      this.mymap.on('mouseleave', 'transit-link', () => {
-        this.mymap.getCanvas().style.cursor = 'grab'
-        this.mapPopup.remove()
-      })
-
-      this.drawMetric()
-    },
-
-    addTransitToMap(geodata: any) {
-      this._geoTransitLinks = geodata
-
-      this.mymap.addSource('transit-source', {
-        data: geodata,
-        type: 'geojson',
-      } as any)
-
-      this.showAllTransit(true)
-    },
-
-    hoveredOnElement(event: any) {
-      const props = event.features[0].properties
-
-      let content = '<div class="map-popup">'
-
-      for (const metric of this.metrics) {
-        let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
-        label = label.replaceAll(' ', '&nbsp;')
-
-        if (!isNaN(props[metric.field]))
-          content += `
-          <div style="display: flex">
-            <div>${label}:&nbsp;&nbsp;</div>
-            <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
-          </div>`
-      }
-
-      content += '<div>'
-      this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
     },
 
     async constructDepartureFrequencyGeoJson() {
@@ -1338,7 +1234,7 @@ const MyComponent = defineComponent({
             },
           }
 
-          line = this.offsetLineByMeters(line, 15)
+          line = this.offsetLineByMeters(line, 5)
 
           // Add the line to the geojson array only if the line should not be hidden
           if (!hideThisLine) geojson.push(line)
@@ -1466,38 +1362,40 @@ const MyComponent = defineComponent({
     },
 
     showTransitStops() {
-      const mapBearing = this.mymap.getBearing()
       const markers = {} as { [stopId: string]: any }
+
+      const mapBearing = globalStore.state.viewState.bearing
 
       this.selectedRouteIds.forEach(routeId => {
         const route = this._routeData[routeId]
 
-        for (const [i, stop] of route.routeProfile.entries()) {
-          const stopFacility = this._stopFacilities[stop.refId]
-          const coord = [stopFacility.x, stopFacility.y]
-          let bearing
+        const allStops = route.routeProfile
+        const numStops = allStops.length
+        // purposely unitialized so that final stop retains previous value
+        let bearing
 
-          // recalc bearing for every node except the last
-          if (i < route.routeProfile.length - 1) {
-            const point1 = turf.point([coord[0], coord[1]])
-            const point2 = turf.point([
-              this._stopFacilities[route.routeProfile[i + 1].refId].x,
-              this._stopFacilities[route.routeProfile[i + 1].refId].y,
-            ])
-            bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
+        for (const [i, stop] of allStops.entries()) {
+          const startFacility = this._stopFacilities[stop.refId]
+          const startCoord = turf.point([startFacility.x, startFacility.y])
+
+          if (i < numStops - 1) {
+            // recalculate bearing for every node except the last
+            const endFacility = this._stopFacilities[route.routeProfile[i + 1].refId]
+            const endCoord = turf.point([endFacility.x, endFacility.y])
+            // so icons rotate along with map
+            bearing = mapBearing - turf.bearing(startCoord, endCoord)
           }
-
-          const xy = this.mymap.project([coord[0], coord[1]])
 
           // every marker has a latlng coord and a bearing
           const marker = {
             i,
             bearing,
-            xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) },
-            name: stopFacility.name || '',
-            id: stopFacility.id || '',
-            linkRefId: stopFacility.linkRefId || '',
+            xy: [startFacility.x, startFacility.y],
+            name: startFacility.name || '',
+            id: startFacility.id || '',
+            linkRefId: startFacility.linkRefId || '',
           }
+
           markers[marker.id] = marker
         }
       })
@@ -1514,64 +1412,35 @@ const MyComponent = defineComponent({
         return
       }
 
-      const featureCollection = {
-        type: 'FeatureCollection',
-        features: [],
-      } as any
+      const featureCollection = [] as any[]
 
       this.selectedRouteIds.forEach(id => {
         const route = this._routeData[id]
-        featureCollection.features.push(route.geojson)
+        featureCollection.push(route.geojson)
       })
 
-      // set DATA SOURCE for yellow highlight line
-      const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
-      if (source) {
-        source.setData(featureCollection)
-      } else {
-        this.mymap.addSource('selected-route-data', {
-          data: featureCollection,
-          type: 'geojson',
-        })
-      }
-
-      // and SHOW the yellow highlight line
-      if (!this.mymap.getLayer('selected-route')) {
-        this.mymap.addLayer({
-          id: 'selected-route',
-          source: 'selected-route-data',
-          type: 'line',
-          paint: {
-            'line-opacity': 1.0,
-            'line-width': 2, // ['get', 'width'],
-            'line-color': this.isDarkMode ? '#fbff66' : '#aaff66',
-          },
-        })
-      }
+      this.selectedFeatures = featureCollection
     },
 
     removeSelectedRoute() {
-      try {
-        if (this.mymap.getLayer('selected-route')) this.mymap.removeLayer('selected-route')
-      } catch (e) {
-        // oh well
-      }
+      this.selectedFeatures = []
       this.selectedRouteIds = []
     },
 
-    clickedOnTransitLink(e: any) {
+    clickedOnTransitLink(index: number) {
       this.isHighlightingLink = true
       this.removeStopMarkers()
       this.removeSelectedRoute()
 
       // the browser delivers some details that we need, in the fn argument 'e'
-      const props = e.features[0].properties
+      const props = this.transitLinks.features[index].properties
+
       this.selectedLinkId = props.id
       const routeIDs = this._departures[props.id].routes
 
       // overall link statistics
       let empty = { departures: 0, pax: 0, loadfac: 0 }
-      const found = this._transitLinks.features.find((link: any) => link.properties.id == props.id)
+      const found = this.transitLinks.features.find((link: any) => link.properties.id == props.id)
       this.summaryStats = found ? found.properties : empty
 
       // routes on this link
@@ -1599,12 +1468,12 @@ const MyComponent = defineComponent({
 
     resetLinkColors(color?: string) {
       if (color) {
-        for (const link of this._transitLinks.features) {
+        for (const link of this.transitLinks.features) {
           link.properties.currentColor = color
           link.properties.sort = 0
         }
       } else {
-        for (const link of this._transitLinks.features) {
+        for (const link of this.transitLinks.features) {
           link.properties.currentColor = link.properties.color
           link.properties.sort = 0
         }
@@ -1612,15 +1481,15 @@ const MyComponent = defineComponent({
     },
 
     highlightAllAttachedRoutes() {
-      if (!this._transitLinks) return
+      if (!this.transitLinks) return
 
       const gray = this.isDarkMode ? '#444455' : '#ccccdd'
       this.resetLinkColors(gray)
 
       for (const routeDetails of this.routesOnLink) {
         for (const linkId of routeDetails.route) {
-          const offset = this._transitLinkOffset[linkId]
-          const transitLink = this._transitLinks.features[offset]
+          const offset = this.transitLinkOffset[linkId]
+          const transitLink = this.transitLinks.features[offset]
           transitLink.properties.currentColor = transitLink.properties.color
           transitLink.properties.sort = 2
         }
@@ -1628,8 +1497,7 @@ const MyComponent = defineComponent({
 
       // selected link all the way on top
       if (this.selectedLinkId) {
-        const selectedLink =
-          this._transitLinks.features[this._transitLinkOffset[this.selectedLinkId]]
+        const selectedLink = this.transitLinks.features[this.transitLinkOffset[this.selectedLinkId]]
         selectedLink.properties.currentColor = '#f0f'
         selectedLink.properties.sort = 4
       }
@@ -1637,10 +1505,7 @@ const MyComponent = defineComponent({
       // sort by visual importance
       this.visualSortTransitLinks()
 
-      const source = this.mymap.getSource('transit-source') as GeoJSONSource
-      source.setData(this._transitLinks)
-
-      this.mymap.setPaintProperty('transit-link', 'line-color', ['get', 'currentColor'])
+      this.transitLinks = { ...this.transitLinks }
     },
 
     pressedEscape() {
@@ -1670,7 +1535,7 @@ const MyComponent = defineComponent({
       this._network = { nodes: {}, links: {} }
       this._routeData = {}
       this._stopFacilities = {}
-      this._transitLinks = { type: 'FeatureCollection', features: [] }
+      this.transitLinks = { type: 'FeatureCollection', features: [] }
       this._transitLines = {}
       this.selectedRouteIds = []
       this.cfDemand1 = null
@@ -1706,11 +1571,10 @@ const MyComponent = defineComponent({
 
     await this.prepareView()
     this.setupMap()
+    this.loadEverything()
   },
 
   beforeDestroy() {
-    if (this.mymap) this.mymap.remove()
-
     this.clearData()
 
     if (this.xmlWorker) this.xmlWorker.terminate()
