@@ -34,8 +34,8 @@
           p: b LINK SUMMARY
           .indent.flex-col(style="margin-top: 0.5rem; margin-left: 0.5rem; font-size: 0.9rem")
             p Departures: {{ summaryStats.departures }}
-            p(v-if="cfDemand") Passengers: {{ summaryStats.pax }}
-            p(v-if="cfDemand") Load factor: {{ summaryStats.loadfac }}
+            p(v-if="cfDemand1") Passengers: {{ summaryStats.pax }}
+            p(v-if="cfDemand1") Load factor: {{ summaryStats.loadfac }}
 
       p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
 
@@ -48,8 +48,8 @@
               p {{ line.id }}
               .stats.flex-row
                 .stat {{ line.stats.departures }} dep
-                .stat(v-if="cfDemand") {{ line.stats.pax }} pax
-                .stat(v-if="cfDemand") {{ line.stats.cap }} cap
+                .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
+                .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
 
             .route-list-items.flex-col(v-if="line.isOpen")
               .route.flex-col(v-for="route in line.routes" :key="route.id"
@@ -292,6 +292,7 @@ const MyComponent = defineComponent({
         yamlConfig: '',
         thumbnail: true,
       },
+
       avroNetwork: null as any,
       isDarkMode: globalStore.state.isDarkMode,
       isMapMoving: false,
@@ -1511,7 +1512,7 @@ const MyComponent = defineComponent({
           type: 'line',
           paint: {
             'line-opacity': 1.0,
-            'line-width': 3, // ['get', 'width'],
+            'line-width': 2, // ['get', 'width'],
             'line-color': '#fbff66', // 95f', // ['get', 'color'],
           },
         })
