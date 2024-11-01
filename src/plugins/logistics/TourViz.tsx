@@ -1,14 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { StaticMap } from 'react-map-gl'
-import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
 import { ArcLayer, ScatterplotLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
-import PathOffsetLayer from '@/layers/PathOffsetLayer'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-import { formatScalarComplex } from '../matrix/local/vis-utils'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -49,7 +46,13 @@ const ActivityColor = {
   service: [255, 64, 255],
 }
 
-var totalShipments = 0
+
+interface hubShipment {
+  hubId: String,
+  shipmentTotal: number
+}
+
+var totalShipmentsPerHub: hubShipment[] = []
 
 
 export default function Component(props: {
@@ -166,7 +169,7 @@ export default function Component(props: {
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
     if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
-    if (object?.label == 'Depot') return renderHubInfo(hoverInfo)
+    if (object?.label == 'Depot' || (object?.locationX && object?.locationY)) return renderHubInfo(hoverInfo)
     return renderStopTooltip(hoverInfo)
   }
 
@@ -222,8 +225,8 @@ export default function Component(props: {
             top: y - 30,
           }}
         >
-          Total Shipment Count: {totalShipments} <br />
-          Chain Type: {object?.chainId} <br />
+          {/* Total Shipment Count: {totalShipments} <br />
+          Chain Type: {object?.chainId} <br /> */}
         </div>
       )
     } else {
@@ -277,6 +280,28 @@ export default function Component(props: {
 
   function renderHubInfo(hoverInfo: any) {
 
+    const { object, x, y } = hoverInfo
+
+    let hubInfo = totalShipmentsPerHub.find(obj => obj.hubId === object?.id)
+
+    return (
+      <div
+        className="tooltip"
+        style={{
+          fontSize: '0.8rem',
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          left: x + 20,
+          top: y - 30,
+        }}
+      >
+        Hub Id: {hubInfo?.hubId} <br />
+        Total Shipments: {hubInfo?.shipmentTotal} <br />
+      </div>
+    )
 
   }
 
@@ -358,8 +383,6 @@ export default function Component(props: {
       </div>
     )
   }
-
-  console.log(props.carrierServices)
 
   if (activeTab == 'lspTours') {
 
@@ -828,10 +851,44 @@ export default function Component(props: {
           })
         );
       } else {
-        totalShipments = 0
+
+        // Flatten the hubsChains to get individual hubs from each chain
+        const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
+
+        let uniqueHubs = allHubs.reduce((acc, obj) => {
+          const existingObj = acc.find(
+            (item: any) => JSON.stringify(item)
+              === JSON.stringify(obj)
+          );
+          if (!existingObj) {
+            acc.push(obj);
+          }
+          return acc;
+        }, []);
+
+        uniqueHubs.forEach((hub: any) => {
+          let newHubShipment: hubShipment = {
+            hubId: hub.id,
+            shipmentTotal: 0
+          }
+          totalShipmentsPerHub.push(newHubShipment)
+        });
+
         lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
-          totalShipments++
-          for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
+      
+          lspShipmentChain.hubs.forEach((hub: any) => {
+            if (uniqueHubs[0] === hub) {
+              console.log(lspShipmentChain)
+              let shipmentHub = totalShipmentsPerHub.find(obj => obj.hubId === hub.id)
+              if (shipmentHub) {
+                shipmentHub.shipmentTotal++
+              }
+            }
+          })
+
+          console.log(lspShipmentChain.route)
+
+          for (let i = 0; i < lspShipmentChain.route.length; i++) {
             newLayers.push(
               //@ts-ignore:
               new ArcLayer({
@@ -870,43 +927,25 @@ export default function Component(props: {
           }
         })
 
-         newLayers.push(
-            //@ts-ignore
-            new TextLayer({
-              id: 'HubChain',
-              data: lspShipmentChains[0].hubsChains,
-              getPosition: (d: any) => [d.hubs[0].locationX, d.hubs[0].locationY],
-              getText: (d: any) => d.hubs[0].id,
-              getAlignmentBaseline: 'center',
-              getColor: [255, 255, 255],
-              getBackgroundColor: [240, 130, 0],
-              background: true,
-              backgroundPadding: [2, 2, 2, 2],
-              fontWeight: 'normal',
-              getSize: 10,
-              getTextAnchor: 'middle',
-              pickable: true,
-              onHover: setHoverInfo
-            })
-          )
-
         newLayers.push(
-          //@ts-ignore:
-          new ScatterplotLayer({
-            id: 'deliveriesHubChain',
-            data: lspShipmentChains[0].hubsChains,
-            getPosition: (d: any) => [d.toX, d.toY],
-            getColor: ActivityColor.delivery,
-            getRadius: 3,
-            opacity: 0.9,
-            parameters: { depthTest: false },
+          //@ts-ignore
+          new TextLayer({
+            id: 'HubChain',
+            data: allHubs, // Pass all hubs (flattened)
+            getPosition: (hub: any) => [hub.locationX, hub.locationY], // Get position of each hub
+            getText: (hub: any) => hub.id, // Display each hub's ID as text
+            getAlignmentBaseline: 'center',
+            getColor: [255, 255, 255],
+            getBackgroundColor: [240, 130, 0],
+            background: true,
+            backgroundPadding: [2, 2, 2, 2],
+            fontWeight: 'normal',
+            getSize: 10,
+            getTextAnchor: 'middle',
             pickable: true,
-            radiusUnits: 'pixels',
-            onHover: setHoverInfo,
+            onHover: setHoverInfo // Handle hover interactions
           })
-        )
-
-
+        );
 
         newLayers.push(
           //@ts-ignore:
