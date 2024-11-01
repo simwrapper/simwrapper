@@ -124,7 +124,7 @@ export default function Component({
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
-  pieSlider = 50,
+  pieSlider = 20,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -162,7 +162,7 @@ export default function Component({
     const fullPies = stopMarkers.map(stop => {
       return {
         center: stop.xy,
-        radius: ((0.001 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
+        radius: ((0.0005 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
         slices: [
           { color: 'darkmagenta', value: stop.alightings },
           { color: 'gold', value: stop.boardings },
