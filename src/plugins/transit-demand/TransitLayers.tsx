@@ -34,9 +34,9 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
 
     let startAngle = Math.PI / 2
     let endAngle = startAngle
-    const curviness = 24
+    const curviness = 48
 
-    // lat/long are not perfectly symmetric. This makes the circles round
+    // lat/long are only perfectly symmetric at the equator. This makes the circles round
     const roundnessRatio = Math.cos((center[1] * Math.PI) / 180)
 
     // user values might not add to 1.000...
@@ -46,6 +46,18 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
       //@ts-ignore
       slice.percent = slice.value / total
     })
+
+    // background circle (we can't use lineWidth because of the internal pie slice lines)
+    const bgCircle = []
+    for (let i = 0; i <= curviness * 2; i++) {
+      const bgWidth = width * 1.015
+      endAngle = startAngle + (i / (curviness * 2)) * Math.PI * 2
+      bgCircle.push([
+        center[0] + (bgWidth * Math.cos(endAngle)) / roundnessRatio,
+        center[1] + bgWidth * Math.sin(endAngle),
+      ])
+    }
+    polygons.push([{ polygon: bgCircle, color: colorToRGB('white'), width }])
 
     // loop on each slice --------------
     const vertices = slices.map(slice => {
@@ -81,7 +93,7 @@ const colorToRGB = (colorString: string) => {
     const rgb = color(colorString)
     if (!rgb) return [0, 0, 0]
     // d3.color provides r, g, b properties directly
-    return [rgb.r, rgb.g, rgb.b]
+    return [rgb.r, rgb.g, rgb.b] as number[]
   } catch (error) {
     return [0, 0, 0]
   }
@@ -138,24 +150,26 @@ export default function Component({
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  const data = useMemo(
-    () =>
-      links.features.map((feature: any) => {
-        // convert css colors to rgb[]
-        const currentColor = feature.properties.currentColor
-        const useColor = Array.isArray(currentColor) ? currentColor : colorToRGB(currentColor)
+  // ----------------------------------------------
+  const data = useMemo(() => {
+    console.log('CREATE LINKS')
+    const linestrings = links.features.map((feature: any) => {
+      // convert css colors to rgb[]
+      // const currentColor = feature.properties.currentColor
+      // const useColor = Array.isArray(currentColor) ? currentColor : colorToRGB(currentColor)
+      return {
+        source: [...feature.geometry.coordinates[0], feature.properties.sort],
+        target: [...feature.geometry.coordinates[1], feature.properties.sort],
+        color: feature.properties.currentColor,
+        width: feature.properties.width,
+      }
+    })
+    return linestrings
+  }, [links])
 
-        return {
-          source: feature.geometry.coordinates[0],
-          target: feature.geometry.coordinates[1],
-          color: useColor,
-          width: feature.properties.width,
-        }
-      }),
-    [links]
-  )
-
+  // ----------------------------------------------
   const slices = useMemo(() => {
+    console.log('MAKE PIES')
     // no boarding data? no pies.
     if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
@@ -164,8 +178,8 @@ export default function Component({
         center: stop.xy,
         radius: ((0.0005 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
         slices: [
-          { color: 'darkmagenta', value: stop.alightings },
-          { color: 'gold', value: stop.boardings },
+          { color: 'gold', value: stop.alightings },
+          { color: 'darkmagenta', value: stop.boardings },
         ],
       }
     })
@@ -201,6 +215,9 @@ export default function Component({
       let html = '<div class="map-popup">'
 
       const props = links.features[index].properties
+
+      // no tooltip if greyed out link
+      if (props.sort == 0) return null
 
       for (const metric of metrics) {
         let label = locale == 'de' ? metric.name_de : metric.name_en
@@ -255,10 +272,10 @@ export default function Component({
       opacity: 1,
       autoHighlight: false,
       offsetDirection: OFFSET_DIRECTION.RIGHT,
-      parameters: { depthTest: false },
+      parameters: { depthTest: true },
       transitions: {
         getColor: 200,
-        // getWidth: 200,
+        getWidth: 200,
         // widthScale: 200,
       },
     })
@@ -293,9 +310,13 @@ export default function Component({
         data: slices,
         getPolygon: (d: any) => d.polygon,
         getFillColor: (d: any) => d.color,
-        pickable: false,
         stroked: false,
         filled: true,
+        extruded: true,
+        getLineWidth: 5,
+        lineWidthUnits: 'pixels',
+        minLineWidth: 5,
+        pickable: false,
         opacity: 1,
         sizeScale: 1,
         autoHighlight: false,
@@ -307,14 +328,21 @@ export default function Component({
 
   // STOP ICONS ----------------
   if (stopMarkers.length) {
+    // rotate stop arrows to match map rotation
+    const mapBearing = globalStore.state.viewState.bearing
+    const stopsMitBearing = stopMarkers.map(stop => {
+      const relativeBearing = mapBearing - stop.bearing
+      return Object.assign({ ...stop }, { bearing: relativeBearing })
+    })
+
     layers.push(
       new IconLayer({
         id: 'stop-icon-layer',
-        data: stopMarkers,
+        data: stopsMitBearing,
         getPosition: (d: any) => d.xy,
         getAngle: (d: any) => d.bearing,
         getIcon: (d: any) => 'marker',
-        getSize: 7,
+        getSize: 6,
         pickable: false,
         billboard: true,
         opacity: 1,
@@ -345,7 +373,8 @@ export default function Component({
       layers={layers}
       viewState={viewState}
       controller={true}
-      pickingRadius={4}
+      pickingRadius={3}
+      parameters={{ blend: false }}
       getTooltip={getTooltip}
       getCursor={({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'

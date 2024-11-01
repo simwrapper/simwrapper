@@ -109,6 +109,7 @@ function processTransit() {
       id: line.id,
       transitRoutes: [],
       gtfsRouteType: gtfsRoute,
+      check: false,
     }
 
     if (!line.transitRoute) continue

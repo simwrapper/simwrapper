@@ -11,7 +11,7 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
   private _network: any = { nodes: {}, links: {} }
   private _routeData: { [index: string]: RouteDetails } = {}
   private _stopFacilities: { [index: string]: NetworkNode } = {}
-  private _transitLines: { [index: string]: TransitLine } = {}
+  private transitLines: { [index: string]: TransitLine } = {}
   private _mapExtentXYXY = [180, 90, -180, -90]
 
   public handleInitialize(call: MethodCall) {
@@ -126,14 +126,14 @@ class TransitSupplyHelper extends AsyncBackgroundWorker {
       }
 
       // attr.transitRoutes.sort((a, b) => (a.id < b.id ? -1 : 1))
-      this._transitLines[attr.id] = attr
+      this.transitLines[attr.id] = attr
     }
     return {
       data: {
         network: this._network,
         routeData: this._routeData,
         stopFacilities: this._stopFacilities,
-        transitLines: this._transitLines,
+        transitLines: this.transitLines,
         mapExtent: this._mapExtentXYXY,
       },
       transferrables: [],

@@ -6,90 +6,99 @@
     @mousemove="dividerDragging"
     @mouseup="dividerDragEnd"
   )
-    .dragger(v-show="showLegend"
+    .dragger(
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
       @mousemove.stop="dividerDragging"
     )
 
-    .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
-
-      p(style="margin-top: 0.25rem")
-        b TRANSIT ROUTES
-
-      .panel-item(v-if="metrics.length > 1")
-        .metric-buttons
-          button.button.is-small.metric-button(
-            v-for="metric,i in metrics" :key="metric.field"
-            :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-            @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
-
-      b-input.searchbox(
-        v-model="searchText" style="padding: 0.5rem 0.5rem 1rem 0" size="is-small" placeholder="Search..."
-      )
-
-      p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
-
-      .link-summary.flex-col(v-if="summaryStats.departures")
-          p: b LINK SUMMARY
-          .indent.flex-col(style="margin-top: 0.5rem; margin-left: 0.5rem; font-size: 0.9rem")
-            p Departures: {{ summaryStats.departures }}
-            p(v-if="cfDemand1") Passengers: {{ summaryStats.pax }}
-            p(v-if="cfDemand1") Load factor: {{ summaryStats.loadfac }}
-
-      p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
-
-      .panel-items
-
-        .transit-lines
-          .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
-
-            .line-header(@click="toggleTransitLine(line)")
-              p {{ line.id }}
-              .stats.flex-row
-                .stat {{ line.stats.departures }} dep
-                .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
-                .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
-
-            .route-list-items.flex-col(v-if="line.isOpen")
-              .route.flex-col(v-for="route in line.routes" :key="route.id"
-                :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
-                @click="showRouteDetails(route.id, line.routes.length)"
-              )
-                .route-title {{route.id}}
-                .detailed-route-data
-                    .stat {{ route.departures }} dep
-                    .stat(v-if="route.pax") {{ route.pax }} pax
-                    .stat(v-if="route.pax") {{ route.cap }} cap
-                .col {{route.firstDeparture}} — {{route.lastDeparture}}
-
-      b-slider.pie-slider(type="is-danger" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
-
-      legend-box.legend(v-if="!thumbnail"
-        :rows="legendRows"
-      )
-
     .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-      transit-layers.map-styles(v-if="transitLinks?.features.length"
-        :viewId="viewId"
-        :links="transitLinks"
-        :selectedFeatures="selectedFeatures"
-        :stopMarkers="stopMarkers"
-        :handleClickEvent="handleMapClick"
-        :pieSlider="pieSlider"
-      )
-        //- .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
-        //-   :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
-        //- )
+        transit-layers.map-styles(v-if="transitLinks?.features.length"
+          :viewId="viewId"
+          :links="transitLinks"
+          :selectedFeatures="selectedFeatures"
+          :stopMarkers="stopMarkers"
+          :handleClickEvent="handleMapClick"
+          :pieSlider="pieSlider"
+        )
 
-      zoom-buttons
-      //- drawing-tool(v-if="!thumbnail")
+        b-slider.pie-slider(type="is-danger" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
 
-      .status-corner(v-if="loadingText")
-        p {{ loadingText }}
-        b-progress.load-progress(v-if="loadProgress > 0"
-          :value="loadProgress" :rounded="false" type='is-success')
+        zoom-buttons
+
+        .status-corner(v-if="loadingText")
+          p {{ loadingText }}
+          b-progress.load-progress(v-if="loadProgress > 0"
+            :value="loadProgress" :rounded="false" type='is-success')
+
+    .right-panel-holder(:style="{width: `${legendSectionWidth}px`}")
+
+      .right-side-column
+
+        p(style="margin-top: 0.25rem")
+          b TRANSIT INSPECTOR
+
+        .panel-item(v-if="metrics.length > 1")
+          .metric-buttons
+            button.button.is-small.metric-button(
+              v-for="metric,i in metrics" :key="metric.field"
+              :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+
+        b-input.searchbox(
+          v-model="searchText" style="padding: 0.5rem 0.5rem 1rem 0" size="is-small" placeholder="Search..."
+        )
+
+        //- p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
+
+        .link-summary.flex-col(v-if="summaryStats.departures")
+            p: b LINK SUMMARY
+            .indent.flex-col(style="margin-top: 0.5rem; margin-left: 0.5rem; font-size: 0.9rem")
+              p Departures: {{ summaryStats.departures }}
+              p(v-if="cfDemand1") Passengers: {{ summaryStats.pax }}
+              p(v-if="cfDemand1") Load factor: {{ summaryStats.loadfac }}
+
+        //- p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
+        p(style="margin: 0.75rem 0 0.25rem 0"): b LINES AND ROUTES
+
+        .transit-lines
+          route-drop-down(v-for="line,offset in transitLines" :key="`${line.id}${offset}`"
+            :line="line"
+            :offset="offset"
+            :isChecked="false"
+            :selectedRoutes="selectedRouteIds"
+            color="#06f"
+            @check="toggleLineChecked"
+            @toggleRoute="toggleRouteChecked"
+          )
+
+        //- .panel-items
+          //- .transit-lines
+          //-   .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
+
+          //-     .line-header(@click="toggleTransitLine(line)")
+          //-       p {{ line.id }}
+          //-       .stats.flex-row
+          //-         .stat {{ line.stats.departures }} dep
+          //-         .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
+          //-         .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
+
+          //-     .route-list-items.flex-col(v-if="line.isOpen")
+          //-       .route.flex-col(v-for="route in line.routes" :key="route.id"
+          //-         :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
+          //-         @click="showRouteDetails(route.id, line.routes.length)"
+          //-       )
+          //-         .route-title {{route.id}}
+          //-         .detailed-route-data
+          //-             .stat {{ route.departures }} dep
+          //-             .stat(v-if="route.pax") {{ route.pax }} pax
+          //-             .stat(v-if="route.pax") {{ route.cap }} cap
+          //-         .col {{route.firstDeparture}} — {{route.lastDeparture}}
+
+        legend-box.legend(v-if="!thumbnail"
+          :rows="legendRows"
+        )
 
 </template>
 
@@ -113,6 +122,7 @@ import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
 import match from 'micromatch'
 import naturalSort from 'javascript-natural-sort'
+import { color } from 'd3-color'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -121,11 +131,12 @@ import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
-import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import TransitLayers from './TransitLayers'
+import LegendBox from './LegendBox.vue'
+import RouteDropDown from './RouteDropDown.vue'
 
 import {
   FileSystem,
@@ -258,6 +269,7 @@ const MyComponent = defineComponent({
     DrawingTool,
     ZoomButtons,
     TransitLayers,
+    RouteDropDown,
   },
 
   props: {
@@ -282,13 +294,13 @@ const MyComponent = defineComponent({
       isDraggingDivider: 0,
       dragStartWidth: 250,
       legendSectionWidth: 250,
-      showLegend: true,
       //
       stopHTML: { html: '', x: 0, y: 0 },
       buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
       metrics: metrics,
       activeMetric: metrics[0].field as any,
       activeRoutes: [] as RouteDetails[],
+      checkedTransitLines: [] as string[],
       vizDetails: {
         transitSchedule: '',
         network: '',
@@ -328,10 +340,9 @@ const MyComponent = defineComponent({
       _network: {} as Network,
       transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
       transitLinkOffset: {} as { [linkId: string]: number },
-      _geoTransitLinks: null as any,
       _routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
-      _transitLines: {} as { [index: string]: TransitLine },
+      transitLines: [] as TransitLine[],
       _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
@@ -350,7 +361,6 @@ const MyComponent = defineComponent({
 
       stopLevelDemand: {} as { [id: string]: { b: number; a: number } },
 
-      hoverWait: false,
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
     }
@@ -460,7 +470,7 @@ const MyComponent = defineComponent({
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
 
-      if (this.stopMarkers.length > 0) this.showTransitStops()
+      // if (this.stopMarkers.length > 0) this.showTransitStops()
     },
 
     // 'globalState.colorScheme'() {
@@ -482,7 +492,72 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    toggleRouteChecked(props: { route: string; isChecked: boolean }) {
+      if (props.isChecked) {
+        // highlight if checked
+        this.routesOnLink.push(this._routeData[props.route])
+      } else {
+        // remove
+        this.routesOnLink = this.routesOnLink.filter(route => route.id !== props.route)
+      }
+
+      console.log('new routes on link', this.routesOnLink)
+      if (this.routesOnLink.length) {
+        this.highlightAllAttachedRoutes()
+      } else {
+        this.selectedLinkId = ''
+        this.resetLinkColors()
+        // trigger redraw
+        this.transitLinks = { ...this.transitLinks }
+      }
+
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+    },
+
+    toggleLineChecked(lineOffset: number) {
+      const line = this.transitLines[lineOffset]
+      console.log('check', line.id)
+      line.check = !line.check
+
+      console.log(line.id, 'is now', line.check)
+      const lineTerm = line.id.toLocaleLowerCase()
+
+      console.log({ routeData: this._routeData })
+      const foundRoutes = Object.values(this._routeData).filter(
+        route => route.lineId.toLocaleLowerCase() == lineTerm
+      )
+
+      if (line.check) {
+        // add routes that are not already present
+        foundRoutes.forEach(route => {
+          if (!this.selectedRouteIds.includes(route.id)) this.routesOnLink.push(route)
+        })
+        this.selectedTransitLine = line.id
+        this.selectAllRoutesInLine({ routes: line.transitRoutes })
+      } else {
+        // remove highlighted routes
+        const foundIds = foundRoutes.map(r => r.id)
+        this.routesOnLink = this.routesOnLink.filter(route => !foundIds.includes(route.id))
+      }
+
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+
+      console.log('new routes on link', this.routesOnLink)
+      if (this.routesOnLink.length) {
+        this.highlightAllAttachedRoutes()
+      } else {
+        this.selectedLinkId = ''
+        this.resetLinkColors()
+        // trigger redraw
+        this.transitLinks = { ...this.transitLinks }
+      }
+    },
+
     async updatePieSlider() {
+      // console.log('updatepieslider')
+      // this.stopMarkers = [...this.stopMarkers]
+      // return
+
       if (!this.stopMarkers.length) return
 
       const z = [...this.stopMarkers]
@@ -495,8 +570,6 @@ const MyComponent = defineComponent({
       })
       this.stopMarkers = z
       await this.$nextTick()
-
-      // this.stopMarkers = [...this.stopMarkers]
     },
 
     handleMapClick(e: any) {
@@ -792,10 +865,10 @@ const MyComponent = defineComponent({
             width = link.properties.departures * 0.025
             break
           case 'pax':
-            width = link.properties.pax * 0.0015
+            width = link.properties.pax * 0.001
             break
           case 'loadfac':
-            width = link.properties.loadfac * 200
+            width = link.properties.loadfac * 150
             break
         }
         link.properties.width = width
@@ -1043,7 +1116,6 @@ const MyComponent = defineComponent({
       this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
       // stop-level demand
-      console.log('STOPSS')
       const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
       const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
 
@@ -1085,9 +1157,6 @@ const MyComponent = defineComponent({
         })
       dimStop1.dispose()
       dimStop2.dispose()
-
-      // console.log(this.stopLevelDemand)
-      console.log('STOPSS DONE --------')
 
       // build link-level passenger ridership ----------
       const linkPassengersById = {} as any
@@ -1183,7 +1252,7 @@ const MyComponent = defineComponent({
       this._network = network
       this._routeData = routeData
       this._stopFacilities = stopFacilities
-      this._transitLines = transitLines
+      this.transitLines = Object.values(transitLines)
       this._mapExtentXYXY = mapExtent
 
       this._transitHelper.terminate()
@@ -1208,8 +1277,6 @@ const MyComponent = defineComponent({
         this.transitLinkOffset[feature.properties.id] = i
       })
 
-      this._geoTransitLinks = this.transitLinks
-
       this.drawMetric()
 
       this.handleClickedMetric({ field: 'departures' })
@@ -1221,27 +1288,11 @@ const MyComponent = defineComponent({
       this.loadingText = ''
     },
 
-    visualSortTransitLinks() {
-      // sort by importance:
-      // 0=grey 1=routecolor 2=highlightedroute 3=selectedroute 4=selectedlink
-
-      //@ts-ignore
-      this.transitLinks.features.sort((a, b) => (a.properties.sort < b.properties.sort ? -1 : 1))
-
-      // recalc offsets
-      this.transitLinkOffset = {}
-      this.transitLinks.features.forEach((feature: any, i: number) => {
-        //@ts-ignore
-        this.transitLinkOffset[feature.properties.id] = i
-      })
-      this.transitLinks = { ...this.transitLinks }
-    },
-
     async processDepartures() {
       this.loadingText = 'Processing departures...'
       this.incrementLoadProgress()
 
-      for (const transitLine of Object.values(this._transitLines)) {
+      for (const transitLine of this.transitLines) {
         for (const route of transitLine.transitRoutes) {
           for (const linkID of route.route) {
             if (!(linkID in this._departures)) {
@@ -1292,35 +1343,35 @@ const MyComponent = defineComponent({
           }
 
           const departures = this._departures[linkID].total
-
           const routes = [...this._departures[linkID].routes]
+
           // TODO for now take color from... first route?
           // for (const routeId of this._departures[linkID].routes) {
           const routeId = routes[0]
 
           const { color, hideThisLine } = this.determineRouteColor(routeId)
 
-          let line = {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: coordinates,
-            },
-            properties: {
-              ...this.$props,
-              color,
-              departures: departures,
-              id: linkID,
-              from: link.from,
-              to: link.to,
-              currentColor: color,
-            },
-          }
-
-          line = this.offsetLineByMeters(line, 5)
-
           // Add the line to the geojson array only if the line should not be hidden
-          if (!hideThisLine) geojson.push(line)
+          if (!hideThisLine) {
+            let line = {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: coordinates,
+              },
+              properties: {
+                ...this.$props,
+                color,
+                departures: departures,
+                id: linkID,
+                from: link.from,
+                to: link.to,
+                currentColor: color,
+              },
+            }
+            line = this.offsetLineByMeters(line, 5)
+            geojson.push(line)
+          }
         }
       }
 
@@ -1385,7 +1436,23 @@ const MyComponent = defineComponent({
       // no rules matched; sad!
       if (color == '#888') console.log('OHE NOES', id)
 
-      return { color, hideThisLine }
+      // save color in the route props before returning. HA! Side effects, woot! :-/
+      // convert css colors to rgb[]
+      const rgb = Array.isArray(color) ? color : this.colorToRGB(color)
+      props.color = rgb
+
+      return { color: rgb, hideThisLine }
+    },
+
+    colorToRGB(colorString: string) {
+      try {
+        const rgb = color(colorString)
+        if (!rgb) return [0, 0, 0]
+        // d3.color provides r, g, b properties directly
+        return [rgb.r, rgb.g, rgb.b]
+      } catch (error) {
+        return [0, 0, 0]
+      }
     },
 
     offsetLineByMeters(line: any, metersToTheRight: number) {
@@ -1435,8 +1502,10 @@ const MyComponent = defineComponent({
         this.selectedRouteIds = [routeID]
       } else {
         const shownRoutes = new Set(this.selectedRouteIds)
+
         if (shownRoutes.has(routeID)) shownRoutes.delete(routeID)
         else shownRoutes.add(routeID)
+
         this.selectedRouteIds = [...shownRoutes]
       }
 
@@ -1446,8 +1515,6 @@ const MyComponent = defineComponent({
 
     showTransitStops() {
       const markers = {} as { [stopId: string]: any }
-
-      const mapBearing = globalStore.state.viewState.bearing
 
       this.selectedRouteIds.forEach(routeId => {
         const route = this._routeData[routeId]
@@ -1464,8 +1531,8 @@ const MyComponent = defineComponent({
           if (i < numStops - 1) {
             const endFacility = this._stopFacilities[route.routeProfile[i + 1].refId]
             const endCoord = turf.point([endFacility.x, endFacility.y])
-            // so icons rotate along with map
-            bearing = mapBearing - turf.bearing(startCoord, endCoord)
+            // deck.gl layer will rotate these bearing along with the map
+            bearing = turf.bearing(startCoord, endCoord)
           }
 
           // every marker has a latlng coord and a bearing
@@ -1531,8 +1598,8 @@ const MyComponent = defineComponent({
 
       // overall link statistics
       let empty = { departures: 0, pax: 0, loadfac: 0 }
-      const found = this.transitLinks.features.find((link: any) => link.properties.id == props.id)
-      this.summaryStats = found ? found.properties : empty
+      const foundLink = this.transitLinks[this.transitLinkOffset[props.id]]
+      this.summaryStats = foundLink ? foundLink.properties : empty
 
       // routes on this link
       const routes = []
@@ -1557,7 +1624,7 @@ const MyComponent = defineComponent({
       // if (routes.length > 0) this.showRouteDetails(routes[0].id)
     },
 
-    resetLinkColors(color?: string) {
+    resetLinkColors(color?: number[]) {
       if (color) {
         for (const link of this.transitLinks.features) {
           link.properties.currentColor = color
@@ -1566,7 +1633,7 @@ const MyComponent = defineComponent({
       } else {
         for (const link of this.transitLinks.features) {
           link.properties.currentColor = link.properties.color
-          link.properties.sort = 0
+          link.properties.sort = 1
         }
       }
     },
@@ -1574,28 +1641,30 @@ const MyComponent = defineComponent({
     highlightAllAttachedRoutes() {
       if (!this.transitLinks) return
 
-      const gray = this.isDarkMode ? '#444455' : '#ccccdd'
-      this.resetLinkColors(gray)
+      if (this.routesOnLink.length) {
+        const gray = this.colorToRGB(this.isDarkMode ? '#444455' : '#ccccdd')
+        this.resetLinkColors(gray)
+      } else {
+        this.resetLinkColors()
+      }
 
       for (const routeDetails of this.routesOnLink) {
         for (const linkId of routeDetails.route) {
           const offset = this.transitLinkOffset[linkId]
           const transitLink = this.transitLinks.features[offset]
-          transitLink.properties.currentColor = transitLink.properties.color
-          transitLink.properties.sort = 2
+          transitLink.properties.currentColor = routeDetails.color || transitLink.properties.color
+          transitLink.properties.sort = 5
         }
       }
 
       // selected link all the way on top
       if (this.selectedLinkId) {
         const selectedLink = this.transitLinks.features[this.transitLinkOffset[this.selectedLinkId]]
-        selectedLink.properties.currentColor = '#f0f'
-        selectedLink.properties.sort = 4
+        selectedLink.properties.currentColor = this.colorToRGB('#f4f')
+        selectedLink.properties.sort = 5
       }
 
-      // sort by visual importance
-      this.visualSortTransitLinks()
-
+      // trigger redraw
       this.transitLinks = { ...this.transitLinks }
     },
 
@@ -1627,7 +1696,7 @@ const MyComponent = defineComponent({
       this._routeData = {}
       this._stopFacilities = {}
       this.transitLinks = { type: 'FeatureCollection', features: [] }
-      this._transitLines = {}
+      this.transitLines = []
       this.selectedRouteIds = []
       this.cfDemand1 = null
       this.cfDemand2 = null
@@ -1638,7 +1707,6 @@ const MyComponent = defineComponent({
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
-      this._geoTransitLinks = null
     },
   },
 
@@ -1698,16 +1766,11 @@ p {
   margin: 0px 0px;
 }
 
-.transit-popup {
-  padding: 0px 0px;
-  margin: 0px 0px;
-  border-style: solid;
-  border-width: 0px 0px 0px 20px;
-}
-
 .transit-viz {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   position: relative;
-  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
@@ -1838,12 +1901,11 @@ h3 {
 }
 
 .panel-items {
-  flex: 1;
   color: var(--text);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  position: relative;
+  // position: relative;
   margin: 0;
   font-size: 0.9rem;
 }
@@ -1882,7 +1944,7 @@ h3 {
   display: flex;
   flex-direction: row;
   gap: 0px;
-  margin: 0.25rem 0.5rem 0.25rem 0;
+  margin: 0.5rem 0.5rem 0.25rem 0;
 }
 
 .metric-button {
@@ -2010,51 +2072,34 @@ h3 {
   margin-top: 0rem;
 }
 
-.new-rightside-info-panel {
-  grid-row: 1 / 2;
-  grid-column: 3 / 4;
+.right-side-column {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   background-color: var(--bgCardFrame);
+}
 
-  .legend {
-    margin: 0.5rem 0.25rem 0.25rem 0rem;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--bgCardFrame);
-    border: 1px solid #88888844;
-    .description {
-      margin-top: 0.5rem;
-    }
-  }
-
-  .tooltip-html {
-    font-size: 0.8rem;
-    padding: 0.25rem;
-    text-align: left;
-    background-color: var(--bgCardFrame);
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-top: 1px solid #88888880;
+.legend {
+  margin: 0.5rem 0.25rem 0.25rem 0rem;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgCardFrame);
+  border: 1px solid #88888844;
+  .description {
+    margin-top: 0.5rem;
   }
 }
 
 .transit-lines {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  user-select: none;
   overflow-x: hidden;
+  overflow-y: auto;
   cursor: pointer;
   scrollbar-color: #888 var(--bgCream);
   -webkit-scrollbar-color: #888 var(--bgCream);
-  width: 100%;
-
-  h3 {
-    font-size: 1.2rem;
-  }
 }
 
 .transit-line {
@@ -2074,9 +2119,18 @@ h3 {
 }
 
 .pie-slider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
   width: 10rem;
   padding: 1rem;
-  margin: 0 auto;
-  z-index: 10000;
+  margin: 0;
+}
+
+.right-panel-holder {
+  position: relative;
+  grid-row: 1/2;
+  grid-column: 3/4;
+  max-height: 100%;
 }
 </style>
