@@ -1,11 +1,11 @@
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
 
+  //- @mousemove.stop
   .main-layout(v-if="!thumbnail"
-    @mousemove.stop="dividerDragging"
+    @mousemove="dividerDragging"
     @mouseup="dividerDragEnd"
   )
-
     .dragger(v-show="showLegend"
       @mousedown="dividerDragStart"
       @mouseup="dividerDragEnd"
@@ -63,13 +63,13 @@
                     .stat(v-if="route.pax") {{ route.cap }} cap
                 .col {{route.firstDeparture}} — {{route.lastDeparture}}
 
+      b-slider.pie-slider(type="is-danger" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
+
       legend-box.legend(v-if="!thumbnail"
         :rows="legendRows"
       )
 
-    .map-container(:class="{'hide-thumbnail': !thumbnail }"   oncontextmenu="return false"    )
-
-      .oldmap(:id="mapID" v-show="false")
+    .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
       transit-layers.map-styles(v-if="transitLinks?.features.length"
         :viewId="viewId"
@@ -77,13 +77,10 @@
         :selectedFeatures="selectedFeatures"
         :stopMarkers="stopMarkers"
         :handleClickEvent="handleMapClick"
+        :pieSlider="pieSlider"
       )
         //- .stop-html(v-if="stopHTML.html" v-html="stopHTML.html"
         //-   :style="{left: stopHTML.x + 'px', top: stopHTML.y+'px'}"
-        //- )
-        //- .stop-marker(v-for="stop,i in stopMarkers" :key="`${i}${stop.name}`"
-        //-   @mouseenter="hoverOverStop(stop, $event)"
-        //-   :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
         //- )
 
       zoom-buttons
@@ -317,7 +314,6 @@ const MyComponent = defineComponent({
       isMapMoving: false,
       isHighlightingLink: false,
       loadingText: 'MATSim Transit Inspector',
-      mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
       projection: DEFAULT_PROJECTION,
       routesOnLink: [] as RouteDetails[],
       selectedLinkId: '',
@@ -340,13 +336,20 @@ const MyComponent = defineComponent({
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
 
+      pieSlider: 30,
+
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       xmlWorker: null as null | Worker,
       cfDemand1: null as crossfilter.Crossfilter<any> | null,
-      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
       cfDemand2: null as crossfilter.Crossfilter<any> | null,
+      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
       cfDemandLink2: null as crossfilter.Dimension<any, any> | null,
+      cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
+      cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
+
+      stopLevelDemand: {} as { [id: string]: { b: number; a: number } },
+
       hoverWait: false,
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
@@ -392,6 +395,9 @@ const MyComponent = defineComponent({
 
       // fetch demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
+
+      this.cfDemandStop1?.filterAll()
+      this.cfDemandStop2?.filterAll()
 
       this.cfDemandLink1?.filter(this.selectedLinkId)
       let demandData = this.cfDemand1?.allFiltered()
@@ -476,6 +482,23 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async updatePieSlider() {
+      if (!this.stopMarkers.length) return
+
+      const z = [...this.stopMarkers]
+      this.stopMarkers = []
+      // this allows deck.gl to wake up and redraw
+      await new Promise(resolve => {
+        setTimeout(() => {
+          resolve(true)
+        }, 1)
+      })
+      this.stopMarkers = z
+      await this.$nextTick()
+
+      // this.stopMarkers = [...this.stopMarkers]
+    },
+
     handleMapClick(e: any) {
       if (e.index > -1) {
         // clicked on a thing
@@ -974,7 +997,7 @@ const MyComponent = defineComponent({
             // preview: 10000,
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: true,
+            dynamicTyping: false,
             worker: true,
             complete: (results: any) => {
               const result = this.processDemand(results)
@@ -996,17 +1019,77 @@ const MyComponent = defineComponent({
       this.loadingText = 'Summarizing demand data...'
       this.incrementLoadProgress()
 
+      const numericCols = [
+        'passengersAtAlighting',
+        'passengersAtArrival',
+        'passengersBoarding',
+        'stopSequence',
+        'totalVehicleCapacity',
+      ]
+      results.data.forEach((row: any) => {
+        for (const key of numericCols) row[key] = parseFloat(row[key])
+      })
+
       // build TWO crossfilters so memory doesn't freak out
       const midpoint = Math.floor(results.data.length / 2)
       const data1 = results.data.slice(0, midpoint)
       const data2 = results.data.slice(midpoint)
 
+      // everything is doubled because crossfilter fails above ~1million rows
+      // splitting the dataset into halves gets us to ~2million...
       this.cfDemand1 = crossfilter(data1)
       this.cfDemand2 = crossfilter(data2)
       this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
       this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
-      // build link-level passenger ridership
+      // stop-level demand
+      console.log('STOPSS')
+      const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
+      const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
+
+      const stop1 = dimStop1.group()
+      const stop2 = dimStop2.group()
+      stop1
+        .reduceSum((d: any) => d.passengersBoarding)
+        .all()
+        .map(row => {
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any] = { b: row.value as number, a: 0 }
+        })
+      stop2
+        .reduceSum((d: any) => d.passengersBoarding)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].b += row.value as number
+        })
+      stop1
+        .reduceSum((d: any) => d.passengersAlighting)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].a += row.value as number
+        })
+      stop2
+        .reduceSum((d: any) => d.passengersAlighting)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].a += row.value as number
+        })
+      dimStop1.dispose()
+      dimStop2.dispose()
+
+      // console.log(this.stopLevelDemand)
+      console.log('STOPSS DONE --------')
+
+      // build link-level passenger ridership ----------
       const linkPassengersById = {} as any
 
       const group1 = this.cfDemandLink1.group()
@@ -1375,11 +1458,10 @@ const MyComponent = defineComponent({
         let bearing
 
         for (const [i, stop] of allStops.entries()) {
+          // figure out bearing direction for stop icon
           const startFacility = this._stopFacilities[stop.refId]
           const startCoord = turf.point([startFacility.x, startFacility.y])
-
           if (i < numStops - 1) {
-            // recalculate bearing for every node except the last
             const endFacility = this._stopFacilities[route.routeProfile[i + 1].refId]
             const endCoord = turf.point([endFacility.x, endFacility.y])
             // so icons rotate along with map
@@ -1394,6 +1476,15 @@ const MyComponent = defineComponent({
             name: startFacility.name || '',
             id: startFacility.id || '',
             linkRefId: startFacility.linkRefId || '',
+          } as any
+
+          // figure out boardings/alightings at each stop
+          if (this.stopLevelDemand) {
+            const ridership = this.stopLevelDemand[stop.refId]
+            if (ridership) {
+              marker.boardings = ridership.b
+              marker.alightings = ridership.a
+            }
           }
 
           markers[marker.id] = marker
@@ -1542,6 +1633,8 @@ const MyComponent = defineComponent({
       this.cfDemand2 = null
       this.cfDemandLink1?.dispose()
       this.cfDemandLink2?.dispose()
+      this.cfDemandStop1?.dispose()
+      this.cfDemandStop2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
@@ -1618,15 +1711,12 @@ p {
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  // background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  // pointer-events: none;
 }
 
 .map-container {
   position: relative;
   flex: 1;
-  pointer-events: auto;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
   background-size: cover;
@@ -1638,36 +1728,9 @@ p {
   z-index: 0;
 }
 
-.control-panel {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem 0.5rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  padding: 0.5rem 0.5rem;
-  filter: drop-shadow(0px 2px 4px #22222233);
-}
-
-.is-dashboard {
-  position: static;
-  margin: 0 0;
-  padding: 0.25rem 0 0 0;
-  filter: unset;
-  background-color: unset;
-}
-
 .legend {
   background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
-}
-
-.control-label {
-  margin: 0 0;
-  font-size: 0.8rem;
-  font-weight: bold;
 }
 
 .route {
@@ -2008,5 +2071,12 @@ h3 {
     font-size: 0.9rem;
     font-weight: normal;
   }
+}
+
+.pie-slider {
+  width: 10rem;
+  padding: 1rem;
+  margin: 0 auto;
+  z-index: 10000;
 }
 </style>

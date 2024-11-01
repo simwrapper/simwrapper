@@ -6,20 +6,74 @@ import { StaticMap } from 'react-map-gl'
 import { format } from 'mathjs'
 import { color } from 'd3-color'
 
-import { GeoJsonLayer, IconLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, IconLayer, SolidPolygonLayer } from '@deck.gl/layers'
 
 import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+// import PieChartLayer, { PieInfo } from '@/layers/PieChartLayer2'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
 
+export interface PieInfo {
+  center: number[]
+  radius: number
+  slices: { value: number; color: string | number[] }[]
+}
+
 const BASE_URL = import.meta.env.BASE_URL
 
-const ICON_MAPPING = {
-  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
-  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
+  const polygons = []
+
+  const scalingFactor = scl ? scl / 50 : 10
+
+  // loop on each piechart ------
+  for (const piechart of pies) {
+    const { center, radius, slices } = piechart
+    const width = radius * scalingFactor
+
+    let startAngle = Math.PI / 2
+    let endAngle = startAngle
+    const curviness = 24
+
+    // lat/long are not perfectly symmetric. This makes the circles round
+    const roundnessRatio = Math.cos((center[1] * Math.PI) / 180)
+
+    // user values might not add to 1.000...
+    const total = slices.reduce((a, b) => a + b.value, 0)
+
+    slices.forEach(slice => {
+      //@ts-ignore
+      slice.percent = slice.value / total
+    })
+
+    // loop on each slice --------------
+    const vertices = slices.map(slice => {
+      // start at center
+      const polygon = [center]
+
+      for (let i = 0; i <= curviness; i++) {
+        // @ts-ignore
+        const percent = slice.percent || 0
+        endAngle = startAngle + (i / curviness) * percent * Math.PI * 2
+        polygon.push([
+          center[0] + (width * Math.cos(endAngle)) / roundnessRatio,
+          center[1] + width * Math.sin(endAngle),
+        ])
+      }
+      polygon.push(center)
+      startAngle = endAngle
+
+      // convert css colors to rgb[]
+      const color = Array.isArray(slice.color) ? slice.color : colorToRGB(slice.color)
+      return { polygon, color, width }
+    })
+    polygons.push(vertices)
+  }
+  const flat = polygons.flat()
+  // small pies on top!
+  flat.sort((a, b) => (a.width > b.width ? -1 : 1))
+  return flat
 }
 
 const colorToRGB = (colorString: string) => {
@@ -33,6 +87,35 @@ const colorToRGB = (colorString: string) => {
   }
 }
 
+// function randomSlice() {
+//   const num = Math.ceil(Math.random() * 8)
+//   const slice = []
+//   for (let j = 0; j < num; j++) {
+//     slice.push({
+//       value: Math.random(),
+//       color: [
+//         Math.floor(255 * Math.random()),
+//         Math.floor(255 * Math.random()),
+//         Math.floor(255 * Math.random()),
+//       ],
+//     })
+//   }
+//   return slice
+// }
+
+// function generateRandomPies(count: number) {
+//   const pies = []
+//   for (let i = 0; i < count; i++) {
+//     const pie = {
+//       center: [13.45 + (0.5 - Math.random()), 52.5 + (0.5 - Math.random())],
+//       radius: Math.random() / 20,
+//       slices: randomSlice(),
+//     }
+//     pies.push(pie)
+//   }
+//   return pies
+// }
+
 export default function Component({
   viewId = 0,
   links = {} as any,
@@ -41,6 +124,7 @@ export default function Component({
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
+  pieSlider = 50,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -70,6 +154,24 @@ export default function Component({
       }),
     [links]
   )
+
+  const slices = useMemo(() => {
+    // no boarding data? no pies.
+    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+
+    const fullPies = stopMarkers.map(stop => {
+      return {
+        center: stop.xy,
+        radius: ((0.001 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
+        slices: [
+          { color: 'darkmagenta', value: stop.alightings },
+          { color: 'gold', value: stop.boardings },
+        ],
+      }
+    })
+    const individualSlices = calculatePieSlicePaths(fullPies, 10)
+    return individualSlices
+  }, [stopMarkers])
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -152,15 +254,8 @@ export default function Component({
       coordinateSystem,
       opacity: 1,
       autoHighlight: false,
-      // highlightColor: [255, 0, 224],
       offsetDirection: OFFSET_DIRECTION.RIGHT,
       parameters: { depthTest: false },
-      // updateTriggers: {
-      //   getSourcePosition: [links.source],
-      //   getTargetPosition: [links.dest],
-      //   getColor: [newColors, dark],
-      //   getWidth: [newWidths],
-      // },
       transitions: {
         getColor: 200,
         // getWidth: 200,
@@ -189,8 +284,29 @@ export default function Component({
       })
     )
 
+  // PIE CHARTS
+  if (slices.length) {
+    layers.push(
+      //@ts-ignore
+      new SolidPolygonLayer({
+        id: 'stop-pie-charts-layer',
+        data: slices,
+        getPolygon: (d: any) => d.polygon,
+        getFillColor: (d: any) => d.color,
+        pickable: false,
+        stroked: false,
+        filled: true,
+        opacity: 1,
+        sizeScale: 1,
+        autoHighlight: false,
+        parameters: { depthTest: false },
+        updateTriggers: { getPolygon: [slices] },
+      })
+    )
+  }
+
   // STOP ICONS ----------------
-  if (stopMarkers.length)
+  if (stopMarkers.length) {
     layers.push(
       new IconLayer({
         id: 'stop-icon-layer',
@@ -198,7 +314,7 @@ export default function Component({
         getPosition: (d: any) => d.xy,
         getAngle: (d: any) => d.bearing,
         getIcon: (d: any) => 'marker',
-        getSize: 8,
+        getSize: 7,
         pickable: false,
         billboard: true,
         opacity: 1,
@@ -218,6 +334,7 @@ export default function Component({
         },
       })
     )
+  }
 
   // ############
 
