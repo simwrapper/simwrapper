@@ -1,10 +1,7 @@
 <template lang="pug">
-.my-component(
-  oncontextmenu="return false"
+.my-component(  oncontextmenu="return false")
 
-)
-
-  pie-thing.pie-thing(
+  pie-slicer.pie-thing(
     :viewId="`${linkLayerId}`"
     :pies="allPies"
     :scale="scale"
@@ -17,17 +14,6 @@
 </template>
 
 <script lang="ts">
-const i18n = {
-  messages: {
-    en: {
-      carriers: 'Carriers',
-    },
-    de: {
-      carriers: 'Unternehmen',
-    },
-  },
-}
-
 import Vue, { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
@@ -35,10 +21,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import PieThing, { PieInfo } from './PieThing'
-
-import { VuePlugin } from 'vuera'
-Vue.use(VuePlugin)
+import PieSlicer, { PieInfo } from './PieSlicer'
 
 import {
   FileSystemConfig,
@@ -49,11 +32,10 @@ import {
 } from '@/Globals'
 
 const PiePlugin = defineComponent({
-  name: 'Pie',
-  i18n,
+  name: 'PieDemo',
   components: {
     ZoomButtons,
-    PieThing,
+    PieSlicer,
   },
   props: {
     root: { type: String, required: true },
