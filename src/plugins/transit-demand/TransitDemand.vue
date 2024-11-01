@@ -15,7 +15,7 @@
     .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
       p(style="margin-top: 0.25rem")
-        b TRANSIT ROUTES
+        b TRANSIT LINES AND ROUTES
 
       .panel-item(v-if="metrics.length > 1")
         .metric-buttons
@@ -39,29 +39,35 @@
 
       p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
 
+      .transit-lines.flex1
+        route-drop-down(v-for="line in Object.values(transitLines)" :key="line.id"
+          :line="line"
+          :isChecked="false"
+          color="#06f"
+        )
+
       .panel-items
+        //- .transit-lines
+        //-   .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
 
-        .transit-lines
-          .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
+        //-     .line-header(@click="toggleTransitLine(line)")
+        //-       p {{ line.id }}
+        //-       .stats.flex-row
+        //-         .stat {{ line.stats.departures }} dep
+        //-         .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
+        //-         .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
 
-            .line-header(@click="toggleTransitLine(line)")
-              p {{ line.id }}
-              .stats.flex-row
-                .stat {{ line.stats.departures }} dep
-                .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
-                .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
-
-            .route-list-items.flex-col(v-if="line.isOpen")
-              .route.flex-col(v-for="route in line.routes" :key="route.id"
-                :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
-                @click="showRouteDetails(route.id, line.routes.length)"
-              )
-                .route-title {{route.id}}
-                .detailed-route-data
-                    .stat {{ route.departures }} dep
-                    .stat(v-if="route.pax") {{ route.pax }} pax
-                    .stat(v-if="route.pax") {{ route.cap }} cap
-                .col {{route.firstDeparture}} — {{route.lastDeparture}}
+        //-     .route-list-items.flex-col(v-if="line.isOpen")
+        //-       .route.flex-col(v-for="route in line.routes" :key="route.id"
+        //-         :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
+        //-         @click="showRouteDetails(route.id, line.routes.length)"
+        //-       )
+        //-         .route-title {{route.id}}
+        //-         .detailed-route-data
+        //-             .stat {{ route.departures }} dep
+        //-             .stat(v-if="route.pax") {{ route.pax }} pax
+        //-             .stat(v-if="route.pax") {{ route.cap }} cap
+        //-         .col {{route.firstDeparture}} — {{route.lastDeparture}}
 
       b-slider.pie-slider(type="is-danger" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
 
@@ -121,11 +127,12 @@ import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
-import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import TransitLayers from './TransitLayers'
+import LegendBox from './LegendBox.vue'
+import RouteDropDown from './RouteDropDown.vue'
 
 import {
   FileSystem,
@@ -258,6 +265,7 @@ const MyComponent = defineComponent({
     DrawingTool,
     ZoomButtons,
     TransitLayers,
+    RouteDropDown,
   },
 
   props: {
@@ -331,7 +339,7 @@ const MyComponent = defineComponent({
       _geoTransitLinks: null as any,
       _routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
-      _transitLines: {} as { [index: string]: TransitLine },
+      transitLines: {} as { [index: string]: TransitLine },
       _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
@@ -1183,7 +1191,7 @@ const MyComponent = defineComponent({
       this._network = network
       this._routeData = routeData
       this._stopFacilities = stopFacilities
-      this._transitLines = transitLines
+      this.transitLines = transitLines
       this._mapExtentXYXY = mapExtent
 
       this._transitHelper.terminate()
@@ -1241,7 +1249,7 @@ const MyComponent = defineComponent({
       this.loadingText = 'Processing departures...'
       this.incrementLoadProgress()
 
-      for (const transitLine of Object.values(this._transitLines)) {
+      for (const transitLine of Object.values(this.transitLines)) {
         for (const route of transitLine.transitRoutes) {
           for (const linkID of route.route) {
             if (!(linkID in this._departures)) {
@@ -1627,7 +1635,7 @@ const MyComponent = defineComponent({
       this._routeData = {}
       this._stopFacilities = {}
       this.transitLinks = { type: 'FeatureCollection', features: [] }
-      this._transitLines = {}
+      this.transitLines = {}
       this.selectedRouteIds = []
       this.cfDemand1 = null
       this.cfDemand2 = null
@@ -1838,12 +1846,11 @@ h3 {
 }
 
 .panel-items {
-  flex: 1;
   color: var(--text);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  position: relative;
+  // position: relative;
   margin: 0;
   font-size: 0.9rem;
 }
@@ -2042,10 +2049,6 @@ h3 {
 }
 
 .transit-lines {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  user-select: none;
   overflow-x: hidden;
   cursor: pointer;
   scrollbar-color: #888 var(--bgCream);
