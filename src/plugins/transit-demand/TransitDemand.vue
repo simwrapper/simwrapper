@@ -21,9 +21,16 @@
           :stopMarkers="stopMarkers"
           :handleClickEvent="handleMapClick"
           :pieSlider="pieSlider"
+          :widthSlider="widthSlider"
         )
 
-        b-slider.pie-slider(type="is-danger" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
+        .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000080': '#ffffff80'}")
+            //- width slider
+            img.icon-blue-ramp(:src="icons.blueramp")
+            b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
+            //- pie slider
+            img.icon-pie-slider(v-if="cfDemand1" :src="icons.piechart")
+            b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
 
         zoom-buttons
 
@@ -62,11 +69,10 @@
         //- p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
         p(style="margin: 0.75rem 0 0.25rem 0"): b LINES AND ROUTES
 
-        .transit-lines
+        .transit-lines.flex1
           route-drop-down(v-for="line,offset in transitLines" :key="`${line.id}${offset}`"
             :line="line"
             :offset="offset"
-            :isChecked="false"
             :selectedRoutes="selectedRouteIds"
             color="#06f"
             @check="toggleLineChecked"
@@ -147,9 +153,10 @@ import {
 } from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
+import IconPieChart from './assets/icon-pie-chart.png'
+import IconBlueRamp from './assets/icon-blue-ramp.png'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
-
 const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
@@ -286,6 +293,12 @@ const MyComponent = defineComponent({
 
     return {
       viewId: Math.floor(1e12 * Math.random()),
+
+      icons: {
+        piechart: IconPieChart,
+        blueramp: IconBlueRamp,
+      },
+
       loadProgress: 0,
       loadSteps: 0,
       totalLoadSteps: 7,
@@ -348,6 +361,7 @@ const MyComponent = defineComponent({
       _transitHelper: {} as any,
 
       pieSlider: 30,
+      widthSlider: 50,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
@@ -469,25 +483,21 @@ const MyComponent = defineComponent({
     '$store.state.viewState'() {
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
-
-      // if (this.stopMarkers.length > 0) this.showTransitStops()
-    },
-
-    // 'globalState.colorScheme'() {
-    //   // change one element to force a deck.gl redraw
-    //   this.$nextTick().then(p => {
-    //     // const tooltips = this.vizDetails. || []
-    //     // this.vizDetails.tooltip = [...tooltips]
-    //   })
-    // },
-
-    searchText() {
-      this.debounceHandleSearchText()
     },
 
     '$store.state.colorScheme'() {
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
       this.highlightAllAttachedRoutes()
+    },
+
+    selectedRouteIds() {
+      this.showTransitRoutes()
+      this.showTransitStops()
+      this.updatePieSlider() // this is here because of deckgl bug
+    },
+
+    searchText() {
+      this.debounceHandleSearchText()
     },
   },
 
@@ -514,15 +524,11 @@ const MyComponent = defineComponent({
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
     },
 
-    toggleLineChecked(lineOffset: number) {
-      const line = this.transitLines[lineOffset]
-      console.log('check', line.id)
-      line.check = !line.check
-
-      console.log(line.id, 'is now', line.check)
+    toggleLineChecked(event: { offset: number; isChecked: boolean }) {
+      const line = this.transitLines[event.offset]
+      line.check = event.isChecked
       const lineTerm = line.id.toLocaleLowerCase()
 
-      console.log({ routeData: this._routeData })
       const foundRoutes = Object.values(this._routeData).filter(
         route => route.lineId.toLocaleLowerCase() == lineTerm
       )
@@ -533,7 +539,6 @@ const MyComponent = defineComponent({
           if (!this.selectedRouteIds.includes(route.id)) this.routesOnLink.push(route)
         })
         this.selectedTransitLine = line.id
-        this.selectAllRoutesInLine({ routes: line.transitRoutes })
       } else {
         // remove highlighted routes
         const foundIds = foundRoutes.map(r => r.id)
@@ -1470,7 +1475,7 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
     },
 
-    toggleTransitLine(line: any) {
+    XXtoggleTransitLine(line: any) {
       line.isOpen = !line.isOpen
 
       if (line.isOpen) {
@@ -1554,7 +1559,13 @@ const MyComponent = defineComponent({
             }
           }
 
-          markers[marker.id] = marker
+          // merge stop-level stats for routes that share the same stop
+          if (marker.id in markers) {
+            markers[marker.id].boardings += marker.boardings
+            markers[marker.id].alightings += marker.alightings
+          } else {
+            markers[marker.id] = marker
+          }
         }
       })
 
@@ -1564,11 +1575,11 @@ const MyComponent = defineComponent({
     showTransitRoutes() {
       this.stopHTML.html = ''
 
-      if (!this.selectedRouteIds.length) {
-        this.removeSelectedRoute()
-        this.removeStopMarkers()
-        return
-      }
+      // if (!this.selectedRouteIds.length) {
+      //   // this.removeSelectedRoute()
+      //   this.removeStopMarkers()
+      //   return
+      // }
 
       const featureCollection = [] as any[]
 
@@ -1619,6 +1630,7 @@ const MyComponent = defineComponent({
 
       // highlight selected routes
       this.highlightAllAttachedRoutes()
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
 
       // and select the first highlighted route
       // if (routes.length > 0) this.showRouteDetails(routes[0].id)
@@ -1642,7 +1654,7 @@ const MyComponent = defineComponent({
       if (!this.transitLinks) return
 
       if (this.routesOnLink.length) {
-        const gray = this.colorToRGB(this.isDarkMode ? '#444455' : '#ccccdd')
+        const gray = this.colorToRGB(this.isDarkMode ? '#333344' : '#ccccdd')
         this.resetLinkColors(gray)
       } else {
         this.resetLinkColors()
@@ -2118,10 +2130,25 @@ h3 {
   }
 }
 
-.pie-slider {
+.width-sliders {
   position: absolute;
   bottom: 0;
   left: 0;
+}
+
+.icon-blue-ramp {
+  margin: 9px -2px 8px 10px;
+  height: 1rem;
+  width: 1.4rem;
+}
+
+.icon-pie-slider {
+  margin: 6px -2px 8px 2px;
+  height: 1.4rem;
+  width: 1.4rem;
+}
+
+.pie-slider {
   width: 10rem;
   padding: 1rem;
   margin: 0;

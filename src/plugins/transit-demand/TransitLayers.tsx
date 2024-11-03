@@ -25,7 +25,7 @@ const BASE_URL = import.meta.env.BASE_URL
 const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
   const polygons = []
 
-  const scalingFactor = scl ? scl / 50 : 10
+  const scalingFactor = scl || 0.05
 
   // loop on each piechart ------
   for (const piechart of pies) {
@@ -50,14 +50,15 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
     // background circle (we can't use lineWidth because of the internal pie slice lines)
     const bgCircle = []
     for (let i = 0; i <= curviness * 2; i++) {
-      const bgWidth = width * 1.015
+      const bgWidth = width * 1.02
       endAngle = startAngle + (i / (curviness * 2)) * Math.PI * 2
       bgCircle.push([
         center[0] + (bgWidth * Math.cos(endAngle)) / roundnessRatio,
         center[1] + bgWidth * Math.sin(endAngle),
       ])
     }
-    polygons.push([{ polygon: bgCircle, color: colorToRGB('white'), width }])
+    const isDark = globalStore.state.isDarkMode
+    polygons.push([{ polygon: bgCircle, color: colorToRGB(isDark ? 'black' : 'white'), width }])
 
     // loop on each slice --------------
     const vertices = slices.map(slice => {
@@ -137,6 +138,7 @@ export default function Component({
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
   pieSlider = 20,
+  widthSlider = 50,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -178,12 +180,12 @@ export default function Component({
         center: stop.xy,
         radius: ((0.0005 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
         slices: [
-          { color: 'gold', value: stop.alightings },
-          { color: 'darkmagenta', value: stop.boardings },
+          { color: 'gold', value: stop.boardings },
+          { color: 'darkmagenta', value: stop.alightings },
         ],
       }
     })
-    const individualSlices = calculatePieSlicePaths(fullPies, 10)
+    const individualSlices = calculatePieSlicePaths(fullPies)
     return individualSlices
   }, [stopMarkers])
 
@@ -264,8 +266,8 @@ export default function Component({
       getColor: (d: any) => d.color,
       getWidth: (d: any) => d.width,
       widthUnits: 'pixels',
-      widthScale: 1,
-      widthMinPixels: 2,
+      widthScale: widthSlider / 50,
+      widthMinPixels: 1.5,
       widthMaxPixels: 50,
       pickable: true,
       coordinateSystem,
@@ -276,7 +278,6 @@ export default function Component({
       transitions: {
         getColor: 200,
         getWidth: 200,
-        // widthScale: 200,
       },
     })
   )
@@ -312,10 +313,6 @@ export default function Component({
         getFillColor: (d: any) => d.color,
         stroked: false,
         filled: true,
-        extruded: true,
-        getLineWidth: 5,
-        lineWidthUnits: 'pixels',
-        minLineWidth: 5,
         pickable: false,
         opacity: 1,
         sizeScale: 1,
@@ -327,7 +324,8 @@ export default function Component({
   }
 
   // STOP ICONS ----------------
-  if (stopMarkers.length) {
+  // if (stopMarkers.length) {
+  if (false) {
     // rotate stop arrows to match map rotation
     const mapBearing = globalStore.state.viewState.bearing
     const stopsMitBearing = stopMarkers.map(stop => {

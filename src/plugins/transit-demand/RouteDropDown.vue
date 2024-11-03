@@ -52,16 +52,14 @@ export default defineComponent({
     this.selectedRoutes.forEach((id: any) => (this.checkStates[id] = true))
   },
 
-  computed: {
-    numSelectedRoutes() {
-      return this.selectedRoutes.length
-    },
-  },
+  computed: {},
 
   watch: {
     selectedRoutes() {
       // optimize - we don't care about route checkmarks if box is closed
       if (this.isOpen) this.setRouteCheckmarks()
+      // if empty, uncheck main box
+      if (!this.selectedRoutes.length) this.isChecked = false
     },
   },
 
@@ -74,7 +72,7 @@ export default defineComponent({
     },
     toggleCheck() {
       this.isChecked = !this.isChecked
-      this.$emit('check', this.offset)
+      this.$emit('check', { offset: this.offset, isChecked: this.isChecked })
     },
     toggleOpen() {
       console.log('here')
