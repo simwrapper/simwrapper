@@ -8,9 +8,9 @@
         .text-area.flex-col
           .line-title {{ line.id }}
           .metrics.flex-row
-            .stat {{ stats.dep }} departures
-            .stat(v-if="stats.pax") {{ stats.pax }} pax
-            .stat(v-if="stats.loadfac") {{ stats.loadfac }} loadfac
+            .stat {{ stats.departures }} deps
+            .stat {{ stats.pax }} pax
+            .stat {{ stats.loadfac }} loadfac
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
@@ -18,10 +18,15 @@
 
 
   .card-details.flex-col(v-if="isOpen")
-    .route.flex-row(v-for="route in line.transitRoutes" :key="route.id")
-      b-checkbox.route-checkbox(v-model="checkStates[route.id]" size="is-small" @input="toggleRoute(route.id)")
-        .route-title {{ route.id}}:
-      .detail {{ route.departures }} deps
+    .route.flex-row(v-for="route in sortedRoutes" :key="route.id")
+      .stuff.flex-col
+        b-checkbox.route-checkbox(v-model="checkStates[route.id]" size="is-small" @input="toggleRoute(route.id)")
+          .route-title {{ route.id}}
+        .service-period {{ route.firstDeparture }} — {{ route.lastDeparture }}
+        .detail.flex-row
+          .deps {{ route.departures }} deps
+          .deps(v-if="route.pax") {{ route.pax }} pax
+          .deps(v-if="route.loadfac") {{ route.loadfac }} loadfac
 </template>
 
 <script lang="ts">
@@ -36,6 +41,8 @@ export default defineComponent({
     // routeData: { type: Object, required: true },
     selectedRoutes: { type: Array, required: true },
     searchTerm: { type: String, required: true },
+    activeTransitLines: { type: Object, required: true },
+    // {[id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }}
     offset: Number,
     color: String,
   },
@@ -45,21 +52,35 @@ export default defineComponent({
       isOpen: false,
       isChecked: false,
       checkStates: {} as any,
-      stats: { dep: 0, pax: 0, loadfac: 0 },
+      stats: { departures: 0, pax: 0, loadfac: 0 },
     }
   },
 
   mounted() {
     this.isChecked = this.line.checked
     this.selectedRoutes.forEach((id: any) => (this.checkStates[id] = true))
+
     for (const route of this.line.transitRoutes) {
-      if (route.departures) this.stats.dep += route.departures
+      if (route.departures) this.stats.departures += route.departures
       if (route.pax) this.stats.pax += route.pax
       if (route.loadfac) this.stats.loadfac += route.loadfac
     }
   },
 
   computed: {
+    sortedRoutes() {
+      const routes = [...this.line.transitRoutes]
+      if (!routes.length) return routes
+
+      if ('pax' in routes[0]) {
+        routes.sort((a: any, b: any) => (a.pax < b.pax ? 1 : -1))
+        return routes
+      } else {
+        routes.sort((a: any, b: any) => (a.departures < b.departures ? 1 : -1))
+        return routes
+      }
+    },
+
     visible(): boolean {
       if (!this.searchTerm) return true
 
@@ -70,6 +91,13 @@ export default defineComponent({
   },
 
   watch: {
+    activeTransitLines() {
+      // ridership data
+      if (this.line.id in this.activeTransitLines) {
+        this.stats = this.activeTransitLines[this.line.id].stats
+      }
+    },
+
     selectedRoutes() {
       // optimize - we don't care about route checkmarks if box is closed
       if (this.isOpen) this.setRouteCheckmarks()
@@ -145,6 +173,7 @@ export default defineComponent({
   gap: 5px;
   line-height: 0.8rem;
   font-size: 0.9rem;
+  width: max-content;
 }
 
 .icon-reveal {
@@ -169,9 +198,21 @@ export default defineComponent({
   margin-left: 5px;
   font-size: 0.9rem !important;
   line-height: 18px;
+  font-weight: bold;
+  // color: var(--textBold);
 }
 .route-checkbox:hover {
   // font-weight: bold !important;
   color: var(--textBold) !important;
+}
+
+.detail {
+  gap: 0.75rem;
+  margin-left: 25px;
+  margin-bottom: 0.5rem;
+}
+
+.service-period {
+  margin-left: 25px;
 }
 </style>

@@ -64,6 +64,7 @@
             :line="line"
             :offset="offset"
             :selectedRoutes="selectedRouteIds"
+            :activeTransitLines="activeTransitLines"
             :searchTerm="searchTermClean"
             color="#06f"
             @check="toggleLineChecked"
@@ -476,9 +477,7 @@ const MyComponent = defineComponent({
         })
       })
 
-      // sort the lines
-      const rows = Object.values(lines).sort((a, b) => naturalSort(a.id, b.id))
-      return rows
+      return lines
     },
 
     legendRows(): string[][] {
