@@ -1,5 +1,5 @@
 <template lang="pug">
-.route-dropdown.flex-col(:class="{'is-open' : isOpen}")
+.route-dropdown.flex-col(v-show="visible" :class="{'is-open' : isOpen}")
 
   .title-panel.flex-row
       .leftside.flex-row.flex1(@click.prevent="toggleCheck")
@@ -8,10 +8,9 @@
         .text-area.flex-col
           .line-title {{ line.id }}
           .metrics.flex-row
-            .stat hi
-            //- .stat {{ line.stats.departures }} dep
-            //- .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
-            //- .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
+            .stat {{ stats.dep }} departures
+            .stat(v-if="stats.pax") {{ stats.pax }} pax
+            .stat(v-if="stats.loadfac") {{ stats.loadfac }} loadfac
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
@@ -21,8 +20,8 @@
   .card-details.flex-col(v-if="isOpen")
     .route.flex-row(v-for="route in line.transitRoutes" :key="route.id")
       b-checkbox.route-checkbox(v-model="checkStates[route.id]" size="is-small" @input="toggleRoute(route.id)")
-        .route-title {{ route.id}}
-
+        .route-title {{ route.id}}:
+      .detail {{ route.departures }} deps
 </template>
 
 <script lang="ts">
@@ -34,7 +33,9 @@ export default defineComponent({
   components: {},
   props: {
     line: { type: Object, required: true },
+    // routeData: { type: Object, required: true },
     selectedRoutes: { type: Array, required: true },
+    searchTerm: { type: String, required: true },
     offset: Number,
     color: String,
   },
@@ -44,15 +45,29 @@ export default defineComponent({
       isOpen: false,
       isChecked: false,
       checkStates: {} as any,
+      stats: { dep: 0, pax: 0, loadfac: 0 },
     }
   },
 
   mounted() {
     this.isChecked = this.line.checked
     this.selectedRoutes.forEach((id: any) => (this.checkStates[id] = true))
+    for (const route of this.line.transitRoutes) {
+      if (route.departures) this.stats.dep += route.departures
+      if (route.pax) this.stats.pax += route.pax
+      if (route.loadfac) this.stats.loadfac += route.loadfac
+    }
   },
 
-  computed: {},
+  computed: {
+    visible(): boolean {
+      if (!this.searchTerm) return true
+
+      const idClean = this.line.id.toLocaleLowerCase().trim()
+      if (idClean.includes(this.searchTerm)) return true
+      return false
+    },
+  },
 
   watch: {
     selectedRoutes() {
@@ -75,7 +90,6 @@ export default defineComponent({
       this.$emit('check', { offset: this.offset, isChecked: this.isChecked })
     },
     toggleOpen() {
-      console.log('here')
       this.isOpen = !this.isOpen
       this.setRouteCheckmarks()
     },

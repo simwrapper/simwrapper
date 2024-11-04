@@ -647,6 +647,14 @@ h2 {
 .hint {
   margin-top: 2rem;
 }
+
+.summary-stats {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: var(--bgError);
+  color: #357;
+  border: 1px solid #88888860;
+}
 </style>
 
 <style lang="scss">
@@ -744,31 +752,5 @@ h2 {
 .cmdline {
   line-height: 1.3rem;
   color: var(--link);
-}
-
-.mono {
-  font-family: monospace;
-  font-size: 13px;
-  line-height: 21px;
-}
-
-.summary-stats {
-  margin-top: 1rem;
-  padding: 0.5rem;
-  background-color: var(--bgError);
-  color: #357;
-  border: 1px solid #88888860;
-}
-
-.mr1 {
-  margin-right: 1rem;
-}
-
-.ml1 {
-  margin-left: 1rem;
-}
-
-.mb1 {
-  margin-bottom: 1rem;
 }
 </style>

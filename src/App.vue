@@ -745,6 +745,24 @@ p.splash-label {
   display: none !important;
 }
 
+.mono {
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.mr1 {
+  margin-right: 1rem;
+}
+
+.ml1 {
+  margin-left: 1rem;
+}
+
+.mb1 {
+  margin-bottom: 1rem;
+}
+
 @media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;

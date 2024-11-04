@@ -49,8 +49,8 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
 
     // background circle (we can't use lineWidth because of the internal pie slice lines)
     const bgCircle = []
+    const bgWidth = width * 1.02
     for (let i = 0; i <= curviness * 2; i++) {
-      const bgWidth = width * 1.02
       endAngle = startAngle + (i / (curviness * 2)) * Math.PI * 2
       bgCircle.push([
         center[0] + (bgWidth * Math.cos(endAngle)) / roundnessRatio,
@@ -58,7 +58,9 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
       ])
     }
     const isDark = globalStore.state.isDarkMode
-    polygons.push([{ polygon: bgCircle, color: colorToRGB(isDark ? 'black' : 'white'), width }])
+    polygons.push([
+      { polygon: bgCircle, color: colorToRGB(isDark ? 'black' : 'white'), width: width + 1e-5 }, // to fix firefox sort
+    ])
 
     // loop on each slice --------------
     const vertices = slices.map(slice => {
@@ -84,8 +86,9 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
     polygons.push(vertices)
   }
   const flat = polygons.flat()
+
   // small pies on top!
-  flat.sort((a, b) => (a.width > b.width ? -1 : 1))
+  flat.sort((a, b) => (a.width <= b.width ? 1 : -1))
   return flat
 }
 
@@ -99,35 +102,6 @@ const colorToRGB = (colorString: string) => {
     return [0, 0, 0]
   }
 }
-
-// function randomSlice() {
-//   const num = Math.ceil(Math.random() * 8)
-//   const slice = []
-//   for (let j = 0; j < num; j++) {
-//     slice.push({
-//       value: Math.random(),
-//       color: [
-//         Math.floor(255 * Math.random()),
-//         Math.floor(255 * Math.random()),
-//         Math.floor(255 * Math.random()),
-//       ],
-//     })
-//   }
-//   return slice
-// }
-
-// function generateRandomPies(count: number) {
-//   const pies = []
-//   for (let i = 0; i < count; i++) {
-//     const pie = {
-//       center: [13.45 + (0.5 - Math.random()), 52.5 + (0.5 - Math.random())],
-//       radius: Math.random() / 20,
-//       slices: randomSlice(),
-//     }
-//     pies.push(pie)
-//   }
-//   return pies
-// }
 
 export default function Component({
   viewId = 0,
@@ -154,7 +128,6 @@ export default function Component({
 
   // ----------------------------------------------
   const data = useMemo(() => {
-    console.log('CREATE LINKS')
     const linestrings = links.features.map((feature: any) => {
       // convert css colors to rgb[]
       // const currentColor = feature.properties.currentColor
@@ -171,7 +144,6 @@ export default function Component({
 
   // ----------------------------------------------
   const slices = useMemo(() => {
-    console.log('MAKE PIES')
     // no boarding data? no pies.
     if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
@@ -289,7 +261,7 @@ export default function Component({
         id: 'selected-links',
         data: selectedFeatures,
         getLineColor: colorToRGB(dark ? '#fbff66' : '#ccff66'),
-        getLineWidth: 3,
+        getLineWidth: 2,
         lineWidthUnits: 'pixels',
         stroked: true,
         filled: false,

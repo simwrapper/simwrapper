@@ -53,31 +53,35 @@
               :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
               @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
 
-        b-input.searchbox(
-          v-model="searchText" style="padding: 0.5rem 0.5rem 1rem 0" size="is-small" placeholder="Search..."
+        //- p(v-if="transitLines.length" style="margin: 0.75rem 0 0rem 0"): b LINES AND ROUTES
+
+        b-input.searchbox(v-if="transitLines.length"
+          v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID..."
         )
-
-        //- p(v-if="!routesOnLink.length" style="font-size: 0.9rem") Select a link to view its routes.
-
-        .link-summary.flex-col(v-if="summaryStats.departures")
-            p: b LINK SUMMARY
-            .indent.flex-col(style="margin-top: 0.5rem; margin-left: 0.5rem; font-size: 0.9rem")
-              p Departures: {{ summaryStats.departures }}
-              p(v-if="cfDemand1") Passengers: {{ summaryStats.pax }}
-              p(v-if="cfDemand1") Load factor: {{ summaryStats.loadfac }}
-
-        //- p(v-if="activeTransitLines.length" style="margin-bottom: 0.25rem"): b LINES AND ROUTES
-        p(style="margin: 0.75rem 0 0.25rem 0"): b LINES AND ROUTES
 
         .transit-lines.flex1
           route-drop-down(v-for="line,offset in transitLines" :key="`${line.id}${offset}`"
             :line="line"
             :offset="offset"
             :selectedRoutes="selectedRouteIds"
+            :searchTerm="searchTermClean"
             color="#06f"
             @check="toggleLineChecked"
             @toggleRoute="toggleRouteChecked"
           )
+
+        .summary-stats.flex-col
+          .sum-stat-title: b SUMMARY STATISTICS
+          p(:style="{visibility: selectedRouteIds.length ? 'visible' : 'hidden'}")
+            b {{ selectedRouteIds.length }}
+            | &nbsp; selected route{{ selectedRouteIds.length != 1 ? 's':''}}
+          .flex-row(:style="{visibility: selectedRouteIds.length ? 'visible':'hidden', gap: '0.5rem'}")
+            .aa
+              b {{ summaryStats.departures }}
+              | &nbsp;Departures
+            .aa(v-if="cfDemand1")
+              b {{ summaryStats.pax }}
+              | &nbsp;Passengers
 
         //- .panel-items
           //- .transit-lines
@@ -306,7 +310,7 @@ const MyComponent = defineComponent({
       //drag
       isDraggingDivider: 0,
       dragStartWidth: 250,
-      legendSectionWidth: 250,
+      legendSectionWidth: 275,
       //
       stopHTML: { html: '', x: 0, y: 0 },
       buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
@@ -353,7 +357,7 @@ const MyComponent = defineComponent({
       _network: {} as Network,
       transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
       transitLinkOffset: {} as { [linkId: string]: number },
-      _routeData: {} as { [index: string]: RouteDetails },
+      routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
       transitLines: [] as TransitLine[],
       _roadFetcher: {} as any,
@@ -396,7 +400,12 @@ const MyComponent = defineComponent({
       return svnProject[0]
     },
 
+    searchTermClean() {
+      return this.searchText.trim().toLocaleLowerCase()
+    },
+
     activeTransitLines() {
+      console.log('here')
       const lines = {} as {
         [id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }
       }
@@ -493,6 +502,7 @@ const MyComponent = defineComponent({
     selectedRouteIds() {
       this.showTransitRoutes()
       this.showTransitStops()
+      this.updateSummaryStats()
       this.updatePieSlider() // this is here because of deckgl bug
     },
 
@@ -505,13 +515,12 @@ const MyComponent = defineComponent({
     toggleRouteChecked(props: { route: string; isChecked: boolean }) {
       if (props.isChecked) {
         // highlight if checked
-        this.routesOnLink.push(this._routeData[props.route])
+        this.routesOnLink.push(this.routeData[props.route])
       } else {
         // remove
         this.routesOnLink = this.routesOnLink.filter(route => route.id !== props.route)
       }
 
-      console.log('new routes on link', this.routesOnLink)
       if (this.routesOnLink.length) {
         this.highlightAllAttachedRoutes()
       } else {
@@ -529,7 +538,7 @@ const MyComponent = defineComponent({
       line.check = event.isChecked
       const lineTerm = line.id.toLocaleLowerCase()
 
-      const foundRoutes = Object.values(this._routeData).filter(
+      const foundRoutes = Object.values(this.routeData).filter(
         route => route.lineId.toLocaleLowerCase() == lineTerm
       )
 
@@ -555,6 +564,15 @@ const MyComponent = defineComponent({
         this.resetLinkColors()
         // trigger redraw
         this.transitLinks = { ...this.transitLinks }
+      }
+    },
+
+    updateSummaryStats() {
+      this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
+      for (const routeId of this.selectedRouteIds) {
+        const r = this.routeData[routeId]
+        if (r.departures) this.summaryStats.departures += r.departures
+        if (r.pax) this.summaryStats.pax += r.pax
       }
     },
 
@@ -593,6 +611,8 @@ const MyComponent = defineComponent({
     },
 
     handleSearchText() {
+      return
+
       this.handleEmptyClick(null, true)
       this.selectedLinkId = ''
 
@@ -604,12 +624,12 @@ const MyComponent = defineComponent({
         return
       }
 
-      foundRoutes = Object.keys(this._routeData).filter(
+      foundRoutes = Object.keys(this.routeData).filter(
         routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
       )
 
       // show selected routes
-      this.routesOnLink = foundRoutes.map(id => this._routeData[id])
+      this.routesOnLink = foundRoutes.map(id => this.routeData[id])
 
       this.highlightAllAttachedRoutes()
     },
@@ -1255,7 +1275,7 @@ const MyComponent = defineComponent({
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
 
       this._network = network
-      this._routeData = routeData
+      this.routeData = routeData
       this._stopFacilities = stopFacilities
       this.transitLines = Object.values(transitLines)
       this._mapExtentXYXY = mapExtent
@@ -1387,7 +1407,7 @@ const MyComponent = defineComponent({
       let color = '#888'
       let hideThisLine = false // stores if this line should be hidden from view
 
-      const props = this._routeData[id] as any
+      const props = this.routeData[id] as any
       // routeColors is a list of possible matches by GTFS code, modestring, etc.
       // For each route, we loop through the list of metrics.  The first set of
       // match conditions that match all parameters determines the route color.
@@ -1522,7 +1542,7 @@ const MyComponent = defineComponent({
       const markers = {} as { [stopId: string]: any }
 
       this.selectedRouteIds.forEach(routeId => {
-        const route = this._routeData[routeId]
+        const route = this.routeData[routeId]
 
         const allStops = route.routeProfile
         const numStops = allStops.length
@@ -1584,7 +1604,7 @@ const MyComponent = defineComponent({
       const featureCollection = [] as any[]
 
       this.selectedRouteIds.forEach(id => {
-        const route = this._routeData[id]
+        const route = this.routeData[id]
         featureCollection.push(route.geojson)
       })
 
@@ -1615,7 +1635,7 @@ const MyComponent = defineComponent({
       // routes on this link
       const routes = []
       for (const id of routeIDs) {
-        const details = this._routeData[id]
+        const details = this.routeData[id]
         details.color = props.color
         details.currentColor = props.color
         routes.push(details)
@@ -1705,7 +1725,7 @@ const MyComponent = defineComponent({
       this._mapExtentXYXY = [180, 90, -180, -90]
       this._maximum = 0
       this._network = { nodes: {}, links: {} }
-      this._routeData = {}
+      this.routeData = {}
       this._stopFacilities = {}
       this.transitLinks = { type: 'FeatureCollection', features: [] }
       this.transitLines = []
@@ -1719,6 +1739,7 @@ const MyComponent = defineComponent({
       this.resolvers = {}
       this.routesOnLink = []
       this.stopMarkers = []
+      this.searchText = ''
     },
   },
 
@@ -1806,6 +1827,14 @@ p {
 .legend {
   background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
+}
+
+.summary-stats {
+  border: 1px solid #80808040;
+  margin: 0.5rem 0.25rem 0 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.2rem;
 }
 
 .route {
@@ -1956,7 +1985,7 @@ h3 {
   display: flex;
   flex-direction: row;
   gap: 0px;
-  margin: 0.5rem 0.5rem 0.25rem 0;
+  margin: 0.25rem 0.5rem 0.5rem 0;
 }
 
 .metric-button {
@@ -2134,6 +2163,7 @@ h3 {
   position: absolute;
   bottom: 0;
   left: 0;
+  user-select: none;
 }
 
 .icon-blue-ramp {
