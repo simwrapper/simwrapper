@@ -18,7 +18,7 @@
 
 
   .card-details.flex-col(v-if="isOpen")
-    .route.flex-row(v-for="route in sortedRoutes" :key="route.id")
+    .route.flex-row(v-for="route in this.line.transitRoutes" :key="route.id")
       .stuff.flex-col
         b-checkbox.route-checkbox(v-model="checkStates[route.id]" size="is-small" @input="toggleRoute(route.id)")
           .route-title {{ route.id}}
@@ -68,19 +68,6 @@ export default defineComponent({
   },
 
   computed: {
-    sortedRoutes() {
-      const routes = [...this.line.transitRoutes]
-      if (!routes.length) return routes
-
-      if ('pax' in routes[0]) {
-        routes.sort((a: any, b: any) => (a.pax < b.pax ? 1 : -1))
-        return routes
-      } else {
-        routes.sort((a: any, b: any) => (a.departures < b.departures ? 1 : -1))
-        return routes
-      }
-    },
-
     visible(): boolean {
       if (!this.searchTerm) return true
 
@@ -210,6 +197,10 @@ export default defineComponent({
   gap: 0.75rem;
   margin-left: 25px;
   margin-bottom: 0.5rem;
+}
+
+.route {
+  line-height: 1rem;
 }
 
 .service-period {

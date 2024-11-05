@@ -406,7 +406,6 @@ const MyComponent = defineComponent({
     },
 
     activeTransitLines() {
-      console.log('here')
       const lines = {} as {
         [id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }
       }
@@ -453,7 +452,7 @@ const MyComponent = defineComponent({
       // sort the routes
       Object.values(lines).forEach(line => {
         // frequentiest routes first
-        line.routes.sort((a, b) => (a.departures < b.departures ? 1 : -1)) // naturalSort(a.id, b.id))
+        line.routes.sort((a, b) => naturalSort(a.id, b.id))
 
         // statistics
         line.routes.forEach(route => {
@@ -1317,6 +1316,8 @@ const MyComponent = defineComponent({
       this.incrementLoadProgress()
 
       for (const transitLine of this.transitLines) {
+        transitLine.transitRoutes.sort((a, b) => naturalSort(a.id, b.id))
+
         for (const route of transitLine.transitRoutes) {
           for (const linkID of route.route) {
             if (!(linkID in this._departures)) {
