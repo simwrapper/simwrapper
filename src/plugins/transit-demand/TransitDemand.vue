@@ -1304,6 +1304,19 @@ const MyComponent = defineComponent({
 
       this.handleClickedMetric({ field: 'departures' })
 
+      const longitude = 0.5 * (this._mapExtentXYXY[0] + this._mapExtentXYXY[2])
+      const latitude = 0.5 * (this._mapExtentXYXY[1] + this._mapExtentXYXY[3])
+
+      const span = Math.abs(this._mapExtentXYXY[0] - this._mapExtentXYXY[2])
+      const zoom = Math.floor(Math.log2(360 / span))
+
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        zoom,
+        initial: true,
+      })
+
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
 
       if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
