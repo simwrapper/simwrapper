@@ -368,7 +368,7 @@ export default defineComponent({
       this.updateThemeAndLabels()
 
       // if there are subtabs, prepare them
-      if (this.yaml.subtabs) this.setupSubtabs()
+      if (this.yaml.subtabs) this.subtabs = await this.setupSubtabs()
 
       this.setFullScreen()
 
@@ -389,43 +389,77 @@ export default defineComponent({
       this.selectTabLayout()
     },
 
-    setupSubtabs() {
+    async setupSubtabs() {
       // YAML definition of subtabs can be:
       // 1) false/missing: no subtabs.
       // 2) true: convert each row property of the layout to a subtab
-      // 3) array[] of row IDs that comprise each subtab, e.g.
+      // 3) array of dashboard*.yaml filenames: each subtab will contain the
+      //     imported dashboard contents
+      // 4) array[] of row IDs that comprise each subtab, so you can combine rows as you wish
+      //
       //    subtabs:
       //    - title: 'Tab1'
       //      rows: ['modeshare','statistics']
       //
-      // In cases 2 and 3, this.subtabs will hold an array with the
-      // title and layout object for each subtab.
+      // this.subtabs will then hold an array with the title and layout object for each subtab.
 
       let i = 1
-      this.subtabs = []
+      const subtabs = [] as any
       const allRowKeys = new Set(Object.keys(this.yaml.layout))
 
+      // "TRUE": convert each layout row to a subtab ------------------
       if (this.yaml.subtabs === true) {
         // One subtab per layout object.
         for (const rowKey of allRowKeys) {
-          this.subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
+          subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
         }
-      } else {
-        // subtabs array explicitly assigns rows to subtabs
-        for (const tab of this.yaml.subtabs) {
-          this.subtabs.push({
-            title: this.getObjectLabel(tab, 'title'),
-            layout: tab.rows.map((rowName: string) => {
-              allRowKeys.delete(rowName)
-              return this.yaml.layout[rowName]
-            }),
-          })
-        }
-        // if user missed any rows, add them at the end
-        for (const leftoverKey of allRowKeys) {
-          this.subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
-        }
+        return subtabs
       }
+
+      // Not an array? Fail. -----------------------------------------------------
+      if (!Array.isArray(this.yaml.subtabs)) {
+        console.warn('SUBTABS: Not an array', this.yaml.subtabs)
+        return []
+      }
+
+      // "Array of filepaths": load each dashboard as a subtab --------------
+      if (typeof this.yaml.subtabs[0] == 'string') {
+        this.yaml.layout = []
+        for (const filename of this.yaml.subtabs) {
+          const fullpath = `${this.xsubfolder}/${filename}`
+          console.log(fullpath)
+          try {
+            const raw = await this.fileApi.getFileText(fullpath)
+            const dashContent = YAML.parse(raw)
+            const subtab = {
+              title: dashContent.header.tab || dashContent.header.title || filename,
+              description: dashContent.description,
+              layout: dashContent.layout,
+            } as any
+            subtabs.push(subtab)
+          } catch (e) {
+            console.error('' + e)
+          }
+        }
+        return subtabs
+      }
+
+      // "Array of Objects": Each element is a layout object ------------
+      for (const tab of this.yaml.subtabs) {
+        subtabs.push({
+          title: this.getObjectLabel(tab, 'title'),
+          layout: tab.rows.map((rowName: string) => {
+            allRowKeys.delete(rowName)
+            return this.yaml.layout[rowName]
+          }),
+        })
+      }
+      for (const leftoverKey of allRowKeys) {
+        // if user missed any rows, add them at the end
+        subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
+      }
+
+      return subtabs
     },
 
     selectTabLayout() {
