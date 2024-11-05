@@ -379,7 +379,9 @@ const MyComponent = defineComponent({
 
     async loadDataset() {
       try {
-        const dataset = await this.myDataManager.getDataset(this.vizDetails)
+        const dataset = await this.myDataManager.getDataset(this.vizDetails, {
+          subfolder: this.subfolder,
+        })
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
         console.log('dataset:', dataset)
 

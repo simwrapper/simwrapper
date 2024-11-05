@@ -120,13 +120,14 @@ export default class DashboardDataManager {
     options?: { highPrecision?: boolean; subfolder?: string }
   ) {
     try {
+      // now with subfolders we need to cache based on subfolder+filename
+      const cacheKey = `${options?.subfolder || this.subfolder}/${config.dataset}`
       // first, get the dataset
-      if (!this.datasets[config.dataset]) {
-        console.log('load:', config.dataset)
-        console.log({ config, options })
+      if (!this.datasets[cacheKey]) {
+        console.log('load:', cacheKey)
         // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
-        this.datasets[config.dataset] = {
+        this.datasets[cacheKey] = {
           dataset: this._fetchDataset(config, options),
           activeFilters: {},
           filteredRows: null,
@@ -146,7 +147,7 @@ export default class DashboardDataManager {
 
       // wait for dataset to load
       // this will immediately return dataset if it is already loaded
-      let myDataset = await withTimeout(this.datasets[config.dataset].dataset, 60 * 1000)
+      let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60 * 1000)
 
       let { _comments, ...allRows } = myDataset
       let comments = _comments as unknown as string[]
@@ -392,18 +393,19 @@ export default class DashboardDataManager {
     await this._updateFilters(dataset) // this is async
   }
 
-  public addFilterListener(config: { dataset: string }, listener: any) {
-    const selectedDataset = this.datasets[config.dataset]
-    if (!selectedDataset) throw Error('No dataset named: ' + config.dataset)
+  public addFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
+    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
+    const selectedDataset = this.datasets[cacheKey]
+    if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
 
-    // console.log(22, config.dataset, this.datasets[config.dataset])
-    this.datasets[config.dataset].filterListeners.add(listener)
+    this.datasets[cacheKey].filterListeners.add(listener)
   }
 
-  public removeFilterListener(config: { dataset: string }, listener: any) {
+  public removeFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
+    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
     try {
-      if (this.datasets[config.dataset].filterListeners) {
-        this.datasets[config.dataset].filterListeners.delete(listener)
+      if (this.datasets[cacheKey].filterListeners) {
+        this.datasets[cacheKey].filterListeners.delete(listener)
       }
     } catch (e) {
       // doesn't matter

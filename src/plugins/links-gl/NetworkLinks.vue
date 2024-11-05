@@ -984,7 +984,10 @@ const MyComponent = defineComponent({
 
     async loadOneCSVFile(key: string, filename: string) {
       try {
-        const dataset = await this.myDataManager.getDataset({ dataset: filename })
+        const dataset = await this.myDataManager.getDataset(
+          { dataset: filename },
+          { subfolder: this.subfolder }
+        )
         const dataTable = dataset.allRows
 
         console.log('loaded', key)

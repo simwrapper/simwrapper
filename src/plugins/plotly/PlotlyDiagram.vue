@@ -851,7 +851,7 @@ const MyComponent = defineComponent({
       try {
         const csvData = await this.myDataManager.getDataset(
           { dataset: ds.file },
-          { highPrecision: true }
+          { highPrecision: true, subfolder: this.subfolder }
         )
 
         ds.data = csvData.allRows

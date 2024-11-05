@@ -686,7 +686,7 @@ const GridMap = defineComponent({
       const config = { dataset: this.vizDetails.file }
       let csv = {} as any
       try {
-        csv = await this.myDataManager.getDataset(config)
+        csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
       } catch (e) {
         this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
       }

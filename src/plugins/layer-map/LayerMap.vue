@@ -485,7 +485,10 @@ export default defineComponent({
         }
         await this.myDataManager.registerFeatures(filename, geojson.features, {})
         this.showAddData = false
-        const dataset = await this.myDataManager.getDataset({ dataset: filename })
+        const dataset = await this.myDataManager.getDataset(
+          { dataset: filename },
+          { subfolder: this.subfolder }
+        )
 
         this.datasets[filename] = dataset.allRows
         this.datasets = { ...this.datasets }
@@ -557,7 +560,9 @@ export default defineComponent({
       // save the filename and key for later lookups
       this.datasetKeyToFilename[datasetKey] = datasetFilename
 
-      const dataset = await this.myDataManager.getDataset(loaderConfig)
+      const dataset = await this.myDataManager.getDataset(loaderConfig, {
+        subfolder: this.subfolder,
+      })
 
       // figure out join - use ".join" or first column key
       const joiner =

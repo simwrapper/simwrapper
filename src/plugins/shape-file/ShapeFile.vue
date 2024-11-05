@@ -972,7 +972,7 @@ const MyComponent = defineComponent({
       })
 
       this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
+        { dataset: this.datasetKeyToFilename[datasetId], subfolder: this.subfolder },
         this.processFiltersNow
       )
 
@@ -1039,7 +1039,7 @@ const MyComponent = defineComponent({
       } as any
 
       this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
+        { dataset: this.datasetKeyToFilename[datasetId], subfolder: this.subfolder },
         this.processFiltersNow
       )
 
@@ -2598,7 +2598,9 @@ const MyComponent = defineComponent({
         // save the filename and key for later lookups
         this.datasetKeyToFilename[datasetKey] = datasetFilename
 
-        const dataset = await this.myDataManager.getDataset(loaderConfig)
+        const dataset = await this.myDataManager.getDataset(loaderConfig, {
+          subfolder: this.subfolder,
+        })
 
         // figure out join - use ".join" or first column key
         const joiner =
@@ -2619,7 +2621,10 @@ const MyComponent = defineComponent({
         await this.$nextTick()
 
         // Set up filters -- there could be some in YAML already
-        this.myDataManager.addFilterListener({ dataset: datasetFilename }, this.processFiltersNow)
+        this.myDataManager.addFilterListener(
+          { dataset: datasetFilename, subfolder: this.subfolder },
+          this.processFiltersNow
+        )
         this.activateFiltersForDataset(datasetKey)
         // this.handleNewFilters(this.vizDetails.filters)
       } catch (e) {

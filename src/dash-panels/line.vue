@@ -104,7 +104,10 @@ export default defineComponent({
     this.$emit('isLoaded')
   },
   beforeDestroy() {
-    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+    this.datamanager?.removeFilterListener(
+      { ...this.config, subfolder: this.subfolder },
+      this.handleFilterChanged
+    )
   },
 
   watch: {
@@ -158,7 +161,10 @@ export default defineComponent({
         if (!this.config.filters) return dataset
 
         // filter data before returning:
-        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+        this.datamanager.addFilterListener(
+          { ...this.config, subfolder: this.subfolder },
+          this.handleFilterChanged
+        )
 
         for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
