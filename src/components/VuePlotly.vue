@@ -41,6 +41,7 @@ export default defineComponent({
 
     const myPlot = document.getElementById(this.plotlyId) as any
     myPlot.on('plotly_click', (data: any) => {
+      console.log('Plotly: CLICK!', data)
       this.$emit('click', data)
     })
   },

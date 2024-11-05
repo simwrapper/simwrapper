@@ -166,7 +166,7 @@ export default defineComponent({
     async loadData() {
       try {
         this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config)
+        let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
 
         // no filter? we are done
         if (!this.config.filters) return dataset

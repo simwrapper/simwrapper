@@ -89,7 +89,10 @@ export default defineComponent({
 
       try {
         //this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config, { highPrecision: true })
+        let dataset = await this.datamanager.getDataset(this.config, {
+          highPrecision: true,
+          subfolder: this.subfolder,
+        })
 
         // no filter? we are done
         if (!this.config.filters) return dataset

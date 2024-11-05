@@ -115,12 +115,15 @@ export default class DashboardDataManager {
    *               and may include other optional parameters as needed by the viz
    * @returns allRows object, containing a DataTableColumn for each column in this dataset
    */
-  public async getDataset(config: configuration, options?: { highPrecision: boolean }) {
+  public async getDataset(
+    config: configuration,
+    options?: { highPrecision?: boolean; subfolder?: string }
+  ) {
     try {
       // first, get the dataset
       if (!this.datasets[config.dataset]) {
         console.log('load:', config.dataset)
-
+        console.log({ config, options })
         // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
         this.datasets[config.dataset] = {
@@ -545,9 +548,14 @@ export default class DashboardDataManager {
     }
   }
 
-  private async _fetchDataset(config: { dataset: string }, options?: { highPrecision: boolean }) {
+  private async _fetchDataset(
+    config: { dataset: string },
+    options?: { highPrecision?: boolean; subfolder?: string }
+  ) {
     if (!this.files.length) {
-      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
+      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
+        options?.subfolder || this.subfolder
+      )
       this.files = files
     }
 
@@ -558,7 +566,7 @@ export default class DashboardDataManager {
       try {
         thread.postMessage({
           fileSystemConfig: this.fileApi,
-          subfolder: this.subfolder,
+          subfolder: options?.subfolder || this.subfolder,
           files: this.files,
           config: config,
           options,

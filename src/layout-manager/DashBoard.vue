@@ -61,7 +61,7 @@
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
-            :subfolder="xsubfolder"
+            :subfolder="row.subtabFolder || xsubfolder"
             :files="fileList"
             :yaml="card.props.configFile"
             :config="card.props"
@@ -126,7 +126,7 @@ export default defineComponent({
       description: '',
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
-      rows: [] as { id: string; cards: any[] }[],
+      rows: [] as { id: string; cards: any[]; subtabFolder?: string }[],
       fileList: [] as string[],
       fileSystemConfig: {} as FileSystemConfig,
       fullScreenCardId: '',
@@ -405,11 +405,11 @@ export default defineComponent({
 
       let i = 1
       const subtabs = [] as any
-      const allRowKeys = new Set(Object.keys(this.yaml.layout))
 
       // "TRUE": convert each layout row to a subtab ------------------
       if (this.yaml.subtabs === true) {
         // One subtab per layout object.
+        const allRowKeys = new Set(Object.keys(this.yaml.layout))
         for (const rowKey of allRowKeys) {
           subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
         }
@@ -426,8 +426,11 @@ export default defineComponent({
       if (typeof this.yaml.subtabs[0] == 'string') {
         this.yaml.layout = []
         for (const filename of this.yaml.subtabs) {
+          // get full path to the dashboard file
           const fullpath = `${this.xsubfolder}/${filename}`
-          console.log(fullpath)
+          // also get the working directory of that dashboard file
+          const subtabWorkingDirectory = fullpath.substring(0, fullpath.lastIndexOf('/'))
+
           try {
             const raw = await this.fileApi.getFileText(fullpath)
             const dashContent = YAML.parse(raw)
@@ -435,6 +438,7 @@ export default defineComponent({
               title: dashContent.header.tab || dashContent.header.title || filename,
               description: dashContent.description,
               layout: dashContent.layout,
+              subtabFolder: subtabWorkingDirectory,
             } as any
             subtabs.push(subtab)
           } catch (e) {
@@ -445,6 +449,7 @@ export default defineComponent({
       }
 
       // "Array of Objects": Each element is a layout object ------------
+      const allRowKeys = new Set(Object.keys(this.yaml.layout))
       for (const tab of this.yaml.subtabs) {
         subtabs.push({
           title: this.getObjectLabel(tab, 'title'),
@@ -466,8 +471,8 @@ export default defineComponent({
       // Choose subtab or full layout
 
       if (this.subtabs.length && this.activeTab > -1) {
-        const subtab = this.subtabs[this.activeTab].layout
-        this.setupRows(subtab)
+        const subtab = this.subtabs[this.activeTab]
+        this.setupRows(subtab.layout, subtab.subtabFolder)
       } else if (this.yaml.layout) {
         this.setupRows(this.yaml.layout)
       } else {
@@ -478,7 +483,7 @@ export default defineComponent({
       }
     },
 
-    setupRows(layout: any) {
+    setupRows(layout: any, subtabFolder?: string) {
       let numCard = 1
 
       for (const rowId of Object.keys(layout)) {
@@ -523,7 +528,7 @@ export default defineComponent({
           numCard++
         })
 
-        this.rows.push({ id: rowId, cards })
+        this.rows.push({ id: rowId, cards, subtabFolder })
         this.rowFlexWeights.push(flexWeight)
       }
       this.$emit('layoutComplete')
