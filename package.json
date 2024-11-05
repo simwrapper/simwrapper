@@ -2,6 +2,7 @@
   "name": "simwrapper",
   "version": "3.4.3",
   "private": true,
+  "type": "module",
   "license": "GPL-3.0-or-later",
   "author": "Billy Charlton <charlton@tu-berlin.de>",
   "contributors": [
@@ -14,7 +15,7 @@
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
     "deploy-simwrapper": "bash scripts/deploy-ghpages.sh simwrapper/site site",
     "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
-    "index": "node scripts/build-index.js public/data",
+    "index": "node scripts/build-index.cjs public/data",
     "dev": "npm run index && vite",
     "serve": "npm run index && vite",
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
@@ -56,6 +57,7 @@
     "color-string": "^1.9.1",
     "colormap": "^2.3.1",
     "comlink": "^4.4.1",
+    "connect-history-api-fallback": "^2.0.0",
     "convert-seconds": "^1.0.1",
     "crossfilter2": "^1.5.4",
     "csvtojson": "^2.0.10",
@@ -161,7 +163,7 @@
     "@types/xml2js": "^0.4.5",
     "@typescript-eslint/eslint-plugin": "^4.4.1",
     "@typescript-eslint/parser": "^4.4.1",
-    "@vitejs/plugin-vue2": "^2.2.0",
+    "@vitejs/plugin-vue2": "^2.3.1",
     "@vitest/ui": "^0.34.3",
     "@vue/eslint-config-prettier": "^6.0.0",
     "@vue/eslint-config-typescript": "^7.0.0",
@@ -179,9 +181,8 @@
     "standard-version": "^9.3.2",
     "threads-plugin": "^1.4.0",
     "typescript": "^4.2.0",
-    "unplugin-vue-markdown": "^0.24.3",
-    "vite": "^4.4.9",
-    "vite-plugin-rewrite-all": "^1.0.1",
+    "unplugin-vue-markdown": "^0.26.2",
+    "vite": "^5.4.10",
     "vitest": "^0.34.3"
   }
 }

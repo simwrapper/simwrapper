@@ -3,7 +3,25 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue2'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
-import pluginRewriteAll from 'vite-plugin-rewrite-all'
+import history from 'connect-history-api-fallback'
+
+// FROM vite-plugin-rewrite-all (deprecated): allow paths that end in .extensions
+function redirectAll() {
+  return {
+    name: 'rewrite-all',
+    configureServer(server) {
+      return () => {
+        const handler = history({
+          disableDotRule: true,
+          rewrites: [{ from: /\/$/, to: () => '/index.html' }],
+        })
+        server.middlewares.use((req, res, next) => {
+          handler(req, res, next)
+        })
+      }
+    },
+  }
+}
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -17,7 +35,7 @@ export default defineConfig(({ command, mode }) => {
       // markdown
       markdownPlugin({}),
       // pluginRewriteAll allows pages ending in http://path/blah.yaml to load
-      pluginRewriteAll(),
+      redirectAll(),
     ],
     assetsInclude: ['**/*.so'],
     test: {
