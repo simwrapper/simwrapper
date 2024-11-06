@@ -64,7 +64,6 @@ export default class DashboardDataManager {
     this.fileApi = this._getFileSystem(this.root)
   }
 
-  private files: any[] = []
   private threads: Worker[] = []
   private subfolder = ''
   private root = ''
@@ -124,7 +123,7 @@ export default class DashboardDataManager {
       const cacheKey = `${options?.subfolder || this.subfolder}/${config.dataset}`
       // first, get the dataset
       if (!this.datasets[cacheKey]) {
-        console.log('load:', cacheKey)
+        console.log('LOAD:', cacheKey)
         // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
         this.datasets[cacheKey] = {
@@ -554,12 +553,10 @@ export default class DashboardDataManager {
     config: { dataset: string },
     options?: { highPrecision?: boolean; subfolder?: string }
   ) {
-    if (!this.files.length) {
-      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
-        options?.subfolder || this.subfolder
-      )
-      this.files = files
-    }
+    // sometimes we are dealing with subfolder/subtabs, so always fetch file list anew.
+    const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
+      options?.subfolder || this.subfolder
+    )
 
     return new Promise<DataTable>((resolve, reject) => {
       const thread = new DataFetcherWorker()
@@ -569,7 +566,7 @@ export default class DashboardDataManager {
         thread.postMessage({
           fileSystemConfig: this.fileApi,
           subfolder: options?.subfolder || this.subfolder,
-          files: this.files,
+          files,
           config: config,
           options,
         })
