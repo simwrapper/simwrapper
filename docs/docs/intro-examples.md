@@ -104,7 +104,7 @@ These visualizations work with any dataset, generally using CSV text format or X
 <div class="visualization">
 <!--   -----------------------   -->
 
-#### Griadmap
+#### Gridmap
 [![Gridmap](assets/gridmap.png)](ref-gridmap.md)
 
 
