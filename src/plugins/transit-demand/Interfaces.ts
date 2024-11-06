@@ -12,6 +12,7 @@ export interface RouteDetails {
   departures: number
   pax?: number
   cap?: number
+  loadfac?: number
   color?: string
   currentColor?: string
 }
@@ -44,4 +45,5 @@ export interface TransitLine {
   transitRoutes: RouteDetails[]
   gtfsRouteType: number
   check?: boolean
+  show?: boolean
 }

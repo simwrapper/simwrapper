@@ -60,7 +60,8 @@
         )
 
         .transit-lines.flex1
-          route-drop-down(v-for="line,offset in transitLines" :key="`${line.id}${offset}`"
+          route-drop-down(v-for="line,offset in highlightedTransitLines" :key="`${line.id}${offset}`"
+            v-show="line.show"
             :line="line"
             :offset="offset"
             :selectedRoutes="selectedRouteIds"
@@ -360,7 +361,10 @@ const MyComponent = defineComponent({
       transitLinkOffset: {} as { [linkId: string]: number },
       routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
+
       transitLines: [] as TransitLine[],
+      highlightedTransitLineIds: new Set(),
+
       _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
@@ -403,6 +407,14 @@ const MyComponent = defineComponent({
 
     searchTermClean() {
       return this.searchText.trim().toLocaleLowerCase()
+    },
+
+    highlightedTransitLines() {
+      const showAll = !this.highlightedTransitLineIds.size
+      this.transitLines.forEach(line => {
+        line.show = showAll || this.highlightedTransitLineIds.has(line.id)
+      })
+      return this.transitLines
     },
 
     activeTransitLines() {
@@ -473,6 +485,7 @@ const MyComponent = defineComponent({
             line.stats.cap += cap
             route.cap += cap
           }
+          route.loadfac = route.pax / route.cap
         })
       })
 
@@ -524,6 +537,7 @@ const MyComponent = defineComponent({
       } else {
         this.selectedLinkId = ''
         this.resetLinkColors()
+        this.highlightedTransitLineIds = new Set()
         // trigger redraw
         this.transitLinks = { ...this.transitLinks }
       }
@@ -554,12 +568,13 @@ const MyComponent = defineComponent({
 
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
 
-      console.log('new routes on link', this.routesOnLink)
+      // console.log('new routes on link', this.routesOnLink)
       if (this.routesOnLink.length) {
         this.highlightAllAttachedRoutes()
       } else {
         this.selectedLinkId = ''
         this.resetLinkColors()
+        this.highlightedTransitLineIds = new Set()
         // trigger redraw
         this.transitLinks = { ...this.transitLinks }
       }
@@ -915,6 +930,7 @@ const MyComponent = defineComponent({
       }
 
       this.isHighlightingLink = false
+      this.highlightedTransitLineIds = new Set()
 
       // clear search box if user clicked away
       if (!force) this.searchText = ''
@@ -1301,7 +1317,6 @@ const MyComponent = defineComponent({
       })
 
       this.drawMetric()
-
       this.handleClickedMetric({ field: 'departures' })
 
       const longitude = 0.5 * (this._mapExtentXYXY[0] + this._mapExtentXYXY[2])
@@ -1645,13 +1660,15 @@ const MyComponent = defineComponent({
       const foundLink = this.transitLinks[this.transitLinkOffset[props.id]]
       this.summaryStats = foundLink ? foundLink.properties : empty
 
-      // routes on this link
+      // routes and lines on this link
       const routes = []
+      const lines = new Set()
       for (const id of routeIDs) {
         const details = this.routeData[id]
         details.color = props.color
         details.currentColor = props.color
         routes.push(details)
+        lines.add(details.lineId)
       }
 
       // sort by highest departures first
@@ -1664,6 +1681,9 @@ const MyComponent = defineComponent({
       // highlight selected routes
       this.highlightAllAttachedRoutes()
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+
+      // tell right-panel which lines are highlighted
+      this.highlightedTransitLineIds = lines
 
       // and select the first highlighted route
       // if (routes.length > 0) this.showRouteDetails(routes[0].id)
@@ -2180,13 +2200,13 @@ h3 {
 }
 
 .icon-blue-ramp {
-  margin: 9px -2px 8px 10px;
+  margin: 8px -2px 4px 10px;
   height: 1rem;
   width: 1.4rem;
 }
 
 .icon-pie-slider {
-  margin: 6px -2px 8px 2px;
+  margin: 7px -2px 4px 2px;
   height: 1.4rem;
   width: 1.4rem;
 }

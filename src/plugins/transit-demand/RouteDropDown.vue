@@ -9,8 +9,8 @@
           .line-title {{ line.id }}
           .metrics.flex-row
             .stat {{ stats.departures }} deps
-            .stat {{ stats.pax }} pax
-            .stat {{ stats.loadfac }} loadfac
+            .stat(v-if="stats.pax") {{ stats.pax }} pax
+            .stat(v-if="stats.loadfac") {{ stats.loadfac }} loadF
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
@@ -24,14 +24,15 @@
           .route-title {{ route.id}}
         .service-period {{ route.firstDeparture }} — {{ route.lastDeparture }}
         .detail.flex-row
-          .deps {{ route.departures }} deps
-          .deps(v-if="route.pax") {{ route.pax }} pax
-          .deps(v-if="route.loadfac") {{ route.loadfac }} loadfac
+          .deps Deps: {{ route.departures }}
+          .deps.clink(v-if="route.pax") Pax: {{ route.pax }}
+          .deps.clink(v-if="route.pax") LFac: {{ route.loadfac.toFixed(2) }}
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { RouteDetails } from './Interfaces'
 
 export default defineComponent({
   name: 'RouteDropdown',
@@ -43,6 +44,7 @@ export default defineComponent({
     searchTerm: { type: String, required: true },
     activeTransitLines: { type: Object, required: true },
     // {[id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }}
+
     offset: Number,
     color: String,
   },
@@ -65,6 +67,7 @@ export default defineComponent({
       if (route.pax) this.stats.pax += route.pax
       if (route.loadfac) this.stats.loadfac += route.loadfac
     }
+    this.setRouteCheckmarks()
   },
 
   computed: {
@@ -87,7 +90,8 @@ export default defineComponent({
 
     selectedRoutes() {
       // optimize - we don't care about route checkmarks if box is closed
-      if (this.isOpen) this.setRouteCheckmarks()
+      // if (this.isOpen) this.setRouteCheckmarks()
+      this.setRouteCheckmarks()
       // if empty, uncheck main box
       if (!this.selectedRoutes.length) this.isChecked = false
     },
@@ -95,11 +99,18 @@ export default defineComponent({
 
   methods: {
     setRouteCheckmarks() {
+      let numChecked = 0
       this.checkStates = {}
-      this.selectedRoutes.forEach((id: any) => {
-        this.checkStates[id] = true
+      this.line.transitRoutes.forEach((route: RouteDetails) => {
+        if (this.selectedRoutes.indexOf(route.id) > -1) {
+          this.checkStates[route.id] = true
+          numChecked++
+        }
       })
+      // activate main checkbox if ALL subroutes are clicked
+      if (numChecked && numChecked == this.line.transitRoutes.length) this.isChecked = true
     },
+
     toggleCheck() {
       this.isChecked = !this.isChecked
       this.$emit('check', { offset: this.offset, isChecked: this.isChecked })
@@ -205,5 +216,9 @@ export default defineComponent({
 
 .service-period {
   margin-left: 25px;
+}
+
+.clink {
+  color: var(--link);
 }
 </style>
