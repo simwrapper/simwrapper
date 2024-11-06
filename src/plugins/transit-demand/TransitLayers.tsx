@@ -47,6 +47,13 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
       slice.percent = slice.value / total
     })
 
+    // for tooltip
+    const tooltipValues = slices.reduce((obj, slice) => {
+      //@ts-ignore
+      obj[slice.label] = slice.value
+      return obj
+    }, {} as any)
+
     // background circle (we can't use lineWidth because of the internal pie slice lines)
     const bgCircle = []
     const bgWidth = width * 1.02
@@ -58,8 +65,14 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
       ])
     }
     const isDark = globalStore.state.isDarkMode
+
     polygons.push([
-      { polygon: bgCircle, color: colorToRGB(isDark ? 'black' : 'white'), width: width + 1e-5 }, // to fix firefox sort
+      {
+        polygon: bgCircle,
+        color: colorToRGB(isDark ? 'black' : 'white'),
+        width: width + 1e-5, // to fix firefox sort
+        values: tooltipValues,
+      },
     ])
 
     // loop on each slice --------------
@@ -81,7 +94,7 @@ const calculatePieSlicePaths = (pies: PieInfo[], scl?: number) => {
 
       // convert css colors to rgb[]
       const color = Array.isArray(slice.color) ? slice.color : colorToRGB(slice.color)
-      return { polygon, color, width }
+      return { polygon, color, width, values: tooltipValues }
     })
     polygons.push(vertices)
   }
@@ -150,16 +163,16 @@ export default function Component({
     const fullPies = stopMarkers.map(stop => {
       return {
         center: stop.xy,
-        radius: ((0.0005 * pieSlider) / 50) * Math.sqrt(stop.boardings + stop.alightings),
+        radius: 0.00001 * pieSlider * Math.sqrt(stop.boardings + stop.alightings),
         slices: [
-          { color: 'gold', value: stop.boardings },
-          { color: 'darkmagenta', value: stop.alightings },
+          { label: 'boardings', color: 'gold', value: stop.boardings },
+          { label: 'alightings', color: 'darkmagenta', value: stop.alightings },
         ],
       }
     })
     const individualSlices = calculatePieSlicePaths(fullPies)
     return individualSlices
-  }, [stopMarkers])
+  }, [stopMarkers, pieSlider])
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -175,9 +188,36 @@ export default function Component({
     return format(x, { lowerExp: -6, upperExp: 6, precision: 5 })
   }
 
-  function getTooltip({ object, index }: { object: any; index: number }) {
+  // ----------------------------------------------------------------------
+  function getTooltip(z: { object: any; index: number; layer: any }) {
+    const { object, index, layer } = z
     if (index == -1) return null
 
+    // ---------------
+    if (layer.id == 'stop-pie-charts-layer') {
+      let html = '<div class="map-popup">'
+      const { boardings, alightings } = object.values
+      object.values.total = boardings + alightings
+      for (const [label, value] of Object.entries(object.values)) {
+        html += `
+        <div style="display: flex">
+          <div>${label}:&nbsp;&nbsp;</div>
+          <b style="margin-left: auto; text-align: right">${value}</b>
+        </div>`
+      }
+      html += '</div>'
+      return {
+        html,
+        style: {
+          fontSize: '0.8rem',
+          color: dark ? '#ccc' : '#223',
+          backgroundColor: dark ? '#2a4f4f' : '#f4fff4',
+          margin: '2rem 0 0rem 0rem',
+        },
+      }
+    }
+
+    // ---------------
     const metrics = [
       { field: 'pax', name_en: 'Passengers', name_de: 'Passagiere' },
       { field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' },
@@ -205,7 +245,7 @@ export default function Component({
             </div>`
       }
 
-      html += '<div>'
+      html += '</div>'
       return {
         html,
         style: {
@@ -285,12 +325,11 @@ export default function Component({
         getFillColor: (d: any) => d.color,
         stroked: false,
         filled: true,
-        pickable: false,
+        pickable: true,
         opacity: 1,
         sizeScale: 1,
         autoHighlight: false,
         parameters: { depthTest: false },
-        updateTriggers: { getPolygon: [slices] },
       })
     )
   }

@@ -10,7 +10,7 @@
           .metrics.flex-row
             .stat {{ stats.departures }} deps
             .stat(v-if="stats.pax") {{ stats.pax }} pax
-            .stat(v-if="stats.loadfac") {{ stats.loadfac }} loadF
+            .stat(v-if="stats.loadfac") {{ stats.loadfac }} Lfac
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
@@ -26,7 +26,7 @@
         .detail.flex-row
           .deps Deps: {{ route.departures }}
           .deps.clink(v-if="route.pax") Pax: {{ route.pax }}
-          .deps.clink(v-if="route.pax") LFac: {{ route.loadfac.toFixed(2) }}
+          .deps.clink(v-if="route.pax") Lfac: {{ route.loadfac.toFixed(2) }}
 </template>
 
 <script lang="ts">
