@@ -110,6 +110,7 @@
 
         legend-box.legend(v-if="!thumbnail"
           :rows="legendRows"
+          @click="clickedLegend"
         )
 
 </template>
@@ -523,6 +524,10 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    clickedLegend(e: any) {
+      console.log('boop!', e)
+    },
+
     toggleRouteChecked(props: { route: string; isChecked: boolean }) {
       if (props.isChecked) {
         // highlight if checked

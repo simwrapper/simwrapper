@@ -301,7 +301,7 @@ export default function Component({
         id: 'selected-links',
         data: selectedFeatures,
         getLineColor: colorToRGB(dark ? '#fbff66' : '#ccff66'),
-        getLineWidth: 2,
+        getLineWidth: 1,
         lineWidthUnits: 'pixels',
         stroked: true,
         filled: false,

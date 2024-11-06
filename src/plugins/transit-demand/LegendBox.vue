@@ -2,8 +2,8 @@
 .legend-container
   p.control-label LEGEND
   .legend-item(v-for="item in rows" :key="item[0]")
-    .legend-col-1(:style="{'background-color': item[0]}")
-    span.legend-col-2 {{ item[1] }}
+    .legend-col-1(:style="{'background-color': item[0]}" @click="click(item)")
+    span.legend-col-2(@click="click(item)") {{ item[1] }}
 </template>
 
 <script lang="ts">
@@ -13,6 +13,11 @@ export default defineComponent({
   name: 'LegendBox',
   props: {
     rows: { type: Array, required: true },
+  },
+  methods: {
+    click(item: any) {
+      this.$emit('click', item)
+    },
   },
 })
 </script>
@@ -43,14 +48,17 @@ export default defineComponent({
   margin-bottom: 0.25rem;
   font-size: 0.8rem;
   line-height: 0.75rem;
+  user-select: none;
 }
 
 .legend-col-1 {
   width: 2rem;
+  cursor: pointer;
 }
 
 .legend-col-2 {
   margin-left: 0.5rem;
+  cursor: pointer;
 }
 
 p.title {
