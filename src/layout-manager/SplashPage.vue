@@ -50,6 +50,19 @@
             h5 {{ project.name }}
             p {{ project.description }}
 
+        h2.section-head Starred Items ⭐️
+        p(v-if="!state.favoriteLocations.length") Click the star ⭐️ in the top right of any view or dashboard to add it to this list.
+
+        .fave-items.flex-col
+          .favorite(v-for="favorite in state.favoriteLocations" :key="favorite.fullPath"
+            @click="clickedOnFavorite(favorite)"
+          )
+              p.fave: b {{ favorite.label }}
+                //- i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
+              //- p.description {{ favorite.hint }}
+              p.description {{ `${favorite.root}/${favorite.subfolder}` }}
+
+
     //- WHAT IS SIMWRAPPER  ------------------------------------------------------
 
     .diagonal.newbie-area.white-text
@@ -191,7 +204,7 @@ import { get, set, clear } from 'idb-keyval'
 import globalStore from '@/store'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
 import InfoBottom from '@/assets/info-bottom.md'
-import { FileSystemConfig } from '@/Globals'
+import { FavoriteLocation, FileSystemConfig } from '@/Globals'
 import fileSystems, { addLocalFilesystem } from '@/fileSystemConfig'
 
 import SCREENSHOT_BERLIN from '@/assets/screenshots/berlin.jpg'
@@ -267,6 +280,23 @@ export default defineComponent({
     },
   },
   methods: {
+    clickedDeleteFavorite(favorite: FavoriteLocation) {
+      this.$store.commit('removeFavorite', favorite)
+    },
+
+    clickedOnFavorite(favorite: FavoriteLocation) {
+      const page = {
+        component: 'TabbedDashboardView',
+        props: {
+          root: favorite.root,
+          xsubfolder: favorite.subfolder,
+        },
+      }
+
+      this.$emit('navigate', page)
+      return
+    },
+
     onNavigate(event: any) {
       // pass it on up
       console.log('ZZLDIJFSD', event)
@@ -648,5 +678,29 @@ h2.splash-readme {
 .skimwrapper-link:hover {
   background-image: linear-gradient(45deg, #080e55, #6a11ae); // #5e1419
   border: 1px solid #ccf;
+}
+
+.fave-items {
+  margin-top: 1rem;
+  gap: 0.25rem;
+}
+
+.favorite {
+  padding: 0.5rem;
+  line-height: 1.2rem;
+  margin: 0;
+  background-color: #181818;
+  gap: 0.25rem;
+  cursor: pointer;
+
+  h5,
+  p {
+    margin: 0;
+  }
+}
+.favorite:hover {
+  cursor: pointer;
+  background-color: #34618b;
+  transition: background-color 0.1s ease-in-out;
 }
 </style>
