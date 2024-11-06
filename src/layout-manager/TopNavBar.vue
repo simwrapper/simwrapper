@@ -24,7 +24,7 @@
     @mouseover="showSidebarMenu=true"
     @mouseleave="showSidebarMenu=false"
   )
-    .x-item(@click="go('/')")
+    .x-item(@click="go('/')" style="margin-left: 3px")
       p: i.x-menu-icon.fas.fa-home
       p Home
 
@@ -286,7 +286,7 @@ $appTag: #32926f;
   background-color: #eee;
   color: #333;
   filter: $filterShadow;
-  padding: 0.25rem 0;
+  padding: 0.25rem 4px 0.25rem 0;
 
   a {
     color: #333;
@@ -298,10 +298,10 @@ $appTag: #32926f;
 
   .xsection {
     text-transform: uppercase;
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: bold;
     color: $appTag;
-    padding: 0.5rem 5px 5px 0.5rem;
+    padding: 0.5rem 10px 5px 2.71rem;
   }
 
   .x-item {

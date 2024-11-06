@@ -11,6 +11,7 @@
             .stat {{ stats.departures }} deps
             .stat(v-if="stats.pax") {{ stats.pax }} pax
             .stat(v-if="stats.loadfac") {{ stats.loadfac }} Lfac
+            //- .stat(v-if="stats.cap") {{ stats.cap }} cap
 
       .rightside.flex-row
           a.card-header-icon(@click="toggleOpen")
@@ -27,6 +28,7 @@
           .deps Deps: {{ route.departures }}
           .deps.clink(v-if="route.pax") Pax: {{ route.pax }}
           .deps.clink(v-if="route.pax") Lfac: {{ route.loadfac.toFixed(2) }}
+          .deps.clink(v-if="route.cap") Cap: {{ route.cap }}
 </template>
 
 <script lang="ts">
