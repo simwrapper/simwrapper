@@ -24,7 +24,7 @@
           :widthSlider="widthSlider"
         )
 
-        .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000080': '#ffffff80'}")
+        .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
             //- width slider
             img.icon-blue-ramp(:src="icons.blueramp")
             b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
@@ -614,9 +614,12 @@ const MyComponent = defineComponent({
     },
 
     handleMapClick(e: any) {
-      if (e.index > -1) {
-        // clicked on a thing
+      if (e.index > -1 && e.layer?.id === 'linkLayer') {
+        // clicked on a link thing
         this.clickedOnTransitLink(e.index)
+      } else if (e.index > -1) {
+        // clicked on some other object
+        return
       } else {
         // empty map click
         this.handleEmptyClick(true, false)
@@ -714,22 +717,21 @@ const MyComponent = defineComponent({
       return true
     },
 
-    async prepareView() {
+    async findInputFiles() {
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
       let network = this.vizDetails.network
       // First see if we have an avro network
       if (!network) {
-        const avroFilename =
-          this.myState.yamlConfig.substring(
-            0,
-            this.myState.yamlConfig.indexOf('transitSchedule.')
-          ) + 'network.avro'
-        if (files.indexOf(avroFilename) > -1) network = avroFilename
+        const avroNetworkFiles = files
+          .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
+          .filter(f => f.toLocaleLowerCase().indexOf('network') > -1)
+        if (avroNetworkFiles.length) network = avroNetworkFiles[0]
+        if (avroNetworkFiles.length > 1)
+          console.warn('MULTIPLE Avro files found - using first of ', avroNetworkFiles)
       }
 
       // Try the most obvious network filename:
-
       if (!network) network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
       // if the obvious network file doesn't exist, just grab... the first network file:
@@ -759,9 +761,7 @@ const MyComponent = defineComponent({
       if (this.config?.projection) return this.config.projection
 
       // 0. If it's in the AVRO network, use it
-      if (networks?.roadXML?.attributes?.coordinateReferenceSystem) {
-        return networks?.roadXML?.attributes?.coordinateReferenceSystem
-      }
+      if (networks?.roadXML?.crs) return networks?.roadXML?.crs
 
       // 0. If it's in the network, use it
       if (networks?.roadXML?.network?.attributes?.attribute?.name === 'coordinateReferenceSystem') {
@@ -878,25 +878,25 @@ const MyComponent = defineComponent({
       return x < 640
     },
 
-    setupMap() {
-      try {
-        const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+    // setupMap() {
+    //   try {
+    //     const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
-        if (extent) {
-          try {
-            const lnglat = JSON.parse(extent)
-            const mFac = this.isMobile() ? 0 : 1
-            const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
-          } catch (e) {
-            // ignore this, it's ok
-          }
-        }
-      } catch (e) {
-        console.warn('' + e)
+    //     if (extent) {
+    //       try {
+    //         const lnglat = JSON.parse(extent)
+    //         const mFac = this.isMobile() ? 0 : 1
+    //         const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
+    //       } catch (e) {
+    //         // ignore this, it's ok
+    //       }
+    //     }
+    //   } catch (e) {
+    //     console.warn('' + e)
 
-        // no worries
-      }
-    },
+    //     // no worries
+    //   }
+    // },
 
     drawMetric() {
       let widthExpression: any = 3
@@ -1267,7 +1267,7 @@ const MyComponent = defineComponent({
       // spawn transit helper web worker
       this._transitHelper = new TransitSupplyWorker()
 
-      this._transitHelper.onmessage = async (buffer: MessageEvent) => {
+      this._transitHelper.onmessage = (buffer: MessageEvent) => {
         this.receivedProcessedTransit(buffer)
       }
 
@@ -1315,6 +1315,9 @@ const MyComponent = defineComponent({
 
       // Build the links layer and add it
       this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      // don't keep the network lying around wasting memory
+      this._network = { links: {}, nodes: {} }
+      // build the lookup for transit links by linkId
       this.transitLinkOffset = {}
       this.transitLinks.features.forEach((feature: any, i: number) => {
         //@ts-ignore
@@ -1801,8 +1804,7 @@ const MyComponent = defineComponent({
 
     if (this.thumbnail) return
 
-    await this.prepareView()
-    this.setupMap()
+    await this.findInputFiles()
     this.loadEverything()
   },
 
@@ -2202,6 +2204,7 @@ h3 {
   bottom: 0;
   left: 0;
   user-select: none;
+  border-top-right-radius: 5px;
 }
 
 .icon-blue-ramp {

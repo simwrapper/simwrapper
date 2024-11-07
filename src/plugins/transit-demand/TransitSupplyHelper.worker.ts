@@ -19,9 +19,8 @@ onmessage = function (e) {
   _xml = params.xml
   projection = params.projection
 
-  // if __numNodes is on the element, this is an avro network
-  // TODO: add an avro version/identifier to avro networks!
-  _avro = !!_xml?.roadXML?.__numNodes
+  // if roadXML.network.nodes is missing, let's hope it's an Avro network
+  _avro = !_xml?.roadXML?.network?.nodes && Array.isArray(_xml?.roadXML?.nodeCoordinates)
 
   try {
     if (_avro) {
@@ -37,26 +36,22 @@ onmessage = function (e) {
     postMessage({ error: e })
   }
 }
+
 // -----------------------------------------------------------
-
-// XML is sent in during worker initialization
 function avroCreateNodesAndLinksFromXML() {
-  postMessage({ status: 'Parsing road network...' })
+  postMessage({ status: 'Parsing MATSim network...' })
 
-  _network.nodes = _xml.roadXML.__nodes
-  const numLinks = _xml.roadXML.__numLinks
-
-  // build lookup: {linkID: index}
+  const numLinks = _xml.roadXML.linkId.length
   for (let i = 0; i < numLinks; i++) {
-    const id = _xml.roadXML.id[i]
+    const id = _xml.roadXML.linkId[i]
     _network.links[id] = i
   }
-  return { data: {}, transferrables: [] }
+  return
 }
 
-// XML is sent in during worker initialization
+// -----------------------------------------------------------
 function createNodesAndLinksFromXML() {
-  postMessage({ status: 'Parsing road network...' })
+  postMessage({ status: 'Parsing MATSim network...' })
 
   const roadXML = _xml.roadXML
   const netNodes = roadXML.network.nodes.node
@@ -74,6 +69,7 @@ function createNodesAndLinksFromXML() {
   return { data: {}, transferrables: [] }
 }
 
+// -----------------------------------------------------------
 function convertCoords() {
   postMessage({ status: 'Converting coordinates...' })
 
@@ -89,11 +85,11 @@ function convertCoords() {
 }
 
 function processTransit() {
-  postMessage({ status: 'Analyzing route database...' })
+  postMessage({ status: 'Building PT routes...' })
 
   generateStopFacilitiesFromXML()
-  let uniqueRouteID = 0
 
+  let uniqueRouteID = 0
   const transitLines = _xml.transitXML.transitSchedule.transitLine
 
   for (const line of transitLines) {
@@ -208,34 +204,34 @@ function buildCoordinatesForRoute(transitRoute: RouteDetails) {
   let previousLink: boolean = false
 
   if (_avro) {
+    // AVRO network ---------
+    // start coord
+    let linkIndex = _network.links[transitRoute.route[0]]
+    let offsetFrom = _xml.roadXML.from[linkIndex]
+    let x = _xml.roadXML.nodeCoordinates[offsetFrom]
+    let y = _xml.roadXML.nodeCoordinates[offsetFrom + 1]
+    if (x !== undefined && y !== undefined) coords.push([x, y])
+    // remaining coords
     for (const linkID of transitRoute.route) {
-      const linkIndex = _network.links[linkID]
-
-      const nodeFrom = _xml.roadXML.from[linkIndex]
-      const nodeTo = _xml.roadXML.to[linkIndex]
-
-      if (!previousLink) {
-        const x0 = _network.nodes[nodeFrom][0]
-        const y0 = _network.nodes[nodeFrom][1]
-        if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
-      }
-      const x = _network.nodes[nodeTo][0]
-      const y = _network.nodes[nodeTo][1]
+      linkIndex = _network.links[linkID]
+      let offsetTo = _xml.roadXML.to[linkIndex]
+      const x = _xml.roadXML.nodeCoordinates[offsetTo]
+      const y = _xml.roadXML.nodeCoordinates[offsetTo + 1]
       if (x !== undefined && y !== undefined) coords.push([x, y])
-      previousLink = true
     }
   } else {
+    // MATSIM network ----------
+    // start coord
+    let networkLink = _network.links[transitRoute.route[0]]
+    let x = _network.nodes[networkLink?.from]?.x
+    let y = _network.nodes[networkLink?.from]?.y
+    if (x !== undefined && y !== undefined) coords.push([x, y])
+    // remaining coords
     for (const linkID of transitRoute.route) {
-      const networkLink = _network.links[linkID]
-      if (!previousLink) {
-        const x0 = _network.nodes[networkLink?.from]?.x
-        const y0 = _network.nodes[networkLink?.from]?.y
-        if (x0 !== undefined && y0 !== undefined) coords.push([x0, y0])
-      }
-      const x = _network.nodes[networkLink?.to]?.x
-      const y = _network.nodes[networkLink?.to]?.y
+      networkLink = _network.links[linkID]
+      x = _network.nodes[networkLink?.to]?.x
+      y = _network.nodes[networkLink?.to]?.y
       if (x !== undefined && y !== undefined) coords.push([x, y])
-      previousLink = true
     }
   }
 
