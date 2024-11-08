@@ -530,7 +530,7 @@ h1:hover {
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 10;
-  pointer-events: all;
+  pointer-events: none;
   gap: 2rem;
 }
 
