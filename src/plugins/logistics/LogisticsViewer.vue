@@ -40,9 +40,9 @@
 
       b-field.detail-buttons(v-if="selectedLsp" size="is-small")
         // watch array and if the length changes, change value of boolean for v-if
-        b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+        b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarriers[0])")
           span {{ $t('Shipment Chains') }}
-        b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning")
+        b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarriers[0])")
           span {{ $t('Shipment Chains') }}
         b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
           span {{ $t('LSP Tours') }}
@@ -144,6 +144,7 @@ const i18n = {
       'Shipments': 'Shipments',
       'LSP Tours': 'LSP Tours',
       'lspShipmentChains': 'lspShipmentChains',
+      'Lsp Shipments': 'Lsp Shipments',
       'Carrier Tours': 'Carrier Tours',
       Tours: 'Tours'
     },
@@ -1359,7 +1360,6 @@ const LogisticsPlugin = defineComponent({
         }
       }
 
-      console.log(this.lspPlan)
       // build new data object with shipment & shipment plan data
       try {
         for (let i = 0; i < this.lspPlan.shipmentPlans.shipmentPlan.length; i++) {
