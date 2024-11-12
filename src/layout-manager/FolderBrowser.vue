@@ -40,11 +40,14 @@
             .viz-grid-item(v-for="[index, viz] of Object.entries(vizMaps)" :key="index"
                       @click="clickedVisualization(index)")
 
-              .viz-frame
-                p.v-title: b {{ viz.title }}
-                p.v-filename {{ viz.config }}
-                p.v-plugin(:style="getTabColor(viz.component)") {{ viz.component || 'dashboard' }}
-                component.viz-frame-component(
+              .viz-element
+                .viz-color-bar(:style="`border-bottom: 1px solid ${getTabColor(viz.component)}`")
+                  .v-plugin(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
+                .viz-frame
+                  p.v-title: b {{ viz.title }}
+                  p.v-filename {{ viz.config }}
+                  //- this "fake" hidden component is here so the plugin can send us its title
+                  component.viz-frame-component(
                       v-show="false"
                       :is="viz.component"
                       :root="myState.svnProject.slug"
@@ -470,8 +473,7 @@ export default defineComponent({
     },
 
     getTabColor(kebabName: string) {
-      const color = tabColors[kebabName] || '#8778BB'
-      return { backgroundColor: color }
+      return tabColors[kebabName] || '#8778BB'
     },
 
     updateRoute() {
@@ -608,16 +610,13 @@ h4 {
 
 .viz-grid-item {
   z-index: 1;
-  // text-align: center;
-  margin: 4px 0 0 0;
+  margin: 4px 0 0.5rem 0;
   padding: 0 0;
   display: flex;
   flex-direction: column;
   cursor: pointer;
   vertical-align: top;
   background-color: var(--bgCream5);
-  // border: var(--borderThin);
-  border-radius: 5px;
 }
 
 .viz-frame {
@@ -627,7 +626,8 @@ h4 {
   z-index: 1;
   flex: 1;
   overflow: hidden;
-  padding: 5px 0 0 5px;
+  padding: 8px 0 5px 5px;
+
   p {
     margin: 0 0 0 0;
     line-height: 1rem;
@@ -796,14 +796,20 @@ p.v-filename {
   margin: 5px 0;
 }
 
-p.v-plugin {
-  text-align: right;
+.viz-color-bar {
+  display: flex;
+  background-color: var(--bgDashboard);
+  line-height: 16px;
+}
+
+.v-plugin {
   text-transform: uppercase;
-  margin-left: auto;
   color: white;
-  background-color: var(--bgCream3);
-  padding: 2px 3px;
-  // border-radius: 0 0 4px 0;
+  padding: 2px 5px 0 5px;
+
+  p {
+    margin-right: auto;
+  }
 }
 
 .up-folder {
