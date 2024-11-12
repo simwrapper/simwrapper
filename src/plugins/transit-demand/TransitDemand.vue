@@ -59,17 +59,11 @@
           v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID..."
         )
 
-        .transit-lines.flex1
-          route-drop-down(v-for="line,offset in highlightedTransitLines" :key="`${line.id}${offset}`"
-            v-show="line.show"
-            :line="line"
-            :offset="offset"
-            :selectedRoutes="selectedRouteIds"
-            :activeTransitLines="activeTransitLines"
-            :searchTerm="searchTermClean"
-            color="#06f"
-            @check="toggleLineChecked"
-            @toggleRoute="toggleRouteChecked"
+        .transit-lines.flex-col.flex1
+
+          lazy-list.flex1(
+            :highlightedTransitLines="highlightedTransitLines"
+            :listProps="routeListProps"
           )
 
         .summary-stats.flex-col
@@ -84,29 +78,6 @@
             .aa(v-if="cfDemand1")
               b {{ summaryStats.pax }}
               | &nbsp;Passengers
-
-        //- .panel-items
-          //- .transit-lines
-          //-   .transit-line.flex-col(v-for="line in activeTransitLines" :key="line.id")
-
-          //-     .line-header(@click="toggleTransitLine(line)")
-          //-       p {{ line.id }}
-          //-       .stats.flex-row
-          //-         .stat {{ line.stats.departures }} dep
-          //-         .stat(v-if="cfDemand1") {{ line.stats.pax }} pax
-          //-         .stat(v-if="cfDemand1") {{ line.stats.cap }} cap
-
-          //-     .route-list-items.flex-col(v-if="line.isOpen")
-          //-       .route.flex-col(v-for="route in line.routes" :key="route.id"
-          //-         :class="{highlightedRoute: selectedRouteIds.includes(route.id)}"
-          //-         @click="showRouteDetails(route.id, line.routes.length)"
-          //-       )
-          //-         .route-title {{route.id}}
-          //-         .detailed-route-data
-          //-             .stat {{ route.departures }} dep
-          //-             .stat(v-if="route.pax") {{ route.pax }} pax
-          //-             .stat(v-if="route.pax") {{ route.cap }} cap
-          //-         .col {{route.firstDeparture}} — {{route.lastDeparture}}
 
         legend-box.legend(v-if="!thumbnail"
           :rows="legendRows"
@@ -150,6 +121,7 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import TransitLayers from './TransitLayers'
 import LegendBox from './LegendBox.vue'
 import RouteDropDown from './RouteDropDown.vue'
+import LazyList from './LazyList.vue'
 
 import {
   FileSystem,
@@ -278,12 +250,13 @@ const MyComponent = defineComponent({
   i18n,
   components: {
     CollapsiblePanel,
+    DrawingTool,
     LeftDataPanel,
     LegendBox,
-    DrawingTool,
-    ZoomButtons,
-    TransitLayers,
     RouteDropDown,
+    TransitLayers,
+    ZoomButtons,
+    LazyList,
   },
 
   props: {
@@ -387,6 +360,8 @@ const MyComponent = defineComponent({
 
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
+
+      listComponent: RouteDropDown,
     }
   },
 
@@ -406,6 +381,18 @@ const MyComponent = defineComponent({
       return svnProject[0]
     },
 
+    routeListProps() {
+      return {
+        activeTransitLines: this.activeTransitLines,
+        selectedRoutes: this.selectedRouteIds,
+        searchTerm: this.searchTermClean,
+        color: '#06f',
+        cbToggleLineChecked: this.toggleLineChecked,
+        cbToggleLineOpen: this.toggleLineOpen,
+        cbToggleRouteChecked: this.toggleRouteChecked,
+      }
+    },
+
     searchTermClean() {
       return this.searchText.trim().toLocaleLowerCase()
     },
@@ -415,7 +402,7 @@ const MyComponent = defineComponent({
       this.transitLines.forEach(line => {
         line.show = showAll || this.highlightedTransitLineIds.has(line.id)
       })
-      return this.transitLines
+      return [...this.transitLines]
     },
 
     activeTransitLines() {
@@ -464,7 +451,7 @@ const MyComponent = defineComponent({
 
       // sort the routes
       Object.values(lines).forEach(line => {
-        // frequentiest routes first
+        // sort by nice names
         line.routes.sort((a, b) => naturalSort(a.id, b.id))
 
         // statistics
@@ -550,10 +537,15 @@ const MyComponent = defineComponent({
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
     },
 
+    toggleLineOpen(event: { offset: number; isOpen: boolean }) {
+      const line = this.transitLines[event.offset]
+      line.isOpen = event.isOpen
+    },
+
     toggleLineChecked(event: { offset: number; isChecked: boolean }) {
       const line = this.transitLines[event.offset]
-      line.check = event.isChecked
       const lineTerm = line.id.toLocaleLowerCase()
+      line.check = event.isChecked
 
       const foundRoutes = Object.values(this.routeData).filter(
         route => route.lineId.toLocaleLowerCase() == lineTerm
@@ -632,12 +624,9 @@ const MyComponent = defineComponent({
     },
 
     handleSearchText() {
-      return
-
       this.handleEmptyClick(null, true)
       this.selectedLinkId = ''
 
-      let foundRoutes = [] as any[]
       const searchTerm = this.searchText.trim().toLocaleLowerCase()
 
       if (!searchTerm) {
@@ -645,14 +634,21 @@ const MyComponent = defineComponent({
         return
       }
 
-      foundRoutes = Object.keys(this.routeData).filter(
+      let foundRoutes = Object.keys(this.routeData).filter(
         routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
       )
 
-      // show selected routes
+      // show selected route snakepaths
       this.routesOnLink = foundRoutes.map(id => this.routeData[id])
-
       this.highlightAllAttachedRoutes()
+
+      // show found lines in list
+      const foundLines = this.transitLines
+        .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
+        .map(line => line.id)
+
+      this.highlightedTransitLineIds = new Set(foundLines)
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
     },
 
     hoverOverStop(stop: any, e: MouseEvent) {
@@ -1296,7 +1292,7 @@ const MyComponent = defineComponent({
       this._network = network
       this.routeData = routeData
       this._stopFacilities = stopFacilities
-      this.transitLines = Object.values(transitLines)
+      this.transitLines = transitLines
       this._mapExtentXYXY = mapExtent
 
       this._transitHelper.terminate()
@@ -1631,12 +1627,6 @@ const MyComponent = defineComponent({
     showTransitRoutes() {
       this.stopHTML.html = ''
 
-      // if (!this.selectedRouteIds.length) {
-      //   // this.removeSelectedRoute()
-      //   this.removeStopMarkers()
-      //   return
-      // }
-
       const featureCollection = [] as any[]
 
       this.selectedRouteIds.forEach(id => {
@@ -1679,11 +1669,6 @@ const MyComponent = defineComponent({
         lines.add(details.lineId)
       }
 
-      // sort by highest departures first
-      routes.sort(function (a, b) {
-        return a.departures > b.departures ? -1 : 1
-      })
-
       this.routesOnLink = routes
 
       // highlight selected routes
@@ -1692,9 +1677,6 @@ const MyComponent = defineComponent({
 
       // tell right-panel which lines are highlighted
       this.highlightedTransitLineIds = lines
-
-      // and select the first highlighted route
-      // if (routes.length > 0) this.showRouteDetails(routes[0].id)
     },
 
     resetLinkColors(color?: number[]) {
@@ -2150,7 +2132,8 @@ h3 {
 .load-progress {
   padding: 0 5rem;
   height: 3px;
-  margin-top: 0rem;
+  margin-top: 2px;
+  margin-bottom: 0.5rem;
 }
 
 .right-side-column {
@@ -2230,5 +2213,10 @@ h3 {
   grid-row: 1/2;
   grid-column: 3/4;
   max-height: 100%;
+}
+
+.lazy-transit-list {
+  background-color: #ffa;
+  overflow-y: auto;
 }
 </style>

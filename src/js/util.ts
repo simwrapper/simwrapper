@@ -1,6 +1,7 @@
 import micromatch from 'micromatch'
 import { XMLParser } from 'fast-xml-parser'
 import { decompressSync } from 'fflate'
+import { format } from 'mathjs'
 
 /**
  * Useful for converting loaded PNG images to CSS
@@ -162,6 +163,10 @@ export function gUnzip(buffer: ArrayBuffer): any {
   return buffer
 }
 
+export function precise(x: number, precision: number) {
+  return format(x, { lowerExp: -6, upperExp: 6, precision })
+}
+
 export default {
   arrayBufferToBase64,
   dataUrlToBytes,
@@ -171,4 +176,5 @@ export default {
   identifyTypedArray,
   gUnzip,
   parseXML,
+  precise,
 }

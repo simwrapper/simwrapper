@@ -3,7 +3,6 @@ import DeckGL from '@deck.gl/react'
 import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
 import { StaticMap } from 'react-map-gl'
-import { format } from 'mathjs'
 import { color } from 'd3-color'
 
 import { GeoJsonLayer, IconLayer, SolidPolygonLayer } from '@deck.gl/layers'
@@ -182,10 +181,6 @@ export default function Component({
     setViewState(view)
     view.center = [view.longitude, view.latitude]
     if (!mapIsIndependent) globalStore.commit('setMapCamera', view)
-  }
-
-  function precise(x: number) {
-    return format(x, { lowerExp: -6, upperExp: 6, precision: 5 })
   }
 
   // ----------------------------------------------------------------------

@@ -1,5 +1,6 @@
-import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
+import naturalSort from 'javascript-natural-sort'
 
+import { NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import Coords from '@/js/Coords'
 
 let params!: any
@@ -127,11 +128,13 @@ function processTransit() {
     _transitLines[attr.id] = attr
   }
 
+  const sortedTransitLines = Object.values(_transitLines).sort((a, b) => naturalSort(a.id, b.id))
+
   return {
     network: _network,
     routeData: _routeData,
     stopFacilities: _stopFacilities,
-    transitLines: _transitLines,
+    transitLines: sortedTransitLines,
     mapExtent: _mapExtentXYXY,
   }
 }

@@ -46,4 +46,5 @@ export interface TransitLine {
   gtfsRouteType: number
   check?: boolean
   show?: boolean
+  isOpen?: boolean
 }
