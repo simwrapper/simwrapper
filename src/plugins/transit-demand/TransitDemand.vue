@@ -1371,6 +1371,8 @@ const MyComponent = defineComponent({
       const geojson = [] as any
       this.usedLabels = []
 
+      const allCoords = this.avroNetwork?.nodeCoordinates
+
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
           const link = this._network.links[linkID] as any
@@ -1380,13 +1382,13 @@ const MyComponent = defineComponent({
 
           try {
             if (this.avroNetwork) {
-              // link is an INDEX to the link column arrays
-              const nodeFrom = this.avroNetwork.from[link]
-              const nodeTo = this.avroNetwork.to[link]
-
-              const coordsFrom = this.avroNetwork.__nodes[nodeFrom]
-              const coordsTo = this.avroNetwork.__nodes[nodeTo]
-              coordinates = [coordsFrom, coordsTo]
+              // link is an INDEX to the node column arrays
+              const offsetFrom = 2 * this.avroNetwork.from[link]
+              const offsetTo = 2 * this.avroNetwork.to[link]
+              coordinates = [
+                [allCoords[offsetFrom], allCoords[1 + offsetFrom]],
+                [allCoords[offsetTo], allCoords[1 + offsetTo]],
+              ]
             } else {
               // link is an object with values
               coordinates = [

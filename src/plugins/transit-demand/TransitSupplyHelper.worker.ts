@@ -204,20 +204,20 @@ function buildTransitRouteDetails(lineId: string, route: any, gtfsRoute: number)
 
 function buildCoordinatesForRoute(transitRoute: RouteDetails) {
   const coords = []
-  let previousLink: boolean = false
+  let previousLink = false
 
   if (_avro) {
     // AVRO network ---------
     // start coord
     let linkIndex = _network.links[transitRoute.route[0]]
-    let offsetFrom = _xml.roadXML.from[linkIndex]
+    let offsetFrom = 2 * _xml.roadXML.from[linkIndex]
     let x = _xml.roadXML.nodeCoordinates[offsetFrom]
     let y = _xml.roadXML.nodeCoordinates[offsetFrom + 1]
     if (x !== undefined && y !== undefined) coords.push([x, y])
     // remaining coords
     for (const linkID of transitRoute.route) {
       linkIndex = _network.links[linkID]
-      let offsetTo = _xml.roadXML.to[linkIndex]
+      let offsetTo = 2 * _xml.roadXML.to[linkIndex]
       const x = _xml.roadXML.nodeCoordinates[offsetTo]
       const y = _xml.roadXML.nodeCoordinates[offsetTo + 1]
       if (x !== undefined && y !== undefined) coords.push([x, y])

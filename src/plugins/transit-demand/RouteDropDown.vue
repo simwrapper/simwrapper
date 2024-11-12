@@ -259,6 +259,6 @@ export default defineComponent({
 }
 
 .faded {
-  filter: grayscale(100%) brightness(150%);
+  filter: grayscale(100%) brightness(130%);
 }
 </style>
