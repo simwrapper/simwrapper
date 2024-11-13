@@ -30,7 +30,7 @@
             b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
             //- pie slider
             img.icon-pie-slider(v-if="cfDemand1" :src="icons.piechart")
-            b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider" @input="updatePieSlider")
+            b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
 
         zoom-buttons
 
@@ -502,7 +502,6 @@ const MyComponent = defineComponent({
       this.showTransitRoutes()
       this.showTransitStops()
       this.updateSummaryStats()
-      this.updatePieSlider() // this is here because of deckgl bug
     },
 
     searchText() {
@@ -584,25 +583,6 @@ const MyComponent = defineComponent({
         if (r.departures) this.summaryStats.departures += r.departures
         if (r.pax) this.summaryStats.pax += r.pax
       }
-    },
-
-    async updatePieSlider() {
-      // console.log('updatepieslider')
-      // this.stopMarkers = [...this.stopMarkers]
-      // return
-
-      if (!this.stopMarkers.length) return
-
-      const z = [...this.stopMarkers]
-      this.stopMarkers = []
-      // this allows deck.gl to wake up and redraw
-      await new Promise(resolve => {
-        setTimeout(() => {
-          resolve(true)
-        }, 1)
-      })
-      this.stopMarkers = z
-      await this.$nextTick()
     },
 
     handleMapClick(e: any) {
@@ -1305,8 +1285,9 @@ const MyComponent = defineComponent({
       const customColors = this.vizDetails.customRouteTypes || this.vizDetails.colors || null
       if (customColors && Array.isArray(customColors) && customColors.length > 0) {
         this.routeColors = customColors
-      } else if (customColors) {
-        this.$emit('YAML colors must be a list of rules, see docs')
+      } else if (customColors && !Array.isArray(customColors)) {
+        this.$emit('error', 'YAML colors must be a list of rules, see docs')
+        this.routeColors = DEFAULT_ROUTE_COLORS
       } else {
         this.routeColors = DEFAULT_ROUTE_COLORS
       }

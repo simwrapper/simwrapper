@@ -189,7 +189,7 @@ export default function Component({
     if (index == -1) return null
 
     // ---------------
-    if (layer.id == 'stop-pie-charts-layer') {
+    if (layer.id.startsWith('stop-pie-charts-layer')) {
       let html = '<div class="map-popup">'
       const { boardings, alightings } = object.values
       object.values.total = boardings + alightings
@@ -312,9 +312,8 @@ export default function Component({
   // PIE CHARTS
   if (slices.length) {
     layers.push(
-      //@ts-ignore
       new SolidPolygonLayer({
-        id: 'stop-pie-charts-layer',
+        id: `stop-pie-charts-layer-${Math.random()}`,
         data: slices,
         getPolygon: (d: any) => d.polygon,
         getFillColor: (d: any) => d.color,
