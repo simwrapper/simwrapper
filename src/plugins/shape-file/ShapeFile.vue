@@ -170,8 +170,10 @@ export interface BackgroundLayer {
   onTop: boolean
 }
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
-  Gpkg.setSqljsWasmLocateFile(file => '/' + file)
+  Gpkg.setSqljsWasmLocateFile(file => BASE_URL + file)
   const bArray = new Uint8Array(buffer)
 
   const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
