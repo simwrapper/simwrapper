@@ -301,7 +301,7 @@ const MyComponent = defineComponent({
         projection: '',
         title: '',
         description: '',
-        customRouteTypes: [] as { match: any; color: string; label: string; hide: boolean }[],
+        colors: [] as { match: any; color: string; label: string; hide: boolean }[],
       },
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -706,7 +706,7 @@ const MyComponent = defineComponent({
         description: '',
         demand: '',
         projection: '',
-        customRouteTypes: [],
+        colors: [],
       }
 
       this.$emit('title', title)
@@ -1301,8 +1301,12 @@ const MyComponent = defineComponent({
       this.incrementLoadProgress()
 
       // Use custom colors if they exist, otherwise use defaults
-      if (this.vizDetails.customRouteTypes && this.vizDetails.customRouteTypes.length > 0) {
-        this.routeColors = this.vizDetails.customRouteTypes
+      //@ts-ignore
+      const customColors = this.vizDetails.customRouteTypes || this.vizDetails.colors || null
+      if (customColors && Array.isArray(customColors) && customColors.length > 0) {
+        this.routeColors = customColors
+      } else if (customColors) {
+        this.$emit('YAML colors must be a list of rules, see docs')
       } else {
         this.routeColors = DEFAULT_ROUTE_COLORS
       }
@@ -1452,7 +1456,22 @@ const MyComponent = defineComponent({
         let matched = true
 
         // loop through all parameters in this match definition
-        for (const [key, pattern] of Object.entries(config.match) as any[]) {
+        // be nice to user: match can be a list or an object
+        let matchRules = config.match
+        try {
+          if (Array.isArray(matchRules)) {
+            const newRules = {} as any
+            for (const row of matchRules) {
+              const [key, value] = Object.entries(row)[0]
+              newRules[key] = value
+            }
+            matchRules = newRules
+          }
+        } catch (e) {
+          console.warn('Match rules malformed', matchRules)
+        }
+
+        for (const [key, pattern] of Object.entries(matchRules) as any[]) {
           const valueForThisProp = props[key]
           // fail if route doesn't include this match property
           if (!valueForThisProp) {
