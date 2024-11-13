@@ -123,7 +123,7 @@ export default defineComponent({
       return new Promise((resolve, reject) => {
         const input = document.createElement('input')
         input.type = 'file'
-        input.accept = '.geojson, .shp'
+        input.accept = '.geojson, .shp, gpkg'
 
         input.onchange = (event: any) => {
           const file = event.target.files[0]

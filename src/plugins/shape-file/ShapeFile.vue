@@ -372,8 +372,7 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.viewState'() {
-      if (!REACT_VIEW_HANDLES[this.layerId]) return
-      REACT_VIEW_HANDLES[this.layerId]()
+      if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
     },
 
     'globalState.colorScheme'() {
@@ -2928,10 +2927,11 @@ const MyComponent = defineComponent({
 
           let features = [] as any[]
           try {
-            // load boundaries ---
             const filename = layerDetails.shapes
             if (filename.startsWith('http'))
               features = (await fetch(filename).then(async r => await r.json())).features
+            else if (filename.toLocaleLowerCase().endsWith('.gpkg'))
+              features = await this.loadGeoPackage(filename)
             else if (filename.toLocaleLowerCase().endsWith('.shp'))
               features = await this.loadShapefileFeatures(filename)
             else
