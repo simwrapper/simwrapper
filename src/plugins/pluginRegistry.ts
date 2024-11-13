@@ -21,6 +21,7 @@ const plugins = [
       '**/*network.avro',
       '**/*network.xml?(.gz)',
       '**/*.shp',
+      '**/*.gpkg',
     ],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },
