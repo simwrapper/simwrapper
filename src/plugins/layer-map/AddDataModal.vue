@@ -55,6 +55,7 @@ import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkWorker from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import { gUnzip } from '@/js/util'
+import { loadGeoPackageFromBuffer } from '@/plugins/shape-file/ShapeFile.vue'
 
 export default defineComponent({
   name: 'AddDataModal',
@@ -64,8 +65,8 @@ export default defineComponent({
 
   data() {
     return {
-      validDataTypes: ['CSV', 'TSV', 'TAB', 'TXT', 'DBF', 'GZ', 'DAT', 'SHP', 'GeoJSON'],
-      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|SHP|GEOJSON)(\.GZ)?$/,
+      validDataTypes: ['CSV', 'DAT', 'DBF', 'GPKG', 'GZ', 'TAB', 'TSV', 'TXT', 'SHP', 'GeoJSON'],
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|GPKG|SHP|GEOJSON)(\.GZ)?$/,
       fileChoice: '',
       filesInFolder: [] as string[],
       isLoading: false,
@@ -131,6 +132,11 @@ export default defineComponent({
           const geojson = await this.loadShapefile(file, buffer)
           this.$emit('update', { geojson, file })
           continue
+        } else if (file.name.toLocaleLowerCase().endsWith('.gpkg')) {
+          // GEOPACKAGE
+          const geojson = await this.loadGeopackage(file, buffer)
+          this.$emit('update', { geojson: { type: 'FeatureCollection', features: geojson }, file })
+          continue
         } else if (file.name.toLocaleLowerCase().indexOf('network.xml') > -1) {
           // MATSIM
           const geojson = await this.loadMatsimXML(file, buffer)
@@ -149,12 +155,15 @@ export default defineComponent({
       this.isLoading = false
     },
 
+    async loadGeopackage(file: any, buffer: ArrayBuffer) {
+      const geojson = await loadGeoPackageFromBuffer(buffer)
+      return geojson
+    },
+
     async loadShapefile(file: any, buffer: ArrayBuffer) {
-      // this.statusText = 'Loading shapefile...'
       console.log('shapefile', file.name)
 
       try {
-        // this.statusText = 'Generating shapes...'
         const shpBlob = new Blob([buffer], { type: 'application/octet-stream' })
         let geojson = await shapefile.read(buffer)
 

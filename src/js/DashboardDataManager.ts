@@ -227,7 +227,8 @@ export default class DashboardDataManager {
    * @param featureProperties array of feature PROPERTIES -- feature objects MAPPED to just be the props
    */
   public setFeatureProperties(fullpath: string, featureProperties: any[], config: any) {
-    const key = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+    const namePart = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+    const key = `${config?.subfolder || ''}/${namePart}`
 
     // merge key with keep/drop params (etc)
     let fullConfig = { dataset: key }

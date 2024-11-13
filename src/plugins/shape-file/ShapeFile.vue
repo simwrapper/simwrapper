@@ -170,6 +170,43 @@ export interface BackgroundLayer {
   onTop: boolean
 }
 
+export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
+  Gpkg.setSqljsWasmLocateFile(file => '/' + file)
+  const bArray = new Uint8Array(buffer)
+
+  const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
+
+  const tables = geoPackage.getFeatureTables()
+  console.log('GEOPACKAGE contains:', tables)
+  const tableName = tables[0]
+
+  // get the feature dao
+  const featureDao = geoPackage.getFeatureDao(tableName)
+  const tableInfo = geoPackage.getInfoForTable(featureDao)
+  // console.log({ featureDao, tableInfo })
+
+  const crs = `${tableInfo.srs.organization}:${tableInfo.srs.id}`
+  console.log('GEOPACKAGE crs:', crs)
+
+  const features = []
+  const tableElements = featureDao.queryForEach()
+  for (const row of tableElements) {
+    const { geom, ...properties } = row
+    const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
+    const geojson = geoJsonGeometry.toGeoJSON()
+    const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
+
+    features.push({
+      type: 'Feature',
+      properties,
+      geometry: wgs84,
+    })
+  }
+
+  geoPackage.close()
+  return features
+}
+
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
   components: {
@@ -2206,41 +2243,9 @@ const MyComponent = defineComponent({
       console.log('loading', filename)
       const url = `${this.subfolder}/${filename}`
       const blob = await this.fileApi.getFileBlob(url)
-      const buffer = new Uint8Array(await blob.arrayBuffer())
-
-      Gpkg.setSqljsWasmLocateFile(file => '/' + file)
-
-      const geoPackage = await Gpkg.GeoPackageAPI.open(buffer)
-      console.log({ geoPackage })
-
-      const tables = geoPackage.getFeatureTables()
-      console.log('GEOPACKAGE contains:', tables)
-      const tableName = tables[0]
-
-      // get the feature dao
-      const featureDao = geoPackage.getFeatureDao(tableName)
-      const tableInfo = geoPackage.getInfoForTable(featureDao)
-      // console.log({ featureDao, tableInfo })
-
-      const crs = `${tableInfo.srs.organization}:${tableInfo.srs.id}`
-      console.log('GEOPACKAGE crs:', crs)
-
-      const features = []
-      const tableElements = featureDao.queryForEach()
-      for (const row of tableElements) {
-        const { geom, ...properties } = row
-        const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
-        const coords = geoJsonGeometry.toGeoJSON()
-        const wgs84 = this.reprojectToWGS84(coords, crs)
-        features.push({
-          type: 'Feature',
-          properties,
-          geometry: wgs84,
-        })
-      }
-
-      geoPackage.close()
-      return features
+      const buffer = await blob.arrayBuffer()
+      const geo = loadGeoPackageFromBuffer(buffer)
+      return geo
     },
 
     async loadBoundaries() {
