@@ -112,6 +112,8 @@ import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
 
+import * as Gpkg from '@ngageoint/geopackage'
+
 import * as d3ScaleChromatic from 'd3-scale-chromatic'
 import * as d3Interpolate from 'd3-interpolate'
 import { scaleSequential } from 'd3-scale'
@@ -166,6 +168,43 @@ export interface BackgroundLayer {
   borderColor: number[]
   visible: boolean
   onTop: boolean
+}
+
+export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
+  Gpkg.setSqljsWasmLocateFile(file => '/' + file)
+  const bArray = new Uint8Array(buffer)
+
+  const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
+
+  const tables = geoPackage.getFeatureTables()
+  console.log('GEOPACKAGE contains:', tables)
+  const tableName = tables[0]
+
+  // get the feature dao
+  const featureDao = geoPackage.getFeatureDao(tableName)
+  const tableInfo = geoPackage.getInfoForTable(featureDao)
+  // console.log({ featureDao, tableInfo })
+
+  const crs = `${tableInfo.srs.organization}:${tableInfo.srs.id}`
+  console.log('GEOPACKAGE crs:', crs)
+
+  const features = []
+  const tableElements = featureDao.queryForEach()
+  for (const row of tableElements) {
+    const { geom, ...properties } = row
+    const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
+    const geojson = geoJsonGeometry.toGeoJSON()
+    const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
+
+    features.push({
+      type: 'Feature',
+      properties,
+      geometry: wgs84,
+    })
+  }
+
+  geoPackage.close()
+  return features
 }
 
 const MyComponent = defineComponent({
@@ -370,8 +409,7 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.viewState'() {
-      if (!REACT_VIEW_HANDLES[this.layerId]) return
-      REACT_VIEW_HANDLES[this.layerId]()
+      if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
     },
 
     'globalState.colorScheme'() {
@@ -766,11 +804,12 @@ const MyComponent = defineComponent({
           this.vizDetails = Object.assign({}, emptyState, ycfg)
         }
 
-        // OR is this a bare geojson/shapefile file? - build vizDetails manually
+        // OR is this a bare geojson/geopackage/shapefile file? - build vizDetails manually
         if (
           /(network\.xml)(|\.gz)$/.test(filename) ||
           /(\.geojson)(|\.gz)$/.test(filename) ||
           /\.shp$/.test(filename) ||
+          /\.gpkg$/.test(filename) ||
           /network\.avro$/.test(filename)
         ) {
           const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
@@ -2177,6 +2216,38 @@ const MyComponent = defineComponent({
       }
     },
 
+    reprojectToWGS84(geometry: any, crs: string) {
+      if (geometry.type !== 'MultiPolygon') return geometry
+
+      const finalGeometry = [] as any[]
+      for (const polygon of geometry.coordinates) {
+        const wgs84polygon = []
+        for (const shapesAndHoles of polygon) {
+          const wgs84points = []
+          for (const point of shapesAndHoles) {
+            const z = Coords.toLngLat(crs, point)
+            if (z) wgs84points.push(z)
+          }
+          wgs84polygon.push(wgs84points)
+        }
+        finalGeometry.push(wgs84polygon)
+      }
+      return {
+        type: 'MultiPolygon',
+        coordinates: finalGeometry,
+      }
+    },
+
+    async loadGeoPackage(filename: string) {
+      this.statusText = 'Loading geopackage...'
+      console.log('loading', filename)
+      const url = `${this.subfolder}/${filename}`
+      const blob = await this.fileApi.getFileBlob(url)
+      const buffer = await blob.arrayBuffer()
+      const geo = loadGeoPackageFromBuffer(buffer)
+      return geo
+    },
+
     async loadBoundaries() {
       let now = Date.now()
 
@@ -2194,7 +2265,9 @@ const MyComponent = defineComponent({
       try {
         this.statusText = 'Loading features...'
 
-        if (filename.startsWith('http')) {
+        if (shapeConfig.toLocaleLowerCase().endsWith('gpkg')) {
+          boundaries = await this.loadGeoPackage(filename)
+        } else if (filename.startsWith('http')) {
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
@@ -2203,7 +2276,6 @@ const MyComponent = defineComponent({
         } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
           // MATSim XML Network
           boundaries = await this.loadXMLNetwork(filename)
-          console.log(777, { boundaries })
         } else if (filename.toLocaleLowerCase().includes('network.avro')) {
           // avro network!
           boundaries = await this.loadAvroNetwork(filename)
@@ -2287,10 +2359,8 @@ const MyComponent = defineComponent({
         const err = e as any
         const message = err.statusText || 'Could not load'
         const fullError = `${message}: "${filename}"`
-
         this.statusText = ''
         this.$emit('isLoaded')
-
         throw Error(fullError)
       }
 
@@ -2325,8 +2395,7 @@ const MyComponent = defineComponent({
           }
           avroTable[colName] = dataColumn
         }
-
-        // special case: allowedModes
+        // special case: allowedModes needs to be looked up
         const modeLookup = this.avroNetwork['modes']
         const allowedModes = avroTable['allowedModes']
         allowedModes.type = DataType.STRING
@@ -2863,10 +2932,11 @@ const MyComponent = defineComponent({
 
           let features = [] as any[]
           try {
-            // load boundaries ---
             const filename = layerDetails.shapes
             if (filename.startsWith('http'))
               features = (await fetch(filename).then(async r => await r.json())).features
+            else if (filename.toLocaleLowerCase().endsWith('.gpkg'))
+              features = await this.loadGeoPackage(filename)
             else if (filename.toLocaleLowerCase().endsWith('.shp'))
               features = await this.loadShapefileFeatures(filename)
             else

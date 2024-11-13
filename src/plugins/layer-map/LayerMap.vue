@@ -52,6 +52,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import Sanitize from 'sanitize-filename'
 import YAML from 'js-yaml'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import {
@@ -172,6 +173,8 @@ export default defineComponent({
         tooltip: [] as string[],
         layers: [] as any[],
       },
+
+      dbSaveMapExtent: {} as Function,
     }
   },
 
@@ -202,8 +205,8 @@ export default defineComponent({
 
   watch: {
     'globalState.viewState'() {
-      if (!REACT_VIEW_HANDLES[this.viewId]) return
-      REACT_VIEW_HANDLES[this.viewId]()
+      if (REACT_VIEW_HANDLES[this.viewId]) REACT_VIEW_HANDLES[this.viewId]()
+      this.dbSaveMapExtent()
     },
 
     'globalState.colorScheme'() {
@@ -215,6 +218,16 @@ export default defineComponent({
   },
 
   methods: {
+    saveMapExtent() {
+      try {
+        const remember = {
+          center: [this.globalState.viewState.longitude, this.globalState.viewState.latitude],
+          zoom: this.globalState.viewState.zoom,
+        }
+        localStorage?.setItem('layermap-initial-view', JSON.stringify(remember))
+      } catch {}
+    },
+
     async toggleHidePanel() {
       if (this.isPanelReallyHidden) {
         // show the panel
@@ -480,10 +493,18 @@ export default defineComponent({
       if (geojson) {
         console.log('FEATURES', geojson, file)
         let filename = '' + (file?.name || 'GeoJSON')
+
         if (filename.toLocaleLowerCase().endsWith('.geojson')) {
           filename = filename.substring(0, filename.length - 8)
         }
-        await this.myDataManager.registerFeatures(filename, geojson.features, {})
+        if (filename.toLocaleLowerCase().endsWith('.gpkg')) {
+          filename = filename.substring(0, filename.length - 5)
+        }
+
+        await this.myDataManager.registerFeatures(filename, geojson.features, {
+          subfolder: this.subfolder,
+        })
+
         this.showAddData = false
         const dataset = await this.myDataManager.getDataset(
           { dataset: filename },
@@ -644,17 +665,17 @@ export default defineComponent({
       this.datasets = {}
     },
 
-    setStartingMap() {
-      this.$store.commit('setMapCamera', {
-        zoom: this.vizDetails.zoom || 4,
-        bearing: this.vizDetails.bearing || 0,
-        pitch: this.vizDetails.pitch || 0,
-        longitude: 15,
-        latitude: 45,
-        initial: true,
-      })
-      this.needsInitialMapExtent = false
-    },
+    // setStartingMap() {
+    //   this.$store.commit('setMapCamera', {
+    //     zoom: this.vizDetails.zoom || 4,
+    //     bearing: this.vizDetails.bearing || 0,
+    //     pitch: this.vizDetails.pitch || 0,
+    //     longitude: 15,
+    //     latitude: 45,
+    //     initial: true,
+    //   })
+    //   this.needsInitialMapExtent = false
+    // },
 
     setMapCenter() {
       if (this.vizDetails.center && typeof this.vizDetails.center === 'string') {
@@ -665,12 +686,26 @@ export default defineComponent({
         this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
       }
 
-      if (!this.vizDetails.center) this.vizDetails.center = [-122.4, 37.75]
+      // if (!this.vizDetails.center) this.vizDetails.center = [-35, 30]
+
+      if (!this.vizDetails.center) {
+        try {
+          const remember = JSON.parse(
+            localStorage?.getItem('layermap-initial-view') ||
+              ('{"center": [-35,30], "zoom": 1.5}' as any)
+          )
+          this.vizDetails.center = remember.center
+          if (!this.vizDetails.zoom) this.vizDetails.zoom = remember.zoom
+          console.log(123, this.vizDetails)
+        } catch (e) {
+          console.error(e)
+        }
+      }
 
       if (this.needsInitialMapExtent && this.vizDetails.center) {
         this.$store.commit('setMapCamera', {
-          center: this.vizDetails.center,
-          zoom: this.vizDetails.zoom || 9,
+          center: this.vizDetails.center || [-35, 30],
+          zoom: this.vizDetails.zoom || 1.5,
           bearing: this.vizDetails.bearing || 0,
           pitch: this.vizDetails.pitch || 0,
           longitude: this.vizDetails.center ? this.vizDetails.center[0] : 0,
@@ -748,8 +783,8 @@ export default defineComponent({
   },
 
   async mounted() {
+    this.dbSaveMapExtent = debounce(this.saveMapExtent, 5000)
     // we have a filepath --------
-
     if (this.root || this.configFromDashboard) {
       this.loadConfig()
       return
