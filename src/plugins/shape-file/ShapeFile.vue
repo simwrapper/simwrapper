@@ -119,6 +119,8 @@ import * as d3Interpolate from 'd3-interpolate'
 import { scaleSequential } from 'd3-scale'
 import { rgb } from 'd3-color'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 import globalStore from '@/store'
 import {
   DataTable,
@@ -171,7 +173,7 @@ export interface BackgroundLayer {
 }
 
 export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
-  Gpkg.setSqljsWasmLocateFile(file => '/' + file)
+  Gpkg.setSqljsWasmLocateFile(file => BASE_URL + file)
   const bArray = new Uint8Array(buffer)
 
   const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
