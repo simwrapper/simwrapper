@@ -1,14 +1,12 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { StaticMap } from 'react-map-gl'
-import { AmbientLight, PointLight, LightingEffect } from '@deck.gl/core'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, ScatterplotLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
-import PathOffsetLayer from '@/layers/PathOffsetLayer'
+import { ArcLayer, ScatterplotLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-import { formatScalarComplex } from '../matrix/local/vis-utils'
+import { scale } from 'vega'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -49,7 +47,13 @@ const ActivityColor = {
   service: [255, 64, 255],
 }
 
-var totalShipments = 0
+
+interface hubShipment {
+  hubId: String,
+  shipmentTotal: number
+}
+
+var totalShipmentsPerHub: hubShipment[] = []
 
 
 export default function Component(props: {
@@ -88,22 +92,21 @@ export default function Component(props: {
     numSelectedTours,
     lspShipmentChains,
     shipments,
-    depots,
     legs,
     settings,
     stopActivities,
-    center,
     onClick,
     projection,
   } = props
 
 
-  const { simplifyTours, scaleFactor, shipmentDotsOnTourMap, showEachCarrierTour } = settings
-
+  const { simplifyTours, scaleFactor, scaleFactorShipments, shipmentDotsOnTourMap, showEachCarrierTour } = settings
   // range is (1/) 16384 - 0.000001
   // scaleFactor is 0-100, which we invert and shift to [14 to -6], then 2^value is widthScale.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
+  let widthScaleShipments = scaleFactorShipments == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactorShipments) / 5 - 6.0)
 
+  let shipmentsTest = []
   var [layers, setLayers] = useState<any[]>([]);
   const prevHubChains = useRef(lspShipmentChains)
 
@@ -166,8 +169,9 @@ export default function Component(props: {
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
     if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
-    if (object?.label == 'Depot') return renderHubInfo(hoverInfo)
-    return renderStopTooltip(hoverInfo)
+    if (object?.label == 'Depot' || (object?.locationX && object?.locationY)) return renderHubInfo(hoverInfo)
+    if (object?.tour) return renderStopTooltip(hoverInfo)
+
   }
 
   function renderActivityTooltip(hoverInfo: any, activity: string) {
@@ -201,10 +205,10 @@ export default function Component(props: {
     )
   }
 
-
   function renderLegTooltip(hoverInfo: any) {
 
     const { object, x, y } = hoverInfo
+    console.log(object)
 
     if (hoverInfo.layer.id == "HubChain") {
 
@@ -222,8 +226,8 @@ export default function Component(props: {
             top: y - 30,
           }}
         >
-          Total Shipment Count: {totalShipments} <br />
-          Chain Type: {object?.chainId} <br />
+          {/* Total Shipment Count: {totalShipments} <br />
+          Chain Type: {object?.chainId} <br /> */}
         </div>
       )
     } else {
@@ -277,6 +281,28 @@ export default function Component(props: {
 
   function renderHubInfo(hoverInfo: any) {
 
+    const { object, x, y } = hoverInfo
+
+    let hubInfo = totalShipmentsPerHub.find(obj => obj.hubId === object?.id)
+
+    return (
+      <div
+        className="tooltip"
+        style={{
+          fontSize: '0.8rem',
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          left: x + 20,
+          top: y - 30,
+        }}
+      >
+        Hub Id: {hubInfo?.hubId} <br />
+        Total Shipments: {hubInfo?.shipmentTotal} <br />
+      </div>
+    )
 
   }
 
@@ -359,7 +385,6 @@ export default function Component(props: {
     )
   }
 
-  console.log(props.carrierServices)
 
   if (activeTab == 'lspTours') {
 
@@ -414,7 +439,6 @@ export default function Component(props: {
       return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
     }
     if (props.showHub === true && props.hubLocation.length > 0) {
-
       layers.push(
         //@ts-ignore:
         new TextLayer({
@@ -453,7 +477,7 @@ export default function Component(props: {
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
           widthMinPixels: 3,
-          rounded: true,
+          jointRounded: true,
           shadowEnabled: false,
           pickable: false,
           autoHighlight: false,
@@ -480,7 +504,6 @@ export default function Component(props: {
             widthMinPixels: 2,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [scaleFactor] },
@@ -505,8 +528,7 @@ export default function Component(props: {
             widthMinPixels: 3,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
-            rounded: true,
+            jointRounded: true,
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
@@ -521,7 +543,7 @@ export default function Component(props: {
         layers.push(
           //@ts-ignore:
           new ArcLayer({
-            id: 'leg-arcs',
+            id: 'leg-arcs-showAll',
             data: legs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
@@ -532,7 +554,6 @@ export default function Component(props: {
             widthMinPixels: 2,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [scaleFactor] },
@@ -557,8 +578,7 @@ export default function Component(props: {
             widthMinPixels: 3,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
-            rounded: true,
+            jointRounded: true,
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
@@ -572,7 +592,6 @@ export default function Component(props: {
       }
 
       // destination labels
-
 
       layers.push(
         //@ts-ignore
@@ -622,93 +641,74 @@ export default function Component(props: {
     }
   }
 
-  // shipment panel
-  if (activeTab == 'shipments') {
+  function setShipments(layers:any) {
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'deliveries',
+        data: pickupsAndDeliveries.deliveries,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.delivery,
+        getRadius: 3,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'pickups',
+        data: pickupsAndDeliveries.pickups,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.pickup,
+        getRadius: 2,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
 
-    if (props.showHub && props.hubLocation.length > 0) {
-      layers.push(
-        //@ts-ignore:
-        new TextLayer({
-          id: 'shipmentHubs',
-          data: props.hubLocation,
-          getPosition: [props.hubLocation[0], props.hubLocation[1]],
-          getText: () => props.hubName,
-          getRadius: 2,
-          opacity: 0.9,
-          background: true,
-          backgroundPadding: numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
-          getBackgroundColor: () => [240, 130, 0],
-          getColor: [255, 255, 255],
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          getSize: (d: any) => 11,
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center',
-          noAlloc: false,
-          billboard: true,
-          sizeScale: 1,
-          autoHighlight: true,
-          onHover: setHoverInfo,
-        })
-      )
-    } else {
-      layers.push(
-        //@ts-ignore:
-        new ScatterplotLayer({
-          id: 'deliveries',
-          data: pickupsAndDeliveries.deliveries,
-          getPosition: (d: any) => d.coord,
-          getColor: ActivityColor.delivery,
-          getRadius: 3,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          onHover: setHoverInfo,
-        })
-      )
-      layers.push(
-        //@ts-ignore:
-        new ScatterplotLayer({
-          id: 'pickups',
-          data: pickupsAndDeliveries.pickups,
-          getPosition: (d: any) => d.coord,
-          getColor: ActivityColor.pickup,
-          getRadius: 2,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          onHover: setHoverInfo,
-        })
-      )
+    const opacity = shipments.length > 1 ? 32 : 255
 
-      const opacity = shipments.length > 1 ? 32 : 255
-
-      layers.push(
-        //@ts-ignore:
-        new ArcLayer({
-          id: 'shipments',
-          data: shipments,
-          getSourcePosition: (d: any) => [d.fromX, d.fromY],
-          getTargetPosition: (d: any) => [d.toX, d.toY],
-          getSourceColor: [0, 228, 255, opacity],
-          getTargetColor: [240, 0, 60, 224],
-          getWidth: parseInt("100") || 1.0 * 0.5,
-          widthUnits: 'pixels',
-          getHeight: 0.5,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          widthScale: widthScale,
-          widthMinPixels: 1,
-          widthMaxPixels: 100,
-          updateTriggers: { getWidth: [scaleFactor] },
-          transitions: { getWidth: 200 },
-        })
-      )
-    }
+    layers.push(
+      //@ts-ignore:
+      new ArcLayer({
+        id: 'shipments',
+        data: shipments,
+        getSourcePosition: (d: any) => [d.fromX, d.fromY],
+        getTargetPosition: (d: any) => [d.toX, d.toY],
+        getSourceColor: [0, 228, 255, opacity],
+        getTargetColor: [240, 0, 60, 224],
+        getWidth: scaleFactorShipments ? (d: any) => parseInt(d.$size) || 1.0 : 1,
+        widthUnits: 'pixels',
+        getHeight: 0.5,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        widthScale: widthScaleShipments,
+        widthMinPixels: 1,
+        widthMaxPixels: 100,
+        updateTriggers: { getWidth: [scaleFactorShipments] },
+        transitions: { getWidth: 200 },
+      })
+    )
   }
+
+  if (activeTab == 'shipments' && scaleFactorShipments === 0) {
+    console.log(scaleFactorShipments + " test")
+    setShipments(layers)
+  }
+
+  useEffect(() => {
+    const newLayersShipments: any = []; // Initialize a new layers array
+    setShipments(newLayersShipments)
+    setLayers(newLayersShipments);
+    prevHubChains.current = lspShipmentChains; // Update the ref for the next render
+  }, [settings.scaleFactorShipments]);
 
   if (activeTab === "lspShipmentChains" && props.showHub && props.hubLocation.length > 0) {
     let lspChainsCopy = lspShipmentChains
@@ -750,9 +750,9 @@ export default function Component(props: {
 
     function getLineWidth(chainIndex: number, shipmentChain: any) {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
-        return 0.1;
+        return 1 * (scaleFactor / 2)
       } else {
-        return 2;
+        return 3 * (scaleFactor / 2)
       }
     }
 
@@ -760,7 +760,7 @@ export default function Component(props: {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
         return [0, 228, 255, opacity];
       } else {
-        return [255, 255, 255];
+        return [255, 140, 0]
       }
     }
 
@@ -768,7 +768,7 @@ export default function Component(props: {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
         return [240, 0, 60, 224];
       } else {
-        return [255, 255, 255];
+        return [255, 140, 0]
       }
     }
 
@@ -786,7 +786,7 @@ export default function Component(props: {
             getTargetPosition: (d: any) => [d.toX, d.toY],
             getSourceColor: [0, 228, 255, opacity],
             getTargetColor: [240, 0, 60, 224],
-            getWidth: 1,
+            getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
             widthUnits: 'pixels',
             getHeight: 0.5,
             opacity: 0.9,
@@ -828,17 +828,55 @@ export default function Component(props: {
           })
         );
       } else {
-        totalShipments = 0
+        console.log(widthScale)
+
+
+        // Flatten the hubsChains to get individual hubs from each chain
+        const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
+
+        let uniqueHubs = allHubs.reduce((acc, obj) => {
+          const existingObj = acc.find(
+            (item: any) => JSON.stringify(item)
+              === JSON.stringify(obj)
+          );
+          if (!existingObj) {
+            acc.push(obj);
+          }
+          return acc;
+        }, []);
+
+        uniqueHubs.forEach((hub: any) => {
+          let newHubShipment: hubShipment = {
+            hubId: hub.id,
+            shipmentTotal: 0
+          }
+          totalShipmentsPerHub.push(newHubShipment)
+        });
+
+        totalShipmentsPerHub.forEach((hub: any) => {
+          hub.shipmentTotal = 0
+        })
+
+
         lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
-          totalShipments++
+          lspShipmentChain.hubs.forEach((hub: any) => {
+            const hubExists = uniqueHubs.some((uniqueHub: any) => uniqueHub.id === hub.id);
+            if (hubExists) {
+              let shipmentHub = totalShipmentsPerHub.find(obj => obj.hubId === hub.id)
+              if (shipmentHub) {
+                shipmentHub.shipmentTotal++
+              }
+            }
+          })
+
           for (let i = 0; i < lspShipmentChain.route.length - 1; i++) {
             newLayers.push(
               //@ts-ignore:
               new ArcLayer({
-                id: 'shipmenthubchains',
-                data: lspShipmentChains[0].hubsChains,
-                getSourcePosition: (d: any) => [d.route[i][0], d.route[i][1]],
-                getTargetPosition: (d: any) => [d.route[i + 1][0], d.route[i + 1][1]],
+                id: 'shipmenthubchains' + '_' + lspShipmentChain.shipmentId + '_route' + i,
+                data: [{}],
+                getSourcePosition: () => [lspShipmentChain.route[i][0], lspShipmentChain.route[i][1]],
+                getTargetPosition: () => [lspShipmentChain.route[i + 1][0], lspShipmentChain.route[i + 1][1]],
                 getSourceColor: getSourceColor(i, lspShipmentChain),
                 getTargetColor: getTargetColor(i, lspShipmentChain),
                 getWidth: getLineWidth(i, lspShipmentChain),
@@ -846,88 +884,70 @@ export default function Component(props: {
                 getHeight: 0.5,
                 opacity: 0.9,
                 parameters: { depthTest: false },
-                widthScale: widthScale,
                 widthMinPixels: 1,
                 widthMaxPixels: 100,
-                updateTriggers: { getWidth: [scaleFactor] },
                 transitions: { getWidth: 200 },
               })
             )
             newLayers.push(
               //@ts-ignore:
               new ScatterplotLayer({
-                id: 'HubChain',
-                data: lspShipmentChains[0].hubsChains,
-                getPosition: (d: any) => [d.route[i][0], d.route[i][1]],
-                getColor: ActivityColor.pickup,
+                id: 'HubChainMarker' + '_' + lspShipmentChain.shipmentId + '_' + i,
+                data: [lspShipmentChain],
+                getPosition: () => [lspShipmentChain.route[lspShipmentChain.route.length - 1][0], lspShipmentChain.route[lspShipmentChain.route.length - 1][1]],
+                getFillColor: ActivityColor.pickup,
                 getRadius: 3,
                 opacity: 0.9,
                 parameters: { depthTest: false },
                 pickable: true,
                 radiusUnits: 'pixels',
+                onHover: setHoverInfo,
               })
             )
           }
-        })
-
-         newLayers.push(
-            //@ts-ignore
-            new TextLayer({
-              id: 'HubChain',
-              data: lspShipmentChains[0].hubsChains,
-              getPosition: (d: any) => [d.hubs[0].locationX, d.hubs[0].locationY],
-              getText: (d: any) => d.hubs[0].id,
-              getAlignmentBaseline: 'center',
-              getColor: [255, 255, 255],
-              getBackgroundColor: [240, 130, 0],
-              background: true,
-              backgroundPadding: [2, 2, 2, 2],
-              fontWeight: 'normal',
-              getSize: 10,
-              getTextAnchor: 'middle',
+          newLayers.push(
+            //@ts-ignore:
+            new ScatterplotLayer({
+              id: 'pickupsHubChain',
+              data: [{}],
+              getPosition: (d: any) => [lspShipmentChain.route[0][0], lspShipmentChain.route[0][1]],
+              getColor: ActivityColor.pickup,
+              getRadius: 2,
+              opacity: 0.9,
+              parameters: { depthTest: false },
               pickable: true,
-              onHover: setHoverInfo
+              radiusUnits: 'pixels',
+              // onHover: setHoverInfo,
             })
           )
+        })
 
         newLayers.push(
-          //@ts-ignore:
-          new ScatterplotLayer({
-            id: 'deliveriesHubChain',
-            data: lspShipmentChains[0].hubsChains,
-            getPosition: (d: any) => [d.toX, d.toY],
-            getColor: ActivityColor.delivery,
-            getRadius: 3,
-            opacity: 0.9,
-            parameters: { depthTest: false },
+          //@ts-ignore
+          new TextLayer({
+            id: 'HubChain',
+            data: allHubs, // Pass all hubs (flattened)
+            getPosition: (hub: any) => [hub.locationX, hub.locationY], // Get position of each hub
+            getText: (hub: any) => hub.id, // Display each hub's ID as text
+            getAlignmentBaseline: 'center',
+            getColor: [255, 255, 255],
+            getBackgroundColor: [240, 130, 0],
+            background: true,
+            backgroundPadding: [2, 2, 2, 2],
+            fontWeight: 'normal',
+            getSize: 10,
+            getTextAnchor: 'middle',
             pickable: true,
-            radiusUnits: 'pixels',
-            onHover: setHoverInfo,
+            onHover: setHoverInfo // Handle hover interactions
           })
-        )
+        );
 
 
-
-        newLayers.push(
-          //@ts-ignore:
-          new ScatterplotLayer({
-            id: 'pickupsHubChain',
-            data: lspShipmentChains[0].hubsChains,
-            getPosition: (d: any) => [d.fromX, d.fromY],
-            getColor: ActivityColor.pickup,
-            getRadius: 2,
-            opacity: 0.9,
-            parameters: { depthTest: false },
-            pickable: true,
-            radiusUnits: 'pixels',
-            // onHover: setHoverInfo,
-          })
-        )
       }
     }
     setLayers(newLayers);
     prevHubChains.current = lspShipmentChains; // Update the ref for the next render
-  }, [lspShipmentChains]);
+  }, [lspShipmentChains, settings.scaleFactor]);
 
 
 

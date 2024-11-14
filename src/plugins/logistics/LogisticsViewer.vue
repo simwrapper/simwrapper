@@ -40,15 +40,16 @@
 
       b-field.detail-buttons(v-if="selectedLsp" size="is-small")
         // watch array and if the length changes, change value of boolean for v-if
-        b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
+        b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarriers[0], false)")
           span {{ $t('Shipment Chains') }}
-        b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning")
+        b-radio-button(v-if="checkIfHubChain()" v-model="activeTab" native-value="lspShipmentChains" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarriers[0], false)")
           span {{ $t('Shipment Chains') }}
         b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
           span {{ $t('LSP Tours') }}
 
       br
       br
+      h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'") <b>*All Carriers shown. Please select individual Carrier to view its specific tours.</b>
       br
 
       h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
@@ -57,7 +58,7 @@
         h5(style="font-weight:bold") {{"Direct Chain Carriers:"}}
         .carrier(v-for="carrier in lspCarriers" :key="carrier.$id"
           :class="{selected: carrier.$id===selectedCarrier}"
-          @click="handleSelectCarrier(carrier)")
+          @click="handleSelectCarrier(carrier, true)")
           .carrier-title {{ carrier.$id }}
         br
         h5(style="font-weight:bold") {{"Hub Chain Carriers:"}}
@@ -65,7 +66,7 @@
             h6(name="" style="font-weight:bold" @click="getCarrierServicesForHubChain(selectedLsp)") {{"Hub Chain " + hubChain.chainIndex + ":"}}
             .carrier(v-for="carrier in hubChain.chainIds" :key="carrier"
               :class="{selected: carrier===selectedCarrier}"
-              @click="handleSelectCarrier(carrier)")
+              @click="handleSelectCarrier(carrier, true)")
               .carrier-title {{ carrier }}
 
 
@@ -113,7 +114,8 @@
       .switchbox
         .switches(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'")
           p {{$t('scaleSize')}}
-          b-slider.slider(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+          b-slider.slider(v-if=" activeTab=='lspShipmentChains'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactor")
+          b-slider.slider(v-if="activeTab == 'shipments'" :tooltip="false" type="is-link" size="is-small" v-model="vizSettings.scaleFactorShipments")
         .addedSpace(v-if="activeTab == 'tours' || activeTab=='lspTours'")
           br
         .switches(v-if="activeTab == 'tours' || activeTab=='lspTours'")
@@ -140,10 +142,12 @@ const i18n = {
       shipmentDots: 'Show shipments',
       scaleSize: 'Widths',
       scaleFactor: 'Width',
+      scaleFactorShipments: 'Width',
       'Shipment Chains': 'Shipment Chains',
       'Shipments': 'Shipments',
       'LSP Tours': 'LSP Tours',
       'lspShipmentChains': 'lspShipmentChains',
+      'Lsp Shipments': 'Lsp Shipments',
       'Carrier Tours': 'Carrier Tours',
       Tours: 'Tours'
     },
@@ -288,6 +292,7 @@ const LogisticsPlugin = defineComponent({
         scaleShipmentSizes: true,
         shipmentDotsOnTourMap: true,
         scaleFactor: 0, // 0 means don't scale at all
+        scaleFactorShipments: 0
       },
 
       vizDetails: {
@@ -497,7 +502,7 @@ const LogisticsPlugin = defineComponent({
         if (!this.selectedTours.length) {
           const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
           this.selectedCarrier = ''
-          this.handleSelectCarrier(carrier[0])
+          this.handleSelectCarrier(carrier[0], true)
         }
 
         return
@@ -745,6 +750,7 @@ const LogisticsPlugin = defineComponent({
 
       // this should be correctly implemented - logic not there at the moment
       if (this.lspShipmentHubChains.length > 0) {
+        const allHubs = this.lspShipmentHubChains.flatMap((chain: any) => chain.hubs);
         stopActivities[0].label = 'Hub'
       } else {
         stopActivities[0].label = 'Depot'
@@ -1028,6 +1034,7 @@ const LogisticsPlugin = defineComponent({
       this.shipments = this.processShipments(lspCarrier)
       this.lspShipmentChains = []
       this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
+      this.shownShipments = []
       this.shownShipments = this.shipments
 
 
@@ -1098,10 +1105,14 @@ const LogisticsPlugin = defineComponent({
 
     // },
 
-    handleSelectCarrier(carrierId: any) {
+    handleSelectCarrier(carrierId: any, unselectAll: boolean) {
 
       /// make new carrier specific data object with tours and shipments 
       let carrier: any = {}
+      // if (carrierId) {
+      //   this.selectedCarrier = carrierId
+      // }
+
 
       if (typeOf(carrierId) == 'string') {
         carrier = this.carriers.find(c => c.$id === carrierId)
@@ -1132,6 +1143,7 @@ const LogisticsPlugin = defineComponent({
       if (!this.links) return
 
       const id = carrier.$id
+      console.log(carrier.$id)
 
       this.vehicles = []
       this.shipments = []
@@ -1145,7 +1157,7 @@ const LogisticsPlugin = defineComponent({
       this.shownLegs = []
 
       // unselect carrier
-      if (this.selectedCarrier === id) {
+      if (this.selectedCarrier === id && unselectAll) {
         this.selectedCarrier = ''
         console.log("carriers unselected - TRIGGER THE LSP!")
         this.handleSelectLsp(this.lsps.find((c: any) => c.$id == this.selectedLsp))
@@ -1359,7 +1371,6 @@ const LogisticsPlugin = defineComponent({
         }
       }
 
-      console.log(this.lspPlan)
       // build new data object with shipment & shipment plan data
       try {
         for (let i = 0; i < this.lspPlan.shipmentPlans.shipmentPlan.length; i++) {
