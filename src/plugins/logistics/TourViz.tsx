@@ -1,12 +1,12 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { StaticMap } from 'react-map-gl'
 import DeckGL from '@deck.gl/react'
-import { ArcLayer, ScatterplotLayer, IconLayer, PathLayer, TextLayer } from '@deck.gl/layers'
+import { ArcLayer, ScatterplotLayer, PathLayer, TextLayer } from '@deck.gl/layers'
 import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-import { scaleLinear } from 'd3-scale'
+import { scale } from 'vega'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -92,22 +92,21 @@ export default function Component(props: {
     numSelectedTours,
     lspShipmentChains,
     shipments,
-    depots,
     legs,
     settings,
     stopActivities,
-    center,
     onClick,
     projection,
   } = props
 
 
-  const { simplifyTours, scaleFactor, shipmentDotsOnTourMap, showEachCarrierTour } = settings
-
+  const { simplifyTours, scaleFactor, scaleFactorShipments, shipmentDotsOnTourMap, showEachCarrierTour } = settings
   // range is (1/) 16384 - 0.000001
   // scaleFactor is 0-100, which we invert and shift to [14 to -6], then 2^value is widthScale.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
+  let widthScaleShipments = scaleFactorShipments == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactorShipments) / 5 - 6.0)
 
+  let shipmentsTest = []
   var [layers, setLayers] = useState<any[]>([]);
   const prevHubChains = useRef(lspShipmentChains)
 
@@ -206,10 +205,10 @@ export default function Component(props: {
     )
   }
 
-
   function renderLegTooltip(hoverInfo: any) {
 
     const { object, x, y } = hoverInfo
+    console.log(object)
 
     if (hoverInfo.layer.id == "HubChain") {
 
@@ -386,9 +385,8 @@ export default function Component(props: {
     )
   }
 
-  if (activeTab == 'lspTours') {
 
-    console.log(props.hubLocation)
+  if (activeTab == 'lspTours') {
 
     layers = []
 
@@ -441,8 +439,6 @@ export default function Component(props: {
       return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
     }
     if (props.showHub === true && props.hubLocation.length > 0) {
-      console.log(props.hubLocation)
-
       layers.push(
         //@ts-ignore:
         new TextLayer({
@@ -508,7 +504,6 @@ export default function Component(props: {
             widthMinPixels: 2,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [scaleFactor] },
@@ -533,8 +528,7 @@ export default function Component(props: {
             widthMinPixels: 3,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
-            rounded: true,
+            jointRounded: true,
             shadowEnabled: false,
             pickable: true,
             autoHighlight: true,
@@ -549,7 +543,7 @@ export default function Component(props: {
         layers.push(
           //@ts-ignore:
           new ArcLayer({
-            id: 'leg-arcs',
+            id: 'leg-arcs-showAll',
             data: legs,
             getSourcePosition: (d: any) => d.points[0],
             getTargetPosition: (d: any) => d.points[d.points.length - 1],
@@ -560,7 +554,6 @@ export default function Component(props: {
             widthMinPixels: 2,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
             opacity: 0.9,
             parameters: { depthTest: false },
             updateTriggers: { getWidth: [scaleFactor] },
@@ -585,7 +578,6 @@ export default function Component(props: {
             widthMinPixels: 3,
             widthMaxPixels: 200,
             widthUnits: 'pixels',
-            widthScale: widthScale,
             jointRounded: true,
             shadowEnabled: false,
             pickable: true,
@@ -600,7 +592,6 @@ export default function Component(props: {
       }
 
       // destination labels
-
 
       layers.push(
         //@ts-ignore
@@ -650,93 +641,74 @@ export default function Component(props: {
     }
   }
 
-  // shipment panel
-  if (activeTab == 'shipments') {
+  function setShipments(layers:any) {
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'deliveries',
+        data: pickupsAndDeliveries.deliveries,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.delivery,
+        getRadius: 3,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
+    layers.push(
+      //@ts-ignore:
+      new ScatterplotLayer({
+        id: 'pickups',
+        data: pickupsAndDeliveries.pickups,
+        getPosition: (d: any) => d.coord,
+        getColor: ActivityColor.pickup,
+        getRadius: 2,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        pickable: true,
+        radiusUnits: 'pixels',
+        onHover: setHoverInfo,
+      })
+    )
 
-    if (props.showHub && props.hubLocation.length > 0) {
-      layers.push(
-        //@ts-ignore:
-        new TextLayer({
-          id: 'shipmentHubs',
-          data: props.hubLocation,
-          getPosition: [props.hubLocation[0], props.hubLocation[1]],
-          getText: () => props.hubName,
-          getRadius: 2,
-          opacity: 0.9,
-          background: true,
-          backgroundPadding: numSelectedTours !== 1 ? [2, 1, 2, 1] : [3, 2, 3, 1],
-          getBackgroundColor: () => [240, 130, 0],
-          getColor: [255, 255, 255],
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          getSize: (d: any) => 11,
-          getTextAnchor: 'middle',
-          getAlignmentBaseline: 'center',
-          noAlloc: false,
-          billboard: true,
-          sizeScale: 1,
-          autoHighlight: true,
-          onHover: setHoverInfo,
-        })
-      )
-    } else {
-      layers.push(
-        //@ts-ignore:
-        new ScatterplotLayer({
-          id: 'deliveries',
-          data: pickupsAndDeliveries.deliveries,
-          getPosition: (d: any) => d.coord,
-          getColor: ActivityColor.delivery,
-          getRadius: 3,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          onHover: setHoverInfo,
-        })
-      )
-      layers.push(
-        //@ts-ignore:
-        new ScatterplotLayer({
-          id: 'pickups',
-          data: pickupsAndDeliveries.pickups,
-          getPosition: (d: any) => d.coord,
-          getColor: ActivityColor.pickup,
-          getRadius: 2,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          pickable: true,
-          radiusUnits: 'pixels',
-          onHover: setHoverInfo,
-        })
-      )
+    const opacity = shipments.length > 1 ? 32 : 255
 
-      const opacity = shipments.length > 1 ? 32 : 255
-
-      layers.push(
-        //@ts-ignore:
-        new ArcLayer({
-          id: 'shipments',
-          data: shipments,
-          getSourcePosition: (d: any) => [d.fromX, d.fromY],
-          getTargetPosition: (d: any) => [d.toX, d.toY],
-          getSourceColor: [0, 228, 255, opacity],
-          getTargetColor: [240, 0, 60, 224],
-          getWidth: parseInt("100") || 1.0 * 0.5,
-          widthUnits: 'pixels',
-          getHeight: 0.5,
-          opacity: 0.9,
-          parameters: { depthTest: false },
-          widthScale: widthScale,
-          widthMinPixels: 1,
-          widthMaxPixels: 100,
-          updateTriggers: { getWidth: [scaleFactor] },
-          transitions: { getWidth: 200 },
-        })
-      )
-    }
+    layers.push(
+      //@ts-ignore:
+      new ArcLayer({
+        id: 'shipments',
+        data: shipments,
+        getSourcePosition: (d: any) => [d.fromX, d.fromY],
+        getTargetPosition: (d: any) => [d.toX, d.toY],
+        getSourceColor: [0, 228, 255, opacity],
+        getTargetColor: [240, 0, 60, 224],
+        getWidth: scaleFactorShipments ? (d: any) => parseInt(d.$size) || 1.0 : 1,
+        widthUnits: 'pixels',
+        getHeight: 0.5,
+        opacity: 0.9,
+        parameters: { depthTest: false },
+        widthScale: widthScaleShipments,
+        widthMinPixels: 1,
+        widthMaxPixels: 100,
+        updateTriggers: { getWidth: [scaleFactorShipments] },
+        transitions: { getWidth: 200 },
+      })
+    )
   }
+
+  if (activeTab == 'shipments' && scaleFactorShipments === 0) {
+    console.log(scaleFactorShipments + " test")
+    setShipments(layers)
+  }
+
+  useEffect(() => {
+    const newLayersShipments: any = []; // Initialize a new layers array
+    setShipments(newLayersShipments)
+    setLayers(newLayersShipments);
+    prevHubChains.current = lspShipmentChains; // Update the ref for the next render
+  }, [settings.scaleFactorShipments]);
 
   if (activeTab === "lspShipmentChains" && props.showHub && props.hubLocation.length > 0) {
     let lspChainsCopy = lspShipmentChains
@@ -776,17 +748,11 @@ export default function Component(props: {
 
     const opacity = shipments.length > 1 ? 32 : 255
 
-    function getLineWidth(chainIndex: number, shipmentChain: any, scaleFactor: number, allHubs: any, totalShipmentsPerHub: any) {
+    function getLineWidth(chainIndex: number, shipmentChain: any) {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
-        return 1 * (scaleFactor+1)
+        return 1 * (scaleFactor / 2)
       } else {
-        allHubs.forEach((hub: any) => {
-          if (shipmentChain.route[chainIndex + 1][0] == hub.locationX && shipmentChain.route[chainIndex + 1][1] == hub.locationY) {
-            let hubShipment = totalShipmentsPerHub.find((element: any) => element.hubId == hub.id)
-            return (hubShipment.shipmentTotal*10) * (scaleFactor+1)
-          }
-        })
-        return 1 * scaleFactor
+        return 3 * (scaleFactor / 2)
       }
     }
 
@@ -820,7 +786,7 @@ export default function Component(props: {
             getTargetPosition: (d: any) => [d.toX, d.toY],
             getSourceColor: [0, 228, 255, opacity],
             getTargetColor: [240, 0, 60, 224],
-            getWidth: 1,
+            getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
             widthUnits: 'pixels',
             getHeight: 0.5,
             opacity: 0.9,
@@ -862,7 +828,8 @@ export default function Component(props: {
           })
         );
       } else {
-        // newLayers = []
+        console.log(widthScale)
+
 
         // Flatten the hubsChains to get individual hubs from each chain
         const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
@@ -886,7 +853,7 @@ export default function Component(props: {
           totalShipmentsPerHub.push(newHubShipment)
         });
 
-        totalShipmentsPerHub.forEach((hub:any) => {
+        totalShipmentsPerHub.forEach((hub: any) => {
           hub.shipmentTotal = 0
         })
 
@@ -912,12 +879,11 @@ export default function Component(props: {
                 getTargetPosition: () => [lspShipmentChain.route[i + 1][0], lspShipmentChain.route[i + 1][1]],
                 getSourceColor: getSourceColor(i, lspShipmentChain),
                 getTargetColor: getTargetColor(i, lspShipmentChain),
-                getWidth: getLineWidth(i, lspShipmentChain, scaleFactor, allHubs, totalShipmentsPerHub),
+                getWidth: getLineWidth(i, lspShipmentChain),
                 widthUnits: 'pixels',
                 getHeight: 0.5,
                 opacity: 0.9,
                 parameters: { depthTest: false },
-                widthScale: widthScale, 
                 widthMinPixels: 1,
                 widthMaxPixels: 100,
                 transitions: { getWidth: 200 },
