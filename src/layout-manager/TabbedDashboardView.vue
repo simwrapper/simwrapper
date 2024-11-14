@@ -4,23 +4,21 @@
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
-    .tab-holder-container.white-text
-      .project-header(v-if="header" v-html="header")
-
+    .tab-holder-container.flex-col.white-text
       .project-path.flex-row(v-show="!header")
+          bread-crumbs.breadcrumbs(
+              :root="root"
+              :subfolder="xsubfolder"
+              @navigate="onNavigate"
+              @crumbs="updateCrumbs"
+          )
+          p.favorite-icon(v-if="!header"
+              @click="clickedFavorite"
+              title="Favorite"
+              :class="{'is-favorite': isFavorite}"
+            ): i.fa.fa-star
 
-        bread-crumbs.breadcrumbs(
-            :root="root"
-            :subfolder="xsubfolder"
-            @navigate="onNavigate"
-            @crumbs="updateCrumbs"
-        )
-
-        p.favorite-icon(v-if="!header"
-            @click="clickedFavorite"
-            title="Favorite"
-            :class="{'is-favorite': isFavorite}"
-          ): i.fa.fa-star
+      .project-header(v-if="header" v-html="header")
 
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
     ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
@@ -663,9 +661,6 @@ export default defineComponent({
 
 .tab-holder-container {
   margin: 0 $cardSpacing;
-  display: flex;
-  flex-direction: row;
-  // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
 }
 
 .tab-holder-container.wiide {
