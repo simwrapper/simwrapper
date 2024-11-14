@@ -10,7 +10,10 @@
             :class="{faded: isPartial}"
         )
         .text-area.flex-col
-          .line-title {{ line.id }}
+          .line-title(v-if="!line.name") {{ line.id }}
+          .line-title.flex-row(v-else) {{ line.name}}
+            .span(style="font-weight: normal") &nbsp;&nbsp;/&nbsp; {{ line.id }}
+
           .metrics.flex-row
             .stat {{ stats.departures }} deps
             .stat(v-if="stats.pax") {{ stats.pax }} pax

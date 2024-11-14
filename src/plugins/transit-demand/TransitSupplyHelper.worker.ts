@@ -104,6 +104,7 @@ function processTransit() {
 
     const attr: TransitLine = {
       id: line.id,
+      name: line.name || '',
       transitRoutes: [],
       gtfsRouteType: gtfsRoute,
       check: false,

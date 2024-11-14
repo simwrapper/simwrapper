@@ -42,6 +42,7 @@ export interface NetworkLink {
 
 export interface TransitLine {
   id: string
+  name?: string
   transitRoutes: RouteDetails[]
   gtfsRouteType: number
   check?: boolean
