@@ -717,13 +717,18 @@ export default defineComponent({
   grid-auto-rows: auto auto 1fr;
   margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
-  padding: 2px 5px;
+  padding: 2px 2px;
   border-radius: 4px;
   overflow-x: auto;
 
   .dash-card-headers {
     display: flex;
     flex-direction: row;
+    line-height: 1.2rem;
+    padding: 3px 3px 2px 3px;
+    p {
+      margin-bottom: 0.1rem;
+    }
   }
 
   .dash-card-headers.fullscreen {
@@ -783,6 +788,7 @@ export default defineComponent({
   transition: opacity 0.5s;
   overflow-x: hidden;
   overflow-y: hidden;
+  border-radius: 2px;
 }
 
 // Observe for narrowness instead of a media-query
