@@ -836,7 +836,8 @@ li.is-not-active b a {
   background-color: var(--bgError);
   color: #800;
   border: 1px solid var(--bgCream4);
-  margin-bottom: 2px;
+  border-radius: 3px;
+  margin-bottom: 0px;
   padding: 0.5rem 0.5rem;
   z-index: 25000;
   font-size: 0.9rem;
@@ -852,7 +853,7 @@ li.is-not-active b a {
 .clear-error {
   float: right;
   font-weight: bold;
-  margin-right: 4px;
+  margin-right: 2px;
   padding: 0px 5px;
 }
 

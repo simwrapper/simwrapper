@@ -467,11 +467,12 @@ p.splash-label {
 
 .markdown {
   p {
-    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4rem;
   }
 
   strong {
-    color: var(--text);
+    color: var(--textBold);
     font-family: $fancyFont;
   }
 
@@ -481,12 +482,45 @@ p.splash-label {
   h4,
   h5,
   h6 {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    color: var(--textFancy);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    font-weight: bold;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+
+  h4 {
+    font-size: 1.2rem;
+    font-weight: normal;
+  }
+
+  h5 {
+    font-size: 1rem;
     font-weight: normal;
   }
 
   ul {
     list-style: disc;
-    margin-top: 0.5rem;
+    margin: 0.5rem 0 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  ol {
+    list-style: decimal;
+    margin: 0.5rem 0 0.5rem 0;
     padding-left: 1.5rem;
   }
 

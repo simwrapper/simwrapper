@@ -41,8 +41,8 @@
                       @click="clickedVisualization(index)")
 
               .viz-element
-                .viz-color-bar(:style="`border-bottom: 1px solid ${getTabColor(viz.component)}`")
-                  .v-plugin(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
+                .viz-color-bar(:style="`border-top: 1px solid ${getTabColor(viz.component)}`")
+                    .v-plugin(:style="`background-color: ${getTabColor(viz.component)}`") {{ viz.component || 'dashboard' }}
                 .viz-frame
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
@@ -166,17 +166,18 @@ const tabColors = {
   // blank means dashboard:
   '': '#118860',
   // others are kebab-case:
-  'aggregate-od': '#E98B52',
-  'vehicle-anim': '#330033',
-  'x-y-t': '#583270',
-  'carrier-viewer': '#c97A2C',
+  aggregate: '#c2b934',
+  'area-map': '#3988E1',
+  carriers: '#585FD1',
+  logistics: '#FF517A',
   events: '#4400ff',
-  hexagons: '#900564',
-  'area-map': '#c94264',
-  network: '#894654',
-  sankey: '#D8A672',
-  summary: '#2EA95B',
-  transit: '#3B6FE4',
+  hexagons: '#1Bc99C',
+  links: '#1FB3D3',
+  sankey: '#DF41A1',
+  summary: '#AFF05B',
+  transit: '#8B008B',
+  'vehicle-anim': '#330033',
+  xytime: '#dF704E',
 } as any
 
 export default defineComponent({
@@ -473,7 +474,7 @@ export default defineComponent({
     },
 
     getTabColor(kebabName: string) {
-      return tabColors[kebabName] || '#8778BB'
+      return tabColors[kebabName] || '#c2b934'
     },
 
     updateRoute() {
@@ -610,7 +611,7 @@ h4 {
 
 .viz-grid-item {
   z-index: 1;
-  margin: 4px 0 0.5rem 0;
+  margin: 4px 0 4px 0;
   padding: 0 0;
   display: flex;
   flex-direction: column;
@@ -641,7 +642,7 @@ h4 {
   }
 }
 
-.viz-frame:hover {
+.viz-element:hover {
   background-color: var(--bgPanel);
   transition: background-color 0.1s ease-in-out;
 }
@@ -672,7 +673,7 @@ h4 {
   flex-direction: column;
   background-color: var(--bgCream5);
   padding: 0.25rem 0.75rem;
-  border-radius: 5px;
+  border-radius: 3px;
   word-wrap: break-word;
   position: relative;
 }
@@ -798,7 +799,6 @@ p.v-filename {
 
 .viz-color-bar {
   display: flex;
-  background-color: var(--bgDashboard);
   line-height: 16px;
 }
 

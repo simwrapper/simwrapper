@@ -76,6 +76,7 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
+  padding: 0.25rem 0.5rem;
 }
 
 .text-panel-element.absolute {
