@@ -4,10 +4,10 @@
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
   .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
-    .tabholdercontainer.white-text
+    .tab-holder-container.white-text
       .project-header(v-if="header" v-html="header")
 
-      .project-path.flex-row(v-else)
+      .project-path.flex-row(v-show="!header")
 
         bread-crumbs.breadcrumbs(
             :root="root"
@@ -16,7 +16,7 @@
             @crumbs="updateCrumbs"
         )
 
-        p.favorite-icon(
+        p.favorite-icon(v-if="!header"
             @click="clickedFavorite"
             title="Favorite"
             :class="{'is-favorite': isFavorite}"
@@ -55,7 +55,7 @@
     )
 
   footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
-    .tabholdercontainer(:class="{wiide}")
+    .tab-holder-container(:class="{wiide}")
       .project-footer(v-if="footer" v-html="footer" :class="{wiide}")
 
 </template>
@@ -661,14 +661,14 @@ export default defineComponent({
   padding: 0.5rem 0rem 0.5rem 0rem;
 }
 
-.tabholdercontainer {
+.tab-holder-container {
   margin: 0 $cardSpacing;
   display: flex;
   flex-direction: row;
   // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
 }
 
-.tabholdercontainer.wiide {
+.tab-holder-container.wiide {
   margin: 0 0rem;
 }
 
