@@ -2267,7 +2267,7 @@ const MyComponent = defineComponent({
       try {
         this.statusText = 'Loading features...'
 
-        if (shapeConfig.toLocaleLowerCase().endsWith('gpkg')) {
+        if (filename.toLocaleLowerCase().endsWith('gpkg')) {
           boundaries = await this.loadGeoPackage(filename)
         } else if (filename.startsWith('http')) {
           // geojson from url!
