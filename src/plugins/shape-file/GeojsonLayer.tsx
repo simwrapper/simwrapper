@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
-import { GeoJsonLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, LineLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
 
 import { StaticMap, MapRef } from 'react-map-gl'
@@ -9,7 +9,7 @@ import { rgb } from 'd3-color'
 import { DataTable, MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 
 import globalStore from '@/store'
-import { OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 import GeojsonOffsetLayer from '@/layers/GeojsonOffsetLayer'
 
 import screenshots from '@/js/screenshots'
@@ -37,9 +37,11 @@ export default function Component({
   bgLayers = {} as { [name: string]: BackgroundLayer },
   handleClickEvent = {} as any,
   highlightedLinkIndex = -1 as number,
+  dark = false,
+  features = [] as any[],
 }) {
   // const features = globalStore.state.globalCache[viewId] as any[]
-  const [features, setFeatures] = useState([] as any[])
+  // const [features, setFeatures] = useState([] as any[])
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [screenshotCount, setScreenshot] = useState(screenshot)
@@ -63,18 +65,19 @@ export default function Component({
   // Vue/React/Deck.gl are not managing this array correctly. Surely the problem
   // is in our code, not theirs? But I spent days trying to find it.
   // Anyway, making this deep copy of the feature array seems to solve it.
-  REACT_VIEW_HANDLES[1000 + viewId] = (features: any[]) => {
-    const fullCopy = features.map(feature => {
-      const f = {
-        type: '' + feature.type,
-        geometry: JSON.parse(JSON.stringify(feature.geometry)),
-        properties: JSON.parse(JSON.stringify(feature?.properties || {})),
-      } as any
-      if ('id' in feature) f.id = '' + feature.id
-      return f
-    })
-    setFeatures(fullCopy)
-  }
+
+  // REACT_VIEW_HANDLES[1000 + viewId] = (features: any[]) => {
+  //   const fullCopy = features.map(feature => {
+  //     const f = {
+  //       type: '' + feature.type,
+  //       geometry: JSON.parse(JSON.stringify(feature.geometry)),
+  //       properties: JSON.parse(JSON.stringify(feature?.properties || {})),
+  //     } as any
+  //     if ('id' in feature) f.id = '' + feature.id
+  //     return f
+  //   })
+  //   setFeatures(fullCopy)
+  // }
 
   // SCREENSHOT -----------------------------------------------------------------------
   let isTakingScreenshot = screenshot > screenshotCount
@@ -87,7 +90,7 @@ export default function Component({
     cbFillColor = [color.r, color.g, color.b]
   } else {
     // array of colors
-    cbFillColor = (feature: any, o: DeckObject) => {
+    cbFillColor = (_: any, o: DeckObject) => {
       return [
         fillColors[o.index * 3 + 0], // r
         fillColors[o.index * 3 + 1], // g
@@ -97,9 +100,9 @@ export default function Component({
     }
   }
 
-  // LINE COLORS ----------------------------------------------------------------------
-  const isStroked = !!lineColors
+  const isStroked = !!lineColors && lineWidths !== 0
 
+  // LINE COLORS ----------------------------------------------------------------------
   let cbLineColor // can be callback OR a plain string in simple mode
   if (typeof lineColors == 'string') {
     // simple color mode
@@ -110,7 +113,6 @@ export default function Component({
     // array of colors
     cbLineColor = (_: any, o: DeckObject) => {
       if (features[o.index].properties._hide) return [0, 0, 0, 0]
-
       return [
         lineColors[o.index * 3 + 0], // r
         lineColors[o.index * 3 + 1], // g
@@ -214,71 +216,171 @@ export default function Component({
     }
   }
 
+  // POLYGON BORDER LAYER
+  // The Deck.gl Path "tesselator" is painfully slow on large datasets and
+  // re-tesselates on EVERY FRAME, gahh!!!!
+  // Always turn off "stroke" on the Geojson layer, and build
+  // our own polygon border using the LinkLayer instead.
+  // Thick links will not smoothly "flow" around bends, but it's far far faster.
+
+  const { linksData, hasPolygons } = useMemo(() => {
+    // no strokes? no links. we're done
+    if (!isStroked) return { linksData: [], hasPolygons: true }
+
+    const linksData: any[] = []
+    let hasPolygons = false
+
+    features.forEach((feature, f) => {
+      let coords
+      switch (feature.geometry.type) {
+        case 'Polygon':
+          coords = feature.geometry.coordinates[0]
+          hasPolygons = true
+          break
+        case 'MultiPolygon':
+          coords = feature.geometry.coordinates[0][0]
+          hasPolygons = true
+          break
+        case 'LineString':
+          coords = feature.geometry.coordinates
+          break
+        case 'MultiLineString':
+          coords = feature.geometry.coordinates[0]
+          break
+        case 'Point':
+        case 'MultiPoint':
+        default:
+          hasPolygons = true
+          return // no link data
+      }
+
+      const hasColorData = !Array.isArray(cbLineColor)
+      const hasWidthData = typeof cbLineWidth !== 'number'
+
+      for (let i = 1; i < coords.length; i++) {
+        const element = { path: [coords[i - 1], coords[i]] } as any
+        //@ts-ignore
+        if (hasColorData) element.color = cbLineColor(null, { index: f } as any)
+        //@ts-ignore
+        if (hasWidthData) element.width = cbLineWidth(null, { index: f } as any)
+
+        linksData.push(element)
+      }
+    })
+    return { linksData, hasPolygons }
+  }, [features, lineColors, lineWidths, dark, isStroked])
+
   // ----------------------------------------------------------------------------
-  const mainLayer = new GeojsonOffsetLayer({
-    id: 'geoJsonOffsetLayer',
-    data: features,
-    // function callbacks: --------------
-    getLineWidth: cbLineWidth,
-    getLineColor: cbLineColor,
-    getFillColor: cbFillColor,
-    getPointRadius: cbPointRadius,
-    getElevation: cbFillHeight,
-    // settings: ------------------------
-    extruded: !!fillHeights,
-    highlightedObjectIndex: highlightedLinkIndex,
-    highlightColor: [255, 0, 224],
-    // lineJointRounded: true,
-    lineWidthUnits: 'pixels',
-    lineWidthScale: 1,
-    lineWidthMinPixels: typeof lineWidths === 'number' ? 0 : 1,
-    lineWidthMaxPixels: 50,
-    getOffset: OFFSET_DIRECTION.RIGHT,
-    opacity: fillHeights ? 1.0 : 0.8, // 3D must be opaque
-    pickable: true,
-    pointRadiusUnits: 'pixels',
-    pointRadiusMinPixels: 2,
-    // pointRadiusMaxPixels: 50,
-    stroked: isStroked,
-    useDevicePixels: isTakingScreenshot,
-    fp64: false,
-    // material: false,
-    updateTriggers: {
-      getFillColor: fillColors,
-      getLineColor: lineColors,
-      getLineWidth: lineWidths,
-      getPointRadius: pointRadii,
-      getElevation: fillHeights,
-      getFilterValue: featureFilter,
-    },
-    transitions: {
-      getFillColor: 300,
-      getLineColor: 300,
-      getLineWidth: 300,
-      getPointRadius: 300,
-    },
-    parameters: {
-      depthTest: !!fillHeights,
-      fp64: false,
-    },
-    glOptions: {
-      // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
-      preserveDrawingBuffer: true,
-      fp64: false,
-    },
-    // filter shapes
-    extensions: [new DataFilterExtension({ filterSize: 1 })],
-    filterRange: [0, 1], // set filter to -1 to filter element out
-    getFilterValue: (_: any, o: DeckObject) => {
-      return featureFilter[o.index]
-    },
-  }) as any
+  const finalLayers = [...backgroundLayers]
+  // ----------------------------------------------------------------------------
+
+  // console.log('FINAL DATA', { features, linksData })
+
+  // MAIN GEOJSON LAYER
+  if (hasPolygons) {
+    finalLayers.push(
+      new GeojsonOffsetLayer({
+        id: 'geoJsonOffsetLayer',
+        data: features,
+        // function callbacks: --------------
+        getLineWidth: 0, // no borders
+        // getLineColor: cbLineColor,
+        getFillColor: cbFillColor,
+        getPointRadius: cbPointRadius,
+        getElevation: cbFillHeight,
+        // settings: ------------------------
+        extruded: !!fillHeights,
+        highlightedObjectIndex: highlightedLinkIndex,
+        highlightColor: [255, 255, 255, 160],
+        lineWidthUnits: 'pixels',
+        lineWidthScale: 1,
+        lineWidthMinPixels: 0, //  typeof lineWidths === 'number' ? 0 : 1,
+        lineWidthMaxPixels: 50,
+        getOffset: OFFSET_DIRECTION.RIGHT,
+        opacity: fillHeights ? 1.0 : 0.8, // 3D must be opaque
+        pickable: true,
+        pointRadiusUnits: 'pixels',
+        pointRadiusMinPixels: 2,
+        // pointRadiusMaxPixels: 50,
+        stroked: false, // isStroked,
+        useDevicePixels: isTakingScreenshot,
+        fp64: false,
+        // material: false,
+        updateTriggers: {
+          getFillColor: fillColors,
+          getLineColor: lineColors,
+          getLineWidth: lineWidths,
+          getPointRadius: pointRadii,
+          getElevation: fillHeights,
+          getFilterValue: featureFilter,
+        },
+        transitions: {
+          getFillColor: 300,
+          getLineColor: 300,
+          getLineWidth: 300,
+          getPointRadius: 300,
+        },
+        parameters: {
+          depthTest: !!fillHeights,
+          fp64: false,
+        },
+        glOptions: {
+          // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+          preserveDrawingBuffer: true,
+          fp64: false,
+        },
+        // filter shapes
+        extensions: [new DataFilterExtension({ filterSize: 1 })],
+        filterRange: [0, 1], // set filter to -1 to filter element out
+        getFilterValue: (_: any, o: DeckObject) => {
+          return featureFilter[o.index]
+        },
+      }) as any
+    )
+  }
+
+  // --------- LINE LAYER -- on top of main Geojson layer
+  if (isStroked) {
+    const lineLayer = typeof cbLineWidth == 'number' ? LineLayer : LineOffsetLayer
+    finalLayers.push(
+      //@ts-ignore
+      new lineLayer({
+        id: 'linksLayer',
+        pickable: false,
+        opacity: 1,
+        widthUnits: 'pixels',
+        widthMinPixels: 1,
+        data: linksData,
+        getColor: Array.isArray(cbLineColor) ? cbLineColor : (d: any) => d.color,
+        getWidth: typeof cbLineWidth == 'number' ? cbLineWidth : (d: any) => d.width,
+        getSourcePosition: (d: any) => d.path[0],
+        getTargetPosition: (d: any) => d.path[1],
+        offsetDirection: OFFSET_DIRECTION.RIGHT,
+        transitions: {
+          getColor: 300,
+          getWidth: 300,
+        },
+        parameters: {
+          depthTest: !!fillHeights,
+          fp64: false,
+        },
+        glOptions: {
+          // https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+          preserveDrawingBuffer: true,
+          fp64: false,
+        },
+      })
+    )
+  }
+
+  // -------- ON-TOP Layers ------
+  finalLayers.concat(onTopLayers)
 
   const deckInstance = (
     /*
     //@ts-ignore */
     <DeckGL
-      layers={[...backgroundLayers, mainLayer, ...onTopLayers]}
+      layers={finalLayers}
       viewState={viewState}
       controller={true}
       pickingRadius={4}

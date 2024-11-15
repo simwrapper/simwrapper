@@ -3,6 +3,11 @@
 
   modal-id-column-picker(v-if="showJoiner" v-bind="datasetJoinSelector" @join="cbDatasetJoined")
 
+  .status-box(v-if="statusText")
+          p {{ statusText }}
+          b-progress.load-progress(v-if="loadProgress > 0"
+            :value="loadProgress" :rounded="false" type='is-success')
+
   .main-layout(
       @mousemove.stop="dividerDragging"
   )
@@ -28,7 +33,6 @@
           ) {{  layer }}
 
     .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
-      .status-bar(v-show="false && statusText") {{ statusText }}
 
       .tooltip-when-no-legend-present(v-if="!showLegend && !statusText && tooltipHtml"
         v-html="tooltipHtml"
@@ -51,6 +55,8 @@
         :handleClickEvent="handleClickEvent"
         :highlightedLinkIndex="highlightedLinkIndex"
         :redraw="redraw"
+        :features="boundaries"
+        :dark="globalStore.state.isDarkMode"
       )
 
       //- :features="useCircles ? centroids: boundaries"
@@ -363,6 +369,10 @@ const MyComponent = defineComponent({
       },
 
       datasets: {} as { [id: string]: DataTable },
+
+      loadProgress: 0,
+      loadSteps: 0,
+      totalLoadSteps: 7,
     }
   },
 
@@ -420,16 +430,21 @@ const MyComponent = defineComponent({
       if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
     },
 
-    'globalState.colorScheme'() {
-      // change one element to force a deck.gl redraw
-      this.$nextTick().then(p => {
-        const tooltips = this.vizDetails.tooltip || []
-        this.vizDetails.tooltip = [...tooltips]
-      })
-    },
+    // 'globalState.colorScheme'() {
+    // // change one element to force a deck.gl redraw
+    // this.$nextTick().then(p => {
+    //   const tooltips = this.vizDetails.tooltip || []
+    //   this.vizDetails.tooltip = [...tooltips]
+    // })
+    // },
   },
 
   methods: {
+    incrementLoadProgress() {
+      this.loadSteps += 1
+      this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
+    },
+
     dividerDragStart(e: MouseEvent) {
       console.log('dragStart', e)
       this.isDraggingDivider = e.clientX
@@ -2258,6 +2273,8 @@ const MyComponent = defineComponent({
 
       try {
         this.statusText = 'Loading features...'
+        this.incrementLoadProgress()
+        console.log(1, Date.now() - now)
 
         if (filename.toLocaleLowerCase().endsWith('gpkg')) {
           boundaries = await this.loadGeoPackage(filename)
@@ -2278,8 +2295,14 @@ const MyComponent = defineComponent({
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
         }
 
-        this.statusText = 'Processing data...'
+        console.log(2, Date.now() - now)
         await this.$nextTick()
+        this.statusText = 'Processing data...'
+        this.incrementLoadProgress()
+        console.log(3, Date.now() - now)
+        await this.$nextTick()
+        await this.$nextTick()
+        console.log(4, Date.now() - now)
 
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
@@ -2318,10 +2341,14 @@ const MyComponent = defineComponent({
           }
         })
 
+        console.log(5, Date.now() - now)
+
         this.moveLogo()
 
         // set feature properties as a data source
         await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
+        console.log(6, Date.now() - now)
+        this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
         if (!hasNoLines || boundaries.length < 5000) {
@@ -2332,7 +2359,14 @@ const MyComponent = defineComponent({
         if (hasNoPolygons) this.isAreaMode = false
         if (hasPoints) this.isAreaMode = true
 
+        this.statusText = 'Adding boundaries to map'
+        await this.$nextTick()
+        this.incrementLoadProgress()
+
         this.boundaries = boundaries
+        await this.$nextTick()
+        console.log(7, Date.now() - now)
+        this.incrementLoadProgress()
 
         // generate centroids if we have polygons
         if (!hasNoPolygons || hasPoints) {
@@ -2349,6 +2383,7 @@ const MyComponent = defineComponent({
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
           REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
         }
+        console.log(8, Date.now() - now)
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -3330,5 +3365,49 @@ export default MyComponent
 
 .simple-checkbox:hover {
   color: unset;
+}
+
+.status-box {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgPanel);
+  padding: 0.5rem 3rem;
+  margin: auto auto;
+  width: 25rem;
+  height: 5rem;
+  border: 3px solid #cccccc80;
+  // filter: $filterShadow;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &.router-link-exact-active {
+      color: white;
+    }
+  }
+
+  p {
+    color: var(--textFancy);
+    font-weight: normal;
+    font-size: 1.3rem;
+    line-height: 1rem;
+    margin: auto 0;
+    padding: 0 0;
+    text-align: center;
+  }
+}
+
+.load-progress {
+  padding: 0 5rem;
+  height: 3px;
+  margin-top: 2px;
+  margin-bottom: 0.5rem;
 }
 </style>
