@@ -29,7 +29,7 @@
 
         //- card header/title
         .dash-card-headers(v-if="card.title + card.description" :class="{'fullscreen': !!fullScreenCardId}")
-          .header-labels
+          .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
@@ -717,7 +717,7 @@ export default defineComponent({
   grid-auto-rows: auto auto 1fr;
   margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
-  padding: 2px 2px;
+  padding: 2px 3px 3px 3px;
   border-radius: 4px;
   overflow-x: auto;
 
