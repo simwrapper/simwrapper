@@ -193,6 +193,11 @@ export default defineComponent({
     },
 
     onNavigate(options: any) {
+      // make sure folders have a trailing slash or relative paths in markdown files die
+      if (options?.props?.xsubfolder) {
+        if (!options.props.xsubfolder.endsWith('/')) options.props.xsubfolder += '/'
+      }
+
       this.$emit('navigate', options)
       this.setTitle()
     },

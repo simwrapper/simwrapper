@@ -648,6 +648,11 @@ export default defineComponent({
         this.panels[y][x] = Object.assign({ key: Math.random() }, newPanel)
       }
 
+      // folders must end with '/' or relative paths die
+      if (newPanel?.props?.xsubfolder) {
+        if (!newPanel.props?.xsubfolder.endsWith('/')) newPanel.props.xsubfolder += '/'
+      }
+
       this.updateURL()
       this.buildLayoutFromURL()
     },
@@ -893,15 +898,22 @@ export default defineComponent({
     this.$store.commit('setShowLeftBar', !!leftSection)
     this.setActiveLeftSection(PANELS[this.$store.state.activeLeftSection])
 
-    // if (section) {
-    //   try {
-    //     this.activeLeftSection = JSON.parse(section)
-    //   } catch (e) {
-    //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-    //   }
-    // } else {
-    // this.activeLeftSection = { name: 'Data', class: 'LeftSystemPanel' }
-    // }
+    // folders must end with '/'
+    const currentPath = this.$route.params.pathMatch
+    if (currentPath && !currentPath.endsWith('/')) {
+      const finalElement = currentPath.slice(currentPath.lastIndexOf('/'))
+      if (finalElement.indexOf('.') == -1) {
+        // no period? then it seems this is a folder
+        const query = Object.entries(this.$route.query)
+          .map(([k, v]) => {
+            return `${encodeURIComponent(k)}=${encodeURIComponent(v as any)}`
+          })
+          .join('&')
+        let newUrl = `/${currentPath}/`
+        if (query) newUrl += '?' + query
+        history.replaceState({}, '', newUrl)
+      }
+    }
 
     await this.buildLayoutFromURL()
 
