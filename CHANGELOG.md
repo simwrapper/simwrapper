@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.5.0](https://github.com/simwrapper/simwrapper/compare/v3.4.3...v3.5.0) (2024-11-15)
+
+
+### Features
+
+* Allow dashboard subtabs to import dashboard files ([d69b8fa](https://github.com/simwrapper/simwrapper/commit/d69b8fa8233dc45d0ceed25de1d129e872e3b5f9))
+* Implement Geopackage file format support in map view and layer map ([8c757a8](https://github.com/simwrapper/simwrapper/commit/8c757a88b38cf5b91f0d7dba1ff1b3827d1e9217))
+* New MATSim logistics viewer, similar to carrier viewer ([ad2fa38](https://github.com/simwrapper/simwrapper/commit/ad2fa38f6333f0924e800ff195c8b6a17fb517a5))
+* **transit:** Custom route colors based on GTFS/route parameters, with "colors" attribute ([2b9a7f8](https://github.com/simwrapper/simwrapper/commit/2b9a7f8f108b9f4eec5315fc4879bc288331a1f8))
+
+
+### Bug Fixes
+
+* Area map click events register correctly when symbology panel is open ([5242215](https://github.com/simwrapper/simwrapper/commit/52422157e516be7bf8430a78b186c68c6bed36d1))
+* Better transit line color highlighting ([e7b3ef6](https://github.com/simwrapper/simwrapper/commit/e7b3ef6fbaed7dd6a15cd92a614f4e71a268170f))
+* **hexagons:** Large speedup of XY/Hexagon plot with large datasets ([7819e67](https://github.com/simwrapper/simwrapper/commit/7819e67ac34ac952dace6d1f80f6d712ef87baca))
+* transit viewer reads new Avro network format properly ([89068bd](https://github.com/simwrapper/simwrapper/commit/89068bd19b2ede1dbe5997efe3a5b51f43721c71))
+
 ### [3.4.3](https://github.com/simwrapper/simwrapper/compare/v3.4.2...v3.4.3) (2024-10-23)
 
 
