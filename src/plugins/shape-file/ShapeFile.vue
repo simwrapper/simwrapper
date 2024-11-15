@@ -372,7 +372,7 @@ const MyComponent = defineComponent({
 
       loadProgress: 0,
       loadSteps: 0,
-      totalLoadSteps: 7,
+      totalLoadSteps: 6,
     }
   },
 
@@ -1884,7 +1884,7 @@ const MyComponent = defineComponent({
 
         // no selected dataset or datacol missing? Not sure what to do here, just give up...
         if (!selectedDataset) {
-          console.warn('radius: no selected dataset yet, maybe still loading')
+          // console.warn('radius: no selected dataset yet, maybe still loading')
           return
         }
 
@@ -2220,6 +2220,7 @@ const MyComponent = defineComponent({
           this.vizDetails,
           (message: string) => {
             this.statusText = message
+            this.incrementLoadProgress()
           }
         )
         // for now convert to shapefile
@@ -2274,7 +2275,6 @@ const MyComponent = defineComponent({
       try {
         this.statusText = 'Loading features...'
         this.incrementLoadProgress()
-        console.log(1, Date.now() - now)
 
         if (filename.toLocaleLowerCase().endsWith('gpkg')) {
           boundaries = await this.loadGeoPackage(filename)
@@ -2295,14 +2295,11 @@ const MyComponent = defineComponent({
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
         }
 
-        console.log(2, Date.now() - now)
         await this.$nextTick()
         this.statusText = 'Processing data...'
         this.incrementLoadProgress()
-        console.log(3, Date.now() - now)
         await this.$nextTick()
         await this.$nextTick()
-        console.log(4, Date.now() - now)
 
         // for a big speedup, move properties to its own nabob
         let hasNoLines = true
@@ -2341,13 +2338,10 @@ const MyComponent = defineComponent({
           }
         })
 
-        console.log(5, Date.now() - now)
-
         this.moveLogo()
 
         // set feature properties as a data source
         await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
-        console.log(6, Date.now() - now)
         this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
@@ -2365,7 +2359,6 @@ const MyComponent = defineComponent({
 
         this.boundaries = boundaries
         await this.$nextTick()
-        console.log(7, Date.now() - now)
         this.incrementLoadProgress()
 
         // generate centroids if we have polygons
@@ -2383,7 +2376,6 @@ const MyComponent = defineComponent({
         if (REACT_VIEW_HANDLES[1000 + this.layerId]) {
           REACT_VIEW_HANDLES[1000 + this.layerId](this.boundaries)
         }
-        console.log(8, Date.now() - now)
       } catch (e) {
         const err = e as any
         const message = err.statusText || 'Could not load'
@@ -3369,18 +3361,17 @@ export default MyComponent
 
 .status-box {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0.25rem;
+  left: 0.25rem;
   z-index: 15;
   display: flex;
   flex-direction: column;
   background-color: var(--bgPanel);
-  padding: 0.5rem 3rem;
+  padding: 0.25rem 3rem;
   margin: auto auto;
-  width: 25rem;
-  height: 5rem;
+  min-width: 20rem;
+  max-width: 25rem;
+  height: 4rem;
   border: 3px solid #cccccc80;
   // filter: $filterShadow;
 
@@ -3396,7 +3387,7 @@ export default MyComponent
   p {
     color: var(--textFancy);
     font-weight: normal;
-    font-size: 1.3rem;
+    font-size: 0.9rem;
     line-height: 1rem;
     margin: auto 0;
     padding: 0 0;

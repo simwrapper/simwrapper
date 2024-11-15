@@ -283,8 +283,8 @@ export default function Component({
         id: 'geoJsonOffsetLayer',
         data: features,
         // function callbacks: --------------
-        getLineWidth: 0, // no borders
-        // getLineColor: cbLineColor,
+        getLineWidth: cbLineWidth, // 0, // no borders
+        getLineColor: cbLineColor,
         getFillColor: cbFillColor,
         getPointRadius: cbPointRadius,
         getElevation: cbFillHeight,
@@ -302,7 +302,7 @@ export default function Component({
         pointRadiusUnits: 'pixels',
         pointRadiusMinPixels: 2,
         // pointRadiusMaxPixels: 50,
-        stroked: false, // isStroked,
+        stroked: isStroked,
         useDevicePixels: isTakingScreenshot,
         fp64: false,
         // material: false,
@@ -346,7 +346,7 @@ export default function Component({
       //@ts-ignore
       new lineLayer({
         id: 'linksLayer',
-        pickable: false,
+        pickable: true,
         opacity: 1,
         widthUnits: 'pixels',
         widthMinPixels: 1,
