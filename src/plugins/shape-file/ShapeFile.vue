@@ -19,7 +19,9 @@
         p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
         legend-box(:legendStore="legendStore")
 
-      .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
+      .tooltip-html(v-if="tooltipHtml && !statusText"
+        v-html="tooltipHtml"
+      )
         .bglayer-section
           b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
             @input="updateBgLayers" v-model="bgLayers[layer].visible"
@@ -27,6 +29,10 @@
 
     .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
       .status-bar(v-show="false && statusText") {{ statusText }}
+
+      .tooltip-when-no-legend-present(v-if="!showLegend && !statusText && tooltipHtml"
+        v-html="tooltipHtml"
+      )
 
       //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
 
@@ -284,7 +290,7 @@ const MyComponent = defineComponent({
 
       datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
       showJoiner: false,
-      showLegend: true,
+      showLegend: false,
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -1281,6 +1287,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: section === 'fill' ? 'FillColor' : 'Line Color',
           column: dataCol1.name,
@@ -1337,6 +1344,7 @@ const MyComponent = defineComponent({
 
       this.dataCalculatedValues = calculatedValues
 
+      this.showLegend = true
       this.legendStore.setLegendSection({
         section: section === 'fill' ? 'FillColor' : 'Line Color',
         column: columnName,
@@ -1472,6 +1480,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = calculatedValues || null
 
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: 'FillColor',
           column: dataColumn.name,
@@ -1630,12 +1639,15 @@ const MyComponent = defineComponent({
           })
           this.dataLineWidths = variableConstantWidth
         }
+
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: 'Line Color',
           column: dataColumn.name,
           values: legend,
           normalColumn: normalColumn ? normalColumn.name : '',
         })
+        this.showLegend = true
       }
     },
 
@@ -1696,6 +1708,7 @@ const MyComponent = defineComponent({
           this.dataCalculatedValues = calculatedValues
           this.dataCalculatedValueLabel = 'Diff: ' + columnName
 
+          this.showLegend = true
           this.legendStore.setLegendSection({
             section: 'Line Width',
             column: `${dataCol1.name} (Diff)`,
@@ -1750,6 +1763,7 @@ const MyComponent = defineComponent({
           this.dataCalculatedValueLabel = columnName
 
           if (legend.length) {
+            this.showLegend = true
             this.legendStore.setLegendSection({
               section: 'Line Width',
               column: dataColumn.name,
@@ -2215,28 +2229,6 @@ const MyComponent = defineComponent({
         return boundaries
       } catch (e) {
         console.error('' + e)
-      }
-    },
-
-    reprojectToWGS84(geometry: any, crs: string) {
-      if (geometry.type !== 'MultiPolygon') return geometry
-
-      const finalGeometry = [] as any[]
-      for (const polygon of geometry.coordinates) {
-        const wgs84polygon = []
-        for (const shapesAndHoles of polygon) {
-          const wgs84points = []
-          for (const point of shapesAndHoles) {
-            const z = Coords.toLngLat(crs, point)
-            if (z) wgs84points.push(z)
-          }
-          wgs84polygon.push(wgs84points)
-        }
-        finalGeometry.push(wgs84polygon)
-      }
-      return {
-        type: 'MultiPolygon',
-        coordinates: finalGeometry,
       }
     },
 
@@ -3187,7 +3179,7 @@ export default MyComponent
 
   .legend-panel {
     position: absolute;
-    top: 0;
+    top: 2px;
     left: 0;
     right: 0;
     display: flex;
@@ -3210,6 +3202,20 @@ export default MyComponent
     right: 0;
     border-top: 1px solid #88888880;
   }
+}
+
+.tooltip-when-no-legend-present {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 20;
+  font-size: 0.8rem;
+  padding: 0.25rem;
+  margin: 0.25rem 0.25rem;
+  min-width: 12rem;
+  text-align: left;
+  background-color: var(--bgCardFrame);
+  border: 1px solid #88888880;
 }
 
 .config-bar {
