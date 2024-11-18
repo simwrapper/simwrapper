@@ -172,9 +172,11 @@ export default class DashboardDataManager {
 
       return { allRows, comments }
     } catch (e) {
-      console.error('' + e)
-      throw Error(`loading ${config.dataset}. Missing? CSV too large?`)
-      return { allRows: {}, comments: [] }
+      const msg = ('' + e).replaceAll('Error: ', '')
+      console.error(msg)
+      throw Error(msg)
+      // throw Error(`loading ${config.dataset}. Missing? CSV too large?`)
+      // return { allRows: {}, comments: [] }
     }
   }
 

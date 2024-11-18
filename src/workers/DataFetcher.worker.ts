@@ -141,7 +141,7 @@ async function loadFile() {
   // figure out which file to load
   const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
 
-  if (matchingFiles.length == 0) throw Error(`No files matched "${datasetPattern}"`)
+  if (matchingFiles.length == 0) throw Error(`File not found: "${datasetPattern}"`)
   if (matchingFiles.length > 1)
     throw Error(`More than one file matched "${datasetPattern}": ${matchingFiles}`)
 
@@ -155,15 +155,20 @@ async function loadFile() {
 }
 
 async function parseData(filename: string, buffer: Uint8Array) {
-  if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
-    const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
-    calculateMaxValues(_dataset, dataTable)
-    _fileData[_dataset] = dataTable
-  } else {
-    // convert text to utf-8
-    const text = new TextDecoder().decode(buffer)
-    // parse the text: we can handle CSV or XML
-    await parseVariousFileTypes(_dataset, filename, text)
+  try {
+    if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
+      const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+      calculateMaxValues(_dataset, dataTable)
+      _fileData[_dataset] = dataTable
+    } else {
+      // convert text to utf-8
+      const text = new TextDecoder().decode(buffer)
+      // parse the text: we can handle CSV or XML
+      await parseVariousFileTypes(_dataset, filename, text)
+    }
+  } catch (e) {
+    const msg = ('' + e).replaceAll('Error: ', '')
+    postMessage({ error: '' + e })
   }
 }
 
@@ -224,7 +229,7 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
 
   if (!csv.data?.length) {
     console.error('NODATA - Papaparse returned nothing!')
-    throw Error('Failed loading CSV file. Perhaps too large? Bad format?')
+    throw Error('Bad format or too large? Error loading')
   }
 
   let headers = csv.meta.fields || []
