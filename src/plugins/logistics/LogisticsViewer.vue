@@ -15,6 +15,7 @@
         :showHub="showHub"
         :hubLocation="hubLocation"
         :hubName="hubName"
+        :tourHubs="tourHubs"
         :stopActivities="stopActivities"
         :dark="globalState.isDarkMode"
         :center="vizDetails.center"
@@ -222,6 +223,8 @@ interface ActivityLocation {
   label: string
   tour: any
   details?: any
+  hub: boolean
+  depot: boolean
   ptFrom: number[]
   ptTo: number[]
 }
@@ -291,6 +294,7 @@ const LogisticsPlugin = defineComponent({
         showEachCarrierTour: false,
         scaleShipmentSizes: true,
         shipmentDotsOnTourMap: true,
+        selectedTours: false,
         scaleFactor: 0, // 0 means don't scale at all
         scaleFactorShipments: 0
       },
@@ -359,6 +363,8 @@ const LogisticsPlugin = defineComponent({
       lspHubCarriers: [] as any[],
       lspDirectCarriers: [] as any[],
       lspCarrier: {} as any,
+
+      tourHubs: [] as any,
 
       allHubChains: [] as any[],
       allCarrierHubIds: [] as any[],
@@ -519,20 +525,20 @@ const LogisticsPlugin = defineComponent({
         this.shownShipments = []
 
         if (this.selectedLSPChain == null) {
-        const lsp = this.lsps.filter(c => c.$id == this.selectedLsp)
+          const lsp = this.lsps.filter(c => c.$id == this.selectedLsp)
 
-        let lspCarrier
-        lsp[0].resources.carrier.forEach((carrier:any) => {
-          if (carrier.$id == this.selectedCarrier) {
-            lspCarrier = carrier
-          }
-        })
+          let lspCarrier
+          lsp[0].resources.carrier.forEach((carrier: any) => {
+            if (carrier.$id == this.selectedCarrier) {
+              lspCarrier = carrier
+            }
+          })
 
-        this.shipments = this.processShipments(lspCarrier)
-        this.lspShipmentChains = []
-        this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
-        this.shownShipments = this.shipments
-      }
+          this.shipments = this.processShipments(lspCarrier)
+          this.lspShipmentChains = []
+          this.lspShipmentChains.push(this.processLogisticChains(this.shipments))
+          this.shownShipments = this.shipments
+        }
         return
       }
 
@@ -548,11 +554,11 @@ const LogisticsPlugin = defineComponent({
 
       this.lspShipmentChains.push(newLspShipmentChains)
       this.selectedLSPChain = shipmentChain
-
     },
 
 
     processActivitiesInTour(tour: any): {
+
       shipmentIdsInTour: any[]
       stopActivities: ActivityLocation[]
     } {
@@ -570,25 +576,35 @@ const LogisticsPlugin = defineComponent({
       let linkMidpoint = []
       let prevLocation = ""
 
+
+      console.log(this.lspShipmentHubChains.length)
+      console.log(this.lspShipmentDirectChains.length)
       // if starting point is last hub chain node 
       if (this.lspShipmentHubChains.length > 0) {
-        const depotLink = this.links[this.lspShipmentHubChains[0].hubs[this.lspShipmentHubChains[0].hubs.length - 1].location]
-        linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
-        prevLocation = this.lspShipmentHubChains[0].hubs[this.lspShipmentHubChains[0].hubs.length - 1].location
+        console.log("hubs")
+        for (let i = 0; i < this.lspShipmentHubChains[0].hubs.length; i++) {
+          const depotLink = this.links[this.lspShipmentHubChains[0].hubs[i].location]
+          linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
+          prevLocation = this.lspShipmentHubChains[0].hubs[i].location
 
-        // store starting location
-        locations[`L${this.lspShipmentHubChains[0].hubs[this.lspShipmentHubChains[0].hubs.length - 1].location}`] = {
-          link: this.lspShipmentHubChains[0].hubs[this.lspShipmentHubChains[0].hubs.length - 1].location,
-          midpoint: linkMidpoint,
-          visits: [{ pickup: [], delivery: [], service: [] }],
-          label: '',
-          tour,
-          details: {},
-          ptFrom: [depotLink[0], depotLink[1]],
-          ptTo: [depotLink[2], depotLink[3]],
+          // store starting location
+          locations[`L${this.lspShipmentHubChains[0].hubs[i].location}`] = {
+            link: this.lspShipmentHubChains[0].hubs[i].location,
+            midpoint: linkMidpoint,
+            visits: [{ pickup: [], delivery: [], service: [] }],
+            label: '',
+            tour,
+            hub: true,
+            depot: false,
+            details: {},
+            ptFrom: [depotLink[0], depotLink[1]],
+            ptTo: [depotLink[2], depotLink[3]],
+          }
         }
+
         // starting point is Depot (direct chain without hubs)
-      } else if (this.lspShipmentDirectChains.length > 0) {
+      } else if (this.lspShipmentDirectChains.length > 0) {    
+        console.log("directs")
         const depotLink = this.links[this.lspShipmentDirectChains[0].from]
         linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
         prevLocation = this.lspShipmentDirectChains[0].from
@@ -598,24 +614,33 @@ const LogisticsPlugin = defineComponent({
           visits: [{ pickup: [], delivery: [], service: [] }],
           label: '',
           tour,
+          hub: false,
+          depot: true,
           details: {},
           ptFrom: [depotLink[0], depotLink[1]],
           ptTo: [depotLink[2], depotLink[3]],
         }
         // safety net in case error with direct/hub chain processing
       } else {
-        const depotLink = this.links[this.lspShipmentChains[0].from]
-        linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
-        prevLocation = this.lspShipmentChains[0].from
-        locations[`L${this.lspShipmentChains[0].from}`] = {
-          link: this.lspShipmentChains[0].from,
-          midpoint: linkMidpoint,
-          visits: [{ pickup: [], delivery: [], service: [] }],
-          label: '',
-          tour,
-          details: {},
-          ptFrom: [depotLink[0], depotLink[1]],
-          ptTo: [depotLink[2], depotLink[3]],
+        console.log("hubs||directs")
+        for (let i = 0; i < this.lspShipmentHubChains[0].hubs.length; i++) {
+          const depotLink = this.links[this.lspShipmentHubChains[0].hubs[i].location]
+          linkMidpoint = [0.5 * (depotLink[0] + depotLink[2]), 0.5 * (depotLink[1] + depotLink[3])]
+          prevLocation = this.lspShipmentHubChains[0].hubs[i].location
+
+          // store starting location
+          locations[`L${this.lspShipmentHubChains[0].hubs[i].location}`] = {
+            link: this.lspShipmentHubChains[0].hubs[i].location,
+            midpoint: linkMidpoint,
+            visits: [{ pickup: [], delivery: [], service: [] }],
+            label: '',
+            tour,
+            hub: true,
+            depot: false,
+            details: {},
+            ptFrom: [depotLink[0], depotLink[1]],
+            ptTo: [depotLink[2], depotLink[3]],
+          }
         }
       }
 
@@ -674,6 +699,8 @@ const LogisticsPlugin = defineComponent({
               midpoint,
               label: '',
               tour,
+              hub: false,
+              depot: true,
               ptFrom,
               ptTo,
               visits: [visit],
@@ -729,6 +756,8 @@ const LogisticsPlugin = defineComponent({
               midpoint,
               label: '',
               tour,
+              hub: false,
+              depot: false,
               details,
               ptFrom,
               ptTo,
@@ -738,22 +767,18 @@ const LogisticsPlugin = defineComponent({
           prevLocation = link
         }
       })
-
-
       // convert to an array, insertion order is stable value order
       const stopActivities = Object.values(locations)
 
       // set stop labels: use count for all but the first one
       for (let sCount = 0; sCount < stopActivities.length; sCount++) {
-        stopActivities[sCount].label = `${sCount}`
-      }
-
-      // this should be correctly implemented - logic not there at the moment
-      if (this.lspShipmentHubChains.length > 0) {
-        const allHubs = this.lspShipmentHubChains.flatMap((chain: any) => chain.hubs);
-        stopActivities[0].label = 'Hub'
-      } else {
-        stopActivities[0].label = 'Depot'
+        if (stopActivities[sCount].hub) {
+          stopActivities[sCount].label = 'hub'
+        } else if (stopActivities[sCount].depot) {
+          stopActivities[sCount].label = 'depot'
+        } else {
+          stopActivities[sCount].label = `${sCount}`
+        }
       }
 
       return { shipmentIdsInTour, stopActivities }
@@ -792,11 +817,21 @@ const LogisticsPlugin = defineComponent({
       this.stopActivities = []
       this.shownDepots = []
       this.shownShipments = this.shipments.slice(0)
+      let lspCopy = this.lsps.find(c => c.$id === this.selectedLsp)
 
+      this.tourHubs = []
+      lspCopy.resources.hub.forEach((hub: any) => {
+        let hubInfo = {
+          Xcoord: (this.links[hub.$location][0] + this.links[hub.$location][2]) / 2,
+          Ycoord: (this.links[hub.$location][1] + this.links[hub.$location][3]) / 2,
+          hubId: hub.$id
+        }
+       this.tourHubs.push(hubInfo)
+      })
 
       for (const lspChainTour of this.lspChainToursAll) {
         for (const tour of lspChainTour) {
-          //  all legs
+          //  all legs\
           tour.legs.forEach((leg: any, count_route: number) =>
             this.addRouteToMap(tour, leg, count_route++)
           )
@@ -804,7 +839,6 @@ const LogisticsPlugin = defineComponent({
           // all activities
           const z = this.processActivitiesInTour(tour)
           this.stopActivities = this.stopActivities.concat(z.stopActivities)
-
           // all depots
           this.setupDepots()
         }
@@ -835,19 +869,21 @@ const LogisticsPlugin = defineComponent({
           this.setupDepots()
         }
       } else {
-        for (const tour of this.lspChainToursAll) {
-          //  all legs
-          tour.legs.forEach((leg: any, count_route: number) =>
-            this.addRouteToMap(tour, leg, count_route++)
-          )
+        if (this.lspChainToursAll) {
+          for (const tour of this.lspChainToursAll) {
+            //  all legs
+            tour.legs.forEach((leg: any, count_route: number) =>
+              this.addRouteToMap(tour, leg, count_route++)
+            )
 
-          // all activities
-          const z = this.processActivitiesInTour(tour)
-          this.stopActivities = this.stopActivities.concat(z.stopActivities)
-
-          // all depots
-          this.setupDepots()
+            // all activities
+            const z = this.processActivitiesInTour(tour)
+            this.stopActivities = this.stopActivities.concat(z.stopActivities)
+            // all depots
+            this.setupDepots()
+          }
         }
+
       }
     },
 
@@ -903,6 +939,8 @@ const LogisticsPlugin = defineComponent({
 
 
     async handleSelectTour(tour: any) {
+
+      this.vizSettings.selectedTours = true
       // add the legs from the shipmentLookup if the tour has no route data
       if (!tour.legs.length) {
         console.log('No Route.')
@@ -927,8 +965,14 @@ const LogisticsPlugin = defineComponent({
         this.stopActivities = this.stopActivities.filter(stop => stop.tour !== tour)
 
         // if everything is deselected, EVERYTHING is selected! :-O
-        if (!this.selectedTours.length) {
+        if (!this.selectedTours.length && !this.selectedCarrier) {
+          this.selectAllLspTours()
+          this.vizSettings.selectedTours = false
+        } else if (!this.selectedCarrier && this.selectedTours.length) {
+          this.vizSettings.selectedTours = false
+        } else {
           this.selectAllTours()
+          this.vizSettings.selectedTours = false
         }
         return
       }
@@ -943,7 +987,9 @@ const LogisticsPlugin = defineComponent({
 
       this.selectedTours.push(tour)
 
+
       const { shipmentIdsInTour, stopActivities } = this.processActivitiesInTour(tour)
+      
       this.shipmentIdsInTour = shipmentIdsInTour
 
       // Add all legs from all routes of this tour to the map
@@ -1006,6 +1052,7 @@ const LogisticsPlugin = defineComponent({
         this.activeTab = "shipments"
       }
       this.selectedCarrier = lsp.resources.carrier[0].$id
+      this.vizSettings.showEachCarrierTour = false
       this.handleSelectLsp(lsp)
 
     },
@@ -1143,8 +1190,6 @@ const LogisticsPlugin = defineComponent({
       if (!this.links) return
 
       const id = carrier.$id
-      console.log(carrier.$id)
-
       this.vehicles = []
       this.shipments = []
       this.services = []
@@ -1362,7 +1407,7 @@ const LogisticsPlugin = defineComponent({
       this.lspShipmentHubChains = []
       this.lspShipmentDirectChains = []
       let lspCopy = this.lsps.find(c => c.$id === this.selectedLsp)
-      
+
 
       // get correct Plan
       for (let i = 0; i < lspCopy.LspPlans.LspPlan.length; i++) {
