@@ -156,7 +156,7 @@ const MyComponent = defineComponent({
       linkIdLookup: {} as any,
       guiConfig: {
         speed: 0.25,
-        size: 12,
+        size: 15,
       },
       viewId: ('xyt-id-' + Math.floor(1e12 * Math.random())) as any,
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -422,15 +422,20 @@ const MyComponent = defineComponent({
 
       const layers = [{ viewer: 'vehicleViewer' }]
 
-      const events = await task.startStream({
-        filename,
-        layers,
-        network: this.network,
-        fsConfig,
-      })
+      task.startStream(
+        {
+          filename,
+          layers,
+          network: this.network,
+          fsConfig,
+        },
+        // callback when stream has new data to report
+        Comlink.proxy(this.receiveDataFromEventStreamer)
+      )
+    },
 
-      console.log(1001, events)
-      this.eventData = events
+    receiveDataFromEventStreamer(props: { data: any[]; timeRange: number[] }) {
+      this.eventData = [...this.eventData, props]
     },
 
     setFirstZoom(coordinates: any[], rows: number) {

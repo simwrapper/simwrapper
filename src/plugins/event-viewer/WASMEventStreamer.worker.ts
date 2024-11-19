@@ -1,131 +1,229 @@
 import * as Comlink from 'comlink'
 // import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
+import pako from 'pako'
 
 import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
-
-// import { XmlDocument } from 'libxml2-wasm'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import globalStore from '@/store'
 
-// async function loadAndPrepareWasm() {
-//   const parser = new SAXParser(
-//     0xffff,
-//     // SaxEventType.OpenTag | SaxEventType.OpenTagStart | SaxEventType.Attribute,
-//     {
-//       highWaterMark: 32 * 1024, // 32k chunks
-//     }
-//   )
-//   const response = await fetch('/sax-wasm.wasm')
-//   const saxWasm = new Uint8Array(await response.arrayBuffer())
-//   const ready = await parser.prepareWasm(saxWasm)
-
-//   if (ready) return parser
-
-//   console.error('uhoh')
-// }
+// read one chunk at a time. This sends backpressure to the server
+const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
+// 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
+const MAX_CHUNK_SIZE = 1024 * 1024 * 8
+// This is the number of dots per layer. Deck.gl advises < 1million
+const MAX_ARRAY_LENGTH = 1200127
 
 const Task = {
   filename: '',
   fsConfig: null as FileSystemConfig | null,
   fileApi: {} as HTTPFileSystem,
+  streamProcessorWithBackPressure: WritableStream,
 
-  async startStream(props: {
-    filename: string
-    network: any
-    layers: any
-    fsConfig: FileSystemConfig
-  }) {
-    console.log('----starting event stream')
-    console.log('PROPS', props)
-    const { filename, fsConfig } = props
+  _layers: {} as any,
+  _numChunks: 0,
+  _dataLength: 0,
+  _isCancelled: false,
+  _leftOvers: '',
+  _decoder: new TextDecoder(),
+  _eventTypes: [] as string[],
 
-    // set up layers
-    const layers = props.layers.map((L: any) => new AllEventLayers[L.viewer](props))
+  _currentTranch: [] as any[],
 
-    // stream the events to the layer processors
+  // Pako library has gunzip chunking mode!
+  _isGzipped: false,
+  _cbUnzipChunkComplete: {} as any,
 
-    this.filename = filename
-    this.fsConfig = fsConfig
-    this.fileApi = new HTTPFileSystem(fsConfig, globalStore)
+  _queue: [] as any[],
+  _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
 
-    // console.log('boot up wasm')
-    // const parser = (await loadAndPrepareWasm()) as SAXParser
-    // console.log('wasm ready', parser)
+  _cbReporter: null as any,
 
-    const blob = await this.fileApi.getFileBlob(this.filename)
-    const buffer = new Uint8Array(await blob.arrayBuffer())
+  async startStream(
+    props: {
+      filename: string
+      network: any
+      layers: any
+      fsConfig: FileSystemConfig
+    },
+    cbReportNewData: Function
+  ) {
+    try {
+      console.log('----starting event stream')
+      console.log('PROPS', props)
+      const { filename, fsConfig } = props
 
-    const decoder = new TextDecoder('utf-8')
-    const rawText = decoder.decode(buffer)
-    console.log({ rawText })
+      this._cbReporter = cbReportNewData
 
-    const xml = (await parseXML(rawText, { attributeNamePrefix: '' })) as any
+      this._gunzipper.onData = (chunk: any) => {
+        this._queue.push(chunk)
+      }
+      this._gunzipper.onEnd = (status: number) => {
+        console.log('gzipper onEnd', status)
+      }
 
-    // tidy the results
-    const cleanXML = xml.events.event.map((event: any) => {
-      event.time = parseFloat(event.time)
-      return event
-    })
+      this._layers = props.layers.map((L: any) => new AllEventLayers[L.viewer](props))
 
-    const outputData = [] as any[]
+      this.filename = filename
+      this.fsConfig = fsConfig
+      this.fileApi = new HTTPFileSystem(fsConfig, globalStore)
 
-    for (const layer of layers) {
-      const { data } = layer.processEvents(cleanXML)
-      outputData.push(data)
+      const stream = await this.fileApi.getFileStream(filename)
+      if (!stream) throw Error('STREAM is null')
+
+      const streamProcessorWithBackPressure = this.createStreamProcessor()
+      await stream.pipeTo(streamProcessorWithBackPressure)
+
+      // postMessage({ finished: true })
+
+      // stream will handle things from here
+    } catch (e) {
+      postMessage({ error: 'Error loading ' + this.filename })
     }
 
-    return outputData
-    // return cleanEvents
+    return []
+  },
 
-    // parser.eventHandler = async (event, d) => {
-    //   console.log(event)
-    //   if (event === SaxEventType.Attribute) {
-    //     try {
-    //       console.log({ d })
-    //       const detail = d as Attribute
-    //       console.log(detail.name)
-    //       const j = detail.toJSON()
-    //       console.log({ j })
+  sendDataToLayersForProcessing(events: any[]) {
+    for (const layer of this._layers) {
+      const { data, timeRange } = layer.processEvents(events)
 
-    //       // for (const attr of attrs) {
-    //       //   console.log(1, attr.toJSON())
-    //       // }
+      this._cbReporter({ data, timeRange })
 
-    //       // const json = JSON.parse(JSON.stringify(data))
-    //       // console.log({ json })
-    //       // if (json?.name == 'event') {
-    //       //   for (const attr of json.attributes) {
-    //       //     attributes[attr.name.value] = attr.value.value
-    //       //   }
-    //       // attributes.time = parseFloat(attributes.time)
-    //       // }
-    //     } catch (e) {
-    //       console.warn('' + e)
-    //     }
-    //   }
-    //   i += 1
-    // }
+      // postMessage(
+      //   {
+      //     events: oneChunk,
+      //     times: this._currentTimes,
+      //     vehicleTrips: this._vehicleTrips,
+      //   },
+      //   [this._currentTimes.buffer]
+      // )
+    }
+  },
 
-    // parser.write(buffer)
-    // console.log('total events', i)
+  async convertXMLtoEventArray(lines: string[]) {
+    const events = []
+    const isEvent = /<event /
 
-    // const stream = await this.fileApi.getFileStream(this.filename)
-    // const reader = stream.getReader()
-    // while (true) {
-    //   const chunk = await reader.read()
-    //   if (chunk.done) {
-    //     console.log('done', { chunk })
-    //     console.log('total events', i)
-    //     break
-    //   } else {
-    //     // console.log({ chunk })
-    //     parser.write(chunk.value)
-    //   }
-    // }
+    for (const line of lines) {
+      if (isEvent.test(line)) {
+        const xml = (await parseXML(line, {
+          alwaysArray: [],
+          attributeNamePrefix: '',
+        })) as any
+
+        xml.event.time = parseFloat(xml.event.time)
+        events.push(xml.event)
+      }
+    }
+    return events
+  },
+
+  async handleText(chunkText: string) {
+    // console.log('----handling text length', chunkText.length)
+    // reconstruct first line taking mid-line breaks into account
+    let text = this._leftOvers + chunkText
+
+    const lastLF = text.lastIndexOf('\n')
+    this._leftOvers = text.slice(lastLF + 1)
+    text = text.slice(0, lastLF)
+
+    const lines = text.split('\n')
+    const events = await this.convertXMLtoEventArray(lines)
+
+    // push all the events (for now)
+    this._currentTranch.push(...events)
+
+    // Notify all the layers they have some work to do!
+    if (this._currentTranch.length > MAX_ARRAY_LENGTH) {
+      const oneChunk = this._currentTranch.slice(0, MAX_ARRAY_LENGTH)
+      this.sendDataToLayersForProcessing(oneChunk)
+      this._currentTranch = this._currentTranch.slice(MAX_ARRAY_LENGTH)
+    }
+  },
+
+  createStreamProcessor() {
+    const parent = this
+    return new WritableStream(
+      {
+        // Stream calls write() for every new chunk from fetch call:
+        write(entireChunk: Uint8Array) {
+          return new Promise(async (resolve, reject) => {
+            if (parent._isCancelled) reject()
+
+            const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
+              if (parent._isCancelled) reject()
+
+              // check for gzip at start
+              if (parent._numChunks == 1) {
+                const header = new Uint8Array(smallChunk.buffer.slice(0, 2))
+                if (header[0] === 0x1f && header[1] === 0x8b) parent._isGzipped = true
+              }
+
+              if (parent._isGzipped) {
+                parent._gunzipper.push(smallChunk)
+
+                while (parent._queue.length) {
+                  const text = parent._queue.shift()
+                  await parent.handleText(text)
+                }
+                // console.log('queue empty')
+              } else {
+                const chunkText = parent._decoder.decode(smallChunk)
+                parent.handleText(chunkText)
+              }
+            }
+
+            parent._numChunks++
+            parent._dataLength += entireChunk.length
+            let startOffset = 0
+
+            console.log('----got chunk')
+
+            while (!parent._isCancelled && startOffset < entireChunk.length) {
+              const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
+
+              if (subchunk.length) await parseIt(subchunk, parent._numChunks)
+              startOffset += MAX_CHUNK_SIZE
+            }
+
+            resolve()
+          })
+        },
+
+        close() {
+          // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
+          console.log('STREAM FINISHED! ')
+          parent.sendDataToLayersForProcessing(parent._currentTranch)
+
+          // Orphans:', Object.keys(parent._vehiclesOnLinks).length)
+          // console.log(
+          //   'final vehicle trips:',
+          //   _vehicleTrips.length,
+          //   _vehicleTrips[_vehicleTrips.length - 1]
+          //   // JSON.stringify(_vehicleTrips)
+          // )
+          // _currentTimes.set(_currentTranch.map(m => m.time))
+          // _currentTimes = _currentTimes.subarray(0, _currentTranch.length)
+
+          console.log('TODO CLOSE! Need to process final data!!')
+          // postMessage(
+          //   {
+          //     events: _currentTranch,
+          //     times: _currentTimes,
+          //     vehicleTrips: _vehicleTrips,
+          //   },
+          //   [_currentTimes.buffer]
+          // )
+        },
+        abort(err) {
+          console.log('STREAM error:', err)
+        },
+      },
+      strategy
+    )
   },
 }
-
 Comlink.expose(Task)

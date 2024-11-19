@@ -2,35 +2,24 @@ import { XMLParser } from 'fast-xml-parser'
 
 export default class EventsHandler {
   private totalRows = 0
-  private timeRange = [Infinity, -Infinity]
-
   private network = {} as any
   private linkIdLookup = {} as any
+  private tracker = {} as { [vehId: string]: any }
 
   constructor(props: any) {
     this.network = props.network
-  }
-
-  processEvents(events: any[]) {
-    console.log(888, events.length)
-
     // network offset
     this.network.linkIds.forEach((link: string, i: number) => {
       this.linkIdLookup[link] = i
     })
+  }
 
-    const tripTracks = {
-      trips: [] as { timestamps: number[]; path: number[][]; passengers: number[]; vendor: any }[],
-      drtRequests: [],
-    }
+  processEvents(events: any[]) {
+    console.log('----processing:', events.length, 'new events')
 
     // order is:
     // timeStart, timeEnd, origLoc(2), destLoc(2)
     const tripData = [] as any[]
-
-    const tracker = {} as { [vehId: string]: any }
-
-    console.log({ events })
 
     // todo: need enters/exits traffic events too
     const linkEvents = events.filter(
@@ -78,14 +67,14 @@ export default class EventsHandler {
 
         case 'entered link':
           // if left-link event is stored, create a "stationary" trip
-          if (tracker[event.vehicle]) {
-            const prevEvent = tracker[event.vehicle]
+          if (this.tracker[event.vehicle]) {
+            const prevEvent = this.tracker[event.vehicle]
             if (prevEvent.time == event.time) break
 
             const startOffset = 2 * this.linkIdLookup[prevEvent.link]
             const endOffset = 2 * this.linkIdLookup[event.link]
             if (Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
-              tracker[event.vehicle] = event
+              this.tracker[event.vehicle] = event
               break
             }
 
@@ -99,23 +88,38 @@ export default class EventsHandler {
               // destLoc
               this.network.dest[endOffset],
               this.network.dest[endOffset + 1],
+              // color code
+              // 1,
             ]
             tripData.push(trip)
           }
-          tracker[event.vehicle] = event
+          this.tracker[event.vehicle] = event
           break
 
         case 'left link':
           try {
-            const startEvent = tracker[event.vehicle]
+            const startEvent = this.tracker[event.vehicle]
             if (startEvent.time == event.time) break
 
             const startOffset = 2 * this.linkIdLookup[startEvent.link]
             const endOffset = 2 * this.linkIdLookup[event.link]
             if (Number.isNaN(startOffset) || Number.isNaN(endOffset)) {
-              tracker[event.vehicle] = event
+              this.tracker[event.vehicle] = event
               break
             }
+
+            // let colorCode = 0
+            // //speed
+            // if (this.network.freespeed) {
+            //   colorCode = 1
+            //   const offset = endOffset / 2
+            //   const relSpeed =
+            //     this.network.length[offset] /
+            //     (event.time - startEvent.time) /
+            //     this.network.freespeed[offset]
+            //   if (relSpeed < 0.5) colorCode = 2
+            //   else if (relSpeed < 0.2) colorCode = 3
+            // }
 
             const trip = [
               // times
@@ -127,25 +131,26 @@ export default class EventsHandler {
               // destLoc
               this.network.dest[endOffset],
               this.network.dest[endOffset + 1],
+              // colorCode,
             ]
             tripData.push(trip)
             // save time vehicle stopped moving
           } catch (e) {
             console.log('' + e)
           }
-          tracker[event.vehicle] = event
+          this.tracker[event.vehicle] = event
           break
         default:
           break
       }
-      tracker[event.vehicle] = event
+      this.tracker[event.vehicle] = event
     })
 
     const dataArray = new Float32Array(tripData.flat(2))
 
     this.totalRows += tripData.length
 
-    return { data: dataArray }
+    return { data: dataArray, timeRange: [events[0].time, events[events.length - 1].time] }
 
     // this.timeRange = [
     //   Math.min(this.timeRange[0], events[0].time),
