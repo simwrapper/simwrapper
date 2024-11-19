@@ -156,7 +156,7 @@ const MyComponent = defineComponent({
       linkIdLookup: {} as any,
       guiConfig: {
         speed: 0.25,
-        size: 15,
+        size: 18,
       },
       viewId: ('xyt-id-' + Math.floor(1e12 * Math.random())) as any,
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -418,7 +418,6 @@ const MyComponent = defineComponent({
       const task = Comlink.wrap(this.gzipWorker) as unknown as EventTask
 
       const fsConfig = Object.assign({}, this.fileSystem)
-      console.log(1000)
 
       const layers = [{ viewer: 'vehicleViewer' }]
 
@@ -491,7 +490,6 @@ const MyComponent = defineComponent({
         Object.assign({}, this.vizDetails)
       )
 
-      console.log('123', network)
       this.vizDetails.projection = '' + network.projection
 
       return { network }
@@ -506,16 +504,7 @@ const MyComponent = defineComponent({
 
       // try {
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
-      console.log(2, filename)
       await this.streamEventFile(filename)
-      // } catch (e) {
-      //   console.error(e)
-      //   this.myState.statusMessage = '' + e
-      //   this.$emit(
-      //     'error',
-      //     `Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}`
-      //   )
-      // }
     },
 
     handleTimeSliderValues(timeValues: any[]) {

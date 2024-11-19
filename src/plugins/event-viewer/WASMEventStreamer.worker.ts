@@ -52,7 +52,6 @@ const Task = {
   ) {
     try {
       console.log('----starting event stream')
-      console.log('PROPS', props)
       const { filename, fsConfig } = props
 
       this._cbReporter = cbReportNewData

@@ -30,8 +30,6 @@ export default class EventsHandler {
         event.type == 'vehicle leaves traffic'
     )
 
-    console.log('ok')
-
     linkEvents.forEach(event => {
       switch (event.type) {
         // case 'vehicle leaves traffic':
@@ -89,7 +87,7 @@ export default class EventsHandler {
               this.network.dest[endOffset],
               this.network.dest[endOffset + 1],
               // color code
-              // 1,
+              1,
             ]
             tripData.push(trip)
           }
@@ -108,18 +106,19 @@ export default class EventsHandler {
               break
             }
 
-            // let colorCode = 0
-            // //speed
-            // if (this.network.freespeed) {
-            //   colorCode = 1
-            //   const offset = endOffset / 2
-            //   const relSpeed =
-            //     this.network.length[offset] /
-            //     (event.time - startEvent.time) /
-            //     this.network.freespeed[offset]
-            //   if (relSpeed < 0.5) colorCode = 2
-            //   else if (relSpeed < 0.2) colorCode = 3
-            // }
+            let colorCode = 0
+            //speed
+            if (this.network.freespeed) {
+              colorCode = 1
+              const offset = endOffset / 2
+              const relSpeed =
+                this.network.length[offset] /
+                (event.time - startEvent.time) /
+                this.network.freespeed[offset]
+
+              if (relSpeed < 0.4) colorCode = 2
+              if (relSpeed < 0.1) colorCode = 3
+            }
 
             const trip = [
               // times
@@ -131,7 +130,8 @@ export default class EventsHandler {
               // destLoc
               this.network.dest[endOffset],
               this.network.dest[endOffset + 1],
-              // colorCode,
+              // color code (0,1,2,3)
+              colorCode,
             ]
             tripData.push(trip)
             // save time vehicle stopped moving

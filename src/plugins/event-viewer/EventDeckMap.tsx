@@ -33,38 +33,22 @@ export default function EventDeckMap({
   eventLayers = [] as any[],
   eventData = [] as { data: any[]; timeRange: number[] }[],
   network = {} as NetworkLinks,
-  linkIdLookup = {} as any,
-  timeFilter = [] as number[],
   dark = false,
   colors = [
     [1, 0, 0],
     [0.25, 0.25, 1],
   ] as number[][],
   breakpoints = [0.0] as number[],
-  radius = 5,
   mapIsIndependent = false,
   simulationTime = 18000,
   projection = '',
-  dotsize = 18,
+  dotsize = 22,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
-  }
-
-  function buildColors(numColors: number) {
-    const scale = d3ScaleChromatic['interpolateSinebow']
-    if (scale) {
-      const n = 7 // numColors
-      const ramp = scaleSequential(scale)
-      const zcolors = Array.from({ length: n }, (_, i) => {
-        const c = rgb(ramp(i / (n - 1)))
-        return [c.r, c.g, c.b]
-      })
-      return zcolors
-    } else return [32, 96, 208]
   }
 
   function handleViewState(view: any) {
@@ -84,33 +68,30 @@ export default function EventDeckMap({
     return null
   }
 
-  const brightColors = useMemo(() => {
-    const colors = buildColors(eventData.length)
-    console.log({ colors })
-    return colors
-  }, [eventData])
-
   const realData = useMemo(() => {
     return eventData.map(eventLayer => {
       const big = eventLayer.data
-      const size = big.length / 6
+      const size = big.length / 7
       const t0 = new Float32Array(size)
       const t1 = new Float32Array(size)
       const p0 = new Float32Array(size * 2)
       const p1 = new Float32Array(size * 2)
-      // const colorCode = new Uint8Array(size)
+      const colorCode = new Float32Array(size)
+
+      let finalTripEndTime = 0
 
       for (let i = 0; i < size; i++) {
-        const o = i * 6
+        const o = i * 7
         t0[i] = big[o]
         t1[i] = big[o + 1]
         p0[i * 2] = big[o + 2]
         p0[i * 2 + 1] = big[o + 3]
         p1[i * 2] = big[o + 4]
         p1[i * 2 + 1] = big[o + 5]
-        // colorCode[i] = big[o + 6]
+        colorCode[i] = big[o + 6]
+        finalTripEndTime = Math.max(finalTripEndTime, t1[i])
       }
-      const answer = { t0, t1, p0, p1 } // colorCode: colorCode }
+      const answer = { t0, t1, p0, p1, colorCode: colorCode, finalTripEndTime }
       return answer
     })
   }, [eventData])
@@ -118,10 +99,8 @@ export default function EventDeckMap({
   // add the vehicle motion layer in each eventLayer
   const vehicleLayers = [] as any[]
   realData.forEach((layer, layerIndex) => {
-    // The entire layer can be hidden if all of its points
-    // are beyond the timeFilter range that is being shown.
-    const outOfRange =
-      layer.t0[0] > simulationTime || layer.t1[layer.t1.length - 1] < simulationTime
+    // The entire layer can be hidden if all of its trips are completely outside the current simulationTime
+    const outOfRange = simulationTime < layer.t0[0] && simulationTime > layer.finalTripEndTime
 
     vehicleLayers.push(
       //@ts-ignore
@@ -133,7 +112,8 @@ export default function EventDeckMap({
             getTimeEnd: layer.t1,
             getPathStart: layer.p0,
             getPathEnd: layer.p1,
-            // getColor: layer.colorCode,
+            getColorCode: layer.colorCode,
+
             // getTimeStart: { buffer: layer, size: 1, offset: 0, stride: 24 },
             // getTimeEnd: { buffer: layer, size: 1, offset: 4, stride: 24 },
             // getPathStart: { buffer: layer, size: 2, offset: 8, stride: 24 },
@@ -142,7 +122,7 @@ export default function EventDeckMap({
         },
         id: 'vehicles' + layerIndex,
         // getIcon: 'vehicle', //  (d: any) => 'vehicle',
-        getColor: [30, 208, 170], // brightColors[layerIndex], // 64 + layerIndex * 25, 64, 250 - layerIndex * 30], // (d: any) => props.colors[d.occ],
+        // getColor: [30, 208, 170], // brightColors[layerIndex], // 64 + layerIndex * 25, 64, 250 - layerIndex * 30], // (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
         iconStill: 'diamond',
         colorMap: [
