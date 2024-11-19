@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
+import GL from '@luma.gl/constants'
 import { StaticMap } from 'react-map-gl'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'
@@ -31,7 +32,7 @@ const dataFilter = new DataFilterExtension({ filterSize: 1 })
 export default function EventDeckMap({
   viewId = 0,
   eventLayers = [] as any[],
-  eventData = [] as { data: any[]; timeRange: number[] }[],
+  eventData = [] as { data: any; timeRange: number[] }[],
   network = {} as NetworkLinks,
   dark = false,
   colors = [
@@ -68,56 +69,51 @@ export default function EventDeckMap({
     return null
   }
 
-  const realData = useMemo(() => {
-    return eventData.map(eventLayer => {
-      const big = eventLayer.data
-      const size = big.length / 7
-      const t0 = new Float32Array(size)
-      const t1 = new Float32Array(size)
-      const p0 = new Float32Array(size * 2)
-      const p1 = new Float32Array(size * 2)
-      const colorCode = new Float32Array(size)
+  // const realData = useMemo(() => {
+  //   return eventData.map(eventLayer => {
+  //     const big = eventLayer.data
+  //     const size = big.length / 7
+  //     const t0 = new Float32Array(size)
+  //     const t1 = new Float32Array(size)
+  //     const p0 = new Float32Array(size * 2)
+  //     const p1 = new Float32Array(size * 2)
+  //     const colorCode = new Float32Array(size)
 
-      let finalTripEndTime = 0
+  //     let finalTripEndTime = 0
 
-      for (let i = 0; i < size; i++) {
-        const o = i * 7
-        t0[i] = big[o]
-        t1[i] = big[o + 1]
-        p0[i * 2] = big[o + 2]
-        p0[i * 2 + 1] = big[o + 3]
-        p1[i * 2] = big[o + 4]
-        p1[i * 2 + 1] = big[o + 5]
-        colorCode[i] = big[o + 6]
-        finalTripEndTime = Math.max(finalTripEndTime, t1[i])
-      }
-      const answer = { t0, t1, p0, p1, colorCode: colorCode, finalTripEndTime }
-      return answer
-    })
-  }, [eventData])
+  //     for (let i = 0; i < size; i++) {
+  //       const o = i * 7
+  //       t0[i] = big[o]
+  //       t1[i] = big[o + 1]
+  //       p0[i * 2] = big[o + 2]
+  //       p0[i * 2 + 1] = big[o + 3]
+  //       p1[i * 2] = big[o + 4]
+  //       p1[i * 2 + 1] = big[o + 5]
+  //       colorCode[i] = big[o + 6]
+  //       finalTripEndTime = Math.max(finalTripEndTime, t1[i])
+  //     }
+  //     const answer = { t0, t1, p0, p1, colorCode: colorCode, finalTripEndTime }
+  //     return answer
+  //   })
+  // }, [eventData])
 
   // add the vehicle motion layer in each eventLayer
   const vehicleLayers = [] as any[]
-  realData.forEach((layer, layerIndex) => {
+  eventData.forEach((layer, layerIndex) => {
     // The entire layer can be hidden if all of its trips are completely outside the current simulationTime
-    const outOfRange = simulationTime < layer.t0[0] && simulationTime > layer.finalTripEndTime
+    const outOfRange = simulationTime < layer.data[0] && simulationTime > layer.timeRange[1]
 
     vehicleLayers.push(
       //@ts-ignore
       new MovingIconsLayer({
         data: {
-          length: layer.t0.length,
+          length: layer.data.t0.length,
           attributes: {
-            getTimeStart: layer.t0,
-            getTimeEnd: layer.t1,
-            getPathStart: layer.p0,
-            getPathEnd: layer.p1,
-            getColorCode: layer.colorCode,
-
-            // getTimeStart: { buffer: layer, size: 1, offset: 0, stride: 24 },
-            // getTimeEnd: { buffer: layer, size: 1, offset: 4, stride: 24 },
-            // getPathStart: { buffer: layer, size: 2, offset: 8, stride: 24 },
-            // getPathEnd: { buffer: layer, size: 2, offset: 16, stride: 24 },
+            getTimeStart: layer.data.t0,
+            getTimeEnd: layer.data.t1,
+            getPathStart: layer.data.p0,
+            getPathEnd: layer.data.p1,
+            getColorCode: layer.data.colors,
           },
         },
         id: 'vehicles' + layerIndex,
@@ -144,7 +140,7 @@ export default function EventDeckMap({
         sizeScale: 1,
         billboard: false,
         positionFormat: 'XY',
-        pickable: true,
+        pickable: false,
         depthTest: true,
         autoHighlight: false,
         highlightColor: [255, 255, 255, 140],
@@ -161,7 +157,7 @@ export default function EventDeckMap({
     <DeckGL
       layers={vehicleLayers}
       controller={true}
-      useDevicePixels={true}
+      useDevicePixels={false}
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}

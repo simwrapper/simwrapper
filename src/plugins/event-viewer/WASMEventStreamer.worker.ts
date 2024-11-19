@@ -33,11 +33,12 @@ const Task = {
   _currentTranch: [] as any[],
 
   // Pako library has gunzip chunking mode!
+  _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
+
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
 
   _queue: [] as any[],
-  _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
 
   _cbReporter: null as any,
 
