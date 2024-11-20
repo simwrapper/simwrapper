@@ -86,6 +86,7 @@
     "js-sha256": "^0.11.0",
     "js-yaml": "^4.1.0",
     "katex": "^0.16.11",
+    "libxml2-wasm": "^0.4.1",
     "lil-gui": "^0.17.0",
     "lodash": "^4.17.21",
     "maplibre-gl": "^1.15.3",
@@ -110,6 +111,7 @@
     "read-blob": "^1.1.0",
     "reproject": "^1.2.6",
     "sanitize-filename": "^1.6.3",
+    "sax-wasm": "^2.2.4",
     "shallow-equal": "^1.2.1",
     "shapefile": "^0.6.6",
     "the-new-css-reset": "^1.7.3",
@@ -184,7 +186,8 @@
     "threads-plugin": "^1.4.0",
     "typescript": "^4.2.0",
     "unplugin-vue-markdown": "^0.26.2",
-    "vite": "^5.4.10",
+    "vite": "^5.4.11",
+    "vite-plugin-top-level-await": "^1.4.4",
     "vitest": "^0.34.3"
   }
 }

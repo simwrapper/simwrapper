@@ -657,8 +657,12 @@ export default class DashboardDataManager {
       linkIds[i] = linkID
     }
 
-    const links = { source, dest, linkIds, projection: 'EPSG:4326' }
+    const links = { source, dest, linkIds, projection: 'EPSG:4326' } as any
 
+    // add network attributes back in
+    for (const col of network.linkAttributes) {
+      if (col !== 'linkId') links[col] = network[col]
+    }
     return links
   }
 

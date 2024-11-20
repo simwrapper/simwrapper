@@ -101,11 +101,11 @@ const plugins = [
     filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./sankey/SankeyDiagram.vue')),
   },
-  // {
-  //   kebabName: 'events',
-  //   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
-  //   component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
-  // },
+  {
+    kebabName: 'events',
+    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+    component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
+  },
   {
     kebabName: 'image-view',
     filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!

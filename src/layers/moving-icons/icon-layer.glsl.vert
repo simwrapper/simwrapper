@@ -31,6 +31,7 @@ attribute vec4 instanceIconFrames;
 attribute float instanceColorModes;
 attribute vec2 instanceOffsets;
 attribute vec2 instancePixelOffset;
+attribute float instanceColorCodes;
 
 uniform float sizeScale;
 uniform vec2 iconsTextureDim;
@@ -129,12 +130,13 @@ void main(void) {
   vec3 newPosition = interpolate(startPosition, endPosition, vPercentComplete);
 
   if (billboard)  {
+    // billboard mode
     gl_Position = project_position_to_clipspace(newPosition, vec3(0.0), vec3(0.0), geometry.position);
     vec3 offset = vec3(pixelOffset, 0.0);
     DECKGL_FILTER_SIZE(offset, geometry);
     gl_Position.xy += project_pixel_size_to_clipspace(offset.xy);
-
   } else {
+    // flat-against-map mode
     vec3 offset_common = vec3(project_pixel_size(pixelOffset), 0.0);
     DECKGL_FILTER_SIZE(offset_common, geometry);
     gl_Position = project_position_to_clipspace(newPosition, vec3(0.0), offset_common, geometry.position);
@@ -149,7 +151,21 @@ void main(void) {
     (positions.xy + 1.0) / 2.0
   ) / iconsTextureDim;
 
+  // COLORS
   vColor = instanceColors;
+  if (instanceColorCodes  == 1.0) {
+    // green
+    // vColor = vec4(0.0, 0.65, 0.0, 1.0);
+    vColor = vec4(0.0, 0.75, 0.22, 1.0);
+  } else if (instanceColorCodes == 2.0) {
+    // yellow
+    // vColor = vec4(0.85, 0.65, 0.0, 1.0);
+    vColor = vec4(0.90, 0.80, 0.0, 1.0);
+  } else if (instanceColorCodes == 3.0 ) {
+    // red
+    vColor = vec4(0.95, 0.0, 0.2, 1.0);
+  }
+
   DECKGL_FILTER_COLOR(vColor, geometry);
 
   vColorMode = instanceColorModes;

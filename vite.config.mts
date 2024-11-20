@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue2'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
 import history from 'connect-history-api-fallback'
+import topLevelAwait from 'vite-plugin-top-level-await'
 
 // FROM vite-plugin-rewrite-all (deprecated): allow paths that end in .extensions
 function redirectAll() {
@@ -28,14 +29,24 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: '/',
-    build: { sourcemap: true },
+    build: { sourcemap: true, target: 'es2020' },
+    optimizeDeps: {
+      include: ['sax-wasm'],
+    },
     plugins: [
       // vue
       vue({ include: [/\.vue$/, /\.md$/] }),
       // markdown
       markdownPlugin({}),
-      // pluginRewriteAll allows pages ending in http://path/blah.yaml to load
+      // redirectAll allows pages ending in http://path/blah.yaml to load
       redirectAll(),
+      // someday soon Vite will support "top level await"
+      topLevelAwait({
+        // The export name of top-level await promise for each chunk module
+        promiseExportName: '__tla',
+        // The function to generate import names of top-level await promise in each chunk module
+        promiseImportName: i => `__tla_${i}`,
+      }),
     ],
     assetsInclude: ['**/*.so'],
     test: {
