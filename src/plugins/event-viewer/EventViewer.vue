@@ -303,13 +303,13 @@ const MyComponent = defineComponent({
       if (hasYaml) {
         await this.loadStandaloneYAMLConfig()
       } else {
-        // console.log('NO YAML WTF')
+        console.log('NO YAML WTF')
         this.setConfigForRawCSV()
       }
     },
 
     setConfigForRawCSV() {
-      let projection = 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
+      let projection = '' // 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
 
       // output_trips:
       this.vizDetails = {
@@ -483,15 +483,20 @@ const MyComponent = defineComponent({
     async loadNetwork() {
       if (!this.myDataManager) throw Error('event viewer: no datamanager')
 
-      let networkFilename = 'network.avro' // this.vizDetails.file.replace('events.xml', 'network.xml')
+      // TODO for now, we'll try two network files
+      const { files } = await this.fileApi.getDirectory(this.subfolder)
+
+      let networkFile = ''
+      if (files.indexOf('network.avro') > -1) networkFile = 'network.avro'
+      else networkFile = this.vizDetails.file.replace('events.xml', 'network.xml')
+
+      console.log(networkFile)
       const network = await this.myDataManager.getRoadNetwork(
-        networkFilename,
+        networkFile,
         this.myState.subfolder,
         Object.assign({}, this.vizDetails)
       )
-
       this.vizDetails.projection = '' + network.projection
-
       return { network }
     },
 
