@@ -20,10 +20,8 @@ import { NetworkLinks } from '@/js/DashboardDataManager'
 const BASE_URL = import.meta.env.BASE_URL
 
 const ICON_MAPPING = {
-  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
-  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+  vehicle: { x: 0, y: 0, width: 256, height: 256, mask: false },
+  // diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
 }
 
 const dataFilter = new DataFilterExtension({ filterSize: 1 })
@@ -120,7 +118,7 @@ export default function EventDeckMap({
         // getIcon: 'vehicle', //  (d: any) => 'vehicle',
         // getColor: [30, 208, 170], // brightColors[layerIndex], // 64 + layerIndex * 25, 64, 250 - layerIndex * 30], // (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
-        iconStill: 'diamond',
+        iconStill: 'vehicle',
         colorMap: [
           // 0: no colors: greenish
           30, 208, 170,
@@ -135,7 +133,7 @@ export default function EventDeckMap({
         opacity: 1,
         currentTime: simulationTime,
         shadowEnabled: false,
-        iconAtlas: `${BASE_URL}icon-atlas.png`, // BASE_URL + '/images/icon-atlas.png',
+        iconAtlas: `${BASE_URL}veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
         iconMapping: ICON_MAPPING,
         sizeScale: 1,
         billboard: false,

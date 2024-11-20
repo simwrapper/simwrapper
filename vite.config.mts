@@ -29,9 +29,9 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: '/',
-    build: { sourcemap: true, target: 'esnext' },
+    build: { sourcemap: true, target: 'es2020' },
     optimizeDeps: {
-      include: ['expat-wasm', 'sax-wasm'],
+      include: ['sax-wasm'],
     },
     plugins: [
       // vue

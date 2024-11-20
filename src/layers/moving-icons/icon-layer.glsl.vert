@@ -155,14 +155,15 @@ void main(void) {
   vColor = instanceColors;
   if (instanceColorCodes  == 1.0) {
     // green
-    // vColor = vec4(0.0, 0.65, 0.3, 1.0);
-    vColor = vec4(0.05, 0.6027, 0.9409, 1.0);
+    // vColor = vec4(0.0, 0.65, 0.0, 1.0);
+    vColor = vec4(0.0, 0.75, 0.22, 1.0);
   } else if (instanceColorCodes == 2.0) {
     // yellow
-    vColor = vec4(0.85, 0.8, 0.0, 1.0);
+    // vColor = vec4(0.85, 0.65, 0.0, 1.0);
+    vColor = vec4(0.90, 0.80, 0.0, 1.0);
   } else if (instanceColorCodes == 3.0 ) {
     // red
-    vColor = vec4(0.95, 0.0, 0.3, 1.0);
+    vColor = vec4(0.95, 0.0, 0.2, 1.0);
   }
 
   DECKGL_FILTER_COLOR(vColor, geometry);

@@ -44,7 +44,7 @@ const defaultProps = {
 
   getIcon: { type: 'accessor', value: 'vehicle' }, // (x: any) => x.icon },
   getBOffsets: { type: 'accessor', value: [0, 0] }, // (x: any) => x.icon },
-  getBIconFrames: { type: 'accessor', value: [128, 128, 128, 128] }, // (x: any) => x.icon },
+  getBIconFrames: { type: 'accessor', value: [0, 0, 256, 256] }, // (x: any) => x.icon },
   getBColorModes: { type: 'accessor', value: 1 }, // (x: any) => x.icon },
 
   // [rgba]
@@ -113,7 +113,7 @@ export default class IconLayer extends Layer {
       },
       instanceIconFrames: {
         size: 4,
-        defaultValue: [0, 0, 128, 128],
+        defaultValue: [0, 0, 256, 256],
         accessor: 'getBIconFrames',
         // transform: this.getInstanceIconFrame
       },
