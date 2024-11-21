@@ -390,8 +390,6 @@ export default function Component(props: {
 
     layers = []
 
-    const opacity = shipments.length > 1 ? 32 : 255
-
     function getLspTourColor(vehicleId: string) {
       // Simple hash function to generate a number from the string
       let hash = 0;
@@ -591,8 +589,6 @@ export default function Component(props: {
         )
       }
 
-
-      
       layers.push(
         //@ts-ignore
         new TextLayer({
@@ -743,7 +739,6 @@ export default function Component(props: {
   }
 
   if (activeTab == 'shipments' && scaleFactorShipments === 0) {
-    console.log(scaleFactorShipments + " test")
     setShipments(layers)
   }
 
