@@ -19,6 +19,7 @@
     "dev": "npm run index && vite",
     "serve": "npm run index && vite",
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
+    "wasm": "wasm-pack build ./wasm/matsim-event-streamer --target web",
     "release": "standard-version",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -31,7 +32,6 @@
     "fsevents": "*"
   },
   "dependencies": {
-    "rust-events-wasm": "file:../rust-events-wasm/pkg",
     "@deck.gl/extensions": "^8.8.21",
     "@flowmap.gl/data": "8.0.0-alpha.25",
     "@flowmap.gl/layers": "8.0.0-alpha.25",
@@ -94,6 +94,7 @@
     "markdown-it": "^12.2.0",
     "markdown-it-texmath": "^1.0.0",
     "mathjs": "^10.0.0",
+    "matsim-event-streamer": "file:wasm/matsim-event-streamer/pkg",
     "medium-zoom": "^1.0.5",
     "micromatch": "^4.0.8",
     "moment": "^2.24.0",
@@ -188,7 +189,6 @@
     "typescript": "^4.2.0",
     "unplugin-vue-markdown": "^0.26.2",
     "vite": "^5.4.11",
-    "vite-plugin-top-level-await": "^1.4.4",
     "vitest": "^0.34.3"
   }
 }

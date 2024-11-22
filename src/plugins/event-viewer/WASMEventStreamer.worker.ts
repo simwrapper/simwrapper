@@ -2,7 +2,7 @@ import * as Comlink from 'comlink'
 // import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
 import pako from 'pako'
 
-import init, { EventStreamer } from 'rust-events-wasm'
+import init, { EventStreamer } from 'matsim-event-streamer'
 
 import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
