@@ -6,7 +6,6 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
-import { scale } from 'vega'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -66,6 +65,7 @@ export default function Component(props: {
   showHub: boolean
   hubLocation: any[]
   hubName: string
+  tourHubs: []
   stopActivities: any[]
   depots: { link: string; midpoint: number[]; coords: number[] }[]
   colors: any
@@ -100,7 +100,7 @@ export default function Component(props: {
   } = props
 
 
-  const { simplifyTours, scaleFactor, scaleFactorShipments, shipmentDotsOnTourMap, showEachCarrierTour } = settings
+  const { simplifyTours, scaleFactor, scaleFactorShipments, shipmentDotsOnTourMap, selectedTour, showEachCarrierTour } = settings
   // range is (1/) 16384 - 0.000001
   // scaleFactor is 0-100, which we invert and shift to [14 to -6], then 2^value is widthScale.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
@@ -390,8 +390,6 @@ export default function Component(props: {
 
     layers = []
 
-    const opacity = shipments.length > 1 ? 32 : 255
-
     function getLspTourColor(vehicleId: string) {
       // Simple hash function to generate a number from the string
       let hash = 0;
@@ -466,7 +464,6 @@ export default function Component(props: {
         })
       )
     } else {
-
       layers.push(
         //@ts-ignore:
         new PathLayer({
@@ -565,6 +562,7 @@ export default function Component(props: {
           })
         )
       } else {
+
         layers.push(
           //@ts-ignore:
           new PathLayer({
@@ -591,8 +589,6 @@ export default function Component(props: {
         )
       }
 
-      // destination labels
-
       layers.push(
         //@ts-ignore
         new TextLayer({
@@ -614,10 +610,11 @@ export default function Component(props: {
               (prev: number, visit: any) => prev + visit.service.length,
               0
             )
-            if (pickups && deliveries) return [0, 0, 255]
-            if (pickups) return ActivityColor.pickup
-            if (deliveries) return ActivityColor.delivery
-            if (services) return ActivityColor.delivery
+            if (pickups && deliveries && !d.depot) return [0, 0, 255]
+            if (pickups&& !d.depot) return ActivityColor.pickup
+            if (deliveries && !d.depot) return ActivityColor.delivery
+            if (services && !d.depot) return ActivityColor.delivery
+            if (d.depot) return [240, 130, 0]
             return [240, 130, 0]
           },
           getPosition: (d: any) => d.midpoint,
@@ -638,6 +635,49 @@ export default function Component(props: {
         })
       )
 
+      // destination labels
+        // const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
+
+        // layers.push(
+        //   //@ts-ignore
+        //   new TextLayer({
+        //     id: 'HubChain',
+        //     data: allHubs, // Pass all hubs (flattened)
+        //     getPosition: (hub: any) => [hub.locationX, hub.locationY], // Get position of each hub
+        //     getText: (hub: any) => hub.id, // Display each hub's ID as text
+        //     getAlignmentBaseline: 'center',
+        //     getColor: [255, 255, 255],
+        //     getBackgroundColor: [240, 130, 0],
+        //     background: true,
+        //     backgroundPadding: [2, 2, 2, 2],
+        //     fontWeight: 'normal',
+        //     getSize: 10,
+        //     getTextAnchor: 'middle',
+        //     pickable: true,
+        //     onHover: setHoverInfo // Handle hover interactions
+        //   })
+        // );
+
+        layers.push(
+          //@ts-ignore
+          new TextLayer({
+            id: 'HubChain',
+            data: props.tourHubs, // Pass all hubs (flattened)
+            getPosition: (hub: any) => [hub.Xcoord, hub.Ycoord], // Get position of each hub
+            getText: (hub: any) => hub.hubId, // Display each hub's ID as text
+            getAlignmentBaseline: 'center',
+            getColor: [255, 255, 255],
+            getBackgroundColor: [240, 130, 0],
+            background: true,
+            backgroundPadding: [2, 2, 2, 2],
+            fontWeight: 'normal',
+            getSize: 10,
+            getTextAnchor: 'middle',
+            pickable: true,
+            onHover: setHoverInfo // Handle hover interactions
+          })
+        );
+
     }
   }
 
@@ -648,7 +688,7 @@ export default function Component(props: {
         id: 'deliveries',
         data: pickupsAndDeliveries.deliveries,
         getPosition: (d: any) => d.coord,
-        getColor: ActivityColor.delivery,
+        getFillColor: ActivityColor.delivery,
         getRadius: 3,
         opacity: 0.9,
         parameters: { depthTest: false },
@@ -663,7 +703,7 @@ export default function Component(props: {
         id: 'pickups',
         data: pickupsAndDeliveries.pickups,
         getPosition: (d: any) => d.coord,
-        getColor: ActivityColor.pickup,
+        getFillColor: ActivityColor.pickup,
         getRadius: 2,
         opacity: 0.9,
         parameters: { depthTest: false },
@@ -699,7 +739,6 @@ export default function Component(props: {
   }
 
   if (activeTab == 'shipments' && scaleFactorShipments === 0) {
-    console.log(scaleFactorShipments + " test")
     setShipments(layers)
   }
 
@@ -828,8 +867,6 @@ export default function Component(props: {
           })
         );
       } else {
-        console.log(widthScale)
-
 
         // Flatten the hubsChains to get individual hubs from each chain
         const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
