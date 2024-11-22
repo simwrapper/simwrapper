@@ -2,13 +2,9 @@ use wasm_bindgen::prelude::*;
 
 use std::borrow::BorrowMut;
 use std::ptr;
-// use quick_xml::events::Event;
-// use quick_xml::reader::Reader;
 use zlib_rs::ReturnCode;
 use libz_rs_sys::z_stream;
-// use roxmltree;
-// use serde::{Deserialize, Serialize};
-// use serde_json::{Value, Number} ;
+use roxmltree;
 
 #[wasm_bindgen]
 pub struct EventStreamer {
@@ -39,7 +35,7 @@ impl EventStreamer {
         let chunk_size = 65536;
         let chunks = deflated.as_slice().chunks(chunk_size);
 
-        let mut all_json = String::new();
+        let mut all_json = String::from("[\n");
 
         for chunk in chunks {
             self.num_chunks += 1;
@@ -60,6 +56,10 @@ impl EventStreamer {
 
             all_json += &json_rows;
         }
+        // close the JSON array notation
+        all_json.truncate(all_json.len() - 2);
+        all_json += "\n]";
+
         all_json
     }
 
@@ -84,12 +84,17 @@ impl EventStreamer {
         match return_code {
             ReturnCode::Ok => {
                 let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
+                // let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far as u64;
+
                 output.truncate(num_bytes_this_result.try_into().unwrap());
                 // print!("\r---- {} {} {}     ", self.num_chunks, num_bytes_this_result, self.dechunker.total_out);
             },
             ReturnCode::StreamEnd => {
                 // END: de-allocating all the libz unsafe stuff
+
                 let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far;
+                // let num_bytes_this_result = self.dechunker.total_out - self.total_bytes_so_far as u64;
+
                 output.truncate(num_bytes_this_result.try_into().unwrap());
                 // print!("\r---- {} {} {}     ", self.num_chunks, num_bytes_this_result, self.dechunker.total_out);
                 // println!("\n----WE ARE AT THE END----");
@@ -121,7 +126,7 @@ impl EventStreamer {
     fn convert_to_json(&self, xml: Vec<u8>) -> (String, Vec<u8>) {
 
         let mut fragment: Vec<u8> = Vec::new();
-        // let mut json_rows = Vec::new();
+        let mut json_rows = Vec::new();
 
         // merge the previous chunk's leftovers with this new data
         let mut full_buffer: Vec<u8> = Vec::new();
@@ -146,98 +151,51 @@ impl EventStreamer {
             .filter(|x| x.starts_with(b"<event "))
             .collect();
 
-        // println!("{}", event_rows.len());
+        // let mut combined = String::new();
 
-        let mut combined = String::new();
+        // loop over the <event... /> text rows
         for raw_event in event_rows {
-            let z = format!("{}\n", String::from_utf8_lossy(raw_event));
-            combined += &z;
+            let xml_line = String::from_utf8_lossy(raw_event);
+
+            let doc = roxmltree::Document::parse(&xml_line)
+                .expect("bad line");
+
+            let mut event = String::from("{");
+            doc.root_element().attributes().for_each(|attr|  {
+                let name = attr.name().to_string();
+                let mut value = attr.value().to_string();
+                // fix quotes
+                value = value.replace(r#"""#, r#"\""#);  // not sure why but &quot; => " and we make " -> \"
+                // parse time
+                 if name == "time" {
+                    let num_val = value.parse::<f64>().expect("nope");
+                    event += &format!("\"{}\":{},", name, num_val);
+                } else {
+                    event += &format!("\"{}\":\"{}\",", name, value);
+                }
+            });
+            event.truncate(event.len()-1);
+            event += "}";
+            json_rows.push(event);
+
+            // // map all k,v attributes and join them as strings
+            // let mut map = IndexMap::new();
+
+            // // fix times to float
+            // let time = String::from("time");
+            // if let Some(Value::String(v)) = map.get(&time) {
+            //     let fvalue= v.parse::<f64>().unwrap();
+            //     let number = Number::from_f64(fvalue).expect("no");
+            //     map.insert(time, Value::Number(number));
+            // }
         }
 
-        (combined , fragment)
+        let mut chunk_json_rows_with_commas = json_rows.join(",\n");
+        // last row NEEDS a comma, we'll chop the finalfinal comma after all chunks have arrived
+        chunk_json_rows_with_commas += ",\n";
 
+        (chunk_json_rows_with_commas, fragment)
     }
-
-    //     // loop over the <event... /> text rows
-    //     for raw_event in event_rows {
-    //         // let xml_line = String::from_utf8_lossy(raw_event);
-
-    //         // let doc = roxmltree::Document::parse(&xml_line)
-    //         //     .expect("bad line");
-
-    //         let mut reader = Reader::from_str(str::as_bytes(&raw_event));
-    //         reader.config_mut().trim_text(true);
-
-    //         let mut count = 0;
-    //         let mut txt = Vec::new();
-    //         let mut buf = Vec::new();
-
-    //         // The `Reader` does not implement `Iterator` because it outputs borrowed data (`Cow`s)
-    //         loop {
-    //             // NOTE: this is the generic case when we don't know about the input BufRead.
-    //             // when the input is a &str or a &[u8], we don't actually need to use another
-    //             // buffer, we could directly call `reader.read_event()`
-    //             match reader.read_event_into(&mut buf) {
-    //                 Err(e) => panic!("Error at position {}: {:?}", reader.error_position(), e),
-    //                 // exits the loop when reaching end of file
-    //                 Ok(Event::Eof) => break,
-
-    //                 Ok(Event::Start(e)) => {
-    //                     match e.name().as_ref() {
-    //                         b"event" => println!("attributes values: {:?}",
-    //                                             e.attributes().map(|a| a.unwrap().value)
-    //                                             .collect::<Vec<_>>()),
-    //                         b"tag2" => count += 1,
-    //                         _ => (),
-    //                     }
-    //                 }
-    //                 Ok(Event::Text(e)) => txt.push(e.unescape().unwrap().into_owned()),
-
-    //                 // There are several other `Event`s we do not consider here
-    //                 _ => (),
-    //             }
-    //             // if we don't keep a borrow elsewhere, we can clear the buffer to keep memory usage low
-    //             buf.clear();
-    //         }
-
-
-    //         let mut event = String::from("{");
-    //         doc.root_element().attributes().for_each(|attr|  {
-    //             let name = attr.name().to_string();
-    //             let mut value = attr.value().to_string();
-    //             // fix quotes
-    //             value = value.replace(r#"""#, r#"\""#);  // not sure why but &quot; => " and we make " -> \"
-    //             // parse time
-    //              if name == "time" {
-    //                 let num_val = value.parse::<f64>().expect("nope");
-    //                 event += &format!("\"{}\":{},", name, num_val);
-    //             } else {
-    //                 event += &format!("\"{}\":\"{}\",", name, value);
-    //             }
-    //         });
-    //         event.truncate(event.len()-1);
-    //         event += "}";
-    //         json_rows.push(event);
-
-    //         // // map all k,v attributes and join them as strings
-    //         // let mut map = IndexMap::new();
-
-    //         // // fix times to float
-    //         // let time = String::from("time");
-    //         // if let Some(Value::String(v)) = map.get(&time) {
-    //         //     let fvalue= v.parse::<f64>().unwrap();
-    //         //     let number = Number::from_f64(fvalue).expect("no");
-    //         //     map.insert(time, Value::Number(number));
-    //         // }
-
-    //     }
-
-    //     // build final JSON!
-    //     let final_json = String::from("[\n ") + &json_rows.join(",\n ") + &String::from("\n]");
-
-    //     (final_json, fragment)
-
-    // }
 
 }
 

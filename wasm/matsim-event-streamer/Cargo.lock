@@ -34,6 +34,7 @@ name = "matsim-event-streamer"
 version = "0.1.0"
 dependencies = [
  "libz-rs-sys",
+ "roxmltree",
  "wasm-bindgen",
  "zlib-rs",
 ]
@@ -61,6 +62,12 @@ checksum = "b5b9d34b8991d19d98081b46eacdd8eb58c6f2b201139f7c5f643cc155a633af"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "roxmltree"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
 
 [[package]]
 name = "syn"
