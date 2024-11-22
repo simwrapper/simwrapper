@@ -2,6 +2,8 @@ import * as Comlink from 'comlink'
 // import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
 import pako from 'pako'
 
+import init, { EventStreamer } from 'rust-events-wasm'
+
 import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
 
@@ -33,7 +35,7 @@ const Task = {
   _currentTranch: [] as any[],
 
   // Pako library has gunzip chunking mode!
-  _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
+  // _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
 
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
@@ -41,6 +43,8 @@ const Task = {
   _queue: [] as any[],
 
   _cbReporter: null as any,
+
+  _eventStreamer: null as any,
 
   async startStream(
     props: {
@@ -55,14 +59,19 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
+      console.log('EVENT STREAM MUTHAAAA')
+      await init()
+      this._eventStreamer = new EventStreamer()
+      console.log('EVENT STREAM MUTHAAAA 2')
+
       this._cbReporter = cbReportNewData
 
-      this._gunzipper.onData = (chunk: any) => {
-        this._queue.push(chunk)
-      }
-      this._gunzipper.onEnd = (status: number) => {
-        console.log('gzipper onEnd', status)
-      }
+      // this._gunzipper.onData = (chunk: any) => {
+      //   this._queue.push(chunk)
+      // }
+      // this._gunzipper.onEnd = (status: number) => {
+      //   console.log('gzipper onEnd', status)
+      // }
 
       this._layers = props.layers.map((L: any) => new AllEventLayers[L.viewer](props))
 
@@ -156,24 +165,30 @@ const Task = {
             const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
               if (parent._isCancelled) reject()
 
-              // check for gzip at start
-              if (parent._numChunks == 1) {
-                const header = new Uint8Array(smallChunk.buffer.slice(0, 2))
-                if (header[0] === 0x1f && header[1] === 0x8b) parent._isGzipped = true
-              }
+              const stuff = await parent._eventStreamer.process(smallChunk)
 
-              if (parent._isGzipped) {
-                parent._gunzipper.push(smallChunk)
+              console.log({ stuff })
+              await parent.handleText(stuff)
 
-                while (parent._queue.length) {
-                  const text = parent._queue.shift()
-                  await parent.handleText(text)
-                }
-                // console.log('queue empty')
-              } else {
-                const chunkText = parent._decoder.decode(smallChunk)
-                parent.handleText(chunkText)
-              }
+              // // check for gzip at start
+              // if (parent._numChunks == 1) {
+              //   const header = new Uint8Array(smallChunk.buffer.slice(0, 2))
+              //   if (header[0] === 0x1f && header[1] === 0x8b) parent._isGzipped = true
+              // }
+
+              // if (parent._isGzipped) {
+              //   parent._gunzipper.push(smallChunk)
+
+              //   while (parent._queue.length) {
+              //     const text = parent._queue.shift()
+              //     await parent.handleText(text)
+              //   }
+              // console.log('queue empty')
+
+              // } else {
+              //   const chunkText = parent._decoder.decode(smallChunk)
+              //   parent.handleText(chunkText)
+              // }
             }
 
             parent._numChunks++

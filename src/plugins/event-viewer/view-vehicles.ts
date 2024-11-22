@@ -66,7 +66,7 @@ export default class EventsHandler {
                 this.network.freespeed[linkNum]
 
               if (relSpeed < 0.4) colorCode = 2
-              if (relSpeed < 0.1) colorCode = 3
+              if (relSpeed < 0.2) colorCode = 3
             }
 
             // times
@@ -99,8 +99,8 @@ export default class EventsHandler {
     const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
 
     this.totalRows += trips.t0.length
-    console.log('----TOTAL TRIP ROWS', this.totalRows)
+    console.log('----TOTAL TRIP ROWS', this.totalRows, 'RANGE', dataArray.t0[0], timeLastArrival)
 
-    return { data: dataArray, timeRange: [events[0].time, timeLastArrival] }
+    return { data: dataArray, timeRange: [dataArray.t0[0], timeLastArrival] }
   }
 }
