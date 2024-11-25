@@ -89,7 +89,7 @@ const plugins = [
   {
     kebabName: 'plotly',
     filePatterns: ['**/plotly*.y?(a)ml'],
-    component: defineAsyncComponent(() => import('./flowmap/Flowmap.vue')),
+    component: defineAsyncComponent(() => import('./plotly/PlotlyDiagram.vue')),
   },
   {
     kebabName: 'vega',
