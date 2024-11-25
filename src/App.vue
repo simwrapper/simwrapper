@@ -1,6 +1,8 @@
 <template lang="pug">
 #main-app(:class="{'full-page-app' : true, 'dark-mode': isDarkMode}" )
 
+  top-nav-bar.top-bar(v-if="(!$store.state.topNavItems && !$store.state.leftNavItems)")
+
   .center-area(v-if="isFileSystemLoaded")
     //- login-panel.login-panel
     router-view.main-content
@@ -33,12 +35,11 @@ import maplibregl from 'maplibre-gl'
 import { get } from 'idb-keyval'
 
 import globalStore from '@/store'
+import plugins from '@/plugins/pluginRegistry'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
 import { addInitialLocalFilesystems, addLocalFilesystem } from '@/fileSystemConfig'
 
-// import LoginPanel from '@/components/LoginPanel.vue'
-
-import plugins from '@/plugins/pluginRegistry'
+import TopNavBar from '@/layout-manager/TopNavBar.vue'
 
 // MAPBOX TOKEN
 // this is a required workaround to get the mapbox token assigned in TypeScript
@@ -59,7 +60,7 @@ plugins.forEach(p => {
 export default defineComponent({
   name: 'SimWrapper',
   i18n,
-  components: {},
+  components: { TopNavBar },
   data: () => {
     return {
       state: globalStore.state,
@@ -255,16 +256,14 @@ canvas {
 
 .top-bar {
   width: 100%;
-  padding: 0 3rem;
   margin: 0 auto;
-  max-width: $sizeVessel;
   transition: padding 0.2s ease-in-out, max-width 0.3s ease-in-out;
   // box-shadow: 0px 6px 10px #00000048;
   z-index: 5;
 }
 
 .top-bar.full-page-app {
-  padding: 0 1rem;
+  padding: 0 0;
   max-width: unset;
 }
 
@@ -468,11 +467,12 @@ p.splash-label {
 
 .markdown {
   p {
-    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4rem;
   }
 
   strong {
-    color: var(--text);
+    color: var(--textBold);
     font-family: $fancyFont;
   }
 
@@ -482,12 +482,45 @@ p.splash-label {
   h4,
   h5,
   h6 {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    color: var(--textFancy);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    font-weight: bold;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+
+  h4 {
+    font-size: 1.2rem;
+    font-weight: normal;
+  }
+
+  h5 {
+    font-size: 1rem;
     font-weight: normal;
   }
 
   ul {
     list-style: disc;
-    margin-top: 0.5rem;
+    margin: 0.5rem 0 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  ol {
+    list-style: decimal;
+    margin: 0.5rem 0 0.5rem 0;
     padding-left: 1.5rem;
   }
 
@@ -742,12 +775,29 @@ p.splash-label {
   top: 0;
 }
 
-@media only screen and (max-width: 640px) {
-  .top-bar {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
+.katex-html {
+  display: none !important;
+}
 
+.mono {
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 21px;
+}
+
+.mr1 {
+  margin-right: 1rem;
+}
+
+.ml1 {
+  margin-left: 1rem;
+}
+
+.mb1 {
+  margin-bottom: 1rem;
+}
+
+@media only screen and (max-width: 640px) {
   .breadcrumbs {
     padding-left: 1rem;
     padding-right: 1rem;

@@ -64,7 +64,6 @@ export default class DashboardDataManager {
     this.fileApi = this._getFileSystem(this.root)
   }
 
-  private files: any[] = []
   private threads: Worker[] = []
   private subfolder = ''
   private root = ''
@@ -115,15 +114,19 @@ export default class DashboardDataManager {
    *               and may include other optional parameters as needed by the viz
    * @returns allRows object, containing a DataTableColumn for each column in this dataset
    */
-  public async getDataset(config: configuration, options?: { highPrecision: boolean }) {
+  public async getDataset(
+    config: configuration,
+    options?: { highPrecision?: boolean; subfolder?: string }
+  ) {
     try {
+      // now with subfolders we need to cache based on subfolder+filename
+      const cacheKey = `${options?.subfolder || this.subfolder}/${config.dataset}`
       // first, get the dataset
-      if (!this.datasets[config.dataset]) {
-        console.log('load:', config.dataset)
-
+      if (!this.datasets[cacheKey]) {
+        console.log('LOAD:', cacheKey)
         // fetchDataset() immediately returns a Promise<>, which we await on
         // so that multiple charts don't all try to fetch the dataset individually
-        this.datasets[config.dataset] = {
+        this.datasets[cacheKey] = {
           dataset: this._fetchDataset(config, options),
           activeFilters: {},
           filteredRows: null,
@@ -131,13 +134,26 @@ export default class DashboardDataManager {
         }
       }
 
+      // Firefox just silently dies if the text is too large. Set a timeout...
+      const withTimeout = (promise: Promise<any>, timeout: number) => {
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Operation timed out after ${timeout}ms`))
+          }, timeout)
+        })
+        return Promise.race([promise, timeoutPromise])
+      }
+
       // wait for dataset to load
-      // (this will immediately return dataset if it is already loaded)
-      let myDataset = await this.datasets[config.dataset].dataset
+      // this will immediately return dataset if it is already loaded
+      let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60 * 1000)
+
+      let { _comments, ...allRows } = myDataset
+      let comments = _comments as unknown as string[]
 
       // make a copy because each viz in a dashboard might be hacking it differently
       // TODO: be more "functional" and return the object itself, and let views create copies if they need to
-      let allRows = { ...myDataset }
+      // let allRows = { ...myDataset }
 
       // remove ignored columns
       if (config.ignoreColumns) {
@@ -154,10 +170,13 @@ export default class DashboardDataManager {
         })
       }
 
-      return { allRows }
+      return { allRows, comments }
     } catch (e) {
-      // const message = '' + e
-      return { allRows: {} }
+      const msg = ('' + e).replaceAll('Error: ', '')
+      console.error(msg)
+      throw Error(msg)
+      // throw Error(`loading ${config.dataset}. Missing? CSV too large?`)
+      // return { allRows: {}, comments: [] }
     }
   }
 
@@ -210,7 +229,8 @@ export default class DashboardDataManager {
    * @param featureProperties array of feature PROPERTIES -- feature objects MAPPED to just be the props
    */
   public setFeatureProperties(fullpath: string, featureProperties: any[], config: any) {
-    const key = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+    const namePart = fullpath.substring(fullpath.lastIndexOf('/') + 1)
+    const key = `${config?.subfolder || ''}/${namePart}`
 
     // merge key with keep/drop params (etc)
     let fullConfig = { dataset: key }
@@ -274,9 +294,18 @@ export default class DashboardDataManager {
     cbStatus?: any
   ) {
     const path = `/${subfolder}/${filename}`
+    const options = {} as any
+    if (vizDetails.projection) options.crs = vizDetails.projection
+
     // Get the dataset the first time it is requested
     if (!this.networks[path]) {
-      this.networks[path] = this._fetchNetwork({ subfolder, filename, vizDetails, cbStatus })
+      this.networks[path] = this._fetchNetwork({
+        subfolder,
+        filename,
+        vizDetails,
+        cbStatus,
+        options,
+      })
     }
 
     // wait for the worker to provide the network
@@ -366,18 +395,19 @@ export default class DashboardDataManager {
     await this._updateFilters(dataset) // this is async
   }
 
-  public addFilterListener(config: { dataset: string }, listener: any) {
-    const selectedDataset = this.datasets[config.dataset]
-    if (!selectedDataset) throw Error('No dataset named: ' + config.dataset)
+  public addFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
+    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
+    const selectedDataset = this.datasets[cacheKey]
+    if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
 
-    // console.log(22, config.dataset, this.datasets[config.dataset])
-    this.datasets[config.dataset].filterListeners.add(listener)
+    this.datasets[cacheKey].filterListeners.add(listener)
   }
 
-  public removeFilterListener(config: { dataset: string }, listener: any) {
+  public removeFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
+    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
     try {
-      if (this.datasets[config.dataset].filterListeners) {
-        this.datasets[config.dataset].filterListeners.delete(listener)
+      if (this.datasets[cacheKey].filterListeners) {
+        this.datasets[cacheKey].filterListeners.delete(listener)
       }
     } catch (e) {
       // doesn't matter
@@ -522,11 +552,14 @@ export default class DashboardDataManager {
     }
   }
 
-  private async _fetchDataset(config: { dataset: string }, options?: { highPrecision: boolean }) {
-    if (!this.files.length) {
-      const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(this.subfolder)
-      this.files = files
-    }
+  private async _fetchDataset(
+    config: { dataset: string },
+    options?: { highPrecision?: boolean; subfolder?: string }
+  ) {
+    // sometimes we are dealing with subfolder/subtabs, so always fetch file list anew.
+    const { files } = await new HTTPFileSystem(this.fileApi).getDirectory(
+      options?.subfolder || this.subfolder
+    )
 
     return new Promise<DataTable>((resolve, reject) => {
       const thread = new DataFetcherWorker()
@@ -535,16 +568,16 @@ export default class DashboardDataManager {
       try {
         thread.postMessage({
           fileSystemConfig: this.fileApi,
-          subfolder: this.subfolder,
-          files: this.files,
+          subfolder: options?.subfolder || this.subfolder,
+          files,
           config: config,
           options,
         })
 
         thread.onmessage = e => {
           thread.terminate()
-          if (e.data.error) {
-            let msg = '' + e.data.error
+          if (!e.data || e.data.error) {
+            let msg = '' + (e.data?.error || 'Error loading file')
             msg = msg.replace('[object Response]', 'Error loading file')
 
             if (config?.dataset && msg.indexOf(config.dataset) === -1) msg += `: ${config.dataset}`
@@ -624,8 +657,12 @@ export default class DashboardDataManager {
       linkIds[i] = linkID
     }
 
-    const links = { source, dest, linkIds, projection: 'EPSG:4326' }
+    const links = { source, dest, linkIds, projection: 'EPSG:4326' } as any
 
+    // add network attributes back in
+    for (const col of network.linkAttributes) {
+      if (col !== 'linkId') links[col] = network[col]
+    }
     return links
   }
 
@@ -634,9 +671,10 @@ export default class DashboardDataManager {
     filename: string
     vizDetails: any
     cbStatus?: any
+    options: { crs?: string }
   }) {
     return new Promise<NetworkLinks>(async (resolve, reject) => {
-      const { subfolder, filename, vizDetails, cbStatus } = props
+      const { subfolder, filename, vizDetails, cbStatus, options } = props
 
       const path = `/${subfolder}/${filename}`
       console.log('load network:', path)
@@ -699,6 +737,7 @@ export default class DashboardDataManager {
           filePath: path,
           fileSystem: this.fileApi,
           vizDetails,
+          options,
           isFirefox, // we need this for now, because Firefox bug #260
         })
       } catch (err) {

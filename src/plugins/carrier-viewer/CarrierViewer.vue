@@ -1206,6 +1206,7 @@ export default CarrierPlugin
 .main-panel {
   position: relative;
   flex: 1;
+  background-color: var(--bgBold);
 }
 
 h4 {

@@ -39,6 +39,25 @@ interface VizProperties {
   join?: string
 }
 
+export function buildColors(categories: any, colorRamp: string) {
+  let options = categories as string[]
+  if (typeof categories == 'string') {
+    options = categories.split(',').map(s => s.trim())
+  }
+
+  const scaleName = `interpolate${colorRamp || 'Rainbow'}`
+  //@ts-ignore
+  const scaleFunction = d3sc[scaleName] || d3sc.interpolateRainbow
+  const colorScale = scaleOrdinal()
+    .domain(options)
+    .range(options.map((_, i) => scaleFunction((i + 1) / options.length)))
+
+  const colorMap = {} as any
+  options.forEach((option: any) => (colorMap[option] = colorScale(option)))
+
+  return colorMap
+}
+
 function getColorsForDataColumn(props: VizProperties) {
   // First: if there is no dataColumn yet, return empty everything
   if (!props.data) {
@@ -47,10 +66,7 @@ function getColorsForDataColumn(props: VizProperties) {
   }
 
   // Figure out what kind of thing the user wants
-  if (
-    props.data.type === DataType.STRING ||
-    props.options.colorRamp.style == Style.categorical
-  ) {
+  if (props.data.type === DataType.STRING || props.options.colorRamp.style == Style.categorical) {
     return buildColorsBasedOnCategories(props)
   } else if (props.data2) {
     return generateDiffColorsBasedOnNumericValues(props)
@@ -282,8 +298,7 @@ function buildWidthsBasedOnNumericValues(props: {
   const { numFeatures, data, lookup, normalize, options } = props
   const { columnName, dataset, scaleFactor } = options
 
-  if (Number.isNaN(scaleFactor))
-    return { array: null, legend: [], calculatedValues: null }
+  if (Number.isNaN(scaleFactor)) return { array: null, legend: [], calculatedValues: null }
 
   const widths = new Float32Array(numFeatures)
   const calculatedValues = new Float32Array(numFeatures)
@@ -348,9 +363,7 @@ function getHeightsBasedOnNumericValues(props: {
     normalizedValues = new Float32Array(data.values.length)
     normalizedMax = -Infinity
     for (let i = 0; i < data.values.length; i++) {
-      normalizedValues[i] = normalize.values[i]
-        ? data.values[i] / normalize.values[i]
-        : NaN
+      normalizedValues[i] = normalize.values[i] ? data.values[i] / normalize.values[i] : NaN
       if (normalizedValues[i] > normalizedMax) normalizedMax = normalizedValues[i]
     }
   }
@@ -451,9 +464,7 @@ function buildColorsBasedOnCategories(props: {
   const keys = setColorBasedOnCategory.domain() as any[]
   const colors = setColorBasedOnCategory.range() as any[]
 
-  keys.forEach((key, index) =>
-    legend.push({ label: key, value: colors[index % colors.length] })
-  )
+  keys.forEach((key, index) => legend.push({ label: key, value: colors[index % colors.length] }))
   legend.sort((a, b) => (a.label < b.label ? -1 : 1))
 
   // build the hasCategory thing
@@ -472,9 +483,7 @@ function buildDiffDomainBreakpoints(props: {
 
   // MANUAL BREAKPOINTS
   if (colorRamp.breakpoints) {
-    const breakpoints = colorRamp.breakpoints
-      .split(',')
-      .map((v: string) => parseFloat(v.trim()))
+    const breakpoints = colorRamp.breakpoints.split(',').map((v: string) => parseFloat(v.trim()))
 
     if (colorRamp.steps !== breakpoints.length + 1) {
       throw Error('Color ramp "steps" must be one larger than number of breakpoints')
@@ -588,9 +597,7 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
       fixedColors: fixedColors || [],
       min: minDiff,
       max: maxDiff,
-    }).map(breakpoint =>
-      colorRamp.style === Style.diverging ? breakpoint : breakpoint * maxDiff
-    )
+    }).map(breakpoint => (colorRamp.style === Style.diverging ? breakpoint : breakpoint * maxDiff))
   }
 
   const colorsAsRGB = buildRGBfromHexCodes(fixedColors || [])
@@ -619,8 +626,7 @@ function generateDiffColorsBasedOnNumericValues(props: VizProperties) {
     const lowerLabel = Math.round(lowerBound * 1)
     const upperLabel = Math.round(upperBound * 1)
     legend.push({
-      label:
-        lowerBound !== undefined ? `${lowerLabel} — ${upperLabel}` : `< ${upperLabel}`,
+      label: lowerBound !== undefined ? `${lowerLabel} — ${upperLabel}` : `< ${upperLabel}`,
       value: colors[i],
     })
     lowerBound = upperBound
@@ -762,9 +768,7 @@ function calculateManualBreakpoints(props: {
 }) {
   if (!props.options.colorRamp.breakpoints) return []
 
-  const breakpoints = props.options.colorRamp.breakpoints
-    .split(',')
-    .map(b => parseFloat(b))
+  const breakpoints = props.options.colorRamp.breakpoints.split(',').map(b => parseFloat(b))
   // must have correct number of breakpoints
   if (props.options.colorRamp.steps !== breakpoints.length + 1) {
     throw Error('Color ramp "steps" must be one larger than number of breakpoints')
@@ -795,9 +799,7 @@ function generateColors(props: {
   // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
   // *range* is the list of colors;
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-  const setColorBasedOnValue: any = scaleThreshold()
-    .range(colorsAsRGB)
-    .domain(props.breakpoints)
+  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(props.breakpoints)
 
   const rgbArray = new Uint8ClampedArray(props.numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
@@ -884,9 +886,7 @@ function normalizeData(calculatedValues: Float32Array, props: VizProperties) {
   // warn user about negative numbers
   const isDivergingScale = props.options.colorRamp?.style === Style.diverging
   if (!isDivergingScale && minimum < 0) {
-    throw Error(
-      `Column "${props.data.name}" has negative values: use a diverging color scale`
-    )
+    throw Error(`Column "${props.data.name}" has negative values: use a diverging color scale`)
   }
 
   return normalizedValues
@@ -902,8 +902,7 @@ function buildColorsBasedOnNumericValues(props: {
   options: { colorRamp: Ramp; fixedColors: any[] }
   join?: string
 }) {
-  const { numFeatures, data, lookup, normalize, normalLookup, options, join, filter } =
-    props
+  const { numFeatures, data, lookup, normalize, normalLookup, options, join, filter } = props
   const { colorRamp, fixedColors } = options
 
   const isDivergingScale = colorRamp?.style === Style.diverging
@@ -980,9 +979,7 @@ function buildColorsBasedOnNumericValues(props: {
   // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
   // *range* is the list of colors;
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-  const setColorBasedOnValue: any = scaleThreshold()
-    .range(colorsAsRGB)
-    .domain(breakpoints)
+  const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
 
   const rgbArray = new Uint8ClampedArray(numFeatures * 3)
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
@@ -1055,13 +1052,7 @@ export function buildRGBfromHexCodes(hexcodes: string[]) {
 
 // this will only round a number if it is a plain old regular number with
 // a fractional part to the right of the decimal point.
-function truncateFractionalPart({
-  value,
-  precision,
-}: {
-  value: any
-  precision?: number
-}) {
+function truncateFractionalPart({ value, precision }: { value: any; precision?: number }) {
   // default: 3 decimals
   let usePrecision = precision ?? 3
   if (usePrecision == 0) usePrecision = -1 // truncates the decimal point itself
@@ -1069,15 +1060,9 @@ function truncateFractionalPart({
   if (typeof value !== 'number') return value
 
   let printValue = '' + value
-  if (
-    printValue.includes('.') &&
-    printValue.indexOf('.') === printValue.lastIndexOf('.')
-  ) {
+  if (printValue.includes('.') && printValue.indexOf('.') === printValue.lastIndexOf('.')) {
     if (/\d$/.test(printValue)) {
-      const clipped = printValue.substring(
-        0,
-        1 + usePrecision + printValue.lastIndexOf('.')
-      )
+      const clipped = printValue.substring(0, 1 + usePrecision + printValue.lastIndexOf('.'))
       // remove trailing zeroes
       try {
         if (parseInt(clipped.substring(1 + clipped.indexOf('.'))) === 0) {

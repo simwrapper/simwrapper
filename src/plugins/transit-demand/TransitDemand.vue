@@ -1,57 +1,88 @@
 <template lang="pug">
 .transit-viz(:class="{'hide-thumbnail': !thumbnail}")
-  .map-container(:class="{'hide-thumbnail': !thumbnail }")
-    div.map-styles(:id="mapID")
-      .stop-marker(v-for="stop in stopMarkers" :key="stop.i"
-        :style="{transform: 'translate(-50%,-50%) rotate('+stop.bearing+'deg)', left: stop.xy.x + 'px', top: stop.xy.y+'px'}"
-      )
 
-    legend-box.legend(v-if="!thumbnail"
-      :rows="legendRows"
+  //- @mousemove.stop
+  .main-layout(v-if="!thumbnail"
+    @mousemove="dividerDragging"
+    @mouseup="dividerDragEnd"
+  )
+    .dragger(
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
     )
 
-  zoom-buttons(v-if="!thumbnail")
-  //- drawing-tool(v-if="!thumbnail")
+    .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-  collapsible-panel.left-side(v-if="!thumbnail"
-    :darkMode="isDarkMode"
-    :locked="true"
-    direction="left")
+        transit-layers.map-styles(v-if="transitLinks?.features.length"
+          :viewId="viewId"
+          :links="transitLinks"
+          :selectedFeatures="selectedFeatures"
+          :stopMarkers="stopMarkers"
+          :handleClickEvent="handleMapClick"
+          :pieSlider="pieSlider"
+          :widthSlider="widthSlider"
+        )
 
-    .panel-items
-      //- .panel-item(v-if="vizDetails.title")
-      //-   h3 {{ vizDetails.title }}
-      //-   p {{ vizDetails.description }}
+        .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
+            //- width slider
+            img.icon-blue-ramp(:src="icons.blueramp")
+            b-slider.pie-slider(type="is-success" :tooltip="false" size="is-small"  v-model="widthSlider")
+            //- pie slider
+            img.icon-pie-slider(v-if="cfDemand1" :src="icons.piechart")
+            b-slider.pie-slider(v-if="cfDemand1" type="is-success" :tooltip="false" size="is-small"  v-model="pieSlider")
 
-      .route-list(v-if="routesOnLink.length > 0")
-        .route(v-for="route in routesOnLink"
-            :key="route.uniqueRouteID"
-            :class="{highlightedRoute: selectedRoute && route.id === selectedRoute.id}"
-            @click="showRouteDetails(route.id)")
-          .route-title {{route.id}}
-          .detailed-route-data
-            .col
-              p: b {{route.departures}} departures
-              p First: {{route.firstDeparture}}
-              p Last: {{route.lastDeparture}}
-            .col(v-if="route.passengersAtArrival")
-              p: b {{ route.passengersAtArrival }} passengers
-              p {{ route.totalVehicleCapacity }} capacity
+        zoom-buttons
 
-  .control-panel(v-if="!thumbnail"
-    :class="{'is-dashboard': config !== undefined }"
-  )
+        .status-corner(v-if="loadingText")
+          p {{ loadingText }}
+          b-progress.load-progress(v-if="loadProgress > 0"
+            :value="loadProgress" :rounded="false" type='is-success')
 
-    .panel-item
-      p.control-label {{  $t('metrics') }}:
-      .metric-buttons
-        button.button.is-small.metric-button(
-          v-for="metric,i in metrics" :key="metric.field"
-          :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-          @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+    .right-panel-holder(:style="{width: `${legendSectionWidth}px`}")
 
-  .status-corner(v-if="!thumbnail && loadingText")
-    p {{ loadingText }}
+      .right-side-column
+
+        p(style="margin-top: 0.25rem")
+          b TRANSIT INSPECTOR
+
+        .panel-item(v-if="metrics.length > 1")
+          .metric-buttons
+            button.button.is-small.metric-button(
+              v-for="metric,i in metrics" :key="metric.field"
+              :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+              @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
+
+        //- p(v-if="transitLines.length" style="margin: 0.75rem 0 0rem 0"): b LINES AND ROUTES
+
+        b-input.searchbox(v-if="transitLines.length"
+          v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID..."
+        )
+
+        .transit-lines.flex-col.flex1
+
+          lazy-list.flex1(
+            :highlightedTransitLines="highlightedTransitLines"
+            :listProps="routeListProps"
+          )
+
+        .summary-stats.flex-col
+          .sum-stat-title: b SUMMARY STATISTICS
+          p(:style="{visibility: selectedRouteIds.length ? 'visible' : 'hidden'}")
+            b {{ selectedRouteIds.length }}
+            | &nbsp; selected route{{ selectedRouteIds.length != 1 ? 's':''}}
+          .flex-row(:style="{visibility: selectedRouteIds.length ? 'visible':'hidden', gap: '0.5rem'}")
+            .aa
+              b {{ summaryStats.departures }}
+              | &nbsp;Departures
+            .aa(v-if="cfDemand1")
+              b {{ summaryStats.pax }}
+              | &nbsp;Passengers
+
+        legend-box.legend(v-if="!thumbnail"
+          :rows="legendRows"
+          @click="clickedLegend"
+        )
 
 </template>
 
@@ -70,9 +101,12 @@ import * as turf from '@turf/turf'
 import avro from '@/js/avro'
 import colormap from 'colormap'
 import crossfilter from 'crossfilter2'
-import maplibregl, { GeoJSONSource, LngLatBoundsLike, LngLatLike, Popup } from 'maplibre-gl'
+import { debounce } from 'debounce'
 import Papa from '@simwrapper/papaparse'
 import yaml from 'yaml'
+import match from 'micromatch'
+import naturalSort from 'javascript-natural-sort'
+import { color } from 'd3-color'
 
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -81,19 +115,130 @@ import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
-import LegendBox from './LegendBox.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import TransitLayers from './TransitLayers'
+import LegendBox from './LegendBox.vue'
+import RouteDropDown from './RouteDropDown.vue'
+import LazyList from './LazyList.vue'
 
-import { FileSystem, FileSystemConfig, ColorScheme, VisualizationPlugin } from '@/Globals'
+import {
+  FileSystem,
+  FileSystemConfig,
+  ColorScheme,
+  VisualizationPlugin,
+  REACT_VIEW_HANDLES,
+} from '@/Globals'
 
 import GzipWorker from '@/workers/GzipFetcher.worker?worker'
+import IconPieChart from './assets/icon-pie-chart.png'
+import IconBlueRamp from './assets/icon-blue-ramp.png'
 
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
-
 const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
+
+const DEFAULT_ROUTE_COLORS = [
+  // ---------------------------------------------------
+  // GTFS codes first, they are most accurate.
+  {
+    match: {
+      gtfsRouteType: [3, 700, 701, 702, 703, 704],
+    },
+    color: '#95276E',
+    label: 'Bus (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [109],
+    },
+    color: '#408335',
+    label: 'S-Bahn (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [401, 402],
+    },
+    color: '#115D91',
+    label: 'U-Bahn (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [0, 3, 900, 901, 902, 903, 904, 905, 906],
+    },
+    color: '#BE1414',
+    label: 'Tram (GTFS)',
+  },
+  {
+    match: {
+      gtfsRouteType: [4, 1000, 1200],
+    },
+    color: '#0480c1',
+    label: 'Ferry (GTFS)',
+  },
+  // ---------------------------------------------------
+  // MATSim transportMode and string-id next; less accurate but consistent.
+  {
+    match: {
+      transportMode: ['rail', 'subway'],
+      id: 'U*',
+    },
+    color: '#115D91',
+    label: 'U-Bahn',
+  },
+  {
+    match: {
+      transportMode: 'rail',
+      id: 'S*',
+    },
+    color: '#408335',
+    label: 'S-Bahn',
+  },
+  {
+    match: {
+      transportMode: 'ferry',
+    },
+    color: '#0480c1',
+    label: 'Ferry',
+  },
+  {
+    match: {
+      transportMode: 'tram',
+    },
+    color: '#9E1444',
+    label: 'Tram',
+  },
+  {
+    match: { transportMode: 'pt' },
+    color: '#05c',
+    label: 'Public Transport',
+  },
+  {
+    match: {
+      transportMode: 'rail',
+    },
+    color: '#EC0016 ',
+    label: 'Train',
+  },
+  {
+    match: { transportMode: 'train' },
+    color: '#0a0',
+    label: 'Rail',
+  },
+  {
+    match: {
+      transportMode: 'bus',
+    },
+    color: '#95276E',
+    label: 'Bus',
+  },
+  {
+    match: { id: '**' },
+    color: '#aae',
+    label: 'Other',
+  },
+] as { match: any; color: string; label: string; hide: boolean }[]
 
 class Departure {
   public total: number = 0
@@ -103,7 +248,16 @@ class Departure {
 const MyComponent = defineComponent({
   name: 'TransitViewer',
   i18n,
-  components: { CollapsiblePanel, LeftDataPanel, LegendBox, DrawingTool, ZoomButtons },
+  components: {
+    CollapsiblePanel,
+    DrawingTool,
+    LeftDataPanel,
+    LegendBox,
+    RouteDropDown,
+    TransitLayers,
+    ZoomButtons,
+    LazyList,
+  },
 
   props: {
     root: { type: String, required: true },
@@ -118,13 +272,28 @@ const MyComponent = defineComponent({
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
-      mapPopup: new Popup({
-        closeButton: false,
-        closeOnClick: false,
-      }),
+      viewId: Math.floor(1e12 * Math.random()),
+
+      icons: {
+        piechart: IconPieChart,
+        blueramp: IconBlueRamp,
+      },
+
+      loadProgress: 0,
+      loadSteps: 0,
+      totalLoadSteps: 7,
+      searchText: '',
+      //drag
+      isDraggingDivider: 0,
+      dragStartWidth: 250,
+      legendSectionWidth: 275,
+      //
+      stopHTML: { html: '', x: 0, y: 0 },
       buttonColors: ['#5E8AAE', '#BF7230', '#269367', '#9C439C'],
       metrics: metrics,
       activeMetric: metrics[0].field as any,
+      activeRoutes: [] as RouteDetails[],
+      checkedTransitLines: [] as string[],
       vizDetails: {
         transitSchedule: '',
         network: '',
@@ -132,49 +301,67 @@ const MyComponent = defineComponent({
         projection: '',
         title: '',
         description: '',
+        colors: [] as { match: any; color: string; label: string; hide: boolean }[],
       },
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      debounceHandleSearchText: {} as any,
 
       myState: {
         subfolder: '',
         yamlConfig: '',
         thumbnail: true,
       },
+
       avroNetwork: null as any,
       isDarkMode: globalStore.state.isDarkMode,
       isMapMoving: false,
+      isHighlightingLink: false,
       loadingText: 'MATSim Transit Inspector',
-      mymap: null as any,
-      mapID: `map-id-${Math.floor(1e12 * Math.random())}` as any,
-
       projection: DEFAULT_PROJECTION,
-      routesOnLink: [] as any[],
-      selectedRoute: {} as any,
+      routesOnLink: [] as RouteDetails[],
+      selectedLinkId: '',
+      selectedRouteIds: [] as string[],
+      selectedTransitLine: '',
+      selectedFeatures: [] as any[],
+      summaryStats: { departures: 0, pax: 0, loadfac: 0 },
       stopMarkers: [] as any[],
-
-      _attachedRouteLayers: [] as string[],
       _departures: {} as { [linkID: string]: Departure },
-      _linkData: null as any,
       _mapExtentXYXY: null as any,
       _maximum: -Infinity,
       _network: {} as Network,
-      _routeData: {} as { [index: string]: RouteDetails },
+      transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
+      transitLinkOffset: {} as { [linkId: string]: number },
+      routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
-      _transitLines: {} as { [index: string]: TransitLine },
+
+      transitLines: [] as TransitLine[],
+      highlightedTransitLineIds: new Set(),
+
       _roadFetcher: {} as any,
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
-      _transitLinks: null as any,
-      _geoTransitLinks: null as any,
+
+      pieSlider: 30,
+      widthSlider: 50,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
       xmlWorker: null as null | Worker,
-      cfDemand: null as crossfilter.Crossfilter<any> | null,
-      cfDemandLink: null as crossfilter.Dimension<any, any> | null,
-      hoverWait: false,
+      cfDemand1: null as crossfilter.Crossfilter<any> | null,
+      cfDemand2: null as crossfilter.Crossfilter<any> | null,
+      cfDemandLink1: null as crossfilter.Dimension<any, any> | null,
+      cfDemandLink2: null as crossfilter.Dimension<any, any> | null,
+      cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
+      cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
+
+      stopLevelDemand: {} as { [id: string]: { b: number; a: number } },
+
+      routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
+      usedLabels: [] as string[],
+
+      listComponent: RouteDropDown,
     }
   },
 
@@ -194,60 +381,286 @@ const MyComponent = defineComponent({
       return svnProject[0]
     },
 
+    routeListProps() {
+      return {
+        activeTransitLines: this.activeTransitLines,
+        selectedRoutes: this.selectedRouteIds,
+        searchTerm: this.searchTermClean,
+        color: '#06f',
+        cbToggleLineChecked: this.toggleLineChecked,
+        cbToggleLineOpen: this.toggleLineOpen,
+        cbToggleRouteChecked: this.toggleRouteChecked,
+      }
+    },
+
+    searchTermClean() {
+      return this.searchText.trim().toLocaleLowerCase()
+    },
+
+    highlightedTransitLines() {
+      const showAll = !this.highlightedTransitLineIds.size
+      this.transitLines.forEach(line => {
+        line.show = showAll || this.highlightedTransitLineIds.has(line.id)
+      })
+      return [...this.transitLines]
+    },
+
+    activeTransitLines() {
+      const lines = {} as {
+        [id: string]: { id: string; routes: RouteDetails[]; isOpen: boolean; stats: any }
+      }
+
+      this.routesOnLink.forEach(route => {
+        if (!(route.lineId in lines)) {
+          lines[route.lineId] = {
+            id: route.lineId,
+            routes: [],
+            isOpen: false,
+            stats: {
+              departures: 0,
+              pax: 0,
+              cap: 0,
+            },
+          }
+        }
+        lines[route.lineId].routes.push(route)
+      })
+
+      // fetch demand data for these links
+      const demandLookup = {} as { [routeId: string]: any[] }
+
+      this.cfDemandStop1?.filterAll()
+      this.cfDemandStop2?.filterAll()
+
+      this.cfDemandLink1?.filter(this.selectedLinkId)
+      let demandData = this.cfDemand1?.allFiltered()
+      if (demandData) {
+        demandData.forEach(row => {
+          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+          demandLookup[row.transitRoute].push(row)
+        })
+      }
+      this.cfDemandLink2?.filter(this.selectedLinkId)
+      demandData = this.cfDemand2?.allFiltered()
+      if (demandData) {
+        demandData.forEach(row => {
+          if (!(row.transitRoute in demandLookup)) demandLookup[row.transitRoute] = []
+          demandLookup[row.transitRoute].push(row)
+        })
+      }
+
+      // sort the routes
+      Object.values(lines).forEach(line => {
+        // sort by nice names
+        line.routes.sort((a, b) => naturalSort(a.id, b.id))
+
+        // statistics
+        line.routes.forEach(route => {
+          route.pax = 0
+          route.cap = 0
+          line.stats.departures += route.departures
+          const routeRuns = demandLookup[route.id]
+          if (routeRuns) {
+            const pax = routeRuns.reduce((a, b) => {
+              return a + b.passengersAtArrival
+            }, 0)
+            line.stats.pax += pax
+            route.pax += pax
+
+            const cap = routeRuns.reduce((a, b) => {
+              return a + b.totalVehicleCapacity
+            }, 0)
+            line.stats.cap += cap
+            route.cap += cap
+          }
+          route.loadfac = route.pax / route.cap
+        })
+      })
+
+      return lines
+    },
+
     legendRows(): string[][] {
-      return [
-        ['#a03919', 'Rail'],
-        ['#448', 'Bus'],
-      ]
+      return this.routeColors
+        .filter(r => this.usedLabels.includes(r.label))
+        .map(r => [r.color, r.label])
     },
   },
 
   watch: {
-    '$store.state.resizeEvents'() {
-      if (this.mymap) this.mymap.resize()
-    },
-
-    '$store.state.viewState'({ bearing, longitude, latitude, zoom, pitch }: any) {
-      // ignore my own farts; they smell like roses
-      if (!this.mymap || this.isMapMoving) {
-        this.isMapMoving = false
-        return
-      }
-
-      // sometimes closing a view returns a null map, ignore it!
-      if (!zoom) return
-
-      this.mymap.off('move', this.handleMapMotion)
-
-      this.mymap.jumpTo({
-        bearing,
-        zoom,
-        center: [longitude, latitude],
-        pitch,
-      })
-
-      this.mymap.on('move', this.handleMapMotion)
-
-      if (this.stopMarkers.length > 0) this.showTransitStops()
+    '$store.state.viewState'() {
+      if (!REACT_VIEW_HANDLES[this.viewId]) return
+      REACT_VIEW_HANDLES[this.viewId]()
     },
 
     '$store.state.colorScheme'() {
       this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
-      if (!this.mymap) return
+      this.highlightAllAttachedRoutes()
+    },
 
-      this.removeAttachedRoutes()
+    selectedRouteIds() {
+      this.showTransitRoutes()
+      this.showTransitStops()
+      this.updateSummaryStats()
+    },
 
-      this.mymap.setStyle(globalStore.getters.mapStyle)
-
-      this.mymap.on('style.load', () => {
-        if (this._geoTransitLinks) this.addTransitToMap(this._geoTransitLinks)
-        this.highlightAllAttachedRoutes()
-        if (this.selectedRoute) this.showTransitRoute(this.selectedRoute.id)
-      })
+    searchText() {
+      this.debounceHandleSearchText()
     },
   },
 
   methods: {
+    clickedLegend(e: any) {
+      console.log('boop!', e)
+    },
+
+    toggleRouteChecked(props: { route: string; isChecked: boolean }) {
+      if (props.isChecked) {
+        // highlight if checked
+        this.routesOnLink.push(this.routeData[props.route])
+      } else {
+        // remove
+        this.routesOnLink = this.routesOnLink.filter(route => route.id !== props.route)
+      }
+
+      if (this.routesOnLink.length) {
+        this.highlightAllAttachedRoutes()
+      } else {
+        this.selectedLinkId = ''
+        this.resetLinkColors()
+        this.highlightedTransitLineIds = new Set()
+        // trigger redraw
+        this.transitLinks = { ...this.transitLinks }
+      }
+
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+    },
+
+    toggleLineOpen(event: { offset: number; isOpen: boolean }) {
+      const line = this.transitLines[event.offset]
+      line.isOpen = event.isOpen
+    },
+
+    toggleLineChecked(event: { offset: number; isChecked: boolean }) {
+      const line = this.transitLines[event.offset]
+      const lineTerm = line.id.toLocaleLowerCase()
+      line.check = event.isChecked
+
+      const foundRoutes = Object.values(this.routeData).filter(
+        route => route.lineId.toLocaleLowerCase() == lineTerm
+      )
+
+      if (line.check) {
+        // add routes that are not already present
+        foundRoutes.forEach(route => {
+          if (!this.selectedRouteIds.includes(route.id)) this.routesOnLink.push(route)
+        })
+        this.selectedTransitLine = line.id
+      } else {
+        // remove highlighted routes
+        const foundIds = foundRoutes.map(r => r.id)
+        this.routesOnLink = this.routesOnLink.filter(route => !foundIds.includes(route.id))
+      }
+
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+
+      // console.log('new routes on link', this.routesOnLink)
+      if (this.routesOnLink.length) {
+        this.highlightAllAttachedRoutes()
+      } else {
+        this.selectedLinkId = ''
+        this.resetLinkColors()
+        this.highlightedTransitLineIds = new Set()
+        // trigger redraw
+        this.transitLinks = { ...this.transitLinks }
+      }
+    },
+
+    updateSummaryStats() {
+      this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
+      for (const routeId of this.selectedRouteIds) {
+        const r = this.routeData[routeId]
+        if (r.departures) this.summaryStats.departures += r.departures
+        if (r.pax) this.summaryStats.pax += r.pax
+      }
+    },
+
+    handleMapClick(e: any) {
+      if (e.index > -1 && e.layer?.id === 'linkLayer') {
+        // clicked on a link thing
+        this.clickedOnTransitLink(e.index)
+      } else if (e.index > -1) {
+        // clicked on some other object
+        return
+      } else {
+        // empty map click
+        this.handleEmptyClick(true, false)
+      }
+    },
+
+    incrementLoadProgress() {
+      this.loadSteps += 1
+      this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
+    },
+
+    handleSearchText() {
+      this.handleEmptyClick(null, true)
+      this.selectedLinkId = ''
+
+      const searchTerm = this.searchText.trim().toLocaleLowerCase()
+
+      if (!searchTerm) {
+        this.resetLinkColors()
+        return
+      }
+
+      let foundRoutes = Object.keys(this.routeData).filter(
+        routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
+      )
+
+      // show selected route snakepaths
+      this.routesOnLink = foundRoutes.map(id => this.routeData[id])
+      this.highlightAllAttachedRoutes()
+
+      // show found lines in list
+      const foundLines = this.transitLines
+        .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
+        .map(line => line.id)
+
+      this.highlightedTransitLineIds = new Set(foundLines)
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
+    },
+
+    hoverOverStop(stop: any, e: MouseEvent) {
+      this.stopHTML.html = ''
+      const lines = [] as string[]
+      if (stop.name) lines.push(`<b>${stop.name}</b>`)
+      for (const attr of ['id', 'linkRefId']) {
+        if (stop[attr]) lines.push(`${attr}: ${stop[attr]}`)
+      }
+      this.stopHTML.html = '<p>' + lines.join('<br/>') + '</p>'
+      this.stopHTML.x = stop.xy.x + 8
+      this.stopHTML.y = stop.xy.y - 36
+    },
+
+    dividerDragStart(e: MouseEvent) {
+      console.log('dragstart')
+      // console.log('dragStart', e)
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+    },
+
     async getVizDetails() {
       // are we in a dashboard?
       if (this.config) {
@@ -273,18 +686,29 @@ const MyComponent = defineComponent({
         description: '',
         demand: '',
         projection: '',
+        colors: [],
       }
 
       this.$emit('title', title)
       return true
     },
 
-    async prepareView() {
+    async findInputFiles() {
       const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
-      // Road network: first try the most obvious network filename:
-      let network =
-        this.vizDetails.network ?? this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
+      let network = this.vizDetails.network
+      // First see if we have an avro network
+      if (!network) {
+        const avroNetworkFiles = files
+          .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
+          .filter(f => f.toLocaleLowerCase().indexOf('network') > -1)
+        if (avroNetworkFiles.length) network = avroNetworkFiles[0]
+        if (avroNetworkFiles.length > 1)
+          console.warn('MULTIPLE Avro files found - using first of ', avroNetworkFiles)
+      }
+
+      // Try the most obvious network filename:
+      if (!network) network = this.myState.yamlConfig.replaceAll('transitSchedule', 'network')
 
       // if the obvious network file doesn't exist, just grab... the first network file:
       if (files.indexOf(network) == -1) {
@@ -313,9 +737,7 @@ const MyComponent = defineComponent({
       if (this.config?.projection) return this.config.projection
 
       // 0. If it's in the AVRO network, use it
-      if (networks?.roadXML?.attributes?.coordinateReferenceSystem) {
-        return networks?.roadXML?.attributes?.coordinateReferenceSystem
-      }
+      if (networks?.roadXML?.crs) return networks?.roadXML?.crs
 
       // 0. If it's in the network, use it
       if (networks?.roadXML?.network?.attributes?.attribute?.name === 'coordinateReferenceSystem') {
@@ -432,103 +854,83 @@ const MyComponent = defineComponent({
       return x < 640
     },
 
-    setupMap() {
-      try {
-        this.mymap = new maplibregl.Map({
-          bearing: 0,
-          container: this.mapID,
-          logoPosition: 'bottom-left',
-          style: globalStore.getters.mapStyle,
-          pitch: 0,
-        })
+    // setupMap() {
+    //   try {
+    //     const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
 
-        const extent = localStorage.getItem(this.$route.fullPath + '-bounds')
+    //     if (extent) {
+    //       try {
+    //         const lnglat = JSON.parse(extent)
+    //         const mFac = this.isMobile() ? 0 : 1
+    //         const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
+    //       } catch (e) {
+    //         // ignore this, it's ok
+    //       }
+    //     }
+    //   } catch (e) {
+    //     console.warn('' + e)
 
-        if (extent) {
-          try {
-            const lnglat = JSON.parse(extent)
-            const mFac = this.isMobile() ? 0 : 1
-            const padding = { top: 50 * mFac, bottom: 50 * mFac, right: 50 * mFac, left: 50 * mFac }
+    //     // no worries
+    //   }
+    // },
 
-            this.mymap.fitBounds(lnglat, {
-              animate: false,
-              padding,
-            })
-          } catch (e) {
-            // ignore this, it's ok
-          }
+    drawMetric() {
+      let widthExpression: any = 3
+
+      this.transitLinks.features.forEach((link: any) => {
+        let width = 1
+        switch (this.activeMetric) {
+          case 'departures':
+            width = link.properties.departures * 0.025
+            break
+          case 'pax':
+            width = link.properties.pax * 0.001
+            break
+          case 'loadfac':
+            width = link.properties.loadfac * 150
+            break
         }
-        // Start doing stuff AFTER the MapBox library has fully initialized
-        this.mymap.on('load', this.mapIsReady)
-        this.mymap.on('move', this.handleMapMotion)
-        this.mymap.on('click', this.handleEmptyClick)
+        link.properties.width = width
+      })
 
-        this.mymap.keyboard.disable() // so arrow keys don't pan
-      } catch (e) {
-        console.error('' + e)
-
-        // no worries
-      }
+      this.transitLinks = { ...this.transitLinks }
     },
 
     handleClickedMetric(metric: { field: string }) {
-      console.log('transit metric:', metric.field)
-
+      console.log('metric:', metric.field)
       this.activeMetric = metric.field
-
-      let widthExpression: any = 3
-
-      switch (metric.field) {
-        case 'departures':
-          widthExpression = ['max', 2, ['*', 0.03, ['get', 'departures']]]
-          break
-
-        case 'pax':
-          widthExpression = ['max', 2, ['*', 0.003, ['get', 'pax']]]
-          break
-
-        case 'loadfac':
-          widthExpression = ['max', 2, ['*', 200, ['get', 'loadfac']]]
-          break
-      }
-
-      this.mymap.setPaintProperty('transit-link', 'line-width', widthExpression)
+      this.drawMetric()
     },
 
-    handleMapMotion() {
-      const mapCamera = {
-        longitude: this.mymap.getCenter().lng,
-        latitude: this.mymap.getCenter().lat,
-        bearing: this.mymap.getBearing(),
-        zoom: this.mymap.getZoom(),
-        pitch: this.mymap.getPitch(),
+    handleEmptyClick(e: any, force?: boolean) {
+      // this is here because zeroing out the search box also cascades the zeroing out
+      // of our selected link. Bad!
+      if (!e && this.isHighlightingLink) {
+        this.isHighlightingLink = false
+        return
       }
 
-      if (!this.isMapMoving) this.$store.commit('setMapCamera', mapCamera)
-      this.isMapMoving = true
+      this.isHighlightingLink = false
+      this.highlightedTransitLineIds = new Set()
 
-      if (this.stopMarkers.length > 0) this.showTransitStops()
-    },
+      // clear search box if user clicked away
+      if (!force) this.searchText = ''
 
-    handleEmptyClick(e: mapboxgl.MapMouseEvent) {
+      // don't clear map if search box has text
+      if (this.searchText && !force) return
+
       this.removeStopMarkers()
       this.removeSelectedRoute()
-      this.removeAttachedRoutes()
+      this.resetLinkColors()
+
       this.routesOnLink = []
+      this.stopHTML.html = ''
+      this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
+
+      this.transitLinks = { ...this.transitLinks }
     },
 
-    showRouteDetails(routeID: string) {
-      if (!routeID && !this.selectedRoute) return
-
-      console.log({ routeID })
-
-      if (routeID) this.showTransitRoute(routeID)
-      else this.showTransitRoute(this.selectedRoute.id)
-
-      this.showTransitStops()
-    },
-
-    async mapIsReady() {
+    async loadEverything() {
       const networks = await this.loadNetworks()
       const projection = await this.guessProjection(networks)
       this.vizDetails.projection = projection
@@ -591,6 +993,7 @@ const MyComponent = defineComponent({
     },
 
     async loadAvroRoadNetwork() {
+      console.log('LOADING AVRO:', this.vizDetails.network)
       const filename = `${this.subfolder}/${this.vizDetails.network}`
       const blob = await this.fileApi.getFileBlob(filename)
 
@@ -619,6 +1022,7 @@ const MyComponent = defineComponent({
         if (!this.fileSystem || !this.vizDetails.network || !this.vizDetails.transitSchedule) return
 
         this.loadingText = 'Loading networks...'
+        this.incrementLoadProgress()
 
         const filename = this.vizDetails.network
 
@@ -659,24 +1063,38 @@ const MyComponent = defineComponent({
     },
 
     loadDemandData(filename: string): Promise<any[]> {
+      this.totalLoadSteps += 3
+      this.loadingText = 'Loading demand...'
+
       const promise: Promise<any[]> = new Promise<any[]>((resolve, reject) => {
         if (!filename) resolve([])
-        this.loadingText = 'Loading demand...'
+        this.incrementLoadProgress()
+
         const worker = new GzipWorker() as Worker
 
         worker.onmessage = (event: MessageEvent) => {
           this.loadingText = 'Processing demand...'
-          const csvData = new TextDecoder('utf-8').decode(event.data)
+          this.incrementLoadProgress()
+
           worker.terminate()
+
+          if (event.data.error) {
+            this.$emit('error', event.data.error)
+            this.loadingText = ''
+            return
+          }
+
+          const csvData = new TextDecoder('utf-8').decode(event.data)
 
           Papa.parse(csvData, {
             // preview: 10000,
             header: true,
             skipEmptyLines: true,
-            dynamicTyping: true,
+            dynamicTyping: false,
             worker: true,
             complete: (results: any) => {
-              resolve(this.processDemand(results))
+              const result = this.processDemand(results)
+              resolve(result)
             },
           })
         }
@@ -691,36 +1109,115 @@ const MyComponent = defineComponent({
 
     processDemand(results: any) {
       // todo: make sure meta contains fields we need!
-      this.loadingText = 'Processing demand data...'
+      this.loadingText = 'Summarizing demand data...'
+      this.incrementLoadProgress()
 
-      // build crossfilter
-      console.log('BUILD crossfilter')
-      this.cfDemand = crossfilter(results.data)
-      this.cfDemandLink = this.cfDemand.dimension((d: any) => d.linkIdsSincePreviousStop)
+      const numericCols = [
+        'passengersAtAlighting',
+        'passengersAtArrival',
+        'passengersBoarding',
+        'stopSequence',
+        'totalVehicleCapacity',
+      ]
+      results.data.forEach((row: any) => {
+        for (const key of numericCols) row[key] = parseFloat(row[key])
+      })
 
-      // build link-level passenger ridership
-      console.log('COUNTING RIDERSHIP')
+      // build TWO crossfilters so memory doesn't freak out
+      const midpoint = Math.floor(results.data.length / 2)
+      const data1 = results.data.slice(0, midpoint)
+      const data2 = results.data.slice(midpoint)
 
+      // everything is doubled because crossfilter fails above ~1million rows
+      // splitting the dataset into halves gets us to ~2million...
+      this.cfDemand1 = crossfilter(data1)
+      this.cfDemand2 = crossfilter(data2)
+      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
+      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
+
+      // stop-level demand
+      const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
+      const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
+
+      const stop1 = dimStop1.group()
+      const stop2 = dimStop2.group()
+      stop1
+        .reduceSum((d: any) => d.passengersBoarding)
+        .all()
+        .map(row => {
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any] = { b: row.value as number, a: 0 }
+        })
+      stop2
+        .reduceSum((d: any) => d.passengersBoarding)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].b += row.value as number
+        })
+      stop1
+        .reduceSum((d: any) => d.passengersAlighting)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].a += row.value as number
+        })
+      stop2
+        .reduceSum((d: any) => d.passengersAlighting)
+        .all()
+        .map(row => {
+          if (!this.stopLevelDemand[row.key as any])
+            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
+          if (Number.isFinite(row.value))
+            this.stopLevelDemand[row.key as any].a += row.value as number
+        })
+      dimStop1.dispose()
+      dimStop2.dispose()
+
+      // build link-level passenger ridership ----------
       const linkPassengersById = {} as any
-      const group = this.cfDemandLink.group()
-      group
+
+      const group1 = this.cfDemandLink1.group()
+      const group2 = this.cfDemandLink2.group()
+
+      // pax ridership
+      group1
         .reduceSum((d: any) => d.passengersAtArrival)
         .all()
         .map(link => {
           linkPassengersById[link.key as any] = link.value
         })
+      group2
+        .reduceSum((d: any) => d.passengersAtArrival)
+        .all()
+        .map(link => {
+          if (!linkPassengersById[link.key as any]) linkPassengersById[link.key as any] = link.value
+          linkPassengersById[link.key as any] += link.value
+        })
 
-      // and pax load-factors
+      // veh capacities
       const capacity = {} as any
-      group
+      group1
         .reduceSum((d: any) => d.totalVehicleCapacity)
         .all()
         .map(link => {
           capacity[link.key as any] = link.value
         })
+      group2
+        .reduceSum((d: any) => d.totalVehicleCapacity)
+        .all()
+        .map(link => {
+          if (!capacity[link.key as any]) capacity[link.key as any] = link.value
+          capacity[link.key as any] += link.value
+        })
 
       // update passenger value in the transit-link geojson.
-      for (const transitLink of this._transitLinks.features) {
+      for (const transitLink of this.transitLinks.features) {
+        if (!transitLink.properties) transitLink.properties = {}
         transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
         transitLink.properties['cap'] = capacity[transitLink.properties.id]
         transitLink.properties['loadfac'] =
@@ -735,19 +1232,18 @@ const MyComponent = defineComponent({
         { field: 'loadfac', name_en: 'Load Factor', name_de: 'Auslastung' },
       ])
 
-      const source = this.mymap.getSource('transit-source') as GeoJSONSource
-      source.setData(this._transitLinks)
-
-      this.loadingText = ''
+      this.loadProgress = 100
       return []
     },
 
     async processInputs(networks: NetworkInputs) {
-      this.loadingText = 'Preparing...'
+      this.loadingText = 'Examining networks...'
+      this.incrementLoadProgress()
+
       // spawn transit helper web worker
       this._transitHelper = new TransitSupplyWorker()
 
-      this._transitHelper.onmessage = async (buffer: MessageEvent) => {
+      this._transitHelper.onmessage = (buffer: MessageEvent) => {
         this.receivedProcessedTransit(buffer)
       }
 
@@ -760,37 +1256,72 @@ const MyComponent = defineComponent({
     async receivedProcessedTransit(buffer: MessageEvent) {
       if (buffer.data.status) {
         this.loadingText = buffer.data.status
+        this.incrementLoadProgress()
         return
       }
 
       if (buffer.data.error) {
         console.error(buffer.data.error)
-        this.$emit('error', buffer.data.error)
+        this.$emit('error', '' + buffer.data.error)
+        this.loadingText = ''
         return
       }
 
       const { network, routeData, stopFacilities, transitLines, mapExtent } = buffer.data
 
       this._network = network
-      this._routeData = routeData
+      this.routeData = routeData
       this._stopFacilities = stopFacilities
-      this._transitLines = transitLines
+      this.transitLines = transitLines
       this._mapExtentXYXY = mapExtent
 
       this._transitHelper.terminate()
 
       this.loadingText = 'Summarizing departures...'
+      this.incrementLoadProgress()
+
+      // Use custom colors if they exist, otherwise use defaults
+      //@ts-ignore
+      const customColors = this.vizDetails.customRouteTypes || this.vizDetails.colors || null
+      if (customColors && Array.isArray(customColors) && customColors.length > 0) {
+        this.routeColors = customColors
+      } else if (customColors && !Array.isArray(customColors)) {
+        this.$emit('error', 'YAML colors must be a list of rules, see docs')
+        this.routeColors = DEFAULT_ROUTE_COLORS
+      } else {
+        this.routeColors = DEFAULT_ROUTE_COLORS
+      }
 
       await this.processDepartures()
 
       // Build the links layer and add it
-      this._transitLinks = await this.constructDepartureFrequencyGeoJson()
-      this.addTransitToMap(this._transitLinks)
+      this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      // don't keep the network lying around wasting memory
+      this._network = { links: {}, nodes: {} }
+      // build the lookup for transit links by linkId
+      this.transitLinkOffset = {}
+      this.transitLinks.features.forEach((feature: any, i: number) => {
+        //@ts-ignore
+        this.transitLinkOffset[feature.properties.id] = i
+      })
 
+      this.drawMetric()
       this.handleClickedMetric({ field: 'departures' })
 
+      const longitude = 0.5 * (this._mapExtentXYXY[0] + this._mapExtentXYXY[2])
+      const latitude = 0.5 * (this._mapExtentXYXY[1] + this._mapExtentXYXY[3])
+
+      const span = Math.abs(this._mapExtentXYXY[0] - this._mapExtentXYXY[2])
+      const zoom = Math.floor(Math.log2(360 / span))
+
+      this.$store.commit('setMapCamera', {
+        longitude,
+        latitude,
+        zoom,
+        initial: true,
+      })
+
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
-      this.mymap.fitBounds(this._mapExtentXYXY, { animate: false })
 
       if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
 
@@ -799,84 +1330,33 @@ const MyComponent = defineComponent({
 
     async processDepartures() {
       this.loadingText = 'Processing departures...'
+      this.incrementLoadProgress()
 
-      for (const id in this._transitLines) {
-        if (this._transitLines.hasOwnProperty(id)) {
-          const transitLine = this._transitLines[id]
-          for (const route of transitLine.transitRoutes) {
-            for (const linkID of route.route) {
-              if (!(linkID in this._departures))
-                this._departures[linkID] = { total: 0, routes: new Set() }
+      for (const transitLine of this.transitLines) {
+        transitLine.transitRoutes.sort((a, b) => naturalSort(a.id, b.id))
 
-              this._departures[linkID].total += route.departures
-              this._departures[linkID].routes.add(route.id)
-
-              this._maximum = Math.max(this._maximum, this._departures[linkID].total)
+        for (const route of transitLine.transitRoutes) {
+          for (const linkID of route.route) {
+            if (!(linkID in this._departures)) {
+              this._departures[linkID] = { total: 0, routes: new Set() }
             }
+            this._departures[linkID].total += route.departures
+            this._departures[linkID].routes.add(route.id)
           }
         }
       }
-    },
 
-    addTransitToMap(geodata: any) {
-      this._geoTransitLinks = geodata
-
-      this.mymap.addSource('transit-source', {
-        data: geodata,
-        type: 'geojson',
-      } as any)
-
-      this.mymap.addLayer({
-        id: 'transit-link',
-        source: 'transit-source',
-        type: 'line',
-        paint: {
-          'line-opacity': 1.0,
-          'line-width': 1,
-          'line-color': ['get', 'color'],
-        },
-      })
-
-      this.mymap.on('click', 'transit-link', (e: maplibregl.MapMouseEvent) => {
-        this.clickedOnTransitLink(e)
-      })
-
-      // turn "hover cursor" into a pointer, so user knows they can click.
-      this.mymap.on('mousemove', 'transit-link', (e: maplibregl.MapLayerMouseEvent) => {
-        this.mymap.getCanvas().style.cursor = e ? 'pointer' : 'grab'
-        this.hoveredOnElement(e)
-      })
-
-      // and back to normal when they mouse away
-      this.mymap.on('mouseleave', 'transit-link', () => {
-        this.mymap.getCanvas().style.cursor = 'grab'
-        this.mapPopup.remove()
-      })
-    },
-
-    hoveredOnElement(event: any) {
-      const props = event.features[0].properties
-
-      let content = '<div class="map-popup">'
-
-      for (const metric of this.metrics) {
-        let label = this.$i18n.locale == 'de' ? metric.name_de : metric.name_en
-        label = label.replaceAll(' ', '&nbsp;')
-
-        if (!isNaN(props[metric.field]))
-          content += `
-          <div style="display: flex">
-            <div>${label}:&nbsp;&nbsp;</div>
-            <b style="margin-left: auto; text-align: right">${props[metric.field]}</b>
-          </div>`
-      }
-
-      content += '<div>'
-      this.mapPopup.setLngLat(event.lngLat).setHTML(content).addTo(this.mymap)
+      // get max so we can scale line widths nicely
+      Object.values(this._departures).forEach(
+        e => (this._maximum = Math.max(this._maximum, e.total))
+      )
     },
 
     async constructDepartureFrequencyGeoJson() {
-      const geojson = []
+      const geojson = [] as any
+      this.usedLabels = []
+
+      const allCoords = this.avroNetwork?.nodeCoordinates
 
       for (const linkID in this._departures) {
         if (this._departures.hasOwnProperty(linkID)) {
@@ -887,13 +1367,13 @@ const MyComponent = defineComponent({
 
           try {
             if (this.avroNetwork) {
-              // link is an INDEX to the link column arrays
-              const nodeFrom = this.avroNetwork.from[link]
-              const nodeTo = this.avroNetwork.to[link]
-
-              const coordsFrom = this.avroNetwork.__nodes[nodeFrom]
-              const coordsTo = this.avroNetwork.__nodes[nodeTo]
-              coordinates = [coordsFrom, coordsTo]
+              // link is an INDEX to the node column arrays
+              const offsetFrom = 2 * this.avroNetwork.from[link]
+              const offsetTo = 2 * this.avroNetwork.to[link]
+              coordinates = [
+                [allCoords[offsetFrom], allCoords[1 + offsetFrom]],
+                [allCoords[offsetTo], allCoords[1 + offsetTo]],
+              ]
             } else {
               // link is an object with values
               coordinates = [
@@ -907,50 +1387,131 @@ const MyComponent = defineComponent({
           }
 
           const departures = this._departures[linkID].total
+          const routes = [...this._departures[linkID].routes]
 
-          // shift scale from 0->1 to 0.25->1.0, because dark blue is hard to see on a black map
-          const ratio = 0.25 + (0.75 * (departures - 1)) / this._maximum
-          const colorBin = Math.floor(COLOR_CATEGORIES * ratio)
+          // TODO for now take color from... first route?
+          // for (const routeId of this._departures[linkID].routes) {
+          const routeId = routes[0]
 
-          let isRail = true
-          for (const route of this._departures[linkID].routes) {
-            if (this._routeData[route].transportMode === 'bus') {
-              isRail = false
+          const { color, hideThisLine } = this.determineRouteColor(routeId)
+
+          // Add the line to the geojson array only if the line should not be hidden
+          if (!hideThisLine) {
+            let line = {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: coordinates,
+              },
+              properties: {
+                ...this.$props,
+                color,
+                departures: departures,
+                id: linkID,
+                from: link.from,
+                to: link.to,
+                currentColor: color,
+              },
             }
+            line = this.offsetLineByMeters(line, 5)
+            geojson.push(line)
           }
-
-          let line = {
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: coordinates,
-            },
-            properties: {
-              color: isRail ? '#a03919' : _colorScale[colorBin],
-              colorBin: colorBin,
-              departures: departures,
-              // pax: 0,
-              // loadfac: 0,
-              // cap: 0,
-              id: linkID,
-              isRail: isRail,
-              from: link.from, // _stopFacilities[fromNode].name || fromNode,
-              to: link.to, // _stopFacilities[toNode].name || toNode,
-            },
-          }
-
-          line = this.offsetLineByMeters(line, 15)
-          geojson.push(line)
         }
       }
 
-      geojson.sort(function (a: any, b: any) {
-        if (a.isRail && !b.isRail) return -1
-        if (b.isRail && !a.isRail) return 1
-        return 0
-      })
+      return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
+    },
 
-      return { type: 'FeatureCollection', features: geojson }
+    determineRouteColor(id: string) {
+      let color = '#888'
+      let hideThisLine = false // stores if this line should be hidden from view
+
+      const props = this.routeData[id] as any
+      // routeColors is a list of possible matches by GTFS code, modestring, etc.
+      // For each route, we loop through the list of metrics.  The first set of
+      // match conditions that match all parameters determines the route color.
+      for (const config of this.routeColors) {
+        hideThisLine = false
+        if (config.hide) hideThisLine = true
+
+        let matched = true
+
+        // loop through all parameters in this match definition
+        // be nice to user: match can be a list or an object
+        let matchRules = config.match
+        try {
+          if (Array.isArray(matchRules)) {
+            const newRules = {} as any
+            for (const row of matchRules) {
+              const [key, value] = Object.entries(row)[0]
+              newRules[key] = value
+            }
+            matchRules = newRules
+          }
+        } catch (e) {
+          console.warn('Match rules malformed', matchRules)
+        }
+
+        for (const [key, pattern] of Object.entries(matchRules) as any[]) {
+          const valueForThisProp = props[key]
+          // fail if route doesn't include this match property
+          if (!valueForThisProp) {
+            matched = false
+            break
+          }
+
+          // because the gtfsRouteType is an integer or an integer array micromatch doesn't work
+          if (key === 'gtfsRouteType') {
+            if (Array.isArray(pattern)) {
+              // array of gtfs values
+              if (!pattern.includes(valueForThisProp)) {
+                matched = false
+                break
+              }
+            } else {
+              // numeric - just one value
+              if (valueForThisProp !== pattern) {
+                matched = false
+                break
+              }
+            }
+          } else {
+            // text-match the pattern
+            if (!match.isMatch(valueForThisProp, pattern)) {
+              matched = false
+              break
+            }
+          }
+        }
+        // Set color and stop searching after first successful match
+        // the label will only be added if the route should not be hidden
+        if (matched) {
+          color = config.color
+          if (!this.usedLabels.includes(config.label) && !hideThisLine)
+            this.usedLabels.push(config.label)
+          break
+        }
+      }
+      // no rules matched; sad!
+      if (color == '#888') console.log('OHE NOES', id)
+
+      // save color in the route props before returning. HA! Side effects, woot! :-/
+      // convert css colors to rgb[]
+      const rgb = Array.isArray(color) ? color : this.colorToRGB(color)
+      props.color = rgb
+
+      return { color: rgb, hideThisLine }
+    },
+
+    colorToRGB(colorString: string) {
+      try {
+        const rgb = color(colorString)
+        if (!rgb) return [0, 0, 0]
+        // d3.color provides r, g, b properties directly
+        return [rgb.r, rgb.g, rgb.b]
+      } catch (error) {
+        return [0, 0, 0]
+      }
     },
 
     offsetLineByMeters(line: any, metersToTheRight: number) {
@@ -965,201 +1526,252 @@ const MyComponent = defineComponent({
 
     removeStopMarkers() {
       this.stopMarkers = []
+      this.stopHTML.html = ''
     },
 
-    async showTransitStops() {
-      this.removeStopMarkers()
+    XXtoggleTransitLine(line: any) {
+      line.isOpen = !line.isOpen
 
-      const route = this.selectedRoute
-      const stopSizeClass = 'stopmarker' // this.mymap.getZoom() > SHOW_STOPS_AT_ZOOM_LEVEL ? 'stop-marker-big' : 'stop-marker'
-      const mapBearing = this.mymap.getBearing()
+      if (line.isOpen) {
+        // upon open, highlight ALL routes that are in this transit-line
+        this.selectedTransitLine = line.id
 
-      let bearing
-
-      for (const [i, stop] of route.routeProfile.entries()) {
-        const coord = [this._stopFacilities[stop.refId].x, this._stopFacilities[stop.refId].y]
-        // recalc bearing for every node except the last
-        if (i < route.routeProfile.length - 1) {
-          const point1 = turf.point([coord[0], coord[1]])
-          const point2 = turf.point([
-            this._stopFacilities[route.routeProfile[i + 1].refId].x,
-            this._stopFacilities[route.routeProfile[i + 1].refId].y,
-          ])
-          bearing = turf.bearing(point1, point2) - mapBearing // so icons rotate along with map
-        }
-
-        const xy = this.mymap.project([coord[0], coord[1]])
-
-        // every marker has a latlng coord and a bearing
-        const marker = { i, bearing, xy: { x: Math.floor(xy.x), y: Math.floor(xy.y) } }
-        this.stopMarkers.push(marker)
-      }
-    },
-
-    showTransitRoute(routeID: string) {
-      if (!routeID) return
-
-      const route = this._routeData[routeID]
-      // console.log({ selectedRoute: route })
-
-      this.selectedRoute = route
-
-      const source = this.mymap.getSource('selected-route-data') as GeoJSONSource
-      if (source) {
-        source.setData(route.geojson)
+        this.selectAllRoutesInLine(line)
       } else {
-        this.mymap.addSource('selected-route-data', {
-          data: route.geojson,
-          type: 'geojson',
-        })
+        // de-highlight upon closing
+        this.selectedTransitLine = ''
+        this.removeStopMarkers()
+        this.removeSelectedRoute()
       }
 
-      if (!this.mymap.getLayer('selected-route')) {
-        this.mymap.addLayer({
-          id: 'selected-route',
-          source: 'selected-route-data',
-          type: 'line',
-          paint: {
-            'line-opacity': 1.0,
-            'line-width': 5, // ['get', 'width'],
-            'line-color': '#097c43', // ['get', 'color'],
-          },
-        })
+      this.$forceUpdate()
+    },
+
+    selectAllRoutesInLine(line: { routes: RouteDetails[] }) {
+      const selectedIds = line.routes.map(route => route.id)
+      this.selectedRouteIds = selectedIds
+      this.showTransitRoutes()
+      this.showTransitStops()
+    },
+
+    showRouteDetails(routeID: string, numRoutes: number) {
+      // special case: if ALL routes in the current line are selected, AND nothing else is selected,
+      // AND the user just asked to remove "one" route, they probably want to see JUST that route
+      if (numRoutes > 1 && this.selectedRouteIds.length == numRoutes) {
+        this.selectedRouteIds = [routeID]
+      } else {
+        const shownRoutes = new Set(this.selectedRouteIds)
+
+        if (shownRoutes.has(routeID)) shownRoutes.delete(routeID)
+        else shownRoutes.add(routeID)
+
+        this.selectedRouteIds = [...shownRoutes]
       }
+
+      this.showTransitRoutes()
+      this.showTransitStops()
+    },
+
+    showTransitStops() {
+      const markers = {} as { [stopId: string]: any }
+
+      this.selectedRouteIds.forEach(routeId => {
+        const route = this.routeData[routeId]
+
+        const allStops = route.routeProfile
+        const numStops = allStops.length
+        // purposely unitialized so that final stop retains previous value
+        let bearing
+
+        for (const [i, stop] of allStops.entries()) {
+          // figure out bearing direction for stop icon
+          const startFacility = this._stopFacilities[stop.refId]
+          const startCoord = turf.point([startFacility.x, startFacility.y])
+          if (i < numStops - 1) {
+            const endFacility = this._stopFacilities[route.routeProfile[i + 1].refId]
+            const endCoord = turf.point([endFacility.x, endFacility.y])
+            // deck.gl layer will rotate these bearing along with the map
+            bearing = turf.bearing(startCoord, endCoord)
+          }
+
+          // every marker has a latlng coord and a bearing
+          const marker = {
+            i,
+            bearing,
+            xy: [startFacility.x, startFacility.y],
+            name: startFacility.name || '',
+            id: startFacility.id || '',
+            linkRefId: startFacility.linkRefId || '',
+          } as any
+
+          // figure out boardings/alightings at each stop
+          if (this.stopLevelDemand) {
+            const ridership = this.stopLevelDemand[stop.refId]
+            if (ridership) {
+              marker.boardings = ridership.b
+              marker.alightings = ridership.a
+            }
+          }
+
+          // merge stop-level stats for routes that share the same stop
+          if (marker.id in markers) {
+            markers[marker.id].boardings += marker.boardings
+            markers[marker.id].alightings += marker.alightings
+          } else {
+            markers[marker.id] = marker
+          }
+        }
+      })
+
+      this.stopMarkers = Object.values(markers)
+    },
+
+    showTransitRoutes() {
+      this.stopHTML.html = ''
+
+      const featureCollection = [] as any[]
+
+      this.selectedRouteIds.forEach(id => {
+        const route = this.routeData[id]
+        featureCollection.push(route.geojson)
+      })
+
+      this.selectedFeatures = featureCollection
     },
 
     removeSelectedRoute() {
-      if (this.selectedRoute) {
-        try {
-          this.mymap.removeLayer('selected-route')
-        } catch (e) {
-          // oh well
-        }
-        this.selectedRoute = null
-      }
+      this.selectedFeatures = []
+      this.selectedRouteIds = []
     },
 
-    clickedOnTransitLink(e: any) {
+    clickedOnTransitLink(index: number) {
+      this.isHighlightingLink = true
       this.removeStopMarkers()
       this.removeSelectedRoute()
 
       // the browser delivers some details that we need, in the fn argument 'e'
-      const props = e.features[0].properties
+      const props = this.transitLinks.features[index].properties
+
+      this.selectedLinkId = props.id
       const routeIDs = this._departures[props.id].routes
 
-      this.calculatePassengerVolumes(props.id)
+      // overall link statistics
+      let empty = { departures: 0, pax: 0, loadfac: 0 }
+      const foundLink = this.transitLinks[this.transitLinkOffset[props.id]]
+      this.summaryStats = foundLink ? foundLink.properties : empty
 
+      // routes and lines on this link
       const routes = []
+      const lines = new Set()
       for (const id of routeIDs) {
-        routes.push(this._routeData[id])
+        const details = this.routeData[id]
+        details.color = props.color
+        details.currentColor = props.color
+        routes.push(details)
+        lines.add(details.lineId)
       }
-
-      // sort by highest departures first
-      routes.sort(function (a, b) {
-        return a.departures > b.departures ? -1 : 1
-      })
 
       this.routesOnLink = routes
+
+      // highlight selected routes
       this.highlightAllAttachedRoutes()
+      this.selectedRouteIds = this.routesOnLink.map(route => route.id)
 
-      // highlight the first route, if there is one
-      if (routes.length > 0) this.showRouteDetails(routes[0].id)
+      // tell right-panel which lines are highlighted
+      this.highlightedTransitLineIds = lines
     },
 
-    calculatePassengerVolumes(id: string) {
-      if (!this.cfDemandLink || !this.cfDemand) return
-
-      this.cfDemandLink.filter(id)
-
-      const allLinks = this.cfDemand.allFiltered()
-      let sum = 0
-
-      allLinks.map(d => {
-        sum = sum + d.passengersBoarding + d.passengersAtArrival - d.passengersAlighting
-      })
-
-      // console.log({ sum, allLinks })
-    },
-
-    removeAttachedRoutes() {
-      for (const layerID of this._attachedRouteLayers) {
-        try {
-          this.mymap.removeLayer('route-' + layerID)
-          this.mymap.removeSource('source-route-' + layerID)
-        } catch (e) {
-          //meh
+    resetLinkColors(color?: number[]) {
+      if (color) {
+        for (const link of this.transitLinks.features) {
+          link.properties.currentColor = color
+          link.properties.sort = 0
+        }
+      } else {
+        for (const link of this.transitLinks.features) {
+          link.properties.currentColor = link.properties.color
+          link.properties.sort = 1
         }
       }
-      this._attachedRouteLayers = []
     },
 
     highlightAllAttachedRoutes() {
-      this.removeAttachedRoutes()
+      if (!this.transitLinks) return
 
-      for (const route of this.routesOnLink) {
-        this.mymap.addSource('source-route-' + route.id, {
-          data: route.geojson,
-          type: 'geojson',
-        })
-        this.mymap.addLayer({
-          id: 'route-' + route.id,
-          source: 'source-route-' + route.id,
-          type: 'line',
-          paint: {
-            'line-opacity': 0.7,
-            'line-width': 8, // ['get', 'width'],
-            'line-color': '#ccff33', // ['get', 'color'],
-          },
-        })
-        this._attachedRouteLayers.push(route.id)
+      if (this.routesOnLink.length) {
+        const gray = this.colorToRGB(this.isDarkMode ? '#333344' : '#ccccdd')
+        this.resetLinkColors(gray)
+      } else {
+        this.resetLinkColors()
       }
+
+      for (const routeDetails of this.routesOnLink) {
+        for (const linkId of routeDetails.route) {
+          const offset = this.transitLinkOffset[linkId]
+          const transitLink = this.transitLinks.features[offset]
+          transitLink.properties.currentColor = routeDetails.color || transitLink.properties.color
+          transitLink.properties.sort = 5
+        }
+      }
+
+      // selected link all the way on top
+      if (this.selectedLinkId) {
+        const selectedLink = this.transitLinks.features[this.transitLinkOffset[this.selectedLinkId]]
+        selectedLink.properties.currentColor = this.colorToRGB('#f4f')
+        selectedLink.properties.sort = 5
+      }
+
+      // trigger redraw
+      this.transitLinks = { ...this.transitLinks }
     },
 
     pressedEscape() {
+      console.log('ESC')
       this.removeSelectedRoute()
       this.removeStopMarkers()
-      this.removeAttachedRoutes()
-
-      this.selectedRoute = null
+      this.resetLinkColors()
       this.routesOnLink = []
     },
 
     pressedArrowKey(delta: number) {
-      if (!this.selectedRoute) return
+      return
+      // if (!this.selectedRouteIds.length) return
 
-      let i = this.routesOnLink.indexOf(this.selectedRoute)
-      i = i + delta
+      // let i = this.routesOnLink.indexOf(this.selectedRoute)
+      // i = i + delta
 
-      if (i < 0 || i >= this.routesOnLink.length) return
+      // if (i < 0 || i >= this.routesOnLink.length) return
 
-      this.showRouteDetails(this.routesOnLink[i].id)
+      // this.showRouteDetails(this.routesOnLink[i].id)
     },
 
     clearData() {
-      this._attachedRouteLayers = []
       this._departures = {}
       this._mapExtentXYXY = [180, 90, -180, -90]
       this._maximum = 0
       this._network = { nodes: {}, links: {} }
-      this._routeData = {}
+      this.routeData = {}
       this._stopFacilities = {}
-      this._transitLinks = null
-      this._transitLines = {}
-      this.selectedRoute = null
-      this.cfDemand = null
-      this.cfDemandLink?.dispose()
+      this.transitLinks = { type: 'FeatureCollection', features: [] }
+      this.transitLines = []
+      this.selectedRouteIds = []
+      this.cfDemand1 = null
+      this.cfDemand2 = null
+      this.cfDemandLink1?.dispose()
+      this.cfDemandLink2?.dispose()
+      this.cfDemandStop1?.dispose()
+      this.cfDemandStop2?.dispose()
       this.resolvers = {}
       this.routesOnLink = []
-      this.selectedRoute = {}
       this.stopMarkers = []
-      this._linkData = null
-      this._geoTransitLinks = null
+      this.searchText = ''
     },
   },
 
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
+    this.debounceHandleSearchText = debounce(this.handleSearchText, 350)
     this.clearData()
 
     this._roadFetcher = new NewXmlFetcher()
@@ -1176,13 +1788,11 @@ const MyComponent = defineComponent({
 
     if (this.thumbnail) return
 
-    await this.prepareView()
-    this.setupMap()
+    await this.findInputFiles()
+    this.loadEverything()
   },
 
   beforeDestroy() {
-    if (this.mymap) this.mymap.remove()
-
     this.clearData()
 
     if (this.xmlWorker) this.xmlWorker.terminate()
@@ -1210,31 +1820,23 @@ export default MyComponent
 
 h4,
 p {
-  margin: 0px 10px;
-}
-
-.transit-popup {
-  padding: 0px 0px;
   margin: 0px 0px;
-  border-style: solid;
-  border-width: 0px 0px 0px 20px;
 }
 
 .transit-viz {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   position: relative;
-  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
   background-size: cover;
-  pointer-events: none;
 }
 
 .map-container {
   position: relative;
   flex: 1;
-  pointer-events: auto;
   background: url('assets/thumbnail.jpg') no-repeat;
   background-color: #eee;
   background-size: cover;
@@ -1246,47 +1848,23 @@ p {
   z-index: 0;
 }
 
-.control-panel {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: row;
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem 0.5rem;
-  pointer-events: auto;
-  background-color: var(--bgPanel);
-  padding: 0.5rem 0.5rem;
-  filter: drop-shadow(0px 2px 4px #22222233);
-}
-
-.is-dashboard {
-  position: static;
-  margin: 0 0;
-  padding: 0.25rem 0 0 0;
-  filter: unset;
-  background-color: unset;
-}
-
 .legend {
   background-color: var(--bgPanel);
   padding: 0.25rem 0.5rem;
-  position: absolute;
-  bottom: 3.5rem;
-  right: 0.5rem;
 }
 
-.control-label {
-  margin: 0 0;
-  font-size: 0.8rem;
-  font-weight: bold;
+.summary-stats {
+  border: 1px solid #80808040;
+  margin: 0.5rem 0.25rem 0 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.2rem;
 }
 
 .route {
-  padding: 5px 0px;
+  padding: 5px 0px 5px 1.5rem;
   text-align: left;
   color: var(--text);
-  border-left: solid 8px #00000000;
-  border-right: solid 8px #00000000;
 }
 
 .route:hover {
@@ -1301,10 +1879,9 @@ h3 {
 }
 
 .route-title {
-  font-size: 1rem;
   font-weight: bold;
   line-height: 1.2rem;
-  margin-left: 10px;
+  margin: 0;
   color: var(--link);
 }
 
@@ -1323,7 +1900,6 @@ h3 {
 
 .highlightedRoute {
   background-color: #faffae;
-  border-left: solid 8px #606aff;
   color: black;
 }
 
@@ -1363,6 +1939,16 @@ h3 {
   }
 }
 
+.stop-html {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: var(--bgPanel);
+  padding: 0.25rem;
+  line-height: 1.1rem;
+  z-index: 2;
+}
+
 .stop-marker {
   position: absolute;
   width: 12px;
@@ -1370,6 +1956,8 @@ h3 {
   background: url('assets/icon-stop-triangle.png') no-repeat;
   transform: translate(-50%, -50%);
   background-size: 100%;
+  // pointer-events: none;
+  z-index: 1;
   cursor: pointer;
 }
 
@@ -1377,37 +1965,14 @@ h3 {
   color: #ccc;
 }
 
-.left-side {
-  position: absolute;
-  top: 0;
-  left: 0;
-  margin-bottom: auto;
-  margin-right: auto;
-  display: flex;
-  flex-direction: row;
-  pointer-events: auto;
-  max-height: 40%;
-  max-width: 80%;
-  opacity: 0.96;
-}
-
-.right-side {
-  z-index: 1;
-  position: absolute;
-  bottom: 3.75rem;
-  right: 0;
-  color: white;
-  display: flex;
-  flex-direction: row;
-  pointer-events: auto;
-}
-
 .panel-items {
   color: var(--text);
   display: flex;
   flex-direction: column;
-  margin: 0 0;
-  max-height: 100%;
+  overflow-y: auto;
+  // position: relative;
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .panel-item {
@@ -1420,14 +1985,15 @@ h3 {
 }
 
 .route-list {
+  position: absolute;
+  top: 0;
+  bottom: 0;
   user-select: none;
-  position: relative;
-  flex: 1;
-  overflow-y: auto;
   overflow-x: hidden;
   cursor: pointer;
   scrollbar-color: #888 var(--bgCream);
   -webkit-scrollbar-color: #888 var(--bgCream);
+  width: 100%;
 
   h3 {
     font-size: 1.2rem;
@@ -1442,20 +2008,28 @@ h3 {
 .metric-buttons {
   display: flex;
   flex-direction: row;
+  gap: 0px;
+  margin: 0.25rem 0.5rem 0.5rem 0;
 }
 
 .metric-button {
-  margin-right: 0.5rem;
+  border-radius: 0;
+  flex: 1;
 }
 
 .detailed-route-data {
   display: flex;
   flex-direction: row;
+  color: #666;
+  font-weight: normal;
+  gap: 0.5rem;
 }
 
 .col {
   display: flex;
   flex-direction: column;
+  line-height: 1.1rem;
+  color: #666;
 }
 
 .map-styles {
@@ -1470,14 +2044,14 @@ h3 {
   right: 0;
   z-index: 15;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   background-color: var(--bgPanel);
-  padding: 0rem 3rem;
-  margin: auto 5rem;
-  height: 4rem;
-  text-align: center;
-  border: 1px solid #cccccc80;
-  filter: $filterShadow;
+  padding: 0.5rem 3rem;
+  margin: auto auto;
+  width: 25rem;
+  height: 5rem;
+  border: 3px solid #cccccc80;
+  // filter: $filterShadow;
 
   a {
     color: white;
@@ -1492,10 +2066,159 @@ h3 {
     color: var(--textFancy);
     font-weight: normal;
     font-size: 1.3rem;
-    line-height: 2.6rem;
-    margin: auto auto auto auto;
+    line-height: 1rem;
+    margin: auto 0;
     padding: 0 0;
     text-align: center;
   }
+}
+
+.main-layout {
+  display: grid;
+  // one unit, full height/width. Layers will go on top:
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr auto auto;
+  min-height: $thumbnailHeight;
+  height: 100%;
+  background-color: var(--bg);
+}
+
+.map-layout.hide-thumbnail {
+  background: unset;
+  z-index: 0;
+}
+
+.area-map {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  background-color: var(--bgBold);
+  position: relative;
+}
+
+.map-layers {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.5rem;
+  background-color: var(--bgBold);
+  user-select: none;
+  z-index: 20;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.1s;
+  cursor: ew-resize;
+}
+
+.link-summary {
+  margin-bottom: 1rem;
+  margin-right: 0.5rem;
+  // border: 1px solid #80808066;
+  // padding: 0.25rem;
+}
+
+.searchbox {
+  margin-top: 0.25rem;
+}
+
+.load-progress {
+  padding: 0 5rem;
+  height: 3px;
+  margin-top: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.right-side-column {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgCardFrame);
+}
+
+.legend {
+  margin: 0.5rem 0.25rem 0.25rem 0rem;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgCardFrame);
+  border: 1px solid #88888844;
+  .description {
+    margin-top: 0.5rem;
+  }
+}
+
+.transit-lines {
+  overflow-x: hidden;
+  overflow-y: auto;
+  cursor: pointer;
+  scrollbar-color: #888 var(--bgCream);
+  -webkit-scrollbar-color: #888 var(--bgCream);
+}
+
+.transit-line {
+  .line-header {
+    padding: 0.5rem 0.5rem;
+    background-color: var(--bgPanel3);
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 1px;
+  }
+  .stats {
+    gap: 0.5rem;
+    background-color: var(--bgPanel3);
+    font-size: 0.9rem;
+    font-weight: normal;
+  }
+}
+
+.width-sliders {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  user-select: none;
+  border-top-right-radius: 5px;
+}
+
+.icon-blue-ramp {
+  margin: 8px -2px 4px 10px;
+  height: 1rem;
+  width: 1.4rem;
+}
+
+.icon-pie-slider {
+  margin: 7px -2px 4px 2px;
+  height: 1.4rem;
+  width: 1.4rem;
+}
+
+.pie-slider {
+  width: 10rem;
+  padding: 1rem;
+  margin: 0;
+}
+
+.right-panel-holder {
+  position: relative;
+  grid-row: 1/2;
+  grid-column: 3/4;
+  max-height: 100%;
+}
+
+.lazy-transit-list {
+  background-color: #ffa;
+  overflow-y: auto;
 }
 </style>

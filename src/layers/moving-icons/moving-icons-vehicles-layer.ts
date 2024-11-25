@@ -29,7 +29,7 @@ import fragShader from './icon-layer.glsl.frag?raw'
 
 import IconManager from './icon-manager'
 
-const DEFAULT_COLOR = [0, 0, 0, 255]
+const DEFAULT_COLOR = [25, 220, 64, 255] // greenish
 
 const defaultProps = {
   iconAtlas: { type: 'image', value: null, async: true },
@@ -44,10 +44,14 @@ const defaultProps = {
 
   getIcon: { type: 'accessor', value: 'vehicle' }, // (x: any) => x.icon },
   getBOffsets: { type: 'accessor', value: [0, 0] }, // (x: any) => x.icon },
-  getBIconFrames: { type: 'accessor', value: [128, 128, 128, 128] }, // (x: any) => x.icon },
+  getBIconFrames: { type: 'accessor', value: [0, 0, 256, 256] }, // (x: any) => x.icon },
   getBColorModes: { type: 'accessor', value: 1 }, // (x: any) => x.icon },
 
+  // [rgba]
   getColor: { type: 'accessor', value: DEFAULT_COLOR },
+  // color codes map code to a color
+  getColorCode: { type: 'accessor', value: 0 },
+
   getSize: { type: 'accessor', value: 1 },
   getAngle: { type: 'accessor', value: 0 },
   getPixelOffset: { type: 'accessor', value: [0, 0] },
@@ -109,7 +113,7 @@ export default class IconLayer extends Layer {
       },
       instanceIconFrames: {
         size: 4,
-        defaultValue: [0, 0, 128, 128],
+        defaultValue: [0, 0, 256, 256],
         accessor: 'getBIconFrames',
         // transform: this.getInstanceIconFrame
       },
@@ -138,6 +142,12 @@ export default class IconLayer extends Layer {
         accessor: 'getColor',
         defaultValue: DEFAULT_COLOR,
       },
+      instanceColorCodes: {
+        size: 1,
+        accessor: 'getColorCode',
+        defaultValue: 0,
+      },
+
       instanceAngles: {
         size: 1,
         transition: true,
@@ -193,6 +203,7 @@ export default class IconLayer extends Layer {
       attributeManager.invalidate('instanceOffsets')
       attributeManager.invalidate('instanceIconFrames')
       attributeManager.invalidate('instanceColorModes')
+      attributeManager.invalidate('instanceColorCodes')
     }
 
     if (changeFlags.extensionsChanged) {
@@ -303,5 +314,5 @@ export default class IconLayer extends Layer {
   }
 }
 
-IconLayer.layerName = 'FlatIconLayer'
+IconLayer.layerName = 'MovingVehicleLayer'
 IconLayer.defaultProps = defaultProps

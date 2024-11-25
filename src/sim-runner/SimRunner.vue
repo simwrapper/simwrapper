@@ -2,17 +2,36 @@
 .mpanel
   .scrolly
     .middle-panel
-      h4 {{ server.serverNickname }} • Run Launcher
+      h2 {{ server.serverNickname }}
 
       .hint(v-if="!server.serverNickname")
         p: b Select a server resource on the left.
         p You can connect to any SimWrapper cloud server resources you have access to.
 
+      .flex-col(v-if="server.serverNickname && !runId")
+        .summary-stats.flex-row
+          .flex-col.flex1
+            p: b Current Load (ILS only)
+            p
+              b {{ summaryStats.runCPUS }}
+              | &nbsp;CPUs running
+            p
+              b {{ summaryStats.runGB }} GB
+              | &nbsp;memory allocated
+          .flex-col.flex1
+            p: b Queued Jobs (ILS only)
+            p
+              b {{ summaryStats.queueCPUS }}
+              | &nbsp;CPUs requested
+            p
+              b {{ summaryStats.queueGB }} GB
+              | &nbsp;memory requested
+
       .new-run(v-if="server.serverNickname && !runId")
           //- h3(v-if="!isLoading" style="margin-top: 1rem") Create new run
           p(v-if="statusMessage"): b {{ statusMessage }}
 
-          b-button(v-if="!statusMessage" type="is-warning" @click="clickedNewRun") Create new run&nbsp;&nbsp;
+          b-button(v-if="!statusMessage" type="is-danger" @click="clickedNewRun") Create new run&nbsp;&nbsp;
             i.fa(v-if="isShowingRunTemplate").fa-arrow-down
             i.fa(v-else).fa-arrow-right
 
@@ -47,22 +66,53 @@
 
               drop-file(@files="filesUpdated")
 
-
-      .flex-column(v-if="runId")
+      .flex-col(v-if="runId")
         sim-run-details(:runId="runId" :server="server")
 
-      .flex-column(v-if="server.serverNickname && !runId")
+      .flex-row(v-if="server.serverNickname && !runId" style="gap: 1rem;")
 
-        h3(style="margin-top: 1rem") List of runs
+       .flex-col.flex1.mb1
+          h3(style="margin-top: 2rem") RUNNING
+          .run(v-for="job in jobsRunning" :key="job.JOBID" @click="rowClicked({row: job})")
+            p
+              b {{ job.USER }}:&nbsp;
+              | Job {{ job.JOBID}},&nbsp;
+              | {{ job.MIN_MEMORY }} Memory,
+              | {{ job.CPUS }} CPUs,
+              | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
 
-        .connect-here(v-if="jobs.length")
-          vue-good-table.vue-good-table(
-            :class="{'darktable': isDark}"
-            :columns="jobColumns()"
-            :rows="jobs"
-            styleClass="vgt-table striped condensed"
-            @on-row-click="rowClicked"
-          )
+            p.ml1
+              b.mr1(style="color: var(--link);") {{ job.ELAPSED_TIME ? `Elapsed: ${job.ELAPSED_TIME}` : '' }}
+            p.ml1
+              span.mr1(style="color: purple") Started: {{ job.START_TIME}}
+              span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
+
+            p.ml1.cmdline {{ job.COMMAND }}
+
+      //-  .flex-col.flex1
+      //-     h3(style="margin-top: 2rem") QUEUED
+      //-     .run(v-for="job in jobsQueued" :key="job.JOBID" @click="rowClicked({row: job})")
+      //-       p
+      //-         b {{ job.USER }}:&nbsp;
+      //-         | Job {{ job.JOBID}},&nbsp;
+      //-         | {{ job.MIN_MEMORY }} Memory,
+      //-         | {{ job.CPUS }} CPUs,
+      //-         | {{ job.NODES }} Node{{ job.NODES > 1 ? 's' : ''}}
+
+      //-       p.ml1
+      //-         span.mr1(style="color: green") Submitted: {{ job.SUBMIT_TIME }}
+
+      //-       p.ml1.cmdline {{ job.COMMAND }}
+
+
+      .connect-here(v-if="jobs.length")
+        vue-good-table.vue-good-table(
+          :class="{'darktable': isDark}"
+          :columns="jobColumns()"
+          :rows="jobs"
+          styleClass="vgt-table striped condensed"
+          @on-row-click="rowClicked"
+        )
 
 </template>
 
@@ -76,13 +126,24 @@ const i18n = {
 
 import { defineComponent } from 'vue'
 import { filesize } from 'filesize'
+import Papa from '@simwrapper/papaparse'
 import { VueGoodTable } from 'vue-good-table'
+import 'vue-good-table/dist/vue-good-table.css'
+
+import { Temporal, Intl, toTemporalInstant } from '@js-temporal/polyfill'
+//@ts-ignore
+Date.prototype.toTemporalInstant = toTemporalInstant
 
 import globalStore from '@/store'
 import DropFile from './DropFile.vue'
 import SimRunDetails, { FileEntry } from './SimRunDetails.vue'
 
-import 'vue-good-table/dist/vue-good-table.css'
+interface ServerDetails {
+  serverNickname: string
+  url: string
+  key: string
+  rootFolder?: string
+}
 
 export const JOBSTATUS = [
   'Draft', // 0
@@ -95,6 +156,26 @@ export const JOBSTATUS = [
   'Error', // 7
 ]
 
+export const SQUEUE_STATUS: any = {
+  BF: 'Error',
+  CA: 'Cancelled',
+  CD: 'Complete',
+  CF: 'Preparing',
+  CG: 'Running',
+  DL: 'Cancelled',
+  F: 'Error',
+  NF: 'Error',
+  OOM: 'Error',
+  PD: 'Submitted',
+  PR: 'Cancelled',
+  R: 'Running',
+  RD: 'Submitted',
+  SO: 'Running',
+  ST: 'Cancelled',
+  S: 'Queued',
+  TO: 'Cancelled',
+}
+
 export default defineComponent({
   name: 'SimRunner',
   i18n,
@@ -102,11 +183,11 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      servers: {} as { [id: string]: { serverNickname: string; url: string; key: string } },
-      server: {} as { serverNickname: string; url: string; key: string },
+      servers: {} as { [id: string]: ServerDetails },
+      server: {} as ServerDetails,
       isLoading: true,
       isShowingRunTemplate: false,
-      jobs: [] as any,
+      jobs: [] as any[],
       jobScript: '',
       jobProject: '',
       files: [] as any[],
@@ -115,7 +196,13 @@ export default defineComponent({
       clusterEmail: '',
       clusterProcessors: 2,
       clusterRAM: '4g',
+      summaryStats: { runCPUS: 0, runGB: 0, queueCPUS: 0, queueGB: 0 },
+      cbRefresher: null as any,
     }
+  },
+
+  beforeDestroy() {
+    clearInterval(this.cbRefresher)
   },
 
   mounted() {
@@ -126,6 +213,7 @@ export default defineComponent({
     // figure out page path
     const pagePath = this.$route.params.pathMatch.substring(5).split('/')
     const serverId = pagePath[0]
+
     if (!serverId) return
 
     this.server = this.servers[serverId]
@@ -133,14 +221,39 @@ export default defineComponent({
 
     this.runId = pagePath[1] || ''
 
+    this.$store.commit('setWindowTitle', `${serverId} — SimWrapper Run Manager`)
+
     // no runId: build summary page
-    this.buildSummaryPage()
+    if (!this.runId) {
+      this.cbRefresher = setInterval(this.buildSummaryPage, 75 * 1000)
+      this.buildSummaryPage()
+    }
   },
 
   watch: {},
   computed: {
     isDark() {
       return this.$store.state.isDarkMode
+    },
+
+    jobsRunning() {
+      return this.jobs
+        .filter(job => {
+          return ['R', 'CF', 'CG'].includes(job.ST)
+        })
+        .sort((a, b) => (a.JOBID < b.JOBID ? -1 : 1))
+    },
+
+    jobsQueued() {
+      return this.jobs.filter(job => {
+        return ['S', 'PD', 'RD'].includes(job.ST)
+      })
+    },
+
+    jobsOther() {
+      return this.jobs.filter(job => {
+        return !['R', 'CF', 'CG', 'S', 'PD', 'RD'].includes(job.ST)
+      })
     },
   },
 
@@ -160,18 +273,88 @@ export default defineComponent({
 
     async buildSummaryPage() {
       // Get list of jobs
-      const cmd = `${this.server.url}/jobs/`
-      const allJobs: any[] = await fetch(cmd, {
-        headers: { Authorization: this.server.key, 'Content-Type': 'application/json' },
-      }).then(response => response.json())
+      const cmd = `${this.server.url}/squeue_jobs/`
+      const tsv = await fetch(cmd, {
+        headers: {
+          Authorization: this.server.key,
+          'Content-Type': 'application/json',
+          'cache-control': 'no-cache',
+          pragma: 'no-cache',
+        },
+      })
+      const json = await tsv.json()
 
-      const cleanJobs = allJobs.map(row => {
-        row.status = JOBSTATUS[row.status]
+      // console.log(json.squeue)
+
+      if (!json.squeue?.length) {
+        this.jobs = []
+        return
+      }
+
+      // convert csv to table
+      const parse = Papa.parse(json.squeue, {
+        delimiter: ',',
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+      })
+      const allJobs = parse.data
+
+      const now = Temporal.Now.plainDateTimeISO()
+
+      // Summary metricvalues
+      let runGB = 0
+      let runCPUS = 0
+      let queueGB = 0
+      let queueCPUS = 0
+
+      const cleanJobs = allJobs.map((row: any) => {
+        row.status = SQUEUE_STATUS[row.ST]
+
+        // calc elapsed time
+        try {
+          const start = Temporal.PlainDateTime.from(row.START_TIME)
+          const since = now.since(start)
+
+          row.ELAPSED_TIME =
+            `${since.days ? since.days + 'd ' : ''}` +
+            `${since.hours}h ` +
+            `${since.minutes}`.padStart(2, '0') +
+            'm'
+        } catch {}
+
+        // pretty-print ISO datetimes
+        row.SUBMIT_TIME = row.SUBMIT_TIME.replace('T', ' • ')
+        row.START_TIME = row.START_TIME.replace('T', ' • ')
+        row.END_TIME = row.END_TIME.replace('T', ' • ')
+
+        if (row['"COMMAND']) {
+          row.COMMAND = row['"COMMAND']
+          delete row['"COMMAND']
+        }
+
+        // summary stats
+        if (['R', 'CF', 'CG'].includes(row.ST)) {
+          runCPUS += row.CPUS
+          if (row.MIN_MEMORY.endsWith('G')) runGB += parseInt(row.MIN_MEMORY.slice(0, -1))
+        }
+        if (['S', 'PD', 'RD'].includes(row.ST)) {
+          queueCPUS += row.CPUS
+          if (row.MIN_MEMORY.endsWith('G')) queueGB += parseInt(row.MIN_MEMORY.slice(0, -1))
+        }
+
+        this.summaryStats = {
+          runCPUS,
+          runGB,
+          queueCPUS,
+          queueGB,
+        }
+
         return row
       })
 
       // reverse sort
-      cleanJobs.sort((a, b) => (a.id > b.id ? -1 : 1))
+      cleanJobs.sort((a: any, b: any) => (a.id > b.id ? -1 : 1))
 
       this.jobs = cleanJobs
       this.isLoading = false
@@ -305,7 +488,7 @@ h4 {
   padding: 0 1rem;
   text-align: left;
   user-select: none;
-  max-width: 70rem;
+  // max-width: 70rem;
 
   h1 {
     letter-spacing: -1px;
@@ -322,6 +505,10 @@ h4 {
     max-width: 100%;
     overflow-wrap: break-word;
   }
+}
+
+.middle-panel {
+  margin-top: 0.5rem;
 }
 
 .bottom-panel {
@@ -448,7 +635,7 @@ h2 {
 }
 
 .new-run {
-  margin-top: 1.25rem;
+  margin-top: 2rem;
 }
 
 .new-run-template {
@@ -459,6 +646,14 @@ h2 {
 }
 .hint {
   margin-top: 2rem;
+}
+
+.summary-stats {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: var(--bgError);
+  color: #357;
+  border: 1px solid #88888860;
 }
 </style>
 
@@ -540,5 +735,22 @@ h2 {
   table-layout: auto;
   margin-top: 1rem;
   margin-bottom: auto;
+}
+
+.run {
+  margin: 0.25rem 0;
+  padding: 0.5rem;
+  background-color: var(--bgBold);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.run:hover {
+  filter: drop-shadow(0px 0px 4px #22222244);
+}
+
+.cmdline {
+  line-height: 1.3rem;
+  color: var(--link);
 }
 </style>

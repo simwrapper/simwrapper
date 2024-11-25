@@ -1,6 +1,7 @@
 <template lang="pug">
 .legend-box(v-if="sections.length")
-  .legend-section(v-for="section,i in sections" :key="section.section")
+  h4 Legend
+  .legend-section(v-for="section,i in sections" :key="`${section.section}${i}`")
     p(:style="{marginBottom: '0.25rem', marginTop: i ? '1rem':''}"): b {{ sectionTitle(section) }}
     .section-row(v-for="row,i of getRowsInSection(section)" :key="i")
       .row-value(:style="getRowStyle(row)")
@@ -103,10 +104,17 @@ export default defineComponent({
 
 .legend-box {
   font-size: 0.85rem;
-  padding: 0.5rem 0.75rem;
-  height: 100%;
-  min-height: 100%;
-  // border: var(--borderThin);
+  padding: 0.5rem 0.25rem;
+  color: var(--text);
+  background-color: var(--bgCardFrame);
+
+  h4 {
+    font-weight: bold;
+    margin: -0.25rem 0 1rem 0;
+    padding-top: 0;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
 }
 
 .legend-section {

@@ -15,8 +15,20 @@ const plugins = [
   },
   {
     kebabName: 'area-map',
-    filePatterns: ['**/viz-map*.y?(a)ml', '**/*.geojson?(.gz)', '**/*network.avro', '**/*.shp'],
+    filePatterns: [
+      '**/viz-map*.y?(a)ml',
+      '**/*.geojson?(.gz)',
+      '**/*network.avro',
+      '**/*network.xml?(.gz)',
+      '**/*.shp',
+      '**/*.gpkg',
+    ],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
+  },
+  {
+    kebabName: 'pie-layer',
+    filePatterns: ['**/viz-pie*.y?(a)ml*'],
+    component: defineAsyncComponent(() => import('./pie-chart/PieChartDemo.vue')),
   },
   {
     kebabName: 'carriers',
@@ -47,8 +59,9 @@ const plugins = [
     kebabName: 'links',
     component: defineAsyncComponent(() => import('./links-gl/NetworkLinks.vue')),
     filePatterns: [
-      '**/*network.xml?(.gz)',
-      '**/*network.geo?(.)json?(.gz)',
+      // deprecated! Use shapefile/map viewer instead
+      // '**/*network.xml?(.gz)',
+      // '**/*network.geo?(.)json?(.gz)',
       '**/viz-gl-link*.y?(a)ml',
       '**/viz-link*.y?(a)ml',
     ],
@@ -88,11 +101,11 @@ const plugins = [
     filePatterns: ['**/sankey*.y?(a)ml', '**/viz-sankey*.y?(a)ml'],
     component: defineAsyncComponent(() => import('./sankey/SankeyDiagram.vue')),
   },
-  // {
-  //   kebabName: 'events',
-  //   filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
-  //   component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
-  // },
+  {
+    kebabName: 'events',
+    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+    component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
+  },
   {
     kebabName: 'image-view',
     filePatterns: ['!(*thumbnail*).(png|jpg)'], // skip thumbnails!

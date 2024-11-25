@@ -1,87 +1,113 @@
 <template lang="pug">
-.map-layout(:class="{'hide-thumbnail': !thumbnail}"
-            :style='{"background": urlThumbnail}'
-            oncontextmenu="return false")
+.shapefile-viewer(:class="{'hide-thumbnail': !thumbnail}" :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  .status-bar(v-show="statusText") {{ statusText }}
+  modal-id-column-picker(v-if="showJoiner" v-bind="datasetJoinSelector" @join="cbDatasetJoined")
 
-  modal-id-column-picker(v-if="showJoiner"
-    v-bind="datasetJoinSelector"
-    @join="cbDatasetJoined"
+  .status-box(v-if="statusText")
+          p {{ statusText }}
+          b-progress.load-progress(v-if="loadProgress > 0"
+            :value="loadProgress" :rounded="false" type='is-success')
+
+  .main-layout(
+      @mousemove.stop="dividerDragging"
   )
 
-  .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
-    //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
-
-    geojson-layer(v-if="!needsInitialMapExtent"
-      :viewId="layerId"
-      :fillColors="dataFillColors"
-      :lineColors="dataLineColors"
-      :lineWidths="dataLineWidths"
-      :fillHeights="dataFillHeights"
-      :screenshot="triggerScreenshot"
-      :featureFilter="boundaryFilters"
-      :opacity="sliderOpacity"
-      :pointRadii="dataPointRadii"
-      :cbTooltip="cbTooltip"
-      :bgLayers="bgLayers"
-      :handleClickEvent="handleClickEvent"
-      :highlightedLinkIndex="highlightedLinkIndex"
+    .dragger(v-show="showLegend"
+      @mousedown="dividerDragStart"
+      @mouseup="dividerDragEnd"
+      @mousemove.stop="dividerDragging"
     )
 
-    //- :features="useCircles ? centroids: boundaries"
-    //- background-map-on-top(v-if="isLoaded")
+    .new-rightside-info-panel(v-show="showLegend" :style="{width: `${legendSectionWidth}px`}")
 
-    viz-configurator(v-if="isLoaded"
-      :embedded="isEmbedded"
-      :sections="configuratorSections"
-      :fileSystem="fileSystem"
-      :subfolder="subfolder"
-      :yamlConfig="generatedExportFilename"
-      :vizDetails="vizDetails"
-      :datasets="datasets"
-      :legendStore="legendStore"
-      :filterDefinitions="currentUIFilterDefinitions"
-      @update="changeConfiguration"
-      @screenshot="takeScreenshot"
-    )
+      .legend-panel
+        p(v-if="!legendStore.state?.sections?.length" style="font-size: 1.1rem"): b INFO PANEL
+        legend-box(:legendStore="legendStore")
 
-    .details-panel
-      .tooltip-html(v-if="tooltipHtml && !statusText" v-html="tooltipHtml")
-      .bglayer-section
-        b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
-          @input="updateBgLayers" v-model="bgLayers[layer].visible"
-        ) {{  layer }}
-
-
-  zoom-buttons(v-if="isLoaded && !thumbnail")
-
-  .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
-    :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
-
-    //- Filter pickers
-    .filter(v-for="filter in Object.keys(filters)")
-      p {{ filter }}
-      b-dropdown(
-        v-model="filters[filter].active"
-        :scrollable="filters[filter].active.length > 10"
-        max-height="250"
-        multiple
-        @change="handleUserSelectedNewFilters(filter)"
-        aria-role="list" :mobile-modal="false" :close-on-click="true"
+      .tooltip-html(v-if="tooltipHtml && !statusText"
+        v-html="tooltipHtml"
       )
-        template(#trigger="{ active }")
-          b-button.is-primary(
-            :type="filters[filter].active.length ? '' : 'is-outlined'"
-            :label="filterLabel(filter)"
-          )
+        .bglayer-section
+          b-checkbox.simple-checkbox(v-for="layer in Object.keys(bgLayers)" :key="layer"
+            @input="updateBgLayers" v-model="bgLayers[layer].visible"
+          ) {{  layer }}
 
-        b-dropdown-item(v-for="option in filters[filter].options"
-          :key="option" :value="option" aria-role="listitem") {{ option }}
+    .area-map(v-if="!thumbnail" :id="`container-${layerId}`")
 
-    //- .map-type-buttons(v-if="isAreaMode")
-    //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
-    //-   img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
+      .tooltip-when-no-legend-present(v-if="!showLegend && !statusText && tooltipHtml"
+        v-html="tooltipHtml"
+      )
+
+      //- drawing-tool.draw-tool(v-if="isLoaded && !thumbnail")
+
+      geojson-layer.map-layers(v-if="!needsInitialMapExtent"
+        :viewId="layerId"
+        :fillColors="dataFillColors"
+        :lineColors="dataLineColors"
+        :lineWidths="dataLineWidths"
+        :fillHeights="dataFillHeights"
+        :screenshot="triggerScreenshot"
+        :featureFilter="boundaryFilters"
+        :opacity="sliderOpacity"
+        :pointRadii="dataPointRadii"
+        :cbTooltip="cbTooltip"
+        :bgLayers="bgLayers"
+        :handleClickEvent="handleClickEvent"
+        :highlightedLinkIndex="highlightedLinkIndex"
+        :redraw="redraw"
+        :features="boundaries"
+        :dark="globalStore.state.isDarkMode"
+      )
+
+      //- :features="useCircles ? centroids: boundaries"
+      //- background-map-on-top(v-if="isLoaded")
+
+      viz-configurator(v-if="isLoaded"
+        :embedded="isEmbedded"
+        :sections="configuratorSections"
+        :fileSystem="fileSystem"
+        :subfolder="subfolder"
+        :yamlConfig="generatedExportFilename"
+        :vizDetails="vizDetails"
+        :datasets="datasets"
+        :legendStore="legendStore"
+        :filterDefinitions="currentUIFilterDefinitions"
+        @update="changeConfiguration"
+        @screenshot="takeScreenshot"
+        @toggleLegend="showLegend=!showLegend"
+      )
+
+      .details-panel
+
+
+      zoom-buttons(v-if="isLoaded && !thumbnail")
+
+      .config-bar(v-if="!thumbnail && !isEmbedded && isLoaded && Object.keys(filters).length"
+        :class="{'is-standalone': !configFromDashboard, 'is-disabled': !isLoaded}")
+
+      //- Filter pickers
+      .filter(v-for="filter in Object.keys(filters)")
+        p {{ filter }}
+        b-dropdown(
+          v-model="filters[filter].active"
+          :scrollable="filters[filter].active.length > 10"
+          max-height="250"
+          multiple
+          @change="handleUserSelectedNewFilters(filter)"
+          aria-role="list" :mobile-modal="false" :close-on-click="true"
+        )
+          template(#trigger="{ active }")
+            b-button.is-primary(
+              :type="filters[filter].active.length ? '' : 'is-outlined'"
+              :label="filterLabel(filter)"
+            )
+
+          b-dropdown-item(v-for="option in filters[filter].options"
+            :key="option" :value="option" aria-role="listitem") {{ option }}
+
+      //- .map-type-buttons(v-if="isAreaMode")
+      //-   img.img-button(@click="showCircles(false)" src="../../assets/btn-polygons.jpg" title="Shapes")
+      //-   img.img-button(@click="showCircles(true)" src="../../assets/btn-circles.jpg" title="Circles")
 
 </template>
 
@@ -97,6 +123,8 @@ import readBlob from 'read-blob'
 import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
+
+import * as Gpkg from '@ngageoint/geopackage'
 
 import * as d3ScaleChromatic from 'd3-scale-chromatic'
 import * as d3Interpolate from 'd3-interpolate'
@@ -119,6 +147,7 @@ import GeojsonLayer from './GeojsonLayer'
 import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import ColorWidthSymbologizer, { buildRGBfromHexCodes } from '@/js/ColorsAndWidths'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
+import LegendBox from '@/components/viz-configurator/LegendBox.vue'
 import ModalIdColumnPicker from '@/components/ModalIdColumnPicker.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -150,12 +179,53 @@ export interface BackgroundLayer {
   borderWidth: number
   borderColor: number[]
   visible: boolean
+  onTop: boolean
+}
+
+const BASE_URL = import.meta.env.BASE_URL
+
+export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
+  Gpkg.setSqljsWasmLocateFile(file => BASE_URL + file)
+  const bArray = new Uint8Array(buffer)
+
+  const geoPackage = await Gpkg.GeoPackageAPI.open(bArray)
+
+  const tables = geoPackage.getFeatureTables()
+  console.log('GEOPACKAGE contains:', tables)
+  const tableName = tables[0]
+
+  // get the feature dao
+  const featureDao = geoPackage.getFeatureDao(tableName)
+  const tableInfo = geoPackage.getInfoForTable(featureDao)
+  // console.log({ featureDao, tableInfo })
+
+  const crs = `${tableInfo.srs.organization}:${tableInfo.srs.id}`
+  console.log('GEOPACKAGE crs:', crs)
+
+  const features = []
+  const tableElements = featureDao.queryForEach()
+  for (const row of tableElements) {
+    const { geom, ...properties } = row
+    const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
+    const geojson = geoJsonGeometry.toGeoJSON()
+    const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
+
+    features.push({
+      type: 'Feature',
+      properties,
+      geometry: wgs84,
+    })
+  }
+
+  geoPackage.close()
+  return features
 }
 
 const MyComponent = defineComponent({
   name: 'ShapeFilePlugin',
   components: {
     BackgroundMapOnTop,
+    LegendBox,
     GeojsonLayer,
     ModalIdColumnPicker,
     VizConfigurator,
@@ -177,6 +247,12 @@ const MyComponent = defineComponent({
     return {
       avroNetwork: null as any,
       isAvroFile: false,
+      //drag
+      isDraggingDivider: 0,
+      isDragHappening: false,
+      dragStartWidth: 200,
+      legendSectionWidth: 200,
+      //
       boundaries: [] as any[],
       centroids: [] as any[],
       cbDatasetJoined: undefined as any,
@@ -214,11 +290,13 @@ const MyComponent = defineComponent({
       datasetJoinColumn: '',
       featureJoinColumn: '',
       triggerScreenshot: 0,
+      redraw: 0,
 
       datasetKeyToFilename: {} as any,
 
       datasetJoinSelector: {} as { [id: string]: { title: string; columns: string[] } },
       showJoiner: false,
+      showLegend: false,
 
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
@@ -291,6 +369,10 @@ const MyComponent = defineComponent({
       },
 
       datasets: {} as { [id: string]: DataTable },
+
+      loadProgress: 0,
+      loadSteps: 0,
+      totalLoadSteps: 6,
     }
   },
 
@@ -345,20 +427,42 @@ const MyComponent = defineComponent({
 
   watch: {
     'globalState.viewState'() {
-      if (!REACT_VIEW_HANDLES[this.layerId]) return
-      REACT_VIEW_HANDLES[this.layerId]()
+      if (REACT_VIEW_HANDLES[this.layerId]) REACT_VIEW_HANDLES[this.layerId]()
     },
 
-    'globalState.colorScheme'() {
-      // change one element to force a deck.gl redraw
-      this.$nextTick().then(p => {
-        const tooltips = this.vizDetails.tooltip || []
-        this.vizDetails.tooltip = [...tooltips]
-      })
-    },
+    // 'globalState.colorScheme'() {
+    // // change one element to force a deck.gl redraw
+    // this.$nextTick().then(p => {
+    //   const tooltips = this.vizDetails.tooltip || []
+    //   this.vizDetails.tooltip = [...tooltips]
+    // })
+    // },
   },
 
   methods: {
+    incrementLoadProgress() {
+      this.loadSteps += 1
+      this.loadProgress = (100 * this.loadSteps) / this.totalLoadSteps
+    },
+
+    dividerDragStart(e: MouseEvent) {
+      console.log('dragStart', e)
+      this.isDraggingDivider = e.clientX
+      this.dragStartWidth = this.legendSectionWidth
+    },
+
+    dividerDragEnd(e: MouseEvent) {
+      this.isDraggingDivider = 0
+    },
+
+    dividerDragging(e: MouseEvent) {
+      if (!this.isDraggingDivider) return
+
+      const deltaX = this.isDraggingDivider - e.clientX
+      this.legendSectionWidth = Math.max(0, this.dragStartWidth + deltaX)
+      // localStorage.setItem('leftPanelWidth', `${this.legendSectionWidth}`)
+    },
+
     // incrementing screenshot count triggers the screenshot.
     takeScreenshot() {
       this.triggerScreenshot++
@@ -376,7 +480,7 @@ const MyComponent = defineComponent({
     setupLogoMover() {
       this.resizer = new ResizeObserver(this.moveLogo)
       const deckmap = document.getElementById(`container-${this.layerId}`) as HTMLElement
-      this.resizer.observe(deckmap)
+      if (deckmap) this.resizer.observe(deckmap)
     },
 
     moveLogo() {
@@ -723,10 +827,12 @@ const MyComponent = defineComponent({
           this.vizDetails = Object.assign({}, emptyState, ycfg)
         }
 
-        // OR is this a bare geojson/shapefile file? - build vizDetails manually
+        // OR is this a bare geojson/geopackage/shapefile file? - build vizDetails manually
         if (
+          /(network\.xml)(|\.gz)$/.test(filename) ||
           /(\.geojson)(|\.gz)$/.test(filename) ||
           /\.shp$/.test(filename) ||
+          /\.gpkg$/.test(filename) ||
           /network\.avro$/.test(filename)
         ) {
           const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
@@ -928,7 +1034,7 @@ const MyComponent = defineComponent({
       })
 
       this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
+        { dataset: this.datasetKeyToFilename[datasetId], subfolder: this.subfolder },
         this.processFiltersNow
       )
 
@@ -995,7 +1101,7 @@ const MyComponent = defineComponent({
       } as any
 
       this.myDataManager.addFilterListener(
-        { dataset: this.datasetKeyToFilename[datasetId] },
+        { dataset: this.datasetKeyToFilename[datasetId], subfolder: this.subfolder },
         this.processFiltersNow
       )
 
@@ -1196,6 +1302,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValues = calculatedValues
         this.dataCalculatedValueLabel = `${relative ? '% ' : ''}Diff: ${columnName}` // : ${key1}-${key2}`
 
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: section === 'fill' ? 'FillColor' : 'Line Color',
           column: dataCol1.name,
@@ -1252,6 +1359,7 @@ const MyComponent = defineComponent({
 
       this.dataCalculatedValues = calculatedValues
 
+      this.showLegend = true
       this.legendStore.setLegendSection({
         section: section === 'fill' ? 'FillColor' : 'Line Color',
         column: columnName,
@@ -1387,6 +1495,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = calculatedValues || null
 
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: 'FillColor',
           column: dataColumn.name,
@@ -1545,12 +1654,15 @@ const MyComponent = defineComponent({
           })
           this.dataLineWidths = variableConstantWidth
         }
+
+        this.showLegend = true
         this.legendStore.setLegendSection({
           section: 'Line Color',
           column: dataColumn.name,
           values: legend,
           normalColumn: normalColumn ? normalColumn.name : '',
         })
+        this.showLegend = true
       }
     },
 
@@ -1611,6 +1723,7 @@ const MyComponent = defineComponent({
           this.dataCalculatedValues = calculatedValues
           this.dataCalculatedValueLabel = 'Diff: ' + columnName
 
+          this.showLegend = true
           this.legendStore.setLegendSection({
             section: 'Line Width',
             column: `${dataCol1.name} (Diff)`,
@@ -1665,6 +1778,7 @@ const MyComponent = defineComponent({
           this.dataCalculatedValueLabel = columnName
 
           if (legend.length) {
+            this.showLegend = true
             this.legendStore.setLegendSection({
               section: 'Line Width',
               column: dataColumn.name,
@@ -1770,7 +1884,7 @@ const MyComponent = defineComponent({
 
         // no selected dataset or datacol missing? Not sure what to do here, just give up...
         if (!selectedDataset) {
-          console.warn('radius: no selected dataset yet, maybe still loading')
+          // console.warn('radius: no selected dataset yet, maybe still loading')
           return
         }
 
@@ -2094,6 +2208,56 @@ const MyComponent = defineComponent({
       return features
     },
 
+    async loadXMLNetwork(filename: string): Promise<any> {
+      if (!this.myDataManager) throw Error('links: no datamanager')
+
+      this.statusText = 'Loading XML network...'
+
+      try {
+        const network = await this.myDataManager.getRoadNetwork(
+          filename,
+          this.subfolder,
+          this.vizDetails,
+          (message: string) => {
+            this.statusText = message
+            this.incrementLoadProgress()
+          }
+        )
+        // for now convert to shapefile
+        const numLinks = network.source.length / 2
+        const boundaries = [] as any[]
+        for (let i = 0; i < numLinks; i++) {
+          const offset = i * 2
+          const feature = {
+            type: 'Feature',
+            id: network.linkIds[i],
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [network.source[offset], network.source[offset + 1]],
+                [network.dest[offset], network.dest[offset + 1]],
+              ],
+            },
+          }
+          boundaries.push(feature)
+        }
+        return boundaries
+      } catch (e) {
+        console.error('' + e)
+      }
+    },
+
+    async loadGeoPackage(filename: string) {
+      this.statusText = 'Loading geopackage...'
+      console.log('loading', filename)
+      const url = `${this.subfolder}/${filename}`
+      const blob = await this.fileApi.getFileBlob(url)
+      const buffer = await blob.arrayBuffer()
+      const geo = loadGeoPackageFromBuffer(buffer)
+      return geo
+    },
+
     async loadBoundaries() {
       let now = Date.now()
 
@@ -2110,13 +2274,19 @@ const MyComponent = defineComponent({
 
       try {
         this.statusText = 'Loading features...'
+        this.incrementLoadProgress()
 
-        if (filename.startsWith('http')) {
+        if (filename.toLocaleLowerCase().endsWith('gpkg')) {
+          boundaries = await this.loadGeoPackage(filename)
+        } else if (filename.startsWith('http')) {
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
+        } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
+          // MATSim XML Network
+          boundaries = await this.loadXMLNetwork(filename)
         } else if (filename.toLocaleLowerCase().includes('network.avro')) {
           // avro network!
           boundaries = await this.loadAvroNetwork(filename)
@@ -2125,7 +2295,10 @@ const MyComponent = defineComponent({
           boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
         }
 
+        await this.$nextTick()
         this.statusText = 'Processing data...'
+        this.incrementLoadProgress()
+        await this.$nextTick()
         await this.$nextTick()
 
         // for a big speedup, move properties to its own nabob
@@ -2169,6 +2342,7 @@ const MyComponent = defineComponent({
 
         // set feature properties as a data source
         await this.setFeaturePropertiesAsDataSource(filename, [...featureProperties], shapeConfig)
+        this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
         if (!hasNoLines || boundaries.length < 5000) {
@@ -2179,7 +2353,13 @@ const MyComponent = defineComponent({
         if (hasNoPolygons) this.isAreaMode = false
         if (hasPoints) this.isAreaMode = true
 
+        this.statusText = 'Adding boundaries to map'
+        await this.$nextTick()
+        this.incrementLoadProgress()
+
         this.boundaries = boundaries
+        await this.$nextTick()
+        this.incrementLoadProgress()
 
         // generate centroids if we have polygons
         if (!hasNoPolygons || hasPoints) {
@@ -2200,10 +2380,8 @@ const MyComponent = defineComponent({
         const err = e as any
         const message = err.statusText || 'Could not load'
         const fullError = `${message}: "${filename}"`
-
         this.statusText = ''
         this.$emit('isLoaded')
-
         throw Error(fullError)
       }
 
@@ -2238,8 +2416,7 @@ const MyComponent = defineComponent({
           }
           avroTable[colName] = dataColumn
         }
-
-        // special case: allowedModes
+        // special case: allowedModes needs to be looked up
         const modeLookup = this.avroNetwork['modes']
         const allowedModes = avroTable['allowedModes']
         allowedModes.type = DataType.STRING
@@ -2366,21 +2543,31 @@ const MyComponent = defineComponent({
       console.log('loading', filename)
 
       const url = `${this.subfolder}/${filename}`
+      let shpPromise, dbfPromise, dbfBlob
 
       // first, get shp/dbf files
       let geojson: any = {}
       try {
-        const shpPromise = this.fileApi.getFileBlob(url)
+        shpPromise = await this.fileApi.getFileBlob(url)
+      } catch (e) {
+        this.$emit('error', 'Error loading ' + url)
+        return []
+      }
+
+      try {
         const dbfFilename = url
           .replace('.shp', '.dbf')
           .replace('.SHP', '.DBF')
           .replace('.Shp', '.Dbf')
-        const dbfPromise = this.fileApi.getFileBlob(dbfFilename)
-        await Promise.all([shpPromise, dbfPromise])
+        dbfPromise = await this.fileApi.getFileBlob(dbfFilename)
+        dbfBlob = await (await dbfPromise)?.arrayBuffer()
+      } catch {
+        // no DBF: we will live
+      }
 
+      try {
         const shpBlob = await (await shpPromise)?.arrayBuffer()
-        const dbfBlob = await (await dbfPromise)?.arrayBuffer()
-        if (!shpBlob || !dbfBlob) return []
+        if (!shpBlob) return []
 
         this.statusText = 'Generating shapes...'
 
@@ -2391,7 +2578,7 @@ const MyComponent = defineComponent({
         this.statusText = ''
       } catch (e) {
         console.error(e)
-        this.$emit('error', `Could not load ${filename}: ` + e)
+        this.$emit('error', `Error loading shapefile ${url}`)
         return []
       }
 
@@ -2406,6 +2593,7 @@ const MyComponent = defineComponent({
       try {
         projection = await this.fileApi.getFileText(prjFilename)
       } catch (e) {
+        console.error('' + e)
         // lol we can live without a projection right? ;-O
       }
 
@@ -2430,11 +2618,11 @@ const MyComponent = defineComponent({
       const firstPoint = getFirstPoint(geojson.features[0].geometry.coordinates)
       if (Math.abs(firstPoint[0]) > 180 || Math.abs(firstPoint[1]) > 90) {
         // this ain't lon/lat
-        const msg = `Coordinates not lon/lat. Try providing ${prjFilename.substring(
+        const msg = `Coordinates not lon/lat. Try adding projection to YAML, or provide ${prjFilename.substring(
           1 + prjFilename.lastIndexOf('/')
         )}`
         this.$emit('error', msg)
-        this.statusText = msg
+        this.statusText = ''
         return []
       }
 
@@ -2500,7 +2688,9 @@ const MyComponent = defineComponent({
         // save the filename and key for later lookups
         this.datasetKeyToFilename[datasetKey] = datasetFilename
 
-        const dataset = await this.myDataManager.getDataset(loaderConfig)
+        const dataset = await this.myDataManager.getDataset(loaderConfig, {
+          subfolder: this.subfolder,
+        })
 
         // figure out join - use ".join" or first column key
         const joiner =
@@ -2521,7 +2711,10 @@ const MyComponent = defineComponent({
         await this.$nextTick()
 
         // Set up filters -- there could be some in YAML already
-        this.myDataManager.addFilterListener({ dataset: datasetFilename }, this.processFiltersNow)
+        this.myDataManager.addFilterListener(
+          { dataset: datasetFilename, subfolder: this.subfolder },
+          this.processFiltersNow
+        )
         this.activateFiltersForDataset(datasetKey)
         // this.handleNewFilters(this.vizDetails.filters)
       } catch (e) {
@@ -2736,6 +2929,7 @@ const MyComponent = defineComponent({
       this.dataFillHeights = 0
       this.dataCalculatedValues = null
       this.dataCalculatedValueLabel = ''
+      this.bgLayers = {}
     },
 
     updateBgLayers() {
@@ -2759,10 +2953,11 @@ const MyComponent = defineComponent({
 
           let features = [] as any[]
           try {
-            // load boundaries ---
             const filename = layerDetails.shapes
             if (filename.startsWith('http'))
               features = (await fetch(filename).then(async r => await r.json())).features
+            else if (filename.toLocaleLowerCase().endsWith('.gpkg'))
+              features = await this.loadGeoPackage(filename)
             else if (filename.toLocaleLowerCase().endsWith('.shp'))
               features = await this.loadShapefileFeatures(filename)
             else
@@ -2822,6 +3017,8 @@ const MyComponent = defineComponent({
 
           let visible = true
           if ('visible' in layerDetails) visible = layerDetails.visible
+          let onTop = false
+          if ('onTop' in layerDetails) onTop = !!layerDetails.onTop
 
           console.log('FINAL FEATURES', features)
 
@@ -2831,12 +3028,14 @@ const MyComponent = defineComponent({
             borderWidth,
             borderColor,
             visible,
+            onTop,
           }
           this.bgLayers[layerName] = details
         } catch (e) {
           console.error('' + e)
         }
       }
+      this.redraw += 1
     },
   },
 
@@ -2944,21 +3143,21 @@ export default MyComponent
 
 <style scoped lang="scss">
 @import '@/styles.scss';
-
-.map-layout {
+.shapefile-viewer {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.main-layout {
   display: grid;
   // one unit, full height/width. Layers will go on top:
   grid-template-rows: 1fr;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr auto auto;
   min-height: $thumbnailHeight;
-  background: url('assets/thumbnail.jpg') no-repeat;
-  background-size: cover;
-  z-index: -1;
+  height: 100%;
 }
 
 .map-layout.hide-thumbnail {
@@ -2967,11 +3166,83 @@ export default MyComponent
 }
 
 .area-map {
-  position: relative;
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  height: 100%;
   background-color: var(--bgBold);
+  position: relative;
+}
+
+.map-layers {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.dragger {
+  grid-row: 1 / 2;
+  grid-column: 2 / 3;
+  width: 0.5rem;
+  background-color: var(--bgCardFrame);
+  user-select: none;
+}
+
+.dragger:hover,
+.dragger:active {
+  background-color: var(--sliderThumb);
+  transition: background-color 0.3s ease;
+  transition-delay: 0.2s;
+  cursor: ew-resize;
+}
+
+.new-rightside-info-panel {
+  grid-row: 1 / 2;
+  grid-column: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgCardFrame);
+  position: relative;
+
+  .legend-panel {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bgCardFrame);
+
+    .description {
+      margin-top: 0.5rem;
+    }
+  }
+
+  .tooltip-html {
+    font-size: 0.8rem;
+    padding: 0.25rem;
+    text-align: left;
+    background-color: var(--bgCardFrame);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #88888880;
+  }
+}
+
+.tooltip-when-no-legend-present {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 20;
+  font-size: 0.8rem;
+  padding: 0.25rem;
+  margin: 0.25rem 0.25rem;
+  min-width: 12rem;
+  text-align: left;
+  background-color: var(--bgCardFrame);
+  border: 1px solid #88888880;
 }
 
 .config-bar {
@@ -3066,7 +3337,7 @@ export default MyComponent
 .details-panel {
   position: absolute;
   bottom: 0;
-  left: 0;
+  right: 20rem;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -3080,13 +3351,6 @@ export default MyComponent
   white-space: nowrap;
 }
 
-.tooltip-html {
-  padding: 0.25rem;
-  text-align: left;
-  filter: $filterShadow;
-  background-color: var(--bgPanel);
-}
-
 .simple-checkbox {
   padding: 0.25rem;
 }
@@ -3095,6 +3359,46 @@ export default MyComponent
   color: unset;
 }
 
-@media only screen and (max-width: 640px) {
+.status-box {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bgPanel);
+  padding: 0.25rem 3rem;
+  margin: auto auto;
+  min-width: 20rem;
+  max-width: 25rem;
+  height: 4rem;
+  border: 3px solid #cccccc80;
+  // filter: $filterShadow;
+
+  a {
+    color: white;
+    text-decoration: none;
+
+    &.router-link-exact-active {
+      color: white;
+    }
+  }
+
+  p {
+    color: var(--textFancy);
+    font-weight: normal;
+    font-size: 0.9rem;
+    line-height: 1rem;
+    margin: auto 0;
+    padding: 0 0;
+    text-align: center;
+  }
+}
+
+.load-progress {
+  padding: 0 5rem;
+  height: 3px;
+  margin-top: 2px;
+  margin-bottom: 0.5rem;
 }
 </style>

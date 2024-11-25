@@ -13,8 +13,6 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { DataTable, FileSystemConfig } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
 
-import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
-
 enum NetworkFormat {
   MATSIM_XML,
   GEOJSON,
@@ -112,11 +110,7 @@ async function fetchNodesAndLinks(props: {
   }
 }
 
-async function fetchSFCTANetwork(
-  filePath: string,
-  fileSystem: FileSystemConfig,
-  vizDetails: any
-) {
+async function fetchSFCTANetwork(filePath: string, fileSystem: FileSystemConfig, vizDetails: any) {
   console.log('WORKER loading shapefile', filePath)
 
   _fileApi = new HTTPFileSystem(fileSystem)
@@ -208,14 +202,14 @@ async function parseSFCTANetworkAndPostResults(projection: string) {
 
   postMessage({ links }, [links.source.buffer, links.dest.buffer])
 
-  if (warnings)
-    console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
+  if (warnings) console.error('FIX YOUR NETWORK:', warnings, 'LINKS WITH NODE LOOKUP PROBLEMS')
 }
 
 async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // pick up where we left off if user interactively gave us the CRS
   if (rawData) _rawData = rawData
   if (options) _options = options
+  if (options?.crs) _crs = options.crs
 
   if (!_rawData) {
     console.error("can't restart: no data")
@@ -229,7 +223,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // Be careful to only split chunks at the border between </link> and <link>
 
   // 9% at a time seems nice
-  let chunkBytes = Math.floor(_rawData.length / 11)
+  let chunkBytes = _rawData.length < 16384 ? _rawData.length : Math.floor(_rawData.length / 11)
 
   let decoded = ''
   let currentBytePosition = chunkBytes
@@ -238,7 +232,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // Find end of nodes; close them and close network. Parse it.
   postMessage({ status: 'Parsing nodes...' })
 
-  while (currentBytePosition < _rawData.length) {
+  while (currentBytePosition <= _rawData.length) {
     const text = decoder.decode(firstChunk)
     decoded += text
 
@@ -254,8 +248,6 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   let networkNodes = decoded.slice(0, endNodes) + '\n</network>\n'
 
   let network = parseXML(networkNodes)
-
-  // console.log({ network })
 
   // What is the CRS?
   let coordinateReferenceSystem = _crs
@@ -282,9 +274,7 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // store (converted) coordinates in lookup
   for (const node of network.network.nodes.node as any) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
-    const longlat = crs
-      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
-      : coordinates
+    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
     nodes[node.$id] = longlat
   }
 
@@ -334,7 +324,6 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   let endLinks = decoded.lastIndexOf('</link>')
   let closeTagLength = 7
 
-  console.log(80, endLinks)
   // old MATSim networks used <link blah=.../> instead of <link asdfasdf>...</link>
   if (endLinks === -1) {
     endLinks = decoded.lastIndexOf('/>')
@@ -424,11 +413,7 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]): Float32Array[
   return [source, dest]
 }
 
-async function fetchMatsimXmlNetwork(
-  filePath: string,
-  fileSystem: FileSystemConfig,
-  options: any
-) {
+async function fetchMatsimXmlNetwork(filePath: string, fileSystem: FileSystemConfig, options: any) {
   const rawData = await fetchGzip(filePath, fileSystem)
 
   try {
@@ -454,9 +439,7 @@ function parseXmlNetworkAndPostResults(coordinateReferenceSystem: string) {
     const coordinates = [parseFloat(node.$x), parseFloat(node.$y)]
 
     // convert coordinates to long/lat if necessary
-    const longlat = crs
-      ? Coords.toLngLat(coordinateReferenceSystem, coordinates)
-      : coordinates
+    const longlat = crs ? Coords.toLngLat(coordinateReferenceSystem, coordinates) : coordinates
 
     nodes[node.$id] = longlat
   }
@@ -628,33 +611,6 @@ function parseXML(xml: string, settings: any = {}) {
     console.error('WHAT', e)
     throw Error('' + e)
   }
-}
-
-async function fetchDataset(config: { dataset: string }) {
-  const { files } = await _fileApi.getDirectory(_subfolder)
-  return new Promise<DataTable>((resolve, reject) => {
-    const thread = new DataFetcherWorker()
-    try {
-      thread.postMessage({
-        fileSystemConfig: _fileSystemConfig,
-        subfolder: _subfolder,
-        files: files,
-        config: config,
-      })
-
-      thread.onmessage = e => {
-        thread.terminate()
-        if (e.data.error) {
-          reject(e.data)
-        }
-        resolve(e.data)
-      }
-    } catch (err) {
-      thread.terminate()
-      console.error(err)
-      reject('' + err)
-    }
-  })
 }
 
 // // make the typescript compiler happy on import

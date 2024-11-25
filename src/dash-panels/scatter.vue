@@ -16,6 +16,7 @@ import VuePlotly from '@/components/VuePlotly.vue'
 import { FileSystemConfig, Status, BG_COLOR_DASHBOARD, UI_FONT } from '@/Globals'
 import globalStore from '@/store'
 import { buildCleanTitle } from './_allPanels'
+import { buildColors } from '@/js/ColorsAndWidths'
 
 export default defineComponent({
   name: 'BarChartPanel',
@@ -34,6 +35,7 @@ export default defineComponent({
       globalState: globalStore.state,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
+      colorMap: {} as { [category: string]: string },
       id: ('scatter-' + Math.floor(1e12 * Math.random())) as any,
       layout: {
         height: 300,
@@ -99,7 +101,10 @@ export default defineComponent({
     this.$emit('isLoaded')
   },
   beforeDestroy() {
-    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+    this.datamanager?.removeFilterListener(
+      { ...this.config, subfolder: this.subfolder },
+      this.handleFilterChanged
+    )
   },
 
   watch: {
@@ -145,13 +150,16 @@ export default defineComponent({
 
     async loadData() {
       try {
-        let dataset = await this.datamanager.getDataset(this.config)
+        let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
 
         // no filter? we are done
         if (!this.config.filters) return dataset
 
         // filter data before returning:
-        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+        this.datamanager.addFilterListener(
+          { ...this.config, subfolder: this.subfolder },
+          this.handleFilterChanged
+        )
 
         for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
@@ -229,6 +237,9 @@ export default defineComponent({
 
       const markerSize = this.config.markerSize || 3
 
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
       for (let i = 0; i < columns.length; i++) {
         const col = columns[i]
         const legendName = useOwnNames ? this.config.legendTitles[i] : col
@@ -246,7 +257,7 @@ export default defineComponent({
           textposition: 'inside',
           automargin: true,
           showlegend: true,
-          marker: { size: markerSize },
+          marker: { size: markerSize, color: this.colorMap[i] },
         })
       }
     },

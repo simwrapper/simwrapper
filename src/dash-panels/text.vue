@@ -12,6 +12,8 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import markdown from 'markdown-it'
+import markdownTex from 'markdown-it-texmath'
+import katex from 'katex'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -20,6 +22,10 @@ const mdRenderer = new markdown({
   html: true,
   linkify: true,
   typographer: true,
+}).use(markdownTex, {
+  engine: katex,
+  delimiters: 'dollars',
+  katexOptions: { macros: { '\\RR': '\\mathbb{R}' } },
 })
 
 export default defineComponent({
@@ -70,6 +76,7 @@ export default defineComponent({
   bottom: 0;
   left: 0;
   right: 0;
+  padding: 0.25rem 0.5rem;
 }
 
 .text-panel-element.absolute {

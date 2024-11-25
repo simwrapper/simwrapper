@@ -16,6 +16,7 @@ let _config: any = {}
 let _dataset = ''
 let _buffer: Uint8Array
 let _highPrecision = false
+let _comments = [] as any
 
 const _fileData: { [key: string]: DataTable } = {}
 
@@ -72,6 +73,8 @@ async function fetchData(props: {
 
     // load all files
     await loadFile()
+    // add extra "_comments" column
+    if (_comments.length) _fileData[_dataset]._comments = _comments
     postMessage(_fileData[_dataset])
   } catch (e) {
     const error = '' + e
@@ -138,7 +141,7 @@ async function loadFile() {
   // figure out which file to load
   const matchingFiles = findMatchingGlobInFiles(_files, datasetPattern)
 
-  if (matchingFiles.length == 0) throw Error(`No files matched "${datasetPattern}"`)
+  if (matchingFiles.length == 0) throw Error(`File not found: "${datasetPattern}"`)
   if (matchingFiles.length > 1)
     throw Error(`More than one file matched "${datasetPattern}": ${matchingFiles}`)
 
@@ -152,15 +155,20 @@ async function loadFile() {
 }
 
 async function parseData(filename: string, buffer: Uint8Array) {
-  if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
-    const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
-    calculateMaxValues(_dataset, dataTable)
-    _fileData[_dataset] = dataTable
-  } else {
-    // convert text to utf-8
-    const text = new TextDecoder().decode(buffer)
-    // parse the text: we can handle CSV or XML
-    await parseVariousFileTypes(_dataset, filename, text)
+  try {
+    if (filename && filename.toLocaleLowerCase().endsWith('.dbf')) {
+      const dataTable = DBF(buffer, new TextDecoder('windows-1252')) // dbf has a weird default textcode
+      calculateMaxValues(_dataset, dataTable)
+      _fileData[_dataset] = dataTable
+    } else {
+      // convert text to utf-8
+      const text = new TextDecoder().decode(buffer)
+      // parse the text: we can handle CSV or XML
+      await parseVariousFileTypes(_dataset, filename, text)
+    }
+  } catch (e) {
+    const msg = ('' + e).replaceAll('Error: ', '')
+    postMessage({ error: '' + e })
   }
 }
 
@@ -218,6 +226,11 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       return column.trim()
     },
   })
+
+  if (!csv.data?.length) {
+    console.error('NODATA - Papaparse returned nothing!')
+    throw Error('Bad format or too large? Error loading')
+  }
 
   let headers = csv.meta.fields || []
 
@@ -280,8 +293,13 @@ function parseCsvFile(fileKey: string, filename: string, text: string) {
       }
     }
   }
+
   calculateMaxValues(fileKey, dataTable)
   _fileData[fileKey] = dataTable
+
+  // store comments, too
+  _comments = [...new Set(csv.comments)]
+  if (_comments.length) console.log({ _comments })
 }
 
 function calculateMaxValues(fileKey: string, dataTable: DataTable) {

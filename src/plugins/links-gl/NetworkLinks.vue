@@ -743,9 +743,8 @@ const MyComponent = defineComponent({
         // then load CSVs in background
         this.loadCSVFiles()
       } catch (e) {
-        this.myState.statusMessage = '' + e
-        const title = this.vizDetails.title || 'Network map'
-        this.$emit('error', `${title}: ` + e)
+        this.myState.statusMessage = ''
+        this.$emit('error', `` + e)
         this.$emit('isLoaded')
       }
     },
@@ -985,7 +984,10 @@ const MyComponent = defineComponent({
 
     async loadOneCSVFile(key: string, filename: string) {
       try {
-        const dataset = await this.myDataManager.getDataset({ dataset: filename })
+        const dataset = await this.myDataManager.getDataset(
+          { dataset: filename },
+          { subfolder: this.subfolder }
+        )
         const dataTable = dataset.allRows
 
         console.log('loaded', key)

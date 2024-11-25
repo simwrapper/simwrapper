@@ -60,7 +60,10 @@ export default defineComponent({
   },
 
   beforeDestroy() {
-    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+    this.datamanager?.removeFilterListener(
+      { ...this.config, subfolder: this.subfolder },
+      this.handleFilterChanged
+    )
   },
 
   methods: {
@@ -89,13 +92,19 @@ export default defineComponent({
 
       try {
         //this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config, { highPrecision: true })
+        let dataset = await this.datamanager.getDataset(this.config, {
+          highPrecision: true,
+          subfolder: this.subfolder,
+        })
 
         // no filter? we are done
         if (!this.config.filters) return dataset
 
         // filter data before returning:
-        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+        this.datamanager.addFilterListener(
+          { ...this.config, subfolder: this.subfolder },
+          this.handleFilterChanged
+        )
 
         for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {

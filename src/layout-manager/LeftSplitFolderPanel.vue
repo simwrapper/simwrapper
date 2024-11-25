@@ -2,7 +2,9 @@
 .panel
 
   .top-panel
-    h4 Split View
+    h4
+      i.fas.fa-columns
+      span &nbsp; Split View
 
 
     .trail(v-if="root")
@@ -692,12 +694,17 @@ export default defineComponent({
   font-size: 0.9rem;
   color: #ddd;
   position: absolute;
+  background: linear-gradient(150deg, #364980, #0c2f23);
 }
 
 .top-panel {
   display: flex;
   flex-direction: column;
   margin: 0.25rem 1rem 1rem 1rem;
+
+  h4 {
+    background-color: #116670;
+  }
 }
 
 h4 {

@@ -137,7 +137,9 @@ export default defineComponent({
       for (const file of list) {
         let result = (await this.loadDataUrl(file)) as any
         const buffer = result.buffer || result
-        const dataTable = await this.processBuffer(file.name, buffer)
+        const data = await this.processBuffer(file.name, buffer)
+        // separate CSV comments from dataset columns
+        const { comments, ...dataTable } = data
 
         // create a human-readable key for this file based on filename
         let key = file.name

@@ -1,7 +1,7 @@
 <template lang="pug">
 #layout-manager
 
- top-nav-bar(v-if="$store.state.topNavItems"
+ project-nav-bar(v-if="$store.state.topNavItems"
   @navigate="onNavigate($event,0,0)"
   :projectFolder="firstPanelProjectFolder"
   :currentFolder="firstPanelSubfolder"
@@ -13,13 +13,7 @@
   :style="{'userSelect': isDraggingDivider ? 'none' : 'unset'}"
  )
 
-  // do not show left-strip if we are in project mode
-  left-icon-panel.left-icon-panel(
-    v-if="$store.state.isShowingLeftStrip"
-    :activeSection="activeLeftSection.name"
-    @activate="setActiveLeftSection"
-  )
-
+  //-  :class="{'is-hide-me': isLeftPanelHidden}"
   .left-panel(v-show="showLeftBar")
 
     .left-panel-active-section(
@@ -150,6 +144,9 @@ import micromatch from 'micromatch'
 
 import globalStore from '@/store'
 import GIST from '@/js/gist'
+import ICON_INFO from '@/assets/icons/settings.svg'
+import ICON_DOCS from '@/assets/icons/readme.svg'
+import ICON_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_icon_black.png'
 
 import { pluginComponents } from '@/plugins/pluginRegistry'
 
@@ -162,14 +159,36 @@ import LeftSystemPanel from './LeftSystemPanel.vue'
 import SimRunner from '@/sim-runner/SimRunner.vue'
 import SplashPage from './SplashPage.vue'
 import TabbedDashboardView from './TabbedDashboardView.vue'
-import TopNavBar from './TopNavBar.vue'
+import ProjectNavBar from './ProjectNavBar.vue'
 
-import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import { FileSystemConfig } from '@/Globals'
 
+export interface Section {
+  name: string
+  class: string
+  icon?: string
+  colorize?: boolean
+  link?: string
+  onlyIfVisible?: boolean
+  navRoot?: string
+  hidden?: boolean
+}
+
 const BASE_URL = import.meta.env.BASE_URL
 const DEFAULT_LEFT_WIDTH = 250
+
+const PANELS = {
+  '': null,
+  data: { name: 'data', class: 'LeftSystemPanel', icon: ICON_SIMWRAPPER },
+  split: { name: 'split', class: 'LeftSplitFolderPanel', fontAwesomeIcon: 'fa-columns' },
+  runs: {
+    name: 'runs',
+    class: 'LeftRunnerPanel',
+    fontAwesomeIcon: 'fa-network-wired',
+    hidden: true,
+  },
+} as any
 
 export default defineComponent({
   name: 'LayoutManager',
@@ -179,12 +198,11 @@ export default defineComponent({
       BreadCrumbs,
       ErrorPanel,
       FolderBrowser,
-      LeftIconPanel,
       LeftProjectPanel,
       LeftRunnerPanel,
       LeftSplitFolderPanel,
       LeftSystemPanel,
-      TopNavBar,
+      ProjectNavBar,
       SimRunner,
       SplashPage,
       TabbedDashboardView,
@@ -208,6 +226,7 @@ export default defineComponent({
       isDraggingDivider: 0,
       isDragHappening: false,
       isEmbedded: false,
+      isLeftPanelHidden: false,
       isShowingActiveSection: true,
       leftSectionWidth: DEFAULT_LEFT_WIDTH,
       // navigation aids for project pages:
@@ -240,6 +259,11 @@ export default defineComponent({
   },
 
   watch: {
+    '$store.state.activeLeftSection'() {
+      console.log('GOTYOU')
+      this.setActiveLeftSection(PANELS[this.$store.state.activeLeftSection])
+    },
+
     '$store.state.statusErrors'() {
       // if (this.$store.state.statusErrors.length) {
       //   this.activeLeftSection = { name: 'Issues', class: 'ErrorPanel' }
@@ -259,7 +283,11 @@ export default defineComponent({
   },
 
   methods: {
-    setActiveLeftSection(section: Section) {
+    async setActiveLeftSection(section: Section) {
+      this.isLeftPanelHidden = !!!section
+
+      if (!section) return
+
       // don't open the left bar if it's optional, meaning it's currently closed
       if (section.onlyIfVisible && !this.isShowingActiveSection) return
 
@@ -279,7 +307,7 @@ export default defineComponent({
 
       this.isShowingActiveSection = true
       this.activeLeftSection = section
-      localStorage.setItem('activeLeftSection', JSON.stringify(section))
+      localStorage.setItem('activeLeftSection', section.name)
       if (this.leftSectionWidth < 48) this.leftSectionWidth = DEFAULT_LEFT_WIDTH
     },
 
@@ -321,7 +349,6 @@ export default defineComponent({
       // splash page:
       if (!pathMatch || pathMatch === '/') {
         this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-        this.$store.commit('setShowLeftStrip', true)
         return
       }
 
@@ -336,7 +363,6 @@ export default defineComponent({
         const serverNickname = pathMatch.substring(5)
         const props = { serverNickname } as any
         this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
-        this.$store.commit('setShowLeftStrip', true)
         this.activeLeftSection = { name: 'Runs', class: 'LeftRunnerPanel' }
         return
       }
@@ -622,6 +648,11 @@ export default defineComponent({
         this.panels[y][x] = Object.assign({ key: Math.random() }, newPanel)
       }
 
+      // folders must end with '/' or relative paths die
+      if (newPanel?.props?.xsubfolder) {
+        if (!newPanel.props?.xsubfolder.endsWith('/')) newPanel.props.xsubfolder += '/'
+      }
+
       this.updateURL()
       this.buildLayoutFromURL()
     },
@@ -821,21 +852,18 @@ export default defineComponent({
     getContainerStyle(panel: any, x: number, y: number) {
       const rightPadding = x === this.panels[y].length - 1 ? '6px' : '0'
       let style: any = {
-        padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+        // padding: this.isMultipanel ? `6px ${rightPadding} 6px 6px` : '0px 0px',
+        padding: `6px ${rightPadding} 6px 6px`,
       }
 
-      // // figure out height. If card has registered a resizer with changeDimensions(),
-      // // then it needs a default height (300)
-      // const defaultHeight = plotlyChartTypes[card.type] ? 300 : undefined
-      // const height = card.height ? card.height * 60 : defaultHeight
-
-      // const flex = card.width || 1
-
-      // let style: any = {
-      //   flex: flex,
-      // }
-
-      // if (height) style.minHeight = `${height}px`
+      // single file browser: no padding
+      if (this.panels[y].length == 1 && this.panels[x].length == 1) {
+        const singlePanel = this.panels[0][0]
+        // console.log('SINGLEPANEL!', singlePanel)
+        if (['TabbedDashboardView', 'SplashPage'].indexOf(singlePanel.component) > -1) {
+          style.padding = '0px 0px'
+        }
+      }
 
       if (this.fullScreenPanel.x == -1) return style
 
@@ -864,16 +892,28 @@ export default defineComponent({
     this.leftSectionWidth = width == null ? DEFAULT_LEFT_WIDTH : parseInt(width)
     if (this.leftSectionWidth < 0) this.leftSectionWidth = 2
 
-    // const section = localStorage.getItem('activeLeftSection')
-    // if (section) {
-    //   try {
-    //     this.activeLeftSection = JSON.parse(section)
-    //   } catch (e) {
-    //     this.activeLeftSection = { name: 'Files', class: 'BrowserPanel' }
-    //   }
-    // } else {
-    this.activeLeftSection = { name: 'Data', class: 'LeftSystemPanel' }
-    // }
+    const leftSection = localStorage.getItem('activeLeftSection') || ''
+
+    this.$store.commit('setActiveLeftSection', leftSection)
+    this.$store.commit('setShowLeftBar', !!leftSection)
+    this.setActiveLeftSection(PANELS[this.$store.state.activeLeftSection])
+
+    // folders must end with '/'
+    const currentPath = this.$route.params.pathMatch
+    if (currentPath && !currentPath.endsWith('/')) {
+      const finalElement = currentPath.slice(currentPath.lastIndexOf('/'))
+      if (finalElement.indexOf('.') == -1) {
+        // no period? then it seems this is a folder
+        const query = Object.entries(this.$route.query)
+          .map(([k, v]) => {
+            return `${encodeURIComponent(k)}=${encodeURIComponent(v as any)}`
+          })
+          .join('&')
+        let newUrl = `/${currentPath}/`
+        if (query) newUrl += '?' + query
+        history.replaceState({}, '', newUrl)
+      }
+    }
 
     await this.buildLayoutFromURL()
 
@@ -1018,7 +1058,7 @@ export default defineComponent({
 
 .left-panel-divider:hover {
   background-color: var(--sliderThumb); // matsimBlue;
-  transition-delay: 0.25s;
+  transition-delay: 0.2s;
   cursor: ew-resize;
 }
 
@@ -1032,7 +1072,7 @@ export default defineComponent({
 .row-drop-target {
   position: absolute;
   width: 100%;
-  height: 48px;
+  height: 128px;
   opacity: 0;
   z-index: 60000;
   transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s;

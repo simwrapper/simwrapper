@@ -1,14 +1,10 @@
 <template lang="pug">
 .panel
 
-  .top-panel
-    .simwrapper-logo(@click="clickedOnFolder({root: ''})")
-      img(:src="logo")
-
   .middle-panel
 
     .is-chrome(v-if="isChrome")
-      h3 Local Files
+      h3 Browse Local Files
       .items
         .project-root.local(v-for="row in localFileHandles" :key="row.key"
           @click="clickedBrowseChromeLocalFolder(row)")
@@ -22,9 +18,9 @@
 
     h3 Data Sources
     .items(v-if="!showAddDataSource")
-      .project-root(v-for="project in allRoots" :key="project.slug"
-        @click="clickedOnFolder({root: project.slug})")
-
+      .project-root(v-for="project in allRoots.filter(p => !p.example)" :key="project.slug"
+        @click="clickedOnFolder({root: project.slug})"
+      )
         p.root {{ project.name }}
           i.fa.fa-times(@click.stop="clickedDataSourceDelete(project)")
         p.description {{ project.description }}
@@ -37,7 +33,16 @@
     .items(v-if="showAddDataSource")
       add-data-source(@close="showAddDataSource=false" )
 
-    h3 PINNED
+    h3 Example Dashboards
+    .items
+      .project-root(v-for="project in allRoots.filter(p => p.example)" :key="project.slug"
+        @click="clickedOnFolder({root: project.slug})"
+      )
+        p.root {{ project.name }}
+          i.fa.fa-times(@click.stop="clickedDataSourceDelete(project)")
+        p.description {{ project.description }}
+
+    h3 Starred Locations
     .items
       .project-root(v-for="favorite in globalState.favoriteLocations" :key="favorite.fullPath"
         @click="clickedOnFavorite(favorite)")
@@ -150,15 +155,9 @@ import HTTPFileSystem from '@/js/HTTPFileSystem'
 import AddDataSource from './AddDataSource.vue'
 import ErrorPanel from '@/components/left-panels/ErrorPanel.vue'
 import FileSystemProjects from '@/components/FileSystemProjects.vue'
-import LeftIconPanel, { Section } from './LeftIconPanel.vue'
 import TopsheetsFinder from '@/components/TopsheetsFinder/TopsheetsFinder.vue'
 
 import LOGO_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_white.png'
-
-const components = Object.assign(
-  { AddDataSource, FileSystemProjects, TopsheetsFinder, ErrorPanel },
-  pluginComponents
-)
 
 export default defineComponent({
   name: 'SystemPanel',
@@ -546,6 +545,8 @@ export default defineComponent({
   user-select: none;
   font-size: 0.9rem;
   color: #eee;
+  background: linear-gradient(150deg, #2e3f5a, #0c2f23);
+  border-radius: 0px;
 }
 
 .top-panel {
@@ -660,7 +661,7 @@ h2 {
   font-size: 0.75rem;
   a {
     padding: 0.25rem 0.4rem;
-    border: 1px solid #00000000;
+    border: 1px solid #ccc;
     border-radius: 4px;
     color: var(--textLink);
   }
@@ -785,7 +786,7 @@ h2 {
 h3 {
   font-family: $mainFont;
   font-size: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
   margin-bottom: 0.5rem;
   margin-left: 6px;
   text-transform: uppercase;

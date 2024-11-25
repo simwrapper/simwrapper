@@ -44,6 +44,7 @@
       zoom-buttons
 
       .tooltip-area(v-if="tooltip" v-html="tooltip")
+      p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): bi LOADING...
 
   .left-grabby(
     @mousedown="dividerDragStart"

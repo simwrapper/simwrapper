@@ -35,12 +35,27 @@ export default function Layer({
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  REACT_VIEW_HANDLES[viewId] = (view: any) => {
-    if (view) {
-      setViewState(view)
+  // useMemo: row data only gets recalculated what data or highlights change
+  const rows = useMemo(() => {
+    let rows = [] as any
+    // is data filtered or not?
+    if (highlights.length) {
+      rows = highlights.map(row => row[1])
+    } else if (!data.length) {
+      rows = []
     } else {
-      setViewState(globalStore.state.viewState)
+      rows = {
+        length: data.length,
+        attributes: {
+          getPosition: { value: data.raw, size: 2 },
+        },
+      } as any
     }
+    return rows
+  }, [data, highlights]) as any
+
+  REACT_VIEW_HANDLES[viewId] = () => {
+    setViewState(globalStore.state.viewState)
   }
 
   function handleViewState(view: any) {
@@ -87,21 +102,6 @@ export default function Layer({
     onClick(target, event)
   }
 
-  // is data filtered or not?
-  let rows = null
-  if (highlights.length) {
-    rows = highlights.map(row => row[1])
-  } else if (!data.length) {
-    rows = null
-  } else {
-    rows = {
-      length: data.length,
-      attributes: {
-        getPosition: { value: data.raw, size: 2 },
-      },
-    }
-  }
-
   const layers = [
     new ArcLayer({
       id: 'arc-layer',
@@ -115,6 +115,7 @@ export default function Layer({
       getSourceColor: dark ? [144, 96, 128] : [192, 192, 240],
       getTargetColor: dark ? [144, 96, 128] : [192, 192, 240],
     }),
+
     new HexagonLayer({
       id: 'hexlayer',
       data: rows,

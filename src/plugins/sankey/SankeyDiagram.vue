@@ -1,16 +1,12 @@
 <template lang="pug">
-.sankey-container(:class="{'is-thumbnail': thumbnail}")
-
-  //- .labels(v-if="!thumbnail")
-  //-   h3.center {{ vizDetails.title }}
-  //-   h5.center {{ vizDetails.description }}
+.sankey-container(:class="{'is-thumbnail': thumbnail, 'is-large': textSize==2, 'is-medium': textSize==1}")
 
   svg.chart-area(:id="cleanConfigId" :class="{'is-thumbnail': thumbnail}")
 
   .labels(v-if="!thumbnail")
     p.center: b {{ totalTrips.toLocaleString() }} {{ $t('total') }}
 
-  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges") {{ $t('showChanges')}}
+  b-switch.switcher(v-if="!thumbnail" v-model="onlyShowChanges" size="is-small") {{ $t('showChanges')}}
 
 </template>
 
@@ -27,7 +23,7 @@ import { defineComponent } from 'vue'
 import yaml from 'yaml'
 import { sankey, sankeyDiagram } from '@simwrapper/d3-sankey-diagram'
 import { select } from 'd3-selection'
-import { scaleOrdinal } from 'd3-scale'
+
 import {
   interpolateRainbow as interpolator,
   schemeCategory10 as colorScheme,
@@ -38,6 +34,12 @@ import Papa from '@simwrapper/papaparse'
 import globalStore from '@/store'
 import { FileSystemConfig, VisualizationPlugin } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+
+enum Size {
+  small,
+  med,
+  large,
+}
 
 interface SankeyYaml {
   csv: string
@@ -67,6 +69,7 @@ const MyComponent = defineComponent({
       onlyShowChanges: false,
       csvData: [] as any[],
       colorRamp: [] as string[],
+      textSize: Size.small,
     }
   },
 
@@ -108,6 +111,14 @@ const MyComponent = defineComponent({
 
   methods: {
     changeDimensions() {
+      // set font size based on width
+      const panel = document.querySelector(`#${this.cleanConfigId}`)
+      if (panel) {
+        this.textSize =
+          panel.clientWidth > 900 ? Size.large : panel.clientWidth > 600 ? Size.med : Size.small
+        // panel.clientWidth > 900 ? Size.small : panel.clientWidth > 600 ? Size.small : Size.small
+      }
+      // redraw
       if (this.jsonChart?.nodes) this.doD3()
     },
 
@@ -240,7 +251,12 @@ const MyComponent = defineComponent({
       const context = canvas.getContext('2d')
       if (!context) return 120
 
-      context.font = '16px Arial'
+      context.font =
+        this.textSize == Size.large
+          ? 'bold 33px Arial'
+          : this.textSize == Size.med
+          ? '24px Arial'
+          : '16px Arial'
 
       let max = 0
 
@@ -263,7 +279,7 @@ const MyComponent = defineComponent({
       let width = box ? box.clientWidth : 100
       let height = box ? box.clientHeight : 100
 
-      let labelWidth = 5 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
+      let labelWidth = 10 + this.getMaxLabelWidth() // this.thumbnail ? 60 : 125
 
       const layout = sankey()
         .nodeWidth(8)
@@ -292,13 +308,14 @@ const MyComponent = defineComponent({
       this.$emit('error', '' + e)
     }
 
-    window.addEventListener('resize', this.changeDimensions)
+    // resizer for bigger fonts
+    const resizeObserver = new ResizeObserver(() => {
+      this.changeDimensions()
+    })
+    const targetDiv = document.querySelector(`#${this.cleanConfigId}`)
+    if (targetDiv) resizeObserver.observe(targetDiv)
 
     this.doD3()
-  },
-
-  beforeDestroy() {
-    window.removeEventListener('resize', this.changeDimensions)
   },
 })
 
@@ -309,15 +326,26 @@ export default MyComponent
 @import '@/styles.scss';
 
 .sankey-container {
-  padding-top: 1rem;
+  // padding-top: 1rem;
   display: flex;
   flex-direction: column;
   background-color: var(--bgCardFrame);
+  font-size: 16px;
+  font-weight: normal;
 }
 
 .sankey-container.is-thumbnail {
   padding-top: 0;
   height: $thumbnailHeight;
+}
+
+.sankey-container.is-medium {
+  font-size: 24px;
+}
+
+.sankey-container.is-large {
+  font-size: 32px;
+  font-weight: bold;
 }
 
 h1 {
@@ -393,7 +421,7 @@ p {
 
 .chart-area {
   height: 100%;
-  width: 100%;
+  width: 95%;
   flex: 1;
   margin: 0 auto;
 }

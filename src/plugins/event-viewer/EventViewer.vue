@@ -1,8 +1,9 @@
 <template lang="pug">
 .viz-plugin(oncontextmenu="return false" :id="`id-${viewId}`")
 
-  event-map.map-layer(v-if="!thumbnail && isLoaded"
+  event-map.map-layer(v-if="isLoaded && !thumbnail"
     :viewId="viewId"
+    :eventData = "eventData"
     :eventLayers="eventLayers"
     :network="network"
     :linkIdLookup="linkIdLookup"
@@ -12,8 +13,9 @@
     :breakpoints="this.breakpoints"
     :radius="this.guiConfig.radius"
     :mapIsIndependent="false"
-    :simulationTime="timeFilter[1]"
+    :simulationTime="simTime"
     :projection="vizDetails.projection"
+    :dotsize="guiConfig.size"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")
@@ -33,10 +35,10 @@
     @timeExtent="handleTimeSliderValues"
     @toggleAnimation="toggleAnimation"
     @drag="isAnimating=false"
-  )
+    )
 
   .message(v-if="!thumbnail && myState.statusMessage")
-    p.status-message {{ myState.statusMessage }}
+      p.status-message {{ myState.statusMessage }}
 
 </template>
 
@@ -73,7 +75,7 @@ import type { PropType } from 'vue'
 import GUI from 'lil-gui'
 import YAML from 'yaml'
 import colormap from 'colormap'
-
+import * as Comlink from 'comlink'
 import util from '@/js/util'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
@@ -85,7 +87,11 @@ import TimeSlider from '@/components/TimeSlider.vue'
 import EventMap from './EventDeckMap'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
-import MATSimEventStreamer from '@/workers/MATSimEventStreamer.worker.ts?worker'
+import WasmEventStreamer from './WASMEventStreamer.worker.ts?worker'
+
+export interface EventTask {
+  startStream: any
+}
 
 import {
   ColorScheme,
@@ -149,20 +155,16 @@ const MyComponent = defineComponent({
       } as NetworkLinks,
       linkIdLookup: {} as any,
       guiConfig: {
-        buckets: 7,
-        exponent: 4,
-        radius: 5,
-        'clip max': 100,
-        'color ramp': 'viridis',
-        flip: false,
-        colorRamps: colorRamps,
+        speed: 0.25,
+        size: 18,
       },
       viewId: ('xyt-id-' + Math.floor(1e12 * Math.random())) as any,
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
       timeLabels: [0, 1] as any[],
       startTime: 0,
       isAnimating: false,
-      timeFilter: [0, 3599],
+      simTime: 0,
+      timeFilter: [0, 3600],
       colors: [
         [128, 128, 128],
         [128, 128, 128],
@@ -201,6 +203,7 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
       eventLayers: [] as any[],
+      eventData: [] as any[],
       isLoaded: false,
       animator: null as any,
       guiController: null as GUI | null,
@@ -236,15 +239,6 @@ const MyComponent = defineComponent({
     },
   },
   methods: {
-    handleTimeSliderValues(timeValues: any[]) {
-      this.animationElapsedTime = timeValues[0]
-      this.timeFilter = timeValues
-      this.timeLabels = [
-        this.convertSecondsToClockTimeMinutes(timeValues[0]),
-        this.convertSecondsToClockTimeMinutes(timeValues[1]),
-      ]
-    },
-
     setupLogoMover() {
       this.resizer = new ResizeObserver(this.moveLogo)
       const deckmap = document.getElementById(`id-${this.viewId}`) as HTMLElement
@@ -262,20 +256,22 @@ const MyComponent = defineComponent({
 
     setupGui() {
       this.guiController = new GUI({
-        title: 'Color Settings',
+        title: 'VIEW SETTINGS',
         injectStyles: true,
         width: 200,
         container: document.getElementById(this.configId) || undefined,
       })
 
-      const colors = this.guiController // .addFolder('Colors')
-      colors.add(this.guiConfig, 'buckets', 2, 19, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
-      colors.add(this.guiConfig, 'radius', 1, 20, 1)
-      colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
-      colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-
+      const widgets = this.guiController // .addFolder('Colors')
+      widgets.add(this.guiConfig, 'size', 4, 40, 1).onChange(this.setConfig)
+      widgets
+        .add(this.guiConfig, 'speed', [-2, -1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1, 2], 1)
+        .onChange(this.setConfig)
+      // colors.add(this.guiConfig, 'exponent', 1, 10, 1).onChange(this.setColors)
+      // colors.add(this.guiConfig, 'clip max', 0, 100, 1).onChange(this.setColors)
+      // colors.add(this.guiConfig, 'radius', 1, 20, 1)
+      // colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+      // colors.add(this.guiConfig, 'flip').onChange(this.setColors)
       // const times = this.guiController.addFolder('Time')
     },
 
@@ -307,13 +303,13 @@ const MyComponent = defineComponent({
       if (hasYaml) {
         await this.loadStandaloneYAMLConfig()
       } else {
-        // console.log('NO YAML WTF')
+        console.log('NO YAML WTF')
         this.setConfigForRawCSV()
       }
     },
 
     setConfigForRawCSV() {
-      let projection = 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
+      let projection = '' // 'EPSG:4326' // Include "# EPSG:xxx" in header of CSV to set EPSG
 
       // output_trips:
       this.vizDetails = {
@@ -415,118 +411,30 @@ const MyComponent = defineComponent({
     },
 
     async streamEventFile(filename: string) {
-      this.myState.statusMessage = 'Loading file...'
-      let totalRows = 0
-      this.range = [Infinity, -Infinity]
-      this.timeRange = [Infinity, -Infinity]
-      this.animationElapsedTime = 0
-      this.timeFilter = [0, 59]
+      this.myState.statusMessage = 'Loading events: ' + filename
 
-      // get the raw unzipped arraybuffer
       if (this.gzipWorker) this.gzipWorker.terminate()
-      this.eventLayers = []
-      this.gzipWorker = new MATSimEventStreamer()
+      this.gzipWorker = new WasmEventStreamer()
+      const task = Comlink.wrap(this.gzipWorker) as unknown as EventTask
 
-      const formatter = Intl.NumberFormat()
+      const fsConfig = Object.assign({}, this.fileSystem)
 
-      this.gzipWorker.onmessage = async (event: MessageEvent) => {
-        const message = event.data
-        if (message.status) {
-          this.myState.statusMessage = message.status
-        } else if (message.error) {
-          this.myState.statusMessage = message.error
-          this.$emit('error', {
-            type: Status.ERROR,
-            msg: `XYT Loading Error`,
-            desc: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
-          })
-        } else if (message.finished) {
-          this.finishedLoadingData(totalRows, message)
-        } else {
-          const events = message.events as any[]
+      const layers = [{ viewer: 'vehicleViewer' }]
 
-          console.log(events.length)
+      task.startStream(
+        {
+          filename,
+          layers,
+          network: this.network,
+          fsConfig,
+        },
+        // callback when stream has new data to report
+        Comlink.proxy(this.receiveDataFromEventStreamer)
+      )
+    },
 
-          totalRows += events.length
-          this.myState.statusMessage = 'Loading ' + formatter.format(totalRows) + ' events'
-
-          // minmax all events
-          this.timeRange = [
-            Math.min(this.timeRange[0], events[0].time),
-            Math.max(this.timeRange[1], events[events.length - 1].time),
-          ]
-
-          // minmax vehicle trips specifically
-          this.timeRange = [
-            Math.min(this.timeRange[0], message.vehicleTrips[0].t0),
-            Math.max(this.timeRange[1], message.vehicleTrips[message.vehicleTrips.length - 1].t1),
-          ]
-
-          // .filter(row => row.link)
-          const linkEvents = events.map(row => {
-            return {
-              time: row.time,
-              link: row.link,
-            } as any
-          })
-
-          // POSITIONS ----
-          const positions = new Float32Array(2 * linkEvents.length).fill(NaN)
-          for (let i = 0; i < linkEvents.length; i++) {
-            const offset = 2 * this.linkIdLookup[linkEvents[i].link]
-            positions[i * 2] = this.network.source[offset]
-            positions[i * 2 + 1] = this.network.source[offset + 1]
-          }
-
-          // VEHICLES -----------
-          const numTrips = message.vehicleTrips.length
-          const tripData = {
-            locO: new Float32Array(2 * numTrips).fill(NaN),
-            locD: new Float32Array(2 * numTrips).fill(NaN),
-            t0: new Float32Array(numTrips).fill(NaN),
-            t1: new Float32Array(numTrips).fill(NaN),
-          }
-
-          for (let i = 0; i < numTrips; i++) {
-            const trip = message.vehicleTrips[i]
-            const offset = 2 * this.linkIdLookup[trip.link]
-            tripData.locO[i * 2 + 0] = this.network.source[0 + offset]
-            tripData.locO[i * 2 + 1] = this.network.source[1 + offset]
-            tripData.locD[i * 2 + 0] = this.network.dest[0 + offset]
-            tripData.locD[i * 2 + 1] = this.network.dest[1 + offset]
-            // enter/leave traffic happen in the middle of the link
-            if (i == 0) {
-              tripData.locO[i * 2 + 0] = 0.5 * (tripData.locO[i * 2 + 0] + tripData.locD[i * 2 + 0])
-              tripData.locO[i * 2 + 1] = 0.5 * (tripData.locO[i * 2 + 1] + tripData.locD[i * 2 + 1])
-            } else if (i == numTrips - 1) {
-              tripData.locD[i * 2 + 0] = 0.5 * (tripData.locO[i * 2 + 0] + tripData.locD[i * 2 + 0])
-              tripData.locD[i * 2 + 1] = 0.5 * (tripData.locO[i * 2 + 1] + tripData.locD[i * 2 + 1])
-            }
-            tripData.t0[i] = trip.t0
-            tripData.t1[i] = trip.t1
-          }
-
-          // ALL DONE --------
-
-          this.eventLayers.push({
-            events: events.slice(1, 2), // linkEvents.slice(1, 2),
-            positions,
-            vehicles: tripData,
-            times: message.times,
-          })
-
-          // zoom map on first load
-          // if (!totalRows) this.setFirstZoom(message.coordinates, rows)
-          // // save layer data
-          // totalRows += rows
-        }
-      }
-
-      this.gzipWorker.postMessage({
-        filePath: filename,
-        fileSystem: this.fileSystem,
-        projection: this.vizDetails.projection,
-      })
+    receiveDataFromEventStreamer(props: { data: any[]; timeRange: number[] }) {
+      this.eventData = [...this.eventData, props]
     },
 
     setFirstZoom(coordinates: any[], rows: number) {
@@ -541,73 +449,17 @@ const MyComponent = defineComponent({
       }
     },
 
-    finishedLoadingData(totalRows: number, data: any) {
-      this.isLoaded = true
-      this.range = data.range
-      this.myState.statusMessage = ''
-      this.timeFilter = [this.timeRange[0], this.timeRange[0] + 59]
-
-      if (this.gzipWorker) this.gzipWorker.terminate()
-
-      this.setColors()
-      this.moveLogo()
-      // this.eventLayers = [...this.eventLayers]
-
-      console.log('ALL DONE', {
-        totalRows,
-        data: data.range,
-        time: this.timeRange,
-        layers: this.eventLayers.length,
-      })
-    },
-
     toggleAnimation() {
       this.isAnimating = !this.isAnimating
       if (this.isAnimating) {
         this.animationElapsedTime = this.timeFilter[0] - this.timeRange[0]
-        this.startTime = Date.now() - this.animationElapsedTime / this.ANIMATE_SPEED
+        this.startTime = Date.now() - this.animationElapsedTime / this.guiConfig.speed
         this.animate()
       }
     },
 
-    setColors() {
-      const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
-
-      let colors256 = colormap({
-        colormap: this.guiConfig['color ramp'],
-        nshades: 256,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2]])
-
-      if (this.guiConfig.flip) colors256 = colors256.reverse()
-
-      const step = 256 / (this.guiConfig.buckets - 1)
-      const colors = []
-      for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
-        colors.push(colors256[Math.round(step * i)])
-      }
-      colors.push(colors256[255])
-
-      // figure out min and max
-      const max1 = Math.pow(this.range[1], 1 / EXPONENT)
-      const max2 = (max1 * this.guiConfig['clip max']) / 100.0
-      // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
-
-      // console.log({ max1, max2 })
-
-      const breakpoints = [] as number[]
-      for (let i = 1; i < this.guiConfig.buckets; i++) {
-        const raw = (max2 * i) / this.guiConfig.buckets
-        const breakpoint = Math.pow(raw, EXPONENT)
-        breakpoints.push(breakpoint)
-      }
-
-      // only update legend if we have the full dataset already
-      if (this.isLoaded) this.setLegend(colors, breakpoints)
-
-      this.colors = colors
-      this.breakpoints = breakpoints
+    setConfig() {
+      // change things here
     },
 
     setLegend(colors: any[], breakpoints: number[]) {
@@ -631,52 +483,51 @@ const MyComponent = defineComponent({
     async loadNetwork() {
       if (!this.myDataManager) throw Error('event viewer: no datamanager')
 
-      let networkFilename = this.vizDetails.file.replace('events.xml', 'network.xml')
+      // TODO for now, we'll try two network files
+      const { files } = await this.fileApi.getDirectory(this.subfolder)
+
+      let networkFile = ''
+      if (files.indexOf('network.avro') > -1) networkFile = 'network.avro'
+      else networkFile = this.vizDetails.file.replace('events.xml', 'network.xml')
+
+      console.log(networkFile)
       const network = await this.myDataManager.getRoadNetwork(
-        networkFilename,
+        networkFile,
         this.myState.subfolder,
         Object.assign({}, this.vizDetails)
       )
-
       this.vizDetails.projection = '' + network.projection
-
-      const linkIdLookup = {} as any
-      let i = 0
-      for (const link of network.linkIds) {
-        linkIdLookup[`${link}`] = i
-        i++
-      }
-
-      return { network, linkIdLookup }
+      return { network }
     },
 
     async loadFiles() {
-      const { network, linkIdLookup } = await this.loadNetwork()
+      const { network } = await this.loadNetwork()
       this.network = network
-      this.linkIdLookup = linkIdLookup
 
-      let dataArray: any = []
-      if (!this.fileApi) return { dataArray }
+      // let dataArray: any = []
+      // if (!this.fileApi) return { dataArray }
 
-      try {
-        let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
-        await this.streamEventFile(filename)
-      } catch (e) {
-        console.error(e)
-        this.myState.statusMessage = '' + e
-        this.$emit('error', {
-          type: Status.ERROR,
-          msg: `Loading/Parsing Error`,
-          desc: 'Error loading/parsing: ${this.myState.subfolder}/${this.vizDetails.file}',
-        })
-      }
+      // try {
+      let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
+      await this.streamEventFile(filename)
+    },
+
+    handleTimeSliderValues(timeValues: any[]) {
+      this.animationElapsedTime = timeValues[0]
+      this.simTime = this.animationElapsedTime
+      this.animationClockTime = this.animationElapsedTime + this.timeRange[0]
+      // this.startTime = Date.now() - this.ANIMATE_SPEED * this.animationElapsedTime
+      this.timeFilter = timeValues
+      this.timeLabels = [
+        this.convertSecondsToClockTimeMinutes(timeValues[0]),
+        this.convertSecondsToClockTimeMinutes(timeValues[1]),
+      ]
     },
 
     animate() {
       if (!this.isAnimating) return
 
-      this.animationElapsedTime = this.ANIMATE_SPEED * (Date.now() - this.startTime)
-
+      this.animationElapsedTime = this.guiConfig.speed * (Date.now() - this.startTime)
       this.animationClockTime = this.animationElapsedTime + this.timeRange[0]
 
       if (this.animationClockTime > this.timeRange[1]) {
@@ -684,8 +535,10 @@ const MyComponent = defineComponent({
         this.animationElapsedTime = 0 // this.timeRange[0]
       }
 
-      const span = this.timeFilter[1] - this.timeFilter[0]
+      const span = 3600 // this.timeFilter[1] - this.timeFilter[0]
       this.timeFilter = [this.animationClockTime, this.animationClockTime + span]
+      this.simTime = this.animationClockTime
+      // this.timeFilter = [0, 86400] // this.animationClockTime, this.animationClockTime + span]
 
       this.animator = window.requestAnimationFrame(this.animate)
     },
@@ -719,10 +572,14 @@ const MyComponent = defineComponent({
     this.setupLogoMover()
 
     // ----------------------------------------------------
-    // this.setupGui()
+    this.setupGui()
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     if (!this.isLoaded) await this.loadFiles()
+    this.isLoaded = true
+    this.myState.statusMessage = ''
+    this.timeRange = [0, 86400]
+    this.toggleAnimation()
   },
 
   beforeDestroy() {
@@ -797,7 +654,9 @@ export default MyComponent
 }
 
 .map-layer {
+  flex: 1;
   pointer-events: auto;
+  position: relative;
 }
 
 .drawing-tool {

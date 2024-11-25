@@ -32,7 +32,7 @@ import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES, VisualizationPlugin } from '@/Globals'
-import FlowMapLayer from '@/layers/FlowMapLayer'
+import FlowMapLayer from '@/plugins/flowmap/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
@@ -207,7 +207,6 @@ const MyComponent = defineComponent({
       // Config was passed in from dashboard:
       if (this.configFromDashboard) {
         console.log('we have a dashboard')
-        this.validateYAML()
         this.vizDetails = Object.assign({}, this.configFromDashboard) as any
         return
       }
@@ -237,8 +236,6 @@ const MyComponent = defineComponent({
         }
       }
     },
-
-    async validateYAML() {},
 
     async loadStandaloneYAMLConfig() {
       if (!this.fileApi) return {}
@@ -322,7 +319,7 @@ const MyComponent = defineComponent({
           })
         }
       }
-      console.log({ centroids: this.centroids })
+      // console.log({ centroids: this.centroids })
       // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
     },
 
@@ -378,24 +375,29 @@ const MyComponent = defineComponent({
     },
 
     async loadDataset() {
+      console.log('flowmap: loadDataset')
       try {
-        const dataset = await this.myDataManager.getDataset(this.vizDetails)
+        const dataset = await this.myDataManager.getDataset(this.vizDetails, {
+          subfolder: this.subfolder,
+        })
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        console.log('dataset:', dataset)
+        // console.log('dataset:', dataset)
 
         const data = dataset.allRows || ({} as any)
-        console.log('data:', data)
+        // console.log('data:', data)
 
         // Use config columns for origin/dest/flow -- if they exist
         const oColumn = this.vizDetails.origin || 'origin'
         const dColumn = this.vizDetails.destination || 'destination'
         const flowColumn = this.vizDetails.flow || 'flow'
 
+        if (!(oColumn in data)) this.$emit('error', `Column ${oColumn} not found`)
+        if (!(dColumn in data)) this.$emit('error', `Column ${dColumn} not found`)
+        if (!(flowColumn in data)) this.$emit('error', `Column ${flowColumn} not found`)
+
         const origin = data[oColumn].values
         const destination = data[dColumn].values
         const count = data[flowColumn].values
-
-        console.log('in loadDataset')
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
@@ -411,10 +413,9 @@ const MyComponent = defineComponent({
         }
         this.flows = flows
       } catch (e) {
-        const message = '' + e
-        console.log(message)
+        console.log('' + e)
         this.flows = []
-        this.$emit('error', message)
+        this.$emit('error', 'Check your configuration.')
       }
       console.log({ flows: this.flows })
     },

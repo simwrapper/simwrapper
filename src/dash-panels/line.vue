@@ -10,6 +10,7 @@ VuePlotly.myplot(
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { buildColors } from '@/js/ColorsAndWidths'
 
 import DashboardDataManager, { FilterDefinition } from '@/js/DashboardDataManager'
 import VuePlotly from '@/components/VuePlotly.vue'
@@ -36,6 +37,7 @@ export default defineComponent({
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
       id: ('line-' + Math.floor(1e12 * Math.random())) as any,
+      colorMap: {} as { [category: string]: string },
       YAMLrequirementsLine: { dataset: '', x: '' },
       YAMLdeprecations: ['usedCol'],
       layout: {
@@ -102,7 +104,10 @@ export default defineComponent({
     this.$emit('isLoaded')
   },
   beforeDestroy() {
-    this.datamanager?.removeFilterListener(this.config, this.handleFilterChanged)
+    this.datamanager?.removeFilterListener(
+      { ...this.config, subfolder: this.subfolder },
+      this.handleFilterChanged
+    )
   },
 
   watch: {
@@ -149,13 +154,17 @@ export default defineComponent({
     async loadData() {
       try {
         this.validateYAML()
-        let dataset = await this.datamanager.getDataset(this.config)
+
+        let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })
 
         // no filter? we are done
         if (!this.config.filters) return dataset
 
         // filter data before returning:
-        this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
+        this.datamanager.addFilterListener(
+          { ...this.config, subfolder: this.subfolder },
+          this.handleFilterChanged
+        )
 
         for (const [column, value] of Object.entries(this.config.filters)) {
           const filter: FilterDefinition = {
@@ -249,6 +258,9 @@ export default defineComponent({
         columns = columnNames.filter(col => col !== this.config.x).sort()
       }
 
+      // Build colors for each column of data
+      this.colorMap = buildColors(columns, this.config.colorRamp)
+
       const lines = [] as any[]
 
       for (let i = 0; i < columns.length; i++) {
@@ -269,6 +281,7 @@ export default defineComponent({
           textinfo: 'label+percent',
           textposition: 'inside',
           automargin: false,
+          marker: { color: this.colorMap[col] },
         })
       }
       this.data = lines

@@ -29,7 +29,7 @@
 
         //- card header/title
         .dash-card-headers(v-if="card.title + card.description" :class="{'fullscreen': !!fullScreenCardId}")
-          .header-labels
+          .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
@@ -61,7 +61,7 @@
           component.dash-card(
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
-            :subfolder="xsubfolder"
+            :subfolder="row.subtabFolder || xsubfolder"
             :files="fileList"
             :yaml="card.props.configFile"
             :config="card.props"
@@ -126,7 +126,7 @@ export default defineComponent({
       description: '',
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
-      rows: [] as { id: string; cards: any[] }[],
+      rows: [] as { id: string; cards: any[]; subtabFolder?: string }[],
       fileList: [] as string[],
       fileSystemConfig: {} as FileSystemConfig,
       fullScreenCardId: '',
@@ -368,7 +368,7 @@ export default defineComponent({
       this.updateThemeAndLabels()
 
       // if there are subtabs, prepare them
-      if (this.yaml.subtabs) this.setupSubtabs()
+      if (this.yaml.subtabs) this.subtabs = await this.setupSubtabs()
 
       this.setFullScreen()
 
@@ -389,51 +389,90 @@ export default defineComponent({
       this.selectTabLayout()
     },
 
-    setupSubtabs() {
+    async setupSubtabs() {
       // YAML definition of subtabs can be:
       // 1) false/missing: no subtabs.
       // 2) true: convert each row property of the layout to a subtab
-      // 3) array[] of row IDs that comprise each subtab, e.g.
+      // 3) array of dashboard*.yaml filenames: each subtab will contain the
+      //     imported dashboard contents
+      // 4) array[] of row IDs that comprise each subtab, so you can combine rows as you wish
+      //
       //    subtabs:
       //    - title: 'Tab1'
       //      rows: ['modeshare','statistics']
       //
-      // In cases 2 and 3, this.subtabs will hold an array with the
-      // title and layout object for each subtab.
+      // this.subtabs will then hold an array with the title and layout object for each subtab.
 
       let i = 1
-      this.subtabs = []
-      const allRowKeys = new Set(Object.keys(this.yaml.layout))
+      const subtabs = [] as any
 
+      // "TRUE": convert each layout row to a subtab ------------------
       if (this.yaml.subtabs === true) {
         // One subtab per layout object.
+        const allRowKeys = new Set(Object.keys(this.yaml.layout))
         for (const rowKey of allRowKeys) {
-          this.subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
+          subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
         }
-      } else {
-        // subtabs array explicitly assigns rows to subtabs
-        for (const tab of this.yaml.subtabs) {
-          this.subtabs.push({
-            title: this.getObjectLabel(tab, 'title'),
-            layout: tab.rows.map((rowName: string) => {
-              allRowKeys.delete(rowName)
-              return this.yaml.layout[rowName]
-            }),
-          })
-        }
-        // if user missed any rows, add them at the end
-        for (const leftoverKey of allRowKeys) {
-          this.subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
-        }
+        return subtabs
       }
+
+      // Not an array? Fail. -----------------------------------------------------
+      if (!Array.isArray(this.yaml.subtabs)) {
+        console.warn('SUBTABS: Not an array', this.yaml.subtabs)
+        return []
+      }
+
+      // "Array of filepaths": load each dashboard as a subtab --------------
+      if (typeof this.yaml.subtabs[0] == 'string') {
+        this.yaml.layout = []
+        for (const filename of this.yaml.subtabs) {
+          // get full path to the dashboard file
+          const fullpath = `${this.xsubfolder}/${filename}`
+          // also get the working directory of that dashboard file
+          const subtabWorkingDirectory = fullpath.substring(0, fullpath.lastIndexOf('/'))
+
+          try {
+            const raw = await this.fileApi.getFileText(fullpath)
+            const dashContent = YAML.parse(raw)
+            const subtab = {
+              title: dashContent.header.tab || dashContent.header.title || filename,
+              description: dashContent.description,
+              layout: dashContent.layout,
+              subtabFolder: subtabWorkingDirectory,
+            } as any
+            subtabs.push(subtab)
+          } catch (e) {
+            console.error('' + e)
+          }
+        }
+        return subtabs
+      }
+
+      // "Array of Objects": Each element is a layout object ------------
+      const allRowKeys = new Set(Object.keys(this.yaml.layout))
+      for (const tab of this.yaml.subtabs) {
+        subtabs.push({
+          title: this.getObjectLabel(tab, 'title'),
+          layout: tab.rows.map((rowName: string) => {
+            allRowKeys.delete(rowName)
+            return this.yaml.layout[rowName]
+          }),
+        })
+      }
+      for (const leftoverKey of allRowKeys) {
+        // if user missed any rows, add them at the end
+        subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
+      }
+
+      return subtabs
     },
 
     selectTabLayout() {
       // Choose subtab or full layout
 
       if (this.subtabs.length && this.activeTab > -1) {
-        const subtab = this.subtabs[this.activeTab].layout
-        this.setupRows(subtab)
+        const subtab = this.subtabs[this.activeTab]
+        this.setupRows(subtab.layout, subtab.subtabFolder)
       } else if (this.yaml.layout) {
         this.setupRows(this.yaml.layout)
       } else {
@@ -444,7 +483,7 @@ export default defineComponent({
       }
     },
 
-    setupRows(layout: any) {
+    setupRows(layout: any, subtabFolder?: string) {
       let numCard = 1
 
       for (const rowId of Object.keys(layout)) {
@@ -489,7 +528,7 @@ export default defineComponent({
           numCard++
         })
 
-        this.rows.push({ id: rowId, cards })
+        this.rows.push({ id: rowId, cards, subtabFolder })
         this.rowFlexWeights.push(flexWeight)
       }
       this.$emit('layoutComplete')
@@ -678,13 +717,18 @@ export default defineComponent({
   grid-auto-rows: auto auto 1fr;
   margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
-  padding: 2px 5px;
+  padding: 2px 3px 3px 3px;
   border-radius: 4px;
   overflow-x: auto;
 
   .dash-card-headers {
     display: flex;
     flex-direction: row;
+    line-height: 1.2rem;
+    padding: 3px 3px 2px 3px;
+    p {
+      margin-bottom: 0.1rem;
+    }
   }
 
   .dash-card-headers.fullscreen {
@@ -744,6 +788,7 @@ export default defineComponent({
   transition: opacity 0.5s;
   overflow-x: hidden;
   overflow-y: hidden;
+  border-radius: 2px;
 }
 
 // Observe for narrowness instead of a media-query
@@ -791,7 +836,8 @@ li.is-not-active b a {
   background-color: var(--bgError);
   color: #800;
   border: 1px solid var(--bgCream4);
-  margin-bottom: 2px;
+  border-radius: 3px;
+  margin-bottom: 0px;
   padding: 0.5rem 0.5rem;
   z-index: 25000;
   font-size: 0.9rem;
@@ -807,7 +853,7 @@ li.is-not-active b a {
 .clear-error {
   float: right;
   font-weight: bold;
-  margin-right: 4px;
+  margin-right: 2px;
   padding: 0px 5px;
 }
 
