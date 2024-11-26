@@ -13,15 +13,16 @@
 
 import { rollup } from 'd3-array'
 
-import globalStore from '@/store'
 import HTTPFileSystem from './HTTPFileSystem'
-import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import { findMatchingGlobInFiles } from '@/js/util'
-import avro from '@/js/avro'
 
+import avro from '@/js/avro'
+import globalStore from '@/store'
+import { DataTable, DataTableColumn, DataType, FileSystemConfig, Status } from '@/Globals'
 import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import Coords from './Coords'
+import CleanupRegistry from '@/js/CleanupRegistry'
 
 interface configuration {
   dataset: string
@@ -62,6 +63,8 @@ export default class DashboardDataManager {
     this.root = args.length ? args[0] : ''
     this.subfolder = args.length ? args[1] : ''
     this.fileApi = this._getFileSystem(this.root)
+    // wipe everything on hot module reload
+    CleanupRegistry.register(this, () => this.clearCache())
   }
 
   private threads: Worker[] = []

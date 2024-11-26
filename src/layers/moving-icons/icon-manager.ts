@@ -1,8 +1,8 @@
 // BC 2021-04-30: this file forked from https://github.com/visgl/deck.gl
 //
 /* global document */
-import GL from '@luma.gl/constants'
-import { Texture2D, copyToTexture, cloneTextureFrom } from '@luma.gl/core'
+import { GL } from '@luma.gl/constants'
+import { Texture, copyToTexture, cloneTextureFrom } from '@luma.gl/core'
 import { ImageLoader } from '@loaders.gl/images'
 import { load } from '@loaders.gl/core'
 import { createIterable } from '@deck.gl/core'
@@ -304,7 +304,7 @@ export default class IconManager {
 
       // create new texture
       if (!this._texture) {
-        this._texture = new Texture2D(this.gl, {
+        this._texture = new Texture(this.gl, {
           width: this._canvasWidth,
           height: this._canvasHeight,
           parameters: DEFAULT_TEXTURE_PARAMETERS,

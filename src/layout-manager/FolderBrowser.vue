@@ -26,7 +26,7 @@
             .is-favorite(v-if="isFavorite(folder)")
             p
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
-              | &nbsp;{{ cleanName(folder) }}
+              | &nbsp;&nbsp;{{ cleanName(folder) }}
 
       //- README: content of readme.md, if it exists
       .readme-header.markdown(v-if="myState.readme")
@@ -47,16 +47,16 @@
                   p.v-title: b {{ viz.title }}
                   p.v-filename {{ viz.config }}
                   //- this "fake" hidden component is here so the plugin can send us its title
-                  component.viz-frame-component(
-                      v-show="false"
-                      :is="viz.component"
-                      :root="myState.svnProject.slug"
-                      :subfolder="myState.subfolder"
-                      :yamlConfig="viz.config"
-                      :thumbnail="true"
-                      :fileApi="myState.svnRoot"
-                      :style="{'pointer-events': 'none'}"
-                      @title="updateTitle(index, $event)")
+                  //- component.viz-frame-component(
+                  //-     v-show="false"
+                  //-     :is="viz.component"
+                  //-     :root="myState.svnProject.slug"
+                  //-     :subfolder="myState.subfolder"
+                  //-     :yamlConfig="viz.config"
+                  //-     :thumbnail="true"
+                  //-     :fileApi="myState.svnRoot"
+                  //-     :style="{'pointer-events': 'none'}"
+                  //-     @title="updateTitle(index, $event)")
 
       //- IMAGES here
       .section-images(v-if="Object.keys(vizImages).length")
@@ -66,17 +66,17 @@
             .viz-image-grid-item(v-for="[index, viz] of Object.entries(vizImages)" :key="index"
                       @click="clickedVisualization(index)")
 
-              .viz-image-frame
-                component.viz-image-frame-component(
-                      :is="viz.component"
-                      :root="myState.svnProject.slug"
-                      :subfolder="myState.subfolder"
-                      :yamlConfig="viz.config"
-                      :thumbnail="true"
-                      :fileApi="myState.svnRoot"
-                      :style="{'pointer-events': 'auto'}"
-                      @title="updateTitle(index, $event)")
-                p {{ viz.title }}
+              //- .viz-image-frame
+              //-   component.viz-image-frame-component(
+              //-         :is="viz.component"
+              //-         :root="myState.svnProject.slug"
+              //-         :subfolder="myState.subfolder"
+              //-         :yamlConfig="viz.config"
+              //-         :thumbnail="true"
+              //-         :fileApi="myState.svnRoot"
+              //-         :style="{'pointer-events': 'auto'}"
+              //-         @title="updateTitle(index, $event)")
+              //-   p {{ viz.title }}
 
       //- FILES: individual links to files in this folder
       //- this is DISABLED for Chrome API for now, because we
@@ -196,7 +196,7 @@ export default defineComponent({
       summaryYamlFilename: 'viz-summary.yml',
       mdRenderer,
       idFolderTable,
-      resizeObserver: {} as any,
+      resizeObserver: {} as ResizeObserver,
       myState: {
         errorStatus: '',
         folders: [],
@@ -542,16 +542,16 @@ export default defineComponent({
       }
 
       // make sure page is rendered before we attach zoom semantics
-      await this.$nextTick()
-      try {
-        setTimeout(() => {
-          mediumZoom('.medium-zoom', {
-            background: '#333344',
-          })
-        }, 250)
-      } catch (e) {
-        // oh well
-      }
+      // await this.$nextTick()
+      // try {
+      //   setTimeout(() => {
+      //     mediumZoom('.medium-zoom', {
+      //       background: '#333344',
+      //     })
+      //   }, 250)
+      // } catch (e) {
+      //   // oh well
+      // }
     },
   },
 
@@ -563,6 +563,9 @@ export default defineComponent({
       this.updateFolderLayout()
     })
     this.resizeObserver.observe(dashboard)
+  },
+  beforeDestroy() {
+    this.resizeObserver.disconnect()
   },
 })
 </script>
@@ -659,7 +662,7 @@ h4 {
 
 .folder-table {
   display: grid;
-  gap: 3px;
+  // gap: 3px;
   grid-auto-flow: column;
   grid-template-columns: repeat(auto-fill, max-content);
   grid-template-rows: repeat(var(--num-rows, 20), min-content);
@@ -675,7 +678,8 @@ h4 {
   flex-direction: column;
   background-color: var(--bgCream5);
   padding: 0.25rem 0.75rem;
-  border-radius: 3px;
+  border: 1px solid var(--bgDashboard);
+  border-top-right-radius: 10px;
   word-wrap: break-word;
   position: relative;
 }

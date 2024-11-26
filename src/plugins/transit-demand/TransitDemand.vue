@@ -14,15 +14,29 @@
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-        transit-layers.map-styles(v-if="transitLinks?.features.length"
-          :viewId="viewId"
-          :links="transitLinks"
-          :selectedFeatures="selectedFeatures"
-          :stopMarkers="stopMarkers"
-          :handleClickEvent="handleMapClick"
-          :pieSlider="pieSlider"
-          :widthSlider="widthSlider"
-        )
+        .transit-vue-boop(v-if="!leaving")
+            input.boop-boop.boop-layers
+            transit-layers-vue.boop-layers(
+            )
+            //- :links="transitLinks"
+            //-   :selectedFeatures="selectedFeatures"
+            //-   :stopMarkers="stopMarkers"
+            //-   :pieSlider="pieSlider"
+            //-   :widthSlider="widthSlider"
+            //-   :viewId="viewId"
+            //-   :sentinel="sentinel"
+            //-   :leaving="leaving"
+
+        //- transit-layers.map-styles(v-if="transitLinks.length"
+        //-   :viewId="viewId"
+        //-   :links="transitLinks"
+        //-   :selectedFeatures="selectedFeatures"
+        //-   :stopMarkers="stopMarkers"
+        //-   :handleClickEvent="handleMapClick"
+        //-   :pieSlider="pieSlider"
+        //-   :widthSlider="widthSlider"
+        //-   :leaving="leaving"
+        //- )
 
         .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
             //- width slider
@@ -61,10 +75,10 @@
 
         .transit-lines.flex-col.flex1
 
-          lazy-list.flex1(
-            :highlightedTransitLines="highlightedTransitLines"
-            :listProps="routeListProps"
-          )
+          //- lazy-list.flex1(
+          //-   :highlightedTransitLines="highlightedTransitLines"
+          //-   :listProps="routeListProps"
+          //- )
 
         .summary-stats.flex-col
           .sum-stat-title: b SUMMARY STATISTICS
@@ -111,6 +125,7 @@ import { color } from 'd3-color'
 import globalStore from '@/store'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import CleanupRegistry from '@/js/CleanupRegistry'
 import LeftDataPanel from '@/components/LeftDataPanel.vue'
 import { Network, NetworkInputs, NetworkNode, TransitLine, RouteDetails } from './Interfaces'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
@@ -118,10 +133,11 @@ import TransitSupplyWorker from './TransitSupplyHelper.worker?worker'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
-import TransitLayers from './TransitLayers'
 import LegendBox from './LegendBox.vue'
 import RouteDropDown from './RouteDropDown.vue'
 import LazyList from './LazyList.vue'
+import TransitLayers from './TransitLayers'
+import TransitLayersVue from './TransitLayersTiny.vue'
 
 import {
   FileSystem,
@@ -255,6 +271,7 @@ const MyComponent = defineComponent({
     LegendBox,
     RouteDropDown,
     TransitLayers,
+    TransitLayersVue,
     ZoomButtons,
     LazyList,
   },
@@ -266,14 +283,15 @@ const MyComponent = defineComponent({
     config: { type: Object as any },
     thumbnail: Boolean,
     datamanager: { type: Object as PropType<DashboardDataManager> },
+    leaving: Boolean,
   },
 
   data() {
     const metrics = [{ field: 'departures', name_en: 'Departures', name_de: 'Abfahrten' }]
 
     return {
-      viewId: Math.floor(1e12 * Math.random()),
-
+      viewId: 0,
+      sentinel: { links: 0, stops: 0 },
       icons: {
         piechart: IconPieChart,
         blueramp: IconBlueRamp,
@@ -331,7 +349,7 @@ const MyComponent = defineComponent({
       _mapExtentXYXY: null as any,
       _maximum: -Infinity,
       _network: {} as Network,
-      transitLinks: { type: 'FeatureCollection', features: [] } as any, // GeoJSON.FeatureCollection,
+      transitLinks: [] as GeoJSON.Feature[],
       transitLinkOffset: {} as { [linkId: string]: number },
       routeData: {} as { [index: string]: RouteDetails },
       _stopFacilities: {} as { [index: string]: NetworkNode },
@@ -488,6 +506,11 @@ const MyComponent = defineComponent({
   },
 
   watch: {
+    leaving() {
+      console.log('HOLY SHIT WERE LEAVING')
+      this.cleanup()
+    },
+
     '$store.state.viewState'() {
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
@@ -530,7 +553,7 @@ const MyComponent = defineComponent({
         this.resetLinkColors()
         this.highlightedTransitLineIds = new Set()
         // trigger redraw
-        this.transitLinks = { ...this.transitLinks }
+        this.transitLinks = [...this.transitLinks]
       }
 
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
@@ -572,7 +595,7 @@ const MyComponent = defineComponent({
         this.resetLinkColors()
         this.highlightedTransitLineIds = new Set()
         // trigger redraw
-        this.transitLinks = { ...this.transitLinks }
+        this.transitLinks = [...this.transitLinks]
       }
     },
 
@@ -877,7 +900,7 @@ const MyComponent = defineComponent({
     drawMetric() {
       let widthExpression: any = 3
 
-      this.transitLinks.features.forEach((link: any) => {
+      this.transitLinks.forEach((link: any) => {
         let width = 1
         switch (this.activeMetric) {
           case 'departures':
@@ -893,7 +916,7 @@ const MyComponent = defineComponent({
         link.properties.width = width
       })
 
-      this.transitLinks = { ...this.transitLinks }
+      this.transitLinks = [...this.transitLinks]
     },
 
     handleClickedMetric(metric: { field: string }) {
@@ -927,7 +950,7 @@ const MyComponent = defineComponent({
       this.stopHTML.html = ''
       this.summaryStats = { departures: 0, pax: 0, loadfac: 0 }
 
-      this.transitLinks = { ...this.transitLinks }
+      this.transitLinks = [...this.transitLinks]
     },
 
     async loadEverything() {
@@ -942,22 +965,22 @@ const MyComponent = defineComponent({
       // this.setupKeyListeners()
     },
 
-    setupKeyListeners() {
-      window.addEventListener('keyup', event => {
-        if (event.keyCode === 27) {
-          // ESC
-          this.pressedEscape()
-        }
-      })
-      window.addEventListener('keydown', event => {
-        if (event.keyCode === 38) {
-          this.pressedArrowKey(-1) // UP
-        }
-        if (event.keyCode === 40) {
-          this.pressedArrowKey(+1) // DOWN
-        }
-      })
-    },
+    // setupKeyListeners() {
+    //   window.addEventListener('keyup', event => {
+    //     if (event.keyCode === 27) {
+    //       // ESC
+    //       this.pressedEscape()
+    //     }
+    //   })
+    //   window.addEventListener('keydown', event => {
+    //     if (event.keyCode === 38) {
+    //       this.pressedArrowKey(-1) // UP
+    //     }
+    //     if (event.keyCode === 40) {
+    //       this.pressedArrowKey(+1) // DOWN
+    //     }
+    //   })
+    // },
 
     fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {
       let xmlWorker = props.worker
@@ -1026,18 +1049,23 @@ const MyComponent = defineComponent({
 
         const filename = this.vizDetails.network
 
-        const roads =
-          filename.indexOf('.avro') > -1
-            ? // AVRO networks have a separate reader:
-              this.loadAvroRoadNetwork()
-            : // normal MATSim network
-              this.fetchXML({
-                worker: this._roadFetcher,
-                slug: this.fileSystem.slug,
-                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-                options: { attributeNamePrefix: '' },
-              })
+        let roads
 
+        if (filename.indexOf('.avro') > -1) {
+          // AVRO networks have a separate reader:
+          roads = this.loadAvroRoadNetwork()
+        } else {
+          // MATSim XML
+          this._roadFetcher = new NewXmlFetcher()
+          roads = this.fetchXML({
+            worker: this._roadFetcher,
+            slug: this.fileSystem.slug,
+            filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+            options: { attributeNamePrefix: '' },
+          })
+        }
+
+        this._transitFetcher = new NewXmlFetcher()
         const transit = this.fetchXML({
           worker: this._transitFetcher,
           slug: this.fileSystem.slug,
@@ -1216,7 +1244,7 @@ const MyComponent = defineComponent({
         })
 
       // update passenger value in the transit-link geojson.
-      for (const transitLink of this.transitLinks.features) {
+      for (const transitLink of this.transitLinks) {
         if (!transitLink.properties) transitLink.properties = {}
         transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
         transitLink.properties['cap'] = capacity[transitLink.properties.id]
@@ -1275,7 +1303,9 @@ const MyComponent = defineComponent({
       this.transitLines = transitLines
       this._mapExtentXYXY = mapExtent
 
+      console.log('terminating!---------------------')
       this._transitHelper.terminate()
+      this._transitHelper = null
 
       this.loadingText = 'Summarizing departures...'
       this.incrementLoadProgress()
@@ -1300,7 +1330,7 @@ const MyComponent = defineComponent({
       this._network = { links: {}, nodes: {} }
       // build the lookup for transit links by linkId
       this.transitLinkOffset = {}
-      this.transitLinks.features.forEach((feature: any, i: number) => {
+      this.transitLinks.forEach((feature: any, i: number) => {
         //@ts-ignore
         this.transitLinkOffset[feature.properties.id] = i
       })
@@ -1419,7 +1449,7 @@ const MyComponent = defineComponent({
         }
       }
 
-      return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
+      return geojson
     },
 
     determineRouteColor(id: string) {
@@ -1650,7 +1680,7 @@ const MyComponent = defineComponent({
       this.removeSelectedRoute()
 
       // the browser delivers some details that we need, in the fn argument 'e'
-      const props = this.transitLinks.features[index].properties
+      const props = this.transitLinks[index].properties || {}
 
       this.selectedLinkId = props.id
       const routeIDs = this._departures[props.id].routes
@@ -1658,7 +1688,7 @@ const MyComponent = defineComponent({
       // overall link statistics
       let empty = { departures: 0, pax: 0, loadfac: 0 }
       const foundLink = this.transitLinks[this.transitLinkOffset[props.id]]
-      this.summaryStats = foundLink ? foundLink.properties : empty
+      this.summaryStats = (foundLink?.properties as any) || empty
 
       // routes and lines on this link
       const routes = []
@@ -1683,12 +1713,14 @@ const MyComponent = defineComponent({
 
     resetLinkColors(color?: number[]) {
       if (color) {
-        for (const link of this.transitLinks.features) {
+        for (const link of this.transitLinks) {
+          if (!link.properties) link.properties = {}
           link.properties.currentColor = color
           link.properties.sort = 0
         }
       } else {
-        for (const link of this.transitLinks.features) {
+        for (const link of this.transitLinks) {
+          if (!link.properties) link.properties = {}
           link.properties.currentColor = link.properties.color
           link.properties.sort = 1
         }
@@ -1708,7 +1740,8 @@ const MyComponent = defineComponent({
       for (const routeDetails of this.routesOnLink) {
         for (const linkId of routeDetails.route) {
           const offset = this.transitLinkOffset[linkId]
-          const transitLink = this.transitLinks.features[offset]
+          const transitLink = this.transitLinks[offset]
+          if (!transitLink.properties) transitLink.properties = {}
           transitLink.properties.currentColor = routeDetails.color || transitLink.properties.color
           transitLink.properties.sort = 5
         }
@@ -1716,13 +1749,14 @@ const MyComponent = defineComponent({
 
       // selected link all the way on top
       if (this.selectedLinkId) {
-        const selectedLink = this.transitLinks.features[this.transitLinkOffset[this.selectedLinkId]]
+        const selectedLink = this.transitLinks[this.transitLinkOffset[this.selectedLinkId]]
+        if (!selectedLink.properties) selectedLink.properties = {}
         selectedLink.properties.currentColor = this.colorToRGB('#f4f')
         selectedLink.properties.sort = 5
       }
 
       // trigger redraw
-      this.transitLinks = { ...this.transitLinks }
+      this.transitLinks = [...this.transitLinks]
     },
 
     pressedEscape() {
@@ -1752,7 +1786,7 @@ const MyComponent = defineComponent({
       this._network = { nodes: {}, links: {} }
       this.routeData = {}
       this._stopFacilities = {}
-      this.transitLinks = { type: 'FeatureCollection', features: [] }
+      this.transitLinks = []
       this.transitLines = []
       this.selectedRouteIds = []
       this.cfDemand1 = null
@@ -1766,17 +1800,55 @@ const MyComponent = defineComponent({
       this.stopMarkers = []
       this.searchText = ''
     },
+
+    cleanup() {
+      console.log('%%% cleanup TransitDemand')
+
+      if (this.xmlWorker) this.xmlWorker.terminate()
+      if (this._roadFetcher) this._roadFetcher.terminate()
+      if (this._transitFetcher) this._transitFetcher.terminate()
+      if (this._transitHelper) this._transitHelper.terminate()
+
+      // MUST delete the React view handles to prevent gigantic memory leaks!
+      delete REACT_VIEW_HANDLES[this.viewId]
+
+      this.viewId = 0
+      this._departures = {}
+      this._mapExtentXYXY = [180, 90, -180, -90]
+      this._maximum = 0
+      this._network = { nodes: {}, links: {} }
+      this._stopFacilities = {}
+      // this.cbHandleMapClick = undefined
+      this.cfDemandLink1?.dispose()
+      this.cfDemandLink2?.dispose()
+      this.cfDemandStop1?.dispose()
+      this.cfDemandStop2?.dispose()
+      this.cfDemand1 = null
+      this.cfDemand2 = null
+      this.loadingText = ''
+      this.resolvers = {}
+      this.routeData = {}
+      this.routesOnLink = []
+      this.selectedFeatures = []
+      this.selectedRouteIds = []
+      this.searchText = ''
+      this.stopMarkers = []
+      this.transitLinks = []
+      this.transitLines = []
+
+      // this.sentinel.links++
+      // this.sentinel.stops++
+    },
   },
 
   async mounted() {
     this.$store.commit('setFullScreen', !this.thumbnail)
 
     this.debounceHandleSearchText = debounce(this.handleSearchText, 350)
-    this.clearData()
 
-    this._roadFetcher = new NewXmlFetcher()
-    this._transitFetcher = new NewXmlFetcher()
-    this._transitHelper = new TransitSupplyWorker()
+    this.cleanup()
+    this.viewId = Math.floor(1e12 * Math.random())
+    CleanupRegistry.register(this, () => this.cleanup())
 
     // populate props after we attach, not before!
     this.myState.subfolder = this.subfolder
@@ -1793,13 +1865,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
-    this.clearData()
-
-    if (this.xmlWorker) this.xmlWorker.terminate()
-    if (this._roadFetcher) this._roadFetcher.terminate()
-    if (this._transitFetcher) this._transitFetcher.terminate()
-    if (this._transitHelper) this._transitHelper.terminate()
-
+    CleanupRegistry.cleanup(this)
     this.$store.commit('setFullScreen', false)
   },
 })

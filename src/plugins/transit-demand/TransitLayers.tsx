@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import DeckGL from '@deck.gl/react'
 import { COORDINATE_SYSTEM } from '@deck.gl/core'
 
@@ -117,30 +117,62 @@ const colorToRGB = (colorString: string) => {
 
 export default function Component({
   viewId = 0,
-  links = {} as any,
+  links = [] as any[],
   selectedFeatures = [] as any[],
   stopMarkers = [] as any[],
   mapIsIndependent = false,
   projection = 'EPSG:4326',
-  handleClickEvent = null as any,
   pieSlider = 20,
   widthSlider = 50,
+  leaving = false,
 }) {
   // ------- draw frame begins here -----------------------------
+  const handleClickEvent = null as any
 
   const dark = globalStore.state.isDarkMode
   const locale = globalStore.state.locale
 
+  console.log({ leaving })
+  let deckRef = useRef(null)
+
+  let deckInstance = null as any
+  let canvasElement = null as any
+
+  useEffect(() => {
+    if (deckRef.current) {
+      deckInstance = deckRef.current.deck
+      canvasElement = deckInstance.canvas
+    }
+    // clean up GL
+    return () => {
+      if (deckInstance) {
+        console.log('ABC$!$ is current, cleaning up')
+
+        deckInstance.setProps({ layers: [] })
+        deckInstance.finalize()
+
+        if (canvasElement && canvasElement.parentNode) {
+          console.log('Removing canvas element from DOM')
+          canvasElement.parentNode.removeChild(canvasElement)
+        }
+        deckInstance = null
+        canvasElement = null
+      }
+      deckRef = null
+    }
+  }, [])
+
   // register setViewState in global view updater so we can respond to external map motion
-  REACT_VIEW_HANDLES[viewId] = () => {
-    setViewState(globalStore.state.viewState)
-  }
+  // REACT_VIEW_HANDLES[viewId] = () => {
+  //   setViewState(globalStore.state.viewState)
+  // }
 
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
   // ----------------------------------------------
-  const data = useMemo(() => {
-    const linestrings = links.features.map((feature: any) => {
+  const data = [] as any[]
+  const xdata = useMemo(() => {
+    const linestrings = links.map((feature: any) => {
       // convert css colors to rgb[]
       // const currentColor = feature.properties.currentColor
       // const useColor = Array.isArray(currentColor) ? currentColor : colorToRGB(currentColor)
@@ -223,7 +255,7 @@ export default function Component({
     try {
       let html = '<div class="map-popup">'
 
-      const props = links.features[index].properties
+      const props = links[index].properties
 
       // no tooltip if greyed out link
       if (props.sort == 0) return null
@@ -263,31 +295,33 @@ export default function Component({
 
   const layers = [] as any[]
 
-  layers.push(
-    //@ts-ignore
-    new LineLayer({
-      id: 'linkLayer',
-      data,
-      getSourcePosition: (d: any) => d.source,
-      getTargetPosition: (d: any) => d.target,
-      getColor: (d: any) => d.color,
-      getWidth: (d: any) => d.width,
-      widthUnits: 'pixels',
-      widthScale: widthSlider / 50,
-      widthMinPixels: 1.5,
-      widthMaxPixels: 50,
-      pickable: true,
-      coordinateSystem,
-      opacity: 1,
-      autoHighlight: false,
-      // offsetDirection: OFFSET_DIRECTION.RIGHT,
-      parameters: { depthTest: true },
-      transitions: {
-        getColor: 200,
-        getWidth: 200,
-      },
-    })
-  )
+  if (data.length) {
+    layers.push(
+      //@ts-ignore
+      new LineLayer({
+        id: 'linkLayer',
+        data,
+        getSourcePosition: (d: any) => d.source,
+        getTargetPosition: (d: any) => d.target,
+        getColor: (d: any) => d.color,
+        getWidth: (d: any) => d.width,
+        widthUnits: 'pixels',
+        widthScale: widthSlider / 50,
+        widthMinPixels: 1.5,
+        widthMaxPixels: 50,
+        pickable: true,
+        coordinateSystem,
+        opacity: 1,
+        autoHighlight: false,
+        // offsetDirection: OFFSET_DIRECTION.RIGHT,
+        parameters: { depthTest: true },
+        transitions: {
+          getColor: 200,
+          getWidth: 200,
+        },
+      })
+    )
+  }
 
   // YELLOW HIGHLIGHT LINES ---------
   if (selectedFeatures.length)
@@ -328,62 +362,21 @@ export default function Component({
     )
   }
 
-  // STOP ICONS ----------------
-  // if (stopMarkers.length) {
-  if (false) {
-    // rotate stop arrows to match map rotation
-    const mapBearing = globalStore.state.viewState.bearing
-    const stopsMitBearing = stopMarkers.map(stop => {
-      const relativeBearing = mapBearing - stop.bearing
-      return Object.assign({ ...stop }, { bearing: relativeBearing })
-    })
-
-    layers.push(
-      new IconLayer({
-        id: 'stop-icon-layer',
-        data: stopsMitBearing,
-        getPosition: (d: any) => d.xy,
-        getAngle: (d: any) => d.bearing,
-        getIcon: (d: any) => 'marker',
-        getSize: 6,
-        pickable: false,
-        billboard: true,
-        opacity: 1,
-        sizeScale: 1,
-        autoHighlight: false,
-        parameters: { depthTest: false },
-        iconAtlas: `${BASE_URL}icon-stop-triangle.png`,
-        iconMapping: {
-          marker: {
-            x: 0,
-            y: 0,
-            width: 250,
-            height: 121,
-            anchorX: 125,
-            anchorY: 118,
-          },
-        },
-      })
-    )
-  }
-
   // ############
 
   return (
     /*
     //@ts-ignore */
     <DeckGL
-      layers={layers}
+      ref={deckRef}
+      layers={leaving ? [] : layers}
       viewState={viewState}
       controller={true}
       pickingRadius={3}
       parameters={{ blend: false }}
-      getTooltip={getTooltip}
       getCursor={({ isDragging, isHovering }: any) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab'
       }
-      onClick={handleClick}
-      onViewStateChange={(e: any) => handleViewState(e.viewState)}
     >
       {showBackgroundMap && (
         /*
@@ -393,3 +386,7 @@ export default function Component({
     </DeckGL>
   )
 }
+
+// onClick={handleClick}
+// onViewStateChange={(e: any) => handleViewState(e.viewState)}
+// getTooltip={getTooltip}

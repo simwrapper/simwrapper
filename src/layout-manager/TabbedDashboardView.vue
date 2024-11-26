@@ -72,6 +72,7 @@ import DashBoard from './DashBoard.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import FolderBrowser from './FolderBrowser.vue'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
+import CleanupRegistry from '@/js/CleanupRegistry'
 
 const NO_DASHBOARDS = ['.nodashboards', 'nodashboards', 'nodashboards.txt']
 
@@ -514,7 +515,7 @@ export default defineComponent({
     updateRoute() {
       this.clearStyles()
 
-      if (this.dashboardDataManager) this.dashboardDataManager.clearCache()
+      if (this.dashboardDataManager) CleanupRegistry.cleanup(this.dashboardDataManager)
       this.dashboardDataManager = new DashboardDataManager(this.root, this.xsubfolder)
 
       this.header = ''

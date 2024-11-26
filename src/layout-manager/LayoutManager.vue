@@ -2,7 +2,7 @@
 #layout-manager
 
  project-nav-bar(v-if="$store.state.topNavItems"
-  @navigate="onNavigate($event,0,0)"
+  @navigate="onNavigate({component:$event.component,props:$event.props},0,0)"
   :projectFolder="firstPanelProjectFolder"
   :currentFolder="firstPanelSubfolder"
  )
@@ -21,8 +21,9 @@
       :style="activeSectionStyle"
     )
       .left-component
+        //- WHOA passing entire $event results in leaking the entire component! Don't
         component(:is="activeLeftSection.class"
-          @navigate="onNavigate($event,0,0)"
+          @navigate="onNavigate({component:$event.component,props:$event.props},0,0)"
           @activate="setActiveLeftSection"
           @isDragging="handleDragStartStop"
           @split="splitMainPanel"
@@ -51,9 +52,8 @@
         @dragleave="dragEnd"
     )
 
-    .tile-row(v-for="panelRow,y in panels" :key="y"
-        v-show="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
-    )
+    //- v-if="fullScreenPanel.y == -1 || fullScreenPanel.y == y"
+    .tile-row(v-for="panelRow,y in panels" :key="`panel-row-${panelRow.key}`")
       .drag-container(
         v-for="panel,x in panelRow" :key="panel.key"
         @drop="onDrop({event: $event,x,y})"
@@ -98,16 +98,18 @@
           bread-crumbs.bread-crumbs(
             :root="panel.props.root || ''"
             :subfolder="panel.props.xsubfolder || ''"
-            @navigate="onNavigate($event,x,y)"
+            @navigate="onNavigate({component:$event.component,props:$event.props},x,y)"
           )
 
         //- here is the actual component containing the dashboard, viz, etc
+        //- .demount-block(v-if="panels[y][x].props.leaving == false")
         component.map-tile(
           :is="panel.component"
           :isMultipanel="isMultipanel"
           :style="getTileStyle(panel)"
+          :key="panels[y][x].key"
           v-bind="cleanProps(panel.props)"
-          @navigate="onNavigate($event,x,y)"
+          @navigate="onNavigate({component:$event.component,props:$event.props},x,y)"
           @title="setCardTitles(panel, $event)"
           @activate="setActiveLeftSection"
           @projectFolder="setProjectFolder"
@@ -144,6 +146,7 @@ import micromatch from 'micromatch'
 
 import globalStore from '@/store'
 import GIST from '@/js/gist'
+import { sleep } from '@/js/util'
 import ICON_INFO from '@/assets/icons/settings.svg'
 import ICON_DOCS from '@/assets/icons/readme.svg'
 import ICON_SIMWRAPPER from '@/assets/simwrapper-logo/SW_logo_icon_black.png'
@@ -271,18 +274,38 @@ export default defineComponent({
     },
 
     async $route(to: Route, from: Route) {
-      if (to.path === BASE_URL) {
-        // root node is not a normal splitpane, so we instead replace
-        // with a brand new clean startpage.
-        this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-      } else {
-        await this.buildLayoutFromURL()
-        globalStore.commit('resize')
-      }
+      // if (to.path === BASE_URL) {
+      //   // root node is not a normal splitpane, so we instead replace
+      //   // with a brand new clean startpage.
+      //   this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
+      // } else {
+      await this.generateNewLayout()
+      globalStore.commit('resize')
+      // }
     },
   },
 
   methods: {
+    async generateNewLayout() {
+      // the new panels are...
+      const newPanels = await this.buildLayoutFromURL()
+      // set leaving to false
+      newPanels.forEach(panelsY => {
+        panelsY.forEach(panelX => {
+          panelX.props.leaving = false
+          // console.log('YO', panelX)
+        })
+      })
+
+      // remove all old panels...
+      this.panels = []
+      // let Vue unmount everything...
+      await this.$nextTick()
+      // mount the new panels
+      this.panels = newPanels
+      console.log('NEW PANELS', this.panels)
+    },
+
     async setActiveLeftSection(section: Section) {
       this.isLeftPanelHidden = !!!section
 
@@ -320,11 +343,11 @@ export default defineComponent({
       this.errorPanelText = '' + (e.msg || e)
     },
 
-    async buildGistPage(pathMatch: string) {
+    async buildGistPage(pathMatch: string): Promise<any[][]> {
       const gistId = pathMatch.substring(pathMatch.indexOf('/') + 1)
       const yaml = await GIST.load(gistId, this.$route.params)
 
-      this.panels = [
+      return [
         [
           {
             key: Math.random(),
@@ -342,44 +365,44 @@ export default defineComponent({
       ]
     },
 
-    async buildLayoutFromURL() {
+    async buildLayoutFromURL(): Promise<any[][]> {
       let pathMatch = this.$route.params.pathMatch
       if (pathMatch.startsWith('/')) pathMatch = pathMatch.slice(1)
 
       // splash page:
       if (!pathMatch || pathMatch === '/') {
-        this.panels = [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
-        return
+        return [[{ component: 'SplashPage', key: Math.random(), props: {} as any }]]
       }
 
       // gist page:
       if (pathMatch.startsWith('gist')) {
-        await this.buildGistPage(pathMatch)
-        return
+        const panels = await this.buildGistPage(pathMatch)
+        return panels
       }
 
       // runs page:
       if (pathMatch.startsWith('runs')) {
         const serverNickname = pathMatch.substring(5)
         const props = { serverNickname } as any
-        this.panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
+        let panels = [[{ component: 'SimRunner', key: Math.random(), props }]]
         this.activeLeftSection = { name: 'Runs', class: 'LeftRunnerPanel' }
-        return
+        return panels
       }
 
       // split panel?
       if (pathMatch.startsWith('split/')) {
+        let layoutPanels: any[][] = []
         const payload = pathMatch.substring(6)
         try {
           const content = atob(payload)
           const json = JSON.parse(content)
-          this.panels = json
+          layoutPanels = json
         } catch (e) {
           // couldn't do
           console.error('PARSING SPLIT' + e)
           this.$router.replace('/')
         }
-        return
+        return layoutPanels
       }
 
       // figure out project root and subfolder
@@ -397,17 +420,19 @@ export default defineComponent({
       const fileNameWithoutPath = pathMatch.substring(1 + pathMatch.lastIndexOf('/'))
       const lowerCaseFileName = fileNameWithoutPath.toLocaleLowerCase()
 
+      let layoutPanels: any[][] = []
+
       for (const vizPlugin of globalStore.state.visualizationTypes.values()) {
         // be case insensitive for the matching itself
         if (micromatch.isMatch(lowerCaseFileName, vizPlugin.filePatterns)) {
           // plugin matched!
           if (this.panels.length === 1 && this.panels[0].length === 1) {
-            this.panels = [[this.panels[0][0]]]
+            layoutPanels = [[this.panels[0][0]]]
           } else {
             let key = Math.random()
             let subfolder = xsubfolder.substring(0, xsubfolder.lastIndexOf('/'))
             if (subfolder.startsWith('/')) subfolder = subfolder.slice(1)
-            this.panels = [
+            layoutPanels = [
               [
                 {
                   key,
@@ -424,9 +449,7 @@ export default defineComponent({
               ],
             ]
           }
-
-          // this.$store.commit('setShowLeftBar', false)
-          return
+          return layoutPanels
         }
       }
 
@@ -446,7 +469,7 @@ export default defineComponent({
       const lastFolder = folder.substring(1 + folder.lastIndexOf('/'))
       const title = lastFolder || fileSystem.name
 
-      this.panels = [
+      return [
         [
           {
             key,
@@ -568,7 +591,7 @@ export default defineComponent({
       this.dragEnd()
     },
 
-    splitMainPanel(props: { root: string; xsubfolder?: string }) {
+    async splitMainPanel(props: { root: string; xsubfolder?: string }) {
       let x = 0
       let y = 0
 
@@ -584,7 +607,17 @@ export default defineComponent({
         newPanel.props.xsubfolder = props.xsubfolder || ''
       }
 
-      this.panels[y].splice(x, 0, newPanel)
+      // do the splice!
+      const newPanels = [...this.panels]
+      newPanels[y].splice(x, 0, newPanel)
+
+      // remove and replace panels! YIKES TODO MAYBE NOT DO THIS
+      this.panels = []
+      // let Vue unmount everything...
+      await this.$nextTick()
+      // mount the new panels
+      this.panels = newPanels
+
       this.updateURL()
       globalStore.commit('resize')
     },
@@ -641,20 +674,42 @@ export default defineComponent({
       globalStore.commit('resize')
     },
 
-    onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
-      if (newPanel.component === 'SplashPage') {
-        this.panels[y][x] = { component: 'SplashPage', props: {}, key: Math.random() }
-      } else {
-        this.panels[y][x] = Object.assign({ key: Math.random() }, newPanel)
-      }
+    async actuallySwitchPanels(newPanel: { component: string; props: any }, x: number, y: number) {
+      await sleep(250)
+      await this.$nextTick()
 
       // folders must end with '/' or relative paths die
       if (newPanel?.props?.xsubfolder) {
         if (!newPanel.props?.xsubfolder.endsWith('/')) newPanel.props.xsubfolder += '/'
       }
 
+      // generate new panels
+      const newLayout = [...this.panels]
+      if (newPanel.component === 'SplashPage') {
+        newLayout[y][x] = { component: 'SplashPage', props: {}, key: Math.random() }
+      } else {
+        newLayout[y][x] = Object.assign({ key: Math.random() }, newPanel)
+      }
+      // do the switch
+      this.panels = []
+      await this.$nextTick()
+      this.panels = newLayout
+
       this.updateURL()
-      this.buildLayoutFromURL()
+      // await this.generateNewLayout() // async
+    },
+
+    async onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
+      console.log('// unmount everything)')
+      this.panels.forEach(panelsY => {
+        panelsY.forEach(panelX => {
+          panelX.props.leaving = true
+        })
+      })
+      await this.$nextTick()
+
+      // HACK- this is async and WAITS 500ms so that views have a chance to teardown.
+      this.actuallySwitchPanels(newPanel, x, y)
     },
 
     onClose(x: number, y: number) {
@@ -896,6 +951,7 @@ export default defineComponent({
 
     this.$store.commit('setActiveLeftSection', leftSection)
     this.$store.commit('setShowLeftBar', !!leftSection)
+
     this.setActiveLeftSection(PANELS[this.$store.state.activeLeftSection])
 
     // folders must end with '/'
@@ -915,10 +971,12 @@ export default defineComponent({
       }
     }
 
-    await this.buildLayoutFromURL()
+    await this.generateNewLayout()
 
     // save the first-most panel URL for highlighting purposes
-    this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
+    if (this.panels.length) {
+      this.firstPanelSubfolder = this.panels[0][0]?.props?.xsubfolder || ''
+    }
   },
 })
 </script>
