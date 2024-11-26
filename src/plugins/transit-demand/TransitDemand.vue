@@ -14,7 +14,7 @@
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-        transit-layers-vue.boop-layers(
+        transit-layers(
             :links="transitLinks"
             :selectedFeatures="selectedFeatures"
             :stopMarkers="stopMarkers"
@@ -122,7 +122,7 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import LegendBox from './LegendBox.vue'
 import RouteDropDown from './RouteDropDown.vue'
 import LazyList from './LazyList.vue'
-import TransitLayers from './TransitLayersTiny.vue'
+import TransitLayers from './TransitLayers.vue'
 
 import {
   FileSystem,
@@ -2235,6 +2235,7 @@ h3 {
   left: 0;
   user-select: none;
   border-top-right-radius: 5px;
+  z-index: 2;
 }
 
 .icon-blue-ramp {

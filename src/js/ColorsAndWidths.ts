@@ -1,6 +1,6 @@
 // Helper functions to get colors from a column of data, using D3
 import { scaleLinear, scaleThreshold, scaleOrdinal } from 'd3-scale'
-import { rgb } from 'd3-color'
+import { color, rgb } from 'd3-color'
 
 import * as d3sc from 'd3-scale-chromatic'
 import * as d3color from 'd3-color'
@@ -1076,6 +1076,17 @@ function truncateFractionalPart({ value, precision }: { value: any; precision?: 
   }
 
   return value
+}
+
+export const colorToRGB = (colorString: string) => {
+  try {
+    const rgb = color(colorString)
+    if (!rgb) return [0, 0, 0]
+    // d3.color provides r, g, b properties directly
+    return [rgb.r, rgb.g, rgb.b] as number[]
+  } catch (error) {
+    return [0, 0, 0]
+  }
 }
 
 export default {
