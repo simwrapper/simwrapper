@@ -61,10 +61,10 @@
 
         .transit-lines.flex-col.flex1
 
-          //- lazy-list.flex1(
-          //-   :highlightedTransitLines="highlightedTransitLines"
-          //-   :listProps="routeListProps"
-          //- )
+          lazy-list.flex1(
+            :highlightedTransitLines="highlightedTransitLines"
+            :listProps="routeListProps"
+          )
 
         .summary-stats.flex-col
           .sum-stat-title: b SUMMARY STATISTICS
@@ -122,8 +122,7 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import LegendBox from './LegendBox.vue'
 import RouteDropDown from './RouteDropDown.vue'
 import LazyList from './LazyList.vue'
-import TransitLayers from './TransitLayers'
-import TransitLayersVue from './TransitLayersTiny.vue'
+import TransitLayers from './TransitLayersTiny.vue'
 
 import {
   FileSystem,
@@ -257,7 +256,6 @@ const MyComponent = defineComponent({
     LegendBox,
     RouteDropDown,
     TransitLayers,
-    TransitLayersVue,
     ZoomButtons,
     LazyList,
   },
