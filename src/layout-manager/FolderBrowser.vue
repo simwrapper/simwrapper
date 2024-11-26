@@ -677,9 +677,9 @@ h4 {
   display: flex;
   flex-direction: column;
   background-color: var(--bgCream5);
-  padding: 0.25rem 0.75rem;
+  padding: 5px 10px;
   border: 1px solid var(--bgDashboard);
-  border-top-right-radius: 10px;
+  border-top-right-radius: 12px;
   word-wrap: break-word;
   position: relative;
 }

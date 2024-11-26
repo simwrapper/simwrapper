@@ -8,10 +8,11 @@
 
 <script lang="ts">
 import { Deck, MapView } from '@deck.gl/core'
-// import { MapboxOverlay } from '@deck.gl/mapbox';
+import { BASEMAP } from '@deck.gl/carto'
+import { Map, NavigationControl } from 'maplibre-gl'
+import { MapboxOverlay as DeckOverlay } from '@deck.gl/mapbox'
 import { ScatterplotLayer, LineLayer } from '@deck.gl/layers'
-// import { Map, NavigationControl } from 'maplibre-gl'
-// import 'maplibre-gl/dist/maplibre-gl.css'
+import 'maplibre-gl/dist/maplibre-gl.css'
 // import mapboxgl from 'mapbox-gl';
 // import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -76,6 +77,20 @@ export default {
 
   watch: {},
 
+  beforeDestroy() {
+    console.log('###DIESTRY')
+    this.map.off('move', this.syncMapCamera)
+    this.deck.setProps({ layers: [] })
+    this.deck.finalize()
+    this.map.remove()
+    // this.deck = null
+    // this.map = null
+  },
+
+  mounted() {
+    this.initMap()
+  },
+
   methods: {
     zclicked() {
       console.log('CLICK')
@@ -83,35 +98,48 @@ export default {
       this.deck.finalize()
       this.deck = null
     },
-  },
 
-  beforeDestroy() {
-    console.log('###DIESTRY')
-    this.deck.setProps({ layers: [] })
-    this.deck.finalize()
-    this.deck = null
-  },
+    syncMapCamera() {
+      if (!this.map || !this.deck) return
 
-  mounted() {
-    const scatterplotLayer = new ScatterplotLayer({
-      id: 'bart-stations',
-      data: this.bart, // 'https://raw.githubusercontent.com/visgl/deck.gl-data/refs/heads/master/website/bart-stations.json',
-      getRadius: (d: any) => Math.sqrt(d.entries) * 50,
-      getPosition: (d: any) => d.coordinates,
-      getFillColor: [24, 228, 163],
-    })
+      const center = this.map.getCenter()
+      this.deck.setProps({
+        viewState: {
+          longitude: center.lng,
+          latitude: center.lat,
+          zoom: this.map.getZoom(),
+          pitch: this.map.getPitch(),
+          bearing: this.map.getBearing(),
+        },
+      })
+    },
 
-    this.deck = new Deck({
-      parent: document.getElementById('mapID'),
-      initialViewState: {
-        longitude: -122.4, // 14.3,
-        latitude: 37.7, // 51.7,
-        zoom: 8,
-      },
-      width: '100vw',
-      controller: true,
-      layers: [scatterplotLayer],
-    })
+    initMap() {
+      const dots = new ScatterplotLayer({
+        id: 'bart-stations',
+        data: this.bart, // 'https://raw.githubusercontent.com/visgl/deck.gl-data/refs/heads/master/website/bart-stations.json',
+        getRadius: (d: any) => Math.sqrt(d.entries) * 50,
+        getPosition: (d: any) => d.coordinates,
+        getFillColor: [24, 228, 163],
+      })
+
+      this.map = new Map({
+        container: `${this.mapID}`,
+        style: BASEMAP.POSITRON_NOLABELS, // DARK_MATTER_NOLABELS,
+        interactive: true,
+        center: [-122.2, 37.7],
+        zoom: 9,
+      })
+
+      // keep map in sync
+      this.map.on('move', this.syncMapCamera)
+
+      this.deck = new DeckOverlay({
+        layers: [dots],
+      })
+
+      this.map.addControl(this.deck)
+    },
   },
 }
 </script>
