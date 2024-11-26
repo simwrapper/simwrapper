@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import DeckGL from '@deck.gl/react'
-import GL from '@luma.gl/constants'
+// import GL from '@luma.gl/constants'
 import { StaticMap } from 'react-map-gl'
 import { ScatterplotLayer } from '@deck.gl/layers'
 import { DataFilterExtension } from '@deck.gl/extensions'

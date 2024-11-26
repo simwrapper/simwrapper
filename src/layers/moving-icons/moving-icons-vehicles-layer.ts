@@ -21,7 +21,7 @@
 // THE SOFTWARE.
 
 import { Layer, project32, picking, log } from '@deck.gl/core'
-import GL from '@luma.gl/constants'
+import { GL } from '@luma.gl/constants'
 import { Model, Geometry } from '@luma.gl/core'
 
 import vertShader from './icon-layer.glsl.vert?raw'

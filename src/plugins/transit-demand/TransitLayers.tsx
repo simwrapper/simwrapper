@@ -5,9 +5,9 @@ import { COORDINATE_SYSTEM } from '@deck.gl/core'
 import { StaticMap } from 'react-map-gl'
 import { color } from 'd3-color'
 
-import { GeoJsonLayer, IconLayer, SolidPolygonLayer } from '@deck.gl/layers'
+import { GeoJsonLayer, IconLayer, SolidPolygonLayer, LineLayer } from '@deck.gl/layers'
 
-import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
+// import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 // import PieChartLayer, { PieInfo } from '@/layers/PieChartLayer2'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
@@ -265,7 +265,7 @@ export default function Component({
 
   layers.push(
     //@ts-ignore
-    new LineOffsetLayer({
+    new LineLayer({
       id: 'linkLayer',
       data,
       getSourcePosition: (d: any) => d.source,
@@ -280,7 +280,7 @@ export default function Component({
       coordinateSystem,
       opacity: 1,
       autoHighlight: false,
-      offsetDirection: OFFSET_DIRECTION.RIGHT,
+      // offsetDirection: OFFSET_DIRECTION.RIGHT,
       parameters: { depthTest: true },
       transitions: {
         getColor: 200,
@@ -304,7 +304,7 @@ export default function Component({
         coordinateSystem,
         opacity: 1,
         autoHighlight: false,
-        offsetDirection: OFFSET_DIRECTION.RIGHT,
+        // offsetDirection: OFFSET_DIRECTION.RIGHT,
         parameters: { depthTest: false },
       })
     )
