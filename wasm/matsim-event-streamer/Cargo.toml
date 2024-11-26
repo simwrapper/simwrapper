@@ -1,0 +1,20 @@
+[package]
+name = "matsim-event-streamer"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+crate-type = ["cdylib"] # Required for WASM
+path = "src/matsim-event-streamer.rs"
+
+[[bin]]
+name = "matsim-event-streamer"
+path = "src/matsim-event-streamer.rs"
+
+[dependencies]
+libz-rs-sys = { version = "0.4.0" }
+roxmltree = "0.20.0"
+wasm-bindgen = { version ="0.2" , default-features = false }
+zlib-rs = { version = "0.4.0", default-features = false,  features = ["rust-allocator"] }
+

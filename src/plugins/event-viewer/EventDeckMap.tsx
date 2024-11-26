@@ -42,6 +42,7 @@ export default function EventDeckMap({
   simulationTime = 18000,
   projection = '',
   dotsize = 22,
+  tick = 0,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
@@ -97,9 +98,14 @@ export default function EventDeckMap({
 
   // add the vehicle motion layer in each eventLayer
   const vehicleLayers = [] as any[]
+  let numActiveLayers = 0
   eventData.forEach((layer, layerIndex) => {
     // The entire layer can be hidden if all of its trips are completely outside the current simulationTime
-    const outOfRange = simulationTime < layer.data[0] && simulationTime > layer.timeRange[1]
+    // Add 2 seconds to make sure there is overlap
+    const outOfRange =
+      simulationTime < layer.timeRange[0] - 5 || simulationTime > layer.timeRange[1] + 5
+
+    if (!outOfRange) numActiveLayers++
 
     vehicleLayers.push(
       //@ts-ignore
@@ -151,11 +157,13 @@ export default function EventDeckMap({
 
   const showBackgroundMap = projection && projection !== 'Atlantis'
 
+  if (tick == 1) console.log(simulationTime, numActiveLayers, eventData.length)
+
   return (
     <DeckGL
       layers={vehicleLayers}
       controller={true}
-      useDevicePixels={false}
+      useDevicePixels={true}
       viewState={viewState}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}
       pickingRadius={4}
