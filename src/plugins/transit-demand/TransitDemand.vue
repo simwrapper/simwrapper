@@ -14,9 +14,10 @@
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-        .transit-vue-boop(v-if="!leaving")
+        .transit-vue-boop
             input.boop-boop.boop-layers
             transit-layers-vue.boop-layers(
+                :leaving="leaving"
             )
             //- :links="transitLinks"
             //-   :selectedFeatures="selectedFeatures"
