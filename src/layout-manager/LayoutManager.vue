@@ -675,7 +675,6 @@ export default defineComponent({
     },
 
     async actuallySwitchPanels(newPanel: { component: string; props: any }, x: number, y: number) {
-      await sleep(250)
       await this.$nextTick()
 
       // folders must end with '/' or relative paths die
