@@ -102,7 +102,6 @@
           )
 
         //- here is the actual component containing the dashboard, viz, etc
-        //- .demount-block(v-if="panels[y][x].props.leaving == false")
         component.map-tile(
           :is="panel.component"
           :isMultipanel="isMultipanel"
@@ -289,14 +288,6 @@ export default defineComponent({
     async generateNewLayout() {
       // the new panels are...
       const newPanels = await this.buildLayoutFromURL()
-      // set leaving to false
-      newPanels.forEach(panelsY => {
-        panelsY.forEach(panelX => {
-          panelX.props.leaving = false
-          // console.log('YO', panelX)
-        })
-      })
-
       // remove all old panels...
       this.panels = []
       // let Vue unmount everything...
@@ -674,7 +665,7 @@ export default defineComponent({
       globalStore.commit('resize')
     },
 
-    async actuallySwitchPanels(newPanel: { component: string; props: any }, x: number, y: number) {
+    async onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
       await this.$nextTick()
 
       // folders must end with '/' or relative paths die
@@ -696,19 +687,6 @@ export default defineComponent({
 
       this.updateURL()
       // await this.generateNewLayout() // async
-    },
-
-    async onNavigate(newPanel: { component: string; props: any }, x: number, y: number) {
-      console.log('// unmount everything)')
-      this.panels.forEach(panelsY => {
-        panelsY.forEach(panelX => {
-          panelX.props.leaving = true
-        })
-      })
-      await this.$nextTick()
-
-      // HACK- this is async and WAITS 500ms so that views have a chance to teardown.
-      this.actuallySwitchPanels(newPanel, x, y)
     },
 
     onClose(x: number, y: number) {

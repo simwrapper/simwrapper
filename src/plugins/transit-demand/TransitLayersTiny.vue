@@ -1,10 +1,6 @@
 <template lang="pug">
 .geomap(:id="mapID")
-//-   .holder
-//- b-button.xbutton(@click="zclicked") CLICKME
-//- .thing(v-if="showMap")
-
-  </template>
+</template>
 
 <script lang="ts">
 import { Deck, MapView } from '@deck.gl/core'
@@ -13,8 +9,6 @@ import { Map, NavigationControl } from 'maplibre-gl'
 import { MapboxOverlay as DeckOverlay } from '@deck.gl/mapbox'
 import { ScatterplotLayer, LineLayer } from '@deck.gl/layers'
 import 'maplibre-gl/dist/maplibre-gl.css'
-// import mapboxgl from 'mapbox-gl';
-// import 'mapbox-gl/dist/mapbox-gl.css';
 
 export default {
   name: 'MyDeckGLMap',
@@ -152,22 +146,6 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 5;
-}
-
-.holder {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.thing {
-  flex: 1;
-  position: relative;
-}
-.xbutton {
   z-index: 5;
 }
 </style>

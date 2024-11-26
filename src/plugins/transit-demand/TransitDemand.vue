@@ -14,30 +14,15 @@
 
     .map-container(:class="{'hide-thumbnail': !thumbnail }" oncontextmenu="return false")
 
-        .transit-vue-boop
-            input.boop-boop.boop-layers
-            transit-layers-vue.boop-layers(
-                :leaving="leaving"
-            )
-            //- :links="transitLinks"
-            //-   :selectedFeatures="selectedFeatures"
-            //-   :stopMarkers="stopMarkers"
-            //-   :pieSlider="pieSlider"
-            //-   :widthSlider="widthSlider"
-            //-   :viewId="viewId"
-            //-   :sentinel="sentinel"
-            //-   :leaving="leaving"
-
-        //- transit-layers.map-styles(v-if="transitLinks.length"
-        //-   :viewId="viewId"
-        //-   :links="transitLinks"
-        //-   :selectedFeatures="selectedFeatures"
-        //-   :stopMarkers="stopMarkers"
-        //-   :handleClickEvent="handleMapClick"
-        //-   :pieSlider="pieSlider"
-        //-   :widthSlider="widthSlider"
-        //-   :leaving="leaving"
-        //- )
+        transit-layers-vue.boop-layers(
+            :links="transitLinks"
+            :selectedFeatures="selectedFeatures"
+            :stopMarkers="stopMarkers"
+            :pieSlider="pieSlider"
+            :widthSlider="widthSlider"
+            :viewId="viewId"
+            :sentinel="sentinel"
+        )
 
         .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
             //- width slider
@@ -284,7 +269,6 @@ const MyComponent = defineComponent({
     config: { type: Object as any },
     thumbnail: Boolean,
     datamanager: { type: Object as PropType<DashboardDataManager> },
-    leaving: Boolean,
   },
 
   data() {
@@ -507,11 +491,6 @@ const MyComponent = defineComponent({
   },
 
   watch: {
-    leaving() {
-      console.log('HOLY SHIT WERE LEAVING')
-      this.cleanup()
-    },
-
     '$store.state.viewState'() {
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
@@ -1866,6 +1845,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    this.cleanup()
     CleanupRegistry.cleanup(this)
     this.$store.commit('setFullScreen', false)
   },
