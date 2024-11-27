@@ -5,11 +5,12 @@
       i.fa.fa-home
 
   .x-breadcrumbs(v-if="root")
-    p(v-for="crumb,i in crumbs.slice(1)"
-      :key="crumb.url"
-      @click="clickedBreadcrumb(crumb)"
-    ) &nbsp;•&nbsp;{{ crumb.label }}
-    //- •&nbsp;
+    //- p(v-for="crumb,i in crumbs.slice(1)"
+    //-   :key="crumb.url"
+    //-   @click="clickedBreadcrumb(crumb)"
+    //- ) &nbsp;•&nbsp;{{ crumb.label }}
+    p(v-for="crumb,i in crumbs.slice(1)" :key="`${crumb.root}${crumb.subfolder}`")
+      a(:href="`/${crumb.root}/${crumb.subfolder}`") &nbsp;•&nbsp;{{ crumb.label }}
 
 </template>
 
