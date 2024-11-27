@@ -348,7 +348,7 @@ h4 {
 #main-app {
   display: grid;
   color: var(--text);
-  // background-color: yellow; // var(--bgPanel2);
+  background-color: var(--bgDashboard);
   grid-template-columns: 1fr;
   grid-template-rows: auto auto 1fr;
   margin: 0 0;

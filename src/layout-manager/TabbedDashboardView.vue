@@ -27,7 +27,8 @@
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
         @click="switchLeftTab(tab,index)"
       )
-        a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+        a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
+        //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
     .dashboard-content(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
@@ -717,12 +718,13 @@ li.is-not-active b a {
 
 .tab-list {
   font-family: $fancyFont;
-  font-size: 0.9rem;
-  line-height: 1.1rem;
-  padding: 3px 0.5rem 5px 0.5rem;
+  font-size: 1rem;
+  line-height: 0.9rem;
+  padding: 8px 0.5rem 8px 0.5rem;
   border-left: 5px solid #00000000;
   user-select: none;
   margin-bottom: 1px;
+  border-radius: 5px 5px;
 
   a {
     color: var(--text);
@@ -737,7 +739,7 @@ li.is-not-active b a {
 .tab-list.is-active {
   background-color: var(--bgBold);
   border-left: 5px solid var(--highlightActiveSection);
-  border-radius: 3px 0 0 3px;
+  border-radius: 5px 5px;
   font-weight: bold;
   a {
     color: var(--textBold);
