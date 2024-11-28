@@ -3,7 +3,7 @@ try:
     import sys, json, gzip
     import matsim
 
-    from pyproj import Transformer
+    from pyproj import CRS, Transformer
     import avro.schema
 
     from avro.datafile import DataFileReader, DataFileWriter
@@ -57,6 +57,12 @@ p_coords = sys.argv[2]
 
 coord_transformer = Transformer.from_crs(p_coords, "EPSG:4326")
 
+# Some coords (EPSG:31468) have flipped coordinates Y/X
+axis_info = CRS.from_string(p_coords).axis_info
+flipped_coords = axis_info[0].direction == 'north'
+if flipped_coords:
+    print("\n >> CRS code:", p_coords, "usually has flipped X/Y coords. Double check results! <<\n")
+
 print("reading network:", p_network)
 network = matsim.read_network(p_network)
 
@@ -79,7 +85,10 @@ nodeOffset = {}
 nodeCoords = []
 
 for i in range(numNodes):
-    Y, X = coord_transformer.transform(nodeX[i],nodeY[i])
+    Y, X = flipped_coords and \
+        coord_transformer.transform(nodeY[i],nodeX[i]) or \
+        coord_transformer.transform(nodeX[i],nodeY[i])
+
     nodeOffset[str(nodeId[i])] = i
     nodeCoords.extend([X,Y])
 
@@ -209,8 +218,6 @@ print ('\nFINAL SCHEMA\n', network_schema)
 
 print('\nWRITING final file:', 'network.avro')
 
-print("RECORD")
-print(record.keys())
 print(numLinks, 'LINKS')
 
 schema = avro.schema.parse(network_schema)
