@@ -1379,6 +1379,7 @@ const Component = defineComponent({
   },
 
   beforeDestroy() {
+    this.resizer?.disconnect()
     if (this.csvWorker) this.csvWorker.terminate()
   },
 

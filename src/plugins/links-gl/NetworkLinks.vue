@@ -1056,6 +1056,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    this.resizer?.disconnect()
     // MUST delete the React view handle to prevent gigantic memory leak!
     delete REACT_VIEW_HANDLES[this.linkLayerId]
 

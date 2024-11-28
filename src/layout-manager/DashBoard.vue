@@ -638,6 +638,7 @@ export default defineComponent({
   },
   beforeDestroy() {
     this.resizers = {}
+    this.narrowPanelObserver?.disconnect()
     window.removeEventListener('resize', this.resizeAllCards)
   },
 })

@@ -26,7 +26,7 @@
             .is-favorite(v-if="isFavorite(folder)")
             p
               i.fa(:class="i == 0 ? 'fa-arrow-up' : 'fa-folder-open'")
-              | &nbsp;{{ cleanName(folder) }}
+              | &nbsp;&nbsp;{{ cleanName(folder) }}
 
       //- README: content of readme.md, if it exists
       .readme-header.markdown(v-if="myState.readme")
@@ -196,7 +196,7 @@ export default defineComponent({
       summaryYamlFilename: 'viz-summary.yml',
       mdRenderer,
       idFolderTable,
-      resizeObserver: {} as any,
+      resizeObserver: {} as ResizeObserver,
       myState: {
         errorStatus: '',
         folders: [],
@@ -555,6 +555,10 @@ export default defineComponent({
     },
   },
 
+  beforeDestroy() {
+    this.resizeObserver?.disconnect()
+  },
+
   mounted() {
     this.updateRoute()
 
@@ -659,7 +663,6 @@ h4 {
 
 .folder-table {
   display: grid;
-  gap: 3px;
   grid-auto-flow: column;
   grid-template-columns: repeat(auto-fill, max-content);
   grid-template-rows: repeat(var(--num-rows, 20), min-content);
@@ -675,8 +678,9 @@ h4 {
   flex-direction: column;
   background-color: var(--bgCream5);
   padding: 0.25rem 0.75rem;
-  border-radius: 3px;
   word-wrap: break-word;
+  border: 1px solid var(--bgDashboard);
+  border-top-right-radius: 10px;
   position: relative;
 }
 
