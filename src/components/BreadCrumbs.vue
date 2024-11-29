@@ -10,7 +10,7 @@
     //-   @click="clickedBreadcrumb(crumb)"
     //- ) &nbsp;•&nbsp;{{ crumb.label }}
     p(v-for="crumb,i in crumbs.slice(1)" :key="`${crumb.root}${crumb.subfolder}`")
-      a(:href="`/${crumb.root}/${crumb.subfolder}`") &nbsp;•&nbsp;{{ crumb.label }}
+      a(:href="`${BASE_URL}${crumb.root}/${crumb.subfolder}`") &nbsp;•&nbsp;{{ crumb.label }}
 
 </template>
 
@@ -20,9 +20,17 @@ import type { PropType } from 'vue'
 
 import { BreadCrumb, FileSystemConfig } from '@/Globals'
 
+const BASE_URL = import.meta.env.BASE_URL
+
 export default defineComponent({
   name: 'BreadCrumbs',
   components: {},
+
+  data() {
+    return {
+      BASE_URL,
+    }
+  },
 
   props: {
     root: { type: String, required: true },

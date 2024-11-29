@@ -909,7 +909,7 @@ export default defineComponent({
             return `${encodeURIComponent(k)}=${encodeURIComponent(v as any)}`
           })
           .join('&')
-        let newUrl = `/${currentPath}/`
+        let newUrl = `${BASE_URL}${currentPath}/`
         if (query) newUrl += '?' + query
         history.replaceState({}, '', newUrl)
       }
