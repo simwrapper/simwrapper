@@ -9,7 +9,9 @@
     p.splash-label(v-if="showSplash") • Loading SimWrapper •
 
   .grant-permission-area(v-if="accessRequests.length")
-    p Grant access to local files to view this content:
+    .nudge.flex-col(style="line-height: 1.3rem;padding-right: 0.5rem")
+      p: b Grant your browser access to view these local files.
+      p(style="margin-top: 0.5rem") Allowing access gives SimWrapper read-only access to this folder on your computer. No data is ever uploaded or sent anywhere.
     button.button.is-small(@click="grantAccess") Grant access
 
 </template>
@@ -610,7 +612,8 @@ p.splash-label {
 .grant-permission-area {
   position: absolute;
   width: 100%;
-  padding: 1rem;
+  margin-top: 2rem;
+  padding: 2rem;
   background-color: #ffd15e;
   color: black;
   display: flex;
