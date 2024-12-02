@@ -60,6 +60,14 @@ export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | nu
 let fileSystems: FileSystemConfig[] = [
   // DO NOT REMOVE THESE, THEY ARE FOR INTERNAL APP USE
   {
+    name: 'github',
+    slug: 'github',
+    description: 'GitHub repo file access',
+    baseURL: '',
+    isGithub: true,
+    hidden: true,
+  },
+  {
     name: 'interactive',
     slug: '',
     description: 'Drag and Drop"',

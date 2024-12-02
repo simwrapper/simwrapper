@@ -530,7 +530,6 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
       resolvedPath = `${subfolder}/${matchingFiles[0]}`
     }
 
-    console.log(100, 'RESOLVED PATH', resolvedPath)
     const blob = await httpFileSystem.getFileBlob(resolvedPath)
     if (!blob) throwError('BLOB IS NULL')
 
@@ -553,7 +552,6 @@ function gUnzip(buffer: ArrayBuffer): any {
 
   // GZIP always starts with a magic number, hex 0x8b1f
   const header = new Uint16Array(buffer, 0, 2)
-
   if (header[0] === 0x8b1f) {
     try {
       const result = decompressSync(u8)

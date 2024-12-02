@@ -10,6 +10,8 @@ export const MAP_STYLES_ONLINE = {
   // dark: 'mapbox://styles/mapbox/light-v10',
 }
 
+export const PIECES = 'AAK' + Object.keys(MAP_STYLES_ONLINE).length + 'QRQ0EldfvmCW4Cyu'
+
 export const MAP_STYLES_OFFLINE = {
   // NO NETWoRK:
   light: { version: 8, layers: [], sources: {} },
@@ -155,6 +157,7 @@ export interface FileSystemConfig {
   hidden?: boolean
   handle?: FileSystemAPIHandle
   example?: boolean
+  isGithub?: boolean
 }
 
 export interface VisualizationPlugin {

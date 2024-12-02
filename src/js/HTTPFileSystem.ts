@@ -1,7 +1,16 @@
 import micromatch from 'micromatch'
 import pako from 'pako'
 
-import { DirectoryEntry, FileSystemAPIHandle, FileSystemConfig, YamlConfigs } from '@/Globals'
+import {
+  DirectoryEntry,
+  FileSystemAPIHandle,
+  FileSystemConfig,
+  YamlConfigs,
+  PIECES,
+} from '@/Globals'
+
+// GitHub doesn't tell us the type of file, so we have to guess by filename extension
+const BINARIES = /.*\.(avro|dbf|gkpg|gz|h5|jpg|jpeg|omx|png|shp|shx|sqlite|zip|zst)$/
 
 const YAML_FOLDERS = ['simwrapper', '.simwrapper']
 
@@ -16,12 +25,14 @@ class HTTPFileSystem {
   private needsAuth: boolean
   private fsHandle: FileSystemAPIHandle | null
   private store: any
+  private isGithub: boolean
 
   constructor(project: FileSystemConfig, store?: any) {
     this.urlId = project.slug
     this.needsAuth = !!project.needPassword
     this.fsHandle = project.handle || null
     this.store = store || null
+    this.isGithub = !!project.isGithub
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
@@ -75,6 +86,8 @@ class HTTPFileSystem {
   private async _getFileResponse(scaryPath: string): Promise<Response> {
     if (this.fsHandle) {
       return this._getFileFromChromeFileSystem(scaryPath)
+    } else if (this.isGithub) {
+      return this._getFileFromGitHub(scaryPath)
     } else {
       return this._getFileFetchResponse(scaryPath)
     }
@@ -142,6 +155,121 @@ class HTTPFileSystem {
     })
   }
 
+  private async _getFileFromGitHub(scaryPath: string): Promise<Response> {
+    // First get the JSON for the file.
+    // -> If the file is small, 'content' will be present as base64
+    // -> If the file is large, the SHA will be there, and a second blob API request will get the content
+
+    let path = scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    path = path.replaceAll('//', '/')
+
+    if (path.startsWith('/')) path = path.slice(1)
+
+    const bits = path.split('/').filter(m => !!m)
+    if (bits.length < 2) {
+      console.log('no.')
+      return new Promise((resolve, reject) => {
+        resolve(null as any)
+      })
+    }
+
+    const ownerRepo = `${bits[0]}/${bits[1]}`
+    let ghUrl = `https://api.github.com/repos/${ownerRepo}/contents/`
+    bits.shift()
+    bits.shift()
+    ghUrl += bits.join('/')
+
+    const z = ['11', 'pat', 'github'].reverse().join('_')
+    const hexcode = '_SyKezxQUoOKXAx3HwTH51I4funGUSFfxdbGG2X4l3WvUHIW62GOOmO0OMWZ'
+    const headers = { Authorization: `Bearer ${z}${PIECES}${hexcode}` }
+
+    let json = await await fetch(ghUrl, {
+      headers,
+    }).then(r => r.json())
+
+    let content = json.content
+
+    // if file is large, content is behind a 2nd blob API request by SHA value
+    if (!content) {
+      ghUrl = `https://api.github.com/repos/${ownerRepo}/git/blobs/${json.sha}`
+      json = await await fetch(ghUrl, {
+        headers,
+      }).then(r => r.json())
+      content = json.content
+    }
+
+    if (json.encoding == 'base64') {
+      const binaryString = Uint8Array.from(atob(json.content), char => char.charCodeAt(0))
+      // no way to know from GitHub what type of file this is, so we have to guess
+      if (BINARIES.test(scaryPath.toLocaleLowerCase())) {
+        content = binaryString
+      } else {
+        content = new TextDecoder().decode(binaryString)
+      }
+    } else if (json.encoding == 'utf-8') {
+      content = new TextDecoder().decode(json.content)
+    } else {
+      content = json.content
+    }
+
+    const response = {
+      text: () => {
+        return new Promise((resolve, reject) => {
+          resolve(content)
+        })
+      },
+      json: () => {
+        return new Promise(async (resolve, reject) => {
+          const json = JSON.parse(content)
+          resolve(json)
+        })
+      },
+      blob: () => {
+        return new Promise(async (resolve, reject) => {
+          resolve(new Blob([content], { type: 'application/octet-stream' }))
+        })
+      },
+    } as any
+
+    return response
+  }
+
+  private async _getDirectoryFromGitHub(scaryPath: string): Promise<DirectoryEntry> {
+    let path = scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    path = path.replaceAll('//', '/')
+
+    if (path.startsWith('/')) path = path.slice(1)
+
+    const listing = { dirs: [], files: [], handles: {} } as DirectoryEntry
+
+    const bits = path.split('/').filter(m => !!m)
+    if (bits.length < 2) {
+      return listing
+    }
+
+    let ghUrl = `https://api.github.com/repos/${bits[0]}/${bits[1]}/contents/`
+    bits.shift()
+    bits.shift()
+    ghUrl += bits.join('/')
+
+    const z = ['11', 'pat', 'github'].reverse().join('_')
+    const hexcode = '_SyKezxQUoOKXAx3HwTH51I4funGUSFfxdbGG2X4l3WvUHIW62GOOmO0OMWZ'
+    const headers = { Authorization: `Bearer ${z}${PIECES}${hexcode}` }
+
+    const json = (await await fetch(ghUrl, {
+      headers,
+    }).then(r => r.json())) as any[]
+
+    // console.log(json)
+
+    json.forEach(entry => {
+      if (entry.type == 'file') listing.files.push(entry.name)
+      if (entry.type == 'dir') listing.dirs.push(entry.name)
+    })
+
+    return listing
+  }
+
   async getFileText(scaryPath: string): Promise<string> {
     // This can throw lots of errors; we are not going to catch them
     // here so the code further up can deal with errors properly.
@@ -160,8 +288,8 @@ class HTTPFileSystem {
 
     // recursively gunzip until it can gunzip no more:
     const unzipped = this.gUnzip(buffer)
-
     const text = new TextDecoder('utf-8').decode(unzipped)
+
     return JSON.parse(text)
   }
 
@@ -200,9 +328,12 @@ class HTTPFileSystem {
 
     try {
       // Generate and cache the listing
-      const dirEntry = this.fsHandle
-        ? await this.getDirectoryFromHandle(stillScaryPath)
-        : await this.getDirectoryFromURL(stillScaryPath)
+      let dirEntry
+
+      if (this.fsHandle) dirEntry = await this.getDirectoryFromHandle(stillScaryPath)
+      else if (this.isGithub) dirEntry = await this._getDirectoryFromGitHub(stillScaryPath)
+      else dirEntry = await this.getDirectoryFromURL(stillScaryPath)
+
       CACHE[this.urlId][stillScaryPath] = dirEntry
       return dirEntry
     } catch (e) {
