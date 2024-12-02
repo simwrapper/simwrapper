@@ -79,7 +79,7 @@ nodeOffset = {}
 nodeCoords = []
 
 for i in range(numNodes):
-    Y, X = coord_transformer.transform(nodeX[i],nodeY[i])
+    Y, X = coord_transformer.transform(nodeY[i], nodeX[i])
     nodeOffset[str(nodeId[i])] = i
     nodeCoords.extend([X,Y])
 

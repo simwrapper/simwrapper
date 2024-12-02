@@ -183,6 +183,8 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
+import avro from '@/js/avro'
+
 
 import TourViz from './TourViz'
 
@@ -346,6 +348,8 @@ const LogisticsPlugin = defineComponent({
 
       darkMode: null as any,
       lightMode: null as any,
+
+      avroNetwork: null as any,
 
 
       // logistic Variables
@@ -822,6 +826,7 @@ const LogisticsPlugin = defineComponent({
       this.tourHubs = []
       if (lspCopy.resources.hub) {
         lspCopy.resources.hub.forEach((hub: any) => {
+
           let hubInfo = {
             Xcoord: (this.links[hub.$location][0] + this.links[hub.$location][2]) / 2,
             Ycoord: (this.links[hub.$location][1] + this.links[hub.$location][3]) / 2,
@@ -831,9 +836,7 @@ const LogisticsPlugin = defineComponent({
         })
       }
 
-
       if (this.globalHubChainBoolean) {
-        console.log(this.lspChainToursAll)
         for (const tour of this.lspChainToursAll) {
           //  all legs\
           tour.legs.forEach((leg: any, count_route: number) =>
@@ -846,11 +849,10 @@ const LogisticsPlugin = defineComponent({
           // all depots
           this.setupDepots()
         }
-      } else if (this.selectedCarrier) {
-        console.log(this.lspChainToursAll)
-        console.log(this.selectedCarrier)
+      } else if (this.selectedCarrier) {  
         for (const lspChainTour of this.lspChainToursAll) {
           for (const tour of lspChainTour) {
+
             //  all legs\
             tour.legs.forEach((leg: any, count_route: number) =>
               this.addRouteToMap(tour, leg, count_route++)
@@ -877,10 +879,12 @@ const LogisticsPlugin = defineComponent({
             // all depots
             this.setupDepots()
           }
+
         }
 
       } else {
         for (const tour of this.lspChainToursAll) {
+          
           //  all legs\
           tour.legs.forEach((leg: any, count_route: number) =>
             this.addRouteToMap(tour, leg, count_route++)
@@ -1864,6 +1868,30 @@ const LogisticsPlugin = defineComponent({
       return carrierList
     },
 
+    async loadAvroRoadNetwork() {
+      console.log('LOADING AVRO:', this.vizDetails.network)
+      const filename = `${this.subfolder}/${this.vizDetails.network}`
+      const blob = await this.fileApi.getFileBlob(filename)
+
+      const records: any[] = await new Promise((resolve, reject) => {
+        const rows = [] as any[]
+        avro
+          .createBlobDecoder(blob)
+          .on('metadata', (schema: any) => {
+            // console.log(schema)
+          })
+          .on('data', (row: any) => {
+            rows.push(row)
+          })
+          .on('end', () => {
+            resolve(rows)
+          })
+      })
+
+      console.log(records[0])
+      return records[0]
+    },
+
     async loadNetwork() {
       this.myState.statusMessage = 'Loading network...'
 
@@ -1886,15 +1914,41 @@ const LogisticsPlugin = defineComponent({
             net.dest[i * 2 + 1],
           ]
         })
+        console.log(links[6000])
         return links
-      } else {
+      } else if (this.vizDetails.network.indexOf('.avro') > -1) {
+        this.avroNetwork = await this.loadAvroRoadNetwork()
+        const links: { [id: string]: number[] } = {}
+
+        if (this.avroNetwork) {
+          const allCoords = this.avroNetwork?.nodeCoordinates
+          this.avroNetwork.linkId.forEach((link: any, i: number) => {
+            // link is an INDEX to the node column arrays
+            const offsetFrom = 2 * this.avroNetwork.from[i]
+            const offsetTo = 2 * this.avroNetwork.to[i]
+
+            links[link] = [
+            allCoords[offsetFrom],
+            allCoords[1 + offsetFrom],
+            allCoords[offsetTo],
+            allCoords[1 + offsetTo],
+          ]
+          });
+        }
+        this.vizDetails.projection = 'EPSG:31468'
+        console.log(links[6000])
+
+
+        return links
+      }
+      else {
         // pre-converted JSON output from create_network.py
         const jsonNetwork = await this.fileApi.getFileJson(
           this.myState.subfolder + '/' + this.vizDetails.network
         )
 
         // geojson is ALWAYS in long/lat
-        this.vizDetails.projection = 'EPSG:4326'
+        // this.vizDetails.projection = 'EPSG:4326'
 
         return jsonNetwork
       }
@@ -2041,6 +2095,7 @@ const LogisticsPlugin = defineComponent({
 
     await this.$nextTick() // update UI update before network load begins
     this.links = await this.loadNetwork()
+    console.log(this.links[5])
     this.setMapCenter()
     this.myState.statusMessage = ''
 
