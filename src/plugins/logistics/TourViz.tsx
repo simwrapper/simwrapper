@@ -987,8 +987,6 @@ export default function Component(props: {
   }, [lspShipmentChains, settings.scaleFactor]);
 
 
-
-
   const showBackgroundMap = projection && projection !== 'Atlantis'
 
   return (
