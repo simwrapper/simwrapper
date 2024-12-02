@@ -388,7 +388,7 @@ class HTTPFileSystem {
     let dirs = []
     let files = []
 
-    const lines = data.split('</li>')
+    const lines = data.split('</li>').map(line => line.slice(line.lastIndexOf('<li')))
 
     for (const line of lines) {
       const href = line.indexOf('<li> <a href="')
@@ -399,6 +399,7 @@ class HTTPFileSystem {
       // got one!
       let name = entry[1] // regex returns first match in [1]
       name = name.replaceAll('&#47;', '/')
+      if (name === '/') continue
       if (name === '../') continue
       if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
       else files.push(name)
