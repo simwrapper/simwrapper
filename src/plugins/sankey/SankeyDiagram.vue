@@ -299,6 +299,10 @@ const MyComponent = defineComponent({
     },
   },
 
+  beforeDestroy() {
+    this.resizeObserver.disconnect()
+  },
+
   async mounted() {
     try {
       await this.getVizDetails()

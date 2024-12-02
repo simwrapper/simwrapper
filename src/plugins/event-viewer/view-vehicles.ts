@@ -14,9 +14,8 @@ export default class EventsHandler {
     })
   }
 
-  processEvents(events: any[]) {
-    console.log('----processing:', events.length, 'new events')
-
+  processEvents(events: any[][]) {
+    // one big set of trips for this tranch of events
     const trips = {
       t0: [],
       t1: [],
@@ -25,6 +24,32 @@ export default class EventsHandler {
       colors: [],
     } as any
 
+    // go through each set that we received
+    for (const eachSet of events) {
+      this.processOneSetOfEvents(eachSet, trips)
+    }
+
+    // and convert to floatarrays!
+    const dataArray = {} as any
+    Object.keys(trips).forEach(key => {
+      dataArray[key] = new Float32Array(trips[key].flat())
+    })
+
+    const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
+
+    this.totalRows += trips.t0.length
+    console.log(
+      '----As of this tranch: Total trips rows',
+      this.totalRows,
+      'RANGE',
+      dataArray.t0[0],
+      timeLastArrival
+    )
+
+    return { data: dataArray, timeRange: [dataArray.t0[0], timeLastArrival] }
+  }
+
+  processOneSetOfEvents(events: any[], trips: any) {
     // todo: need enters/exits traffic events too
     const linkEvents = events.filter(
       event =>
@@ -66,7 +91,7 @@ export default class EventsHandler {
                 this.network.freespeed[linkNum]
 
               if (relSpeed < 0.4) colorCode = 2
-              if (relSpeed < 0.1) colorCode = 3
+              if (relSpeed < 0.2) colorCode = 3
             }
 
             // times
@@ -89,18 +114,5 @@ export default class EventsHandler {
       }
       this.tracker[event.vehicle] = event
     })
-
-    // convert to Float32Arrays
-    const dataArray = {} as any
-    Object.keys(trips).forEach(key => {
-      dataArray[key] = new Float32Array(trips[key].flat())
-    })
-
-    const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
-
-    this.totalRows += trips.t0.length
-    console.log('----TOTAL TRIP ROWS', this.totalRows)
-
-    return { data: dataArray, timeRange: [events[0].time, timeLastArrival] }
   }
 }

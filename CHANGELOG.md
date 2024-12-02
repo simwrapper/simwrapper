@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.5.1](https://github.com/simwrapper/simwrapper/compare/v3.5.0...v3.5.1) (2024-11-22)
+
+
+### Bug Fixes
+
+* better error messages for missing files and files too large ([ec568d2](https://github.com/simwrapper/simwrapper/commit/ec568d2c99c2b0b7b537f62a0dd55e124de3f5ef))
+* **logistics:** tours with multiple hubs displaying correctly; individual hub chains now selectable ([76a12c7](https://github.com/simwrapper/simwrapper/commit/76a12c7d21b127e31219fa1bfb12b0df8b269d11))
+
 ## [3.5.0](https://github.com/simwrapper/simwrapper/compare/v3.4.3...v3.5.0) (2024-11-15)
 
 

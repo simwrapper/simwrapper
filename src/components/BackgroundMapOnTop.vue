@@ -139,6 +139,10 @@ const Component = defineComponent({
     },
   },
 
+  beforeDestroy() {
+    this.resizer?.disconnect()
+  },
+
   mounted() {
     this.isDarkMode = this.$store.state.colorScheme === ColorScheme.DarkMode
     this.setupMap()

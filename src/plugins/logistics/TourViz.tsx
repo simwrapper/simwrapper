@@ -390,8 +390,6 @@ export default function Component(props: {
 
     layers = []
 
-    console.log(legs[0])
-
     function getLspTourColor(vehicleId: string) {
       // Simple hash function to generate a number from the string
       let hash = 0;

@@ -2,6 +2,8 @@ import * as Comlink from 'comlink'
 // import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
 import pako from 'pako'
 
+import init, { EventStreamer } from 'matsim-event-streamer'
+
 import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
 
@@ -30,10 +32,11 @@ const Task = {
   _decoder: new TextDecoder(),
   _eventTypes: [] as string[],
 
-  _currentTranch: [] as any[],
+  _currentTranch: [] as any[][],
+  _currentTranchTotalLength: 0,
 
   // Pako library has gunzip chunking mode!
-  _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
+  // _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
 
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
@@ -41,6 +44,8 @@ const Task = {
   _queue: [] as any[],
 
   _cbReporter: null as any,
+
+  _eventStreamer: null as any,
 
   async startStream(
     props: {
@@ -55,14 +60,19 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
+      console.log('EVENT STREAM MUTHAAAA')
+      await init()
+      this._eventStreamer = new EventStreamer()
+      console.log('EVENT STREAM MUTHAAAA 2')
+
       this._cbReporter = cbReportNewData
 
-      this._gunzipper.onData = (chunk: any) => {
-        this._queue.push(chunk)
-      }
-      this._gunzipper.onEnd = (status: number) => {
-        console.log('gzipper onEnd', status)
-      }
+      // this._gunzipper.onData = (chunk: any) => {
+      //   this._queue.push(chunk)
+      // }
+      // this._gunzipper.onEnd = (status: number) => {
+      //   console.log('gzipper onEnd', status)
+      // }
 
       this._layers = props.layers.map((L: any) => new AllEventLayers[L.viewer](props))
 
@@ -86,61 +96,27 @@ const Task = {
     return []
   },
 
-  sendDataToLayersForProcessing(events: any[]) {
+  sendDataToLayersForProcessing(events: any[][]) {
     for (const layer of this._layers) {
       const { data, timeRange } = layer.processEvents(events)
 
       this._cbReporter({ data, timeRange })
-
-      // postMessage(
-      //   {
-      //     events: oneChunk,
-      //     times: this._currentTimes,
-      //     vehicleTrips: this._vehicleTrips,
-      //   },
-      //   [this._currentTimes.buffer]
-      // )
     }
   },
 
-  async convertXMLtoEventArray(lines: string[]) {
-    const events = []
-    const isEvent = /<event /
-
-    for (const line of lines) {
-      if (isEvent.test(line)) {
-        const xml = (await parseXML(line, {
-          alwaysArray: [],
-          attributeNamePrefix: '',
-        })) as any
-
-        xml.event.time = parseFloat(xml.event.time)
-        events.push(xml.event)
-      }
-    }
-    return events
-  },
-
-  async handleText(chunkText: string) {
-    // console.log('----handling text length', chunkText.length)
-    // reconstruct first line taking mid-line breaks into account
-    let text = this._leftOvers + chunkText
-
-    const lastLF = text.lastIndexOf('\n')
-    this._leftOvers = text.slice(lastLF + 1)
-    text = text.slice(0, lastLF)
-
-    const lines = text.split('\n')
-    const events = await this.convertXMLtoEventArray(lines)
-
+  async handleText(events: any[]) {
     // push all the events (for now)
-    this._currentTranch.push(...events)
+    this._currentTranch.push(events)
+    this._currentTranchTotalLength += events.length
 
     // Notify all the layers they have some work to do!
-    if (this._currentTranch.length > MAX_ARRAY_LENGTH) {
-      const oneChunk = this._currentTranch.slice(0, MAX_ARRAY_LENGTH)
-      this.sendDataToLayersForProcessing(oneChunk)
-      this._currentTranch = this._currentTranch.slice(MAX_ARRAY_LENGTH)
+    if (this._currentTranchTotalLength > MAX_ARRAY_LENGTH) {
+      console.log('----batching off for processing:', this._currentTranchTotalLength)
+      const oneSetOfChunks = [...this._currentTranch]
+      this.sendDataToLayersForProcessing(oneSetOfChunks)
+      console.log('----done processing:', this._currentTranchTotalLength)
+      this._currentTranch = [] // this._currentTranch.slice(MAX_ARRAY_LENGTH)
+      this._currentTranchTotalLength = 0
     }
   },
 
@@ -153,34 +129,21 @@ const Task = {
           return new Promise(async (resolve, reject) => {
             if (parent._isCancelled) reject()
 
+            console.log('====GOT LARGE CHUNK', entireChunk.length)
             const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
               if (parent._isCancelled) reject()
 
-              // check for gzip at start
-              if (parent._numChunks == 1) {
-                const header = new Uint8Array(smallChunk.buffer.slice(0, 2))
-                if (header[0] === 0x1f && header[1] === 0x8b) parent._isGzipped = true
-              }
-
-              if (parent._isGzipped) {
-                parent._gunzipper.push(smallChunk)
-
-                while (parent._queue.length) {
-                  const text = parent._queue.shift()
-                  await parent.handleText(text)
-                }
-                // console.log('queue empty')
-              } else {
-                const chunkText = parent._decoder.decode(smallChunk)
-                parent.handleText(chunkText)
-              }
+              console.log('--sending chunk to WASM:', entireChunk.length)
+              const rawEvents: string = await parent._eventStreamer.process(smallChunk)
+              console.log('--got text. parsing raw json string:', rawEvents.length)
+              const events = JSON.parse(rawEvents)
+              console.log('--handling event rows:', events.length)
+              await parent.handleText(events)
             }
 
             parent._numChunks++
             parent._dataLength += entireChunk.length
             let startOffset = 0
-
-            console.log('----got chunk')
 
             while (!parent._isCancelled && startOffset < entireChunk.length) {
               const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
@@ -197,26 +160,6 @@ const Task = {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
           console.log('STREAM FINISHED! ')
           parent.sendDataToLayersForProcessing(parent._currentTranch)
-
-          // Orphans:', Object.keys(parent._vehiclesOnLinks).length)
-          // console.log(
-          //   'final vehicle trips:',
-          //   _vehicleTrips.length,
-          //   _vehicleTrips[_vehicleTrips.length - 1]
-          //   // JSON.stringify(_vehicleTrips)
-          // )
-          // _currentTimes.set(_currentTranch.map(m => m.time))
-          // _currentTimes = _currentTimes.subarray(0, _currentTranch.length)
-
-          console.log('TODO CLOSE! Need to process final data!!')
-          // postMessage(
-          //   {
-          //     events: _currentTranch,
-          //     times: _currentTimes,
-          //     vehicleTrips: _vehicleTrips,
-          //   },
-          //   [_currentTimes.buffer]
-          // )
         },
         abort(err) {
           console.log('STREAM error:', err)

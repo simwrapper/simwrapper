@@ -3,7 +3,7 @@
   .scrollable
     .curate-content.markdown(
       v-if="readmeContent"
-      v-html="readmeContent"
+      v-html="htmlWithProcessedRelativeImageTags"
     )
 
 </template>
@@ -15,6 +15,7 @@ import markdown from 'markdown-it'
 import markdownTex from 'markdown-it-texmath'
 import katex from 'katex'
 
+import globalStore from '@/store'
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 
@@ -36,12 +37,28 @@ export default defineComponent({
     files: { type: Array, required: true },
     config: { type: Object as any, required: true },
   },
+
   data: () => {
     return {
       readmeContent: '',
       hasHeight: false,
     }
   },
+
+  computed: {
+    fileApi(): HTTPFileSystem {
+      return new HTTPFileSystem(this.fileSystemConfig, globalStore)
+    },
+
+    htmlWithProcessedRelativeImageTags() {
+      const fixed = this.readmeContent.replace(
+        /src="\.(\/.*?)"/g,
+        (_, path) => `src="${this.fileSystemConfig.baseURL}/${this.subfolder}/${path}"`
+      )
+      return fixed
+    },
+  },
+
   async mounted() {
     try {
       // if height is defined, honor it. Otherwise, panel will stretch to fit content

@@ -355,6 +355,7 @@ class HTTPFileSystem {
   private buildListFromHtml(data: string): DirectoryEntry {
     if (data.indexOf('SimpleWebServer') > -1) return this.buildListFromSimpleWebServer(data)
     if (data.indexOf('<ul>') > -1) return this.buildListFromSVN(data)
+    if (data.indexOf('<ul id="files">') > -1) return this.buildListFromNpxServe(data)
     if (data.indexOf('<table>') > -1) return this.buildListFromApache24(data)
     if (data.indexOf('\n<a ') > -1) return this.buildListFromNGINX(data)
 
@@ -379,6 +380,32 @@ class HTTPFileSystem {
       if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
       else files.push(name)
     }
+    return { dirs, files, handles: {} }
+  }
+
+  private buildListFromNpxServe(data: string): DirectoryEntry {
+    const regex = /"(.*?)"/
+    let dirs = []
+    let files = []
+
+    const lines = data.split('</li>')
+
+    for (const line of lines) {
+      const href = line.indexOf('<li> <a href="')
+      if (href < 0 || href > 512) continue
+      const entry = line.match(regex)
+      if (!entry) continue
+
+      // got one!
+      let name = entry[1] // regex returns first match in [1]
+      name = name.replaceAll('&#47;', '/')
+      if (name === '../') continue
+      if (name.endsWith('/')) dirs.push(name.substring(0, name.length - 1))
+      else files.push(name)
+    }
+
+    dirs = dirs.map(d => d.slice(1 + d.lastIndexOf('/')))
+    files = files.map(d => d.slice(1 + d.lastIndexOf('/')))
     return { dirs, files, handles: {} }
   }
 

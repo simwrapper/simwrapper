@@ -16,6 +16,7 @@
     :simulationTime="simTime"
     :projection="vizDetails.projection"
     :dotsize="guiConfig.size"
+    :tick="tick"
   )
 
   zoom-buttons(v-if="!thumbnail" corner="bottom")
@@ -88,9 +89,11 @@ import EventMap from './EventDeckMap'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import WasmEventStreamer from './WASMEventStreamer.worker.ts?worker'
+// import WasmEventStreamer from './LibXml2WasmEventStreamer.worker.ts?worker'
 
 export interface EventTask {
   startStream: any
+  isReady: any
 }
 
 import {
@@ -146,6 +149,7 @@ const MyComponent = defineComponent({
     const colorRamps = ['bathymetry', 'electric', 'inferno', 'jet', 'magma', 'par', 'viridis']
 
     return {
+      tick: 0,
       myDataManager: null as DashboardDataManager | null,
       network: {
         source: new Float32Array(),
@@ -155,8 +159,8 @@ const MyComponent = defineComponent({
       } as NetworkLinks,
       linkIdLookup: {} as any,
       guiConfig: {
-        speed: 0.25,
-        size: 18,
+        speed: 0.1,
+        size: 16,
       },
       viewId: ('xyt-id-' + Math.floor(1e12 * Math.random())) as any,
       configId: ('gui-config-' + Math.floor(1e12 * Math.random())) as any,
@@ -421,6 +425,9 @@ const MyComponent = defineComponent({
 
       const layers = [{ viewer: 'vehicleViewer' }]
 
+      // const result = await task.isReady()
+      // console.log({ result })
+
       task.startStream(
         {
           filename,
@@ -433,8 +440,11 @@ const MyComponent = defineComponent({
       )
     },
 
-    receiveDataFromEventStreamer(props: { data: any[]; timeRange: number[] }) {
+    async receiveDataFromEventStreamer(props: { data: any[]; timeRange: number[] }) {
       this.eventData = [...this.eventData, props]
+      this.tick = 1
+      await this.$nextTick()
+      this.tick = 0
     },
 
     setFirstZoom(coordinates: any[], rows: number) {
@@ -583,6 +593,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    this.resizer?.disconnect()
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.viewId] = undefined
     delete REACT_VIEW_HANDLES[this.viewId]

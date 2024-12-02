@@ -733,6 +733,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    this.resizer?.disconnect()
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
     delete REACT_VIEW_HANDLES[this.id]

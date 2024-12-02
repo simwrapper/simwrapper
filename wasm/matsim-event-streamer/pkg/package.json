@@ -1,0 +1,15 @@
+{
+  "name": "matsim-event-streamer",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "matsim_event_streamer_bg.wasm",
+    "matsim_event_streamer.js",
+    "matsim_event_streamer.d.ts"
+  ],
+  "main": "matsim_event_streamer.js",
+  "types": "matsim_event_streamer.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

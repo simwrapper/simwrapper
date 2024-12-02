@@ -1,21 +1,30 @@
 import * as Comlink from 'comlink'
 import { XmlDocument } from 'libxml2-wasm'
 
-console.log('hiiii')
-
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import globalStore from '@/store'
 
-console.log('hiiii 2')
+// console.log('hiiii 2')
 
 const Task = {
   filename: '',
   fsConfig: null as FileSystemConfig | null,
   fileApi: {} as HTTPFileSystem,
 
+  async isReady() {
+    await new Promise<void>(resolve => {
+      console.log('waiting...')
+      setTimeout(() => {
+        console.log('waited.')
+        resolve()
+      }, 3000)
+    })
+    return { ready: true }
+  },
+
   async startStream(filename: string, fsConfig: FileSystemConfig) {
-    console.log('startStream')
+    console.log('----startStream')
     this.filename = filename
     this.fsConfig = fsConfig
     this.fileApi = new HTTPFileSystem(fsConfig, globalStore)
