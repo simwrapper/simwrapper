@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.5.2](https://github.com/simwrapper/simwrapper/compare/v3.5.1...v3.5.2) (2024-12-02)
+
+
+### Bug Fixes
+
+* breadcrumb URLs sometimes missing base url on nonstandard endpoints ([02f65ab](https://github.com/simwrapper/simwrapper/commit/02f65abf56e739f8cfef9f1aea9cef2e61b6f3aa))
+* Chrome local-files "grant access" prompt was unclear and sometimes hidden ([1498e6e](https://github.com/simwrapper/simwrapper/commit/1498e6e22f1f885c5d6d5dd3937436b5e7c40016))
+* create-avro-network.py script correctly handles CRS codes with "flipped" X/Y coords such as EPSG:31468 ([167690c](https://github.com/simwrapper/simwrapper/commit/167690c7bb1a9b581f54501896c70d3f8562f477))
+* Markdown panels can include images with relative paths ([1c34d7e](https://github.com/simwrapper/simwrapper/commit/1c34d7eb583c81b989ca46bef9779e192e142ded))
+* Plotly standalone YAML configs are now read properly ([6ee3844](https://github.com/simwrapper/simwrapper/commit/6ee384408caf218941ea3f300ab09d564c888d64))
+* Prevent browser tab crashess due to deck.gl memory leak ([#416](https://github.com/simwrapper/simwrapper/issues/416)) ([ef1c76e](https://github.com/simwrapper/simwrapper/commit/ef1c76ee72dcf4e5eeab4976c6ae19a7c82bcfcc))
+* Support http file server support for "npx serve --cors -p 8000" ([7c9186c](https://github.com/simwrapper/simwrapper/commit/7c9186caa09ff8ef53e32194175bed396040a7d1))
+
 ### [3.5.1](https://github.com/simwrapper/simwrapper/compare/v3.5.0...v3.5.1) (2024-11-22)
 
 
