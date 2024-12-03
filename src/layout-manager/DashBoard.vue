@@ -222,7 +222,7 @@ export default defineComponent({
       return files
     },
 
-    getCardComponent(card: { type: string }) {
+    getCardComponent(card: { type: string; title: string }) {
       // console.log(1, card)
       if (card.type === 'table' || card.type === 'topsheet') return 'TopSheet'
 
@@ -234,7 +234,8 @@ export default defineComponent({
       // might be a chart
       if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
-      // or might be a vue component?
+      // or might be a vue component? TODO check matrix viewer
+      card.title = card.type ? `Unknown panel type "${card.type}"` : `Error: panel "type" not set`
       return undefined // card.type
     },
 
