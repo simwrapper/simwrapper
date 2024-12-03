@@ -4,17 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 
-[lib]
-crate-type = ["cdylib"] # Required for WASM
-path = "src/matsim-event-streamer.rs"
+# x[lib]
+# xcrate-type = ["cdylib"] # Required for WASM
+# xpath = "src/matsim-event-streamer.rs"
 
 [[bin]]
 name = "matsim-event-streamer"
 path = "src/matsim-event-streamer.rs"
 
 [dependencies]
+futures = "0.3.31"
+js-sys = "0.3.73"
 libz-rs-sys = { version = "0.4.0" }
 roxmltree = "0.20.0"
+tokio = { version = "1.41.1", features = ["full"] }
 wasm-bindgen = { version ="0.2" , default-features = false }
+wasm-bindgen-futures = "0.4.46"
+web-sys = { version = "0.3.73", features = ["ReadableStream", "ReadableStreamDefaultReader"] }
 zlib-rs = { version = "0.4.0", default-features = false,  features = ["rust-allocator"] }
-
+zstd = "0.13.2"
