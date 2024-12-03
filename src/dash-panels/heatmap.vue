@@ -192,6 +192,7 @@ export default defineComponent({
         // empty for now; filtered data will come back later via handleFilterChanged async.
         return { allRows: {} }
       } catch (e) {
+        this.$emit('error', `Error loading: ${this.subfolder}/${this.config.dataset}`)
         console.error('' + e)
       }
       return { allRows: {} }

@@ -42,7 +42,8 @@ enum Size {
 }
 
 interface SankeyYaml {
-  csv: string
+  csv?: string
+  dataset?: string
   title?: string
   description?: string
 }
@@ -61,7 +62,7 @@ const MyComponent = defineComponent({
   data() {
     return {
       globalState: globalStore.state,
-      vizDetails: { csv: '', title: '', description: '' } as SankeyYaml,
+      vizDetails: { csv: '', dataset: '', title: '', description: '' } as SankeyYaml,
       loadingText: '',
       jsonChart: {} as any,
       totalTrips: 0,
@@ -70,6 +71,7 @@ const MyComponent = defineComponent({
       csvData: [] as any[],
       colorRamp: [] as string[],
       textSize: Size.small,
+      resizeObserver: null as null | ResizeObserver,
     }
   },
 
@@ -135,15 +137,26 @@ const MyComponent = defineComponent({
 
       const text = await this.fileApi.getFileText(filename)
       this.vizDetails = yaml.parse(text)
-
       this.$emit('title', this.vizDetails.title)
     },
 
     async loadFiles(): Promise<any[]> {
-      this.loadingText = 'Loading files...'
-      try {
-        const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.vizDetails.csv)
+      const filename = this.vizDetails.csv || this.vizDetails.dataset
+      if (!filename) {
+        this.$emit('error', 'YAML must specify csv "dataset" filename')
+        return []
+      }
 
+      this.loadingText = 'Loading files...'
+      let rawText
+      try {
+        rawText = await this.fileApi.getFileText(this.subfolder + '/' + filename)
+      } catch (e) {
+        this.$emit('error', 'File not found: ' + this.subfolder + '/' + filename)
+        return []
+      }
+
+      try {
         const content = Papa.parse(rawText, {
           // using header:false because we don't care what
           // the column names are: we expect "from,to,value" in cols 0,1,2.
@@ -158,11 +171,10 @@ const MyComponent = defineComponent({
         const e = err as any
         console.error({ e })
         this.loadingText = '' + e
-
-        // maybe it failed because password?
-        if (this.fileSystem && this.fileSystem.needPassword && e.status === 401) {
-          globalStore.commit('requestLogin', this.fileSystem.slug)
-        }
+        this.$emit(
+          'error',
+          'File loaded but could not parse: ' + this.subfolder + '/' + this.vizDetails.csv
+        )
       }
       return []
     },
@@ -300,7 +312,7 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
-    this.resizeObserver.disconnect()
+    if (this.resizeObserver) this.resizeObserver.disconnect()
   },
 
   async mounted() {
@@ -313,11 +325,11 @@ const MyComponent = defineComponent({
     }
 
     // resizer for bigger fonts
-    const resizeObserver = new ResizeObserver(() => {
+    this.resizeObserver = new ResizeObserver(() => {
       this.changeDimensions()
     })
     const targetDiv = document.querySelector(`#${this.cleanConfigId}`)
-    if (targetDiv) resizeObserver.observe(targetDiv)
+    if (targetDiv) this.resizeObserver.observe(targetDiv)
 
     this.doD3()
   },

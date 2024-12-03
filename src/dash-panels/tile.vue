@@ -25,7 +25,6 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 const BASE_URL = import.meta.env.BASE_URL
 
-
 export default defineComponent({
   name: 'Tile',
   components: { FontAwesomeIcon },
@@ -146,10 +145,10 @@ export default defineComponent({
           try {
             const blob = await this.fileApi.getFileBlob(
               this.subfolder +
-              '/' +
-              this.config.dataset +
-              '/../' +
-              value[this.tileImageIndex].trim()
+                '/' +
+                this.config.dataset +
+                '/../' +
+                value[this.tileImageIndex].trim()
             )
             const buffer = await readBlob.arraybuffer(blob)
             const base64 = arrayBufferToBase64(buffer)
@@ -160,8 +159,9 @@ export default defineComponent({
               this.$emit('error', {
                 type: Status.WARNING,
                 msg: e.statusText,
-                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
-                  }.`,
+                desc: `The file ${value[this.tileImageIndex]} was not found in this path ${
+                  this.subfolder + '/' + this.config.dataset + '/../' + value[this.tileImageIndex]
+                }.`,
               })
             }
           }
@@ -173,15 +173,22 @@ export default defineComponent({
     },
 
     async loadFile() {
-      const rawText = await this.fileApi.getFileText(this.subfolder + '/' + this.config.dataset)
-      const csv = Papa.parse(rawText, {
-        comments: '#',
-        delimitersToGuess: [';', '\t', ',', ' '],
-        dynamicTyping: true,
-        header: false,
-        skipEmptyLines: true,
-      })
-      return csv
+      const filename = this.subfolder + '/' + this.config.dataset
+      try {
+        const rawText = await this.fileApi.getFileText(filename)
+        const csv = Papa.parse(rawText, {
+          comments: '#',
+          delimitersToGuess: [';', '\t', ',', ' '],
+          dynamicTyping: true,
+          header: false,
+          skipEmptyLines: true,
+        })
+        return csv
+      } catch (e) {
+        console.error('' + e)
+        this.$emit('error', 'Error loading: ' + filename)
+      }
+      return []
     },
 
     validateYAML() {
@@ -305,5 +312,6 @@ export default defineComponent({
   cursor: default;
 }
 
-@media only screen and (max-width: 640px) {}
+@media only screen and (max-width: 640px) {
+}
 </style>
