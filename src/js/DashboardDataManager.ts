@@ -138,15 +138,15 @@ export default class DashboardDataManager {
       const withTimeout = (promise: Promise<any>, timeout: number) => {
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => {
-            reject(new Error(`Operation timed out after ${timeout}ms`))
-          }, timeout)
+            reject(new Error(`Operation timed out after ${timeout}s`))
+          }, timeout * 1000)
         })
         return Promise.race([promise, timeoutPromise])
       }
 
       // wait for dataset to load
       // this will immediately return dataset if it is already loaded
-      let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60 * 1000)
+      let myDataset = await withTimeout(this.datasets[cacheKey].dataset, 60)
 
       let { _comments, ...allRows } = myDataset
       let comments = _comments as unknown as string[]

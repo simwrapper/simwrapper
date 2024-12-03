@@ -238,7 +238,6 @@ class HTTPFileSystem {
   private async _getDirectoryFromGitHub(scaryPath: string): Promise<DirectoryEntry> {
     let path = scaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
     path = path.replaceAll('//', '/')
-
     if (path.startsWith('/')) path = path.slice(1)
 
     const listing = { dirs: [], files: [], handles: {} } as DirectoryEntry
@@ -326,6 +325,8 @@ class HTTPFileSystem {
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
     if (cachedEntry) return cachedEntry
+
+    stillScaryPath = stillScaryPath.replaceAll('/./', '/')
 
     try {
       // Generate and cache the listing

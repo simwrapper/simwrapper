@@ -62,12 +62,17 @@ async function fetchData(props: {
     // if dataset has a path in it, we need to fetch the correct subfolder contents
     const slash = _config.dataset.indexOf('/')
     if (slash > -1) {
-      const mergedFolder = slash === 0 ? _config.dataset : `${_subfolder}/${_config.dataset}`
+      // handle "./blah" paths correctly
+      let relativeSubfolder = _subfolder
+      if (_subfolder) relativeSubfolder += '/'
+
+      const mergedFolder = slash === 0 ? _config.dataset : `${relativeSubfolder}${_config.dataset}`
       _dataset = mergedFolder.substring(1 + mergedFolder.lastIndexOf('/'))
       _subfolder = mergedFolder.substring(0, mergedFolder.lastIndexOf('/'))
 
       // need to fetch new list of files
-      const { files } = await _fileSystem.getDirectory(_subfolder)
+      let fixedFolder = _subfolder.startsWith('./') ? _subfolder.slice(2) : _subfolder
+      const { files } = await _fileSystem.getDirectory(fixedFolder)
       _files = files
     }
 
@@ -168,7 +173,7 @@ async function parseData(filename: string, buffer: Uint8Array) {
     }
   } catch (e) {
     const msg = ('' + e).replaceAll('Error: ', '')
-    postMessage({ error: '' + e })
+    postMessage({ error: msg })
   }
 }
 
