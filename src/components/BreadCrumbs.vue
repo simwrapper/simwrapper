@@ -4,11 +4,13 @@
     p(@click="clickedBreadcrumb({url: '/'})")
       i.fa.fa-home
 
-  .x-breadcrumbs(v-if="root")
-    //- p(v-for="crumb,i in crumbs.slice(1)"
-    //-   :key="crumb.url"
-    //-   @click="clickedBreadcrumb(crumb)"
-    //- ) &nbsp;•&nbsp;{{ crumb.label }}
+  .x-breadcrumbs(v-if="root && isSplitMode")
+    a(v-for="crumb,i in crumbs.slice(1)"
+      :key="crumb.url"
+      @click="clickedBreadcrumb(crumb)"
+    ) &nbsp;•&nbsp;{{ crumb.label }}
+
+  .x-breadcrumbs(v-if="root && !isSplitMode")
     p(v-for="crumb,i in crumbs.slice(1)" :key="`${crumb.root}${crumb.subfolder}`")
       a(:href="`${BASE_URL}${crumb.root}/${crumb.subfolder}`") &nbsp;•&nbsp;{{ crumb.label }}
 
@@ -39,6 +41,10 @@ export default defineComponent({
   },
 
   computed: {
+    isSplitMode() {
+      return this.$route.path.startsWith('/split/')
+    },
+
     fileSystem(): FileSystemConfig {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
         (a: FileSystemConfig) => a.slug === this.root

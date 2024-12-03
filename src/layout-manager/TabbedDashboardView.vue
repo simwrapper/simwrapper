@@ -41,6 +41,7 @@
         :datamanager="dashboardDataManager"
         :zoomed="isZoomed"
         :allConfigFiles="allConfigFiles"
+        :split="split"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
       )
@@ -89,6 +90,7 @@ export default defineComponent({
     root: { type: String, required: true },
     xsubfolder: { type: String, required: true },
     isMultipanel: { type: Boolean, required: false },
+    split: { type: Object, required: true }, // {y,x}
   },
   data: () => {
     return {

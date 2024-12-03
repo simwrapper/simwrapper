@@ -66,6 +66,7 @@
             :yaml="card.props.configFile"
             :config="card.props"
             :datamanager="datamanager"
+            :split="split"
             :style="{opacity: opacity[card.id]}"
             :cardId="card.id"
             :cardTitle="card.title"
@@ -116,6 +117,7 @@ export default defineComponent({
     xsubfolder: { type: String, required: true },
     allConfigFiles: { type: Object as PropType<YamlConfigs>, required: true },
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
+    split: { type: Object, required: true }, // {y,x}
     gist: Object as any,
     config: Object as any,
     zoomed: Boolean,

@@ -105,6 +105,7 @@
         component.map-tile(
           :is="panel.component"
           :isMultipanel="isMultipanel"
+          :split="{row:y,col:x}"
           :style="getTileStyle(panel)"
           v-bind="cleanProps(panel.props)"
           @navigate="onNavigate($event,x,y)"

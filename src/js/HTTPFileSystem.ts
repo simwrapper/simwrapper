@@ -10,8 +10,9 @@ import {
 } from '@/Globals'
 
 // GitHub doesn't tell us the type of file, so we have to guess by filename extension
-const BINARIES = /.*\.(avro|dbf|gkpg|gz|h5|jpg|jpeg|omx|png|shp|shx|sqlite|zip|zst)$/
+const BINARIES = /.*\.(avro|dbf|gpkg|gz|h5|jpg|jpeg|omx|png|shp|shx|sqlite|zip|zst)$/
 
+// These folders can contain simwrapper project config files
 const YAML_FOLDERS = ['simwrapper', '.simwrapper']
 
 // Cache directory listings for each slug & directory
