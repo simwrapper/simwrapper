@@ -95,7 +95,7 @@ export default function Component({
         fillColors[o.index * 3 + 0], // r
         fillColors[o.index * 3 + 1], // g
         fillColors[o.index * 3 + 2], // b
-        255 * opacity, // no opacity, for now
+        255, // no opacity, for now
       ]
     }
   }
@@ -117,7 +117,7 @@ export default function Component({
         lineColors[o.index * 3 + 0], // r
         lineColors[o.index * 3 + 1], // g
         lineColors[o.index * 3 + 2], // b
-        255 * opacity, // no opacity, for now
+        255, // no opacity, for now
       ]
     }
   }
@@ -201,7 +201,7 @@ export default function Component({
       textFontWeight: 'bold',
       lineWidthUnits: 'pixels',
       autohighlight: false,
-      opacity: opacity,
+      opacity: layerDetails.opacity,
       pickable: false,
       stroked: layerDetails.borderWidth ? true : false,
       fp64: false,
@@ -347,7 +347,7 @@ export default function Component({
       new lineLayer({
         id: 'linksLayer',
         pickable: true,
-        opacity: opacity,
+        opacity: 1,
         widthUnits: 'pixels',
         widthMinPixels: 1,
         data: linksData,
