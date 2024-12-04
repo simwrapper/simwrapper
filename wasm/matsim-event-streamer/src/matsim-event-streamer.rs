@@ -1,131 +1,156 @@
-// use std::borrow::BorrowMut;
-use std::io::{Cursor, Empty, Read, Result, Seek, SeekFrom, Write};
-// use std::thread;
-
-use zstd::Decoder;
-
-use std::thread;
-use std::time::Duration;
-// Sleep for 500 milliseconds
-
-// use futures::prelude::*;
-// use futures::stream::{self, Stream, StreamExt};
-// use tokio::time;
-// use tokio::time::{interval, Duration};
-// const BETWEEN: Duration = Duration::from_secs(1);
-
+use futures::stream::StreamExt;
+use std::io::{self, Read};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tokio::sync::mpsc;
-
-use async_compression::tokio::bufread::ZstdDecoder;
-use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, BufReader, Error};
-use tokio::net::TcpStream;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::{Stream, StreamExt};
-use tokio_util::io::StreamReader;
+use tokio_stream::Stream;
+use zstd::Decompressor;
 
-static mut FINISHED: bool = false;
-
-pub struct ZstdDecompressor {
-    // decoder: Decoder<'static, BufReader<ReceiverReader>>, // tx: mpsc::SyncSender<String>,
-    compressed_buffer: Vec<u8>,
-    rx: mpsc::Receiver<Vec<u8>>,
+/// An asynchronous Zstandard decoder that can work with MPSC channels
+pub struct AsyncZstdDecoder {
+    decompressor: Decompressor<'static>,
+    buffer: Vec<u8>,
+    input_buffer: Vec<u8>,
+    eof: bool,
 }
 
-impl ZstdDecompressor {
-    pub fn new(rx: mpsc::Receiver<Vec<u8>>) -> Self {
-        // let rx_reader = ReceiverReader::new(rx);
+impl AsyncZstdDecoder {
+    /// Create a new AsyncZstdDecoder with optional dictionary
+    pub fn new(dictionary: Option<&[u8]>) -> Result<Self, io::Error> {
+        let mut decompressor = Decompressor::new();
 
-        // let decoder = Decoder::new(rx_reader).expect("NO DECODOR!");
-        let compressed_buffer = Vec::new();
-
-        ZstdDecompressor {
-            compressed_buffer,
-            rx,
+        if let Some(dict) = dictionary {
+            decompressor
+                .set_dictionary(dict)
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         }
+
+        Ok(Self {
+            decompressor,
+            buffer: Vec::new(),
+            input_buffer: Vec::new(),
+            eof: false,
+        })
+    }
+
+    /// Decompress a single chunk of data
+    fn decompress_chunk(&mut self, input: &[u8]) -> Result<(), io::Error> {
+        // Prepare a sufficiently large output buffer
+        let mut output = vec![0; input.len() * 4];
+
+        // Decompress the input
+        let read = self
+            .decompressor
+            .decompress_to_buffer(input, &mut output)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        // Extend the main buffer with decompressed data
+        self.buffer.extend_from_slice(&output[..read]);
+
+        Ok(())
     }
 }
 
-/// Asynchronous function that decompresses a stream of compressed chunks and yields each decompressed text chunk
-async fn decompress_zstd<R>(
-    mut decoder: ZstdDecoder<BufReader<StreamReader<R, io::Error>>>,
-) -> impl Stream<Item = String>
-where
-    R: Stream<Item = Result<Vec<u8>>> + Unpin,
-{
-    let mut buffer = vec![0; 8192]; // Buffer for decompressed data
+/// Async stream implementation for the ZstdDecoder
+impl Stream for AsyncZstdDecoder {
+    type Item = Result<Vec<u8>, io::Error>;
 
-    async_stream::stream! {
-            loop {
-                // Read decompressed data into the buffer
-                let bytes_read = 0; // decoder.read(&mut buffer).await.unwrap();
-
-                if bytes_read == 0 {
-                    // End of stream
-                        break;
-                }
-
-                // Process the decompressed data (convert to String and yield it)
-                let text = String::from_utf8_lossy(&buffer[..bytes_read]);  // (&buffer[..bytes_read])
-                yield text.to_string();
+    fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // If we have data in the buffer, return it
+        if !self.buffer.is_empty() {
+            let chunk = std::mem::take(&mut self.buffer);
+            return Poll::Ready(Some(Ok(chunk)));
         }
+
+        // If EOF and no more data, end the stream
+        if self.eof && self.input_buffer.is_empty() {
+            return Poll::Ready(None);
+        }
+
+        Poll::Pending
     }
 }
 
+/// Helper methods for working with MPSC channels
+impl AsyncZstdDecoder {
+    /// Process incoming data from an MPSC receiver
+    pub async fn process_mpsc_stream(
+        mut self,
+        mut receiver: mpsc::Receiver<Vec<u8>>,
+        sender: mpsc::Sender<Result<Vec<u8>, io::Error>>,
+    ) -> Result<(), io::Error> {
+        while let Some(chunk) = receiver.recv().await {
+            // Mark EOF if this is the last chunk (empty vector)
+            if chunk.is_empty() {
+                self.eof = true;
+                break;
+            }
+
+            // Decompress the chunk
+            self.decompress_chunk(&chunk)?;
+
+            // Send decompressed chunks back
+            while !self.buffer.is_empty() {
+                let chunk = std::mem::take(&mut self.buffer);
+                sender
+                    .send(Ok(chunk))
+                    .await
+                    .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "Channel closed"))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Create a stream from an MPSC receiver
+    pub fn stream_from_mpsc(
+        receiver: mpsc::Receiver<Vec<u8>>,
+    ) -> ReceiverStream<Result<Vec<u8>, io::Error>> {
+        let (tx, rx) = mpsc::channel(100);
+
+        // Spawn a task to handle decompression
+        tokio::spawn(async move {
+            let decoder = Self::new(None).expect("Failed to create decoder");
+            if let Err(e) = decoder.process_mpsc_stream(receiver, tx).await {
+                eprintln!("Decompression error: {:?}", e);
+            }
+        });
+
+        ReceiverStream::new(rx)
+    }
+}
+
+// Example usage demonstration
 #[tokio::main]
-async fn main() {
-    use std::env;
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Need .ZST filename");
-        // return;
-    }
-    // read file
-    let compressed = std::fs::read(&args[1]).expect("----Could not read file");
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create channels for compressed and decompressed data
+    let (compressed_tx, compressed_rx) = mpsc::channel(100);
 
-    // divide file into chunks to pass to dechunker
-    let chunk_size = 20000;
+    // Simulate some compressed data (this would typically come from network/file)
+    let test_data = vec![
+        vec![1, 2, 3, 4], // First chunk
+        vec![5, 6, 7, 8], // Second chunk
+        vec![],           // EOF marker
+    ];
 
-    let chunks = compressed.as_slice().chunks(chunk_size);
-    eprintln!("\n----File split into {} chunks", chunks.len());
-
-    // for chunk in chunks {
-    //     let mut data = Vec::new();
-    //     data.extend_from_slice(chunk);
-    //     tx.send(data).await.expect("zzz");
-    // }
-
-    let compressed_stream = tokio_stream::iter(chunks);
-
-    // Wrap the stream into a StreamReader
-    let stream_reader = StreamReader::new(compressed_stream.map(|chunk| Ok::<_, io::Error>(chunk)));
-
-    // Wrap the StreamReader with a BufReader for buffered reading
-    let reader = BufReader::new(stream_reader);
-
-    // Wrap the BufReader with a ZstdDecoder
-    let mut decoder = ZstdDecoder::new(reader);
-
-    // Buffer to hold decompressed data
-    let mut buffer = vec![0; 8192];
-
-    // // Yield decompressed data as we get it
-    // let mut yield_stream = async_stream::stream! {
-    loop {
-        let bytes_read = decoder.read(&mut buffer).await.expect("Tasasdf");
-
-        if bytes_read == 0 {
-            // End of stream
-            break;
+    // Send test compressed data
+    tokio::spawn(async move {
+        for chunk in test_data {
+            compressed_tx.send(chunk).await.unwrap();
         }
+    });
 
-        // Process the decompressed data (for example, print it as a string)
-        if let Ok(text) = std::str::from_utf8(&buffer[..bytes_read]) {
-            print!("{}", text);
+    // Create a decompression stream
+    let mut decompressed_stream = AsyncZstdDecoder::stream_from_mpsc(compressed_rx);
+
+    // Process decompressed stream
+    while let Some(chunk_result) = decompressed_stream.next().await {
+        match chunk_result {
+            Ok(chunk) => println!("Decompressed chunk: {:?}", chunk),
+            Err(e) => eprintln!("Decompression error: {:?}", e),
         }
     }
-    // };
 
-    // while let Some(ztext) = yield_stream.next().await {
-    //     print!("{}", ztext)
-    // }
+    Ok(())
 }
