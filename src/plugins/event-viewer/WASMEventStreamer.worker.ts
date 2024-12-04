@@ -60,7 +60,7 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
-      console.log('EVENT STREAM MUTHAAAA')
+      // boot up WASM event parser
       await init()
       this._eventStreamer = new EventStreamer()
       console.log('EVENT STREAM MUTHAAAA 2')
@@ -85,10 +85,7 @@ const Task = {
 
       const streamProcessorWithBackPressure = this.createStreamProcessor()
       await stream.pipeTo(streamProcessorWithBackPressure)
-
-      // postMessage({ finished: true })
-
-      // stream will handle things from here
+      // will return when all chunks completed
     } catch (e) {
       postMessage({ error: 'Error loading ' + this.filename })
     }
@@ -122,6 +119,7 @@ const Task = {
 
   createStreamProcessor() {
     const parent = this
+    const starttime = Date.now()
     return new WritableStream(
       {
         // Stream calls write() for every new chunk from fetch call:
@@ -130,9 +128,8 @@ const Task = {
             if (parent._isCancelled) reject()
 
             console.log('====GOT LARGE CHUNK', entireChunk.length)
-            const parseIt = async (smallChunk: Uint8Array, chunkId: number) => {
-              if (parent._isCancelled) reject()
 
+            const parseIt = async (smallChunk: Uint8Array) => {
               console.log('--sending chunk to WASM:', entireChunk.length)
               const rawEvents: string = await parent._eventStreamer.process(smallChunk)
               console.log('--got text. parsing raw json string:', rawEvents.length)
@@ -148,7 +145,7 @@ const Task = {
             while (!parent._isCancelled && startOffset < entireChunk.length) {
               const subchunk = entireChunk.subarray(startOffset, startOffset + MAX_CHUNK_SIZE)
 
-              if (subchunk.length) await parseIt(subchunk, parent._numChunks)
+              if (subchunk.length) await parseIt(subchunk)
               startOffset += MAX_CHUNK_SIZE
             }
 
@@ -159,7 +156,12 @@ const Task = {
         close() {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
           console.log('STREAM FINISHED! ')
+          console.log(Date.now())
+
           parent.sendDataToLayersForProcessing(parent._currentTranch)
+
+          const duration = (Date.now() - starttime) / 1000.0
+          console.log('DURATION', duration)
         },
         abort(err) {
           console.log('STREAM error:', err)
