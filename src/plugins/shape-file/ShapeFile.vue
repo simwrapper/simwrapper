@@ -9,7 +9,7 @@
             :value="loadProgress" :rounded="false" type='is-success')
 
   .main-layout(
-      @mousemove.stop="dividerDragging"
+      @mousemove="dividerDragging"
   )
 
     .dragger(v-show="showLegend"
@@ -48,7 +48,7 @@
         :fillHeights="dataFillHeights"
         :screenshot="triggerScreenshot"
         :featureFilter="boundaryFilters"
-        :opacity="sliderOpacity"
+        :opacity="(sliderOpacity / 100) * (sliderOpacity / 100)"
         :pointRadii="dataPointRadii"
         :cbTooltip="cbTooltip"
         :bgLayers="bgLayers"
@@ -79,6 +79,10 @@
 
       .details-panel
 
+      .width-sliders.flex-row(:style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
+            //- opacity slider
+            img.icon-blue-ramp(:src="icons.blueramp")
+            b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
       zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -165,6 +169,8 @@ import { LayerDefinition } from '@/components/viz-configurator/Layers.vue'
 import Coords from '@/js/Coords'
 import LegendStore from '@/js/LegendStore'
 
+import IconBlueRamp from './assets/icon-blue-ramp.png'
+
 interface FilterDetails {
   column: string
   label?: string
@@ -245,6 +251,8 @@ const MyComponent = defineComponent({
 
   data() {
     return {
+      icons: { blueramp: IconBlueRamp },
+      opacitySlider: 50,
       avroNetwork: null as any,
       isAvroFile: false,
       //drag
@@ -3400,5 +3408,32 @@ export default MyComponent
   height: 3px;
   margin-top: 2px;
   margin-bottom: 0.5rem;
+}
+
+.width-sliders {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  user-select: none;
+  border-top-right-radius: 5px;
+  // pointer-events: all;
+}
+
+.icon-blue-ramp {
+  margin: 8px -2px 4px 10px;
+  height: 1rem;
+  width: 1.4rem;
+}
+
+.icon-pie-slider {
+  margin: 7px -2px 4px 2px;
+  height: 1.4rem;
+  width: 1.4rem;
+}
+
+.pie-slider {
+  width: 10rem;
+  padding: 1rem;
+  margin: 0;
 }
 </style>
