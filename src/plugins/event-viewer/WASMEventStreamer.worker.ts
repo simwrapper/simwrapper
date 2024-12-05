@@ -15,7 +15,7 @@ import globalStore from '@/store'
 // ------------ INITIALIZE WASM --------------------
 // ------------------------------------------------------
 import '/src/js/wasm_exec.js'
-const WASM_URL = '/main.wasm'
+const WASM_URL = '/go-event-streamer.wasm'
 var wasmStreamer: any
 // ------------------------------------------------------
 

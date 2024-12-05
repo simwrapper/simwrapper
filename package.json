@@ -19,7 +19,7 @@
     "dev": "npm run index && vite",
     "serve": "npm run index && vite",
     "build": "npm run index && node --max_old_space_size=8192 ./node_modules/vite/bin/vite.js build",
-    "wasm": "wasm-pack build ./wasm/matsim-event-streamer --target web",
+    "wasm": "cd wasm/go-event-streamer && GOOS=js GOARCH=wasm go build -o ../../public/go-event-streamer.wasm streamer.go",
     "release": "standard-version",
     "test": "vitest",
     "test:ui": "vitest --ui",
