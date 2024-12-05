@@ -2,9 +2,16 @@ import * as Comlink from 'comlink'
 // import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
 import pako from 'pako'
 
-import init, { EventStreamer } from 'matsim-event-streamer'
+//@ts-ignore
+import streamer from './streamer.go'
 
-import { parseXML } from '@/js/util'
+// import { Go } from 'go-event-streamer/wasm_exec_billy'
+// import wasmInit from 'go-event-streamer/main.wasm?init'
+// console.log(7, Go)
+
+// import init, { EventStreamer } from 'matsim-event-streamer'
+
+import { parseXML, sleep } from '@/js/util'
 import AllEventLayers from './_views'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -14,7 +21,7 @@ import globalStore from '@/store'
 // read one chunk at a time. This sends backpressure to the server
 const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
 // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
-const MAX_CHUNK_SIZE = 1024 * 1024 * 8
+const MAX_CHUNK_SIZE = 1024 * 1024 * 1
 // This is the number of dots per layer. Deck.gl advises < 1million
 const MAX_ARRAY_LENGTH = 1200127
 
@@ -45,7 +52,7 @@ const Task = {
 
   _cbReporter: null as any,
 
-  _eventStreamer: null as any,
+  // _eventStreamer: null as any,
 
   async startStream(
     props: {
@@ -60,19 +67,12 @@ const Task = {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
 
-      // boot up WASM event parser
-      await init()
-      this._eventStreamer = new EventStreamer()
-      console.log('EVENT STREAM MUTHAAAA 2')
+      // // boot up WASM event parser
+      // await init()
+      // this._eventStreamer = new EventStreamer()
+      // console.log('EVENT STREAM MUTHAAAA 2')
 
       this._cbReporter = cbReportNewData
-
-      // this._gunzipper.onData = (chunk: any) => {
-      //   this._queue.push(chunk)
-      // }
-      // this._gunzipper.onEnd = (status: number) => {
-      //   console.log('gzipper onEnd', status)
-      // }
 
       this._layers = props.layers.map((L: any) => new AllEventLayers[L.viewer](props))
 
@@ -84,13 +84,38 @@ const Task = {
       if (!stream) throw Error('STREAM is null')
 
       const streamProcessorWithBackPressure = this.createStreamProcessor()
-      await stream.pipeTo(streamProcessorWithBackPressure)
-      // will return when all chunks completed
+      // stream the data -- hopefully this can happen async
+      stream.pipeTo(streamProcessorWithBackPressure)
+      await this.retrieveEventsFromStream()
+      // this will return when all chunks are completed
     } catch (e) {
       postMessage({ error: 'Error loading ' + this.filename })
     }
 
     return []
+  },
+
+  async retrieveEventsFromStream() {
+    let zeroes = 0
+    while (true) {
+      await sleep(100)
+      // Let's also see if there are any decompressed events ready for us!
+      let rawEvents = (await streamer.retrieveText(false)) as string // false: not the end
+      if (rawEvents == '/DONE/') {
+        console.log('### NO EVENTS! WE ARE DONE ==-----')
+        break
+      }
+      if (!rawEvents) {
+        zeroes++
+        if (zeroes > 20) break
+      }
+      console.log('--raw events!--', rawEvents.slice(-100))
+      rawEvents = '[]'
+      // got text. parsing raw json string:', rawEvents.length)
+      // const events = JSON.parse(rawEvents)
+      // console.log('--handling event rows:', events.length)
+      // await this.handleText(events)
+    }
   },
 
   sendDataToLayersForProcessing(events: any[][]) {
@@ -131,11 +156,22 @@ const Task = {
 
             const parseIt = async (smallChunk: Uint8Array) => {
               console.log('--sending chunk to WASM:', entireChunk.length)
-              const rawEvents: string = await parent._eventStreamer.process(smallChunk)
-              console.log('--got text. parsing raw json string:', rawEvents.length)
-              const events = JSON.parse(rawEvents)
-              console.log('--handling event rows:', events.length)
-              await parent.handleText(events)
+
+              // const rawEvents: string = await parent._eventStreamer.process(smallChunk)
+              const base64 = Buffer.from(smallChunk).toString('base64')
+              const bytes = await streamer.submitChunk(base64)
+              console.log('--successfully sent', bytes, 'bytes')
+
+              await sleep(20)
+
+              // // Let's also see if there are any decompressed events ready for us!
+              // let rawEvents = (await streamer.retrieveText(false)) as string // false: not the end
+              // console.log('--raw events!--', rawEvents.slice(-100))
+              // rawEvents = '[]'
+              // // got text. parsing raw json string:', rawEvents.length)
+              // const events = JSON.parse(rawEvents)
+              // console.log('--handling event rows:', events.length)
+              // await parent.handleText(events)
             }
 
             parent._numChunks++
@@ -155,13 +191,8 @@ const Task = {
 
         close() {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
-          console.log('STREAM FINISHED! ')
-          console.log(Date.now())
-
-          parent.sendDataToLayersForProcessing(parent._currentTranch)
-
-          const duration = (Date.now() - starttime) / 1000.0
-          console.log('DURATION', duration)
+          streamer.submitChunk('')
+          console.log('STREAM FINISHED! Fetch final data next!')
         },
         abort(err) {
           console.log('STREAM error:', err)

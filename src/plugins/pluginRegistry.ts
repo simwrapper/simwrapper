@@ -103,7 +103,7 @@ const plugins = [
   },
   {
     kebabName: 'events',
-    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)'],
+    filePatterns: ['**/viz-events*.y?(a)ml', '**/*events.xml?(.gz)', '**/*events.xml?(.zst)'],
     component: defineAsyncComponent(() => import('./event-viewer/EventViewer.vue')),
   },
   {
