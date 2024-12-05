@@ -1,14 +1,7 @@
 import * as Comlink from 'comlink'
-// import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
-import pako from 'pako'
 
 //@ts-ignore
-import streamer from './streamer.go'
-
-// import { Go } from 'go-event-streamer/wasm_exec_billy'
-// import wasmInit from 'go-event-streamer/main.wasm?init'
-// console.log(7, Go)
-
+// import streamer from './streamer.go'
 // import init, { EventStreamer } from 'matsim-event-streamer'
 
 import { parseXML, sleep } from '@/js/util'
@@ -17,6 +10,14 @@ import AllEventLayers from './_views'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
 import globalStore from '@/store'
+
+// ------------------------------------------------------
+// ------------ INITIALIZE WASM --------------------
+// ------------------------------------------------------
+import '/src/js/wasm_exec.js'
+const WASM_URL = '/main.wasm'
+var wasmStreamer: any
+// ------------------------------------------------------
 
 // read one chunk at a time. This sends backpressure to the server
 const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
@@ -42,9 +43,6 @@ const Task = {
   _currentTranch: [] as any[][],
   _currentTranchTotalLength: 0,
 
-  // Pako library has gunzip chunking mode!
-  // _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
-
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
 
@@ -53,6 +51,25 @@ const Task = {
   _cbReporter: null as any,
 
   // _eventStreamer: null as any,
+
+  _ready: false,
+
+  // ----- initialize the WASM module. This was a battle but it works now
+  async initWasm() {
+    if (this._ready) return
+    //@ts-ignore
+    const go = new Go() // from import wasm_exec.js
+    var wasm: any
+    const bytes = await (await fetch(WASM_URL)).arrayBuffer()
+    const obj = await WebAssembly.instantiate(bytes, go.importObject)
+    wasm = obj.instance
+    go.run(wasm)
+    wasmStreamer = wasm.exports
+
+    console.log({ wasm, wasmStreamer })
+    this._ready = true
+  },
+  // -----------------------------------------------
 
   async startStream(
     props: {
@@ -63,6 +80,8 @@ const Task = {
     },
     cbReportNewData: Function
   ) {
+    await this.initWasm()
+
     try {
       console.log('----starting event stream')
       const { filename, fsConfig } = props
@@ -100,7 +119,7 @@ const Task = {
     while (true) {
       await sleep(100)
       // Let's also see if there are any decompressed events ready for us!
-      let rawEvents = (await streamer.retrieveText(false)) as string // false: not the end
+      let rawEvents = (await retrieveText(false)) as string // false: not the end
       if (rawEvents == '/DONE/') {
         console.log('### NO EVENTS! WE ARE DONE ==-----')
         break
@@ -142,6 +161,13 @@ const Task = {
     }
   },
 
+  uint8ArrayToBase64(uint8Array: Uint8Array) {
+    const binaryString = Array.from(uint8Array)
+      .map(byte => String.fromCharCode(byte))
+      .join('')
+    return btoa(binaryString)
+  },
+
   createStreamProcessor() {
     const parent = this
     const starttime = Date.now()
@@ -156,10 +182,8 @@ const Task = {
 
             const parseIt = async (smallChunk: Uint8Array) => {
               console.log('--sending chunk to WASM:', entireChunk.length)
-
-              // const rawEvents: string = await parent._eventStreamer.process(smallChunk)
-              const base64 = Buffer.from(smallChunk).toString('base64')
-              const bytes = await streamer.submitChunk(base64)
+              const base64 = parent.uint8ArrayToBase64(smallChunk)
+              const bytes = submitChunk(base64)
               console.log('--successfully sent', bytes, 'bytes')
 
               await sleep(20)
@@ -191,7 +215,7 @@ const Task = {
 
         close() {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
-          streamer.submitChunk('')
+          submitChunk('')
           console.log('STREAM FINISHED! Fetch final data next!')
         },
         abort(err) {

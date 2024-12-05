@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue2'
 import markdownPlugin from 'unplugin-vue-markdown/vite'
 import history from 'connect-history-api-fallback'
+import { fileURLToPath } from 'url'
 
 // FROM vite-plugin-rewrite-all (deprecated): allow paths that end in .extensions
 function redirectAll() {
@@ -31,7 +32,7 @@ export default defineConfig(({ command, mode }) => {
     build: { sourcemap: false, target: 'esnext' },
     esbuild: { target: 'esnext' },
     optimizeDeps: {
-      include: ['sax-wasm'],
+      exclude: ['/src/js/wasm_exec.js'],
     },
     plugins: [
       // vue

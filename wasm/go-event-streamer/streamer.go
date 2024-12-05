@@ -1,17 +1,152 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"sync"
+	"syscall/js"
 
 	"github.com/klauspost/compress/zstd"
 )
 
+// Create buffered channels to store things
+var messageChannel chan string
+
+// Zstd decoder
+var decoder io.Reader
+
+// Pipe for streaming compressed data into Decoder
+var reader *io.PipeReader
+var writer *io.PipeWriter
+
+func submitChunk(this js.Value, args []js.Value) interface{} {
+	encoded := args[0].String()
+
+	// an empty chunk signals end of data.
+	if len(encoded) == 0 {
+		writer.Close()
+	} else {
+		chunk, _ := base64.StdEncoding.DecodeString(encoded)
+		// pump the chunk into the pipe so the decompressor gets it
+		writer.Write(chunk)
+	}
+	return js.ValueOf(0)
+}
+
+func retrieveText(this js.Value, args []js.Value) interface{} {
+	// retrieve the fruits of our labors: drain all messages currently in the channel
+	text := ""
+	for {
+		select {
+		case msg, ok := <-messageChannel:
+			if !ok { // channel is closed
+				text += msg
+				if len(text) > 0 {
+					return js.ValueOf(text)
+				} else {
+					return js.ValueOf("/DONE/")
+				}
+			}
+			// channel has stuff!
+			text += msg
+		default:
+			// channel is empty, but not closed
+			return js.ValueOf(text)
+		}
+	}
+}
+
+// // does not block: just clear current messages
+// if !final {
+// 	var text string
+// 	for {
+// 		select {
+// 		case msg := <-messageChannel:
+// 			text += msg
+// 		default:
+// 			return text
+// 		}
+// 	}
+// }
+
+// // blocks do this at the end, we want to drain all final messages
+// // if final {
+// var text string
+// for msg := range messageChannel {
+// 	if len(msg) > 0 {
+// 		text += msg
+// 	}
+// }
+// return text
+// // }
+// // return ""
+// }
+
 func main() {
-	// thus we wait for goroutines to finish
+	listen := make(chan struct{}, 0)
+
+	// comm channels and pipes
+	messageChannel = make(chan string, 1024)
+	reader, writer = io.Pipe()
+	// decoder, _ = zstd.NewReader(reader)
+
+	decoder, _ := zstd.NewReader(reader,
+		zstd.WithDecoderConcurrency(1),   // Limit concurrency
+		zstd.WithDecoderMaxWindow(1<<24), // Limit window size to 16MB
+	)
+
+	// // Respond to retrieval requests
+	// go func() {
+	// 	outputChunkSize := 131072 // 128k
+
+	// }()
+
+	// --------------------------------------------------------
+	// Decompress chunks as they arrive; hock 'em' onto the channel as we go
+	go func() {
+		// Buffer to hold decompressed chunks
+		outputChunkSize := 131072 // 128k
+		buffer := make([]byte, outputChunkSize)
+		for {
+			// Read a chunk of decompressed data
+			n, err := decoder.Read(buffer)
+			if err != nil && err != io.EOF {
+				fmt.Println("Error during decompression:", err)
+				return
+			}
+			// Write the decompressed chunk to the channel
+			if n > 0 {
+				messageChannel <- string(buffer[:n])
+				runtime.GC()
+			}
+			if err == io.EOF {
+				log.Println("eof")
+				close(messageChannel)
+				return
+			}
+		}
+	}()
+
+	// ----- Expose functions to JavaScript
+	js.Global().Set("submitChunk", js.FuncOf(submitChunk))
+	js.Global().Set("retrieveText", js.FuncOf(retrieveText))
+
+	// wasm.Expose("submitChunk", submitChunk)
+	// wasm.Expose("retrieveText", retrieveText)
+	// wasm.Ready()
+
+	// listen forever; we'll let javascript kill the worker
+	<-listen
+}
+
+// #############################################
+// #############################################
+func xmain() {
+	// we wait for goroutines to finish
 	var waiter sync.WaitGroup
 	waiter.Add(1)
 
