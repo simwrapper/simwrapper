@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -24,17 +23,20 @@ var reader *io.PipeReader
 var writer *io.PipeWriter
 
 func submitChunk(this js.Value, args []js.Value) interface{} {
-	encoded := args[0].String()
+	// Convert from JS Uint8Array to Go byte slice
+	encoded := js.Global().Get("Uint8Array").New(args[0])
+	mlength := encoded.Get("length").Int()
+	chunk := make([]byte, mlength)
+	js.CopyBytesToGo(chunk, encoded)
 
-	// an empty chunk signals end of data.
-	if len(encoded) == 0 {
+	if len(chunk) == 0 {
+		// an empty chunk signals end of data.
 		writer.Close()
 	} else {
-		chunk, _ := base64.StdEncoding.DecodeString(encoded)
 		// pump the chunk into the pipe so the decompressor gets it
 		writer.Write(chunk)
 	}
-	return js.ValueOf(0)
+	return js.ValueOf(len(chunk))
 }
 
 func retrieveText(this js.Value, args []js.Value) interface{} {

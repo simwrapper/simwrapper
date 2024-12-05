@@ -119,7 +119,7 @@ const Task = {
     while (true) {
       await sleep(100)
       // Let's also see if there are any decompressed events ready for us!
-      let rawEvents = (await retrieveText(false)) as string // false: not the end
+      let rawEvents = (await retrieveText()) as string // false: not the end
       if (rawEvents == '/DONE/') {
         console.log('### NO EVENTS! WE ARE DONE ==-----')
         break
@@ -161,13 +161,6 @@ const Task = {
     }
   },
 
-  uint8ArrayToBase64(uint8Array: Uint8Array) {
-    const binaryString = Array.from(uint8Array)
-      .map(byte => String.fromCharCode(byte))
-      .join('')
-    return btoa(binaryString)
-  },
-
   createStreamProcessor() {
     const parent = this
     const starttime = Date.now()
@@ -182,8 +175,7 @@ const Task = {
 
             const parseIt = async (smallChunk: Uint8Array) => {
               console.log('--sending chunk to WASM:', entireChunk.length)
-              const base64 = parent.uint8ArrayToBase64(smallChunk)
-              const bytes = submitChunk(base64)
+              const bytes = submitChunk(smallChunk)
               console.log('--successfully sent', bytes, 'bytes')
 
               await sleep(20)
@@ -215,7 +207,7 @@ const Task = {
 
         close() {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
-          submitChunk('')
+          submitChunk(new Uint8Array())
           console.log('STREAM FINISHED! Fetch final data next!')
         },
         abort(err) {
