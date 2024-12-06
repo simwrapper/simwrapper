@@ -14,6 +14,15 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.5.3](https://github.com/simwrapper/simwrapper/compare/v3.5.2...v3.5.3) (2024-12-06)
+
+
+### Bug Fixes
+
+* handle paths that start with "./" properly ([a20c18f](https://github.com/simwrapper/simwrapper/commit/a20c18fd14d32546a4f4695f6cc8a2a6886ced90))
+* **logistics:** individual hub chains and avro network support ([a665b88](https://github.com/simwrapper/simwrapper/commit/a665b88af7f5e4dff13acbba550f55664c5d1a0f))
+* Markdown links in splitview mode all lead to home page ([7f5f55b](https://github.com/simwrapper/simwrapper/commit/7f5f55b4a3ebacf82d73ac70809434d06fbf3e46)), closes [#419](https://github.com/simwrapper/simwrapper/issues/419)
+
 ### [3.5.2](https://github.com/simwrapper/simwrapper/compare/v3.5.1...v3.5.2) (2024-12-02)
 
 
