@@ -804,6 +804,10 @@ const CarrierPlugin = defineComponent({
 
           const text = await this.fileApi.getFileText(filename)
           this.vizDetails = YAML.parse(text)
+          if (this.vizDetails.title) {
+            this.$emit('title', this.vizDetails.title)
+          }
+
           return
         } catch (e) {
           console.log('failed' + e)
