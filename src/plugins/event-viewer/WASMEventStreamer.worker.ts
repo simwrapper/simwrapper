@@ -22,9 +22,9 @@ var wasmStreamer: any
 // read one chunk at a time. This sends backpressure to the server
 const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
 // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
-const MAX_CHUNK_SIZE = 1024 * 1024 * 1
+const MAX_CHUNK_SIZE = 1024 * 1024 * 8
 // This is the number of dots per layer. Deck.gl advises < 1million
-const MAX_ARRAY_LENGTH = 1200127
+const MAX_ARRAY_LENGTH = 250000 // 1200127
 
 const Task = {
   filename: '',
@@ -104,9 +104,11 @@ const Task = {
 
       const streamProcessorWithBackPressure = this.createStreamProcessor()
       // stream the data -- hopefully this can happen async
-      stream.pipeTo(streamProcessorWithBackPressure)
-      await this.retrieveEventsFromStream()
+      await stream.pipeTo(streamProcessorWithBackPressure)
+      // await this.retrieveEventsFromStream()
       // this will return when all chunks are completed
+      console.warn('ALL DONE PIPING--------')
+      await this.retrieveFinalEvents()
     } catch (e) {
       postMessage({ error: 'Error loading ' + this.filename })
     }
@@ -114,26 +116,22 @@ const Task = {
     return []
   },
 
-  async retrieveEventsFromStream() {
-    let zeroes = 0
+  async retrieveFinalEvents() {
+    // let zeroes = 0
     while (true) {
-      await sleep(100)
+      console.log('--try again')
       // Let's also see if there are any decompressed events ready for us!
-      let rawEvents = (await retrieveText()) as string // false: not the end
-      if (rawEvents == '/DONE/') {
+      let rawEvents = (await submitChunk(new Uint8Array())) as string // false: not the end
+      if (!rawEvents) {
         console.log('### NO EVENTS! WE ARE DONE ==-----')
         break
       }
-      if (!rawEvents) {
-        zeroes++
-        if (zeroes > 20) break
+      console.log('--raw events!--', rawEvents)
+      try {
+        this.handleText(rawEvents)
+      } catch (e) {
+        console.error('' + e)
       }
-      console.log('--raw events!--', rawEvents.slice(-100))
-      rawEvents = '[]'
-      // got text. parsing raw json string:', rawEvents.length)
-      // const events = JSON.parse(rawEvents)
-      // console.log('--handling event rows:', events.length)
-      // await this.handleText(events)
     }
   },
 
@@ -145,8 +143,19 @@ const Task = {
     }
   },
 
-  async handleText(events: any[]) {
+  handleText(rawEvents: string) {
+    if (!rawEvents) return
+    if (rawEvents == '[]') return
+
+    const jsonArray = '[' + rawEvents.slice(0, -2) + ']'
+    const events = JSON.parse(jsonArray)
+    console.log('--handling event rows:', events.length)
+
+    console.log('HERE!', events.length)
     // push all the events (for now)
+    events.map((event: any) => (event.time = parseFloat(event.time)))
+
+    // console.log(events)
     this._currentTranch.push(events)
     this._currentTranchTotalLength += events.length
 
@@ -175,19 +184,13 @@ const Task = {
 
             const parseIt = async (smallChunk: Uint8Array) => {
               console.log('--sending chunk to WASM:', entireChunk.length)
-              const bytes = submitChunk(smallChunk)
-              console.log('--successfully sent', bytes, 'bytes')
-
-              await sleep(20)
+              // const bytes = submitChunk(smallChunk)
+              // console.log('--successfully sent', bytes, 'bytes')
 
               // // Let's also see if there are any decompressed events ready for us!
-              // let rawEvents = (await streamer.retrieveText(false)) as string // false: not the end
-              // console.log('--raw events!--', rawEvents.slice(-100))
-              // rawEvents = '[]'
-              // // got text. parsing raw json string:', rawEvents.length)
-              // const events = JSON.parse(rawEvents)
-              // console.log('--handling event rows:', events.length)
-              // await parent.handleText(events)
+              let rawEvents: string = await submitChunk(smallChunk) // false: not the end
+              console.log('--raw events!--', rawEvents.slice(-100))
+              await parent.handleText(rawEvents)
             }
 
             parent._numChunks++
@@ -207,7 +210,7 @@ const Task = {
 
         close() {
           // console.log('STREAM FINISHED! Orphans:', JSON.stringify(_vehiclesOnLinks))
-          submitChunk(new Uint8Array())
+          // submitChunk(new Uint8Array())
           console.log('STREAM FINISHED! Fetch final data next!')
         },
         abort(err) {
