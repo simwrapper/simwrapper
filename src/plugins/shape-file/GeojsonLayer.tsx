@@ -297,7 +297,7 @@ export default function Component({
         lineWidthMinPixels: 0, //  typeof lineWidths === 'number' ? 0 : 1,
         lineWidthMaxPixels: 50,
         getOffset: OFFSET_DIRECTION.RIGHT,
-        opacity: fillHeights ? 1.0 : 0.8, // 3D must be opaque
+        opacity: opacity,
         pickable: true,
         pointRadiusUnits: 'pixels',
         pointRadiusMinPixels: 2,
