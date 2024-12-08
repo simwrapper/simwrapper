@@ -24,8 +24,8 @@ All tooling and source code is entirely free! You can build and hack on SimWrapp
 1. Install [the latest "LTS" Version of Node.js](https://nodejs.org/en/)
 2. Install [VS Code](https://code.visualstudio.com/)
 3. The following VS Code plugins are required. Find them in the VS Code plugin directory.
+   - **Vue Official**, the official Vue plugin.
    - **Prettier** to force code-style consistency
-   - **Vetur**, the official Vue plugin.
 
 ## First time build
 
@@ -45,9 +45,9 @@ Congrats! You now have SimWrapper installed and you are ready to start hacking! 
 
 ## Development Commands
 
-**npm run serve** -- Build and run a local copy of the site. This is the main command you will use to start up the dev server, hack on your changes in VS Code, and see the results. `npm run serve` runs a local server with hot reload for testing, which usually listens on http://localhost:8080
+**npm run dev** -- Build and run a local copy of the site. This is the main command you will use to start up the dev server, hack on your changes in VS Code, and see the results. `npm run dev` runs a local server with hot reload for testing, which usually listens on http://localhost:5173
 
-**npm run build** -- Compile and minify the build for production. This command builds in "production mode", which performs some optimizations, shakes out unused libraries, and catches some build-time errors. You probably want to run this before you push anything live.
+**npm run build** -- Compile and minify the build for production. This command builds in "production mode", which performs some optimizations, shakes out unused libraries, and catches some build-time errors. You want to run this before you push anything live.
 
 **npm run test:unit** -- Run unit tests. Ahahaha well... I have not written tests 👽 but the infrastructure is there to use `jest`.
 
@@ -74,7 +74,7 @@ We wrote a deploy script that builds and pushes to Github Pages. Follow these in
 - `/scripts`: Housekeeping scripts go here. Most of these are used for postprocessing model results, written in Python, and also some build scripts are found here.
 - `/src`: all TypeScript and Vue files go here
   - `/src/assets`: images, .CSVs, etc that get packaged by the build process go here
-  - `/src/charts`: Dashboard chart types go here. Each chart type is a separate Vue component.
+  - `/src/dash-panels`: Dashboard chart types go here. Each chart type is a separate Vue component.
   - `/src/components`: shared Vue components go here, there are lots of them
   - `/src/js`: some typscript utility classes
   - `/src/layers`: shared deck.gl layer files go here. These are generally written in JSX.
