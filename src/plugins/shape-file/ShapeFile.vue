@@ -56,7 +56,7 @@
         :highlightedLinkIndex="highlightedLinkIndex"
         :redraw="redraw"
         :features="boundaries"
-        :dark="globalStore.state.isDarkMode"
+        :dark="globalState.isDarkMode"
       )
 
       //- :features="useCircles ? centroids: boundaries"
@@ -79,7 +79,7 @@
 
       .details-panel
 
-      .width-sliders.flex-row(:style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
+      .width-sliders.flex-row(:style="{backgroundColor: globalState.isDarkMode ? '#00000099': '#ffffffaa'}")
             //- opacity slider
             img.icon-blue-ramp(:src="icons.blueramp")
             b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
