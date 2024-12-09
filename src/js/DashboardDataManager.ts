@@ -396,12 +396,17 @@ export default class DashboardDataManager {
   }
 
   public addFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
+    try {
+
     const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
     const selectedDataset = this.datasets[cacheKey]
     if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
 
     this.datasets[cacheKey].filterListeners.add(listener)
+  } catch (e) {
+    console.error('CANT ADD FILTER LISTENER' + e)
   }
+}
 
   public removeFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
     const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
