@@ -1,0 +1,46 @@
+{
+  "folders": [
+    {
+      "name": "SimWrapper",
+      "path": "."
+    },
+    {
+      "name": "WASM",
+      "path": "./wasm/"
+    }
+  ],
+  "settings": {
+    // Rust-specific settings
+    "[rust]": {
+      "editor.defaultFormatter": "rust-lang.rust-analyzer",
+      "editor.formatOnSave": true
+    },
+    "rust-analyzer.cargo.allFeatures": true,
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.procMacro.enable": true,
+
+    // Node-specific settings
+    "[javascript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "javascript.validate.enable": true,
+    "typescript.validate.enable": true,
+    "editor.formatOnSave": true,
+    "go.toolsEnvVars": {
+      "GOOS": "js",
+      "GOARCH": "wasm",
+      "GOROOT": "/Users/billy/Library/Caches/tinygo/goroot-ba4a9a47e6136854fcbeeeddca387447b4cd9b238edb51ad8d17a915d1a97776",
+      "GOFLAGS": "-tags=tinygo.wasm,tinygo,purego,osusergo,math_big_pure_go,gc.precise,scheduler.asyncify,serial.none"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "rust-lang.rust-analyzer",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint"
+    ]
+  }
+}
