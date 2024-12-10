@@ -19,10 +19,10 @@
         option(v-for="filename in filesInFolder" :value="filename" :label="filename")
 
   br
-  .drop-zone
+  .drop-zone.flex-col
       b Or Drag and Drop any dataset file:
 
-      file-selector(
+      file-selector.flex1(
         :accept-extensions="validDataTypes.map(m => `.${m}`).join(',')"
         :multiple="true"
         :is-loading="isLoading"
@@ -298,7 +298,7 @@ a {
   // top: -2px;
   text-align: center;
   // background-color: rgba($primColor, 0.01);
-  backdrop-filter: blur(35px) saturate(200%);
+  // backdrop-filter: blur(5px) saturate(200%);
   border: 2px dashed $primColor;
   border-radius: 5px;
   transition: all ease 300ms;
@@ -379,4 +379,5 @@ a {
   background-repeat: no-repeat;
   background-position: center center;
 }
+
 </style>

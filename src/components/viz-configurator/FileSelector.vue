@@ -159,6 +159,8 @@ export default {
 <style lang="scss" scoped>
 .fs-file-selector {
   position: relative;
+  display: flex;
+  flex-direction: column;
 
   .fs-loader {
     position: absolute;
