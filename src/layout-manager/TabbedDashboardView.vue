@@ -27,10 +27,10 @@
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
         @click="switchLeftTab(tab,index)"
       )
-        a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
-        //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+        //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
+        a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
-    .dashboard-content(
+    .dashboard-container(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
       :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
     )
@@ -42,6 +42,7 @@
         :zoomed="isZoomed"
         :allConfigFiles="allConfigFiles"
         :split="split"
+        :editMode="editMode"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
       )
@@ -52,6 +53,7 @@
       :allConfigFiles="allConfigFiles"
       @navigate="onNavigate"
       @up="goUpOneFolder()"
+      @edit="toggleEditMode()"
     )
 
   footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
@@ -98,9 +100,10 @@ export default defineComponent({
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
       crumbs: [] as any,
       customCSS: '',
-      dashboards: [] as any[],
+      dashboards: {} as { [path: string]: { header: any; layout?: any } },
       dashboardDataManager: null as DashboardDataManager | null,
       dashboardTabWithDelay: '',
+      editMode: false,
       finalFolder: '',
       folderReadme: '',
       footer: '',
@@ -182,6 +185,21 @@ export default defineComponent({
     },
   },
   methods: {
+    async toggleEditMode() {
+      this.editMode = true
+      this.dashboards['Dashboard 1'] = {
+        header: {
+          title: 'Dashboard Tab 1',
+          description: 'description',
+          tab: 'Tab 1',
+          fullscreen: true,
+        },
+        layout: { row1: {} },
+      }
+      const { FILE__BROWSER, ...others } = this.dashboards
+      this.dashboards = { ...others, FILE__BROWSER }
+    },
+
     clearStyles() {
       if (this.styleElement) {
         document.getElementsByTagName('head')[0].removeChild(this.styleElement)
@@ -522,7 +540,7 @@ export default defineComponent({
 
       this.header = ''
       this.footer = ''
-      this.dashboards = []
+      this.dashboards = {}
       this.pageHeader = this.getPageHeader()
 
       // this happens async
@@ -552,6 +570,10 @@ export default defineComponent({
       // to give browser time to teardown
       setTimeout(() => {
         this.dashboardTabWithDelay = tab
+
+        // TODO FIX
+        // if (this.editMode) return
+
         if (index) {
           this.$router.replace({ query: { tab: `${index + 1}` } })
         } else {
@@ -703,12 +725,12 @@ li.is-not-active b a {
   padding: 1.25rem 1.5rem 2rem 0.5rem;
 }
 
-.dashboard-content {
+.dashboard-container {
   flex: 1;
   position: relative;
 }
 
-.dashboard-content.is-breadcrumbs-hidden {
+.dashboard-container.is-breadcrumbs-hidden {
   margin-top: 1rem;
 }
 
@@ -722,7 +744,8 @@ li.is-not-active b a {
   font-family: $fancyFont;
   font-size: 1rem;
   line-height: 0.9rem;
-  padding: 8px 0.5rem 8px 0.5rem;
+  min-width: 5rem;
+  padding: 8px 1rem 8px 0.75rem;
   border-left: 5px solid #00000000;
   user-select: none;
   margin-bottom: 1px;

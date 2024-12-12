@@ -8,6 +8,7 @@ export const panelLookup: { [key: string]: AsyncComponent } = {
   aggregate: defineAsyncComponent(() => import('./aggregate-od.vue')),
   area: defineAsyncComponent(() => import('./area.vue')),
   bar: defineAsyncComponent(() => import('./bar.vue')),
+  blank: defineAsyncComponent(() => import('./blank.vue')),
   bubble: defineAsyncComponent(() => import('./bubble.vue')),
   csv: defineAsyncComponent(() => import('./table.vue')),
   gridmap: defineAsyncComponent(() => import('./gridmap.vue')),

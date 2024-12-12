@@ -121,11 +121,11 @@
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
     .row-drop-target(v-if="isDragHappening" :style="buildDragHighlightStyle(-2,-2)"
-                    @drop="onDrop({event: $event, row: 'rowBottom'})"
-                    @dragover="stillDragging({event: $event, row: 'rowBottom'})"
-                    @dragover.prevent
-                    @dragenter.prevent
-                    @dragleave="dragEnd"
+      @drop="onDrop({event: $event, row: 'rowBottom'})"
+      @dragover="stillDragging({event: $event, row: 'rowBottom'})"
+      @dragover.prevent
+      @dragenter.prevent
+      @dragleave="dragEnd"
     )
 
 </template>
