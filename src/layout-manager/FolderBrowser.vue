@@ -13,6 +13,8 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections(:id="idFolderTable")
 
+      b-button(@click="showBuilder") + Build dashboard panel here
+
       //- FOLDERS: file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}
 
@@ -244,6 +246,12 @@ export default defineComponent({
     },
   },
   methods: {
+    showBuilder() {
+      console.log('VIZWIT')
+      // this.$router.push(`${this.$route.fullPath + '?edit'}`)
+      this.$emit('edit')
+    },
+
     isFavorite(folder: string) {
       let thing = `${this.root}`
       if (this.xsubfolder) thing += `/${this.xsubfolder}`
@@ -677,7 +685,7 @@ h4 {
   display: flex;
   flex-direction: column;
   background-color: var(--bgCream5);
-  padding: 0.25rem 0.75rem;
+  padding: 7px 10px;
   word-wrap: break-word;
   border: 1px solid var(--bgDashboard);
   border-top-right-radius: 10px;
@@ -734,7 +742,7 @@ h4 {
 
 h3.curate-heading {
   font-size: 1.8rem;
-  font-weight: bold;
+  font-weight: 500;
   color: var(--textBold);
   padding-top: 0.5rem;
   margin-top: 1rem;
@@ -779,7 +787,7 @@ h3.curate-heading {
     margin: auto 0 0 0;
     background-color: var(--bgBold);
     font-size: 1rem;
-    font-weight: bold;
+    font-weight: 500;
     line-height: 1.2rem;
     padding: 0.5rem 0.5rem;
     color: var(--text);

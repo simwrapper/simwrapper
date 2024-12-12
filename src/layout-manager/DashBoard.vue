@@ -1,11 +1,45 @@
 <template lang="pug">
 .dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
-  .dashboard-content(:class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}" :style="dashWidthCalculator")
+ .row-container.flex-row-reverse(style="height: 100%;")
 
-    .dashboard-header(v-if="!fullScreenCardId && (title + description)"
-      :class="{wiide, 'is-panel-narrow': isPanelNarrow}")
-      h2 {{ title }}
-      p {{ description }}
+  .edit-panel(v-if="editMode && currentCardForEditing")
+    h4(style="margin-bottom: 4px"): b Card configuration
+    b-select(expanded placeholder="Select card type..." style="user-select: none"
+      @input="changeCardType"
+    )
+      option(v-for="key of Object.keys(cardSchemas)" :key="key"
+        aria-role="listitem"
+        :value="key"
+      ) {{ cardSchemas[key].label }}
+
+    .all-config-items(v-if="currentCardType")
+      .config-item.flex-col(v-for="entry of cardSchemas[currentCardType].entries" :key="entry.id")
+        .entry-label(v-if="entry.type != 'boolean'") {{ entry.label }}
+        b-input(v-if="entry.type=='text'" size="is-small" @input="updateEntry(entry,$event)")
+        b-checkbox.entry-checkbox(v-if="entry.type=='boolean'"
+          @input="updateEntry(entry,$event)"
+        ) {{ entry.label}}
+        .entry-hint(v-if="entry.hint") {{ entry.hint }}
+
+  .dashboard-content.flex1(
+    :class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}"
+    :style="dashWidthCalculator"
+  )
+
+    .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
+      :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+    )
+      .flex1
+        h2 {{ title }}
+        p {{ description }}
+      .editable(v-if="editMode")
+        b-button(
+          draggable
+          @dragstart="dragStart($event)"
+          @dragend="dragEnd"
+          :style="{border: '2px dashed cyan', marginRight: '0.5rem'}"
+        ) Drag to add new panel
+        b-button Export config
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -16,16 +50,23 @@
           b: a(@click="switchTab(index)") {{ subtab.title }}
 
     //- start row here
-    .dash-row(v-for="row,i in rows" :key="i"
-      :class="getRowClass(row)"
-      :style="{'flex': rowFlexWeights[i] || 1}"
+    .dash-row(v-for="row,y in rows" :key="y"
+        :class="getRowClass(row)"
+        :style="{'flex': rowFlexWeights[y] || 1}"
     )
 
       //- each card here
-      .dash-card-frame(v-for="card,j in row.cards" :key="`${i}/${j}`"
-        :style="getCardStyle(card)"
+      .dash-card-frame(v-for="card,x in row.cards" :key="`${y}/${x}`"
         :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+        :ref="`dragContainer${x}-${y}`"
+        :style="getCardStyle(card)"
+        @drop="onDrop({event: $event,x,y})"
+        @dragover="stillDragging({event: $event,x,y})"
+        @dragleave="dragEnd"
+        @dragover.prevent
+        @dragenter.prevent
       )
+        .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
         //- card header/title
         .dash-card-headers(v-if="card.title + card.description" :class="{'fullscreen': !!fullScreenCardId}")
@@ -35,6 +76,13 @@
 
           //- zoom button
           .header-buttons
+            button.button.is-white(
+              style="margin-top: -5px"
+              @click="editCard(card)"
+              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
+            )
+              i.fa.fa-cog
+
             button.button.is-small.is-white(
               v-if="card.info"
               @click="handleToggleInfoClick(card)"
@@ -57,8 +105,10 @@
         .spinner-box(v-if="getCardComponent(card)"
           :id="card.id"
           :class="{'is-loaded': card.isLoaded}"
+          @dragover="stillDragging({event: $event,x,y})"
         )
           component.dash-card(
+            @dragover="stillDragging({event: $event,x,y})"
             :is="getCardComponent(card)"
             :fileSystemConfig="fileSystemConfig"
             :subfolder="row.subtabFolder || xsubfolder"
@@ -98,6 +148,8 @@ import TopSheet from '@/components/TopSheet/TopSheet.vue'
 import { panelLookup } from '@/dash-panels/_allPanels'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
+import CardSchemas, { CardField } from '@/dash-panels/_cardSchemas'
+
 // append a prefix so the html template is legal
 const namedCharts = {} as any
 const chartTypes = Object.keys(panelLookup)
@@ -121,9 +173,11 @@ export default defineComponent({
     gist: Object as any,
     config: Object as any,
     zoomed: Boolean,
+    editMode: Boolean,
   },
   data: () => {
     return {
+      cardSchemas: CardSchemas,
       title: '',
       description: '',
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
@@ -146,6 +200,25 @@ export default defineComponent({
       dashboardTabWithDelay: -1,
       showFooter: false,
       rowFlexWeights: [] as number[],
+      // drag editMode
+      dragX: -1,
+      dragY: -1,
+      dragQuadrant: null as any,
+      // | null
+      // | string
+      // | {
+      //     quadrant: string
+      //     width: number
+      //     height: number
+      //     marginLeft: number
+      //     marginTop: number
+      //   },
+      dragStartWidth: 0,
+      isDragHappening: false,
+      // Card Editor stuff ---
+      currentCardForEditing: null as any,
+      currentCardType: '',
+      cardLookup: [] as any[],
     }
   },
 
@@ -175,6 +248,235 @@ export default defineComponent({
   },
 
   methods: {
+    async updateEntry(field: CardField, event: any) {
+      console.log(1, this.currentCardForEditing)
+      console.log({ event, field })
+
+      const card = this.cardLookup[this.currentCardForEditing.number]
+
+      card.props[field.id] = event
+      card.title = this.currentCardForEditing.props.title
+      card.errors = []
+
+      this.currentCardForEditing = card
+
+      // tell Vue
+      const ztype = card.type
+      card.type = 'blank'
+      await this.$nextTick()
+      card.type = ztype
+      this.rows = [...this.rows]
+      console.log({ ztype })
+    },
+
+    changeCardType(cardType: any) {
+      console.log({ cardType })
+      this.currentCardType = cardType
+      this.currentCardForEditing.type = cardType
+      this.currentCardForEditing.errors = []
+      if (this.currentCardForEditing.title.startsWith('Card "type"')) {
+        this.currentCardForEditing.title = this.cardSchemas[cardType].label
+      }
+    },
+
+    editCard(card: any) {
+      console.log(card)
+      this.currentCardForEditing = card
+    },
+
+    dragStart(event: DragEvent) {
+      if (!this.editMode) return
+
+      this.$emit('isDragging', true)
+      this.handleDragStartStop(true)
+
+      const folder = `${this.root}/${this.xsubfolder}`
+      const panel = { component: 'TabbedDashboardView', props: {} }
+      const root = this.root || folder // might be at root panel
+      const correctFolder = this.root ? folder : ''
+
+      const bundle = Object.assign({}, panel, {
+        root,
+        subfolder: correctFolder,
+        xsubfolder: correctFolder,
+      }) as any
+
+      bundle.yamlConfig = bundle.config
+      delete bundle.config
+
+      const text = JSON.stringify(bundle) as any
+      event.dataTransfer?.setData('bundle', text)
+    },
+
+    handleDragStartStop(dragState: boolean) {
+      this.isDragHappening = dragState
+    },
+
+    buildDragHighlightStyle(x: number, y: number) {
+      // console.log({ x, y })
+      // top row
+      if (x == -1) {
+        const opacity = this.dragQuadrant == 'rowTop' ? '1' : '0'
+        const pointerEvents = this.isDragHappening ? 'auto' : 'none'
+
+        return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
+      }
+
+      // bottom row
+      if (x == -2) {
+        const opacity = this.dragQuadrant == 'rowBottom' ? '1' : '0'
+        const pointerEvents = this.isDragHappening ? 'auto' : 'none'
+        return { bottom: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
+      }
+
+      // tiles
+      if (x !== this.dragX || y !== this.dragY || !this.dragQuadrant) return {}
+
+      const backgroundColor = this.dragQuadrant.quadrant == 'center' ? '#00000000' : '#4444dd90'
+      const area: any = { opacity: 1.0, backgroundColor }
+      Object.entries(this.dragQuadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
+      return area
+    },
+
+    stillDragging(props: { event: DragEvent; x: number; y: number; row: string }) {
+      if (!this.editMode) return
+
+      const { event, x, y, row } = props
+      this.isDragHappening = true
+
+      // console.log(222, props)
+      // row is special
+      if (row) {
+        this.dragQuadrant = row
+        return
+      }
+
+      this.dragX = x
+      this.dragY = y
+
+      const ref = this.$refs[`dragContainer${x}-${y}`] as any[]
+      const panel = ref[0]
+
+      // console.log(223, ref)
+
+      const pctX = event.layerX / panel.clientWidth
+      const pctY = event.layerY / panel.clientHeight
+
+      // console.log({ pctX, pctY })
+      let BORDER = 8
+
+      if (pctY < 0.1) {
+        this.dragQuadrant = {
+          quadrant: 'top',
+          width: panel.clientWidth - BORDER * 2,
+          height: panel.clientHeight * 0.2,
+          marginLeft: BORDER,
+          marginTop: BORDER,
+        }
+      } else if (pctY > 0.9) {
+        this.dragQuadrant = {
+          quadrant: 'bottom',
+          width: panel.clientWidth - BORDER * 2,
+          height: panel.clientHeight * 0.2,
+          marginLeft: BORDER,
+          marginTop: panel.clientHeight * 0.8 - BORDER,
+        }
+      } else if (pctX < 0.4) {
+        this.dragQuadrant = {
+          quadrant: 'left',
+          width: panel.clientWidth / 2 - BORDER * 2,
+          height: panel.clientHeight - BORDER * 2,
+          marginLeft: BORDER,
+          marginTop: BORDER,
+        }
+      } else if (pctX > 0.6) {
+        this.dragQuadrant = {
+          quadrant: 'right',
+          width: panel.clientWidth / 2 - BORDER * 2,
+          height: panel.clientHeight - BORDER * 2,
+          marginLeft: panel.clientWidth / 2 + BORDER,
+          marginTop: BORDER,
+        }
+      } else {
+        BORDER *= 5
+        const w = (panel.clientWidth - BORDER * 2) * 0.95
+        const h = (panel.clientHeight - BORDER * 2) * 0.95
+        this.dragQuadrant = {
+          quadrant: 'center',
+          width: w,
+          height: h,
+          marginLeft: (panel.clientWidth - w) / 2,
+          marginTop: (panel.clientHeight - h) / 2,
+        }
+      }
+      // console.log(225, this.dragQuadrant)
+    },
+
+    dragEnd() {
+      this.dragQuadrant = null
+      this.dragX = -1
+      this.dragY = -1
+
+      if (!this.editMode) return
+
+      this.handleDragStartStop(false)
+    },
+
+    onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
+      if (!this.editMode)
+        if (!this.dragQuadrant)
+          // console.log(111, props)
+          return
+
+      const { event, x, y, row } = props
+
+      const cardNumber = 1 + this.rows.map(row => row.cards).flat(2).length
+
+      const card = {
+        errors: [],
+        isLoaded: false,
+        number: cardNumber,
+        id: `card-id=${cardNumber}`,
+        showHeader: true,
+        title: '',
+        backgroundColor: `hsl(${(cardNumber * 100) % 360},60%,50%)`,
+      }
+
+      try {
+        switch (this.dragQuadrant.quadrant) {
+          case 'top':
+            this.rows.unshift({ id: 'x', cards: [card] })
+            break
+          case 'bottom':
+            this.rows.push({ id: 'x', cards: [card] })
+            break
+          case 'left':
+            this.rows[y].cards.splice(x, 0, card) // .push({ id: 'x', cards: [] })
+            break
+          case 'right':
+            this.rows[y].cards.splice(x + 1, 0, card) // .push({ id: 'x', cards: [] })
+            break
+        }
+
+        // const bundle = event.dataTransfer?.getData('bundle') as string
+        // const componentConfig = JSON.parse(bundle)
+        // console.log(componentConfig)
+
+        // // dashboard is not a plugin, it is special
+        // const component = componentConfig.component || 'TabbedDashboardView'
+
+        // const viz = { component, props: componentConfig }
+        // this.onSplit({ x, y, row, quadrant: this.dragQuadrant.quadrant, viz })
+      } catch (e) {
+        console.warn(e)
+        // drop didn't come from an expected source -- we can just ignore it
+        // console.warn('' + e)
+      }
+
+      this.dragEnd()
+      // console.log(800, this.rows)
+    },
+
     /**
      * This only gets triggered when a topsheet has some titles.
      * Remove the dashboard titles and use the ones from the topsheet.
@@ -235,7 +537,7 @@ export default defineComponent({
       if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
       // or might be a vue component? TODO check matrix viewer
-      card.title = card.type ? `Unknown panel type "${card.type}"` : `Error: panel "type" not set`
+      card.title = card.type ? `Unknown panel type "${card.type}"` : `Card "type" needed`
       return undefined // card.type
     },
 
@@ -501,6 +803,7 @@ export default defineComponent({
           card.id = `card-id-${numCard}`
           card.isLoaded = false
           card.number = numCard
+          this.cardLookup[numCard] = card
 
           // hoist flex weight if card has "height" and we are full-screen
           try {
@@ -674,7 +977,7 @@ export default defineComponent({
 // }
 
 .dashboard-header {
-  margin: 1rem 3rem 1rem 0rem;
+  margin: 1rem 1rem 1rem 0rem;
 
   h2 {
     line-height: 2.1rem;
@@ -716,6 +1019,7 @@ export default defineComponent({
 // --end--
 
 .dash-card-frame {
+  position: relative;
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-rows: auto auto 1fr;
@@ -865,5 +1169,71 @@ li.is-not-active b a {
   cursor: pointer;
   color: red;
   background-color: #88888833;
+}
+
+.drag-highlight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin-left: 0px;
+  margin-top: 0px;
+  width: 100%;
+  height: 100%;
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  opacity: 0;
+  z-index: 10000;
+  border: 8px solid #00000000;
+  transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s,
+    margin-left 0.2s;
+  transition-timing-function: ease-in;
+  pointer-events: none;
+}
+
+.edit-panel {
+  overflow-y: auto;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: var(--bgPanel2);
+  width: 18rem;
+  border: 1px solid #80808080;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease-out;
+  font-size: 0.9rem;
+
+  h4 {
+    color: var(--textBold);
+  }
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.entry-label {
+  margin: 1rem 0 2px 1px;
+  font-weight: bold;
+  color: var(--link);
+}
+
+.entry-hint {
+  padding: 0.25rem 2px 0 2px;
+  line-height: 1.1rem;
+}
+
+.entry-checkbox {
+  font-weight: bold;
+  margin-top: 1.5rem;
+  color: var(--link);
 }
 </style>
