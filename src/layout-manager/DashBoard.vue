@@ -31,22 +31,24 @@
     :class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}"
     :style="dashWidthCalculator"
   )
-    dialog.export-dialog(id="exportDialog")
-      h3 Dashboard Configuration YAML
-        .float-right.i.fa.fa-times(onclick="exportDialog.close()")
-      p Copy/paste this into a
-        b(style="color: var(--link)") &nbsp;dashboard-myname.yaml&nbsp;
-        | file:
-      .export-content
-        p.float-right(@click="copyToClipboard") COPY
-        pre {{ exportedYaml }}
+    .export-modal(v-if="showExport")
+      .export-panel
+        h3 Dashboard Configuration YAML
+          .float-right.i.fa.fa-times(@click="showExport=false")
+        p Copy/paste this into a
+          b(style="color: var(--link)") &nbsp;dashboard-myname.yaml&nbsp;
+          | file:
+        .export-content
+          p.float-right(@click="copyToClipboard") COPY
+          pre {{ exportedYaml() }}
 
     .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
       .flex1
-        h2(:style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
-        p(:style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
+        h2(ref="pageTitle" :style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
+        p(ref="pageSubtitle" :style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
+
       .editable.flex-row(v-if="editMode")
         .drag-to-add(
             draggable
@@ -56,7 +58,7 @@
           .drag-tile
               i.fa.fa-arrows-alt
               | &nbsp;&nbsp;Drag to add new panel
-        b-button(onclick="exportDialog.showModal()") Export
+        b-button(@click="showExport = true; hideConfigPanel()") Export
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -86,12 +88,12 @@
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
         //- card header/title
-        .dash-card-headers(v-if="card.title + card.description"
+        .dash-card-headers(v-if="editMode || (card.title + card.description)"
           :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
           @click="editCard(card)"
         )
           .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
-            h3 {{ card.title }}
+            h3 {{ card.title || (editMode ? '(no title)' : '') }}
             p(v-if="card.description") {{ card.description }}
 
           //- Card titlebar buttons: config / info / zoom / delete
@@ -249,6 +251,7 @@ export default defineComponent({
       currentCardType: '',
       cardLookup: [] as any[],
       cardCount: 1,
+      showExport: false,
     }
   },
 
@@ -265,11 +268,34 @@ export default defineComponent({
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystemConfig)
     },
-    exportedYaml(): string {
+  },
+
+  watch: {
+    async '$store.state.resizeEvents'() {
+      this.resizeAllCards()
+    },
+    '$store.state.locale'() {
+      this.updateThemeAndLabels()
+    },
+  },
+
+  methods: {
+    handleEscapeKey(event: any) {
+      if (event.key === 'Escape') {
+        this.showExport = false
+      }
+    },
+
+    exportedYaml() {
       const output = {} as any
+      //@ts-ignore
+      const title = this.$refs['pageTitle']?.innerText || ''
+      //@ts-ignore
+      const subtitle = this.$refs['pageSubtitle']?.innerText || ''
+
       output.header = {
-        title: this.title,
-        description: this.description,
+        title: title.trim(),
+        description: subtitle.trim(),
       }
       if (this.isFullScreenDashboard) output.header.fullscreen = true
 
@@ -292,20 +318,9 @@ export default defineComponent({
 
       return YAML.stringify(output)
     },
-  },
 
-  watch: {
-    async '$store.state.resizeEvents'() {
-      this.resizeAllCards()
-    },
-    '$store.state.locale'() {
-      this.updateThemeAndLabels()
-    },
-  },
-
-  methods: {
     copyToClipboard() {
-      navigator.clipboard.writeText(this.exportedYaml)
+      navigator.clipboard.writeText(this.exportedYaml())
     },
 
     buildExport() {
@@ -578,6 +593,8 @@ export default defineComponent({
 
       this.dragEnd()
       this.resizeAllCards()
+      this.currentCard = card
+      this.currentCardType = ''
       // console.log(800, this.rows)
     },
 
@@ -644,7 +661,7 @@ export default defineComponent({
       if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
       // or might be a vue component? TODO check matrix viewer
-      card.title = card.type ? `Unknown panel type "${card.type}"` : `Blank card`
+      card.title = card.type ? `Unknown panel type "${card.type}"` : `Blank panel`
       return undefined // card.type
     },
 
@@ -1041,6 +1058,8 @@ export default defineComponent({
   },
   async mounted() {
     window.addEventListener('resize', this.resizeAllCards)
+    window.addEventListener('keydown', this.handleEscapeKey)
+
     this.setupNarrowPanelObserver()
 
     this.updateEntry = debounce(this.updateEntryDebounced, 200)
@@ -1070,6 +1089,7 @@ export default defineComponent({
     this.resizers = {}
     this.narrowPanelObserver?.disconnect()
     window.removeEventListener('resize', this.resizeAllCards)
+    window.removeEventListener('keydown', this.handleEscapeKey)
   },
 })
 </script>
@@ -1089,6 +1109,7 @@ export default defineComponent({
   .dashboard-content {
     max-width: $dashboardWidth;
     margin: 0 auto 0 auto;
+    position: relative;
   }
 
   .dashboard-content.wiide {
@@ -1377,7 +1398,7 @@ li.is-not-active b a {
   border: 3px dotted $matsimBlue;
   border-radius: 6px;
   margin-right: 1rem;
-  padding: 5px 10px;
+  padding: 4px 10px;
   cursor: grab;
 }
 .drag-tile:hover {
@@ -1388,14 +1409,27 @@ li.is-not-active b a {
   margin-top: auto;
 }
 
-.export-dialog {
+.export-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000000cc;
+  z-index: 50000;
+  display: flex;
+}
+
+.export-panel {
+  z-index: 50005;
   background-color: var(--bgPanel);
   color: var(--textBold);
   padding: 1rem;
   filter: $filterShadow;
-  width: 70%;
-  margin: 2rem 2rem;
   border-radius: 4px;
+  min-width: 30rem;
+  max-width: 60rem;
+  margin: 5rem auto auto auto;
 
   .export-content {
     position: relative;
@@ -1404,6 +1438,7 @@ li.is-not-active b a {
     max-height: 20rem;
     overflow-y: auto;
     user-select: text;
+    margin-top: 2px;
 
     pre {
       background-color: var(--bgDashboard) !important;
@@ -1420,9 +1455,13 @@ li.is-not-active b a {
       cursor: pointer;
       padding: 0 2px;
       border-radius: 4px;
+      user-select: none;
     }
     p:hover {
       background-color: #80808040;
+    }
+    p:active {
+      background-color: var(--bgBold);
     }
   }
 }

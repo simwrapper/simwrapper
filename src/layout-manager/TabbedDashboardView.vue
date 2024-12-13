@@ -194,7 +194,7 @@ export default defineComponent({
           tab: 'Tab 1',
           fullscreen: true,
         },
-        layout: { row1: [{ title: 'Blank card', props: {} }] },
+        layout: { row1: [{ title: 'Blank panel', props: {} }] },
       }
       const { FILE__BROWSER, ...others } = this.dashboards
       this.dashboards = { ...others, FILE__BROWSER }
