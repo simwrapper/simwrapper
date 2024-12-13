@@ -6,10 +6,11 @@
 )
  .row-container.flex-row-reverse(style="height: 100%;")
 
-  .edit-panel(v-if="editMode && currentCardForEditing")
+  .edit-panel(v-if="editMode && currentCard")
     h4(style="margin: 0 3px 4px 0"): b Card configuration
       span(@click="hideConfigPanel" style="float: right; cursor: pointer;"): i.fa.fa-times
     b-select(expanded placeholder="Select card type..." style="user-select: none"
+      :value="currentCardType"
       @input="changeCardType"
     )
       option(v-for="key of Object.keys(cardSchemas)" :key="key"
@@ -20,8 +21,9 @@
     .all-config-items(v-if="currentCardType")
       .config-item.flex-col(v-for="entry of cardSchemas[currentCardType].entries" :key="entry.id")
         .entry-label(v-if="entry.type != 'boolean'") {{ entry.label }}
-        b-input(v-if="entry.type=='text'" size="is-small" @input="updateEntry(entry,$event)")
+        b-input(v-if="entry.type=='text'" size="is-small" :value="currentCard.props[entry.id]" @input="updateEntry(entry,$event)")
         b-checkbox.entry-checkbox(v-if="entry.type=='boolean'"
+          :value="currentCard.props[entry.id]"
           @input="updateEntry(entry,$event)"
         ) {{ entry.label}}
         .entry-hint(v-if="entry.hint") {{ entry.hint }}
@@ -78,7 +80,7 @@
         //- card header/title
         .dash-card-headers(v-if="card.title + card.description"
           :class="{'fullscreen': !!fullScreenCardId}"
-          @click="clickedCardHeader(card)"
+          @click="editCard(card)"
         )
           .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
             h3 {{ card.title }}
@@ -163,6 +165,7 @@ import TopSheet from '@/components/TopSheet/TopSheet.vue'
 
 import { panelLookup } from '@/dash-panels/_allPanels'
 import DashboardDataManager from '@/js/DashboardDataManager'
+import { sleep } from '@/js/util'
 
 import CardSchemas, { CardField } from '@/dash-panels/_cardSchemas'
 
@@ -233,7 +236,7 @@ export default defineComponent({
       dragStartWidth: 0,
       isDragHappening: false,
       // Card Editor stuff ---
-      currentCardForEditing: null as any,
+      currentCard: null as any,
       currentCardType: '',
       cardLookup: [] as any[],
     }
@@ -275,28 +278,24 @@ export default defineComponent({
       this.resizeAllCards()
     },
 
-    clickedCardHeader(card: any) {
-      this.currentCardForEditing = card
-    },
-
     hideConfigPanel() {
-      this.currentCardForEditing = false
+      this.currentCard = false
       this.resizeAllCards()
     },
 
     async updateEntryDebounced(field: CardField, event: any) {
-      console.log(1, this.currentCardForEditing.number, this.currentCardForEditing)
+      console.log(1, this.currentCard.number, this.currentCard)
       console.log({ event, field })
 
-      const card = this.cardLookup[this.currentCardForEditing.number]
+      const card = this.cardLookup[this.currentCard.number]
 
       console.log(2, this.cardLookup)
       console.log(3, card)
       card.props[field.id] = event
-      card.title = this.currentCardForEditing.props.title
+      card.title = this.currentCard.props.title
       card.errors = []
 
-      this.currentCardForEditing = card
+      this.currentCard = card
 
       // tell Vue
       const ztype = card.type
@@ -310,16 +309,17 @@ export default defineComponent({
     changeCardType(cardType: any) {
       console.log({ cardType })
       this.currentCardType = cardType
-      this.currentCardForEditing.type = cardType
-      this.currentCardForEditing.errors = []
-      if (this.currentCardForEditing.title.startsWith('Card "type"')) {
-        this.currentCardForEditing.title = this.cardSchemas[cardType].label
+      this.currentCard.type = cardType
+      this.currentCard.errors = []
+      if (this.currentCard.title.startsWith('Card "type"')) {
+        this.currentCard.title = this.cardSchemas[cardType].label
       }
     },
 
-    editCard(card: any) {
-      console.log(card)
-      this.currentCardForEditing = card
+    async editCard(card: any) {
+      if (!this.editMode) return
+
+      this.currentCard = card
       this.currentCardType = card.type
     },
 
@@ -633,7 +633,7 @@ export default defineComponent({
       }
 
       if (this.editMode) {
-        if (card.number == this.currentCardForEditing?.number) {
+        if (card.number == this.currentCard?.number) {
           style.border = '5px solid #10a050'
           style.opacity = 1.0
         } else {
@@ -641,7 +641,7 @@ export default defineComponent({
           style.opacity = 0.7
           // style.filter = 'blur(1px)'
         }
-        if (!this.currentCardForEditing) {
+        if (!this.currentCard) {
           style.opacity = 1.0
           style.filter = ''
         }
@@ -1254,7 +1254,7 @@ li.is-not-active b a {
 
 .edit-panel {
   overflow-y: auto;
-  margin: 4rem 0 17px 0;
+  margin: 6rem -8px 17px 0;
   padding: 0.5rem;
   background-color: var(--bgPanel2);
   width: 18rem;
@@ -1263,7 +1263,7 @@ li.is-not-active b a {
   flex-direction: column;
   animation: slideIn 0.25s ease-out;
   font-size: 0.9rem;
-  border-radius: 8px;
+  border-radius: 6px 0 0 6px;
 
   h4 {
     color: var(--textBold);
