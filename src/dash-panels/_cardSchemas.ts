@@ -100,6 +100,21 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
     label: 'Line chart',
     entries: [...standardEntries, ...basicPlotly],
   },
+  scatter: {
+    type: 'scatter',
+    label: 'Scatter plot',
+    entries: [
+      ...standardEntries,
+      ...basicPlotly,
+      {
+        id: 'y',
+        type: 'text',
+        label: 'Y-Data column',
+        required: true,
+        hint: 'Data column with y values',
+      },
+    ],
+  },
 }
 
 export default DEFINITIONS

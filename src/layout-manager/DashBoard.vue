@@ -1,5 +1,9 @@
 <template lang="pug">
-.dashboard(:class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }" :id="viewId")
+.dashboard(
+  :id="viewId"
+  @drop.stop
+  :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }"
+)
  .row-container.flex-row-reverse(style="height: 100%;")
 
   .edit-panel(v-if="editMode && currentCardForEditing")
@@ -32,13 +36,15 @@
       .flex1
         h2 {{ title }}
         p {{ description }}
-      .editable(v-if="editMode")
-        b-button(
-          draggable
-          @dragstart="dragStart($event)"
-          @dragend="dragEnd"
-          :style="{border: '2px dashed cyan', marginRight: '0.5rem'}"
-        ) Drag to add new panel
+      .editable.flex-row(v-if="editMode")
+        .drag-to-add(
+            draggable
+            @dragstart="dragStart($event)"
+            @dragend="dragEnd"
+        )
+          .drag-tile
+              i.fa.fa-arrows-alt
+              | &nbsp;&nbsp;Drag to add new panel
         b-button Export config
 
     .tabs.is-centered(v-if="subtabs.length")
@@ -60,7 +66,7 @@
         :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
         :ref="`dragContainer${x}-${y}`"
         :style="getCardStyle(card)"
-        @drop="onDrop({event: $event,x,y})"
+        @drop.stop="onDrop({event: $event,x,y})"
         @dragover="stillDragging({event: $event,x,y})"
         @dragleave="dragEnd"
         @dragover.prevent
@@ -76,12 +82,10 @@
 
           //- zoom button
           .header-buttons
-            button.button.is-white(
-              style="margin-top: -5px"
+            button.button.is-white(style="margin-top: -5px"
               @click="editCard(card)"
-              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
-            )
-              i.fa.fa-cog
+              title="Configure"
+            ): i.fa.fa-cog
 
             button.button.is-small.is-white(
               v-if="card.info"
@@ -135,7 +139,7 @@
 <script lang="ts">
 import Vue, { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
+import { debounce } from 'debounce'
 import YAML from 'yaml'
 
 import globalStore from '@/store'
@@ -204,6 +208,7 @@ export default defineComponent({
       dragX: -1,
       dragY: -1,
       dragQuadrant: null as any,
+      updateEntry: {} as any,
       // | null
       // | string
       // | {
@@ -248,12 +253,14 @@ export default defineComponent({
   },
 
   methods: {
-    async updateEntry(field: CardField, event: any) {
-      console.log(1, this.currentCardForEditing)
+    async updateEntryDebounced(field: CardField, event: any) {
+      console.log(1, this.currentCardForEditing.number, this.currentCardForEditing)
       console.log({ event, field })
 
       const card = this.cardLookup[this.currentCardForEditing.number]
 
+      console.log(2, this.cardLookup)
+      console.log(3, card)
       card.props[field.id] = event
       card.title = this.currentCardForEditing.props.title
       card.errors = []
@@ -282,6 +289,7 @@ export default defineComponent({
     editCard(card: any) {
       console.log(card)
       this.currentCardForEditing = card
+      this.currentCardType = card.type
     },
 
     dragStart(event: DragEvent) {
@@ -422,11 +430,10 @@ export default defineComponent({
       this.handleDragStartStop(false)
     },
 
-    onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
-      if (!this.editMode)
-        if (!this.dragQuadrant)
-          // console.log(111, props)
-          return
+    async   onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
+      if (!this.editMode) return
+      if (!this.dragQuadrant) return
+      // console.log(111, props)
 
       const { event, x, y, row } = props
 
@@ -439,8 +446,11 @@ export default defineComponent({
         id: `card-id=${cardNumber}`,
         showHeader: true,
         title: '',
-        backgroundColor: `hsl(${(cardNumber * 100) % 360},60%,50%)`,
+        props: {},
+        // backgroundColor: `hsl(${(cardNumber * 100) % 360},60%,50%)`,
       }
+
+      this.cardLookup[cardNumber] = card
 
       try {
         switch (this.dragQuadrant.quadrant) {
@@ -474,6 +484,8 @@ export default defineComponent({
       }
 
       this.dragEnd()
+      await this.$nextTick()
+      this.resizeAllCards()
       // console.log(800, this.rows)
     },
 
@@ -537,7 +549,7 @@ export default defineComponent({
       if (chartTypes.indexOf(card.type) > -1) return 'card-' + card.type
 
       // or might be a vue component? TODO check matrix viewer
-      card.title = card.type ? `Unknown panel type "${card.type}"` : `Card "type" needed`
+      card.title = card.type ? `Unknown panel type "${card.type}"` : `Blank card`
       return undefined // card.type
     },
 
@@ -579,13 +591,27 @@ export default defineComponent({
       // old version:  plotlyChartTypes[card.type] ? 300 : undefined
 
       const height = card.height ? card.height * 60 : defaultHeight
-
       const flex = card.width || 1
 
       let style: any = { flex: flex }
 
       if (card.backgroundColor || card.background) {
         style.backgroundColor = card.backgroundColor || card.background
+      }
+
+      if (this.editMode) {
+        if (card.number == this.currentCardForEditing?.number) {
+          style.border = '5px solid #10a050'
+          style.opacity = 1.0
+        } else {
+          style.border = '5px solid #00000000'
+          style.opacity = 0.7
+          // style.filter = 'blur(1px)'
+        }
+        if (!this.currentCardForEditing) {
+          style.opacity = 1.0
+          style.filter = ''
+        }
       }
 
       if (height && !this.isFullScreenDashboard) {
@@ -920,6 +946,8 @@ export default defineComponent({
     window.addEventListener('resize', this.resizeAllCards)
     this.setupNarrowPanelObserver()
 
+    this.updateEntry = debounce(this.updateEntryDebounced, 200)
+
     if (this.gist) {
       this.fileSystemConfig = {
         name: 'gist',
@@ -1093,7 +1121,7 @@ export default defineComponent({
 // }
 
 .dash-card {
-  transition: opacity 0.5s;
+  transition: opacity 0.5s, border-color 0.5s ease;
   overflow-x: hidden;
   overflow-y: hidden;
   border-radius: 2px;
@@ -1201,7 +1229,7 @@ li.is-not-active b a {
   border: 1px solid #80808080;
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.2s ease-out;
+  animation: slideIn 0.7s ease-out;
   font-size: 0.9rem;
 
   h4 {
@@ -1235,5 +1263,16 @@ li.is-not-active b a {
   font-weight: bold;
   margin-top: 1.5rem;
   color: var(--link);
+}
+
+.drag-tile {
+  border: 2px dotted $matsimBlue;
+  border-radius: 6px;
+  margin-right: 1rem;
+  padding: 5px 10px;
+  cursor: grab;
+}
+.drag-tile:hover {
+  border: 2px dashed $matsimBlue;
 }
 </style>
