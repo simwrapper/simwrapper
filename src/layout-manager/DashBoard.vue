@@ -5,7 +5,6 @@
   :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }"
 )
  .row-container.flex-row-reverse(style="height: 100%;")
-
   .edit-panel(v-if="editMode && currentCard")
     h4(style="margin: 0 3px 4px 0"): b Card configuration
       span(@click="hideConfigPanel" style="float: right; cursor: pointer;"): i.fa.fa-times
@@ -32,6 +31,15 @@
     :class="{wiide, 'is-fullscreen-dashboard': isFullScreenDashboard}"
     :style="dashWidthCalculator"
   )
+    dialog.export-dialog(id="exportDialog")
+      h3 Dashboard Configuration YAML
+        .float-right.i.fa.fa-times(onclick="exportDialog.close()")
+      p Copy/paste this into a
+        b(style="color: var(--link)") &nbsp;dashboard-myname.yaml&nbsp;
+        | file:
+      .export-content
+        p.float-right(@click="copyToClipboard") COPY
+        pre {{ exportedYaml }}
 
     .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
@@ -48,7 +56,7 @@
           .drag-tile
               i.fa.fa-arrows-alt
               | &nbsp;&nbsp;Drag to add new panel
-        b-button Export config
+        b-button(onclick="exportDialog.showModal()") Export
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -88,10 +96,11 @@
 
           //- Card titlebar buttons: config / info / zoom / delete
           .header-buttons
-            //- button.button.is-white(style="margin-top: -5px"
-            //-   @click="editCard(card)"
-            //-   title="Configure"
-            //- ): i.fa.fa-cog
+
+            button.button.is-white(style="margin-top: -5px"
+              @click="editCard(card)"
+              title="Configure"
+            ): i.fa.fa-cog
 
             button.button.is-small.is-white(
               v-if="card.info"
@@ -256,6 +265,33 @@ export default defineComponent({
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystemConfig)
     },
+    exportedYaml(): string {
+      const output = {} as any
+      output.header = {
+        title: this.title,
+        description: this.description,
+      }
+      if (this.isFullScreenDashboard) output.header.fullscreen = true
+
+      output.layout = {}
+      this.rows.forEach((row, i) => {
+        const cards = row.cards.map(card => {
+          const trimmed = {
+            type: card.type,
+            title: card.title,
+            description: card.description,
+            width: card.width,
+            ...card.props,
+          }
+          if (!trimmed.description) delete trimmed.description
+          if (!trimmed.width) delete trimmed.width
+          return trimmed
+        })
+        output.layout[`row${i + 1}`] = cards
+      })
+
+      return YAML.stringify(output)
+    },
   },
 
   watch: {
@@ -268,6 +304,14 @@ export default defineComponent({
   },
 
   methods: {
+    copyToClipboard() {
+      navigator.clipboard.writeText(this.exportedYaml)
+    },
+
+    buildExport() {
+      console.log('BUILDME')
+    },
+
     updateDashboardTitle(event: any) {
       const text = event.target.innerText
       this.title = text.trim()
@@ -1052,10 +1096,6 @@ export default defineComponent({
   }
 }
 
-// .dashboard.wiide {
-//   // padding-left: 1rem;
-// }
-
 .dashboard-header {
   margin: 1rem 1rem 0.5rem 0rem;
 
@@ -1287,7 +1327,7 @@ li.is-not-active b a {
 
 .edit-panel {
   overflow-y: auto;
-  margin: 6rem -8px 17px 0;
+  margin: 5.5rem -6px 17px 0;
   padding: 0.5rem;
   background-color: var(--bgPanel2);
   width: 18rem;
@@ -1346,5 +1386,49 @@ li.is-not-active b a {
 
 .editable {
   margin-top: auto;
+}
+
+.export-dialog {
+  background-color: var(--bgPanel);
+  color: var(--textBold);
+  padding: 1rem;
+  filter: $filterShadow;
+  width: 70%;
+  margin: 2rem 2rem;
+  border-radius: 4px;
+
+  .export-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 20rem;
+    overflow-y: auto;
+    user-select: text;
+
+    pre {
+      background-color: var(--bgDashboard) !important;
+      color: var(--text);
+    }
+
+    p {
+      color: var(--link);
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-weight: 500;
+      margin: 2px 18px 0 0;
+      cursor: pointer;
+      padding: 0 2px;
+      border-radius: 4px;
+    }
+    p:hover {
+      background-color: #80808040;
+    }
+  }
+}
+
+.fa-times:hover {
+  color: #c00;
+  cursor: pointer;
 }
 </style>

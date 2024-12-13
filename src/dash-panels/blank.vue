@@ -14,10 +14,9 @@ export default defineComponent({
   name: 'BlankPanel',
   components: {},
   props: {},
-  methods: {
-    isLoaded() {
-      this.$emit('isLoaded')
-    },
+  methods: {},
+  mounted() {
+    this.$emit('isLoaded')
   },
 })
 </script>
