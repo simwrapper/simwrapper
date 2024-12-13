@@ -190,11 +190,11 @@ export default defineComponent({
       this.dashboards['Dashboard 1'] = {
         header: {
           title: 'Dashboard Tab 1',
-          description: 'description',
+          description: 'Subtitle',
           tab: 'Tab 1',
           fullscreen: true,
         },
-        layout: { row1: {} },
+        layout: { row1: { cards: [{ type: 'blank', number: 0 }] } },
       }
       const { FILE__BROWSER, ...others } = this.dashboards
       this.dashboards = { ...others, FILE__BROWSER }
