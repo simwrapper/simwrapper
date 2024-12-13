@@ -7,7 +7,8 @@
  .row-container.flex-row-reverse(style="height: 100%;")
 
   .edit-panel(v-if="editMode && currentCardForEditing")
-    h4(style="margin-bottom: 4px"): b Card configuration
+    h4(style="margin: 0 3px 4px 0"): b Card configuration
+      span(@click="hideConfigPanel" style="float: right; cursor: pointer;"): i.fa.fa-times
     b-select(expanded placeholder="Select card type..." style="user-select: none"
       @input="changeCardType"
     )
@@ -75,12 +76,15 @@
         .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
         //- card header/title
-        .dash-card-headers(v-if="card.title + card.description" :class="{'fullscreen': !!fullScreenCardId}")
+        .dash-card-headers(v-if="card.title + card.description"
+          :class="{'fullscreen': !!fullScreenCardId}"
+          @click="clickedCardHeader(card)"
+        )
           .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
             h3 {{ card.title }}
             p(v-if="card.description") {{ card.description }}
 
-          //- zoom button
+          //- Card titlebar buttons: config / info / zoom / delete
           .header-buttons
             button.button.is-white(style="margin-top: -5px"
               @click="editCard(card)"
@@ -95,10 +99,18 @@
               i.fa.fa-info-circle
 
             button.button.is-small.is-white(
+              v-if="!editMode"
               @click="toggleZoom(card)"
               :title="fullScreenCardId ? 'Restore':'Enlarge'"
             )
               i.fa.fa-expand
+
+            button.button.is-white(
+              v-if="editMode"
+              style="margin-top: -5px"
+              @click="deleteCard(card)"
+              title="Delete"
+            ): i.fa.fa-times
 
         //- info contents
         .info(v-show="infoToggle[card.id]")
@@ -244,7 +256,6 @@ export default defineComponent({
 
   watch: {
     async '$store.state.resizeEvents'() {
-      await this.$nextTick()
       this.resizeAllCards()
     },
     '$store.state.locale'() {
@@ -253,6 +264,26 @@ export default defineComponent({
   },
 
   methods: {
+    deleteCard(card: any) {
+      const cardNum = card.number
+      // remove the card
+      this.rows.forEach(row => {
+        row.cards = row.cards.filter(card => card.number !== cardNum)
+      })
+      // remove empty row
+      this.rows = this.rows.filter(row => row.cards.length)
+      this.resizeAllCards()
+    },
+
+    clickedCardHeader(card: any) {
+      this.currentCardForEditing = card
+    },
+
+    hideConfigPanel() {
+      this.currentCardForEditing = false
+      this.resizeAllCards()
+    },
+
     async updateEntryDebounced(field: CardField, event: any) {
       console.log(1, this.currentCardForEditing.number, this.currentCardForEditing)
       console.log({ event, field })
@@ -430,7 +461,7 @@ export default defineComponent({
       this.handleDragStartStop(false)
     },
 
-    async   onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
+    onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
       if (!this.editMode) return
       if (!this.dragQuadrant) return
       // console.log(111, props)
@@ -484,7 +515,6 @@ export default defineComponent({
       }
 
       this.dragEnd()
-      await this.$nextTick()
       this.resizeAllCards()
       // console.log(800, this.rows)
     },
@@ -514,7 +544,10 @@ export default defineComponent({
       }
     },
 
-    resizeAllCards() {
+    async resizeAllCards() {
+      // must wait for Vue tick or doesn't work
+      await this.$nextTick()
+
       this.isResizing = true
       for (const row of this.rows) {
         for (const card of row.cards) {
@@ -963,8 +996,7 @@ export default defineComponent({
 
     try {
       await this.setupDashboard()
-      // await this.$nextTick()
-      this.resizeAllCards()
+      await this.resizeAllCards()
     } catch (e) {
       console.error('oh nooo' + e)
       this.$emit('error', 'Error setting up dashboard, check YAML?')
@@ -1222,15 +1254,16 @@ li.is-not-active b a {
 
 .edit-panel {
   overflow-y: auto;
-  margin-top: 1rem;
+  margin: 4rem 0 17px 0;
   padding: 0.5rem;
   background-color: var(--bgPanel2);
   width: 18rem;
   border: 1px solid #80808080;
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.7s ease-out;
+  animation: slideIn 0.25s ease-out;
   font-size: 0.9rem;
+  border-radius: 8px;
 
   h4 {
     color: var(--textBold);
@@ -1240,10 +1273,12 @@ li.is-not-active b a {
 @keyframes slideIn {
   0% {
     opacity: 0;
+    margin-left: -18rem;
     transform: translateX(100%);
   }
   100% {
     opacity: 1;
+    margin-left: 0rem;
     transform: translateX(0);
   }
 }
@@ -1266,13 +1301,13 @@ li.is-not-active b a {
 }
 
 .drag-tile {
-  border: 2px dotted $matsimBlue;
+  border: 3px dotted $matsimBlue;
   border-radius: 6px;
   margin-right: 1rem;
   padding: 5px 10px;
   cursor: grab;
 }
 .drag-tile:hover {
-  border: 2px dashed $matsimBlue;
+  border: 3px dashed $matsimBlue;
 }
 </style>
