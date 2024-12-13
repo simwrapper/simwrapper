@@ -37,8 +37,8 @@
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
       .flex1
-        h2 {{ title }}
-        p {{ description }}
+        h2(:style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
+        p(:style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
       .editable.flex-row(v-if="editMode")
         .drag-to-add(
             draggable
@@ -79,7 +79,7 @@
 
         //- card header/title
         .dash-card-headers(v-if="card.title + card.description"
-          :class="{'fullscreen': !!fullScreenCardId}"
+          :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
           @click="editCard(card)"
         )
           .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
@@ -88,10 +88,10 @@
 
           //- Card titlebar buttons: config / info / zoom / delete
           .header-buttons
-            button.button.is-white(style="margin-top: -5px"
-              @click="editCard(card)"
-              title="Configure"
-            ): i.fa.fa-cog
+            //- button.button.is-white(style="margin-top: -5px"
+            //-   @click="editCard(card)"
+            //-   title="Configure"
+            //- ): i.fa.fa-cog
 
             button.button.is-small.is-white(
               v-if="card.info"
@@ -109,7 +109,7 @@
 
             button.button.is-white(
               v-if="editMode"
-              style="margin-top: -5px"
+              style="margin: -5px -5px 0 0"
               @click="deleteCard(card)"
               title="Delete"
             ): i.fa.fa-times
@@ -239,6 +239,7 @@ export default defineComponent({
       currentCard: null as any,
       currentCardType: '',
       cardLookup: [] as any[],
+      cardCount: 1,
     }
   },
 
@@ -267,8 +268,23 @@ export default defineComponent({
   },
 
   methods: {
+    updateDashboardTitle(event: any) {
+      const text = event.target.innerText
+      this.title = text.trim()
+    },
+
+    updateDashboardSubtitle(event: any) {
+      const text = event.target.innerText
+      this.description = text.trim()
+    },
+
     deleteCard(card: any) {
       const cardNum = card.number
+      console.log('DELETE CARD NUMBER', cardNum)
+
+      // if only one card, don't
+      if (this.rows.length == 1 && this.rows[0].cards.length == 1) return
+
       // remove the card
       this.rows.forEach(row => {
         row.cards = row.cards.filter(card => card.number !== cardNum)
@@ -311,9 +327,9 @@ export default defineComponent({
       this.currentCardType = cardType
       this.currentCard.type = cardType
       this.currentCard.errors = []
-      if (this.currentCard.title.startsWith('Card "type"')) {
-        this.currentCard.title = this.cardSchemas[cardType].label
-      }
+      // if (this.currentCard.title.startsWith('Blank card')) {
+      this.currentCard.title = this.cardSchemas[cardType].label
+      // }
     },
 
     async editCard(card: any) {
@@ -468,20 +484,22 @@ export default defineComponent({
 
       const { event, x, y, row } = props
 
-      const cardNumber = 1 + this.rows.map(row => row.cards).flat(2).length
+      // monotonically increasing global for this dashboard:
+      // because cards come and go so they need unique numbers
+      this.cardCount++
 
       const card = {
         errors: [],
         isLoaded: false,
-        number: cardNumber,
-        id: `card-id=${cardNumber}`,
+        number: this.cardCount,
+        id: `card-id=${this.cardCount}`,
         showHeader: true,
         title: '',
         props: {},
         // backgroundColor: `hsl(${(cardNumber * 100) % 360},60%,50%)`,
       }
 
-      this.cardLookup[cardNumber] = card
+      this.cardLookup[this.cardCount] = card
 
       try {
         switch (this.dragQuadrant.quadrant) {
@@ -848,8 +866,6 @@ export default defineComponent({
     },
 
     setupRows(layout: any, subtabFolder?: string) {
-      let numCard = 1
-
       for (const rowId of Object.keys(layout)) {
         let cards: any[] = layout[rowId]
 
@@ -857,6 +873,9 @@ export default defineComponent({
         if (!cards.forEach) cards = [cards]
 
         let flexWeight = 1
+
+        this.cardCount++
+        const numCard = this.cardCount
 
         cards.forEach(card => {
           card.id = `card-id-${numCard}`
@@ -890,12 +909,13 @@ export default defineComponent({
           if (!card.title && !card.description) card.showHeader = false
           else card.showHeader = true
 
-          numCard++
+          // numCard++
         })
 
         this.rows.push({ id: rowId, cards, subtabFolder })
         this.rowFlexWeights.push(flexWeight)
       }
+      this.resizeAllCards()
       this.$emit('layoutComplete')
     },
 
@@ -1037,21 +1057,27 @@ export default defineComponent({
 // }
 
 .dashboard-header {
-  margin: 1rem 1rem 1rem 0rem;
+  margin: 1rem 1rem 0.5rem 0rem;
 
   h2 {
     line-height: 2.1rem;
     padding-bottom: 0.5rem;
+    margin-right: 1rem;
   }
 
   p {
     line-height: 1.4rem;
+    margin-right: 1rem;
+  }
+
+  h2:hover,
+  h2:active,
+  p:hover,
+  p:active {
+    background-color: var(--bgPanel2);
+    border-radius: 4px;
   }
 }
-
-// .dashboard-header.wiide {
-//   // margin-right: 3rem;
-// }
 
 .dash-row {
   display: flex;
@@ -1101,6 +1127,13 @@ export default defineComponent({
 
   .dash-card-headers.fullscreen {
     padding-top: 0;
+  }
+
+  .dash-card-headers.is-editing:hover {
+    background-color: #1066e738;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
   }
 
   .header-buttons {
@@ -1309,5 +1342,9 @@ li.is-not-active b a {
 }
 .drag-tile:hover {
   border: 3px dashed $matsimBlue;
+}
+
+.editable {
+  margin-top: auto;
 }
 </style>
