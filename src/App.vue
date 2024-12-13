@@ -212,6 +212,11 @@ export default defineComponent({
 
 @import '@/styles.scss';
 
+@font-face {
+  font-family: 'Outfit';
+  src: url('/webfonts/Outfit-Variable.ttf') format('truetype');
+}
+
 html {
   box-sizing: border-box;
 }
@@ -227,6 +232,7 @@ html {
   font-family: $mainFont;
   height: 100%;
   overscroll-behavior: contain;
+  font-weight: 300;
 }
 
 h1,
@@ -236,10 +242,12 @@ h4,
 h5,
 h6 {
   font-family: $fancyFont;
+  font-weight: 500;
 }
 
+strong,
 b {
-  font-weight: bold;
+  font-weight: 500;
 }
 
 // end null --------------------------------------
@@ -307,7 +315,7 @@ canvas {
 
 .top-link {
   font-size: 0.9rem;
-  font-weight: bold;
+  font-weight: 500;
   margin-left: -0.75rem;
   display: flex;
   flex-direction: row;
@@ -328,16 +336,17 @@ canvas {
 
 h2 {
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 h3 {
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 h4 {
   font-size: 1.15rem;
+  font-weight: 500;
 }
 
 .column-selector {
@@ -389,7 +398,7 @@ a:hover {
 }
 
 .app-nav a.router-link-exact-active {
-  font-weight: bold;
+  font-weight: 500;
   // color: #00ffff;
 }
 
@@ -492,27 +501,27 @@ p.splash-label {
 
   h1 {
     font-size: 1.5rem;
-    font-weight: bold;
+    font-weight: 500;
   }
 
   h2 {
     font-size: 1.3rem;
-    font-weight: bold;
+    font-weight: 500;
   }
 
   h3 {
     font-size: 1.1rem;
-    font-weight: bold;
+    font-weight: 500;
   }
 
   h4 {
     font-size: 1.2rem;
-    font-weight: normal;
+    font-weight: 300;
   }
 
   h5 {
     font-size: 1rem;
-    font-weight: normal;
+    font-weight: 300;
   }
 
   ul {
@@ -601,7 +610,7 @@ p.splash-label {
 
   p {
     margin: auto 0.5rem auto 0;
-    font-weight: normal;
+    font-weight: 300;
     padding: 0 0;
     color: black;
   }
@@ -736,6 +745,16 @@ p.splash-label {
 .flex-row {
   display: flex;
   flex-direction: row;
+}
+
+.flex-row-reverse {
+  display: flex;
+  flex-direction: row-reverse;
+}
+
+.flex-col-reverse {
+  display: flex;
+  flex-direction: column-reverse;
 }
 
 .flex1 {
