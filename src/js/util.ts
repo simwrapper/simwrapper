@@ -163,6 +163,14 @@ export function gUnzip(buffer: ArrayBuffer): any {
   return buffer
 }
 
+export function sleep(ms: number): Promise<null> {
+  return new Promise((resolve: any) => {
+    setTimeout(() => {
+      resolve()
+    }, ms)
+  })
+}
+
 export function precise(x: number, precision: number) {
   return format(x, { lowerExp: -6, upperExp: 6, precision })
 }
