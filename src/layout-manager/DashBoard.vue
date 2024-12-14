@@ -50,14 +50,15 @@
         p(ref="pageSubtitle" :style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
 
       .editable.flex-row(v-if="editMode")
-        .drag-to-add(
-            draggable
-            @dragstart="dragStart($event)"
-            @dragend="dragEnd"
-        )
+
+        p(style="margin: auto 0.75rem") scrollable
+        b-switch(type="is-success" v-model="isFullScreenDashboard" style="margin-right: 2rem") fill window
+
+        .drag-to-add(draggable @dragstart="dragStart($event)" @dragend="dragEnd")
           .drag-tile
               i.fa.fa-arrows-alt
               | &nbsp;&nbsp;Drag to add new panel
+
         b-button(@click="showExport = true; hideConfigPanel()") Export
 
     .tabs.is-centered(v-if="subtabs.length")
@@ -277,6 +278,9 @@ export default defineComponent({
     '$store.state.locale'() {
       this.updateThemeAndLabels()
     },
+    isFullScreenDashboard() {
+      this.config.header.fullscreen = this.isFullScreenDashboard
+    },
   },
 
   methods: {
@@ -323,10 +327,6 @@ export default defineComponent({
       navigator.clipboard.writeText(this.exportedYaml())
     },
 
-    buildExport() {
-      console.log('BUILDME')
-    },
-
     updateDashboardTitle(event: any) {
       const text = event.target.innerText
       this.title = text.trim()
@@ -349,7 +349,14 @@ export default defineComponent({
         row.cards = row.cards.filter(card => card.number !== cardNum)
       })
       // remove empty row
-      this.rows = this.rows.filter(row => row.cards.length)
+      this.rows = this.rows.filter(row => {
+        if (!row.cards.length) {
+          delete this.config[row.id]
+          return false
+        }
+        return true
+      })
+      this.fixRowOrderAfterInsertion()
       this.resizeAllCards()
     },
 
@@ -359,14 +366,9 @@ export default defineComponent({
     },
 
     async updateEntryDebounced(field: CardField, event: any) {
-      console.log(1, this.currentCard.number, this.currentCard)
-      console.log({ event, field })
-
       const card = this.cardLookup[this.currentCard.number]
 
-      console.log(2, this.cardLookup)
-      console.log(3, card)
-      card.props[field.id] = event
+      card.props[field.id as any] = event
       card.title = this.currentCard.props.title
       card.errors = []
 
@@ -378,7 +380,6 @@ export default defineComponent({
       await this.$nextTick()
       card.type = ztype
       this.rows = [...this.rows]
-      console.log({ ztype })
     },
 
     changeCardType(cardType: any) {
@@ -487,7 +488,7 @@ export default defineComponent({
           marginLeft: BORDER,
           marginTop: BORDER,
         }
-      } else if (pctY > 0.9) {
+      } else if (pctY > 0.8) {
         this.dragQuadrant = {
           quadrant: 'bottom',
           width: panel.clientWidth - BORDER * 2,
@@ -560,42 +561,46 @@ export default defineComponent({
 
       this.cardLookup[this.cardCount] = card
 
+      // alright this is complicated because this.config is a PROP
+      // and this.rows is built based on its content. But if we just
+      // modify this.rows then the etc...
+      const rowId = `row${1 + this.rows.length}`
       try {
         switch (this.dragQuadrant.quadrant) {
           case 'top':
-            this.rows.unshift({ id: 'x', cards: [card] })
+            this.rows.splice(y, 0, { id: rowId, cards: [card] })
+            this.fixRowOrderAfterInsertion()
             break
           case 'bottom':
-            this.rows.push({ id: 'x', cards: [card] })
+            this.rows.splice(y + 1, 0, { id: rowId, cards: [card] })
+            this.fixRowOrderAfterInsertion()
             break
           case 'left':
-            this.rows[y].cards.splice(x, 0, card) // .push({ id: 'x', cards: [] })
+            this.rows[y].cards.splice(x, 0, card)
             break
           case 'right':
-            this.rows[y].cards.splice(x + 1, 0, card) // .push({ id: 'x', cards: [] })
+            this.rows[y].cards.splice(x + 1, 0, card)
             break
         }
-
-        // const bundle = event.dataTransfer?.getData('bundle') as string
-        // const componentConfig = JSON.parse(bundle)
-        // console.log(componentConfig)
-
-        // // dashboard is not a plugin, it is special
-        // const component = componentConfig.component || 'TabbedDashboardView'
-
-        // const viz = { component, props: componentConfig }
-        // this.onSplit({ x, y, row, quadrant: this.dragQuadrant.quadrant, viz })
       } catch (e) {
         console.warn(e)
-        // drop didn't come from an expected source -- we can just ignore it
-        // console.warn('' + e)
       }
 
       this.dragEnd()
       this.resizeAllCards()
-      this.currentCard = card
-      this.currentCardType = ''
-      // console.log(800, this.rows)
+    },
+
+    /**
+     * After inserting a row, we also need to update this.config since it is an object containing
+     * the same things. This was probably a dumb design, but here we are.
+     * So now we want to get the keys in the same order as the array, WITHOUT
+     * creating a new object. Yay Vue!
+     */
+    fixRowOrderAfterInsertion() {
+      for (const key of Object.keys(this.config.layout)) delete this.config.layout[key]
+      this.rows.forEach((row, i) => {
+        this.config.layout[row.id] = row.cards // `row${i}`
+      })
     },
 
     /**
@@ -778,7 +783,7 @@ export default defineComponent({
       await this.$nextTick()
 
       this.activeTab = index
-      this.rows = []
+      this.rows = [] // yyy
       this.rowFlexWeights = []
 
       // to give browser time to teardown: 0.2 seconds delay
@@ -935,10 +940,9 @@ export default defineComponent({
 
         let flexWeight = 1
 
-        this.cardCount++
-        const numCard = this.cardCount
-
         cards.forEach(card => {
+          this.cardCount++
+          const numCard = this.cardCount
           card.id = `card-id-${numCard}`
           card.isLoaded = false
           card.number = numCard
@@ -969,8 +973,6 @@ export default defineComponent({
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
           else card.showHeader = true
-
-          // numCard++
         })
 
         this.rows.push({ id: rowId, cards, subtabFolder })
@@ -1217,7 +1219,7 @@ export default defineComponent({
     grid-row: 1 / 2;
     font-size: 1.1rem;
     line-height: 1.5rem;
-    margin-bottom: 0.5rem;
+    // margin-bottom: 0.5rem;
     color: var(--link);
   }
 
@@ -1303,7 +1305,7 @@ li.is-not-active b a {
   padding: 0.5rem 0.5rem;
   z-index: 25000;
   font-size: 0.9rem;
-  font-weight: bold;
+  font-weight: 500;
   max-height: 50%;
   overflow-y: auto;
   p {
@@ -1321,7 +1323,6 @@ li.is-not-active b a {
 
 .clear-error:hover {
   cursor: pointer;
-  color: red;
   background-color: #88888833;
 }
 

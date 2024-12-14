@@ -21,14 +21,15 @@
       .project-header(v-if="header" v-html="header")
 
   .dashboard-finder(:class="{isMultipanel, isZoomed}")
-    ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
+    //- ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
+    ul.dashboard-right-sections(v-show="!isZoomed")
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
         @click="switchLeftTab(tab,index)"
-      )
+      ) {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
-        a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+        //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
     .dashboard-container(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
@@ -192,12 +193,17 @@ export default defineComponent({
           title: 'Dashboard Tab 1',
           description: 'Subtitle',
           tab: 'Tab 1',
-          fullscreen: true,
+          fullscreen: false,
         },
         layout: { row1: [{ title: 'Blank panel', props: {} }] },
       }
-      const { FILE__BROWSER, ...others } = this.dashboards
-      this.dashboards = { ...others, FILE__BROWSER }
+      // place file browser tab at the bottom
+      const FILE__BROWSER = this.dashboards.FILE__BROWSER
+      delete this.dashboards.FILE__BROWSER
+      this.dashboards = { ...this.dashboards, FILE__BROWSER }
+      // const { FILE__BROWSER, ...others } =
+      // this.dashboards = { ...others, FILE__BROWSER }
+      console.log(201, this.dashboards)
     },
 
     clearStyles() {
