@@ -23,7 +23,7 @@ export interface CardField {
 // All cards have these standard definitions
 const standardEntries: CardField[] = [
   { id: 'title', type: 'text', label: 'Title', label_de: 'Titel', required: false },
-  { id: 'description', type: 'text', label: 'Description', required: false },
+  // { id: 'description', type: 'text', label: 'Sub-title', required: false },
   // { id: 'width', type: 'number', label: 'Panel Width', required: false },
 ]
 
@@ -99,6 +99,34 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
     type: 'line',
     label: 'Line chart',
     entries: [...standardEntries, ...basicPlotly],
+  },
+  pie: {
+    type: 'pie',
+    label: 'Pie chart',
+    entries: [
+      ...standardEntries,
+      {
+        id: 'dataset',
+        type: 'text',
+        label: 'Dataset, folder, or URL',
+        required: true,
+        hint: 'Filename or URL of the dataset. Files can include the relative path to this folder',
+      },
+      {
+        id: 'useLastRow',
+        type: 'boolean',
+        label: 'Display last row only',
+        required: false,
+        hint: 'Some datasets such as iteration statistics only have useful data in the final row',
+      },
+      {
+        id: 'ignoreColumns',
+        type: 'text',
+        required: false,
+        label: 'Ignore columns',
+        hint: 'Comma,separated,list of columns to leave out (e.g. Iteration)',
+      },
+    ],
   },
   scatter: {
     type: 'scatter',
