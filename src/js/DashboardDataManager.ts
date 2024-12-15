@@ -157,7 +157,12 @@ export default class DashboardDataManager {
 
       // remove ignored columns
       if (config.ignoreColumns) {
-        config.ignoreColumns.forEach(column => {
+        // maybe it's an array; maybe it's a comma,separated,string.
+        let ignoreCols = config.ignoreColumns as any[] | string
+        if (!Array.isArray(ignoreCols)) {
+          ignoreCols = ignoreCols.split(',').map((c: string) => c.trim())
+        }
+        ignoreCols.forEach(column => {
           delete allRows[column]
         })
       }
@@ -397,16 +402,15 @@ export default class DashboardDataManager {
 
   public addFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
     try {
+      const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
+      const selectedDataset = this.datasets[cacheKey]
+      if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
 
-    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
-    const selectedDataset = this.datasets[cacheKey]
-    if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
-
-    this.datasets[cacheKey].filterListeners.add(listener)
-  } catch (e) {
-    console.error('CANT ADD FILTER LISTENER' + e)
+      this.datasets[cacheKey].filterListeners.add(listener)
+    } catch (e) {
+      console.error('CANT ADD FILTER LISTENER' + e)
+    }
   }
-}
 
   public removeFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
     const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`

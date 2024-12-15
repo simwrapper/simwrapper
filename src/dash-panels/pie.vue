@@ -36,7 +36,7 @@ export default defineComponent({
       id: ('pie-' + Math.floor(1e12 * Math.random())) as any,
       // dataSet is either x,y or allRows[]
       dataSet: {} as { x?: any[]; y?: any[]; allRows?: any },
-      YAMLrequirementsPie: { dataset: '', useLastRow: '' },
+      YAMLrequirementsPie: { dataset: '' },
       colorMap: {} as { [category: string]: string },
       layout: {
         height: 300,
