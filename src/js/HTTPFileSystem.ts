@@ -393,6 +393,9 @@ class HTTPFileSystem {
       }
     }
 
+    // save the current directory handle (for now)
+    if (contents.handles) contents.handles['.'] = currentDir
+
     // haven't crashed yet? Get the listing details!
     for await (let entry of currentDir.values()) {
       if (contents.handles) contents.handles[entry.name] = entry

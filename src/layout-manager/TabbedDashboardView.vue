@@ -26,6 +26,7 @@
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
+        contenteditable
         @click="switchLeftTab(tab,index)"
       ) {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}

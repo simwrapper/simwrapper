@@ -307,7 +307,7 @@ const MyComponent = defineComponent({
       if (hasYaml) {
         await this.loadStandaloneYAMLConfig()
       } else {
-        console.log('NO YAML WTF')
+        // console.log('NO YAML WTF')
         this.setConfigForRawCSV()
       }
     },
