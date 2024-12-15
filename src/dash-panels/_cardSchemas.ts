@@ -80,6 +80,7 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
     label: 'Area chart',
     entries: [...standardEntries, ...basicPlotly],
   },
+
   bar: {
     type: 'bar',
     label: 'Bar chart',
@@ -95,11 +96,19 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
       },
     ],
   },
+
   line: {
     type: 'line',
     label: 'Line chart',
     entries: [...standardEntries, ...basicPlotly],
   },
+
+  map: {
+    type: 'map',
+    label: 'Map (Network, shapes, GeoJSON)',
+    entries: [...standardEntries],
+  },
+
   pie: {
     type: 'pie',
     label: 'Pie chart',
@@ -128,6 +137,7 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
       },
     ],
   },
+
   scatter: {
     type: 'scatter',
     label: 'Scatter plot',
@@ -142,6 +152,12 @@ const DEFINITIONS: { [id: string]: CardDefinition } = {
         hint: 'Data column with y values',
       },
     ],
+  },
+
+  transit: {
+    type: 'transit',
+    label: 'Transit explorer',
+    entries: [...standardEntries],
   },
 }
 

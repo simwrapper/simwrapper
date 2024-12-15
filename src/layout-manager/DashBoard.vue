@@ -6,9 +6,9 @@
 )
  .row-container.flex-row-reverse(style="height: 100%;")
   .edit-panel(v-if="editMode && currentCard")
-    h4(style="margin: 0 3px 4px 0"): b Card configuration
+    h4(style="margin: 0 3px 4px 0"): b Panel configuration
       span(@click="hideConfigPanel" style="float: right; cursor: pointer;"): i.fa.fa-times
-    b-select(expanded placeholder="Select card type..." style="user-select: none"
+    b-select(expanded placeholder="Select panel type..." style="user-select: none"
       :value="currentCardType"
       @input="changeCardType"
     )
@@ -46,20 +46,21 @@
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
       .flex1
-        h2(ref="pageTitle" :style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
-        p(ref="pageSubtitle" :style="{isEditable: editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
+        h2(ref="pageTitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
+        p.xsubtitle(ref="pageSubtitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
 
       .editable.flex-row(v-if="editMode")
 
-        p(style="margin: auto 0.75rem") scrollable
-        b-switch(type="is-success" v-model="isFullScreenDashboard" style="margin-right: 2rem") fill window
+        p(style="margin: auto 0rem") scrollable
+        b-switch(type="is-success" v-model="isFullScreenDashboard") fill window
 
         .drag-to-add(draggable @dragstart="dragStart($event)" @dragend="dragEnd")
           .drag-tile
               i.fa.fa-arrows-alt
               | &nbsp;&nbsp;Drag to add new panel
 
-        b-button(@click="showExport = true; hideConfigPanel()") Export
+        b-button.zeep.is-danger.is-outlined(@click="showExport = true; hideConfigPanel()" title="Copy YAML to clipboard") Show config&hellip;
+        b-button.zeep.is-danger.is-outlined(@click="performSave" title="Save local file"): i.fa.fa-save
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -167,6 +168,7 @@ import Vue, { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import { debounce } from 'debounce'
 import YAML from 'yaml'
+import TOML from 'smol-toml'
 
 import globalStore from '@/store'
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
@@ -235,7 +237,6 @@ export default defineComponent({
       dragX: -1,
       dragY: -1,
       dragQuadrant: null as any,
-      updateEntry: {} as any,
       // | null
       // | string
       // | {
@@ -253,6 +254,9 @@ export default defineComponent({
       cardLookup: [] as any[],
       cardCount: 1,
       showExport: false,
+      saveHandle: null as any,
+      updateEntry: {} as any,
+      xsave: {} as any,
     }
   },
 
@@ -280,10 +284,50 @@ export default defineComponent({
     },
     isFullScreenDashboard() {
       this.config.header.fullscreen = this.isFullScreenDashboard
+      this.resizeAllCards()
+      this.save()
     },
   },
 
   methods: {
+    save() {},
+
+    async performSave() {
+      console.log('---time to save')
+      // first let's just try and save it directly. We can this.fileAPI this shit later
+
+      //@ts-ignore
+      const showSaveFilePicker = window.showSaveFilePicker
+      if (!showSaveFilePicker) {
+        console.error('Can only save via Chrome/Edge (for now)')
+        return
+      }
+
+      if (!this.saveHandle) {
+        const dirContents = await this.fileApi.getDirectory(this.xsubfolder)
+        const currentDirHandle = dirContents.handles['.']
+        const options = {
+          startIn: currentDirHandle,
+          suggestedName: 'dashboard-1.cfg',
+          types: [
+            { accept: { 'application/yaml': ['.cfg'] }, description: 'SimWrapper config Files' },
+          ],
+        }
+        const handle = await showSaveFilePicker(options)
+        this.saveHandle = handle
+      }
+
+      // const contents = YAML.stringify(this.config)
+      const contents = this.exportedYaml()
+
+      // Write it via Chrome File System API
+      console.log('---writing...')
+      const writable = await this.saveHandle.createWritable()
+      await writable.write(contents)
+      await writable.close()
+      console.log('---written.')
+    },
+
     handleEscapeKey(event: any) {
       if (event.key === 'Escape') {
         this.showExport = false
@@ -320,6 +364,7 @@ export default defineComponent({
         output.layout[`row${i + 1}`] = cards
       })
 
+      // return TOML.stringify(output)
       return YAML.stringify(output)
     },
 
@@ -330,11 +375,13 @@ export default defineComponent({
     updateDashboardTitle(event: any) {
       const text = event.target.innerText
       this.title = text.trim()
+      this.save()
     },
 
     updateDashboardSubtitle(event: any) {
       const text = event.target.innerText
       this.description = text.trim()
+      this.save()
     },
 
     deleteCard(card: any) {
@@ -358,6 +405,7 @@ export default defineComponent({
       })
       this.fixRowOrderAfterInsertion()
       this.resizeAllCards()
+      this.save()
     },
 
     hideConfigPanel() {
@@ -380,6 +428,7 @@ export default defineComponent({
       await this.$nextTick()
       card.type = ztype
       this.rows = [...this.rows]
+      this.save()
     },
 
     changeCardType(cardType: any) {
@@ -390,6 +439,7 @@ export default defineComponent({
       // if (this.currentCard.title.startsWith('Blank card')) {
       this.currentCard.title = this.cardSchemas[cardType].label
       // }
+      this.save()
     },
 
     async editCard(card: any) {
@@ -397,6 +447,8 @@ export default defineComponent({
 
       this.currentCard = card
       this.currentCardType = card.type
+      await sleep(250) // let smooth animation finish first
+      this.resizeAllCards()
     },
 
     dragStart(event: DragEvent) {
@@ -478,7 +530,7 @@ export default defineComponent({
       const pctY = event.layerY / panel.clientHeight
 
       // console.log({ pctX, pctY })
-      let BORDER = 8
+      let BORDER = 5
 
       if (pctY < 0.1) {
         this.dragQuadrant = {
@@ -588,6 +640,7 @@ export default defineComponent({
 
       this.dragEnd()
       this.resizeAllCards()
+      this.save()
     },
 
     /**
@@ -599,7 +652,7 @@ export default defineComponent({
     fixRowOrderAfterInsertion() {
       for (const key of Object.keys(this.config.layout)) delete this.config.layout[key]
       this.rows.forEach((row, i) => {
-        this.config.layout[row.id] = row.cards // `row${i}`
+        this.config.layout[`row${i}`] = row.cards //
       })
     },
 
@@ -1065,6 +1118,7 @@ export default defineComponent({
     this.setupNarrowPanelObserver()
 
     this.updateEntry = debounce(this.updateEntryDebounced, 200)
+    // this.save = debounce(this.performSave, 500)
 
     if (this.gist) {
       this.fileSystemConfig = {
@@ -1107,6 +1161,7 @@ export default defineComponent({
   right: 0;
   top: 0;
   bottom: 0;
+  overflow-x: hidden;
 
   .dashboard-content {
     max-width: $dashboardWidth;
@@ -1133,10 +1188,10 @@ export default defineComponent({
     margin-right: 1rem;
   }
 
-  h2:hover,
-  h2:active,
-  p:hover,
-  p:active {
+  h2.is-editable:hover,
+  h2.is-editable:active,
+  p.is-editable.xsubtitle:hover,
+  p.is-editable.xsubtitle:active {
     background-color: var(--bgPanel2);
     border-radius: 4px;
   }
@@ -1349,7 +1404,7 @@ li.is-not-active b a {
 
 .edit-panel {
   overflow-y: auto;
-  margin: 5.5rem -6px 17px 0;
+  margin: 5.5rem -2px 17px 0;
   padding: 0.5rem;
   background-color: var(--bgPanel2);
   width: 18rem;
@@ -1398,8 +1453,7 @@ li.is-not-active b a {
 .drag-tile {
   border: 3px dotted $matsimBlue;
   border-radius: 6px;
-  margin-right: 1rem;
-  padding: 4px 10px;
+  padding: 4px 10px 5px 10px;
   cursor: grab;
 }
 .drag-tile:hover {
@@ -1407,7 +1461,9 @@ li.is-not-active b a {
 }
 
 .editable {
-  margin-top: auto;
+  user-select: none;
+  margin: auto 3px 0 0;
+  gap: 0.75rem;
 }
 
 .export-modal {
@@ -1428,7 +1484,7 @@ li.is-not-active b a {
   padding: 1rem;
   filter: $filterShadow;
   border-radius: 4px;
-  min-width: 30rem;
+  min-width: 35rem;
   max-width: 60rem;
   margin: 5rem auto auto auto;
 
@@ -1470,5 +1526,12 @@ li.is-not-active b a {
 .fa-times:hover {
   color: #c00;
   cursor: pointer;
+}
+
+.zeep {
+  font-family: Outfit !important;
+  font-weight: 300;
+  color: var(--text) !important;
+  padding: 0 0.75rem;
 }
 </style>

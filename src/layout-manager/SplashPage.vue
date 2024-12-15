@@ -639,8 +639,9 @@ h2.splash-readme {
 .tagline {
   font-size: 1.8rem;
   margin: 0rem 0 1rem 0rem; // 2.4rem
-  font-weight: 100;
+  font-weight: 200;
   line-height: 2rem;
+  letter-spacing: -1px;
 }
 
 .is-chrome {
