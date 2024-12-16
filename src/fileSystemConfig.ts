@@ -16,26 +16,34 @@ if (typeof window !== 'undefined') {
 }
 
 export function addInitialLocalFilesystems(
-  filesystems: { handle: FileSystemAPIHandle; key: string | null }[]
+  filesystems: { handle: FileSystemAPIHandle; key: string }[]
 ) {
-  for (let i = 0; i < filesystems.length; i++) {
-    const slug = 'fs' + (1 + i)
-    const system: FileSystemConfig = {
+  filesystems.forEach((fsystem, i) => {
+    const slug = `${fsystem.key}`
+    const fsconfig: FileSystemConfig = {
       name: filesystems[i].handle.name,
       slug: slug,
       description: 'Local folder',
       handle: filesystems[i].handle,
       baseURL: '',
     }
-    fileSystems.unshift(system)
-    globalStore.commit('addLocalFileSystem', { key: system.slug, handle: system.handle })
-  }
-
-  // hang onto count so that we don't overlap as Christian removes and re-adds folders
+    // place at the front of the list
+    fileSystems.unshift(fsconfig)
+    globalStore.commit('addLocalFileSystem', { key: fsconfig.slug, handle: fsconfig.handle })
+  })
 }
 
 export function addLocalFilesystem(handle: FileSystemAPIHandle, key: string | null) {
-  const slug = key || 'fs' + (1 + globalStore.state.numLocalFileSystems)
+  let slug = key
+  if (!slug) {
+    let max = 0
+    globalStore.state.localFileHandles.forEach(local => {
+      const fs = local.key.split('-')[0]
+      const num = parseInt(fs.substring(2))
+      max = Math.max(max, num)
+    })
+    slug = `fs${max + 1}-${handle.name}`
+  }
 
   const system: FileSystemConfig = {
     name: handle.name,
