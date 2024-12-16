@@ -1481,12 +1481,13 @@ li.is-not-active b a {
   z-index: 50005;
   background-color: var(--bgPanel);
   color: var(--textBold);
-  padding: 1rem;
+  padding: 1rem 1rem;
   filter: $filterShadow;
   border-radius: 4px;
   min-width: 35rem;
-  max-width: 60rem;
-  margin: 5rem auto auto auto;
+  width: 100%;
+  margin: 5rem 7rem auto 7rem;
+  // margin: 5rem auto auto auto;
 
   .export-content {
     position: relative;
@@ -1495,7 +1496,7 @@ li.is-not-active b a {
     max-height: 20rem;
     overflow-y: auto;
     user-select: text;
-    margin-top: 2px;
+    margin-top: 4px;
 
     pre {
       background-color: var(--bgDashboard) !important;
