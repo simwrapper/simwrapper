@@ -72,7 +72,8 @@
 
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
-    .grid-stack
+    #grid-stack-holder
+     .grid-stack
       .grid-stack-item(v-for="card in gridCards()" :key="card.id"
         :gs-x="card.gs_x" :gs-y="card.gs_y" :gs-w="card.gs_w" :gs-h="card.gs_h"
       )
@@ -299,6 +300,10 @@ export default defineComponent({
     },
     isFullScreenDashboard() {
       this.config.header.fullscreen = this.isFullScreenDashboard
+
+      // set grid heights back to normal if we are in scrollmode
+      if (!this.isFullScreenDashboard && this.grid) this.grid.cellHeight('60px')
+
       this.resizeAllCards()
       this.save()
     },
@@ -760,8 +765,19 @@ export default defineComponent({
     async resizeAllCards() {
       // must wait for Vue tick or doesn't work
       await this.$nextTick()
-
       this.isResizing = true
+
+      // Fill-Window mode requires some GridStack hacking. ------
+      if (this.grid && this.isFullScreenDashboard) {
+        const totalGridHeight = this.grid.getGridItems().reduce((a: number, b: any) => {
+          return Math.max(a, b.gridstackNode.y + b.gridstackNode.h)
+        }, 0)
+        const parentElement = document.getElementById('grid-stack-holder') as HTMLElement
+        const height = parentElement.clientHeight
+        const newPixHeight = Math.floor(height / totalGridHeight)
+        this.grid.cellHeight(`${newPixHeight}px`)
+      }
+
       for (const row of this.rows) {
         for (const card of row.cards) {
           this.updateDimensions(card.id)
@@ -1221,10 +1237,10 @@ export default defineComponent({
 
     this.grid = GridStack.init({
       float: false,
-      cellHeight: '5rem',
+      cellHeight: '60px',
+      cellHeightThrottle: 200,
       minRow: 1,
       resizable: { handles: 'se,sw' },
-      // alwaysShowResizeHandle: true,
     })
 
     // const cards = this.gridCards()
@@ -1257,8 +1273,9 @@ export default defineComponent({
 
   .dashboard-content {
     max-width: $dashboardWidth;
-    margin: 0 auto 0 auto;
-    position: relative;
+    margin: 0rem auto;
+    display: flex;
+    flex-direction: column;
   }
 
   .dashboard-content.wiide {
@@ -1312,14 +1329,23 @@ export default defineComponent({
   flex: 1;
 }
 
+#grid-stack-holder {
+  position: relative;
+  flex: 1;
+}
+
 .grid-stack {
   background-color: var(--bgDashboard);
+  position: absolute;
+  inset: 0;
+  margin-left: -10px;
 }
 
 .grid-stack-item-content {
-  // border: 1px solid green;
+  // border: 1px solid #80808040;
   // background-color: var(--bgCardFrame);
-  inset: 0 $cardSpacing $cardSpacing 0 !important;
+  // inset: 0 $cardSpacing $cardSpacing 0 !important;
+  inset: 10px !important;
 }
 
 // --end--

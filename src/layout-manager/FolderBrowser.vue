@@ -13,7 +13,7 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections(:id="idFolderTable")
 
-      b-button(@click="showBuilder") + Build dashboard here
+      b-button(type="is-danger" @click="showBuilder") + Build dashboard here
 
       //- FOLDERS: file system folders
       h3.curate-heading(v-if="myState.folders.length")  {{ $t('Folders') }}

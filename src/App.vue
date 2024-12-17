@@ -209,6 +209,8 @@ export default defineComponent({
 @import '~/maplibre-gl/dist/maplibre-gl.css';
 @import '~/bulma/css/bulma.min.css';
 @import '~/buefy/dist/buefy.css';
+@import '~/gridstack/dist/gridstack.min.css';
+@import '~/highlight.js/styles/idea.min.css';
 
 @import '@/styles.scss';
 
