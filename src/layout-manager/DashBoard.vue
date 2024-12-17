@@ -72,11 +72,15 @@
 
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
-    #grid-stack-holder
+    #grid-stack-holder(:style="{overflow: fullScreenCardId ? 'hidden':'auto'}")
       .grid-stack
         .grid-stack-item(v-for="card in gridCards()" :key="card.id"
-          :gs-x="card.gs_x" :gs-y="card.gs_y" :gs-w="card.gs_w" :gs-h="card.gs_h"
+          :gs-x="fullScreenCardId ? 0 : card.gs_x"
+          :gs-y="fullScreenCardId ? 0 : card.gs_y"
+          :gs-w="fullScreenCardId ? 12 : card.gs_w"
+          :gs-h="fullScreenCardId ? 1 : card.gs_h"
           :id="`x-${card.id}`"
+          :style="getCardStyle(card)"
         )
           //-     :class="getRowClass(row)"
           //-     :style="{'flex': rowFlexWeights[y] || 1}"
@@ -85,10 +89,9 @@
           .grid-stack-item-content(
               :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
               :ref="`dragContainer${card.x}-${card.y}`"
-              :style="getCardStyle(card)"
           )
-            //- card header/title
             .dash-card-frame
+              //- card header, title, buttons ---------------
               .dash-card-headers(v-if="editMode || (card.title + card.description)"
                 :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
                 @click="editCard(card)"
@@ -285,7 +288,9 @@ export default defineComponent({
       this.config.header.fullscreen = this.isFullScreenDashboard
 
       // set grid heights back to normal if we are in scrollmode
-      if (!this.isFullScreenDashboard && this.grid) this.grid.cellHeight('60px')
+      if (this.grid) {
+        if (!this.isFullScreenDashboard) this.grid.cellHeight('60px')
+      }
 
       this.resizeAllCards()
       this.save()
@@ -759,8 +764,8 @@ export default defineComponent({
       await this.$nextTick()
       this.isResizing = true
 
-      // Fill-Window mode requires some GridStack hacking. ------
       if (this.grid && this.isFullScreenDashboard) {
+        // Fill-Window mode requires some GridStack hacking. ------
         const totalGridHeight = this.grid.getGridItems().reduce((a: number, b: any) => {
           return Math.max(a, b.gridstackNode.y + b.gridstackNode.h)
         }, 0)
@@ -768,8 +773,15 @@ export default defineComponent({
         const height = parentElement.clientHeight
         const newPixHeight = Math.floor(height / totalGridHeight)
         this.grid.cellHeight(`${newPixHeight}px`)
+      } else if (this.grid && this.fullScreenCardId) {
+        // single-card-zoom mode also needs some hacking
+        const parentElement = document.getElementById('grid-stack-holder') as HTMLElement
+        const height = parentElement.clientHeight
+        // const newPixHeight = Math.floor(height / totalGridHeight)
+        this.grid.cellHeight(`${height}px`)
       }
 
+      await this.$nextTick()
       // tell each card to size sich selbst
       for (const row of this.rows) {
         for (const card of row.cards) {
@@ -816,14 +828,19 @@ export default defineComponent({
     async toggleZoom(card: any) {
       if (this.fullScreenCardId) {
         this.fullScreenCardId = ''
+        this.grid.cellHeight('60px')
       } else {
         this.fullScreenCardId = card.id
       }
       this.$emit('zoom', this.fullScreenCardId)
       // allow vue to resize everything
       await this.$nextTick()
+      this.grid.setAnimation(false)
       // tell plotly to resize everything
       this.updateDimensions(card.id)
+      setTimeout(() => {
+        this.grid.setAnimation(true)
+      }, 1000)
     },
 
     updateDimensions(cardId: string) {
@@ -841,11 +858,11 @@ export default defineComponent({
       // then it needs a default height (300)
 
       // markdown does not want a default height
-      const defaultHeight = card.type === 'text' ? undefined : 300
+      // const defaultHeight = card.type === 'text' ? undefined : 300
 
       // old version:  plotlyChartTypes[card.type] ? 300 : undefined
 
-      const height = card.height ? card.height * 60 : defaultHeight
+      // const height = card.height ? card.height * 60 : defaultHeight
       const flex = card.width || 1
 
       let style: any = { flex: flex }
@@ -856,10 +873,10 @@ export default defineComponent({
 
       if (this.editMode) {
         if (card.number == this.currentCard?.number) {
-          style.border = '5px solid #10a050'
+          style.border = '3px solid #10a050'
           style.opacity = 1.0
         } else {
-          style.border = '5px solid #00000000'
+          style.border = '3px solid #00000000'
           style.opacity = 0.7
           // style.filter = 'blur(1px)'
         }
@@ -869,9 +886,9 @@ export default defineComponent({
         }
       }
 
-      if (height && !this.isFullScreenDashboard) {
-        style.minHeight = `${height}px`
-      }
+      // if (height && !this.isFullScreenDashboard) {
+      //   style.minHeight = `${height}px`
+      // }
 
       if (this.fullScreenCardId) {
         if (this.fullScreenCardId !== card.id) {
@@ -879,11 +896,8 @@ export default defineComponent({
         } else {
           style = {
             position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            margin: '6px 0px', // '18px 1rem 0.5rem 1rem',
+            inset: 0,
+            margin: '4px 4px', // '18px 1rem 0.5rem 1rem',
           }
         }
       }
