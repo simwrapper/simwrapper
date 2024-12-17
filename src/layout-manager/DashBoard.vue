@@ -73,92 +73,75 @@
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
     #grid-stack-holder
-     .grid-stack
-      .grid-stack-item(v-for="card in gridCards()" :key="card.id"
-        :gs-x="card.gs_x" :gs-y="card.gs_y" :gs-w="card.gs_w" :gs-h="card.gs_h"
-      )
-       //-   //-     :class="getRowClass(row)"
-       //-   //-     :style="{'flex': rowFlexWeights[y] || 1}"
-       //-   //- .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
+      .grid-stack
+        .grid-stack-item(v-for="card in gridCards()" :key="card.id"
+          :gs-x="card.gs_x" :gs-y="card.gs_y" :gs-w="card.gs_w" :gs-h="card.gs_h"
+          :id="`x-${card.id}`"
+        )
+          //-     :class="getRowClass(row)"
+          //-     :style="{'flex': rowFlexWeights[y] || 1}"
+          //- .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
-       .grid-stack-item-content(
-          :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
-          :ref="`dragContainer${card.x}-${card.y}`"
-       )
-        //- :style="getCardStyle(card)"
-        //- card header/title
-        .dash-card-frame
-          .dash-card-headers(v-if="editMode || (card.title + card.description)"
-            :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
-            @click="editCard(card)"
+          .grid-stack-item-content(
+              :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+              :ref="`dragContainer${card.x}-${card.y}`"
+              :style="getCardStyle(card)"
           )
-            .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
-              h3 {{ card.title || (editMode ? '(no title)' : '') }}
-              p(v-if="card.description") {{ card.description }}
-
-            //- Card titlebar buttons: config / info / zoom / delete
-            .header-buttons
-
-              button.button.is-white(style="margin-top: -5px"
+            //- card header/title
+            .dash-card-frame
+              .dash-card-headers(v-if="editMode || (card.title + card.description)"
+                :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
                 @click="editCard(card)"
-                title="Configure"
-              ): i.fa.fa-cog
-
-              button.button.is-small.is-white(
-                v-if="card.info"
-                @click="handleToggleInfoClick(card)"
-                :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
               )
-                i.fa.fa-info-circle
+                .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
+                  h3 {{ card.title || (editMode ? '(no title)' : '') }}
+                  p(v-if="card.description") {{ card.description }}
 
-              button.button.is-small.is-white(
-                v-if="!editMode"
-                @click="toggleZoom(card)"
-                :title="fullScreenCardId ? 'Restore':'Enlarge'"
+                //- Card titlebar buttons: config / info / zoom / delete
+                .header-buttons
+                  button.button.is-white(title="Configure" style="margin-top: -5px" @click="editCard(card)" )
+                    i.fa.fa-cog
+                  button.button.is-small.is-white(v-if="card.info" :title="infoToggle[card.id] ? 'Hide Info':'Show Info'" @click="handleToggleInfoClick(card)")
+                    i.fa.fa-info-circle
+                  button.button.is-small.is-white(v-if="!editMode" @click="toggleZoom(card)" :title="fullScreenCardId ? 'Restore':'Enlarge'")
+                    i.fa.fa-expand
+                  button.button.is-white(v-if="editMode" title="Delete" style="margin: -5px -5px 0 0" @click="deleteCard(card)")
+                    i.fa.fa-times
+
+              //- info contents
+              .info(v-show="infoToggle[card.id]")
+                p
+                p {{ card.info }}
+
+              //- card contents
+              .spinner-box(v-if="getCardComponent(card)"
+                :id="card.id"
+                :class="{'is-loaded': card.isLoaded}"
+                @dragover="stillDragging({event: $event,x,y})"
               )
-                i.fa.fa-expand
-
-              button.button.is-white(
-                v-if="editMode"
-                style="margin: -5px -5px 0 0"
-                @click="deleteCard(card)"
-                title="Delete"
-              ): i.fa.fa-times
-
-          //- info contents
-          .info(v-show="infoToggle[card.id]")
-            p
-            p {{ card.info }}
-
-          //- card contents
-          .spinner-box(v-if="getCardComponent(card)"
-            :id="card.id"
-            :class="{'is-loaded': card.isLoaded}"
-            @dragover="stillDragging({event: $event,x,y})"
-          )
-            //- "row.subtabFolder || xsubfolder"
-            component.dash-card(
-              @dragover="stillDragging({event: $event,x,y})"
-              :is="getCardComponent(card)"
-              :fileSystemConfig="fileSystemConfig"
-              :subfolder="xsubfolder"
-              :files="fileList"
-              :yaml="card.props.configFile"
-              :config="card.props"
-              :datamanager="datamanager"
-              :split="split"
-              :style="{opacity: opacity[card.id]}"
-              :cardId="card.id"
-              :cardTitle="card.title"
-              :allConfigFiles="allConfigFiles"
-              @isLoaded="handleCardIsLoaded(card)"
-              @dimension-resizer="setDimensionResizer"
-              @titles="setCardTitles(card, $event)"
-              @error="setCardError(card, $event)"
-            )
-            .error-text(v-if="card.errors.length")
-              span.clear-error(@click="card.errors=[]") &times;
-              p(v-for="err,i in card.errors" :key="i") {{ err }}
+                //- "row.subtabFolder || xsubfolder"
+                component.dash-card(
+                  @dragover="stillDragging({event: $event,x,y})"
+                  :is="getCardComponent(card)"
+                  :fileSystemConfig="fileSystemConfig"
+                  :subfolder="xsubfolder"
+                  :files="fileList"
+                  :yaml="card.props.configFile"
+                  :config="card.props"
+                  :datamanager="datamanager"
+                  :split="split"
+                  :style="{opacity: opacity[card.id]}"
+                  :cardId="card.id"
+                  :cardTitle="card.title"
+                  :allConfigFiles="allConfigFiles"
+                  @isLoaded="handleCardIsLoaded(card)"
+                  @dimension-resizer="setDimensionResizer"
+                  @titles="setCardTitles(card, $event)"
+                  @error="setCardError(card, $event)"
+                )
+                .error-text(v-if="card.errors.length")
+                  span.clear-error(@click="card.errors=[]") &times;
+                  p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
 
@@ -326,7 +309,6 @@ export default defineComponent({
           x += 4
         }
       }
-      console.log({ cards })
       return cards
     },
 
@@ -389,6 +371,11 @@ export default defineComponent({
 
       const cards = [] as any[]
 
+      const positions = {} as { [id: string]: any }
+      this.grid.getGridItems().forEach((item: any) => {
+        positions[item.gridstackNode.el.id] = item.gridstackNode
+      })
+
       this.gridCards().forEach((card, i) => {
         const trimmed = {
           type: card.type,
@@ -399,17 +386,22 @@ export default defineComponent({
         }
         if (!trimmed.description) delete trimmed.description
         if (!trimmed.width) delete trimmed.width
-        for (const skip of ['number', 'id', 'isLoaded']) delete trimmed[skip]
+        for (const skip of ['number', 'id', 'isLoaded']) {
+          delete trimmed[skip]
+        }
+        const pos = positions[`x-${card.id}`]
+        trimmed.gridXYWH = `${pos.x},${pos.y},${pos.w},${pos.h}`
 
         cards.push(trimmed)
       })
 
+      // output.cards = cards
+      // const yaml = YAML.stringify(output)
+      // const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
       output.card = cards
-
       const toml = TOML.stringify(output)
+      const html = MD_PARSER.render('```toml\n' + toml + '\n```')
 
-      const html = MD_PARSER.render('```ini\n' + toml + '\n```')
-      console.log(html)
       return html
 
       // return YAML.stringify(output)
@@ -778,6 +770,7 @@ export default defineComponent({
         this.grid.cellHeight(`${newPixHeight}px`)
       }
 
+      // tell each card to size sich selbst
       for (const row of this.rows) {
         for (const card of row.cards) {
           this.updateDimensions(card.id)
@@ -1347,8 +1340,6 @@ export default defineComponent({
   // inset: 0 $cardSpacing $cardSpacing 0 !important;
   inset: 10px !important;
 }
-
-// --end--
 
 .dash-card-frame {
   position: relative;
