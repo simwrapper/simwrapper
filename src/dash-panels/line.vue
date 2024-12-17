@@ -27,7 +27,7 @@ export default defineComponent({
     subfolder: { type: String, required: true },
     files: { type: Array, required: true },
     config: { type: Object as any, required: true },
-    cardTitle: { type: String, required: true },
+    cardTitle: { type: String, required: false },
     cardId: String,
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
   },
@@ -95,7 +95,10 @@ export default defineComponent({
   },
   async mounted() {
     this.updateTheme()
-    this.options.toImageButtonOptions.filename = buildCleanTitle(this.cardTitle, this.subfolder)
+    this.options.toImageButtonOptions.filename = buildCleanTitle(
+      this.cardTitle || '',
+      this.subfolder
+    )
 
     this.dataSet = await this.loadData()
     this.updateChart()
