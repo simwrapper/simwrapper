@@ -40,7 +40,7 @@
           | file:
         .export-content
           p.float-right(@click="copyToClipboard") COPY
-          pre {{ exportedYaml() }}
+          .toml(v-html="exportedTOML()")
 
     .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
@@ -70,96 +70,94 @@
         )
           b: a(@click="switchTab(index)") {{ subtab.title }}
 
-    //- start row here
-    .dash-row(v-for="row,y in rows" :key="y"
-        :class="getRowClass(row)"
-        :style="{'flex': rowFlexWeights[y] || 1}"
-    )
-
-      //- each card here
-      .dash-card-frame(v-for="card,x in row.cards" :key="`${y}/${x}`"
-        :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
-        :ref="`dragContainer${x}-${y}`"
-        :style="getCardStyle(card)"
-        @drop.stop="onDrop({event: $event,x,y})"
-        @dragover="stillDragging({event: $event,x,y})"
-        @dragleave="dragEnd"
-        @dragover.prevent
-        @dragenter.prevent
+    //- GRID STACK HERE ===================================
+    //- ...see gridstackjs.com
+    .grid-stack
+      .grid-stack-item(v-for="card in gridCards()" :key="card.id"
+        :gs-x="card.gs_x" :gs-y="card.gs_y" :gs-w="card.gs_w" :gs-h="card.gs_h"
       )
-        .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
+       //-   //-     :class="getRowClass(row)"
+       //-   //-     :style="{'flex': rowFlexWeights[y] || 1}"
+       //-   //- .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
+       .grid-stack-item-content(
+          :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
+          :ref="`dragContainer${card.x}-${card.y}`"
+       )
+        //- :style="getCardStyle(card)"
         //- card header/title
-        .dash-card-headers(v-if="editMode || (card.title + card.description)"
-          :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
-          @click="editCard(card)"
-        )
-          .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
-            h3 {{ card.title || (editMode ? '(no title)' : '') }}
-            p(v-if="card.description") {{ card.description }}
-
-          //- Card titlebar buttons: config / info / zoom / delete
-          .header-buttons
-
-            button.button.is-white(style="margin-top: -5px"
-              @click="editCard(card)"
-              title="Configure"
-            ): i.fa.fa-cog
-
-            button.button.is-small.is-white(
-              v-if="card.info"
-              @click="handleToggleInfoClick(card)"
-              :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
-            )
-              i.fa.fa-info-circle
-
-            button.button.is-small.is-white(
-              v-if="!editMode"
-              @click="toggleZoom(card)"
-              :title="fullScreenCardId ? 'Restore':'Enlarge'"
-            )
-              i.fa.fa-expand
-
-            button.button.is-white(
-              v-if="editMode"
-              style="margin: -5px -5px 0 0"
-              @click="deleteCard(card)"
-              title="Delete"
-            ): i.fa.fa-times
-
-        //- info contents
-        .info(v-show="infoToggle[card.id]")
-          p
-          p {{ card.info }}
-
-        //- card contents
-        .spinner-box(v-if="getCardComponent(card)"
-          :id="card.id"
-          :class="{'is-loaded': card.isLoaded}"
-          @dragover="stillDragging({event: $event,x,y})"
-        )
-          component.dash-card(
-            @dragover="stillDragging({event: $event,x,y})"
-            :is="getCardComponent(card)"
-            :fileSystemConfig="fileSystemConfig"
-            :subfolder="row.subtabFolder || xsubfolder"
-            :files="fileList"
-            :yaml="card.props.configFile"
-            :config="card.props"
-            :datamanager="datamanager"
-            :split="split"
-            :style="{opacity: opacity[card.id]}"
-            :cardId="card.id"
-            :cardTitle="card.title"
-            :allConfigFiles="allConfigFiles"
-            @isLoaded="handleCardIsLoaded(card)"
-            @dimension-resizer="setDimensionResizer"
-            @titles="setCardTitles(card, $event)"
-            @error="setCardError(card, $event)"
+        .dash-card-frame
+          .dash-card-headers(v-if="editMode || (card.title + card.description)"
+            :class="{'fullscreen': !!fullScreenCardId, 'is-editing': editMode}"
+            @click="editCard(card)"
           )
-          .error-text(v-if="card.errors.length")
-            span.clear-error(@click="card.errors=[]") &times;
-            p(v-for="err,i in card.errors" :key="i") {{ err }}
+            .header-labels(:style="{paddingLeft: card.type=='text' ? '4px' : ''}")
+              h3 {{ card.title || (editMode ? '(no title)' : '') }}
+              p(v-if="card.description") {{ card.description }}
+
+            //- Card titlebar buttons: config / info / zoom / delete
+            .header-buttons
+
+              button.button.is-white(style="margin-top: -5px"
+                @click="editCard(card)"
+                title="Configure"
+              ): i.fa.fa-cog
+
+              button.button.is-small.is-white(
+                v-if="card.info"
+                @click="handleToggleInfoClick(card)"
+                :title="infoToggle[card.id] ? 'Hide Info':'Show Info'"
+              )
+                i.fa.fa-info-circle
+
+              button.button.is-small.is-white(
+                v-if="!editMode"
+                @click="toggleZoom(card)"
+                :title="fullScreenCardId ? 'Restore':'Enlarge'"
+              )
+                i.fa.fa-expand
+
+              button.button.is-white(
+                v-if="editMode"
+                style="margin: -5px -5px 0 0"
+                @click="deleteCard(card)"
+                title="Delete"
+              ): i.fa.fa-times
+
+          //- info contents
+          .info(v-show="infoToggle[card.id]")
+            p
+            p {{ card.info }}
+
+          //- card contents
+          .spinner-box(v-if="getCardComponent(card)"
+            :id="card.id"
+            :class="{'is-loaded': card.isLoaded}"
+            @dragover="stillDragging({event: $event,x,y})"
+          )
+            //- "row.subtabFolder || xsubfolder"
+            component.dash-card(
+              @dragover="stillDragging({event: $event,x,y})"
+              :is="getCardComponent(card)"
+              :fileSystemConfig="fileSystemConfig"
+              :subfolder="xsubfolder"
+              :files="fileList"
+              :yaml="card.props.configFile"
+              :config="card.props"
+              :datamanager="datamanager"
+              :split="split"
+              :style="{opacity: opacity[card.id]}"
+              :cardId="card.id"
+              :cardTitle="card.title"
+              :allConfigFiles="allConfigFiles"
+              @isLoaded="handleCardIsLoaded(card)"
+              @dimension-resizer="setDimensionResizer"
+              @titles="setCardTitles(card, $event)"
+              @error="setCardError(card, $event)"
+            )
+            .error-text(v-if="card.errors.length")
+              span.clear-error(@click="card.errors=[]") &times;
+              p(v-for="err,i in card.errors" :key="i") {{ err }}
 
 </template>
 
@@ -169,6 +167,8 @@ import type { PropType } from 'vue'
 import { debounce } from 'debounce'
 import YAML from 'yaml'
 import TOML from 'smol-toml'
+
+import { GridStack } from 'gridstack'
 
 import globalStore from '@/store'
 import { FileSystemConfig, Status, YamlConfigs } from '@/Globals'
@@ -182,6 +182,20 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import { sleep } from '@/js/util'
 
 import CardSchemas, { CardField } from '@/dash-panels/_cardSchemas'
+
+import MarkdownIt from 'markdown-it'
+import HighlightJS from 'highlight.js'
+const MD_PARSER = new MarkdownIt({
+  highlight: function (str, lang) {
+    if (lang && HighlightJS.getLanguage(lang)) {
+      try {
+        return HighlightJS.highlight(str, { language: lang }).value
+      } catch (__) {}
+    }
+
+    return '' // use external default escaping
+  },
+})
 
 // append a prefix so the html template is legal
 const namedCharts = {} as any
@@ -257,6 +271,7 @@ export default defineComponent({
       saveHandle: null as any,
       updateEntry: {} as any,
       xsave: {} as any,
+      grid: undefined as any,
     }
   },
 
@@ -290,6 +305,26 @@ export default defineComponent({
   },
 
   methods: {
+    gridCards() {
+      const cards = [] as any[]
+
+      let y = -1
+      for (const row of this.rows) {
+        y += 1
+        let x = 0
+        for (const card of row.cards) {
+          card.gs_y = y
+          card.gs_x = x
+          card.gs_w = 4
+          card.gs_h = 5
+          cards.push(card)
+          x += 4
+        }
+      }
+      console.log({ cards })
+      return cards
+    },
+
     save() {},
 
     async performSave() {
@@ -332,6 +367,47 @@ export default defineComponent({
       if (event.key === 'Escape') {
         this.showExport = false
       }
+    },
+
+    exportedTOML() {
+      const output = {} as any
+      //@ts-ignore
+      const title = this.$refs['pageTitle']?.innerText || ''
+      //@ts-ignore
+      const subtitle = this.$refs['pageSubtitle']?.innerText || ''
+
+      output.dashboard = {
+        title: title.trim(),
+        description: subtitle.trim(),
+      }
+      if (this.isFullScreenDashboard) output.dashboard.fullscreen = true
+
+      const cards = [] as any[]
+
+      this.gridCards().forEach((card, i) => {
+        const trimmed = {
+          type: card.type,
+          title: card.title,
+          description: card.description,
+          width: card.width,
+          ...card.props,
+        }
+        if (!trimmed.description) delete trimmed.description
+        if (!trimmed.width) delete trimmed.width
+        for (const skip of ['number', 'id', 'isLoaded']) delete trimmed[skip]
+
+        cards.push(trimmed)
+      })
+
+      output.card = cards
+
+      const toml = TOML.stringify(output)
+
+      const html = MD_PARSER.render('```ini\n' + toml + '\n```')
+      console.log(html)
+      return html
+
+      // return YAML.stringify(output)
     },
 
     exportedYaml() {
@@ -1111,6 +1187,7 @@ export default defineComponent({
       return rowClass
     },
   },
+
   async mounted() {
     window.addEventListener('resize', this.resizeAllCards)
     window.addEventListener('keydown', this.handleEscapeKey)
@@ -1140,7 +1217,22 @@ export default defineComponent({
       console.error('oh nooo' + e)
       this.$emit('error', 'Error setting up dashboard, check YAML?')
     }
+    await this.$nextTick()
+
+    this.grid = GridStack.init({
+      float: false,
+      cellHeight: '5rem',
+      minRow: 1,
+      resizable: { handles: 'se,sw' },
+      // alwaysShowResizeHandle: true,
+    })
+
+    // const cards = this.gridCards()
+    // this.grid.load(cards)
+    this.grid.on('change', this.resizeAllCards)
+    this.grid.on('resize', this.resizeAllCards)
   },
+
   beforeDestroy() {
     this.resizers = {}
     this.narrowPanelObserver?.disconnect()
@@ -1220,14 +1312,26 @@ export default defineComponent({
   flex: 1;
 }
 
+.grid-stack {
+  background-color: var(--bgDashboard);
+}
+
+.grid-stack-item-content {
+  // border: 1px solid green;
+  // background-color: var(--bgCardFrame);
+  inset: 0 $cardSpacing $cardSpacing 0 !important;
+}
+
 // --end--
 
 .dash-card-frame {
   position: relative;
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-rows: auto auto 1fr;
-  margin: 0 $cardSpacing $cardSpacing 0;
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  // grid-auto-columns: 1fr;
+  // grid-auto-rows: auto auto 1fr;
+  // margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
   padding: 2px 3px 3px 3px;
   border-radius: 4px;
@@ -1286,7 +1390,7 @@ export default defineComponent({
   }
 
   .spinner-box {
-    grid-row: 3 / 4;
+    flex: 1;
     position: relative;
     background: url('../assets/simwrapper-logo/SW_logo_icon_anim.gif');
     background-size: 8rem;
@@ -1468,13 +1572,12 @@ li.is-not-active b a {
 
 .export-modal {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0px;
   background-color: #000000cc;
-  z-index: 50000;
+  z-index: 10000;
   display: flex;
+  border-radius: 8px;
+  max-height: 50rem;
 }
 
 .export-panel {
@@ -1482,23 +1585,23 @@ li.is-not-active b a {
   background-color: var(--bgPanel);
   color: var(--textBold);
   padding: 1rem 1rem;
-  filter: $filterShadow;
   border-radius: 4px;
   min-width: 35rem;
   width: 100%;
-  margin: 5rem 7rem auto 7rem;
-  // margin: 5rem auto auto auto;
+  margin: 5rem 9rem;
+  display: flex;
+  flex-direction: column;
 
   .export-content {
     position: relative;
     display: flex;
     flex-direction: column;
-    max-height: 20rem;
+    // max-height: 20rem;
     overflow-y: auto;
     user-select: text;
     margin-top: 4px;
 
-    pre {
+    .toml pre {
       background-color: var(--bgDashboard) !important;
       color: var(--text);
     }
