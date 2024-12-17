@@ -54,13 +54,11 @@
         p(style="margin: auto 0rem") scrollable
         b-switch(type="is-success" v-model="isFullScreenDashboard") fill window
 
-        .drag-to-add(draggable @dragstart="dragStart($event)" @dragend="dragEnd")
-          .drag-tile
-              i.fa.fa-arrows-alt
-              | &nbsp;&nbsp;Drag to add new panel
-
-        b-button.zeep.is-danger.is-outlined(@click="showExport = true; hideConfigPanel()" title="Copy YAML to clipboard") Show config&hellip;
-        b-button.zeep.is-danger.is-outlined(@click="performSave" title="Save local file"): i.fa.fa-save
+        b-button.action-button.is-success.is-outlined(@click="addNewPanel" title="Insert a new panel in the dashboard")
+            i.fa.fa-plus
+            span &nbsp;Add card
+        b-button.action-button.is-success.is-outlined(@click="showExport = true; hideConfigPanel()" title="Copy YAML to clipboard") Show config&hellip;
+        b-button.action-button.is-danger.is-outlined(@click="performSave" title="Save local file"): i.fa.fa-save
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -73,8 +71,9 @@
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
     #grid-stack-holder(:style="{overflow: fullScreenCardId ? 'hidden':'auto'}")
-      .grid-stack
-        .grid-stack-item(v-for="card in gridCards()" :key="card.id"
+      .grid-stack(:style="{marginLeft: editMode ? '0':'-10px'}")
+
+        .grid-stack-item(v-for="card in gridCards" :key="card.id"
           :gs-x="fullScreenCardId ? 0 : card.gs_x"
           :gs-y="fullScreenCardId ? 0 : card.gs_y"
           :gs-w="fullScreenCardId ? 12 : card.gs_w"
@@ -102,7 +101,7 @@
 
                 //- Card titlebar buttons: config / info / zoom / delete
                 .header-buttons
-                  button.button.is-white(title="Configure" style="margin-top: -5px" @click="editCard(card)" )
+                  button.button.is-white(v-if="editMode" title="Configure" style="margin-top: -5px" @click="editCard(card)" )
                     i.fa.fa-cog
                   button.button.is-small.is-white(v-if="card.info" :title="infoToggle[card.id] ? 'Hide Info':'Show Info'" @click="handleToggleInfoClick(card)")
                     i.fa.fa-info-circle
@@ -120,11 +119,9 @@
               .spinner-box(v-if="getCardComponent(card)"
                 :id="card.id"
                 :class="{'is-loaded': card.isLoaded}"
-                @dragover="stillDragging({event: $event,x,y})"
               )
                 //- "row.subtabFolder || xsubfolder"
                 component.dash-card(
-                  @dragover="stillDragging({event: $event,x,y})"
                   :is="getCardComponent(card)"
                   :fileSystemConfig="fileSystemConfig"
                   :subfolder="xsubfolder"
@@ -259,6 +256,7 @@ export default defineComponent({
       updateEntry: {} as any,
       xsave: {} as any,
       grid: undefined as any,
+      gridCards: [] as any[],
     }
   },
 
@@ -298,9 +296,38 @@ export default defineComponent({
   },
 
   methods: {
-    gridCards() {
-      const cards = [] as any[]
+    async addNewPanel() {
+      this.cardCount++
 
+      const card = {
+        errors: [],
+        isLoaded: false,
+        number: this.cardCount,
+        id: `card-id-${this.cardCount}`,
+        showHeader: true,
+        title: '',
+        props: {},
+        gs_x: 0,
+        gs_y: 0,
+        gs_w: 6,
+        gs_h: 5,
+      }
+
+      // add the card to DOM
+      this.gridCards.push(card)
+      await this.$nextTick()
+
+      // turn the card into a GridStack draggable widget
+      const theCard = document.getElementById(`x-${card.id}`)
+      this.grid.makeWidget(theCard, {
+        w: 6,
+        h: 5,
+        autoPosition: true,
+      })
+    },
+
+    buildGridCards() {
+      const cards = [] as any[]
       let y = -1
       for (const row of this.rows) {
         y += 1
@@ -381,7 +408,7 @@ export default defineComponent({
         positions[item.gridstackNode.el.id] = item.gridstackNode
       })
 
-      this.gridCards().forEach((card, i) => {
+      this.gridCards.forEach((card, i) => {
         const trimmed = {
           type: card.type,
           title: card.title,
@@ -1235,6 +1262,7 @@ export default defineComponent({
 
     try {
       await this.setupDashboard()
+      this.gridCards = this.buildGridCards()
       await this.resizeAllCards()
     } catch (e) {
       console.error('oh nooo' + e)
@@ -1345,7 +1373,6 @@ export default defineComponent({
   background-color: var(--bgDashboard);
   position: absolute;
   inset: 0;
-  margin-left: -10px;
 }
 
 .grid-stack-item-content {
@@ -1360,8 +1387,6 @@ export default defineComponent({
   display: flex;
   height: 100%;
   flex-direction: column;
-  // grid-auto-columns: 1fr;
-  // grid-auto-rows: auto auto 1fr;
   // margin: 0 $cardSpacing $cardSpacing 0;
   background-color: var(--bgCardFrame);
   padding: 2px 3px 3px 3px;
@@ -1663,10 +1688,16 @@ li.is-not-active b a {
   cursor: pointer;
 }
 
-.zeep {
+.action-button {
   font-family: Outfit !important;
   font-weight: 300;
   color: var(--text) !important;
   padding: 0 0.75rem;
+}
+
+.action-button:hover,
+.action-button:active,
+.action-button:focus {
+  color: black !important;
 }
 </style>
