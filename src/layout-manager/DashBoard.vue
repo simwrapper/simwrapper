@@ -52,13 +52,20 @@
       .editable.flex-row(v-if="editMode")
 
         p(style="margin: auto 0rem") scrollable
-        b-switch(type="is-success" v-model="isFullScreenDashboard") fill window
+        b-switch(type="is-success" v-model="isFullScreenDashboard") fill height
 
-        b-button.action-button.is-success.is-outlined(@click="addNewPanel" title="Insert a new panel in the dashboard")
+        b-button.action-button.is-success(type="is-small" @click="addNewPanel" title="Insert a new panel in the dashboard")
             i.fa.fa-plus
             span &nbsp;Add card
-        b-button.action-button.is-success.is-outlined(@click="showExport = true; hideConfigPanel()" title="Copy YAML to clipboard") Show config&hellip;
-        b-button.action-button.is-danger.is-outlined(@click="performSave" title="Save local file"): i.fa.fa-save
+        b-button.action-button.is-success(type="is-small" @click="showExport = true; hideConfigPanel()" title="Copy YAML to clipboard") Show config&hellip;
+        b-button.action-button.is-warning(type="is-small" @click="performSave" title="Save local file")
+            i.fa.fa-save
+            span &nbsp;&nbsp;save
+
+      .editable.flex-row(v-if="!editMode")
+        b-button.action-button.is-link.is-outlined(type="is-small" @click="$emit('edit')" title="Edit this dashboard")
+           i.fa.fa-edit
+           span &nbsp;edit
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -249,7 +256,7 @@ export default defineComponent({
       // Card Editor stuff ---
       currentCard: null as any,
       currentCardType: '',
-      cardLookup: [] as any[],
+      cardLookup: {} as { [id: string]: any },
       cardCount: 1,
       showExport: false,
       saveHandle: null as any,
@@ -300,13 +307,13 @@ export default defineComponent({
       this.cardCount++
 
       const card = {
-        errors: [],
-        isLoaded: false,
-        number: this.cardCount,
         id: `card-id-${this.cardCount}`,
-        showHeader: true,
+        number: this.cardCount,
         title: '',
         props: {},
+        errors: [],
+        isLoaded: false,
+        showHeader: true,
         gs_x: 0,
         gs_y: 0,
         gs_w: 6,
@@ -315,6 +322,8 @@ export default defineComponent({
 
       // add the card to DOM
       this.gridCards.push(card)
+      this.cardLookup[card.id] = card
+
       await this.$nextTick()
 
       // turn the card into a GridStack draggable widget
@@ -493,6 +502,16 @@ export default defineComponent({
       const cardNum = card.number
       console.log('DELETE CARD NUMBER', cardNum)
 
+      const whichCard = document.getElementById(`x-${card.id}`)
+      if (whichCard) {
+        this.grid.removeWidget(whichCard)
+        // this.resizeAllCards()
+        this.grid.compact('list')
+        return
+      }
+
+      console.log('UH-OH')
+      return
       // if only one card, don't
       if (this.rows.length == 1 && this.rows[0].cards.length == 1) return
 
@@ -519,20 +538,26 @@ export default defineComponent({
     },
 
     async updateEntryDebounced(field: CardField, event: any) {
-      const card = this.cardLookup[this.currentCard.number]
+      console.log(1, field, event)
+      const card = this.cardLookup[this.currentCard.id]
 
+      console.log(2, card)
       card.props[field.id as any] = event
       card.title = this.currentCard.props.title
       card.errors = []
 
       this.currentCard = card
 
+      console.log('NEW CARD DATA', this.currentCard)
       // tell Vue
       const ztype = card.type
+      const props = card.props
       card.type = 'blank'
       await this.$nextTick()
       card.type = ztype
-      this.rows = [...this.rows]
+      card.props = props
+      this.gridCards = [...this.gridCards]
+      // this.rows = [...this.rows]
       this.save()
     },
 
@@ -694,7 +719,7 @@ export default defineComponent({
       this.handleDragStartStop(false)
     },
 
-    onDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
+    xonDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
       if (!this.editMode) return
       if (!this.dragQuadrant) return
       // console.log(111, props)
@@ -709,7 +734,7 @@ export default defineComponent({
         errors: [],
         isLoaded: false,
         number: this.cardCount,
-        id: `card-id=${this.cardCount}`,
+        id: `card-id-${this.cardCount}`,
         showHeader: true,
         title: '',
         props: {},
@@ -901,6 +926,7 @@ export default defineComponent({
       if (this.editMode) {
         if (card.number == this.currentCard?.number) {
           style.border = '3px solid #10a050'
+          style.borderRadius = '5px'
           style.opacity = 1.0
         } else {
           style.border = '3px solid #00000000'
@@ -1125,7 +1151,7 @@ export default defineComponent({
           card.id = `card-id-${numCard}`
           card.isLoaded = false
           card.number = numCard
-          this.cardLookup[numCard] = card
+          this.cardLookup[card.id] = card
 
           // hoist flex weight if card has "height" and we are full-screen
           try {
@@ -1262,7 +1288,12 @@ export default defineComponent({
 
     try {
       await this.setupDashboard()
+
       this.gridCards = this.buildGridCards()
+      this.gridCards.forEach(card => {
+        this.cardLookup[card.id] = card
+      })
+
       await this.resizeAllCards()
     } catch (e) {
       console.error('oh nooo' + e)
@@ -1276,6 +1307,7 @@ export default defineComponent({
       cellHeightThrottle: 200,
       minRow: 1,
       resizable: { handles: 'se,sw' },
+      // margin: 0,
     })
 
     // const cards = this.gridCards()
@@ -1319,7 +1351,7 @@ export default defineComponent({
 }
 
 .dashboard-header {
-  margin: 1rem 1rem 0.5rem 0rem;
+  margin: 1rem 0.5rem 0rem 0rem;
 
   h2 {
     line-height: 2.1rem;
@@ -1623,7 +1655,8 @@ li.is-not-active b a {
 .editable {
   user-select: none;
   margin: auto 3px 0 0;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .export-modal {
@@ -1691,13 +1724,15 @@ li.is-not-active b a {
 .action-button {
   font-family: Outfit !important;
   font-weight: 300;
-  color: var(--text) !important;
+  // color: var(--text) !important;
   padding: 0 0.75rem;
+  // border: none !important;
+  border: 1px solid #80808040 !important;
 }
 
-.action-button:hover,
-.action-button:active,
-.action-button:focus {
-  color: black !important;
-}
+// .action-button:hover,
+// .action-button:active,
+// .action-button:focus {
+//   color: black !important;
+// }
 </style>

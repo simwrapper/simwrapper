@@ -138,7 +138,7 @@ export default defineComponent({
       var plotTitle = this.cardTitle
       // warnings
       // missing title
-      if (plotTitle.length == 0) {
+      if (plotTitle?.length == 0) {
         this.$emit('error', {
           type: Status.WARNING,
           msg: `The plot title is missing!`,
@@ -209,6 +209,7 @@ export default defineComponent({
     async loadData() {
       if (!this.datamanager) return {}
 
+      console.log(212, 'LOAD_DATA', this.subfolder, this.config.dataset)
       try {
         this.validateYAML()
         let dataset = await this.datamanager.getDataset(this.config, { subfolder: this.subfolder })

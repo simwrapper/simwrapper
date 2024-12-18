@@ -32,6 +32,10 @@
         //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
+      b-button.action-button.is-outlined(:type="globalState.isDarkMode ? 'is-success' : 'is-link'" size="is-small" @click="toggleEditMode()" title="Add/edit new dashboard panel in this folder")
+        i.fa.fa-plus
+        span &nbsp;Dashboard
+
     .dashboard-container(
       v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
       :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
@@ -47,7 +51,8 @@
         :editMode="editMode"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
-      )
+        @edit="toggleEditMode()"
+        )
 
     folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
       :root="root"
@@ -729,7 +734,7 @@ li.is-not-active b a {
 .dashboard-right-sections {
   display: flex;
   flex-direction: column;
-  padding: 1.25rem 1.5rem 2rem 0.5rem;
+  padding: 1.25rem 1.5rem 1rem 0.5rem;
 }
 
 .dashboard-container {
@@ -837,7 +842,7 @@ li.is-not-active b a {
   font-size: 0.75rem;
   z-index: 50;
   line-height: 0.9rem;
-  margin-top: 0.5rem;
+  // margin-top: 0.5rem;
 }
 
 .project-footer {
@@ -940,5 +945,11 @@ img {
   h6 {
     color: white;
   }
+}
+
+.action-button {
+  margin-top: auto;
+  margin-right: auto;
+  // padding: 0 !important;
 }
 </style>
