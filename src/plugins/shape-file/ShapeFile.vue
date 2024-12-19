@@ -57,6 +57,7 @@
         :redraw="redraw"
         :features="boundaries"
         :dark="globalState.isDarkMode"
+        :isRGBA="isRGBA"
       )
 
       //- :features="useCircles ? centroids: boundaries"
@@ -289,6 +290,9 @@ const MyComponent = defineComponent({
       expColors: false,
       isLoaded: false,
       isAreaMode: true,
+      // sometimes color data has transparency so it's 4-stride RGBA instead of 3-stride RGB
+      isRGBA: false,
+
       statusText: 'Loading...',
 
       // Filters. Key is column id; value array is empty for "all" or a list of "or" values
@@ -1486,11 +1490,22 @@ const MyComponent = defineComponent({
         breakpoints: color.colorRamp?.breakpoints || undefined,
       }
 
+      // separate transparency field? ------------
+      let transparencyCol
+      if (color.transparency) {
+        const [key, column] = color.transparency.split('/')
+        transparencyCol = this.datasets[key][column]
+        if (!transparencyCol) {
+          throw Error(`Dataset ${key} does not contain column "${column}"`)
+        }
+      }
+
       // Calculate colors for each feature
-      const { rgbArray, legend, calculatedValues } = ColorWidthSymbologizer.getColorsForDataColumn({
+      // const { rgbArray, legend, calculatedValues, isRGBA } =
+      const result = ColorWidthSymbologizer.getColorsForDataColumn({
         numFeatures: this.boundaries.length,
         data: dataColumn,
-        normalColumn,
+        transparency: transparencyCol,
         normalLookup,
         lookup: lookupColumn,
         filter: this.boundaryFilters,
@@ -1498,11 +1513,16 @@ const MyComponent = defineComponent({
         join: color.join,
       })
 
+      const { rgbArray, legend, calculatedValues } = result
+
+      //@ts-ignore -- result might or might not have isRGBA defined
+      const isRGBA = result.isRGBA || false
+
       if (rgbArray) {
         this.dataFillColors = rgbArray
         this.dataCalculatedValues = calculatedValues
         this.dataNormalizedValues = calculatedValues || null
-
+        this.isRGBA = isRGBA
         this.showLegend = true
         this.legendStore.setLegendSection({
           section: 'FillColor',
