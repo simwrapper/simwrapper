@@ -33,6 +33,7 @@ interface VizProperties {
   lookup2?: DataTableColumn
   normalColumn?: DataTableColumn
   normalLookup?: DataTableColumn
+  transparency?: DataTableColumn
   filter: Float32Array
   options: { colorRamp: Ramp; fixedColors?: string[] }
   relative?: boolean
@@ -79,20 +80,39 @@ function generateColorsBasedOnNumericValues(props: VizProperties) {
   // Generate the values that user asked for: raw, diff, %diff, etc
   const { metric, max, min } = calculateMetric(props)
   // console.log({ metric, max, min })
+
   // Generate numeric breakpoints that divide the values into the color buckets
   const breakpoints = calculateBreakpoints({ metric, options: props.options, max, min })
+
+  // Generate transparencies if needed
+  const transparencies = calculateTransparencies(props)
+
   // Generate RGB for each feature and a legend dazu
-  const { rgbArray, legend } = generateColors({
+  const { rgbArray, legend, isRGBA } = generateColors({
     numFeatures: props.numFeatures,
     metric,
     breakpoints,
     max,
     min,
+    transparencies,
     fixedColors: props.options.fixedColors || [],
   })
 
   // console.log(rgbArray, legend)
-  return { rgbArray, legend, calculatedValues: metric }
+  return { rgbArray, legend, calculatedValues: metric, isRGBA }
+}
+
+function calculateTransparencies(props: VizProperties) {
+  if (!props.transparency) return undefined
+
+  const transparencies = new Uint8Array(props.numFeatures)
+
+  // *** Just grab lookup ONCE - not summing or counting. Is this correct?
+  for (let i = 0; i < props.transparency.values.length; i++) {
+    const offset = props.lookup ? props.lookup.values[i] : i
+    transparencies[offset] = Math.floor(255 * props.data.values[i])
+  }
+  return transparencies
 }
 
 function generateColorArray(colors: string[], numberOfSteps: number): string[] {
@@ -785,6 +805,7 @@ function calculateManualBreakpoints(props: {
 function generateColors(props: {
   numFeatures: number
   metric: any[] | Float32Array
+  transparencies?: Uint8Array
   breakpoints: number[]
   fixedColors: string[]
   max: number
@@ -801,7 +822,11 @@ function generateColors(props: {
   // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
   const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(props.breakpoints)
 
-  const rgbArray = new Uint8ClampedArray(props.numFeatures * 3)
+  // Are colors going to be RGB or RGBA ?
+  const transparencies = props.transparencies
+  const stride = transparencies ? 4 : 3
+  const rgbArray = new Uint8ClampedArray(props.numFeatures * stride)
+
   const gray = store.state.isDarkMode ? [48, 48, 48] : [212, 212, 212]
 
   for (let i = 0; i < props.numFeatures; i++) {
@@ -811,10 +836,12 @@ function generateColors(props: {
     if (filter && filter[i] == -1) value = NaN
 
     const color = Number.isNaN(value) ? gray : setColorBasedOnValue(value)
-    const colorOffset = i * 3
+
+    const colorOffset = i * stride
     rgbArray[colorOffset + 0] = color[0]
     rgbArray[colorOffset + 1] = color[1]
     rgbArray[colorOffset + 2] = color[2]
+    if (transparencies) rgbArray[colorOffset + 3] = transparencies[i]
   }
 
   // Generate LEGEND ranges ---------------------------------
@@ -854,6 +881,7 @@ function generateColors(props: {
   return {
     rgbArray: rgbArray,
     legend,
+    isRGBA: !!props.transparencies,
   }
 }
 

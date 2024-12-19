@@ -38,6 +38,7 @@ export default function Component({
   handleClickEvent = {} as any,
   highlightedLinkIndex = -1 as number,
   dark = false,
+  isRGBA = false,
   features = [] as any[],
 }) {
   // const features = globalStore.state.globalCache[viewId] as any[]
@@ -91,12 +92,21 @@ export default function Component({
   } else {
     // array of colors
     cbFillColor = (_: any, o: DeckObject) => {
-      return [
-        fillColors[o.index * 3 + 0], // r
-        fillColors[o.index * 3 + 1], // g
-        fillColors[o.index * 3 + 2], // b
-        255, // no opacity, for now
-      ]
+      if (isRGBA) {
+        return [
+          fillColors[o.index * 4 + 0], // r
+          fillColors[o.index * 4 + 1], // g
+          fillColors[o.index * 4 + 2], // b
+          fillColors[o.index * 4 + 3], // a
+        ]
+      } else {
+        return [
+          fillColors[o.index * 3 + 0], // r
+          fillColors[o.index * 3 + 1], // g
+          fillColors[o.index * 3 + 2], // b
+          255, // no opacity data
+        ]
+      }
     }
   }
 

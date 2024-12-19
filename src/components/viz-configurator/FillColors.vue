@@ -5,7 +5,7 @@
   .widgets
     .widget
         p.tight Display
-        b-select.selector(expanded v-model="dataColumn")
+        b-select.selector(size="is-small" expanded v-model="dataColumn")
           option(label="Single color" value="@")
 
           optgroup(v-for="dataset in datasetChoices"
@@ -22,7 +22,7 @@
   .widgets(v-if="datasetChoices.length > 1")
     .widget
         p.tight Join by
-        b-select.selector(expanded v-model="join")
+        b-select.selector(size="is-small" expanded v-model="join")
           option(label="None" value="")
           option(label="Row count" value="@count")
 
@@ -36,7 +36,7 @@
   .widgets(v-if="dataColumn && dataColumn.length > 1")
     .widget
         p.tight Normalize by
-        b-select.selector(expanded v-model="normalSelection")
+        b-select.selector(size="is-small" expanded v-model="normalSelection")
           option(label="None" value="")
           optgroup(v-for="dataset in datasetChoices" :key="dataset" :label="dataset")
             option(v-for="column in columnsInDataset(dataset)"
@@ -45,12 +45,29 @@
               :label="column"
             )
 
+  //- TRANSPARENCY COLUMN
+  .widgets(v-if="dataColumn && dataColumn.length > 1")
+    .widget
+        p.tight Transparency (0.0-1.0)
+        b-select.selector(size="is-small" expanded v-model="transparencyColumn")
+          option(label="None" value="@")
+
+          optgroup(v-for="dataset in datasetChoices"
+                   :key="dataset"
+                   :label="dataset"
+          )
+            option(v-for="column in columnsInDataset(dataset)"
+                   :key="`${dataset}/${column}`"
+                   :value="`${dataset}/${column}`"
+                   :label="column"
+            )
+
   //- DIFF MODE
   .more(:title="diffChoices.length<2 ? 'Add two datasets to enable comparisons' : ''")
     .widgets
       .widget(style="flex: 3")
         p.tight Compare datasets
-        b-select.selector(
+        b-select.selector(size="is-small"
           :disabled="!dataColumn || diffChoices.length<2"
           expanded
           v-model="diffUISelection"
@@ -77,7 +94,7 @@
     .widgets
       .widget(style="flex: 3")
         p Steps
-        b-input(v-model="steps"
+        b-input(size="is-small" v-model="steps"
             placeholder="Number"
             type="number"
             min="2"
@@ -117,6 +134,7 @@ export interface FillColorDefinition {
   diffDatasets?: string[]
   relative?: boolean
   join?: string
+  transparency?: string
   colorRamp?: Ramp
   fixedColors: string[]
 }
@@ -162,6 +180,7 @@ export default defineComponent({
     return {
       globalState: globalStore.state,
       dataColumn: '',
+      transparencyColumn: '@',
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
       diffRelative: false,
@@ -201,6 +220,9 @@ export default defineComponent({
       this.diffSelectionChanged()
     },
     dataColumn() {
+      this.emitColorSpecification()
+    },
+    transparencyColumn() {
       this.emitColorSpecification()
     },
     join() {
@@ -357,6 +379,7 @@ export default defineComponent({
         },
       } as any
 
+      if (this.transparencyColumn !== '@') fill.transparency = this.transparencyColumn
       if (this.diffDatasets.length) fill.diffDatasets = this.diffDatasets
       if (this.diffRelative) fill.relative = true
 
