@@ -5,6 +5,8 @@
   :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }"
 )
  .row-container.flex-row-reverse(style="height: 100%;")
+
+  //- rightside card configuration panel -----------------
   .edit-panel(v-if="editMode && currentCard")
     h4(style="margin: 0 3px 4px 0"): b Panel configuration
       span(@click="hideConfigPanel" style="float: right; cursor: pointer;"): i.fa.fa-times
@@ -40,17 +42,25 @@
           | file:
         .export-content
           p.float-right(@click="copyToClipboard") COPY
-          .toml(v-html="exportedTOML()")
+          .toml(v-html="stringifyConfiguration()")
 
-    .dashboard-header.flex-row(v-if="!fullScreenCardId && (title + description)"
+    .dashboard-header.flex-col(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
     )
-      .flex1
-        h2(ref="pageTitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
-        p.xsubtitle(ref="pageSubtitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
+      //- dashboard title and subtitle
+      .title-and-subtitle.flex-row-reverse
+        //- edit dashboard link
+        .edit-button(v-if="!editMode" style="margin: auto 0 0 0;")
+          b-button.action-button.is-outlined(:class="globalState.isDarkMode ? 'is-success':'is-link'" type="is-small" @click="$emit('edit')" title="Edit this dashboard")
+            i.fa.fa-edit
+            span &nbsp;edit
 
+        .flex-col.flex1
+          h2(ref="pageTitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="title") {{ title }}
+          p.xsubtitle(ref="pageSubtitle" :class="{'is-editable': editMode}" :contenteditable="editMode ? 'plaintext' : 'false'" v-model="description") {{ description }}
+
+      //- edit dashboard add/show/save button row -----------------------
       .editable.flex-row(v-if="editMode")
-
         p(style="margin: auto 0rem") scrollable
         b-switch(type="is-success" v-model="isFullScreenDashboard") fill height
 
@@ -62,10 +72,6 @@
             i.fa.fa-save
             span &nbsp;&nbsp;save
 
-      .editable.flex-row(v-if="!editMode")
-        b-button.action-button.is-link.is-outlined(type="is-small" @click="$emit('edit')" title="Edit this dashboard")
-           i.fa.fa-edit
-           span &nbsp;edit
 
     .tabs.is-centered(v-if="subtabs.length")
       ul.tab-row
@@ -130,6 +136,7 @@
                 //- "row.subtabFolder || xsubfolder"
                 component.dash-card(
                   :is="getCardComponent(card)"
+                  :class="{'u-cant-touch-this': editMode }"
                   :fileSystemConfig="fileSystemConfig"
                   :subfolder="xsubfolder"
                   :files="fileList"
@@ -218,6 +225,7 @@ export default defineComponent({
       cardSchemas: CardSchemas,
       title: '',
       description: '',
+      globalState: globalStore.state,
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
       rows: [] as { id: string; cards: any[]; subtabFolder?: string }[],
@@ -289,6 +297,17 @@ export default defineComponent({
     '$store.state.locale'() {
       this.updateThemeAndLabels()
     },
+
+    editMode() {
+      if (!this.grid) return
+
+      if (this.editMode) {
+        this.grid.enable()
+      } else {
+        this.grid.disable()
+      }
+    },
+
     isFullScreenDashboard() {
       this.config.header.fullscreen = this.isFullScreenDashboard
 
@@ -333,6 +352,7 @@ export default defineComponent({
         h: 5,
         autoPosition: true,
       })
+      this.$emit('edit', true)
     },
 
     buildGridCards() {
@@ -381,7 +401,7 @@ export default defineComponent({
       }
 
       // const contents = YAML.stringify(this.config)
-      const contents = this.exportedYaml()
+      const contents = this.stringifyConfiguration()
 
       // Write it via Chrome File System API
       console.log('---writing...')
@@ -389,6 +409,7 @@ export default defineComponent({
       await writable.write(contents)
       await writable.close()
       console.log('---written.')
+      // this.$emit('edit', false)
     },
 
     handleEscapeKey(event: any) {
@@ -397,7 +418,7 @@ export default defineComponent({
       }
     },
 
-    exportedTOML() {
+    stringifyConfiguration() {
       const output = {} as any
       //@ts-ignore
       const title = this.$refs['pageTitle']?.innerText || ''
@@ -436,54 +457,21 @@ export default defineComponent({
         cards.push(trimmed)
       })
 
-      // output.cards = cards
-      // const yaml = YAML.stringify(output)
-      // const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
-      output.card = cards
-      const toml = TOML.stringify(output)
-      const html = MD_PARSER.render('```toml\n' + toml + '\n```')
+      // YAML ------------
+      output.cards = cards
+      const yaml = YAML.stringify(output)
+      const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
+
+      // TOML ------------
+      // output.card = cards
+      // const toml = TOML.stringify(output)
+      // const html = MD_PARSER.render('```toml\n' + toml + '\n```')
 
       return html
-
-      // return YAML.stringify(output)
-    },
-
-    exportedYaml() {
-      const output = {} as any
-      //@ts-ignore
-      const title = this.$refs['pageTitle']?.innerText || ''
-      //@ts-ignore
-      const subtitle = this.$refs['pageSubtitle']?.innerText || ''
-
-      output.header = {
-        title: title.trim(),
-        description: subtitle.trim(),
-      }
-      if (this.isFullScreenDashboard) output.header.fullscreen = true
-
-      output.layout = {}
-      this.rows.forEach((row, i) => {
-        const cards = row.cards.map(card => {
-          const trimmed = {
-            type: card.type,
-            title: card.title,
-            description: card.description,
-            width: card.width,
-            ...card.props,
-          }
-          if (!trimmed.description) delete trimmed.description
-          if (!trimmed.width) delete trimmed.width
-          return trimmed
-        })
-        output.layout[`row${i + 1}`] = cards
-      })
-
-      // return TOML.stringify(output)
-      return YAML.stringify(output)
     },
 
     copyToClipboard() {
-      navigator.clipboard.writeText(this.exportedYaml())
+      navigator.clipboard.writeText(this.stringifyConfiguration())
     },
 
     updateDashboardTitle(event: any) {
@@ -1312,6 +1300,8 @@ export default defineComponent({
 
     // const cards = this.gridCards()
     // this.grid.load(cards)
+    // default: no editing
+    this.grid.disable()
     this.grid.on('change', this.resizeAllCards)
     this.grid.on('resize', this.resizeAllCards)
   },
@@ -1481,13 +1471,18 @@ export default defineComponent({
     flex: 1;
     position: relative;
     background: url('../assets/simwrapper-logo/SW_logo_icon_anim.gif');
-    background-size: 8rem;
+    background-size: 6rem;
     background-repeat: no-repeat;
     background-position: center center;
+    pointer-events: none;
   }
 
   .spinner-box.is-loaded {
     background: none;
+  }
+
+  .u-cant-touch-this {
+    pointer-events: none;
   }
 }
 
@@ -1500,6 +1495,7 @@ export default defineComponent({
   overflow-x: hidden;
   overflow-y: hidden;
   border-radius: 2px;
+  pointer-events: none;
 }
 
 // Observe for narrowness instead of a media-query
@@ -1654,9 +1650,9 @@ li.is-not-active b a {
 
 .editable {
   user-select: none;
-  margin: auto 3px 0 0;
+  margin: 0 0 0 auto;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 12px;
 }
 
 .export-modal {

@@ -408,7 +408,7 @@ export default class DashboardDataManager {
 
       this.datasets[cacheKey].filterListeners.add(listener)
     } catch (e) {
-      console.error('CANT ADD FILTER LISTENER' + e)
+      console.warn('CANT ADD FILTER LISTENER' + e)
     }
   }
 

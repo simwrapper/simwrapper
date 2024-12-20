@@ -51,7 +51,7 @@
         :editMode="editMode"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
-        @edit="toggleEditMode()"
+        @edit="toggleEditMode"
         )
 
     folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
@@ -60,7 +60,7 @@
       :allConfigFiles="allConfigFiles"
       @navigate="onNavigate"
       @up="goUpOneFolder()"
-      @edit="toggleEditMode()"
+      @edit="toggleEditMode"
     )
 
   footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
@@ -192,8 +192,13 @@ export default defineComponent({
     },
   },
   methods: {
-    async toggleEditMode() {
-      this.editMode = true
+    async toggleEditMode(mode?: boolean) {
+      if (mode == undefined) {
+        this.editMode = !this.editMode
+      } else {
+        this.editMode = mode
+      }
+
       this.dashboards['Dashboard 1'] = {
         header: {
           title: 'Dashboard Tab 1',
