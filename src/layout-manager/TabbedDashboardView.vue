@@ -107,7 +107,7 @@ export default defineComponent({
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
       crumbs: [] as any,
       customCSS: '',
-      dashboards: {} as { [path: string]: { header: any; layout?: any } },
+      dashboards: {} as { [path: string]: { header: any; cards: any[] } },
       dashboardDataManager: null as DashboardDataManager | null,
       dashboardTabWithDelay: '',
       editMode: false,
@@ -201,20 +201,18 @@ export default defineComponent({
 
       this.dashboards['Dashboard 1'] = {
         header: {
-          title: 'Dashboard Tab 1',
+          title: 'Dashboard 1',
           description: 'Subtitle',
           tab: 'Tab 1',
           fullscreen: false,
         },
-        layout: { row1: [{ title: 'Blank panel', props: {} }] },
+        cards: [{ title: 'Blank panel', gridXYWH: '0,0,6,5', props: {} }],
       }
+
       // place file browser tab at the bottom
       const FILE__BROWSER = this.dashboards.FILE__BROWSER
       delete this.dashboards.FILE__BROWSER
       this.dashboards = { ...this.dashboards, FILE__BROWSER }
-      // const { FILE__BROWSER, ...others } =
-      // this.dashboards = { ...others, FILE__BROWSER }
-      console.log(201, this.dashboards)
     },
 
     clearStyles() {
@@ -525,6 +523,12 @@ export default defineComponent({
         const config = await this.fileApi.getFileText(fullPath)
         const yaml = YAML.parse(config)
 
+        // dashboard section is renamed header section
+        if (yaml.dashboard) {
+          yaml.header = yaml.dashboard
+          delete yaml.dashboard
+        }
+
         // see if trigger condition is met
         if (yaml.header?.triggerPattern) {
           const { files, dirs } = await this.fileApi.getDirectory(this.xsubfolder)
@@ -537,8 +541,11 @@ export default defineComponent({
           }
         }
 
-        const shortFilename = fullPath.substring(0, fullPath.lastIndexOf('.'))
-        if (!yaml.header) yaml.header = { title: fullPath, tab: shortFilename }
+        const shortFilename = fullPath
+          .substring(0, fullPath.lastIndexOf('.'))
+          .substring(1 + fullPath.lastIndexOf('/'))
+
+        if (!yaml.header) yaml.header = { title: shortFilename, tab: shortFilename }
         if (!yaml.header.tab) yaml.header.tab = yaml.header.title || shortFilename
 
         this.dashboards[fullPath] = yaml
@@ -574,6 +581,12 @@ export default defineComponent({
 
     async switchLeftTab(tab: string, index: number) {
       if (tab === this.activeTab) return
+
+      // TODO don't click away if user made layout changes
+      if (this.activeTab !== 'FILE__BROWSER' && this.editMode) {
+        // const ok = confirm('Any unsaved layout edits will be lost if you navigate away.')
+        // if (!ok) return
+      }
 
       // Force teardown the dashboard to ensure we start with a clean slate
       this.activeTab = ''

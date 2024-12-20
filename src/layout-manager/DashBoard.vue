@@ -42,7 +42,7 @@
           | file:
         .export-content
           p.float-right(@click="copyToClipboard") COPY
-          .toml(v-html="stringifyConfiguration()")
+          .toml(v-html="htmlConfiguration()")
 
     .dashboard-header.flex-col(v-if="!fullScreenCardId && (title + description)"
       :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
@@ -353,9 +353,9 @@ export default defineComponent({
         const currentDirHandle = dirContents.handles['.']
         const options = {
           startIn: currentDirHandle,
-          suggestedName: 'dashboard-1.cfg',
+          suggestedName: 'dashboard-1.yaml',
           types: [
-            { accept: { 'application/yaml': ['.cfg'] }, description: 'SimWrapper config Files' },
+            { accept: { 'application/yaml': ['.yaml'] }, description: 'SimWrapper config files' },
           ],
         }
         const handle = await showSaveFilePicker(options)
@@ -378,6 +378,13 @@ export default defineComponent({
       if (event.key === 'Escape') {
         this.showExport = false
       }
+    },
+
+    htmlConfiguration() {
+      const config = this.stringifyConfiguration()
+
+      const html = MD_PARSER.render('```yaml\n' + config + '\n```')
+      return html
     },
 
     stringifyConfiguration() {
@@ -408,13 +415,16 @@ export default defineComponent({
           width: card.width,
           ...card.props,
         }
-        if (!trimmed.description) delete trimmed.description
-        if (!trimmed.width) delete trimmed.width
-        for (const skip of ['number', 'id', 'isLoaded']) {
-          delete trimmed[skip]
-        }
+
         const pos = positions[`x-${card.id}`]
         trimmed.gridXYWH = `${pos.x},${pos.y},${pos.w},${pos.h}`
+
+        // remove blank + unnecessary params
+        if (!trimmed.description) delete trimmed.description
+        if (!trimmed.width) delete trimmed.width
+        for (const skip of ['number', 'id', 'isLoaded', 'gs_x', 'gs_y', 'gs_w', 'gs_h']) {
+          delete trimmed[skip]
+        }
 
         cards.push(trimmed)
       })
@@ -422,13 +432,15 @@ export default defineComponent({
       // YAML ------------
       output.cards = cards
       const yaml = YAML.stringify(output)
-      const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
+      return yaml
 
       // TOML ------------
       // output.card = cards
       // const toml = TOML.stringify(output)
       // const html = MD_PARSER.render('```toml\n' + toml + '\n```')
 
+      // HTMLify
+      const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
       return html
     },
 
@@ -742,6 +754,16 @@ export default defineComponent({
         this.yaml = YAML.parse(yaml)
       }
 
+      // fix up renamed sections in new YAML config: dashboard=header; cards=layout
+      if (this.yaml.dashboard) {
+        this.yaml.header = this.yaml.dashboard
+        delete this.yaml.dashboard
+      }
+      if (this.yaml.card) {
+        this.yaml.cards = this.yaml.card
+        delete this.yaml.card
+      }
+
       // set header
       this.updateThemeAndLabels()
 
@@ -846,26 +868,77 @@ export default defineComponent({
     },
 
     selectTabLayout() {
-      // Choose subtab or full layout
+      if (this.yaml.cards) {
+        this.convertNewLayoutToGridCards()
+        return
+      }
 
+      // Choose subtab or full layout
       if (this.subtabs.length && this.activeTab > -1) {
         const subtab = this.subtabs[this.activeTab]
         this.convertOldLayoutToGridCards(subtab.layout, subtab.subtabFolder)
       } else if (this.yaml.layout) {
         this.convertOldLayoutToGridCards(this.yaml.layout)
       } else {
-        this.$store.commit(
-          'error',
-          `Dashboard YAML: could not find current subtab ${this.activeTab}`
-        )
+        this.$store.commit('error', `Dashboard YAML: could not find subtab ${this.activeTab}`)
       }
     },
 
+    // new layout: array of cards instead of layout rows.
+    // Each card has gridXYWH that defines layout
+    convertNewLayoutToGridCards() {
+      const allCards = [] as any
+
+      for (const card of this.yaml.cards) {
+        this.cardCount++
+        const numCard = this.cardCount
+        card.id = `card-id-${numCard}`
+        card.isLoaded = false
+        card.number = numCard
+        this.cardLookup[card.id] = card
+        // calc xywh
+        try {
+          const [x, y, w, h] = card.gridXYWH.split(',').map((v: string) => parseInt(v.trim()))
+          card.gs_x = x
+          card.gs_y = y
+          card.gs_w = w
+          card.gs_h = h
+        } catch (e) {
+          console.warn(`${card.id} has invalid gridXYWH`)
+        }
+
+        // make YAML easier to write: merge "props" property with other properties
+        // so user doesn't need to specify "props: {...}"
+        if (!card.props) card.props = Object.assign({}, card)
+
+        // markdown plugin really wants to know the height
+        // if (card.gs_h !== undefined) card.props.height = card.gs_h
+
+        // Vue 2 is weird about new properties: use Vue.set() instead
+        Vue.set(this.opacity, card.id, 0.5)
+        Vue.set(this.infoToggle, card.id, false)
+        Vue.set(card, 'errors', [] as string[])
+
+        // Card header could be hidden
+        if (!card.title && !card.description) card.showHeader = false
+        else card.showHeader = true
+
+        // all done with this card, yay!
+        allCards.push(card)
+      }
+
+      this.gridCards = allCards
+      this.resizeAllCards()
+      this.$emit('layoutComplete')
+    },
+
+    // old layout: layout object with one key per row; each row contains array of cards
     convertOldLayoutToGridCards(layout: any, subtabFolder?: string) {
       const allCards = [] as any
 
-      // each row has a max height, cards should match it
-      // convert card widths to explicit 12-based widths
+      // Approach:
+      // 1) Each row has a max height, cards in row should match it
+      // 2) Convert card widths to explicit 12-based widths
 
       let y = 0
 
@@ -1021,9 +1094,8 @@ export default defineComponent({
       this.fileSystemConfig = this.getFileSystem(this.root)
     }
 
-    this.fileList = await this.getFiles()
-
     try {
+      this.fileList = await this.getFiles()
       await this.setupDashboard()
 
       this.gridCards.forEach(card => {
@@ -1033,8 +1105,9 @@ export default defineComponent({
       await this.resizeAllCards()
     } catch (e) {
       console.error('oh nooo' + e)
-      this.$emit('error', 'Error setting up dashboard, check YAML?')
+      this.$emit('error', 'Error setting up dashboard. Check YAML?')
     }
+
     await this.$nextTick()
 
     this.grid = GridStack.init({
@@ -1046,8 +1119,6 @@ export default defineComponent({
       // margin: 0,
     })
 
-    // const cards = this.gridCards()
-    // this.grid.load(cards)
     // default: no editing
     this.grid.disable()
     this.grid.on('change', this.resizeAllCards)
