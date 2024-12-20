@@ -94,9 +94,6 @@
           :id="`x-${card.id}`"
           :style="getCardStyle(card)"
         )
-          //-     :class="getRowClass(row)"
-          //-     :style="{'flex': rowFlexWeights[y] || 1}"
-          //- .drag-highlight(v-if="isDragHappening" :style="buildDragHighlightStyle(x,y)")
 
           .grid-stack-item-content(
               :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
@@ -220,6 +217,7 @@ export default defineComponent({
     zoomed: Boolean,
     editMode: Boolean,
   },
+
   data: () => {
     return {
       cardSchemas: CardSchemas,
@@ -228,7 +226,6 @@ export default defineComponent({
       globalState: globalStore.state,
       viewId: 'dashboard-' + Math.floor(1e12 * Math.random()),
       yaml: {} as any,
-      rows: [] as { id: string; cards: any[]; subtabFolder?: string }[],
       fileList: [] as string[],
       fileSystemConfig: {} as FileSystemConfig,
       fullScreenCardId: '',
@@ -239,28 +236,11 @@ export default defineComponent({
       opacity: {} as any,
       narrowPanelObserver: null as ResizeObserver | null,
       isPanelNarrow: false,
-      numberOfShownCards: 1,
       // subtab state:
       subtabs: [] as any[],
       activeTab: 0,
       dashboardTabWithDelay: -1,
       showFooter: false,
-      rowFlexWeights: [] as number[],
-      // drag editMode
-      dragX: -1,
-      dragY: -1,
-      dragQuadrant: null as any,
-      // | null
-      // | string
-      // | {
-      //     quadrant: string
-      //     width: number
-      //     height: number
-      //     marginLeft: number
-      //     marginTop: number
-      //   },
-      dragStartWidth: 0,
-      isDragHappening: false,
       // Card Editor stuff ---
       currentCard: null as any,
       currentCardType: '',
@@ -353,24 +333,6 @@ export default defineComponent({
         autoPosition: true,
       })
       this.$emit('edit', true)
-    },
-
-    buildGridCards() {
-      const cards = [] as any[]
-      let y = -1
-      for (const row of this.rows) {
-        y += 1
-        let x = 0
-        for (const card of row.cards) {
-          card.gs_y = y
-          card.gs_x = x
-          card.gs_w = 4
-          card.gs_h = 5
-          cards.push(card)
-          x += 4
-        }
-      }
-      return cards
     },
 
     save() {},
@@ -500,24 +462,6 @@ export default defineComponent({
 
       console.log('UH-OH')
       return
-      // if only one card, don't
-      if (this.rows.length == 1 && this.rows[0].cards.length == 1) return
-
-      // remove the card
-      this.rows.forEach(row => {
-        row.cards = row.cards.filter(card => card.number !== cardNum)
-      })
-      // remove empty row
-      this.rows = this.rows.filter(row => {
-        if (!row.cards.length) {
-          delete this.config[row.id]
-          return false
-        }
-        return true
-      })
-      this.fixRowOrderAfterInsertion()
-      this.resizeAllCards()
-      this.save()
     },
 
     hideConfigPanel() {
@@ -569,211 +513,6 @@ export default defineComponent({
       this.resizeAllCards()
     },
 
-    dragStart(event: DragEvent) {
-      if (!this.editMode) return
-
-      this.$emit('isDragging', true)
-      this.handleDragStartStop(true)
-
-      const folder = `${this.root}/${this.xsubfolder}`
-      const panel = { component: 'TabbedDashboardView', props: {} }
-      const root = this.root || folder // might be at root panel
-      const correctFolder = this.root ? folder : ''
-
-      const bundle = Object.assign({}, panel, {
-        root,
-        subfolder: correctFolder,
-        xsubfolder: correctFolder,
-      }) as any
-
-      bundle.yamlConfig = bundle.config
-      delete bundle.config
-
-      const text = JSON.stringify(bundle) as any
-      event.dataTransfer?.setData('bundle', text)
-    },
-
-    handleDragStartStop(dragState: boolean) {
-      this.isDragHappening = dragState
-    },
-
-    buildDragHighlightStyle(x: number, y: number) {
-      // console.log({ x, y })
-      // top row
-      if (x == -1) {
-        const opacity = this.dragQuadrant == 'rowTop' ? '1' : '0'
-        const pointerEvents = this.isDragHappening ? 'auto' : 'none'
-
-        return { top: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
-      }
-
-      // bottom row
-      if (x == -2) {
-        const opacity = this.dragQuadrant == 'rowBottom' ? '1' : '0'
-        const pointerEvents = this.isDragHappening ? 'auto' : 'none'
-        return { bottom: 0, opacity, pointerEvents, backgroundColor: '#ffcc4480' }
-      }
-
-      // tiles
-      if (x !== this.dragX || y !== this.dragY || !this.dragQuadrant) return {}
-
-      const backgroundColor = this.dragQuadrant.quadrant == 'center' ? '#00000000' : '#4444dd90'
-      const area: any = { opacity: 1.0, backgroundColor }
-      Object.entries(this.dragQuadrant).forEach(e => (area[e[0]] = `${e[1]}px`))
-      return area
-    },
-
-    stillDragging(props: { event: DragEvent; x: number; y: number; row: string }) {
-      if (!this.editMode) return
-
-      const { event, x, y, row } = props
-      this.isDragHappening = true
-
-      // console.log(222, props)
-      // row is special
-      if (row) {
-        this.dragQuadrant = row
-        return
-      }
-
-      this.dragX = x
-      this.dragY = y
-
-      const ref = this.$refs[`dragContainer${x}-${y}`] as any[]
-      const panel = ref[0]
-
-      // console.log(223, ref)
-
-      const pctX = event.layerX / panel.clientWidth
-      const pctY = event.layerY / panel.clientHeight
-
-      // console.log({ pctX, pctY })
-      let BORDER = 5
-
-      if (pctY < 0.1) {
-        this.dragQuadrant = {
-          quadrant: 'top',
-          width: panel.clientWidth - BORDER * 2,
-          height: panel.clientHeight * 0.2,
-          marginLeft: BORDER,
-          marginTop: BORDER,
-        }
-      } else if (pctY > 0.8) {
-        this.dragQuadrant = {
-          quadrant: 'bottom',
-          width: panel.clientWidth - BORDER * 2,
-          height: panel.clientHeight * 0.2,
-          marginLeft: BORDER,
-          marginTop: panel.clientHeight * 0.8 - BORDER,
-        }
-      } else if (pctX < 0.4) {
-        this.dragQuadrant = {
-          quadrant: 'left',
-          width: panel.clientWidth / 2 - BORDER * 2,
-          height: panel.clientHeight - BORDER * 2,
-          marginLeft: BORDER,
-          marginTop: BORDER,
-        }
-      } else if (pctX > 0.6) {
-        this.dragQuadrant = {
-          quadrant: 'right',
-          width: panel.clientWidth / 2 - BORDER * 2,
-          height: panel.clientHeight - BORDER * 2,
-          marginLeft: panel.clientWidth / 2 + BORDER,
-          marginTop: BORDER,
-        }
-      } else {
-        BORDER *= 5
-        const w = (panel.clientWidth - BORDER * 2) * 0.95
-        const h = (panel.clientHeight - BORDER * 2) * 0.95
-        this.dragQuadrant = {
-          quadrant: 'center',
-          width: w,
-          height: h,
-          marginLeft: (panel.clientWidth - w) / 2,
-          marginTop: (panel.clientHeight - h) / 2,
-        }
-      }
-      // console.log(225, this.dragQuadrant)
-    },
-
-    dragEnd() {
-      this.dragQuadrant = null
-      this.dragX = -1
-      this.dragY = -1
-
-      if (!this.editMode) return
-
-      this.handleDragStartStop(false)
-    },
-
-    xonDrop(props: { event: DragEvent; x: number; y: number; row: string }) {
-      if (!this.editMode) return
-      if (!this.dragQuadrant) return
-      // console.log(111, props)
-
-      const { event, x, y, row } = props
-
-      // monotonically increasing global for this dashboard:
-      // because cards come and go so they need unique numbers
-      this.cardCount++
-
-      const card = {
-        errors: [],
-        isLoaded: false,
-        number: this.cardCount,
-        id: `card-id-${this.cardCount}`,
-        showHeader: true,
-        title: '',
-        props: {},
-        // backgroundColor: `hsl(${(cardNumber * 100) % 360},60%,50%)`,
-      }
-
-      this.cardLookup[this.cardCount] = card
-
-      // alright this is complicated because this.config is a PROP
-      // and this.rows is built based on its content. But if we just
-      // modify this.rows then the etc...
-      const rowId = `row${1 + this.rows.length}`
-      try {
-        switch (this.dragQuadrant.quadrant) {
-          case 'top':
-            this.rows.splice(y, 0, { id: rowId, cards: [card] })
-            this.fixRowOrderAfterInsertion()
-            break
-          case 'bottom':
-            this.rows.splice(y + 1, 0, { id: rowId, cards: [card] })
-            this.fixRowOrderAfterInsertion()
-            break
-          case 'left':
-            this.rows[y].cards.splice(x, 0, card)
-            break
-          case 'right':
-            this.rows[y].cards.splice(x + 1, 0, card)
-            break
-        }
-      } catch (e) {
-        console.warn(e)
-      }
-
-      this.dragEnd()
-      this.resizeAllCards()
-      this.save()
-    },
-
-    /**
-     * After inserting a row, we also need to update this.config since it is an object containing
-     * the same things. This was probably a dumb design, but here we are.
-     * So now we want to get the keys in the same order as the array, WITHOUT
-     * creating a new object. Yay Vue!
-     */
-    fixRowOrderAfterInsertion() {
-      for (const key of Object.keys(this.config.layout)) delete this.config.layout[key]
-      this.rows.forEach((row, i) => {
-        this.config.layout[`row${i}`] = row.cards //
-      })
-    },
-
     /**
      * This only gets triggered when a topsheet has some titles.
      * Remove the dashboard titles and use the ones from the topsheet.
@@ -822,12 +561,10 @@ export default defineComponent({
       }
 
       await this.$nextTick()
+
       // tell each card to size sich selbst
-      for (const row of this.rows) {
-        for (const card of row.cards) {
-          this.updateDimensions(card.id)
-        }
-      }
+      for (const card of this.gridCards) this.updateDimensions(card.id)
+
       this.isResizing = false
     },
 
@@ -976,8 +713,8 @@ export default defineComponent({
       await this.$nextTick()
 
       this.activeTab = index
-      this.rows = [] // yyy
-      this.rowFlexWeights = []
+      // this.rows = [] // yyy
+      // this.rowFlexWeights = []
 
       // to give browser time to teardown: 0.2 seconds delay
       setTimeout(() => {
@@ -1113,9 +850,9 @@ export default defineComponent({
 
       if (this.subtabs.length && this.activeTab > -1) {
         const subtab = this.subtabs[this.activeTab]
-        this.setupRows(subtab.layout, subtab.subtabFolder)
+        this.convertOldLayoutToGridCards(subtab.layout, subtab.subtabFolder)
       } else if (this.yaml.layout) {
-        this.setupRows(this.yaml.layout)
+        this.convertOldLayoutToGridCards(this.yaml.layout)
       } else {
         this.$store.commit(
           'error',
@@ -1124,14 +861,27 @@ export default defineComponent({
       }
     },
 
-    setupRows(layout: any, subtabFolder?: string) {
+    convertOldLayoutToGridCards(layout: any, subtabFolder?: string) {
+      const allCards = [] as any
+
+      // each row has a max height, cards should match it
+      // convert card widths to explicit 12-based widths
+
+      let y = 0
+
       for (const rowId of Object.keys(layout)) {
         let cards: any[] = layout[rowId]
 
         // row must be an array - if it isn't, assume it is an array of length one
         if (!cards.forEach) cards = [cards]
 
-        let flexWeight = 1
+        //divide widths amongst 12 columns
+        const totalWidth = cards.reduce((a, card) => a + (card.width || 1), 0)
+        const rowHeight = cards.reduce((a, card) => {
+          return Math.floor(Math.max(a, card.height || 5))
+        }, 0)
+        const stride = 12 / totalWidth
+        let x = 0
 
         cards.forEach(card => {
           this.cardCount++
@@ -1140,17 +890,16 @@ export default defineComponent({
           card.isLoaded = false
           card.number = numCard
           this.cardLookup[card.id] = card
+          // calc xywh
+          let w = stride * (card.width || 1)
+          let h = rowHeight
+          card.gs_x = x
+          card.gs_y = y
+          card.gs_w = w
+          card.gs_h = h
 
-          // hoist flex weight if card has "height" and we are full-screen
-          try {
-            if (this.isFullScreenDashboard && card.height) {
-              flexWeight = Math.max(flexWeight, card.height)
-            }
-          } catch (e) {
-            console.error('' + e)
-            this.$emit('error', 'Dashboard YAML: non-numeric height')
-            flexWeight = 1
-          }
+          // for next card
+          x += w
 
           // make YAML easier to write: merge "props" property with other properties
           // so user doesn't need to specify "props: {...}"
@@ -1166,11 +915,15 @@ export default defineComponent({
           // Card header could be hidden
           if (!card.title && !card.description) card.showHeader = false
           else card.showHeader = true
+
+          // all done with this card, yay!
+          allCards.push(card)
         })
 
-        this.rows.push({ id: rowId, cards, subtabFolder })
-        this.rowFlexWeights.push(flexWeight)
+        y += rowHeight
       }
+      this.gridCards = allCards
+
       this.resizeAllCards()
       this.$emit('layoutComplete')
     },
@@ -1179,9 +932,8 @@ export default defineComponent({
       this.title = this.getDashboardLabel('title')
       this.description = this.getDashboardLabel('description')
 
-      if (this.yaml.header.theme) {
-        this.$store.commit('setTheme', this.yaml.header.theme)
-      }
+      const theme = this.yaml.header?.theme || this.yaml.dashboard?.theme
+      if (theme) this.$store.commit('setTheme', theme)
     },
 
     getObjectLabel(o: any, prefix: string) {
@@ -1197,22 +949,19 @@ export default defineComponent({
     },
 
     getDashboardLabel(element: 'title' | 'description') {
-      const header = this.yaml.header
+      const header = this.yaml.header || this.yaml.dashboard
       let tag = '...'
-
       if (this.$store.state.locale === 'de') {
         tag = header[`${element}_de`] || header[`${element}`] || header[`${element}_en`] || ''
       } else {
         tag = header[`${element}_en`] || header[`${element}`] || header[`${element}_de`] || ''
       }
-
       return tag
     },
 
     async handleCardIsLoaded(card: any) {
       card.isLoaded = true
       this.opacity[card.id] = 1.0
-      this.numberOfShownCards++
     },
 
     setupNarrowPanelObserver() {
@@ -1277,7 +1026,6 @@ export default defineComponent({
     try {
       await this.setupDashboard()
 
-      this.gridCards = this.buildGridCards()
       this.gridCards.forEach(card => {
         this.cardLookup[card.id] = card
       })
@@ -1569,27 +1317,6 @@ li.is-not-active b a {
   background-color: #88888833;
 }
 
-.drag-highlight {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin-left: 0px;
-  margin-top: 0px;
-  width: 100%;
-  height: 100%;
-  grid-row: 1 / 2;
-  grid-column: 1 / 2;
-  opacity: 0;
-  z-index: 10000;
-  border: 8px solid #00000000;
-  transition: background-color 0.2s, opacity 0.2s, height 0.2s, width 0.2s, margin-top 0.2s,
-    margin-left 0.2s;
-  transition-timing-function: ease-in;
-  pointer-events: none;
-}
-
 .edit-panel {
   overflow-y: auto;
   margin: 5.5rem -2px 17px 0;
@@ -1636,16 +1363,6 @@ li.is-not-active b a {
   font-weight: bold;
   margin-top: 1.5rem;
   color: var(--link);
-}
-
-.drag-tile {
-  border: 3px dotted $matsimBlue;
-  border-radius: 6px;
-  padding: 4px 10px 5px 10px;
-  cursor: grab;
-}
-.drag-tile:hover {
-  border: 3px dashed $matsimBlue;
 }
 
 .editable {
