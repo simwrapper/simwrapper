@@ -1020,30 +1020,6 @@ export default defineComponent({
   pointer-events: none;
 }
 
-// .control-buttons {
-//   // background-color: var(--bgPanel);
-//   padding: 0.25rem 0.5rem;
-//   z-index: 250;
-//   grid-row: 1 / 2;
-//   grid-column: 1 / 2;
-//   display: flex;
-//   flex-direction: column;
-//   margin: 0 auto auto 0;
-
-//   a {
-//     color: var(--textVeryPale);
-//     font-size: 0.9rem;
-//     margin: 2px 0rem 0.1rem -4px;
-//     padding: 2px 4px 1px 4px;
-//     border-radius: 10px;
-//   }
-
-//   a:hover {
-//     color: var(--textBold);
-//     background-color: var(--bgHover);
-//   }
-// }
-
 .left-panel-divider {
   position: absolute;
   top: 0;

@@ -3,8 +3,7 @@
   :id="viewId"
   @drop.stop
   :class="{wiide, 'is-panel-narrow': isPanelNarrow, 'is-fullscreen-dashboard': isFullScreenDashboard }"
-)
- .row-container.flex-row-reverse(style="height: 100%;")
+): .row-container.flex-row-reverse
 
   //- rightside card configuration panel -----------------
   .edit-panel(v-if="editMode && currentCard")
@@ -83,7 +82,7 @@
 
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
-    #grid-stack-holder(:style="{overflow: fullScreenCardId ? 'hidden':'auto'}")
+    #grid-stack-holder
       .grid-stack(:style="{marginLeft: editMode ? '0':'-10px'}")
 
         .grid-stack-item(v-for="card in gridCards" :key="card.id"
@@ -1092,15 +1091,6 @@ export default defineComponent({
           this.yaml.header.fillscreen
       }
     },
-
-    getRowClass(row: any) {
-      const rowClass = {
-        'is-panel-narrow': this.isPanelNarrow,
-        'is-fullscreen-dashboard': this.isFullScreenDashboard,
-      } as any
-      rowClass[`row-${row.id}`] = true
-      return rowClass
-    },
   },
 
   async mounted() {
@@ -1170,20 +1160,15 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .dashboard {
-  margin: 0 0;
-  padding: 0 0;
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
 
   .dashboard-content {
     max-width: $dashboardWidth;
     margin: 0rem auto;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .dashboard-content.wiide {
@@ -1212,29 +1197,6 @@ export default defineComponent({
     background-color: var(--bgPanel2);
     border-radius: 4px;
   }
-}
-
-.dash-row {
-  display: flex;
-  flex-direction: row;
-}
-
-// FULL-SCREEN-DASHBOARD
-
-.dashboard.is-fullscreen-dashboard {
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard .dashboard-content.is-fullscreen-dashboard {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.dash-row.is-fullscreen-dashboard {
-  flex: 1;
 }
 
 #grid-stack-holder {
@@ -1356,11 +1318,7 @@ export default defineComponent({
 // }
 
 .dashboard-header.is-panel-narrow {
-  margin: 1rem 1rem 1rem 0rem;
-}
-
-.dash-row.is-panel-narrow {
-  flex-direction: column;
+  // margin: 1rem 1rem 1rem 0rem;
 }
 
 .dash-card-frame.is-panel-narrow {
@@ -1551,4 +1509,8 @@ li.is-not-active b a {
 // .action-button:focus {
 //   color: black !important;
 // }
+
+.row-container {
+  height: 100%;
+}
 </style>

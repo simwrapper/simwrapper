@@ -1,73 +1,77 @@
 <template lang="pug">
-.tabbed-folder-view
+.tabbed-dashboard-view
 
   p.load-error(v-show="loadErrorMessage" @click="authorizeAfterError"): b {{ loadErrorMessage }}
 
-  .tabholder(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
-    .tab-holder-container.flex-col.white-text
-      .project-path.flex-row(v-show="!header")
-          bread-crumbs.breadcrumbs(
-              :root="root"
-              :subfolder="xsubfolder"
-              @navigate="onNavigate"
-              @crumbs="updateCrumbs"
+  .breadcrumb-row.flex-col.white-text(v-if="isShowingBreadcrumbs && !isMultipanel && !isZoomed" :style="dashWidthCalculator")
+    .project-path.flex-row(v-show="!header")
+        bread-crumbs.breadcrumbs(
+            :root="root"
+            :subfolder="xsubfolder"
+            @navigate="onNavigate"
+            @crumbs="updateCrumbs"
+        )
+        p.favorite-icon(v-if="!header"
+            @click="clickedFavorite"
+            title="Favorite"
+            :class="{'is-favorite': isFavorite}"
+        ): i.fa.fa-star
+
+    .project-header(v-if="header" v-html="header")
+
+  .main-content-area
+
+      //- -------------- left-side Dashboard picker ----------------
+      .dashboard-finder(:class="{isMultipanel, isZoomed}")
+        //- ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
+        ul.dashboard-right-sections(v-show="!isZoomed")
+          li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
+            :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
+            :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
+            :contenteditable="editMode"
+            @click="switchLeftTab(tab,index)"
+          ) {{ dashboards[tab].header.tab }}
+            //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
+            //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
+
+          b-button.button-add-dashboard.is-outlined(v-if="canEditThisRoot"
+            :class="globalState.isDarkMode ? 'is-success' : 'is-link'"
+            type="is-small"
+            title="Add/edit new dashboard panel in this folder"
+            @click="addNewTab()"
           )
-          p.favorite-icon(v-if="!header"
-              @click="clickedFavorite"
-              title="Favorite"
-              :class="{'is-favorite': isFavorite}"
-            ): i.fa.fa-star
+            i.fa.fa-plus
+            span &nbsp;&nbsp;Dashboard&nbsp;
 
-      .project-header(v-if="header" v-html="header")
-
-  .dashboard-finder(:class="{isMultipanel, isZoomed}")
-    //- ul.dashboard-right-sections(v-show="!isZoomed && Object.keys(dashboards).length > 1")
-    ul.dashboard-right-sections(v-show="!isZoomed")
-      li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
-        :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
-        :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
-        :contenteditable="editMode"
-        @click="switchLeftTab(tab,index)"
-      ) {{ dashboards[tab].header.tab }}
-        //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
-        //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
-
-      b-button.action-button.is-outlined(v-if="canEditThisRoot"
-        :type="globalState.isDarkMode ? 'is-success' : 'is-link'"
-        size="is-small"
-        title="Add/edit new dashboard panel in this folder"
-        @click="addNewTab()"
+      //- ------------- Actual dashboard content goes here ----------
+      .dashboard-container(
+        v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
+        :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
       )
-        i.fa.fa-plus
-        span &nbsp;Dashboard
+          dash-board.fill-my-container(
+            :root="root"
+            :xsubfolder="xsubfolder"
+            :config="dashboards[dashboardTabWithDelay]"
+            :datamanager="dashboardDataManager"
+            :zoomed="isZoomed"
+            :allConfigFiles="allConfigFiles"
+            :activeTabFilename="activeTab"
+            :split="split"
+            :editMode="editMode"
+            @zoom="handleZoom"
+            @layoutComplete="handleLayoutComplete"
+            @edit="toggleEditMode"
+          )
 
-    .dashboard-container(
-      v-if="dashboardTabWithDelay && dashboardTabWithDelay !== 'FILE__BROWSER' && dashboards[dashboardTabWithDelay] && dashboards[dashboardTabWithDelay].header.tab !== '...'"
-      :class="{'is-breadcrumbs-hidden': !isShowingBreadcrumbs && !isZoomed}"
-    )
-      dash-board(
+      //- ----------- Alternative main content: folder browser ------
+      folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
         :root="root"
         :xsubfolder="xsubfolder"
-        :config="dashboards[dashboardTabWithDelay]"
-        :datamanager="dashboardDataManager"
-        :zoomed="isZoomed"
         :allConfigFiles="allConfigFiles"
-        :activeTabFilename="activeTab"
-        :split="split"
-        :editMode="editMode"
-        @zoom="handleZoom"
-        @layoutComplete="handleLayoutComplete"
+        @navigate="onNavigate"
+        @up="goUpOneFolder()"
         @edit="toggleEditMode"
       )
-
-    folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
-      :root="root"
-      :xsubfolder="xsubfolder"
-      :allConfigFiles="allConfigFiles"
-      @navigate="onNavigate"
-      @up="goUpOneFolder()"
-      @edit="toggleEditMode"
-    )
 
   footer.footer-holder(v-show="showFooter && !isZoomed" :class="{wiide}" :style="dashWidthCalculator")
     .tab-holder-container(:class="{wiide}")
@@ -710,16 +714,22 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-.tabbed-folder-view {
+.tabbed-dashboard-view {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
   display: flex;
   flex-direction: column;
   background-color: var(--bgDashboard);
-  flex-direction: column;
+  // padding: 1rem;
+}
+
+.main-content-area {
+  position: relative;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .centered-vessel.wiide {
@@ -736,9 +746,10 @@ export default defineComponent({
   border-bottom-color: var(--bgDashboard);
 }
 
-.tabholder {
+.breadcrumb-row {
   z-index: 50;
-  padding: 0.5rem 0rem 0.5rem 0rem;
+  // margin: 0 0 0.5rem 0;
+  padding: 0.5rem 1.25rem 0.5rem 1rem;
 }
 
 .tab-holder-container {
@@ -755,11 +766,12 @@ li.is-not-active b a {
 
 .dashboard-finder {
   display: flex;
-  flex: 1;
-  flex-direction: row;
+  flex-direction: column;
   padding: 0 0.5rem; // $cardSpacing;
-  position: relative;
-  overflow-y: auto;
+}
+
+.fill-my-container {
+  height: 100%;
 }
 
 .dashboard-finder.isMultipanel {
@@ -787,9 +799,8 @@ li.is-not-active b a {
 }
 
 .dashboard-folder-browser {
-  // margin: 2rem 2rem 1rem 1rem;
-  // padding-top: 1rem;
   flex: 1;
+  position: relative;
 }
 
 .tab-list {
@@ -987,9 +998,20 @@ img {
   }
 }
 
-.action-button {
-  margin-top: auto;
-  margin-right: auto;
-  // padding: 0 !important;
+.button-add-dashboard {
+  margin-top: 2rem;
+  font-family: Outfit !important;
+  font-weight: 300;
+  font-size: 11px;
+  line-height: 1.1rem !important;
+  color: var(--text) !important;
+  padding: 0 0.5rem !important;
+  border: 1px solid #80808040 !important;
+}
+
+.button-add-dashboard:hover,
+.button-add-dashboard:active,
+.button-add-dashboard:focus {
+  color: black !important;
 }
 </style>
