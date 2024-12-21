@@ -32,7 +32,11 @@
         //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
-      b-button.action-button.is-outlined(:type="globalState.isDarkMode ? 'is-success' : 'is-link'" size="is-small" @click="toggleEditMode()" title="Add/edit new dashboard panel in this folder")
+      b-button.action-button.is-outlined(:type="globalState.isDarkMode ? 'is-success' : 'is-link'"
+        size="is-small"
+        title="Add/edit new dashboard panel in this folder"
+        @click="toggleEditMode()"
+      )
         i.fa.fa-plus
         span &nbsp;Dashboard
 

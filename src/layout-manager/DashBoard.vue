@@ -95,10 +95,7 @@
           :style="getCardStyle(card)"
         )
 
-          .grid-stack-item-content(
-              :class="{wiide, 'is-panel-narrow': isPanelNarrow}"
-              :ref="`dragContainer${card.x}-${card.y}`"
-          )
+          .grid-stack-item-content(:class="{wiide, 'is-panel-narrow': isPanelNarrow}")
             .dash-card-frame
               //- card header, title, buttons ---------------
               .dash-card-headers(v-if="editMode || (card.title + card.description)"
@@ -180,7 +177,8 @@ import CardSchemas, { CardField } from '@/dash-panels/_cardSchemas'
 
 import MarkdownIt from 'markdown-it'
 import HighlightJS from 'highlight.js'
-const MD_PARSER = new MarkdownIt({
+
+const MD_SYNTAX_HIGHLIGHTER = new MarkdownIt({
   highlight: function (str, lang) {
     if (lang && HighlightJS.getLanguage(lang)) {
       try {
@@ -382,8 +380,7 @@ export default defineComponent({
 
     htmlConfiguration() {
       const config = this.stringifyConfiguration()
-
-      const html = MD_PARSER.render('```yaml\n' + config + '\n```')
+      const html = MD_SYNTAX_HIGHLIGHTER.render('```yaml\n' + config + '\n```')
       return html
     },
 
@@ -395,8 +392,8 @@ export default defineComponent({
       const subtitle = this.$refs['pageSubtitle']?.innerText || ''
 
       output.dashboard = {
-        title: title.trim(),
-        description: subtitle.trim(),
+        title: title?.trim() || '',
+        description: subtitle?.trim() || '',
       }
       if (this.isFullScreenDashboard) output.dashboard.fullscreen = true
 
@@ -410,8 +407,8 @@ export default defineComponent({
       this.gridCards.forEach((card, i) => {
         const trimmed = {
           type: card.type,
-          title: card.title,
-          description: card.description,
+          title: card.title || '',
+          description: card.description || '',
           width: card.width,
           ...card.props,
         }
@@ -440,7 +437,7 @@ export default defineComponent({
       // const html = MD_PARSER.render('```toml\n' + toml + '\n```')
 
       // HTMLify
-      const html = MD_PARSER.render('```yaml\n' + yaml + '\n```')
+      const html = MD_SYNTAX_HIGHLIGHTER.render('```yaml\n' + yaml + '\n```')
       return html
     },
 
@@ -461,19 +458,22 @@ export default defineComponent({
     },
 
     deleteCard(card: any) {
-      const cardNum = card.number
-      console.log('DELETE CARD NUMBER', cardNum)
-
       const whichCard = document.getElementById(`x-${card.id}`)
-      if (whichCard) {
-        this.grid.removeWidget(whichCard)
-        // this.resizeAllCards()
-        this.grid.compact('list')
+
+      if (!whichCard) {
+        console.log('UH-OH', whichCard)
         return
       }
 
-      console.log('UH-OH')
-      return
+      // remove from GridStack
+      this.grid.removeWidget(whichCard)
+      this.grid.compact('list')
+
+      // remove from card list
+      const id = whichCard.id?.substring(2)
+      if (id) this.gridCards = this.gridCards.filter(c => c.id !== id)
+
+      // this.resizeAllCards()
     },
 
     hideConfigPanel() {
@@ -505,14 +505,18 @@ export default defineComponent({
       this.save()
     },
 
-    changeCardType(cardType: any) {
+    async changeCardType(cardType: any) {
       console.log({ cardType })
       this.currentCardType = cardType
       this.currentCard.type = cardType
       this.currentCard.errors = []
       // if (this.currentCard.title.startsWith('Blank card')) {
-      this.currentCard.title = this.cardSchemas[cardType].label
+      if (cardType) this.currentCard.title = this.cardSchemas[cardType].label
       // }
+
+      // this.currentCardType = ''
+      // await this.$nextTick()
+      // this.currentCardType = cardType
       this.save()
     },
 
@@ -896,7 +900,7 @@ export default defineComponent({
         card.isLoaded = false
         card.number = numCard
         this.cardLookup[card.id] = card
-        // calc xywh
+        // calc x-y-w-h
         try {
           const [x, y, w, h] = card.gridXYWH.split(',').map((v: string) => parseInt(v.trim()))
           card.gs_x = x
@@ -1113,14 +1117,17 @@ export default defineComponent({
     this.grid = GridStack.init({
       float: false,
       cellHeight: '60px',
-      cellHeightThrottle: 200,
+      cellHeightThrottle: 200, // ms
+      column: 12, // max/always 12 columns
+      disableOneColumnMode: false, // responsive to 1-col if narrow
       minRow: 1,
       resizable: { handles: 'se,sw' },
       // margin: 0,
-    })
+    } as any)
 
-    // default: no editing
-    this.grid.disable()
+    // default: no editing unless editMode is already enabled
+    if (!this.editMode) this.grid.disable()
+
     this.grid.on('change', this.resizeAllCards)
     this.grid.on('resize', this.resizeAllCards)
   },
@@ -1252,7 +1259,7 @@ export default defineComponent({
     background-color: #1066e738;
     border-radius: 4px;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: background-color 0.2s ease;
   }
 
   .header-buttons {
@@ -1301,7 +1308,7 @@ export default defineComponent({
   }
 
   .u-cant-touch-this {
-    pointer-events: none;
+    pointer-events: none !important;
   }
 }
 
