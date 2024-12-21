@@ -26,16 +26,17 @@
       li.tab-list(v-for="tab,index in Object.keys(dashboards)" :key="tab"
         :class="{'is-active': tab===activeTab, 'is-not-active': tab!==activeTab}"
         :style="{opacity: tab===activeTab ? 1.0 : 0.75}"
-        contenteditable
+        :contenteditable="editMode"
         @click="switchLeftTab(tab,index)"
       ) {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" :href="`${$route.path}?tab=${index+1}`") {{ dashboards[tab].header.tab }}
         //- a(v-if="dashboards[tab].header" @click="switchLeftTab(tab,index)") {{ dashboards[tab].header.tab }}
 
-      b-button.action-button.is-outlined(:type="globalState.isDarkMode ? 'is-success' : 'is-link'"
+      b-button.action-button.is-outlined(v-if="canEditThisRoot"
+        :type="globalState.isDarkMode ? 'is-success' : 'is-link'"
         size="is-small"
         title="Add/edit new dashboard panel in this folder"
-        @click="toggleEditMode()"
+        @click="addNewTab()"
       )
         i.fa.fa-plus
         span &nbsp;Dashboard
@@ -51,12 +52,13 @@
         :datamanager="dashboardDataManager"
         :zoomed="isZoomed"
         :allConfigFiles="allConfigFiles"
+        :activeTabFilename="activeTab"
         :split="split"
         :editMode="editMode"
         @zoom="handleZoom"
         @layoutComplete="handleLayoutComplete"
         @edit="toggleEditMode"
-        )
+      )
 
     folder-browser.dashboard-folder-browser(v-if="dashboardTabWithDelay && dashboardTabWithDelay === 'FILE__BROWSER'"
       :root="root"
@@ -109,6 +111,7 @@ export default defineComponent({
     return {
       activeTab: '',
       allConfigFiles: { dashboards: {}, topsheets: {}, vizes: {}, configs: {} } as YamlConfigs,
+      canEditThisRoot: false,
       crumbs: [] as any,
       customCSS: '',
       dashboards: {} as { [path: string]: { header: any; cards: any[] } },
@@ -146,6 +149,7 @@ export default defineComponent({
     fileApi(): HTTPFileSystem {
       return new HTTPFileSystem(this.fileSystem, globalStore)
     },
+
     fileSystem(): FileSystemConfig {
       const svnProject: FileSystemConfig[] = this.$store.state.svnProjects.filter(
         (a: FileSystemConfig) => a.slug === this.root
@@ -156,6 +160,7 @@ export default defineComponent({
       }
       return svnProject[0]
     },
+
     wiide(): boolean {
       return this.$store.state.isFullWidth
     },
@@ -196,18 +201,15 @@ export default defineComponent({
     },
   },
   methods: {
-    async toggleEditMode(mode?: boolean) {
-      if (mode == undefined) {
-        this.editMode = !this.editMode
-      } else {
-        this.editMode = mode
-      }
-
-      this.dashboards['Dashboard 1'] = {
+    addNewTab() {
+      // guess starting titles and sizes
+      const numberOfTabs = Object.keys(this.dashboards).length
+      const title = `Dashboard ${numberOfTabs}`
+      this.dashboards[`Dashboard ${numberOfTabs}`] = {
         header: {
-          title: 'Dashboard 1',
+          title,
+          tab: `Tab ${numberOfTabs}`,
           description: 'Subtitle',
-          tab: 'Tab 1',
           fullscreen: false,
         },
         cards: [{ title: 'Blank panel', gridXYWH: '0,0,6,5', props: {} }],
@@ -217,6 +219,19 @@ export default defineComponent({
       const FILE__BROWSER = this.dashboards.FILE__BROWSER
       delete this.dashboards.FILE__BROWSER
       this.dashboards = { ...this.dashboards, FILE__BROWSER }
+
+      // flip to it
+      this.editMode = true
+      const index = Object.keys(this.dashboards).indexOf(title)
+      this.switchLeftTab(title, index)
+    },
+
+    async toggleEditMode(mode?: boolean) {
+      if (mode == undefined) {
+        this.editMode = !this.editMode
+      } else {
+        this.editMode = mode
+      }
     },
 
     clearStyles() {
@@ -570,6 +585,9 @@ export default defineComponent({
       this.footer = ''
       this.dashboards = {}
       this.pageHeader = this.getPageHeader()
+
+      // Some roots are editable!
+      this.canEditThisRoot = this.fileApi.hasHandle()
 
       // this happens async
       this.findConfigsAndDashboards()

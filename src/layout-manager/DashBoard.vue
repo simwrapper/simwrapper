@@ -50,7 +50,7 @@
       //- dashboard title and subtitle
       .title-and-subtitle.flex-row-reverse
         //- edit dashboard link
-        .edit-button(v-if="!editMode" style="margin: auto 0 0 0;")
+        .edit-button(v-if="canEditThisRoot && !editMode" style="margin: auto 0 0 0;")
           b-button.action-button.is-outlined(:class="globalState.isDarkMode ? 'is-success':'is-link'" type="is-small" @click="$emit('edit')" title="Edit this dashboard")
             i.fa.fa-edit
             span &nbsp;edit
@@ -208,6 +208,7 @@ export default defineComponent({
     root: { type: String, required: true },
     xsubfolder: { type: String, required: true },
     allConfigFiles: { type: Object as PropType<YamlConfigs>, required: true },
+    activeTabFilename: { type: String, required: true },
     datamanager: { type: Object as PropType<DashboardDataManager>, required: true },
     split: { type: Object, required: true }, // {y,x}
     gist: Object as any,
@@ -250,10 +251,15 @@ export default defineComponent({
       xsave: {} as any,
       grid: undefined as any,
       gridCards: [] as any[],
+      suggestedSaveName: '',
     }
   },
 
   computed: {
+    canEditThisRoot() {
+      return this.fileApi.hasHandle()
+    },
+
     dashWidthCalculator(): any {
       if (this.$store.state.dashboardWidth && this.$store.state.isFullWidth) {
         return { maxWidth: this.$store.state.dashboardWidth }
@@ -346,18 +352,38 @@ export default defineComponent({
         return
       }
 
+      // guess a good filename
+      if (!this.suggestedSaveName) {
+        let name = this.activeTabFilename
+        let slash = name.lastIndexOf('/')
+
+        if (slash > -1) name = name.substring(1 + slash)
+        if (!name.endsWith('.yaml')) name += '.yaml'
+
+        name = name.replaceAll(' ', '-').toLocaleLowerCase()
+        this.suggestedSaveName = name
+      }
+
       if (!this.saveHandle) {
         const dirContents = await this.fileApi.getDirectory(this.xsubfolder)
         const currentDirHandle = dirContents.handles['.']
         const options = {
           startIn: currentDirHandle,
-          suggestedName: 'dashboard-1.yaml',
+          suggestedName: this.suggestedSaveName,
           types: [
             { accept: { 'application/yaml': ['.yaml'] }, description: 'SimWrapper config files' },
           ],
         }
-        const handle = await showSaveFilePicker(options)
-        this.saveHandle = handle
+
+        try {
+          const handle = await showSaveFilePicker(options)
+          this.saveHandle = handle
+          // remember name
+          this.suggestedSaveName = handle.name
+        } catch (e) {
+          console.warn('User cancelled or other error')
+          return
+        }
       }
 
       // const contents = YAML.stringify(this.config)
@@ -369,7 +395,6 @@ export default defineComponent({
       await writable.write(contents)
       await writable.close()
       console.log('---written.')
-      // this.$emit('edit', false)
     },
 
     handleEscapeKey(event: any) {
