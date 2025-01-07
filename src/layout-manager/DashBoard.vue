@@ -71,8 +71,7 @@
             i.fa.fa-save
             span &nbsp;&nbsp;save
 
-
-    .tabs.is-centered(v-if="subtabs.length")
+    .tabs.is-centered(v-if="subtabs.length > 1")
       ul.tab-row
         li.tab-entry(v-for="subtab,index of subtabs" :key="index"
           :class="{'is-active': index===activeTab, 'is-not-active': index!==activeTab}"
@@ -84,7 +83,6 @@
     //- ...see gridstackjs.com
     #grid-stack-holder
       .grid-stack(:style="{marginLeft: editMode ? '0':'-10px'}")
-
         .grid-stack-item(v-for="card in gridCards" :key="card.id"
           :gs-x="fullScreenCardId ? 0 : card.gs_x"
           :gs-y="fullScreenCardId ? 0 : card.gs_y"
@@ -174,6 +172,13 @@ import { sleep } from '@/js/util'
 
 import CardSchemas, { CardField } from '@/dash-panels/_cardSchemas'
 
+export interface Subtab {
+  title?: string
+  title_en?: string
+  title_de?: string
+  cards: any[]
+}
+
 import MarkdownIt from 'markdown-it'
 import HighlightJS from 'highlight.js'
 
@@ -234,8 +239,9 @@ export default defineComponent({
       opacity: {} as any,
       narrowPanelObserver: null as ResizeObserver | null,
       isPanelNarrow: false,
-      // subtab state:
-      subtabs: [] as any[],
+      // subtabs contains the card definitions for all subtabs;
+      // all cards in are subtabs[0] when there are "no subtabs"
+      subtabs: [] as Subtab[],
       activeTab: 0,
       dashboardTabWithDelay: -1,
       showFooter: false,
@@ -585,9 +591,8 @@ export default defineComponent({
 
       if (this.grid && this.isFullScreenDashboard) {
         // Fill-Window mode requires some GridStack hacking. ------
-        const totalGridHeight = this.grid.getGridItems().reduce((a: number, b: any) => {
-          return Math.max(a, b.gridstackNode.y + b.gridstackNode.h)
-        }, 0)
+        const totalGridHeight = this.grid.getRow() || 5
+        console.log({ totalGridHeight })
         const parentElement = document.getElementById('grid-stack-holder') as HTMLElement
         const height = parentElement.clientHeight
         const newPixHeight = Math.floor(height / totalGridHeight)
@@ -678,8 +683,15 @@ export default defineComponent({
       // const defaultHeight = card.type === 'text' ? undefined : 300
 
       // old version:  plotlyChartTypes[card.type] ? 300 : undefined
-
       // const height = card.height ? card.height * 60 : defaultHeight
+
+      // //--- SUBTABS: skip this card entirely if it's not part of the current subtab ---
+      // console.log(555, card.id, card.subtab, this.subtabIds)
+      // if (this.subtabIds.length && card.subtab !== this.subtabIds[this.activeTab]) {
+      //   // console.log(555, { subtab: card.subtab, subtabs: this.subtabs, subtabIDs: this.subTabIds })
+      //   return { display: 'none' }
+      // }
+
       const flex = card.width || 1
 
       let style: any = { flex: flex }
@@ -736,9 +748,9 @@ export default defineComponent({
       let tab = this.subtabs[index]
 
       if (this.$store.state.locale === 'de') {
-        title = tab.subtab_de || tab.subtab || tab.subtab_en
+        title = tab.title_de || tab.title || tab.title_en || title
       } else {
-        title = tab.subtab_en || tab.subtab || tab.subtab_de
+        title = tab.title_en || tab.title || tab.title_de || title
       }
       return title
     },
@@ -750,96 +762,114 @@ export default defineComponent({
       this.dashboardTabWithDelay = -1
       this.showFooter = false
 
+      this.grid.removeAll()
+      this.gridCards = []
+
       await this.$nextTick()
 
+      // to give browser time to teardown: 0.25 seconds delay
+      // setTimeout(() => {
+      this.dashboardTabWithDelay = index
+      const { subtab, ...queryWithoutSubtab } = this.$route.query
+      if (index) {
+        this.$router.replace({
+          query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
+        })
+      } else {
+        this.$router.replace({ query: {} })
+      }
+      await this.$nextTick()
       this.activeTab = index
-      // this.rows = [] // yyy
-      // this.rowFlexWeights = []
-
-      // to give browser time to teardown: 0.2 seconds delay
-      setTimeout(() => {
-        this.dashboardTabWithDelay = index
-        const { subtab, ...queryWithoutSubtab } = this.$route.query
-        if (index) {
-          this.$router.replace({
-            query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
-          })
-        } else {
-          this.$router.replace({ query: {} })
-        }
-        this.selectTabLayout()
-      }, 200)
+      this.gridCards = this.subtabs[index].cards
+      // }, 250)
     },
 
     async setupDashboard() {
+      this.yaml = await this.processYaml()
+      this.subtabs = this.setupSubtabs()
+      this.updateThemeAndLabels()
+      await this.generateStartupView()
+    },
+
+    async processYaml() {
+      let yaml = {} as any
+
       // Do we have config already or do we need to fetch it from the yaml file?
       if (this.config) {
-        this.yaml = this.config
+        yaml = this.config
       } else if (this.gist) {
-        this.yaml = this.gist
+        yaml = this.gist
       } else {
-        const yaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
-        this.yaml = YAML.parse(yaml)
+        const rawyaml = await this.fileApi.getFileText(`${this.xsubfolder}/dashboard.yaml`)
+        yaml = YAML.parse(rawyaml)
       }
 
       // fix up renamed sections in new YAML config: dashboard=header; cards=layout
-      if (this.yaml.dashboard) {
-        this.yaml.header = this.yaml.dashboard
-        delete this.yaml.dashboard
+      if (yaml.dashboard) {
+        yaml.header = this.yaml.dashboard
+        delete yaml.dashboard
       }
       if (this.yaml.card) {
-        this.yaml.cards = this.yaml.card
-        delete this.yaml.card
+        yaml.cards = this.yaml.card
+        delete yaml.card
       }
+      return yaml
+    },
 
-      // set header
-      this.updateThemeAndLabels()
-
-      // if there are subtabs, prepare them
-      if (this.yaml.subtabs) this.subtabs = await this.setupSubtabs()
+    async generateStartupView() {
+      // if there are OLDstyle subtabs, prepare them
+      if (this.yaml.subtabs) this.subtabs = await this.setupOldSubtabs()
 
       this.setFullScreen()
 
-      // // Start on correct subtab
+      this.activeTab = 0
       if (this.$route.query.subtab) {
         try {
           const userSupplied = parseInt('' + this.$route.query.subtab) - 1
           this.activeTab = userSupplied || 0
         } catch (e) {
-          // user spam; just use first tab
+          // url spam; just use first tab
           this.activeTab = 0
         }
-      } else {
-        this.activeTab = 0
       }
 
       this.dashboardTabWithDelay = this.activeTab
-      this.selectTabLayout()
+      this.gridCards = this.subtabs[this.activeTab].cards
+      this.resizeAllCards()
+      this.$emit('layoutComplete')
+
+      // this.buildGridCardsFromConfig()
     },
 
-    async setupSubtabs() {
-      // YAML definition of subtabs can be:
-      // 1) false/missing: no subtabs.
-      // 2) true: convert each row property of the layout to a subtab
-      // 3) array of dashboard*.yaml filenames: each subtab will contain the
-      //     imported dashboard contents
-      // 4) array[] of row IDs that comprise each subtab, so you can combine rows as you wish
-      //
-      //    subtabs:
-      //    - title: 'Tab1'
-      //      rows: ['modeshare','statistics']
-      //
-      // this.subtabs will then hold an array with the title and layout object for each subtab.
+    // this.subtabs will hold an array with the titles and card list for each subtab.
+    // If there are no subtabs specified, then all cards will be in subtab[0]
+    async setupOldSubtabs() {
+      // --- Parsing NEW LAYOUTS: ------------------------
+      // 1) Each card can have a subtab: "tabname" which assigns the card to that subtab.
+      //     If subtabs are specified for any card, then all cards *without* a subtab field will be assigned to a "General" subtab.
+      // 2) A top level "subtabs:" array of dashboard*.yaml filenames can also be provided:
+      //     Each subtab will contain the imported dashboard contents.
+      // 3) If both forms are specified, then the imported subtabs will follow the subtabs from this YAML.
 
-      let i = 1
-      const subtabs = [] as any
+      // --- Parsing OLD LAYOUTS: -------------------------
+      // 1) false/missing: no subtabs; everything goes in subtabs[0]
+      // 2) true: convert each row property of the layout to a subtab
+      // 3) array of dashboard*.yaml filenames: each subtab will contain the imported dashboard contents
+      // 4) array[{title, rows}] providing row IDs that comprise each subtab, so you can combine rows as you wish
+      //     subtabs:
+      //     - title: 'Tab1'
+      //       rows: ['modeshare','statistics']
+
+      const subtabs = [] as Subtab[]
 
       // "TRUE": convert each layout row to a subtab ------------------
       if (this.yaml.subtabs === true) {
-        // One subtab per layout object.
+        // One subtab per layout row.
         const allRowKeys = new Set(Object.keys(this.yaml.layout))
         for (const rowKey of allRowKeys) {
-          subtabs.push({ title: rowKey, layout: this.yaml.layout[rowKey] })
+          const row = this.yaml.layout[rowKey]
+          for (const card of row) card.subtab = rowKey
+          subtabs.push({ title: rowKey, cards: this.yaml.layout[rowKey] })
         }
         return subtabs
       }
@@ -852,22 +882,21 @@ export default defineComponent({
 
       // "Array of filepaths": load each dashboard as a subtab --------------
       if (typeof this.yaml.subtabs[0] == 'string') {
-        this.yaml.layout = []
+        // TODO why is this here: this.yaml.layout = []
         for (const filename of this.yaml.subtabs) {
           // get full path to the dashboard file
           const fullpath = `${this.xsubfolder}/${filename}`
           // also get the working directory of that dashboard file
           const subtabWorkingDirectory = fullpath.substring(0, fullpath.lastIndexOf('/'))
-
           try {
             const raw = await this.fileApi.getFileText(fullpath)
             const dashContent = YAML.parse(raw)
             const subtab = {
               title: dashContent.header.tab || dashContent.header.title || filename,
               description: dashContent.description,
-              layout: dashContent.layout,
+              cards: dashContent.layout,
               subtabFolder: subtabWorkingDirectory,
-            } as any
+            }
             subtabs.push(subtab)
           } catch (e) {
             console.error('' + e)
@@ -881,31 +910,33 @@ export default defineComponent({
       for (const tab of this.yaml.subtabs) {
         subtabs.push({
           title: this.getObjectLabel(tab, 'title'),
-          layout: tab.rows.map((rowName: string) => {
+          cards: tab.rows.map((rowName: string) => {
             allRowKeys.delete(rowName)
             return this.yaml.layout[rowName]
           }),
         })
       }
+      // if user missed any rows, add them at the end
       for (const leftoverKey of allRowKeys) {
-        // if user missed any rows, add them at the end
-        subtabs.push({ title: leftoverKey, layout: this.yaml.layout[leftoverKey] })
+        subtabs.push({ title: leftoverKey, cards: this.yaml.layout[leftoverKey] })
       }
 
       return subtabs
     },
 
-    selectTabLayout() {
-      if (this.yaml.cards) {
-        this.convertNewLayoutToGridCards()
-        return
-      }
+    buildGridCardsFromConfig() {
+      // if (this.yaml.cards) {
+      //   this.convertNewLayoutToGridCards()
+      //   return
+      // }
 
       // Choose subtab or full layout
-      if (this.subtabs.length && this.activeTab > -1) {
-        const subtab = this.subtabs[this.activeTab]
-        this.convertOldLayoutToGridCards(subtab.layout, subtab.subtabFolder)
-      } else if (this.yaml.layout) {
+      // if (this.subtabIds.length && this.activeTab > -1) {
+      //   const subtab = this.subtabs[this.activeTab]
+      //   this.convertOldLayoutToGridCards(subtab.layout)
+      // } else
+
+      if (this.yaml.layout) {
         this.convertOldLayoutToGridCards(this.yaml.layout)
       } else {
         this.$store.commit('error', `Dashboard YAML: could not find subtab ${this.activeTab}`)
@@ -914,9 +945,11 @@ export default defineComponent({
 
     // new layout: array of cards instead of layout rows.
     // Each card has gridXYWH that defines layout
-    convertNewLayoutToGridCards() {
-      const allCards = [] as any
+    setupSubtabs() {
+      const DEFAULTCARD = 'General'
+      const tabs = {} as { [id: string]: any[] }
 
+      console.log(952, this.yaml)
       for (const card of this.yaml.cards) {
         this.cardCount++
         const numCard = this.cardCount
@@ -924,6 +957,7 @@ export default defineComponent({
         card.isLoaded = false
         card.number = numCard
         this.cardLookup[card.id] = card
+
         // calc x-y-w-h
         try {
           const [x, y, w, h] = card.gridXYWH.split(',').map((v: string) => parseInt(v.trim()))
@@ -951,17 +985,25 @@ export default defineComponent({
         if (!card.title && !card.description) card.showHeader = false
         else card.showHeader = true
 
-        // all done with this card, yay!
-        allCards.push(card)
+        // add to subtab
+        const tab = card.subtab || DEFAULTCARD
+        if (!tabs[tab]) tabs[tab] = []
+        tabs[tab].push(card)
       }
 
-      this.gridCards = allCards
-      this.resizeAllCards()
-      this.$emit('layoutComplete')
+      // give all tabs a title
+      let subtabs = [] as Subtab[]
+      for (const tab of Object.keys(tabs)) {
+        subtabs.push({
+          title: tab,
+          cards: tabs[tab],
+        })
+      }
+      return subtabs
     },
 
     // old layout: layout object with one key per row; each row contains array of cards
-    convertOldLayoutToGridCards(layout: any, subtabFolder?: string) {
+    convertOldLayoutToGridCards(layout: any) {
       const allCards = [] as any
 
       // Approach:
@@ -970,11 +1012,18 @@ export default defineComponent({
 
       let y = 0
 
+      console.log({ layout })
       for (const rowId of Object.keys(layout)) {
         let cards: any[] = layout[rowId]
 
+        console.log({ cards })
+
         // row must be an array - if it isn't, assume it is an array of length one
-        if (!cards.forEach) cards = [cards]
+        if (!cards.forEach) {
+          console.log('------IS NOT ARRAY')
+          cards = [cards]
+          console.log(cards)
+        }
 
         //divide widths amongst 12 columns
         const totalWidth = cards.reduce((a, card) => a + (card.width || 1), 0)
@@ -985,6 +1034,7 @@ export default defineComponent({
         let x = 0
 
         cards.forEach(card => {
+          console.log(1000, card)
           this.cardCount++
           const numCard = this.cardCount
           card.id = `card-id-${numCard}`
@@ -1113,19 +1163,20 @@ export default defineComponent({
       this.fileSystemConfig = this.getFileSystem(this.root)
     }
 
-    try {
-      this.fileList = await this.getFiles()
-      await this.setupDashboard()
+    // try {
+    this.fileList = await this.getFiles()
 
-      this.gridCards.forEach(card => {
-        this.cardLookup[card.id] = card
-      })
+    await this.setupDashboard()
 
-      await this.resizeAllCards()
-    } catch (e) {
-      console.error('oh nooo' + e)
-      this.$emit('error', 'Error setting up dashboard. Check YAML?')
-    }
+    // this.gridCards.forEach(card => {
+    //   this.cardLookup[card.id] = card
+    // })
+
+    await this.resizeAllCards()
+    // } catch (e) {
+    //   console.error('oh nooo' + e)
+    //   this.$emit('error', 'Error setting up dashboard. Check YAML?')
+    // }
 
     await this.$nextTick()
 
