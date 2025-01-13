@@ -12,15 +12,68 @@
 
     .bottom-panel(v-if="!thumbnail")
 
-        b-checkbox.tight(v-model="vizDetails.animationEnabled")
+      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
+        option(value="Blues") Blues
+        option(value="BluGrn") BluGrn
+        option(value="BluYl") BluYl
+        option(value="BrwnYl") BrwnYl
+        option(value="BuGn") BuGn
+        option(value="BuPu") BuPu
+        option(value="Burg") Burg
+        option(value="BurgYl") BurgYl
+        option(value="Cool") Cool
+        option(value="DarkMint") DarkMint
+        option(value="Emrld") Emrld
+        option(value="GnBu") GnBu
+        option(value="Grayish") Grayish
+        option(value="Greens") Greens
+        option(value="Greys") Greys
+        option(value="Inferno") Inferno
+        option(value="Magenta") Magenta
+        option(value="Magma") Magma
+        option(value="Mint") Mint
+        option(value="Oranges") Oranges
+        option(value="OrRd") OrRd
+        option(value="OrYel") OrYel
+        option(value="Peach") Peach
+        option(value="Plasma") Plasma
+        option(value="PinkYl") PinkYl
+        option(value="PuBu") PuBu
+        option(value="PuBuGn") PuBuGn
+        option(value="PuRd") PuRd
+        option(value="Purp") Purp
+        option(value="Purples") Purples
+        option(value="PurpOr") PurpOr
+        option(value="RdPu") RdPu
+        option(value="RedOr") RedOr
+        option(value="Reds") Reds
+        option(value="Sunset") Sunset
+        option(value="SunsetDark") SunsetDark
+        option(value="Teal") Teal
+        option(value="TealGrn") TealGrn
+        option(value="Viridis") Viridis
+        option(value="Warm") Warm
+        option(value="YlGn") YlGn
+        option(value="YlGnBu") YlGnBu
+        option(value="YlOrBr") YlOrBr
+        option(value="YlOrRd") YlOrRd
+
+
+      b-checkbox.tight(v-model="vizDetails.animationEnabled")
         p Animation
 
-        b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
+      b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
         p Labels
 
-        b-checkbox.tight(v-model="vizDetails.clustering")
+      b-checkbox.tight(v-model="vizDetails.clustering")
         p Clustering
-
+      //- .button-row   
+      //-   time-slider.time-slider(
+      //-   :numHours="numHours"
+      //-   :hourlyTotals="hourlyTotals"
+      //-   :initial="[0, 30]"
+      //-   :labels="labels"
+      //- )
 </template>
 
 <script lang="ts">
@@ -39,10 +92,18 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
+import proj4 from 'proj4'
+import TimeSlider from '@/components/TimeSlider.vue'
+
+interface Label {
+  leftPct: number
+  text: string
+}
+
 
 const MyComponent = defineComponent({
   name: 'FlowMap',
-  components: { FlowMapLayer, VizConfigurator, ZoomButtons },
+  components: { FlowMapLayer, VizConfigurator, ZoomButtons, TimeSlider },
   // i18n,
   props: {
     config: Object,
@@ -118,11 +179,33 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
 
+
+      map: {} as any,
+      isLoaded: false,
+      population: [] as any[],
+      numInfections: 0,
+      coordinates: new Float64Array(1),
+      deckOverlay: {} as any,
+      startDate: '',
+      numHours: 0,
+      hourlyTotals: 0,
+      // largestNumDailyInfections: 0,
+      filterStartHour: 0,
+      filterEndHour: 0,
+      weeks: [] as number[],
+      labels: [] as Label[],
+      csvStreamer: null as any,
+      useMeters: true,
+      radiusSlider: 250,
+      range: [20, 1000],
+      path: '',
+      updating: true,
+
       vizDetails: {
         title: '',
         description: '',
         thumbnail: '',
-        zoom: 9,
+        zoom: 9.5,
         center: null as any | null,
         pitch: 0,
         bearing: 0,
@@ -136,13 +219,14 @@ const MyComponent = defineComponent({
         origin: '',
         destination: '',
         flow: '',
-        colorScheme: 'Teal',
+        colorScheme: 'teal',
         highlightColor: 'orange',
         fadeEnabled: true,
         fadeAmount: 50,
         animationEnabled: true,
         clustering: true,
         clusteringLevel: null as number | null,
+        clusteringEnabled: true,
         locationLabelsEnabled: true,
         locationTotalsEnabled: true,
         pickable: true,
@@ -196,6 +280,7 @@ const MyComponent = defineComponent({
       this.$emit('isLoaded')
 
       this.vizDetails = Object.assign({}, this.vizDetails)
+
       this.statusText = ''
       console.log(this.mapProps)
 
@@ -219,6 +304,7 @@ const MyComponent = defineComponent({
       if (this.configFromDashboard) {
         console.log('we have a dashboard')
         this.validateYAML()
+        console.log(this.configFromDashboard)
         this.vizDetails = Object.assign({}, this.configFromDashboard) as any
         return
       }
@@ -249,7 +335,7 @@ const MyComponent = defineComponent({
       }
     },
 
-    async validateYAML() {},
+    async validateYAML() { },
 
     async loadStandaloneYAMLConfig() {
       if (!this.fileApi) return {}
@@ -324,17 +410,17 @@ const MyComponent = defineComponent({
           this.vizDetails.network = 'kelheim-mini.output_network.xml.gz'
 
           const boundaries = this.fetchXML({
-                worker: this._roadFetcher,
-                slug: this.fileSystem.slug,
-                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-                options: { attributeNamePrefix: '' },
-              })
+            worker: this._roadFetcher,
+            slug: this.fileSystem.slug,
+            filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+            options: { attributeNamePrefix: '' },
+          })
 
-              const results = await Promise.all([boundaries])
+          const results = await Promise.all([boundaries])
 
-              this.boundaries = results[0].network.nodes.node
+          this.boundaries = results[0].network.nodes.node
 
-            }
+        }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
         console.error(e)
@@ -344,26 +430,36 @@ const MyComponent = defineComponent({
       this.setMapCenter()
     },
 
+    // filterByHour(pct: { start: number; end: number }) {
+    //   const start = Math.floor(this.numDays * pct.start)
+    //   const end = Math.ceil(this.numDays * pct.end)
+    //   this.filterStartDate = start
+    //   this.filterEndDate = end
+
+    //   this.updateLayers()
+    // },
+
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
       console.log(this.boundaries)
       for (const feature of this.boundaries) {
         // let centroid
         // if (this.vizDetails.boundariesCentroids == '') {
-          // centroid = feature.properties[this.vizDetails.boundariesCentroids]
-          // if (!Array.isArray(centroid)) {
-          //   centroid = centroid.split(',').map((c: any) => parseFloat(c))
-          // }
+        // centroid = feature.properties[this.vizDetails.boundariesCentroids]
+        // if (!Array.isArray(centroid)) {
+        //   centroid = centroid.split(',').map((c: any) => parseFloat(c))
+        // }
 
-          
-          
-          this.centroids.push({
-            id: feature.id,
-            lon: feature.x,
-            lat: feature.y,
-          })
+        // Convert the location data
+        const [lon, lat] = proj4('EPSG:25832', 'EPSG:4326', [parseFloat(feature.x), parseFloat(feature.y)]);
 
-          
+        this.centroids.push({
+          id: feature.id,
+          lon: lon,
+          lat: lat,
+        })
+
+
         // } else {
         //   centroid = turf.centerOfMass(feature as any) as any
 
@@ -503,6 +599,21 @@ export default MyComponent
   z-index: 0;
 }
 
+.button-row {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  display: flex;
+  flex-direction: row;
+  margin-bottom: 0.5rem;
+  color: white;
+
+  p {
+    font-size: 1.1rem;
+  }
+}
+
+.time-slider {}
+
 .map-layout {
   position: absolute;
   top: 0;
@@ -534,9 +645,14 @@ export default MyComponent
   padding: 0.25rem;
   filter: drop-shadow(0px 2px 4px #22222233);
   background-color: var(--bgPanel);
+
   p {
     margin-right: 1rem;
   }
+}
+
+.control {
+  padding-right: 1rem;
 }
 
 .panel-items {
@@ -571,6 +687,5 @@ export default MyComponent
   padding: 0;
 }
 
-@media only screen and (max-width: 640px) {
-}
+@media only screen and (max-width: 640px) {}
 </style>
