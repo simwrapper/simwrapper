@@ -32,6 +32,7 @@ import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 
 import { FileSystemConfig, REACT_VIEW_HANDLES, VisualizationPlugin } from '@/Globals'
+import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import FlowMapLayer from '@/layers/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
@@ -101,6 +102,10 @@ const MyComponent = defineComponent({
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
 
+      resolvers: {} as { [id: number]: any },
+      resolverId: 0,
+      _roadFetcher: {} as any,
+
       startTime: Date.now(),
       elapsed: 0,
       animator: null as any,
@@ -126,6 +131,7 @@ const MyComponent = defineComponent({
         boundariesLabels: '',
         boundariesLabel: '',
         boundariesCentroids: '',
+        network: '',
         dataset: '',
         origin: '',
         destination: '',
@@ -158,6 +164,7 @@ const MyComponent = defineComponent({
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
+      this._roadFetcher = new NewXmlFetcher()
 
       await this.getVizDetails()
 
@@ -190,12 +197,16 @@ const MyComponent = defineComponent({
 
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.statusText = ''
+      console.log(this.mapProps)
+
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
     }
   },
 
   beforeDestroy() {
+    if (this._roadFetcher) this._roadFetcher.terminate()
+
     if (this.animator) window.cancelAnimationFrame(this.animator)
 
     // MUST delete the React view handle to prevent gigantic memory leak!
@@ -271,19 +282,59 @@ const MyComponent = defineComponent({
       }
     },
 
+    fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {
+      let xmlWorker = props.worker
+
+      xmlWorker.onmessage = (message: MessageEvent) => {
+        // message.data will have .id and either .error or .xml
+        const { resolve, reject } = this.resolvers[message.data.id]
+
+        xmlWorker.terminate()
+
+        if (message.data.error) reject(message.data.error)
+        resolve(message.data.xml)
+      }
+
+      // save the promise by id so we can look it up when we get messages
+      const id = this.resolverId++
+
+      xmlWorker.postMessage({
+        id,
+        fileSystem: this.fileSystem,
+        filePath: props.filePath,
+        options: props.options,
+      })
+
+      const promise = new Promise((resolve, reject) => {
+        this.resolvers[id] = { resolve, reject }
+      })
+      return promise
+    },
+
     async loadBoundaries() {
       try {
         if (this.vizDetails.boundaries.startsWith('http')) {
           console.log('in http')
           const boundaries = await fetch(this.vizDetails.boundaries).then(async r => await r.json())
-          this.boundaries = boundaries.features
+          this.boundaries = boundaries
         } else {
-          const boundaries = await this.fileApi.getFileJson(
-            `${this.subfolder}/${this.vizDetails.boundaries}`
-          )
+          // const boundaries = await this.fileApi.getFileJson(
+          //   `${this.subfolder}/${this.vizDetails.boundaries}`
+          // )
+          this.vizDetails.network = 'kelheim-mini.output_network.xml.gz'
 
-          this.boundaries = boundaries.features
-        }
+          const boundaries = this.fetchXML({
+                worker: this._roadFetcher,
+                slug: this.fileSystem.slug,
+                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+                options: { attributeNamePrefix: '' },
+              })
+
+              const results = await Promise.all([boundaries])
+
+              this.boundaries = results[0].network.nodes.node
+
+            }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
         console.error(e)
@@ -295,32 +346,38 @@ const MyComponent = defineComponent({
 
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
+      console.log(this.boundaries)
       for (const feature of this.boundaries) {
-        let centroid
-        if (this.vizDetails.boundariesCentroids) {
-          centroid = feature.properties[this.vizDetails.boundariesCentroids]
-          if (!Array.isArray(centroid)) {
-            centroid = centroid.split(',').map((c: any) => parseFloat(c))
-          }
-          this.centroids.push({
-            id: '' + feature.properties[this.vizDetails.boundariesJoinCol],
-            lon: centroid[0],
-            lat: centroid[1],
-          })
-        } else {
-          centroid = turf.centerOfMass(feature as any) as any
+        // let centroid
+        // if (this.vizDetails.boundariesCentroids == '') {
+          // centroid = feature.properties[this.vizDetails.boundariesCentroids]
+          // if (!Array.isArray(centroid)) {
+          //   centroid = centroid.split(',').map((c: any) => parseFloat(c))
+          // }
 
-          if (feature.properties[boundaryLabelField]) {
-            centroid.properties.label = feature.properties[boundaryLabelField]
-          }
-          centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
-
+          
+          
           this.centroids.push({
-            id: `${centroid.properties.id}`,
-            lon: centroid.geometry.coordinates[0],
-            lat: centroid.geometry.coordinates[1],
+            id: feature.id,
+            lon: feature.x,
+            lat: feature.y,
           })
-        }
+
+          
+        // } else {
+        //   centroid = turf.centerOfMass(feature as any) as any
+
+        //   if (feature.properties[boundaryLabelField]) {
+        //     centroid.properties.label = feature.properties[boundaryLabelField]
+        //   }
+        //   centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
+
+        //   this.centroids.push({
+        //     id: `${centroid.properties.id}`,
+        //     lon: centroid.geometry.coordinates[0],
+        //     lat: centroid.geometry.coordinates[1],
+        //   })
+        // }
       }
       console.log({ centroids: this.centroids })
       // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
@@ -355,6 +412,7 @@ const MyComponent = defineComponent({
 
       const gap = 256
       for (let i = 0; i < numCentroids; i += gap) {
+
         longitude += this.centroids[i].lon
         latitude += this.centroids[i].lat
         samples++
@@ -401,8 +459,8 @@ const MyComponent = defineComponent({
         for (let i = 0; i < origin.length; i++) {
           try {
             flows.push({
-              o: `${origin[i]}`,
-              d: `${destination[i]}`,
+              o: "pt_" + `${origin[i]}`,
+              d: "pt_" + `${destination[i]}`,
               v: count[i],
             })
           } catch {

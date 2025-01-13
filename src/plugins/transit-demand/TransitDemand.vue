@@ -755,6 +755,8 @@ const MyComponent = defineComponent({
 
         const filename = this.vizDetails.network
 
+        console.log(typeof(this._network))
+
         const roads =
           filename.indexOf('.avro') > -1
             ? // AVRO networks have a separate reader:
