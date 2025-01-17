@@ -61,7 +61,7 @@
       //- edit dashboard add/show/save button row -----------------------
       .editable.flex-row(v-if="editMode")
         p(style="margin: auto 0rem") scrollable
-        b-switch(type="is-success" v-model="isFullScreenDashboard") fill height
+        b-switch(type="is-success" v-model="isFullScreenDashboard") fit window
 
         b-button.action-button.is-success(type="is-small" @click="addNewPanel" title="Insert a new panel in the dashboard")
             i.fa.fa-plus
@@ -81,14 +81,14 @@
 
     //- GRID STACK HERE ===================================
     //- ...see gridstackjs.com
-    #grid-stack-holder
+    #grid-stack-holder(v-if="gridCards.length")
       .grid-stack(:style="{marginLeft: editMode ? '0':'-10px'}")
         .grid-stack-item(v-for="card in gridCards" :key="card.id"
+          :id="`x-${card.id}`"
           :gs-x="fullScreenCardId ? 0 : card.gs_x"
           :gs-y="fullScreenCardId ? 0 : card.gs_y"
           :gs-w="fullScreenCardId ? 12 : card.gs_w"
           :gs-h="fullScreenCardId ? 1 : card.gs_h"
-          :id="`x-${card.id}`"
           :style="getCardStyle(card)"
         )
 
@@ -605,6 +605,8 @@ export default defineComponent({
         this.grid.cellHeight(`${height}px`)
       }
 
+      if (this.grid) this.grid.cellHeight(`60px`)
+
       await this.$nextTick()
 
       // tell each card to size sich selbst
@@ -762,15 +764,16 @@ export default defineComponent({
       this.dashboardTabWithDelay = -1
       this.showFooter = false
 
+      // this will remove the grid table entirely from the layout
       this.grid.removeAll()
       this.gridCards = []
-
       await this.$nextTick()
 
       // to give browser time to teardown: 0.25 seconds delay
-      // setTimeout(() => {
+      // setTimeout(async () => {
       this.dashboardTabWithDelay = index
       const { subtab, ...queryWithoutSubtab } = this.$route.query
+
       if (index) {
         this.$router.replace({
           query: Object.assign({}, queryWithoutSubtab, { subtab: `${index + 1}` }),
@@ -778,9 +781,32 @@ export default defineComponent({
       } else {
         this.$router.replace({ query: {} })
       }
+
       await this.$nextTick()
+      this.grid = null
       this.activeTab = index
       this.gridCards = this.subtabs[index].cards
+      await this.$nextTick()
+
+      this.grid = GridStack.init({
+        float: false,
+        cellHeight: '60px',
+        cellHeightThrottle: 200, // ms
+        column: 12, // max/always 12 columns
+        disableOneColumnMode: false, // responsive to 1-col if narrow
+        minRow: 1,
+        resizable: { handles: 'se,sw' },
+        // margin: 0,
+      } as any)
+
+      // default: no editing unless editMode is already enabled
+      if (!this.editMode) this.grid.disable()
+
+      this.grid.on('change', this.resizeAllCards)
+      this.grid.on('resize', this.resizeAllCards)
+
+      await this.$nextTick()
+      await this.resizeAllCards()
       // }, 250)
     },
 
@@ -946,10 +972,9 @@ export default defineComponent({
     // new layout: array of cards instead of layout rows.
     // Each card has gridXYWH that defines layout
     setupSubtabs() {
-      const DEFAULTCARD = 'General'
+      const DEFAULT = 'Summary'
       const tabs = {} as { [id: string]: any[] }
 
-      console.log(952, this.yaml)
       for (const card of this.yaml.cards) {
         this.cardCount++
         const numCard = this.cardCount
@@ -986,7 +1011,7 @@ export default defineComponent({
         else card.showHeader = true
 
         // add to subtab
-        const tab = card.subtab || DEFAULTCARD
+        const tab = card.subtab || DEFAULT
         if (!tabs[tab]) tabs[tab] = []
         tabs[tab].push(card)
       }
@@ -994,10 +1019,7 @@ export default defineComponent({
       // give all tabs a title
       let subtabs = [] as Subtab[]
       for (const tab of Object.keys(tabs)) {
-        subtabs.push({
-          title: tab,
-          cards: tabs[tab],
-        })
+        subtabs.push({ title: tab, cards: tabs[tab] })
       }
       return subtabs
     },
@@ -1257,7 +1279,8 @@ export default defineComponent({
 
 .grid-stack {
   background-color: var(--bgDashboard);
-  position: absolute;
+  position: relative;
+  background-color: peru;
   inset: 0;
 }
 
