@@ -131,9 +131,9 @@ class HTTPFileSystem {
 
     const slash = path.lastIndexOf('/')
     const folder = path.substring(0, slash)
-    const filename = path.substring(slash + 1)
-
+    const filename = decodeURIComponent(path.substring(slash + 1))
     const dirContents = await this.getDirectory(folder)
+
     const fileHandle = dirContents.handles[filename]
 
     if (!fileHandle) throw Error(`File ${filename} missing`)

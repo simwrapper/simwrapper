@@ -81,15 +81,20 @@
       //- FILES: individual links to files in this folder
       //- this is DISABLED for Chrome API for now, because we
       //- can't download those files via regular URL
-      .files-section(v-if="myState?.svnProject?.baseURL")
+      //- .files-section(v-if="myState?.svnProject?.baseURL")
+      .files-section
         h3.curate-heading(v-if="myState.files.length") {{$t('Files')}}
-
         .curate-content(v-if="myState.files.length")
           .file-table
             .file(v-for="file in myState.files" :key="file"
               :class="{fade: myState.isLoading}"
             )
-              a(:href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`") {{ cleanName(file) }}
+              a(v-if="myState?.svnProject?.baseURL"
+                :href="`${myState.svnProject.baseURL}/${myState.subfolder}/${file}`"
+              ) {{ cleanName(file) }}
+              a(v-else
+                @click="chromeOpenFile(file)"
+              ) {{ cleanName(file) }}
 
 </template>
 
@@ -244,6 +249,32 @@ export default defineComponent({
     },
   },
   methods: {
+    async chromeOpenFile(filename: string) {
+      const decoded = decodeURIComponent(filename)
+      const path = `${this.xsubfolder}/${decoded}`
+      const blob = await this.myState.svnRoot?.getFileBlob(path)
+      if (!blob) return
+
+      var element = document.createElement('a')
+      const downloadUrl = URL.createObjectURL(blob)
+      element.setAttribute('href', downloadUrl)
+      element.setAttribute('download', filename)
+      element.style.display = 'none'
+      document.body.appendChild(element)
+
+      element.click()
+
+      document.body.removeChild(element)
+      // memoryyyyy
+      URL.revokeObjectURL(downloadUrl)
+    },
+
+    showBuilder() {
+      console.log('VIZWIT')
+      // this.$router.push(`${this.$route.fullPath + '?edit'}`)
+      this.$emit('edit')
+    },
+
     isFavorite(folder: string) {
       let thing = `${this.root}`
       if (this.xsubfolder) thing += `/${this.xsubfolder}`
