@@ -1,79 +1,82 @@
 <template lang="pug">
-.flowmap(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}'
-        oncontextmenu="return false")
 
-    .map-layout
-      flow-map-layer.map-layer(v-if="centroids.length"
-        :viewId="viewId"
-        :props="mapProps")
+  .flowmap(:class="{'hide-thumbnail': !thumbnail}"
+          :style='{"background": urlThumbnail}'
+          oncontextmenu="return false")
 
-    zoom-buttons(v-if="!thumbnail")
+      .map-layout
+        flow-map-layer.map-layer(v-if="centroids.length"
+          :viewId="viewId"
+          :props="mapProps")
 
-    .bottom-panel(v-if="!thumbnail")
+      zoom-buttons(v-if="!thumbnail")
 
-      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
-        option(value="Blues") Blues
-        option(value="BluGrn") BluGrn
-        option(value="BluYl") BluYl
-        option(value="BrwnYl") BrwnYl
-        option(value="BuGn") BuGn
-        option(value="BuPu") BuPu
-        option(value="Burg") Burg
-        option(value="BurgYl") BurgYl
-        option(value="Cool") Cool
-        option(value="DarkMint") DarkMint
-        option(value="Emrld") Emrld
-        option(value="GnBu") GnBu
-        option(value="Grayish") Grayish
-        option(value="Greens") Greens
-        option(value="Greys") Greys
-        option(value="Inferno") Inferno
-        option(value="Magenta") Magenta
-        option(value="Magma") Magma
-        option(value="Mint") Mint
-        option(value="Oranges") Oranges
-        option(value="OrRd") OrRd
-        option(value="OrYel") OrYel
-        option(value="Peach") Peach
-        option(value="Plasma") Plasma
-        option(value="PinkYl") PinkYl
-        option(value="PuBu") PuBu
-        option(value="PuBuGn") PuBuGn
-        option(value="PuRd") PuRd
-        option(value="Purp") Purp
-        option(value="Purples") Purples
-        option(value="PurpOr") PurpOr
-        option(value="RdPu") RdPu
-        option(value="RedOr") RedOr
-        option(value="Reds") Reds
-        option(value="Sunset") Sunset
-        option(value="SunsetDark") SunsetDark
-        option(value="Teal") Teal
-        option(value="TealGrn") TealGrn
-        option(value="Viridis") Viridis
-        option(value="Warm") Warm
-        option(value="YlGn") YlGn
-        option(value="YlGnBu") YlGnBu
-        option(value="YlOrBr") YlOrBr
-        option(value="YlOrRd") YlOrRd
+      .bottom-panel(v-if="!thumbnail")
+        h1 {{`Day ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
+        .button-row
+          b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
+            option(value="Blues") Blues
+            option(value="BluGrn") BluGrn
+            option(value="BluYl") BluYl
+            option(value="BrwnYl") BrwnYl
+            option(value="BuGn") BuGn
+            option(value="BuPu") BuPu
+            option(value="Burg") Burg
+            option(value="BurgYl") BurgYl
+            option(value="Cool") Cool
+            option(value="DarkMint") DarkMint
+            option(value="Emrld") Emrld
+            option(value="GnBu") GnBu
+            option(value="Grayish") Grayish
+            option(value="Greens") Greens
+            option(value="Greys") Greys
+            option(value="Inferno") Inferno
+            option(value="Magenta") Magenta
+            option(value="Magma") Magma
+            option(value="Mint") Mint
+            option(value="Oranges") Oranges
+            option(value="OrRd") OrRd
+            option(value="OrYel") OrYel
+            option(value="Peach") Peach
+            option(value="Plasma") Plasma
+            option(value="PinkYl") PinkYl
+            option(value="PuBu") PuBu
+            option(value="PuBuGn") PuBuGn
+            option(value="PuRd") PuRd
+            option(value="Purp") Purp
+            option(value="Purples") Purples
+            option(value="PurpOr") PurpOr
+            option(value="RdPu") RdPu
+            option(value="RedOr") RedOr
+            option(value="Reds") Reds
+            option(value="Sunset") Sunset
+            option(value="SunsetDark") SunsetDark
+            option(value="Teal") Teal
+            option(value="TealGrn") TealGrn
+            option(value="Viridis") Viridis
+            option(value="Warm") Warm
+            option(value="YlGn") YlGn
+            option(value="YlGnBu") YlGnBu
+            option(value="YlOrBr") YlOrBr
+            option(value="YlOrRd") YlOrRd
 
 
-      b-checkbox.tight(v-model="vizDetails.animationEnabled")
-        p Animation
+          b-checkbox.tight(v-model="vizDetails.animationEnabled")
+            p Animation
 
-      b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
-        p Labels
+          b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
+            p Labels
 
-      b-checkbox.tight(v-model="vizDetails.clustering")
-        p Clustering
-      //- .button-row   
-      //-   time-slider.time-slider(
-      //-   :numHours="numHours"
-      //-   :hourlyTotals="hourlyTotals"
-      //-   :initial="[0, 30]"
-      //-   :labels="labels"
-      //- )
+          b-checkbox.tight(v-model="vizDetails.clustering")
+            p Clustering
+        .button-row  
+          time-slider.time-slider(v-if="isLoaded"
+          :numHours="numHours"
+          :hourlyTotals="hourlyTotals"
+          :initial="[0, 24]"
+          :labels="labels"
+          @range="filterByHour"
+        )
 </template>
 
 <script lang="ts">
@@ -92,11 +95,20 @@ import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
 import proj4 from 'proj4'
-import TimeSlider from '@/components/TimeSlider.vue'
+import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
+// import { Temporal } from 'temporal-polyfill'
+
 
 interface Label {
   leftPct: number
   text: string
+}
+
+interface Flow {
+  o: string, // origin
+  d: string, // destination
+  v: number,
+  h: number
 }
 
 
@@ -132,10 +144,11 @@ const MyComponent = defineComponent({
     mapProps(): any {
       return {
         locations: this.centroids,
-        flows: this.flows,
+        flows: this.filteredFlows,
         dark: this.$store.state.isDarkMode,
         elapsed: this.elapsed,
         vizDetails: this.vizDetails,
+        slider: this.slider
       }
     },
 
@@ -143,6 +156,7 @@ const MyComponent = defineComponent({
       return this.thumbnailUrl
     },
   },
+
 
   watch: {
     '$store.state.viewState'() {
@@ -153,9 +167,11 @@ const MyComponent = defineComponent({
 
   data() {
     return {
+      isLoaded: false,
       boundaries: [] as any[],
       centroids: [] as any[],
-      flows: [] as any[],
+      flows: [] as Flow[],
+      filteredFlows: [] as Flow[],
       viewId: Math.floor(1e12 * Math.random()),
       statusText: 'Loading...',
       needsInitialMapExtent: true,
@@ -178,30 +194,34 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
 
-
-      map: {} as any,
-      isLoaded: false,
-      population: [] as any[],
-      numInfections: 0,
-      coordinates: new Float64Array(1),
-      deckOverlay: {} as any,
-      startDate: '',
-      numHours: 0,
-      hourlyTotals: 0,
-      // largestNumDailyInfections: 0,
-      filterStartHour: 0,
-      filterEndHour: 0,
-      weeks: [] as number[],
+      hourlyTotals: new Float32Array(0),
+      hours: [] as number[],
       labels: [] as Label[],
-      csvStreamer: null as any,
-      useMeters: true,
-      radiusSlider: 250,
-      range: [20, 1000],
-      path: '',
-      updating: true,
+      numHours: 0,
+
+      slider: {
+        map: {} as any,
+        isLoaded: false,
+        population: [] as any[],
+        numInfections: 0,
+        coordinates: new Float64Array(1),
+        deckOverlay: {} as any,
+        startDate: '',
+        // largestNumDailyInfections: 0,
+        filterStartHour: 0,
+        filterEndHour: 0,
+        filteredFlows: [] as any,
+        labels: ['', ''],
+        csvStreamer: null as any,
+        useMeters: true,
+        radiusSlider: 250,
+        range: [20, 1000],
+        path: '',
+        updating: true,
+      },
 
       vizDetails: {
-        title: '',
+        title: 'test',
         description: '',
         thumbnail: '',
         zoom: 9.5,
@@ -279,6 +299,9 @@ const MyComponent = defineComponent({
       this.$emit('isLoaded')
 
       this.vizDetails = Object.assign({}, this.vizDetails)
+      this.slider.labels = ['test', 'test']
+      this.slider = Object.assign({}, this.slider)
+
 
       this.statusText = ''
       console.log(this.mapProps)
@@ -396,6 +419,29 @@ const MyComponent = defineComponent({
       return promise
     },
 
+    setupHourlyTotals() {
+      this.numHours = 24
+
+      this.slider.filterStartHour = this.numHours
+
+      this.hourlyTotals = new Float32Array(this.numHours + 1)
+
+      this.flows.forEach(inf => {
+        this.hourlyTotals[inf.h] += 1
+      })
+
+      // start-of-year labels
+      const firstHour = "00:00"
+      const lastHour = "24:00"
+
+      this.labels.push({ leftPct: 0, text: firstHour.toString() })
+
+      if (this.labels[this.labels.length - 1].leftPct > 96.5) {
+        this.labels[this.labels.length - 1].leftPct = 96.5
+      }
+      console.log(this.labels)
+    },
+
     async loadBoundaries() {
       try {
         if (this.vizDetails.boundaries.startsWith('http')) {
@@ -429,14 +475,18 @@ const MyComponent = defineComponent({
       this.setMapCenter()
     },
 
-    // filterByHour(pct: { start: number; end: number }) {
-    //   const start = Math.floor(this.numDays * pct.start)
-    //   const end = Math.ceil(this.numDays * pct.end)
-    //   this.filterStartDate = start
-    //   this.filterEndDate = end
+    filterByHour(pct: { start: number; end: number }) {
+      console.log(pct.start + '' + pct.end)
 
-    //   this.updateLayers()
-    // },
+      let filterFlows = this.flows.reduce((acc: any, flow) => {
+        if (flow.h >= Math.round(pct.start * 24) && flow.h <= Math.round(pct.end * 24)) {
+          acc.push(flow);
+        }
+        return acc;
+      }, []);
+
+      this.filteredFlows = filterFlows
+    },
 
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
@@ -546,6 +596,7 @@ const MyComponent = defineComponent({
         const oColumn = this.vizDetails.origin || 'origin'
         const dColumn = this.vizDetails.destination || 'destination'
         const flowColumn = this.vizDetails.flow || 'flow'
+        const hourColumn = 'departureHour'
 
         if (!(oColumn in data)) this.$emit('error', `Column ${oColumn} not found`)
         if (!(dColumn in data)) this.$emit('error', `Column ${dColumn} not found`)
@@ -554,6 +605,9 @@ const MyComponent = defineComponent({
         const origin = data[oColumn].values
         const destination = data[dColumn].values
         const count = data[flowColumn].values
+        const hours = data[hourColumn].values
+
+
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
@@ -562,18 +616,26 @@ const MyComponent = defineComponent({
               o: "pt_" + `${origin[i]}`,
               d: "pt_" + `${destination[i]}`,
               v: count[i],
+              h: hours[i]
             })
           } catch {
             // missing data; ignore
           }
         }
         this.flows = flows
+        this.filteredFlows = this.flows
+        this.setupHourlyTotals()
       } catch (e) {
         console.log('' + e)
         this.flows = []
         this.$emit('error', 'Check your configuration.')
       }
       console.log({ flows: this.flows })
+      console.log(typeof (this.hourlyTotals))
+      console.log(typeof (this.labels))
+
+      this.isLoaded = true
+
     },
   },
 })
@@ -605,7 +667,7 @@ export default MyComponent
 .button-row {
   grid-row: 1 / 2;
   grid-column: 1 / 2;
-  display: flex;
+  // display: flex;
   flex-direction: row;
   margin-bottom: 0.5rem;
   color: white;
@@ -638,10 +700,8 @@ export default MyComponent
 }
 
 .bottom-panel {
-  grid-column: 1 / 3;
-  grid-row: 2 / 3;
-  display: flex;
-  flex-direction: row;
+  // display: flex;
+  // flex-direction: row;
   font-size: 0.8rem;
   pointer-events: auto;
   margin: auto auto 0rem 0rem;
@@ -652,6 +712,10 @@ export default MyComponent
   p {
     margin-right: 1rem;
   }
+}
+
+.time-slider-component {
+  width: -webkit-fill-available;
 }
 
 .control {

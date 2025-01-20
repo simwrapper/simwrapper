@@ -66,6 +66,8 @@ export default function Layer({
     // darkMode: false,
   })
 
+  console.log(props.slider)
+
   return (
     /*
     //@ts-ignore */
