@@ -1,6 +1,6 @@
 <template lang="pug">
 vue-good-table.plugin-panel(
-      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style == 'topsheet' ? 'topsheet-style' : '']"
+      :class="[globalState.isDarkMode ? 'darktable' : 'lighttable', hideHeader ? 'hide-header' : '', this.config.style, ...this.alignmentClasses]"
       :columns="columns"
       :rows="rows"
       :fixed-header="true"
@@ -50,10 +50,12 @@ export default defineComponent({
       percentColumnNames: ['percent'],
       hideHeader: undefined as any,
       isFullsize: false,
+      alignmentClasses: [] as string[],
     }
   },
   async mounted() {
     this.dataSet = await this.loadData()
+    this.setAlignmentClasses()
     this.prepareData()
 
     this.$emit('isLoaded')
@@ -160,6 +162,22 @@ export default defineComponent({
 
     columnFilterFn(data: any, filterString: string) {
       return data.toString().includes(filterString.toString())
+    },
+
+    setAlignmentClasses() {
+      if (this.config.alignment) {
+        for (let i = 0; i < this.config.alignment.length; i++) {
+          if (this.config.alignment[i] == 'left') {
+            this.alignmentClasses.push(`col-left-${i + 1}`)
+          } else if (this.config.alignment[i] == 'center') {
+            this.alignmentClasses.push(`col-center-${i + 1}`)
+          } else if (this.config.alignment[i] == 'right') {
+            this.alignmentClasses.push(`col-right-${i + 1}`)
+          }
+        }
+      }
+
+      console.log(this.alignmentClasses)
     },
 
     prepareData() {
@@ -463,14 +481,137 @@ export default defineComponent({
   display: none;
 }
 
-// Columns right aligned (except the first one
-.topsheet-style .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:not(:first-child) {
-  text-align: right;
+.topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:not(:first-child) {
+  text-align: left;
   font-weight: bold;
 }
 
-.topsheet-style .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td {
+.topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr {
+  text-align: right;
+}
+
+.topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td {
   font-size: 1.1rem;
+}
+
+.col-left-1 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(1) {
+  text-align: left;
+}
+
+.col-left-2 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(2) {
+  text-align: left;
+}
+
+.col-left-3 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(3) {
+  text-align: left;
+}
+
+.col-left-4 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(4) {
+  text-align: left;
+}
+
+.col-left-5 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(5) {
+  text-align: left;
+}
+
+.col-left-6 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(6) {
+  text-align: left;
+}
+
+.col-left-7 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(7) {
+  text-align: left;
+}
+
+.col-left-8 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(8) {
+  text-align: left;
+}
+
+.col-left-9 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(9) {
+  text-align: left;
+}
+
+.col-left-10 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(10) {
+  text-align: left;
+}
+
+.col-center-1 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(1) {
+  text-align: center;
+}
+
+.col-center-2 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(2) {
+  text-align: center;
+}
+
+.col-center-3 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(3) {
+  text-align: center;
+}
+
+.col-center-4 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(4) {
+  text-align: center;
+}
+
+.col-center-5 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(5) {
+  text-align: center;
+}
+
+.col-center-6 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(6) {
+  text-align: center;
+}
+
+.col-center-7 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(7) {
+  text-align: center;
+}
+
+.col-center-8 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(8) {
+  text-align: center;
+}
+
+.col-center-9 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(9) {
+  text-align: center;
+}
+
+.col-center-10 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(10) {
+  text-align: center;
+}
+
+.col-right-1 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(1) {
+  text-align: right;
+}
+
+.col-right-2 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(2) {
+  text-align: right;
+}
+
+.col-right-3 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(3) {
+  text-align: right;
+}
+
+.col-right-4 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(4) {
+  text-align: right;
+}
+
+.col-right-5 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(5) {
+  text-align: right;
+}
+
+.col-right-6 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(6) {
+  text-align: right;
+}
+
+.col-right-7 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(7) {
+  text-align: right;
+}
+
+.col-right-8 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(8) {
+  text-align: right;
+}
+
+.col-right-9 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(9) {
+  text-align: right;
+}
+
+.col-right-10 .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:nth-child(10) {
+  text-align: right;
 }
 </style>
 
