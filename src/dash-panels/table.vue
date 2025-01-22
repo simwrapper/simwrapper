@@ -164,12 +164,6 @@ export default defineComponent({
       return data.toString().includes(filterString.toString())
     },
 
-    // getStyle() {
-    //   return {
-    //     color: 'red !important',
-    //   }
-    // },
-
     setAlignmentClasses() {
       if (this.config.alignment) {
         for (let i = 0; i < this.config.alignment.length; i++) {
@@ -486,16 +480,6 @@ export default defineComponent({
 .hide-header .vgt-inner-wrap .vgt-fixed-header {
   display: none;
 }
-
-// Columns right aligned (except the first one
-// .topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:not(:first-child) {
-//   text-align: right;
-//   font-weight: bold;
-// }
-
-// .topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td {
-//   font-size: 1.1rem;
-// }
 
 .topsheet .vgt-inner-wrap .vgt-responsive .vgt-table tbody tr td:not(:first-child) {
   text-align: left;
