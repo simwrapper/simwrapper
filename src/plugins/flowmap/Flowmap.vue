@@ -12,7 +12,7 @@
       zoom-buttons(v-if="!thumbnail")
 
       .bottom-panel(v-if="!thumbnail")
-        h1 {{`Day ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
+        h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
         .button-row
           b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
             option(value="Blues") Blues
@@ -63,9 +63,6 @@
 
           b-checkbox.tight(v-model="vizDetails.animationEnabled")
             p Animation
-
-          b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
-            p Labels
 
           b-checkbox.tight(v-model="vizDetails.clustering")
             p Clustering
@@ -209,7 +206,7 @@ const MyComponent = defineComponent({
         startDate: '',
         // largestNumDailyInfections: 0,
         filterStartHour: 0,
-        filterEndHour: 0,
+        filterEndHour: 24,
         filteredFlows: [] as any,
         labels: ['', ''],
         csvStreamer: null as any,
@@ -422,7 +419,7 @@ const MyComponent = defineComponent({
     setupHourlyTotals() {
       this.numHours = 24
 
-      this.slider.filterStartHour = this.numHours
+      // this.slider.filterStartHour = this.numHours
 
       this.hourlyTotals = new Float32Array(this.numHours + 1)
 
@@ -430,19 +427,22 @@ const MyComponent = defineComponent({
         this.hourlyTotals[inf.h] += 1
       })
 
-      // start-of-year labels
+      // day labels
       const firstHour = "00:00"
       const lastHour = "24:00"
 
       this.labels.push({ leftPct: 0, text: firstHour.toString() })
+      this.labels.push({ leftPct: 100, text: lastHour.toString() })
+
 
       if (this.labels[this.labels.length - 1].leftPct > 96.5) {
-        this.labels[this.labels.length - 1].leftPct = 96.5
+        this.labels[this.labels.length - 1].leftPct = 95
       }
       console.log(this.labels)
     },
 
     async loadBoundaries() {
+      let results:any = {}
       try {
         if (this.vizDetails.boundaries.startsWith('http')) {
           console.log('in http')
@@ -452,7 +452,7 @@ const MyComponent = defineComponent({
           // const boundaries = await this.fileApi.getFileJson(
           //   `${this.subfolder}/${this.vizDetails.boundaries}`
           // )
-          this.vizDetails.network = 'kelheim-mini.output_network.xml.gz'
+          this.vizDetails.network = 'kelheim-mini.output_network.xml.gz' // need to change this for general production
 
           const boundaries = this.fetchXML({
             worker: this._roadFetcher,
@@ -461,16 +461,14 @@ const MyComponent = defineComponent({
             options: { attributeNamePrefix: '' },
           })
 
-          const results = await Promise.all([boundaries])
-
-          this.boundaries = results[0].network.nodes.node
-
+        results = await Promise.all([boundaries])
         }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
         console.error(e)
         return
       }
+      this.boundaries = results[0].network.nodes.node
       this.calculateCentroids()
       this.setMapCenter()
     },
@@ -703,6 +701,7 @@ export default MyComponent
   // display: flex;
   // flex-direction: row;
   font-size: 0.8rem;
+  width: 50%;
   pointer-events: auto;
   margin: auto auto 0rem 0rem;
   padding: 0.25rem;
@@ -712,6 +711,14 @@ export default MyComponent
   p {
     margin-right: 1rem;
   }
+  p:hover {
+    color: var(--link);
+  }
+}
+
+.date-label[data-v-01c9ac43] {
+    color: #000;
+    top: 2px;
 }
 
 .time-slider-component {
