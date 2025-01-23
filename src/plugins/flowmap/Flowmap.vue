@@ -93,11 +93,14 @@ import YAML from 'yaml'
 import util from '@/js/util'
 import proj4 from 'proj4'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
+import { None } from 'vega'
 // import { Temporal } from 'temporal-polyfill'
 
 
 interface Label {
-  leftPct: number
+  leftPct: string
+  rightPct: string
+  top: string
   text: string
 }
 
@@ -431,18 +434,17 @@ const MyComponent = defineComponent({
       const firstHour = "00:00"
       const lastHour = "24:00"
 
-      this.labels.push({ leftPct: 0, text: firstHour.toString() })
-      this.labels.push({ leftPct: 100, text: lastHour.toString() })
+      this.labels.push({ leftPct: '0', rightPct: 'auto', top: '2px', text: firstHour.toString() })
+      this.labels.push({ leftPct: 'auto', rightPct: '0', top: '2px', text: lastHour.toString() })
 
 
-      if (this.labels[this.labels.length - 1].leftPct > 96.5) {
-        this.labels[this.labels.length - 1].leftPct = 95
-      }
-      console.log(this.labels)
+      // if (this.labels[this.labels.length - 1].leftPct > 96.5) {
+      //   this.labels[this.labels.length - 1].leftPct = 93
+      // }
     },
 
     async loadBoundaries() {
-      let results:any = {}
+      let results: any = {}
       try {
         if (this.vizDetails.boundaries.startsWith('http')) {
           console.log('in http')
@@ -461,7 +463,7 @@ const MyComponent = defineComponent({
             options: { attributeNamePrefix: '' },
           })
 
-        results = await Promise.all([boundaries])
+          results = await Promise.all([boundaries])
         }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
@@ -675,7 +677,9 @@ export default MyComponent
   }
 }
 
-.time-slider {}
+.time-slider {
+  color: #000;
+}
 
 .map-layout {
   position: absolute;
@@ -711,15 +715,12 @@ export default MyComponent
   p {
     margin-right: 1rem;
   }
+
   p:hover {
     color: var(--link);
   }
 }
 
-.date-label[data-v-01c9ac43] {
-    color: #000;
-    top: 2px;
-}
 
 .time-slider-component {
   width: -webkit-fill-available;
