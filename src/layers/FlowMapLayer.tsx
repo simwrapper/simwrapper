@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { ReactNode, useEffect, useState } from 'react'
 import DeckGL from '@deck.gl/react'
 import { StaticMap } from 'react-map-gl'
 import { FlowmapLayer, FlowmapLayerPickingInfo, PickingType } from '@flowmap.gl/layers'
-import { ScatterplotLayer } from '@deck.gl/layers';
 import { FlowmapData, getViewStateForLocations } from '@flowmap.gl/data'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
@@ -14,9 +13,13 @@ export default function Layer({
 }) {
   const { locations, flows, dark, elapsed, vizDetails } = props
 
+  // type TooltipState = {
+  //   content: ReactNode;
+  // };
+
   const [viewState, setViewState] = useState(globalStore.state.viewState)
-  const [hoverInfo, setHoverInfo] = useState({})
-  // const [data, setData] = useState<FlowmapData<LocationDatum, FlowDatum>>()
+  const [info, setTooltip] = useState<FlowmapLayerPickingInfo<any, any>>()
+
 
   // register setViewState in global view updater so we can respond to map motion
   REACT_VIEW_HANDLES[viewId] = () => {
@@ -27,18 +30,11 @@ export default function Layer({
     console.log('click!')
   }
 
-  function handleHover(hover: any) {
-    console.log(hover)
-    setHoverInfo(hover)
-  }
-
   function handleViewState(view: any) {
     setViewState(view)
     view.center = [view.longitude, view.latitude]
     globalStore.commit('setMapCamera', view)
   }
-
-
 
   const layer = new FlowmapLayer({
     data: props,
@@ -62,29 +58,103 @@ export default function Layer({
     fadeEnabled: true,
     opacity: 1,
     pickable: true,
+    onHover: (info) => setTooltip(info),
     // adaptiveScalesEnabled: true,
     // darkMode: false,
   })
 
-  console.log(props.slider)
+  function getTooltipState(info: FlowmapLayerPickingInfo<any, any> | undefined) {
+    if (!info) return undefined;
+    const { x, y, object } = info;
+    const position = { left: x, top: y };
+    switch (object?.type) {
+      case PickingType.LOCATION:
+        console.log("location")
+        return (
+          <div
+            className="tooltip"
+            style={{
+              fontSize: '0.8rem',
+              backgroundColor: '#334455ee',
+              boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+              color: '#eee',
+              padding: '0.5rem 0.5rem',
+              position: 'absolute',
+              left: x + 20,
+              top: y - 30,
+            }}
+          >
+            <b>{object?.type}</b>
+            <br />
+            Location ID: {object?.id}
+          
+          </div>
+        )
+      case PickingType.FLOW:
+        console.log(object)
+        return (
+          <div
+            className="tooltip"
+            style={{
+              fontSize: '0.8rem',
+              backgroundColor: '#334455ee',
+              boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+              color: '#eee',
+              padding: '0.5rem 0.5rem',
+              position: 'absolute',
+              left: x + 20,
+              top: y - 30,
+            }}
+          >
+            <b>{object?.type}</b>
+            <br />
+            Station IDs: {object?.origin.id} → {object?.dest.id} <br />
+            headway: {object?.count}
+          </div>
+        )
+        
+    }
+        return undefined;
+  }
 
-  return (
-    /*
-    //@ts-ignore */
-    <DeckGL
-      layers={[layer]}
-      controller={true}
-      viewState={viewState}
-      pickingRadius={4}
-      getCursor={() => 'pointer'}
-      onClick={handleClick}
-      onViewStateChange={(e: any) => handleViewState(e.viewState)}
-    >
-      {
-        /*
-      // @ts-ignore */
-        <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
-      }
-    </DeckGL>
-  )
+    return (
+      /*
+      //@ts-ignore */
+      // <DeckGL
+      //   layers={[layer]}
+      //   controller={true}
+      //   viewState={viewState}
+      //   pickingRadius={4}
+      //   getCursor={() => 'pointer'}
+      //   onClick={handleClick}
+      //   onViewStateChange={(e: any) => handleViewState(e.viewState)}
+      // >
+      //   {
+      //     /*
+      //   // @ts-ignore */
+      //     <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+      //   }
+      //   {setTooltip(tooltip)}
+
+      // </DeckGL>
+      <DeckGL
+        layers={[layer]}
+        controller={true}
+        viewState={viewState}
+        pickingRadius={4}
+        getCursor={() => 'pointer'}
+        onClick={handleClick}
+        onViewStateChange={(e: any) => handleViewState(e.viewState)}
+      >
+        {
+          /*
+        // @ts-ignore */
+          <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
+        }
+        {getTooltipState(info)}
+
+      </DeckGL>
+
+    )
 }
+  
