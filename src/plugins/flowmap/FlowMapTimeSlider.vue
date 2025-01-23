@@ -10,7 +10,7 @@
     
         .labels(v-if="labels")
           .date-label(v-for="label in labels"
-            :style="{left: `${label.leftPct}%`}"
+            :style="{left: `${label.leftPct}%`, right: `${label.rightPct}%`}"
           ) {{ label.text }}
     
       #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
