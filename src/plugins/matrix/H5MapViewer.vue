@@ -44,7 +44,7 @@
       zoom-buttons
 
       .tooltip-area(v-if="tooltip" v-html="tooltip")
-      p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): bi LOADING...
+      p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): b LOADING...
 
   .left-grabby(
     @mousedown="dividerDragStart"
@@ -342,33 +342,53 @@ const MyComponent = defineComponent({
       let keys = await this.h5fileApi.getSearchablePaths('/')
       console.log({ keys })
 
-      // OMX has a '/data' prefix on each matrix
-      if (keys.indexOf('/data') > -1) {
-        keys = keys.filter(key => key.startsWith('/data/'))
-        console.log({ keys2: keys })
-      }
+      // // OMX has a '/data' prefix on each matrix
+      // if (keys.indexOf('/data') > -1) {
+      //   keys = keys.filter(key => key.startsWith('/data/'))
+      //   console.log({ keys2: keys })
+      // }
 
       // pretty sort the numbers the ways humans like them
       keys.sort((a: any, b: any) => naturalSort(a, b))
-      this.tableKeys = keys.map(key => {
-        return { key, name: key.startsWith('/data') ? key.substring(6) : '' }
+
+      // remove folder prefixes
+      let tableKeys = keys.map(key => {
+        const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
+        return { key, name }
       })
 
       // if there are "name" properties, add them
-      for (const table of this.tableKeys) {
+      for (const table of tableKeys) {
         const element = await this.h5fileApi.getEntity(table.key)
+        // mark non-datasets so they can be filtered out next
+        if (element.kind !== 'dataset') {
+          table.key = ''
+          continue
+        }
         const attrValues = await this.h5fileApi.getAttrValues(element)
-        if (attrValues.name)
+        if (attrValues.name) {
           table.name = `${table.key.substring(1)}&nbsp;•&nbsp;${attrValues?.name || ''}`
+        }
       }
 
-      // Get first matrix dimension, for guessing a useful/correct shapefile
-      if (this.tableKeys.length) {
-        this.activeTable = this.tableKeys[0]
+      // filter out non-datasets; key will be empty string
+      tableKeys = tableKeys.filter(t => !!t.key)
 
-        const element: any = await this.h5fileApi.getEntity(this.tableKeys[0].key)
-        console.log({ element })
-        // .get(this.tableKeys[0].key) as Dataset
+      this.tableKeys = tableKeys
+
+      // Get first matrix dimension, for guessing a useful/correct shapefile
+      if (tableKeys.length) {
+        for (const entity of this.tableKeys) {
+          const element: any = await this.h5fileApi.getEntity(entity.key)
+          if (element.kind === 'dataset') {
+            this.activeTable = entity
+            break
+          }
+        }
+
+        if (!this.activeTable) return
+
+        const element: any = await this.h5fileApi.getEntity(this.activeTable.key)
         const shape = element.shape
         if (shape) this.matrixSize = shape[0]
         else this.matrixSize = 4947
@@ -430,8 +450,6 @@ const MyComponent = defineComponent({
         }
       }
 
-      console.log(5555, 'VALUES', values.length)
-
       // DIFF MODE
 
       if (this.h5baseApi && this.currentBaseData) {
@@ -485,7 +503,7 @@ const MyComponent = defineComponent({
     },
 
     clickedZone(zone: { index: number; properties: any }) {
-      console.log('ZONE', zone)
+      // console.log('ZONE', zone)
 
       // ignore double clicks and same-clicks
       if (zone.properties[this.zoneID] == this.activeZone) return
@@ -543,7 +561,7 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundariesBasedOnMatrixSize() {
-      console.log('HAHAHHAA', this.matrixSize)
+      console.log('MATRIX SIZE', this.matrixSize)
       const zoneSystem = this.zoneSystems.bySize[this.matrixSize]
       if (!zoneSystem) {
         console.error('NOOOO UNKNOWN MATRIX SIZE')
