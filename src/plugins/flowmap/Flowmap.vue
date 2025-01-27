@@ -195,7 +195,9 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
 
-      hourlyTotals: new Float32Array(0),
+      hourlyTotals: {
+        headwayPerHour: new Float32Array(0)
+      },
       hours: [] as number[],
       labels: [] as Label[],
       numHours: 0,
@@ -305,7 +307,6 @@ const MyComponent = defineComponent({
 
 
       this.statusText = ''
-      console.log(this.mapProps)
 
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
@@ -425,10 +426,12 @@ const MyComponent = defineComponent({
 
       // this.slider.filterStartHour = this.numHours
 
-      this.hourlyTotals = new Float32Array(this.numHours + 1)
+      this.hourlyTotals = {
+        headwayPerHour: new Float32Array(this.numHours + 1)
+      }
 
       this.flows.forEach(inf => {
-        this.hourlyTotals[inf.h] += 1
+        this.hourlyTotals.headwayPerHour[inf.h] += 1
       })
 
       // day labels
@@ -477,8 +480,6 @@ const MyComponent = defineComponent({
     },
 
     filterByHour(pct: { start: number; end: number }) {
-      console.log(pct.start + '' + pct.end)
-
       let filterFlows = this.flows.reduce((acc: any, flow) => {
         if (flow.h >= Math.round(pct.start * 24) && flow.h <= Math.round(pct.end * 24)) {
           acc.push(flow);
@@ -491,7 +492,6 @@ const MyComponent = defineComponent({
 
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
-      console.log(this.boundaries)
       for (const feature of this.boundaries) {
         // let centroid
         // if (this.vizDetails.boundariesCentroids == '') {
@@ -525,7 +525,6 @@ const MyComponent = defineComponent({
         //   })
         // }
       }
-      console.log({ centroids: this.centroids })
       // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
     },
 
@@ -585,10 +584,7 @@ const MyComponent = defineComponent({
       try {
         const dataset = await this.myDataManager.getDataset(this.vizDetails)
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        console.log('dataset:', dataset)
-
         const data = dataset.allRows || ({} as any)
-        console.log('data:', data)
 
         // Use config columns for origin/dest/flow -- if they exist
         const oColumn = this.vizDetails.origin || 'origin'
@@ -600,10 +596,6 @@ const MyComponent = defineComponent({
         const destination = data[dColumn].values
         const count = data[flowColumn].values
         const hours = data[hourColumn].values
-
-
-
-        console.log('in loadDataset')
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
@@ -627,9 +619,6 @@ const MyComponent = defineComponent({
         this.flows = []
         this.$emit('error', message)
       }
-      console.log({ flows: this.flows })
-      console.log(typeof (this.hourlyTotals))
-      console.log(typeof (this.labels))
 
       this.isLoaded = true
 

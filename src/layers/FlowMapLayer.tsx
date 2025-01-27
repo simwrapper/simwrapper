@@ -69,7 +69,6 @@ export default function Layer({
     const position = { left: x, top: y };
     switch (object?.type) {
       case PickingType.LOCATION:
-        console.log("location")
         return (
           <div
             className="tooltip"
@@ -91,7 +90,6 @@ export default function Layer({
           </div>
         )
       case PickingType.FLOW:
-        console.log(object)
         return (
           <div
             className="tooltip"
