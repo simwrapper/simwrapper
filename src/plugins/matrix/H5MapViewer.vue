@@ -6,10 +6,12 @@
   .left-bar(:style="{width: `${leftSectionWidth-11}px`}")
     .top-half.flex1
       .zone-details
-        p.h5-filename {{  filenameH5 }}
+        p.h5-filename {{ activeTable.name || filenameH5 }}
+        input.input-search(size="is-small" placeholder="Search..." v-model="searchTerm")
         .scrolly
           .h5-table(v-for="table in tableKeys" :key="table.key"
             :class="{'selected-table': table == activeTable}"
+            :hidden="searchTerm ? table.name.toLocaleLowerCase().indexOf(searchTermLowerCase) == -1 : false"
             @click="clickedTable(table)"
           )
             i.fa.fa-layer-group
@@ -43,7 +45,15 @@
 
       zoom-buttons
 
-      .tooltip-area(v-if="tooltip" v-html="tooltip")
+      .click-zone-hint.flex-col(v-if="activeZone == null")
+        h4: b MATRIX VIEWER
+        p This map view can display one row or one column of data at a time.
+        p Click on the map to select the area of interest.
+        p &nbsp;
+        p Switch to the table view to inspect the full matrix in tabular or heatmap view.
+
+      .tooltip-area(v-if="tooltip && !isLoading" v-html="tooltip")
+
       p.tooltip-area(v-if="isLoading" style="padding: 1.25rem"): b LOADING...
 
   .left-grabby(
@@ -130,6 +140,7 @@ const MyComponent = defineComponent({
       useConfig: '',
       zoneID: 'TAZ',
       matrixSize: 0,
+      searchTerm: '',
     }
   },
 
@@ -153,7 +164,11 @@ const MyComponent = defineComponent({
     if (this.baseBlob) this.activateDiffMode()
   },
 
-  computed: {},
+  computed: {
+    searchTermLowerCase() {
+      return this.searchTerm.toLocaleLowerCase()
+    },
+  },
 
   watch: {
     'globalState.viewState'() {
@@ -340,13 +355,6 @@ const MyComponent = defineComponent({
 
       // first get the keys
       let keys = await this.h5fileApi.getSearchablePaths('/')
-      console.log({ keys })
-
-      // // OMX has a '/data' prefix on each matrix
-      // if (keys.indexOf('/data') > -1) {
-      //   keys = keys.filter(key => key.startsWith('/data/'))
-      //   console.log({ keys2: keys })
-      // }
 
       // pretty sort the numbers the ways humans like them
       keys.sort((a: any, b: any) => naturalSort(a, b))
@@ -357,7 +365,7 @@ const MyComponent = defineComponent({
         return { key, name }
       })
 
-      // if there are "name" properties, add them
+      // if there are "name" properties, use them
       for (const table of tableKeys) {
         const element = await this.h5fileApi.getEntity(table.key)
         // mark non-datasets so they can be filtered out next
@@ -371,7 +379,7 @@ const MyComponent = defineComponent({
         }
       }
 
-      // filter out non-datasets; key will be empty string
+      // filter out non-datasets; key will be empty if it's not a dataset
       tableKeys = tableKeys.filter(t => !!t.key)
 
       this.tableKeys = tableKeys
@@ -400,11 +408,9 @@ const MyComponent = defineComponent({
 
       // Throw HDF5 errors instead of just logging them
       module.activate_throwing_error_handler()
-
       // Replace default plugins path
       module.remove_plugin_search_path(0)
       module.insert_plugin_search_path(PLUGINS_PATH, 0)
-
       // Create plugins folder on Emscripten virtual file system
       module.FS.mkdirTree(PLUGINS_PATH)
 
@@ -929,6 +935,21 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   font-size: 0.9rem;
+}
+
+.click-zone-hint {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  padding: 1rem;
+  background-color: var(--bgPanel);
+  color: var(--text);
+}
+
+.input-search {
+  border: 1px solid #888;
+  margin: 2px;
+  padding: 2px;
 }
 
 .scrolly {
