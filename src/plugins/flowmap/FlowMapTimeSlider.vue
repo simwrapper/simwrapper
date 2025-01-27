@@ -6,7 +6,7 @@
     
       #hourlybar
         .bars
-          .week(v-for="hourTotal in hourlyTotals" :style="{height: `${getWeekHeight(hourTotal)}%`}")
+          .week(v-for="hourTotal in hourlyTotals.headwayPerHour" :style="{height: `${getWeekHeight(hourTotal)}%`}")
     
         .labels(v-if="labels")
           .date-label(v-for="label in labels"
@@ -107,7 +107,7 @@ export default defineComponent({
 
   methods: {
     updateHours() {
-      this.maxFlows = Math.max(...this.hourlyTotals)
+      this.maxFlows = Math.max(...this.hourlyTotals.headwayPerHour)
     },
 
     getWeekHeight(hourTotal: number) {
@@ -189,7 +189,6 @@ export default defineComponent({
       this.pctStart = this.thumbLeft / totalWidth
       this.pctEnd = (this.thumbLeft + this.thumbWidth) / totalWidth
 
-      console.log(this.pctStart, this.pctEnd)
       this.$emit('range', { start: this.pctStart, end: this.pctEnd })
     },
 

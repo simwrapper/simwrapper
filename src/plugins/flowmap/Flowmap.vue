@@ -194,7 +194,9 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
 
-      hourlyTotals: new Float32Array(0),
+      hourlyTotals: {
+        headwayPerHour: new Float32Array(0)
+      },
       hours: [] as number[],
       labels: [] as Label[],
       numHours: 0,
@@ -304,7 +306,6 @@ const MyComponent = defineComponent({
 
 
       this.statusText = ''
-      console.log(this.mapProps)
 
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
@@ -424,10 +425,12 @@ const MyComponent = defineComponent({
 
       // this.slider.filterStartHour = this.numHours
 
-      this.hourlyTotals = new Float32Array(this.numHours + 1)
+      this.hourlyTotals = {
+        headwayPerHour: new Float32Array(this.numHours + 1)
+      }
 
       this.flows.forEach(inf => {
-        this.hourlyTotals[inf.h] += 1
+        this.hourlyTotals.headwayPerHour[inf.h] += 1
       })
 
       // day labels
@@ -476,8 +479,6 @@ const MyComponent = defineComponent({
     },
 
     filterByHour(pct: { start: number; end: number }) {
-      console.log(pct.start + '' + pct.end)
-
       let filterFlows = this.flows.reduce((acc: any, flow) => {
         if (flow.h >= Math.round(pct.start * 24) && flow.h <= Math.round(pct.end * 24)) {
           acc.push(flow);
@@ -490,7 +491,6 @@ const MyComponent = defineComponent({
 
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
-      console.log(this.boundaries)
       for (const feature of this.boundaries) {
         // let centroid
         // if (this.vizDetails.boundariesCentroids == '') {
@@ -630,9 +630,6 @@ const MyComponent = defineComponent({
         this.flows = []
         this.$emit('error', 'Check your configuration.')
       }
-      console.log({ flows: this.flows })
-      console.log(typeof (this.hourlyTotals))
-      console.log(typeof (this.labels))
 
       this.isLoaded = true
 
