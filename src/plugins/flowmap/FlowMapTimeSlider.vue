@@ -6,29 +6,30 @@
     
       #hourlybar
         .bars
-          .week(v-for="hourTotal in hourlyTotals.headwayPerHour" :style="{height: `${getWeekHeight(hourTotal)}%`}")
+          .week(v-for="hourTotal,i in hourlyTotals.headwayPerHour" :style="{height: `${getWeekHeight(hourTotal)}%`}" @click="showHour(i)")
+            .weektooltiptext {{ i + ":00" }}
     
         .labels(v-if="labels")
           .date-label(v-for="label in labels"
             :style="{left: `${label.leftPct}%`, right: `${label.rightPct}%`}"
           ) {{ label.text }}
     
-      #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
-        @mousedown="dividerDragStart"
-        @mouseup="dividerDragEnd"
-        @mousemove.stop="dividerDragging"
-      )
+      //- #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
+      //-   @mousedown="dividerDragStart"
+      //-   @mouseup="dividerDragEnd"
+      //-   @mousemove.stop="dividerDragging"
+      //- )
     
-        #dragleftie(
-          @mousedown.stop="dividerDragStart($event,'left')"
-          @mouseup.stop="dividerDragEnd($event,'left')"
-          @mousemove.stop="dividerDragging($event,'left')"
-        )
-        #dragrightie(
-          @mousedown.stop="dividerDragStart($event,'right')"
-          @mouseup.stop="dividerDragEnd($event,'right')"
-          @mousemove.stop="dividerDragging($event,'right')"
-        )
+      //-   #dragleftie(
+      //-     @mousedown.stop="dividerDragStart($event,'left')"
+      //-     @mouseup.stop="dividerDragEnd($event,'left')"
+      //-     @mousemove.stop="dividerDragging($event,'left')"
+      //-   )
+      //-   #dragrightie(
+      //-     @mousedown.stop="dividerDragStart($event,'right')"
+      //-     @mouseup.stop="dividerDragEnd($event,'right')"
+      //-     @mousemove.stop="dividerDragging($event,'right')"
+      //-   )
     
     </template>
 
@@ -48,16 +49,16 @@ export default defineComponent({
   props: {
     numHours: Number,
     hourlyTotals: {
-    type: Object, // Define it as a `Float32Array` (typed array)
-    default: () => new Float32Array(0), // Return a default `Float32Array`
-  },
+      type: Object, // Define it as a `Float32Array` (typed array)
+      default: () => new Float32Array(0), // Return a default `Float32Array`
+    },
     initial: {
       type: Array as () => number[],
       default: () => [],
     },
     labels: {
       type: Array as () => Label[],
-      default: () => [] ,
+      default: () => [],
     },
   },
 
@@ -72,6 +73,7 @@ export default defineComponent({
       thumbWidth: 0,
       pctStart: 0,
       pctEnd: 1,
+      selectedhour: 0,
       maxFlows: 1,
       side: '',
       useInitial: true,
@@ -111,8 +113,8 @@ export default defineComponent({
     },
 
     getWeekHeight(hourTotal: number) {
-
-      const height = Math.floor((100 * hourTotal) / this.maxFlows)
+      const minHeight = 10; // Set a minimum height for bars in pixels
+      const height = Math.max(minHeight, Math.floor((100 * hourTotal) / this.maxFlows))      
       return height
     },
 
@@ -125,6 +127,13 @@ export default defineComponent({
     dividerDragEnd(_: MouseEvent) {
       this.isDraggingDivider = 0
       this.side = ''
+    },
+
+    showHour(label: number) {
+      this.selectedhour = label
+      console.log(label)
+      this.$emit('hourSelected', this.selectedhour)
+
     },
 
     dividerDragging(e: MouseEvent) {
@@ -145,7 +154,6 @@ export default defineComponent({
       this.pctEnd = (this.thumbLeft + this.thumbWidth) / totalWidth
 
       // console.log(this.pctStart, this.pctEnd)
-      this.$emit('range', { start: this.pctStart, end: this.pctEnd })
     },
 
     adjustLeftSide(e: MouseEvent) {
@@ -267,6 +275,7 @@ export default defineComponent({
   position: relative;
   width: 100%;
   height: 0.6rem;
+  top: 2px;
 }
 
 .bars {
@@ -282,6 +291,7 @@ export default defineComponent({
   margin-right: 1px;
   margin-top: auto;
   padding-bottom: 1px;
+  pointer-events: auto;
 }
 
 #dragthumb {
@@ -338,5 +348,27 @@ export default defineComponent({
   top: 0;
   bottom: 0;
   height: 2rem;
+}
+
+.week:hover {
+  background-color:#4972e2;
+}
+
+.week .weektooltiptext {
+  visibility: hidden;
+  width: fit-content;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 5px;
+
+  /* Position the tooltip */
+  position: absolute;
+  z-index: 1;
+}
+
+.week:hover .weektooltiptext {
+  visibility: visible;
 }
 </style>
