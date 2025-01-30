@@ -1,79 +1,86 @@
 <template lang="pug">
+  .flowmap-page 
+    .flowmap(:class="{'hide-thumbnail': !thumbnail}"
+            :style='{"background": urlThumbnail}'
+            oncontextmenu="return false")
 
-  .flowmap(:class="{'hide-thumbnail': !thumbnail}"
-          :style='{"background": urlThumbnail}'
-          oncontextmenu="return false")
+        .map-layout
+          flow-map-layer.map-layer(v-if="centroids.length"
+            :viewId="viewId"
+            :props="mapProps")
 
-      .map-layout
-        flow-map-layer.map-layer(v-if="centroids.length"
-          :viewId="viewId"
-          :props="mapProps")
+        zoom-buttons(v-if="!thumbnail")
 
-      zoom-buttons(v-if="!thumbnail")
+        .bottom-panel(v-if="!thumbnail")
+          h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
+          .button-row  
+            time-slider.time-slider(v-if="isLoaded"
+            :numHours="numHours"
+            :hourlyTotals="hourlyTotals"
+            :initial="[0, getMaxHour()]"
+            :labels="labels"
+            @hourSelected="filterByHour"
+          )
+    .right-side-panel
+      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
+        option(value="Blues") Blues
+        option(value="BluGrn") BluGrn
+        option(value="BluYl") BluYl
+        option(value="BrwnYl") BrwnYl
+        option(value="BuGn") BuGn
+        option(value="BuPu") BuPu
+        option(value="Burg") Burg
+        option(value="BurgYl") BurgYl
+        option(value="Cool") Cool
+        option(value="DarkMint") DarkMint
+        option(value="Emrld") Emrld
+        option(value="GnBu") GnBu
+        option(value="Grayish") Grayish
+        option(value="Greens") Greens
+        option(value="Greys") Greys
+        option(value="Inferno") Inferno
+        option(value="Magenta") Magenta
+        option(value="Magma") Magma
+        option(value="Mint") Mint
+        option(value="Oranges") Oranges
+        option(value="OrRd") OrRd
+        option(value="OrYel") OrYel
+        option(value="Peach") Peach
+        option(value="Plasma") Plasma
+        option(value="PinkYl") PinkYl
+        option(value="PuBu") PuBu
+        option(value="PuBuGn") PuBuGn
+        option(value="PuRd") PuRd
+        option(value="Purp") Purp
+        option(value="Purples") Purples
+        option(value="PurpOr") PurpOr
+        option(value="RdPu") RdPu
+        option(value="RedOr") RedOr
+        option(value="Reds") Reds
+        option(value="Sunset") Sunset
+        option(value="SunsetDark") SunsetDark
+        option(value="Teal") Teal
+        option(value="TealGrn") TealGrn
+        option(value="Viridis") Viridis
+        option(value="Warm") Warm
+        option(value="YlGn") YlGn
+        option(value="YlGnBu") YlGnBu
+        option(value="YlOrBr") YlOrBr
+        option(value="YlOrRd") YlOrRd
 
-      .bottom-panel(v-if="!thumbnail")
-        h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
-        .button-row
-          b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
-            option(value="Blues") Blues
-            option(value="BluGrn") BluGrn
-            option(value="BluYl") BluYl
-            option(value="BrwnYl") BrwnYl
-            option(value="BuGn") BuGn
-            option(value="BuPu") BuPu
-            option(value="Burg") Burg
-            option(value="BurgYl") BurgYl
-            option(value="Cool") Cool
-            option(value="DarkMint") DarkMint
-            option(value="Emrld") Emrld
-            option(value="GnBu") GnBu
-            option(value="Grayish") Grayish
-            option(value="Greens") Greens
-            option(value="Greys") Greys
-            option(value="Inferno") Inferno
-            option(value="Magenta") Magenta
-            option(value="Magma") Magma
-            option(value="Mint") Mint
-            option(value="Oranges") Oranges
-            option(value="OrRd") OrRd
-            option(value="OrYel") OrYel
-            option(value="Peach") Peach
-            option(value="Plasma") Plasma
-            option(value="PinkYl") PinkYl
-            option(value="PuBu") PuBu
-            option(value="PuBuGn") PuBuGn
-            option(value="PuRd") PuRd
-            option(value="Purp") Purp
-            option(value="Purples") Purples
-            option(value="PurpOr") PurpOr
-            option(value="RdPu") RdPu
-            option(value="RedOr") RedOr
-            option(value="Reds") Reds
-            option(value="Sunset") Sunset
-            option(value="SunsetDark") SunsetDark
-            option(value="Teal") Teal
-            option(value="TealGrn") TealGrn
-            option(value="Viridis") Viridis
-            option(value="Warm") Warm
-            option(value="YlGn") YlGn
-            option(value="YlGnBu") YlGnBu
-            option(value="YlOrBr") YlOrBr
-            option(value="YlOrRd") YlOrRd
-
-
-          b-checkbox.tight(v-model="vizDetails.animationEnabled")
-            p Animation
-
-          b-checkbox.tight(v-model="vizDetails.clustering")
-            p Clustering
-        .button-row  
-          time-slider.time-slider(v-if="isLoaded"
-          :numHours="numHours"
-          :hourlyTotals="hourlyTotals"
-          :initial="[0, 24]"
-          :labels="labels"
-          @range="filterByHour"
-        )
+      br
+      b-checkbox.tight(v-model="vizDetails.animationEnabled")
+        p Animation
+      br
+      b-checkbox.tight(v-model="vizDetails.clustering")
+        p Clustering
+      br
+      p.control-label {{  $t('metrics') }}:
+      //- .metric-buttons
+      //-   button.button.is-small.metric-button(
+      //-     v-for="metric,i in metrics" :key="metric.field"
+      //-     :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+      //-     @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
 </template>
 
 <script lang="ts">
@@ -94,6 +101,8 @@ import util from '@/js/util'
 import proj4 from 'proj4'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import { None } from 'vega'
+import { error } from 'console'
+import { formatBound } from '../matrix/local/vis-utils'
 // import { Temporal } from 'temporal-polyfill'
 
 
@@ -200,6 +209,7 @@ const MyComponent = defineComponent({
       hours: [] as number[],
       labels: [] as Label[],
       numHours: 0,
+      selectedHour: 0,
 
       slider: {
         map: {} as any,
@@ -421,9 +431,10 @@ const MyComponent = defineComponent({
     },
 
     setupHourlyTotals() {
-      this.numHours = 24
+      this.numHours = this.getMaxHour()
 
-      // this.slider.filterStartHour = this.numHours
+      this.slider.filterStartHour = 0
+      this.slider.filterEndHour = this.numHours
 
       this.hourlyTotals = {
         headwayPerHour: new Float32Array(this.numHours + 1)
@@ -435,7 +446,7 @@ const MyComponent = defineComponent({
 
       // day labels
       const firstHour = "00:00"
-      const lastHour = "24:00"
+      const lastHour = this.numHours + ":00"
 
       this.labels.push({ leftPct: '0', rightPct: 'auto', top: '2px', text: firstHour.toString() })
       this.labels.push({ leftPct: 'auto', rightPct: '0', top: '2px', text: lastHour.toString() })
@@ -444,6 +455,16 @@ const MyComponent = defineComponent({
       // if (this.labels[this.labels.length - 1].leftPct > 96.5) {
       //   this.labels[this.labels.length - 1].leftPct = 93
       // }
+    },
+
+    getMaxHour() {
+      if (this.flows) {
+        return this.flows.reduce(
+          (maxHour, flow) => (flow.h > maxHour ? flow.h : maxHour),
+          this.flows[0].h);
+      } else {
+        return 0
+      }
     },
 
     async loadBoundaries() {
@@ -457,12 +478,33 @@ const MyComponent = defineComponent({
           // const boundaries = await this.fileApi.getFileJson(
           //   `${this.subfolder}/${this.vizDetails.boundaries}`
           // )
-          this.vizDetails.network = 'kelheim-mini.output_network.xml.gz' // need to change this for general production
+          const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+
+          // Road network: first try the most obvious network filename:
+          let network = this.vizDetails.network 
+
+          // if the obvious network file doesn't exist, just grab... the first network file:
+          if (!network) {
+            const allNetworks = files.filter(f => f.endsWith('network.xml.gz') && !f.startsWith('._'))
+            if (allNetworks.length) network = allNetworks[0]
+            else {
+              // this.loadingText = 'No road network found.'
+              console.error("no road network found.")
+              network = ''
+            }
+          }
+
+          // Departures: use them if we are in an output folder (and they exist)
+          // let demandFiles = [] as string[]
+          // if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
+          //   demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+          // }
+          // need to change this for general production
 
           const boundaries = this.fetchXML({
             worker: this._roadFetcher,
             slug: this.fileSystem.slug,
-            filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+            filePath: this.myState.subfolder + '/' + network,
             options: { attributeNamePrefix: '' },
           })
 
@@ -478,13 +520,14 @@ const MyComponent = defineComponent({
       this.setMapCenter()
     },
 
-    filterByHour(pct: { start: number; end: number }) {
+    filterByHour(hour: number) {
       let filterFlows = this.flows.reduce((acc: any, flow) => {
-        if (flow.h >= Math.round(pct.start * 24) && flow.h <= Math.round(pct.end * 24)) {
+        if (flow.h == hour) {
           acc.push(flow);
         }
         return acc;
       }, []);
+
 
       this.filteredFlows = filterFlows
     },
@@ -581,7 +624,24 @@ const MyComponent = defineComponent({
     },
 
     async loadDataset() {
-      console.log('flowmap: loadDataset')
+
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder + "/analysis/pt/")
+
+      const datasets:any = []
+      const allDatasets = files.filter(f => f.endsWith('.csv') && !f.startsWith('._'))
+      if (allDatasets.length) {
+        allDatasets.forEach(dataset => {
+          datasets.push(dataset)
+        })
+        console.log(datasets)
+
+      }
+
+      else {
+      // this.loadingText = 'No road network found.'
+      console.error("no datasets found.")
+      }
+
       try {
         const dataset = await this.myDataManager.getDataset(this.vizDetails, {
           subfolder: this.subfolder,
@@ -590,7 +650,7 @@ const MyComponent = defineComponent({
         // console.log('dataset:', dataset)
 
         const data = dataset.allRows || ({} as any)
-        // console.log('data:', data)
+        console.log(dataset)
 
         // Use config columns for origin/dest/flow -- if they exist
         const oColumn = this.vizDetails.origin || 'origin'
@@ -644,16 +704,23 @@ export default MyComponent
 @import '@/styles.scss';
 
 .flowmap {
-  position: absolute;
+  position: relative;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  // display: flex;
+  flex: 8;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') center / cover no-repeat;
   z-index: -1;
+}
+
+.deck-map {
+  width: 100%;
+  display: flex;
+  flex-direction: row !important;
+  height: 100%;
 }
 
 .flowmap.hide-thumbnail {
@@ -698,9 +765,25 @@ export default MyComponent
   z-index: 2;
 }
 
+.map-layout {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.map-complications {
+  display: flex;
+  position: absolute;
+}
+
+.right-side-panel {
+  flex: 1;
+  padding-left: 15px;
+}
+
 .bottom-panel {
-  // display: flex;
-  // flex-direction: row;
+  position: absolute;
+  bottom: 1rem;
   font-size: 0.8rem;
   width: 50%;
   pointer-events: auto;
