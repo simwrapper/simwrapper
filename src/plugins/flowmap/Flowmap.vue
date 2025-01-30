@@ -86,11 +86,10 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
-
+import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 import * as turf from '@turf/turf'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-
 import { FileSystemConfig, REACT_VIEW_HANDLES, VisualizationPlugin } from '@/Globals'
 import FlowMapLayer from '@/plugins/flowmap/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
@@ -98,11 +97,12 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
-import proj4 from 'proj4'
+// import proj4 from 'proj4'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import { None } from 'vega'
 import { error } from 'console'
 import { formatBound } from '../matrix/local/vis-utils'
+import Coords from '@/js/Coords'
 // import { Temporal } from 'temporal-polyfill'
 
 
@@ -543,7 +543,8 @@ const MyComponent = defineComponent({
         // }
 
         // Convert the location data
-        const [lon, lat] = proj4('EPSG:25832', 'EPSG:4326', [parseFloat(feature.x), parseFloat(feature.y)]);
+        // don't hard code CRS
+        const [lon, lat] = Coords.toLngLat('EPSG:25832', 'EPSG:4326');
 
         this.centroids.push({
           id: feature.id,
