@@ -6,12 +6,12 @@
     
       #hourlybar
         .bars
-          .week(v-for="hourTotal,i in hourlyTotals.headwayPerHour" :style="{height: `${getWeekHeight(hourTotal)}%`}" @click="showHour(i)")
+          .week(v-for="hourTotal,i in hourlyTotals.headwayPerHour" :style="{'height': `${getWeekHeight(hourTotal)}%`, 'background-color': activeHour==i ? '#7957d5' : '#e24986'}" @click="showHour(i)")
             .weektooltiptext {{ i + ":00" }}
     
         .labels(v-if="labels")
           .date-label(v-for="label in labels"
-            :style="{left: `${label.leftPct}%`, right: `${label.rightPct}%`}"
+            :style="{left: `${label.leftPct}%`, right: `${label.rightPct}%`, color: isDarkMode ? '#C6C1B9' : '#363636'}"
           ) {{ label.text }}
     
       //- #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
@@ -60,6 +60,7 @@ export default defineComponent({
       type: Array as () => Label[],
       default: () => [],
     },
+    isDarkMode: Boolean
   },
 
   data: () => {
@@ -76,15 +77,34 @@ export default defineComponent({
       selectedhour: 0,
       maxFlows: 1,
       side: '',
+      activeHour: 0,
       useInitial: true,
     }
   },
   computed: {},
-  watch: {},
+  watch: {
+    hourlyTotals: function (newHourlyTotals, oldHourlyTotals) {
+      this.updateHours()
+    if (this.numHours) {
+      this.getWeekHeight(this.numHours)
+      this.activeHour = (this.numHours / 2)
+    }else {
+      this.activeHour = 0
+    }
+    this.showHour(this.activeHour)
+    }
+  },
 
   mounted() {
     this.rightside = this.numHours || 0
     this.updateHours()
+    if (this.numHours) {
+      this.activeHour = (this.numHours / 2)
+    }else {
+      this.activeHour = 0
+    }
+    this.showHour(this.activeHour)
+
 
     // initial extent
     const hourlybar = document.getElementById('hourlybar') as HTMLElement
@@ -110,6 +130,7 @@ export default defineComponent({
   methods: {
     updateHours() {
       this.maxFlows = Math.max(...this.hourlyTotals.headwayPerHour)
+      console.log(this.maxFlows)
     },
 
     getWeekHeight(hourTotal: number) {
@@ -131,6 +152,7 @@ export default defineComponent({
 
     showHour(label: number) {
       this.selectedhour = label
+      this.activeHour = label
       console.log(label)
       this.$emit('hourSelected', this.selectedhour)
 
@@ -245,10 +267,10 @@ export default defineComponent({
 <style scoped lang="scss">
 .time-slider {
   position: relative;
-  background-color: white;
+  /* background-color: white; */
   display: flex;
   flex-direction: row;
-  border: 2px solid #4972e2;
+  /* border: 2px solid #4972e2; */
   opacity: 0.9;
   height: 5rem;
   user-select: none;
@@ -272,6 +294,7 @@ export default defineComponent({
   display: flex;
   flex-direction: row;
   line-height: 0.7rem;
+  color:#fff;
   position: relative;
   width: 100%;
   height: 0.6rem;
@@ -351,7 +374,7 @@ export default defineComponent({
 }
 
 .week:hover {
-  background-color:#4972e2;
+  background-color:#4972e2!important;
 }
 
 .week .weektooltiptext {

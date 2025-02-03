@@ -19,10 +19,19 @@
             :hourlyTotals="hourlyTotals"
             :initial="[0, getMaxHour()]"
             :labels="labels"
+            :isDarkMode="isDarkMode"
             @hourSelected="filterByHour"
           )
     .right-side-panel
-      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
+      .metric-label {{  $t('metrics') }}:
+      .metric-buttons 
+        button.button.is-small.metric-button(
+          v-for="metric,i in vizDetails.metrics" :key="i"
+          :style="{'color': 'white' , 'border': isDarkMode ? `1px solid white` : `1px solid #2A3C4F`, 'border-radius': '4px', 'backgroundColor': isDarkMode ? '#2a3c4f': '#2a3c4f'}" @click="handleClickedMetric(metric)"
+          ) {{metric.label}}
+      br
+      .metric-label {{  $t('color scheme') }}:
+      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme" class="is-small")
         option(value="Blues") Blues
         option(value="BluGrn") BluGrn
         option(value="BluYl") BluYl
@@ -74,13 +83,6 @@
       br
       b-checkbox.tight(v-model="vizDetails.clustering")
         p Clustering
-      br
-      p.control-label {{  $t('metrics') }}:
-      //- .metric-buttons
-      //-   button.button.is-small.metric-button(
-      //-     v-for="metric,i in metrics" :key="metric.field"
-      //-     :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
-      //-     @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
 </template>
 
 <script lang="ts">
@@ -97,12 +99,11 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
-// import proj4 from 'proj4'
+import proj4 from 'proj4'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
 import { None } from 'vega'
 import { error } from 'console'
 import { formatBound } from '../matrix/local/vis-utils'
-import Coords from '@/js/Coords'
 // import { Temporal } from 'temporal-polyfill'
 
 
@@ -172,6 +173,9 @@ const MyComponent = defineComponent({
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
     },
+    '$store.state.isDarkMode'() { 
+      this.isDarkMode = this.$store.state.isDarkMode
+    }
   },
 
   data() {
@@ -210,6 +214,8 @@ const MyComponent = defineComponent({
       labels: [] as Label[],
       numHours: 0,
       selectedHour: 0,
+      datasets: [] as string[],
+      isDarkMode: this.$store.state.isDarkMode,
 
       slider: {
         map: {} as any,
@@ -247,10 +253,15 @@ const MyComponent = defineComponent({
         boundariesCentroids: '',
         network: '',
         dataset: '',
-        origin: '',
-        destination: '',
-        flow: '',
-        colorScheme: 'teal',
+        colorScheme: 'Teal',
+        metrics: [{
+          label: '',
+          dataset: '',
+          origin: '',
+          destination: '',
+          flow: '',
+          colorScheme: '',
+        }],
         highlightColor: 'orange',
         fadeEnabled: true,
         fadeAmount: 50,
@@ -306,16 +317,19 @@ const MyComponent = defineComponent({
       // the spinner when things are finished.  MUST be in this order
       // or the flowmap gets sad if dataset loads faster than boundaries do.
       await this.loadBoundaries()
-      await this.loadDataset()
-
-      this.$emit('isLoaded')
 
       this.vizDetails = Object.assign({}, this.vizDetails)
       this.slider.labels = ['test', 'test']
       this.slider = Object.assign({}, this.slider)
+      await this.configureData(this.vizDetails.metrics[0])
+
+      this.$emit('isLoaded')
+
+
 
 
       this.statusText = ''
+      console.log(this.isDarkMode)
 
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
@@ -369,6 +383,12 @@ const MyComponent = defineComponent({
     },
 
     async validateYAML() { },
+
+    async handleClickedMetric(metric: string) {
+
+      this.configureData(metric)
+
+    },
 
     async loadStandaloneYAMLConfig() {
       if (!this.fileApi) return {}
@@ -481,7 +501,7 @@ const MyComponent = defineComponent({
           const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
           // Road network: first try the most obvious network filename:
-          let network = this.vizDetails.network 
+          let network = this.vizDetails.network
 
           // if the obvious network file doesn't exist, just grab... the first network file:
           if (!network) {
@@ -544,7 +564,9 @@ const MyComponent = defineComponent({
 
         // Convert the location data
         // don't hard code CRS
-        const [lon, lat] = Coords.toLngLat('EPSG:25832', 'EPSG:4326');
+        // const [lon, lat] = Coords.toLngLat('EPSG:25832', 'EPSG:4326');
+
+        const [lon, lat] = proj4('EPSG:25832', 'EPSG:4326', [parseFloat(feature.x), parseFloat(feature.y)]);
 
         this.centroids.push({
           id: feature.id,
@@ -624,41 +646,24 @@ const MyComponent = defineComponent({
       }
     },
 
-    async loadDataset() {
-
-      const { files } = await this.fileApi.getDirectory(this.myState.subfolder + "/analysis/pt/")
-
-      const datasets:any = []
-      const allDatasets = files.filter(f => f.endsWith('.csv') && !f.startsWith('._'))
-      if (allDatasets.length) {
-        allDatasets.forEach(dataset => {
-          datasets.push(dataset)
-        })
-        console.log(datasets)
-
-      }
-
-      else {
-      // this.loadingText = 'No road network found.'
-      console.error("no datasets found.")
-      }
+    async configureData(datasetInfo: any) {
+      // Use config columns for origin/dest/flow -- if they exist
+      this.vizDetails.colorScheme = datasetInfo.colorScheme
+      const oColumn = datasetInfo.origin || 'origin'
+      const dColumn = datasetInfo.destination || 'destination'
+      const flowColumn = datasetInfo.flow || 'flow'
+      const hourColumn = 'departureHour'
 
       try {
+        this.vizDetails.dataset = datasetInfo.dataset
+        console.log(this.vizDetails)
         const dataset = await this.myDataManager.getDataset(this.vizDetails, {
           subfolder: this.subfolder,
         })
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        // console.log('dataset:', dataset)
+        console.log('dataset:', dataset)
 
         const data = dataset.allRows || ({} as any)
-        console.log(dataset)
-
-        // Use config columns for origin/dest/flow -- if they exist
-        const oColumn = this.vizDetails.origin || 'origin'
-        const dColumn = this.vizDetails.destination || 'destination'
-        const flowColumn = this.vizDetails.flow || 'flow'
-        const hourColumn = 'departureHour'
-
         if (!(oColumn in data)) this.$emit('error', `Column ${oColumn} not found`)
         if (!(dColumn in data)) this.$emit('error', `Column ${dColumn} not found`)
         if (!(flowColumn in data)) this.$emit('error', `Column ${flowColumn} not found`)
@@ -686,15 +691,16 @@ const MyComponent = defineComponent({
         this.flows = flows
         this.filteredFlows = this.flows
         this.setupHourlyTotals()
+        this.isLoaded = true
+
+
       } catch (e) {
         console.log('' + e)
         this.flows = []
-        this.$emit('error', 'Check your configuration.')
+        this.$emit('error', '' + e)
       }
 
-      this.isLoaded = true
-
-    },
+    }
   },
 })
 
@@ -727,6 +733,31 @@ export default MyComponent
 .flowmap.hide-thumbnail {
   background: none;
   z-index: 0;
+}
+
+.metric-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: max-content;
+  margin: 0.25rem 0.5rem 0.5rem 0;
+}
+
+.metric-button {
+  border-radius: 0;
+  width: 100%;
+  flex: 1;
+}
+
+.metric-button:hover {
+  background-color: #FFF !important;
+  color: #000 !important;
+}
+
+
+.metric-label {
+  font-weight: bold;
+  font-size: 1.3rem;
 }
 
 .button-row {
@@ -780,6 +811,16 @@ export default MyComponent
 .right-side-panel {
   flex: 1;
   padding-left: 15px;
+
+  p:hover {
+    font-weight: bold !important;
+    color: #C6C1B9;
+  }
+
+  .b-checkbox.checkbox:not(.button):hover {
+    font-weight: bold !important;
+    color: #C6C1B9;
+  }
 }
 
 .bottom-panel {
@@ -795,10 +836,6 @@ export default MyComponent
 
   p {
     margin-right: 1rem;
-  }
-
-  p:hover {
-    color: var(--link);
   }
 }
 
@@ -831,6 +868,11 @@ export default MyComponent
   p {
     font-size: 0.9rem;
   }
+}
+
+.is-small {
+  font-size: 0.875rem;
+  height: 30px;
 }
 
 .map-layer {
