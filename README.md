@@ -44,7 +44,7 @@ npm ci
 This command runs a local server with hot reload for testing, usually listens on http://localhost:8080
 
 ```
-npm run serve
+npm run dev
 ```
 
 ### Compiles and minifies for production
