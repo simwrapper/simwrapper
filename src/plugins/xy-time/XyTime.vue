@@ -115,7 +115,7 @@ interface VizDetail {
   exponent: number
   radius: number
   colorRamp: string
-  breakpoints: string
+  breakpoints: number[] | { values: number[]; colors?: any } | null
 }
 
 interface PointLayer {
@@ -205,7 +205,7 @@ const MyComponent = defineComponent({
         radius: 5,
         colorRamp: 'viridis',
         flip: false,
-        breakpoints: null as any,
+        breakpoints: null as number[] | { values: number[]; colors?: any } | null,
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -608,46 +608,89 @@ const MyComponent = defineComponent({
     },
 
     setColors() {
-      const EXPONENT = this.guiConfig.exponent // powerFunction // 4 // log-e? not steep enough
+      const EXPONENT = this.guiConfig.exponent
 
-      let colors256 = colormap({
-        colormap: this.guiConfig['color ramp'],
-        nshades: 256,
-        format: 'rba',
-        alpha: 1,
-      }).map((c: number[]) => [c[0], c[1], c[2]])
+      // === Apply or generate colors ===
+      // If breakpoints contain custom colors, use them.
+      if (
+        this.vizDetails.breakpoints &&
+        typeof this.vizDetails.breakpoints === 'object' &&
+        !Array.isArray(this.vizDetails.breakpoints) &&
+        'colors' in this.vizDetails.breakpoints
+      ) {
+        this.colors = this.vizDetails.breakpoints.colors
+      } else if (
+        this.config &&
+        this.config.breakpoints &&
+        typeof this.config.breakpoints === 'object' &&
+        !Array.isArray(this.config.breakpoints) &&
+        'colors' in this.config.breakpoints
+      ) {
+        this.colors = this.config.breakpoints.colors
+      } else {
+        // Otherwise, generate colors based on current GUI settings.
+        const usedColorRamp = this.vizDetails.colorRamp || this.guiConfig['color ramp']
 
-      if (this.guiConfig.flip) colors256 = colors256.reverse()
+        let colors256 = colormap({
+          colormap: usedColorRamp,
+          nshades: 256,
+          format: 'rba',
+          alpha: 1,
+        }).map((c: any[]) => [c[0], c[1], c[2]])
 
-      const step = 256 / (this.guiConfig.buckets - 1)
-      const colors = []
-      for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
-        colors.push(colors256[Math.round(step * i)])
+        if (this.guiConfig.flip) colors256 = colors256.reverse()
+
+        const step = 256 / (this.guiConfig.buckets - 1)
+        const generatedColors = []
+        for (let i = 0; i < this.guiConfig.buckets - 1; i++) {
+          generatedColors.push(colors256[Math.round(step * i)])
+        }
+        generatedColors.push(colors256[255])
+        this.colors = generatedColors
       }
-      colors.push(colors256[255])
 
-      this.colors = colors
-
-      // figure out min and max
-      const max1 = Math.pow(this.range[1], 1 / EXPONENT)
-      const max2 = (max1 * this.guiConfig['clip max']) / 100.0
-      // const clippedMin = (this.range[1] * this.clipData[0]) / 100.0
-      // console.log({ max1, max2 })
-
-      // Generate breakpoints only if there are not already set
-      if (!this.vizDetails.breakpoints) {
-        const breakpoints = [] as number[]
+      // === Apply or generate breakpoints ===
+      if (this.vizDetails.breakpoints) {
+        if (Array.isArray(this.vizDetails.breakpoints) && this.vizDetails.breakpoints.length > 0) {
+          this.breakpoints = this.vizDetails.breakpoints
+        } else if (
+          typeof this.vizDetails.breakpoints === 'object' &&
+          !Array.isArray(this.vizDetails.breakpoints) &&
+          'values' in this.vizDetails.breakpoints
+        ) {
+          this.breakpoints = this.vizDetails.breakpoints.values as number[]
+          if ('colors' in this.vizDetails.breakpoints) {
+            this.guiConfig.buckets = this.vizDetails.breakpoints.colors.length
+          }
+        }
+      } else if (this.config && this.config.breakpoints) {
+        if (Array.isArray(this.config.breakpoints)) {
+          this.breakpoints = this.config.breakpoints
+        } else if (
+          typeof this.config.breakpoints === 'object' &&
+          !Array.isArray(this.config.breakpoints) &&
+          'values' in this.config.breakpoints
+        ) {
+          this.breakpoints = this.config.breakpoints.values as number[]
+          if ('colors' in this.config.breakpoints) {
+            this.guiConfig.buckets = this.config.breakpoints.colors.length
+          }
+        }
+      } else {
+        // If no custom breakpoints exist, generate new ones.
+        const max1 = Math.pow(this.range[1], 1 / EXPONENT)
+        const max2 = (max1 * this.guiConfig['clip max']) / 100.0
+        const generatedBreakpoints: number[] = []
         for (let i = 1; i < this.guiConfig.buckets; i++) {
           const raw = (max2 * i) / this.guiConfig.buckets
           const breakpoint = Math.pow(raw, EXPONENT)
-          breakpoints.push(breakpoint)
+          generatedBreakpoints.push(breakpoint)
         }
-
-        this.breakpoints = breakpoints
+        this.breakpoints = generatedBreakpoints
       }
 
-      // only update legend if we have the full dataset already
-      if (this.isLoaded) this.setLegend(colors, this.breakpoints)
+      // Update legend if data is fully loaded.
+      if (this.isLoaded) this.setLegend(this.colors, this.breakpoints)
     },
 
     setLegend(colors: any[], breakpoints: number[]) {
