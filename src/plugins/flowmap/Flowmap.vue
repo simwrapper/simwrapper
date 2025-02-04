@@ -1,26 +1,86 @@
 <template lang="pug">
-.flowmap(:class="{'hide-thumbnail': !thumbnail}"
-        :style='{"background": urlThumbnail}'
-        oncontextmenu="return false")
+  .flowmap-page 
+    .flowmap(:class="{'hide-thumbnail': !thumbnail}"
+            :style='{"background": urlThumbnail}'
+            oncontextmenu="return false")
 
-    .map-layout
-      flow-map-layer.map-layer(v-if="centroids.length"
-        :viewId="viewId"
-        :props="mapProps")
+        .map-layout
+          flow-map-layer.map-layer(v-if="centroids.length"
+            :viewId="viewId"
+            :props="mapProps")
 
-    zoom-buttons(v-if="!thumbnail")
+        zoom-buttons(v-if="!thumbnail")
 
-    .bottom-panel(v-if="!thumbnail")
+        .bottom-panel(v-if="!thumbnail")
+          h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
+          .button-row  
+            time-slider.time-slider(v-if="isLoaded"
+            :numHours="numHours"
+            :hourlyTotals="hourlyTotals"
+            :initial="[0, getMaxHour()]"
+            :labels="labels"
+            @hourSelected="filterByHour"
+          )
+    .right-side-panel
+      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme") 
+        option(value="Blues") Blues
+        option(value="BluGrn") BluGrn
+        option(value="BluYl") BluYl
+        option(value="BrwnYl") BrwnYl
+        option(value="BuGn") BuGn
+        option(value="BuPu") BuPu
+        option(value="Burg") Burg
+        option(value="BurgYl") BurgYl
+        option(value="Cool") Cool
+        option(value="DarkMint") DarkMint
+        option(value="Emrld") Emrld
+        option(value="GnBu") GnBu
+        option(value="Grayish") Grayish
+        option(value="Greens") Greens
+        option(value="Greys") Greys
+        option(value="Inferno") Inferno
+        option(value="Magenta") Magenta
+        option(value="Magma") Magma
+        option(value="Mint") Mint
+        option(value="Oranges") Oranges
+        option(value="OrRd") OrRd
+        option(value="OrYel") OrYel
+        option(value="Peach") Peach
+        option(value="Plasma") Plasma
+        option(value="PinkYl") PinkYl
+        option(value="PuBu") PuBu
+        option(value="PuBuGn") PuBuGn
+        option(value="PuRd") PuRd
+        option(value="Purp") Purp
+        option(value="Purples") Purples
+        option(value="PurpOr") PurpOr
+        option(value="RdPu") RdPu
+        option(value="RedOr") RedOr
+        option(value="Reds") Reds
+        option(value="Sunset") Sunset
+        option(value="SunsetDark") SunsetDark
+        option(value="Teal") Teal
+        option(value="TealGrn") TealGrn
+        option(value="Viridis") Viridis
+        option(value="Warm") Warm
+        option(value="YlGn") YlGn
+        option(value="YlGnBu") YlGnBu
+        option(value="YlOrBr") YlOrBr
+        option(value="YlOrRd") YlOrRd
 
-        b-checkbox.tight(v-model="vizDetails.animationEnabled")
+      br
+      b-checkbox.tight(v-model="vizDetails.animationEnabled")
         p Animation
-
-        b-checkbox.tight(v-model="vizDetails.locationLabelsEnabled")
-        p Labels
-
-        b-checkbox.tight(v-model="vizDetails.clustering")
+      br
+      b-checkbox.tight(v-model="vizDetails.clustering")
         p Clustering
-
+      br
+      p.control-label {{  $t('metrics') }}:
+      //- .metric-buttons
+      //-   button.button.is-small.metric-button(
+      //-     v-for="metric,i in metrics" :key="metric.field"
+      //-     :style="{'color': activeMetric===metric.field ? 'white' : buttonColors[i], 'border': `1px solid ${buttonColors[i]}`, 'border-right': `0.4rem solid ${buttonColors[i]}`,'border-radius': '4px', 'background-color': activeMetric===metric.field ? buttonColors[i] : isDarkMode ? '#333':'white'}"
+      //-     @click="handleClickedMetric(metric)") {{ $i18n.locale === 'de' ? metric.name_de : metric.name_en }}
 </template>
 
 <script lang="ts">
@@ -38,10 +98,32 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
+import proj4 from 'proj4'
+import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
+import { None } from 'vega'
+import { error } from 'console'
+import { formatBound } from '../matrix/local/vis-utils'
+// import { Temporal } from 'temporal-polyfill'
+
+
+interface Label {
+  leftPct: string
+  rightPct: string
+  top: string
+  text: string
+}
+
+interface Flow {
+  o: string, // origin
+  d: string, // destination
+  v: number,
+  h: number
+}
+
 
 const MyComponent = defineComponent({
   name: 'FlowMap',
-  components: { FlowMapLayer, VizConfigurator, ZoomButtons },
+  components: { FlowMapLayer, VizConfigurator, ZoomButtons, TimeSlider },
   // i18n,
   props: {
     config: Object,
@@ -71,10 +153,11 @@ const MyComponent = defineComponent({
     mapProps(): any {
       return {
         locations: this.centroids,
-        flows: this.flows,
+        flows: this.filteredFlows,
         dark: this.$store.state.isDarkMode,
         elapsed: this.elapsed,
         vizDetails: this.vizDetails,
+        slider: this.slider
       }
     },
 
@@ -82,6 +165,7 @@ const MyComponent = defineComponent({
       return this.thumbnailUrl
     },
   },
+
 
   watch: {
     '$store.state.viewState'() {
@@ -92,14 +176,20 @@ const MyComponent = defineComponent({
 
   data() {
     return {
+      isLoaded: false,
       boundaries: [] as any[],
       centroids: [] as any[],
-      flows: [] as any[],
+      flows: [] as Flow[],
+      filteredFlows: [] as Flow[],
       viewId: Math.floor(1e12 * Math.random()),
       statusText: 'Loading...',
       needsInitialMapExtent: true,
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;",
+
+      resolvers: {} as { [id: number]: any },
+      resolverId: 0,
+      _roadFetcher: {} as any,
 
       startTime: Date.now(),
       elapsed: 0,
@@ -113,11 +203,40 @@ const MyComponent = defineComponent({
         thumbnail: false,
       },
 
+      hourlyTotals: {
+        headwayPerHour: new Float32Array(0)
+      },
+      hours: [] as number[],
+      labels: [] as Label[],
+      numHours: 0,
+      selectedHour: 0,
+
+      slider: {
+        map: {} as any,
+        isLoaded: false,
+        population: [] as any[],
+        numInfections: 0,
+        coordinates: new Float64Array(1),
+        deckOverlay: {} as any,
+        startDate: '',
+        // largestNumDailyInfections: 0,
+        filterStartHour: 0,
+        filterEndHour: 24,
+        filteredFlows: [] as any,
+        labels: ['', ''],
+        csvStreamer: null as any,
+        useMeters: true,
+        radiusSlider: 250,
+        range: [20, 1000],
+        path: '',
+        updating: true,
+      },
+
       vizDetails: {
-        title: '',
+        title: 'test',
         description: '',
         thumbnail: '',
-        zoom: 9,
+        zoom: 9.5,
         center: null as any | null,
         pitch: 0,
         bearing: 0,
@@ -126,17 +245,19 @@ const MyComponent = defineComponent({
         boundariesLabels: '',
         boundariesLabel: '',
         boundariesCentroids: '',
+        network: '',
         dataset: '',
         origin: '',
         destination: '',
         flow: '',
-        colorScheme: 'Teal',
+        colorScheme: 'teal',
         highlightColor: 'orange',
         fadeEnabled: true,
         fadeAmount: 50,
         animationEnabled: true,
         clustering: true,
         clusteringLevel: null as number | null,
+        clusteringEnabled: true,
         locationLabelsEnabled: true,
         locationTotalsEnabled: true,
         pickable: true,
@@ -158,6 +279,7 @@ const MyComponent = defineComponent({
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
+      this._roadFetcher = new NewXmlFetcher()
 
       await this.getVizDetails()
 
@@ -189,13 +311,20 @@ const MyComponent = defineComponent({
       this.$emit('isLoaded')
 
       this.vizDetails = Object.assign({}, this.vizDetails)
+      this.slider.labels = ['test', 'test']
+      this.slider = Object.assign({}, this.slider)
+
+
       this.statusText = ''
+
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
     }
   },
 
   beforeDestroy() {
+    if (this._roadFetcher) this._roadFetcher.terminate()
+
     if (this.animator) window.cancelAnimationFrame(this.animator)
 
     // MUST delete the React view handle to prevent gigantic memory leak!
@@ -207,6 +336,8 @@ const MyComponent = defineComponent({
       // Config was passed in from dashboard:
       if (this.configFromDashboard) {
         console.log('we have a dashboard')
+        this.validateYAML()
+        console.log(this.configFromDashboard)
         this.vizDetails = Object.assign({}, this.configFromDashboard) as any
         return
       }
@@ -236,6 +367,8 @@ const MyComponent = defineComponent({
         }
       }
     },
+
+    async validateYAML() { },
 
     async loadStandaloneYAMLConfig() {
       if (!this.fileApi) return {}
@@ -268,56 +401,171 @@ const MyComponent = defineComponent({
       }
     },
 
+    fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {
+      let xmlWorker = props.worker
+
+      xmlWorker.onmessage = (message: MessageEvent) => {
+        // message.data will have .id and either .error or .xml
+        const { resolve, reject } = this.resolvers[message.data.id]
+
+        xmlWorker.terminate()
+
+        if (message.data.error) reject(message.data.error)
+        resolve(message.data.xml)
+      }
+
+      // save the promise by id so we can look it up when we get messages
+      const id = this.resolverId++
+
+      xmlWorker.postMessage({
+        id,
+        fileSystem: this.fileSystem,
+        filePath: props.filePath,
+        options: props.options,
+      })
+
+      const promise = new Promise((resolve, reject) => {
+        this.resolvers[id] = { resolve, reject }
+      })
+      return promise
+    },
+
+    setupHourlyTotals() {
+      this.numHours = this.getMaxHour()
+
+      this.slider.filterStartHour = 0
+      this.slider.filterEndHour = this.numHours
+
+      this.hourlyTotals = {
+        headwayPerHour: new Float32Array(this.numHours + 1)
+      }
+
+      this.flows.forEach(inf => {
+        this.hourlyTotals.headwayPerHour[inf.h] += 1
+      })
+
+      // day labels
+      const firstHour = "00:00"
+      const lastHour = this.numHours + ":00"
+
+      this.labels.push({ leftPct: '0', rightPct: 'auto', top: '2px', text: firstHour.toString() })
+      this.labels.push({ leftPct: 'auto', rightPct: '0', top: '2px', text: lastHour.toString() })
+
+
+      // if (this.labels[this.labels.length - 1].leftPct > 96.5) {
+      //   this.labels[this.labels.length - 1].leftPct = 93
+      // }
+    },
+
+    getMaxHour() {
+      if (this.flows) {
+        return this.flows.reduce(
+          (maxHour, flow) => (flow.h > maxHour ? flow.h : maxHour),
+          this.flows[0].h);
+      } else {
+        return 0
+      }
+    },
+
     async loadBoundaries() {
+      let results: any = {}
       try {
         if (this.vizDetails.boundaries.startsWith('http')) {
           console.log('in http')
           const boundaries = await fetch(this.vizDetails.boundaries).then(async r => await r.json())
-          this.boundaries = boundaries.features
+          this.boundaries = boundaries
         } else {
-          const boundaries = await this.fileApi.getFileJson(
-            `${this.subfolder}/${this.vizDetails.boundaries}`
-          )
+          // const boundaries = await this.fileApi.getFileJson(
+          //   `${this.subfolder}/${this.vizDetails.boundaries}`
+          // )
+          const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
 
-          this.boundaries = boundaries.features
+          // Road network: first try the most obvious network filename:
+          let network = this.vizDetails.network 
+
+          // if the obvious network file doesn't exist, just grab... the first network file:
+          if (!network) {
+            const allNetworks = files.filter(f => f.endsWith('network.xml.gz') && !f.startsWith('._'))
+            if (allNetworks.length) network = allNetworks[0]
+            else {
+              // this.loadingText = 'No road network found.'
+              console.error("no road network found.")
+              network = ''
+            }
+          }
+
+          // Departures: use them if we are in an output folder (and they exist)
+          // let demandFiles = [] as string[]
+          // if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
+          //   demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+          // }
+          // need to change this for general production
+
+          const boundaries = this.fetchXML({
+            worker: this._roadFetcher,
+            slug: this.fileSystem.slug,
+            filePath: this.myState.subfolder + '/' + network,
+            options: { attributeNamePrefix: '' },
+          })
+
+          results = await Promise.all([boundaries])
         }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
         console.error(e)
         return
       }
+      this.boundaries = results[0].network.nodes.node
       this.calculateCentroids()
       this.setMapCenter()
+    },
+
+    filterByHour(hour: number) {
+      let filterFlows = this.flows.reduce((acc: any, flow) => {
+        if (flow.h == hour) {
+          acc.push(flow);
+        }
+        return acc;
+      }, []);
+
+
+      this.filteredFlows = filterFlows
     },
 
     calculateCentroids() {
       const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
       for (const feature of this.boundaries) {
-        let centroid
-        if (this.vizDetails.boundariesCentroids) {
-          centroid = feature.properties[this.vizDetails.boundariesCentroids]
-          if (!Array.isArray(centroid)) {
-            centroid = centroid.split(',').map((c: any) => parseFloat(c))
-          }
-          this.centroids.push({
-            id: '' + feature.properties[this.vizDetails.boundariesJoinCol],
-            lon: centroid[0],
-            lat: centroid[1],
-          })
-        } else {
-          centroid = turf.centerOfMass(feature as any) as any
+        // let centroid
+        // if (this.vizDetails.boundariesCentroids == '') {
+        // centroid = feature.properties[this.vizDetails.boundariesCentroids]
+        // if (!Array.isArray(centroid)) {
+        //   centroid = centroid.split(',').map((c: any) => parseFloat(c))
+        // }
 
-          if (feature.properties[boundaryLabelField]) {
-            centroid.properties.label = feature.properties[boundaryLabelField]
-          }
-          centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
+        // Convert the location data
+        const [lon, lat] = proj4('EPSG:25832', 'EPSG:4326', [parseFloat(feature.x), parseFloat(feature.y)]);
 
-          this.centroids.push({
-            id: `${centroid.properties.id}`,
-            lon: centroid.geometry.coordinates[0],
-            lat: centroid.geometry.coordinates[1],
-          })
-        }
+        this.centroids.push({
+          id: feature.id,
+          lon: lon,
+          lat: lat,
+        })
+
+
+        // } else {
+        //   centroid = turf.centerOfMass(feature as any) as any
+
+        //   if (feature.properties[boundaryLabelField]) {
+        //     centroid.properties.label = feature.properties[boundaryLabelField]
+        //   }
+        //   centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
+
+        //   this.centroids.push({
+        //     id: `${centroid.properties.id}`,
+        //     lon: centroid.geometry.coordinates[0],
+        //     lat: centroid.geometry.coordinates[1],
+        //   })
+        // }
       }
       // console.log({ centroids: this.centroids })
       // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
@@ -352,6 +600,7 @@ const MyComponent = defineComponent({
 
       const gap = 256
       for (let i = 0; i < numCentroids; i += gap) {
+
         longitude += this.centroids[i].lon
         latitude += this.centroids[i].lat
         samples++
@@ -375,7 +624,24 @@ const MyComponent = defineComponent({
     },
 
     async loadDataset() {
-      console.log('flowmap: loadDataset')
+
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder + "/analysis/pt/")
+
+      const datasets:any = []
+      const allDatasets = files.filter(f => f.endsWith('.csv') && !f.startsWith('._'))
+      if (allDatasets.length) {
+        allDatasets.forEach(dataset => {
+          datasets.push(dataset)
+        })
+        console.log(datasets)
+
+      }
+
+      else {
+      // this.loadingText = 'No road network found.'
+      console.error("no datasets found.")
+      }
+
       try {
         const dataset = await this.myDataManager.getDataset(this.vizDetails, {
           subfolder: this.subfolder,
@@ -384,12 +650,13 @@ const MyComponent = defineComponent({
         // console.log('dataset:', dataset)
 
         const data = dataset.allRows || ({} as any)
-        // console.log('data:', data)
+        console.log(dataset)
 
         // Use config columns for origin/dest/flow -- if they exist
         const oColumn = this.vizDetails.origin || 'origin'
         const dColumn = this.vizDetails.destination || 'destination'
         const flowColumn = this.vizDetails.flow || 'flow'
+        const hourColumn = 'departureHour'
 
         if (!(oColumn in data)) this.$emit('error', `Column ${oColumn} not found`)
         if (!(dColumn in data)) this.$emit('error', `Column ${dColumn} not found`)
@@ -398,26 +665,34 @@ const MyComponent = defineComponent({
         const origin = data[oColumn].values
         const destination = data[dColumn].values
         const count = data[flowColumn].values
+        const hours = data[hourColumn].values
+
+
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
           try {
             flows.push({
-              o: `${origin[i]}`,
-              d: `${destination[i]}`,
+              o: "pt_" + `${origin[i]}`,
+              d: "pt_" + `${destination[i]}`,
               v: count[i],
+              h: hours[i]
             })
           } catch {
             // missing data; ignore
           }
         }
         this.flows = flows
+        this.filteredFlows = this.flows
+        this.setupHourlyTotals()
       } catch (e) {
         console.log('' + e)
         this.flows = []
         this.$emit('error', 'Check your configuration.')
       }
-      console.log({ flows: this.flows })
+
+      this.isLoaded = true
+
     },
   },
 })
@@ -429,21 +704,45 @@ export default MyComponent
 @import '@/styles.scss';
 
 .flowmap {
-  position: absolute;
+  position: relative;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
+  // display: flex;
+  flex: 8;
   min-height: $thumbnailHeight;
   background: url('assets/thumbnail.jpg') center / cover no-repeat;
   z-index: -1;
 }
 
+.deck-map {
+  width: 100%;
+  display: flex;
+  flex-direction: row !important;
+  height: 100%;
+}
+
 .flowmap.hide-thumbnail {
   background: none;
   z-index: 0;
+}
+
+.button-row {
+  grid-row: 1 / 2;
+  grid-column: 1 / 2;
+  // display: flex;
+  flex-direction: row;
+  margin-bottom: 0.5rem;
+  color: white;
+
+  p {
+    font-size: 1.1rem;
+  }
+}
+
+.time-slider {
+  color: #000;
 }
 
 .map-layout {
@@ -466,20 +765,49 @@ export default MyComponent
   z-index: 2;
 }
 
-.bottom-panel {
-  grid-column: 1 / 3;
-  grid-row: 2 / 3;
+.map-layout {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.map-complications {
   display: flex;
-  flex-direction: row;
+  position: absolute;
+}
+
+.right-side-panel {
+  flex: 1;
+  padding-left: 15px;
+}
+
+.bottom-panel {
+  position: absolute;
+  bottom: 1rem;
   font-size: 0.8rem;
+  width: 50%;
   pointer-events: auto;
   margin: auto auto 0rem 0rem;
   padding: 0.25rem;
   filter: drop-shadow(0px 2px 4px #22222233);
   background-color: var(--bgPanel);
+
   p {
     margin-right: 1rem;
   }
+
+  p:hover {
+    color: var(--link);
+  }
+}
+
+
+.time-slider-component {
+  width: -webkit-fill-available;
+}
+
+.control {
+  padding-right: 1rem;
 }
 
 .panel-items {
@@ -514,6 +842,5 @@ export default MyComponent
   padding: 0;
 }
 
-@media only screen and (max-width: 640px) {
-}
+@media only screen and (max-width: 640px) {}
 </style>

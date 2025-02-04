@@ -333,7 +333,7 @@ const MyComponent = defineComponent({
         // are we in a dashboard?
         this.config = JSON.parse(JSON.stringify(this.configFromDashboard))
         this.vizDetails = Object.assign({}, this.configFromDashboard)
-        this.$emit('title', this.config.title || `Matrix - ${this.yamlConfig}`)
+        this.$emit('title', this.config.title || `File: ${this.yamlConfig}`)
       } else {
         // was a YAML file was passed in?
         const filename = (this.yamlConfig ?? '').toLocaleLowerCase()
@@ -342,7 +342,7 @@ const MyComponent = defineComponent({
           this.config = ycfg
           this.vizDetails = Object.assign({}, ycfg)
         }
-        this.$emit('title', this.config?.title || `Matrix - ${filename}`)
+        this.$emit('title', this.config?.title || `File: ${filename}`)
       }
     },
 
@@ -357,7 +357,6 @@ const MyComponent = defineComponent({
     },
 
     changeColor(event: any) {
-      console.log('33333', event)
       if (!event) {
         // inversion
         this.mapConfig.isInvertedColor = !this.mapConfig.isInvertedColor

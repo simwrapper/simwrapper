@@ -16,17 +16,22 @@
 # ------
 # 'sizes' tells SimWrapper which zone systems are appropriate for which matrix sizes.
 
-SF-2454:
-  url: /zones/dist15.geojson.gz
-  lookup: TAZ
-  sizes: 981,2454,2475,3681,3717
-
 MTC-1454:
   url: /zones/mtc1454.geojson.gz
   lookup: TAZ1454
   sizes: 1454,1475
 
-SANDAG:
+PSRC-3870:
+  url: /zones/psrc-taz2010-3870.geojson.gz
+  lookup: TAZ
+  sizes: 3700,3870
+
+SANDAG-4947:
   url: /zones/sandag.geojson.gz
   lookup: TAZ
   sizes: 4947
+
+SF-2454:
+  url: /zones/dist15.geojson.gz
+  lookup: TAZ
+  sizes: 981,2454,2475,3681,3717
