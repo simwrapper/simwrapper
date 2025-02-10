@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.6.0](https://github.com/simwrapper/simwrapper/compare/v3.5.3...v3.6.0) (2025-02-10)
+
+
+### Features
+
+* Add transparency selector for Shapefile/Map FillColor definition ([2db2aed](https://github.com/simwrapper/simwrapper/commit/2db2aed11f16d44fee836fcddb9c8b4ac69b3847))
+* **table:** Table alignment. left/center/right array can be passed in yaml ([bb84870](https://github.com/simwrapper/simwrapper/commit/bb848702991b41b65caf2a56a5b0aad8d1ad34e9))
+
+
+### Bug Fixes
+
+* "Add data" panel not showing drag/drop area on Firefox ([eaa0b29](https://github.com/simwrapper/simwrapper/commit/eaa0b2912c64e7d5fec6eec892c5bdd6bc7dea1e))
+* Added opacity slider for map plot ([#420](https://github.com/simwrapper/simwrapper/issues/420)) ([3601c4d](https://github.com/simwrapper/simwrapper/commit/3601c4dacec61882a279530586ae7efb703bc636))
+* adding/removing local folders in Chrome/Edge confuses file browser ([1239b81](https://github.com/simwrapper/simwrapper/commit/1239b8128c4282fc3ef36b9503786df36fd9fd09)), closes [#432](https://github.com/simwrapper/simwrapper/issues/432)
+* Firefox loads XML very slowly ([ccf607c](https://github.com/simwrapper/simwrapper/commit/ccf607ceefef2d2acf9d02e068e2a122b0c9e7d5))
+* **matrix:** Handle non-standard HDF5/OMX files with any internal dataset paths ([f8d16c2](https://github.com/simwrapper/simwrapper/commit/f8d16c2bc2e3ceeda09e65762fa392456a457dfe))
+* Sort files,folders,dashboards "natural" human-friendly way ([bbcc504](https://github.com/simwrapper/simwrapper/commit/bbcc504820239fac2476cc0b28839a7cff3e40c4)), closes [#438](https://github.com/simwrapper/simwrapper/issues/438)
+
 ### [3.5.3](https://github.com/simwrapper/simwrapper/compare/v3.5.2...v3.5.3) (2024-12-06)
 
 
