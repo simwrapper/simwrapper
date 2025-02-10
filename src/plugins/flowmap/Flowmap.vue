@@ -89,22 +89,17 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
-import * as turf from '@turf/turf'
 import VizConfigurator from '@/components/viz-configurator/VizConfigurator.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { FileSystemConfig, REACT_VIEW_HANDLES, VisualizationPlugin } from '@/Globals'
+import { FileSystemConfig, REACT_VIEW_HANDLES } from '@/Globals'
 import FlowMapLayer from '@/plugins/flowmap/FlowMapLayer'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import globalStore from '@/store'
 import YAML from 'yaml'
 import util from '@/js/util'
-import proj4 from 'proj4'
 import TimeSlider from '@/plugins/flowmap/FlowMapTimeSlider.vue'
-import { None } from 'vega'
-import { error } from 'console'
-import { formatBound } from '../matrix/local/vis-utils'
-// import { Temporal } from 'temporal-polyfill'
+import Coords from '@/js/Coords'
 
 
 interface Label {
@@ -206,6 +201,8 @@ const MyComponent = defineComponent({
         subfolder: '',
         thumbnail: false,
       },
+
+      crs: '',
 
       hourlyTotals: {
         headwayPerHour: new Float32Array(0)
@@ -329,7 +326,6 @@ const MyComponent = defineComponent({
 
 
       this.statusText = ''
-      console.log(this.isDarkMode)
 
     } catch (e) {
       this.$emit('error', 'Flowmap' + e)
@@ -529,6 +525,12 @@ const MyComponent = defineComponent({
           })
 
           results = await Promise.all([boundaries])
+          
+          if (results[0].network.attributes.attribute["#text"]) {
+            this.crs = results[0].network.attributes.attribute["#text"]
+          } else {
+            console.error("no crs in network file found.")
+          }
         }
       } catch (e) {
         this.$emit('error', 'Boundaries: ' + e)
@@ -564,9 +566,7 @@ const MyComponent = defineComponent({
 
         // Convert the location data
         // don't hard code CRS
-        // const [lon, lat] = Coords.toLngLat('EPSG:25832', 'EPSG:4326');
-
-        const [lon, lat] = proj4('EPSG:25832', 'EPSG:4326', [parseFloat(feature.x), parseFloat(feature.y)]);
+        const [lon, lat] = Coords.toLngLat(this.crs, [parseFloat(feature.x), parseFloat(feature.y)]);
 
         this.centroids.push({
           id: feature.id,
@@ -656,12 +656,10 @@ const MyComponent = defineComponent({
 
       try {
         this.vizDetails.dataset = datasetInfo.dataset
-        console.log(this.vizDetails)
         const dataset = await this.myDataManager.getDataset(this.vizDetails, {
           subfolder: this.subfolder,
         })
         // this.datamanager.addFilterListener(this.config, this.handleFilterChanged)
-        console.log('dataset:', dataset)
 
         const data = dataset.allRows || ({} as any)
         if (!(oColumn in data)) this.$emit('error', `Column ${oColumn} not found`)

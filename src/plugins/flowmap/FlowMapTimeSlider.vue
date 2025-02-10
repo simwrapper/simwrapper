@@ -130,7 +130,6 @@ export default defineComponent({
   methods: {
     updateHours() {
       this.maxFlows = Math.max(...this.hourlyTotals.headwayPerHour)
-      console.log(this.maxFlows)
     },
 
     getWeekHeight(hourTotal: number) {
@@ -153,7 +152,6 @@ export default defineComponent({
     showHour(label: number) {
       this.selectedhour = label
       this.activeHour = label
-      console.log(label)
       this.$emit('hourSelected', this.selectedhour)
 
     },
