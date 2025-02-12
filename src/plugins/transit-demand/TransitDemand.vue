@@ -720,15 +720,23 @@ const MyComponent = defineComponent({
         }
       }
 
-      // Departures: use them if we are in an output folder (and they exist)
+      // Demand: use them if we are in an output folder (and they exist)
       let demandFiles = [] as string[]
       if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-        demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
+        try {
+          const analysisPtFolder = await this.fileApi.getDirectory(
+            `${this.myState.subfolder}/analysis/pt/`
+          )
+          demandFiles = analysisPtFolder.files.filter(f => f.endsWith('pt_pax_volumes.csv.gz'))
+        } catch (e) {
+          // we can skip pax loads if file not found
+          console.warn('error', '' + e)
+        }
       }
 
       // Save everything
       this.vizDetails.network = network
-      if (demandFiles.length) this.vizDetails.demand = demandFiles[0]
+      if (demandFiles.length) this.vizDetails.demand = `analysis/pt/${demandFiles[0]}`
     },
 
     async guessProjection(networks: any): Promise<string> {
@@ -884,10 +892,10 @@ const MyComponent = defineComponent({
             width = link.properties.departures * 0.025
             break
           case 'pax':
-            width = link.properties.pax * 0.001
+            width = link.properties.pax * 0.00015
             break
           case 'loadfac':
-            width = link.properties.loadfac * 150
+            width = link.properties.loadfac * 25.0
             break
         }
         link.properties.width = width
@@ -1113,7 +1121,7 @@ const MyComponent = defineComponent({
       this.incrementLoadProgress()
 
       const numericCols = [
-        'passengersAtAlighting',
+        'passengersAlighting',
         'passengersAtArrival',
         'passengersBoarding',
         'stopSequence',
@@ -1132,15 +1140,13 @@ const MyComponent = defineComponent({
       // splitting the dataset into halves gets us to ~2million...
       this.cfDemand1 = crossfilter(data1)
       this.cfDemand2 = crossfilter(data2)
-      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
-      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
       // stop-level demand
       const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
       const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
-
       const stop1 = dimStop1.group()
       const stop2 = dimStop2.group()
+
       stop1
         .reduceSum((d: any) => d.passengersBoarding)
         .all()
@@ -1179,51 +1185,31 @@ const MyComponent = defineComponent({
       dimStop2.dispose()
 
       // build link-level passenger ridership ----------
+      console.log('---Calculating link-by-link pax/cap')
       const linkPassengersById = {} as any
+      const linkCapacity = {} as any
 
-      const group1 = this.cfDemandLink1.group()
-      const group2 = this.cfDemandLink2.group()
-
-      // pax ridership
-      group1
-        .reduceSum((d: any) => d.passengersAtArrival)
-        .all()
-        .map(link => {
-          linkPassengersById[link.key as any] = link.value
-        })
-      group2
-        .reduceSum((d: any) => d.passengersAtArrival)
-        .all()
-        .map(link => {
-          if (!linkPassengersById[link.key as any]) linkPassengersById[link.key as any] = link.value
-          linkPassengersById[link.key as any] += link.value
-        })
-
-      // veh capacities
-      const capacity = {} as any
-      group1
-        .reduceSum((d: any) => d.totalVehicleCapacity)
-        .all()
-        .map(link => {
-          capacity[link.key as any] = link.value
-        })
-      group2
-        .reduceSum((d: any) => d.totalVehicleCapacity)
-        .all()
-        .map(link => {
-          if (!capacity[link.key as any]) capacity[link.key as any] = link.value
-          capacity[link.key as any] += link.value
-        })
+      for (const row of results.data) {
+        const traversedLinks = row.linkIdsSincePreviousStop.split(';')
+        for (const linkId of traversedLinks) {
+          // pax
+          if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
+          linkPassengersById[linkId] += row.passengersAtArrival
+          // cap
+          if (!linkCapacity[linkId]) linkCapacity[linkId] = 0
+          linkCapacity[linkId] += row.totalVehicleCapacity
+        }
+      }
 
       // update passenger value in the transit-link geojson.
       for (const transitLink of this.transitLinks.features) {
         if (!transitLink.properties) transitLink.properties = {}
         transitLink.properties['pax'] = linkPassengersById[transitLink.properties.id]
-        transitLink.properties['cap'] = capacity[transitLink.properties.id]
+        transitLink.properties['cap'] = linkCapacity[transitLink.properties.id]
         transitLink.properties['loadfac'] =
           Math.round(
             (1000 * linkPassengersById[transitLink.properties.id]) /
-              capacity[transitLink.properties.id]
+              linkCapacity[transitLink.properties.id]
           ) / 1000
       }
 
