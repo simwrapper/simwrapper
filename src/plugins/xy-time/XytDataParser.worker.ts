@@ -111,7 +111,7 @@ function appendResults(results: { data: any[]; comments: any[] }) {
     const epsg = comment.indexOf('EPSG:')
     if (epsg > -1) {
       _proj = comment.slice(epsg)
-      console.log(_proj, 'found in CSV comment')
+      // console.log(_proj, 'found in CSV comment')
       break
     }
   }
@@ -204,7 +204,7 @@ async function step2fetchCSVdata(filename: string) {
   let _decoder = new TextDecoder()
   let leftOvers = ''
 
-  console.log('STARTING stream:', filename)
+  // console.log('STARTING stream:', filename)
 
   // 8MB seems to be the sweet spot for Firefox. Chrome doesn't care
   const MAX_CHUNK_SIZE = 1024 * 1024 * 8
@@ -260,7 +260,7 @@ async function step2fetchCSVdata(filename: string) {
       },
 
       close() {
-        console.log('STREAM FINISHED!')
+        // console.log('STREAM FINISHED!')
       },
       abort(err) {
         console.log('STREAM error:', err)
@@ -280,8 +280,8 @@ async function step2fetchCSVdata(filename: string) {
     postMessage({ error: '' + e })
   }
 
-  console.log('Total chunks:', _numChunks)
-  console.log('Total data:', data)
+  // console.log('Total chunks:', _numChunks)
+  // console.log('Total data:', data)
 
   const subarray: PointData = {
     time: layerData.time.subarray(0, _offset),

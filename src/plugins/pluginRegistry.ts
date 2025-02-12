@@ -1,4 +1,5 @@
 import { AsyncComponent, defineAsyncComponent } from 'vue'
+import { component } from '~/vue/types/umd'
 
 // EVERY plugin must be registered here:
 
@@ -11,7 +12,7 @@ const plugins = [
   {
     kebabName: 'xytime',
     filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],
-    component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
+    component: defineAsyncComponent(() => import('./xy-time/XYTimeV2.vue')),
   },
   {
     kebabName: 'area-map',
