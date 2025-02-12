@@ -1,18 +1,18 @@
 ---
 id: transit-supply
-title: MATSim Transit supply/demand
+title: MATSim Public transit supply/demand
 ---
 
 <img style="border: 1px solid #aac" src="assets/transit.jpg" title="transit banner">
-_Transit routes and station boardings/alightings_
+_Public transit routes and station boardings/alightings_
 
-The transit viewer displays MATSim public transport networks, along with passenger demand if available.
+The public transit viewer displays MATSim public transport networks, along with passenger demand if available.
 
 ## Usage
 
 If the run folder contains a `*output_transitSchedule.xml.gz` file, then this view will be automatically available.
 
-**Stop-to-stop ridership:** If the run folder also contains `*pt_stop2stop_departures.csv.gz` then the transit ridership (demand) will also be loaded. This may take a few seconds.
+**Stop-to-stop ridership:** If the run folder also contains an analysis subfolder containing `analysis/pt/pt_pax_volumes.csv.gz` then the public transit ridership (ridership, boardings/alightings, and load factors) will also be loaded. This may take a few extra seconds.
 
 A standalone `viz-pt-*.yaml` file can also be used to set all configuration parameters; see dashboard config below.
 
@@ -37,6 +37,8 @@ The following configuration options are available when embedding the transit vie
 **description:** (optional) one line additional detail about this view.
 
 **transitSchedule:** (required) the `*transitSchedule.xml.gz` file from the simulation.
+
+**demand:** (optional) path to the passenger volumes file. This file can be automatically generated from the MATSim PT module. Default value is `analysis/pt/pt_pax_volumes.csv.gz` and the viewer will look in that path if nothing is specified for `demand`.
 
 **network:** The MATSim network file that matches the transit schedule. The following network formats are supported. If no network is specified in a YAML config, these files are searched for in the folder containing the transit schedule:
 - Avro: `*network.avro` file using the new MATSim Avro network format. Avro network files are smaller and load faster than XML. If your simulation doesn't create this automatically, you can generate it using this Python script: [create-avro-network.py](https://github.com/simwrapper/simwrapper/raw/refs/heads/master/scripts/create-avro-network.py)
@@ -105,9 +107,10 @@ layout:
     - type: transit
       title: Transit Explorer
       description: My simulation
-      transitSchedule: "*transitSchedule.xml.gz"
       network: "*output_network.xml.gz"  # or "network.avro"
-      # Provide the EPSG coordinate system if the crs is not embedded in network file
+      transitSchedule: "*transitSchedule.xml.gz"
+      demand: "analysis/pt/pt_pax_volumes.csv.gz"
+      # Provide the EPSG coordinate system if crs is not embedded in network file
       projection: EPSG:25832
 ```
 
