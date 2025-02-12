@@ -216,10 +216,11 @@ const MyComponent = defineComponent({
       startTime: 0,
       isAnimating: false,
       timeFilter: [0, 3599],
-      colors: [
-        [128, 128, 128],
-        [128, 128, 128],
-      ] as any[][],
+      //   colors: [
+      //     [128, 128, 128],
+      //     [128, 128, 128],
+      //   ] as any[][],
+      colors: ['#ff0000', '#00ff00', '#0000ff'] as string[],
       breakpoints: [0.0],
       range: [Infinity, -Infinity],
       timeRange: [Infinity, -Infinity],
@@ -443,8 +444,8 @@ const MyComponent = defineComponent({
       }
     },
 
-    generateColorRamp(colorRamp: string, buckets: number, flip: boolean = false): Rgb | Rgb[] {
-      let colors256: Rgb[]
+    generateColorRamp(colorRamp: string, buckets: number, flip: boolean = false): string[] {
+      let colors256: string[]
 
       console.log(
         'generateColorRamp with colorRamp:',
@@ -460,11 +461,13 @@ const MyComponent = defineComponent({
           // console.log('Found d3 scheme')
           colors256 = d3[`scheme${colorRamp}`][buckets]
 
-          colors256 = this.hexToRgb(colors256)
+          // colors256 = this.hexToRgb(colors256)
         } else if (d3[`interpolate${colorRamp}`]) {
           // console.log('Found d3 interpolate')
-          colors256 = Array.from({ length: buckets }, (_, i) =>
-            d3.rgb(d3[`interpolate${colorRamp}`](i / (buckets - 1)))
+          colors256 = this.rgbToHex(
+            Array.from({ length: buckets }, (_, i) =>
+              d3.rgb(d3[`interpolate${colorRamp}`](i / (buckets - 1)))
+            )
           )
         } else {
           // console.log('Found colormap')
@@ -524,6 +527,12 @@ const MyComponent = defineComponent({
       })
     },
 
+    rgbToHex(rgb: Rgb[]): string[] {
+      return rgb.map(
+        ({ r, g, b }) => `#${[r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')}`
+      )
+    },
+
     setColors() {
       const EXPONENT = this.guiConfig.exponent
       // === Apply or generate colors ===
@@ -531,9 +540,28 @@ const MyComponent = defineComponent({
 
       // console.log('VIZ DETAILS:', this.vizDetails)
 
-      // OLD:
-      /*
+      this.colors = this.generateColorRamp(
+        this.vizDetails.colorRamp.ramp,
+        this.vizDetails.colorRamp.steps
+      )
+      this.breakpoints = this.vizDetails.colorRamp.breakpoints || []
 
+      if (!this.breakpoints.length) {
+        // If no custom breakpoints exist, generate new ones.
+        const max1 = Math.pow(this.range[1], 1 / EXPONENT)
+        const max2 = (max1 * this.guiConfig['clip max']) / 100.0
+        const generatedBreakpoints: number[] = []
+        for (let i = 1; i < this.guiConfig.buckets; i++) {
+          const raw = (max2 * i) / this.guiConfig.buckets
+          const breakpoint = Math.pow(raw, EXPONENT)
+          generatedBreakpoints.push(breakpoint)
+        }
+        this.breakpoints = generatedBreakpoints
+      }
+
+      // OLD:
+
+      /*
 
       if (
         this.vizDetails.breakpoints &&
@@ -608,8 +636,10 @@ const MyComponent = defineComponent({
         this.breakpoints = generatedBreakpoints
       }
 
+      */
 
-*/
+      console.log('colors:', this.colors)
+      console.log('breakpoints:', this.breakpoints)
 
       // Update legend if data is fully loaded.
       if (this.isLoaded) this.setLegend(this.colors, this.breakpoints)
@@ -629,6 +659,7 @@ const MyComponent = defineComponent({
           return { label, value: rgb }
         }),
       })
+      console.log('Legend:', this.legendStore)
       this.breakpoints = breakpoints
     },
     async loadFiles() {
@@ -859,10 +890,16 @@ const MyComponent = defineComponent({
 
         // generateColorRamp
 
-        // console.log(this.vizDetails.colorRamp)
-        // console.log(
-        //   this.generateColorRamp(this.vizDetails.colorRamp.ramp, this.vizDetails.colorRamp.steps)
-        // )
+        this.colors = this.generateColorRamp(
+          this.vizDetails.colorRamp.ramp,
+          this.vizDetails.colorRamp.steps
+        )
+        this.breakpoints = this.vizDetails.colorRamp.breakpoints || []
+
+        console.log(this.vizDetails.colorRamp)
+        console.log(
+          this.generateColorRamp(this.vizDetails.colorRamp.ramp, this.vizDetails.colorRamp.steps)
+        )
 
         this.setCustomGuiConfig()
         return
