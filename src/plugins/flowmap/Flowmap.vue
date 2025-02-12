@@ -168,7 +168,7 @@ const MyComponent = defineComponent({
       if (!REACT_VIEW_HANDLES[this.viewId]) return
       REACT_VIEW_HANDLES[this.viewId]()
     },
-    '$store.state.isDarkMode'() { 
+    '$store.state.isDarkMode'() {
       this.isDarkMode = this.$store.state.isDarkMode
     }
   },
@@ -176,7 +176,11 @@ const MyComponent = defineComponent({
   data() {
     return {
       isLoaded: false,
-      boundaries: [] as any[],
+      stopFacilities: {} as {
+        attributes?: any;
+        transitStops?: any;
+        [key: string]: any; // Allows any additional properties in case transitSchedule changes
+      },
       centroids: [] as any[],
       flows: [] as Flow[],
       filteredFlows: [] as Flow[],
@@ -243,11 +247,7 @@ const MyComponent = defineComponent({
         center: null as any | null,
         pitch: 0,
         bearing: 0,
-        boundaries: '',
-        boundariesJoinCol: '',
-        boundariesLabels: '',
-        boundariesLabel: '',
-        boundariesCentroids: '',
+        stopFacilitiesFile: '',
         network: '',
         dataset: '',
         colorScheme: 'Teal',
@@ -486,50 +486,31 @@ const MyComponent = defineComponent({
     async loadBoundaries() {
       let results: any = {}
       try {
-        if (this.vizDetails.boundaries.startsWith('http')) {
-          console.log('in http')
-          const boundaries = await fetch(this.vizDetails.boundaries).then(async r => await r.json())
-          this.boundaries = boundaries
-        } else {
-          // const boundaries = await this.fileApi.getFileJson(
-          //   `${this.subfolder}/${this.vizDetails.boundaries}`
-          // )
-          const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+        const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+        const transitSchedule = files.filter(f => f.endsWith('transitSchedule.xml.gz') && !f.startsWith('._'))
+        this.stopFacilities = transitSchedule
 
-          // Road network: first try the most obvious network filename:
-          let network = this.vizDetails.network
+        if (!transitSchedule) {
+          // this.loadingText = 'No road network found.'
+          console.error("no transit schedule found.")
+          this.vizDetails.stopFacilitiesFile = ''
 
-          // if the obvious network file doesn't exist, just grab... the first network file:
-          if (!network) {
-            const allNetworks = files.filter(f => f.endsWith('network.xml.gz') && !f.startsWith('._'))
-            if (allNetworks.length) network = allNetworks[0]
-            else {
-              // this.loadingText = 'No road network found.'
-              console.error("no road network found.")
-              network = ''
-            }
-          }
-
-          // Departures: use them if we are in an output folder (and they exist)
-          // let demandFiles = [] as string[]
-          // if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
-          //   demandFiles = files.filter(f => f.endsWith('pt_stop2stop_departures.csv.gz'))
-          // }
-          // need to change this for general production
-
-          const boundaries = this.fetchXML({
+        }
+        else {
+          this.vizDetails.stopFacilitiesFile = transitSchedule[0]
+          const data = this.fetchXML({
             worker: this._roadFetcher,
             slug: this.fileSystem.slug,
-            filePath: this.myState.subfolder + '/' + network,
+            filePath: this.myState.subfolder + '/' + this.vizDetails.stopFacilitiesFile,
             options: { attributeNamePrefix: '' },
           })
 
-          results = await Promise.all([boundaries])
-          
-          if (results[0].network.attributes.attribute["#text"]) {
-            this.crs = results[0].network.attributes.attribute["#text"]
+          results = await Promise.all([data])
+          if (results[0] && results[0].transitSchedule) {
+            this.stopFacilities = results[0].transitSchedule
           } else {
-            console.error("no crs in network file found.")
+            console.error("fetched xml didn't have transit schedule")
+
           }
         }
       } catch (e) {
@@ -537,7 +518,7 @@ const MyComponent = defineComponent({
         console.error(e)
         return
       }
-      this.boundaries = results[0].network.nodes.node
+      // this.stopFacilities = results[0].network.nodes.node
       this.calculateCentroids()
       this.setMapCenter()
     },
@@ -550,48 +531,37 @@ const MyComponent = defineComponent({
         return acc;
       }, []);
 
-
       this.filteredFlows = filterFlows
     },
 
     calculateCentroids() {
-      const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
-      for (const feature of this.boundaries) {
-        // let centroid
-        // if (this.vizDetails.boundariesCentroids == '') {
-        // centroid = feature.properties[this.vizDetails.boundariesCentroids]
-        // if (!Array.isArray(centroid)) {
-        //   centroid = centroid.split(',').map((c: any) => parseFloat(c))
-        // }
+      // const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
+      if (this.stopFacilities !== undefined) {
+        // try to get crs from attributes
+          if (this.stopFacilities?.attributes && this.stopFacilities?.attributes?.attribute?.name === "coordinateReferenceSystem") {
+            this.crs = this.stopFacilities?.attributes?.attribute?.["#text"]
+            console.log(this.crs)
+          } else {
+            console.log("no crs found in transit schedule, reverting to WGS 84")
+            this.crs = "EPSG:4326"
+          }
+      
+        for (const facility of this.stopFacilities.transitStops.stopFacility) {
+          // Convert the location data
+          // don't hard code CRS
+          const [lon, lat] = Coords.toLngLat(this.crs, [parseFloat(facility.x), parseFloat(facility.y)]);
 
-        // Convert the location data
-        // don't hard code CRS
-        const [lon, lat] = Coords.toLngLat(this.crs, [parseFloat(feature.x), parseFloat(feature.y)]);
+          this.centroids.push({
+            id: facility.id,
+            lon: lon,
+            lat: lat,
+          })
 
-        this.centroids.push({
-          id: feature.id,
-          lon: lon,
-          lat: lat,
-        })
-
-
-        // } else {
-        //   centroid = turf.centerOfMass(feature as any) as any
-
-        //   if (feature.properties[boundaryLabelField]) {
-        //     centroid.properties.label = feature.properties[boundaryLabelField]
-        //   }
-        //   centroid.properties.id = '' + feature.properties[this.vizDetails.boundariesJoinCol]
-
-        //   this.centroids.push({
-        //     id: `${centroid.properties.id}`,
-        //     lon: centroid.geometry.coordinates[0],
-        //     lat: centroid.geometry.coordinates[1],
-        //   })
-        // }
+        }
+      } else {
+        console.error("transit schedule from xml is undefined.")
       }
-      // console.log({ centroids: this.centroids })
-      // for (const c of this.centroids) console.log(`${c.id},${c.lon},${c.lat}`)
+
     },
 
     async setMapCenter() {
@@ -677,8 +647,8 @@ const MyComponent = defineComponent({
         for (let i = 0; i < origin.length; i++) {
           try {
             flows.push({
-              o: "pt_" + `${origin[i]}`,
-              d: "pt_" + `${destination[i]}`,
+              o: `${origin[i]}`,
+              d: `${destination[i]}`,
               v: count[i],
               h: hours[i]
             })
