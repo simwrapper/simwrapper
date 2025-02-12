@@ -426,13 +426,15 @@ const MyComponent = defineComponent({
         lines[route.lineId].routes.push(route)
       })
 
+      if (!this.selectedLinkId) return lines
+
       // fetch demand data for these links
       const demandLookup = {} as { [routeId: string]: any[] }
 
       this.cfDemandStop1?.filterAll()
       this.cfDemandStop2?.filterAll()
 
-      this.cfDemandLink1?.filter(this.selectedLinkId)
+      this.cfDemandLink1?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
       let demandData = this.cfDemand1?.allFiltered()
       if (demandData) {
         demandData.forEach(row => {
@@ -440,7 +442,7 @@ const MyComponent = defineComponent({
           demandLookup[row.transitRoute].push(row)
         })
       }
-      this.cfDemandLink2?.filter(this.selectedLinkId)
+      this.cfDemandLink2?.filter((id: any) => id.indexOf(this.selectedLinkId) > -1)
       demandData = this.cfDemand2?.allFiltered()
       if (demandData) {
         demandData.forEach(row => {
@@ -1140,49 +1142,21 @@ const MyComponent = defineComponent({
       // splitting the dataset into halves gets us to ~2million...
       this.cfDemand1 = crossfilter(data1)
       this.cfDemand2 = crossfilter(data2)
+      this.cfDemandLink1 = this.cfDemand1.dimension((d: any) => d.linkIdsSincePreviousStop)
+      this.cfDemandLink2 = this.cfDemand2.dimension((d: any) => d.linkIdsSincePreviousStop)
 
-      // stop-level demand
-      const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
-      const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
-      const stop1 = dimStop1.group()
-      const stop2 = dimStop2.group()
+      // // stop-level demand
+      // const dimStop1 = this.cfDemand1.dimension((d: any) => d.stop)
+      // const dimStop2 = this.cfDemand2.dimension((d: any) => d.stop)
+      // const stop1 = dimStop1.group()
+      // const stop2 = dimStop2.group()
 
-      stop1
-        .reduceSum((d: any) => d.passengersBoarding)
-        .all()
-        .map(row => {
-          if (Number.isFinite(row.value))
-            this.stopLevelDemand[row.key as any] = { b: row.value as number, a: 0 }
-        })
-      stop2
-        .reduceSum((d: any) => d.passengersBoarding)
-        .all()
-        .map(row => {
-          if (!this.stopLevelDemand[row.key as any])
-            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
-          if (Number.isFinite(row.value))
-            this.stopLevelDemand[row.key as any].b += row.value as number
-        })
-      stop1
-        .reduceSum((d: any) => d.passengersAlighting)
-        .all()
-        .map(row => {
-          if (!this.stopLevelDemand[row.key as any])
-            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
-          if (Number.isFinite(row.value))
-            this.stopLevelDemand[row.key as any].a += row.value as number
-        })
-      stop2
-        .reduceSum((d: any) => d.passengersAlighting)
-        .all()
-        .map(row => {
-          if (!this.stopLevelDemand[row.key as any])
-            this.stopLevelDemand[row.key as any] = { b: 0, a: 0 }
-          if (Number.isFinite(row.value))
-            this.stopLevelDemand[row.key as any].a += row.value as number
-        })
-      dimStop1.dispose()
-      dimStop2.dispose()
+      for (const row of results.data) {
+        const stopId = row.stop
+        if (!this.stopLevelDemand[stopId]) this.stopLevelDemand[stopId] = { b: 0, a: 0 }
+        this.stopLevelDemand[stopId].b += row.passengersBoarding
+        this.stopLevelDemand[stopId].a += row.passengersAlighting
+      }
 
       // build link-level passenger ridership ----------
       console.log('---Calculating link-by-link pax/cap')
@@ -1586,7 +1560,7 @@ const MyComponent = defineComponent({
             bearing,
             xy: [startFacility.x, startFacility.y],
             name: startFacility.name || '',
-            id: startFacility.id || '',
+            id: stop.refId || '', // startFacility.id || '',
             linkRefId: startFacility.linkRefId || '',
           } as any
 
@@ -1601,8 +1575,8 @@ const MyComponent = defineComponent({
 
           // merge stop-level stats for routes that share the same stop
           if (marker.id in markers) {
-            markers[marker.id].boardings += marker.boardings
-            markers[marker.id].alightings += marker.alightings
+            markers[marker.id].boardings = marker.boardings // +=
+            markers[marker.id].alightings = marker.alightings // +=
           } else {
             markers[marker.id] = marker
           }

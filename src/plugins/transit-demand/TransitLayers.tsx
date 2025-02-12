@@ -162,7 +162,7 @@ export default function Component({
     const fullPies = stopMarkers.map(stop => {
       return {
         center: stop.xy,
-        radius: 0.000003 * pieSlider * Math.sqrt(stop.boardings + stop.alightings),
+        radius: 0.00001 * pieSlider * Math.sqrt(stop.boardings + stop.alightings),
         slices: [
           { label: 'boardings', color: 'gold', value: stop.boardings },
           { label: 'alightings', color: 'darkmagenta', value: stop.alightings },
