@@ -14,23 +14,6 @@
             :style="{left: `${label.leftPct}%`, right: `${label.rightPct}%`, color: isDarkMode ? '#C6C1B9' : '#363636'}"
           ) {{ label.text }}
     
-      //- #dragthumb(:style="{left: `${thumbLeft}px`, width: `${thumbWidth}px`}"
-      //-   @mousedown="dividerDragStart"
-      //-   @mouseup="dividerDragEnd"
-      //-   @mousemove.stop="dividerDragging"
-      //- )
-    
-      //-   #dragleftie(
-      //-     @mousedown.stop="dividerDragStart($event,'left')"
-      //-     @mouseup.stop="dividerDragEnd($event,'left')"
-      //-     @mousemove.stop="dividerDragging($event,'left')"
-      //-   )
-      //-   #dragrightie(
-      //-     @mousedown.stop="dividerDragStart($event,'right')"
-      //-     @mouseup.stop="dividerDragEnd($event,'right')"
-      //-     @mousemove.stop="dividerDragging($event,'right')"
-      //-   )
-    
     </template>
 
 <script lang="ts">

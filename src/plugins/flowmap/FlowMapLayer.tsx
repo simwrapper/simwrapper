@@ -30,17 +30,16 @@ export default function Layer({
     console.log('click!')
   }
 
-  function handleHover(hover: any) {
-    // console.log(hover)
-    setHoverInfo(hover)
-  }
+  // function handleHover(hover: any) {
+  //   // console.log(hover)
+  //   setHoverInfo(hover)
+  // }
 
   function handleViewState(view: any) {
     setViewState(view)
     view.center = [view.longitude, view.latitude]
     globalStore.commit('setMapCamera', view)
   }
-
   const layer = new FlowmapLayer({
     data: props,
     id: 'my-flowmap-' + viewId,
@@ -67,6 +66,7 @@ export default function Layer({
     // adaptiveScalesEnabled: true,
     // darkMode: false,
   })
+
 
   function getTooltipState(info: FlowmapLayerPickingInfo<any, any> | undefined) {
     if (!info) return undefined;
@@ -121,25 +121,6 @@ export default function Layer({
   }
 
     return (
-      /*
-      //@ts-ignore */
-      // <DeckGL
-      //   layers={[layer]}
-      //   controller={true}
-      //   viewState={viewState}
-      //   pickingRadius={4}
-      //   getCursor={() => 'pointer'}
-      //   onClick={handleClick}
-      //   onViewStateChange={(e: any) => handleViewState(e.viewState)}
-      // >
-      //   {
-      //     /*
-      //   // @ts-ignore */
-      //     <StaticMap mapStyle={globalStore.getters.mapStyle} mapboxApiAccessToken={MAPBOX_TOKEN} />
-      //   }
-      //   {setTooltip(tooltip)}
-
-      // </DeckGL>
       <DeckGL
         layers={[layer]}
         controller={true}
