@@ -7,6 +7,7 @@ This repo contains the interactive visualization website for **SimWrapper**, ava
 
 This README details build instructions for the website itself.
 
+
 ## Project prerequisites
 
 The site uses npm and yarn, and was developed using VS Code.
@@ -44,7 +45,7 @@ npm ci
 This command runs a local server with hot reload for testing, usually listens on http://localhost:8080
 
 ```
-npm run serve
+npm run dev
 ```
 
 ### Compiles and minifies for production

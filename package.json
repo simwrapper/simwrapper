@@ -1,6 +1,6 @@
 {
   "name": "simwrapper",
-  "version": "3.5.3",
+  "version": "3.6.0",
   "private": true,
   "type": "module",
   "license": "GPL-3.0-or-later",
