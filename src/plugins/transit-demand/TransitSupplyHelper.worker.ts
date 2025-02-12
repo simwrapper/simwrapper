@@ -92,6 +92,7 @@ function processTransit() {
 
   let uniqueRouteID = 0
   const transitLines = _xml.transitXML.transitSchedule.transitLine
+  // console.log('transitLines:', transitLines)
 
   for (const line of transitLines) {
     // get the GTFS route type from the attributes

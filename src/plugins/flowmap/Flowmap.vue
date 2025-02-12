@@ -510,6 +510,7 @@ const MyComponent = defineComponent({
             this.stopFacilities = results[0].transitSchedule
           } else {
             console.error("fetched xml didn't have transit schedule")
+
           }
         }
       } catch (e) {
@@ -546,7 +547,6 @@ const MyComponent = defineComponent({
           }
       
         for (const facility of this.stopFacilities.transitStops.stopFacility) {
-
           // Convert the location data
           // don't hard code CRS
           const [lon, lat] = Coords.toLngLat(this.crs, [parseFloat(facility.x), parseFloat(facility.y)]);

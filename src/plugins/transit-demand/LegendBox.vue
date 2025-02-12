@@ -1,9 +1,9 @@
 <template lang="pug">
 .legend-container
-  p.control-label LEGEND
-  .legend-item(v-for="item in rows" :key="item[0]")
-    .legend-col-1(:style="{'background-color': item[0]}" @click="click(item)")
-    span.legend-col-2(@click="click(item)") {{ item[1] }}
+  p.control-label Legend
+  .legend-item(v-for="item in rows" :key="item[0]" @click="handleClick(item)")
+    .legend-col-1(:style="{'background-color': item[0]}")
+    span.legend-col-2 {{ item[1] }}
 </template>
 
 <script lang="ts">
@@ -15,8 +15,8 @@ export default defineComponent({
     rows: { type: Array, required: true },
   },
   methods: {
-    click(item: any) {
-      this.$emit('click', item)
+    handleClick(item: [string, string]) {
+      this.$emit('item-clicked', item)
     },
   },
 })
