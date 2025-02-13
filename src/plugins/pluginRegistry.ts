@@ -22,6 +22,8 @@ const plugins = [
       '**/*network.xml?(.gz)',
       '**/*.shp',
       '**/*.gpkg',
+      '**/*.gmns',
+      '**/*.gmns.zip',
     ],
     component: defineAsyncComponent(() => import('./shape-file/ShapeFile.vue')),
   },
