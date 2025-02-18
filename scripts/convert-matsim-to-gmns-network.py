@@ -15,7 +15,7 @@ except:
 
 if len(sys.argv) < 3:
     print(
-        "USAGE:  python create-gmns-network.py  [network]  [coord-system] (optional linkGeometries)"
+        "USAGE:  python convert-matsim-to-gmns-network.py  [network]  [coord-system] (optional linkGeometries)"
     )
     sys.exit(1)
 
