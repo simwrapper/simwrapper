@@ -55,6 +55,7 @@ import DataFetcherWorker from '@/workers/DataFetcher.worker.ts?worker'
 import RoadNetworkWorker from '@/workers/RoadNetworkLoader.worker.ts?worker'
 
 import { gUnzip } from '@/js/util'
+import GMNS from '@simwrapper/gmns'
 import { loadGeoPackageFromBuffer } from '@/plugins/shape-file/ShapeFile.vue'
 
 export default defineComponent({
@@ -65,8 +66,21 @@ export default defineComponent({
 
   data() {
     return {
-      validDataTypes: ['CSV', 'DAT', 'DBF', 'GPKG', 'GZ', 'TAB', 'TSV', 'TXT', 'SHP', 'GeoJSON'],
-      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|GPKG|SHP|GEOJSON)(\.GZ)?$/,
+      validDataTypes: [
+        'CSV',
+        'DAT',
+        'DBF',
+        'GPKG',
+        'GZ',
+        'TAB',
+        'TSV',
+        'TXT',
+        'SHP',
+        'GeoJSON',
+        'GMNS',
+        'ZIP',
+      ],
+      validRegex: /\.(CSV|TSV|TAB|TXT|DBF|DAT|GPKG|SHP|GEOJSON|GMNS\.ZIP)(\.GZ)?$/,
       fileChoice: '',
       filesInFolder: [] as string[],
       isLoading: false,
@@ -132,19 +146,24 @@ export default defineComponent({
           const geojson = await this.loadShapefile(file, buffer)
           this.$emit('update', { geojson, file })
           continue
+        } else if (file.name.toLocaleLowerCase().indexOf('.gmns') > -1) {
+          // GMNS ZIP
+          const geojson = await this.loadGMNS(file, buffer)
+          this.$emit('update', { geojson, file })
+          continue
         } else if (file.name.toLocaleLowerCase().endsWith('.gpkg')) {
           // GEOPACKAGE
           const geojson = await this.loadGeopackage(file, buffer)
           this.$emit('update', { geojson: { type: 'FeatureCollection', features: geojson }, file })
           continue
+        } else if (file.name.toLocaleLowerCase().indexOf('.geojson') > -1) {
+          // GEOJSON
+          await this.loadGeoJSON(file, buffer)
+          continue
         } else if (file.name.toLocaleLowerCase().indexOf('network.xml') > -1) {
           // MATSIM
           const geojson = await this.loadMatsimXML(file, buffer)
           this.$emit('update', { geojson, file })
-          continue
-        } else if (file.name.toLocaleLowerCase().indexOf('.geojson') > -1) {
-          // GEOJSON
-          await this.loadGeoJSON(file, buffer)
           continue
         } else {
           // otherwise assume CSV
@@ -153,6 +172,12 @@ export default defineComponent({
         }
       }
       this.isLoading = false
+    },
+
+    async loadGMNS(file: any, buffer: ArrayBuffer) {
+      const gmns = await GMNS.load(file, buffer)
+      const geojson = GMNS.toGeojson(gmns)
+      return geojson
     },
 
     async loadGeopackage(file: any, buffer: ArrayBuffer) {
