@@ -129,6 +129,7 @@ import reproject from 'reproject'
 import Sanitize from 'sanitize-filename'
 import YAML from 'yaml'
 
+import GMNS from '@simwrapper/gmns'
 import * as Gpkg from '@ngageoint/geopackage'
 
 import * as d3ScaleChromatic from 'd3-scale-chromatic'
@@ -845,9 +846,13 @@ const MyComponent = defineComponent({
           /(\.geojson)(|\.gz)$/.test(filename) ||
           /\.shp$/.test(filename) ||
           /\.gpkg$/.test(filename) ||
-          /network\.avro$/.test(filename)
+          /network.avro$/.test(filename) ||
+          /.gmns.zip$/.test(filename) ||
+          /.gmns$/.test(filename)
         ) {
-          const title = `${filename.endsWith('shp') ? 'Shapefile' : 'File'}: ${this.yamlConfig}`
+          let title = this.yamlConfig
+          if (filename.endsWith('shp')) title = `Shapefile: ${this.yamlConfig}`
+          if (filename.indexOf('.gmns') > -1) title = `GMNS Network: ${this.yamlConfig}`
 
           this.vizDetails = Object.assign({}, emptyState, this.vizDetails, {
             title,
@@ -2177,6 +2182,15 @@ const MyComponent = defineComponent({
     //   console.error('' + e)
     // }
 
+    async loadGMNSFeatures(filename: string) {
+      // load .zip file
+      const path = `${this.subfolder}/${filename}`
+      const blob = await this.fileApi.getFileBlob(path)
+      const gmns = await GMNS.load(path, blob)
+      const geojson = GMNS.toGeojson(gmns)
+      return geojson.features
+    },
+
     async loadAvroNetwork(filename: string) {
       const path = `${this.subfolder}/${filename}`
       const blob = await this.fileApi.getFileBlob(path)
@@ -2199,7 +2213,7 @@ const MyComponent = defineComponent({
       // Build features with geometry, but no properties yet
       // (properties get added in setFeaturePropertiesAsDataSource)
       const numLinks = network.linkId.length
-      const features = [] as any
+      const features = [] as any[]
       const crs = network.crs || 'EPSG:4326'
       const needsProjection = crs !== 'EPSG:4326' && crs !== 'WGS84'
 
@@ -2312,6 +2326,9 @@ const MyComponent = defineComponent({
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
+        } else if (filename.toLocaleLowerCase().indexOf('.gmns')) {
+          // GMNS!
+          boundaries = await this.loadGMNSFeatures(filename)
         } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
           // MATSim XML Network
           boundaries = await this.loadXMLNetwork(filename)
