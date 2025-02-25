@@ -2319,20 +2319,26 @@ const MyComponent = defineComponent({
         this.incrementLoadProgress()
 
         if (filename.toLocaleLowerCase().endsWith('gpkg')) {
+          console.log('--GPKG')
           boundaries = await this.loadGeoPackage(filename)
         } else if (filename.startsWith('http')) {
+          console.log('--HTTP to JSON file')
           // geojson from url!
           boundaries = (await fetch(filename).then(async r => await r.json())).features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
+          console.log('--SHP')
           // shapefile!
           boundaries = await this.loadShapefileFeatures(filename)
-        } else if (filename.toLocaleLowerCase().indexOf('.gmns')) {
+        } else if (filename.toLocaleLowerCase().indexOf('.gmns') > -1) {
+          console.log('--GMNS')
           // GMNS!
           boundaries = await this.loadGMNSFeatures(filename)
         } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
+          console.log('--MATSIM XML')
           // MATSim XML Network
           boundaries = await this.loadXMLNetwork(filename)
-        } else if (filename.toLocaleLowerCase().includes('network.avro')) {
+        } else if (filename.toLocaleLowerCase().indexOf('network.avro') > -1) {
+          console.log('--AVRO')
           // avro network!
           boundaries = await this.loadAvroNetwork(filename)
         } else {
@@ -3099,6 +3105,21 @@ const MyComponent = defineComponent({
           .split(',')
           .map((coord: any) => parseFloat(coord))
         this.config.center = this.config.center.split(',').map((coord: any) => parseFloat(coord))
+      }
+      // sometimes user doesn't use long/lat
+      if (
+        this.config.center &&
+        (Math.abs(this.config.center[0]) > 180 || Math.abs(this.config.center[1]) > 90)
+      ) {
+        this.$emit(
+          'error',
+          `Invalid map center coordinate specified. This doesn't look like longitude/latitude: ${this.config.center}`
+        )
+        const initialView = this.globalState.viewState
+        this.vizDetails.center = [initialView.longitude, initialView.latitude]
+        this.config.center = [initialView.longitude, initialView.latitude]
+        this.vizDetails.zoom = initialView.zoom
+        this.config.zoom = initialView.zoom
       }
 
       this.buildThumbnail()
