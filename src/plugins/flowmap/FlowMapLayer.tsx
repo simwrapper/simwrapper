@@ -67,7 +67,6 @@ export default function Layer({
     // darkMode: false,
   })
 
-
   function getTooltipState(info: FlowmapLayerPickingInfo<any, any> | undefined) {
     if (!info) return undefined;
     const { x, y, object } = info;
@@ -112,7 +111,7 @@ export default function Layer({
             <b>{object?.type}</b>
             <br />
             Station IDs: {object?.origin.id} → {object?.dest.id} <br />
-            headway: {object?.count}
+            {vizDetails.selectedMetric}: {object?.count}
           </div>
         )
         
