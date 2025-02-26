@@ -259,6 +259,7 @@ const MyComponent = defineComponent({
           flow: '',
           colorScheme: '',
         }],
+        selectedMetric: '',
         highlightColor: 'orange',
         fadeEnabled: true,
         fadeAmount: 50,
@@ -316,6 +317,7 @@ const MyComponent = defineComponent({
       await this.loadBoundaries()
 
       this.vizDetails = Object.assign({}, this.vizDetails)
+      this.vizDetails.selectedMetric = this.vizDetails.metrics[0].flow
       this.slider.labels = ['test', 'test']
       this.slider = Object.assign({}, this.slider)
       await this.configureData(this.vizDetails.metrics[0])
@@ -619,6 +621,8 @@ const MyComponent = defineComponent({
     async configureData(datasetInfo: any) {
       // Use config columns for origin/dest/flow -- if they exist
       this.vizDetails.colorScheme = datasetInfo.colorScheme
+      this.vizDetails.selectedMetric = datasetInfo.flow
+
       const oColumn = datasetInfo.origin || 'origin'
       const dColumn = datasetInfo.destination || 'destination'
       const flowColumn = datasetInfo.flow || 'flow'
@@ -641,17 +645,26 @@ const MyComponent = defineComponent({
         const count = data[flowColumn].values
         const hours = data[hourColumn].values
 
-
-
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
-          try {
-            flows.push({
+                 try {
+            if ((datasetInfo.flow.includes("Headway") || datasetInfo.flow.includes("headway")) && count[i]) {
+              // console.log("flow is: " + count[i] + " and inverted flow is: " + 1/(count[i]))
+              flows.push({
+              o: `${origin[i]}`,
+              d: `${destination[i]}`,
+              v: 1/(count[i]),
+              h: hours[i]
+            })
+            } else {
+              flows.push({
               o: `${origin[i]}`,
               d: `${destination[i]}`,
               v: count[i],
               h: hours[i]
             })
+            }
+
           } catch {
             // missing data; ignore
           }
