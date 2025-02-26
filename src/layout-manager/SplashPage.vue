@@ -147,7 +147,7 @@
                     target="_blank"
                   ): img.img-logo(:src="logo.image")
 
-        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, and the ActivitySim Consortium member agencies above.
+        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, <br/>and the ActivitySim Consortium member agencies above.
 
 
     //- FOOTER -------------------------------------------------------------------
@@ -225,9 +225,10 @@ const logos = [
   { url: 'https://matsim.org/', image: 'matsim-logo-blue.png', name: 'MATSim' },
   { url: 'https://bmbf.de', image: 'bmbf-logo.png', name: 'German Federal BMBF' },
   { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
-  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
   { url: 'http://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
+  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
   { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
+  { url: 'https://www.dfg.de/', image: 'dfg.jpg', name: 'Deutsche Forschungsgemeinschaft' },
   { url: 'https://www.mwcog.org/', image: 'mwcog.png', name: 'MWCOG' },
   { url: 'https://www.oregon.gov/ODOT', image: 'oregondot.png', name: 'Oregon DOT' },
   { url: 'https://www.transportation.ohio.gov/', image: 'ohiodot.png', name: 'Ohio DOT' },
