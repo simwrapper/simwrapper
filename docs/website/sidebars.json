@@ -11,8 +11,9 @@
       "link-vols",
       "carrier-viewer",
       "drt-vehicles",
-      "matsim-events",
-      "transit-supply"
+      "logistics",
+      "transit-supply",
+      "matsim-events"
     ],
     "API Reference / General": [
       "aggregate-od",

@@ -8,21 +8,28 @@ _MATSim carrier plans_
 
 ## Usage
 
-TBA
-
-A file named `viz-carrier*.yaml` must be present in working folder. Each yml file matching that pattern will produce a separate DRT visualization.
+A file named `viz-carrier*.yaml` must be present in working folder. Each yaml/yml file matching that pattern will produce a separate carrier visualization.
 
 **viz-carrier-example.yml**
 
 ```yaml
-title: 'Dynamic Response Shared Taxis'
-description: 'Inaktive Sammeltaxis (Quadräte); Aktive Sammeltaxis (gelb)'
+title: 'Grocery delivery carriers'
+description: 'Berlin open scenario'
 network: output_network.json.gz # slower: output_network.json.gz
 carriers: output_carriers.xml.gz
-center: [13.391, 52.515]
+center: [13.4, 52.5]
 ```
 
 ## YAML fields explained
 
-**network:** both `.json.gz` and `xml.gz` network files are supported, but JSON-based files load _much_ faster.
+**title:** title of the panel
+
+**description:** brief text description
+
+**network:** Generally this should be the `output_network.xml.gz` filename that was used for the logistics run
+
+**carriers:** The carrier file output, usually of the form `*output_carriers.xml.gz`
+
 **center:** Use this to force the map center point. `[long,lat]`
+
+**zoom:** zoom level 5-20
