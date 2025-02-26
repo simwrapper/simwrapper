@@ -1327,6 +1327,7 @@ const MyComponent = defineComponent({
     },
 
     paintColorsWithFilter(section: string, dataTable: DataTable) {
+      console.log('paintColorsWithFilter', section, dataTable)
       const currentDefinition =
         section === 'fill' ? this.currentUIFillColorDefinitions : this.currentUILineColorDefinitions
 
@@ -1534,6 +1535,7 @@ const MyComponent = defineComponent({
     },
 
     handleNewLineColor(colorOrFilteredDataTable: LineColorDefinition | DataTable | false) {
+      console.log('handleNewLineColor', colorOrFilteredDataTable)
       if (colorOrFilteredDataTable === false) {
         this.dataLineColors = ''
         this.legendStore.clear('Line Color')

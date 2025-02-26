@@ -16,7 +16,7 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import { FileSystemConfig } from '@/Globals'
-import XyTime from '@/plugins/xy-time/XyTime.vue'
+import XyTime from '@/plugins/xy-time/XYTimeV2.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 
 export default defineComponent({

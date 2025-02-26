@@ -11,7 +11,7 @@ const plugins = [
   {
     kebabName: 'xytime',
     filePatterns: ['**/viz-xyt-*.y?(a)ml', '**/*xyt.csv?(.gz)'],
-    component: defineAsyncComponent(() => import('./xy-time/XyTime.vue')),
+    component: defineAsyncComponent(() => import('./xy-time/XyTimeV2.vue')),
   },
   {
     kebabName: 'area-map',
