@@ -2,8 +2,8 @@ cff-version: 1.2.0
 title: 'SimWrapper'
 message: 'If you use this software, please cite it as below.'
 abstract: 'SimWrapper is a microsimulation data visualizer, sponsored by Technische Universität Berlin'
-version: 2.5.0
-date-released: 2023-08-22
+version: 3.6.0
+date-released: 2024-02-20
 repository-code: 'https://github.com/simwrapper/simwrapper'
 url: 'https://simwrapper.github.io'
 license: GNU GPL v3.0
