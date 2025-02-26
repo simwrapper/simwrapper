@@ -2337,7 +2337,7 @@ const MyComponent = defineComponent({
           // MATSim XML Network
           console.log('--MATSIM XML')
           boundaries = await this.loadXMLNetwork(filename)
-        } else if (/network.*\.avro/.test(filename.toLocaleLowerCase())) {
+        } else if (/network.*\.avro$/.test(filename.toLocaleLowerCase())) {
           // avro network!
           console.log('--AVRO')
           boundaries = await this.loadAvroNetwork(filename)
