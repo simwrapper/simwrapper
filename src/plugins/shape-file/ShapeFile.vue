@@ -846,7 +846,7 @@ const MyComponent = defineComponent({
           /(\.geojson)(|\.gz)$/.test(filename) ||
           /\.shp$/.test(filename) ||
           /\.gpkg$/.test(filename) ||
-          /network.avro$/.test(filename) ||
+          /network.*\.avro$/.test(filename) ||
           /.gmns.zip$/.test(filename) ||
           /.gmns$/.test(filename)
         ) {
@@ -2322,24 +2322,24 @@ const MyComponent = defineComponent({
           console.log('--GPKG')
           boundaries = await this.loadGeoPackage(filename)
         } else if (filename.startsWith('http')) {
-          console.log('--HTTP to JSON file')
           // geojson from url!
+          console.log('--HTTP to JSON file')
           boundaries = (await fetch(filename).then(async r => await r.json())).features
         } else if (filename.toLocaleLowerCase().endsWith('.shp')) {
-          console.log('--SHP')
           // shapefile!
+          console.log('--SHP')
           boundaries = await this.loadShapefileFeatures(filename)
         } else if (filename.toLocaleLowerCase().indexOf('.gmns') > -1) {
-          console.log('--GMNS')
           // GMNS!
+          console.log('--GMNS')
           boundaries = await this.loadGMNSFeatures(filename)
         } else if (filename.toLocaleLowerCase().indexOf('.xml') > -1) {
-          console.log('--MATSIM XML')
           // MATSim XML Network
+          console.log('--MATSIM XML')
           boundaries = await this.loadXMLNetwork(filename)
-        } else if (filename.toLocaleLowerCase().indexOf('network.avro') > -1) {
-          console.log('--AVRO')
+        } else if (/network.*\.avro/.test(filename.toLocaleLowerCase())) {
           // avro network!
+          console.log('--AVRO')
           boundaries = await this.loadAvroNetwork(filename)
         } else {
           // geojson!
