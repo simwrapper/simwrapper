@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.6.1](https://github.com/simwrapper/simwrapper/compare/v3.6.0...v3.6.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* Chrome file browser download links work again ([3dd9f43](https://github.com/simwrapper/simwrapper/commit/3dd9f43b8aa084b81be567b01f977912db0e7d46)), closes [#271](https://github.com/simwrapper/simwrapper/issues/271) [#202](https://github.com/simwrapper/simwrapper/issues/202)
+* Flowmap locations now referenced from transit schedule file ([#444](https://github.com/simwrapper/simwrapper/issues/444)) ([f5c2998](https://github.com/simwrapper/simwrapper/commit/f5c2998a7241add87806ce798ee7cb2c33770ae0))
+* **flowmap:** Fix hover tooltip info to display data label ([ced0bdf](https://github.com/simwrapper/simwrapper/commit/ced0bdf3e524764cf2473fe90645b9685e9da0ef))
+* **map:** Allow Avro network files with name matching *network*.avro ([86c7cbc](https://github.com/simwrapper/simwrapper/commit/86c7cbc74b6d282e5f8ed94a7c2f3739de892461))
+* **map:** Give user a helpful error message if map CENTER is not long/lat ([d392fe5](https://github.com/simwrapper/simwrapper/commit/d392fe520bbf7e67911cb7ba7767c3be4fa9eed5)), closes [#448](https://github.com/simwrapper/simwrapper/issues/448)
+* **pt:** PT transit viewer can read pt_pax_volumes.csv.gz from analysis scripts ([4a6a275](https://github.com/simwrapper/simwrapper/commit/4a6a275eb9db1c10624adc84103f0f4698433524))
+
 ## [3.6.0](https://github.com/simwrapper/simwrapper/compare/v3.5.3...v3.6.0) (2025-02-10)
 
 
