@@ -29,4 +29,4 @@ We use GitHub Issues to track development, so that's the right place to file bug
 We gladly accept PR's for documentation or the code itself!
 
 - Code repository: <https://github.com/simwrapper/simwrapper>
-- Documentation repository: <https://github.com/simwrapper/simwrapper.github.io>
+- Documentation repository: <https://github.com/simwrapper/docs>
