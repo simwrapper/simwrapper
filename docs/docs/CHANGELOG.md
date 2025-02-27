@@ -14,6 +14,36 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.6.1](https://github.com/simwrapper/simwrapper/compare/v3.6.0...v3.6.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* Chrome file browser download links work again ([3dd9f43](https://github.com/simwrapper/simwrapper/commit/3dd9f43b8aa084b81be567b01f977912db0e7d46)), closes [#271](https://github.com/simwrapper/simwrapper/issues/271) [#202](https://github.com/simwrapper/simwrapper/issues/202)
+* Flowmap locations now referenced from transit schedule file ([#444](https://github.com/simwrapper/simwrapper/issues/444)) ([f5c2998](https://github.com/simwrapper/simwrapper/commit/f5c2998a7241add87806ce798ee7cb2c33770ae0))
+* **flowmap:** Fix hover tooltip info to display data label ([ced0bdf](https://github.com/simwrapper/simwrapper/commit/ced0bdf3e524764cf2473fe90645b9685e9da0ef))
+* **map:** Allow Avro network files with name matching *network*.avro ([86c7cbc](https://github.com/simwrapper/simwrapper/commit/86c7cbc74b6d282e5f8ed94a7c2f3739de892461))
+* **map:** Give user a helpful error message if map CENTER is not long/lat ([d392fe5](https://github.com/simwrapper/simwrapper/commit/d392fe520bbf7e67911cb7ba7767c3be4fa9eed5)), closes [#448](https://github.com/simwrapper/simwrapper/issues/448)
+* **pt:** PT transit viewer can read pt_pax_volumes.csv.gz from analysis scripts ([4a6a275](https://github.com/simwrapper/simwrapper/commit/4a6a275eb9db1c10624adc84103f0f4698433524))
+
+## [3.6.0](https://github.com/simwrapper/simwrapper/compare/v3.5.3...v3.6.0) (2025-02-10)
+
+
+### Features
+
+* Add transparency selector for Shapefile/Map FillColor definition ([2db2aed](https://github.com/simwrapper/simwrapper/commit/2db2aed11f16d44fee836fcddb9c8b4ac69b3847))
+* **table:** Table alignment. left/center/right array can be passed in yaml ([bb84870](https://github.com/simwrapper/simwrapper/commit/bb848702991b41b65caf2a56a5b0aad8d1ad34e9))
+
+
+### Bug Fixes
+
+* "Add data" panel not showing drag/drop area on Firefox ([eaa0b29](https://github.com/simwrapper/simwrapper/commit/eaa0b2912c64e7d5fec6eec892c5bdd6bc7dea1e))
+* Added opacity slider for map plot ([#420](https://github.com/simwrapper/simwrapper/issues/420)) ([3601c4d](https://github.com/simwrapper/simwrapper/commit/3601c4dacec61882a279530586ae7efb703bc636))
+* adding/removing local folders in Chrome/Edge confuses file browser ([1239b81](https://github.com/simwrapper/simwrapper/commit/1239b8128c4282fc3ef36b9503786df36fd9fd09)), closes [#432](https://github.com/simwrapper/simwrapper/issues/432)
+* Firefox loads XML very slowly ([ccf607c](https://github.com/simwrapper/simwrapper/commit/ccf607ceefef2d2acf9d02e068e2a122b0c9e7d5))
+* **matrix:** Handle non-standard HDF5/OMX files with any internal dataset paths ([f8d16c2](https://github.com/simwrapper/simwrapper/commit/f8d16c2bc2e3ceeda09e65762fa392456a457dfe))
+* Sort files,folders,dashboards "natural" human-friendly way ([bbcc504](https://github.com/simwrapper/simwrapper/commit/bbcc504820239fac2476cc0b28839a7cff3e40c4)), closes [#438](https://github.com/simwrapper/simwrapper/issues/438)
+
 ### [3.5.3](https://github.com/simwrapper/simwrapper/compare/v3.5.2...v3.5.3) (2024-12-06)
 
 
