@@ -44,6 +44,7 @@ declare module 'zip-loader'
 declare module 'react-toggle'
 declare module 'vue-good-table'
 declare module 'vue-virtual-scroll-list'
+
 declare module '@turf/point-to-line-distance'
 declare module '@turf/nearest-point-to-line'
 declare module '@loaders.gl/images'
