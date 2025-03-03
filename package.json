@@ -103,6 +103,7 @@
     "ndarray": "^1.0.19",
     "nerdamer": "^1.1.11",
     "nprogress": "^0.2.0",
+    "numcodecs": "^0.3.2",
     "observable-fns": "^0.6.1",
     "pako": "^2.0.4",
     "path-browserify": "^1.0.1",
