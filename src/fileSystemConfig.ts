@@ -105,8 +105,16 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
 
-  // End. Below here, these are editable:
+  // ----------- End. Below here, these are editable: -------------------
 
+  {
+    name: 'SANDAG prod/bronze',
+    slug: 'prod-bronze',
+    description: 'SANDAG Azure data lake: prod/bronze',
+    omx: true,
+    baseURL: 'http://localhost:4999',
+    // baseURL: 'https://adlsdasadsprodwest.blob.core.windows.net/bronze',
+  },
   {
     name: 'VSP TU-Berlin',
     slug: 'public',

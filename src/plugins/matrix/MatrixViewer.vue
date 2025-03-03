@@ -29,6 +29,7 @@
 
     H5Map-viewer.fill-it(v-if="isMap && h5fileBlob"
       :fileApi="fileApi"
+      :fileSystem="fileSystem"
       :subfolder="subfolder"
       :blob="h5fileBlob"
       :baseBlob="h5baseBlob"
@@ -279,19 +280,41 @@ const MyComponent = defineComponent({
         this.statusText = `Drop an HDF5 or GeoJSON file here to view it`
         return null
       }
+      this.statusText = `Loading: ${this.filename}...`
+      await this.$nextTick()
 
       // if we have a yaml config, use it
       this.filename = '' + this.yamlConfig
-      if (this.config) {
-        this.filename = this.config.dataset
-      }
-
-      this.statusText = `Loading: ${this.filename}...`
-
+      if (this.config) this.filename = this.config.dataset
       const path = `${this.subfolder}/${this.filename}`
-      const blob = await this.fileApi?.getFileBlob(path)
-      this.statusText = ''
-      return blob
+
+      // if this is an OMX Server path, build the blob internally from the API content
+      if (this.fileSystem?.omx) {
+        const catalog = await this.loadOMXViaAPI(path)
+        this.statusText = ''
+        return catalog
+      } else {
+        // load file locally
+        const blob = await this.fileApi?.getFileBlob(path)
+        this.statusText = ''
+        return blob
+      }
+    },
+
+    async loadOMXViaAPI(path: string) {
+      console.log('OMX', path)
+      let url = `${this.fileSystem?.baseURL}/omx/${this.fileSystem?.slug}?prefix=${path}`
+
+      console.log(url)
+      const response = await fetch(url)
+      console.log(response.status, response.statusText)
+      if (response.status !== 200) {
+        console.error(await response.text())
+        return null
+      }
+      const omxHeader = await response.json()
+      console.log(omxHeader)
+      return omxHeader
     },
 
     async loadYamlConfig() {
