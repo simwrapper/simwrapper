@@ -30,6 +30,7 @@ class HTTPFileSystem {
   private fsHandle: FileSystemAPIHandle | null
   private store: any
   private isGithub: boolean
+  private isOMX: boolean
 
   constructor(project: FileSystemConfig, store?: any) {
     this.urlId = project.slug
@@ -37,6 +38,7 @@ class HTTPFileSystem {
     this.fsHandle = project.handle || null
     this.store = store || null
     this.isGithub = !!project.isGithub
+    this.isOMX = !!project.omx
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'

@@ -71,6 +71,7 @@ import * as shapefile from 'shapefile'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
+import { Blosc } from 'numcodecs'
 
 import globalStore from '@/store'
 import { gUnzip } from '@/js/util'
@@ -94,14 +95,20 @@ naturalSort.insensitive = true
 
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
+interface H5Catalog {
+  catalog: string[]
+  shape: number[]
+}
+
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
   components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
     fileApi: { type: Object as PropType<HTTPFileSystem> },
+    fileSystem: { required: true, type: Object },
     config: String,
     subfolder: String,
-    blob: { required: true },
+    blob: { required: true, type: Object as PropType<File | H5Catalog> },
     baseBlob: { required: false },
     filenameH5: String,
     filenameBase: String,
@@ -121,7 +128,7 @@ const MyComponent = defineComponent({
       dragStartWidth: 196,
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
-      currentData: [] as Float32Array | any[],
+      currentData: [] as Float32Array | Float64Array | any[],
       currentBaseData: [] as Float32Array | any[],
       currentKey: '',
       dataArray: [] as number[],
@@ -130,6 +137,7 @@ const MyComponent = defineComponent({
       h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
       isLoading: false,
+      isOmxApi: false,
       layerId: Math.floor(1e12 * Math.random()),
       leftSectionWidth: 196,
       prettyDataArray: [] as string[],
@@ -153,8 +161,13 @@ const MyComponent = defineComponent({
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
 
-    // blob is always a File here
-    this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
+    if (this.blob instanceof File) {
+      this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
+    } else {
+      // blob is either an HDF5 file blob, or an OMX API catalog a.k.a. H5Catalog
+      this.isOmxApi = true
+    }
+
     await this.getFileKeysAndProperties()
 
     // Load GeoJSON features
@@ -351,6 +364,16 @@ const MyComponent = defineComponent({
     },
 
     async getFileKeysAndProperties() {
+      if (this.isOmxApi) {
+        const content = this.blob as H5Catalog
+        this.matrixSize = content.shape[0]
+        this.tableKeys = content.catalog.map(key => {
+          return { key, name: key }
+        })
+        this.activeTable = this.tableKeys[0]
+        return
+      }
+
       if (!this.h5fileApi) return
 
       // first get the keys
@@ -426,26 +449,41 @@ const MyComponent = defineComponent({
     },
 
     async extractH5ArrayData() {
-      // the file has the data, and we want it
-      if (!this.h5fileApi || this.activeZone == null) return
+      if (this.activeZone == null) return
 
       this.isLoading = true
       await this.$nextTick()
 
-      // async get the matrix itself first
-      if (this.currentKey !== this.activeTable?.key) {
-        this.currentData = await this.fetchMatrix(this.h5fileApi as any)
-        this.currentKey = this.activeTable?.key || ''
-        // also get base matrix if we're in diffmode
-        if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
-      }
+      console.log(2222, this.currentKey, this.activeTable?.key)
 
+      if (this.currentKey !== this.activeTable?.key) {
+        if (this.isOmxApi) {
+          // OMX API - fetch raw data from API instead of from HDF5 file
+          if (this.currentKey !== this.activeTable?.key) {
+            const key = this.activeTable?.key || (this.blob as H5Catalog).catalog[0]
+            const url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.subfolder}/${this.filenameH5}&table=${key}`
+            const response = await fetch(url)
+            const buffer = await response.blob().then(async b => await b.arrayBuffer())
+            // buffer is blosc-compressed
+            const codec = new Blosc()
+            const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
+            this.currentData = data
+            this.currentKey = key
+            // TODO also get base matrix if we're in diffmode
+          }
+        } else {
+          // HDF5: async get the matrix itself first
+          if (!this.h5fileApi) return
+          this.currentData = await this.fetchMatrix(this.h5fileApi as any)
+          this.currentKey = this.activeTable?.key || ''
+          // also get base matrix if we're in diffmode
+          if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
+        }
+      }
       //TODO FIX THIS
       let offset = this.activeZone - 1
-
       // try {
       let values = [] as any
-
       if (this.currentData) {
         if (this.mapConfig.isRowWise) {
           values = this.currentData.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
@@ -509,7 +547,7 @@ const MyComponent = defineComponent({
     },
 
     clickedZone(zone: { index: number; properties: any }) {
-      // console.log('ZONE', zone)
+      console.log('ZONE', zone)
 
       // ignore double clicks and same-clicks
       if (zone.properties[this.zoneID] == this.activeZone) return
