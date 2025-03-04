@@ -6,7 +6,7 @@
   .left-bar(:style="{width: `${leftSectionWidth-11}px`}")
     .top-half.flex1
       .zone-details
-        p.h5-filename {{ activeTable.name || filenameH5 }}
+        p.h5-filename {{ activeTable?.name || filenameH5 }}
         input.input-search(size="is-small" placeholder="Search..." v-model="searchTerm")
         .scrolly
           .h5-table(v-for="table in tableKeys" :key="table.key"
@@ -453,8 +453,6 @@ const MyComponent = defineComponent({
 
       this.isLoading = true
       await this.$nextTick()
-
-      console.log(2222, this.currentKey, this.activeTable?.key)
 
       if (this.currentKey !== this.activeTable?.key) {
         if (this.isOmxApi) {
