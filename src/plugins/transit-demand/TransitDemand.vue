@@ -23,6 +23,7 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
+            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -749,7 +750,7 @@ const MyComponent = defineComponent({
           const analysisPtFolder = await this.fileApi.getDirectory(
             `${this.myState.subfolder}/analysis/pt/`
           )
-          demandFiles = analysisPtFolder.files.filter(f => f.includes("pt_pax_volumes."))
+          demandFiles = analysisPtFolder.files.filter(f => f.includes('pt_pax_volumes.'))
         } catch (e) {
           // we can skip pax loads if file not found
           console.warn('error', '' + e)
@@ -1178,8 +1179,9 @@ const MyComponent = defineComponent({
       // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
       for (const row of results.data) {
         const stopId = row.stop
-        if (!this.stopLevelDemand[stopId])
+        if (!this.stopLevelDemand[stopId]) {
           this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
+        }
         this.stopLevelDemand[stopId].b += row.passengersBoarding
         this.stopLevelDemand[stopId].a += row.passengersAlighting
         const ptLineId = row.transitLine

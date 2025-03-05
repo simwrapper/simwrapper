@@ -134,6 +134,7 @@ export default function Component({
   handleClickEvent = null as any,
   pieSlider = 20,
   widthSlider = 50,
+  vizDetails = null as any,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -337,23 +338,23 @@ export default function Component({
     )
 
   // PIE CHARTS
-  if (slices.length) {
-    layers.push(
-      new SolidPolygonLayer({
-        id: `stop-pie-charts-layer-${Math.random()}`,
-        data: slices,
-        getPolygon: (d: any) => d.polygon,
-        getFillColor: (d: any) => d.color,
-        stroked: false,
-        filled: true,
-        pickable: true,
-        opacity: 1,
-        sizeScale: 1,
-        autoHighlight: false,
-        parameters: { depthTest: false },
-      })
-    )
-  }
+  // if (slices.length) {
+  layers.push(
+    new SolidPolygonLayer({
+      id: `stop-pie-charts-layer-${Math.random()}`,
+      data: slices,
+      getPolygon: (d: any) => d.polygon,
+      getFillColor: (d: any) => d.color,
+      stroked: false,
+      filled: true,
+      pickable: true,
+      opacity: 1,
+      sizeScale: 1,
+      autoHighlight: false,
+      parameters: { depthTest: false },
+    })
+  )
+  // }
 
   // STOP ICONS ----------------
 
