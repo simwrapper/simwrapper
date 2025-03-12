@@ -213,8 +213,11 @@ export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
   const features = []
   const tableElements = featureDao.queryForEach()
   for (const row of tableElements) {
-    const { geom, ...properties } = row
-    const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
+    const { the_geom, geom, ...properties } = row
+    const geometryData = the_geom ?? geom
+    if (!geometryData) continue
+
+    const geoJsonGeometry = new Gpkg.GeometryData(geometryData as any)
     const geojson = geoJsonGeometry.toGeoJSON()
     const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
 
