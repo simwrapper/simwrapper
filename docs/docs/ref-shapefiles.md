@@ -209,7 +209,7 @@ display:
         join: AB
         colorRamp:
             ramp: RdBu
-#            reverse: true
+            # reverse: true
             steps: 9
             breakpoints: -1000, -500, -100, -10, 10, 100, 500, 1000
     lineWidth:
@@ -223,7 +223,7 @@ display:
 
 **Normalization**
 
-- Very large and very small areas on the same maps can create misleading visualizations; consider "normalizing" data by land area before plotting it.
+Very large and very small areas on the same maps can create misleading visualizations; consider "normalizing" data by land area before plotting it.
 
 **Color choices**
 
