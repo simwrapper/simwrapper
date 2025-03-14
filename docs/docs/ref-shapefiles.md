@@ -168,10 +168,64 @@ You can customize the tooltip to just show what you are interested as follows:
 - Each entry is of format `datasetname:columnname`, so for example `AM_FLOWS:VEHICLE_VOL` will display the AM_FLOWS dataset and VEHICLE_VOL column.
 - Use the shapefile/network filename for its columnar data, or the dataset "key" for joined datasets.
 
+## Difference plots
 
-## Visualization hints
+Comparing a base vs. build, project vs. no-project, or scenari A vs. B, is a common need in both network link and area plots. The method for difference plots is the same for both.
 
-Very large and very small areas on the same maps can create misleading visualizations; consider "normalizing" data by land area before plotting it. Alternatively, the circle-plots show exactly the same data in a different manner.
+### Diffs in the UI
+
+- From the config panel, add **two datasets** such as a base and a build CSV.
+- You can now go into the `Color` `Width` panels for your lines or areas to set up the diff.
+- Make sure you have the `Join By` selected properly; the id field for each dataset must link to the shape IDs correctly
+- With two datasets loaded, the `Compare datasets` dropdown allows you to choose A-B or B-A. You can also select percent difference if desired (for colors)
+- **For colors, be sure to choose a diverging color palette:** one with a neutral central color and different colors to the left/right of center.
+  - Manual adjustments to color ramps and breakpoints can be edited in the resulting YAML file, see below.
+
+### Diffs in YAML config
+
+As above, two datasets are needed to build a difference plot. The YAML for maps includes several fields relevant for diff plots, all in the relevant `Width` or `Color` sections.
+
+-  The `diff` field references the two dataset names.
+  - It is a string with the form `dataset1 - dataset2`.
+  - Example `diff: "project - base"`
+- Be sure to set the `join` to identify the id fields properly
+- For colors choose a `diverging` colorramp. Valid diverging color ramps are `RdBu`,`PrGn`,`RdYlBu`.
+- `breakpoints:`: It will auto-guess breakpoints but you can set your own with a comma-separated list of breakpoints. This list must be length `steps`-1.
+  - Example: `steps: 5` and `breakpoints: -10,1,1,10` has a neutral central area for values between -1 and 1.
+
+**Example DIFF YAML fragment**
+```yaml
+shapes:
+    file: "../shapefiles/freeflow.geojson"
+    # keep: AB,FT,MTYPE,STREETNAME
+    join: AB
+datasets:
+    base: "../2025_Baseline/daily_vols.dbf"
+    build: "../2025_Project18th/daily_vols.dbf"
+display:
+    lineColor:
+        diff: build - base
+        columnName: DAILY_TOT
+        join: AB
+        colorRamp:
+            ramp: RdBu
+#            reverse: true
+            steps: 9
+            breakpoints: -1000, -500, -100, -10, 10, 100, 500, 1000
+    lineWidth:
+        diff: build - base
+        columnName: DAILY_TOT
+        join: AB
+        scaleFactor: 100
+```
+
+## Some visualization hints
+
+**Normalization**
+
+- Very large and very small areas on the same maps can create misleading visualizations; consider "normalizing" data by land area before plotting it.
+
+**Color choices**
 
 - Use the sequential color palettes for continuous data.
 - Use diverging color palettes for difference plots and other situations where data is both positive and negative
