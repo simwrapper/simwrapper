@@ -46,14 +46,12 @@ const ActivityColor = {
   service: [255, 64, 255],
 }
 
-
 interface hubShipment {
-  hubId: String,
+  hubId: String
   shipmentTotal: number
 }
 
 var totalShipmentsPerHub: hubShipment[] = []
-
 
 export default function Component(props: {
   activeTab: string
@@ -77,7 +75,6 @@ export default function Component(props: {
   numSelectedTours: number
   projection: string
 }) {
-
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
   const [pickupsAndDeliveries, setPickupsAndDeliveries] = useState({
@@ -99,15 +96,22 @@ export default function Component(props: {
     projection,
   } = props
 
-
-  const { simplifyTours, scaleFactor, scaleFactorShipments, shipmentDotsOnTourMap, selectedTour, showEachCarrierTour } = settings
+  const {
+    simplifyTours,
+    scaleFactor,
+    scaleFactorShipments,
+    shipmentDotsOnTourMap,
+    selectedTour,
+    showEachCarrierTour,
+  } = settings
   // range is (1/) 16384 - 0.000001
   // scaleFactor is 0-100, which we invert and shift to [14 to -6], then 2^value is widthScale.
   let widthScale = scaleFactor == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactor) / 5 - 6.0)
-  let widthScaleShipments = scaleFactorShipments == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactorShipments) / 5 - 6.0)
+  let widthScaleShipments =
+    scaleFactorShipments == 0 ? 1e-6 : 1 / Math.pow(2, (100 - scaleFactorShipments) / 5 - 6.0)
 
   let shipmentsTest = []
-  var [layers, setLayers] = useState<any[]>([]);
+  var [layers, setLayers] = useState<any[]>([])
   const prevHubChains = useRef(lspShipmentChains)
 
   // register setViewState in global view updater
@@ -161,7 +165,6 @@ export default function Component(props: {
   }
 
   function renderTooltip(hoverInfo: any) {
-
     const { object } = hoverInfo
     if (!object) return null
 
@@ -169,9 +172,9 @@ export default function Component(props: {
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
     if (object?.type == 'leg') return renderTourTooltip(hoverInfo)
     if (object?.color) return renderLegTooltip(hoverInfo)
-    if (object?.label == 'Depot' || (object?.locationX && object?.locationY)) return renderHubInfo(hoverInfo)
+    if (object?.label == 'Depot' || (object?.locationX && object?.locationY))
+      return renderHubInfo(hoverInfo)
     if (object?.tour) return renderStopTooltip(hoverInfo)
-
   }
 
   function renderActivityTooltip(hoverInfo: any, activity: string) {
@@ -206,12 +209,10 @@ export default function Component(props: {
   }
 
   function renderLegTooltip(hoverInfo: any) {
-
     const { object, x, y } = hoverInfo
     console.log(object)
 
-    if (hoverInfo.layer.id == "HubChain") {
-
+    if (hoverInfo.layer.id == 'HubChain') {
       return (
         <div
           className="tooltip"
@@ -231,9 +232,7 @@ export default function Component(props: {
         </div>
       )
     } else {
-
       return (
-
         <div
           className="tooltip"
           style={{
@@ -248,15 +247,12 @@ export default function Component(props: {
           }}
         >
           Shipment Id: {object.shipmentId} <br />
-
         </div>
       )
     }
-
   }
 
   function renderTourTooltip(hoverInfo: any) {
-
     const { object, x, y } = hoverInfo
 
     return (
@@ -280,7 +276,6 @@ export default function Component(props: {
   }
 
   function renderHubInfo(hoverInfo: any) {
-
     const { object, x, y } = hoverInfo
 
     let hubInfo = totalShipmentsPerHub.find(obj => obj.hubId === object?.id)
@@ -303,10 +298,7 @@ export default function Component(props: {
         Total Shipments: {hubInfo?.shipmentTotal} <br />
       </div>
     )
-
   }
-
-
 
   function renderStopTooltip(hoverInfo: any) {
     const { object, x, y } = hoverInfo
@@ -385,56 +377,53 @@ export default function Component(props: {
     )
   }
 
-
   if (activeTab == 'lspTours') {
-
     layers = []
 
     function getLspTourColor(vehicleId: string) {
       // Simple hash function to generate a number from the string
-      let hash = 0;
+      let hash = 0
       for (let i = 0; i < vehicleId.length; i++) {
-        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash);
+        hash = vehicleId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       // Generate RGB values by mapping parts of the hash to the 0-255 range
-      const r = (hash & 0xFF0000) >> 16;
-      const g = (hash & 0x00FF00) >> 8;
-      const b = hash & 0x0000FF;
+      const r = (hash & 0xff0000) >> 16
+      const g = (hash & 0x00ff00) >> 8
+      const b = hash & 0x0000ff
 
-      return [r, g, b];
+      return [r, g, b]
     }
 
     function getCarrierToursColors(leg: any) {
       // Simple hash function to generate a number from the string
-      let hash = 0;
+      let hash = 0
       for (let i = 0; i < leg.tour.tourId.length; i++) {
-        hash = leg.tour.tourId.charCodeAt(i) + ((hash << 5) - hash);
+        hash = leg.tour.tourId.charCodeAt(i) + ((hash << 5) - hash)
       }
 
       hash *= leg.tour.tourNumber
       // Use the hash to generate a hue value (0 - 360)
-      const hue = (hash % 360 + 360) % 360; // Ensures hue is positive
+      const hue = ((hash % 360) + 360) % 360 // Ensures hue is positive
 
       // Use fixed saturation and lightness to keep the colors vivid and distinct
-      const saturation = 70;  // Percentage (70%)
-      const lightness = 50;   // Percentage (50%)
+      const saturation = 70 // Percentage (70%)
+      const lightness = 50 // Percentage (50%)
 
       // Convert HSL to RGB for use in most systems
-      return hslToRgb(hue, saturation, lightness);
-
+      return hslToRgb(hue, saturation, lightness)
     }
 
     // Helper function to convert HSL to RGB
     function hslToRgb(h: number, s: number, l: number) {
-      s /= 100;
-      l /= 100;
+      s /= 100
+      l /= 100
 
-      const k = (n: any) => (n + h / 30) % 12;
-      const a = s * Math.min(l, 1 - l);
-      const f = (n: any) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+      const k = (n: any) => (n + h / 30) % 12
+      const a = s * Math.min(l, 1 - l)
+      const f = (n: any) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))
 
-      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+      return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)]
     }
     if (props.showHub === true && props.hubLocation.length > 0) {
       layers.push(
@@ -562,7 +551,6 @@ export default function Component(props: {
           })
         )
       } else {
-
         layers.push(
           //@ts-ignore:
           new PathLayer({
@@ -611,7 +599,7 @@ export default function Component(props: {
               0
             )
             if (pickups && deliveries && !d.depot) return [0, 0, 255]
-            if (pickups&& !d.depot) return ActivityColor.pickup
+            if (pickups && !d.depot) return ActivityColor.pickup
             if (deliveries && !d.depot) return ActivityColor.delivery
             if (services && !d.depot) return ActivityColor.delivery
             if (d.depot) return [240, 130, 0]
@@ -636,52 +624,51 @@ export default function Component(props: {
       )
 
       // destination labels
-        // const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
+      // const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
 
-        // layers.push(
-        //   //@ts-ignore
-        //   new TextLayer({
-        //     id: 'HubChain',
-        //     data: allHubs, // Pass all hubs (flattened)
-        //     getPosition: (hub: any) => [hub.locationX, hub.locationY], // Get position of each hub
-        //     getText: (hub: any) => hub.id, // Display each hub's ID as text
-        //     getAlignmentBaseline: 'center',
-        //     getColor: [255, 255, 255],
-        //     getBackgroundColor: [240, 130, 0],
-        //     background: true,
-        //     backgroundPadding: [2, 2, 2, 2],
-        //     fontWeight: 'normal',
-        //     getSize: 10,
-        //     getTextAnchor: 'middle',
-        //     pickable: true,
-        //     onHover: setHoverInfo // Handle hover interactions
-        //   })
-        // );
+      // layers.push(
+      //   //@ts-ignore
+      //   new TextLayer({
+      //     id: 'HubChain',
+      //     data: allHubs, // Pass all hubs (flattened)
+      //     getPosition: (hub: any) => [hub.locationX, hub.locationY], // Get position of each hub
+      //     getText: (hub: any) => hub.id, // Display each hub's ID as text
+      //     getAlignmentBaseline: 'center',
+      //     getColor: [255, 255, 255],
+      //     getBackgroundColor: [240, 130, 0],
+      //     background: true,
+      //     backgroundPadding: [2, 2, 2, 2],
+      //     fontWeight: 'normal',
+      //     getSize: 10,
+      //     getTextAnchor: 'middle',
+      //     pickable: true,
+      //     onHover: setHoverInfo // Handle hover interactions
+      //   })
+      // );
 
-        layers.push(
-          //@ts-ignore
-          new TextLayer({
-            id: 'HubChain',
-            data: props.tourHubs, // Pass all hubs (flattened)
-            getPosition: (hub: any) => [hub.Xcoord, hub.Ycoord], // Get position of each hub
-            getText: (hub: any) => hub.hubId, // Display each hub's ID as text
-            getAlignmentBaseline: 'center',
-            getColor: [255, 255, 255],
-            getBackgroundColor: [240, 130, 0],
-            background: true,
-            backgroundPadding: [2, 2, 2, 2],
-            fontWeight: 'normal',
-            getSize: 10,
-            getTextAnchor: 'middle',
-            pickable: true,
-            onHover: setHoverInfo // Handle hover interactions
-          })
-        );
-
+      layers.push(
+        //@ts-ignore
+        new TextLayer({
+          id: 'HubChain',
+          data: props.tourHubs, // Pass all hubs (flattened)
+          getPosition: (hub: any) => [hub.Xcoord, hub.Ycoord], // Get position of each hub
+          getText: (hub: any) => hub.hubId, // Display each hub's ID as text
+          getAlignmentBaseline: 'center',
+          getColor: [255, 255, 255],
+          getBackgroundColor: [240, 130, 0],
+          background: true,
+          backgroundPadding: [2, 2, 2, 2],
+          fontWeight: 'normal',
+          getSize: 10,
+          getTextAnchor: 'middle',
+          pickable: true,
+          onHover: setHoverInfo, // Handle hover interactions
+        })
+      )
     }
   }
 
-  function setShipments(layers:any) {
+  function setShipments(layers: any) {
     layers.push(
       //@ts-ignore:
       new ScatterplotLayer({
@@ -743,13 +730,13 @@ export default function Component(props: {
   }
 
   useEffect(() => {
-    const newLayersShipments: any = []; // Initialize a new layers array
+    const newLayersShipments: any = [] // Initialize a new layers array
     setShipments(newLayersShipments)
-    setLayers(newLayersShipments);
-    prevHubChains.current = lspShipmentChains; // Update the ref for the next render
-  }, [settings.scaleFactorShipments]);
+    setLayers(newLayersShipments)
+    prevHubChains.current = lspShipmentChains // Update the ref for the next render
+  }, [settings.scaleFactorShipments])
 
-  if (activeTab === "lspShipmentChains" && props.showHub && props.hubLocation.length > 0) {
+  if (activeTab === 'lspShipmentChains' && props.showHub && props.hubLocation.length > 0) {
     let lspChainsCopy = lspShipmentChains
     lspShipmentChains = []
     lspShipmentChains = lspChainsCopy
@@ -782,8 +769,7 @@ export default function Component(props: {
   }
 
   useEffect(() => {
-
-    const newLayers = []; // Initialize a new layers array
+    const newLayers = [] // Initialize a new layers array
 
     const opacity = shipments.length > 1 ? 32 : 255
 
@@ -797,7 +783,7 @@ export default function Component(props: {
 
     function getSourceColor(chainIndex: number, shipmentChain: any) {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
-        return [0, 228, 255, opacity];
+        return [0, 228, 255, opacity]
       } else {
         return [255, 140, 0]
       }
@@ -805,15 +791,14 @@ export default function Component(props: {
 
     function getTargetColor(chainIndex: number, shipmentChain: any) {
       if (chainIndex + 1 == Number(shipmentChain.route.length - 1)) {
-        return [240, 0, 60, 224];
+        return [240, 0, 60, 224]
       } else {
         return [255, 140, 0]
       }
     }
 
-    if (activeTab === "lspShipmentChains" && !props.showHub && props.hubLocation.length == 0) {
-
-      const opacity = shipments.length > 1 ? 32 : 255;
+    if (activeTab == 'lspShipmentChains' && !props.showHub && props.hubLocation.length == 0) {
+      const opacity = shipments.length > 1 ? 32 : 255
 
       // Handle direct chains when hubsChains is empty
       if (lspShipmentChains[0].hubsChains.length === 0) {
@@ -836,7 +821,7 @@ export default function Component(props: {
             updateTriggers: { getWidth: [scaleFactor] },
             transitions: { getWidth: 200 },
           })
-        );
+        )
 
         newLayers.push(
           new ScatterplotLayer({
@@ -851,7 +836,7 @@ export default function Component(props: {
             radiusUnits: 'pixels',
             onHover: setHoverInfo,
           })
-        );
+        )
 
         newLayers.push(
           new ScatterplotLayer({
@@ -865,39 +850,34 @@ export default function Component(props: {
             pickable: true,
             radiusUnits: 'pixels',
           })
-        );
+        )
       } else {
-
         // Flatten the hubsChains to get individual hubs from each chain
-        const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs);
+        const allHubs = lspShipmentChains[0].hubsChains.flatMap((chain: any) => chain.hubs)
 
         let uniqueHubs = allHubs.reduce((acc, obj) => {
-          const existingObj = acc.find(
-            (item: any) => JSON.stringify(item)
-              === JSON.stringify(obj)
-          );
+          const existingObj = acc.find((item: any) => JSON.stringify(item) === JSON.stringify(obj))
           if (!existingObj) {
-            acc.push(obj);
+            acc.push(obj)
           }
-          return acc;
-        }, []);
+          return acc
+        }, [])
 
         uniqueHubs.forEach((hub: any) => {
           let newHubShipment: hubShipment = {
             hubId: hub.id,
-            shipmentTotal: 0
+            shipmentTotal: 0,
           }
           totalShipmentsPerHub.push(newHubShipment)
-        });
+        })
 
         totalShipmentsPerHub.forEach((hub: any) => {
           hub.shipmentTotal = 0
         })
 
-
         lspShipmentChains[0].hubsChains.forEach(lspShipmentChain => {
           lspShipmentChain.hubs.forEach((hub: any) => {
-            const hubExists = uniqueHubs.some((uniqueHub: any) => uniqueHub.id === hub.id);
+            const hubExists = uniqueHubs.some((uniqueHub: any) => uniqueHub.id === hub.id)
             if (hubExists) {
               let shipmentHub = totalShipmentsPerHub.find(obj => obj.hubId === hub.id)
               if (shipmentHub) {
@@ -912,8 +892,14 @@ export default function Component(props: {
               new ArcLayer({
                 id: 'shipmenthubchains' + '_' + lspShipmentChain.shipmentId + '_route' + i,
                 data: [{}],
-                getSourcePosition: () => [lspShipmentChain.route[i][0], lspShipmentChain.route[i][1]],
-                getTargetPosition: () => [lspShipmentChain.route[i + 1][0], lspShipmentChain.route[i + 1][1]],
+                getSourcePosition: () => [
+                  lspShipmentChain.route[i][0],
+                  lspShipmentChain.route[i][1],
+                ],
+                getTargetPosition: () => [
+                  lspShipmentChain.route[i + 1][0],
+                  lspShipmentChain.route[i + 1][1],
+                ],
                 getSourceColor: getSourceColor(i, lspShipmentChain),
                 getTargetColor: getTargetColor(i, lspShipmentChain),
                 getWidth: getLineWidth(i, lspShipmentChain),
@@ -931,7 +917,10 @@ export default function Component(props: {
               new ScatterplotLayer({
                 id: 'HubChainMarker' + '_' + lspShipmentChain.shipmentId + '_' + i,
                 data: [lspShipmentChain],
-                getPosition: () => [lspShipmentChain.route[lspShipmentChain.route.length - 1][0], lspShipmentChain.route[lspShipmentChain.route.length - 1][1]],
+                getPosition: () => [
+                  lspShipmentChain.route[lspShipmentChain.route.length - 1][0],
+                  lspShipmentChain.route[lspShipmentChain.route.length - 1][1],
+                ],
                 getFillColor: ActivityColor.pickup,
                 getRadius: 3,
                 opacity: 0.9,
@@ -975,17 +964,14 @@ export default function Component(props: {
             getSize: 10,
             getTextAnchor: 'middle',
             pickable: true,
-            onHover: setHoverInfo // Handle hover interactions
+            onHover: setHoverInfo, // Handle hover interactions
           })
-        );
-
-
+        )
       }
     }
-    setLayers(newLayers);
-    prevHubChains.current = lspShipmentChains; // Update the ref for the next render
-  }, [lspShipmentChains, settings.scaleFactor]);
-
+    setLayers(newLayers)
+    prevHubChains.current = lspShipmentChains // Update the ref for the next render
+  }, [lspShipmentChains, settings.scaleFactor, activeTab])
 
   const showBackgroundMap = projection && projection !== 'Atlantis'
 
