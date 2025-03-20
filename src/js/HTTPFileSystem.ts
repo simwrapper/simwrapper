@@ -153,10 +153,34 @@ class HTTPFileSystem {
     console.log({ fullUrl })
     const headers: any = {}
     // const credentials = globalStore.state.credentials[this.urlId]
-    // if (this.needsAuth) { headers['Authorization'] = `Basic ${credentials}`}
+
+    if (this.needsAuth) {
+      let token = localStorage.getItem(`auth-token-${this.slug}`)
+      if (!token) token = prompt('This server requires a token to continue')
+      if (token) {
+        localStorage.setItem(`auth-token-${this.slug}`, token)
+        headers['AZURETOKEN'] = token
+      } else {
+        console.log('bye')
+        return { dirs: [], files: [], handles: {} } as DirectoryEntry
+      }
+    }
 
     const myRequest = new Request(fullUrl, { headers })
     const response = await fetch(myRequest)
+
+    // Re-up token if we got a 400
+    if (response.status == 400) {
+      let token = prompt('Authorization failure. This server requires a token to continue')
+      if (token) {
+        localStorage.setItem(`auth-token-${this.slug}`, token)
+        headers['AZURETOKEN'] = token
+        return await this._getDirectoryFromAzure(stillScaryPath)
+      } else {
+        console.log('bye2')
+        return { dirs: [], files: [], handles: {} } as DirectoryEntry
+      }
+    }
 
     // Check HTTP Response code: 200 is OK, everything else is a problem
     if (response.status != 200) {
@@ -411,7 +435,10 @@ class HTTPFileSystem {
 
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
-    if (cachedEntry) return cachedEntry
+    if (cachedEntry) {
+      console.log('cached!')
+      return cachedEntry
+    }
 
     stillScaryPath = stillScaryPath.replaceAll('/./', '/')
 
