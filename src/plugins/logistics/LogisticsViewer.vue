@@ -167,11 +167,9 @@ const i18n = {
   },
 }
 
-import { defineComponent, shallowReactive } from 'vue'
-import type { PropType } from 'vue'
+import { defineComponent } from 'vue'
 
 import { ToggleButton } from 'vue-js-toggle-button'
-import readBlob from 'read-blob'
 import YAML from 'yaml'
 import naturalSort from 'javascript-natural-sort'
 import colorMap from 'colormap'
@@ -180,7 +178,7 @@ import globalStore from '@/store'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import LegendColors from '@/components/LegendColors'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import { gUnzip, parseXML, findMatchingGlobInFiles, arrayBufferToBase64 } from '@/js/util'
+import { gUnzip, parseXML, findMatchingGlobInFiles } from '@/js/util'
 
 import RoadNetworkLoader from '@/workers/RoadNetworkLoader.worker.ts?worker'
 import avro from '@/js/avro'
@@ -189,22 +187,11 @@ import avro from '@/js/avro'
 import TourViz from './TourViz'
 
 import {
-  FileSystem,
-  LegendItem,
-  LegendItemType,
   FileSystemConfig,
-  VisualizationPlugin,
-  LIGHT_MODE,
-  DARK_MODE,
   REACT_VIEW_HANDLES,
-  MAP_STYLES_OFFLINE,
   ColorScheme,
 } from '@/Globals'
-import { concat, forEach } from 'lodash'
 import { typeOf } from 'mathjs'
-import { diff } from 'nerdamer'
-import { any } from 'micromatch'
-import { id, None } from 'vega'
 
 interface NetworkLinks {
   source: Float32Array
@@ -847,15 +834,15 @@ const LogisticsPlugin = defineComponent({
       if (this.globalHubChainBoolean) {
         for (const tour of this.lspChainToursAll) {
           //  all legs\
-            tour.legs.forEach((leg: any, count_route: number) =>
-              this.addRouteToMap(tour, leg, count_route++)
-            )
+          tour.legs.forEach((leg: any, count_route: number) =>
+            this.addRouteToMap(tour, leg, count_route++)
+          )
 
-            // all activities
-            const z = this.processActivitiesInTour(tour)
-            this.stopActivities = this.stopActivities.concat(z.stopActivities)
-            // all depots
-            this.setupDepots()
+          // all activities
+          const z = this.processActivitiesInTour(tour)
+          this.stopActivities = this.stopActivities.concat(z.stopActivities)
+          // all depots
+          this.setupDepots()
         }
       } else if (this.selectedCarrier) {
         for (const lspChainTour of this.lspChainToursAll) {
@@ -1158,8 +1145,8 @@ const LogisticsPlugin = defineComponent({
           });
         }
       });
-       this.lspHubChainCarriers = this.allHubChains
-     
+      this.lspHubChainCarriers = this.allHubChains
+
       const id = lsp.$id
 
       this.selectedLsp = id
@@ -1320,7 +1307,7 @@ const LogisticsPlugin = defineComponent({
       this.stopActivities = []
       this.shownLegs = []
 
-        // unselect carrier
+      // unselect carrier
       if (this.selectedCarrier === id && unselectAll && !this.globalHubChainBoolean) {
         this.selectedCarrier = ''
         console.log("carriers unselected - TRIGGER THE LSP!")
@@ -1426,7 +1413,7 @@ const LogisticsPlugin = defineComponent({
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.allCarrierHubIds.includes(carrierId)) {
         this.activeTab = "lspShipmentChains"
       }
-  
+
       this.selectAllTours()
     },
 
