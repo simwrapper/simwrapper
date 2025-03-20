@@ -303,10 +303,18 @@ const MyComponent = defineComponent({
 
     async loadOMXViaAPI(path: string) {
       console.log('OMX', path)
+
       let url = `${this.fileSystem?.baseURL}/omx/${this.fileSystem?.slug}?prefix=${path}`
 
+      const headers = {} as any
+      if (this.fileApi) {
+        const zkey = `auth-token-${this.fileApi.getSlug()}`
+        const token = localStorage.getItem(zkey) || ''
+        headers['AZURETOKEN'] = token
+      }
+
       console.log(url)
-      const response = await fetch(url)
+      const response = await fetch(url, { headers })
       console.log(response.status, response.statusText)
       if (response.status !== 200) {
         console.error(await response.text())
