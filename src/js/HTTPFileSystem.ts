@@ -156,7 +156,7 @@ class HTTPFileSystem {
 
     if (this.needsAuth) {
       let token = localStorage.getItem(`auth-token-${this.slug}`)
-      if (!token) token = prompt('This server requires a token to continue')
+      if (!token) token = prompt('This server requires an access token to continue')
       if (token) {
         localStorage.setItem(`auth-token-${this.slug}`, token)
         headers['AZURETOKEN'] = token
@@ -171,7 +171,9 @@ class HTTPFileSystem {
 
     // Re-up token if we got a 400
     if (response.status == 400) {
-      let token = prompt('Authorization failure. This server requires a token to continue')
+      let token = prompt(
+        'Authorization failure. This server requires a valid access token to continue'
+      )
       if (token) {
         localStorage.setItem(`auth-token-${this.slug}`, token)
         headers['AZURETOKEN'] = token
@@ -191,6 +193,10 @@ class HTTPFileSystem {
     const json = (await response.json()) as DirectoryEntry
     console.log(json)
     return json
+  }
+
+  public getSlug() {
+    return this.slug
   }
 
   private async _getFileFromAzure(stillScaryPath: string): Promise<Response> {

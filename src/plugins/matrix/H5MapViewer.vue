@@ -47,8 +47,12 @@
 
       .click-zone-hint.flex-col(v-if="activeZone == null")
         h4: b MATRIX VIEWER
-        p This map view can display one row or one column of data at a time.
-        p Click on the map to select the area of interest.
+        p Click on the map to select the row/column of interest.
+        p This map view can display
+          b &nbsp;one row&nbsp;
+          | or
+          b &nbsp;one column&nbsp;
+          | of data at a time.
         p &nbsp;
         p Switch to the table view to inspect the full matrix in tabular or heatmap view.
 
@@ -460,7 +464,16 @@ const MyComponent = defineComponent({
           if (this.currentKey !== this.activeTable?.key) {
             const key = this.activeTable?.key || (this.blob as H5Catalog).catalog[0]
             const url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.subfolder}/${this.filenameH5}&table=${key}`
-            const response = await fetch(url)
+
+            const headers = {} as any
+            if (this.fileApi) {
+              const zkey = `auth-token-${this.fileApi.getSlug()}`
+              const token = localStorage.getItem(zkey) || ''
+              headers['AZURETOKEN'] = token
+            }
+
+            const response = await fetch(url, { headers })
+
             const buffer = await response.blob().then(async b => await b.arrayBuffer())
             // buffer is blosc-compressed
             const codec = new Blosc()
