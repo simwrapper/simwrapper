@@ -6,6 +6,7 @@ import { PathStyleExtension } from '@deck.gl/extensions'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { DepthFormat } from '~/@types/three'
 
 // -------------------------------------------------------------
 // Tour viz has several layers, top to bottom:
@@ -811,7 +812,8 @@ export default function Component(props: {
       }
     }
 
-    if (activeTab === "lspShipmentChains" && !props.showHub && props.hubLocation.length == 0) {
+
+    if (activeTab == "lspShipmentChains" && !props.showHub && props.hubLocation.length == 0) {
 
       const opacity = shipments.length > 1 ? 32 : 255;
 
@@ -984,7 +986,7 @@ export default function Component(props: {
     }
     setLayers(newLayers);
     prevHubChains.current = lspShipmentChains; // Update the ref for the next render
-  }, [lspShipmentChains, settings.scaleFactor]);
+  }, [lspShipmentChains, settings.scaleFactor, activeTab]);
 
 
   const showBackgroundMap = projection && projection !== 'Atlantis'
