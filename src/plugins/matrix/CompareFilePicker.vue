@@ -1,18 +1,30 @@
 <template lang="pug">
 .compare-picker
   .c-title Select matrix file for comparison
-  .c-info Choose file, or drag a local file onto the map:
-  .c-selection {{ selection }}
+  .c-info Choose matrix file, or drag a local file onto the map:
+  .c-selection {{ curFolder }}
   .c-inner.flex1
-    .c-items.flex-column.flex1(v-if="dirEntry")
-      p.dir 🔼 UP
-      p.dir(v-for="dir in dirEntry.dirs") 🗂️ f{{ dir }}/
-      p.ffile(v-for="f in dirEntry.files") {{ f }}
-    .c-items.flex-column.flex1(v-else)
+    .c-items.flex-column.flex1(v-if="!dirEntry")
       p Loading...
+    .c-items.flex-column.flex1(v-else)
+      .dir(
+        @click="clickItem('🔼 UP', 'up')"
+        :class="{'is-selected': selection == '🔼 UP'}"
+      ) 🔼 UP
+      .dir(v-for="dir in dirEntry.dirs" :key="dir"
+        @click="clickItem(dir, 'dir')"
+        :class="{'is-selected': selection == dir}"
+      ) 🗂️ {{ dir }}/
+      .ffile(v-for="f in dirEntry.files" :key="f"
+        @click="clickItem(f, 'file')"
+        :class="{'is-selected': selection == f}"
+      ) {{ f }}
   .c-button-bar.flex-row
-    b-button.is-small(@click="$emit('close')") CANCEL
-    b-button.is-small(type="is-success" @click="$emit('ping')") SELECT FILE
+    b-button.is-small(@click="$emit('choose')") CANCEL
+    b-button.is-small(type="is-success"
+      @click="choose"
+      :disabled="!isFileSelected"
+    ) SELECT FILE
 
 </template>
 
@@ -41,6 +53,8 @@ export default defineComponent({
       curFolder: '',
       dirEntry: null as null | DirectoryEntry,
       selection: '',
+      numClicks: 0,
+      isFileSelected: false,
     }
   },
 
@@ -48,6 +62,7 @@ export default defineComponent({
     const stuff = await this.fileApi.getDirectory(this.subfolder)
     this.dirEntry = stuff
     this.selection = this.subfolder
+    this.curFolder = this.subfolder
   },
 
   computed: {},
@@ -57,7 +72,53 @@ export default defineComponent({
       this.$emit('shapes', this.filenameShapes)
     },
   },
-  methods: {},
+  methods: {
+    clickItem(text: string, type: string) {
+      console.log(type, text)
+      this.numClicks++
+
+      if (this.numClicks === 1) {
+        this.selection = text
+        this.isFileSelected = type == 'file'
+        console.log('One click', this.selection)
+        setTimeout(async () => {
+          if (this.numClicks == 2) {
+            console.log('Double click')
+            switch (type) {
+              case 'up':
+                this.curFolder = this.curFolder.split('/').slice(0, -1).join('/')
+                this.dirEntry = null
+                this.selection = ''
+                await this.$nextTick()
+                this.dirEntry = await this.fileApi.getDirectory(this.curFolder)
+                break
+              case 'dir':
+                this.curFolder = this.curFolder += '/' + text
+                this.dirEntry = null
+                this.selection = ''
+                await this.$nextTick()
+                this.dirEntry = await this.fileApi.getDirectory(this.curFolder)
+                break
+              case 'file':
+                this.choose()
+                break
+              default:
+                break
+            }
+          }
+          this.numClicks = 0 // reset the first click
+        }, 250) // wait a bit
+      }
+    },
+    choose() {
+      const comparator = {
+        root: this.fileApi.getSlug(),
+        subfolder: this.curFolder,
+        filename: this.selection,
+      }
+      this.$emit('choose', comparator)
+    },
+  },
 })
 </script>
 
@@ -92,7 +153,7 @@ $bgDarkerCyan: #def3ec;
 }
 
 .c-info {
-  padding: 4px 4px 12px 8px;
+  padding: 4px 4px 12px 5px;
 }
 
 .c-inner {
@@ -110,7 +171,7 @@ $bgDarkerCyan: #def3ec;
 }
 
 .c-selection {
-  padding: 0px 8px;
+  padding: 0px 6px;
   font-size: 13px;
   color: var(--link);
   font-weight: bold;
@@ -134,9 +195,16 @@ $bgDarkerCyan: #def3ec;
 
 .ffile {
   cursor: pointer;
-  background-color: var(--linkHover);
 }
 .ffile:hover {
   color: var(--linkHover);
+}
+
+.is-selected {
+  background-color: var(--bgTreeItem) !important;
+  color: var(--textBold);
+}
+.is-selected:hover {
+  color: var(--textBold);
 }
 </style>

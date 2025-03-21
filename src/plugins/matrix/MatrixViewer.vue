@@ -12,6 +12,7 @@
     @changeRowWise="changeRowWise"
     @addBase="addBase"
     @compare="compareToBase"
+    @toggleComparePicker="toggleComparePicker"
   )
 
   .main-area(
@@ -34,6 +35,7 @@
       :blob="h5fileBlob"
       :baseBlob="h5baseBlob"
       :filenameH5="filename"
+      :filenameBase="filenameBase"
       :filenameShapes="filenameShapes"
       :shapes="shapes"
       :userSuppliedZoneID="zoneID"
@@ -45,6 +47,12 @@
     H5Web.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
       :filename="filename"
       :blob="h5fileBlob"
+    )
+
+    compare-file-picker(v-if="showComparePicker"
+      :fileApi="fileApi"
+      :subfolder="subfolder"
+      @choose="chooseCompareFile"
     )
 
 </template>
@@ -68,6 +76,7 @@ import ConfigPanel from './ConfigPanel.vue'
 import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 import { COLORMAP_GROUPS } from '@/components/ColorMapSelector/groups'
+import CompareFilePicker from './CompareFilePicker.vue'
 
 export interface ComparisonMatrix {
   root: string
@@ -97,7 +106,7 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { H5Web, H5MapViewer, ConfigPanel },
+  components: { H5Web, H5MapViewer, ConfigPanel, CompareFilePicker },
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -116,6 +125,7 @@ const MyComponent = defineComponent({
       compareLabel: 'Compare...',
       isDragging: false,
       isMap: true,
+      showComparePicker: false,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
       h5fileBlob: null as null | File | Blob,
@@ -214,6 +224,17 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    chooseCompareFile(comparison: any) {
+      console.log('zing', comparison)
+      this.showComparePicker = false
+      this.compareToBase(comparison)
+    },
+
+    toggleComparePicker() {
+      console.log('compare!')
+      this.showComparePicker = !this.showComparePicker
+    },
+
     fetchLastSettings() {
       if (this.vizDetails.colors) {
         // Use config if we have one
@@ -263,9 +284,13 @@ const MyComponent = defineComponent({
     },
 
     async loadBaseFile() {
+      console.log(1)
       if (!this.yamlConfig) return null
+      console.log(2)
       if (this.config) this.filenameBase = this.config.basedata
+      console.log(3)
       if (!this.filenameBase) return null
+      console.log(4)
 
       this.statusText = `Loading: ${this.filenameBase}...`
 
@@ -429,7 +454,7 @@ const MyComponent = defineComponent({
     async compareToBase(base: ComparisonMatrix) {
       console.log('COMPARE', base)
 
-      this.filenameBase = base.filename
+      this.filenameBase = `${base.subfolder}/${base.filename}`
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
       if (base.root === '') {
@@ -442,6 +467,18 @@ const MyComponent = defineComponent({
         const path = `${base.subfolder}/${base.filename}`
         this.statusText = `Loading: ${base.filename}...`
 
+        // --- OMX API way
+        // if this is an OMX Server path, build the blob internally from the API content
+        if (this.fileSystem?.omx) {
+          console.log(5)
+          const catalog = await this.loadOMXViaAPI(path)
+          this.statusText = ''
+          console.log(6)
+          this.h5baseBlob = catalog
+          return
+        }
+
+        // --- normal way
         const fileSystem: FileSystemConfig = this.$store.state.svnProjects.find(
           (a: FileSystemConfig) => a.slug === base.root
         )

@@ -31,7 +31,11 @@
         i.fa.fa-bars(style="rotate: 90deg;")
         span &nbsp;Col
 
-  //- Diff mode selector
+  //- NEW Diff mode selector
+  .flex-column(v-if="isMap")
+    b-button.is-small.is-white(@click="toggleCompareSelector()") NUCOMPARE...
+
+  //- OLD Diff mode selector
   .flex-column(v-if="isMap")
     ComparisonSelector(
       :comparators="comparators"
@@ -100,7 +104,12 @@ const MyComponent = defineComponent({
       this.$emit('shapes', this.filenameShapes)
     },
   },
-  methods: {},
+  methods: {
+    toggleCompareSelector() {
+      console.log('going to click')
+      this.$emit('toggleComparePicker')
+    },
+  },
 })
 
 export default MyComponent
