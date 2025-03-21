@@ -113,7 +113,7 @@ const MyComponent = defineComponent({
     config: String,
     subfolder: String,
     blob: { required: true, type: Object as PropType<File | H5Catalog> },
-    baseBlob: { required: false },
+    baseBlob: { required: false, type: Object as PropType<File | H5Catalog> },
     filenameH5: String,
     filenameBase: String,
     filenameShapes: String,
@@ -133,7 +133,7 @@ const MyComponent = defineComponent({
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
       currentData: [] as Float32Array | Float64Array | any[],
-      currentBaseData: [] as Float32Array | any[],
+      currentBaseData: [] as Float32Array | Float64Array | any[],
       currentKey: '',
       dataArray: [] as number[],
       features: [] as any,
@@ -253,6 +253,13 @@ const MyComponent = defineComponent({
     },
 
     async activateDiffMode() {
+      if (this.isOmxApi) {
+        console.log('ACTIVATING DIFF MODE')
+        this.currentKey = ''
+        this.extractH5ArrayData()
+        return
+      }
+
       if (this.baseBlob) {
         // blob is always a File here
         this.h5baseApi = new H5WasmLocalFileApi(this.baseBlob as File, undefined, getPlugin)
@@ -460,10 +467,11 @@ const MyComponent = defineComponent({
 
       if (this.currentKey !== this.activeTable?.key) {
         if (this.isOmxApi) {
+          console.log(123)
           // OMX API - fetch raw data from API instead of from HDF5 file
           if (this.currentKey !== this.activeTable?.key) {
             const key = this.activeTable?.key || (this.blob as H5Catalog).catalog[0]
-            const url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.subfolder}/${this.filenameH5}&table=${key}`
+            let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.subfolder}/${this.filenameH5}&table=${key}`
 
             const headers = {} as any
             if (this.fileApi) {
@@ -472,15 +480,28 @@ const MyComponent = defineComponent({
               headers['AZURETOKEN'] = token
             }
 
+            // MAIN MATRIX - fetch the individual matrix from API
             const response = await fetch(url, { headers })
-
             const buffer = await response.blob().then(async b => await b.arrayBuffer())
-            // buffer is blosc-compressed
-            const codec = new Blosc()
+            const codec = new Blosc() // buffer is blosc-compressed
             const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
             this.currentData = data
             this.currentKey = key
-            // TODO also get base matrix if we're in diffmode
+
+            // console.log(155, this.currentData)
+
+            // BASE MATRIX - if we are in diffmode
+            console.log(234, this.baseBlob)
+            if (this.baseBlob && this.filenameBase) {
+              //@ts-ignore
+              url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.filenameBase}&table=${key}`
+              const response = await fetch(url, { headers })
+              const buffer = await response.blob().then(async b => await b.arrayBuffer())
+              const codec = new Blosc() // buffer is blosc-compressed
+              const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
+              this.currentBaseData = data
+              // console.log('BASE DATA', this.currentBaseData)
+            }
           }
         } else {
           // HDF5: async get the matrix itself first
@@ -507,7 +528,9 @@ const MyComponent = defineComponent({
 
       // DIFF MODE
 
-      if (this.h5baseApi && this.currentBaseData) {
+      console.log(919, this.h5baseApi)
+
+      if (this.h5baseApi || (this.filenameBase && this.currentBaseData)) {
         console.log('DO THE DIFF!')
         let baseValues = [] as any
 
@@ -522,7 +545,7 @@ const MyComponent = defineComponent({
           }
         }
 
-        console.log('6666', 'BASEVALUES', baseValues)
+        // console.log('6666', 'BASEVALUES', baseValues)
         // do the diff
         values = values.map((v: any, i: any) => v - baseValues[i])
       }
@@ -530,6 +553,7 @@ const MyComponent = defineComponent({
       this.dataArray = values
       this.setColorsForArray()
       this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
+      console.log({ prettyValues: this.prettyDataArray })
 
       // } catch (e) {
       //   console.warn('Offset not found in HDF5 file:', offset)
