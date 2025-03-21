@@ -89,7 +89,7 @@ export default defineComponent({
   computed: {
     yellow(): any {
       return {
-        backgroundColor: '#ffdd57',
+        backgroundColor: '#ff6657',
         color: '#222',
         borderColor: '#aaa',
       }
