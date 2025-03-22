@@ -133,11 +133,11 @@ $bgDarkerCyan: #def3ec;
 .compare-picker {
   user-select: none;
   position: absolute;
-  inset: 2px 1rem 1rem 18.75rem;
+  inset: -0.5rem 1rem 1rem 18.7rem;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
-  border: 3px solid $appTag; // #bbbbcc88;
+  border: 2px solid $appTag; // #bbbbcc88;
   filter: $filterShadow;
   width: 40rem;
   height: 25rem;
