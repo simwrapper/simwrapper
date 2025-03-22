@@ -18,9 +18,33 @@
             span &nbsp;&nbsp;
             span(v-html="table.name")
 
-    .bottom-half.flex1
+    .zone-selector.flex-col
+      .flex-row
+        b-button.button.flex1(
+          :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+          @click="$emit('changeRowWise', true)"
+        )
+          i.fa.fa-bars
+          | &nbsp;Row
+
+        b-button.button.flex1(
+          :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+          @click="$emit('changeRowWise', false)"
+        )
+          i.fa.fa-bars(style="rotate: 90deg;")
+          | &nbsp;Col
+
+      .flex-row(style="gap: 1rem")
+        .ztitle {{ mapConfig.isRowWise ? 'Row' : 'Column'}}
+        input.input-zone(
+          size="is-small" type="number" placeholder="zone"
+          v-model="activeZone"
+        )
+
+
+    .bottom-half.flex-col.flex1
       .zone-details(v-if="activeZone !== null")
-        b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
+        //- b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
           b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
           b.zone-value(v-html="activeTable.name || `Table ${activeTable.key}`")
@@ -92,6 +116,7 @@ import { getPlugin } from './plugin-utils'
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
 import dataScalers from './util'
+import { debounce } from '@/js/util'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -153,6 +178,7 @@ const MyComponent = defineComponent({
       zoneID: 'TAZ',
       matrixSize: 0,
       searchTerm: '',
+      dbExtractH5ArrayData: {} as any,
     }
   },
 
@@ -164,6 +190,7 @@ const MyComponent = defineComponent({
   async mounted() {
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
+    this.dbExtractH5ArrayData = debounce(this.extractH5ArrayData, 350)
 
     if (this.blob instanceof File) {
       this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
@@ -207,6 +234,11 @@ const MyComponent = defineComponent({
 
     'globalState.isDarkMode'() {
       // this.embedChart()
+    },
+
+    activeZone() {
+      console.log('ZONE CHANGED', this.activeZone)
+      this.dbExtractH5ArrayData()
     },
 
     activeTable() {
@@ -973,8 +1005,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .bottom-half {
   background-color: $bgLightCyan;
-  display: flex;
-  flex-direction: column;
   position: relative;
 }
 
@@ -1028,5 +1058,22 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .scrolly {
   flex: 1;
   overflow-y: scroll;
+}
+
+.ztitle {
+  font-weight: bold;
+  padding: 0.25rem 0.25rem;
+}
+
+.zone-selector {
+  background-color: var(--bgPanel);
+}
+
+.input-zone {
+  width: 5rem;
+  background-color: var(--bgBold);
+  // font-weight: bold;
+  padding: 0 6px;
+  font-size: 12px;
 }
 </style>

@@ -4,8 +4,8 @@
   //-   //- p: b Matrix File
   //-   b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
 
-  //- which view
   .flex-row
+    //- VIEW
     b-field.which-data
       b-button.button.is-small(:type="!isMap ? 'is-info' : 'is-outlined is-info'"
                       @click="$emit('setMap',false)")
@@ -16,33 +16,18 @@
         i.fa.fa-map
         span &nbsp;Map
 
-    b-field.which-data(v-if="isMap")
-      b-button.button.is-small(
-        :type="mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-        @click="$emit('changeRowWise', true)"
-      )
-        i.fa.fa-bars
-        span &nbsp;Row
-
-      b-button.button.is-small(
-        :type="!mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-        @click="$emit('changeRowWise', false)"
-      )
-        i.fa.fa-bars(style="rotate: 90deg;")
-        span &nbsp;Col
-
   //- NEW Diff mode selector
   .flex-column(v-if="isMap")
-    b-button.is-small.is-white(@click="toggleCompareSelector()") NUCOMPARE...
+    b-button.is-small.is-white(@click="toggleCompareSelector()") COMPARE...
 
-  //- OLD Diff mode selector
-  .flex-column(v-if="isMap")
-    ComparisonSelector(
-      :comparators="comparators"
-      :compareLabel="compareLabel"
-      @addBase="$emit('addBase')"
-      @change="$emit('compare', $event)"
-    )
+  //- //- OLD Diff mode selector
+  //- .flex-column(v-if="isMap")
+  //-   ComparisonSelector(
+  //-     :comparators="comparators"
+  //-     :compareLabel="compareLabel"
+  //-     @addBase="$emit('addBase')"
+  //-     @change="$emit('compare', $event)"
+  //-   )
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
@@ -86,10 +71,10 @@ const MyComponent = defineComponent({
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
     compareLabel: String,
     mapConfig: { type: Object as PropType<MapConfig> },
+    selectedZone: Number,
   },
   data() {
     const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
-
     return {
       filename: '',
       filenameShapes: '',

@@ -9,7 +9,6 @@
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
     @changeScale="changeScale"
-    @changeRowWise="changeRowWise"
     @addBase="addBase"
     @compare="compareToBase"
     @toggleComparePicker="toggleComparePicker"
@@ -42,7 +41,8 @@
       :mapConfig="mapConfig"
       :zoneSystems="zoneSystems"
       @nozones="isMap=false"
-    )
+      @changeRowWise="changeRowWise"
+      )
 
     H5Web.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
       :filename="filename"
