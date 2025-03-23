@@ -4,8 +4,8 @@
   //-   //- p: b Matrix File
   //-   b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
 
+  //- Data/Map
   .flex-row
-    //- VIEW
     b-field.which-data
       b-button.button.is-small(:type="!isMap ? 'is-info' : 'is-outlined is-info'"
                       @click="$emit('setMap',false)")
@@ -16,9 +16,20 @@
         i.fa.fa-map
         span &nbsp;Map
 
-  //- NEW Diff mode selector
-  .flex-column(v-if="isMap")
-    b-button.is-small.is-white(@click="toggleCompareSelector()") COMPARE...
+  //- TABLE Name
+  b-dropdown(@change="$emit('changeMatrix', $event)"
+    :scrollable="true"
+    :max-height="400"
+  )
+      template(#trigger="{active}")
+        b-button.is-small(type="is-link" :icon-right="active ? 'menu-up' : 'menu-down'"): b {{ activeTable }}
+      b-dropdown-item(:value="matrix"
+        v-for="(matrix,i) in catalog" :key="matrix"
+      ) {{ matrix }}
+
+  //- COMPARE selector
+  .flex-column(v-if="isMap" style="margin-left: 1rem")
+    b-button.is-small.is-white(@click="toggleCompareSelector()") Compare...
 
   //- //- OLD Diff mode selector
   //- .flex-column(v-if="isMap")
@@ -70,8 +81,10 @@ const MyComponent = defineComponent({
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
     compareLabel: String,
+    catalog: { required: true, type: Array as PropType<string[]> },
     mapConfig: { type: Object as PropType<MapConfig> },
     selectedZone: Number,
+    activeTable: { required: true, type: String },
   },
   data() {
     const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
@@ -80,6 +93,7 @@ const MyComponent = defineComponent({
       filenameShapes: '',
       colormap: 'Viridis',
       COLOR_SCALE_TYPES,
+      currentCatalog: '',
     }
   },
   mounted() {},

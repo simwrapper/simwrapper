@@ -3,21 +3,7 @@
   @mouseup="dividerDragEnd"
   @mousemove.stop="dividerDragging"
 )
-  .left-bar(:style="{width: `${leftSectionWidth-11}px`}")
-    .top-half.flex1
-      .zone-details
-        p.h5-filename {{ activeTable?.name || filenameH5 }}
-        input.input-search(size="is-small" placeholder="Search..." v-model="searchTerm")
-        .scrolly
-          .h5-table(v-for="table in tableKeys" :key="table.key"
-            :class="{'selected-table': table == activeTable}"
-            :hidden="searchTerm ? table.name.toLocaleLowerCase().indexOf(searchTermLowerCase) == -1 : false"
-            @click="clickedTable(table)"
-          )
-            i.fa.fa-layer-group
-            span &nbsp;&nbsp;
-            span(v-html="table.name")
-
+  .left-bar(:style="{width: `${leftSectionWidth-1}px`}")
     .zone-selector.flex-col
       .flex-row
         b-button.button.flex1(
@@ -41,17 +27,20 @@
           v-model="activeZone"
         )
 
-
     .bottom-half.flex-col.flex1
       .zone-details(v-if="activeZone !== null")
         //- b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
           b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
-          b.zone-value(v-html="activeTable.name || `Table ${activeTable.key}`")
+          b.zone-value(v-html="matrices?.h5Main?.table || 'Value'")
+          b.zone-value(v-if="matrices.diff" v-html="matrices?.h5Main?.table || 'Vs'")
+          b.zone-value(v-if="matrices.diff" v-html="matrices?.h5Main?.table || 'Diff'")
         .scrolly
           .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
             span.zone-number {{  i+1 }}
-            span.zone-value {{  value }}
+            span.flex1.zone-value {{  value[0] }}
+            span(v-if="matrices.diff").flex1.zone-value {{  value[1] }}
+            span(v-if="matrices.diff").flex1.zone-value {{  value[2] }}
 
   .right-container
     .map-holder(oncontextmenu="return false")
@@ -66,7 +55,6 @@
       )
 
       background-map-on-top(v-if="isMapReady")
-
       zoom-buttons
 
       .click-zone-hint.flex-col(v-if="activeZone == null")
@@ -99,7 +87,6 @@ import * as shapefile from 'shapefile'
 import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
-import { Blosc } from 'numcodecs'
 
 import globalStore from '@/store'
 import { gUnzip } from '@/js/util'
@@ -115,19 +102,15 @@ import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
+import type { Matrix } from './H5Provider'
+
 import dataScalers from './util'
 import { debounce } from '@/js/util'
 
-const BASE_URL = import.meta.env.BASE_URL
-
 naturalSort.insensitive = true
 
+const BASE_URL = import.meta.env.BASE_URL
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
-
-interface H5Catalog {
-  catalog: string[]
-  shape: number[]
-}
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
@@ -137,10 +120,8 @@ const MyComponent = defineComponent({
     fileSystem: { required: true, type: Object },
     config: String,
     subfolder: String,
-    blob: { required: true, type: Object as PropType<File | H5Catalog> },
-    baseBlob: { required: false, type: Object as PropType<File | H5Catalog> },
-    filenameH5: String,
-    filenameBase: String,
+    matrixSize: { required: true, type: Number },
+    matrices: { required: true, type: Object as PropType<{ [key: string]: Matrix }> },
     filenameShapes: String,
     thumbnail: Boolean,
     isInvertedColor: Boolean,
@@ -157,7 +138,7 @@ const MyComponent = defineComponent({
       dragStartWidth: 196,
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
-      currentData: [] as Float32Array | Float64Array | any[],
+      // currentData: [] as Float32Array | Float64Array | any[],
       currentBaseData: [] as Float32Array | Float64Array | any[],
       currentKey: '',
       dataArray: [] as number[],
@@ -169,14 +150,13 @@ const MyComponent = defineComponent({
       isOmxApi: false,
       layerId: Math.floor(1e12 * Math.random()),
       leftSectionWidth: 196,
-      prettyDataArray: [] as string[],
+      prettyDataArray: [] as any[],
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
       tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
-      matrixSize: 0,
       searchTerm: '',
       dbExtractH5ArrayData: {} as any,
     }
@@ -190,22 +170,22 @@ const MyComponent = defineComponent({
   async mounted() {
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
-    this.dbExtractH5ArrayData = debounce(this.extractH5ArrayData, 350)
+    this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
 
-    if (this.blob instanceof File) {
-      this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
-    } else {
-      // blob is either an HDF5 file blob, or an OMX API catalog a.k.a. H5Catalog
-      this.isOmxApi = true
-    }
+    // if (this.blob instanceof File) {
+    //   this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
+    // } else {
+    //   // blob is either an HDF5 file blob, or an OMX API catalog a.k.a. H5Catalog
+    //   this.isOmxApi = true
+    // }
 
-    await this.getFileKeysAndProperties()
+    // await this.getFileKeysAndProperties()
 
     // Load GeoJSON features
     await this.setupBoundaries()
 
     // DIFF mode ?
-    if (this.baseBlob) this.activateDiffMode()
+    // if (this.baseBlob) this.activateDiffMode()
   },
 
   computed: {
@@ -241,11 +221,9 @@ const MyComponent = defineComponent({
       this.dbExtractH5ArrayData()
     },
 
-    activeTable() {
-      this.extractH5ArrayData()
+    matrices() {
+      this.extractH5Slice()
     },
-
-    // subfolder() {},
 
     filenameShapes() {
       this.loadBoundaries(this.filenameShapes || '')
@@ -253,7 +231,7 @@ const MyComponent = defineComponent({
     },
 
     'mapConfig.isRowWise'() {
-      this.extractH5ArrayData()
+      this.extractH5Slice()
     },
     'mapConfig.colormap'() {
       this.setColorsForArray()
@@ -267,6 +245,63 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async extractH5Slice() {
+      console.log('---extract h5 slice for zone', this.activeZone)
+      //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
+      let offset = this.activeZone - 1
+      // try {
+      let values = [] as any
+      let base = [] as any
+      let diff = [] as any
+
+      const matrix = this.matrices.main?.data
+      if (!matrix) return
+
+      if (this.mapConfig.isRowWise) {
+        values = matrix.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
+      } else {
+        for (let i = 0; i < this.matrixSize; i++) {
+          values.push(matrix[i * this.matrixSize + offset])
+        }
+      }
+
+      // // --- DIFF MODE
+      if (this.matrices.diff) {
+        if (this.mapConfig.isRowWise) {
+          base = this.matrices.base.data.slice(
+            this.matrixSize * offset,
+            this.matrixSize * (1 + offset)
+          )
+          diff = this.matrices.diff.data.slice(
+            this.matrixSize * offset,
+            this.matrixSize * (1 + offset)
+          )
+        } else {
+          for (let i = 0; i < this.matrixSize; i++) {
+            base.push(this.matrices.base.data[i * this.matrixSize + offset])
+            diff.push(this.matrices.diff.data[i * this.matrixSize + offset])
+          }
+        }
+      }
+
+      // display diff data on map if exists; otherwise show regular main data
+      this.dataArray = this.matrices.diff ? diff : values
+      this.setColorsForArray()
+
+      // create array of pretty values: each i-element is [value, base, diff]
+      const pvs = this.setPrettyValuesForArray(values).map(v => [v])
+      if (this.matrices.diff) {
+        const b = this.setPrettyValuesForArray(base)
+        const d = this.setPrettyValuesForArray(diff)
+        pvs.forEach((v, i) => {
+          v.push(b[i])
+          v.push(d[i])
+        })
+      }
+      this.prettyDataArray = pvs
+      console.log({ prettyValues: this.prettyDataArray })
+    },
+
     dividerDragStart(e: MouseEvent) {
       this.dragDividerWidth = e.clientX
       this.dragStartWidth = this.leftSectionWidth
@@ -288,7 +323,7 @@ const MyComponent = defineComponent({
       if (this.isOmxApi) {
         console.log('ACTIVATING DIFF MODE')
         this.currentKey = ''
-        this.extractH5ArrayData()
+        this.extractH5Slice()
         return
       }
 
@@ -409,7 +444,7 @@ const MyComponent = defineComponent({
     async getFileKeysAndProperties() {
       if (this.isOmxApi) {
         const content = this.blob as H5Catalog
-        this.matrixSize = content.shape[0]
+        // this.matrixSize = content.shape[0]
         this.tableKeys = content.catalog.map(key => {
           return { key, name: key }
         })
@@ -483,116 +518,6 @@ const MyComponent = defineComponent({
       return module
     },
 
-    async fetchMatrix(h5api: H5WasmLocalFileApi) {
-      if (!h5api || this.activeZone == null) return []
-      const key = this.activeTable?.key || ''
-      let dataset = await h5api.getEntity(key)
-      let data = (await h5api.getValue({ dataset } as any)) as Float32Array
-      return data
-    },
-
-    async extractH5ArrayData() {
-      if (this.activeZone == null) return
-
-      this.isLoading = true
-      await this.$nextTick()
-
-      if (this.currentKey !== this.activeTable?.key) {
-        if (this.isOmxApi) {
-          console.log(123)
-          // OMX API - fetch raw data from API instead of from HDF5 file
-          if (this.currentKey !== this.activeTable?.key) {
-            const key = this.activeTable?.key || (this.blob as H5Catalog).catalog[0]
-            let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.subfolder}/${this.filenameH5}&table=${key}`
-
-            const headers = {} as any
-            if (this.fileApi) {
-              const zkey = `auth-token-${this.fileApi.getSlug()}`
-              const token = localStorage.getItem(zkey) || ''
-              headers['AZURETOKEN'] = token
-            }
-
-            // MAIN MATRIX - fetch the individual matrix from API
-            const response = await fetch(url, { headers })
-            const buffer = await response.blob().then(async b => await b.arrayBuffer())
-            const codec = new Blosc() // buffer is blosc-compressed
-            const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
-            this.currentData = data
-            this.currentKey = key
-
-            // console.log(155, this.currentData)
-
-            // BASE MATRIX - if we are in diffmode
-            console.log(234, this.baseBlob)
-            if (this.baseBlob && this.filenameBase) {
-              //@ts-ignore
-              url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.filenameBase}&table=${key}`
-              const response = await fetch(url, { headers })
-              const buffer = await response.blob().then(async b => await b.arrayBuffer())
-              const codec = new Blosc() // buffer is blosc-compressed
-              const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
-              this.currentBaseData = data
-              // console.log('BASE DATA', this.currentBaseData)
-            }
-          }
-        } else {
-          // HDF5: async get the matrix itself first
-          if (!this.h5fileApi) return
-          this.currentData = await this.fetchMatrix(this.h5fileApi as any)
-          this.currentKey = this.activeTable?.key || ''
-          // also get base matrix if we're in diffmode
-          if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
-        }
-      }
-      //TODO FIX THIS
-      let offset = this.activeZone - 1
-      // try {
-      let values = [] as any
-      if (this.currentData) {
-        if (this.mapConfig.isRowWise) {
-          values = this.currentData.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
-        } else {
-          for (let i = 0; i < this.matrixSize; i++) {
-            values.push(this.currentData[i * this.matrixSize + offset])
-          }
-        }
-      }
-
-      // DIFF MODE
-
-      console.log(919, this.h5baseApi)
-
-      if (this.h5baseApi || (this.filenameBase && this.currentBaseData)) {
-        console.log('DO THE DIFF!')
-        let baseValues = [] as any
-
-        if (this.mapConfig.isRowWise) {
-          baseValues = this.currentBaseData.slice(
-            this.matrixSize * offset,
-            this.matrixSize * (1 + offset)
-          )
-        } else {
-          for (let i = 0; i < this.matrixSize; i++) {
-            baseValues.push(this.currentBaseData[i * this.matrixSize + offset])
-          }
-        }
-
-        // console.log('6666', 'BASEVALUES', baseValues)
-        // do the diff
-        values = values.map((v: any, i: any) => v - baseValues[i])
-      }
-
-      this.dataArray = values
-      this.setColorsForArray()
-      this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
-      console.log({ prettyValues: this.prettyDataArray })
-
-      // } catch (e) {
-      //   console.warn('Offset not found in HDF5 file:', offset)
-      // }
-      this.isLoading = false
-    },
-
     setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
       array.forEach(v => {
@@ -620,7 +545,7 @@ const MyComponent = defineComponent({
       if (zone.properties[this.zoneID] == this.activeZone) return
 
       this.activeZone = zone.properties[this.zoneID]
-      this.extractH5ArrayData()
+      // this.extractH5Slice()
     },
 
     setColorsForArray() {
@@ -870,7 +795,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: row;
   // background-color: $bgBeige;
-  padding: 11px;
+  // padding: 11px;
 }
 
 .main-area {
@@ -922,8 +847,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   width: 0.5rem;
   background-color: #1eb7ea;
   position: absolute;
-  top: 10px;
-  bottom: 10px;
+  top: 0px;
+  bottom: 0px;
   left: 180px;
   opacity: 0;
   transition: opacity 0.2s;

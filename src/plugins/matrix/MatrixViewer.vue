@@ -5,11 +5,13 @@
     :mapConfig="mapConfig"
     :comparators="comparators"
     :compareLabel="compareLabel"
+    :catalog="h5Main?.catalog || []"
+    :activeTable="activeTable"
+    @changeMatrix="changeMatrix"
     @setMap="isMap=$event"
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
     @changeScale="changeScale"
-    @addBase="addBase"
     @compare="compareToBase"
     @toggleComparePicker="toggleComparePicker"
   )
@@ -27,7 +29,7 @@
     .status-text(v-if="statusText")
       h4 {{ statusText }}
 
-    H5Map-viewer.fill-it(v-if="isMap && h5fileBlob"
+    H5Map-viewer.fill-it(v-if="isMap && h5Main?.size"
       :fileApi="fileApi"
       :fileSystem="fileSystem"
       :subfolder="subfolder"
@@ -36,6 +38,8 @@
       :filenameH5="filename"
       :filenameBase="filenameBase"
       :filenameShapes="filenameShapes"
+      :matrices="matrices"
+      :matrixSize="h5Main?.size || 0"
       :shapes="shapes"
       :userSuppliedZoneID="zoneID"
       :mapConfig="mapConfig"
@@ -77,6 +81,7 @@ import { ColorMap } from '@/components/ColorMapSelector/models'
 import { ScaleType } from '@/components/ScaleSelector/ScaleOption'
 import { COLORMAP_GROUPS } from '@/components/ColorMapSelector/groups'
 import CompareFilePicker from './CompareFilePicker.vue'
+import H5Provider, { Matrix } from './H5Provider'
 
 export interface ComparisonMatrix {
   root: string
@@ -134,6 +139,9 @@ const MyComponent = defineComponent({
       filename: '',
       filenameShapes: '',
       filenameBase: '',
+      h5Main: null as null | H5Provider,
+      h5Compare: null as null | H5Provider,
+      matrices: {} as { [key: string]: Matrix },
       shapes: null as null | any[],
       useConfig: '',
       vizDetails: {
@@ -146,12 +154,11 @@ const MyComponent = defineComponent({
       },
       statusText: 'Loading...',
       layerId: Math.floor(1e12 * Math.random()),
-      matrices: ['1', '2'] as string[],
       activeTable: '',
       debounceDragEnd: {} as any,
       mapConfig: {
         scale: ScaleType.Linear,
-        colormap: 'Viridis',
+        colormap: 'Rainbow',
         isInvertedColor: false,
         isRowWise: true,
       } as MapConfig,
@@ -173,17 +180,16 @@ const MyComponent = defineComponent({
     }
 
     await this.setupAvailableZoneSystems()
-
     this.fetchLastSettings()
 
     // not really done loading yet but the spinny is ugly
     this.$emit('isLoaded')
 
     this.comparators = this.setupComparisons()
-
     this.shapes = await this.loadShapes()
-    this.h5fileBlob = (await this.loadFile()) || null
-    this.h5baseBlob = (await this.loadBaseFile()) || null
+
+    await this.initH5Files()
+    this.changeMatrix(this.h5Main?.catalog[0])
 
     if (this.h5baseBlob) this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
   },
@@ -224,6 +230,69 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async changeMatrix(table: any) {
+      console.log({ table })
+      this.activeTable = table
+      await this.getMatrices()
+    },
+
+    async getMatrices() {
+      const mainMatrix = await this.h5Main?.getDataArray(this.activeTable)
+      if (!mainMatrix) return
+
+      this.matrices = {
+        main: mainMatrix,
+      }
+
+      if (this.h5Compare) {
+        const compMatrix = await this.h5Compare?.getDataArray(this.activeTable)
+        if (compMatrix) {
+          this.matrices.base = compMatrix
+          const diff = new Float32Array(mainMatrix.data.length)
+          mainMatrix.data.forEach((v, i) => {
+            diff[i] = v - compMatrix.data[i]
+          })
+          this.matrices.diff = {
+            data: diff,
+            path: mainMatrix.path,
+            table: this.activeTable,
+          }
+        }
+      }
+
+      console.log('MATRICES', this.matrices)
+    },
+
+    async initH5Files() {
+      if (!this.yamlConfig) {
+        this.statusText = `Drop an HDF5 or GeoJSON file here to view it`
+        return
+      }
+      if (!this.fileSystem) return
+
+      this.statusText = `Loading: ${this.filename}...`
+      await this.$nextTick()
+
+      // if we have a yaml config, use it
+      this.filename = '' + this.yamlConfig
+      if (this.config) this.filename = this.config.dataset
+
+      this.h5Main = new H5Provider({
+        fileSystem: this.fileSystem,
+        subfolder: this.subfolder,
+        filename: this.filename,
+      })
+      await this.h5Main.init()
+      this.statusText = ''
+      // console.log(5555, this.h5Main.catalog)
+    },
+
+    // populateMatrixList() {
+    //   if (!this.h5Main) return []
+
+    //   const catalog = this.h5Main?.catalog
+    // },
+
     chooseCompareFile(comparison: any) {
       console.log('zing', comparison)
       this.showComparePicker = false
@@ -431,71 +500,53 @@ const MyComponent = defineComponent({
       return JSON.parse(comparisons)
     },
 
-    addBase() {
-      const comparator = {
-        root: this.root,
-        subfolder: this.subfolder,
-        filename: this.filename,
-      }
+    // addBase() {
+    //   const comparator = {
+    //     root: this.root,
+    //     subfolder: this.subfolder,
+    //     filename: this.filename,
+    //   }
 
-      // just save the last one
-      this.comparators = [comparator]
+    //   // just save the last one
+    //   this.comparators = [comparator]
 
-      // only save this as a possible comparator matrix IF we have a root filesystem
-      // since those are the only ones we can retrieve later...
-      // (drag/drop files don't have a path associated with them)
-      if (this.root) {
-        localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
-      }
+    //   // only save this as a possible comparator matrix IF we have a root filesystem
+    //   // since those are the only ones we can retrieve later...
+    //   // (drag/drop files don't have a path associated with them)
+    //   if (this.root) {
+    //     localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
+    //   }
 
-      this.compareToBase(comparator)
-    },
+    //   this.compareToBase(comparator)
+    // },
 
-    async compareToBase(base: ComparisonMatrix) {
-      console.log('COMPARE', base)
+    async compareToBase(comparisonMatrix: ComparisonMatrix) {
+      if (!this.fileSystem) return
 
-      this.filenameBase = `${base.subfolder}/${base.filename}`
+      console.log('COMPARE', comparisonMatrix)
+
+      this.statusText = `Loading: ${comparisonMatrix.filename}...`
+
+      this.h5Compare = new H5Provider({
+        fileSystem: this.fileSystem,
+        subfolder: comparisonMatrix.subfolder,
+        filename: comparisonMatrix.filename,
+      })
+      this.h5Compare.init()
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
-      if (base.root === '') {
-        this.h5baseBlob = this.h5fileBlob
-        this.setCompareLabel(base.filename)
+      if (comparisonMatrix.root === '') {
+        // this.h5baseBlob = this.h5fileBlob
+        // this.setCompareLabel(base.filename)
         return
       }
 
-      try {
-        const path = `${base.subfolder}/${base.filename}`
-        this.statusText = `Loading: ${base.filename}...`
+      this.compareLabel = `Compare: ${this.filename} to ${comparisonMatrix.filename}`
+      this.setDivergingColors()
+      console.log({ h5BaseBlob: this.h5baseBlob })
 
-        // --- OMX API way
-        // if this is an OMX Server path, build the blob internally from the API content
-        if (this.fileSystem?.omx) {
-          console.log(5)
-          const catalog = await this.loadOMXViaAPI(path)
-          this.statusText = ''
-          console.log(6)
-          this.h5baseBlob = catalog
-          return
-        }
+      this.getMatrices()
 
-        // --- normal way
-        const fileSystem: FileSystemConfig = this.$store.state.svnProjects.find(
-          (a: FileSystemConfig) => a.slug === base.root
-        )
-        const baseFileApi = new HTTPFileSystem(fileSystem, globalStore)
-
-        const blob = await baseFileApi.getFileBlob(path)
-
-        this.h5baseBlob = blob
-        this.compareLabel = `Compare: ${this.filename} to ${base.filename}`
-        this.statusText = ''
-        this.setCompareLabel(base.filename)
-        this.setDivergingColors()
-        console.log({ h5BaseBlob: this.h5baseBlob })
-      } catch (e) {
-        console.error('' + e)
-        this.h5baseBlob = null
-      }
       this.statusText = ''
     },
 
