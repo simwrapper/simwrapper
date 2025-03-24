@@ -8,7 +8,7 @@
     :catalog="h5Main?.catalog || []"
     :activeTable="activeTable"
     @changeMatrix="changeMatrix"
-    @setMap="isMap=$event"
+    @setMap="setMap"
     @shapes="filenameShapes=$event"
     @changeColor="changeColor"
     @changeScale="changeScale"
@@ -48,7 +48,7 @@
       @changeRowWise="changeRowWise"
       )
 
-    H5Web.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
+    h5-table-viewer.fill-it.h5-table-viewer(v-if="h5fileBlob && !isMap"
       :filename="filename"
       :blob="h5fileBlob"
     )
@@ -73,7 +73,7 @@ import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { gUnzip } from '@/js/util'
 
-import H5Web from './H5TableViewer'
+import H5TableViewer from './H5TableViewer'
 import H5MapViewer from './H5MapViewer.vue'
 import ConfigPanel from './ConfigPanel.vue'
 
@@ -111,7 +111,7 @@ const BASE_URL = import.meta.env.BASE_URL
 
 const MyComponent = defineComponent({
   name: 'MatrixViewer',
-  components: { H5Web, H5MapViewer, ConfigPanel, CompareFilePicker },
+  components: { H5TableViewer, H5MapViewer, ConfigPanel, CompareFilePicker },
   props: {
     root: { type: String, required: true },
     subfolder: { type: String, required: true },
@@ -230,6 +230,33 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async setMap(isMap: boolean) {
+      this.isMap = isMap
+
+      // we are going to fabricate an HDF5 file with the current matrix content!
+      const { FS } = await h5wasmReady
+      let f = new H5WasmFile('matrix', 'w')
+      const size = Math.floor(Math.sqrt(this.matrices.main.data.length))
+
+      f.create_dataset({ name: `A: Values`, data: this.matrices.main.data, shape: [size, size] })
+
+      if (this.matrices.diff) {
+        f.create_dataset({ name: `B: Compare`, data: this.matrices.base.data, shape: [size, size] })
+        f.create_dataset({
+          name: `C: Diff A-B`,
+          data: this.matrices.diff.data,
+          shape: [size, size],
+        })
+      }
+
+      f.flush()
+      f.close()
+
+      const fileData = FS.readFile('matrix')
+      const blob = new File([fileData], this.activeTable, { type: 'application/octet-stream' })
+      this.h5fileBlob = blob
+    },
+
     async changeMatrix(table: any) {
       console.log({ table })
       this.activeTable = table
@@ -282,16 +309,13 @@ const MyComponent = defineComponent({
         subfolder: this.subfolder,
         filename: this.filename,
       })
+
+      // this opens file, sets up the shape and matrix catalog
       await this.h5Main.init()
+
       this.statusText = ''
       // console.log(5555, this.h5Main.catalog)
     },
-
-    // populateMatrixList() {
-    //   if (!this.h5Main) return []
-
-    //   const catalog = this.h5Main?.catalog
-    // },
 
     chooseCompareFile(comparison: any) {
       console.log('zing', comparison)
@@ -350,73 +374,6 @@ const MyComponent = defineComponent({
         console.error('' + e)
       }
       return null
-    },
-
-    async loadBaseFile() {
-      console.log(1)
-      if (!this.yamlConfig) return null
-      console.log(2)
-      if (this.config) this.filenameBase = this.config.basedata
-      console.log(3)
-      if (!this.filenameBase) return null
-      console.log(4)
-
-      this.statusText = `Loading: ${this.filenameBase}...`
-
-      const path = `${this.subfolder}/${this.filenameBase}`
-      const blob = await this.fileApi?.getFileBlob(path)
-      this.statusText = ''
-      return blob
-    },
-
-    async loadFile() {
-      if (!this.yamlConfig) {
-        this.statusText = `Drop an HDF5 or GeoJSON file here to view it`
-        return null
-      }
-      this.statusText = `Loading: ${this.filename}...`
-      await this.$nextTick()
-
-      // if we have a yaml config, use it
-      this.filename = '' + this.yamlConfig
-      if (this.config) this.filename = this.config.dataset
-      const path = `${this.subfolder}/${this.filename}`
-
-      // if this is an OMX Server path, build the blob internally from the API content
-      if (this.fileSystem?.omx) {
-        const catalog = await this.loadOMXViaAPI(path)
-        this.statusText = ''
-        return catalog
-      } else {
-        // load file locally
-        const blob = await this.fileApi?.getFileBlob(path)
-        this.statusText = ''
-        return blob
-      }
-    },
-
-    async loadOMXViaAPI(path: string) {
-      console.log('OMX', path)
-
-      let url = `${this.fileSystem?.baseURL}/omx/${this.fileSystem?.slug}?prefix=${path}`
-
-      const headers = {} as any
-      if (this.fileApi) {
-        const zkey = `auth-token-${this.fileApi.getSlug()}`
-        const token = localStorage.getItem(zkey) || ''
-        headers['AZURETOKEN'] = token
-      }
-
-      console.log(url)
-      const response = await fetch(url, { headers })
-      console.log(response.status, response.statusText)
-      if (response.status !== 200) {
-        console.error(await response.text())
-        return null
-      }
-      const omxHeader = await response.json()
-      console.log(omxHeader)
-      return omxHeader
     },
 
     async loadYamlConfig() {
@@ -499,26 +456,6 @@ const MyComponent = defineComponent({
 
       return JSON.parse(comparisons)
     },
-
-    // addBase() {
-    //   const comparator = {
-    //     root: this.root,
-    //     subfolder: this.subfolder,
-    //     filename: this.filename,
-    //   }
-
-    //   // just save the last one
-    //   this.comparators = [comparator]
-
-    //   // only save this as a possible comparator matrix IF we have a root filesystem
-    //   // since those are the only ones we can retrieve later...
-    //   // (drag/drop files don't have a path associated with them)
-    //   if (this.root) {
-    //     localStorage.setItem('h5mapComparators', JSON.stringify(this.comparators))
-    //   }
-
-    //   this.compareToBase(comparator)
-    // },
 
     async compareToBase(comparisonMatrix: ComparisonMatrix) {
       if (!this.fileSystem) return
@@ -743,6 +680,6 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 0.75rem;
+  // padding: 0.75rem;
 }
 </style>

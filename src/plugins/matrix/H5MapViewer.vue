@@ -31,16 +31,16 @@
       .zone-details(v-if="activeZone !== null")
         //- b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
-          b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
+          b.zone-number Zone
           b.zone-value(v-html="matrices?.h5Main?.table || 'Value'")
-          b.zone-value(v-if="matrices.diff" v-html="matrices?.h5Main?.table || 'Vs'")
-          b.zone-value(v-if="matrices.diff" v-html="matrices?.h5Main?.table || 'Diff'")
+          b.zone-value(v-if="matrices.diff") Cmp
+          b.zone-value(v-if="matrices.diff") Diff
         .scrolly
           .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
             span.zone-number {{  i+1 }}
-            span.flex1.zone-value {{  value[0] }}
-            span(v-if="matrices.diff").flex1.zone-value {{  value[1] }}
-            span(v-if="matrices.diff").flex1.zone-value {{  value[2] }}
+            span.zone-value {{ value[0] }}
+            span.zone-value(v-if="matrices.diff") {{  value[1] }}
+            span.zone-value(v-if="matrices.diff") {{  value[2] }}
 
   .right-container
     .map-holder(oncontextmenu="return false")
@@ -172,20 +172,8 @@ const MyComponent = defineComponent({
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
     this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
 
-    // if (this.blob instanceof File) {
-    //   this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
-    // } else {
-    //   // blob is either an HDF5 file blob, or an OMX API catalog a.k.a. H5Catalog
-    //   this.isOmxApi = true
-    // }
-
-    // await this.getFileKeysAndProperties()
-
     // Load GeoJSON features
     await this.setupBoundaries()
-
-    // DIFF mode ?
-    // if (this.baseBlob) this.activateDiffMode()
   },
 
   computed: {
@@ -206,10 +194,6 @@ const MyComponent = defineComponent({
         'H5MapViewer_view',
         JSON.stringify({ latitude, longitude, zoom, bearing, pitch })
       )
-    },
-
-    baseBlob() {
-      this.activateDiffMode()
     },
 
     'globalState.isDarkMode'() {
@@ -254,6 +238,7 @@ const MyComponent = defineComponent({
       let base = [] as any
       let diff = [] as any
 
+      console.log(888, this.matrices)
       const matrix = this.matrices.main?.data
       if (!matrix) return
 
@@ -317,27 +302,6 @@ const MyComponent = defineComponent({
       const deltaX = e.clientX - this.dragDividerWidth
       this.leftSectionWidth = Math.max(5, this.dragStartWidth + deltaX)
       localStorage.setItem('matrixLeftPanelWidth', `${this.leftSectionWidth}`)
-    },
-
-    async activateDiffMode() {
-      if (this.isOmxApi) {
-        console.log('ACTIVATING DIFF MODE')
-        this.currentKey = ''
-        this.extractH5Slice()
-        return
-      }
-
-      if (this.baseBlob) {
-        // blob is always a File here
-        this.h5baseApi = new H5WasmLocalFileApi(this.baseBlob as File, undefined, getPlugin)
-      } else {
-        await this.h5baseApi?.cleanUp() //  = null
-        this.h5baseApi = null
-      }
-
-      // TODO do we need this:
-      // this.h5zoneFile = await this.initFile(this.buffer)
-      this.getFileKeysAndProperties()
     },
 
     async setupBoundaries() {
@@ -439,83 +403,6 @@ const MyComponent = defineComponent({
           console.warn(`FEATURE ${i} missing ${this.zoneID}`, feature)
         }
       }
-    },
-
-    async getFileKeysAndProperties() {
-      if (this.isOmxApi) {
-        const content = this.blob as H5Catalog
-        // this.matrixSize = content.shape[0]
-        this.tableKeys = content.catalog.map(key => {
-          return { key, name: key }
-        })
-        this.activeTable = this.tableKeys[0]
-        return
-      }
-
-      if (!this.h5fileApi) return
-
-      // first get the keys
-      let keys = await this.h5fileApi.getSearchablePaths('/')
-
-      // pretty sort the numbers the ways humans like them
-      keys.sort((a: any, b: any) => naturalSort(a, b))
-
-      // remove folder prefixes
-      let tableKeys = keys.map(key => {
-        const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
-        return { key, name }
-      })
-
-      // if there are "name" properties, use them
-      for (const table of tableKeys) {
-        const element = await this.h5fileApi.getEntity(table.key)
-        // mark non-datasets so they can be filtered out next
-        if (element.kind !== 'dataset') {
-          table.key = ''
-          continue
-        }
-        const attrValues = await this.h5fileApi.getAttrValues(element)
-        if (attrValues.name) {
-          table.name = `${table.key.substring(1)}&nbsp;•&nbsp;${attrValues?.name || ''}`
-        }
-      }
-
-      // filter out non-datasets; key will be empty if it's not a dataset
-      tableKeys = tableKeys.filter(t => !!t.key)
-
-      this.tableKeys = tableKeys
-
-      // Get first matrix dimension, for guessing a useful/correct shapefile
-      if (tableKeys.length) {
-        for (const entity of this.tableKeys) {
-          const element: any = await this.h5fileApi.getEntity(entity.key)
-          if (element.kind === 'dataset') {
-            this.activeTable = entity
-            break
-          }
-        }
-
-        if (!this.activeTable) return
-
-        const element: any = await this.h5fileApi.getEntity(this.activeTable.key)
-        const shape = element.shape
-        if (shape) this.matrixSize = shape[0]
-        else this.matrixSize = 4947
-      }
-    },
-
-    async initH5Wasm(): Promise<any> {
-      const module = await h5wasmReady
-
-      // Throw HDF5 errors instead of just logging them
-      module.activate_throwing_error_handler()
-      // Replace default plugins path
-      module.remove_plugin_search_path(0)
-      module.insert_plugin_search_path(PLUGINS_PATH, 0)
-      // Create plugins folder on Emscripten virtual file system
-      module.FS.mkdirTree(PLUGINS_PATH)
-
-      return module
     },
 
     setPrettyValuesForArray(array: any[]) {
@@ -910,16 +797,17 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   flex-direction: column;
   background-color: white;
   color: #444;
-  padding: 0.5rem;
+  padding-left: 0.5rem;
 }
+
 .zone-number {
   flex: 1;
-  padding-right: 0.5rem;
 }
 
 .zone-value {
   text-align: right;
   flex: 1;
+  padding-left: 0.5rem;
 }
 
 .top-half {
@@ -1000,5 +888,9 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   // font-weight: bold;
   padding: 0 6px;
   font-size: 12px;
+}
+
+.titles {
+  margin-right: 0.5rem;
 }
 </style>
