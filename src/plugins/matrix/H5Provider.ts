@@ -1,6 +1,11 @@
 import { Blosc } from 'numcodecs'
+import naturalSort from 'javascript-natural-sort'
 
 import { FileSystemConfig } from '@/Globals'
+import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
+import { getPlugin } from './plugin-utils'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import globalStore from '@/store'
 
 export interface Matrix {
   path: string
@@ -19,8 +24,8 @@ class H5Provider {
   public size
   private tableKeys
   private fileSystem
-  // private subfolder
-  // private filename
+  private h5fileApi
+
   private path
 
   constructor(props: { fileSystem: FileSystemConfig; subfolder: string; filename: string }) {
@@ -30,23 +35,104 @@ class H5Provider {
     this.shape = [0, 0]
     this.size = 0
     this.tableKeys = [] as { key: string; name: string }[]
+    this.h5fileApi = null as null | H5WasmLocalFileApi
   }
 
   /**
-   * fetches the shape and catalog of matrices
+   * Sets up the shape and catalog of matrices
    */
   public async init() {
     if (this.fileSystem.omx) {
-      const props = await this._getOmxPropsFromOmxAPI()
-      if (props) {
-        this.catalog = props.catalog
-        this.shape = props.shape
-        this.size = props.shape[0]
-        this.tableKeys = this.catalog.map(key => {
-          return { key, name: key }
-        })
+      await this._initOmxAPI()
+    } else {
+      await this._initFileAPI()
+    }
+    console.log({ tableKeys: this.tableKeys, catalog: this.catalog, size: this.size })
+  }
+
+  public async getDataArray(tableName: string) {
+    if (this.fileSystem.omx) {
+      return this._getMatrixFromOMXApi(tableName)
+    } else {
+      return this._getMatrixFromH5File(tableName)
+    }
+  }
+
+  private async _initFileAPI() {
+    // fetch the entire blob
+    const fileApi = new HTTPFileSystem(this.fileSystem, globalStore)
+    console.log('---INIT FETCH', this.path)
+    const blob = await fileApi.getFileBlob(this.path)
+
+    // create a local H5Wasm from it
+    this.h5fileApi = new H5WasmLocalFileApi(blob as File, undefined, getPlugin)
+
+    await this._setFileProps()
+  }
+
+  private async _initOmxAPI() {
+    const props = await this._getOmxPropsFromOmxAPI()
+    if (props) {
+      this.catalog = props.catalog
+      this.shape = props.shape
+      this.size = props.shape[0]
+      this.tableKeys = this.catalog.map(key => {
+        return { key, name: key }
+      })
+    }
+  }
+
+  private async _setFileProps() {
+    if (!this.h5fileApi) return
+
+    // first get the table keys
+    let keys = await this.h5fileApi.getSearchablePaths('/')
+
+    // pretty sort them the way humans like them
+    keys.sort((a: any, b: any) => naturalSort(a, b))
+
+    // remove folder prefixes
+    let tableKeys = keys.map(key => {
+      const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
+      return { key, name }
+    })
+
+    // if there are "name" properties, use them
+    for (const table of tableKeys) {
+      const element = await this.h5fileApi.getEntity(table.key)
+      // mark non-datasets so they can be filtered out next
+      if (element.kind !== 'dataset') {
+        table.key = ''
+        continue
       }
-      console.log({ catalog: this.catalog, size: this.size })
+      const attrValues = await this.h5fileApi.getAttrValues(element)
+      if (attrValues.name) {
+        table.name = `${table.key.substring(1)}&nbsp;•&nbsp;${attrValues?.name || ''}`
+      }
+    }
+
+    // filter out non-datasets; key will be empty if it's not a dataset
+    tableKeys = tableKeys.filter(t => !!t.key)
+    this.tableKeys = tableKeys
+    this.catalog = tableKeys.map(t => t.name)
+
+    // Get first matrix dimension, for guessing a useful/correct shapefile
+    if (tableKeys.length) {
+      for (const entity of this.tableKeys) {
+        const element: any = await this.h5fileApi.getEntity(entity.key)
+        if (element.kind === 'dataset') {
+          // const element: any = await this.h5fileApi.getEntity(this.activeTable.key)
+          const shape = element.shape
+          if (shape) {
+            this.shape = shape
+            this.size = shape[0]
+          } else {
+            this.shape = [4947, 4947]
+            this.size = 4947
+          }
+          break
+        }
+      }
     }
   }
 
@@ -72,10 +158,6 @@ class H5Provider {
     return omxHeader
   }
 
-  public async getDataArray(table: string) {
-    if (this.fileSystem.omx) return this._getMatrixFromOMXApi(table)
-  }
-
   // OMX API - fetch raw data from API instead of from HDF5 file
   private async _getMatrixFromOMXApi(table: string): Promise<Matrix> {
     console.log(123)
@@ -98,93 +180,18 @@ class H5Provider {
     // }
   }
 
-  private async _getMatrixFromH5File(h5api: H5WasmLocalFileApi) {
-    if (!h5api || this.activeZone == null) return []
-    const key = this.activeTable?.key || ''
-    let dataset = await h5api.getEntity(key)
-    let data = (await h5api.getValue({ dataset } as any)) as Float32Array
-    return data
-  }
+  private async _getMatrixFromH5File(tableName: string) {
+    if (!this.h5fileApi) return { data: [], table: tableName, path: this.path }
 
-  public async zextractH5ArrayData() {
-    if (this.activeZone == null) return
+    const t = this.tableKeys.filter(t => t.name === tableName)
+    if (!t.length) return { data: [], table: tableName, path: this.path }
 
-    this.isLoading = true
-    await this.$nextTick()
+    const key = t[0].key
 
-    if (this.currentKey !== this.activeTable?.key) {
-      if (this.isOmxApi) {
-        // console.log(155, this.currentData)
+    let dataset = await this.h5fileApi.getEntity(key)
+    let data = (await this.h5fileApi.getValue({ dataset } as any)) as Float32Array
 
-        // BASE MATRIX - if we are in diffmode
-        console.log(234, this.baseBlob)
-        if (this.baseBlob && this.filenameBase) {
-          //@ts-ignore
-          url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.filenameBase}&table=${key}`
-          const response = await fetch(url, { headers })
-          const buffer = await response.blob().then(async b => await b.arrayBuffer())
-          const codec = new Blosc() // buffer is blosc-compressed
-          const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
-          this.currentBaseData = data
-          // console.log('BASE DATA', this.currentBaseData)
-        }
-      }
-    } else {
-      // HDF5: async get the matrix itself first
-      if (!this.h5fileApi) return
-      this.currentData = await this.fetchMatrix(this.h5fileApi as any)
-      this.currentKey = this.activeTable?.key || ''
-      // also get base matrix if we're in diffmode
-      if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
-    }
-
-    //TODO FIX THIS
-    let offset = this.activeZone - 1
-    // try {
-    let values = [] as any
-    if (this.currentData) {
-      if (this.mapConfig.isRowWise) {
-        values = this.currentData.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
-      } else {
-        for (let i = 0; i < this.matrixSize; i++) {
-          values.push(this.currentData[i * this.matrixSize + offset])
-        }
-      }
-    }
-
-    // DIFF MODE
-
-    console.log(919, this.h5baseApi)
-
-    if (this.h5baseApi || (this.filenameBase && this.currentBaseData)) {
-      console.log('DO THE DIFF!')
-      let baseValues = [] as any
-
-      if (this.mapConfig.isRowWise) {
-        baseValues = this.currentBaseData.slice(
-          this.matrixSize * offset,
-          this.matrixSize * (1 + offset)
-        )
-      } else {
-        for (let i = 0; i < this.matrixSize; i++) {
-          baseValues.push(this.currentBaseData[i * this.matrixSize + offset])
-        }
-      }
-
-      // console.log('6666', 'BASEVALUES', baseValues)
-      // do the diff
-      values = values.map((v: any, i: any) => v - baseValues[i])
-    }
-
-    this.dataArray = values
-    this.setColorsForArray()
-    this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
-    console.log({ prettyValues: this.prettyDataArray })
-
-    // } catch (e) {
-    //   console.warn('Offset not found in HDF5 file:', offset)
-    // }
-    this.isLoading = false
+    return { data, table: tableName, path: this.path }
   }
 }
 
