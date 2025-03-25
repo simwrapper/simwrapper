@@ -108,12 +108,14 @@ let fileSystems: FileSystemConfig[] = [
   // ----------- End. Below here, these are editable: -------------------
 
   {
-    name: 'SANDAG prod/bronze',
-    slug: 'prod-bronze',
-    description: 'SANDAG Azure data lake: prod/bronze',
+    name: 'SANDAG dev/bronze',
+    slug: 'dev-bronze',
+    description: 'SANDAG Azure data lake: dev/bronze',
     omx: true,
     baseURL: 'http://localhost:4999',
-    // baseURL: 'https://adlsdasadsprodwest.blob.core.windows.net/bronze',
+    needPassword: true,
+    // baseURL: 'https://omx-service.fly.dev',
+    // baseURL: 'https://simwrapper-test1-3893261652776219.19.azure.databricksapps.com',
   },
   {
     name: 'VSP TU-Berlin',
