@@ -1,0 +1,30 @@
+azstorage:
+  type: block # or adls
+  account-name: adlsdasadsdevwest # is this the real account name?
+  container: bronze
+  mode: sas
+  # sas: 'si=...'
+
+block_cache:
+  path: /app/azure-block-cache
+  block-size-mb: 32
+  prefetch: 32
+  parallelism: 16
+
+logging:
+  type: syslog
+  level: log_debug
+
+components:
+  - libfuse
+  - block_cache
+  - attr_cache
+  - azstorage
+
+libfuse:
+  attribute-expiration-sec: 120
+  entry-expiration-sec: 120
+  negative-entry-expiration-sec: 240
+
+attr_cache:
+  timeout-sec: 7200
