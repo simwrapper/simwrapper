@@ -1,7 +1,7 @@
 [project]
-name = "omx-service"
+name = "azure-simwrapper-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "Run SimWrapper from an Azure container with Azure blob storage"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
