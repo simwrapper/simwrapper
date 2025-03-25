@@ -5,6 +5,10 @@
       "path": "."
     },
     {
+      "name": "AzureAPI",
+      "path": "./azure-api/"
+    },
+    {
       "name": "WASM",
       "path": "./wasm/"
     }
