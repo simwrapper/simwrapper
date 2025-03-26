@@ -1,6 +1,6 @@
 <template lang="pug">
   .carrier-viewer(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false")
-  
+
     .container-1
       .main-panel
         tour-viz.anim(v-if="!thumbnail"
@@ -27,18 +27,18 @@
           )
         ZoomButtons(v-if="!thumbnail")
         .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
-  
+
       .right-panel(v-if="!thumbnail" :darkMode="true")
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Service Providers' }}
-  
+
         .lsp-list
           .lsp(v-for="lsp in lsps" :key="lsp.$id"
             :class="{selected: lsp.$id===selectedLsp}"
             @click="handleSelectLspFromList(lsp)")
-            .lsp-title {{ lsp.$id }} 
-  
+            .lsp-title {{ lsp.$id }}
+
         h4 {{ selectedLsp || 'Details' }}
-  
+
         b-field.detail-buttons(v-if="selectedLsp" size="is-small")
           // watch array and if the length changes, change value of boolean for v-if
           b-radio-button(v-if="checkIfDirectChain()" v-model="activeTab" native-value="shipments" size="is-small" type="is-warning" @click.native="handleSelectCarrier(lspCarrier, false, '')")
@@ -47,14 +47,14 @@
             span {{ $t('Shipment Chains') }}
           b-radio-button(v-model="activeTab" native-value="lspTours" style="50%" size="is-small" type="is-warning" @click.native="handleSelectLspButton(selectedLsp)")
             span {{ $t('LSP Tours') }}
-  
+
         br
         br
         h6(v-if="activeTab == 'lspTours' || activeTab == 'tours'") <b>*All Carriers shown. Please select individual Carrier to view its specific tours.</b>
         br
-  
+
         h3(style="margin-left: 0.25rem" v-if="lsps.length") {{ 'Carriers' }}
-  
+
         .carrier-list
           h5(style="font-weight:bold") {{"Direct Chain Carriers:"}}
           .carrier(v-for="carrier in lspCarriers" :key="carrier"
@@ -68,29 +68,29 @@
               .carrier(v-for="carrier in hubChain.chainIds" :key="carrier"
                 :class="{selected: carrier===selectedCarrier}"
                 @click="handleSelectCarrier(carrier, true, '')")
-                .carrier-title {{ carrier }}     
-  
-  
+                .carrier-title {{ carrier }}
+
+
         h4 {{ selectedCarrier || 'Details' }}
-  
+
         .switchbox
-          .switches 
+          .switches
             b-switch(v-if="(activeTab == 'lspTours' || activeTab == 'tours') && selectedCarrier != ''" v-model="vizSettings.showEachCarrierTour")
               span(v-html="$t('Carrier Tours')")
-  
+
         .detail-area
-  
+
           .lspShipmentChains(v-if="activeTab=='lspShipmentChains'")
             span {{ $t('Lsp Shipments')}}: {{ lspShipmentHubChains.length}}
             .leaf.tour(v-for="lspShipmentChain,i in lspShipmentHubChains" :key="`${i}-${lspShipmentChain.shipmentId}`"
             @click="handleSelectShipmentChain(lspShipmentChain)"
-            :class="{selected: lspShipmentChain==selectedLSPChain}"        
+            :class="{selected: lspShipmentChain==selectedLSPChain}"
             ) {{ `${lspShipmentChain.shipmentId}: ${lspShipmentChain.chainId}` }}
           .lspShipmentChains(v-if="activeTab=='shipments'")
             span {{ $t('Shipments')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
-            @click="handleSelectShipment(shipment)"   
-            :class="{selected: shipment==selectedShipment}"       
+            @click="handleSelectShipment(shipment)"
+            :class="{selected: shipment==selectedShipment}"
             ) {{ `${shipment.$id}` }}
           .tours(v-if="activeTab=='lspTours' && selectedCarrier && hubLocation.length == 0")
             span {{ $t('tours')}}: {{ carrierTours[0].length }}
@@ -111,7 +111,7 @@
                 div(v-if="tour.tourId" id="tourColor" :style="{ backgroundColor: getLspTourColor(tour.vehicleId) }")
                 div(v-if="tour.tourId") {{ tour.tourId }}: {{ `${tour.vehicleId}` }}
                 div(v-else) {{ `${tour.vehicleId}` }}
-  
+
         .switchbox
           .switches(v-if="activeTab == 'shipments' || activeTab=='lspShipmentChains'")
             p {{$t('scaleSize')}}
@@ -124,7 +124,7 @@
               span(v-html="$t('shipmentDots')")
             b-switch(v-model="vizSettings.simplifyTours")
               span(v-html="$t('flatten')")
-    
+
   </template>
 
 <script lang="ts">
@@ -351,7 +351,7 @@ const LogisticsPlugin = defineComponent({
       lsps: [] as any[],
       lspPlan: {} as any,
       resources: [] as any[],
-      lspShipmentChains: [] as any[], // may not need this - can be replaced with interface 
+      lspShipmentChains: [] as any[], // may not need this - can be replaced with interface
       lspShipmentDirectChains: [] as any[],
       lspShipmentHubChains: [] as any[],
       lspChainTours: [] as any[],
@@ -582,7 +582,7 @@ const LogisticsPlugin = defineComponent({
       let linkMidpoint = []
       let prevLocation = ""
 
-      // if starting point is last hub chain node 
+      // if starting point is last hub chain node
       if (this.lspShipmentHubChains.length > 0) {
         for (let i = 0; i < this.lspShipmentHubChains[0].hubs.length; i++) {
           const depotLink = this.links[this.lspShipmentHubChains[0].hubs[i].location]
@@ -643,15 +643,14 @@ const LogisticsPlugin = defineComponent({
         }
       }
 
-
-
       tour.plan.forEach((activity: any) => {
-
-        if (!activity.$serviceId) {
+        if (!activity.$serviceId && !activity.$shipmentId) {
           return
         }
 
-        shipmentIdsInTour.push(activity.$serviceId)
+        if (activity.$serviceId) shipmentIdsInTour.push(activity.$serviceId)
+        if (activity.$shipmentId) shipmentIdsInTour.push(activity.$shipmentId)
+
 
         // not distribution tour (follows hub chain pattern -- Normally)
         if (tour.vehicleId == 'mainTruck') {
@@ -708,8 +707,8 @@ const LogisticsPlugin = defineComponent({
           prevLocation = link
           // distribution tour
         } else {
-          const shipment = this.shipmentLookup[activity.$serviceId]
-          if (!shipment) return
+          const shipment = this.shipmentLookup[activity.$serviceId] || this.shipmentLookup[activity.$shipmentId];
+          if (!shipment) return;
 
           const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
           const ptFrom = [this.links[link][0], this.links[link][1]]
@@ -1121,7 +1120,6 @@ const LogisticsPlugin = defineComponent({
       const shipmentPlan = lsp.LspPlans.LspPlan.find((c: any) => c.$selected == "true")
       shipmentPlan.logisticChains.logisticChain.forEach((chain: any) => {
         if (chain.$id.includes("direct") || chain.$id.includes("Direct")) {
-          console.log(chain)
           this.lspCarriers.push(chain.logisticChainElement[0].$resourceId)
         } else if (chain.$id.includes("hub") || chain.$id.includes("Hub")) {
           let hubChains: any = []
@@ -1260,7 +1258,7 @@ const LogisticsPlugin = defineComponent({
     // },
 
     handleSelectCarrier(carrierId: any, unselectAll: boolean, isDirect: String) {
-      /// make new carrier specific data object with tours and shipments 
+      /// make new carrier specific data object with tours and shipments
       let carrier: any = {}
 
       if (typeOf(carrierId) == 'string') {
@@ -1319,8 +1317,6 @@ const LogisticsPlugin = defineComponent({
         this.lspHubChainTours = ''
         this.selectedLspHubChainTours = "Hub_Chain_" + 0
       }
-
-      console.log(this.globalHubChainBoolean)
 
       if (!this.globalHubChainBoolean) {
         this.selectedCarrier = id
@@ -1407,7 +1403,6 @@ const LogisticsPlugin = defineComponent({
       // computed option?
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && !this.allCarrierHubIds.includes(carrierId)) {
         this.activeTab = "shipments"
-        console.log("test")
       }
 
       if (this.activeTab != 'lspTours' && this.activeTab != 'tours' && this.allCarrierHubIds.includes(carrierId)) {
@@ -1900,8 +1895,7 @@ const LogisticsPlugin = defineComponent({
 
       // sort by '$id' attribute
       var carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      console.log(lspCarrierList)
-      // match carrierList from output_carriers.xml to carriers in output_lsps. 
+      // match carrierList from output_carriers.xml to carriers in output_lsps.
       // add empty carrier to carrierList if there is an extra one in lsps output file
       lspCarrierList.forEach((lspCarrier: any) => {
         let carrierMatch = carrierList.filter((item: any) => item.$id === lspCarrier.$id)
