@@ -113,9 +113,7 @@ let fileSystems: FileSystemConfig[] = [
     description: 'SANDAG Azure data lake: dev/bronze',
     omx: true,
     baseURL: 'http://localhost:4999',
-    needPassword: true,
-    // baseURL: 'https://omx-service.fly.dev',
-    // baseURL: 'https://simwrapper-test1-3893261652776219.19.azure.databricksapps.com',
+    // needPassword: true,
   },
   {
     name: 'VSP TU-Berlin',

@@ -146,7 +146,6 @@ class H5Provider {
     const token = localStorage.getItem(zkey) || ''
     headers['AZURETOKEN'] = token
 
-    console.log(url)
     const response = await fetch(url, { headers })
     console.log(response.status, response.statusText)
     if (response.status !== 200) {
