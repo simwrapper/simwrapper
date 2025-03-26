@@ -159,9 +159,8 @@ class H5Provider {
 
   // OMX API - fetch raw data from API instead of from HDF5 file
   private async _getMatrixFromOMXApi(table: string): Promise<Matrix> {
-    console.log(123)
-    // if (this.currentKey !== this.activeTable?.key) {
-    //   const key = this.activeTable?.key || (this.blob as H5Catalog).catalog[0]
+    if (!table) return { data: [] as number[], table, path: this.path }
+
     let url = `${this.fileSystem.baseURL}/omx/${this.fileSystem.slug}?prefix=${this.path}&table=${table}`
 
     const headers = {} as any
