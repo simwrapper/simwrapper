@@ -8,6 +8,11 @@
 # are stored on Azure.
 # It caches these very large files and serves up the matrices within.
 
+# STORAGE LOCATIONS
+STORAGE = {
+    'dev-bronze': '/Users/billy/Desktop/data'
+}
+
 import os,sys,tempfile,random,shutil,csv
 import xml.etree.ElementTree as ET
 from os.path import exists
@@ -23,66 +28,6 @@ from functools import wraps
 
 import openmatrix as omx
 
-# Endpoints
-STORAGE = {
-    'dev-bronze': 'https://adlsdasadsdevwest.blob.core.windows.net/bronze',
-}
-
-# Storage volume expected to be mounted on /data:
-blobfolder = 'data/'
-cache = {}  # {[path]: {path, contentLength, lastModified}}
-
-# personal access token
-TOKEN = ''
-if 'TOKEN' in os.environ:
-    TOKEN = os.environ['TOKEN']
-    print('got TOKEN')
-
-# -----------------------------------------------
-def _xml_to_dict(element):
-    result = {}
-    if element.attrib: result["@attributes"] = element.attrib
-    if element.text and element.text.strip(): result["#text"] = element.text.strip()
-    for child in element:
-        child_dict = _xml_to_dict(child)
-        if child.tag in result:
-            if not isinstance(result[child.tag], list): result[child.tag] = [result[child.tag]]
-            result[child.tag].append(child_dict)
-        else:
-            result[child.tag] = child_dict
-    return result
-
-# ------------------------------------------------
-def build_file_cache():
-    filepath = os.path.join(blobfolder, '_cache.csv')
-    print(filepath)
-    try:
-        with open(filepath, 'r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                if row['path']: cache[f"{row['server']}:{row['path']}"] = row
-            print('got cache')
-            print(cache)
-    except Exception as e:
-        print(e)
-        print("No _cache.csv, starting blank")
-
-# ------------------------------------------------
-def write_file_cache():
-    output_filename = os.path.join(blobfolder, '_cache.csv')
-    records = list(cache.values())
-    print('RECORDS', records)
-    fieldnames = list(records[0].keys() if records else [])
-    file_exists = os.path.exists(output_filename)
-
-    with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            if not file_exists:
-                writer.writeheader()  # Write header row only if the file doesn't exist
-            for row in records:
-                writer.writerow(row)
-    print('wrote cache.csv')
-
 # ------------------------------------------------
 def nocache(view):
     @wraps(view)
@@ -95,12 +40,6 @@ def nocache(view):
     return no_cache
 
 # ------------------------------------------------
-def getHash(filename):
-    sha = sha256()
-    sha.update(filename.encode('utf-8'))
-    return sha.hexdigest()
-
-# ------------------------------------------------
 class FilesList(Resource):
     @nocache
     def get(self, server_id):
@@ -108,54 +47,24 @@ class FilesList(Resource):
         if not "prefix" in request.args: return "Missing prefix", 400
         print('--- DIR ',server_id, request.args["prefix"])
 
-        # personal access token is currently required
-        # prefix -- must end with /
-        # delimiter=/ -- filters out subdirectory contents, and stores subdirectory names as "BlobPrefix" xml items
-        # print(TOKEN)
-
         prefix = request.args['prefix']
         # prefix must end with a slash
         if not prefix.endswith('/'): prefix += '/'
 
-        user_token = TOKEN
-        if 'AZURETOKEN' in request.headers: user_token = request.headers['AZURETOKEN']
-
-        args = '&'.join([f"prefix={prefix}", "delimiter=/", user_token])
-        url = f"{STORAGE[server_id]}?restype=container&comp=list&{args}"
-
+        path = f"{STORAGE[server_id]}/{prefix}"
+        print(path)
         content = {"files": [], "dirs": [], "handles": {}}
 
         try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-            root = ET.fromstring(response.text)
-            result = _xml_to_dict(root)
+            entries = os.scandir(path)
+            for entry in entries:
+                if entry.is_dir():
+                    content["dirs"].append(entry.name)
+                else:
+                    content["files"].append(entry.name)
 
         except Exception as e:
             return f"Request failed: {e}", 400
-
-        if 'Blobs' not in result: return content, 200
-
-        # print("BLOBS:")
-        blobs = result['Blobs']
-        if 'Blob' in blobs:
-            items = blobs['Blob']
-            if not isinstance(items, list): items = [items]
-            for blob in items:
-                # print(blob)
-                name = blob['Name']['#text']
-                name = name[name.rfind('/')+1:]   # trim all path stuff
-                content["files"].append(name)
-
-        # print("FOLDERS:")
-        if 'BlobPrefix' in blobs:
-            items = blobs['BlobPrefix']
-            if not isinstance(items, list): items = [items]
-            for blob in items:
-                # print(blob)
-                name = blob['Name']['#text'][:-1]   # trim trailing slash
-                name = name[name.rfind('/')+1:]    # trim all path stuff
-                content["dirs"].append(name)
 
         return content, 200
 
@@ -168,121 +77,47 @@ class File(Resource):
         if not "prefix" in request.args: return "Missing prefix", 400
         print('--- GET',server_id, request.args["prefix"])
 
-        # personal access token is currently required
-        # prefix -- must end with /
-        # delimiter=/ -- filters out subdirectory contents, and stores subdirectory names as "BlobPrefix" xml items
-
         prefix = request.args['prefix']
 
-        user_token = TOKEN
-        if 'AZURETOKEN' in request.headers: user_token = request.headers['AZURETOKEN']
-
-        url = f"{STORAGE[server_id]}/{prefix}?{user_token}"
-
+        path = f"{STORAGE[server_id]}/{prefix}"
+        print(path)
         try:
-            azure_response = requests.get(url,
-                headers={k:v for k,v in request.headers if k != "Host"},
-                stream=True
-            )
+            if not os.path.isfile(path):
+                return f"File not found: {str(e)}", 400
+
+            with open(path, 'r') as file:
+                content = file.read()
+
             response = Response(
-                azure_response.iter_content(chunk_size=528288),
-                status=azure_response.status_code
+                content=content,
+                status=200,
+                mimetype='application/octet-stream'
             )
-            for key, value in azure_response.headers.items():
-                if key.lower() not in ('content-length', 'transfer-encoding', 'content-encoding'):
-                    response.headers[key] = value
             return response, 200
         except Exception as e:
-            return f"Error accessing Azure: {str(e)}", 400
+            return f"Error accessing file: {str(e)}", 400
 
 # ------------------------------------------------
 class Omx(Resource):
-    # Return the OMX catalog (not the file itself)
-    def _getListing(self, url):
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        root = ET.fromstring(response.text)
-        result = _xml_to_dict(root)
-
-        blob = result['Blobs']['Blob']
-        if isinstance(blob, list): return "Filter is not unique", 400
-        answer = {
-            'path': blob['Name']['#text'],
-            'contentLength': blob['Properties']['Content-Length']['#text'],
-            'lastModified': blob['Properties']['Last-Modified']['#text']
-        }
-        return answer
-
     @nocache
     def get(self, server_id):
         if not server_id: return "Missing server", 403
         if not "prefix" in request.args: return "Missing prefix", 400
-        print('--- OMX',server_id, request.args["prefix"], request.headers)
+        print('--- OMX',server_id, request.args["prefix"])
 
-        # We need the prefix and the personal-access-token
-        prefix = request.args['prefix']
-        user_token = TOKEN
-        if 'AZURETOKEN' in request.headers: user_token = request.headers['AZURETOKEN']
+        # We need the prefix # and the personal-access-token
+        prefix =  request.args["prefix"]
+        server = STORAGE[server_id]
+        print(server, prefix)
+        local_file_path = f"{STORAGE[server_id]}/{prefix}"
 
-        args = '&'.join([f"prefix={prefix}", user_token])
-        url = f"{STORAGE[server_id]}?restype=container&comp=list&{args}"
-
-        # # 1. Get the listing
+        # 1. Open the OMX file
         try:
-            details = self._getListing(url)
-        except Exception as e:
-            return f"Request failed: {e}", 400
-
-        # 2. If good copy in cache, use it
-        need_to_refresh = True
-        # details = cache[prefix]
-        # need_to_refresh = False
-        cache_key = f"{server_id}:{details['path']}"
-        if cache_key in cache:
-            cached_copy = cache[cache_key]
-            if cached_copy['lastModified'] == details['lastModified'] and cached_copy['contentLength'] == details['contentLength']:
-                need_to_refresh = False
-
-        # 3. Otherwise not cached/stale, fetch the file and cache it
-        if need_to_refresh:
-            print('--- FETCH', details['path'])
-            filename_hash = getHash(details["path"])
-            remote_file_url = f"{STORAGE[server_id]}/{details['path']}?{TOKEN}"
-            local_file_path = os.path.join(blobfolder, filename_hash) #Build the path where we will save the file
-
-            print('trying', remote_file_url, local_file_path)
-
-            sz = 0
-            try:
-                response = requests.get(remote_file_url, stream=True)
-                response.raise_for_status()  # Raise an exception for bad status codes
-                with open(local_file_path, 'wb') as local_file:
-                    for chunk in response.iter_content(chunk_size=528288):
-                        local_file.write(chunk)
-                        sz += len(chunk)
-                        print(f"\r{sz}", end="")
-                print("\n")
-
-            except Exception as e:
-                return f"Error downloading file from {remote_file_url}", 400
-            # it worked! cache the info
-            details['hash'] = filename_hash
-            cache_key = f"{server_id}:{details['path']}"
-            cache[cache_key] = details
-            write_file_cache()
-            print("--- NEW CACHE")
-            print(cache)
-
-        # 4. Open the cached file
-        try:
-            filename_hash = getHash(details["path"])
-            local_file_path = os.path.join(blobfolder, filename_hash) #Build the path where we will save the file
             omx_file = omx.open_file(local_file_path, 'r')
         except Exception as e:
             return f"Error opening OMX file {local_file_path}", 400
 
-        print('--- ARGS', request.args)
-        # 5. If user merely asked for the file, just send the catalog
+        # 5. If user merely asked for the file, send the catalog (not the file itself)
         if 'table' not in request.args:
             catalog  = omx_file.list_matrices()
             shape = omx_file.shape()
@@ -302,7 +137,6 @@ class Omx(Resource):
             response.headers['Content-Disposition'] = f'attachment; filename={table_name}.bin'
             return response
         except Exception as e:
-            print(666)
             return f"Error fetching table {request.args['table']}", 400
         finally:
             omx_file.close()
@@ -361,5 +195,4 @@ def serve_static_files(path):
 
 # ----------------------------------------
 if __name__ == "__main__":
-    build_file_cache()
     app.run(port=4999, debug=True)
