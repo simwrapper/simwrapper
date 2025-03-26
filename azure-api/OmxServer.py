@@ -10,7 +10,7 @@
 
 # STORAGE LOCATIONS
 STORAGE = {
-    'dev-bronze': '/Users/billy/Desktop/data'
+    'dev-bronze': r"C:\DevBlobStorage"
 }
 
 import os,sys,tempfile,random,shutil,csv
@@ -52,7 +52,8 @@ class FilesList(Resource):
         if not prefix.endswith('/'): prefix += '/'
 
         path = f"{STORAGE[server_id]}/{prefix}"
-        print(path)
+        if sys.platform.startswith("win"): path = path.replace("/", "\\")
+
         content = {"files": [], "dirs": [], "handles": {}}
 
         try:
@@ -80,7 +81,7 @@ class File(Resource):
         prefix = request.args['prefix']
 
         path = f"{STORAGE[server_id]}/{prefix}"
-        print(path)
+        if sys.platform.startswith("win"): path = path.replace("/", "\\")
         try:
             if not os.path.isfile(path):
                 return f"File not found: {str(e)}", 400
@@ -108,14 +109,14 @@ class Omx(Resource):
         # We need the prefix # and the personal-access-token
         prefix =  request.args["prefix"]
         server = STORAGE[server_id]
-        print(server, prefix)
-        local_file_path = f"{STORAGE[server_id]}/{prefix}"
+        path = f"{server}/{prefix}"
+        if sys.platform.startswith("win"): path = path.replace("/", "\\")
 
         # 1. Open the OMX file
         try:
-            omx_file = omx.open_file(local_file_path, 'r')
+            omx_file = omx.open_file(path, 'r')
         except Exception as e:
-            return f"Error opening OMX file {local_file_path}", 400
+            return f"Error opening OMX file {path}", 400
 
         # 5. If user merely asked for the file, send the catalog (not the file itself)
         if 'table' not in request.args:

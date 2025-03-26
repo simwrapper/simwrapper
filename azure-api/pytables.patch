@@ -1,0 +1,20 @@
+--- utils.py	2025-03-26 14:56:11
++++ utils.py	2025-03-26 16:34:01
+@@ -162,11 +162,16 @@
+     All this paraphernalia is used to avoid the lengthy and scaring HDF5
+     messages produced when there are problems opening a file.  No
+     changes are ever made to the file system.
+ 
+     """
+-    path = Path(filename).resolve()
++    try:
++        path = Path(filename).resolve()
++    except:
++        # resolve() can fail if we're on an rclone mount. We will let this slide,
++        # as we have no other choice.
++        return
+ 
+     if mode == "r":
+         # The file should be readable.
+         if not os.access(path, os.F_OK):
+             raise FileNotFoundError(f"``{path}`` does not exist")
