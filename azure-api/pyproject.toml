@@ -12,4 +12,5 @@ dependencies = [
     "gunicorn>=23.0.0",
     "openmatrix>=0.3.5.0",
     "tables>=3.10.2",
+    "waitress>=3.0.2",
 ]
