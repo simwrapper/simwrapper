@@ -25,5 +25,10 @@ patch .venv/lib/python3.12/site-packages/tables/utils.py pytables.patch
 # copy javascript into static folder
 cp -R ../dist/* static/
 
-# that's it we are ready to run:
-# uv run OmxServer.py
+# that's it! we are ready to run:
+# debug mode:
+# - uv run OmxServer.py
+# Linux:
+# - uv run gunicorn  --config gunicorn_config.py OmxServer:app
+# Windows:
+# - uv run waitress-serve --listen=*:4999 OmxServer:app
