@@ -133,7 +133,7 @@ $bgDarkerCyan: #def3ec;
 .compare-picker {
   user-select: none;
   position: absolute;
-  inset: -0.5rem 1rem 1rem 18.7rem;
+  inset: 1rem 1rem 1rem 18.7rem;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
