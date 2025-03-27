@@ -108,6 +108,13 @@ let fileSystems: FileSystemConfig[] = [
   // ----------- End. Below here, these are editable: -------------------
 
   {
+    name: 'TEST Desktop data folder',
+    slug: 'test-desktop',
+    description: '',
+    omx: true,
+    baseURL: 'http://localhost:4999',
+  },
+  {
     name: 'SANDAG dev/bronze',
     slug: 'dev-bronze',
     description: 'SANDAG Azure data lake: dev/bronze',

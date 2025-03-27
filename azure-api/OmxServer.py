@@ -6,20 +6,16 @@
 # It does one thing: provides a REST API application which runs in
 # the cloud somewhere and accepts file requests for OMX files that
 # are stored on Azure.
-# It caches these very large files and serves up the matrices within.
 
 # STORAGE LOCATIONS
 STORAGE = {
+    'test-desktop': "/Users/billy/Desktop/data",
     'dev-bronze': r"C:\DevBlobStorage"
 }
 
-import os,sys,tempfile,random,shutil,csv
-import xml.etree.ElementTree as ET
-from os.path import exists
-
-from hashlib import sha256
-import requests
+import os,sys
 import blosc
+from os.path import exists
 
 from flask import Flask, request, send_from_directory, make_response, Response
 from flask_cors import CORS
@@ -184,8 +180,8 @@ def serve_static_files(path):
 
     return send_from_directory('static', 'index.html')
 
-# # Catch all routes and redirect to index.html for the SPA to handle
 # # (for GitHub Pages)
+# # Catch all routes and redirect to index.html for the SPA to handle
 # @app.route('/', defaults={'path': ''})
 # @app.route('/<path:path>')
 # def catch_all(path):
