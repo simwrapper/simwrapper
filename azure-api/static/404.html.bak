@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!-- this custom 404 page instructs Github Pages to direct missing SPA links
+     back to the Vue Router -->
+<html lang="en">
+  <head>
+    <script>
+      // baseURL below MUST reflect base folder of built site;
+      // example: '/simwrapper/' for https://vsp.berlin/simwrapper/
+      const baseURL = '/'
+
+      const numRedirects = Number.parseInt(localStorage?.numRedirects || '0') + 1
+      localStorage.numRedirects = numRedirects
+      localStorage[`redirect${numRedirects}`] = location.href
+
+      let meta = document.createElement('meta')
+      meta.httpEquiv = 'refresh'
+      meta.content = `0;URL='${baseURL}?redirect404=${numRedirects}'`
+
+      document.head.appendChild(meta)
+    </script>
+  </head>
+</html>

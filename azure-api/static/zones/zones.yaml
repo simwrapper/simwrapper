@@ -1,0 +1,37 @@
+# Zone system configurations for matrix plugin
+#
+# Only GeoJSON files are supported. Shapefiles are too slow and often have coordinate problems.
+# Use GeoJSON and pre-convert all coordinates to long/lat (WGS84 or EPSG:4326)
+#
+# URL:
+# ------
+# - `/zones/filename.geojson` if you place the file in the /zones folder of the SimWrapper build
+# - full HTTP urls if the remote server allows external access
+#
+# LOOKUP:
+# -------
+# 'lookup' is name of the property/column containing the zone ID / TAZ number
+#
+# SIZES:
+# ------
+# 'sizes' tells SimWrapper which zone systems are appropriate for which matrix sizes.
+
+MTC-1454:
+  url: /zones/mtc1454.geojson.gz
+  lookup: TAZ1454
+  sizes: 1454,1475
+
+PSRC-3870:
+  url: /zones/psrc-taz2010-3870.geojson.gz
+  lookup: TAZ
+  sizes: 3700,3870
+
+SANDAG-4947:
+  url: /zones/sandag.geojson.gz
+  lookup: TAZ
+  sizes: 4947
+
+SF-2454:
+  url: /zones/dist15.geojson.gz
+  lookup: TAZ
+  sizes: 981,2454,2475,3681,3717

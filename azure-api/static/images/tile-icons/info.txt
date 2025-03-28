@@ -1,0 +1,7 @@
+If you want to add more icons. Please use this link.
+
+These icons are from: https://fonts.google.com/icons?selected=Material+Symbols+Outlined:groups:FILL@1;wght@400;GRAD@0;opsz@48&icon.style=Outlined&icon.query=number
+fill: true
+width: 400
+grade: 0
+optical size: 48px
