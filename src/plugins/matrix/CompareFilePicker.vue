@@ -74,16 +74,16 @@ export default defineComponent({
   },
   methods: {
     clickItem(text: string, type: string) {
-      console.log(type, text)
+      // console.log(type, text)
       this.numClicks++
 
       if (this.numClicks === 1) {
         this.selection = text
         this.isFileSelected = type == 'file'
-        console.log('One click', this.selection)
+        // console.log('One click', this.selection)
         setTimeout(async () => {
           if (this.numClicks == 2) {
-            console.log('Double click')
+            // console.log('Double click')
             switch (type) {
               case 'up':
                 this.curFolder = this.curFolder.split('/').slice(0, -1).join('/')

@@ -29,7 +29,7 @@
 
   //- COMPARE selector
   .flex-column(v-if="isMap" style="margin-left: 1rem")
-    b-button.is-small.is-white(@click="toggleCompareSelector()") Compare...
+    b-button.is-small.is-white(@click="toggleCompareSelector()") {{ compareLabel }}
 
   //- //- OLD Diff mode selector
   //- .flex-column(v-if="isMap")
@@ -105,7 +105,6 @@ const MyComponent = defineComponent({
   },
   methods: {
     toggleCompareSelector() {
-      console.log('going to click')
       this.$emit('toggleComparePicker')
     },
   },

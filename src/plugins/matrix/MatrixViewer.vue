@@ -290,19 +290,20 @@ const MyComponent = defineComponent({
         return
       }
 
-      this.matrices = {
+      const matrices = {
         main: mainMatrix,
-      }
+      } as { [id: string]: Matrix }
 
       if (this.h5Compare) {
-        const compMatrix = await this.h5Compare?.getDataArray(this.activeTable)
-        if (compMatrix) {
-          this.matrices.base = compMatrix
+        const baseMatrix = await this.h5Compare?.getDataArray(this.activeTable)
+        if (baseMatrix) {
+          matrices.base = baseMatrix
+
           const diff = new Float32Array(mainMatrix.data.length)
           mainMatrix.data.forEach((v, i) => {
-            diff[i] = v - compMatrix.data[i]
+            diff[i] = v - baseMatrix.data[i]
           })
-          this.matrices.diff = {
+          matrices.diff = {
             data: diff,
             path: mainMatrix.path,
             table: this.activeTable,
@@ -310,8 +311,9 @@ const MyComponent = defineComponent({
         }
       }
 
-      console.log('MATRICES', this.matrices)
+      this.matrices = matrices
       this.isGettingMatrices = false
+      this.statusText = ''
     },
 
     async initH5Files() {
@@ -338,17 +340,15 @@ const MyComponent = defineComponent({
       await this.h5Main.init()
 
       this.statusText = ''
-      // console.log(5555, this.h5Main.catalog)
     },
 
     chooseCompareFile(comparison: any) {
-      console.log('zing', comparison)
       this.showComparePicker = false
+      if (!comparison) return
       this.compareToBase(comparison)
     },
 
     toggleComparePicker() {
-      console.log('compare!')
       this.showComparePicker = !this.showComparePicker
     },
 
@@ -484,16 +484,13 @@ const MyComponent = defineComponent({
     async compareToBase(comparisonMatrix: ComparisonMatrix) {
       if (!this.fileSystem) return
 
-      console.log('COMPARE', comparisonMatrix)
-
-      this.statusText = `Loading: ${comparisonMatrix.filename}...`
-
       this.h5Compare = new H5Provider({
         fileSystem: this.fileSystem,
         subfolder: comparisonMatrix.subfolder,
         filename: comparisonMatrix.filename,
       })
-      this.h5Compare.init()
+
+      await this.h5Compare.init()
 
       // drag/drop mode, no "root" filesystem. Just set this as base.
       if (comparisonMatrix.root === '') {
@@ -502,13 +499,10 @@ const MyComponent = defineComponent({
         return
       }
 
-      this.compareLabel = `Compare: ${this.filename} to ${comparisonMatrix.filename}`
+      this.compareLabel = `Compare to ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`
+
       this.setDivergingColors()
-      console.log({ h5BaseBlob: this.h5baseBlob })
-
       this.getMatrices()
-
-      this.statusText = ''
     },
 
     setDivergingColors() {
