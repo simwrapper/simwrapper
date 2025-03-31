@@ -237,6 +237,14 @@ const MyComponent = defineComponent({
     async setMap(isMap: boolean) {
       this.isMap = isMap
 
+      if (isMap) {
+        this.h5fileBlob = null
+      } else {
+        this.h5fileBlob = await this.buildH5Blob()
+      }
+    },
+
+    async buildH5Blob() {
       // we are going to fabricate an HDF5 file with the current matrix content!
       const { FS } = await h5wasmReady
       let f = new H5WasmFile('matrix', 'w')
@@ -258,13 +266,18 @@ const MyComponent = defineComponent({
 
       const fileData = FS.readFile('matrix')
       const blob = new File([fileData], this.activeTable, { type: 'application/octet-stream' })
-      this.h5fileBlob = blob
+      return blob
     },
+
+    async addBase() {},
 
     async changeMatrix(table: any) {
       console.log({ table })
       this.activeTable = table
+
       await this.getMatrices()
+
+      if (!this.isMap) this.h5fileBlob = await this.buildH5Blob()
     },
 
     async getMatrices() {
@@ -715,7 +728,6 @@ export default MyComponent
   vertical-align: middle;
   font-weight: bold;
   border: 5px solid #06e07e;
-  border-radius: 3px;
 }
 
 .is-getting-matrices {

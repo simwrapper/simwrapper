@@ -318,9 +318,10 @@ const MyComponent = defineComponent({
       this.buildTAZLookup()
       this.setMapCenter()
 
-      const taz1 = this.tazToOffsetLookup['1']
-      if (taz1 !== undefined) {
-        this.clickedZone({ index: taz1, properties: this.features[taz1].properties })
+      const startOffset =
+        localStorage.getItem('matrix-start-taz-offset') || this.tazToOffsetLookup['1']
+      if (startOffset !== undefined) {
+        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
       }
 
       this.isMapReady = true
@@ -423,13 +424,13 @@ const MyComponent = defineComponent({
     },
 
     clickedZone(zone: { index: number; properties: any }) {
-      console.log('ZONE', zone)
-
       // ignore double clicks and same-clicks
       if (zone.properties[this.zoneID] == this.activeZone) return
 
+      console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
+
       this.activeZone = zone.properties[this.zoneID]
-      // this.extractH5Slice()
+      localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
     },
 
     setColorsForArray() {
