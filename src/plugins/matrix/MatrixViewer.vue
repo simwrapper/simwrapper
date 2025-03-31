@@ -16,8 +16,11 @@
     @toggleComparePicker="toggleComparePicker"
   )
 
+  .getting-matrices(v-if="isGettingMatrices")
+      .fxl Loading... 🐢
+
   .main-area(
-    :class="{'is-dragging': isDragging}"
+    :class="{'is-dragging': isDragging, 'is-getting-matrices': isGettingMatrices}"
     @drop="onDrop"
     @dragstart="dragStart"
     @dragover="stillDragging"
@@ -130,6 +133,7 @@ const MyComponent = defineComponent({
       compareLabel: 'Compare...',
       isDragging: false,
       isMap: true,
+      isGettingMatrices: true,
       showComparePicker: false,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
@@ -264,8 +268,14 @@ const MyComponent = defineComponent({
     },
 
     async getMatrices() {
+      this.isGettingMatrices = true
+      await this.$nextTick()
+
       const mainMatrix = await this.h5Main?.getDataArray(this.activeTable)
-      if (!mainMatrix) return
+      if (!mainMatrix) {
+        this.isGettingMatrices = false
+        return
+      }
 
       this.matrices = {
         main: mainMatrix,
@@ -288,6 +298,7 @@ const MyComponent = defineComponent({
       }
 
       console.log('MATRICES', this.matrices)
+      this.isGettingMatrices = false
     },
 
     async initH5Files() {
@@ -681,5 +692,33 @@ export default MyComponent
   flex-direction: column;
   flex: 1;
   // padding: 0.75rem;
+}
+
+.getting-matrices {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.fxl {
+  padding: 1rem 5rem;
+  background-color: white;
+  color: #333;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: bold;
+  border: 5px solid #06e07e;
+  border-radius: 3px;
+}
+
+.is-getting-matrices {
+  opacity: 0.5;
 }
 </style>

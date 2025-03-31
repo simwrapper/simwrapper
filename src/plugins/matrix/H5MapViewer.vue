@@ -201,7 +201,6 @@ const MyComponent = defineComponent({
     },
 
     activeZone() {
-      console.log('ZONE CHANGED', this.activeZone)
       this.dbExtractH5ArrayData()
     },
 
@@ -238,7 +237,6 @@ const MyComponent = defineComponent({
       let base = [] as any
       let diff = [] as any
 
-      console.log(888, this.matrices)
       const matrix = this.matrices.main?.data
       if (!matrix) return
 
@@ -284,7 +282,7 @@ const MyComponent = defineComponent({
         })
       }
       this.prettyDataArray = pvs
-      console.log({ prettyValues: this.prettyDataArray })
+      // console.log({ prettyValues: this.prettyDataArray })
     },
 
     dividerDragStart(e: MouseEvent) {
@@ -408,7 +406,7 @@ const MyComponent = defineComponent({
     setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
       array.forEach(v => {
-        if (Number.isNaN(v)) pretty.push('NaN')
+        if (v === undefined || Number.isNaN(v)) pretty.push('NaN')
         else if (v == 0) pretty.push('0')
         else if (Math.abs(v) >= 0.0001) {
           const trimmed = Math.round(10000 * v) / 10000
@@ -421,7 +419,6 @@ const MyComponent = defineComponent({
     },
 
     clickedTable(table: { key: string; name: string }) {
-      console.log('click!', table)
       this.activeTable = table
     },
 
@@ -730,7 +727,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 }
 
 .left-grabby {
-  z-index: 500;
+  z-index: 100;
   width: 0.5rem;
   background-color: #1eb7ea;
   position: absolute;

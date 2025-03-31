@@ -128,6 +128,7 @@ $bgDarkerCyan: #def3ec;
   padding: 0.5rem;
   background-color: var(--bg);
   border-bottom: 1px solid #bbbbcc88;
+  z-index: 200;
 }
 
 .flex-column {
