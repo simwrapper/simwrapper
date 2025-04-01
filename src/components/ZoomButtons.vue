@@ -107,7 +107,7 @@ export default defineComponent({
         style = Object.assign(style, {
           flexDirection: 'row-reverse',
           top: '5px',
-          left: 0,
+          left: '2px',
           paddingLeft: 0,
           right: 'unset',
         })
@@ -176,11 +176,12 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .map-complications {
+  display: flex;
   position: absolute;
   pointer-events: none;
+  user-select: none;
   cursor: pointer;
   zoom: -5;
-  display: flex;
 }
 
 .zoom-buttons {
@@ -205,6 +206,11 @@ export default defineComponent({
 
 .img-button {
   height: 22px;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
 }
 
 .button-top {

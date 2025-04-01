@@ -3,29 +3,34 @@
   @mouseup="dividerDragEnd"
   @mousemove.stop="dividerDragging"
 )
-  .left-bar(:style="{width: `${leftSectionWidth-1}px`}")
-    .zone-selector.flex-col
-      .flex-row
-        b-button.button.flex1(
-          :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-          @click="$emit('changeRowWise', true)"
-        )
-          i.fa.fa-bars
-          | &nbsp;Row
+  .left-bar(:style="{width: `${leftSectionWidth}px`}")
+    h4 Map Selection
+    .zone-selector.flex-row
+      b-button.button.flex1(style="font-weight: bold"
+        :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+        @click="$emit('changeRowWise', true)"
+      )
+        i.fa.fa-bars
+        | &nbsp;Row
 
-        b-button.button.flex1(
-          :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-          @click="$emit('changeRowWise', false)"
-        )
-          i.fa.fa-bars(style="rotate: 90deg;")
-          | &nbsp;Col
+      b-button.button.flex1(style="font-weight: bold"
+        :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+        @click="$emit('changeRowWise', false)"
+      )
+        i.fa.fa-bars(style="rotate: 90deg;")
+        | &nbsp;Col
 
-      .flex-row(style="gap: 1rem")
-        .ztitle {{ mapConfig.isRowWise ? 'Row' : 'Column'}}
-        input.input-zone(
-          size="is-small" type="number" placeholder="zone"
-          v-model="activeZone"
-        )
+      input.input-zone.flex1(
+        type="number" placeholder="zone"
+        v-model="activeZone"
+      )
+
+    .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
+      h4 Legend
+      legend-colors(:thresholds="colorThresholds")
+
+
+    h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
 
     .bottom-half.flex-col.flex1
       .zone-details(v-if="activeZone !== null")
@@ -55,7 +60,7 @@
       )
 
       background-map-on-top(v-if="isMapReady")
-      zoom-buttons
+      zoom-buttons(corner="top-left")
 
       .click-zone-hint.flex-col(v-if="activeZone == null")
         h4: b MATRIX VIEWER
@@ -74,7 +79,7 @@
 
   .left-grabby(
     @mousedown="dividerDragStart"
-    :style="{left: `${this.leftSectionWidth}px`}"
+    :style="{right: `${this.leftSectionWidth-4}px`}"
   )
 
 </template>
@@ -102,6 +107,7 @@ import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
+import LegendColors from './LegendColors.vue'
 import type { Matrix } from './H5Provider'
 
 import dataScalers from './util'
@@ -114,7 +120,7 @@ const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file sy
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
-  components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
+  components: { LegendColors, ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
     fileApi: { type: Object as PropType<HTTPFileSystem> },
     fileSystem: { required: true, type: Object },
@@ -133,16 +139,16 @@ const MyComponent = defineComponent({
 
   data() {
     return {
-      globalState: globalStore.state,
-      dragDividerWidth: 0,
-      dragStartWidth: 196,
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
-      // currentData: [] as Float32Array | Float64Array | any[],
-      currentBaseData: [] as Float32Array | Float64Array | any[],
+      colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
+      dbExtractH5ArrayData: {} as any,
+      dragDividerWidth: 0,
+      dragStartWidth: 196,
       features: [] as any,
+      globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
       h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
@@ -151,14 +157,13 @@ const MyComponent = defineComponent({
       layerId: Math.floor(1e12 * Math.random()),
       leftSectionWidth: 196,
       prettyDataArray: [] as any[],
+      searchTerm: '',
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
       tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
-      searchTerm: '',
-      dbExtractH5ArrayData: {} as any,
     }
   },
 
@@ -269,7 +274,7 @@ const MyComponent = defineComponent({
 
       // display diff data on map if exists; otherwise show regular main data
       this.dataArray = this.matrices.diff ? diff : values
-      this.setColorsForArray()
+      await this.setColorsForArray()
 
       // create array of pretty values: each i-element is [value, base, diff]
       const pvs = this.setPrettyValuesForArray(values).map(v => [v])
@@ -298,7 +303,7 @@ const MyComponent = defineComponent({
       if (!this.dragDividerWidth) return
 
       const deltaX = e.clientX - this.dragDividerWidth
-      this.leftSectionWidth = Math.max(5, this.dragStartWidth + deltaX)
+      this.leftSectionWidth = Math.max(5, this.dragStartWidth - deltaX)
       localStorage.setItem('matrixLeftPanelWidth', `${this.leftSectionWidth}`)
     },
 
@@ -433,7 +438,7 @@ const MyComponent = defineComponent({
       localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
     },
 
-    setColorsForArray() {
+    async setColorsForArray() {
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
@@ -443,24 +448,27 @@ const MyComponent = defineComponent({
         max = Math.max(max, values[i])
       }
 
-      const NUM_COLORS = 15
+      const NUM_COLORS = 9
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
       const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
 
-      const colors = getColorRampHexCodes(
+      // colors
+      let xcolors = getColorRampHexCodes(
         { ramp: this.mapConfig.colormap, style: Style.sequential },
         NUM_COLORS
       )
-      if (this.mapConfig.isInvertedColor) colors.reverse()
-      const colorsAsRGB = buildRGBfromHexCodes(colors)
 
-      // console.log({ colorsAsRGB, breakpoints })
+      // flip the colors if requested
+      if (this.mapConfig.isInvertedColor) xcolors = xcolors.slice().reverse()
 
+      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
+
+      this.colorThresholds = { colorsAsRGB, breakpoints, min, max }
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-      const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
+      const d3colorThresholds = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
 
       for (let i = 0; i < this.features.length; i++) {
         try {
@@ -469,8 +477,10 @@ const MyComponent = defineComponent({
           //TODO - this assumes zones are off-by-one, in order, in matrix data
           const matrixOffset = TAZ - 1
 
-          const value = values[matrixOffset] / max
-          const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
+          // ALWAYS scale by max value
+          let value = values[matrixOffset] / max
+
+          const color = Number.isNaN(value) ? [40, 40, 40] : d3colorThresholds(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)
@@ -678,9 +688,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   right: 0;
   bottom: 0;
   display: flex;
-  flex-direction: row;
-  // background-color: $bgBeige;
-  // padding: 11px;
+  flex-direction: row-reverse;
+  // user-select: none;
 }
 
 .main-area {
@@ -722,9 +731,11 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .left-bar {
   color: var(--text);
+  background-color: var(--bgPanel);
   display: flex;
   flex-direction: column;
   user-select: none;
+  padding: 1rem 1rem;
 }
 
 .left-grabby {
@@ -734,7 +745,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   position: absolute;
   top: 0px;
   bottom: 0px;
-  left: 180px;
+  right: 196px;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -746,7 +757,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .zone-details {
   position: absolute;
-  top: 0;
+  top: 0.25rem;
   bottom: 0;
   left: 0;
   right: 0;
@@ -817,6 +828,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .bottom-half {
   background-color: $bgLightCyan;
   position: relative;
+  margin-top: 0.25rem;
 }
 
 .swidget {
@@ -825,7 +837,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .button {
   border-radius: 0px;
-  width: 5.5rem;
+  // width: 5.5rem;
   // background-color: #00000000;
   // color: black;
 }
@@ -834,7 +846,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   position: relative;
-  margin-left: 0.25rem;
   flex: 1;
 }
 
@@ -853,11 +864,12 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .click-zone-hint {
   position: absolute;
-  left: 1rem;
-  top: 1rem;
+  right: 1rem;
+  top: 0.5rem;
   padding: 1rem;
   background-color: var(--bgPanel);
   color: var(--text);
+  z-index: 800;
 }
 
 .input-search {
@@ -878,17 +890,36 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .zone-selector {
   background-color: var(--bgPanel);
+  margin: 0.25rem 0 0rem 0;
 }
 
 .input-zone {
   width: 5rem;
-  background-color: var(--bgBold);
-  // font-weight: bold;
+  background-color: $bgLightCyan; // var(--bg);
+  font-weight: bold;
   padding: 0 6px;
-  font-size: 12px;
+  // font-size: 1rem;
+  margin-left: 0.5rem;
+  text-align: center;
+  border-top: 2px solid #ccc;
+  border-left: 2px solid #ccc;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
 }
 
 .titles {
   margin-right: 0.5rem;
+}
+
+h4 {
+  margin: 0 0 0.125rem 0;
+  padding: 0 0;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.legend-area {
+  margin: 1.5rem 0;
 }
 </style>
