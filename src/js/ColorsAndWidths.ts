@@ -167,8 +167,9 @@ function rgbToHex(rgb: [number, number, number]): string {
 export function getColorRampHexCodes(scale: Ramp, n: number): string[] {
   let colors
 
-  if (Object.keys(customColors).includes(scale.ramp))
+  if (Object.keys(customColors).includes(scale.ramp)) {
     return generateColorArray(customColors[scale.ramp], n)
+  }
 
   // categorical
   if (scale.style === Style.categorical) {

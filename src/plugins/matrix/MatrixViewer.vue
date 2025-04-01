@@ -17,7 +17,7 @@
   )
 
   .getting-matrices(v-if="isGettingMatrices")
-      .fxl Loading... 🐢
+      .fxl 🐢 Loading...
 
   .main-area(
     :class="{'is-dragging': isDragging, 'is-getting-matrices': isGettingMatrices}"
@@ -470,7 +470,6 @@ const MyComponent = defineComponent({
         // all other config
         this.mapConfig.colormap = event
       }
-
       this.saveMapSettings()
     },
 
@@ -557,7 +556,7 @@ const MyComponent = defineComponent({
       this.statusText = 'Drop to load file'
     },
 
-    async dragEnd(event: any) {
+    dragEnd(event: any) {
       this.isDragging = false
       this.statusText = ''
     },
@@ -681,6 +680,7 @@ export default MyComponent
   display: flex;
   flex-direction: column;
   z-index: 50;
+  pointer-events: none;
 }
 
 .status-text h4 {
