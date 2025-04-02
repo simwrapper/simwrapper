@@ -1,7 +1,7 @@
 <template lang="pug">
 .compare-picker
   .c-title Select matrix file for comparison
-  .c-info Choose matrix file, or drag a local file onto the map:
+  .c-info Choose matrix file from this folder or navigate to find the file:
   .c-selection {{ curFolder }}
   .c-inner.flex1
     .c-items.flex-column.flex1(v-if="!dirEntry")
@@ -153,7 +153,7 @@ $bgDarkerCyan: #def3ec;
 }
 
 .c-info {
-  padding: 4px 4px 12px 5px;
+  padding: 6px 4px 2px 5px;
 }
 
 .c-inner {
