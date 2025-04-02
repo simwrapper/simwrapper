@@ -17,15 +17,21 @@
         span &nbsp;Map
 
   //- TABLE Name
-  b-dropdown(@change="$emit('changeMatrix', $event)"
-    :scrollable="true"
-    :max-height="400"
+  b-dropdown.dropdown-table-selector(
+    @change="$emit('changeMatrix', $event)"
+    scrollable max-height="400" trap-focus
   )
       template(#trigger="{active}")
-        b-button.is-small(type="is-link" :icon-right="active ? 'menu-up' : 'menu-down'"): b {{ activeTable }}
-      b-dropdown-item(:value="matrix"
-        v-for="(matrix,i) in catalog" :key="matrix"
+        b-button.is-small(type="is-primary" :icon-right="active ? 'menu-up' : 'menu-down'")
+          span {{ activeTable || 'Loading...' }}
+
+      b-dropdown-item(custom aria-role="listitem")
+        b-input(v-model="searchTableTerm" placeholder="search" expanded)
+
+      b-dropdown-item(v-for="matrix in filteredTableNames" :key="matrix"
+        :value="matrix"
       ) {{ matrix }}
+
 
   //- COMPARE selector
   .flex-column(v-if="isMap" style="margin-left: 1rem")
@@ -94,10 +100,17 @@ const MyComponent = defineComponent({
       colormap: 'Viridis',
       COLOR_SCALE_TYPES,
       currentCatalog: '',
+      searchTableTerm: '',
     }
   },
   mounted() {},
-  computed: {},
+  computed: {
+    filteredTableNames() {
+      return this.catalog.filter(
+        table => table.toLowerCase().indexOf(this.searchTableTerm.toLowerCase()) >= 0
+      )
+    },
+  },
   watch: {
     filenameShapes() {
       this.$emit('shapes', this.filenameShapes)
