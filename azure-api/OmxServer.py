@@ -134,7 +134,7 @@ class Omx(Resource):
             response.headers['Content-Disposition'] = f'attachment; filename={table_name}.bin'
             return response
         except Exception as e:
-            return f"Error fetching table {request.args['table']}", 400
+            return f"File found but error retrieving table {request.args['table']}", 416
         finally:
             omx_file.close()
 

@@ -88,11 +88,14 @@ export default function Component({
   // --------------------------------------------------------------------------
   const highlight = activeZoneFeature ? [activeZoneFeature] : []
 
+  const highlightColor = [255, 0, 224]
+  // globalStore.state.isDarkMode ? [255, 255, 255] : [255, 0, 224]
+
   const highlightLayer = new GeoJsonLayer({
     id: 'HighlightLayer',
     data: highlight,
     getLineWidth: 6,
-    getLineColor: [255, 255, 255],
+    getLineColor: highlightColor,
     getFillColor: [0, 0, 0, 0], // fully transparent
     lineJointRounded: true,
     lineWidthUnits: 'pixels',

@@ -4,26 +4,32 @@
   @mousemove.stop="dividerDragging"
 )
   .left-bar(:style="{width: `${leftSectionWidth}px`}")
-    h4 Map Selection
-    .zone-selector.flex-row
-      b-button.button.flex1(style="font-weight: bold"
-        :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-        @click="$emit('changeRowWise', true)"
-      )
-        i.fa.fa-bars
-        | &nbsp;Row
+    .row-col-selector.flex-row(style="gap: 8px")
+      .flex-col.flex2
+        h4 Map Selection
+        .zone-selector.flex-row
+          b-button.button.flex1.btn-rowcol(
+            :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+            size="is-small"
+            @click="$emit('changeRowWise', true)"
+          )
+            i.fa.fa-bars
+            | &nbsp;Row
 
-      b-button.button.flex1(style="font-weight: bold"
-        :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
-        @click="$emit('changeRowWise', false)"
-      )
-        i.fa.fa-bars(style="rotate: 90deg;")
-        | &nbsp;Col
+          b-button.button.flex1.btn-rowcol(
+            :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+            size="is-small"
+            @click="$emit('changeRowWise', false)"
+          )
+            i.fa.fa-bars(style="rotate: 90deg;")
+            | &nbsp;Col
 
-      input.input-zone.flex1(
-        type="number" placeholder="zone"
-        v-model="activeZone"
-      )
+      .flex-col.flex1
+        h4 TAZ
+        input.input-zone.flex1(
+          type="number" placeholder="zone"
+          v-model="activeZone"
+        )
 
     .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
       h4 Legend
@@ -828,7 +834,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .bottom-half {
   background-color: $bgLightCyan;
   position: relative;
-  margin-top: 0.25rem;
 }
 
 .swidget {
@@ -860,6 +865,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   font-size: 0.9rem;
+  user-select: none;
+  border: 1px solid #88888855;
 }
 
 .click-zone-hint {
@@ -890,16 +897,14 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .zone-selector {
   background-color: var(--bgPanel);
-  margin: 0.25rem 0 0rem 0;
+  margin: 0rem 0 0rem 0;
 }
 
 .input-zone {
-  width: 5rem;
+  width: 100%;
   background-color: $bgLightCyan; // var(--bg);
   font-weight: bold;
-  padding: 0 6px;
-  // font-size: 1rem;
-  margin-left: 0.5rem;
+  padding: 0 3px;
   text-align: center;
   border-top: 2px solid #ccc;
   border-left: 2px solid #ccc;
@@ -921,5 +926,10 @@ h4 {
 
 .legend-area {
   margin: 1.5rem 0;
+}
+
+.btn-rowcol {
+  font-weight: bold;
+  border-radius: 0px !important;
 }
 </style>

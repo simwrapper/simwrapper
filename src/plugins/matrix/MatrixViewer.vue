@@ -17,7 +17,7 @@
   )
 
   .getting-matrices(v-if="isGettingMatrices")
-      .fxl 🐢 Loading...
+      .fxl Loading...
 
   .main-area(
     :class="{'is-dragging': isDragging, 'is-getting-matrices': isGettingMatrices}"
@@ -29,7 +29,7 @@
     @dragenter.prevent
   )
 
-    .status-text(v-if="statusText")
+    .status-text(v-if="statusText && !isGettingMatrices")
       h4 {{ statusText }}
 
     H5Map-viewer.fill-it(v-if="isMap && h5Main?.size"
@@ -161,8 +161,8 @@ const MyComponent = defineComponent({
       activeTable: '',
       debounceDragEnd: {} as any,
       mapConfig: {
-        scale: ScaleType.Linear,
-        colormap: 'Rainbow',
+        scale: ScaleType.Log,
+        colormap: 'Turbo',
         isInvertedColor: false,
         isRowWise: true,
       } as MapConfig,
@@ -192,8 +192,14 @@ const MyComponent = defineComponent({
     this.comparators = this.setupComparisons()
     this.shapes = await this.loadShapes()
 
-    await this.initH5Files()
-    this.changeMatrix(this.h5Main?.catalog[0])
+    try {
+      await this.initH5Files()
+      const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      this.changeMatrix(initialTable)
+    } catch (e) {
+      this.$emit('error', `Error loading file: ${this.subfolder}/${this.filename}`)
+      console.error('' + e)
+    }
 
     if (this.h5baseBlob) this.compareLabel = `Compare ${this.filename} to ${this.filenameBase}`
   },
@@ -277,6 +283,8 @@ const MyComponent = defineComponent({
 
       await this.getMatrices()
 
+      localStorage.setItem('matrix-initial-table', table)
+
       if (!this.isMap) this.h5fileBlob = await this.buildH5Blob()
     },
 
@@ -284,36 +292,40 @@ const MyComponent = defineComponent({
       this.isGettingMatrices = true
       await this.$nextTick()
 
-      const mainMatrix = await this.h5Main?.getDataArray(this.activeTable)
-      if (!mainMatrix) {
-        this.isGettingMatrices = false
-        return
-      }
+      let which = this.activeTable + ' from main file'
+      try {
+        const mainMatrix = await this.h5Main?.getDataArray(this.activeTable)
+        if (!mainMatrix) return
 
-      const matrices = {
-        main: mainMatrix,
-      } as { [id: string]: Matrix }
+        const matrices = {
+          main: mainMatrix,
+        } as { [id: string]: Matrix }
 
-      if (this.h5Compare) {
-        const baseMatrix = await this.h5Compare?.getDataArray(this.activeTable)
-        if (baseMatrix) {
-          matrices.base = baseMatrix
+        if (this.h5Compare) {
+          which = this.activeTable + ' from comparison file'
+          const baseMatrix = await this.h5Compare?.getDataArray(this.activeTable)
+          if (baseMatrix) {
+            matrices.base = baseMatrix
 
-          const diff = new Float32Array(mainMatrix.data.length)
-          mainMatrix.data.forEach((v, i) => {
-            diff[i] = v - baseMatrix.data[i]
-          })
-          matrices.diff = {
-            data: diff,
-            path: mainMatrix.path,
-            table: this.activeTable,
+            const diff = new Float32Array(mainMatrix.data.length)
+            mainMatrix.data.forEach((v, i) => {
+              diff[i] = v - baseMatrix.data[i]
+            })
+            matrices.diff = {
+              data: diff,
+              path: mainMatrix.path,
+              table: this.activeTable,
+            }
           }
         }
+        this.matrices = matrices
+      } catch (e) {
+        this.$emit('error', `Error extracting ${which}`)
+        console.error('' + e)
+      } finally {
+        this.isGettingMatrices = false
+        this.statusText = ''
       }
-
-      this.matrices = matrices
-      this.isGettingMatrices = false
-      this.statusText = ''
     },
 
     async initH5Files() {
@@ -342,10 +354,11 @@ const MyComponent = defineComponent({
       this.statusText = ''
     },
 
-    chooseCompareFile(comparison: any) {
+    async chooseCompareFile(comparison: any) {
       this.showComparePicker = false
       if (!comparison) return
-      this.compareToBase(comparison)
+      await this.compareToBase(comparison)
+      if (!this.isMap) this.h5fileBlob = await this.buildH5Blob()
     },
 
     toggleComparePicker() {
@@ -501,7 +514,7 @@ const MyComponent = defineComponent({
       this.compareLabel = `Compare to ${comparisonMatrix.subfolder}/${comparisonMatrix.filename}`
 
       this.setDivergingColors()
-      this.getMatrices()
+      await this.getMatrices()
     },
 
     setDivergingColors() {
@@ -684,8 +697,8 @@ export default MyComponent
 }
 
 .status-text h4 {
-  margin: auto 0rem;
-  padding: 3rem 0;
+  margin: auto auto;
+  padding: 1.5rem;
   background-color: #444455ee;
 }
 
@@ -712,6 +725,7 @@ export default MyComponent
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  filter: $filterShadow;
 }
 
 .fxl {

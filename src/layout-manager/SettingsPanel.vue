@@ -27,11 +27,11 @@
         :style="isDE") DE
 
     // account / auth ---------------
-    .option
-      h5 {{ $t('authentication') }}
-      b-button.button.is-small.is-white(@click="clearTokens()"
-        outlined
-        :style="yellow") {{ $t('clearToken') }}
+    //- .option
+    //-   h5 {{ $t('authentication') }}
+    //-   b-button.button.is-small.is-white(@click="clearTokens()"
+    //-     outlined
+    //-     :style="yellow") {{ $t('clearToken') }}
 
 </template>
 
