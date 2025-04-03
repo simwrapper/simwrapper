@@ -34,17 +34,8 @@
 
 
   //- COMPARE selector
-  .flex-column(v-if="isMap" style="margin-left: 1rem")
+  .flex-column(style="margin-left: 1rem")
     b-button.is-small.is-white(@click="toggleCompareSelector()") {{ compareLabel }}
-
-  //- //- OLD Diff mode selector
-  //- .flex-column(v-if="isMap")
-  //-   ComparisonSelector(
-  //-     :comparators="comparators"
-  //-     :compareLabel="compareLabel"
-  //-     @addBase="$emit('addBase')"
-  //-     @change="$emit('compare', $event)"
-  //-   )
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")

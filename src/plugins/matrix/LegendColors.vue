@@ -73,7 +73,7 @@ const MyComponent = defineComponent({
             label = '> ' + precise(max * breakpoints[i - 1], 4)
             break
           default:
-            label = `${precise(max * breakpoints[i - 1], 4)} – ${precise(max * breakpoints[i], 4)}`
+            label = `${precise(max * breakpoints[i - 1], 4)} — ${precise(max * breakpoints[i], 4)}`
         }
         entries.push({ rgb: colors[i], label })
       }
