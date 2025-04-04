@@ -82,16 +82,17 @@ class File(Resource):
             if not os.path.isfile(path):
                 return f"File not found: {str(e)}", 400
 
-            with open(path, 'r') as file:
+            with open(path, 'rb') as file:
                 content = file.read()
 
             response = Response(
-                content=content,
+                content,
                 status=200,
                 mimetype='application/octet-stream'
             )
             return response, 200
         except Exception as e:
+            print(str(e))
             return f"Error accessing file: {str(e)}", 400
 
 # ------------------------------------------------
