@@ -1,5 +1,5 @@
 <template lang="pug">
-  .flowmap-page 
+  .flowmap-page
     .flowmap(:class="{'hide-thumbnail': !thumbnail}"
             :style='{"background": urlThumbnail}'
             oncontextmenu="return false")
@@ -12,8 +12,8 @@
         zoom-buttons(v-if="!thumbnail")
 
         .bottom-panel(v-if="!thumbnail")
-          h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }} 
-          .button-row  
+          h1 {{`Hours ${slider.filterStartHour} - ${slider.filterEndHour}` }}
+          .button-row
             time-slider.time-slider(v-if="isLoaded"
             :numHours="numHours"
             :hourlyTotals="hourlyTotals"
@@ -24,14 +24,14 @@
           )
     .right-side-panel
       .metric-label {{  $t('metrics') }}:
-      .metric-buttons 
+      .metric-buttons
         button.button.is-small.metric-button(
           v-for="metric,i in vizDetails.metrics" :key="i"
           :style="{'color': 'white' , 'border': isDarkMode ? `1px solid white` : `1px solid #2A3C4F`, 'border-radius': '4px', 'backgroundColor': isDarkMode ? '#2a3c4f': '#2a3c4f'}" @click="handleClickedMetric(metric)"
           ) {{metric.label}}
       br
       .metric-label {{  $t('color scheme') }}:
-      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme" class="is-small")
+      b-select.form-select(aria-labelledby="lil-gui-name-2" v-model="vizDetails.colorScheme" class="is-small" )
         option(value="Blues") Blues
         option(value="BluGrn") BluGrn
         option(value="BluYl") BluYl
@@ -170,7 +170,14 @@ const MyComponent = defineComponent({
     },
     '$store.state.isDarkMode'() {
       this.isDarkMode = this.$store.state.isDarkMode
-    }
+    },
+
+    vizDetails: function (val) {
+      console.log("color changed")
+      this.vizDetails = val;
+    },
+
+
   },
 
   data() {
@@ -250,16 +257,18 @@ const MyComponent = defineComponent({
         stopFacilitiesFile: '',
         network: '',
         dataset: '',
-        colorScheme: 'Teal',
+        colorScheme: '',
         metrics: [{
           label: '',
           dataset: '',
           origin: '',
           destination: '',
           flow: '',
+          transformValue: '',
           colorScheme: '',
         }],
-        selectedMetric: '',
+        selectedMetric: {},
+        selectedMetricLabel: '',
         highlightColor: 'orange',
         fadeEnabled: true,
         fadeAmount: 50,
@@ -317,7 +326,8 @@ const MyComponent = defineComponent({
       await this.loadBoundaries()
 
       this.vizDetails = Object.assign({}, this.vizDetails)
-      this.vizDetails.selectedMetric = this.vizDetails.metrics[0].flow
+      this.vizDetails.selectedMetricLabel = this.vizDetails.metrics[0].flow
+      this.vizDetails.selectedMetric = this.vizDetails.metrics[0]
       this.slider.labels = ['test', 'test']
       this.slider = Object.assign({}, this.slider)
       await this.configureData(this.vizDetails.metrics[0])
@@ -348,7 +358,7 @@ const MyComponent = defineComponent({
       // Config was passed in from dashboard:
       if (this.configFromDashboard) {
         console.log('we have a dashboard')
-        this.validateYAML()
+        // this.validateYAML()
         console.log(this.configFromDashboard)
         this.vizDetails = Object.assign({}, this.configFromDashboard) as any
         return
@@ -380,9 +390,10 @@ const MyComponent = defineComponent({
       }
     },
 
-    async validateYAML() { },
+    // async validateYAML() { },
 
-    async handleClickedMetric(metric: string) {
+    handleClickedMetric(metric: string) {
+      this.vizDetails.selectedMetric = metric
 
       this.configureData(metric)
 
@@ -540,14 +551,14 @@ const MyComponent = defineComponent({
       // const boundaryLabelField = this.vizDetails.boundariesLabels || this.vizDetails.boundariesLabel
       if (this.stopFacilities !== undefined) {
         // try to get crs from attributes
-          if (this.stopFacilities?.attributes && this.stopFacilities?.attributes?.attribute?.name === "coordinateReferenceSystem") {
-            this.crs = this.stopFacilities?.attributes?.attribute?.["#text"]
-            console.log(this.crs)
-          } else {
-            console.log("no crs found in transit schedule, reverting to WGS 84")
-            this.crs = "EPSG:4326"
-          }
-      
+        if (this.stopFacilities?.attributes && this.stopFacilities?.attributes?.attribute?.name === "coordinateReferenceSystem") {
+          this.crs = this.stopFacilities?.attributes?.attribute?.["#text"]
+          console.log(this.crs)
+        } else {
+          console.log("no crs found in transit schedule, reverting to WGS 84")
+          this.crs = "EPSG:4326"
+        }
+
         for (const facility of this.stopFacilities.transitStops.stopFacility) {
           // Convert the location data
           // don't hard code CRS
@@ -566,7 +577,7 @@ const MyComponent = defineComponent({
 
     },
 
-    async setMapCenter() {
+    setMapCenter() {
       // If user gave us the center, use it
       if (this.vizDetails.center) {
         if (typeof this.vizDetails.center == 'string') {
@@ -621,7 +632,7 @@ const MyComponent = defineComponent({
     async configureData(datasetInfo: any) {
       // Use config columns for origin/dest/flow -- if they exist
       this.vizDetails.colorScheme = datasetInfo.colorScheme
-      this.vizDetails.selectedMetric = datasetInfo.flow
+      this.vizDetails.selectedMetricLabel = datasetInfo.flow
 
       const oColumn = datasetInfo.origin || 'origin'
       const dColumn = datasetInfo.destination || 'destination'
@@ -647,22 +658,22 @@ const MyComponent = defineComponent({
 
         const flows = [] as any[]
         for (let i = 0; i < origin.length; i++) {
-                 try {
-            if ((datasetInfo.flow.includes("Headway") || datasetInfo.flow.includes("headway")) && count[i]) {
-              // console.log("flow is: " + count[i] + " and inverted flow is: " + 1/(count[i]))
+          //
+          try {
+            if (datasetInfo.valueTransform.enum[0] == 'inverse') {
               flows.push({
-              o: `${origin[i]}`,
-              d: `${destination[i]}`,
-              v: 1/(count[i]),
-              h: hours[i]
-            })
+                o: `${origin[i]}`,
+                d: `${destination[i]}`,
+                v: 1 / (count[i]),
+                h: hours[i]
+              })
             } else {
               flows.push({
-              o: `${origin[i]}`,
-              d: `${destination[i]}`,
-              v: count[i],
-              h: hours[i]
-            })
+                o: `${origin[i]}`,
+                d: `${destination[i]}`,
+                v: count[i],
+                h: hours[i]
+              })
             }
 
           } catch {
