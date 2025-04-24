@@ -129,6 +129,7 @@ export default function Component({
   transitLines = [] as any[],
   stopMarkers = [] as any[],
   checkedTransitLines = [] as any[],
+  vizDetails = {} as any,
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
@@ -164,36 +165,41 @@ export default function Component({
   }, [links])
 
   // ----------------------------------------------
-  const slices = useMemo(() => {
-    // no boarding data? no pies.
-    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+  var slices = {}
+  if (vizDetails?.demand) {
+    slices = useMemo(() => {
+      // no boarding data? no pies.
+      if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
-    const fullPies = stopMarkers.map(stop => {
-      let selectedLineStopBoardingsCount = 0
-      let selectedLineStopAlightingsCount = 0
-      Object.entries(transitLines).forEach(([key, line]) => {
-        const selectedPtLine = Object.values(stop.ptLines).find(
-          (ptLine) => (ptLine as PtLine).name === line.id
-        ) as PtLine | undefined;
-        
-        if (selectedPtLine) {
-          selectedLineStopBoardingsCount += selectedPtLine.b;
-          selectedLineStopAlightingsCount += selectedPtLine.a;
-        }
-      })
+      const fullPies = stopMarkers.map(stop => {
+        let selectedLineStopBoardingsCount = 0
+        let selectedLineStopAlightingsCount = 0
+        Object.entries(transitLines).forEach(([key, line]) => {
+          const selectedPtLine = Object.values(stop.ptLines).find(
+            ptLine => (ptLine as PtLine).name === line.id
+          ) as PtLine | undefined
+
+          if (selectedPtLine) {
+            selectedLineStopBoardingsCount += selectedPtLine.b
+            selectedLineStopAlightingsCount += selectedPtLine.a
+          }
+        })
         return {
           center: stop.xy,
-          radius: 0.00001 * pieSlider * Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
+          radius:
+            0.00001 *
+            pieSlider *
+            Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
           slices: [
             { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
             { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
           ],
         }
-    })
-    const individualSlices = calculatePieSlicePaths(fullPies)
-    return individualSlices
-  }, [stopMarkers, pieSlider])
-
+      })
+      const individualSlices = calculatePieSlicePaths(fullPies)
+      return individualSlices
+    }, [stopMarkers, pieSlider])
+  }
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -330,9 +336,9 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  
+
   // PIE CHARTS
-  // if (slices.length) {
+  if (slices) {
     layers.push(
       new SolidPolygonLayer({
         id: `stop-pie-charts-layer-${Math.random()}`,
@@ -348,11 +354,11 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  // }
+  }
 
   // STOP ICONS ----------------
-  // if (stopMarkers.length) {
-  if (false) {
+  if (stopMarkers.length) {
+    // if (false) {
     // rotate stop arrows to match map rotation
     const mapBearing = globalStore.state.viewState.bearing
     const stopsMitBearing = stopMarkers.map(stop => {
