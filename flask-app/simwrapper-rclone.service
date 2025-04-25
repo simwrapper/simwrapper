@@ -1,0 +1,16 @@
+[Unit]
+Description=Rclone mount for SimWrapper
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/bin/rclone mount dev-bronze: /mnt/dev-bronze \
+	... --vfs-blahblah \
+	...
+
+[Install]
+WantedBy=multi-user.target
+

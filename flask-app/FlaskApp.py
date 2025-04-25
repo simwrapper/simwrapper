@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
-# OmxServer.py #######################################################
-# This is the SimWrapper OMX Microservice
+# FlaskApp.py #######################################################
+# This is the SimWrapper FlaskApp / OMX Microservice
 #
-# It does one thing: provides a REST API application which runs in
-# the cloud somewhere and accepts file requests for OMX files that
-# are stored on Azure.
+# It does two things: 
+# (1) Serves up a local copy of the SimWrapper web app
+# (2) Provides a REST API application that accepts file requests for
+#     OMX files that are stored on cloud services such as AWS/Azure
 
-# STORAGE LOCATIONS
+# STORAGE LOCATIONS -------------------------------------------------
+# Edit these to match your filesystem
+
 STORAGE = {
-    'test-desktop': "/Users/billy/Desktop/data",
-    'dev-bronze': r"C:\DevBlobStorage"
+    "test-desktop": "/Users/billy/Desktop/data",
+    "dev-bronze": r"C:\DevBlobStorage"
 }
 
 import os,sys
