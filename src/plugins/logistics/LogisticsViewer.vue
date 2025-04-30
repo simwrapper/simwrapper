@@ -2144,7 +2144,7 @@ const LogisticsPlugin = defineComponent({
 
     this.lsps = await this.loadLSPS()
     this.carriers = await this.loadCarriers()
-    this.linksCsvData = await this.loadLinksCsv()
+    // this.linksCsvData = await this.loadLinksCsv()
 
     // TESTS //
 
