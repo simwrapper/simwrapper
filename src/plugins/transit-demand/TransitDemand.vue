@@ -1174,7 +1174,7 @@ const MyComponent = defineComponent({
         this.stopLevelDemand[stopId].b += row.passengersBoarding
         this.stopLevelDemand[stopId].a += row.passengersAlighting
         const ptLineId = row.transitLine
-        if(!this.stopLevelDemand[stopId].ptLines[ptLineId]) this.stopLevelDemand[stopId].ptLines[ptLineId] = {name: ptLineId, b: 0, a:0}
+        if (!this.stopLevelDemand[stopId].ptLines[ptLineId]) this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
         this.stopLevelDemand[stopId].ptLines[ptLineId].a += row.passengersAlighting
         this.stopLevelDemand[stopId].ptLines[ptLineId].b += row.passengersBoarding
       }
