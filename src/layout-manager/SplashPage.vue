@@ -12,7 +12,7 @@
             //- img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
             //- img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
 
-        .tagline San Diego Association of Governments
+        .tagline The transport simulation data visualizer from TU Berlin.
 
     //- DATA SOURCES -------------------------------------------------------------------
     .diagonal.data-area
