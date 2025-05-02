@@ -105,7 +105,7 @@ let fileSystems: FileSystemConfig[] = [
     hidden: true,
   },
 
-  // End. Below here, these are editable:
+  // ----------- End. Below here, these are editable: -------------------
 
   {
     name: 'VSP TU-Berlin',

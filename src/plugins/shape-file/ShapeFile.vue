@@ -78,12 +78,11 @@
         @toggleLegend="showLegend=!showLegend"
       )
 
-      .details-panel
-
-      .width-sliders.flex-row(:style="{backgroundColor: globalState.isDarkMode ? '#00000099': '#ffffffaa'}")
-            //- opacity slider
-            img.icon-blue-ramp(:src="icons.blueramp")
-            b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
+      .width-sliders.flex-row(v-if="isAreaMode"
+        :style="{backgroundColor: globalState.isDarkMode ? '#00000099': '#ffffffaa'}"
+      )
+          img.icon-blue-ramp(:src="icons.blueramp")
+          b-slider.pie-slider(type="is-success" :tooltip="true" size="is-small"  :min="0" :max="100" v-model="sliderOpacity")
 
       zoom-buttons(v-if="isLoaded && !thumbnail")
 
@@ -213,8 +212,11 @@ export async function loadGeoPackageFromBuffer(buffer: ArrayBuffer) {
   const features = []
   const tableElements = featureDao.queryForEach()
   for (const row of tableElements) {
-    const { geom, ...properties } = row
-    const geoJsonGeometry = new Gpkg.GeometryData(geom as any)
+    const { the_geom, geom, ...properties } = row
+    const geometryData = the_geom ?? geom
+    if (!geometryData) continue
+
+    const geoJsonGeometry = new Gpkg.GeometryData(geometryData as any)
     const geojson = geoJsonGeometry.toGeoJSON()
     const wgs84 = reproject.toWgs84(geojson, crs, Coords.allEPSGs)
 
@@ -256,10 +258,11 @@ const MyComponent = defineComponent({
       icons: { blueramp: IconBlueRamp },
       opacitySlider: 50,
       avroNetwork: null as any,
+      isAreaMode: false,
       isAvroFile: false,
-      //drag
       isDraggingDivider: 0,
       isDragHappening: false,
+      isLoaded: false,
       dragStartWidth: 200,
       legendSectionWidth: 200,
       //
@@ -289,8 +292,6 @@ const MyComponent = defineComponent({
 
       maxValue: 1000,
       expColors: false,
-      isLoaded: false,
-      isAreaMode: true,
       // sometimes color data has transparency so it's 4-stride RGBA instead of 3-stride RGB
       isRGBA: false,
 
@@ -1041,6 +1042,9 @@ const MyComponent = defineComponent({
       const datasetFilename = filename || datasetId
 
       console.log('HANDLE NEW DATASET:', datasetId, datasetFilename)
+
+      // If user hasn't already given us the join column, ask now.
+      if (!this.featureJoinColumn) await this.figureOutFeatureIdColumn()
 
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
@@ -2401,8 +2405,7 @@ const MyComponent = defineComponent({
         }
 
         // hide polygon/point buttons and opacity if we have no polygons or we do have points
-        if (hasNoPolygons) this.isAreaMode = false
-        if (hasPoints) this.isAreaMode = true
+        if (!hasNoPolygons || hasPoints) this.isAreaMode = true
 
         this.statusText = 'Adding boundaries to map'
         await this.$nextTick()
@@ -2436,7 +2439,9 @@ const MyComponent = defineComponent({
         throw Error(fullError)
       }
 
-      if (!this.boundaries) throw Error(`No "features" found in shapes file`)
+      if (!this.boundaries || this.boundaries.length === 0) {
+        throw Error(`No "features" found in shapes file`)
+      }
     },
 
     async setFeaturePropertiesAsDataSource(
@@ -2606,10 +2611,10 @@ const MyComponent = defineComponent({
       }
 
       try {
-        const dbfFilename = url
-          .replace('.shp', '.dbf')
-          .replace('.SHP', '.DBF')
-          .replace('.Shp', '.Dbf')
+        let dbfFilename = url
+        if (dbfFilename.endsWith('.shp')) dbfFilename = dbfFilename.slice(0, -4) + '.dbf'
+        if (dbfFilename.endsWith('.SHP')) dbfFilename = dbfFilename.slice(0, -4) + '.DBF'
+        if (dbfFilename.endsWith('.Shp')) dbfFilename = dbfFilename.slice(0, -4) + '.Dbf'
         dbfPromise = await this.fileApi.getFileBlob(dbfFilename)
         dbfBlob = await (await dbfPromise)?.arrayBuffer()
       } catch {
@@ -2637,10 +2642,10 @@ const MyComponent = defineComponent({
 
       // See if there is a .prj file with projection information
       let projection = DEFAULT_PROJECTION
-      const prjFilename = url
-        .replace('.shp', '.prj')
-        .replace('.SHP', '.PRJ')
-        .replace('.Shp', '.Prj')
+      let prjFilename = url
+      if (prjFilename.endsWith('.shp')) prjFilename = prjFilename.slice(0, -4) + '.prj'
+      if (prjFilename.endsWith('.SHP')) prjFilename = prjFilename.slice(0, -4) + '.PRJ'
+      if (prjFilename.endsWith('.Shp')) prjFilename = prjFilename.slice(0, -4) + '.Prj'
       try {
         projection = await this.fileApi.getFileText(prjFilename)
       } catch (e) {
@@ -2669,9 +2674,7 @@ const MyComponent = defineComponent({
       const firstPoint = getFirstPoint(geojson.features[0].geometry.coordinates)
       if (Math.abs(firstPoint[0]) > 180 || Math.abs(firstPoint[1]) > 90) {
         // this ain't lon/lat
-        const msg = `Coordinates not lon/lat. Try adding projection to YAML, or provide ${prjFilename.substring(
-          1 + prjFilename.lastIndexOf('/')
-        )}`
+        const msg = `Coordinates not lon/lat. Try adding projection to YAML, or provide a .prj file`
         this.$emit('error', msg)
         this.statusText = ''
         return []
@@ -3175,7 +3178,8 @@ const MyComponent = defineComponent({
       this.statusText = ''
 
       // Ask for shapes feature ID if it's not obvious/specified already
-      this.featureJoinColumn = await this.figureOutFeatureIdColumn()
+      // NOTE: Now we ask when data is loaded instead.
+      // this.featureJoinColumn = await this.figureOutFeatureIdColumn()
 
       this.loadBackgroundLayers()
     } catch (e) {

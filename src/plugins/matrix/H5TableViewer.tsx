@@ -8,7 +8,7 @@ import { getPlugin } from './plugin-utils'
 function MyApp({ blob = null as any, filename = '' }) {
   return (
     <H5WasmLocalFileProvider file={blob} getPlugin={getPlugin}>
-      <App />
+      <App initialPath="/A: Values" />
     </H5WasmLocalFileProvider>
   )
 }

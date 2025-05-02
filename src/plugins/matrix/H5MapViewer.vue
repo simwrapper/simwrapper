@@ -3,31 +3,55 @@
   @mouseup="dividerDragEnd"
   @mousemove.stop="dividerDragging"
 )
-  .left-bar(:style="{width: `${leftSectionWidth-11}px`}")
-    .top-half.flex1
-      .zone-details
-        p.h5-filename {{ activeTable.name || filenameH5 }}
-        input.input-search(size="is-small" placeholder="Search..." v-model="searchTerm")
-        .scrolly
-          .h5-table(v-for="table in tableKeys" :key="table.key"
-            :class="{'selected-table': table == activeTable}"
-            :hidden="searchTerm ? table.name.toLocaleLowerCase().indexOf(searchTermLowerCase) == -1 : false"
-            @click="clickedTable(table)"
+  .left-bar(:style="{width: `${leftSectionWidth}px`}")
+    .row-col-selector.flex-row(style="gap: 8px")
+      .flex-col.flex2
+        h4 Map Selection
+        .zone-selector.flex-row
+          b-button.button.flex1.btn-rowcol(
+            :type="mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+            size="is-small"
+            @click="$emit('changeRowWise', true)"
           )
-            i.fa.fa-layer-group
-            span &nbsp;&nbsp;
-            span(v-html="table.name")
+            i.fa.fa-bars
+            | &nbsp;Row
 
-    .bottom-half.flex1
+          b-button.button.flex1.btn-rowcol(
+            :type="!mapConfig.isRowWise ? 'is-success' : 'is-success is-outlined'"
+            size="is-small"
+            @click="$emit('changeRowWise', false)"
+          )
+            i.fa.fa-bars(style="rotate: 90deg;")
+            | &nbsp;Col
+
+      .flex-col.flex1
+        h4 TAZ
+        input.input-zone.flex1(
+          type="number" placeholder="zone"
+          v-model="activeZone"
+        )
+
+    .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
+      h4 Legend
+      legend-colors(:thresholds="colorThresholds")
+
+
+    h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
+
+    .bottom-half.flex-col.flex1
       .zone-details(v-if="activeZone !== null")
-        b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
+        //- b.zone-header {{ mapConfig.isRowWise ? 'Row' : 'Column' }} {{  activeZone }}
         .titles.matrix-data-value
-          b.zone-number {{ mapConfig.isRowWise ? 'Column' : 'Row' }}
-          b.zone-value(v-html="activeTable.name || `Table ${activeTable.key}`")
+          b.zone-number Zone
+          b.zone-value(v-html="matrices?.h5Main?.table || 'Value'")
+          b.zone-value(v-if="matrices.diff") Cmp
+          b.zone-value(v-if="matrices.diff") Diff
         .scrolly
           .matrix-data-value(v-for="value,i in prettyDataArray" :key="i")
             span.zone-number {{  i+1 }}
-            span.zone-value {{  value }}
+            span.zone-value {{ value[0] }}
+            span.zone-value(v-if="matrices.diff") {{  value[1] }}
+            span.zone-value(v-if="matrices.diff") {{  value[2] }}
 
   .right-container
     .map-holder(oncontextmenu="return false")
@@ -42,13 +66,16 @@
       )
 
       background-map-on-top(v-if="isMapReady")
-
-      zoom-buttons
+      zoom-buttons(corner="top-left")
 
       .click-zone-hint.flex-col(v-if="activeZone == null")
         h4: b MATRIX VIEWER
-        p This map view can display one row or one column of data at a time.
-        p Click on the map to select the area of interest.
+        p Click on the map to select the row/column of interest.
+        p This map view can display
+          b &nbsp;one row&nbsp;
+          | or
+          b &nbsp;one column&nbsp;
+          | of data at a time.
         p &nbsp;
         p Switch to the table view to inspect the full matrix in tabular or heatmap view.
 
@@ -58,7 +85,7 @@
 
   .left-grabby(
     @mousedown="dividerDragStart"
-    :style="{left: `${this.leftSectionWidth}px`}"
+    :style="{right: `${this.leftSectionWidth-4}px`}"
   )
 
 </template>
@@ -86,25 +113,27 @@ import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
-import dataScalers from './util'
+import LegendColors from './LegendColors.vue'
+import type { Matrix } from './H5Provider'
 
-const BASE_URL = import.meta.env.BASE_URL
+import dataScalers from './util'
+import { debounce } from '@/js/util'
 
 naturalSort.insensitive = true
 
+const BASE_URL = import.meta.env.BASE_URL
 const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
-  components: { ZoneLayer, BackgroundMapOnTop, ZoomButtons },
+  components: { LegendColors, ZoneLayer, BackgroundMapOnTop, ZoomButtons },
   props: {
     fileApi: { type: Object as PropType<HTTPFileSystem> },
+    fileSystem: { required: true, type: Object },
     config: String,
     subfolder: String,
-    blob: { required: true },
-    baseBlob: { required: false },
-    filenameH5: String,
-    filenameBase: String,
+    matrixSize: { required: true, type: Number },
+    matrices: { required: true, type: Object as PropType<{ [key: string]: Matrix }> },
     filenameShapes: String,
     thumbnail: Boolean,
     isInvertedColor: Boolean,
@@ -116,31 +145,31 @@ const MyComponent = defineComponent({
 
   data() {
     return {
-      globalState: globalStore.state,
-      dragDividerWidth: 0,
-      dragStartWidth: 196,
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
-      currentData: [] as Float32Array | any[],
-      currentBaseData: [] as Float32Array | any[],
+      colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
+      dbExtractH5ArrayData: {} as any,
+      dragDividerWidth: 0,
+      leftSectionWidth: 260,
+      dragStartWidth: 260,
       features: [] as any,
+      globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
       h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
       isLoading: false,
+      isOmxApi: false,
       layerId: Math.floor(1e12 * Math.random()),
-      leftSectionWidth: 196,
-      prettyDataArray: [] as string[],
+      prettyDataArray: [] as any[],
+      searchTerm: '',
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
       tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
-      matrixSize: 0,
-      searchTerm: '',
     }
   },
 
@@ -151,17 +180,11 @@ const MyComponent = defineComponent({
 
   async mounted() {
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
-    this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
-
-    // blob is always a File here
-    this.h5fileApi = new H5WasmLocalFileApi(this.blob as File, undefined, getPlugin)
-    await this.getFileKeysAndProperties()
+    this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
+    this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
 
     // Load GeoJSON features
     await this.setupBoundaries()
-
-    // DIFF mode ?
-    if (this.baseBlob) this.activateDiffMode()
   },
 
   computed: {
@@ -184,19 +207,17 @@ const MyComponent = defineComponent({
       )
     },
 
-    baseBlob() {
-      this.activateDiffMode()
-    },
-
     'globalState.isDarkMode'() {
       // this.embedChart()
     },
 
-    activeTable() {
-      this.extractH5ArrayData()
+    activeZone() {
+      this.dbExtractH5ArrayData()
     },
 
-    // subfolder() {},
+    matrices() {
+      this.extractH5Slice()
+    },
 
     filenameShapes() {
       this.loadBoundaries(this.filenameShapes || '')
@@ -204,7 +225,7 @@ const MyComponent = defineComponent({
     },
 
     'mapConfig.isRowWise'() {
-      this.extractH5ArrayData()
+      this.extractH5Slice()
     },
     'mapConfig.colormap'() {
       this.setColorsForArray()
@@ -218,6 +239,63 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    async extractH5Slice() {
+      console.log('---extract h5 slice for zone', this.activeZone)
+      //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
+      let offset = this.activeZone - 1
+      // try {
+      let values = [] as any
+      let base = [] as any
+      let diff = [] as any
+
+      const matrix = this.matrices.main?.data
+      if (!matrix) return
+
+      if (this.mapConfig.isRowWise) {
+        values = matrix.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
+      } else {
+        for (let i = 0; i < this.matrixSize; i++) {
+          values.push(matrix[i * this.matrixSize + offset])
+        }
+      }
+
+      // // --- DIFF MODE
+      if (this.matrices.diff) {
+        if (this.mapConfig.isRowWise) {
+          base = this.matrices.base.data.slice(
+            this.matrixSize * offset,
+            this.matrixSize * (1 + offset)
+          )
+          diff = this.matrices.diff.data.slice(
+            this.matrixSize * offset,
+            this.matrixSize * (1 + offset)
+          )
+        } else {
+          for (let i = 0; i < this.matrixSize; i++) {
+            base.push(this.matrices.base.data[i * this.matrixSize + offset])
+            diff.push(this.matrices.diff.data[i * this.matrixSize + offset])
+          }
+        }
+      }
+
+      // display diff data on map if exists; otherwise show regular main data
+      this.dataArray = this.matrices.diff ? diff : values
+      await this.setColorsForArray()
+
+      // create array of pretty values: each i-element is [value, base, diff]
+      const pvs = this.setPrettyValuesForArray(values).map(v => [v])
+      if (this.matrices.diff) {
+        const b = this.setPrettyValuesForArray(base)
+        const d = this.setPrettyValuesForArray(diff)
+        pvs.forEach((v, i) => {
+          v.push(b[i])
+          v.push(d[i])
+        })
+      }
+      this.prettyDataArray = pvs
+      // console.log({ prettyValues: this.prettyDataArray })
+    },
+
     dividerDragStart(e: MouseEvent) {
       this.dragDividerWidth = e.clientX
       this.dragStartWidth = this.leftSectionWidth
@@ -231,22 +309,8 @@ const MyComponent = defineComponent({
       if (!this.dragDividerWidth) return
 
       const deltaX = e.clientX - this.dragDividerWidth
-      this.leftSectionWidth = Math.max(5, this.dragStartWidth + deltaX)
+      this.leftSectionWidth = Math.max(5, this.dragStartWidth - deltaX)
       localStorage.setItem('matrixLeftPanelWidth', `${this.leftSectionWidth}`)
-    },
-
-    async activateDiffMode() {
-      if (this.baseBlob) {
-        // blob is always a File here
-        this.h5baseApi = new H5WasmLocalFileApi(this.baseBlob as File, undefined, getPlugin)
-      } else {
-        await this.h5baseApi?.cleanUp() //  = null
-        this.h5baseApi = null
-      }
-
-      // TODO do we need this:
-      // this.h5zoneFile = await this.initFile(this.buffer)
-      this.getFileKeysAndProperties()
     },
 
     async setupBoundaries() {
@@ -265,9 +329,10 @@ const MyComponent = defineComponent({
       this.buildTAZLookup()
       this.setMapCenter()
 
-      const taz1 = this.tazToOffsetLookup['1']
-      if (taz1 !== undefined) {
-        this.clickedZone({ index: taz1, properties: this.features[taz1].properties })
+      const startOffset =
+        localStorage.getItem('matrix-start-taz-offset') || this.tazToOffsetLookup['1']
+      if (startOffset !== undefined) {
+        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
       }
 
       this.isMapReady = true
@@ -350,148 +415,10 @@ const MyComponent = defineComponent({
       }
     },
 
-    async getFileKeysAndProperties() {
-      if (!this.h5fileApi) return
-
-      // first get the keys
-      let keys = await this.h5fileApi.getSearchablePaths('/')
-
-      // pretty sort the numbers the ways humans like them
-      keys.sort((a: any, b: any) => naturalSort(a, b))
-
-      // remove folder prefixes
-      let tableKeys = keys.map(key => {
-        const name = key.indexOf('/') > -1 ? key.substring(1 + key.lastIndexOf('/')) : key
-        return { key, name }
-      })
-
-      // if there are "name" properties, use them
-      for (const table of tableKeys) {
-        const element = await this.h5fileApi.getEntity(table.key)
-        // mark non-datasets so they can be filtered out next
-        if (element.kind !== 'dataset') {
-          table.key = ''
-          continue
-        }
-        const attrValues = await this.h5fileApi.getAttrValues(element)
-        if (attrValues.name) {
-          table.name = `${table.key.substring(1)}&nbsp;•&nbsp;${attrValues?.name || ''}`
-        }
-      }
-
-      // filter out non-datasets; key will be empty if it's not a dataset
-      tableKeys = tableKeys.filter(t => !!t.key)
-
-      this.tableKeys = tableKeys
-
-      // Get first matrix dimension, for guessing a useful/correct shapefile
-      if (tableKeys.length) {
-        for (const entity of this.tableKeys) {
-          const element: any = await this.h5fileApi.getEntity(entity.key)
-          if (element.kind === 'dataset') {
-            this.activeTable = entity
-            break
-          }
-        }
-
-        if (!this.activeTable) return
-
-        const element: any = await this.h5fileApi.getEntity(this.activeTable.key)
-        const shape = element.shape
-        if (shape) this.matrixSize = shape[0]
-        else this.matrixSize = 4947
-      }
-    },
-
-    async initH5Wasm(): Promise<any> {
-      const module = await h5wasmReady
-
-      // Throw HDF5 errors instead of just logging them
-      module.activate_throwing_error_handler()
-      // Replace default plugins path
-      module.remove_plugin_search_path(0)
-      module.insert_plugin_search_path(PLUGINS_PATH, 0)
-      // Create plugins folder on Emscripten virtual file system
-      module.FS.mkdirTree(PLUGINS_PATH)
-
-      return module
-    },
-
-    async fetchMatrix(h5api: H5WasmLocalFileApi) {
-      if (!h5api || this.activeZone == null) return []
-      const key = this.activeTable?.key || ''
-      let dataset = await h5api.getEntity(key)
-      let data = (await h5api.getValue({ dataset } as any)) as Float32Array
-      return data
-    },
-
-    async extractH5ArrayData() {
-      // the file has the data, and we want it
-      if (!this.h5fileApi || this.activeZone == null) return
-
-      this.isLoading = true
-      await this.$nextTick()
-
-      // async get the matrix itself first
-      if (this.currentKey !== this.activeTable?.key) {
-        this.currentData = await this.fetchMatrix(this.h5fileApi as any)
-        this.currentKey = this.activeTable?.key || ''
-        // also get base matrix if we're in diffmode
-        if (this.h5baseApi) this.currentBaseData = await this.fetchMatrix(this.h5baseApi as any)
-      }
-
-      //TODO FIX THIS
-      let offset = this.activeZone - 1
-
-      // try {
-      let values = [] as any
-
-      if (this.currentData) {
-        if (this.mapConfig.isRowWise) {
-          values = this.currentData.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
-        } else {
-          for (let i = 0; i < this.matrixSize; i++) {
-            values.push(this.currentData[i * this.matrixSize + offset])
-          }
-        }
-      }
-
-      // DIFF MODE
-
-      if (this.h5baseApi && this.currentBaseData) {
-        console.log('DO THE DIFF!')
-        let baseValues = [] as any
-
-        if (this.mapConfig.isRowWise) {
-          baseValues = this.currentBaseData.slice(
-            this.matrixSize * offset,
-            this.matrixSize * (1 + offset)
-          )
-        } else {
-          for (let i = 0; i < this.matrixSize; i++) {
-            baseValues.push(this.currentBaseData[i * this.matrixSize + offset])
-          }
-        }
-
-        console.log('6666', 'BASEVALUES', baseValues)
-        // do the diff
-        values = values.map((v: any, i: any) => v - baseValues[i])
-      }
-
-      this.dataArray = values
-      this.setColorsForArray()
-      this.prettyDataArray = this.setPrettyValuesForArray(this.dataArray)
-
-      // } catch (e) {
-      //   console.warn('Offset not found in HDF5 file:', offset)
-      // }
-      this.isLoading = false
-    },
-
     setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
       array.forEach(v => {
-        if (Number.isNaN(v)) pretty.push('NaN')
+        if (v === undefined || Number.isNaN(v)) pretty.push('NaN')
         else if (v == 0) pretty.push('0')
         else if (Math.abs(v) >= 0.0001) {
           const trimmed = Math.round(10000 * v) / 10000
@@ -504,21 +431,20 @@ const MyComponent = defineComponent({
     },
 
     clickedTable(table: { key: string; name: string }) {
-      console.log('click!', table)
       this.activeTable = table
     },
 
     clickedZone(zone: { index: number; properties: any }) {
-      // console.log('ZONE', zone)
-
       // ignore double clicks and same-clicks
       if (zone.properties[this.zoneID] == this.activeZone) return
 
+      console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
+
       this.activeZone = zone.properties[this.zoneID]
-      this.extractH5ArrayData()
+      localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
     },
 
-    setColorsForArray() {
+    async setColorsForArray() {
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
@@ -528,24 +454,27 @@ const MyComponent = defineComponent({
         max = Math.max(max, values[i])
       }
 
-      const NUM_COLORS = 15
+      const NUM_COLORS = 9
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
       const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
 
-      const colors = getColorRampHexCodes(
+      // colors
+      let xcolors = getColorRampHexCodes(
         { ramp: this.mapConfig.colormap, style: Style.sequential },
         NUM_COLORS
       )
-      if (this.mapConfig.isInvertedColor) colors.reverse()
-      const colorsAsRGB = buildRGBfromHexCodes(colors)
 
-      // console.log({ colorsAsRGB, breakpoints })
+      // flip the colors if requested
+      if (this.mapConfig.isInvertedColor) xcolors = xcolors.slice().reverse()
 
+      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
+
+      this.colorThresholds = { colorsAsRGB, breakpoints, min, max }
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-      const setColorBasedOnValue: any = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
+      const d3colorThresholds = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
 
       for (let i = 0; i < this.features.length; i++) {
         try {
@@ -554,8 +483,10 @@ const MyComponent = defineComponent({
           //TODO - this assumes zones are off-by-one, in order, in matrix data
           const matrixOffset = TAZ - 1
 
-          const value = values[matrixOffset] / max
-          const color = Number.isNaN(value) ? [40, 40, 40] : setColorBasedOnValue(value)
+          // ALWAYS scale by max value
+          let value = values[matrixOffset] / max
+
+          const color = Number.isNaN(value) ? [40, 40, 40] : d3colorThresholds(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)
@@ -763,9 +694,8 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   right: 0;
   bottom: 0;
   display: flex;
-  flex-direction: row;
-  // background-color: $bgBeige;
-  padding: 11px;
+  flex-direction: row-reverse;
+  // user-select: none;
 }
 
 .main-area {
@@ -807,19 +737,21 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .left-bar {
   color: var(--text);
+  background-color: var(--bgPanel);
   display: flex;
   flex-direction: column;
   user-select: none;
+  padding: 1rem 1rem;
 }
 
 .left-grabby {
-  z-index: 500;
+  z-index: 100;
   width: 0.5rem;
   background-color: #1eb7ea;
   position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: 180px;
+  top: 0px;
+  bottom: 0px;
+  right: 250px;
   opacity: 0;
   transition: opacity 0.2s;
 }
@@ -831,7 +763,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .zone-details {
   position: absolute;
-  top: 0;
+  top: 0.25rem;
   bottom: 0;
   left: 0;
   right: 0;
@@ -880,16 +812,17 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   flex-direction: column;
   background-color: white;
   color: #444;
-  padding: 0.5rem;
+  padding-left: 0.5rem;
 }
+
 .zone-number {
   flex: 1;
-  padding-right: 0.5rem;
 }
 
 .zone-value {
   text-align: right;
   flex: 1;
+  padding-left: 0.5rem;
 }
 
 .top-half {
@@ -900,8 +833,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .bottom-half {
   background-color: $bgLightCyan;
-  display: flex;
-  flex-direction: column;
   position: relative;
 }
 
@@ -911,7 +842,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 
 .button {
   border-radius: 0px;
-  width: 5.5rem;
+  // width: 5.5rem;
   // background-color: #00000000;
   // color: black;
 }
@@ -920,7 +851,6 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   position: relative;
-  margin-left: 0.25rem;
   flex: 1;
 }
 
@@ -935,15 +865,18 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   display: flex;
   flex-direction: column;
   font-size: 0.9rem;
+  user-select: none;
+  border: 1px solid #88888855;
 }
 
 .click-zone-hint {
   position: absolute;
-  left: 1rem;
-  top: 1rem;
+  right: 1rem;
+  top: 0.5rem;
   padding: 1rem;
   background-color: var(--bgPanel);
   color: var(--text);
+  z-index: 800;
 }
 
 .input-search {
@@ -955,5 +888,48 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
 .scrolly {
   flex: 1;
   overflow-y: scroll;
+}
+
+.ztitle {
+  font-weight: bold;
+  padding: 0.25rem 0.25rem;
+}
+
+.zone-selector {
+  background-color: var(--bgPanel);
+  margin: 0rem 0 0rem 0;
+}
+
+.input-zone {
+  width: 100%;
+  background-color: $bgLightCyan; // var(--bg);
+  font-weight: bold;
+  padding: 0 3px;
+  text-align: center;
+  border-top: 2px solid #ccc;
+  border-left: 2px solid #ccc;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+}
+
+.titles {
+  margin-right: 0.5rem;
+}
+
+h4 {
+  margin: 0 0 0.125rem 0;
+  padding: 0 0;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.legend-area {
+  margin: 1.5rem 0;
+}
+
+.btn-rowcol {
+  font-weight: bold;
+  border-radius: 0px !important;
 }
 </style>

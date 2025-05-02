@@ -1,0 +1,26 @@
+# fly.toml app configuration file generated for omx-service on 2025-03-17T15:35:14+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'omx-service'
+primary_region = 'lax'
+
+[build]
+
+[[mounts]]
+  source = 'sandag_omx_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 80
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 2

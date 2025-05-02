@@ -184,7 +184,9 @@ export default function Component({
 
   // TOOLTIP ------------------------------------------------------------------
   function getTooltip({ object, index }: { object: any; index: number }) {
-    if (cbTooltip) cbTooltip(index, object)
+    let offset = index
+    if (object && 'feature_idx' in object) offset = object.feature_idx
+    if (cbTooltip) cbTooltip(offset, object)
   }
 
   // BACKGROUND-LAYERS --------------------------------------------------
@@ -261,7 +263,13 @@ export default function Component({
         case 'MultiPoint':
         default:
           hasPolygons = true
-          return // no link data
+          return { linksData: [], hasPolygons } // no link data
+      }
+
+      if (!coords) {
+        console.warn(`---Feature ${f + 1} has no coordinates:`)
+        console.warn(feature)
+        return { linksData: [], hasPolygons } // no link data
       }
 
       const hasColorData = !Array.isArray(cbLineColor)
@@ -273,7 +281,7 @@ export default function Component({
         if (hasColorData) element.color = cbLineColor(null, { index: f } as any)
         //@ts-ignore
         if (hasWidthData) element.width = cbLineWidth(null, { index: f } as any)
-
+        element.feature_idx = f
         linksData.push(element)
       }
     })
@@ -393,7 +401,7 @@ export default function Component({
       layers={finalLayers}
       viewState={viewState}
       controller={true}
-      pickingRadius={4}
+      pickingRadius={3}
       getTooltip={getTooltip}
       onClick={handleClick}
       onViewStateChange={(e: any) => handleViewState(e.viewState)}

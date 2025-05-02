@@ -22,6 +22,7 @@
             :handleClickEvent="handleMapClick"
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
+            :transitLines="activeTransitLines"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -138,6 +139,17 @@ import IconBlueRamp from './assets/icon-blue-ramp.png'
 const DEFAULT_PROJECTION = 'EPSG:31468' // 31468' // 2048'
 const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
+
+interface PtData {
+  name: string;
+  a: number;
+  b: number;
+}
+
+interface StopLevelData {
+  [ptLine: string]: PtData | number;
+}
+
 
 const DEFAULT_ROUTE_COLORS = [
   // ---------------------------------------------------
@@ -356,7 +368,7 @@ const MyComponent = defineComponent({
       cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
       cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
 
-      stopLevelDemand: {} as { [id: string]: { b: number; a: number } },
+      stopLevelDemand: {} as { [id: string]: { b: number, a: number, ptLines: { [ptLineId: string]: { name: string, b: number, a: number } } } },
 
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
@@ -700,11 +712,15 @@ const MyComponent = defineComponent({
 
       let network = this.vizDetails.network
       // First see if we have an avro network
+      // network.includes(".avro")
       if (!network) {
         const avroNetworkFiles = files
           .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
           .filter(f => f.toLocaleLowerCase().indexOf('network') > -1)
-        if (avroNetworkFiles.length) network = avroNetworkFiles[0]
+        if (avroNetworkFiles.length) {
+          console.log("avro network found")
+          network = avroNetworkFiles[0]
+        }
         if (avroNetworkFiles.length > 1)
           console.warn('MULTIPLE Avro files found - using first of ', avroNetworkFiles)
       }
@@ -721,7 +737,6 @@ const MyComponent = defineComponent({
           network = ''
         }
       }
-
       // Demand: use them if we are in an output folder (and they exist)
       let demandFiles = [] as string[]
       if (this.myState.yamlConfig.indexOf('output_transitSchedule') > -1) {
@@ -947,6 +962,7 @@ const MyComponent = defineComponent({
       this.projection = this.vizDetails.projection
 
       if (networks) this.processInputs(networks)
+      console.log(networks)
 
       // TODO remove for now until we research whether this causes a memory leak:
       // this.setupKeyListeners()
@@ -1039,14 +1055,14 @@ const MyComponent = defineComponent({
         const roads =
           filename.indexOf('.avro') > -1
             ? // AVRO networks have a separate reader:
-              this.loadAvroRoadNetwork()
+            this.loadAvroRoadNetwork()
             : // normal MATSim network
-              this.fetchXML({
-                worker: this._roadFetcher,
-                slug: this.fileSystem.slug,
-                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-                options: { attributeNamePrefix: '' },
-              })
+            this.fetchXML({
+              worker: this._roadFetcher,
+              slug: this.fileSystem.slug,
+              filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+              options: { attributeNamePrefix: '' },
+            })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1151,29 +1167,37 @@ const MyComponent = defineComponent({
       // const stop1 = dimStop1.group()
       // const stop2 = dimStop2.group()
 
+      // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
       for (const row of results.data) {
         const stopId = row.stop
-        if (!this.stopLevelDemand[stopId]) this.stopLevelDemand[stopId] = { b: 0, a: 0 }
+        if (!this.stopLevelDemand[stopId]) this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
         this.stopLevelDemand[stopId].b += row.passengersBoarding
         this.stopLevelDemand[stopId].a += row.passengersAlighting
+        const ptLineId = row.transitLine
+        if (!this.stopLevelDemand[stopId].ptLines[ptLineId]) this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
+        this.stopLevelDemand[stopId].ptLines[ptLineId].a += row.passengersAlighting
+        this.stopLevelDemand[stopId].ptLines[ptLineId].b += row.passengersBoarding
       }
-
       // build link-level passenger ridership ----------
       console.log('---Calculating link-by-link pax/cap')
       const linkPassengersById = {} as any
       const linkCapacity = {} as any
-
+      ``
       for (const row of results.data) {
-        const traversedLinks = row.linkIdsSincePreviousStop.split(';')
-        for (const linkId of traversedLinks) {
-          // pax
-          if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
-          linkPassengersById[linkId] += row.passengersAtArrival
-          // cap
-          if (!linkCapacity[linkId]) linkCapacity[linkId] = 0
-          linkCapacity[linkId] += row.totalVehicleCapacity
+        // console.log(row)
+        if (row.linkIdsSincePreviousStop) {
+          const traversedLinks = row.linkIdsSincePreviousStop.split(';')
+          for (const linkId of traversedLinks) {
+            // pax
+            if (!linkPassengersById[linkId]) linkPassengersById[linkId] = 0
+            linkPassengersById[linkId] += row.passengersAtArrival
+            // cap
+            if (!linkCapacity[linkId]) linkCapacity[linkId] = 0
+            linkCapacity[linkId] += row.totalVehicleCapacity
+          }
         }
       }
+
 
       // update passenger value in the transit-link geojson.
       for (const transitLink of this.transitLinks.features) {
@@ -1183,7 +1207,7 @@ const MyComponent = defineComponent({
         transitLink.properties['loadfac'] =
           Math.round(
             (1000 * linkPassengersById[transitLink.properties.id]) /
-              linkCapacity[transitLink.properties.id]
+            linkCapacity[transitLink.properties.id]
           ) / 1000
       }
 
@@ -1570,6 +1594,7 @@ const MyComponent = defineComponent({
             if (ridership) {
               marker.boardings = ridership.b
               marker.alightings = ridership.a
+              marker.ptLines = ridership.ptLines
             }
           }
 
@@ -1894,6 +1919,7 @@ h3 {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -2115,6 +2141,7 @@ h3 {
   flex-direction: column;
   background-color: var(--bgCardFrame);
   border: 1px solid #88888844;
+
   .description {
     margin-top: 0.5rem;
   }
@@ -2136,6 +2163,7 @@ h3 {
     font-size: 1.1rem;
     margin: 1px;
   }
+
   .stats {
     gap: 0.5rem;
     background-color: var(--bgPanel3);

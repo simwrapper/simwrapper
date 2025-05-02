@@ -26,6 +26,13 @@
         outlined
         :style="isDE") DE
 
+    // account / auth ---------------
+    //- .option
+    //-   h5 {{ $t('authentication') }}
+    //-   b-button.button.is-small.is-white(@click="clearTokens()"
+    //-     outlined
+    //-     :style="yellow") {{ $t('clearToken') }}
+
 </template>
 
 <script lang="ts">
@@ -39,6 +46,8 @@ const i18n = {
       language: 'Language',
       dataSources: 'Data Sources',
       addDataSources: 'Add Data Source',
+      authentication: 'Accounts',
+      clearToken: 'Logout',
     },
     de: {
       translate: 'Die Übersetzungen sind unvollständig, werden aber immer besser...',
@@ -47,6 +56,8 @@ const i18n = {
       dark: 'Dunkel',
       language: 'Sprache',
       dataSources: 'Datenquellen',
+      authentication: 'Accounts',
+      clearToken: 'Logout',
     },
   },
 }
@@ -54,6 +65,8 @@ const i18n = {
 import { defineComponent } from 'vue'
 
 import globalStore from '@/store'
+import fileSystems from '@/js/HTTPFileSystem'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
 
 export default defineComponent({
   name: 'SettingsPanel',
@@ -74,6 +87,14 @@ export default defineComponent({
     },
   },
   computed: {
+    yellow(): any {
+      return {
+        backgroundColor: '#ff6657',
+        color: '#222',
+        borderColor: '#aaa',
+      }
+    },
+
     isLight(): any {
       return this.theme == 'light'
         ? {
@@ -141,6 +162,20 @@ export default defineComponent({
       this.$store.commit('setLocale', lang)
       this.$root.$i18n.locale = lang
       setTimeout(() => this.$emit('close'), 500)
+    },
+
+    clearTokens() {
+      for (const fileSystem of globalStore.state.svnProjects) {
+        if (fileSystem.needPassword) {
+          localStorage.removeItem(`auth-token-${fileSystem.slug}`)
+          const fs = new HTTPFileSystem(fileSystem, globalStore)
+          fs.clearCache()
+        }
+      }
+      setTimeout(() => {
+        this.$emit('close')
+        this.$router.replace('/')
+      }, 500)
     },
   },
 })

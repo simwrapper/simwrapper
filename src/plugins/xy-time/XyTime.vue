@@ -17,7 +17,7 @@
   .top-right
     .gui-config(:id="configId")
 
-  .bottom-right
+  .bottom-left
     .legend-area(v-if="legendStore")
       legend-box(:legendStore="legendStore")
 
@@ -618,7 +618,17 @@ const MyComponent = defineComponent({
         !Array.isArray(this.vizDetails.breakpoints) &&
         'colors' in this.vizDetails.breakpoints
       ) {
-        this.colors = this.vizDetails.breakpoints.colors
+        if (typeof this.vizDetails.breakpoints.colors[0] == 'string') {
+          // Converts the hex colors to rgb color arrays if they are in hex format (e.g. #FF0000)
+          let rgbColors = this.vizDetails.breakpoints.colors.map((c: string) => {
+            const match = c.match(/[A-Za-z0-9]{2}/g)
+            const rgb = match ? match.map(x => parseInt(x, 16)) : [0, 0, 0]
+            return [rgb[0], rgb[1], rgb[2]]
+          })
+          this.colors = rgbColors
+        } else {
+          this.colors = this.vizDetails.breakpoints.colors
+        }
       } else if (
         this.config &&
         this.config.breakpoints &&
@@ -809,11 +819,11 @@ export default MyComponent
   pointer-events: none;
 }
 
-.bottom-right {
+.bottom-left {
   position: absolute;
   bottom: 0;
-  right: 0;
-  margin: auto 7px 15rem auto;
+  left: 0;
+  margin: 1rem;
   box-shadow: 0px 0px 5px 3px rgba(128, 128, 128, 0.1);
 }
 

@@ -12,11 +12,18 @@ import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
+import { watch } from 'fs'
 
 export interface PieInfo {
   center: number[]
   radius: number
   slices: { value: number; color: string | number[] }[]
+}
+
+export interface PtLine {
+  name: string
+  a: number
+  b: number
 }
 
 const BASE_URL = import.meta.env.BASE_URL
@@ -119,7 +126,9 @@ export default function Component({
   viewId = 0,
   links = {} as any,
   selectedFeatures = [] as any[],
+  transitLines = [] as any[],
   stopMarkers = [] as any[],
+  checkedTransitLines = [] as any[],
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
@@ -160,18 +169,31 @@ export default function Component({
     if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
     const fullPies = stopMarkers.map(stop => {
-      return {
-        center: stop.xy,
-        radius: 0.00001 * pieSlider * Math.sqrt(stop.boardings + stop.alightings),
-        slices: [
-          { label: 'boardings', color: 'gold', value: stop.boardings },
-          { label: 'alightings', color: 'darkmagenta', value: stop.alightings },
-        ],
-      }
+      let selectedLineStopBoardingsCount = 0
+      let selectedLineStopAlightingsCount = 0
+      Object.entries(transitLines).forEach(([key, line]) => {
+        const selectedPtLine = Object.values(stop.ptLines).find(
+          (ptLine) => (ptLine as PtLine).name === line.id
+        ) as PtLine | undefined;
+        
+        if (selectedPtLine) {
+          selectedLineStopBoardingsCount += selectedPtLine.b;
+          selectedLineStopAlightingsCount += selectedPtLine.a;
+        }
+      })
+        return {
+          center: stop.xy,
+          radius: 0.00001 * pieSlider * Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
+          slices: [
+            { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
+            { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
+          ],
+        }
     })
     const individualSlices = calculatePieSlicePaths(fullPies)
     return individualSlices
   }, [stopMarkers, pieSlider])
+
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -308,9 +330,9 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-
+  
   // PIE CHARTS
-  if (slices.length) {
+  // if (slices.length) {
     layers.push(
       new SolidPolygonLayer({
         id: `stop-pie-charts-layer-${Math.random()}`,
@@ -326,7 +348,7 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  }
+  // }
 
   // STOP ICONS ----------------
   // if (stopMarkers.length) {

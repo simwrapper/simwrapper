@@ -4,7 +4,7 @@
   //-   //- p: b Matrix File
   //-   b-input.binput.is-small(disabled placeholder="filename.h5" v-model="filename")
 
-  //- which view
+  //- Data/Map
   .flex-row
     b-field.which-data
       b-button.button.is-small(:type="!isMap ? 'is-info' : 'is-outlined is-info'"
@@ -16,29 +16,27 @@
         i.fa.fa-map
         span &nbsp;Map
 
-    b-field.which-data(v-if="isMap")
-      b-button.button.is-small(
-        :type="mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-        @click="$emit('changeRowWise', true)"
-      )
-        i.fa.fa-bars
-        span &nbsp;Row
+  //- TABLE Name
+  b-dropdown.dropdown-table-selector(
+    @change="$emit('changeMatrix', $event)"
+    scrollable max-height="400" trap-focus
+  )
+      template(#trigger="{active}")
+        b-button.is-small(type="is-primary" :icon-right="active ? 'menu-up' : 'menu-down'")
+          span(v-html="activeTable || 'Loading...'")
 
-      b-button.button.is-small(
-        :type="!mapConfig.isRowWise ? 'is-link' : 'is-link is-outlined'"
-        @click="$emit('changeRowWise', false)"
-      )
-        i.fa.fa-bars(style="rotate: 90deg;")
-        span &nbsp;Col
+      b-dropdown-item(custom aria-role="listitem")
+        b-input(v-model="searchTableTerm" placeholder="search" expanded)
 
-  //- Diff mode selector
-  .flex-column(v-if="isMap")
-    ComparisonSelector(
-      :comparators="comparators"
-      :compareLabel="compareLabel"
-      @addBase="$emit('addBase')"
-      @change="$emit('compare', $event)"
-    )
+      b-dropdown-item(v-for="matrix in filteredTableNames" :key="matrix"
+        :value="matrix"
+        v-html="matrix"
+      )
+
+
+  //- COMPARE selector
+  .flex-column(style="margin-left: 1rem")
+    b-button.is-small.is-white(@click="toggleCompareSelector()" v-html="compareLabel")
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
@@ -81,26 +79,40 @@ const MyComponent = defineComponent({
     isMap: Boolean,
     comparators: { type: Array as PropType<ComparisonMatrix[]> },
     compareLabel: String,
+    catalog: { required: true, type: Array as PropType<string[]> },
     mapConfig: { type: Object as PropType<MapConfig> },
+    selectedZone: Number,
+    activeTable: { required: true, type: String },
   },
   data() {
     const COLOR_SCALE_TYPES = [ScaleType.Linear, ScaleType.Log, ScaleType.SymLog, ScaleType.Sqrt]
-
     return {
       filename: '',
       filenameShapes: '',
       colormap: 'Viridis',
       COLOR_SCALE_TYPES,
+      currentCatalog: '',
+      searchTableTerm: '',
     }
   },
   mounted() {},
-  computed: {},
+  computed: {
+    filteredTableNames() {
+      return this.catalog.filter(
+        table => table.toLowerCase().indexOf(this.searchTableTerm.toLowerCase()) >= 0
+      )
+    },
+  },
   watch: {
     filenameShapes() {
       this.$emit('shapes', this.filenameShapes)
     },
   },
-  methods: {},
+  methods: {
+    toggleCompareSelector() {
+      this.$emit('toggleComparePicker')
+    },
+  },
 })
 
 export default MyComponent
@@ -120,6 +132,7 @@ $bgDarkerCyan: #def3ec;
   padding: 0.5rem;
   background-color: var(--bg);
   border-bottom: 1px solid #bbbbcc88;
+  z-index: 200;
 }
 
 .flex-column {
