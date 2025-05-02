@@ -152,7 +152,8 @@ const MyComponent = defineComponent({
       dataArray: [] as number[],
       dbExtractH5ArrayData: {} as any,
       dragDividerWidth: 0,
-      dragStartWidth: 196,
+      leftSectionWidth: 260,
+      dragStartWidth: 260,
       features: [] as any,
       globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
@@ -161,7 +162,6 @@ const MyComponent = defineComponent({
       isLoading: false,
       isOmxApi: false,
       layerId: Math.floor(1e12 * Math.random()),
-      leftSectionWidth: 196,
       prettyDataArray: [] as any[],
       searchTerm: '',
       statusText: 'Loading...',
@@ -180,7 +180,7 @@ const MyComponent = defineComponent({
 
   async mounted() {
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
-    this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 192
+    this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
     this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
 
     // Load GeoJSON features
@@ -751,7 +751,7 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   position: absolute;
   top: 0px;
   bottom: 0px;
-  right: 196px;
+  right: 250px;
   opacity: 0;
   transition: opacity 0.2s;
 }
