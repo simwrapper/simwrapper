@@ -5,8 +5,8 @@
       "path": "."
     },
     {
-      "name": "AzureAPI",
-      "path": "./azure-api/"
+      "name": "Flask-App",
+      "path": "./flask-app/"
     },
     {
       "name": "WASM",
