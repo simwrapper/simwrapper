@@ -10,6 +10,13 @@ import {
   PIECES,
 } from '@/Globals'
 
+enum FileSystemType {
+  FETCH,
+  CHROME,
+  GITHUB,
+  AZURE,
+}
+
 naturalSort.insensitive = true
 
 // GitHub doesn't tell us the type of file, so we have to guess by filename extension
@@ -26,17 +33,27 @@ const CACHE: { [slug: string]: { [dir: string]: DirectoryEntry } } = {}
 class HTTPFileSystem {
   private baseUrl: string
   private urlId: string
+  private slug: string
   private needsAuth: boolean
   private fsHandle: FileSystemAPIHandle | null
   private store: any
   private isGithub: boolean
+  private isOMX: boolean
+  private type: FileSystemType
 
   constructor(project: FileSystemConfig, store?: any) {
     this.urlId = project.slug
+    this.slug = project.slug
     this.needsAuth = !!project.needPassword
     this.fsHandle = project.handle || null
     this.store = store || null
     this.isGithub = !!project.isGithub
+    this.isOMX = !!project.omx
+
+    this.type = FileSystemType.FETCH
+    if (this.fsHandle) this.type = FileSystemType.CHROME
+    if (this.isGithub) this.type = FileSystemType.GITHUB
+    if (this.isOMX) this.type = FileSystemType.AZURE
 
     this.baseUrl = project.baseURL
     if (!project.baseURL.endsWith('/')) this.baseUrl += '/'
@@ -88,12 +105,16 @@ class HTTPFileSystem {
   }
 
   private async _getFileResponse(scaryPath: string): Promise<Response> {
-    if (this.fsHandle) {
-      return this._getFileFromChromeFileSystem(scaryPath)
-    } else if (this.isGithub) {
-      return this._getFileFromGitHub(scaryPath)
-    } else {
-      return this._getFileFetchResponse(scaryPath)
+    switch (this.type) {
+      case FileSystemType.CHROME:
+        return this._getFileFromChromeFileSystem(scaryPath)
+      case FileSystemType.GITHUB:
+        return this._getFileFromGitHub(scaryPath)
+      case FileSystemType.AZURE:
+        return this._getFileFromAzure(scaryPath)
+      case FileSystemType.FETCH:
+      default:
+        return this._getFileFetchResponse(scaryPath)
     }
   }
 
@@ -117,6 +138,95 @@ class HTTPFileSystem {
       return response
     })
     return response
+  }
+
+  async _getDirectoryFromAzure(stillScaryPath: string): Promise<DirectoryEntry> {
+    // hostile user could put anything in the URL really...
+    let prefix = stillScaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    prefix = prefix.replaceAll('//', '/')
+    prefix = prefix.replaceAll('//', '/') // twice just in case!
+
+    // sanity: /parent/my/../etc  => /parent/etc
+    let url = `${this.baseUrl}list/${this.slug}?prefix=${prefix}`
+    const fullUrl = new URL(url).href
+
+    console.log({ fullUrl })
+    const headers: any = {}
+    // const credentials = globalStore.state.credentials[this.urlId]
+
+    if (this.needsAuth) {
+      let token = localStorage.getItem(`auth-token-${this.slug}`)
+      if (!token) token = prompt('This server requires an access token to continue')
+      if (token) {
+        localStorage.setItem(`auth-token-${this.slug}`, token)
+        headers['AZURETOKEN'] = token
+      } else {
+        console.log('bye')
+        return { dirs: [], files: [], handles: {} } as DirectoryEntry
+      }
+    }
+
+    const myRequest = new Request(fullUrl, { headers })
+    const response = await fetch(myRequest)
+
+    // Re-up token if we got a 400
+    if (response.status == 400) {
+      let token = prompt(
+        'Authorization failure. This server requires a valid access token to continue'
+      )
+      if (token) {
+        localStorage.setItem(`auth-token-${this.slug}`, token)
+        headers['AZURETOKEN'] = token
+        return await this._getDirectoryFromAzure(stillScaryPath)
+      } else {
+        console.log('bye2')
+        return { dirs: [], files: [], handles: {} } as DirectoryEntry
+      }
+    }
+
+    // Check HTTP Response code: 200 is OK, everything else is a problem
+    if (response.status != 200) {
+      console.log('Status:', response.status)
+      throw response
+    }
+
+    const json = (await response.json()) as DirectoryEntry
+    console.log(json)
+    return json
+  }
+
+  public getSlug() {
+    return this.slug
+  }
+
+  private async _getFileFromAzure(stillScaryPath: string): Promise<Response> {
+    // hostile user could put anything in the URL really...
+    let prefix = stillScaryPath.replace(/^0-9a-zA-Z_\-\/:+/i, '')
+    prefix = prefix.replaceAll('//', '/')
+    prefix = prefix.replaceAll('//', '/') // twice just in case!
+
+    // sanity: /parent/my/../etc  => /parent/etc
+    let url = `${this.baseUrl}file/${this.slug}?prefix=${prefix}`
+    const fullUrl = new URL(url).href
+
+    console.log(fullUrl)
+    const headers: any = {}
+    // const credentials = globalStore.state.credentials[this.urlId]
+    // if (this.needsAuth) { headers['Authorization'] = `Basic ${credentials}`}
+
+    const myRequest = new Request(fullUrl, { headers })
+    const response = await fetch(myRequest)
+
+    // Check HTTP Response code: 200 is OK, everything else is a problem
+    if (response.status != 200) {
+      console.log('Status:', response.status)
+      throw response
+    }
+
+    return response
+    // const json = (await response.json()) as DirectoryEntry
+    // console.log(json)
+    // return json
   }
 
   private async _getFileFromChromeFileSystem(scaryPath: string): Promise<Response> {
@@ -305,14 +415,18 @@ class HTTPFileSystem {
   }
 
   async getFileStream(scaryPath: string): Promise<ReadableStream> {
-    if (this.fsHandle) {
-      const stream = await this._getFileFromChromeFileSystem(scaryPath)
-        .then(response => response.blob())
-        .then(blob => blob.stream())
-      return stream as any
-    } else {
-      const stream = await this._getFileFetchResponse(scaryPath).then(response => response.body)
-      return stream as any
+    let stream
+    switch (this.type) {
+      case FileSystemType.CHROME:
+        stream = await this._getFileFromChromeFileSystem(scaryPath)
+          .then(response => response.blob())
+          .then(blob => blob.stream())
+        return stream as any
+      case FileSystemType.FETCH:
+        stream = await this._getFileFetchResponse(scaryPath).then(response => response.body)
+        return stream as any
+      default:
+        throw Error('Not implemented')
     }
   }
 
@@ -327,7 +441,10 @@ class HTTPFileSystem {
 
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
-    if (cachedEntry) return cachedEntry
+    if (cachedEntry) {
+      console.log('cached!')
+      return cachedEntry
+    }
 
     stillScaryPath = stillScaryPath.replaceAll('/./', '/')
 
@@ -335,9 +452,21 @@ class HTTPFileSystem {
       // Generate and cache the listing
       let dirEntry: DirectoryEntry
 
-      if (this.fsHandle) dirEntry = await this.getDirectoryFromHandle(stillScaryPath)
-      else if (this.isGithub) dirEntry = await this._getDirectoryFromGitHub(stillScaryPath)
-      else dirEntry = await this.getDirectoryFromURL(stillScaryPath)
+      switch (this.type) {
+        case FileSystemType.CHROME:
+          dirEntry = await this._getDirectoryFromHandle(stillScaryPath)
+          break
+        case FileSystemType.GITHUB:
+          dirEntry = await this._getDirectoryFromGitHub(stillScaryPath)
+          break
+        case FileSystemType.AZURE:
+          dirEntry = await this._getDirectoryFromAzure(stillScaryPath)
+          break
+        case FileSystemType.FETCH:
+        default:
+          dirEntry = await this._getDirectoryFromURL(stillScaryPath)
+          break
+      }
 
       // human-friendly sort
       dirEntry.dirs.sort((a, b) => naturalSort(a, b))
@@ -351,7 +480,7 @@ class HTTPFileSystem {
   }
 
   // might pass in the global store, or not
-  async getDirectoryFromHandle(stillScaryPath: string, store?: any) {
+  async _getDirectoryFromHandle(stillScaryPath: string, store?: any) {
     // File System API has no concept of nested paths, which of course
     // is how every filesystem from the past 60 years is actually laid out.
     // Caching each level should lessen the pain of this weird workaround.
@@ -412,11 +541,9 @@ class HTTPFileSystem {
     return contents
   }
 
-  async getDirectoryFromURL(stillScaryPath: string) {
-    // console.log(stillScaryPath)
+  async _getDirectoryFromURL(stillScaryPath: string) {
     const response = await this._getFileResponse(stillScaryPath).then()
     const htmlListing = await response.text()
-    // console.log(htmlListing)
     const dirEntry = this.buildListFromHtml(htmlListing)
     return dirEntry
   }

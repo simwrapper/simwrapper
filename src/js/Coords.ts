@@ -6,6 +6,7 @@ import EPSG from 'epsg-index/all.json'
 
 const lookups = {
   NAD_1983_StatePlane_California_III_FIPS_0403_Feet: 'EPSG:2227',
+  NAD_1983_StatePlane_California_VI_FIPS_0406_Feet: 'EPSG:2230',
   NAD_1983_UTM_Zone_10N: 'EPSG:26910',
   D_North_American_1983: 'EPSG:4326',
   DHDN_3_degree_Gauss_Kruger_zone_4: 'EPSG:31468',

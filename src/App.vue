@@ -679,7 +679,7 @@ p.splash-label {
 
 /* Track */
 ::-webkit-scrollbar-track {
-  background: #00000080;
+  // background: #00000080;
 }
 
 /* Handle */
@@ -689,7 +689,7 @@ p.splash-label {
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffffff40;
+  // background: #ffffff40;
 }
 
 .deck-tooltip {

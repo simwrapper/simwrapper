@@ -5,6 +5,10 @@
       "path": "."
     },
     {
+      "name": "Flask-App",
+      "path": "./flask-app/"
+    },
+    {
       "name": "WASM",
       "path": "./wasm/"
     }
