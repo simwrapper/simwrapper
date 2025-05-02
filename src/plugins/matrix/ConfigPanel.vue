@@ -23,19 +23,20 @@
   )
       template(#trigger="{active}")
         b-button.is-small(type="is-primary" :icon-right="active ? 'menu-up' : 'menu-down'")
-          span {{ activeTable || 'Loading...' }}
+          span(v-html="activeTable || 'Loading...'")
 
       b-dropdown-item(custom aria-role="listitem")
         b-input(v-model="searchTableTerm" placeholder="search" expanded)
 
       b-dropdown-item(v-for="matrix in filteredTableNames" :key="matrix"
         :value="matrix"
-      ) {{ matrix }}
+        v-html="matrix"
+      )
 
 
   //- COMPARE selector
   .flex-column(style="margin-left: 1rem")
-    b-button.is-small.is-white(@click="toggleCompareSelector()") {{ compareLabel }}
+    b-button.is-small.is-white(@click="toggleCompareSelector()" v-html="compareLabel")
 
   //- Map configuration
   .flex-row.map-config(v-if="isMap")
