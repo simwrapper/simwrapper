@@ -1,6 +1,6 @@
 <template lang="pug">
 .matrix-viewer(v-if="!thumbnail")
-  config-panel(
+  config-panel(v-if="activeTable"
     :isMap="isMap"
     :mapConfig="mapConfig"
     :comparators="comparators"
@@ -29,7 +29,7 @@
     @dragenter.prevent
   )
 
-    .status-text(v-if="statusText && !isGettingMatrices")
+    .status-text(v-if="statusText")
       h4 {{ statusText }}
 
     H5Map-viewer.fill-it(v-if="isMap && h5Main?.size"
@@ -133,7 +133,7 @@ const MyComponent = defineComponent({
       compareLabel: 'Compare...',
       isDragging: false,
       isMap: true,
-      isGettingMatrices: true,
+      isGettingMatrices: false,
       showComparePicker: false,
       h5wasm: null as null | Promise<any>,
       h5zoneFile: null as null | H5WasmFile,
@@ -194,8 +194,10 @@ const MyComponent = defineComponent({
 
     try {
       await this.initH5Files()
+      if (!this.h5Main) return
+
       const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
-      this.changeMatrix(initialTable)
+      if (initialTable) await this.changeMatrix(initialTable)
     } catch (e) {
       this.$emit('error', `Error loading file: ${this.subfolder}/${this.filename}`)
       console.error('' + e)
@@ -270,19 +272,23 @@ const MyComponent = defineComponent({
       f.flush()
       f.close()
 
+      const tableLabel = this.activeTable.replaceAll('&nbsp;', ' ')
       const fileData = FS.readFile('matrix')
-      const blob = new File([fileData], this.activeTable, { type: 'application/octet-stream' })
+      const blob = new File([fileData], tableLabel, { type: 'application/octet-stream' })
       return blob
     },
 
     async addBase() {},
 
     async changeMatrix(table: any) {
-      console.log({ table })
+      console.log('table:', table)
+      if (!table || table == 'undefined') {
+        this.activeTable = ''
+        return
+      }
+
       this.activeTable = table
-
       await this.getMatrices()
-
       localStorage.setItem('matrix-initial-table', table)
 
       if (!this.isMap) this.h5fileBlob = await this.buildH5Blob()
@@ -330,7 +336,7 @@ const MyComponent = defineComponent({
 
     async initH5Files() {
       if (!this.yamlConfig) {
-        this.statusText = `Drop an HDF5 or GeoJSON file here to view it`
+        this.statusText = `Drop an HDF5 matrix file and GeoJSON boundary file here to view it`
         return
       }
       if (!this.fileSystem) return
@@ -584,13 +590,23 @@ const MyComponent = defineComponent({
       this.h5fileBlob = null
       await this.$nextTick()
 
+      this.h5Main = new H5Provider({
+        file,
+        subfolder: '',
+        filename: this.filename,
+      })
+
+      // this opens file, sets up the shape and matrix catalog
+      await this.h5Main.init()
+
       this.h5fileBlob = file
       this.filename = file.name || 'File'
       this.$emit('title', this.filename)
       this.setCompareLabel(file.name)
       this.statusText = ''
 
-      return
+      const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      if (initialTable) await this.changeMatrix(initialTable)
     },
 
     async handleDroppedBoundaries(file: File) {

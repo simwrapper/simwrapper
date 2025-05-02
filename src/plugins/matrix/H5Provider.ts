@@ -25,12 +25,18 @@ class H5Provider {
   private tableKeys
   private fileSystem
   private h5fileApi
-
   private path
+  private file
 
-  constructor(props: { fileSystem: FileSystemConfig; subfolder: string; filename: string }) {
-    this.fileSystem = props.fileSystem
+  constructor(props: {
+    fileSystem?: FileSystemConfig
+    subfolder: string
+    file?: File
+    filename: string
+  }) {
     this.path = `${props.subfolder}/${props.filename}`
+    this.fileSystem = props.fileSystem || ({} as FileSystemConfig)
+    this.file = props.file || null
     this.catalog = [] as string[]
     this.shape = [0, 0]
     this.size = 0
@@ -42,7 +48,9 @@ class H5Provider {
    * Sets up the shape and catalog of matrices
    */
   public async init() {
-    if (this.fileSystem.omx) {
+    if (this.file) {
+      await this._initLocalFile()
+    } else if (this.fileSystem.omx) {
       await this._initOmxAPI()
     } else {
       await this._initFileAPI()
@@ -56,6 +64,13 @@ class H5Provider {
     } else {
       return this._getMatrixFromH5File(tableName)
     }
+  }
+
+  private async _initLocalFile() {
+    if (!this.file) return
+    // we received the entire blob (drag/drop etc) so just use it as-is
+    this.h5fileApi = new H5WasmLocalFileApi(this.file, undefined, getPlugin)
+    await this._setFileProps()
   }
 
   private async _initFileAPI() {
