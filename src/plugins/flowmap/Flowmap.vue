@@ -294,6 +294,10 @@ const MyComponent = defineComponent({
 
       this.myState.thumbnail = this.thumbnail
 
+      // fixed issue of undefined loading on staging
+      this.myState.subfolder = this.subfolder
+
+
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       this.myDataManager = this.datamanager || new DashboardDataManager(this.root, this.subfolder)
@@ -374,6 +378,7 @@ const MyComponent = defineComponent({
     },
 
     async buildThumbnail() {
+      console.log(this.myState.fileApi)
       if (!this.myState.fileApi) return
       if (this.thumbnail && this.vizDetails.thumbnail) {
         try {
@@ -500,6 +505,7 @@ const MyComponent = defineComponent({
       let results: any = {}
       try {
         const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+        console.log(this.myState)
         const transitSchedule = files.filter(f => f.endsWith('transitSchedule.xml.gz') && !f.startsWith('._'))
         this.stopFacilities = transitSchedule
 
