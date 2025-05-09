@@ -16,4 +16,4 @@ jobs:
      # to the issue
      project-url: https://github.com/users/frievoe97/projects/3
      github-token: ${{ secrets.FRIEDRICH_TASKS }}
-     labeled: Brendan
+     labeled: Friedrich
