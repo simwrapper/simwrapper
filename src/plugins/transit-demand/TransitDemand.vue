@@ -23,6 +23,7 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
+            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -429,9 +430,9 @@ const MyComponent = defineComponent({
             routes: [],
             isOpen: false,
             stats: {
-              departures: 0,
-              pax: 0,
-              cap: 0,
+              departures: this.summaryStats.departures,
+              pax: this.summaryStats.pax,
+              cap: this.summaryStats.loadfac,
             },
           }
         }
@@ -491,6 +492,7 @@ const MyComponent = defineComponent({
         })
       })
 
+
       return lines
     },
 
@@ -529,6 +531,7 @@ const MyComponent = defineComponent({
     },
 
     toggleRouteChecked(props: { route: string; isChecked: boolean }) {
+      console.log("test route")
       if (props.isChecked) {
         // highlight if checked
         this.routesOnLink.push(this.routeData[props.route])
@@ -551,6 +554,8 @@ const MyComponent = defineComponent({
     },
 
     toggleLineOpen(event: { offset: number; isOpen: boolean }) {
+      console.log("test lineOpen")
+
       const line = this.transitLines[event.offset]
       line.isOpen = event.isOpen
     },
