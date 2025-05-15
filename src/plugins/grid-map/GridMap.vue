@@ -4,6 +4,7 @@
       grid-layer(
         v-if="!thumbnail && isLoaded"
         v-bind="mapProps"
+        :negativeValues="valuesIncludeNeg"
       )
 
       zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
@@ -197,6 +198,9 @@ const GridMap = defineComponent({
       gzipWorker: null as Worker | null,
       colorRamp: colorRamps[0] as String,
       globalState: globalStore.state,
+      globalMaxValue: Number.POSITIVE_INFINITY,
+      globalMinValue: Number.NEGATIVE_INFINITY,
+      valuesIncludeNeg: false as boolean,
       vizDetails: {
         title: '',
         description: '',
@@ -316,18 +320,23 @@ const GridMap = defineComponent({
      * @param {number} value - The value influencing color selection (0-100).
      * @returns {number[]} - An RGBA color array [R, G, B, A].
      */
-    pickColor(value: number): number[] | Uint8Array {
+    pickColor(value: number, from_min: number, from_max: number, to_min: number, to_max: number, hasNegValues: boolean): number[] | Uint8Array {
       // Error handling: If the value is outside the valid range, return a default color.
-      if (value < 0 || value > 100) {
-        console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
-        return [0, 0, 0, 0] // Default color (transparent)
+      if (!hasNegValues) {
+        if (value < 0 || value > 100) {
+          console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
+          return [0, 0, 0, 0] // Default color (transparent)
+        }
+        // adjust sclale if dataset includes negative values
+      } else {
+        value = (value - from_min) * (to_max) / (from_max - from_min)
       }
 
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -667,12 +676,13 @@ const GridMap = defineComponent({
         for (let i = 0; i < numPoints; i++) {
           const offset = timeIndex * numPoints + i
           const value = scaleFactor * dataValues[offset]
-          const colors = this.pickColor(value)
+          // commented out to test csv function - will work on in next commit - Brendan 15.05.2025
+          // const colors = this.pickColor(value)
 
           // add final values to the mapData
           finalData.mapData[timeIndex].values[i] = value
           for (let j = 0; j < 3; j++) {
-            finalData.mapData[timeIndex].colorData[i * 3 + j] = colors[j]
+            // finalData.mapData[timeIndex].colorData[i * 3 + j] = colors[j]
           }
         }
       }
@@ -722,11 +732,13 @@ const GridMap = defineComponent({
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
           this.allTimes.push(csv.allRows.time.values[i])
 
-        // calculate the min and max value
+        // calculate the min and max value -- and if there are negative values
         if (csv.allRows[this.vizDetails.valueColumn].values[i] < minValue)
           minValue = csv.allRows[this.vizDetails.valueColumn].values[i]
         if (csv.allRows[this.vizDetails.valueColumn].values[i] > maxValue)
           maxValue = csv.allRows[this.vizDetails.valueColumn].values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] < 0)
+          this.valuesIncludeNeg = true
 
         // Store all different times
         if (!this.allTimes.includes(csv.allRows.time.values[i]))
@@ -743,7 +755,18 @@ const GridMap = defineComponent({
         csv.allRows[this.vizDetails.valueColumn].values.length / this.allTimes.length
       )
 
-      // scaleFactor
+      // scaling values to color scale of 0 - 100 (if negative)
+
+      let from_min = minValue
+      let from_max = maxValue
+      let to_min = 0
+      let to_max = 100
+      if (this.valuesIncludeNeg) {
+        maxValue = (maxValue - from_min) * (to_max) / (from_max - from_min)
+      }
+      this.globalMinValue = from_min
+      this.globalMaxValue = from_max
+
       const scaleFactor = 100 / maxValue
 
       const finalData = {
@@ -781,7 +804,7 @@ const GridMap = defineComponent({
         const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
 
         const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
-        const colors = this.pickColor(value)
+        const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
 
         // Save index for next position in the array
         const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
@@ -867,7 +890,7 @@ const GridMap = defineComponent({
           this.vizDetails.colorRamp.breakpoints &&
           this.vizDetails.colorRamp.fixedColors &&
           this.vizDetails.colorRamp.breakpoints.length !==
-            this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
         ) {
           this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
         }
@@ -903,6 +926,12 @@ const GridMap = defineComponent({
 
       this.colors = this.hexArrayToRgbArray(color)
 
+      // scaling values using global values saved in loadAndPrepareCsvData
+      let from_min = this.globalMinValue
+      let from_max = this.globalMaxValue
+      let to_min = 0
+      let to_max = 100
+
       // colors.push(colorRamp({ ramp: this.guiConfig['color ramp'] } as Ramp, this.guiConfig.steps))
 
       // let colors = [
@@ -919,7 +948,7 @@ const GridMap = defineComponent({
       for (let i = 0; i < this.data.mapData.length; i++) {
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
-          const colors = this.pickColor(value)
+          const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
           if (colors == undefined) break
           for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
             this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
