@@ -1,24 +1,24 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-      grid-layer(
-        v-if="!thumbnail && isLoaded"
-        v-bind="mapProps"
-      )
+  grid-layer(
+    v-if="!thumbnail && isLoaded"
+    v-bind="mapProps"
+  )
 
-      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
+  zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
 
-      .top-right
-        .gui-config(:id="configId")
+  .top-right
+    .gui-config(:id="configId")
 
-      time-slider.time-slider-area(v-if="isLoaded"
-        :range="timeRange"
-        :allTimes="allTimes"
-        @timeExtent="handleTimeSliderValues"
-      )
+  time-slider.time-slider-area(v-if="isLoaded"
+    :range="timeRange"
+    :allTimes="allTimes"
+    @timeExtent="handleTimeSliderValues"
+  )
 
-      .message(v-if="!thumbnail && myState.statusMessage")
-        p.status-message {{ myState.statusMessage }}
+  .message(v-if="!thumbnail && myState.statusMessage")
+    p.status-message {{ myState.statusMessage }}
 
 </template>
 
@@ -318,8 +318,8 @@ const GridMap = defineComponent({
      */
     pickColor(value: number): number[] | Uint8Array {
       // Error handling: If the value is outside the valid range, return a default color.
-      if (value < 0 || value > 100) {
-        console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
+      if (isNaN(value) || value < 0 || value > 100) {
+        // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
         return [0, 0, 0, 0] // Default color (transparent)
       }
 
@@ -573,7 +573,7 @@ const GridMap = defineComponent({
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
 
-      const records: any[] = await new Promise((resolve, reject) => {
+      const records: any[] = await new Promise((resolve, _) => {
         const rows = [] as any[]
         avro
           .createBlobDecoder(blob)
@@ -608,7 +608,7 @@ const GridMap = defineComponent({
 
       // calc scale
       for (const value of dataValues) maxValue = Math.max(maxValue, value)
-      const scaleFactor = 100 / maxValue
+      const scaleFactor = maxValue > 0 ? 100 / maxValue : 0
 
       // console.log({ scaleFactor })
 
@@ -700,13 +700,27 @@ const GridMap = defineComponent({
         })
       }
 
+      // auto detects the valueColumn
+      let vc = this.vizDetails.valueColumn || ''
+      if (!csv.allRows[vc]) {
+        // use all columns except x, y, time
+        const candidates = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
+        // optional: use only the first numeric column
+        const numeric = candidates.filter(k =>
+          Array.from(csv.allRows[k].values).every(v => typeof v === 'number')
+        )
+        vc = (numeric.length ? numeric[0] : candidates[0]) || ''
+        this.vizDetails.valueColumn = vc
+        console.warn('valueColumn not found with automatic selection')
+        console.log('vc: ', vc)
+      }
+      // use from now on vc
+      const valuesArr = csv.allRows[vc].values as Float32Array
+      const timeArr = csv.allRows.time.values as Float32Array
+
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
-
-      // console.log('csv: ', csv.allRows)
-      // console.log('valueColumn: ', this.vizDetails.valueColumn)
-      // console.log('csv:', { csv })
 
       if (this.vizDetails.valueColumn == undefined) {
         this.vizDetails.valueColumn = 'value'
@@ -716,21 +730,12 @@ const GridMap = defineComponent({
         this.vizDetails.unit = ''
       }
 
-      // This for loop collects all the data that's used by
-      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
-        // Stores all times to calculate the range and the timeBinSize
-        if (!this.allTimes.includes(csv.allRows.time.values[i]))
-          this.allTimes.push(csv.allRows.time.values[i])
-
-        // calculate the min and max value
-        if (csv.allRows[this.vizDetails.valueColumn].values[i] < minValue)
-          minValue = csv.allRows[this.vizDetails.valueColumn].values[i]
-        if (csv.allRows[this.vizDetails.valueColumn].values[i] > maxValue)
-          maxValue = csv.allRows[this.vizDetails.valueColumn].values[i]
-
-        // Store all different times
-        if (!this.allTimes.includes(csv.allRows.time.values[i]))
-          this.allTimes.push(csv.allRows.time.values[i])
+      for (let i = 0; i < valuesArr.length; i++) {
+        if (timeArr[i] === undefined) console.warn(`time.values[${i}] is not defined`)
+        if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
+        if (valuesArr[i] < minValue) minValue = valuesArr[i]
+        if (valuesArr[i] > maxValue) maxValue = valuesArr[i]
+        if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
       }
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
@@ -778,9 +783,10 @@ const GridMap = defineComponent({
       // Loop through the data and create the data object for the map
       for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // index for the time
-        const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
+        const index = this.timeToIndex.get(timeArr[i]) as number
 
-        const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
+        // const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
+        const value = scaleFactor * valuesArr[i]
         const colors = this.pickColor(value)
 
         // Save index for next position in the array
@@ -888,8 +894,6 @@ const GridMap = defineComponent({
         // style: Style.sequential,
       } as Ramp
 
-      console.log('Ramp: ', this.guiConfig['color ramp'])
-      console.log('n: ', this.guiConfig.steps)
       const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
 
       if (color.length == 0) {
@@ -965,7 +969,7 @@ const GridMap = defineComponent({
       }
 
       // Set custom maxHeight
-      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
+      if (this.config.maxHeight !== undefined) this.guiConfig.height = this.config.maxHeight
 
       // Set custom opacity
       if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
