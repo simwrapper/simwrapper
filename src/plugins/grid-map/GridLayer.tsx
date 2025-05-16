@@ -25,6 +25,7 @@ export default function Layer({
   colorRamp = 'Viridis' as String,
   dark = false as Boolean,
   data = {} as CompleteMapData,
+  negativeValues = false as Boolean,
   currentTimeIndex = 0 as number,
   // extrude = true as Boolean,
   mapIsIndependent = false as Boolean,
@@ -112,7 +113,10 @@ export default function Layer({
         attributes: {
           getPosition: { value: data.mapData[currentTimeIndex].centroid, size: 2 },
           getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 3 },
-          getElevation: { value: data.mapData[currentTimeIndex].values, size: 1 },
+          // doesn't allow elevation to work if negative values are present. Will think of a better solution for this. - Brendan 15.05.2025
+          getElevation: negativeValues
+            ? { value: null }
+            : { value: data.mapData[currentTimeIndex].values, size: 1 },
         },
       },
       colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
