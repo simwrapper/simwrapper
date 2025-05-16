@@ -21,6 +21,16 @@ MTC-1454:
   lookup: TAZ1454
   sizes: 1454,1475
 
+MTC-4756:
+  url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/sample-data/mtc/taz4756/taz4756.geojson.gz
+  lookup: taz
+  sizes: 4756
+
+MTC-MAZ:
+  url: https://svn.vsp.tu-berlin.de/repos/public-svn/shared/sample-data/mtc/maz39726/maz39726.geojson.gz
+  lookup: maz
+  sizes: 39726
+
 PSRC-3870:
   url: /zones/psrc-taz2010-3870.geojson.gz
   lookup: TAZ

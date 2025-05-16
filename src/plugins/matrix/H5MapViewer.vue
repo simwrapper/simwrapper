@@ -242,7 +242,7 @@ const MyComponent = defineComponent({
     async extractH5Slice() {
       console.log('---extract h5 slice for zone', this.activeZone)
       //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
-      let offset = this.activeZone - 1
+      let offset = this.tazToOffsetLookup[this.activeZone] // this.activeZone - 1
       // try {
       let values = [] as any
       let base = [] as any
@@ -405,13 +405,11 @@ const MyComponent = defineComponent({
 
     buildTAZLookup() {
       this.tazToOffsetLookup = {}
-      for (let i = 0; i < this.features.length; i++) {
-        const feature = this.features[i]
-        if (this.zoneID in feature.properties) {
-          this.tazToOffsetLookup[feature.properties[this.zoneID]] = i
-        } else {
-          console.warn(`FEATURE ${i} missing ${this.zoneID}`, feature)
-        }
+      const zoneIDs = [] as any[]
+      this.features.forEach((f: any) => zoneIDs.push(f.properties[this.zoneID]))
+      zoneIDs.sort(naturalSort)
+      for (let i = 0; i < zoneIDs.length; i++) {
+        this.tazToOffsetLookup[zoneIDs[i]] = i
       }
     },
 
@@ -481,7 +479,7 @@ const MyComponent = defineComponent({
           const TAZ = this.features[i].properties[this.zoneID]
 
           //TODO - this assumes zones are off-by-one, in order, in matrix data
-          const matrixOffset = TAZ - 1
+          const matrixOffset = this.tazToOffsetLookup[TAZ]
 
           // ALWAYS scale by max value
           let value = values[matrixOffset] / max
@@ -524,22 +522,24 @@ const MyComponent = defineComponent({
         this.statusText = 'Loading map features...'
         await this.$nextTick()
 
-        if (shapeConfig.startsWith('http')) {
-          // geojson from url!
-          boundaries = (await fetch(shapeConfig).then(async r => await r.json())).features
-        } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
-          // shapefile!
-          boundaries = await this.loadShapefileFeatures(shapeConfig)
-        } else if (shapeConfig.startsWith('/')) {
-          // hard-coded shapefile from /public folder, special treatment
-          const localPath = BASE_URL + url.substring(1) // no double-slash at beginning
-          console.log('LOADING LOCAL geojson:', localPath)
-          const blob = await fetch(localPath).then(async r => await r.blob())
+        if (shapeConfig.startsWith('http') || shapeConfig.startsWith('/')) {
+          let blob
+          if (shapeConfig.startsWith('http')) {
+            // geojson from url!
+            blob = await fetch(shapeConfig).then(async r => await r.blob())
+          } else {
+            // hard-coded shapefile from /public folder, special treatment
+            const localPath = BASE_URL + url.substring(1) // no double-slash at beginning
+            blob = await fetch(localPath).then(async r => await r.blob())
+          }
           const buffer = await blob.arrayBuffer()
           const rawtext = gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
           const json = JSON.parse(text)
           boundaries = json.features
+        } else if (shapeConfig.toLocaleLowerCase().endsWith('.shp')) {
+          // shapefile!
+          boundaries = await this.loadShapefileFeatures(shapeConfig)
         } else {
           // geojson from simwrapper filesystem!
           if (!this.fileApi) return []
