@@ -248,7 +248,7 @@ const GridMap = defineComponent({
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
       minRadius: 50 as number,
-      maxRadius: 300 as number,
+      maxRadius: 500 as number,
       radiusStep: 5 as number,
       isLoaded: false as boolean,
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
@@ -756,7 +756,7 @@ const GridMap = defineComponent({
         if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
         if (valuesArr[i] < minValue) minValue = valuesArr[i]
         if (valuesArr[i] > maxValue) maxValue = valuesArr[i]
-        if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
+        // if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
       }
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
