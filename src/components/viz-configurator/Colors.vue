@@ -83,15 +83,17 @@ export default defineComponent({
   data: () => {
     const colorChoices = [
       { ramp: 'Viridis', style: style.sequential, reverse: true }, // , reverse: true },
+      { ramp: 'Cividis', style: style.sequential, reverse: true }, // , reverse: true },
       { ramp: 'Plasma', style: style.sequential, reverse: true }, // , reverse: true },
+      { ramp: 'Turbo', style: style.sequential, reverse: true }, // , reverse: true },
       { ramp: 'Blues', style: style.sequential }, // , reverse: true },
-      // { ramp: 'Greens', style: style.sequential }, // , reverse: true },
+      { ramp: 'Greens', style: style.sequential }, // , reverse: true },
       { ramp: 'Purples', style: style.sequential }, // , reverse: true },
       { ramp: 'Oranges', style: style.sequential }, // , reverse: true },
-      { ramp: 'PRGn', style: style.diverging, reverse: true },
-      { ramp: 'RdBu', style: style.diverging, reverse: true },
       { ramp: 'Tableau10', style: style.categorical }, // , reverse: true },
       { ramp: 'Paired', style: style.categorical }, // , reverse: true },
+      { ramp: 'RdBu', style: style.diverging, reverse: true },
+      { ramp: 'PRGn', style: style.diverging, reverse: true },
       // { ramp: 'PuOr', style: style.diverging }, // , reverse: true },
     ]
 
