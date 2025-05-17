@@ -141,15 +141,17 @@ export interface FillColorDefinition {
 
 const ALL_COLOR_RAMPS = [
   { ramp: 'Viridis', style: Style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Cividis', style: Style.sequential, reverse: true }, // , reverse: true },
   { ramp: 'Plasma', style: Style.sequential, reverse: true }, // , reverse: true },
+  { ramp: 'Turbo', style: Style.sequential, reverse: true }, // , reverse: true },
   { ramp: 'Blues', style: Style.sequential }, // , reverse: true },
   { ramp: 'Greens', style: Style.sequential }, // , reverse: true },
   { ramp: 'Purples', style: Style.sequential }, // , reverse: true },
   { ramp: 'Oranges', style: Style.sequential }, // , reverse: true },
-  { ramp: 'RdBu', style: Style.diverging, reverse: true },
-  { ramp: 'PRGn', style: Style.diverging, reverse: true },
   { ramp: 'Tableau10', style: Style.categorical }, // , reverse: true },
   { ramp: 'Paired', style: Style.categorical }, // , reverse: true },
+  { ramp: 'RdBu', style: Style.diverging, reverse: true },
+  { ramp: 'PRGn', style: Style.diverging, reverse: true },
   // { ramp: 'PuOr', style: Style.diverging }, // , reverse: true },
 ]
 

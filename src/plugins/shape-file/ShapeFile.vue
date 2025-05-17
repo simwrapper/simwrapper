@@ -1,7 +1,11 @@
 <template lang="pug">
 .shapefile-viewer(:class="{'hide-thumbnail': !thumbnail}" :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
-  modal-id-column-picker(v-if="showJoiner" v-bind="datasetJoinSelector" @join="cbDatasetJoined")
+  modal-id-column-picker(v-if="showJoiner"
+    v-bind="datasetJoinSelector"
+    @join="cbDatasetJoined"
+    header="Which column contains the unique ID for each shape/feature?"
+  )
 
   .status-box(v-if="statusText")
           p {{ statusText }}
@@ -1044,7 +1048,8 @@ const MyComponent = defineComponent({
       console.log('HANDLE NEW DATASET:', datasetId, datasetFilename)
 
       // If user hasn't already given us the join column, ask now.
-      if (!this.featureJoinColumn) await this.figureOutFeatureIdColumn()
+      if (!this.featureJoinColumn) this.featureJoinColumn = await this.figureOutFeatureIdColumn()
+      console.log('---featureIDColumn', this.featureJoinColumn)
 
       if (!this.boundaryDataTable[this.featureJoinColumn])
         throw Error(`Geodata does not have property ${this.featureJoinColumn}`)
@@ -1074,6 +1079,7 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
+      console.log(88, this.featureJoinColumn)
       const { dataTable, datasetId, dataJoinColumn } = props
       // console.log('> setupJoin', datasetId, dataJoinColumn)
 
@@ -1487,8 +1493,8 @@ const MyComponent = defineComponent({
             dataTable: this.datasets[dataset],
             dataJoinColumn,
           })
-          normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
         }
+        normalLookup = this.datasets[dataset][`@@${dataJoinColumn}`]
       }
 
       const ramp = {
@@ -1515,6 +1521,7 @@ const MyComponent = defineComponent({
         numFeatures: this.boundaries.length,
         data: dataColumn,
         transparency: transparencyCol,
+        normalColumn,
         normalLookup,
         lookup: lookupColumn,
         filter: this.boundaryFilters,
@@ -2017,7 +2024,9 @@ const MyComponent = defineComponent({
       // if there's only one column, we're done
       const featureDataset = this.datasets[Object.keys(this.datasets)[0]]
       const availableColumns = Object.keys(featureDataset)
-      if (availableColumns.length === 1) return availableColumns[0]
+      if (availableColumns.length === 1) {
+        return availableColumns[0]
+      }
 
       // ask the user
       const join: string = await new Promise((resolve, reject) => {
@@ -2038,7 +2047,6 @@ const MyComponent = defineComponent({
           resolve(join)
         }
       })
-
       return join.length ? join : 'id'
     },
 
@@ -2305,8 +2313,6 @@ const MyComponent = defineComponent({
     },
 
     async loadBoundaries() {
-      let now = Date.now()
-
       const shapeConfig =
         this.config.boundaries || this.config.shapes || this.config.geojson || this.config.network
 
@@ -2347,7 +2353,9 @@ const MyComponent = defineComponent({
           boundaries = await this.loadAvroNetwork(filename)
         } else {
           // geojson!
-          boundaries = (await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)).features
+          console.log('--GEOJSON')
+          const json = await this.fileApi.getFileJson(`${this.subfolder}/${filename}`)
+          boundaries = json.features
         }
 
         await this.$nextTick()
@@ -2541,7 +2549,7 @@ const MyComponent = defineComponent({
     async generateCentroidsAndMapCenter() {
       this.statusText = 'Calculating centroids...'
       await this.$nextTick()
-      const idField = this.config.shapes.join || 'id'
+      const idField = this.config?.shapes?.join || 'id'
 
       // Find the map center while we're here
       let centerLong = 0
@@ -2711,6 +2719,10 @@ const MyComponent = defineComponent({
 
     async loadDatasets() {
       const keys = Object.keys(this.vizDetails.datasets)
+
+      // Ask for shapes feature ID if it's not obvious/specified already
+      if (keys.length > 1) this.featureJoinColumn = await this.figureOutFeatureIdColumn()
+
       for (const key of keys) {
         // don't reload datasets we already loaded
         if (key in this.datasets) continue
@@ -2747,10 +2759,11 @@ const MyComponent = defineComponent({
         })
 
         // figure out join - use ".join" or first column key
+        const firstColumn = Object.keys(dataset.allRows)[0]
         const joiner =
           'string' === typeof this.config.datasets[datasetKey]
-            ? Object.keys(dataset.allRows)[0]
-            : this.config.datasets[datasetKey].join
+            ? firstColumn
+            : this.config.datasets[datasetKey].join || firstColumn
 
         const joinColumns = joiner?.split(':') || []
 
@@ -3176,10 +3189,6 @@ const MyComponent = defineComponent({
       this.honorQueryParameters()
 
       this.statusText = ''
-
-      // Ask for shapes feature ID if it's not obvious/specified already
-      // NOTE: Now we ask when data is loaded instead.
-      // this.featureJoinColumn = await this.figureOutFeatureIdColumn()
 
       this.loadBackgroundLayers()
     } catch (e) {

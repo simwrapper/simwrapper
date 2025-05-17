@@ -2,7 +2,7 @@
 .join-picker
   .picker-panel
     p.header: b Select ID Column
-    p.subheader Which property contains the unique ID for each feature?
+    p.subheader {{ header || `Which property contains the unique ID for each feature?` }}
     .split-panel
       .column
           p: b {{ data1.title }}
@@ -43,6 +43,7 @@ export default defineComponent({
   i18n,
   props: {
     data1: { type: Object as PropType<DataSet>, required: true },
+    header: String,
   },
 
   data() {
