@@ -153,6 +153,14 @@ let fileSystems: FileSystemConfig[] = [
     example: true,
   },
   {
+    name: 'Additional Sample Data',
+    slug: 'sample-data',
+    description: 'Sample data from various cities',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/sample-data',
+    example: true,
+  },
+  {
     name: 'Localhost:8000',
     slug: 'local',
     description: 'Files shared using "simwrapper serve"',
