@@ -64,6 +64,8 @@
         :isRGBA="isRGBA"
       )
 
+      background-map-on-top(v-if="isLoaded && isAreaMode")
+
       //- :features="useCircles ? centroids: boundaries"
       //- background-map-on-top(v-if="isLoaded")
 
