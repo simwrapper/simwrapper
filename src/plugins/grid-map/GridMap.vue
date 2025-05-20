@@ -720,7 +720,7 @@ const GridMap = defineComponent({
       try {
         csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
       } catch (e) {
-        this.$emit('error', '' + e)
+        this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
       }
 
       // The datamanager doesn't return the comments...
@@ -744,6 +744,8 @@ const GridMap = defineComponent({
         )
         vc = (numeric.length ? numeric[0] : candidates[0]) || ''
         this.vizDetails.valueColumn = vc
+        // console.warn('valueColumn not found with automatic selection')
+        // console.log('vc: ', vc)
       }
 
       const valuesArr1 = csv.allRows[this.vizDetails.valueColumn].values as Float32Array
@@ -752,6 +754,9 @@ const GridMap = defineComponent({
         valuesArr2 = csv.allRows[this.vizDetails.secondValueColumn]!.values as Float32Array
       }
 
+      // console.log('csv: ', csv.allRows)
+      // console.log('valueColumn: ', this.vizDetails.valueColumn)
+      // console.log('csv:', { csv })
       const timeArr = csv.allRows.time.values as Float32Array
 
       // Store the min and max value to calculate the scale factor
