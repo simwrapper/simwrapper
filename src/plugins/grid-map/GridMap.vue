@@ -248,7 +248,7 @@ const GridMap = defineComponent({
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
       minRadius: 50 as number,
-      maxRadius: 500 as number,
+      maxRadius: 300 as number,
       radiusStep: 5 as number,
       isLoaded: false as boolean,
       thumbnailUrl: "url('assets/thumbnail.jpg') no-repeat;" as string,
@@ -320,30 +320,23 @@ const GridMap = defineComponent({
      * @param {number} value - The value influencing color selection (0-100).
      * @returns {number[]} - An RGBA color array [R, G, B, A].
      */
-    pickColor(
-      value: number,
-      from_min: number,
-      from_max: number,
-      to_min: number,
-      to_max: number,
-      hasNegValues: boolean
-    ): number[] | Uint8Array {
+    pickColor(value: number, from_min: number, from_max: number, to_min: number, to_max: number, hasNegValues: boolean): number[] | Uint8Array {
       // Error handling: If the value is outside the valid range, return a default color.
       if (!hasNegValues) {
-        if (isNaN(value) || value < 0 || value > 100) {
-          // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
+        if (value < 0 || value > 100) {
+          console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
           return [0, 0, 0, 0] // Default color (transparent)
         }
         // adjust sclale if dataset includes negative values
       } else {
-        value = ((value - from_min) * to_max) / (from_max - from_min)
+        value = (value - from_min) * (to_max) / (from_max - from_min)
       }
 
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -589,7 +582,7 @@ const GridMap = defineComponent({
       const filename = `${this.subfolder}/${this.vizDetails.file}`
       const blob = await this.fileApi.getFileBlob(filename)
 
-      const records: any[] = await new Promise((resolve, _) => {
+      const records: any[] = await new Promise((resolve, reject) => {
         const rows = [] as any[]
         avro
           .createBlobDecoder(blob)
@@ -624,7 +617,7 @@ const GridMap = defineComponent({
 
       // calc scale
       for (const value of dataValues) maxValue = Math.max(maxValue, value)
-      const scaleFactor = maxValue > 0 ? 100 / maxValue : 0
+      const scaleFactor = 100 / maxValue
 
       // console.log({ scaleFactor })
 
@@ -717,24 +710,6 @@ const GridMap = defineComponent({
         })
       }
 
-      // auto detects the valueColumn
-      let vc = this.vizDetails.valueColumn || ''
-      if (!csv.allRows[vc]) {
-        // use all columns except x, y, time
-        const candidates = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
-        // optional: use only the first numeric column
-        const numeric = candidates.filter(k =>
-          Array.from(csv.allRows[k].values).every(v => typeof v === 'number')
-        )
-        vc = (numeric.length ? numeric[0] : candidates[0]) || ''
-        this.vizDetails.valueColumn = vc
-        // console.warn('valueColumn not found with automatic selection')
-        // console.log('vc: ', vc)
-      }
-      // use from now on vc
-      const valuesArr = csv.allRows[vc].values as Float32Array
-      const timeArr = csv.allRows.time.values as Float32Array
-
       // Store the min and max value to calculate the scale factor
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
@@ -751,12 +726,23 @@ const GridMap = defineComponent({
         this.vizDetails.unit = ''
       }
 
-      for (let i = 0; i < valuesArr.length; i++) {
-        if (timeArr[i] === undefined) console.warn(`time.values[${i}] is not defined`)
-        if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
-        if (valuesArr[i] < minValue) minValue = valuesArr[i]
-        if (valuesArr[i] > maxValue) maxValue = valuesArr[i]
-        // if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
+      // This for loop collects all the data that's used by
+      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
+        // Stores all times to calculate the range and the timeBinSize
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
+
+        // calculate the min and max value -- and if there are negative values
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] < minValue)
+          minValue = csv.allRows[this.vizDetails.valueColumn].values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] > maxValue)
+          maxValue = csv.allRows[this.vizDetails.valueColumn].values[i]
+        if (csv.allRows[this.vizDetails.valueColumn].values[i] < 0)
+          this.valuesIncludeNeg = true
+
+        // Store all different times
+        if (!this.allTimes.includes(csv.allRows.time.values[i]))
+          this.allTimes.push(csv.allRows.time.values[i])
       }
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
@@ -776,7 +762,7 @@ const GridMap = defineComponent({
       let to_min = 0
       let to_max = 100
       if (this.valuesIncludeNeg) {
-        maxValue = ((maxValue - from_min) * to_max) / (from_max - from_min)
+        maxValue = (maxValue - from_min) * (to_max) / (from_max - from_min)
       }
       this.globalMinValue = from_min
       this.globalMaxValue = from_max
@@ -815,17 +801,10 @@ const GridMap = defineComponent({
       // Loop through the data and create the data object for the map
       for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
         // index for the time
-        const index = this.timeToIndex.get(timeArr[i]) as number
+        const index = this.timeToIndex.get(csv.allRows.time.values[i]) as number
 
-        const value = scaleFactor * valuesArr[i]
-        const colors = this.pickColor(
-          value,
-          from_min,
-          from_max,
-          to_min,
-          to_max,
-          this.valuesIncludeNeg
-        )
+        const value = scaleFactor * csv.allRows[this.vizDetails.valueColumn].values[i]
+        const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
 
         // Save index for next position in the array
         const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
@@ -911,7 +890,7 @@ const GridMap = defineComponent({
           this.vizDetails.colorRamp.breakpoints &&
           this.vizDetails.colorRamp.fixedColors &&
           this.vizDetails.colorRamp.breakpoints.length !==
-            this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
         ) {
           this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
         }
@@ -932,6 +911,8 @@ const GridMap = defineComponent({
         // style: Style.sequential,
       } as Ramp
 
+      console.log('Ramp: ', this.guiConfig['color ramp'])
+      console.log('n: ', this.guiConfig.steps)
       const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
 
       if (color.length == 0) {
@@ -967,14 +948,7 @@ const GridMap = defineComponent({
       for (let i = 0; i < this.data.mapData.length; i++) {
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
-          const colors = this.pickColor(
-            value,
-            from_min,
-            from_max,
-            to_min,
-            to_max,
-            this.valuesIncludeNeg
-          )
+          const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
           if (colors == undefined) break
           for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
             this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
@@ -1020,7 +994,7 @@ const GridMap = defineComponent({
       }
 
       // Set custom maxHeight
-      if (this.config.maxHeight !== undefined) this.guiConfig.height = this.config.maxHeight
+      if (this.config.maxHeight) this.guiConfig.height = this.config.maxHeight
 
       // Set custom opacity
       if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
