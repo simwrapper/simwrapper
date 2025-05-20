@@ -1,25 +1,25 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-      grid-layer(
-        v-if="!thumbnail && isLoaded"
-        v-bind="mapProps"
-        :negativeValues="valuesIncludeNeg"
-      )
+grid-layer(
+v-if="!thumbnail && isLoaded"
+v-bind="mapProps"
+:negativeValues="valuesIncludeNeg"
+)
 
-      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
+zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
 
-      .top-right
-        .gui-config(:id="configId")
+.top-right
+.gui-config(:id="configId")
 
-      time-slider.time-slider-area(v-if="isLoaded"
-        :range="timeRange"
-        :allTimes="allTimes"
-        @timeExtent="handleTimeSliderValues"
-      )
+time-slider.time-slider-area(v-if="isLoaded"
+:range="timeRange"
+:allTimes="allTimes"
+@timeExtent="handleTimeSliderValues"
+)
 
-      .message(v-if="!thumbnail && myState.statusMessage")
-        p.status-message {{ myState.statusMessage }}
+.message(v-if="!thumbnail && myState.statusMessage")
+p.status-message {{ myState.statusMessage }}
 
 </template>
 
@@ -84,6 +84,8 @@ interface VizDetail {
   mapIsIndependent?: boolean
   breakpoints?: string
   valueColumn: string
+  secondValueColumn?: string
+  diff?: boolean
   unit: string
 }
 
@@ -97,6 +99,9 @@ interface GuiConfig {
   colorRamps: String[]
   flip: Boolean
   steps: number
+  valueColumn: string
+  secondValueColumn: string
+  diff: boolean
 }
 
 interface StandaloneYAMLconfig {
@@ -215,6 +220,8 @@ const GridMap = defineComponent({
         zoom: 9,
         breakpoints: null as any,
         valueColumn: 'value',
+        secondValueColumn: '',
+        diff: false,
         unit: '',
       } as VizDetail,
       myState: {
@@ -244,6 +251,9 @@ const GridMap = defineComponent({
         colorRamps: colorRamps,
         flip: false,
         steps: 10,
+        valueColumn: '',
+        secondValueColumn: '',
+        diff: false,
       } as GuiConfig,
       configId: `gui-config-${Math.floor(1e12 * Math.random())}` as string,
       guiController: null as GUI | null,
@@ -257,6 +267,7 @@ const GridMap = defineComponent({
       // DataManager might be passed in from the dashboard; or we might be
       // in single-view mode, in which case we need to create one for ourselves
       myDataManager: this.datamanager || new DashboardDataManager(this.root, this.subfolder),
+      availableColumns: [] as string[],
     }
   },
   computed: {
@@ -330,7 +341,7 @@ const GridMap = defineComponent({
     ): number[] | Uint8Array {
       // Error handling: If the value is outside the valid range, return a default color.
       if (!hasNegValues) {
-        if (Number.isNaN(value) || value < 0 || value > 100) {
+        if (isNaN(value) || value < 0 || value > 100) {
           // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
           return [0, 0, 0, 0] // Default color (transparent)
         }
@@ -343,7 +354,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -433,6 +444,8 @@ const GridMap = defineComponent({
         center: this.vizDetails.center,
         zoom: this.vizDetails.zoom,
         valueColumn: this.vizDetails.valueColumn,
+        secondValueColumn: this.vizDetails.secondValueColumn,
+        diff: this.vizDetails.diff,
         unit: this.vizDetails.unit,
       }
       this.$emit('title', this.vizDetails.title)
@@ -699,18 +712,21 @@ const GridMap = defineComponent({
     },
 
     async loadAndPrepareCSVData() {
+      this.allTimes = []
+      this.timeToIndex.clear()
+
       const config = { dataset: this.vizDetails.file }
       let csv = {} as any
       try {
         csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
       } catch (e) {
-        this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
+        this.$emit('error', '' + e)
       }
 
       // The datamanager doesn't return the comments...
       if (csv.comments && csv.comments.length) {
         csv.comments.forEach((comment: string) => {
-          if (comment.indexOf('EPSG') > -1) {
+          if (comment.includes('EPSG')) {
             const projection = comment.substring(comment.lastIndexOf('EPSG')).trim()
             if (projection) this.vizDetails.projection = projection
           }
@@ -728,35 +744,38 @@ const GridMap = defineComponent({
         )
         vc = (numeric.length ? numeric[0] : candidates[0]) || ''
         this.vizDetails.valueColumn = vc
-        // console.warn('valueColumn not found with automatic selection')
-        // console.log('vc: ', vc)
       }
-      // use from now on vc
-      const valuesArr = csv.allRows[vc].values as Float32Array
+
+      const valuesArr1 = csv.allRows[this.vizDetails.valueColumn].values as Float32Array
+      let valuesArr2: Float32Array | undefined
+      if (this.vizDetails.diff && this.vizDetails.secondValueColumn) {
+        valuesArr2 = csv.allRows[this.vizDetails.secondValueColumn]!.values as Float32Array
+      }
+
       const timeArr = csv.allRows.time.values as Float32Array
 
       // Store the min and max value to calculate the scale factor
+
+      this.availableColumns = Object.keys(csv.allRows).filter(k => !['x', 'y', 'time'].includes(k))
+      this.guiConfig.valueColumn = this.vizDetails.valueColumn
+      this.guiConfig.secondValueColumn = this.vizDetails.secondValueColumn || ''
+
       let minValue = Number.POSITIVE_INFINITY
       let maxValue = Number.NEGATIVE_INFINITY
-
-      // console.log('csv: ', csv.allRows)
-      // console.log('valueColumn: ', this.vizDetails.valueColumn)
-      // console.log('csv:', { csv })
-
-      if (this.vizDetails.valueColumn == undefined) {
-        this.vizDetails.valueColumn = 'value'
-      }
-
-      if (this.vizDetails.unit == undefined) {
-        this.vizDetails.unit = ''
-      }
-
-      for (let i = 0; i < valuesArr.length; i++) {
-        if (timeArr[i] === undefined) console.warn(`time.values[${i}] is not defined`)
-        if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
-        if (valuesArr[i] < minValue) minValue = valuesArr[i]
-        if (valuesArr[i] > maxValue) maxValue = valuesArr[i]
-        // if (!this.allTimes.includes(timeArr[i])) this.allTimes.push(timeArr[i])
+      for (let i = 0; i < valuesArr1.length; i++) {
+        if (valuesArr2) {
+          const raw =
+            valuesArr2 && this.vizDetails.diff ? valuesArr1[i] - valuesArr2[i] : valuesArr1[i]
+          if (raw < minValue) minValue = raw
+          if (raw > maxValue) maxValue = raw
+          if (valuesArr1[i] || valuesArr2[i]) this.valuesIncludeNeg = true
+        } else {
+          if (valuesArr1[i] > maxValue) maxValue = valuesArr1[i]
+          if (valuesArr1[i] < minValue) minValue = valuesArr1[i]
+          if (valuesArr1[i]) this.valuesIncludeNeg = true
+        }
+        const t = timeArr[i]
+        if (!this.allTimes.includes(t)) this.allTimes.push(t)
       }
 
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
@@ -765,28 +784,24 @@ const GridMap = defineComponent({
       this.timeRange[1] = Math.max.apply(Math, this.allTimes)
 
       // Count elements per time
-      const numberOfElementsPerTime = Math.ceil(
-        csv.allRows[this.vizDetails.valueColumn].values.length / this.allTimes.length
-      )
+      const numberOfElementsPerTime = Math.ceil(valuesArr1.length / this.allTimes.length)
 
       // scaling values to color scale of 0 - 100 (if negative)
-
       let from_min = minValue
       let from_max = maxValue
-      let to_min = 0
+      let to_min = 0 // as long as this is zero, it doesn't need to be added to maxValue scaling below
       let to_max = 100
       if (this.valuesIncludeNeg) {
-        maxValue = ((maxValue - from_min) * to_max) / (from_max - from_min)
+        maxValue = (maxValue - from_min) * (to_max) / (from_max - from_min) // formula is: x -> (x - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
       }
       this.globalMinValue = from_min
       this.globalMaxValue = from_max
-
-      const scaleFactor = 100 / maxValue
+      const scaleFactor = maxValue !== 0 ? 100 / maxValue : 0
 
       const finalData = {
         mapData: [] as MapData[],
         scaledFactor: scaleFactor as Number,
-        unit: this.vizDetails.unit,
+        unit: this.vizDetails.unit || '',
       } as CompleteMapData
 
       // map all times to their index and create a mapData object for each time
@@ -794,7 +809,7 @@ const GridMap = defineComponent({
         this.timeToIndex.set(time, index)
 
         finalData.mapData.push({
-          time: time,
+          time,
           values: new Float32Array(numberOfElementsPerTime),
           centroid: new Float32Array(numberOfElementsPerTime * 2),
           colorData: new Uint8Array(numberOfElementsPerTime * 3),
@@ -813,19 +828,18 @@ const GridMap = defineComponent({
       }
 
       // Loop through the data and create the data object for the map
-      for (let i = 0; i < csv.allRows[this.vizDetails.valueColumn].values.length; i++) {
+      for (let i = 0; i < valuesArr1.length; i++) {
         // index for the time
         const index = this.timeToIndex.get(timeArr[i]) as number
 
-        const value = scaleFactor * valuesArr[i]
-        const colors = this.pickColor(
-          value,
-          from_min,
-          from_max,
-          to_min,
-          to_max,
-          this.valuesIncludeNeg
-        )
+        let raw = valuesArr1[i]
+        if (valuesArr2 && this.vizDetails.diff) {
+          raw = raw - valuesArr2[i]
+        }
+
+        const value = scaleFactor * raw
+
+        const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
 
         // Save index for next position in the array
         const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
@@ -844,10 +858,7 @@ const GridMap = defineComponent({
         let wgs84 = [csv.allRows.x.values[i], csv.allRows.y.values[i]]
 
         if (this.vizDetails.projection !== 'EPSG:4326') {
-          wgs84 = Coords.toLngLat(this.vizDetails.projection, [
-            csv.allRows.x.values[i],
-            csv.allRows.y.values[i],
-          ])
+          wgs84 = Coords.toLngLat(this.vizDetails.projection, wgs84)
         }
 
         // Add centroids to the mapData
@@ -904,6 +915,37 @@ const GridMap = defineComponent({
       config.add(this.guiConfig, 'opacity', 0, 1, 0.1)
       config.add(this.guiConfig, 'height', 0, 250, 5)
 
+      // Diff checkbox
+      config
+        .add(this.guiConfig, 'diff')
+        .name('Diff')
+        .onChange((useDiff: boolean) => {
+          // toggle the visibility of the second column dropdown
+          if (useDiff) secondCtrl.show()
+          else secondCtrl.hide()
+
+          this.handleDiffChange(useDiff)
+        })
+
+      // Dropdown for the first column
+      if (this.availableColumns.length > 0) {
+        config
+          .add(this.guiConfig, 'valueColumn', this.availableColumns)
+          .name('1st column')
+          .onChange((newCol: string) => {
+            this.handleColumnChange(newCol)
+          })
+      }
+
+      // Dropdown for the second column
+      const secondCtrl = config
+        .add(this.guiConfig, 'secondValueColumn', ['', ...this.availableColumns])
+        .name('2nd column')
+        .onChange((col2: string) => this.handleSecondColumnChange(col2))
+
+      if (this.guiConfig.diff) secondCtrl.show()
+      else secondCtrl.hide()
+
       // Remove color ramp selector if the colorRamp is fixed
       if (this.vizDetails.colorRamp) {
         // let's make sure details user provided make sense
@@ -911,7 +953,7 @@ const GridMap = defineComponent({
           this.vizDetails.colorRamp.breakpoints &&
           this.vizDetails.colorRamp.fixedColors &&
           this.vizDetails.colorRamp.breakpoints.length !==
-            this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
         ) {
           this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
         }
@@ -922,6 +964,46 @@ const GridMap = defineComponent({
       colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
       colors.add(this.guiConfig, 'flip').onChange(this.setColors)
       this.setColors()
+    },
+
+    /*
+    * This method is called when the first column is changed to update the data and colors.
+    */
+    async handleColumnChange(newCol: string) {
+      this.vizDetails.valueColumn = newCol
+      this.data = await this.loadAndPrepareData()
+      this.setColors()
+    },
+
+    /**
+    * This method is called when the diff checkbox is toggled.
+    */
+    async handleDiffChange(useDiff: boolean) {
+      this.vizDetails.diff = useDiff
+
+      // reload the data and set the colors
+      this.data = await this.loadAndPrepareData()
+      this.setColors()
+
+      // reset the slider to the last time slot
+      const last = this.allTimes[this.allTimes.length - 1]
+      this.currentTime = [last, last]
+    },
+
+    /**
+    * * This method is called when the second column is changed to update the data and colors.
+
+    */
+    async handleSecondColumnChange(col2: string) {
+      this.vizDetails.secondValueColumn = col2
+
+      // reload the data and set the colors
+      this.data = await this.loadAndPrepareData()
+      this.setColors()
+
+      // reset the slider to the last time slot
+      const last = this.allTimes[this.allTimes.length - 1]
+      this.currentTime = [last, last]
     },
 
     setColors() {
@@ -1024,6 +1106,16 @@ const GridMap = defineComponent({
 
       // Set custom opacity
       if (this.config.opacity) this.guiConfig.opacity = this.config.opacity
+
+      if (typeof this.config.diff === 'boolean') {
+        this.guiConfig.diff = this.config.diff
+        this.vizDetails.diff = this.config.diff
+      }
+
+      if (typeof this.config.secondValueColumn === 'string') {
+        this.guiConfig.secondValueColumn = this.config.secondValueColumn
+        this.vizDetails.secondValueColumn = this.config.secondValueColumn
+      }
     },
   },
 
@@ -1038,12 +1130,12 @@ const GridMap = defineComponent({
 
     if (this.thumbnail) return
 
-    this.setupGui()
-
     this.myState.statusMessage = `${this.$i18n.t('loading')}`
 
     this.data = await this.loadAndPrepareData()
     // this.$emit('error', 'Error loading ' + this.vizDetails.file)
+
+    this.setupGui()
 
     this.setColors()
     // this.buildThumbnail()
