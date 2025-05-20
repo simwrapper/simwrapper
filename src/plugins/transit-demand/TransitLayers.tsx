@@ -164,9 +164,11 @@ export default function Component({
   }, [links])
 
   // ----------------------------------------------
-  const slices = useMemo(() => {
-    // no boarding data? no pies.
-    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+  var slices = [] as any[]
+  if (vizDetails?.demand) {
+    slices = useMemo(() => {
+      // no boarding data? no pies.
+      if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
     const fullPies = stopMarkers.map(stop => {
       let selectedLineStopBoardingsCount = 0
@@ -175,7 +177,7 @@ export default function Component({
         const selectedPtLine = Object.values(stop.ptLines).find(
           (ptLine) => (ptLine as PtLine).name === line.id
         ) as PtLine | undefined;
-        
+
         if (selectedPtLine) {
           selectedLineStopBoardingsCount += selectedPtLine.b;
           selectedLineStopAlightingsCount += selectedPtLine.a;
@@ -330,9 +332,9 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  
+
   // PIE CHARTS
-  // if (slices.length) {
+  if (slices.length) {
     layers.push(
       new SolidPolygonLayer({
         id: `stop-pie-charts-layer-${Math.random()}`,
@@ -348,46 +350,9 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
-  // }
+   }
 
   // STOP ICONS ----------------
-  // if (stopMarkers.length) {
-  if (false) {
-    // rotate stop arrows to match map rotation
-    const mapBearing = globalStore.state.viewState.bearing
-    const stopsMitBearing = stopMarkers.map(stop => {
-      const relativeBearing = mapBearing - stop.bearing
-      return Object.assign({ ...stop }, { bearing: relativeBearing })
-    })
-
-    layers.push(
-      new IconLayer({
-        id: 'stop-icon-layer',
-        data: stopsMitBearing,
-        getPosition: (d: any) => d.xy,
-        getAngle: (d: any) => d.bearing,
-        getIcon: (d: any) => 'marker',
-        getSize: 6,
-        pickable: false,
-        billboard: true,
-        opacity: 1,
-        sizeScale: 1,
-        autoHighlight: false,
-        parameters: { depthTest: false },
-        iconAtlas: `${BASE_URL}icon-stop-triangle.png`,
-        iconMapping: {
-          marker: {
-            x: 0,
-            y: 0,
-            width: 250,
-            height: 121,
-            anchorX: 125,
-            anchorY: 118,
-          },
-        },
-      })
-    )
-  }
 
   // ############
 
