@@ -330,7 +330,7 @@ const GridMap = defineComponent({
     ): number[] | Uint8Array {
       // Error handling: If the value is outside the valid range, return a default color.
       if (!hasNegValues) {
-        if (isNaN(value) || value < 0 || value > 100) {
+        if (Number.isNaN(value) || value < 0 || value > 100) {
           // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
           return [0, 0, 0, 0] // Default color (transparent)
         }
