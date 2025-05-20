@@ -749,7 +749,7 @@ const MyComponent = defineComponent({
           const analysisPtFolder = await this.fileApi.getDirectory(
             `${this.myState.subfolder}/analysis/pt/`
           )
-          demandFiles = analysisPtFolder.files.filter(f => f.endsWith('pt_pax_volumes.csv.gz'))
+          demandFiles = analysisPtFolder.files.filter(f => f.includes("pt_pax_volumes."))
         } catch (e) {
           // we can skip pax loads if file not found
           console.warn('error', '' + e)
