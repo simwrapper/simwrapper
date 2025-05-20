@@ -23,7 +23,6 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
-            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -430,9 +429,9 @@ const MyComponent = defineComponent({
             routes: [],
             isOpen: false,
             stats: {
-              departures: this.summaryStats.departures,
-              pax: this.summaryStats.pax,
-              cap: this.summaryStats.loadfac,
+              departures: 0,
+              pax: 0,
+              cap: 0,
             },
           }
         }
@@ -492,7 +491,6 @@ const MyComponent = defineComponent({
         })
       })
 
-
       return lines
     },
 
@@ -531,7 +529,6 @@ const MyComponent = defineComponent({
     },
 
     toggleRouteChecked(props: { route: string; isChecked: boolean }) {
-      console.log("test route")
       if (props.isChecked) {
         // highlight if checked
         this.routesOnLink.push(this.routeData[props.route])
@@ -554,8 +551,6 @@ const MyComponent = defineComponent({
     },
 
     toggleLineOpen(event: { offset: number; isOpen: boolean }) {
-      console.log("test lineOpen")
-
       const line = this.transitLines[event.offset]
       line.isOpen = event.isOpen
     },
@@ -749,7 +744,7 @@ const MyComponent = defineComponent({
           const analysisPtFolder = await this.fileApi.getDirectory(
             `${this.myState.subfolder}/analysis/pt/`
           )
-          demandFiles = analysisPtFolder.files.filter(f => f.includes("pt_pax_volumes."))
+          demandFiles = analysisPtFolder.files.filter(f => f.endsWith('pt_pax_volumes.csv.gz'))
         } catch (e) {
           // we can skip pax loads if file not found
           console.warn('error', '' + e)
