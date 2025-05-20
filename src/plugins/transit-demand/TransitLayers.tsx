@@ -165,7 +165,7 @@ export default function Component({
   }, [links])
 
   // ----------------------------------------------
-  var slices = {}
+  var slices = [] as any[]
   if (vizDetails?.demand) {
     slices = useMemo(() => {
       // no boarding data? no pies.
@@ -338,7 +338,7 @@ export default function Component({
     )
 
   // PIE CHARTS
-  if (slices) {
+  if (slices.length) {
     layers.push(
       new SolidPolygonLayer({
         id: `stop-pie-charts-layer-${Math.random()}`,
