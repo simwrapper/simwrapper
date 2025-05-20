@@ -1,25 +1,24 @@
 <template lang="pug">
 .xy-hexagons(:class="{'hide-thumbnail': !thumbnail}" oncontextmenu="return false" :id="`id-${id}`")
 
-grid-layer(
-v-if="!thumbnail && isLoaded"
-v-bind="mapProps"
-:negativeValues="valuesIncludeNeg"
-)
+      grid-layer(
+        v-if="!thumbnail && isLoaded"
+        v-bind="mapProps"
+      )
 
-zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
+      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
 
-.top-right
-.gui-config(:id="configId")
+      .top-right
+        .gui-config(:id="configId")
 
-time-slider.time-slider-area(v-if="isLoaded"
-:range="timeRange"
-:allTimes="allTimes"
-@timeExtent="handleTimeSliderValues"
-)
+      time-slider.time-slider-area(v-if="isLoaded"
+        :range="timeRange"
+        :allTimes="allTimes"
+        @timeExtent="handleTimeSliderValues"
+      )
 
-.message(v-if="!thumbnail && myState.statusMessage")
-p.status-message {{ myState.statusMessage }}
+      .message(v-if="!thumbnail && myState.statusMessage")
+        p.status-message {{ myState.statusMessage }}
 
 </template>
 
@@ -354,7 +353,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-        this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -792,7 +791,7 @@ const GridMap = defineComponent({
       let to_min = 0 // as long as this is zero, it doesn't need to be added to maxValue scaling below
       let to_max = 100
       if (this.valuesIncludeNeg) {
-        maxValue = (maxValue - from_min) * (to_max) / (from_max - from_min) // formula is: x -> (x - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
+        maxValue = ((maxValue - from_min) * to_max) / (from_max - from_min) // formula is: x -> (x - from_min) * (to_max - to_min) / (from_max - from_min) + to_min
       }
       this.globalMinValue = from_min
       this.globalMaxValue = from_max
@@ -839,7 +838,14 @@ const GridMap = defineComponent({
 
         const value = scaleFactor * raw
 
-        const colors = this.pickColor(value, from_min, from_max, to_min, to_max, this.valuesIncludeNeg)
+        const colors = this.pickColor(
+          value,
+          from_min,
+          from_max,
+          to_min,
+          to_max,
+          this.valuesIncludeNeg
+        )
 
         // Save index for next position in the array
         const lastValueIndex = finalData.mapData[index].numberOfFilledValues as number
@@ -953,7 +959,7 @@ const GridMap = defineComponent({
           this.vizDetails.colorRamp.breakpoints &&
           this.vizDetails.colorRamp.fixedColors &&
           this.vizDetails.colorRamp.breakpoints.length !==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+            this.vizDetails.colorRamp.fixedColors.length - 1
         ) {
           this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
         }
@@ -967,8 +973,8 @@ const GridMap = defineComponent({
     },
 
     /*
-    * This method is called when the first column is changed to update the data and colors.
-    */
+     * This method is called when the first column is changed to update the data and colors.
+     */
     async handleColumnChange(newCol: string) {
       this.vizDetails.valueColumn = newCol
       this.data = await this.loadAndPrepareData()
@@ -976,8 +982,8 @@ const GridMap = defineComponent({
     },
 
     /**
-    * This method is called when the diff checkbox is toggled.
-    */
+     * This method is called when the diff checkbox is toggled.
+     */
     async handleDiffChange(useDiff: boolean) {
       this.vizDetails.diff = useDiff
 
