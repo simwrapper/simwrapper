@@ -4,6 +4,7 @@
       grid-layer(
         v-if="!thumbnail && isLoaded"
         v-bind="mapProps"
+        :negativeValues="valuesIncludeNeg"
       )
 
       zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
