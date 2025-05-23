@@ -9,7 +9,7 @@
 
       background-map-on-top(v-if="isLoaded && guiConfig.height == 0")
 
-      zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
+      zoom-buttons(v-if="!thumbnail && isLoaded" corner="top-left")
 
       .top-right
         .gui-config(:id="configId")
