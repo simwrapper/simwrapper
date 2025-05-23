@@ -60,7 +60,7 @@
         :viewId="layerId"
         :features="features"
         :clickedZone="clickedZone"
-        :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
+        :activeZoneFeature="activeZoneFeature"
         :cbTooltip="showTooltip"
         :isLoading="isLoading"
       )
@@ -140,6 +140,7 @@ const MyComponent = defineComponent({
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
+    tazToOffsetLookup: { type: Object as PropType<{ [taz: any]: number }>, required: true },
     userSuppliedZoneID: String,
   },
 
@@ -147,6 +148,7 @@ const MyComponent = defineComponent({
     return {
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
+      activeZoneFeature: {} as any,
       colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
@@ -166,7 +168,6 @@ const MyComponent = defineComponent({
       searchTerm: '',
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
-      tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
@@ -221,7 +222,6 @@ const MyComponent = defineComponent({
 
     filenameShapes() {
       this.loadBoundaries(this.filenameShapes || '')
-      this.buildTAZLookup()
     },
 
     'mapConfig.isRowWise'() {
@@ -326,7 +326,7 @@ const MyComponent = defineComponent({
         await this.loadBoundariesBasedOnMatrixSize()
       }
 
-      this.buildTAZLookup()
+      // this.buildTAZLookup()
       this.setMapCenter()
 
       const startOffset =
@@ -403,16 +403,6 @@ const MyComponent = defineComponent({
       this.$store.commit('setMapCamera', { longitude: points[0], latitude: points[1], zoom: 7 })
     },
 
-    buildTAZLookup() {
-      this.tazToOffsetLookup = {}
-      const zoneIDs = [] as any[]
-      this.features.forEach((f: any) => zoneIDs.push(f.properties[this.zoneID]))
-      zoneIDs.sort(naturalSort)
-      for (let i = 0; i < zoneIDs.length; i++) {
-        this.tazToOffsetLookup[zoneIDs[i]] = i
-      }
-    },
-
     setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
       array.forEach(v => {
@@ -439,6 +429,8 @@ const MyComponent = defineComponent({
       console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
 
       this.activeZone = zone.properties[this.zoneID]
+      this.activeZoneFeature = this.features[zone.index]
+
       localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
     },
 
