@@ -33,6 +33,7 @@ export default function Layer({
   cellSize = 200 as Number,
   opacity = 0.7 as Number,
   upperPercentile = 100 as Number,
+  cbTooltip = null as any,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
@@ -71,8 +72,11 @@ export default function Layer({
     }
   }
 
-  function getTooltip(object: any): Tooltip {
-    if (!object?.coordinate) return null
+  function getTooltip(object: any): Tooltip | undefined {
+    if (!object?.coordinate) {
+      if (cbTooltip) cbTooltip()
+      return null
+    }
 
     const currentData = data.mapData[currentTimeIndex]?.values
     if (!currentData || !currentData[object.index]) return null
@@ -91,9 +95,15 @@ export default function Layer({
       ? { color: '#ccc', backgroundColor: '#2a3c4f' }
       : { color: '#223', backgroundColor: 'white' }
 
-    return {
+    const tip = {
       html: tooltipHtml,
       style: tooltipStyle,
+    }
+
+    if (cbTooltip) {
+      cbTooltip(tip, object)
+    } else {
+      return tip
     }
   }
 

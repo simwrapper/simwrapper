@@ -33,7 +33,7 @@ export default function Component({
   screenshot = 0,
   redraw = 0,
   featureFilter = new Float32Array(0),
-  cbTooltip = {} as any,
+  cbTooltip = null as any,
   bgLayers = {} as { [name: string]: BackgroundLayer },
   handleClickEvent = {} as any,
   highlightedLinkIndex = -1 as number,

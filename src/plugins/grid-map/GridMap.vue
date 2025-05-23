@@ -7,6 +7,8 @@
         :negativeValues="valuesIncludeNeg"
       )
 
+      background-map-on-top(v-if="isLoaded && guiConfig.height == 0")
+
       zoom-buttons(v-if="!thumbnail && isLoaded" corner="bottom")
 
       .top-right
@@ -21,6 +23,8 @@
       .message(v-if="!thumbnail && myState.statusMessage")
         p.status-message {{ myState.statusMessage }}
 
+      .tooltip(v-if="tooltip" v-html="tooltip.html" :style="tooltip.style")
+
 </template>
 
 <script lang="ts">
@@ -32,13 +36,18 @@ import GUI from 'lil-gui'
 import { ToggleButton } from 'vue-js-toggle-button'
 import YAML from 'yaml'
 import colormap from 'colormap'
+
+import avro from '@/js/avro'
+import globalStore from '@/store'
+import util from '@/js/util'
 import { hexToRgb, getColorRampHexCodes, Ramp } from '@/js/ColorsAndWidths'
 
-import util from '@/js/util'
-import globalStore from '@/store'
 import { REACT_VIEW_HANDLES } from '@/Globals'
+import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
+
+import BackgroundMapOnTop from '@/components/BackgroundMapOnTop.vue'
 import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
@@ -46,8 +55,6 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import TimeSlider from '@/components/TimeSliderV2.vue'
 
 import GridLayer from './GridLayer'
-import { ColorScheme, FileSystemConfig, Status } from '@/Globals'
-import avro from '@/js/avro'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -132,6 +139,7 @@ interface MapProps {
   cellSize: number
   opacity: number
   upperPercentile: number
+  cbTooltip?: any
 }
 
 const i18n = {
@@ -163,6 +171,7 @@ const GridMap = defineComponent({
   name: 'GridMapPlugin',
   i18n,
   components: {
+    BackgroundMapOnTop,
     CollapsiblePanel,
     DrawingTool,
     GridLayer,
@@ -206,6 +215,7 @@ const GridMap = defineComponent({
       globalMaxValue: Number.POSITIVE_INFINITY,
       globalMinValue: Number.NEGATIVE_INFINITY,
       valuesIncludeNeg: false as boolean,
+      tooltip: null as null | { html: any; style: any },
       vizDetails: {
         title: '',
         description: '',
@@ -303,6 +313,7 @@ const GridMap = defineComponent({
         cellSize: this.guiConfig.radius,
         opacity: this.guiConfig.opacity,
         upperPercentile: 100,
+        cbTooltip: this.cbTooltip,
       }
     },
     textColor(): any {
@@ -326,6 +337,16 @@ const GridMap = defineComponent({
     },
   },
   methods: {
+    cbTooltip(tip: { html: any; style: any }, object: any) {
+      if (!object) {
+        this.tooltip = null
+        return
+      }
+      tip.style.left = `${16 + object.devicePixel[0]}px`
+      tip.style.bottom = `${16 + object.devicePixel[1]}px`
+      this.tooltip = tip
+    },
+
     /**
      * Selects a color based on the given value.
      * @param {number} value - The value influencing color selection (0-100).
@@ -1293,8 +1314,11 @@ export default GridMap
 }
 
 .tooltip {
-  padding: 5rem 5rem;
-  background-color: #ccc;
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  padding: 0.5rem 0.5rem;
+  filter: $filterShadow;
 }
 
 .panel-items {
