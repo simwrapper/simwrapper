@@ -197,8 +197,13 @@ const MyComponent = defineComponent({
       if (!this.h5Main) return
 
       this.h5zoneLookup = await this.buildTAZLookup()
+      let initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
 
-      const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      // if saved table is not in THIS matrix, revert to first table
+      if (initialTable && !this.h5Main.catalog.includes(initialTable)) {
+        initialTable = this.h5Main?.catalog[0]
+      }
+
       if (initialTable) await this.changeMatrix(initialTable)
     } catch (e) {
       this.$emit('error', `Error loading file: ${this.subfolder}/${this.filename}`)
@@ -667,21 +672,20 @@ const MyComponent = defineComponent({
       const lookup = {}
 
       // If "zone_number" array exists, build lookup from that
-      console.log(this.h5Main.catalog)
+      // console.log(this.h5Main.catalog)
       if (this.h5Main?.catalog?.indexOf('zone_number') > -1) {
         const zoneNumbers = await this.h5Main.getDataArray('zone_number')
-        console.log({ zoneNumbers })
+        // console.log({ zoneNumbers })
         zoneNumbers.data.forEach((zone, offset) => {
           lookup[zone] = offset
         })
       } else {
         // Otherwise assume numbers just increase
+        console.log(this.h5Main?.size)
         for (let i = 1; i <= this.h5Main?.size; i++) {
-          this.tazToOffsetLookup[i] = i - 1
+          lookup[i] = i - 1
         }
       }
-
-      console.log('TAZ LOOKUP:', lookup)
       return lookup
     },
   },

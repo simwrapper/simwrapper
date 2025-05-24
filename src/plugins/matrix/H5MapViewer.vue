@@ -33,8 +33,10 @@
 
     .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
       h4 Legend
-      legend-colors(:thresholds="colorThresholds")
-
+      legend-colors(
+        :thresholds="colorThresholds"
+        @breakpoints-changed="breakpointsChanged"
+      )
 
     h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
 
@@ -119,6 +121,8 @@ import type { Matrix } from './H5Provider'
 import dataScalers from './util'
 import { debounce } from '@/js/util'
 
+import { ScaleType } from '@/components/ColorMapSelector/models-vis'
+
 naturalSort.insensitive = true
 
 const BASE_URL = import.meta.env.BASE_URL
@@ -140,7 +144,10 @@ const MyComponent = defineComponent({
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
-    tazToOffsetLookup: { type: Object as PropType<{ [taz: any]: number }>, required: true },
+    tazToOffsetLookup: {
+      type: Object as PropType<{ [taz: number | string]: number }>,
+      required: true,
+    },
     userSuppliedZoneID: String,
   },
 
@@ -240,16 +247,20 @@ const MyComponent = defineComponent({
 
   methods: {
     async extractH5Slice() {
+      const matrix = this.matrices.main?.data
+      if (!matrix) {
+        console.log('matrix not loaded yet, just a moment')
+        return
+      }
+
       console.log('---extract h5 slice for zone', this.activeZone)
+
       //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
       let offset = this.tazToOffsetLookup[this.activeZone] // this.activeZone - 1
       // try {
       let values = [] as any
       let base = [] as any
       let diff = [] as any
-
-      const matrix = this.matrices.main?.data
-      if (!matrix) return
 
       if (this.mapConfig.isRowWise) {
         values = matrix.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
@@ -329,9 +340,10 @@ const MyComponent = defineComponent({
       // this.buildTAZLookup()
       this.setMapCenter()
 
-      const startOffset =
-        localStorage.getItem('matrix-start-taz-offset') || this.tazToOffsetLookup['1']
-      if (startOffset !== undefined) {
+      const startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
+        this.tazToOffsetLookup['1']) as any
+      console.log({ startOffset })
+      if (startOffset !== undefined && this.features[startOffset]) {
         this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
       }
 
@@ -428,13 +440,13 @@ const MyComponent = defineComponent({
 
       console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
 
+      localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
       this.activeZone = zone.properties[this.zoneID]
       this.activeZoneFeature = this.features[zone.index]
-
-      localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
     },
 
     async setColorsForArray() {
+      console.log('setColorsForArray')
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
@@ -447,7 +459,22 @@ const MyComponent = defineComponent({
       const NUM_COLORS = 9
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
-      const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
+      const breakpoints0to1 = dataScalers[this.mapConfig.scale](NUM_COLORS)
+
+      let breakpoints = [] as number[]
+      // now convert breakpoints using our actual domain min/max values
+
+      console.log({ min, max, breakpoints0to1 })
+      if (min >= 0) {
+        breakpoints = breakpoints0to1.map((b: number) => max * b)
+      } else {
+        const spread = max - min
+        breakpoints = breakpoints0to1.map((b: number) => min + spread * b)
+      }
+
+      if (this.mapConfig.scale == ScaleType.Log || this.mapConfig.scale == ScaleType.Linear) {
+        console.log('HA! LOG')
+      }
 
       // colors
       let xcolors = getColorRampHexCodes(
@@ -456,27 +483,32 @@ const MyComponent = defineComponent({
       )
 
       // flip the colors if requested
-      if (this.mapConfig.isInvertedColor) xcolors = xcolors.slice().reverse()
+      if (this.mapConfig.isInvertedColor) xcolors = xcolors.toReversed()
 
       const colorsAsRGB = buildRGBfromHexCodes(xcolors)
 
-      this.colorThresholds = { colorsAsRGB, breakpoints, min, max }
+      this.colorThresholds = { colorsAsRGB, breakpoints }
+      this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints, max })
+    },
+
+    updateFeatureColors(props: { range: any; domain: any; max?: number }) {
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-      const d3colorThresholds = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
+
+      const d3colorThresholds = scaleThreshold().range(props.range).domain(props.domain)
+
+      console.log({ range: d3colorThresholds.range(), domain: d3colorThresholds.domain() })
+      const values = this.dataArray
 
       for (let i = 0; i < this.features.length; i++) {
         try {
           const TAZ = this.features[i].properties[this.zoneID]
-
-          //TODO - this assumes zones are off-by-one, in order, in matrix data
           const matrixOffset = this.tazToOffsetLookup[TAZ]
 
           // ALWAYS scale by max value
-          let value = values[matrixOffset] / max
-
-          const color = Number.isNaN(value) ? [40, 40, 40] : d3colorThresholds(value)
+          let value = values[matrixOffset]
+          const color = Number.isNaN(value) ? [255, 40, 40] : d3colorThresholds(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)
@@ -485,6 +517,21 @@ const MyComponent = defineComponent({
       }
       // Tell vue this is new
       this.features = [...this.features]
+    },
+
+    breakpointsChanged(breakpoints: any[]) {
+      let xcolors = getColorRampHexCodes(
+        { ramp: this.mapConfig.colormap, style: Style.sequential },
+        breakpoints.length + 1
+      )
+      if (this.mapConfig.isInvertedColor) xcolors = xcolors.toReversed()
+
+      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
+
+      // let vue know they're new
+      this.colorThresholds = { colorsAsRGB, breakpoints }
+      // and update the features
+      this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints })
     },
 
     async loadBoundariesBasedOnMatrixSize() {

@@ -23,7 +23,7 @@
   )
       template(#trigger="{active}")
         b-button.is-small(type="is-primary" :icon-right="active ? 'menu-up' : 'menu-down'")
-          span(v-html="activeTable || 'Loading...'")
+          b(v-html="activeTable || 'Loading...'")
 
       b-dropdown-item(custom aria-role="listitem")
         b-input(v-model="searchTableTerm" placeholder="search" expanded)
