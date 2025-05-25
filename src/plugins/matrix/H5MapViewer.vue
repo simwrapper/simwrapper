@@ -161,6 +161,7 @@ const MyComponent = defineComponent({
       dataArray: [] as number[],
       dbExtractH5ArrayData: {} as any,
       dragDividerWidth: 0,
+      d3ColorThresholds: {} as any,
       leftSectionWidth: 260,
       dragStartWidth: 260,
       features: [] as any,
@@ -190,6 +191,7 @@ const MyComponent = defineComponent({
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
     this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
+    this.d3ColorThresholds = scaleThreshold()
 
     // Load GeoJSON features
     await this.setupBoundaries()
@@ -234,14 +236,16 @@ const MyComponent = defineComponent({
     'mapConfig.isRowWise'() {
       this.extractH5Slice()
     },
+    'mapConfig.scale'() {
+      this.setInitialColorsForArray()
+    },
     'mapConfig.colormap'() {
-      this.setColorsForArray()
+      const colors = this.updateColorRamp()
+      this.updateFeatureColors({ range: colors })
     },
     'mapConfig.isInvertedColor'() {
-      this.setColorsForArray()
-    },
-    'mapConfig.scale'() {
-      this.setColorsForArray()
+      const colors = this.updateColorRamp()
+      this.updateFeatureColors({ range: colors })
     },
   },
 
@@ -291,7 +295,7 @@ const MyComponent = defineComponent({
 
       // display diff data on map if exists; otherwise show regular main data
       this.dataArray = this.matrices.diff ? diff : values
-      await this.setColorsForArray()
+      await this.setInitialColorsForArray()
 
       // create array of pretty values: each i-element is [value, base, diff]
       const pvs = this.setPrettyValuesForArray(values).map(v => [v])
@@ -445,18 +449,18 @@ const MyComponent = defineComponent({
       this.activeZoneFeature = this.features[zone.index]
     },
 
-    async setColorsForArray() {
-      console.log('setColorsForArray')
+    async setInitialColorsForArray() {
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
       // too many for spread
       for (let i = 0; i < values.length; i++) {
-        min = Math.min(min, values[i])
-        max = Math.max(max, values[i])
+        const v = values[i]
+        min = Math.min(min, v)
+        max = Math.max(max, v)
       }
 
-      const NUM_COLORS = 9
+      const NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
       const breakpoints0to1 = dataScalers[this.mapConfig.scale](NUM_COLORS)
@@ -465,40 +469,48 @@ const MyComponent = defineComponent({
       // now convert breakpoints using our actual domain min/max values
 
       console.log({ min, max, breakpoints0to1 })
-      if (min >= 0) {
+
+      // scale the normalized breakpoints to something logical for this particular dataset
+      if (min >= 0 || this.mapConfig.scale == ScaleType.SymLog) {
         breakpoints = breakpoints0to1.map((b: number) => max * b)
       } else {
         const spread = max - min
         breakpoints = breakpoints0to1.map((b: number) => min + spread * b)
       }
 
-      if (this.mapConfig.scale == ScaleType.Log || this.mapConfig.scale == ScaleType.Linear) {
-        console.log('HA! LOG')
-      }
-
-      // colors
-      let xcolors = getColorRampHexCodes(
-        { ramp: this.mapConfig.colormap, style: Style.sequential },
-        NUM_COLORS
-      )
-
-      // flip the colors if requested
-      if (this.mapConfig.isInvertedColor) xcolors = xcolors.toReversed()
-
-      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
-
+      const colorsAsRGB = this.updateColorRamp(NUM_COLORS)
       this.colorThresholds = { colorsAsRGB, breakpoints }
+
       this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints, max })
     },
 
-    updateFeatureColors(props: { range: any; domain: any; max?: number }) {
+    updateColorRamp(initialNumColors?: number) {
+      const numColors = initialNumColors || this.colorThresholds?.colorsAsRGB?.length || 9
+
+      let colors = getColorRampHexCodes(
+        { ramp: this.mapConfig.colormap, style: Style.sequential },
+        numColors
+      )
+      if (this.mapConfig.isInvertedColor) colors = colors.toReversed()
+
+      const colorsAsRGB = buildRGBfromHexCodes(colors)
+      this.colorThresholds = { ...this.colorThresholds, colorsAsRGB }
+
+      return colorsAsRGB
+    },
+
+    updateFeatureColors(props: { range?: any; domain?: any; max?: number }) {
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
 
-      const d3colorThresholds = scaleThreshold().range(props.range).domain(props.domain)
+      if (props.range) this.d3ColorThresholds.range(props.range)
+      if (props.domain) this.d3ColorThresholds.domain(props.domain)
 
-      console.log({ range: d3colorThresholds.range(), domain: d3colorThresholds.domain() })
+      console.log({
+        range: this.d3ColorThresholds.range(),
+        domain: this.d3ColorThresholds.domain(),
+      })
       const values = this.dataArray
 
       for (let i = 0; i < this.features.length; i++) {
@@ -508,7 +520,7 @@ const MyComponent = defineComponent({
 
           // ALWAYS scale by max value
           let value = values[matrixOffset]
-          const color = Number.isNaN(value) ? [255, 40, 40] : d3colorThresholds(value)
+          const color = Number.isNaN(value) ? [255, 40, 40] : this.d3ColorThresholds(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)

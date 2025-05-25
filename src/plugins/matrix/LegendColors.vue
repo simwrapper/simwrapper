@@ -4,13 +4,27 @@
     .edit-row.flex-row(v-for="entry,i in entries" :key="i")
       .swatch(:style="getColor(entry)") &nbsp;
       .flex1: b-field(:type="userBreakpoints[i-1] > userBreakpoints[i] ? 'is-danger' : ''")
-        b-input(type="number" step="any" size="is-small" v-model="userBreakpoints[i-1]" :disabled="i==0" )
+        b-input(
+          type="number"
+          step="any"
+          size="is-small"
+          v-model="userBreakpoints[i-1]"
+          :disabled="i==0"
+          @input="debHandleEntry"
+        )
       p: b &nbsp;{{entry.label[1]}}&nbsp;
       .flex1: b-field(:type="userBreakpoints[i] < userBreakpoints[i-1] ? 'is-danger' : ''")
-        b-input(type="number"  step="any" size="is-small" v-model="userBreakpoints[i]" :disabled="i==entries.length-1")
+        b-input(
+          type="number"
+          step="any"
+          size="is-small"
+          v-model="userBreakpoints[i]"
+          :disabled="i==entries.length-1"
+          @input="debHandleEntry"
+        )
       .edit-actions.flex-row
-        p: i.fa.fa-plus
-        p: i.fa.fa-times(style="color: #b00" @click="removeRow(i)")
+        p: i.fa.fa-plus(@click="handleAddRow(i)")
+        p: i.fa.fa-times(style="color: #b00" @click="handleRemoveRow(i)")
 
   .entries.flex-col()
     .entry.flex-row(v-for="entry,i in entries" :key="entry.key")
@@ -23,6 +37,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
+import { debounce } from 'debounce'
+
 import { precise } from '@/js/util'
 
 interface LegendEntry {
@@ -42,13 +58,15 @@ const MyComponent = defineComponent({
   },
   data() {
     return {
-      entries: [] as LegendEntry[],
       isEditing: true,
-      userBreakpoints: [] as number[],
       isUpdating: true,
+      entries: [] as LegendEntry[],
+      userBreakpoints: [] as any[], // can be string or number
+      debHandleEntry: {} as any,
     }
   },
   mounted() {
+    this.debHandleEntry = debounce(this.handleEntry, 250)
     this.updateLegend()
   },
   computed: {},
@@ -57,10 +75,35 @@ const MyComponent = defineComponent({
       this.updateLegend()
     },
   },
+
   methods: {
-    removeRow(i: number) {
+    handleRemoveRow(i: number) {
       this.userBreakpoints.splice(i, 1)
-      this.$emit('breakpoints-changed', this.userBreakpoints)
+      const values = this.userBreakpoints.map(b => parseFloat(b))
+      this.$emit('breakpoints-changed', values)
+    },
+
+    handleAddRow(i: number) {
+      const values = this.userBreakpoints.map(b => parseFloat(b))
+      let midpoint
+
+      if (i == 0) midpoint = values[i] / 2
+      else if (i == values.length) midpoint = values[i] + 1
+      else midpoint = values[i - 1] / 2 + values[i] / 2
+      if (!midpoint) midpoint = values[i]
+
+      values.splice(i, 0, midpoint)
+      this.$emit('breakpoints-changed', values)
+    },
+
+    handleEntry() {
+      console.log('CHANGE!')
+      const values = this.userBreakpoints.map(b => parseFloat(b))
+      // only register change if values are all in ascending order (user will have to fix red squigglies)
+      if (values.every((v, i) => i == 0 || v > values[i - 1])) {
+        console.log('SEND IT!')
+        this.$emit('breakpoints-changed', values)
+      }
     },
 
     getColor(entry: LegendEntry) {

@@ -669,7 +669,8 @@ const MyComponent = defineComponent({
     },
 
     async buildTAZLookup() {
-      const lookup = {}
+      const lookup = {} as any
+      if (!this.h5Main) return lookup
 
       // If "zone_number" array exists, build lookup from that
       // console.log(this.h5Main.catalog)
