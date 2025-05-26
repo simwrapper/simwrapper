@@ -55,7 +55,7 @@ class H5Provider {
     } else {
       await this._initFileAPI()
     }
-    console.log({ tableKeys: this.tableKeys, catalog: this.catalog, size: this.size })
+    // console.log({ tableKeys: this.tableKeys, catalog: this.catalog, size: this.size })
   }
 
   public async getDataArray(tableName: string) {

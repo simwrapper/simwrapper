@@ -47,6 +47,7 @@
       :userSuppliedZoneID="zoneID"
       :mapConfig="mapConfig"
       :zoneSystems="zoneSystems"
+      :tazToOffsetLookup="h5zoneLookup"
       @nozones="isMap=false"
       @changeRowWise="changeRowWise"
       )
@@ -135,10 +136,9 @@ const MyComponent = defineComponent({
       isMap: true,
       isGettingMatrices: false,
       showComparePicker: false,
-      h5wasm: null as null | Promise<any>,
-      h5zoneFile: null as null | H5WasmFile,
       h5fileBlob: null as null | File | Blob,
       h5baseBlob: null as null | File | Blob,
+      h5zoneLookup: {} as any,
       globalState: globalStore.state,
       filename: '',
       filenameShapes: '',
@@ -162,7 +162,7 @@ const MyComponent = defineComponent({
       debounceDragEnd: {} as any,
       mapConfig: {
         scale: ScaleType.Log,
-        colormap: 'Turbo',
+        colormap: 'Viridis',
         isInvertedColor: false,
         isRowWise: true,
       } as MapConfig,
@@ -185,6 +185,7 @@ const MyComponent = defineComponent({
 
     await this.setupAvailableZoneSystems()
     this.fetchLastSettings()
+    this.honorQueryParameters()
 
     // not really done loading yet but the spinny is ugly
     this.$emit('isLoaded')
@@ -196,7 +197,17 @@ const MyComponent = defineComponent({
       await this.initH5Files()
       if (!this.h5Main) return
 
-      const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      this.h5zoneLookup = await this.buildTAZLookup()
+      let initialTable =
+        `${this.$route.query.table}` ||
+        localStorage.getItem('matrix-initial-table') ||
+        this.h5Main?.catalog[0]
+
+      // if saved table is not in THIS matrix, revert to first table
+      if (initialTable && !this.h5Main.catalog.includes(initialTable)) {
+        initialTable = this.h5Main?.catalog[0]
+      }
+
       if (initialTable) await this.changeMatrix(initialTable)
     } catch (e) {
       this.$emit('error', `Error loading file: ${this.subfolder}/${this.filename}`)
@@ -284,10 +295,13 @@ const MyComponent = defineComponent({
       console.log('table:', table)
       if (!table || table == 'undefined') {
         this.activeTable = ''
+        // TODO
+        this.$router.replace({ query: {} })
         return
       }
 
       this.activeTable = table
+      this.$router.replace({ query: { ...this.$route.query, table } })
       await this.getMatrices()
       localStorage.setItem('matrix-initial-table', table)
 
@@ -394,9 +408,27 @@ const MyComponent = defineComponent({
       }
     },
 
+    honorQueryParameters() {
+      const query = this.$route.query as any
+      if (query.inverted == 'true') this.mapConfig.isInvertedColor = true
+      if (query.colors) this.mapConfig.colormap = query.colors
+      if (query.scale) this.mapConfig.scale = query.scale
+      if (query.dir) this.mapConfig.isRowWise = query.dir == 'row'
+    },
+
+    updateQuery() {
+      const { invert, scale, colors, ...query } = this.$route.query as any
+      query.dir = this.mapConfig.isRowWise ? 'row' : 'col'
+      if (this.mapConfig.colormap !== 'Viridis') query.colors = this.mapConfig.colormap
+      if (this.mapConfig.isInvertedColor) query.invert = 'true'
+      if (this.mapConfig.scale !== 'linear') query.scale = this.mapConfig.scale
+      this.$router.replace({ query }).catch(() => {})
+    },
+
     saveMapSettings() {
       const json = JSON.stringify(this.mapConfig)
       localStorage.setItem('matrixviewer-map-config', json)
+      this.updateQuery()
     },
 
     async loadShapes() {
@@ -596,7 +628,7 @@ const MyComponent = defineComponent({
         filename: this.filename,
       })
 
-      // this opens file, sets up the shape and matrix catalog
+      // this opens file, sets up the dimensions and matrix catalog
       await this.h5Main.init()
 
       this.h5fileBlob = file
@@ -604,6 +636,8 @@ const MyComponent = defineComponent({
       this.$emit('title', this.filename)
       this.setCompareLabel(file.name)
       this.statusText = ''
+
+      this.h5zoneLookup = await this.buildTAZLookup()
 
       const initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
       if (initialTable) await this.changeMatrix(initialTable)
@@ -657,6 +691,28 @@ const MyComponent = defineComponent({
       } catch (e) {
         console.error('ZONESYSTEM: ' + e)
       }
+    },
+
+    async buildTAZLookup() {
+      const lookup = {} as any
+      if (!this.h5Main) return lookup
+
+      // If "zone_number" array exists, build lookup from that
+      // console.log(this.h5Main.catalog)
+      if (this.h5Main?.catalog?.indexOf('zone_number') > -1) {
+        const zoneNumbers = await this.h5Main.getDataArray('zone_number')
+        // console.log({ zoneNumbers })
+        zoneNumbers.data.forEach((zone, offset) => {
+          lookup[zone] = offset
+        })
+      } else {
+        // Otherwise assume numbers just increase
+        // console.log(this.h5Main?.size)
+        for (let i = 1; i <= this.h5Main.size; i++) {
+          lookup[i] = i - 1
+        }
+      }
+      return lookup
     },
   },
 })
