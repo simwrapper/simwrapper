@@ -6,6 +6,7 @@
   "license": "GPL-3.0-or-later",
   "author": "Billy Charlton <charlton@tu-berlin.de>",
   "contributors": [
+    "Brendan Lawton <b.lawton@campus.tu-berlin.de>",
     "Friedrich Voelkers <friedrich.k.voelkers@tu-berlin.de>",
     "Janek Laudan <laudan@vsp.tu-berlin.de>",
     "Johanna Bänsch <j.baensch@tu-berlin.de>"
@@ -13,7 +14,7 @@
   "scripts": {
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
-    "deploy-simwrapper": "bash scripts/deploy-ghpages.sh simwrapper/site site",
+    "deploy-simwrapper-app": "bash scripts/deploy-simwrapper-app.sh simwrapper/app",
     "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
     "index": "node scripts/build-index.cjs public/data",
     "dev": "npm run index && vite",
