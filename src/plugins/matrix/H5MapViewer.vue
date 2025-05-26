@@ -29,15 +29,31 @@
         input.input-zone.flex1(
           type="number" placeholder="zone"
           v-model="activeZone"
+          @input="tazInputBoxChanged"
         )
 
-    .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
-      h4 Legend
+    //- LEGEND -------------------------------------------
+    .panel-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
+      .flex-row(style="margin-bottom: 2px")
+        h4.flex1 Legend
+        button.is-small.button(style="padding: 0 0.25rem; border: none" @click="isEditingLegend = !isEditingLegend")
+          i.fa(:class="isEditingLegend ? 'fa-check':'fa-edit'")
+          span &nbsp;{{ isEditingLegend ? 'done':'edit' }}
+
       legend-colors(
+        :isEditing="isEditingLegend"
         :thresholds="colorThresholds"
         @breakpoints-changed="breakpointsChanged"
       )
+      b-checkbox Filter out these values
 
+    //- FILTER an MAP CONFIG
+    .panel-area.flex-col
+      h4 DISPLAY
+      .flex-col(style="gap: 2px")
+        b-checkbox Show values on map
+
+    //- ROW/COL VALUES -------------------------------------------
     h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
 
     .bottom-half.flex-col.flex1
@@ -97,7 +113,6 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
-import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
 
@@ -111,7 +126,6 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
-import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
@@ -164,13 +178,14 @@ const MyComponent = defineComponent({
       d3ColorThresholds: {} as any,
       leftSectionWidth: 260,
       dragStartWidth: 260,
-      features: [] as any,
+      features: [] as any[],
       globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
       h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
       isLoading: false,
       isOmxApi: false,
+      isEditingLegend: false,
       layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as any[],
       searchTerm: '',
@@ -250,6 +265,12 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    tazInputBoxChanged() {
+      this.activeZoneFeature = this.features.find(
+        (f: any) => f.properties[this.zoneID] == this.activeZone
+      )
+    },
+
     async extractH5Slice() {
       const matrix = this.matrices.main?.data
       if (!matrix) {
@@ -341,7 +362,6 @@ const MyComponent = defineComponent({
         await this.loadBoundariesBasedOnMatrixSize()
       }
 
-      // this.buildTAZLookup()
       this.setMapCenter()
 
       const startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
@@ -453,13 +473,18 @@ const MyComponent = defineComponent({
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
-      // too many for spread
+
       for (let i = 0; i < values.length; i++) {
         const v = values[i]
+
+        // TODO MAKE THIS EDITABLE
+        if (v == -999) continue
+
         min = Math.min(min, v)
         max = Math.max(max, v)
       }
 
+      // default 9 categories
       const NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
 
       // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
@@ -468,7 +493,7 @@ const MyComponent = defineComponent({
       let breakpoints = [] as number[]
       // now convert breakpoints using our actual domain min/max values
 
-      console.log({ min, max, breakpoints0to1 })
+      // console.log({ min, max, breakpoints0to1 })
 
       // scale the normalized breakpoints to something logical for this particular dataset
       if (min >= 0 || this.mapConfig.scale == ScaleType.SymLog) {
@@ -507,10 +532,6 @@ const MyComponent = defineComponent({
       if (props.range) this.d3ColorThresholds.range(props.range)
       if (props.domain) this.d3ColorThresholds.domain(props.domain)
 
-      console.log({
-        range: this.d3ColorThresholds.range(),
-        domain: this.d3ColorThresholds.domain(),
-      })
       const values = this.dataArray
 
       for (let i = 0; i < this.features.length; i++) {
@@ -975,7 +996,7 @@ h4 {
   font-size: 13px;
 }
 
-.legend-area {
+.panel-area {
   margin: 1.5rem 0;
 }
 

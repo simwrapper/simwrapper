@@ -682,8 +682,8 @@ const MyComponent = defineComponent({
         })
       } else {
         // Otherwise assume numbers just increase
-        console.log(this.h5Main?.size)
-        for (let i = 1; i <= this.h5Main?.size; i++) {
+        // console.log(this.h5Main?.size)
+        for (let i = 1; i <= this.h5Main.size; i++) {
           lookup[i] = i - 1
         }
       }

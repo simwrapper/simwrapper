@@ -26,7 +26,7 @@
         p: i.fa.fa-plus(@click="handleAddRow(i)")
         p: i.fa.fa-times(style="color: #b00" @click="handleRemoveRow(i)")
 
-  .entries.flex-col()
+  .entries.flex-col(v-else)
     .entry.flex-row(v-for="entry,i in entries" :key="entry.key")
       .swatch(:style="getColor(entry)")
       .entry-label(v-if="i<entries.length-1") {{ entry.label.join(' ') }}
@@ -51,6 +51,7 @@ const MyComponent = defineComponent({
   name: 'LegendColors',
   components: {},
   props: {
+    isEditing: Boolean,
     thresholds: {
       required: true,
       type: Object as PropType<{ breakpoints: number[]; colorsAsRGB: number[][] }>,
@@ -58,7 +59,6 @@ const MyComponent = defineComponent({
   },
   data() {
     return {
-      isEditing: true,
       isUpdating: true,
       entries: [] as LegendEntry[],
       userBreakpoints: [] as any[], // can be string or number
@@ -146,6 +146,9 @@ export default MyComponent
 
 <style scoped lang="scss">
 @import '@/styles.scss';
+.legend-colors {
+  margin-right: 0.25rem;
+}
 
 .entry-label {
   font-size: 0.9rem;
