@@ -26,11 +26,24 @@
         p: i.fa.fa-plus(@click="handleAddRow(i)")
         p: i.fa.fa-times(style="color: #b00" @click="handleRemoveRow(i)")
 
-  .entries.flex-col(v-else)
-    .entry.flex-row(v-for="entry,i in entries" :key="entry.key")
-      .swatch(:style="getColor(entry)")
-      .entry-label(v-if="i<entries.length-1") {{ entry.label.join(' ') }}
-      .entry-label(v-else) {{ entry.label.toReversed().join(' ') }}
+  //- Clean layout legend: columns of right/left aligned numbers split at decimal point
+  .entries.flex-row(v-else)
+    .swatches.flex-col
+      .swatch(v-for="entry in entries" :style="getColor(entry)")
+    .bridge.flex-col
+      .blank &nbsp;
+      .flex-row(v-for="breakpoint in thresholds.breakpoints" style="margin-left: auto;") {{ getPrecise(breakpoint,4) }}
+    .bridge.flex-col
+      .flex-row(v-for="entry,i in entries") &nbsp;&nbsp;{{ entry.label[1] }}&nbsp;
+    .bridge.flex-col
+      .flex-row(v-for="breakpoint in thresholds.breakpoints" style="margin-left: auto;") {{ getPrecise(breakpoint,4) }}
+      .blank &nbsp;
+
+  //- .entries.flex-col
+  //-   .entry.flex-row(v-for="entry,i in entries" :key="entry.key")
+  //-     .swatch(:style="getColor(entry)")
+  //-     .entry-label(v-if="i<entries.length-1") {{ entry.label.join(' ') }}
+  //-     .entry-label(v-else) {{ entry.label.toReversed().join(' ') }}
 
 </template>
 
@@ -77,6 +90,17 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    getPrecise(num: number, fix: number) {
+      return precise(num, fix)
+    },
+
+    splitNumber(num: string | number) {
+      console.log(num)
+      const numAsString = typeof num == 'string' ? num : num.toFixed(3)
+      const [int, dec = '0'] = numAsString.split('.')
+      return [int, `.${dec}`]
+    },
+
     handleRemoveRow(i: number) {
       this.userBreakpoints.splice(i, 1)
       const values = this.userBreakpoints.map(b => parseFloat(b))
@@ -132,7 +156,7 @@ const MyComponent = defineComponent({
             label = [precise(breakpoints[i - 1], 4), '>', '']
             break
           default:
-            label = [`${precise(breakpoints[i - 1], 4)}`, '–', `${precise(breakpoints[i], 4)}`]
+            label = [`${precise(breakpoints[i - 1], 4)}`, '—', `${precise(breakpoints[i], 4)}`]
         }
         entries.push({ rgb: colors[i], label, key: Math.random() })
       }

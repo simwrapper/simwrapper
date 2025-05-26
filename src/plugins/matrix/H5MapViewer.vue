@@ -45,13 +45,19 @@
         :thresholds="colorThresholds"
         @breakpoints-changed="breakpointsChanged"
       )
-      b-checkbox Filter out these values
 
-    //- FILTER an MAP CONFIG
-    .panel-area.flex-col
-      h4 DISPLAY
-      .flex-col(style="gap: 2px")
-        b-checkbox Show values on map
+      //- FILTER VALUES
+      .flex-row(style="margin-top: 0.75rem; gap: 0.5rem;")
+        .t Filter values
+        input.input-zone.input-filter(
+          v-model="filterText"
+          @input="updateFilter"
+        )
+
+    //- .panel-area.flex-col
+    //-   h4 DISPLAY
+    //-   .flex-col(style="gap: 2px")
+    //-     b-checkbox Show values on map
 
     //- ROW/COL VALUES -------------------------------------------
     h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
@@ -140,7 +146,6 @@ import { ScaleType } from '@/components/ColorMapSelector/models-vis'
 naturalSort.insensitive = true
 
 const BASE_URL = import.meta.env.BASE_URL
-const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
@@ -179,6 +184,8 @@ const MyComponent = defineComponent({
       leftSectionWidth: 260,
       dragStartWidth: 260,
       features: [] as any[],
+      filterText: '',
+      filteredValues: new Set() as Set<number>,
       globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
       h5baseApi: null as null | H5WasmLocalFileApi,
@@ -210,6 +217,24 @@ const MyComponent = defineComponent({
 
     // Load GeoJSON features
     await this.setupBoundaries()
+
+    if (this.$route.query.filter) {
+      this.filterText = `${this.$route.query.filter}`
+      this.parseFilters()
+    }
+
+    if (this.$route.query.zone) {
+      this.activeZone = `${this.$route.query.zone}`
+      this.tazInputBoxChanged()
+    } else {
+      let startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
+        this.tazToOffsetLookup['1']) as any
+      if (startOffset !== undefined && this.features[startOffset]) {
+        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
+      }
+    }
+
+    this.isMapReady = true
   },
 
   computed: {
@@ -238,6 +263,7 @@ const MyComponent = defineComponent({
 
     activeZone() {
       this.dbExtractH5ArrayData()
+      this.updateQuery()
     },
 
     matrices() {
@@ -252,6 +278,10 @@ const MyComponent = defineComponent({
       this.extractH5Slice()
     },
     'mapConfig.scale'() {
+      // if user changes scale, remove manual breakpoints
+      const { breakpoints, ...query } = this.$route.query
+      this.$router.replace({ query }).catch(() => {})
+
       this.setInitialColorsForArray()
     },
     'mapConfig.colormap'() {
@@ -265,6 +295,24 @@ const MyComponent = defineComponent({
   },
 
   methods: {
+    parseFilters() {
+      let validFilters = [] as number[]
+      const filters = this.filterText.split(',')
+      for (const f of filters) {
+        try {
+          const v = parseFloat(f)
+          if (Number.isFinite(v)) validFilters.push(v)
+        } catch {}
+      }
+      this.filteredValues = new Set(validFilters)
+    },
+
+    updateFilter() {
+      this.parseFilters()
+      this.updateQuery()
+      this.setInitialColorsForArray()
+    },
+
     tazInputBoxChanged() {
       this.activeZoneFeature = this.features.find(
         (f: any) => f.properties[this.zoneID] == this.activeZone
@@ -316,6 +364,7 @@ const MyComponent = defineComponent({
 
       // display diff data on map if exists; otherwise show regular main data
       this.dataArray = this.matrices.diff ? diff : values
+
       await this.setInitialColorsForArray()
 
       // create array of pretty values: each i-element is [value, base, diff]
@@ -363,15 +412,6 @@ const MyComponent = defineComponent({
       }
 
       this.setMapCenter()
-
-      const startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
-        this.tazToOffsetLookup['1']) as any
-      console.log({ startOffset })
-      if (startOffset !== undefined && this.features[startOffset]) {
-        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
-      }
-
-      this.isMapReady = true
     },
 
     showTooltip(props: { index: number; object: any }) {
@@ -474,33 +514,37 @@ const MyComponent = defineComponent({
       let min = Infinity
       let max = -Infinity
 
+      // calculate min/max
       for (let i = 0; i < values.length; i++) {
         const v = values[i]
 
-        // TODO MAKE THIS EDITABLE
-        if (v == -999) continue
+        if (this.filteredValues.has(v)) continue
 
         min = Math.min(min, v)
         max = Math.max(max, v)
       }
 
       // default 9 categories
-      const NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
-
-      // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
-      const breakpoints0to1 = dataScalers[this.mapConfig.scale](NUM_COLORS)
-
+      let NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
       let breakpoints = [] as number[]
-      // now convert breakpoints using our actual domain min/max values
 
-      // console.log({ min, max, breakpoints0to1 })
-
-      // scale the normalized breakpoints to something logical for this particular dataset
-      if (min >= 0 || this.mapConfig.scale == ScaleType.SymLog) {
-        breakpoints = breakpoints0to1.map((b: number) => max * b)
+      // use manual breakpoints if we have them
+      const breakpointsText = this.$route.query?.breakpoints as string
+      if (breakpointsText) {
+        breakpoints = breakpointsText.split(',').map(b => parseFloat(b))
+        NUM_COLORS = breakpoints.length + 1
       } else {
-        const spread = max - min
-        breakpoints = breakpoints0to1.map((b: number) => min + spread * b)
+        // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
+        const breakpoints0to1 = dataScalers[this.mapConfig.scale](NUM_COLORS)
+        // scale the normalized breakpoints to something logical for this particular dataset
+        if (min >= 0 || this.mapConfig.scale == ScaleType.SymLog) {
+          // scale by whichever is abs(larger)
+          let scaler = Math.max(Math.abs(min), Math.abs(max))
+          breakpoints = breakpoints0to1.map((b: number) => scaler * b)
+        } else {
+          const spread = max - min
+          breakpoints = breakpoints0to1.map((b: number) => min + spread * b)
+        }
       }
 
       const colorsAsRGB = this.updateColorRamp(NUM_COLORS)
@@ -565,6 +609,19 @@ const MyComponent = defineComponent({
       this.colorThresholds = { colorsAsRGB, breakpoints }
       // and update the features
       this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints })
+      this.updateQuery(true)
+    },
+
+    updateQuery(includeBreakpoints?: boolean) {
+      const query = { ...this.$route.query }
+      query.zone = this.activeZone
+      if (this.filterText) query.filter = this.filterText
+
+      if (query.breakpoints || includeBreakpoints) {
+        query.breakpoints = this.colorThresholds.breakpoints.join(',')
+      }
+
+      this.$router.replace({ query }).catch(() => {})
     },
 
     async loadBoundariesBasedOnMatrixSize() {
@@ -982,6 +1039,12 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   border-left: 2px solid #ccc;
   border-bottom: 1px solid #eee;
   border-right: 1px solid #eee;
+}
+
+.input-filter {
+  flex: 1;
+  font-weight: unset;
+  text-align: left;
 }
 
 .titles {

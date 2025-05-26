@@ -162,7 +162,7 @@ const MyComponent = defineComponent({
       debounceDragEnd: {} as any,
       mapConfig: {
         scale: ScaleType.Log,
-        colormap: 'Turbo',
+        colormap: 'Viridis',
         isInvertedColor: false,
         isRowWise: true,
       } as MapConfig,
@@ -185,6 +185,7 @@ const MyComponent = defineComponent({
 
     await this.setupAvailableZoneSystems()
     this.fetchLastSettings()
+    this.honorQueryParameters()
 
     // not really done loading yet but the spinny is ugly
     this.$emit('isLoaded')
@@ -197,7 +198,10 @@ const MyComponent = defineComponent({
       if (!this.h5Main) return
 
       this.h5zoneLookup = await this.buildTAZLookup()
-      let initialTable = localStorage.getItem('matrix-initial-table') || this.h5Main?.catalog[0]
+      let initialTable =
+        `${this.$route.query.table}` ||
+        localStorage.getItem('matrix-initial-table') ||
+        this.h5Main?.catalog[0]
 
       // if saved table is not in THIS matrix, revert to first table
       if (initialTable && !this.h5Main.catalog.includes(initialTable)) {
@@ -291,10 +295,13 @@ const MyComponent = defineComponent({
       console.log('table:', table)
       if (!table || table == 'undefined') {
         this.activeTable = ''
+        // TODO
+        this.$router.replace({ query: {} })
         return
       }
 
       this.activeTable = table
+      this.$router.replace({ query: { ...this.$route.query, table } })
       await this.getMatrices()
       localStorage.setItem('matrix-initial-table', table)
 
@@ -401,9 +408,27 @@ const MyComponent = defineComponent({
       }
     },
 
+    honorQueryParameters() {
+      const query = this.$route.query as any
+      if (query.inverted == 'true') this.mapConfig.isInvertedColor = true
+      if (query.colors) this.mapConfig.colormap = query.colors
+      if (query.scale) this.mapConfig.scale = query.scale
+      if (query.dir) this.mapConfig.isRowWise = query.dir == 'row'
+    },
+
+    updateQuery() {
+      const { invert, scale, colors, ...query } = this.$route.query as any
+      query.dir = this.mapConfig.isRowWise ? 'row' : 'col'
+      if (this.mapConfig.colormap !== 'Viridis') query.colors = this.mapConfig.colormap
+      if (this.mapConfig.isInvertedColor) query.invert = 'true'
+      if (this.mapConfig.scale !== 'linear') query.scale = this.mapConfig.scale
+      this.$router.replace({ query }).catch(() => {})
+    },
+
     saveMapSettings() {
       const json = JSON.stringify(this.mapConfig)
       localStorage.setItem('matrixviewer-map-config', json)
+      this.updateQuery()
     },
 
     async loadShapes() {
