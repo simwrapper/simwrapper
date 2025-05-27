@@ -103,6 +103,8 @@ interface GuiConfig {
   opacity: number
   height: number
   'color ramp': string
+  'upper bound': number
+  'upper bound enabled': boolean
   colorRamps: String[]
   flip: Boolean
   steps: number
@@ -267,6 +269,8 @@ const GridMap = defineComponent({
         opacity: 1,
         height: 100,
         'color ramp': 'Viridis',
+        'upper bound': 100,
+        'upper bound enabled': false,
         colorRamps: colorRamps,
         flip: false,
         steps: 10,
@@ -377,14 +381,18 @@ const GridMap = defineComponent({
         }
       } else {
         // For negative values, we want to map the value to a color scale where 0 is in the middle
-        // First normalize the value to -1 to 1 range
-        const absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
-        const normalizedValue = value / absMax
+        let absMax: number
 
-        console.log('absMax:', absMax)
-
-        // Then map from -1,1 to 0,100 range
-        value = (normalizedValue + 1) * 50
+        if (this.guiConfig['upper bound enabled']) {
+          absMax = this.guiConfig['upper bound']
+          value = Math.max(Math.min(value, absMax), -absMax)
+          value = ((value + absMax) / (2 * absMax)) * 100
+        } else {
+          // Original behavior when upper bound is disabled
+          absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
+          const normalizedValue = value / absMax
+          value = (normalizedValue + 1) * 50
+        }
       }
 
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
@@ -1000,6 +1008,11 @@ const GridMap = defineComponent({
         colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
         colors.add(this.guiConfig, 'flip').onChange(this.setColors)
         colors.add(this.guiConfig, 'steps', 2, 50, 1).onChange(this.setColors)
+        colors
+          .add(this.guiConfig, 'upper bound enabled')
+          .name('Enable Upper Bound')
+          .onChange(this.setColors)
+        colors.add(this.guiConfig, 'upper bound').name('Upper Bound').onChange(this.setColors)
         this.setColors()
       }
     },
@@ -1132,6 +1145,9 @@ const GridMap = defineComponent({
 
         if (this.config.colorRamp.steps != undefined)
           this.guiConfig.steps = this.config.colorRamp.steps
+
+        if (this.config.colorRamp.upperBound != undefined)
+          this.guiConfig['upper bound'] = this.config.colorRamp.upperBound
       }
 
       // Set custom radius
