@@ -1114,11 +1114,6 @@ const GridMap = defineComponent({
           })
         this.setColors()
       }
-
-      // const colors = config.addFolder('colors')
-      // colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
-      // colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-      // this.setColors()
     },
 
     /*
