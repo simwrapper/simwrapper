@@ -962,6 +962,7 @@ const GridMap = defineComponent({
         const colors = config.addFolder('Colors')
         colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
         colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+        colors.add(this.guiConfig, 'steps', 2, 20, 1).onChange(this.setColors)
         this.setColors()
       }
     },
