@@ -980,23 +980,30 @@ const GridMap = defineComponent({
       else secondCtrl.hide()
 
       // Remove color ramp selector if the colorRamp is fixed
-      if (this.vizDetails.colorRamp) {
-        // let's make sure details user provided make sense
-        if (
-          this.vizDetails.colorRamp.breakpoints &&
-          this.vizDetails.colorRamp.fixedColors &&
-          this.vizDetails.colorRamp.breakpoints.length !==
-            this.vizDetails.colorRamp.fixedColors.length - 1
-        ) {
-          this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
-        }
-        return
+      // if (this.vizDetails.colorRamp) {
+      //   // let's make sure details user provided make sense
+      //   if (
+      //     this.vizDetails.colorRamp.breakpoints &&
+      //     this.vizDetails.colorRamp.fixedColors &&
+      //     this.vizDetails.colorRamp.breakpoints.length !==
+      //       this.vizDetails.colorRamp.fixedColors.length - 1
+      //   ) {
+      //     this.$emit('error', 'Color ramp breakpoints and fixedColors do not have correct lengths')
+      //   }
+      //   return
+      // }
+
+      if (!this.vizDetails.colorRamp || !this.vizDetails.colorRamp.breakpoints) {
+        const colors = config.addFolder('Colors')
+        colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+        colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+        this.setColors()
       }
 
-      const colors = config.addFolder('colors')
-      colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
-      colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-      this.setColors()
+      // const colors = config.addFolder('colors')
+      // colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+      // colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+      // this.setColors()
     },
 
     /*
