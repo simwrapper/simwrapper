@@ -190,7 +190,16 @@ const GridMap = defineComponent({
   },
 
   data() {
-    const colorRamps = ['Inferno', 'Magma', 'Viridis', 'Greens', 'Reds', 'RdYlGn', 'greenRed']
+    const colorRamps = [
+      'Inferno',
+      'Magma',
+      'Viridis',
+      'Greens',
+      'Reds',
+      'RdYlGn',
+      'greenRed',
+      'RdBu',
+    ]
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
       standaloneYAMLconfig: {
@@ -366,9 +375,16 @@ const GridMap = defineComponent({
           // console.warn('Invalid value for pickColor: Value should be between 0 and 100.')
           return [0, 0, 0, 0] // Default color (transparent)
         }
-        // adjust sclale if dataset includes negative values
       } else {
-        value = ((value - from_min) * to_max) / (from_max - from_min)
+        // For negative values, we want to map the value to a color scale where 0 is in the middle
+        // First normalize the value to -1 to 1 range
+        const absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
+        const normalizedValue = value / absMax
+
+        console.log('absMax:', absMax)
+
+        // Then map from -1,1 to 0,100 range
+        value = (normalizedValue + 1) * 50
       }
 
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
@@ -983,7 +999,7 @@ const GridMap = defineComponent({
         const colors = config.addFolder('Colors')
         colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
         colors.add(this.guiConfig, 'flip').onChange(this.setColors)
-        colors.add(this.guiConfig, 'steps', 2, 20, 1).onChange(this.setColors)
+        colors.add(this.guiConfig, 'steps', 2, 50, 1).onChange(this.setColors)
         this.setColors()
       }
     },
