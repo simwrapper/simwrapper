@@ -411,7 +411,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -1114,6 +1114,11 @@ const GridMap = defineComponent({
           })
         this.setColors()
       }
+
+      // const colors = config.addFolder('colors')
+      // colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
+      // colors.add(this.guiConfig, 'flip').onChange(this.setColors)
+      // this.setColors()
     },
 
     /*
