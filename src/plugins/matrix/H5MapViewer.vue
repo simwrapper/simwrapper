@@ -29,13 +29,37 @@
         input.input-zone.flex1(
           type="number" placeholder="zone"
           v-model="activeZone"
+          @input="tazInputBoxChanged"
         )
 
-    .legend-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
-      h4 Legend
-      legend-colors(:thresholds="colorThresholds")
+    //- LEGEND -------------------------------------------
+    .panel-area.flex-col(v-if="colorThresholds && colorThresholds.breakpoints")
+      .flex-row(style="margin-bottom: 2px")
+        h4.flex1 Legend
+        button.is-small.button(style="padding: 0 0.25rem; border: none" @click="isEditingLegend = !isEditingLegend")
+          i.fa(:class="isEditingLegend ? 'fa-check':'fa-edit'")
+          span &nbsp;{{ isEditingLegend ? 'done':'edit' }}
 
+      legend-colors(
+        :isEditing="isEditingLegend"
+        :thresholds="colorThresholds"
+        @breakpoints-changed="breakpointsChanged"
+      )
 
+      //- FILTER VALUES
+      .flex-row(style="margin-top: 0.75rem; gap: 0.5rem;")
+        .t Filter values
+        input.input-zone.input-filter(
+          v-model="filterText"
+          @input="updateFilter"
+        )
+
+    //- .panel-area.flex-col
+    //-   h4 DISPLAY
+    //-   .flex-col(style="gap: 2px")
+    //-     b-checkbox Show values on map
+
+    //- ROW/COL VALUES -------------------------------------------
     h4 {{ mapConfig.isRowWise ? 'Row ' : 'Column ' }} Values
 
     .bottom-half.flex-col.flex1
@@ -60,7 +84,7 @@
         :viewId="layerId"
         :features="features"
         :clickedZone="clickedZone"
-        :activeZoneFeature="features[tazToOffsetLookup[activeZone]]"
+        :activeZoneFeature="activeZoneFeature"
         :cbTooltip="showTooltip"
         :isLoading="isLoading"
       )
@@ -95,7 +119,6 @@ import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 
 import * as shapefile from 'shapefile'
-import { Dataset, File as H5WasmFile, Group as H5WasmGroup, ready as h5wasmReady } from 'h5wasm'
 import { scaleThreshold } from 'd3-scale'
 import naturalSort from 'javascript-natural-sort'
 
@@ -109,7 +132,6 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import { Style, buildRGBfromHexCodes, getColorRampHexCodes } from '@/js/ColorsAndWidths'
 
 import { H5WasmLocalFileApi } from './local/h5wasm-local-file-api'
-import { getPlugin } from './plugin-utils'
 
 import ZoneLayer from './ZoneLayer'
 import { MapConfig, ZoneSystems } from './MatrixViewer.vue'
@@ -119,10 +141,11 @@ import type { Matrix } from './H5Provider'
 import dataScalers from './util'
 import { debounce } from '@/js/util'
 
+import { ScaleType } from '@/components/ColorMapSelector/models-vis'
+
 naturalSort.insensitive = true
 
 const BASE_URL = import.meta.env.BASE_URL
-const PLUGINS_PATH = '/plugins' // path to plugins on EMScripten virtual file system
 
 const MyComponent = defineComponent({
   name: 'H5MapViewer',
@@ -140,6 +163,10 @@ const MyComponent = defineComponent({
     shapes: { type: Array, required: false },
     mapConfig: { type: Object as PropType<MapConfig>, required: true },
     zoneSystems: { type: Object as PropType<ZoneSystems>, required: true },
+    tazToOffsetLookup: {
+      type: Object as PropType<{ [taz: number | string]: number }>,
+      required: true,
+    },
     userSuppliedZoneID: String,
   },
 
@@ -147,26 +174,30 @@ const MyComponent = defineComponent({
     return {
       activeTable: null as null | { key: string; name: string },
       activeZone: null as any,
+      activeZoneFeature: {} as any,
       colorThresholds: {} as any,
       currentKey: '',
       dataArray: [] as number[],
       dbExtractH5ArrayData: {} as any,
       dragDividerWidth: 0,
+      d3ColorThresholds: {} as any,
       leftSectionWidth: 260,
       dragStartWidth: 260,
-      features: [] as any,
+      features: [] as any[],
+      filterText: '',
+      filteredValues: new Set() as Set<number>,
       globalState: globalStore.state,
       h5fileApi: null as null | H5WasmLocalFileApi,
       h5baseApi: null as null | H5WasmLocalFileApi,
       isMapReady: false,
       isLoading: false,
       isOmxApi: false,
+      isEditingLegend: false,
       layerId: Math.floor(1e12 * Math.random()),
       prettyDataArray: [] as any[],
       searchTerm: '',
       statusText: 'Loading...',
       tableKeys: [] as { key: string; name: string }[],
-      tazToOffsetLookup: {} as { [taz: string]: any },
       tooltip: '',
       useConfig: '',
       zoneID: 'TAZ',
@@ -182,9 +213,28 @@ const MyComponent = defineComponent({
     const prevLeftBarWidth = localStorage.getItem('matrixLeftPanelWidth')
     this.leftSectionWidth = prevLeftBarWidth ? parseInt(prevLeftBarWidth) : 256
     this.dbExtractH5ArrayData = debounce(this.extractH5Slice, 300)
+    this.d3ColorThresholds = scaleThreshold()
 
     // Load GeoJSON features
     await this.setupBoundaries()
+
+    if (this.$route.query.filter) {
+      this.filterText = `${this.$route.query.filter}`
+      this.parseFilters()
+    }
+
+    if (this.$route.query.zone) {
+      this.activeZone = `${this.$route.query.zone}`
+      this.tazInputBoxChanged()
+    } else {
+      let startOffset = (localStorage.getItem('matrix-start-taz-offset') ||
+        this.tazToOffsetLookup['1']) as any
+      if (startOffset !== undefined && this.features[startOffset]) {
+        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
+      }
+    }
+
+    this.isMapReady = true
   },
 
   computed: {
@@ -213,6 +263,7 @@ const MyComponent = defineComponent({
 
     activeZone() {
       this.dbExtractH5ArrayData()
+      this.updateQuery()
     },
 
     matrices() {
@@ -221,35 +272,68 @@ const MyComponent = defineComponent({
 
     filenameShapes() {
       this.loadBoundaries(this.filenameShapes || '')
-      this.buildTAZLookup()
     },
 
     'mapConfig.isRowWise'() {
       this.extractH5Slice()
     },
+    'mapConfig.scale'() {
+      // if user changes scale, remove manual breakpoints
+      const { breakpoints, ...query } = this.$route.query
+      this.$router.replace({ query }).catch(() => {})
+
+      this.setInitialColorsForArray()
+    },
     'mapConfig.colormap'() {
-      this.setColorsForArray()
+      const colors = this.updateColorRamp()
+      this.updateFeatureColors({ range: colors })
     },
     'mapConfig.isInvertedColor'() {
-      this.setColorsForArray()
-    },
-    'mapConfig.scale'() {
-      this.setColorsForArray()
+      const colors = this.updateColorRamp()
+      this.updateFeatureColors({ range: colors })
     },
   },
 
   methods: {
+    parseFilters() {
+      let validFilters = [] as number[]
+      const filters = this.filterText.split(',')
+      for (const f of filters) {
+        try {
+          const v = parseFloat(f)
+          if (Number.isFinite(v)) validFilters.push(v)
+        } catch {}
+      }
+      this.filteredValues = new Set(validFilters)
+    },
+
+    updateFilter() {
+      this.parseFilters()
+      this.updateQuery()
+      this.setInitialColorsForArray()
+    },
+
+    tazInputBoxChanged() {
+      this.activeZoneFeature = this.features.find(
+        (f: any) => f.properties[this.zoneID] == this.activeZone
+      )
+    },
+
     async extractH5Slice() {
+      const matrix = this.matrices.main?.data
+      if (!matrix) {
+        console.log('matrix not loaded yet, just a moment')
+        return
+      }
+
       console.log('---extract h5 slice for zone', this.activeZone)
+
       //TODO FIX THIS - all zone systems will not be forever 1-based monotonically increasing
       let offset = this.tazToOffsetLookup[this.activeZone] // this.activeZone - 1
       // try {
       let values = [] as any
       let base = [] as any
       let diff = [] as any
-
-      const matrix = this.matrices.main?.data
-      if (!matrix) return
 
       if (this.mapConfig.isRowWise) {
         values = matrix.slice(this.matrixSize * offset, this.matrixSize * (1 + offset))
@@ -280,7 +364,8 @@ const MyComponent = defineComponent({
 
       // display diff data on map if exists; otherwise show regular main data
       this.dataArray = this.matrices.diff ? diff : values
-      await this.setColorsForArray()
+
+      await this.setInitialColorsForArray()
 
       // create array of pretty values: each i-element is [value, base, diff]
       const pvs = this.setPrettyValuesForArray(values).map(v => [v])
@@ -326,16 +411,7 @@ const MyComponent = defineComponent({
         await this.loadBoundariesBasedOnMatrixSize()
       }
 
-      this.buildTAZLookup()
       this.setMapCenter()
-
-      const startOffset =
-        localStorage.getItem('matrix-start-taz-offset') || this.tazToOffsetLookup['1']
-      if (startOffset !== undefined) {
-        this.clickedZone({ index: startOffset, properties: this.features[startOffset].properties })
-      }
-
-      this.isMapReady = true
     },
 
     showTooltip(props: { index: number; object: any }) {
@@ -403,16 +479,6 @@ const MyComponent = defineComponent({
       this.$store.commit('setMapCamera', { longitude: points[0], latitude: points[1], zoom: 7 })
     },
 
-    buildTAZLookup() {
-      this.tazToOffsetLookup = {}
-      const zoneIDs = [] as any[]
-      this.features.forEach((f: any) => zoneIDs.push(f.properties[this.zoneID]))
-      zoneIDs.sort(naturalSort)
-      for (let i = 0; i < zoneIDs.length; i++) {
-        this.tazToOffsetLookup[zoneIDs[i]] = i
-      }
-    },
-
     setPrettyValuesForArray(array: any[]) {
       const pretty = [] as any[]
       array.forEach(v => {
@@ -438,53 +504,88 @@ const MyComponent = defineComponent({
 
       console.log('NEW ZONE: index ', zone.index, 'zone', zone.properties[this.zoneID])
 
-      this.activeZone = zone.properties[this.zoneID]
       localStorage.setItem('matrix-start-taz-offset', '' + zone.index)
+      this.activeZone = zone.properties[this.zoneID]
+      this.activeZoneFeature = this.features[zone.index]
     },
 
-    async setColorsForArray() {
+    async setInitialColorsForArray() {
       const values = this.dataArray
       let min = Infinity
       let max = -Infinity
-      // too many for spread
+
+      // calculate min/max
       for (let i = 0; i < values.length; i++) {
-        min = Math.min(min, values[i])
-        max = Math.max(max, values[i])
+        const v = values[i]
+
+        if (this.filteredValues.has(v)) continue
+
+        min = Math.min(min, v)
+        max = Math.max(max, v)
       }
 
-      const NUM_COLORS = 9
+      // default 9 categories
+      let NUM_COLORS = this.colorThresholds?.colorsAsRGB?.length || 9
+      let breakpoints = [] as number[]
 
-      // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
-      const breakpoints = dataScalers[this.mapConfig.scale](NUM_COLORS)
+      // use manual breakpoints if we have them
+      const breakpointsText = this.$route.query?.breakpoints as string
+      if (breakpointsText) {
+        breakpoints = breakpointsText.split(',').map(b => parseFloat(b))
+        NUM_COLORS = breakpoints.length + 1
+      } else {
+        // use the scale selection (linear, log, etc) to calculation breakpoints 0.0-1.0, independent of data
+        const breakpoints0to1 = dataScalers[this.mapConfig.scale](NUM_COLORS)
+        // scale the normalized breakpoints to something logical for this particular dataset
+        if (min >= 0 || this.mapConfig.scale == ScaleType.SymLog) {
+          // scale by whichever is abs(larger)
+          let scaler = Math.max(Math.abs(min), Math.abs(max))
+          breakpoints = breakpoints0to1.map((b: number) => scaler * b)
+        } else {
+          const spread = max - min
+          breakpoints = breakpoints0to1.map((b: number) => min + spread * b)
+        }
+      }
 
-      // colors
-      let xcolors = getColorRampHexCodes(
+      const colorsAsRGB = this.updateColorRamp(NUM_COLORS)
+      this.colorThresholds = { colorsAsRGB, breakpoints }
+
+      this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints, max })
+    },
+
+    updateColorRamp(initialNumColors?: number) {
+      const numColors = initialNumColors || this.colorThresholds?.colorsAsRGB?.length || 9
+
+      let colors = getColorRampHexCodes(
         { ramp: this.mapConfig.colormap, style: Style.sequential },
-        NUM_COLORS
+        numColors
       )
+      if (this.mapConfig.isInvertedColor) colors = colors.toReversed()
 
-      // flip the colors if requested
-      if (this.mapConfig.isInvertedColor) xcolors = xcolors.slice().reverse()
+      const colorsAsRGB = buildRGBfromHexCodes(colors)
+      this.colorThresholds = { ...this.colorThresholds, colorsAsRGB }
 
-      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
+      return colorsAsRGB
+    },
 
-      this.colorThresholds = { colorsAsRGB, breakpoints, min, max }
+    updateFeatureColors(props: { range?: any; domain?: any; max?: number }) {
       // *scaleThreshold* is the d3 function that maps numerical values from [0.0,1.0) to the color buckets
       // *range* is the list of colors;
       // *domain* is the list of breakpoints (usually 0.0-1.0 continuum or zero-centered)
-      const d3colorThresholds = scaleThreshold().range(colorsAsRGB).domain(breakpoints)
+
+      if (props.range) this.d3ColorThresholds.range(props.range)
+      if (props.domain) this.d3ColorThresholds.domain(props.domain)
+
+      const values = this.dataArray
 
       for (let i = 0; i < this.features.length; i++) {
         try {
           const TAZ = this.features[i].properties[this.zoneID]
-
-          //TODO - this assumes zones are off-by-one, in order, in matrix data
           const matrixOffset = this.tazToOffsetLookup[TAZ]
 
           // ALWAYS scale by max value
-          let value = values[matrixOffset] / max
-
-          const color = Number.isNaN(value) ? [40, 40, 40] : d3colorThresholds(value)
+          let value = values[matrixOffset]
+          const color = Number.isNaN(value) ? [255, 40, 40] : this.d3ColorThresholds(value)
           this.features[i].properties.color = color || [40, 40, 40]
         } catch (e) {
           console.warn('BAD', i, this.features[i].properties)
@@ -493,6 +594,34 @@ const MyComponent = defineComponent({
       }
       // Tell vue this is new
       this.features = [...this.features]
+    },
+
+    breakpointsChanged(breakpoints: any[]) {
+      let xcolors = getColorRampHexCodes(
+        { ramp: this.mapConfig.colormap, style: Style.sequential },
+        breakpoints.length + 1
+      )
+      if (this.mapConfig.isInvertedColor) xcolors = xcolors.toReversed()
+
+      const colorsAsRGB = buildRGBfromHexCodes(xcolors)
+
+      // let vue know they're new
+      this.colorThresholds = { colorsAsRGB, breakpoints }
+      // and update the features
+      this.updateFeatureColors({ range: colorsAsRGB, domain: breakpoints })
+      this.updateQuery(true)
+    },
+
+    updateQuery(includeBreakpoints?: boolean) {
+      const query = { ...this.$route.query }
+      query.zone = this.activeZone
+      if (this.filterText) query.filter = this.filterText
+
+      if (query.breakpoints || includeBreakpoints) {
+        query.breakpoints = this.colorThresholds.breakpoints.join(',')
+      }
+
+      this.$router.replace({ query }).catch(() => {})
     },
 
     async loadBoundariesBasedOnMatrixSize() {
@@ -912,6 +1041,12 @@ $bgLightCyan: var(--bgMapWater); //  // #f5fbf0;
   border-right: 1px solid #eee;
 }
 
+.input-filter {
+  flex: 1;
+  font-weight: unset;
+  text-align: left;
+}
+
 .titles {
   margin-right: 0.5rem;
 }
@@ -924,7 +1059,7 @@ h4 {
   font-size: 13px;
 }
 
-.legend-area {
+.panel-area {
   margin: 1.5rem 0;
 }
 

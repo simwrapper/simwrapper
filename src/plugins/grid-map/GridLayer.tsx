@@ -25,6 +25,7 @@ export default function Layer({
   colorRamp = 'Viridis' as String,
   dark = false as Boolean,
   data = {} as CompleteMapData,
+  colorDataDigits = 0 as number,
   negativeValues = false as Boolean,
   currentTimeIndex = 0 as number,
   // extrude = true as Boolean,
@@ -33,6 +34,7 @@ export default function Layer({
   cellSize = 200 as Number,
   opacity = 0.7 as Number,
   upperPercentile = 100 as Number,
+  cbTooltip = null as any,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
@@ -71,8 +73,11 @@ export default function Layer({
     }
   }
 
-  function getTooltip(object: any): Tooltip {
-    if (!object?.coordinate) return null
+  function getTooltip(object: any): Tooltip | undefined {
+    if (!object?.coordinate) {
+      if (cbTooltip) cbTooltip()
+      return null
+    }
 
     const currentData = data.mapData[currentTimeIndex]?.values
     if (!currentData || !currentData[object.index]) return null
@@ -86,14 +91,22 @@ export default function Layer({
     const latDisplay = Number.isFinite(lat) ? lat.toFixed(4) : ''
     const lngDisplay = Number.isFinite(lng) ? lng.toFixed(4) : ''
 
-    const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}`
+    const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}<br/>
+    metric value: ${data.mapData[currentTimeIndex].values[object.index]}<br/>
+    `
     const tooltipStyle: TooltipStyle = dark
       ? { color: '#ccc', backgroundColor: '#2a3c4f' }
       : { color: '#223', backgroundColor: 'white' }
 
-    return {
+    const tip = {
       html: tooltipHtml,
       style: tooltipStyle,
+    }
+
+    if (cbTooltip) {
+      cbTooltip(tip, object)
+    } else {
+      return tip
     }
   }
 
@@ -112,7 +125,7 @@ export default function Layer({
         length: data.mapData[currentTimeIndex].length,
         attributes: {
           getPosition: { value: data.mapData[currentTimeIndex].centroid, size: 2 },
-          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: 3 },
+          getFillColor: { value: data.mapData[currentTimeIndex].colorData, size: colorDataDigits },
           // doesn't allow elevation to work if negative values are present. Will think of a better solution for this. - Brendan 15.05.2025
           getElevation: negativeValues
             ? { value: null }
