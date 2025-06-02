@@ -16,6 +16,7 @@
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
     "deploy-simwrapper-app": "bash scripts/deploy-simwrapper-app.sh simwrapper/app",
     "deploy-asim": "bash scripts/deploy-ghpages.sh ActivitySim/dashboard dashboard",
+    "deploy-bleeding": "bash scripts/deploy-ghpages.sh simwrapper/bleeding bleeding",
     "index": "node scripts/build-index.cjs public/data",
     "dev": "npm run index && vite",
     "serve": "npm run index && vite",
