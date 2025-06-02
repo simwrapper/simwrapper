@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.7.0](https://github.com/simwrapper/simwrapper/compare/v3.6.1...v3.7.0) (2025-05-26)
+
+
+### Features
+
+* Gridmap Diff Mode ([#468](https://github.com/simwrapper/simwrapper/issues/468)) ([611a825](https://github.com/simwrapper/simwrapper/commit/611a8251a3cd3826b8113b73ba5da19a5bbb9abc))
+
+
+### Bug Fixes
+
+* **flowmap:** Network no longer needed for flowmap and loading issue on staging fixed. ([#463](https://github.com/simwrapper/simwrapper/issues/463)) ([661b759](https://github.com/simwrapper/simwrapper/commit/661b7591c8cbfc27331115917f4a80433c25d216))
+* Gridlayer roads above cells if height=0 (looks nicer) ([0e4ec94](https://github.com/simwrapper/simwrapper/commit/0e4ec94d3e0f0b2e3732786e07b8e636def8f73e))
+* **map:** Draw roadways on top of polygons if map ONLY has polygons ([db3cc27](https://github.com/simwrapper/simwrapper/commit/db3cc27d16499fe6f35ce2dff08a4baad61f4cb4))
+* **map:** Join and normalize selectors were sometimes ignored ([a0f082d](https://github.com/simwrapper/simwrapper/commit/a0f082db5b8be93cd14a53b399a32aa2b213bf0b))
+* **map:** Shapefiles/network tooltips are not always displayed ([e057fdf](https://github.com/simwrapper/simwrapper/commit/e057fdfaf780ecfbb91f7e3c6c1d8ce273324f26))
+* **matrix:** handle MTC-style omx files with gaps in zone numbering ([b825594](https://github.com/simwrapper/simwrapper/commit/b825594c56f725c6cf4ee99ba136f4fa39670590))
+
 ### [3.6.1](https://github.com/simwrapper/simwrapper/compare/v3.6.0...v3.6.1) (2025-02-27)
 
 

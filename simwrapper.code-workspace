@@ -20,7 +20,6 @@
       "editor.formatOnSave": true
     },
     "rust-analyzer.cargo.allFeatures": true,
-    "rust-analyzer.checkOnSave.command": "clippy",
     "rust-analyzer.procMacro.enable": true,
 
     // Node-specific settings
