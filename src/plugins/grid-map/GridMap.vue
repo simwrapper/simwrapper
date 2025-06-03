@@ -260,6 +260,7 @@ const GridMap = defineComponent({
       colorDataDigits: 3,
       selectedTimeData: [] as any[],
       allTimePeriodes: [] as any[],
+      csv: {} as any,
       colors: colormap({
         colormap: 'Viridis',
         nshades: 10,
@@ -772,6 +773,7 @@ const GridMap = defineComponent({
 
       const config = { dataset: this.vizDetails.file }
       let csv = {} as any
+
       try {
         csv = await this.myDataManager.getDataset(config, { subfolder: this.subfolder })
       } catch (e) {
@@ -1004,9 +1006,9 @@ const GridMap = defineComponent({
       this.currentTime = timeValues
       this.selectedTimeData = []
 
-      for (let i = 0; i < this.data.length; i++) {
-        if (this.data[i].time == timeValues[0]) {
-          this.selectedTimeData.push(this.data[i])
+      for (let i = 0; i < this.data.mapData.length; i++) {
+        if (this.data.mapData[i].time == timeValues[1]) {
+          this.selectedTimeData.push(this.data.mapData[i].values)
         }
       }
     },
@@ -1181,11 +1183,24 @@ const GridMap = defineComponent({
           )
           if (colors == undefined) break
 
-          // if (this.guiConfig.opacityColumn != 'none') {
-          // for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
-          //   this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
-          // }
-          // }
+          if (this.guiConfig.opacityColumn == 'none') {
+            for (let colorIndex = j * 3; colorIndex <= j * 3 + 2; colorIndex++) {
+              this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 3]
+            }
+          } else {
+            try {
+              for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
+                // set 4th value to opacity value
+                if ((colorIndex + 1) % 4 == 0) {
+                  this.data.mapData[i].colorData[colorIndex] = Math.round(this.data.mapData[i].opacityValues[j] * 255)
+                } else {
+                  this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
+                }
+              }
+            } catch (e) {
+              this.$emit('error', '' + e) // `Error loading ${this.vizDetails.file}: File missing? CSV Too large?`)
+            }
+          }
         }
       }
 
