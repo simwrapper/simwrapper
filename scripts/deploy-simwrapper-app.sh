@@ -17,8 +17,8 @@ git checkout vite.config.mts public/404.html
 echo --- GET LATEST COMMIT ID ---
 SIMWRAPPER_COMMIT=`git rev-parse --short HEAD`
 SIMWRAPPER_TAG=`git describe --tags --abbrev=0`
-sed -I .bak "s/local_build/$SIMWRAPPER_COMMIT/"  .env
-sed -I .bak "s/no_tag/$SIMWRAPPER_TAG/"  .env
+sed -i .bak "s/local_build/$SIMWRAPPER_COMMIT/"  .env
+sed -i .bak "s/no_tag/$SIMWRAPPER_TAG/"  .env
 
 echo --- BUILD INDEX.HTML FILES ---
 npm run index
