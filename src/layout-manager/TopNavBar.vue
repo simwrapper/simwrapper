@@ -1,7 +1,7 @@
 <template lang="pug">
-.my-navbar.flex-row(@mouseleave="showSidebarMenu=false")
+.my-navbar.flex-row(@mouseleave="dbCloseQuickMenu")
 
-  .brand.flex-row(@mouseover="showSidebarMenu=true"
+  .brand.flex-row(@click="showSidebarMenu=!showSidebarMenu"
     :class="{'is-highlighted': showSidebarMenu}"
   )
     .sidebar-button
@@ -22,7 +22,6 @@
 
   .dropdown-holder.flex-col(v-if="showSidebarMenu"
     @mouseover="showSidebarMenu=true"
-    @mouseleave="showSidebarMenu=false"
   )
     .x-item(@click="go('/')" style="margin-left: 3px")
       p: i.x-menu-icon.fas.fa-home
@@ -74,6 +73,7 @@
 import { defineComponent } from 'vue'
 import type { PropType } from 'vue'
 import isDarkColor from 'is-dark-color'
+import { debounce } from 'debounce'
 
 import globalStore from '@/store'
 import type { NavigationItem } from '@/Globals'
@@ -98,6 +98,7 @@ export default defineComponent({
       showSidebarMenu: false,
       showSettings: false,
       selectedGroup: -1,
+      dbCloseQuickMenu: {} as any,
       isDark: false,
       imgLogo,
       imgSidebar,
@@ -117,7 +118,15 @@ export default defineComponent({
     },
   },
 
+  mounted() {
+    this.dbCloseQuickMenu = debounce(this.closeQuickMenu, 500)
+  },
+
   methods: {
+    closeQuickMenu() {
+      this.showSidebarMenu = false
+    },
+
     go(path: string) {
       this.showSidebarMenu = false
       const fullPath = `${BASE_URL}${path}`.replaceAll('//', '/')

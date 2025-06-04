@@ -3,19 +3,19 @@
  .centered
   .splash-scroll-area.white-text
 
-    .diagonal.top-logo-area.middle-area
+    .top-logo-area.middle-area
       .content
 
         .top-banner.flex-row
           .flex1
-            img.simwrapper-logo(v-if="images.logo" :src="images.logo")
-            //- img(v-if="state.isDarkMode" src="@/assets/simwrapper-logo/SW_logo_yellow.png")
-            //- img(v-else src="@/assets/simwrapper-logo/SW_logo_purple.png")
+            //- img.simwrapper-logo(v-if="images.logo" :src="images.logo")
+            img(v-if="state.isDarkMode" width=256 src="@/assets/simwrapper-logo/SW_logo_yellow.png")
+            img(v-else width=256 src="@/assets/simwrapper-logo/SW_logo_purple.png")
 
         .tagline The transport simulation data visualizer from TU Berlin.
 
     //- DATA SOURCES -------------------------------------------------------------------
-    .diagonal.data-area
+    .data-area
       .content
 
         .section-head.is-chrome(v-if="isChrome")
@@ -65,7 +65,7 @@
 
     //- WHAT IS SIMWRAPPER  ------------------------------------------------------
 
-    .diagonal.newbie-area.white-text
+    .newbie-area.white-text
       .content
 
         h2.section-head.mb1 What is SimWrapper?
@@ -95,7 +95,7 @@
 
     //- GETTING STARTED ------------------------------------------------------
 
-    .diagonal.data-area.white-text
+    .data-area.white-text
       .content
 
         h2.section-head.mb1 Getting started with SimWrapper
@@ -135,7 +135,7 @@
 
     //- SPONSORS -------------------------------------------------------------------
 
-    .diagonal.sponsors-area.dark-text
+    .sponsors-area.dark-text
       .content
 
         h2.section-head Funding partners
@@ -402,7 +402,8 @@ $angle: 1deg;
   bottom: 0;
   left: 0;
   right: 0;
-  background-image: var(--bgSplashPage);
+  background-image: linear-gradient(45deg, #ebe9f4, #e4ebf7, #e0f4f7);
+  // background-image: var(--bgSplashPage);
 }
 
 .centered {
@@ -415,10 +416,11 @@ $angle: 1deg;
   flex-direction: column;
   max-width: 100rem;
   margin: 0 auto;
+  padding: 3rem 2rem 0.5rem 2rem;
 }
 
 .content {
-  transform: skewY($angle);
+  // transform: skewY($angle);
   margin-bottom: 2rem;
   // max-width: 90rem;
   // margin: 0 auto;
@@ -438,7 +440,7 @@ $angle: 1deg;
 .sponsors-area {
   background-color: white;
   margin-bottom: 1rem;
-  padding-bottom: 2rem;
+  padding: 2rem;
   color: #333;
 }
 
@@ -452,32 +454,7 @@ h4 {
 }
 
 .data-area {
-  background-image: linear-gradient(45deg, rgb(44, 39, 68), #1c242f, #283f42);
   padding-bottom: 2rem;
-}
-
-.white-text {
-  color: #eee;
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    color: #eee;
-  }
-}
-
-.dark-text {
-  color: #335;
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    color: #335;
-  }
 }
 
 // .footer-area {
@@ -485,13 +462,13 @@ h4 {
 
 // hello --------------------------
 
-a {
-  color: #65d68f;
-}
+// a {
+//   color: #65d68f;
+// }
 
-a:hover {
-  color: #a8ffc8;
-}
+// a:hover {
+//   color: #a8ffc8;
+// }
 
 .simwrapper-logo {
   max-width: 250px;
@@ -509,8 +486,8 @@ a:hover {
   padding: 1rem 0rem;
   display: flex;
   flex-direction: row;
-  color: #227;
-  background-color: white;
+  // color: #227;
+  // background-color: white;
   max-width: 60rem;
 }
 .logos {
@@ -560,7 +537,6 @@ h2.splash-readme {
   flex-direction: column;
   margin-top: 0.5rem;
   padding: 0.5rem 0.5rem;
-  background-color: #181818;
   border-left: 3px solid #29d09a;
   border-right: 1px solid #8888aa00;
   border-top: 1px solid #8888aa00;
@@ -591,7 +567,6 @@ h2.splash-readme {
 
 .project-root:hover {
   cursor: pointer;
-  background-color: #34618b;
   transition: background-color 0.1s ease-in-out;
   border-right: 1px solid #66666640;
   border-top: 1px solid #66666640;
@@ -639,7 +614,7 @@ h2.splash-readme {
 
 .tagline {
   font-size: 1.8rem;
-  margin: 0rem 0 1rem 0rem; // 2.4rem
+  margin: 0.25rem 0 1rem 0rem; // 2.4rem
   font-weight: 100;
   line-height: 2rem;
 }
@@ -650,7 +625,7 @@ h2.splash-readme {
 
 .newbie-area {
   font-size: 1.1rem;
-  background-image: linear-gradient(45deg, rgb(7, 103, 57), #2a2de0); // #5e1419
+  // background-image: linear-gradient(45deg, rgb(7, 103, 57), #2a2de0); // #5e1419
   padding-bottom: 1rem;
 }
 
@@ -690,7 +665,8 @@ h2.splash-readme {
   padding: 0.5rem;
   line-height: 1.2rem;
   margin: 0;
-  background-color: #181818;
+  // background-color: #181818;
+  border: 1px solid #00000000;
   gap: 0.25rem;
   cursor: pointer;
 
@@ -701,7 +677,8 @@ h2.splash-readme {
 }
 .favorite:hover {
   cursor: pointer;
-  background-color: #34618b;
+  background-color: var(--bgBold);
+  border: 1px solid var(--bgPanel3);
   transition: background-color 0.1s ease-in-out;
 }
 </style>
