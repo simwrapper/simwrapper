@@ -9,6 +9,7 @@ import pako from 'pako'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
+import { findMatchingGlobInFiles } from '@/js/util'
 
 onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
   fetchGzip(filePath, fileSystem).then((result: any) => {
@@ -18,10 +19,26 @@ onmessage = ({ data: { filePath, fileSystem } }: MessageEvent) => {
   })
 }
 
-async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
+async function fetchGzip(filepath: string, fileSystem: FileSystemConfig) {
+  const httpFileSystem = new HTTPFileSystem(fileSystem)
+
+  // figure out which file to load with *? wildcards
+  let expandedFilename = filepath
   try {
-    const httpFileSystem = new HTTPFileSystem(fileSystem)
-    const blob = await httpFileSystem.getFileBlob(filePath)
+    if (filepath.indexOf('*') > -1 || filepath.indexOf('?') > -1) {
+      const zDataset = filepath.substring(1 + filepath.lastIndexOf('/'))
+      const zSubfolder = filepath.substring(0, filepath.lastIndexOf('/'))
+
+      // fetch list of files in this folder
+      const { files } = await httpFileSystem.getDirectory(zSubfolder)
+      const matchingFiles = findMatchingGlobInFiles(files, zDataset)
+      if (matchingFiles.length == 0) throw Error(`No files matched "${zDataset}"`)
+      if (matchingFiles.length > 1)
+        throw Error(`More than one file matched "${zDataset}": ${matchingFiles}`)
+      expandedFilename = `${zSubfolder}/${matchingFiles[0]}`
+    }
+
+    const blob = await httpFileSystem.getFileBlob(expandedFilename)
     if (!blob) throw Error('BLOB IS NULL')
 
     const buffer = await blob.arrayBuffer()
@@ -29,7 +46,7 @@ async function fetchGzip(filePath: string, fileSystem: FileSystemConfig) {
 
     return cargo
   } catch (e) {
-    ctx.postMessage({ error: 'Error loading ' + filePath })
+    ctx.postMessage({ error: 'Error loading ' + expandedFilename })
   }
 }
 

@@ -141,15 +141,14 @@ const COLOR_CATEGORIES = 10
 const SHOW_STOPS_AT_ZOOM_LEVEL = 11
 
 interface PtData {
-  name: string;
-  a: number;
-  b: number;
+  name: string
+  a: number
+  b: number
 }
 
 interface StopLevelData {
-  [ptLine: string]: PtData | number;
+  [ptLine: string]: PtData | number
 }
-
 
 const DEFAULT_ROUTE_COLORS = [
   // ---------------------------------------------------
@@ -368,7 +367,13 @@ const MyComponent = defineComponent({
       cfDemandStop1: null as crossfilter.Dimension<any, any> | null,
       cfDemandStop2: null as crossfilter.Dimension<any, any> | null,
 
-      stopLevelDemand: {} as { [id: string]: { b: number, a: number, ptLines: { [ptLineId: string]: { name: string, b: number, a: number } } } },
+      stopLevelDemand: {} as {
+        [id: string]: {
+          b: number
+          a: number
+          ptLines: { [ptLineId: string]: { name: string; b: number; a: number } }
+        }
+      },
 
       routeColors: [] as { match: any; color: string; label: string; hide: boolean }[],
       usedLabels: [] as string[],
@@ -718,7 +723,7 @@ const MyComponent = defineComponent({
           .filter(f => f.toLocaleLowerCase().endsWith('.avro'))
           .filter(f => f.toLocaleLowerCase().indexOf('network') > -1)
         if (avroNetworkFiles.length) {
-          console.log("avro network found")
+          console.log('avro network found')
           network = avroNetworkFiles[0]
         }
         if (avroNetworkFiles.length > 1)
@@ -765,6 +770,7 @@ const MyComponent = defineComponent({
       if (networks?.roadXML?.crs) return networks?.roadXML?.crs
 
       // 0. If it's in the network, use it
+      console.log(222, networks)
       if (networks?.roadXML?.network?.attributes?.attribute?.name === 'coordinateReferenceSystem') {
         return networks?.roadXML?.network?.attributes?.attribute['#text']
       }
@@ -957,11 +963,13 @@ const MyComponent = defineComponent({
 
     async loadEverything() {
       const networks = await this.loadNetworks()
+      if (!networks) return
+
       const projection = await this.guessProjection(networks)
       this.vizDetails.projection = projection
       this.projection = this.vizDetails.projection
 
-      if (networks) this.processInputs(networks)
+      this.processInputs(networks)
       console.log(networks)
 
       // TODO remove for now until we research whether this causes a memory leak:
@@ -1055,14 +1063,14 @@ const MyComponent = defineComponent({
         const roads =
           filename.indexOf('.avro') > -1
             ? // AVRO networks have a separate reader:
-            this.loadAvroRoadNetwork()
+              this.loadAvroRoadNetwork()
             : // normal MATSim network
-            this.fetchXML({
-              worker: this._roadFetcher,
-              slug: this.fileSystem.slug,
-              filePath: this.myState.subfolder + '/' + this.vizDetails.network,
-              options: { attributeNamePrefix: '' },
-            })
+              this.fetchXML({
+                worker: this._roadFetcher,
+                slug: this.fileSystem.slug,
+                filePath: this.myState.subfolder + '/' + this.vizDetails.network,
+                options: { attributeNamePrefix: '' },
+              })
 
         const transit = this.fetchXML({
           worker: this._transitFetcher,
@@ -1082,7 +1090,7 @@ const MyComponent = defineComponent({
         return { roadXML: results[0], transitXML: results[1], ridership: [] }
       } catch (e) {
         console.error('TRANSIT:', e)
-        this.loadingText
+        this.loadingText = ''
         this.$emit('error', '' + e)
         return null
       }
@@ -1170,11 +1178,13 @@ const MyComponent = defineComponent({
       // make stopLevelDemand a 2-dimensional array? stop ID and then pt-line?
       for (const row of results.data) {
         const stopId = row.stop
-        if (!this.stopLevelDemand[stopId]) this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
+        if (!this.stopLevelDemand[stopId])
+          this.stopLevelDemand[stopId] = { b: 0, a: 0, ptLines: {} }
         this.stopLevelDemand[stopId].b += row.passengersBoarding
         this.stopLevelDemand[stopId].a += row.passengersAlighting
         const ptLineId = row.transitLine
-        if (!this.stopLevelDemand[stopId].ptLines[ptLineId]) this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
+        if (!this.stopLevelDemand[stopId].ptLines[ptLineId])
+          this.stopLevelDemand[stopId].ptLines[ptLineId] = { name: ptLineId, b: 0, a: 0 }
         this.stopLevelDemand[stopId].ptLines[ptLineId].a += row.passengersAlighting
         this.stopLevelDemand[stopId].ptLines[ptLineId].b += row.passengersBoarding
       }
@@ -1182,7 +1192,8 @@ const MyComponent = defineComponent({
       console.log('---Calculating link-by-link pax/cap')
       const linkPassengersById = {} as any
       const linkCapacity = {} as any
-      ``
+
+      // loop through rows
       for (const row of results.data) {
         // console.log(row)
         if (row.linkIdsSincePreviousStop) {
@@ -1198,7 +1209,6 @@ const MyComponent = defineComponent({
         }
       }
 
-
       // update passenger value in the transit-link geojson.
       for (const transitLink of this.transitLinks.features) {
         if (!transitLink.properties) transitLink.properties = {}
@@ -1207,7 +1217,7 @@ const MyComponent = defineComponent({
         transitLink.properties['loadfac'] =
           Math.round(
             (1000 * linkPassengersById[transitLink.properties.id]) /
-            linkCapacity[transitLink.properties.id]
+              linkCapacity[transitLink.properties.id]
           ) / 1000
       }
 
@@ -1279,7 +1289,12 @@ const MyComponent = defineComponent({
       await this.processDepartures()
 
       // Build the links layer and add it
-      this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      try {
+        this.transitLinks = await this.constructDepartureFrequencyGeoJson()
+      } catch (e) {
+        const msg = '' + e || 'Failed processing departure links'
+        this.$emit('error', msg)
+      }
       // don't keep the network lying around wasting memory
       this._network = { links: {}, nodes: {} }
       // build the lookup for transit links by linkId
@@ -1403,6 +1418,9 @@ const MyComponent = defineComponent({
         }
       }
 
+      if (!geojson.length) {
+        throw Error('No links found. Does the network contain PT links?')
+      }
       return { type: 'FeatureCollection', features: geojson } as GeoJSON.FeatureCollection
     },
 
@@ -1773,7 +1791,9 @@ const MyComponent = defineComponent({
 
     if (this.thumbnail) return
 
-    await this.findInputFiles()
+    // If we don't have a network file yet, try and find one
+    if (!this.vizDetails.network) await this.findInputFiles()
+
     this.loadEverything()
   },
 
@@ -1788,8 +1808,6 @@ const MyComponent = defineComponent({
     this.$store.commit('setFullScreen', false)
   },
 })
-
-const _colorScale = colormap({ colormap: 'viridis', nshades: COLOR_CATEGORIES })
 
 export default MyComponent
 </script>
