@@ -23,7 +23,6 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
-            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")
@@ -355,8 +354,8 @@ const MyComponent = defineComponent({
       _transitFetcher: {} as any,
       _transitHelper: {} as any,
 
-      pieSlider: 30,
-      widthSlider: 50,
+      pieSlider: 20,
+      widthSlider: 20,
 
       resolvers: {} as { [id: number]: any },
       resolverId: 0,
@@ -771,7 +770,6 @@ const MyComponent = defineComponent({
       if (networks?.roadXML?.crs) return networks?.roadXML?.crs
 
       // 0. If it's in the network, use it
-      console.log(222, networks)
       if (networks?.roadXML?.network?.attributes?.attribute?.name === 'coordinateReferenceSystem') {
         return networks?.roadXML?.network?.attributes?.attribute['#text']
       }
@@ -967,11 +965,13 @@ const MyComponent = defineComponent({
       if (!networks) return
 
       const projection = await this.guessProjection(networks)
-      this.vizDetails.projection = projection
-      this.projection = this.vizDetails.projection
+      this.projection = projection
+
+      // comment this for now; this is what the user really asked for: NOT A GUESS.
+      // this.vizDetails.projection = projection
 
       this.processInputs(networks)
-      console.log(networks)
+      // console.log(networks)
 
       // TODO remove for now until we research whether this causes a memory leak:
       // this.setupKeyListeners()
@@ -1243,9 +1243,27 @@ const MyComponent = defineComponent({
         this.receivedProcessedTransit(buffer)
       }
 
+      // Transit schedule: this might have a different projection than the network,
+      // because Avro networks are always EPSG:4326 even if original network is not.
+      let transitProjection = this.vizDetails.projection
+      if (!transitProjection) {
+        // see if transit network has its own projection
+        let tCRS = networks?.transitXML?.transitSchedule?.attributes?.attribute
+        // sometimes array, sometimes element.
+        if (!tCRS.length) tCRS = [tCRS]
+        tCRS = tCRS.filter((f: any) => f.name === 'coordinateReferenceSystem')
+        if (tCRS.length) {
+          transitProjection = tCRS[0]['#text']
+        } else {
+          // otherwise use roadnetwork project
+          transitProjection = this.projection
+        }
+      }
+
+      console.log('Transit schedule using', transitProjection)
       this._transitHelper.postMessage({
         xml: networks,
-        projection: this.projection,
+        projection: transitProjection,
       })
     },
 

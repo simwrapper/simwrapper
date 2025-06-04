@@ -134,7 +134,7 @@ export default function Component({
   handleClickEvent = null as any,
   pieSlider = 20,
   widthSlider = 50,
-  vizDetails = null as any,
+  // vizDetails = null as any,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -165,41 +165,41 @@ export default function Component({
   }, [links])
 
   // ----------------------------------------------
-  var slices = [] as any[]
-  if (vizDetails?.demand) {
-    slices = useMemo(() => {
-      // no boarding data? no pies.
-      if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+  const slices: any[] = useMemo(() => {
+    // if (vizDetails?.demand) return []
 
-      const fullPies = stopMarkers.map(stop => {
-        let selectedLineStopBoardingsCount = 0
-        let selectedLineStopAlightingsCount = 0
-        Object.entries(transitLines).forEach(([key, line]) => {
-          const selectedPtLine = Object.values(stop.ptLines).find(
-            ptLine => (ptLine as PtLine).name === line.id
-          ) as PtLine | undefined
+    // no boarding data? no pies.
+    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
 
-          if (selectedPtLine) {
-            selectedLineStopBoardingsCount += selectedPtLine.b
-            selectedLineStopAlightingsCount += selectedPtLine.a
-          }
-        })
-        return {
-          center: stop.xy,
-          radius:
-            0.00001 *
-            pieSlider *
-            Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
-          slices: [
-            { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
-            { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
-          ],
+    const fullPies = stopMarkers.map(stop => {
+      let selectedLineStopBoardingsCount = 0
+      let selectedLineStopAlightingsCount = 0
+      Object.entries(transitLines).forEach(([key, line]) => {
+        const selectedPtLine = Object.values(stop.ptLines).find(
+          ptLine => (ptLine as PtLine).name === line.id
+        ) as PtLine | undefined
+
+        if (selectedPtLine) {
+          selectedLineStopBoardingsCount += selectedPtLine.b
+          selectedLineStopAlightingsCount += selectedPtLine.a
         }
       })
-      const individualSlices = calculatePieSlicePaths(fullPies)
-      return individualSlices
-    }, [stopMarkers, pieSlider])
-  }
+
+      return {
+        center: stop.xy,
+        radius:
+          0.00002 *
+          pieSlider *
+          Math.sqrt(selectedLineStopBoardingsCount + selectedLineStopAlightingsCount),
+        slices: [
+          { label: 'boardings', color: 'gold', value: selectedLineStopBoardingsCount },
+          { label: 'alightings', color: 'darkmagenta', value: selectedLineStopAlightingsCount },
+        ],
+      }
+    })
+    const individualSlices = calculatePieSlicePaths(fullPies)
+    return individualSlices
+  }, [stopMarkers, pieSlider])
 
   function handleClick(event: any) {
     if (handleClickEvent) handleClickEvent(event)
@@ -301,7 +301,7 @@ export default function Component({
       getColor: (d: any) => d.color,
       getWidth: (d: any) => d.width,
       widthUnits: 'pixels',
-      widthScale: widthSlider / 50,
+      widthScale: widthSlider / 5,
       widthMinPixels: 1.5,
       widthMaxPixels: 50,
       pickable: true,
