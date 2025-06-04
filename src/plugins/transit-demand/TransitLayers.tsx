@@ -169,12 +169,13 @@ export default function Component({
     // if (vizDetails?.demand) return []
 
     // no boarding data? no pies.
-    if (!stopMarkers.length || !('boardings' in stopMarkers[0])) return []
+    if (!stopMarkers.length || stopMarkers[0].boardings == undefined) return []
 
     const fullPies = stopMarkers.map(stop => {
       let selectedLineStopBoardingsCount = 0
       let selectedLineStopAlightingsCount = 0
-      Object.entries(transitLines).forEach(([key, line]) => {
+
+      Object.values(transitLines).forEach(line => {
         const selectedPtLine = Object.values(stop.ptLines).find(
           ptLine => (ptLine as PtLine).name === line.id
         ) as PtLine | undefined
