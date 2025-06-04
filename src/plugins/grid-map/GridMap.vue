@@ -404,8 +404,6 @@ const GridMap = defineComponent({
         }
       }
 
-      console.log("test)
-
       // Check if the colorRamp is fixed and if the length of the breakpoints array is equal to the length of the fixedColors array minus one.
       if (
         this.vizDetails.colorRamp.breakpoints &&
