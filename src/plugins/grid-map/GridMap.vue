@@ -408,7 +408,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-        this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -430,7 +430,6 @@ const GridMap = defineComponent({
           value >=
           this.vizDetails.colorRamp.breakpoints[this.vizDetails.colorRamp.breakpoints.length - 1]
         ) {
-
           return hexToRgb(
             this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
           )
@@ -869,7 +868,6 @@ const GridMap = defineComponent({
         this.colorDataDigits = 4
       } else {
         this.colorDataDigits = 3
-
       }
       // map all times to their index and create a mapData object for each time
       this.allTimes.forEach((time, index) => {
@@ -926,13 +924,14 @@ const GridMap = defineComponent({
 
         // Loop through the colors and add them to the mapData
 
-
         if (this.guiConfig.opacityColumn != 'none') {
           var opacityColArr
 
           let oc = this.vizDetails.opacityColumn || ''
           if (!csv.allRows[oc]) {
-            console.error("column for opacity values not found, defaulting to standard opacity funcitonality with slider.")
+            console.error(
+              'column for opacity values not found, defaulting to standard opacity funcitonality with slider.'
+            )
           } else {
             opacityColArr = csv.allRows[this.vizDetails.opacityColumn].values as Float32Array
 
@@ -944,12 +943,18 @@ const GridMap = defineComponent({
               if (opacityColArr[i] > maxOpacityValue) maxOpacityValue = opacityColArr[i]
             }
             // Save opacity value
-            finalData.mapData[index].opacityValues[lastValueIndex] = Math.round((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue) * 100) / 100;
-            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0) finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
+            finalData.mapData[index].opacityValues[lastValueIndex] =
+              Math.round(
+                ((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue)) * 100
+              ) / 100
+            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0)
+              finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
             for (let j = 0; j < 4; j++) {
               // set 4th value to opacity value
               if (j == 3) {
-                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(finalData.mapData[index].opacityValues[lastValueIndex] * 255)
+                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(
+                  finalData.mapData[index].opacityValues[lastValueIndex] * 255
+                )
               } else {
                 finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
               }
@@ -1192,7 +1197,9 @@ const GridMap = defineComponent({
               for (let colorIndex = j * 4; colorIndex <= j * 4 + 3; colorIndex++) {
                 // set 4th value to opacity value
                 if ((colorIndex + 1) % 4 == 0) {
-                  this.data.mapData[i].colorData[colorIndex] = Math.round(this.data.mapData[i].opacityValues[j] * 255)
+                  this.data.mapData[i].colorData[colorIndex] = Math.round(
+                    this.data.mapData[i].opacityValues[j] * 255
+                  )
                 } else {
                   this.data.mapData[i].colorData[colorIndex] = colors[colorIndex % 4]
                 }
