@@ -92,7 +92,9 @@ export default function Layer({
     const lngDisplay = Number.isFinite(lng) ? lng.toFixed(4) : ''
 
     const tooltipHtml = `<b>${roundedValue} ${unit}</b><br/>${latDisplay} / ${lngDisplay}<br/>
+    time value: ${data.mapData[currentTimeIndex].time}<br/>
     metric value: ${data.mapData[currentTimeIndex].values[object.index]}<br/>
+    opacity value: ${data.mapData[currentTimeIndex].opacityValues[object.index]}
     `
     const tooltipStyle: TooltipStyle = dark
       ? { color: '#ccc', backgroundColor: '#2a3c4f' }
