@@ -106,7 +106,8 @@ interface GuiConfig {
   height: number
   'color ramp': string
   'upper bound': number
-  'upper bound enabled': boolean
+  'lower bound': number
+  'bounds enabled': boolean
   colorRamps: String[]
   flip: Boolean
   steps: number
@@ -147,6 +148,9 @@ interface MapProps {
   upperPercentile: number
   cbTooltip?: any
 }
+
+// I know this is not quite the best practive but I dont know how to do this better...
+const DIVERGING_COLOR_SCALES = ['RdYlGn', 'greenRed']
 
 const i18n = {
   messages: {
@@ -276,7 +280,8 @@ const GridMap = defineComponent({
         height: 100,
         'color ramp': 'Viridis',
         'upper bound': 100,
-        'upper bound enabled': false,
+        'lower bound': -100,
+        'bounds enabled': false,
         colorRamps: colorRamps,
         flip: false,
         steps: 10,
@@ -391,12 +396,13 @@ const GridMap = defineComponent({
         // For negative values, we want to map the value to a color scale where 0 is in the middle
         let absMax: number
 
-        if (this.guiConfig['upper bound enabled']) {
-          absMax = this.guiConfig['upper bound']
-          value = Math.max(Math.min(value, absMax), -absMax)
-          value = ((value + absMax) / (2 * absMax)) * 100
+        if (this.guiConfig['bounds enabled']) {
+          const upperBound = this.guiConfig['upper bound']
+          const lowerBound = this.guiConfig['lower bound']
+          value = Math.max(Math.min(value, upperBound), lowerBound)
+          value = ((value - lowerBound) / (upperBound - lowerBound)) * 100
         } else {
-          // Original behavior when upper bound is disabled
+          // Original behavior when bounds are disabled
           absMax = Math.max(Math.abs(from_min), Math.abs(from_max))
           const normalizedValue = value / absMax
           value = (normalizedValue + 1) * 50
@@ -407,7 +413,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-        this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -429,7 +435,6 @@ const GridMap = defineComponent({
           value >=
           this.vizDetails.colorRamp.breakpoints[this.vizDetails.colorRamp.breakpoints.length - 1]
         ) {
-
           return hexToRgb(
             this.vizDetails.colorRamp.fixedColors[this.vizDetails.colorRamp.fixedColors.length - 1]
           )
@@ -690,8 +695,15 @@ const GridMap = defineComponent({
       // console.log({ allTimes: this.allTimes, timeRange: this.timeRange, tableName, dataValues })
 
       // calc scale
-      for (const value of dataValues) maxValue = Math.max(maxValue, value)
+      for (const value of dataValues) {
+        maxValue = Math.max(maxValue, value)
+        minValue = Math.min(minValue, value)
+      }
       const scaleFactor = maxValue > 0 ? 100 / maxValue : 0
+
+      // Set the bounds to the actual min/max values
+      this.guiConfig['lower bound'] = Number(minValue.toFixed(2))
+      this.guiConfig['upper bound'] = Number(maxValue.toFixed(2))
 
       // console.log({ scaleFactor })
 
@@ -835,6 +847,10 @@ const GridMap = defineComponent({
         if (!this.allTimes.includes(t)) this.allTimes.push(t)
       }
 
+      // Set the bounds to the actual min/max values
+      this.guiConfig['lower bound'] = Number(minValue.toFixed(2))
+      this.guiConfig['upper bound'] = Number(maxValue.toFixed(2))
+
       this.allTimes = this.allTimes.sort((n1, n2) => n1 - n2)
 
       this.timeRange[0] = Math.min.apply(Math, this.allTimes)
@@ -867,7 +883,6 @@ const GridMap = defineComponent({
         this.colorDataDigits = 4
       } else {
         this.colorDataDigits = 3
-
       }
       // map all times to their index and create a mapData object for each time
       this.allTimes.forEach((time, index) => {
@@ -924,13 +939,14 @@ const GridMap = defineComponent({
 
         // Loop through the colors and add them to the mapData
 
-
         if (this.guiConfig.opacityColumn != 'none') {
           var opacityColArr
 
           let oc = this.vizDetails.opacityColumn || ''
           if (!csv.allRows[oc]) {
-            console.error("column for opacity values not found, defaulting to standard opacity funcitonality with slider.")
+            console.error(
+              'column for opacity values not found, defaulting to standard opacity funcitonality with slider.'
+            )
           } else {
             opacityColArr = csv.allRows[this.vizDetails.opacityColumn].values as Float32Array
 
@@ -942,12 +958,18 @@ const GridMap = defineComponent({
               if (opacityColArr[i] > maxOpacityValue) maxOpacityValue = opacityColArr[i]
             }
             // Save opacity value
-            finalData.mapData[index].opacityValues[lastValueIndex] = Math.round((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue) * 100) / 100;
-            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0) finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
+            finalData.mapData[index].opacityValues[lastValueIndex] =
+              Math.round(
+                ((opacityColArr[i] - minOpacityValue) / (maxOpacityValue - minOpacityValue)) * 100
+              ) / 100
+            if (finalData.mapData[index].opacityValues[lastValueIndex] == 0)
+              finalData.mapData[index].opacityValues[lastValueIndex] = 0.01
             for (let j = 0; j < 4; j++) {
               // set 4th value to opacity value
               if (j == 3) {
-                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(finalData.mapData[index].opacityValues[lastValueIndex] * 255)
+                finalData.mapData[index].colorData[lastColorIndex + j] = Math.round(
+                  finalData.mapData[index].opacityValues[lastValueIndex] * 255
+                )
               } else {
                 finalData.mapData[index].colorData[lastColorIndex + j] = colors[j]
               }
@@ -1066,16 +1088,33 @@ const GridMap = defineComponent({
       if (this.guiConfig.diff) secondCtrl.show()
       else secondCtrl.hide()
 
+      // diverging
       if (!this.vizDetails.colorRamp || !this.vizDetails.colorRamp.breakpoints) {
         const colors = config.addFolder('Colors')
         colors.add(this.guiConfig, 'color ramp', this.guiConfig.colorRamps).onChange(this.setColors)
         colors.add(this.guiConfig, 'flip').onChange(this.setColors)
         colors.add(this.guiConfig, 'steps', 2, 50, 1).onChange(this.setColors)
-        colors
-          .add(this.guiConfig, 'upper bound enabled')
-          .name('Enable Upper Bound')
+        const divergingScales = config.addFolder('Diverging scales')
+        divergingScales
+          .add(this.guiConfig, 'bounds enabled')
+          .name('Enable Bounds')
           .onChange(this.setColors)
-        colors.add(this.guiConfig, 'upper bound').name('Upper Bound').onChange(this.setColors)
+        divergingScales
+          .add(this.guiConfig, 'lower bound')
+          .name('Lower Bound')
+          .onChange(this.setColors)
+          .listen()
+          .onChange((value: number) => {
+            this.guiConfig['lower bound'] = Number(value.toFixed(2))
+          })
+        divergingScales
+          .add(this.guiConfig, 'upper bound')
+          .name('Upper Bound')
+          .onChange(this.setColors)
+          .listen()
+          .onChange((value: number) => {
+            this.guiConfig['upper bound'] = Number(value.toFixed(2))
+          })
         this.setColors()
       }
     },
@@ -1112,9 +1151,8 @@ const GridMap = defineComponent({
     },
 
     /**
-    * * This method is called when the second column is changed to update the data and colors.
-
-    */
+     * * This method is called when the second column is changed to update the data and colors.
+     */
     async handleSecondColumnChange(col2: string) {
       this.vizDetails.secondValueColumn = col2
 
@@ -1137,6 +1175,9 @@ const GridMap = defineComponent({
 
       const color = getColorRampHexCodes(ramp, this.guiConfig.steps)
 
+      let type = DIVERGING_COLOR_SCALES.includes(ramp.ramp) ? 'diverging' : 'sequential'
+      console.log('color ramp type:', type)
+
       if (color.length == 0) {
         const errorMessage = `Invalid color ramp: ${this.guiConfig['color ramp']}`
         this.$emit('error', errorMessage)
@@ -1157,7 +1198,7 @@ const GridMap = defineComponent({
       // colors.push(colorRamp({ ramp: this.guiConfig['color ramp'] } as Ramp, this.guiConfig.steps))
 
       // let colors = [
-      //   ...colorRamp({ ramp: this.guiConfig['color ramp'],  } as Ramp, this.guiConfig.steps || 10),
+      //   ...colorRamp({ ramp: this.guiConfig['color ramp'] } as Ramp, this.guiConfig.steps || 10),
       // ]
 
       // this.colors = this.hexArrayToRgbArray(
@@ -1222,6 +1263,12 @@ const GridMap = defineComponent({
 
         if (this.config.colorRamp.upperBound != undefined)
           this.guiConfig['upper bound'] = this.config.colorRamp.upperBound
+
+        if (this.config.colorRamp.lowerBound != undefined)
+          this.guiConfig['lower bound'] = this.config.colorRamp.lowerBound
+
+        if (this.config.colorRamp.boundsEnabled != undefined)
+          this.guiConfig['bounds enabled'] = this.config.colorRamp.boundsEnabled
       }
 
       // Set custom radius
