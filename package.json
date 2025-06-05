@@ -12,6 +12,7 @@
     "Johanna Bänsch <j.baensch@tu-berlin.de>"
   ],
   "scripts": {
+    "deploy-sandag": "bash scripts/deploy-ghpages.sh simwrapper/sandag /",
     "deploy-vsp": "bash scripts/deploy-ghpages.sh matsim-vsp/simwrapper simwrapper",
     "deploy-staging": "bash scripts/deploy-ghpages.sh simwrapper/staging staging",
     "deploy-simwrapper-app": "bash scripts/deploy-simwrapper-app.sh simwrapper/app",
