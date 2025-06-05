@@ -1089,7 +1089,7 @@ const GridMap = defineComponent({
           })
         colors.add(this.guiConfig, 'flip').onChange(this.setColors)
         colors.add(this.guiConfig, 'steps', 2, 50, 1).onChange(this.setColors)
-        const divergingScales = config.addFolder('Diverging scales')
+        const divergingScales = config.addFolder('Color Bounds')
         divergingScales
           .add(this.guiConfig, 'bounds enabled')
           .name('Enable Bounds')
@@ -1336,7 +1336,11 @@ const GridMap = defineComponent({
     // gets the color scale type from the color ramp name
     const rawRamp = this.guiConfig['color ramp'] as string
     const type = rawRamp.endsWith(' (div)') ? 'diverging' : 'sequential'
-    this.computeBounds(type)
+
+    // Calc the bounds only if they are not set in the config
+    if (!this.config?.colorRamp || this.config.colorRamp.boundsEnabled === undefined) {
+      this.computeBounds(type)
+    }
 
     this.setupGui()
 
