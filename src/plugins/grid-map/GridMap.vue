@@ -14,10 +14,10 @@
       .top-right
         .gui-config(:id="configId")
 
-      time-slider.time-slider-area(v-if="isLoaded"
-        :range="timeRange"
+      click-through-times.time-slider-area( v-if="isLoaded"
         :allTimes="allTimes"
-        @timeExtent="handleTimeSliderValues"
+        :range="timeRange"
+        @timeUpdate="handleTimeSliderValues"
       )
 
       .message(v-if="!thumbnail && myState.statusMessage")
@@ -52,7 +52,8 @@ import DashboardDataManager from '@/js/DashboardDataManager'
 import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
-import TimeSlider from '@/components/TimeSliderV2.vue'
+import ClickThroughTimes from '@/components/clickThroughTimes.vue'
+
 
 import GridLayer from './GridLayer'
 
@@ -184,7 +185,7 @@ const GridMap = defineComponent({
     GridLayer,
     ToggleButton,
     ZoomButtons,
-    TimeSlider,
+    ClickThroughTimes,
   },
 
   props: {
@@ -411,7 +412,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -1009,15 +1010,18 @@ const GridMap = defineComponent({
       }
     },
 
-    handleTimeSliderValues(timeValues: any[]) {
-      this.currentTime = timeValues
-      this.selectedTimeData = []
+    handleTimeSliderValues(timeUpdate: { extent: number; index: number }) {
+      this.currentTime[0] = timeUpdate.extent;
+      this.mapProps.currentTimeIndex = timeUpdate.index;
+      this.selectedTimeData = [];
 
       for (let i = 0; i < this.data.mapData.length; i++) {
-        if (this.data.mapData[i].time == timeValues[1]) {
-          this.selectedTimeData.push(this.data.mapData[i].values)
+        if (String(this.data.mapData[i].time) == String(timeUpdate.extent)) {
+          this.selectedTimeData.push(this.data.mapData[i].values);
         }
       }
+
+      this.setColors()
     },
 
     setupGui() {
