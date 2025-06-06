@@ -1,4 +1,4 @@
-import { Blosc } from 'numcodecs'
+import pako from 'pako'
 import naturalSort from 'javascript-natural-sort'
 
 import { FileSystemConfig } from '@/Globals'
@@ -186,9 +186,9 @@ class H5Provider {
     // MAIN MATRIX - fetch the individual matrix from API
     const response = await fetch(url, { headers })
     const buffer = await response.blob().then(async b => await b.arrayBuffer())
-    const codec = new Blosc() // buffer is blosc-compressed
-    const data = new Float64Array(new Uint8Array(await codec.decode(buffer)).buffer)
-
+    const compressed = new Uint8Array(buffer)
+    const decompressed = pako.inflate(compressed)
+    const data = new Float64Array(decompressed.buffer)
     return { data, table, path: this.path }
     // }
   }
