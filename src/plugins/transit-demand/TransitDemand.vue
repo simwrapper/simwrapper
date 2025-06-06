@@ -911,13 +911,13 @@ const MyComponent = defineComponent({
         let width = 1
         switch (this.activeMetric) {
           case 'departures':
-            width = link.properties.departures * 0.025
+            width = link.properties.departures
             break
           case 'pax':
-            width = link.properties.pax * 0.00015
+            width = link.properties.pax
             break
           case 'loadfac':
-            width = link.properties.loadfac * 25.0
+            width = link.properties.loadfac * 10000
             break
         }
         link.properties.width = width

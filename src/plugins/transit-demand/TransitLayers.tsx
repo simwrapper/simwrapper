@@ -141,6 +141,9 @@ export default function Component({
   const dark = globalStore.state.isDarkMode
   const locale = globalStore.state.locale
 
+  const power = 1 - (100 - widthSlider) / 100
+  const scale = 0.1
+
   // register setViewState in global view updater so we can respond to external map motion
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
@@ -158,11 +161,11 @@ export default function Component({
         source: [...feature.geometry.coordinates[0], feature.properties.sort],
         target: [...feature.geometry.coordinates[1], feature.properties.sort],
         color: feature.properties.currentColor,
-        width: feature.properties.width,
+        width: Math.pow(feature.properties.width, power),
       }
     })
     return linestrings
-  }, [links])
+  }, [links, widthSlider])
 
   // ----------------------------------------------
   const slices: any[] = useMemo(() => {
@@ -302,9 +305,9 @@ export default function Component({
       getColor: (d: any) => d.color,
       getWidth: (d: any) => d.width,
       widthUnits: 'pixels',
-      widthScale: widthSlider / 5,
-      widthMinPixels: 1.5,
-      widthMaxPixels: 50,
+      widthScale: scale, // 1.0, // widthSlider,
+      widthMinPixels: 1,
+      widthMaxPixels: 100,
       pickable: true,
       coordinateSystem,
       opacity: 1,
