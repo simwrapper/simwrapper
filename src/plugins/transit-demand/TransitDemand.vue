@@ -57,7 +57,7 @@
           //- p(v-if="transitLines.length" style="margin: 0.75rem 0 0rem 0"): b LINES AND ROUTES
 
           b-input.searchbox(v-if="transitLines.length"
-            v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID..."
+            v-model="searchText" style="padding: 0rem 0.5rem 0.75rem 0" size="is-small" placeholder="Search line ID or /regex/"
           )
 
           .transit-lines.flex-col.flex1
@@ -633,19 +633,33 @@ const MyComponent = defineComponent({
         return
       }
 
-      let foundRoutes = Object.keys(this.routeData).filter(
-        routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
-      )
+      let foundRoutes = [] as any[]
+      let foundLines = [] as any[]
+      let regexp
+
+      // user provided /regex/ ?
+      if (searchTerm.startsWith('/') && searchTerm.endsWith('/')) {
+        const regexTerm = this.searchText.slice(1, this.searchText.length - 1)
+        regexp = new RegExp(regexTerm, 'gu') // global, unicode
+      }
+
+      if (regexp) {
+        foundRoutes = Object.keys(this.routeData).filter(routeID => routeID.match(regexp))
+        foundLines = this.transitLines.filter(line => line.id.match(regexp)).map(line => line.id)
+      } else {
+        foundRoutes = Object.keys(this.routeData).filter(
+          routeID => routeID.toLocaleLowerCase().indexOf(searchTerm) > -1
+        )
+        foundLines = this.transitLines
+          .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
+          .map(line => line.id)
+      }
 
       // show selected route snakepaths
       this.routesOnLink = foundRoutes.map(id => this.routeData[id])
       this.highlightAllAttachedRoutes()
 
       // show found lines in list
-      const foundLines = this.transitLines
-        .filter(line => line.id.toLocaleLowerCase().indexOf(searchTerm) > -1)
-        .map(line => line.id)
-
       this.highlightedTransitLineIds = new Set(foundLines)
       this.selectedRouteIds = this.routesOnLink.map(route => route.id)
     },
