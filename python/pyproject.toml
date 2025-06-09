@@ -1,0 +1,26 @@
+[project]
+name = "simwrapper"
+version = "1.8.5"
+description = "Run SimWrapper from Python"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.11"
+dependencies = [
+    "blosc>=1.11.2",
+    "click>=8.0",
+    "flask>=3.1.0",
+    "flask-cors>=5.0.1",
+    "flask-restful>=0.3.10",
+    "gunicorn>=23.0.0",
+    "openmatrix>=0.3.5.0",
+    "pyyaml>=6.0.2",
+    "tables>=3.10.2",
+    "waitress>=3.0.2",
+]
+
+[project.scripts]
+simwrapper = "simwrapper.cli:cli"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"

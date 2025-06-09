@@ -7,6 +7,7 @@ import os
 
 from . import sites
 from . import MiniFileServer
+from . import FlaskApp
 
 default_port = 8000
 
@@ -16,6 +17,7 @@ SINGLE_PAGE_APP_PORT = 8050
 def cli():
     pass
 
+# -----------------------
 @cli.command(help="Start a local file server in this folder")
 @click.argument('port', default=default_port)
 @click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
@@ -26,6 +28,7 @@ def serve(port, cert, key):
 
     MiniFileServer.run_mini_file_server(port, cert, key)
 
+# -----------------------
 @cli.command(help="Open your browser and view this folder using SimWrapper")
 @click.argument('site', default='live')
 @click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
@@ -58,7 +61,24 @@ def open(site, cert, key):
 
       MiniFileServer.run_mini_file_server(port, cert, key)
 
+# -----------------------
 @cli.command(help="Run a live SimWrapper Website locally")
 def here():
     port = MiniFileServer.find_free_port(SINGLE_PAGE_APP_PORT)
     MiniFileServer.serve_entire_website(port)
+
+# -----------------------
+@cli.command()
+@click.argument('config', required=False)
+@click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
+@click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
+@click.option('--port', default=4999, help="Port number, default 4999")
+def flask(config, cert, key, port):
+    """Run the SimWrapper 'flask' app for local or networked files
+
+    CONFIG is the path to the config.py file containing the root paths to be served. Defaults to the current folder if not provided.
+    """
+    if (cert and not key) or (not cert and key):
+      raise click.BadParameter("need both a cert and a key to enable HTTPS")
+
+    FlaskApp.startGunicorn(config, port)

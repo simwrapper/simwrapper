@@ -1,0 +1,15 @@
+[Unit]
+Description=Gunicorn flask app for SimWrapper
+After=network.target
+
+[Service]
+Type=simple
+User=sandag
+WorkingDirectory=/home/username/simwrapper/flask-app
+ExecStart=uv run gunicorn --config gunicorn_config.py FlaskApp:app
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+
