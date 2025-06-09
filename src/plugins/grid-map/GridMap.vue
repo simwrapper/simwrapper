@@ -54,7 +54,6 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/clickThroughTimes.vue'
 
-
 import GridLayer from './GridLayer'
 
 // interface for each time object inside the mapData Array
@@ -206,7 +205,7 @@ const GridMap = defineComponent({
       'Reds',
       'RdYlGn (div)',
       'greenRed (div)',
-      'RdBu',
+      'RdBu (div)',
     ]
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
@@ -412,7 +411,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-        this.vizDetails.colorRamp.fixedColors.length - 1
+          this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -1011,13 +1010,13 @@ const GridMap = defineComponent({
     },
 
     handleTimeSliderValues(timeUpdate: { extent: number; index: number }) {
-      this.currentTime[0] = timeUpdate.extent;
-      this.mapProps.currentTimeIndex = timeUpdate.index;
-      this.selectedTimeData = [];
+      this.currentTime[0] = timeUpdate.extent
+      this.mapProps.currentTimeIndex = timeUpdate.index
+      this.selectedTimeData = []
 
       for (let i = 0; i < this.data.mapData.length; i++) {
         if (String(this.data.mapData[i].time) == String(timeUpdate.extent)) {
-          this.selectedTimeData.push(this.data.mapData[i].values);
+          this.selectedTimeData.push(this.data.mapData[i].values)
         }
       }
 
