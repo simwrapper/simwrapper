@@ -19,6 +19,7 @@ build: .build-sentinel
 clean:
 > rm -rf build
 > rm -rf dist
+> rm -rf  simwrapper.egg-info
 > rm -f  .build-sentinel
 .PHONY: clean
 
@@ -36,10 +37,9 @@ version:
 > npx standard-version
 .PHONY: version
 
-#.build-sentinel: $(shell find simwrapper/*.py) $(shell find docs/*) README.md setup.py
-.build-sentinel: $(shell find simwrapper/*.py) VERSION README.md setup.py
+.build-sentinel: $(shell find simwrapper/*.py) VERSION README.md
 > rm -rf dist
-> python3 setup.py sdist bdist_wheel
+> python3 -m build
 > twine check dist/*
 > touch $@
 
