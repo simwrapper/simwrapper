@@ -150,7 +150,6 @@ class HTTPFileSystem {
     let url = `${this.baseUrl}list/${this.slug}?prefix=${prefix}`
     const fullUrl = new URL(url).href
 
-    console.log({ fullUrl })
     const headers: any = {}
     // const credentials = globalStore.state.credentials[this.urlId]
 
@@ -161,7 +160,6 @@ class HTTPFileSystem {
         localStorage.setItem(`auth-token-${this.slug}`, token)
         headers['AZURETOKEN'] = token
       } else {
-        console.log('bye')
         return { dirs: [], files: [], handles: {} } as DirectoryEntry
       }
     }
@@ -179,7 +177,6 @@ class HTTPFileSystem {
         headers['AZURETOKEN'] = token
         return await this._getDirectoryFromAzure(stillScaryPath)
       } else {
-        console.log('bye2')
         return { dirs: [], files: [], handles: {} } as DirectoryEntry
       }
     }
@@ -191,7 +188,6 @@ class HTTPFileSystem {
     }
 
     const json = (await response.json()) as DirectoryEntry
-    console.log(json)
     return json
   }
 
@@ -209,7 +205,6 @@ class HTTPFileSystem {
     let url = `${this.baseUrl}file/${this.slug}?prefix=${prefix}`
     const fullUrl = new URL(url).href
 
-    console.log(fullUrl)
     const headers: any = {}
     // const credentials = globalStore.state.credentials[this.urlId]
     // if (this.needsAuth) { headers['Authorization'] = `Basic ${credentials}`}
@@ -281,7 +276,6 @@ class HTTPFileSystem {
 
     const bits = path.split('/').filter(m => !!m)
     if (bits.length < 2) {
-      console.log('no.')
       return new Promise((resolve, reject) => {
         resolve(null as any)
       })
@@ -442,7 +436,7 @@ class HTTPFileSystem {
     // Use cached version if we have it
     const cachedEntry = CACHE[this.urlId][stillScaryPath]
     if (cachedEntry) {
-      console.log('cached!')
+      // console.log('dir cached!')
       return cachedEntry
     }
 

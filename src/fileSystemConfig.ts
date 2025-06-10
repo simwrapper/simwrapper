@@ -26,7 +26,7 @@ export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
       name: slug,
       slug,
       description: params.description,
-      baseURL: params.path,
+      baseURL: window.location.origin, // params.path,
       omx: true,
     }
     fileSystems.unshift(fsconfig)

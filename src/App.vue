@@ -118,22 +118,19 @@ export default defineComponent({
         }
 
         // If there are Flask filesystems, get those too
-        try {
-          fetch('/_storage_')
-            .then(r => r.json())
-            .then(json => {
-              console.log({ json })
-              addFlaskFilesystems(json)
-            })
-            .catch(e => {
-              console.error('sad!' + e)
-            })
-            .finally(() => {
-              this.isFileSystemLoaded = true
-            })
-        } finally {
-          // this signals that we have what we need and router-view can get started
-        }
+        fetch('/_storage_')
+          .then(r => r.json())
+          .then(json => {
+            console.log('Registering Flask filesystems', json)
+            addFlaskFilesystems(json)
+          })
+          .catch(e => {
+            console.log('no flask filesystems found on this server')
+          })
+          .finally(() => {
+            // this signals that we have what we need and router-view can get started
+            this.isFileSystemLoaded = true
+          })
       })
     },
 
