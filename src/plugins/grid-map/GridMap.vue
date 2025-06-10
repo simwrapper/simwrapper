@@ -55,6 +55,7 @@ import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/clickThroughTimes.vue'
 
 import GridLayer from './GridLayer'
+import { number } from '~/mathjs/types'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -411,7 +412,7 @@ const GridMap = defineComponent({
       if (
         this.vizDetails.colorRamp.breakpoints &&
         this.vizDetails.colorRamp.breakpoints.length ==
-          this.vizDetails.colorRamp.fixedColors.length - 1
+        this.vizDetails.colorRamp.fixedColors.length - 1
       ) {
         // If the value is within the range of the colorRamp, return the corresponding color.
         for (let i = 0; i < this.vizDetails.colorRamp.breakpoints.length - 1; i++) {
@@ -846,6 +847,7 @@ const GridMap = defineComponent({
       // Count elements per time
       const numberOfElementsPerTime = Math.ceil(valuesArr1.length / this.allTimes.length)
 
+
       // scaling values to color scale of 0 - 100 (if negative)
       let from_min = minValue
       let from_max = maxValue
@@ -995,6 +997,8 @@ const GridMap = defineComponent({
         delete finalData.mapData[index].numberOfFilledCentroids
         delete finalData.mapData[index].numberOfFilledColors
       })
+
+      console.log(this.mapProps.currentTimeIndex)
 
       this.myState.statusMessage = ''
       return finalData
@@ -1171,9 +1175,10 @@ const GridMap = defineComponent({
       this.data = await this.loadAndPrepareData()
       this.setColors()
 
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reset the slider to the last time slot --- This was setting values to last time index, which in some cases, was mostly 0.
+      // this led to a blank map once someone clicked on diff twice.
+      // const last = this.allTimes[this.allTimes.length - 1]
+      // this.currentTime = [last, last]
     },
 
     /**
@@ -1186,9 +1191,10 @@ const GridMap = defineComponent({
       this.data = await this.loadAndPrepareData()
       this.setColors()
 
-      // reset the slider to the last time slot
-      const last = this.allTimes[this.allTimes.length - 1]
-      this.currentTime = [last, last]
+      // reset the slider to the last time slot --- This was setting values to last time index, which in some cases, was mostly 0.
+      // this led to a blank map once someone changed the 2nd column value.
+      // const last = this.allTimes[this.allTimes.length - 1]
+      // this.currentTime = [last, last]
     },
 
     setColors() {
@@ -1222,6 +1228,7 @@ const GridMap = defineComponent({
       for (let i = 0; i < this.data.mapData.length; i++) {
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
+          // console.log(value)
 
           const colors = this.pickColor(
             value,
@@ -1255,7 +1262,6 @@ const GridMap = defineComponent({
           }
         }
       }
-
       // force Vue to take notice of the change - any prop change will do
       this.currentTime = [...this.currentTime]
     },
