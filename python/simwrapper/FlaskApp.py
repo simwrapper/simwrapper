@@ -10,15 +10,21 @@
 
 import os,sys
 import blosc
-import yaml
 from os.path import exists
 
 from flask import Flask, request, send_from_directory, make_response, Response
 from flask_cors import CORS
 from flask_restful import Resource, Api, reqparse
 from functools import wraps
-
 import openmatrix as omx
+import yaml
+
+from gunicorn.app.base import BaseApplication
+from waitress import serve
+
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('simwrapper')
 
 # STORAGE LOCATIONS -------------------------------------------------
 # Default is to just share the content of the starting folder.
@@ -29,6 +35,20 @@ STORAGE = {
 STORAGE_ROOTS = {
     "flask": { "path": "./", "description": "local folder"}
 }
+
+class GunicornServer(BaseApplication):
+    def __init__(self, app, **kwargs):
+        self.application = app
+        self.options = kwargs
+        super().__init__()
+
+    def load_config(self):
+        for key, value in self.options.items():
+            if key in self.cfg.settings and value is not None:
+                self.cfg.set(key, value)
+
+    def load(self):
+        return self.application
 
 # ------------------------------------------------
 def nocache(view):
@@ -47,7 +67,8 @@ class FilesList(Resource):
     def get(self, server_id):
         if not server_id: return "Missing server", 400
         if not "prefix" in request.args: return "Missing prefix", 400
-        print('--- DIR ',server_id, request.args["prefix"])
+
+        logger.debug(f'DIR {server_id} {request.args["prefix"]}')
 
         prefix = request.args['prefix']
         # prefix must end with a slash
@@ -78,10 +99,10 @@ class File(Resource):
     def get(self, server_id):
         if not server_id: return "Missing server", 403
         if not "prefix" in request.args: return "Missing prefix", 400
-        print('--- GET',server_id, request.args["prefix"])
+
+        logger.debug(f'GET {server_id} {request.args["prefix"]}')
 
         prefix = request.args['prefix']
-
         path = f"{STORAGE[server_id]}/{prefix}"
         if sys.platform.startswith("win"): path = path.replace("/", "\\")
         try:
@@ -191,11 +212,9 @@ def serve_static_files(path):
     return send_from_directory('static', 'index.html')
 
 
-# ----------------------------------------
-def startGunicorn(config=None, port=4999):
+def setupStorageRoots(config, port):
     global STORAGE, STORAGE_ROOTS
 
-    print('--- SET UP: storage roots')
     if config:
         with open(config, 'r') as f:
             STORAGE_ROOTS = yaml.safe_load(f.read())
@@ -204,16 +223,37 @@ def startGunicorn(config=None, port=4999):
             for root in STORAGE_ROOTS:
                 STORAGE[root] = '' + STORAGE_ROOTS[root]["path"]
 
+            # putting this here, but the website will replace the path given
+            # with the window href location. That way, whatever URL/ipaddr the
+            # user entered to reach the flask server will be used.
             for root in STORAGE_ROOTS:
                 STORAGE_ROOTS[root]["path"] = f"http://localhost:{port}"
 
-
+# ----------------------------------------
+def startFlask(config=None, port=4999, debug=False):
+    print('\n--- SET UP: storage roots')
+    setupStorageRoots(config,port)
     print(STORAGE)
-    print(STORAGE_ROOTS)
-    print('--- START-FLASK', config, port)
 
-    app.run(port=port, debug=True)
+    print('\n--- START-FLASK', config, port)
 
+    if os.name == 'nt':
+        # Windows: use waitress
+        logger.setLevel(debug and logging.DEBUG or logging.INFO)
+        serve(app, host='0.0.0.0', port=port, threads=16)
+
+    else:
+        # Use Gunicorn
+        gunicorn_options = {
+            'bind': f'0.0.0.0:{port}',
+            'workers': 4,
+            'threads': 2,
+            'reload': debug,
+            'loglevel': debug and 'debug' or 'info',
+            'access_log': '-',  # Log to stdout
+            'error_log': '-',   # Log to stderr
+        }
+        GunicornServer(app, **gunicorn_options).run()
 
 # ----------------------------------------
 if __name__ == "__main__":

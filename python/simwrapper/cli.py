@@ -70,15 +70,16 @@ def here():
 # -----------------------
 @cli.command()
 @click.argument('config', required=False)
-@click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
-@click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
 @click.option('--port', default=4999, help="Port number, default 4999")
-def flask(config, cert, key, port):
+@click.option('--debug', is_flag=True, default=False, help="Debug mode")
+# @click.option('--cert', default=None, help="PEM Certificate filename. Provide both a certificate and key to serve HTTPS")
+# @click.option('--key', default=None, help="PEM Key filename. Provide both a certificate and key to serve HTTPS")
+def flask(config, port, debug):
     """Run the SimWrapper 'flask' app for local or networked files
 
     CONFIG is the path to the config.py file containing the root paths to be served. Defaults to the current folder if not provided.
     """
-    if (cert and not key) or (not cert and key):
-      raise click.BadParameter("need both a cert and a key to enable HTTPS")
+    # if (cert and not key) or (not cert and key):
+    #   raise click.BadParameter("need both a cert and a key to enable HTTPS")
 
-    FlaskApp.startGunicorn(config, port)
+    FlaskApp.startFlask(config, port, debug)
