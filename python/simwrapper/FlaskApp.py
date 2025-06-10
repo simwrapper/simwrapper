@@ -19,7 +19,6 @@ from functools import wraps
 import openmatrix as omx
 import yaml
 
-from gunicorn.app.base import BaseApplication
 from waitress import serve
 
 import logging
@@ -30,25 +29,13 @@ logger = logging.getLogger('simwrapper')
 # Default is to just share the content of the starting folder.
 
 STORAGE = {
-    "flask": "./",
+    "Server": "./",
 }
+
+
 STORAGE_ROOTS = {
-    "flask": { "path": "./", "description": "local folder"}
+    "Server": { "path": "./", "description": os.getcwd()}
 }
-
-class GunicornServer(BaseApplication):
-    def __init__(self, app, **kwargs):
-        self.application = app
-        self.options = kwargs
-        super().__init__()
-
-    def load_config(self):
-        for key, value in self.options.items():
-            if key in self.cfg.settings and value is not None:
-                self.cfg.set(key, value)
-
-    def load(self):
-        return self.application
 
 # ------------------------------------------------
 def nocache(view):
@@ -229,6 +216,21 @@ def setupStorageRoots(config, port):
             for root in STORAGE_ROOTS:
                 STORAGE_ROOTS[root]["path"] = f"http://localhost:{port}"
 
+
+def startGunicorn(port, debug):
+    from .GunicornServer import GunicornServer
+
+    gunicorn_options = {
+        'bind': f'0.0.0.0:{port}',
+        'workers': 4,
+        'threads': 2,
+        'reload': debug,
+        'loglevel': debug and 'debug' or 'info',
+        'access_log': '-',  # Log to stdout
+        'error_log': '-',   # Log to stderr
+    }
+    GunicornServer(app, **gunicorn_options).run()
+
 # ----------------------------------------
 def startFlask(config=None, port=4999, debug=False):
     print('\n--- SET UP: storage roots')
@@ -236,24 +238,16 @@ def startFlask(config=None, port=4999, debug=False):
     print(STORAGE)
 
     print('\n--- START-FLASK', config, port)
+    print(f'--- If link below does not work, try server name or localhost: http://localhost:{port}\n\n')
 
     if os.name == 'nt':
         # Windows: use waitress
         logger.setLevel(debug and logging.DEBUG or logging.INFO)
-        serve(app, host='0.0.0.0', port=port, threads=16)
+        serve(app, listen=f"*:{port}", threads=16)
 
     else:
         # Use Gunicorn
-        gunicorn_options = {
-            'bind': f'0.0.0.0:{port}',
-            'workers': 4,
-            'threads': 2,
-            'reload': debug,
-            'loglevel': debug and 'debug' or 'info',
-            'access_log': '-',  # Log to stdout
-            'error_log': '-',   # Log to stderr
-        }
-        GunicornServer(app, **gunicorn_options).run()
+        startGunicorn(port,debug)
 
 # ----------------------------------------
 if __name__ == "__main__":
