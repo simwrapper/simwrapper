@@ -33,10 +33,6 @@ push: build
 > twine upload dist/*
 .PHONY: push
 
-version:
-> npx standard-version
-.PHONY: version
-
 .build-sentinel: $(shell find simwrapper/*.py) VERSION README.md
 > rm -rf dist
 > python3 -m build

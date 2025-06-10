@@ -13,6 +13,7 @@ dependencies = [
     "flask-restful>=0.3.10",
     "gunicorn>=23.0.0",
     "openmatrix>=0.3.5.0",
+    "pypatch>=1.0.2",
     "pyyaml>=6.0.2",
     "tables>=3.10.2",
     "waitress>=3.0.2",
@@ -20,11 +21,12 @@ dependencies = [
 
 [project.scripts]
 simwrapper = "simwrapper.cli:cli"
+simwrapper-patch-windows = "patches.apply_pytables_patch:apply_patches"
 
 [project.urls]
 Homepage = "https://docs.simwrapper.app"
 Repository = "https://github.com/simwrapper/simwrapper-python-tools"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "build"]
 build-backend = "hatchling.build"
