@@ -23,6 +23,7 @@
             :pieSlider="pieSlider"
             :widthSlider="widthSlider"
             :transitLines="activeTransitLines"
+            :vizDetails="vizDetails"
           )
 
           .width-sliders.flex-row(v-if="transitLines.length" :style="{backgroundColor: isDarkMode ? '#00000099': '#ffffffaa'}")

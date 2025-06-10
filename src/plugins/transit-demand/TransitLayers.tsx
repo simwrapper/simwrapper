@@ -126,15 +126,14 @@ export default function Component({
   viewId = 0,
   links = {} as any,
   selectedFeatures = [] as any[],
-  transitLines = [] as any[],
+  transitLines = {} as { [id: string]: any },
   stopMarkers = [] as any[],
-  checkedTransitLines = [] as any[],
   mapIsIndependent = false,
   projection = 'EPSG:4326',
   handleClickEvent = null as any,
   pieSlider = 20,
   widthSlider = 50,
-  // vizDetails = null as any,
+  vizDetails = null as any,
 }) {
   // ------- draw frame begins here -----------------------------
 
@@ -169,25 +168,28 @@ export default function Component({
 
   // ----------------------------------------------
   const slices: any[] = useMemo(() => {
-    // if (vizDetails?.demand) return []
+    if (!vizDetails?.demand) return []
 
     // no boarding data? no pies.
     if (!stopMarkers.length || stopMarkers[0].boardings == undefined) return []
+
+    // too many pies? show no pies.
+    if (stopMarkers.length > 10000) return []
 
     const fullPies = stopMarkers.map(stop => {
       let selectedLineStopBoardingsCount = 0
       let selectedLineStopAlightingsCount = 0
 
-      Object.values(transitLines).forEach(line => {
-        const selectedPtLine = Object.values(stop.ptLines).find(
-          ptLine => (ptLine as PtLine).name === line.id
-        ) as PtLine | undefined
-
-        if (selectedPtLine) {
-          selectedLineStopBoardingsCount += selectedPtLine.b
-          selectedLineStopAlightingsCount += selectedPtLine.a
-        }
-      })
+      const stopPTLines = stop.ptLines as any
+      if (stopPTLines) {
+        Object.values(stopPTLines).forEach((stopLine: any) => {
+          const selectedPtLine = transitLines[stopLine.name]
+          if (selectedPtLine) {
+            selectedLineStopBoardingsCount += stopLine.b
+            selectedLineStopAlightingsCount += stopLine.a
+          }
+        })
+      }
 
       return {
         center: stop.xy,
@@ -219,6 +221,7 @@ export default function Component({
   function getTooltip(z: { object: any; index: number; layer: any }) {
     const { object, index, layer } = z
     if (index == -1) return null
+    if (!object) return null
 
     // ---------------
     if (layer.id.startsWith('stop-pie-charts-layer')) {
@@ -340,18 +343,20 @@ export default function Component({
         parameters: { depthTest: false },
       })
     )
+  // -${Math.random()}
 
   // PIE CHARTS
   // if (slices.length) {
   layers.push(
     new SolidPolygonLayer({
-      id: `stop-pie-charts-layer-${Math.random()}`,
+      id: `stop-pie-charts-layer-${pieSlider}-${stopMarkers.length}`,
       data: slices,
       getPolygon: (d: any) => d.polygon,
       getFillColor: (d: any) => d.color,
       stroked: false,
       filled: true,
       pickable: true,
+      extruded: false,
       opacity: 1,
       sizeScale: 1,
       autoHighlight: false,
