@@ -39,7 +39,7 @@ import { get } from 'idb-keyval'
 import globalStore from '@/store'
 import plugins from '@/plugins/pluginRegistry'
 import { ColorScheme, MAPBOX_TOKEN, MAP_STYLES_OFFLINE } from '@/Globals'
-import { addInitialLocalFilesystems } from '@/fileSystemConfig'
+import { addInitialLocalFilesystems, addFlaskFilesystems } from '@/fileSystemConfig'
 
 import TopNavBar from '@/layout-manager/TopNavBar.vue'
 
@@ -116,8 +116,24 @@ export default defineComponent({
         if (localFileSystems && localFileSystems.length) {
           addInitialLocalFilesystems(localFileSystems)
         }
-        // this signals that we have what we need and router-view can get started
-        this.isFileSystemLoaded = true
+
+        // If there are Flask filesystems, get those too
+        try {
+          fetch('/_storage_')
+            .then(r => r.json())
+            .then(json => {
+              console.log({ json })
+              addFlaskFilesystems(json)
+            })
+            .catch(e => {
+              console.error('sad!' + e)
+            })
+            .finally(() => {
+              this.isFileSystemLoaded = true
+            })
+        } finally {
+          // this signals that we have what we need and router-view can get started
+        }
       })
     },
 

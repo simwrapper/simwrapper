@@ -15,6 +15,24 @@ if (typeof window !== 'undefined') {
   websiteLiveHost = `${loc?.protocol}//${webLiveHostname}`
 }
 
+/** Flask filesystems are running the latest Python flask app which
+ * supports OMX file slices!
+ */
+export function addFlaskFilesystems(flaskEntries: { [id: string]: any }) {
+  const roots = Object.keys(flaskEntries)
+  for (const slug of roots) {
+    const params = flaskEntries[slug]
+    const fsconfig: FileSystemConfig = {
+      name: slug,
+      slug,
+      description: params.description,
+      baseURL: params.path,
+      omx: true,
+    }
+    fileSystems.unshift(fsconfig)
+  }
+}
+
 export function addInitialLocalFilesystems(
   filesystems: { handle: FileSystemAPIHandle; key: string }[]
 ) {
