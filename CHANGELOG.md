@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.7.1](https://github.com/simwrapper/simwrapper/compare/v3.7.0...v3.7.1) (2025-06-11)
+
+
+### Bug Fixes
+
+* **transit:** Transit board/alight pies much more performant and less crashy ([0330ac2](https://github.com/simwrapper/simwrapper/commit/0330ac27f5a6e3d334c3992a12b0e762802f432f))
+
 ## [3.7.0](https://github.com/simwrapper/simwrapper/compare/v3.6.1...v3.7.0) (2025-05-26)
 
 
