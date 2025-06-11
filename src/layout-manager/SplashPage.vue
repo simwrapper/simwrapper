@@ -151,7 +151,7 @@
                     target="_blank"
                   ): img.img-logo(:src="logo.image")
 
-        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, <br/>and the ActivitySim Consortium member agencies listed above. Thank you for your support!
+        p Funded by<br>TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, and the ActivitySim Consortium member agencies listed above.<br>Thank you for your support!
 
 
     //- FOOTER -------------------------------------------------------------------
@@ -160,7 +160,10 @@
      .footer-area.white-text
       .content
 
-        .flex-row
+        .flex-col
+          .badges
+            a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
+
           .legal.flex1
             h4.section-head SimWrapper
             p &copy; 2025 Technische Universität Berlin
@@ -177,8 +180,6 @@
               a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
               a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
 
-          .badges
-            a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
 
     .very-bottom
       p .&nbsp;.
@@ -230,17 +231,17 @@ const logos = [
   { url: 'https://vsp.berlin/en/', image: 'vsp-logo-300dpi.png', name: 'VSP TU-Berlin' },
   { url: 'https://matsim.org/', image: 'matsim-logo-blue.png', name: 'MATSim' },
   { url: 'https://bmbf.de', image: 'bmbf-logo.png', name: 'German Federal BMBF' },
-  { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
-  { url: 'http://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
-  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
-  { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
   { url: 'https://www.dfg.de/', image: 'dfg.jpg', name: 'Deutsche Forschungsgemeinschaft' },
+  { url: 'https://www.sfcta.org/', image: 'sfcta.png', name: 'SFCTA' },
+  { url: 'https://www.sandag.org/', image: 'sandag.jpg', name: 'SANDAG' },
+  { url: 'https://metrocouncil.org/', image: 'metcouncil.png', name: 'Met Council' },
+  { url: 'https://mtc.ca.gov/', image: 'mtc.png', name: 'MTC' },
   { url: 'https://www.mwcog.org/', image: 'mwcog.png', name: 'MWCOG' },
+  { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
   { url: 'https://www.oregon.gov/ODOT', image: 'oregondot.png', name: 'Oregon DOT' },
   { url: 'https://www.transportation.ohio.gov/', image: 'ohiodot.png', name: 'Ohio DOT' },
-  { url: 'https://www.psrc.org/', image: 'psrc.png', name: 'Puget Sound Regional Council' },
+  { url: 'https://www.semcog.org/', image: 'semcog.jpg', name: 'SEMCOG' },
   { url: 'https://atlantaregional.org/', image: 'arc.png', name: 'ARC' },
-  { url: 'http://semcog.org/', image: 'semcog.jpg', name: 'SEMCOG' },
 ]
 
 export default defineComponent({
@@ -440,7 +441,7 @@ $angle: 2deg;
 .top-logo-area {
   background-image: linear-gradient(145deg, #162025, #0d252f);
   color: #ccc;
-  border-bottom: 1px solid #88888860;
+  // border-bottom: 1px solid #88888860;
 }
 
 .top-center {
@@ -713,8 +714,7 @@ h2.splash-readme {
 }
 
 .badges {
-  margin-top: auto;
-  margin-bottom: -1rem;
+  margin: -1rem 0 1rem -0.75rem;
 }
 
 .very-bottom {
@@ -738,6 +738,17 @@ h2.splash-readme {
   }
   .splash-scroll-area {
     padding: 0 1rem;
+  }
+
+  .logos {
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 2rem 0rem;
+
+    a {
+      margin: 0 auto;
+    }
   }
 }
 </style>

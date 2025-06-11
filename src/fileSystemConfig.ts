@@ -134,20 +134,12 @@ let fileSystems: FileSystemConfig[] = [
     skipList: ['episim/battery'],
   },
   {
-    name: 'Berlin Open Scenario v6.3',
+    name: 'Berlin Open Scenario v7',
     slug: 'open-berlin',
     description: 'Standard dashboard from the MATSim SimWrapper contrib',
     thumbnail: 'images/thumb-localfiles.jpg',
     baseURL:
-      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/output/berlin-v6.3-10pct/',
-    example: true,
-  },
-  {
-    name: 'Visualization Examples',
-    slug: 'examples',
-    description: 'Various SimWrapper data vis types',
-    thumbnail: 'images/thumb-localfiles.jpg',
-    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
+      'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v7.0/output/berlin-v7.0-10pct/',
     example: true,
   },
   {
@@ -168,6 +160,14 @@ let fileSystems: FileSystemConfig[] = [
       'https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/projects/bene/website',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
     hidden: false,
+    example: true,
+  },
+  {
+    name: 'Visualization Examples',
+    slug: 'examples',
+    description: 'Various SimWrapper data vis types',
+    thumbnail: 'images/thumb-localfiles.jpg',
+    baseURL: 'https://svn.vsp.tu-berlin.de/repos/public-svn/shared/simwrapper',
     example: true,
   },
   {

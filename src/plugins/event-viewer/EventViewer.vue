@@ -19,7 +19,7 @@
     :tick="tick"
   )
 
-  zoom-buttons(v-if="!thumbnail" corner="bottom")
+  zoom-buttons(v-if="!thumbnail" corner="top-left")
 
   .top-right
     .gui-config(:id="configId")
