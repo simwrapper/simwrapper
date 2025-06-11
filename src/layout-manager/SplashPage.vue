@@ -43,7 +43,7 @@
         b-button.config-sources(
           type="is-success"
           @click="showChromeDirectory"
-        ): b Open local folder...
+        ): b View local files...
 
 
     //- DATA SOURCES ==================
@@ -626,7 +626,7 @@ h2.splash-readme {
 }
 
 .config-sources {
-  // opacity: 0.85;
+  margin-top: 0.5rem;
 }
 
 .roots {
@@ -643,10 +643,10 @@ h2.splash-readme {
 }
 
 .tagline {
-  font-size: 1.8rem;
+  font-size: 1.7rem;
   margin: 0.25rem 0 0rem 0rem; // 2.4rem
   font-weight: 100;
-  line-height: 1.9rem;
+  line-height: 1.8rem;
 }
 
 .is-chrome {
@@ -721,76 +721,6 @@ h2.splash-readme {
   margin-top: -2rem;
   height: 3.5rem;
   background-color: #162025;
-}
-
-.az-title {
-  margin: 2rem 0 1rem 0;
-  font-weight: bold;
-  text-transform: uppercase;
-  // color: var(--textFancy);
-}
-
-.az-quick-start-items {
-  gap: 0.25rem;
-}
-
-.az-quick-item {
-  user-select: none;
-  border: 1px solid #00000000;
-  border-radius: 4px;
-  padding: 0.5rem 1.5rem;
-  text-align: center;
-  margin-top: 0.25rem;
-  line-height: 1.25rem;
-}
-
-.az-quick-item:hover {
-  cursor: pointer;
-  border: 1px solid #80808040;
-  background-color: #ffffff40;
-}
-
-.az-quick-item:active {
-  cursor: pointer;
-  border: 1px solid #80808040;
-  background-color: #ffffffaa;
-}
-
-.az-quick-icon {
-  font-size: 1.5rem;
-  color: var(--link);
-}
-
-.az-quick-label {
-  margin-top: 0.5rem;
-}
-
-.az-grid {
-  margin-bottom: 1rem;
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-}
-
-.az-cell {
-  padding: 0.35rem 2rem 0.35rem 0;
-  border-bottom: 1px solid #80808080;
-  line-height: 1.4rem;
-}
-.az-row {
-  display: contents;
-}
-.az-icon {
-  padding-right: 0.5rem;
-  font-size: 14px;
-}
-
-.linky {
-  color: var(--link);
-}
-
-.zcaps {
-  font-size: 18px;
-  text-transform: uppercase;
 }
 
 @media only screen and (max-width: 640px) {
