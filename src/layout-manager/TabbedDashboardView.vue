@@ -644,7 +644,7 @@ export default defineComponent({
   right: 0;
   display: flex;
   flex-direction: column;
-  background-color: var(--bgDashboard);
+  background-image: var(--bgSplashPage);
   flex-direction: column;
 }
 

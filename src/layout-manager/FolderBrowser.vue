@@ -603,20 +603,13 @@ export default defineComponent({
 
 .folder-browser {
   padding: 0 0.75rem;
+  background-image: var(--bgSplashPage);
 }
 
 .vessel {
   margin: 0 0;
   padding: 0rem 0rem 2rem 0rem;
   max-width: $dashboardWidth + 3;
-}
-
-.white {
-  background-color: var(--bgBold);
-}
-
-.cream {
-  background-color: var(--bgCream);
 }
 
 h2 {

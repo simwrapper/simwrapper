@@ -1,74 +1,121 @@
 <template lang="pug">
 .splash-page
  .centered
+  .top-logo-area
+    .top-center
+      .top-banner.flex-row
+        .flex1
+          img(width=256 src="@/assets/simwrapper-logo/SW_logo_yellow.png")
+
+      .tagline Transport simulation data visualiser
+
   .splash-scroll-area.white-text
 
-    .top-logo-area.middle-area
-      .content
-
-        .top-banner.flex-row
-          .flex1
-            //- img.simwrapper-logo(v-if="images.logo" :src="images.logo")
-            img(v-if="state.isDarkMode" width=256 src="@/assets/simwrapper-logo/SW_logo_yellow.png")
-            img(v-else width=256 src="@/assets/simwrapper-logo/SW_logo_purple.png")
-
-        .tagline The transport simulation data visualizer from TU Berlin.
-
-    //- DATA SOURCES -------------------------------------------------------------------
-    .data-area
-      .content
-
-        .section-head.is-chrome(v-if="isChrome")
-          h2 Local Folders
-
-          p(v-if="!localFileHandles.length") You can securely browse simulation outputs with this Chromium-based browser. Your data is <b>never uploaded to any server:</b> everything stays right here in your browser. To explore files on your local filesystem right now:
-
-          .roots
-            .project-root.local.mb1(v-for="row in localFileHandles" :key="row.key"
-              @click="clickedBrowseChromeLocalFolder(row)")
-
-              h5.remove-local(style="flex: 1;") {{ row.handle.name}}
-                i.fa.fa-times(@click.stop="clickedDelete(row)")
-              p Local folder
-
-          b-button.config-sources(
-            type="is-success"
-            @click="showChromeDirectory"
-          ) Open local folder...
+    //- QUICK START ==================
+    h4.az-title(style="margin-top: 1rem;") Quick start tools
+    .az-quick-start-items.flex-row
+      .az-quick-item.flex-col(v-if="isChrome" @click="showChromeDirectory")
+        .az-quick-icon: i.fa.fa-folder
+        .az-quick-label View<br>local files
+      .az-quick-item.flex-col(@click="go('/matrix')")
+        .az-quick-icon: i.fa.fa-th
+        .az-quick-label Matrix<br>viewer
+      .az-quick-item.flex-col(@click="go('/map')")
+        .az-quick-icon: i.fa.fa-plus
+        .az-quick-label Map builder<br>(beta)
 
 
-        h2.section-head Data Sources
-        p
-          | Configure more data sources from the&nbsp;
-          a(@click="openDataStrip()") data
-          | &nbsp;tab on the left-side strip.
+    //- LOCAL FOLDERS ==================
+    .is-chrome(v-if="isChrome")
+      h4.az-title Local folders
 
-        .roots
-          .project-root(v-for="project in mainRoots" :key="project.slug"
-            @click="clickedOnFolder({root: project.slug})"
-          )
-            h5 {{ project.name }}
-            p {{ project.description }}
+      p(v-if="!localFileHandles.length").mb1 You can securely browse simulation outputs with this Chromium-based browser.<br>Your data is <b>never uploaded to any server</b> — everything stays right here in your browser.<br>To explore files on your local filesystem right now:
+      .az-grid(v-else)
+        .az-cell.heading Folder
+        .az-cell.heading Description
+        .az-row(v-for="row in localFileHandles" :key="row.key")
+          .az-cell
+            i.fa.fa-folder.az-icon(style="color: #ea0;")
+            a(@click="clickedBrowseChromeLocalFolder(row)") {{ row.handle.name}}
+          .az-cell Read-only browser access via Chrome/Edge
 
-        h2.section-head Starred Items ⭐️
-        p(v-if="!state.favoriteLocations.length") Click the star ⭐️ in the top right of any view or dashboard to add it to this list.
-
-        .fave-items.flex-col
-          .favorite(v-for="favorite in state.favoriteLocations" :key="favorite.fullPath"
-            @click="clickedOnFavorite(favorite)"
-          )
-              p.fave: b {{ favorite.label }}
-                //- i.fa.fa-times(@click.stop="clickedDeleteFavorite(favorite)")
-              //- p.description {{ favorite.hint }}
-              p.description {{ `${favorite.root}/${favorite.subfolder}` }}
+      .az-local-folder-button
+        b-button.config-sources(
+          type="is-success"
+          @click="showChromeDirectory"
+        ): b Open local folder...
 
 
-    //- WHAT IS SIMWRAPPER  ------------------------------------------------------
+    //- DATA SOURCES ==================
+    h4.az-title Data sources
+    .az-grid
+      //- .az-cell &nbsp;
+      .az-cell.heading Resource
+      .az-cell.heading Description
+      .az-row(v-for="project in mainRoots" :key="project.slug")
+        //- .az-cell(style="padding-right: 0.5rem; font-size: 12px;"): i.fa.fa-network-wired
+        .az-cell
+          i.fa.fa-sitemap.az-icon(style="color: #99cc00")
+          a(@click="clickedOnFolder({root: project.slug})") {{ project.name}}
+        .az-cell {{ project.description}}
+    p
+      | Add more cloud data sources from the&nbsp;
+      a(@click="openDataStrip()"): b data
+      | &nbsp;tab on the left-side panel.
+
+
+    //- FAVORITES =========================
+    h4.az-title Favorites ⭐️
+
+    p(v-if="!state.favoriteLocations.length") Click the star ⭐️ in the top right of any view or dashboard to add it to this list.
+
+    .az-grid(v-else)
+      .az-cell.heading Item
+      .az-cell.heading Location
+      .az-row(v-for="favorite in state.favoriteLocations" :key="favorite.fullPath"
+        @click="clickedOnFavorite(favorite)"
+      )
+        .az-cell
+          i.fa.fa-folder(style="padding-right: 0.5rem; font-size: 14px; color: #ea0;")
+          a(@click="clickedOnFavorite(favorite)") {{ favorite.label }}
+        .az-cell {{ `${favorite.root}/${favorite.subfolder}` }}
+
+
+    //- DOCUMENTATION ==================
+    h4.az-title Documentation and Help
+
+    .az-quick-start-items.flex-row
+      a.az-quick-item.flex-col(href="https://simwrapper.github.io/docs" target="_blank")
+        .az-quick-icon: i.fa.fa-book
+        .az-quick-label Main<br>docs
+      a.az-quick-item.flex-col(href="https://simwrapper.github.io/docs/guide-getting-started " target="_blank")
+        .az-quick-icon: i.fa.fa-flag-checkered
+        .az-quick-label Tutorial
+      a.az-quick-item.flex-col(href="https://github.com/orgs/simwrapper/discussions" target="_blank")
+        .az-quick-icon: i.fa.fa-comments
+        .az-quick-label Ask<br>questions
+      a.az-quick-item.flex-col(href="https://github.com/simwrapper/simwrapper/issues" target="_blank")
+        .az-quick-icon: i.fa.fa-spider
+        .az-quick-label Report<br>an issue
+
+
+    //- EXAMPLE DASHBOARDS  ==================
+    h4.az-title Example dashboards
+    p.mb1 Explore these example dashboards to get a feeling for what SimWrapper can do:
+
+    .az-grid
+      .az-cell.heading Item
+      .az-cell.heading Description
+      .az-row(v-for="project,i in exampleRoots" :key="i")
+        .az-cell: a(@click="clickedOnFolder({root: project.slug})") {{ project.name }}
+        .az-cell {{ project.description  || '&nbsp;'}}
+
+
+    //- ABOUT SIMWRAPPER  ==================
+    h4.az-title About SimWrapper
 
     .newbie-area.white-text
       .content
-
-        h2.section-head.mb1 What is SimWrapper?
 
         img.screenshot(:src="images.berlin")
 
@@ -89,56 +136,13 @@
           b &nbsp;100% client-side&nbsp;
           | browser application. There is no back-end database, no tracking cookies, and no data is transferred from your browser to any server; everything on your computer stays on your local computer.
 
-        .skimwrapper
-          router-link.skimwrapper-link(:to="skimwrapper") NEW! HDF5 Matrix table and skim visualizer
-
-
-    //- GETTING STARTED ------------------------------------------------------
-
-    .data-area.white-text
-      .content
-
-        h2.section-head.mb1 Getting started with SimWrapper
-
-        h4.mb1 Tutorials and Documentation
-        p SimWrapper is not like other websites. Please read the docs! The main SimWrapper documentation has everything you need to get started.
-
-        b-button.config-sources(
-            type="is-warning"
-            @click="showDocumentation"
-        ) Go to Documentation...
-
-
-        h4.pt1 Example dashboards
-        p Explore these example dashboards to get a feeling for what SimWrapper can do:
-
-        .roots
-          .project-root.example-root(v-for="project in exampleRoots" :key="project.slug"
-            @click="clickedOnFolder({root: project.slug})"
-          )
-            h5 {{ project.name }}
-            p {{ project.description }}
-
-        .chrome-section(v-if="isChrome")
-          h4.pt1 Local files on this computer
-
-          p(v-if="isChrome")
-            | This is a Chromium-based browser. You can start exploring files on your own computer right now (
-            a(href="https://simwrapper.github.io/docs/#how-simwrapper-works") see docs&nbsp;
-            | for file management details):
-
-          b-button.config-sources(
-            type="is-success"
-            @click="showChromeDirectory"
-          ) Open local folder...
-
 
     //- SPONSORS -------------------------------------------------------------------
 
     .sponsors-area.dark-text
       .content
 
-        h2.section-head Funding partners
+        b.section-head.zcaps Funding partners
 
         .links-and-logos
           .logos: a(v-for="logo in allLogos"
@@ -147,35 +151,37 @@
                     target="_blank"
                   ): img.img-logo(:src="logo.image")
 
-        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, <br/>and the ActivitySim Consortium member agencies above.
+        p Funded by TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, <br/>and the ActivitySim Consortium member agencies listed above. Thank you for your support!
 
 
     //- FOOTER -------------------------------------------------------------------
 
-    .diagonal.footer-area.white-text
+    .diagonal
+     .footer-area.white-text
       .content
-
 
         .flex-row
           .legal.flex1
-            h4.section-head SimWrapper, © 2024 Technische Universität Berlin
+            h4.section-head SimWrapper
+            p &copy; 2025 Technische Universität Berlin
 
-            h4(style="margin: 0") Build information:
+            h4 Build information
             p Version: &nbsp;
               b {{  git.tag }}
             p Built from commit: &nbsp;
               b {{  git.commit }}
-            br
-
             p SimWrapper is open source and available on&nbsp;
               a(href="https://github.com/simwrapper/simwrapper") GitHub.
-            p
+            .flex-row(style="gap: 1rem; margin-top: 1rem;")
               a(href="https://vsp.berlin/en/" target="_blank") VSP&nbsp;TU&nbsp;Berlin
               a(href="https://vsp.berlin/impressum/" target="_blank") Impressum
               a(href="https://www.vsp.tu-berlin.de/menue/service/privacy/parameter/en/" target="_blank") Privacy
 
           .badges
             a(href='https://vsp.berlin/' target="_blank"): img.vsp-logo(src="@/assets/vsp-logo/vsp-2023-logo.png")
+
+    .very-bottom
+      p .&nbsp;.
 
 </template>
 
@@ -281,6 +287,12 @@ export default defineComponent({
     },
   },
   methods: {
+    go(path: string) {
+      const fullPath = `${BASE_URL}${path}`.replaceAll('//', '/')
+      console.log({ fullPath })
+      this.$router.push(fullPath)
+    },
+
     clickedDeleteFavorite(favorite: FavoriteLocation) {
       this.$store.commit('removeFavorite', favorite)
     },
@@ -394,7 +406,7 @@ export default defineComponent({
 <style scoped lang="scss">
 @import '@/styles.scss';
 
-$angle: 1deg;
+$angle: 2deg;
 
 .splash-page {
   position: absolute;
@@ -402,8 +414,7 @@ $angle: 1deg;
   bottom: 0;
   left: 0;
   right: 0;
-  background-image: linear-gradient(45deg, #ebe9f4, #e4ebf7, #e0f4f7);
-  // background-image: var(--bgSplashPage);
+  background-image: var(--bgSplashPage);
 }
 
 .centered {
@@ -416,7 +427,7 @@ $angle: 1deg;
   flex-direction: column;
   max-width: 100rem;
   margin: 0 auto;
-  padding: 3rem 2rem 0.5rem 2rem;
+  padding: 1rem 2rem 0.5rem 2rem;
 }
 
 .content {
@@ -426,21 +437,23 @@ $angle: 1deg;
   // margin: 0 auto;
 }
 
-.diagonal {
-  transform: skewY(-$angle);
-  padding: 3rem 2rem 0.5rem 2rem;
+.top-logo-area {
+  background-image: linear-gradient(145deg, #162025, #0d252f);
+  color: #ccc;
+  border-bottom: 1px solid #88888860;
 }
 
-.top-logo-area {
-  // background-image: linear-gradient(45deg, #0c8ed3, #8f00ff);
-  margin-top: -2rem;
-  padding-bottom: 1rem;
+.top-center {
+  max-width: 100rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 2rem 2rem;
 }
 
 .sponsors-area {
   background-color: white;
   margin-bottom: 1rem;
   padding: 2rem;
+  padding-bottom: 3rem;
   color: #333;
 }
 
@@ -457,8 +470,25 @@ h4 {
   padding-bottom: 2rem;
 }
 
-// .footer-area {
-// }
+.diagonal {
+  background-color: #162025;
+  transform: skewY(-$angle);
+  padding: 4rem 2rem 0rem 2rem;
+  margin-top: -2.5rem;
+}
+
+.footer-area {
+  transform: skewY($angle);
+  color: #ccc !important;
+
+  h4 {
+    color: $appTag;
+    margin-bottom: 0.25rem;
+  }
+  a {
+    color: $colorYellow;
+  }
+}
 
 // hello --------------------------
 
@@ -596,7 +626,7 @@ h2.splash-readme {
 }
 
 .config-sources {
-  opacity: 0.85;
+  // opacity: 0.85;
 }
 
 .roots {
@@ -605,7 +635,7 @@ h2.splash-readme {
   grid-template-columns: repeat(auto-fit, 18rem);
   list-style: none;
   font-size: 0.9rem;
-  margin: 0.5rem 0 1rem 0;
+  margin: 0.5rem 0 0rem 0;
 }
 
 .section-head {
@@ -614,9 +644,9 @@ h2.splash-readme {
 
 .tagline {
   font-size: 1.8rem;
-  margin: 0.25rem 0 1rem 0rem; // 2.4rem
+  margin: 0.25rem 0 0rem 0rem; // 2.4rem
   font-weight: 100;
-  line-height: 2rem;
+  line-height: 1.9rem;
 }
 
 .is-chrome {
@@ -680,5 +710,104 @@ h2.splash-readme {
   background-color: var(--bgBold);
   border: 1px solid var(--bgPanel3);
   transition: background-color 0.1s ease-in-out;
+}
+
+.badges {
+  margin-top: auto;
+  margin-bottom: -1rem;
+}
+
+.very-bottom {
+  margin-top: -2rem;
+  height: 3.5rem;
+  background-color: #162025;
+}
+
+.az-title {
+  margin: 2rem 0 1rem 0;
+  font-weight: bold;
+  text-transform: uppercase;
+  // color: var(--textFancy);
+}
+
+.az-quick-start-items {
+  gap: 0.25rem;
+}
+
+.az-quick-item {
+  user-select: none;
+  border: 1px solid #00000000;
+  border-radius: 4px;
+  padding: 0.5rem 1.5rem;
+  text-align: center;
+  margin-top: 0.25rem;
+  line-height: 1.25rem;
+}
+
+.az-quick-item:hover {
+  cursor: pointer;
+  border: 1px solid #80808040;
+  background-color: #ffffff40;
+}
+
+.az-quick-item:active {
+  cursor: pointer;
+  border: 1px solid #80808040;
+  background-color: #ffffffaa;
+}
+
+.az-quick-icon {
+  font-size: 1.5rem;
+  color: var(--link);
+}
+
+.az-quick-label {
+  margin-top: 0.5rem;
+}
+
+.az-grid {
+  margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+}
+
+.az-cell {
+  padding: 0.35rem 2rem 0.35rem 0;
+  border-bottom: 1px solid #80808080;
+  line-height: 1.4rem;
+}
+.az-row {
+  display: contents;
+}
+.az-icon {
+  padding-right: 0.5rem;
+  font-size: 14px;
+}
+
+.linky {
+  color: var(--link);
+}
+
+.zcaps {
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+@media only screen and (max-width: 640px) {
+  .az-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .az-cell {
+    border-bottom: none;
+    padding: 0 0;
+  }
+  .az-row {
+    display: unset;
+    padding-top: 0.5rem;
+  }
+  .splash-scroll-area {
+    padding: 0 1rem;
+  }
 }
 </style>
