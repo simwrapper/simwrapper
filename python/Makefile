@@ -33,7 +33,7 @@ push: build
 > twine upload dist/*
 .PHONY: push
 
-.build-sentinel: $(shell find simwrapper/*.py) VERSION README.md
+.build-sentinel: $(shell find simwrapper/*.py) pyproject.toml README.md
 > rm -rf dist
 > python3 -m build
 > twine check dist/*
