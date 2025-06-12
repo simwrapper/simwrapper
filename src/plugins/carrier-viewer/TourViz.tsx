@@ -46,6 +46,7 @@ export default function Component(props: {
   dark: boolean
   numSelectedTours: number
   projection: string
+  services: boolean
 }) {
   const [viewState, setViewState] = useState(globalStore.state.viewState)
   const [hoverInfo, setHoverInfo] = useState({} as any)
@@ -131,6 +132,7 @@ export default function Component(props: {
 
     if (object?.type == 'pickup') return renderActivityTooltip(hoverInfo, 'pickup')
     if (object?.type == 'delivery') return renderActivityTooltip(hoverInfo, 'delivery')
+    if (object?.type == 'service') return renderServicesTooltip(hoverInfo, 'service')
     if (object?.color) return renderLegTooltip(hoverInfo)
     if (object?.type == 'depot') return null
     return renderStopTooltip(hoverInfo)
@@ -163,6 +165,30 @@ export default function Component(props: {
             </tr>
           </tbody>
         </table>
+      </div>
+    )
+  }
+
+  function renderServicesTooltip(hoverInfo: any, activity: string) {
+    const { object, x, y } = hoverInfo
+
+    return (
+      <div
+        className="tooltip"
+        style={{
+          backgroundColor: '#334455ee',
+          boxShadow: '2.5px 2px 4px rgba(0,0,0,0.25)',
+          color: '#eee',
+          padding: '0.5rem 0.5rem',
+          position: 'absolute',
+          opacity: 0.9,
+          left: x + 20,
+          top: y + 20,
+        }}
+      >
+        <b>{object?.$id}</b>
+        <br />
+        <h5 style={{ paddingTop: '0.2rem' }}>Capacity Demand: {object.$capacityDemand}</h5>
       </div>
     )
   }
@@ -291,7 +317,9 @@ export default function Component(props: {
         getColor: [128, 128, 128],
         getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
         opacity: 1,
+        getWidth: scaleFactor / 2,
         widthMinPixels: 3,
+        widthMaxPixels: 200,
         rounded: true,
         shadowEnabled: false,
         pickable: false,
@@ -314,12 +342,13 @@ export default function Component(props: {
           getTargetPosition: (d: any) => d.points[d.points.length - 1],
           getSourceColor: (d: any) => d.color, // [200, 32, 224],
           getTargetColor: (d: any) => d.color, // [200, 32, 224],
-          getWidth: scaleFactor ? (d: any) => d.totalSize / 2 : 3,
+          // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+          getWidth: 2 + ((scaleFactor - 0) * (40 - 2)) / (100 - 0),
           getHeight: 0.5,
           widthMinPixels: 2,
-          widthMaxPixels: 200,
+          widthMaxPixels: 40,
           widthUnits: 'pixels',
-          widthScale: widthScale,
+          // widthScale: widthScale,
           opacity: 0.9,
           parameters: { depthTest: false },
           updateTriggers: { getWidth: [scaleFactor] },
@@ -338,13 +367,14 @@ export default function Component(props: {
           data: legs,
           getPath: (d: any) => d.points,
           getColor: (d: any) => d.color,
-          getWidth: scaleFactor ? (d: any) => d.totalSize : 3,
+          // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+          getWidth: 3 + ((scaleFactor - 0) * (40 - 3)) / (100 - 0),
           getOffset: 2, // 2: RIGHT-SIDE TRAFFIC
           opacity: 1,
           widthMinPixels: 3,
-          widthMaxPixels: 200,
+          widthMaxPixels: 40,
           widthUnits: 'pixels',
-          widthScale: widthScale,
+          // widthScale: widthScale,
           rounded: true,
           shadowEnabled: false,
           pickable: true,
@@ -435,27 +465,66 @@ export default function Component(props: {
 
     const opacity = shipments.length > 1 ? 32 : 255
 
-    layers.push(
-      //@ts-ignore:
-      new ArcLayer({
-        id: 'shipments',
-        data: shipments,
-        getSourcePosition: (d: any) => [d.fromX, d.fromY],
-        getTargetPosition: (d: any) => [d.toX, d.toY],
-        getSourceColor: [0, 228, 255, opacity],
-        getTargetColor: [240, 0, 60, 224],
-        getWidth: scaleFactor ? (d: any) => parseInt(d.$size) || 1.0 : 1,
-        widthUnits: 'pixels',
-        getHeight: 0.5,
-        opacity: 0.9,
-        parameters: { depthTest: false },
-        widthScale: widthScale,
-        widthMinPixels: 1,
-        widthMaxPixels: 100,
-        updateTriggers: { getWidth: [scaleFactor] },
-        transitions: { getWidth: 200 },
-      })
-    )
+    if (props.services) {
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'services',
+          data: shipments,
+          getPosition: (d: any) => [d.toX, d.toY],
+          getColor: [240, 0, 60, 224],
+          getRadius: 4,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          onHover: setHoverInfo,
+        })
+      )
+    } else {
+      layers.push(
+        //@ts-ignore:
+        new ArcLayer({
+          id: 'shipments',
+          data: shipments,
+          getSourcePosition: (d: any) => [d.fromX, d.fromY],
+          getTargetPosition: (d: any) => [d.toX, d.toY],
+          getSourceColor: [0, 228, 255, opacity],
+          getTargetColor: [240, 0, 60, 224],
+          // scaledValue = targetMin + (inputValue - originalMin) * (targetMax - targetMin) / (originalMax - originalMin);
+          getWidth: 1 + ((scaleFactor - 0) * (50 - 1)) / (100 - 0),
+          widthUnits: 'pixels',
+          getHeight: 0.5,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          // widthScale: widthScale,
+          widthMinPixels: 1,
+          widthMaxPixels: 50,
+          updateTriggers: { getWidth: [scaleFactor] },
+          transitions: { getWidth: 200 },
+        })
+      )
+    }
+  }
+
+  if (activeTab == 'services') {
+    if (props.services) {
+      layers.push(
+        //@ts-ignore:
+        new ScatterplotLayer({
+          id: 'services',
+          data: shipments,
+          getPosition: (d: any) => [d.toX, d.toY],
+          getColor: [240, 0, 60, 224],
+          getRadius: 4,
+          opacity: 0.9,
+          parameters: { depthTest: false },
+          pickable: true,
+          radiusUnits: 'pixels',
+          onHover: setHoverInfo,
+        })
+      )
+    }
   }
 
   // DEPOTS ------

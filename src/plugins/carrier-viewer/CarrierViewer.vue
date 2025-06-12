@@ -18,6 +18,7 @@
                   :numSelectedTours="selectedTours.length"
                   :onClick="handleClick"
                   :projection="vizDetails.projection"
+                  :services="vizDetails.services"
                   )
       ZoomButtons(v-if="!thumbnail")
       .xmessage(v-if="myState.statusMessage") {{ myState.statusMessage }}
@@ -37,7 +38,7 @@
       b-field.detail-buttons(v-if="selectedCarrier" size="is-small")
 
         b-radio-button(v-model="activeTab" native-value="shipments" size="is-small" type="is-warning")
-          span {{ $t('shipments') }}
+          span {{ $t('JOBS') }}
         b-radio-button(v-model="activeTab" native-value="tours" size="is-small" type="is-warning")
           span {{ $t('tours') }}
         b-radio-button(v-model="activeTab" native-value="vehicles" size="is-small" type="is-warning")
@@ -46,12 +47,18 @@
           span {{ $t('services') }}
 
       .detail-area
-        .shipments(v-if="activeTab=='shipments'")
-            span {{ $t('shipments')}}: {{ shipments.length}}
+        .shipments(v-if="activeTab=='shipments' && !vizDetails.services")
+            span {{ $t('JOBS')}}: {{ shipments.length}}
             .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
                 @click="handleSelectShipment(shipment)"
                 :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
             ) {{ `${shipment.$id}: ${shipment.$from}-${shipment.$to}` }}
+        .shipments(v-if="activeTab=='shipments' && vizDetails.services")
+            span {{ $t('JOBS')}}: {{ shipments.length}}
+            .leaf.tour(v-for="shipment,i in shipments" :key="`${i}-${shipment.$id}`"
+                @click="handleSelectShipment(shipment)"
+                :class="{selected: shipment==selectedShipment, 'shipment-in-tour': shipmentIdsInTour.includes(shipment.$id)}"
+            ) {{ `${shipment.$id}` }}
 
         .tours(v-if="activeTab=='tours'")
             .dropdown(v-if="this.plans.length > 1" :class="{'is-active': dropdownIsActive}" style="width: 100%")
@@ -98,7 +105,7 @@ const i18n = {
       carriers: 'Carriers',
       vehicles: 'VEHICLES',
       services: 'SERVICES',
-      shipments: 'SHIPMENTS',
+      shipments: 'JOBS',
       tours: 'TOURS',
       pickup: 'Pickup',
       delivery: 'Delivery',
@@ -111,7 +118,7 @@ const i18n = {
       carriers: 'Unternehmen',
       vehicles: 'FAHRZEUGE',
       services: 'BETRIEBE',
-      shipments: 'LIEFERUNGEN',
+      shipments: 'AUFTRÄGE',
       tours: 'TOUREN',
       pickup: 'Abholung',
       delivery: 'Lieferung',
@@ -208,6 +215,7 @@ const CarrierPlugin = defineComponent({
         title: '',
         description: '',
         thumbnail: '',
+        services: false,
         center: null as any,
       },
 
@@ -353,7 +361,7 @@ const CarrierPlugin = defineComponent({
         this.shownShipments = []
 
         // if everything is deselected, reset view
-        if (!this.selectedTours.length) {
+        if (!this.selectedTours.length || this.selectedShipment == null) {
           const carrier = this.carriers.filter(c => c.$id == this.selectedCarrier)
           this.selectedCarrier = ''
           this.handleSelectCarrier(carrier[0])
@@ -399,11 +407,18 @@ const CarrierPlugin = defineComponent({
       }
 
       for (const activity of tour.plan) {
-        if (!activity.$shipmentId) continue
+        if (!activity.$shipmentId && !activity.$serviceId) continue
 
-        shipmentIdsInTour.push(activity.$shipmentId)
+        var shipment
+        if (activity.$serviceId) {
+          shipmentIdsInTour.push(activity.$serviceId)
+          shipment = this.shipmentLookup[activity.$serviceId]
+        } else {
+          shipmentIdsInTour.push(activity.$shipmentId)
+          shipment = this.shipmentLookup[activity.$shipmentId]
 
-        const shipment = this.shipmentLookup[activity.$shipmentId]
+        }
+
         if (!shipment) continue
 
         const link = (activity.$type === 'pickup' ? shipment.$from : shipment.$to) as string
@@ -642,9 +657,9 @@ const CarrierPlugin = defineComponent({
       this.shipments = this.processShipments(carrier)
 
       if (carrier.services?.service?.length)
-        this.services = carrier.services.service
-          .map((s: any) => s.$)
-          .sort((a: any, b: any) => naturalSort(a.$id, b.$id))
+        this.services = carrier.services.service.sort((a: any, b: any) =>
+          naturalSort(a.$id, b.$id)
+        )
 
       this.tours = this.processTours(carrier)
 
@@ -748,13 +763,26 @@ const CarrierPlugin = defineComponent({
 
     processShipments(carrier: any) {
       this.shipmentLookup = {} as any
-      if (!carrier.shipments?.shipment?.length) return []
+      var shipments = []
+      // if there are no shipments, look for services
+      if (!carrier.shipments?.shipment?.length) {
+        if ((!carrier.services?.service?.length)) {
+          return []
+        } else {
+          shipments = carrier.services.service.sort((a: any, b: any) =>
+            naturalSort(a.$id, b.$id)
+          )
+          this.processServices(carrier, shipments)
+        }
+      } else {
+        shipments = carrier.shipments.shipment.sort((a: any, b: any) =>
+          naturalSort(a.$id, b.$id)
+        )
+      }
 
-      const shipments = carrier.shipments.shipment.sort((a: any, b: any) =>
-        naturalSort(a.$id, b.$id)
-      )
       try {
         for (const shipment of shipments) {
+
           // shipment has link id, so we go from link.from to link.to
           shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
           shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
@@ -768,6 +796,29 @@ const CarrierPlugin = defineComponent({
       }
 
       return shipments
+    },
+
+    processServices(carrier: any, shipments: any[]) {
+
+      // *** For each service, we lookup check the plans for an act with the service_id that matches,
+      // then take the first link of that corresponding leg's route.
+      // That is then the from link and the to link we grabe from the service object. ***
+
+      this.vizDetails.services = true
+
+      try {
+        for (const shipment of shipments) {
+          // shipment has link id, so we go from link.from to link.to
+          shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
+          shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
+          shipment.type = "service"
+
+          this.shipmentLookup[shipment.$id] = shipment
+          console.log(shipment)
+        }
+      } catch (e) {
+        // if xy are missing, skip this -- just means network isn't loaded yet.
+      }
     },
 
     // this happens if viz is the full page, not a thumbnail on a project page
@@ -850,6 +901,7 @@ const CarrierPlugin = defineComponent({
         center: this.vizDetails.center,
         projection: '',
         thumbnail: '',
+        services: false,
       }
 
       const t = 'Carrier Explorer'
@@ -947,7 +999,7 @@ const CarrierPlugin = defineComponent({
       this.selectAllTours()
     },
 
-    updateLegendColors() {},
+    updateLegendColors() { },
 
     async loadCarriers() {
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
@@ -968,7 +1020,7 @@ const CarrierPlugin = defineComponent({
 
       // sort by '$id' attribute
       const carrierList = root.carriers.carrier.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
-      // console.log(carrierList)
+      console.log(carrierList)
 
       return carrierList
     },
@@ -1182,9 +1234,11 @@ export default CarrierPlugin
 *::-webkit-scrollbar {
   width: 10px;
 }
+
 *::-webkit-scrollbar-track {
   background: var(--bgPanel3);
 }
+
 *::-webkit-scrollbar-thumb {
   background-color: var(--textVeryPale);
   border-radius: 6px;
@@ -1228,8 +1282,8 @@ h4 {
   font-size: 0.8rem;
   pointer-events: auto;
   background-color: var(--bgPanel3);
-  width: 18rem;
-  max-width: 18rem;
+  width: auto;
+  max-width: fit-content;
   padding: 0 0.25rem;
 }
 
@@ -1408,6 +1462,7 @@ input {
   0% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
