@@ -3,7 +3,9 @@
     "Introduction": ["index", "examples", "file-management", "help"],
     "Guides": [
       "guide-getting-started",
+      "guide-dashboards-from-code",
       "guide-dashboards",
+      "guide-cloud-storage",
       "guide-project-sites",
       "guide-publishing"
     ],

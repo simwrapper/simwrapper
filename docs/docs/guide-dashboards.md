@@ -1,6 +1,6 @@
 ---
 id: guide-dashboards
-title: 2. Dashboards in depth
+title: Dashboards in depth
 ---
 
 A dashboard is a page laid out with multiple charts, plots, and visualizations all together. You define the layout with a YAML configuration file which contains the types of plots and their configurations all in one place.

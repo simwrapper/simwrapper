@@ -10,11 +10,12 @@ The list of changes is generated automatically based on the commit messages them
 - See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 - The SimWrapper code repository containing the full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
+
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## 4.0.0 (2025-06-10)
+## 4.0.0 (2025-06-11)
 
 Bump to version 4.0. New front page, file view, color scheme, event viewer (beta), map builder
 (beta), and updated Python (pip) package for running standalone or in server environments.

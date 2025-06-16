@@ -1,6 +1,6 @@
 ---
 id: guide-project-sites
-title: 3. Building a project site
+title: Building a project site
 ---
 
 You can hide all of the SimWrapper "chrome" such as the folder browser, and provide custom header/footer for each page using CSS. This is useful for building special-purpose tools that might be outward-facing, for example.

@@ -10,3 +10,4 @@ The list of changes is generated automatically based on the commit messages them
 - See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
 - The SimWrapper code repository containing the full commit history is on GitHub at <https://github.com/simwrapper/simwrapper>.
+
