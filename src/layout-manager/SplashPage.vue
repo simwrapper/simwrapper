@@ -147,13 +147,14 @@
         b.section-head.zcaps Funding partners
 
         .links-and-logos
-          .logos: a(v-for="logo in allLogos"
-                    :href="logo.url"
-                    :title="logo.name"
-                    target="_blank"
-                  ): img.img-logo(:src="logo.image")
+          .logos
+            .one-logo(v-for="logo in allLogos" key="logo.url")
+              a(:href="logo.url"
+                 :title="logo.name"
+                 target="_blank"
+              ): img.img-logo(:src="logo.image")
 
-        p Funded by<br>TU Berlin, the German Bundesministerium für Bildung und Forschung, the Deutsche Forschungsgemeinschaft, and the ActivitySim Consortium member agencies listed above.<br>Thank you for your support!
+        p Funded by:<br>TU Berlin; the German Bundesministerium für Bildung und Forschung; the Deutsche Forschungsgemeinschaft; and the ActivitySim Consortium member agencies listed above.<br>Thank you for your support!
 
 
     //- FOOTER -------------------------------------------------------------------
@@ -538,14 +539,12 @@ h4 {
   flex-direction: row;
   // color: #227;
   // background-color: white;
-  max-width: 60rem;
 }
 .logos {
   display: grid;
   gap: 3rem;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 2rem 0rem;
-
   a {
     margin: 0 auto;
   }
@@ -571,7 +570,7 @@ h4 {
 }
 
 .img-logo {
-  height: 5rem;
+  height: 4.5rem;
   object-fit: contain;
 }
 
