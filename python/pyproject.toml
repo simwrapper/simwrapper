@@ -1,5 +1,5 @@
 [project]
-version = "4.0.0"
+version = "4.0.1"
 name = "simwrapper"
 description = "Run SimWrapper from Python"
 readme = "README.md"
@@ -7,6 +7,7 @@ license = "GPL-3.0-or-later"
 requires-python = ">=3.11"
 dependencies = [
     "blosc>=1.11.2",
+    "build>=1.2.2.post1",
     "click>=8.0",
     "flask>=3.1.0",
     "flask-cors>=5.0.1",

@@ -27,15 +27,13 @@ logger = logging.getLogger('simwrapper')
 
 # STORAGE LOCATIONS -------------------------------------------------
 # Default is to just share the content of the starting folder.
-
 STORAGE = {
     "Server": "./",
 }
-
-
 STORAGE_ROOTS = {
     "Server": { "path": "./", "description": os.getcwd()}
 }
+CONFIG = {"storage": STORAGE_ROOTS}
 
 # ------------------------------------------------
 def nocache(view):
@@ -113,7 +111,7 @@ class File(Resource):
 class Storage(Resource):
     @nocache
     def get(self):
-        return STORAGE_ROOTS
+        return CONFIG
 
 # ------------------------------------------------
 class Omx(Resource):
@@ -200,22 +198,45 @@ def serve_static_files(path):
 
 
 def setupStorageRoots(config, port):
-    global STORAGE, STORAGE_ROOTS
+    """
+    If a config file was passed in, read the config from file and set things up
+    accordingly.
+    Config may have these keys: storage, readme, tagline
+    """
+    global CONFIG, STORAGE, STORAGE_ROOTS
 
     if config:
         with open(config, 'r') as f:
-            STORAGE_ROOTS = yaml.safe_load(f.read())
+
+            YAML = yaml.safe_load(f.read())
+
+            # front page text
+            tagline = "tagline" in YAML and YAML["tagline"] or ""
+            readme = "readme" in YAML and YAML["readme"] or ""
+            if readme and not '\n' in readme:
+                with open(readme, 'r') as r:
+                    readme = r.read()
+
+            # storage locations
             STORAGE = {}
+            if "storage" in YAML:
+                STORAGE_ROOTS = YAML["storage"]
 
             for root in STORAGE_ROOTS:
                 STORAGE[root] = '' + STORAGE_ROOTS[root]["path"]
-
             # putting this here, but the website will replace the path given
             # with the window href location. That way, whatever URL/ipaddr the
             # user entered to reach the flask server will be used.
             for root in STORAGE_ROOTS:
                 STORAGE_ROOTS[root]["path"] = f"http://localhost:{port}"
 
+            CONFIG = {
+                "storage": STORAGE_ROOTS,
+                "tagline": tagline,
+                "readme": readme
+            }
+
+            print('HELLO', CONFIG)
 
 def startGunicorn(port, debug):
     from .GunicornServer import GunicornServer
@@ -235,7 +256,6 @@ def startGunicorn(port, debug):
 def startFlask(config=None, port=4999, debug=False):
     print('\n--- SET UP: storage roots')
     setupStorageRoots(config,port)
-    print(STORAGE)
 
     print('\n--- START-FLASK', config, port)
     print(f'--- If link below does not work, try server name or localhost: http://localhost:{port}\n\n')
