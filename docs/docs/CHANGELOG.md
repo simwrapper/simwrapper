@@ -15,7 +15,15 @@ The list of changes is generated automatically based on the commit messages them
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## 4.0.0 (2025-06-11)
+### [4.0.1](https://github.com/simwrapper/simwrapper/compare/v4.0.0...v4.0.1) (2025-06-18)
+
+
+### Bug Fixes
+
+* **carriers:** width slider for tours not functioning. Fix also submitted for [200~[#365](https://github.com/simwrapper/simwrapper/issues/365) ([#480](https://github.com/simwrapper/simwrapper/issues/480)) ([ae47614](https://github.com/simwrapper/simwrapper/commit/ae47614a8dd1e40f8424a66be4b425aff1823500)), closes [#476](https://github.com/simwrapper/simwrapper/issues/476)
+* flask filesystem can return bespoke tagline and readme for front page ([2dd860e](https://github.com/simwrapper/simwrapper/commit/2dd860e9c9d1538d77c92f83de93de4866443bfe))
+
+## 4.0.0 (2025-06-10)
 
 Bump to version 4.0. New front page, file view, color scheme, event viewer (beta), map builder
 (beta), and updated Python (pip) package for running standalone or in server environments.
