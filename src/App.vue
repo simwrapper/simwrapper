@@ -107,6 +107,7 @@ export default defineComponent({
 
     // ------ Find Chrome Local File System roots ----
     setupLocalFiles() {
+      // only do this once
       if (globalStore.state.localFileHandles.length) return
 
       // this must be completed before the router-view initializes,
@@ -121,11 +122,12 @@ export default defineComponent({
         fetch('/_storage_')
           .then(r => r.json())
           .then(json => {
-            console.log('Registering Flask filesystems', json)
-            addFlaskFilesystems(json)
+            console.log('---Registering Flask filesystems', json.storage)
+            addFlaskFilesystems(json.storage)
+            globalStore.commit('setFlaskConfig', json)
           })
           .catch(e => {
-            console.log('no flask filesystems found on this server')
+            console.log('---no flask filesystems found on this server')
           })
           .finally(() => {
             // this signals that we have what we need and router-view can get started
@@ -501,32 +503,32 @@ p.splash-label {
   h6 {
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
-    color: var(--textFancy);
+    color: var(--textFancy) !important;
   }
 
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: bold;
   }
 
   h2 {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     font-weight: bold;
   }
 
   h3 {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
     font-weight: bold;
   }
 
   h4 {
-    font-size: 1.2rem;
-    font-weight: normal;
+    font-size: 1.1rem;
+    font-weight: bold;
   }
 
   h5 {
     font-size: 1rem;
-    font-weight: normal;
+    font-weight: bold;
   }
 
   ul {
