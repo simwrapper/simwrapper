@@ -310,6 +310,7 @@ const MyComponent = defineComponent({
         transitSchedule: '',
         network: '',
         demand: '',
+        ptStop2stopFile: '',
         projection: '',
         title: '',
         description: '',
@@ -719,6 +720,7 @@ const MyComponent = defineComponent({
         title,
         description: '',
         demand: '',
+        ptStop2stopFile: '',
         projection: '',
         colors: [],
       }
@@ -1357,7 +1359,8 @@ const MyComponent = defineComponent({
 
       localStorage.setItem(this.$route.fullPath + '-bounds', JSON.stringify(this._mapExtentXYXY))
 
-      if (this.vizDetails.demand) await this.loadDemandData(this.vizDetails.demand)
+      const demand = this.vizDetails.demand || this.vizDetails.ptStop2stopFile
+      if (demand) await this.loadDemandData(demand)
 
       this.loadingText = ''
     },
