@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.0.2](https://github.com/simwrapper/simwrapper/compare/v4.0.1...v4.0.2) (2025-06-20)
+
+
+### Bug Fixes
+
+* **transit:** honor old YAML configs with ptStop2stopFile instead of demand ([a7e4dc6](https://github.com/simwrapper/simwrapper/commit/a7e4dc6517f6f61df7023a306e4f0153ee3fcb4f))
+
 ### [4.0.1](https://github.com/simwrapper/simwrapper/compare/v4.0.0...v4.0.1) (2025-06-18)
 
 
