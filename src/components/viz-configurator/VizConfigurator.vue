@@ -43,6 +43,7 @@
           component(v-if="section.component"
             :is="section.component"
             :vizConfiguration="vizConfiguration"
+            :vizDetails="vizDetails"
             :datasets="datasets"
             :subfolder="subfolder"
             @update="handleConfigChanged")

@@ -29,7 +29,7 @@
       :datasets="datasets"
       :fileSystem="fileSystem"
       :subfolder="myState.subfolder"
-      :yamlConfig="yamlConfig"
+      :yamlConfig="config"
       :legendStore="legendStore"
       :filterDefinitions="currentUIFilterDefinitions"
       @update="changeConfiguration")
@@ -420,34 +420,35 @@ const MyComponent = defineComponent({
         }
       }
 
-      if (configuration.zoom < 5 || configuration.zoom > 20) {
-        this.$emit('error', {
-          type: Status.WARNING,
-          msg: `Zoom is out of the recommended range `,
-          desc: 'Zoom levels should be between 5 and 20. ',
-        })
-      }
+      // if (configuration.zoom < 5 || configuration.zoom > 20) {
+      //   this.$emit('error', {
+      //     type: Status.WARNING,
+      //     msg: `Zoom is out of the recommended range `,
+      //     desc: 'Zoom levels should be between 5 and 20. ',
+      //   })
+      // }
 
-      const hasGeoJson = !configuration.network && configuration.geojsonFile
-      if (hasGeoJson) {
-        this.$emit('error', {
-          type: Status.WARNING,
-          msg: `YAML field geojsonFile deprecated`,
-          desc: 'Use YAML field network instad. ',
-        })
-      }
+      // const hasGeoJson = !configuration.network && configuration.geojsonFile
+      // if (hasGeoJson) {
+      //   this.$emit('error', {
+      //     type: Status.WARNING,
+      //     msg: `YAML field geojsonFile deprecated`,
+      //     desc: 'Use YAML field network instad. ',
+      //   })
+      // }
 
-      if (!configuration.display) {
-        this.$emit('error', {
-          type: Status.WARNING,
-          msg: `Display properties not set`,
-          desc: 'Standard values are used',
-        })
-      }
+      // if (!configuration.display) {
+      //   this.$emit('error', {
+      //     type: Status.WARNING,
+      //     msg: `Display properties not set`,
+      //     desc: 'Standard values are used',
+      //   })
+      // }
     },
 
     setVizDetails() {
       this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
+      console.log(100, this.vizDetails)
     },
 
     async buildThumbnail() {
@@ -978,7 +979,7 @@ const MyComponent = defineComponent({
       if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
         this.setDataIsLoaded()
         this.myState.statusMessage = ''
-        console.log({ DATASETS: this.datasets })
+        console.log('DATASETS:', Object.keys(this.datasets))
       }
     },
 
