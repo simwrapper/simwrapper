@@ -10,6 +10,8 @@ The network link plot supports typical transport "bandwidth plots" as well as ma
 
 Supports display of data from multiple datasets, including "difference plots" which can compare two datasets, e.g. base vs. build.
 
+> Note: the "shapefile" viewer can also display MATSim networks, and is more feature-rich: including curvy lines from GeoJSON and more. Try them both!
+
 ## Usage
 
 You can create a link visualization as a standalone view, as part of a dashboard, or you can create it interactively from a raw network file.
@@ -18,7 +20,8 @@ You can create a link visualization as a standalone view, as part of a dashboard
 
 2. Link plots can be included in [dashboards](dashboards) using `type: links`. See the example YAML config below.
 
-3. Or, you can open a network file directly by browsing to it from the SimWrapper site, and then click **Add Data** in the configuration panel in the upper right to attache CSV data files to it. Once you have added data and configured the colors and widths, use the **Export** button to download the YAML file. Your browser will probably place the file in your Downloads folder; you'll need to move it to your data folder name it appropriately.
+3. Or, you can open a network file directly by browsing to it from the SimWrapper site, and then click **Add Data** in the configuration panel in the upper right to attache CSV data files to it. Once you have added data and configured the colors and widths, use the **Export** button to download the YAML file.
+  - Your browser will probably place the file in your Downloads folder; you'll need to move it to the correct data folder and name it appropriately.
 
 **Standalone: viz-links-example.yaml**
 
@@ -36,33 +39,32 @@ thumbnail: thumbnail-roads.jpg
 ```yaml
 header:
   title: My Dashboard
+  fullscreen: true
 
 layout:
   row1:
-    - title: 'Link example'
+    - type: links
+      title: 'Link example'
       description: 'Sample data'
-      type: links
-      height: 8
-      props:
-        network: '../input/baseCase/hamburg-v2.0-network-with-pt-hvvArea.geo.json.gz'
-        projection: EPSG:25832
-        center: 13.4684, 56.6787
-        zoom: 9
-        showDifferences: true
-        datasets:
-          csvFile: 'output/reallab2030/accidentCosts.csv.gz'
-          csvBase: '../base/output/accidentCosts.csv.gz'
-        display:
-          color:
-            dataset: csvFile
-            columnName: 18:00-20:00_Costs[EUR]
-            colorRamp:
-              ramp: Viridis
-              steps: 9
-          width:
-            dataset: csvFile
-            columnName: CostsperYear[EUR]
-            scaleFactor: 100
+      network: '../input/base/output_network.xml.gz'
+      projection: EPSG:25832
+      center: 13.45, 52.5
+      zoom: 9
+      showDifferences: true
+      datasets:
+        csvFile: 'output/reallab2030/accidentCosts.csv.gz'
+        csvBase: '../base/output/accidentCosts.csv.gz'
+      display:
+        color:
+          dataset: csvFile
+          columnName: 18:00-20:00
+          colorRamp:
+            ramp: Viridis
+            steps: 9
+        width:
+          dataset: csvFile
+          columnName: CostsperYear
+          scaleFactor: 10
 ```
 
 ## Attaching CSV data to your network link visualization
@@ -81,11 +83,9 @@ Use whatever method you like to produce a CSV for your data; most of us either b
 
 ## YAML fields explained
 
-\*Filename fields\*\* can refer to subfolders and to parent folders using `"../"`.
+**Filename fields** can refer to subfolders and to parent folders using `"../"`. This works all the way up folder hierarchy: up to the base of the filesystem, specified in `fileConfig.js`
 
-- example: `network: : "../networks/base.json.gz"`
-
-This works as far up the hierarchy as the base of the filesystem, specified in `fileConfig.js` but no further.
+- example: `network: "../networks/base.json.gz"`
 
 ### Field descriptions
 
@@ -124,26 +124,31 @@ This works as far up the hierarchy as the base of the filesystem, specified in `
 
 ## Defining Colors and Widths
 
-Both colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML; see the example above.
+Colors and widths can be based on the CSV data. They are defined in the `display:` section of the YAML.
 
 ### Color
 
 The `color` section may include the following properties:
 
+> color settings are **IGNORED** if `showDifferences` is true. Differences mode always displays links in solid blue or red depending on +/- diff value.
+
 - **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
 - **columnName** The name of the column containing color values
 - **colorRamp** This section can have multiple settings:
-  - `ramp`: The name of the color progression; can be `Viridis`, `Plasma`, `Blues`, `Purples`, `Oranges`, `PRGn`, `RdBu`, `Tableau10`, `Paired`. Note that `PRGn` and `RdBu` are **diverging scales**, while `Tableau10` and `Paired` are appropriate for **categorical** instead of sequential data.
-  - `reversed` true or false, flips the order of colors
-  - `steps` the number of different colors in the progression; default is 9.
+  - `ramp`: The name of the color progression (default `Viridis`)
+    - `Viridis`, `Plasma`, `Blues`, `Purples`, `Oranges`are **sequential**
+    - `PRGn` and `RdBu` are **diverging scales** for e.g. differences
+    - `Tableau10` and `Paired` are **categorical** (non-ordered)
+  - `reversed` true will _flip the order_ of colors (default false)
+  - `steps` the number of different colors in the progression (default 9)
 
 ### Width
 
 The `width` section includes the following properties:
 
-- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset you want to use.
+- **dataset** required. The ID of the csv datafile itself; in the example above, `csvFile` is one key and `csvBase` is another. This tells SimWrapper which dataset(s) you want to display.
 - **columnName** The name of the column containing width values
-- **scaleFactor** Values will be **divided by** this scaling factor. Set this to `0` to have constant, paper-thin widths.
+- **scaleFactor** Values will be **divided by** this scaling factor. Set this to `0` to have constant, paper-thin widths (default 100)
 
 ---
 
