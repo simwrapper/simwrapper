@@ -13,7 +13,7 @@
     //- these are sections defined by viz-summary.yml etc
     .curated-sections(:id="idFolderTable")
 
-      h2 {{ xsubfolder || root }}
+      h2 {{ xsubfolder || cwd || root }}
 
       //- FOLDERS: file system folders
       .folder-area(v-if="myState.folders.length")
@@ -217,6 +217,10 @@ export default defineComponent({
     }
   },
   computed: {
+    cwd() {
+      return this.$route.query.cwd || ''
+    },
+
     favoriteLocations(): string[] {
       const faves = this.$store.state.favoriteLocations.filter((fave: FavoriteLocation) => {
         if (fave.root !== this.root) return false
