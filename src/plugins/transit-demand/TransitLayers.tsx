@@ -12,7 +12,6 @@ import { LineOffsetLayer, OFFSET_DIRECTION } from '@/layers/LineOffsetLayer'
 
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
 import globalStore from '@/store'
-import { watch } from 'fs'
 
 export interface PieInfo {
   center: number[]
