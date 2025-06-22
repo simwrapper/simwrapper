@@ -136,7 +136,9 @@ export default function Component({
         <big>
           <b>{vehicleId}</b>
         </big>
-        <div>Passagiere: {object.occ} </div>
+        <div>
+          {locale !== 'en' ? 'Passagiere' : 'Passengers'}: {object.occ}
+        </div>
       </div>
     )
   }

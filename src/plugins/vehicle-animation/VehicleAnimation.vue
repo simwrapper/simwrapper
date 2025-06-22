@@ -17,9 +17,9 @@
                 :viewId = "viewId"
                 :onClick = "handleClick")
 
-  h3.loadmsg(v-if="!isLoaded") Loading data...
+  h3.loadmsg(v-if="!isLoaded") {{ myState.statusMessage }}
 
-  zoom-buttons(v-if="!thumbnail")
+  zoom-buttons(v-if="!thumbnail" corner="top-left")
 
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")
@@ -60,7 +60,7 @@
             template(v-for="val in speedStops")
               b-slider-tick(:value="val" :key="val")
 
-  playback-controls.bottom-area(v-if="!thumbnail && isLoaded"
+  playback-controls.bottom-area(v-if="isLoaded && !thumbnail"
       @click='toggleSimulation'
       @time='setTime'
       :timeStart = "timeStart"
@@ -145,7 +145,7 @@ const MyComponent = defineComponent({
     yamlConfig: String,
     thumbnail: Boolean,
   },
-  data: () => {
+  data() {
     // const COLOR_OCCUPANCY = {
     //   Car: [85, 255, 85],
     //   HCV: [240, 110, 30],
@@ -166,6 +166,8 @@ const MyComponent = defineComponent({
 
     return {
       viewId: Math.floor(1e12 * Math.random()),
+      isLoaded: false,
+
       COLOR_OCCUPANCY,
       SETTINGS,
       legendItems: Object.keys(COLOR_OCCUPANCY).map(key => {
@@ -232,7 +234,6 @@ const MyComponent = defineComponent({
 
       globalState: globalStore.state,
       isDarkMode: globalStore.state.isDarkMode,
-      isLoaded: false,
       showHelp: false,
 
       speedStops: [-20, -10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10, 20],
@@ -719,7 +720,7 @@ const MyComponent = defineComponent({
 
     this.setWallClock()
 
-    this.myState.statusMessage = '/ Dateien laden...'
+    this.myState.statusMessage = 'Loading...'
     console.log('loading files')
     const { trips, drtRequests } = await this.loadFiles()
 
@@ -917,12 +918,13 @@ input {
 
 .loadmsg {
   background-color: var(--bgBold);
-  padding: 1.5rem 2rem;
+  padding: 2rem 2rem;
   color: var(--link);
   z-index: 10;
   text-align: center;
   position: absolute;
-  top: 0;
+  top: 4px;
+  left: 4px;
 }
 
 .left-side {
