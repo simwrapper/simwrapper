@@ -40,9 +40,6 @@
     //-     p {{ vizDetails.description }}
 
     .bottom-panel(v-if="!thumbnail")
-      .status-message(v-if="myState.statusMessage")
-        p {{ myState.statusMessage }}
-
       .panel-items(v-show="csvWidth.activeColumn")
 
         //- slider/dropdown for selecting column
@@ -67,6 +64,9 @@
         //-   :props="csvWidth"
         //-   @activeColumns="handleNewFilter"
         //- )
+      .status-message(v-if="myState.statusMessage")
+        p {{ myState.statusMessage }}
+
 
 </template>
 
@@ -750,9 +750,21 @@ const MyComponent = defineComponent({
       }
     },
 
+    generateUniqueDatasetKeyFromFilename(name: string) {
+      if (!(name in this.datasets)) return name
+      console.log(name, 'not unique')
+      for (let i = 2; i < 100; i++) {
+        let newName = `${name}_${i}`
+        if (!(newName in this.datasets)) return newName
+      }
+      return `${name}__${Math.floor(100 + 1e5 * Math.random())}`
+    },
+
     handleNewDataset(props: DatasetDefinition) {
       console.log('NEW dataset', props)
       const { key, dataTable, filename } = props
+      const uniqueKey = this.generateUniqueDatasetKeyFromFilename(key)
+      console.log('UNIQUE', key, uniqueKey)
 
       // We need a lookup so we can find the CSV row that matches each link row.
       // A normal hashmap lookup is too slow, so we'll create an array containing
@@ -778,13 +790,13 @@ const MyComponent = defineComponent({
       }
 
       // Save the lookup with the dataset.
-      this.csvRowLookupFromLinkRow[key] = getCsvRowNumberFromLinkRowNumber
+      this.csvRowLookupFromLinkRow[uniqueKey] = getCsvRowNumberFromLinkRowNumber
       tempMapLinkIdToCsvRow = {} // probably unnecessary but we def want this to be GC'ed
 
       // all done!
-      if (filename) this.vizDetails.datasets[key] = filename
-      this.datasets = Object.assign({ ...this.datasets }, { [key]: dataTable })
-      this.handleDatasetisLoaded(key)
+      if (filename) this.vizDetails.datasets[uniqueKey] = filename
+      this.datasets = Object.assign({ ...this.datasets }, { [uniqueKey]: dataTable })
+      this.handleDatasetisLoaded(uniqueKey)
     },
 
     generateWidthArray() {
@@ -979,7 +991,7 @@ const MyComponent = defineComponent({
       if (datasetKeys.length === Object.keys(this.vizDetails.datasets).length) {
         this.setDataIsLoaded()
         this.myState.statusMessage = ''
-        console.log('DATASETS:', Object.keys(this.datasets))
+        // console.log('DATASETS:', Object.keys(this.datasets))
       }
     },
 
@@ -1000,7 +1012,6 @@ const MyComponent = defineComponent({
           if (key) cleanTable[key] = dataTable[key]
         }
 
-        this.datasets = Object.assign({ ...this.datasets }, { [key]: cleanTable })
         this.handleNewDataset({ key, dataTable: cleanTable })
       } catch (e) {
         this.$emit('error', 'Could not load ' + filename)

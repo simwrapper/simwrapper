@@ -1042,9 +1042,20 @@ const MyComponent = defineComponent({
       }
     },
 
+    generateUniqueDatasetKeyFromFilename(name: string) {
+      if (!(name in this.vizDetails.datasets)) return name
+      console.log(name, 'not unique')
+      for (let i = 2; i < 100; i++) {
+        let newName = `${name}_${i}`
+        if (!(newName in this.vizDetails.datasets)) return newName
+      }
+      return `${name}__${Math.floor(100 + 1e5 * Math.random())}`
+    },
+
     async handleNewDataset(props: DatasetDefinition) {
-      const { key, dataTable, filename } = props
-      const datasetId = key
+      let { key, dataTable, filename } = props
+      const uniqueKey = this.generateUniqueDatasetKeyFromFilename(key)
+      const datasetId = uniqueKey
       const datasetFilename = filename || datasetId
 
       console.log('HANDLE NEW DATASET:', datasetId, datasetFilename)
@@ -1081,7 +1092,7 @@ const MyComponent = defineComponent({
     },
 
     setupJoin(props: { dataTable: DataTable; datasetId: string; dataJoinColumn: string }) {
-      console.log(88, this.featureJoinColumn)
+      console.log('SETUP JOIN', this.featureJoinColumn)
       const { dataTable, datasetId, dataJoinColumn } = props
       // console.log('> setupJoin', datasetId, dataJoinColumn)
 
