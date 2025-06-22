@@ -7,6 +7,7 @@
                 :colors = "COLOR_OCCUPANCY"
                 :drtRequests = "$options.drtRequests"
                 :dark = "globalState.isDarkMode"
+                :leftside = "vizDetails.leftside"
                 :paths = "$options.paths"
                 :settingsShowLayers = "SETTINGS"
                 :searchEnabled = "searchEnabled"
@@ -16,9 +17,10 @@
                 :viewId = "viewId"
                 :onClick = "handleClick")
 
+  h3.loadmsg(v-if="!isLoaded") Loading data...
+
   zoom-buttons(v-if="!thumbnail")
 
-  //- isLoaded && !thumbnail")
   .right-side(v-if="isLoaded && !thumbnail")
     collapsible-panel(direction="right")
       .big.clock
@@ -51,7 +53,7 @@
             :max="speedStops[speedStops.length-1]"
             :duration="0"
             :dotSize="20"
-            :tooltip="true"
+            :tooltip="false"
             tooltip-placement="bottom"
             :tooltip-formatter="val => val + 'x'"
           )
@@ -150,15 +152,15 @@ const MyComponent = defineComponent({
     // } as any
     const COLOR_OCCUPANCY = {
       0: [140, 140, 160],
-      1: [85, 255, 85],
-      2: [255, 255, 85],
+      1: [65, 220, 65],
+      2: [255, 225, 45],
       3: [240, 110, 30],
       4: [192, 30, 50],
     } as any
 
     const SETTINGS = {
       vehicles: true,
-      routes: true,
+      routes: false,
       requests: false,
     } as any
 
@@ -188,6 +190,7 @@ const MyComponent = defineComponent({
         zoom: 10,
         mapIsIndependent: false,
         theme: '',
+        leftside: false,
       },
 
       myState: {
@@ -229,11 +232,11 @@ const MyComponent = defineComponent({
 
       globalState: globalStore.state,
       isDarkMode: globalStore.state.isDarkMode,
-      isLoaded: true,
+      isLoaded: false,
       showHelp: false,
 
       speedStops: [-20, -10, -5, -2, -1, -0.5, -0.25, 0, 0.25, 0.5, 1, 2, 5, 10, 20],
-      speed: 10,
+      speed: 1,
 
       legendBits: [] as any[],
       isEmbedded: false,
@@ -371,12 +374,27 @@ const MyComponent = defineComponent({
       // initial view
       if (this.vizDetails.theme) this.$store.commit('setTheme', this.vizDetails.theme)
 
-      if (this.vizDetails.center) {
+      // left side driving?
+      // @ts-ignore
+      if (this.vizDetails.leftside || this.vizDetails.leftSide) this.vizDetails.leftside = true
+
+      // center point
+      let center = this.vizDetails.center as any
+      if (center) {
+        try {
+          if ('string' == typeof center) center = center.split(',').map(Number)
+          this.vizDetails.center = center
+        } catch (e) {
+          this.$emit('error', 'center must be "long,lat"')
+          center = [13.45, 52.5]
+          this.vizDetails.zoom = 3
+        }
+
         this.$store.commit('setMapCamera', {
-          longitude: this.vizDetails.center[0],
-          latitude: this.vizDetails.center[1],
-          zoom: this.vizDetails.zoom || 10,
-          pitch: 20,
+          longitude: center[0],
+          latitude: center[1],
+          zoom: this.vizDetails.zoom || 9,
+          pitch: 0,
           bearing: 0,
         })
       }
@@ -385,7 +403,7 @@ const MyComponent = defineComponent({
       const t = this.vizDetails.title ? this.vizDetails.title : 'Agent Animation'
       this.$emit('title', t)
 
-      this.buildThumbnail()
+      await this.buildThumbnail()
     },
 
     async buildThumbnail() {
@@ -673,10 +691,6 @@ const MyComponent = defineComponent({
       return { trips, drtRequests }
     },
 
-    toggleLoaded(loaded: boolean) {
-      this.isLoaded = loaded
-    },
-
     rotateColors() {
       this.myState.colorScheme =
         this.myState.colorScheme === ColorScheme.DarkMode
@@ -731,6 +745,8 @@ const MyComponent = defineComponent({
     this.requestVehicle = this.requests.dimension(d => d[5])
 
     console.log('GO!')
+    this.isLoaded = true
+
     this.myState.statusMessage = ''
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange, false)
@@ -897,6 +913,16 @@ input {
   border: none;
   background-color: var(--bgCream);
   color: #ccc;
+}
+
+.loadmsg {
+  background-color: var(--bgBold);
+  padding: 1.5rem 2rem;
+  color: var(--link);
+  z-index: 10;
+  text-align: center;
+  position: absolute;
+  top: 0;
 }
 
 .left-side {

@@ -38,6 +38,7 @@ uniform vec2 iconsTextureDim;
 uniform float sizeMinPixels;
 uniform float sizeMaxPixels;
 uniform bool billboard;
+uniform float latitudeCorrectionFactor;
 
 uniform float currentTime;
 
@@ -82,7 +83,7 @@ void main(void) {
   if (currentTime < instanceTimestamps) {
     vPercentComplete = -1.0;
     return;
-  } else if (currentTime > instanceTimestampsNext) {
+  } else if (currentTime >= instanceTimestampsNext) {
     vPercentComplete = -1.0;
     return;
   } else {
@@ -116,9 +117,8 @@ void main(void) {
   // // figure out angle based on motion direction
   float angle = 0.0;
   if (!still) {
-    vec3 direction = normalize(endPosition - startPosition);
-    angle = atan( direction.y / direction.x);
-    if (direction.x < 0.0) angle = angle - PI;
+    vec2 direction = endPosition.xy - startPosition.xy;
+    angle = atan(direction.y , direction.x * latitudeCorrectionFactor);
   }
 
   // scale and rotate vertex in "pixel" value and convert back to fraction in clipspace

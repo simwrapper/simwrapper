@@ -37,6 +37,7 @@ const defaultProps = {
   sizeScale: { type: 'number', value: 1, min: 0 },
   billboard: false,
   sizeUnits: 'pixels',
+  latitudeCorrectionFactor: 1.0,
   sizeMinPixels: { type: 'number', min: 0, value: 0 }, //  min point radius in pixels
   sizeMaxPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER }, // max point radius in pixels
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
@@ -200,6 +201,7 @@ export default class IconLayer extends Layer {
       currentTime,
       iconStill,
       pickable,
+      latitudeCorrectionFactor,
     } = this.props
 
     const { iconManager } = this.state
@@ -219,6 +221,7 @@ export default class IconLayer extends Layer {
           alphaCutoff,
           currentTime,
           pickable,
+          latitudeCorrectionFactor,
           iconStillOffsets: this.getInstanceOffset(iconStill),
           iconStillFrames: this.getInstanceIconFrame(iconStill),
         })
