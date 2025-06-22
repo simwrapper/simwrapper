@@ -1,7 +1,7 @@
 <template lang="pug">
 .mycomponent(:id="containerId")
 
-  zoom-buttons.zoom-buttons(v-if="!thumbnail")
+  zoom-buttons.zoom-buttons(v-if="!thumbnail" corner="top-left")
 
   .map-container
     .mymap(:id="mapId")
@@ -11,18 +11,25 @@
 
     .lower-left(v-if="!thumbnail && !loadingText")
       .subheading {{ $t('lineWidths')}}
-      scale-slider.scale-slider(:stops='scaleValues' :initialValue='currentScale' @change='bounceScaleSlider')
+      scale-slider.scale-slider(
+        :stops='scaleValues'
+        :initialValue='currentScale'
+        :tooltip="false"
+        @change='bounceScaleSlider'
+      )
 
       .subheading {{ $t('hide')}}
       line-filter-slider.scale-slider(
         :initialValue="lineFilter"
-        @change='bounceLineFilter')
+        :tooltip="false"
+        @change='bounceLineFilter'
+      )
 
     .lower-right(v-if="!thumbnail && !isMobile")
       legend-box.complication(:rows="legendRows")
       scale-box.complication(:rows="scaleRows")
 
-  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '0 0'}")
+  .widgets(v-if="!thumbnail" :style="{'padding': yamlConfig ? '0 0.5rem 0.5rem 0.5rem' : '2px 4px'}")
 
     //- TIME SLIDER ----
     .widget-column(v-if="this.headers.length > 2" style="min-width: 8rem")
@@ -396,7 +403,7 @@ const Component = defineComponent({
 
     async loadFiles() {
       try {
-        this.loadingText = 'Dateien laden...'
+        this.loadingText = 'Loading...'
 
         const shpFilename = await this.findFilenameFromWildcard(
           `${this.myState.subfolder}/${this.vizDetails.shpFile}`
@@ -430,7 +437,8 @@ const Component = defineComponent({
         this.mymap = new maplibregl.Map({
           container: this.mapId,
           style: globalStore.getters.mapStyle,
-          logoPosition: 'top-left',
+          logoPosition: 'top-right',
+          // attributionControl: false,
         })
       } catch (e) {
         console.error('HUH?')
@@ -1116,7 +1124,7 @@ const Component = defineComponent({
     },
 
     async finishedLoadingData(message: any) {
-      console.log(222, 'done') // message)
+      // console.log(222, message)
       this.loadingText = 'Building diagram...'
       this.isFinishedLoading = true
       await this.$nextTick()
@@ -1456,7 +1464,6 @@ h4 {
   display: flex;
   flex-direction: row;
   user-select: none;
-  background-color: var(--bgMapPanel);
   grid-column: 1 / 3;
 }
 
@@ -1479,7 +1486,7 @@ h4 {
 }
 
 .lower-left {
-  width: 10rem;
+  width: 12rem;
   position: absolute;
   left: 5px;
   bottom: 2rem;
@@ -1488,11 +1495,11 @@ h4 {
   flex-direction: column;
   z-index: 1;
   background-color: var(--bgPanel);
-  opacity: 0.9;
-  filter: $filterShadow;
+  opacity: 0.97;
+  // filter: $filterShadow;
   border: solid 1px rgba(161, 160, 160, 0.781);
   border-radius: 2px;
-  padding-bottom: 0.25rem;
+  padding: 3px 4px;
 }
 
 .complication {
