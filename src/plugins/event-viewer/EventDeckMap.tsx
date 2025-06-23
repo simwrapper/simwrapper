@@ -47,6 +47,10 @@ export default function EventDeckMap({
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
+  // rotation factors are warped at high latitudes. Thanks, mercator
+  const latitude = viewState.latitude || (viewState.center && viewState.center[1]) || 35.0
+  const latitudeCorrectionFactor = Math.cos((latitude * Math.PI) / 180.0)
+
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
@@ -137,6 +141,7 @@ export default function EventDeckMap({
         ],
         getSize: dotsize, // searchEnabled ? 56 : 44,
         opacity: 1,
+        latitudeCorrectionFactor,
         currentTime: simulationTime,
         shadowEnabled: false,
         iconAtlas: `${BASE_URL}veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',

@@ -3,7 +3,6 @@
         :style='{"background": urlThumbnail}' oncontextmenu="return false")
 
   trip-viz.anim(v-if="!thumbnail"
-                :center = "vizDetails.center"
                 :colors = "COLOR_OCCUPANCY"
                 :drtRequests = "$options.drtRequests"
                 :dark = "globalState.isDarkMode"

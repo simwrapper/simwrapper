@@ -41,6 +41,7 @@ const defaultProps = {
   sizeMaxPixels: { type: 'number', min: 0, value: Number.MAX_SAFE_INTEGER }, // max point radius in pixels
   alphaCutoff: { type: 'number', value: 0.05, min: 0, max: 1 },
   iconStill: { type: 'object', value: null },
+  latitudeCorrectionFactor: 0.8,
 
   getIcon: { type: 'accessor', value: 'vehicle' }, // (x: any) => x.icon },
   getBOffsets: { type: 'accessor', value: [0, 0] }, // (x: any) => x.icon },
@@ -236,6 +237,7 @@ export default class IconLayer extends Layer {
       currentTime,
       iconStill,
       pickable,
+      latitudeCorrectionFactor,
     } = this.props
 
     const { iconManager } = this.state
@@ -255,6 +257,7 @@ export default class IconLayer extends Layer {
           alphaCutoff,
           currentTime,
           pickable,
+          latitudeCorrectionFactor,
           iconStillOffsets: this.getInstanceOffset(iconStill),
           iconStillFrames: this.getInstanceIconFrame(iconStill),
         })

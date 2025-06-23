@@ -64,7 +64,6 @@ export default function Component({
   drtRequests = [] as any[],
   traces = [] as any[],
   colors = [] as any[],
-  center = [13.45, 52.5],
   settingsShowLayers = {} as { [label: string]: boolean },
   vehicleLookup = [] as string[],
   searchEnabled = false,
@@ -73,20 +72,20 @@ export default function Component({
   const locale = globalStore.state.locale
   const theme = THEMES[globalStore.state.isDarkMode ? 'dark' : 'light']
 
+  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  // register setViewState in global view updater so we can respond to external map motion
+  REACT_VIEW_HANDLES[viewId] = () => {
+    setViewState(globalStore.state.viewState)
+  }
+
   // left-side driving icons are just vertically flipped
   const iconAtlas = leftside
     ? `${BASE_URL}images/icon-atlas-vehicles-leftside.png`
     : `${BASE_URL}images/icon-atlas-vehicles.png`
 
   // rotation factors are warped at high latitudes. Thanks, mercator
-  const latitudeCorrectionFactor = Math.cos((center[1] * Math.PI) / 180.0)
-
-  // register setViewState in global view updater so we can respond to external map motion
-  REACT_VIEW_HANDLES[viewId] = () => {
-    setViewState(globalStore.state.viewState)
-  }
-
-  const [viewState, setViewState] = useState(globalStore.state.viewState)
+  const latitude = viewState.latitude || (viewState.center && viewState.center[1]) || 35.0
+  const latitudeCorrectionFactor = Math.cos((latitude * Math.PI) / 180.0)
 
   const arcWidth = 1
   const [hoverInfo, setHoverInfo] = useState({} as any)

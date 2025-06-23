@@ -29,6 +29,7 @@
       legend-box(:legendStore="legendStore")
 
   time-slider.time-slider-area(v-if="isLoaded"
+    :isPointInTime="true"
     :range="timeRange"
     :activeTimeExtent="timeFilter"
     :labels="timeLabels"
