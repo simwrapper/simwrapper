@@ -1,12 +1,11 @@
 # SimWrapper project website
 
-This repo contains the interactive visualization website for **SimWrapper**, available at https://simwrapper.github.io
+This repo contains the source code for the interactive data visualization tool **SimWrapper**, available at https://simwrapper.app
 
+- DOCS available at: https://docs.simwrapper.app/docs
 - VSP TU Berlin also has a departmental SimWrapper site at <https://vsp.berlin/simwrapper>
-- DOCS available at: https://simwrapper.github.io/docs
 
 This README details build instructions for the website itself.
-
 
 ## Project prerequisites
 
@@ -86,7 +85,3 @@ Travis-CI is configured to automatically build the site with **every push to mas
 ## Thank you!
 
 Good luck and thanks for the help! -- [Billy](https://github.com/billyc)
-
-## Version 2!
-
-Lots of recent changes including some config file breaking-changes, so it's time to bump the major version number!
