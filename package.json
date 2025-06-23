@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@deck.gl/extensions": "^8.8.21",
+    "@deck.gl/mapbox": "8.8.27",
     "@flowmap.gl/data": "8.0.0-alpha.25",
     "@flowmap.gl/layers": "8.0.0-alpha.25",
     "@fortawesome/fontawesome-svg-core": "^6.4.0",

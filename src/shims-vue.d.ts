@@ -21,6 +21,7 @@ declare module '*.md' {
 }
 
 declare module '@/js/avro'
+declare module '@deck.gl/mapbox'
 declare module 'react-aria-menubutton'
 declare module 'colormap'
 declare module 'convert-seconds'

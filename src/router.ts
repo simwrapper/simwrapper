@@ -40,6 +40,11 @@ const routes = [
     }),
   },
   {
+    path: BASE_URL + 'editor/',
+    component: () => import('@/editor/Editor.vue'),
+    props: (route: Route) => ({}),
+  },
+  {
     path: BASE_URL + '*',
     component: () => import('@/layout-manager/LayoutManager.vue'),
   },
