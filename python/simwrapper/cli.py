@@ -39,7 +39,7 @@ def open(site, cert, key):
 
     if site == "live":
       port = MiniFileServer.find_free_port(SINGLE_PAGE_APP_PORT)
-      url = os.path.join("http://localhost:" + str(port), "live")
+      url = f"http://localhost:{str(port)}/live?cwd={os.getcwd()}"
       # Open web browser first, because this command returns immediately
       print("Opening:", url)
       webbrowser.open(url, new=2, autoraise=True)  # in a new tab
