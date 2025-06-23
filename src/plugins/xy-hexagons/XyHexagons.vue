@@ -92,6 +92,7 @@ import CollapsiblePanel from '@/components/CollapsiblePanel.vue'
 import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import XyHexDeckMap from './XyHexLayer'
+import NewXmlFetcher from '@/workers/NewXmlFetcher.worker?worker'
 
 import {
   ColorScheme,
@@ -147,6 +148,11 @@ const MyComponent = defineComponent({
     const colorRamps = ['bathymetry', 'par', 'chlorophyll', 'magma']
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
+
+      resolvers: {} as { [id: number]: any },
+      resolverId: 0,
+      _xmlConfigFetcher: {} as any,
+
       standaloneYAMLconfig: {
         title: '',
         description: '',
@@ -395,21 +401,6 @@ const MyComponent = defineComponent({
       this.colorRamp = this.colorRamps[number]
     },
 
-    async solveProjection() {
-      if (this.thumbnail) return
-
-      console.log('WHAT PROJECTION:')
-
-      try {
-        const text = await this.fileApi.getFileText(
-          this.myState.subfolder + '/' + this.myState.yamlConfig
-        )
-        this.vizDetails = YAML.parse(text)
-      } catch (e) {
-        console.error(e)
-      }
-    },
-
     async getVizDetails() {
       if (this.config) {
         this.validateYAML()
@@ -423,13 +414,62 @@ const MyComponent = defineComponent({
       if (hasYaml) {
         await this.loadStandaloneYAMLConfig()
       } else {
-        this.loadOutputTripsConfig()
+        await this.loadOutputTripsConfig()
       }
     },
 
-    loadOutputTripsConfig() {
-      let projection = 'EPSG:31468' // 'EPSG:25832', // 'EPSG:31468', // TODO: fix
-      if (!this.myState.thumbnail) {
+    fetchXML(props: { worker: any; slug: string; filePath: string; options?: any }) {
+      let xmlWorker = props.worker
+
+      xmlWorker.onmessage = (message: MessageEvent) => {
+        // message.data will have .id and either .error or .xml
+        const { resolve, reject } = this.resolvers[message.data.id]
+        xmlWorker.terminate()
+        if (message.data.error) reject(message.data.error)
+        resolve(message.data.xml)
+      }
+      // save the promise by id so we can look it up when we get messages
+      const id = this.resolverId++
+      xmlWorker.postMessage({
+        id,
+        fileSystem: this.fileSystem,
+        filePath: props.filePath,
+        options: props.options,
+      })
+
+      const promise = new Promise((resolve, reject) => {
+        this.resolvers[id] = { resolve, reject }
+      })
+      return promise
+    },
+
+    async figureOutProjection() {
+      const { files } = await this.fileApi.getDirectory(this.myState.subfolder)
+      const outputConfigs = files.filter(
+        f => f.indexOf('.output_config.xml') > -1 || f.indexOf('.output_config_reduced.xml') > -1
+      )
+      if (outputConfigs.length && this.fileSystem) {
+        for (const xmlConfigFileName of outputConfigs) {
+          try {
+            const configXML: any = await this.fetchXML({
+              worker: this._xmlConfigFetcher,
+              slug: this.fileSystem.slug,
+              filePath: this.myState.subfolder + '/' + xmlConfigFileName,
+            })
+            const global = configXML.config.module.filter((f: any) => f.$name === 'global')[0]
+            const crs = global.param.filter((p: any) => p.$name === 'coordinateSystem')[0]
+            const crsValue = crs.$value
+            return crsValue
+          } catch (e) {
+            console.warn('Failed parsing', xmlConfigFileName)
+          }
+        }
+      }
+    },
+
+    async loadOutputTripsConfig() {
+      let projection = await this.figureOutProjection()
+      if (!this.myState.thumbnail && !projection) {
         projection = prompt('Enter projection: e.g. "EPSG:31468"') || 'EPSG:31468'
         if (!!parseInt(projection, 10)) projection = 'EPSG:' + projection
       }
@@ -451,7 +491,6 @@ const MyComponent = defineComponent({
         zoom: this.vizDetails.zoom,
       }
       this.$emit('title', this.vizDetails.title)
-      // this.solveProjection()
       return
     },
 
@@ -712,6 +751,8 @@ const MyComponent = defineComponent({
     this.myState.yamlConfig = this.yamlConfig || ''
     this.myState.subfolder = this.subfolder
 
+    this._xmlConfigFetcher = new NewXmlFetcher()
+
     await this.getVizDetails()
 
     if (this.thumbnail) return
@@ -733,6 +774,8 @@ const MyComponent = defineComponent({
   },
 
   beforeDestroy() {
+    if (this._xmlConfigFetcher) this._xmlConfigFetcher.terminate()
+
     this.resizer?.disconnect()
     // MUST erase the React view handle to prevent gigantic memory leak!
     REACT_VIEW_HANDLES[this.id] = undefined
