@@ -403,10 +403,10 @@ const MyComponent = defineComponent({
       let configuration: any
 
       if (hasYaml) {
-        console.log('has yaml')
+        console.log('--has viz-*.yaml')
         configuration = this.standaloneYAMLconfig
       } else {
-        console.log('no yaml')
+        console.log('--no yaml, config came from dashboard')
         configuration = this.config
       }
 
@@ -444,7 +444,6 @@ const MyComponent = defineComponent({
 
     setVizDetails() {
       this.vizDetails = Object.assign({}, this.vizDetails, this.standaloneYAMLconfig)
-      console.log(100, this.vizDetails)
     },
 
     async buildThumbnail() {
