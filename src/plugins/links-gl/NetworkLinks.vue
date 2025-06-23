@@ -428,14 +428,10 @@ const MyComponent = defineComponent({
       //   })
       // }
 
-      // const hasGeoJson = !configuration.network && configuration.geojsonFile
-      // if (hasGeoJson) {
-      //   this.$emit('error', {
-      //     type: Status.WARNING,
-      //     msg: `YAML field geojsonFile deprecated`,
-      //     desc: 'Use YAML field network instad. ',
-      //   })
-      // }
+      const isMissingNetwork = !configuration.network && !configuration.geojsonFile
+      if (isMissingNetwork) {
+        this.$emit('error', 'Network file not specified')
+      }
 
       // if (!configuration.display) {
       //   this.$emit('error', {
@@ -716,6 +712,12 @@ const MyComponent = defineComponent({
       this.myState.statusMessage = 'Loading network...'
 
       const filename = this.vizDetails.network || this.vizDetails.geojsonFile
+      if (!filename) {
+        this.myState.statusMessage = ''
+        this.$emit('isLoaded')
+        return
+      }
+
       try {
         const network = await this.myDataManager.getRoadNetwork(
           filename,
