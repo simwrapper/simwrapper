@@ -122,7 +122,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET,OPTIONS,HEAD")
         self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Mini-File-Server-Root', current_dir)
-        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate")
+        self.send_header("Cache-Control", "no-cache, max-age=0, must-revalidate, no-store")
         SimpleHTTPRequestHandler.end_headers(self)
 
         # experimenting with no-cache but must-revalidate: which means
