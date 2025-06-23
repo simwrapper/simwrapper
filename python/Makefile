@@ -27,6 +27,12 @@ test:
 > pytest tests/
 .PHONY: test
 
+docker:
+> rm -r .venv dist
+> cd ..
+> docker build -t simwrapper/app .
+.PHONY: docker
+
 #push: test build
 push: build
 > twine check dist/*
