@@ -131,7 +131,7 @@
 
         p You don't need to be a coder to use SimWrapper -- you point it at your files and write some small text configuration files to tell SimWrapper what to do. SimWrapper does the rest!
 
-        p If you do know JavaScript, the open-source code and plugin architecture of SimWrapper allows you to fork the project and create your own visualizations, too. But you don't need to know JavaScript if SimWrapper already does what you need.
+        p The open-source code and plugin architecture of SimWrapper allows developers (you!) to fork the project and create your own visualizations, too. But you don't need to be a software developer to use SimWrapper if it already does what you need.
 
         p
           | SimWrapper is a
@@ -148,13 +148,13 @@
 
         .links-and-logos
           .logos
-            .one-logo(v-for="logo in allLogos" key="logo.url")
+            .one-logo(v-for="logo in allLogos" :key="logo.url")
               a(:href="logo.url"
                  :title="logo.name"
                  target="_blank"
               ): img.img-logo(:src="logo.image")
 
-        p Funded by:<br>TU Berlin; the German Bundesministerium für Bildung und Forschung; the Deutsche Forschungsgemeinschaft; and the ActivitySim Consortium member agencies listed above.<br>Thank you for your support!
+        p Funded by TU Berlin; the German Bundesministerium für Bildung und Forschung; the Deutsche Forschungsgemeinschaft; and the ActivitySim Consortium member agencies listed above. Thank you for your support!
 
 
     //- FOOTER -------------------------------------------------------------------
