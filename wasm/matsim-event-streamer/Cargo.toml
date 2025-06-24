@@ -13,7 +13,7 @@ name = "matsim-event-streamer"
 path = "src/matsim-event-streamer.rs"
 
 [dependencies]
-libz-rs-sys = { version = "0.4.0" }
+libz-rs-sys = "0.5.1"
 roxmltree = "0.20.0"
 wasm-bindgen = { version ="0.2" , default-features = false }
 zlib-rs = { version = "0.4.0", default-features = false,  features = ["rust-allocator"] }
