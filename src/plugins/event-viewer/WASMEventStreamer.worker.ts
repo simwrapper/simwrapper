@@ -1,15 +1,12 @@
 import * as Comlink from 'comlink'
-// import { SaxEventType, SAXParser, Detail, Tag, Attribute } from 'sax-wasm'
-import pako from 'pako'
+
+import globalStore from '@/store'
+import HTTPFileSystem from '@/js/HTTPFileSystem'
+import { FileSystemConfig } from '@/Globals'
 
 import init, { EventStreamer } from 'matsim-event-streamer'
 
-import { parseXML } from '@/js/util'
 import AllEventLayers from './_views'
-
-import HTTPFileSystem from '@/js/HTTPFileSystem'
-import { FileSystemConfig } from '@/Globals'
-import globalStore from '@/store'
 
 // read one chunk at a time. This sends backpressure to the server
 const strategy = new CountQueuingStrategy({ highWaterMark: 1 })
@@ -34,9 +31,6 @@ const Task = {
 
   _currentTranch: [] as any[][],
   _currentTranchTotalLength: 0,
-
-  // Pako library has gunzip chunking mode!
-  // _gunzipper: new pako.Inflate({ to: 'string', chunkSize: 524288 }),
 
   _isGzipped: false,
   _cbUnzipChunkComplete: {} as any,
