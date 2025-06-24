@@ -7,7 +7,6 @@
     :eventLayers="eventLayers"
     :network="network"
     :linkIdLookup="linkIdLookup"
-    :timeFilter="timeFilter"
     :dark="this.$store.state.isDarkMode"
     :colors="this.colors"
     :breakpoints="this.breakpoints"
