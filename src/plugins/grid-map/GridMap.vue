@@ -14,10 +14,16 @@
       .top-right
         .gui-config(:id="configId")
 
-      click-through-times.time-slider-area( v-if="isLoaded"
+      click-through-times.time-slider-area( v-if="isLoaded && this.vizDetails.timeSelector && this.vizDetails.timeSelector.enum == 'discrete'"
         :allTimes="allTimes"
         :range="timeRange"
-        @timeUpdate="handleTimeSliderValues"
+        @timeUpdate="handleDiscreteTimeValues"
+      )
+
+      time-slider.time-slider-area(v-if="isLoaded && (!this.vizDetails.timeSelector || this.vizDetails.timeSelector.enum == 'slider')"
+        :range="timeRange"
+        :allTimes="allTimes"
+        @timeExtent="handleTimeSliderValues"
       )
 
       .message(v-if="!thumbnail && myState.statusMessage")
@@ -54,8 +60,10 @@ import DrawingTool from '@/components/DrawingTool/DrawingTool.vue'
 import ZoomButtons from '@/components/ZoomButtons.vue'
 import ClickThroughTimes from '@/components/clickThroughTimes.vue'
 
+import TimeSlider from '@/components/TimeSliderV2.vue'
+
+
 import GridLayer from './GridLayer'
-import { number } from '~/mathjs/types'
 
 // interface for each time object inside the mapData Array
 export interface MapData {
@@ -97,6 +105,7 @@ interface VizDetail {
   secondValueColumn?: string
   diff?: boolean
   unit: string
+  timeSelector: any
 }
 
 interface GuiConfig {
@@ -186,6 +195,7 @@ const GridMap = defineComponent({
     ToggleButton,
     ZoomButtons,
     ClickThroughTimes,
+    TimeSlider,
   },
 
   props: {
@@ -206,7 +216,7 @@ const GridMap = defineComponent({
       'Reds',
       'RdYlGn (div)',
       'greenRed (div)',
-      'RdBu (div)',
+      'RdBu',
     ]
     return {
       id: `id-${Math.floor(1e12 * Math.random())}` as any,
@@ -251,6 +261,7 @@ const GridMap = defineComponent({
         secondValueColumn: '',
         diff: false,
         unit: '',
+        timeSelector: null as any
       } as VizDetail,
       myState: {
         statusMessage: '',
@@ -505,6 +516,7 @@ const GridMap = defineComponent({
         secondValueColumn: this.vizDetails.secondValueColumn,
         diff: this.vizDetails.diff,
         unit: this.vizDetails.unit,
+        timeSelector: this.vizDetails.timeSelector
       }
       this.$emit('title', this.vizDetails.title)
       this.solveProjection()
@@ -847,7 +859,6 @@ const GridMap = defineComponent({
       // Count elements per time
       const numberOfElementsPerTime = Math.ceil(valuesArr1.length / this.allTimes.length)
 
-
       // scaling values to color scale of 0 - 100 (if negative)
       let from_min = minValue
       let from_max = maxValue
@@ -998,8 +1009,6 @@ const GridMap = defineComponent({
         delete finalData.mapData[index].numberOfFilledColors
       })
 
-      console.log(this.mapProps.currentTimeIndex)
-
       this.myState.statusMessage = ''
       return finalData
     },
@@ -1013,18 +1022,37 @@ const GridMap = defineComponent({
       }
     },
 
-    handleTimeSliderValues(timeUpdate: { extent: number; index: number }) {
-      this.currentTime[0] = timeUpdate.extent
-      this.mapProps.currentTimeIndex = timeUpdate.index
-      this.selectedTimeData = []
+    handleDiscreteTimeValues(timeUpdate: { extent: number; index: number }) {
+      this.currentTime[0] = timeUpdate.extent;
+      this.mapProps.currentTimeIndex = timeUpdate.index;
+      this.selectedTimeData = [];
 
       for (let i = 0; i < this.data.mapData.length; i++) {
         if (String(this.data.mapData[i].time) == String(timeUpdate.extent)) {
-          this.selectedTimeData.push(this.data.mapData[i].values)
+          this.selectedTimeData.push(this.data.mapData[i].values);
         }
       }
 
       this.setColors()
+    },
+
+    handleTimeSliderValues(timeValues: any[]) {
+
+      this.currentTime = timeValues
+
+      this.selectedTimeData = []
+
+
+
+      for (let i = 0; i < this.data.length; i++) {
+
+        if (this.data[i].time == timeValues[0]) {
+
+          this.selectedTimeData.push(this.data[i])
+
+        }
+
+      }
     },
 
     setupGui() {
@@ -1175,10 +1203,9 @@ const GridMap = defineComponent({
       this.data = await this.loadAndPrepareData()
       this.setColors()
 
-      // reset the slider to the last time slot --- This was setting values to last time index, which in some cases, was mostly 0.
-      // this led to a blank map once someone clicked on diff twice.
-      // const last = this.allTimes[this.allTimes.length - 1]
-      // this.currentTime = [last, last]
+      // reset the slider to the last time slot
+      const last = this.allTimes[this.allTimes.length - 1]
+      this.currentTime = [last, last]
     },
 
     /**
@@ -1191,10 +1218,9 @@ const GridMap = defineComponent({
       this.data = await this.loadAndPrepareData()
       this.setColors()
 
-      // reset the slider to the last time slot --- This was setting values to last time index, which in some cases, was mostly 0.
-      // this led to a blank map once someone changed the 2nd column value.
-      // const last = this.allTimes[this.allTimes.length - 1]
-      // this.currentTime = [last, last]
+      // reset the slider to the last time slot
+      const last = this.allTimes[this.allTimes.length - 1]
+      this.currentTime = [last, last]
     },
 
     setColors() {
@@ -1228,7 +1254,6 @@ const GridMap = defineComponent({
       for (let i = 0; i < this.data.mapData.length; i++) {
         for (let j = 0; j < this.data.mapData[i].values.length; j++) {
           const value = this.data.mapData[i].values[j]
-          // console.log(value)
 
           const colors = this.pickColor(
             value,
@@ -1262,6 +1287,7 @@ const GridMap = defineComponent({
           }
         }
       }
+
       // force Vue to take notice of the change - any prop change will do
       this.currentTime = [...this.currentTime]
     },
