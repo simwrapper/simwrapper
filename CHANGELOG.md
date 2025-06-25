@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [4.0.3](https://github.com/simwrapper/simwrapper/compare/v4.0.2...v4.0.3) (2025-06-25)
+
+
+### Bug Fixes
+
+* **agg-od:** Clean up UI, ensure datasets with just one data column load properly ([b6c84ff](https://github.com/simwrapper/simwrapper/commit/b6c84ff6df8089cbf39c95ee00e615d11681240f)), closes [#200](https://github.com/simwrapper/simwrapper/issues/200) [#201](https://github.com/simwrapper/simwrapper/issues/201)
+* **events:** fix animation for extremely large, extremely compressed event files ([704741b](https://github.com/simwrapper/simwrapper/commit/704741bd1656e03c1014e38928e0fc9d6f0c04bb))
+* **events:** vehicle icons were warped at high/low latitudes ([3087224](https://github.com/simwrapper/simwrapper/commit/30872244434c02c742abfef3431d535c0ecf167b))
+* **hexagons:** For output_trips viz, try to get CRS/EPSG code from output_config ([c0bd623](https://github.com/simwrapper/simwrapper/commit/c0bd623f9c1933148ec12ee160ec49cfee1f8a42)), closes [#270](https://github.com/simwrapper/simwrapper/issues/270)
+* **links:** Link widths scaled strangely with nonzero map pitch angles ([86b7159](https://github.com/simwrapper/simwrapper/commit/86b71590a033b805b2ed93afd5077d9254e1638f)), closes [#265](https://github.com/simwrapper/simwrapper/issues/265)
+* **links:** load old-style YAML with just csvFile and geojsonFile ([3ba5b1a](https://github.com/simwrapper/simwrapper/commit/3ba5b1af231407db7b04d092b2d83c08b7b816f6)), closes [#251](https://github.com/simwrapper/simwrapper/issues/251)
+* **maps:** Interactive "Add dataset" feature can now add multiple files with the same name. It will append _2, _3, ... as needed. ([3f732fb](https://github.com/simwrapper/simwrapper/commit/3f732fb49ba15148328b8a8004566470603d94da)), closes [#424](https://github.com/simwrapper/simwrapper/issues/424)
+* support "simwrapper open" python command title w/ current working directory ([bc004e4](https://github.com/simwrapper/simwrapper/commit/bc004e4c2b829cafb751325007081abc9284a488)), closes [#76](https://github.com/simwrapper/simwrapper/issues/76)
+* **vehicles:** fix tooltip locale ([6782d81](https://github.com/simwrapper/simwrapper/commit/6782d819cfa3fe75c97a57d14397d9e29cecb71c)), closes [#323](https://github.com/simwrapper/simwrapper/issues/323)
+* **vehicles:** Vehicle animation cleanup with leftside option, better animations ([c562bba](https://github.com/simwrapper/simwrapper/commit/c562bba442c40817b5d621d6627e322689280044)), closes [#48](https://github.com/simwrapper/simwrapper/issues/48)
+
 ### [4.0.2](https://github.com/simwrapper/simwrapper/compare/v4.0.1...v4.0.2) (2025-06-20)
 
 
