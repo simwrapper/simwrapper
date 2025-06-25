@@ -47,6 +47,7 @@ const Task = {
       network: any
       layers: any
       fsConfig: FileSystemConfig
+      follow?: string
     },
     cbReportNewData: Function
   ) {

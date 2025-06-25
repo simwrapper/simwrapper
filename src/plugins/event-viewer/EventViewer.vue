@@ -236,6 +236,13 @@ const MyComponent = defineComponent({
     urlThumbnail(): any {
       return this.thumbnailUrl
     },
+    follow() {
+      const follow = this.$route.query?.follow
+      return follow ?? ''
+    },
+    rotate() {
+      return 'rotate' in this.$route.query
+    },
   },
   watch: {
     '$store.state.viewState'() {
@@ -434,6 +441,7 @@ const MyComponent = defineComponent({
           layers,
           network: this.network,
           fsConfig,
+          follow: this.follow,
         },
         // callback when stream has new data to report
         Comlink.proxy(this.receiveDataFromEventStreamer)
@@ -549,6 +557,49 @@ const MyComponent = defineComponent({
       ]
     },
 
+    followVehicle() {
+      for (const slice of this.eventData) {
+        if (slice.timeRange[1] < this.simTime) continue
+        if (slice.timeRange[0] > this.simTime) continue
+        for (let i = 0; i < slice.data.vvt0.length; i++) {
+          const t0 = slice.data.vvt0[i]
+          const t1 = slice.data.vvt1[i]
+
+          if (t0 <= this.simTime && t1 >= this.simTime) {
+            // found chased vehicle and it is currently moving RIGHT NOW!
+            const pctComplete = (this.simTime - t0) / (t1 - t0)
+            const p0 = [slice.data.vvp0[i * 2], slice.data.vvp0[i * 2 + 1]]
+            const p1 = [slice.data.vvp1[i * 2], slice.data.vvp1[i * 2 + 1]]
+            const longitude = p0[0] + (p1[0] - p0[0]) * pctComplete
+            const latitude = p0[1] + (p1[1] - p0[1]) * pctComplete
+            const camera = {
+              longitude,
+              latitude,
+              center: [longitude, latitude],
+              zoom: 14,
+              jump: true,
+            } as any
+
+            if (this.rotate) {
+              let bearing = Turf.bearing(Turf.point(p0), Turf.point(p1))
+              const differenceInBearing = bearing - this.prevBearing
+              if (Math.abs(differenceInBearing) > 1) {
+                bearing =
+                  this.prevBearing + (2 * differenceInBearing) / Math.abs(differenceInBearing)
+                this.prevBearing = bearing
+              }
+              camera.bearing = bearing
+              camera.pitch = 45
+              camera.zoom = 15
+            }
+            globalStore.commit('setMapCamera', camera)
+            // that's the trip, no more searching.
+            break
+          }
+        }
+      }
+    },
+
     animate() {
       if (!this.isAnimating) return
 
@@ -565,42 +616,7 @@ const MyComponent = defineComponent({
       this.simTime = this.animationClockTime
 
       // VERFOLGEN: chase a vehicle ------------
-      for (const slice of this.eventData) {
-        if (slice.timeRange[1] < this.simTime) continue
-        if (slice.timeRange[0] > this.simTime) continue
-        for (let i = 0; i < slice.data.vvt0.length; i++) {
-          const t0 = slice.data.vvt0[i]
-          const t1 = slice.data.vvt1[i]
-
-          if (t0 <= this.simTime && t1 >= this.simTime) {
-            // found chased vehicle and it is currently moving RIGHT NOW!
-            const pctComplete = (this.simTime - t0) / (t1 - t0)
-            const p0 = [slice.data.vvp0[i * 2], slice.data.vvp0[i * 2 + 1]]
-            const p1 = [slice.data.vvp1[i * 2], slice.data.vvp1[i * 2 + 1]]
-            const longitude = p0[0] + (p1[0] - p0[0]) * pctComplete
-            const latitude = p0[1] + (p1[1] - p0[1]) * pctComplete
-            // let bearing = Turf.bearing(Turf.point(p0), Turf.point(p1))
-
-            // const differenceInBearing = bearing - this.prevBearing
-            // if (Math.abs(differenceInBearing) > 1) {
-            //   bearing = this.prevBearing + (2 * differenceInBearing) / Math.abs(differenceInBearing)
-            //   this.prevBearing = bearing
-            // }
-
-            globalStore.commit('setMapCamera', {
-              longitude,
-              latitude,
-              center: [longitude, latitude],
-              zoom: 14,
-              // bearing,
-              // pitch: 50,
-              // jump: true,
-            })
-            // that's the vehicle, no more searching.
-            break
-          }
-        }
-      }
+      if (this.follow) this.followVehicle()
 
       // loop forever
       this.animator = window.requestAnimationFrame(this.animate)

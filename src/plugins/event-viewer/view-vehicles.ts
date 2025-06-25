@@ -5,12 +5,12 @@ export default class EventsHandler {
   private network = {} as any
   private linkIdLookup = {} as any
   private tracker = {} as { [vehId: string]: any }
-
-  private CHASE = '32994_car' // '172535_bike'
+  private follow = ''
 
   constructor(props: any) {
+    this.follow = props.follow || ''
     this.network = props.network
-    // network offset
+    // network i-offset
     this.network.linkIds.forEach((link: string, i: number) => {
       this.linkIdLookup[link] = i
     })
@@ -45,9 +45,11 @@ export default class EventsHandler {
     Object.keys(trips).forEach(key => {
       dataArray[key] = new Float32Array(trips[key].flat())
     })
-    Object.keys(verfolgen).forEach(key => {
-      dataArray[`vv${key}`] = new Float32Array(verfolgen[key].flat())
-    })
+    if (this.follow) {
+      Object.keys(verfolgen).forEach(key => {
+        dataArray[`vv${key}`] = new Float32Array(verfolgen[key].flat())
+      })
+    }
 
     const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
 
@@ -60,7 +62,6 @@ export default class EventsHandler {
       timeLastArrival
     )
 
-    console.log('chased vehicles:', dataArray.vvt0.length)
     return { data: dataArray, timeRange: [dataArray.t0[0], timeLastArrival] }
   }
 
@@ -115,7 +116,7 @@ export default class EventsHandler {
             trips.colors.push(colorCode)
 
             // Are we chasing this vehicle? Save it
-            if (event.vehicle === this.CHASE) {
+            if (this.follow === event.vehicle) {
               verfolgen.t0.push(prevEvent.time)
               verfolgen.t1.push(event.time)
               verfolgen.p0.push([this.network.source[offset], this.network.source[offset + 1]])
