@@ -65,11 +65,13 @@ To password-protect a SimWrapper site using standard HTTP Basic authentication, 
 
 ## Docker-based sites
 
-SimWrapper has been packed up into a Docker image at `simwrapper/site`, which is nothing more than the NGINX proxy server with the latest SimWrapper code embedded, all carefully configured to have the correct settings for serving the site and data you provide.
+SimWrapper has been packed up into a Docker image at `simwrapper/app`, which is nothing more than the NGINX proxy server with the latest SimWrapper code embedded, all carefully configured to have the correct settings for serving the site and data you provide.
 
-On Docker Hub, we created the `simwrapper/site` docker image which can be used anywhere that supports Docker. If you have Docker installed on your local machine, or if you have a cloud provider that lets you run Docker images, then you don't need anything other than:
+On Docker Hub, we created the `simwrapper/app` docker image which can be used anywhere that supports Docker. If you have Docker installed on your local machine, or if you have a cloud provider that lets you run Docker images, then you don't need anything other than:
 
-`docker run -p 8080:8080 -v ~/my/data/folder:/data simwrapper/site`
+`docker run -p 4999:4999 -v ~/my/data/folder:/data simwrapper/app`
+
+It listens on port 4999 by default.
 
 That's it! Note that in the command above we mount a local volume to the image at `/data` which is where SimWrapper expects your files to be. For a cloud site, you would need to put that in accessible storage somewhere. If you already know Docker, you already know how to do this.
 
