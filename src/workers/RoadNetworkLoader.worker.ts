@@ -35,9 +35,13 @@ let _isFirefox = false
 let _rawData = null as Uint8Array | null
 let _options = {} as any
 let _crs = ''
+let _extraColumns = false
 
 // ENTRY POINT: -----------------------
 onmessage = async function (e) {
+  // does user want extra columns
+  if (e.data.extraColumns) _extraColumns = true
+
   // pre-filled buffer?
   if (e.data.xmlBuffer) {
     const cargo = gUnzip(e.data.xmlBuffer)
@@ -373,8 +377,12 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
   // Last chunk, close out.
   const source = new Float32Array(2 * totalNumberOfLinks)
   const dest = new Float32Array(2 * totalNumberOfLinks)
-  const freespeed = new Float32Array(totalNumberOfLinks)
-  const length = new Float32Array(totalNumberOfLinks)
+  let freespeed = new Float32Array(0)
+  let length = new Float32Array(0)
+  if (_extraColumns) {
+    freespeed = new Float32Array(totalNumberOfLinks)
+    length = new Float32Array(totalNumberOfLinks)
+  }
 
   let offset = 0
   for (const chunk of linkChunks) {
@@ -382,35 +390,42 @@ async function memorySafeXMLParser(rawData?: Uint8Array, options?: any) {
       source[2 * offset + i] = chunk[0][i]
       dest[2 * offset + i] = chunk[1][i]
     }
-    for (let i = 0; i < chunk[2].length; i++) {
-      freespeed[offset + i] = chunk[2][i]
-      length[offset + i] = chunk[3][i]
+    if (_extraColumns) {
+      for (let i = 0; i < chunk[2].length; i++) {
+        freespeed[offset + i] = chunk[2][i]
+        length[offset + i] = chunk[3][i]
+      }
     }
-    offset += chunk[2].length
+    offset += chunk[0].length / 2
   }
 
-  const links = {
-    source,
-    dest,
-    linkIds,
-    freespeed,
-    length,
-    projection: coordinateReferenceSystem,
+  if (_extraColumns) {
+    const links = {
+      source,
+      dest,
+      linkIds,
+      freespeed,
+      length,
+      projection: coordinateReferenceSystem,
+    }
+    postMessage({ links }, [
+      links.source.buffer,
+      links.dest.buffer,
+      links.freespeed.buffer,
+      links.length.buffer,
+    ])
+  } else {
+    const links = { source, dest, linkIds, projection: coordinateReferenceSystem }
+    postMessage({ links }, [links.source.buffer, links.dest.buffer])
   }
-  postMessage({ links }, [
-    links.source.buffer,
-    links.dest.buffer,
-    links.freespeed.buffer,
-    links.length.buffer,
-  ])
 }
 
 // build [source,dest] Float32Array of link positions
 function buildLinkChunk(nodes: any, linkIds: any[], links: any[]) {
   const source = new Float32Array(2 * links.length)
   const dest = new Float32Array(2 * links.length)
-  const freespeed = new Float32Array(links.length)
-  const linkLength = new Float32Array(links.length)
+  const freespeed = new Float32Array(_extraColumns ? links.length : 0)
+  const linkLength = new Float32Array(_extraColumns ? links.length : 0)
 
   for (let i = 0; i < links.length; i++) {
     const link = links[i]
@@ -423,8 +438,10 @@ function buildLinkChunk(nodes: any, linkIds: any[], links: any[]) {
     source[2 * i + 1] = nodeFrom ? nodeFrom[1] : NaN
     dest[2 * i + 0] = nodeTo ? nodeTo[0] : NaN
     dest[2 * i + 1] = nodeTo ? nodeTo[1] : NaN
-    freespeed[i] = parseFloat(link.$freespeed || 0.0)
-    linkLength[i] = parseFloat(link.$length || 0.0)
+    if (_extraColumns) {
+      freespeed[i] = parseFloat(link.$freespeed || 0.0)
+      linkLength[i] = parseFloat(link.$length || 0.0)
+    }
   }
   return [source, dest, freespeed, linkLength]
 }

@@ -322,7 +322,7 @@ const MyComponent = defineComponent({
         description: this.myState.yamlConfig,
         file: this.myState.yamlConfig,
         projection,
-        center: this.vizDetails.center,
+        center: this.vizDetails.center || undefined,
         zoom: this.vizDetails.zoom,
       }
       this.$emit('title', this.vizDetails.title || this.vizDetails.file)
@@ -505,7 +505,9 @@ const MyComponent = defineComponent({
       const network = await this.myDataManager.getRoadNetwork(
         networkFile,
         this.myState.subfolder,
-        Object.assign({}, this.vizDetails)
+        Object.assign({}, this.vizDetails),
+        null, // no status callback?!
+        true // extra: get freespeed, length attributes
       )
       this.vizDetails.projection = '' + network.projection
       return { network }
@@ -515,10 +517,23 @@ const MyComponent = defineComponent({
       const { network } = await this.loadNetwork()
       this.network = network
 
-      // let dataArray: any = []
-      // if (!this.fileApi) return { dataArray }
+      if (!this.vizDetails.center) {
+        let lng = 0
+        let lat = 0
+        let cnt = 0
+        for (let i = 0; i < this.network.source.length; i += 4096) {
+          lng += this.network.source[i]
+          lat += this.network.source[i + 1]
+          cnt += 1
+        }
+        this.vizDetails.center = [lng / cnt, lat / cnt]
+        globalStore.commit('setMapCamera', {
+          longitude: lng / cnt || 13.45,
+          latitude: lat / cnt || 52.5,
+          zoom: 10,
+        })
+      }
 
-      // try {
       let filename = `${this.myState.subfolder}/${this.vizDetails.file}`
       await this.streamEventFile(filename)
     },

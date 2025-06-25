@@ -291,7 +291,8 @@ export default class DashboardDataManager {
     filename: string,
     subfolder: string,
     vizDetails: any,
-    cbStatus?: any
+    cbStatus?: any,
+    extra?: boolean
   ) {
     const path = `/${subfolder}/${filename}`
     const options = {} as any
@@ -305,6 +306,7 @@ export default class DashboardDataManager {
         vizDetails,
         cbStatus,
         options,
+        extra,
       })
     }
 
@@ -397,16 +399,15 @@ export default class DashboardDataManager {
 
   public addFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
     try {
+      const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
+      const selectedDataset = this.datasets[cacheKey]
+      if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
 
-    const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
-    const selectedDataset = this.datasets[cacheKey]
-    if (!selectedDataset) throw Error(`Can't add listener, no dataset named: ` + cacheKey)
-
-    this.datasets[cacheKey].filterListeners.add(listener)
-  } catch (e) {
-    console.error('CANT ADD FILTER LISTENER' + e)
+      this.datasets[cacheKey].filterListeners.add(listener)
+    } catch (e) {
+      console.error('CANT ADD FILTER LISTENER' + e)
+    }
   }
-}
 
   public removeFilterListener(config: { dataset: string; subfolder: string }, listener: any) {
     const cacheKey = `${config.subfolder || this.subfolder}/${config.dataset}`
@@ -676,6 +677,7 @@ export default class DashboardDataManager {
     filename: string
     vizDetails: any
     cbStatus?: any
+    extra?: boolean
     options: { crs?: string }
   }) {
     return new Promise<NetworkLinks>(async (resolve, reject) => {
@@ -743,6 +745,7 @@ export default class DashboardDataManager {
           fileSystem: this.fileApi,
           vizDetails,
           options,
+          extraColumns: !!props.extra, // include freespeed, length (off by default!)
           isFirefox, // we need this for now, because Firefox bug #260
         })
       } catch (err) {
