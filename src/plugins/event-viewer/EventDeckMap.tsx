@@ -15,7 +15,6 @@ import { REACT_VIEW_HANDLES, MAPBOX_TOKEN } from '@/Globals'
 import ScatterplotColorBinsLayer from '@/plugins/xy-time/ScatterplotColorBinsLayer'
 import MovingIconsLayer from '@/layers/moving-icons/moving-icons-vehicles-layer'
 import globalStore from '@/store'
-import { NetworkLinks } from '@/js/DashboardDataManager'
 
 const BASE_URL = import.meta.env.BASE_URL
 
@@ -29,9 +28,7 @@ const dataFilter = new DataFilterExtension({ filterSize: 1 })
 // -------------------------------------------------------------------
 export default function EventDeckMap({
   viewId = 0,
-  eventLayers = [] as any[],
   eventData = [] as { data: any; timeRange: number[] }[],
-  network = {} as NetworkLinks,
   dark = false,
   colors = [
     [1, 0, 0],

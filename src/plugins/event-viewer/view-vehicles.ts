@@ -6,7 +6,7 @@ export default class EventsHandler {
   private linkIdLookup = {} as any
   private tracker = {} as { [vehId: string]: any }
 
-  // private CHASE = '200824_car'
+  private CHASE = '32994_car' // '172535_bike'
 
   constructor(props: any) {
     this.network = props.network
@@ -27,23 +27,26 @@ export default class EventsHandler {
     } as any
 
     // // chase one vehicle
-    // const verfolgen = {
-    //   t0: [],
-    //   t1: [],
-    //   p0: [],
-    //   p1: [],
-    //   colors: [],
-    // } as any
+    const verfolgen = {
+      t0: [],
+      t1: [],
+      p0: [],
+      p1: [],
+      colors: [],
+    } as any
 
     // go through each set that we received
     for (const eachSet of events) {
-      this.processOneSetOfEvents(eachSet, trips)
+      this.processOneSetOfEvents(eachSet, trips, verfolgen)
     }
 
     // and convert to floatarrays!
     const dataArray = {} as any
     Object.keys(trips).forEach(key => {
       dataArray[key] = new Float32Array(trips[key].flat())
+    })
+    Object.keys(verfolgen).forEach(key => {
+      dataArray[`vv${key}`] = new Float32Array(verfolgen[key].flat())
     })
 
     const timeLastArrival = dataArray.t1.reduce((a: number, b: number) => Math.max(a, b), 0)
@@ -57,10 +60,11 @@ export default class EventsHandler {
       timeLastArrival
     )
 
+    console.log('chased vehicles:', dataArray.vvt0.length)
     return { data: dataArray, timeRange: [dataArray.t0[0], timeLastArrival] }
   }
 
-  processOneSetOfEvents(events: any[], trips: any) {
+  processOneSetOfEvents(events: any[], trips: any, verfolgen: any) {
     // todo: need enters/exits traffic events too
     const linkEvents = events.filter(
       event =>
@@ -105,12 +109,18 @@ export default class EventsHandler {
             // times
             trips.t0.push(prevEvent.time)
             trips.t1.push(event.time)
-            // origLoc
             trips.p0.push([this.network.source[offset], this.network.source[offset + 1]])
-            // destLoc
             trips.p1.push([this.network.dest[offset], this.network.dest[offset + 1]])
             // color code -- now 0.0-1.0 based on freespeed
             trips.colors.push(colorCode)
+
+            // Are we chasing this vehicle? Save it
+            if (event.vehicle === this.CHASE) {
+              verfolgen.t0.push(prevEvent.time)
+              verfolgen.t1.push(event.time)
+              verfolgen.p0.push([this.network.source[offset], this.network.source[offset + 1]])
+              verfolgen.p1.push([this.network.dest[offset], this.network.dest[offset + 1]])
+            }
           } catch (e) {
             console.log('' + e)
           }
