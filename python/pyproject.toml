@@ -1,5 +1,5 @@
 [project]
-version = "4.0.1"
+version = "4.0.3"
 name = "simwrapper"
 description = "Run SimWrapper from Python"
 readme = "README.md"
