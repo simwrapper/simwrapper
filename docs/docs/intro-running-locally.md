@@ -11,8 +11,9 @@ This is the easiest solution for most of you. SimWrapper is a website, but for e
 
 **Shortest path to a running local installation:**
 
-- Install the [uv software manager](https://docs.astral.sh/uv/getting-started/installation/) which is the most modern Python packaging ecosystem out there.
-  It is far, far faster and more error-proof than using pip or other methods.
+Use the [uv software manager](https://docs.astral.sh/uv/) which is the most modern Python packaging ecosystem out there. uv eliminates the problems with virtual environments, messy multiple python versions, etc. It is far, far faster and more error-proof than using pip or other methods.
+- Install uv first if you don't already have it:
+  https://docs.astral.sh/uv/getting-started/installation
 - Run `uv tool install simwrapper` to install simwrapper as a command-line program on your system.
   Read the output from the install command; you might need to edit your PATH to include the program.
 - Now go to the folder containing the data you want to explore, and run `uv tool run simwrapper`
