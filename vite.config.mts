@@ -27,7 +27,7 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    base: '/bleeding/',
+    base: '/',
     build: { sourcemap: false, target: 'esnext' },
     esbuild: { target: 'esnext' },
     optimizeDeps: {
