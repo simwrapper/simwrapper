@@ -1467,6 +1467,7 @@ const MyComponent = defineComponent({
       this.dataCalculatedValueLabel = columnName ?? ''
 
       // Do we need a join? Join it
+      this.$emit('error', '')
       let dataJoinColumn = ''
       if (color.join && color.join !== '@count') {
         // join column name set by user
@@ -1477,7 +1478,14 @@ const MyComponent = defineComponent({
       } else {
         // nothing specified: let's hope they didn't want to join
         if (this.datasetChoices.length > 1) {
-          console.warn('No join; lets hope user just wants to display data in boundary file')
+          const boundaries = this.datasetChoices[0]
+          if (datasetKey !== boundaries) {
+            console.warn('No join; lets hope user just wants to display data in boundary file')
+            this.$emit(
+              'error',
+              `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+            )
+          }
         }
       }
 
@@ -1628,6 +1636,7 @@ const MyComponent = defineComponent({
         this.dataCalculatedValueLabel = columnName ?? ''
 
         // Do we need a join? Join it
+        this.$emit('error', '')
         let dataJoinColumn = ''
         if (color.join && color.join !== '@count') {
           // join column name set by user
@@ -1638,7 +1647,14 @@ const MyComponent = defineComponent({
         } else {
           // nothing specified: let's hope they didn't want to join
           if (this.datasetChoices.length > 1) {
-            console.warn('No join; lets hope user just wants to display data in boundary file')
+            const boundaries = this.datasetChoices[0]
+            if (datasetKey !== boundaries) {
+              console.warn('No join; lets hope user just wants to display data in boundary file')
+              this.$emit(
+                'error',
+                `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+              )
+            }
           }
         }
 
@@ -1797,6 +1813,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (width.join && width.join !== '@count') {
             // join column name set by user
@@ -1807,7 +1824,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -1867,6 +1891,7 @@ const MyComponent = defineComponent({
             throw Error(`Dataset ${datasetKey} does not contain column "${columnName}"`)
 
           // Do we need a join? Join it
+          this.$emit('error', '')
           let dataJoinColumn = ''
           if (height.join && height.join !== '@count') {
             // join column name set by user
@@ -1877,7 +1902,14 @@ const MyComponent = defineComponent({
           } else {
             // nothing specified: let's hope they didn't want to join
             if (this.datasetChoices.length > 1) {
-              console.warn('No join; lets hope user just wants to display data in boundary file')
+              const boundaries = this.datasetChoices[0]
+              if (datasetKey !== boundaries) {
+                console.warn('No join; lets hope user just wants to display data in boundary file')
+                this.$emit(
+                  'error',
+                  `Specify the "Join by" column to link ${datasetKey} dataset values correctly!`
+                )
+              }
             }
           }
 
@@ -2289,6 +2321,7 @@ const MyComponent = defineComponent({
             this.statusText = message
             this.incrementLoadProgress()
           }
+          // true // load extra columns
         )
         // for now convert to shapefile
         const numLinks = network.source.length / 2
@@ -2500,6 +2533,13 @@ const MyComponent = defineComponent({
         allowedModes.values = allowedModes.values.map((v: number) => modeLookup[v])
 
         dataTable = await this.myDataManager.setRowWisePropertyTable(filename, avroTable, config)
+
+        // special case: Avro networks have linkId instead of id, jesus christ!! :-()
+        if ('linkId' in dataTable && !('id' in dataTable)) {
+          dataTable = { id: dataTable.linkId, ...dataTable }
+          dataTable.id.name = 'id'
+        }
+
         // save memory: no longer need the avro input file
         this.avroNetwork = null
       } else {
