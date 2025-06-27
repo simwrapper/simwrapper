@@ -14,10 +14,8 @@ import globalStore from '@/store'
 const BASE_URL = import.meta.env.BASE_URL
 
 const ICON_MAPPING = {
-  marker: { x: 0, y: 0, width: 128, height: 128, mask: true },
-  info: { x: 128, y: 0, width: 128, height: 128, mask: true },
-  vehicle: { x: 128, y: 128, width: 128, height: 128, mask: true },
-  diamond: { x: 0, y: 128, width: 128, height: 128, mask: false },
+  diamond: { x: 0, y: 0, width: 256, height: 256, mask: false },
+  vehicle: { x: 0, y: 0, width: 256, height: 256, mask: true },
 }
 
 const ambientLight = new AmbientLight({
@@ -179,9 +177,9 @@ export default function Component(props: {
           opacity: 1,
           currentTime: simulationTime,
           shadowEnabled: true,
-          iconAtlas: `${BASE_URL}/icon-atlas.png`,
+          iconAtlas: `${BASE_URL}images/veh-curvy5.png`,
           iconMapping: ICON_MAPPING,
-          sizeScale: 1,
+          sizeScale: 0.4,
           billboard: false,
           pickable: true,
           depthTest: true,
@@ -236,14 +234,14 @@ export default function Component(props: {
         getColor: (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
         iconStill: 'diamond',
-        getSize: searchEnabled ? 128 : 128,
+        getSize: 96,
         opacity: 1.0,
         currentTime: simulationTime,
         shadowEnabled: false,
         noAlloc: true,
-        iconAtlas: `${BASE_URL}/icon-atlas.png`,
+        iconAtlas: `${BASE_URL}images/veh-curvy2.png`,
         iconMapping: ICON_MAPPING,
-        sizeScale: 0.5,
+        sizeScale: 0.4,
         billboard: false,
         pickable: true,
         depthTest: true,
@@ -267,8 +265,8 @@ export default function Component(props: {
         getTargetPosition: (d: any) => [d[DRT_REQUEST.toX], d[DRT_REQUEST.toY]],
         getTimeStart: (d: any) => d[DRT_REQUEST.time],
         getTimeEnd: (d: any) => d[DRT_REQUEST.arrival],
-        getSourceColor: [0, 255, 64],
-        getTargetColor: [0, 255, 64],
+        getSourceColor: [255, 0, 255],
+        getTargetColor: [255, 255, 255],
         getWidth: arcWidth,
         opacity: 0.5,
         searchFlag: searchEnabled ? 1.0 : 0.0,

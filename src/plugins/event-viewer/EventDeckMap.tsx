@@ -144,7 +144,7 @@ export default function EventDeckMap({
         latitudeCorrectionFactor,
         currentTime: simulationTime,
         shadowEnabled: false,
-        iconAtlas: `${BASE_URL}veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
+        iconAtlas: `${BASE_URL}images/veh-curvy5.png`, // BASE_URL + '/images/icon-atlas.png',
         iconMapping: ICON_MAPPING,
         sizeScale: 1,
         billboard: false,
