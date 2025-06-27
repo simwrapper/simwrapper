@@ -3,7 +3,7 @@
 This repo contains the interactive visualization website for **SimWrapper**, available at https://simwrapper.github.io
 
 - VSP TU Berlin also has a departmental SimWrapper site at <https://vsp.berlin/simwrapper>
-- DOCS are available at: https://simwrapper.github.io/docs/
+- DOCS available at: https://simwrapper.github.io/docs
 
 This README details build instructions for the website itself.
 
