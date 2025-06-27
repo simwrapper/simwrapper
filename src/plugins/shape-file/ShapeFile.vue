@@ -1586,29 +1586,37 @@ const MyComponent = defineComponent({
       // (note, processFiltersNow() will call this function again once the calcs are done)
       if (isColorDefinition) {
         const dataset = colorOrFilteredDataTable?.dataset as string
-        const { filteredRows } = this.myDataManager.getFilteredDataset({
-          dataset: `${dataset}` || '',
-        })
-        if (filteredRows && filteredRows.length) {
-          this.currentUILineColorDefinitions = colorOrFilteredDataTable
-          this.processFiltersNow(dataset)
-          return
+        if (dataset) {
+          const { filteredRows } = this.myDataManager.getFilteredDataset({
+            dataset: `${dataset}` || '',
+          })
+          if (filteredRows && filteredRows.length) {
+            this.currentUILineColorDefinitions = colorOrFilteredDataTable
+            this.processFiltersNow(dataset)
+            return
+          }
         }
       }
 
-      if (isFilterTable) {
+      const color = colorOrFilteredDataTable as LineColorDefinition
+
+      if (isFilterTable && color.columnName !== '@0') {
         this.paintColorsWithFilter('lineColor', colorOrFilteredDataTable)
         return
       }
 
-      const color = colorOrFilteredDataTable as LineColorDefinition
       this.currentUILineColorDefinitions = color
 
       const columnName = color.columnName
-
       if (color.diffDatasets) {
         // *** diff mode *************************
         this.handleColorDiffMode('lineColor', color)
+        return
+      } else if (columnName === '@0') {
+        // *** no polygon borders!  ***
+        this.dataLineColors = this.isAreaMode ? '' : '#4E7AA7' // default blue
+        this.dataCalculatedValueLabel = ''
+        this.legendStore.clear('Line Color')
         return
       } else if (!columnName) {
         // *** simple color **********************
@@ -2410,11 +2418,11 @@ const MyComponent = defineComponent({
         await this.$nextTick()
         await this.$nextTick()
 
-        // for a big speedup, move properties to its own nabob
         let hasNoLines = true
         let hasNoPolygons = true
         let hasPoints = false
 
+        // for a big speedup, move properties to its own nabob
         boundaries.forEach(b => {
           const properties = b.properties ?? {}
           // geojson sometimes has "id" outside of properties:
@@ -2454,12 +2462,12 @@ const MyComponent = defineComponent({
         this.incrementLoadProgress()
 
         // turn ON line borders if it's a SMALL dataset (user can re-enable)
-        if (!hasNoLines || boundaries.length < 5000) {
-          this.dataLineColors = '#4e79a7'
-        }
+        // if (!hasNoLines || boundaries.length < 5000) {
+        // this.dataLineColors = '#4e79a7'
+        // }
 
         // hide polygon/point buttons and opacity if we have no polygons or we do have points
-        if (!hasNoPolygons || hasPoints) this.isAreaMode = true
+        if (hasPoints || !hasNoPolygons) this.isAreaMode = true
 
         this.statusText = 'Adding boundaries to map'
         await this.$nextTick()

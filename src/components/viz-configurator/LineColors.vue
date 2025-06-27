@@ -6,6 +6,7 @@
     .widget
         p.tight Display
         b-select.selector(expanded v-model="dataColumn")
+          option(label="None" value="@0")
           option(label="Single color" value="@")
 
           optgroup(v-for="dataset in datasetChoices"
@@ -73,7 +74,7 @@
       @click="clickedSingleColor(swatch)")
 
   //- STEPS, REVERSE, COLOR RAMPS
-  .more(v-show="dataColumn && dataColumn.length > 1")
+  .more(v-show="dataColumn && dataColumn !== '@0' && dataColumn.length > 1")
     .widgets
       .widget(style="flex: 3")
         p Steps
@@ -161,7 +162,7 @@ export default defineComponent({
   data: () => {
     return {
       globalState: globalStore.state,
-      dataColumn: '',
+      dataColumn: '@0',
       datasetLabels: [] as string[],
       diffDatasets: [] as string[],
       diffRelative: false,
@@ -317,8 +318,21 @@ export default defineComponent({
     },
 
     emitColorSpecificationDebounced() {
-      // no data
-      if (!this.dataColumn) return
+      if (this.dataColumn == undefined) return
+
+      // no value at all
+      if (this.dataColumn === '') {
+        this.normalSelection = ''
+        this.selectedSingleColor = this.simpleColors[0]
+        this.clickedSingleColor(this.selectedSingleColor)
+        return
+      }
+
+      // no color
+      if (this.dataColumn === '@0') {
+        this.$emit('update', { lineColor: { dataset: '', columnName: '@0' } })
+        return
+      }
 
       // single color
       if (this.dataColumn === '@') {
