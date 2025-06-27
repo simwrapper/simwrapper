@@ -1,0 +1,19 @@
+name: Remote Deploy Staging to GitHub Pages
+
+on:
+  push:
+    branches:
+      - bleeding
+    repository_dispatch:
+
+jobs:
+  notify-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PING bleeding
+        if: github.event.action != 'pong'
+        run: |
+          curl -X POST https://api.github.com/repos/simwrapper/bleeding/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json' \
+          -u ${{ secrets.BUILD_BLEEDING }} \
+          --data '{"event_type": "ping", "client_payload": { "repository": "'"$GITHUB_REPOSITORY"'" }}'
