@@ -13,9 +13,9 @@ Then you can start modifying the configuration YAML files to experiment with set
 
 ## Asking questions and making suggestions
 
-The best place to ask a question is to file a [GitHub issue here](https://github.com/simwrapper/simwrapper/issues). That way, others can also see the question and eventual responses and answers.
+The best place to ask a question is the [SimWrapper discussion board(https://github.com/orgs/simwrapper/discussions) on GitHub. That way, others can also see the question and eventual responses and answers.
 
-- Please label your questions with the label `Question` so we can better filter them from the long list of open bugs and issues.
+- Please label your questions with the label `Q&A` if you're looking for help.
 
 ## Filing bug reports / issues
 
