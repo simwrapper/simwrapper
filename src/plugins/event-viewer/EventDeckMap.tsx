@@ -126,6 +126,7 @@ export default function EventDeckMap({
         // getColor: [30, 208, 170], // brightColors[layerIndex], // 64 + layerIndex * 25, 64, 250 - layerIndex * 30], // (d: any) => props.colors[d.occ],
         iconMoving: 'vehicle',
         iconStill: 'vehicle',
+        isColorOccupancy: true,
         colorMap: [
           // 0: no colors: greenish
           30, 208, 170,
