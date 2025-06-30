@@ -2331,7 +2331,7 @@ const MyComponent = defineComponent({
           }
           // true // load extra columns
         )
-        // for now convert to shapefile
+        // convert to geojson
         const numLinks = network.source.length / 2
         const boundaries = [] as any[]
         for (let i = 0; i < numLinks; i++) {

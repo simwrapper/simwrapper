@@ -692,12 +692,14 @@ const MyComponent = defineComponent({
       this.gzipWorker.onmessage = async (buffer: MessageEvent) => {
         if (buffer.data.status) {
           this.myState.statusMessage = buffer.data.status
+        } else if (buffer.data.projection) {
+          console.log('dataset has a #EPSG:projection, using it', buffer.data.projection)
+          this.vizDetails.projection = buffer.data.projection
         } else if (buffer.data.error) {
           this.myState.statusMessage = buffer.data.error
           this.$emit('error', {
             type: Status.ERROR,
-            msg: `Loading Error`,
-            desc: 'Error loading: ${this.myState.subfolder}/${this.vizDetails.file}',
+            msg: `Error loading: ${this.myState.subfolder}/${this.vizDetails.file}`,
           })
         } else {
           const { rowCache, columnLookup } = buffer.data

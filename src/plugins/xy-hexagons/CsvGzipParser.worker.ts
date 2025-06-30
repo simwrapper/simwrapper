@@ -1,14 +1,13 @@
 /**
  * Load a gzip file, parse its contents and return a set of ArrayBuffers for display.
  */
-import pako from 'pako'
 import Papa from '@simwrapper/papaparse'
 
 import { FileSystemConfig } from '@/Globals'
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import Coords from '@/js/Coords'
 
-import { findMatchingGlobInFiles } from '@/js/util'
+import { gUnzip, findMatchingGlobInFiles } from '@/js/util'
 
 // -----------------------------------------------------------
 onmessage = function (e) {
@@ -91,12 +90,11 @@ async function step1fetchFile(filepath: string, fileSystem: FileSystemConfig) {
     const blob = await httpFileSystem.getFileBlob(expandedFilename)
     if (!blob) throw Error('BLOB IS NULL')
     const buffer = await blob.arrayBuffer()
-    const uint8View = new Uint8Array(buffer)
 
     // this will recursively gunzip until it can gunzip no more:
-    const unzipped = gUnzip(uint8View)
+    const unzipped = await gUnzip(buffer)
 
-    step2examineUnzippedData(unzipped)
+    step2examineUnzippedData(new Uint8Array(unzipped))
   } catch (e) {
     postMessage({ error: 'Error loading: ' + filepath })
     throw Error('LOAD FAIL! ' + filepath)
@@ -109,8 +107,22 @@ function step2examineUnzippedData(unzipped: Uint8Array) {
   // Figure out which columns to save
   const decoder = new TextDecoder()
 
-  const header = decoder.decode(unzipped.subarray(0, 1024)).split('\n')[0]
-  const endOfHeader = header.length
+  let skipLength = 0
+  let header = ''
+  const initialLines = decoder.decode(unzipped.subarray(0, 1024)).split('\n')
+  for (let i = 0; i < 20; i++) {
+    header = initialLines[i]
+    skipLength += header.length
+    if (!header.startsWith('#')) break
+    const epsg = header.indexOf('EPSG')
+    if (epsg > -1) {
+      postMessage({ projection: header.slice(epsg) })
+      proj = header.slice(epsg)
+    }
+  }
+
+  console.log('ok')
+  const endOfHeader = skipLength // header.length
 
   const separator =
     header.indexOf(';') > -1
@@ -195,6 +207,7 @@ function step3parseCSVdata(sections: Uint8Array[]) {
       const text = decoder.decode(section)
 
       Papa.parse(text, {
+        comments: '#',
         header: false,
         // preview: 100,
         skipEmptyLines: true,
@@ -235,18 +248,4 @@ function step3parseCSVdata(sections: Uint8Array[]) {
   }
 
   postResults()
-}
-
-/**
- * This recursive function gunzips the buffer. It is recursive because
- * some combinations of subversion, nginx, and various web browsers
- * can single- or double-gzip .gz files on the wire. It's insane but true.
- */
-function gUnzip(buffer: any): Uint8Array {
-  // GZIP always starts with a magic number, hex $1f8b
-  const header = new Uint8Array(buffer.slice(0, 2))
-  if (header[0] === 0x1f && header[1] === 0x8b) {
-    return gUnzip(pako.inflate(buffer))
-  }
-  return buffer
 }

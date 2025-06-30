@@ -1,8 +1,7 @@
 import AsyncBackgroundWorker, { MethodCall, MethodResult } from '@/workers/AsyncBackgroundWorker'
 import { InitParams, MethodNames } from './XmlFetcherContract'
 
-import pako from 'pako'
-import { parseXML } from '@/js/util'
+import { gUnzip, parseXML } from '@/js/util'
 
 import HTTPFileSystem from '@/js/HTTPFileSystem'
 import { FileSystemConfig } from '@/Globals'
@@ -52,25 +51,10 @@ class XmlFetcher extends AsyncBackgroundWorker {
 
   private async getDataFromBlob(blob: Blob) {
     const data = await blob.arrayBuffer()
-    const cargo = this.gUnzip(data)
+    const cargo = await gUnzip(data)
 
     const text = new TextDecoder('utf-8').decode(cargo)
     return text
-  }
-
-  /**
-   * This recursive function gunzips the buffer. It is recursive because
-   * some combinations of subversion, nginx, and various user browsers
-   * can single- or double-gzip .gz files on the wire. It's insane but true.
-   */
-  private gUnzip(buffer: any): any {
-    // GZIP always starts with a magic number, hex 1f8b
-    const header = new Uint8Array(buffer.slice(0, 2))
-    if (header[0] === 31 && header[1] === 139) {
-      return this.gUnzip(pako.inflate(buffer))
-    }
-
-    return buffer
   }
 }
 

@@ -650,7 +650,7 @@ const MyComponent = defineComponent({
 
       try {
         const buffer = await file.arrayBuffer()
-        const rawtext = gUnzip(buffer)
+        const rawtext = await gUnzip(buffer)
         const text = new TextDecoder('utf-8').decode(rawtext)
         const geojson = JSON.parse(text)
 

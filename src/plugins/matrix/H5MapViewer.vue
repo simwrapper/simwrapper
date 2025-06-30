@@ -662,7 +662,7 @@ const MyComponent = defineComponent({
             blob = await fetch(localPath).then(async r => await r.blob())
           }
           const buffer = await blob.arrayBuffer()
-          const rawtext = gUnzip(buffer)
+          const rawtext = await gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(rawtext)
           const json = JSON.parse(text)
           boundaries = json.features

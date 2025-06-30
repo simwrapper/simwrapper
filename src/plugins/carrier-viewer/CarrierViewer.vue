@@ -416,7 +416,6 @@ const CarrierPlugin = defineComponent({
         } else {
           shipmentIdsInTour.push(activity.$shipmentId)
           shipment = this.shipmentLookup[activity.$shipmentId]
-
         }
 
         if (!shipment) continue
@@ -657,9 +656,7 @@ const CarrierPlugin = defineComponent({
       this.shipments = this.processShipments(carrier)
 
       if (carrier.services?.service?.length)
-        this.services = carrier.services.service.sort((a: any, b: any) =>
-          naturalSort(a.$id, b.$id)
-        )
+        this.services = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
 
       this.tours = this.processTours(carrier)
 
@@ -766,23 +763,18 @@ const CarrierPlugin = defineComponent({
       var shipments = []
       // if there are no shipments, look for services
       if (!carrier.shipments?.shipment?.length) {
-        if ((!carrier.services?.service?.length)) {
+        if (!carrier.services?.service?.length) {
           return []
         } else {
-          shipments = carrier.services.service.sort((a: any, b: any) =>
-            naturalSort(a.$id, b.$id)
-          )
+          shipments = carrier.services.service.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
           this.processServices(carrier, shipments)
         }
       } else {
-        shipments = carrier.shipments.shipment.sort((a: any, b: any) =>
-          naturalSort(a.$id, b.$id)
-        )
+        shipments = carrier.shipments.shipment.sort((a: any, b: any) => naturalSort(a.$id, b.$id))
       }
 
       try {
         for (const shipment of shipments) {
-
           // shipment has link id, so we go from link.from to link.to
           shipment.fromX = 0.5 * (this.links[shipment.$from][0] + this.links[shipment.$from][2])
           shipment.fromY = 0.5 * (this.links[shipment.$from][1] + this.links[shipment.$from][3])
@@ -799,7 +791,6 @@ const CarrierPlugin = defineComponent({
     },
 
     processServices(carrier: any, shipments: any[]) {
-
       // *** For each service, we lookup check the plans for an act with the service_id that matches,
       // then take the first link of that corresponding leg's route.
       // That is then the from link and the to link we grabe from the service object. ***
@@ -811,7 +802,7 @@ const CarrierPlugin = defineComponent({
           // shipment has link id, so we go from link.from to link.to
           shipment.toX = 0.5 * (this.links[shipment.$to][0] + this.links[shipment.$to][2])
           shipment.toY = 0.5 * (this.links[shipment.$to][1] + this.links[shipment.$to][3])
-          shipment.type = "service"
+          shipment.type = 'service'
 
           this.shipmentLookup[shipment.$id] = shipment
           console.log(shipment)
@@ -999,7 +990,7 @@ const CarrierPlugin = defineComponent({
       this.selectAllTours()
     },
 
-    updateLegendColors() { },
+    updateLegendColors() {},
 
     async loadCarriers() {
       // this.myState.statusMessage = '' + this.$i18n.t('message.tours')
@@ -1142,7 +1133,7 @@ const CarrierPlugin = defineComponent({
           const blob = await this.fileApi.getFileBlob(filepath)
           const buffer = await blob.arrayBuffer()
           // recursively gunzip until it can gunzip no more:
-          const unzipped = gUnzip(buffer)
+          const unzipped = await gUnzip(buffer)
           const text = new TextDecoder('utf-8').decode(unzipped)
           return text
         }

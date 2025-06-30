@@ -1,6 +1,7 @@
 import micromatch from 'micromatch'
-import pako from 'pako'
 import naturalSort from 'javascript-natural-sort'
+
+import { gUnzip } from '@/js/util'
 
 import {
   DirectoryEntry,
@@ -394,7 +395,7 @@ class HTTPFileSystem {
     const buffer = await blob.arrayBuffer()
 
     // recursively gunzip until it can gunzip no more:
-    const unzipped = this.gUnzip(buffer)
+    const unzipped = await gUnzip(buffer)
     const text = new TextDecoder('utf-8').decode(unzipped)
 
     return JSON.parse(text)
@@ -740,20 +741,6 @@ class HTTPFileSystem {
       }
     }
     return { dirs, files, handles: {} }
-  }
-
-  /**
-   * This recursive function gunzips the buffer. It is recursive because
-   * some combinations of subversion, nginx, and various web browsers
-   * can single- or double-gzip .gz files on the wire. It's insane but true.
-   */
-  private gUnzip(buffer: any): Uint8Array {
-    // GZIP always starts with a magic number, hex $8b1f
-    const header = new Uint8Array(buffer.slice(0, 2))
-    if (header[0] === 0x1f && header[1] === 0x8b) {
-      return this.gUnzip(pako.inflate(buffer))
-    }
-    return buffer
   }
 }
 
