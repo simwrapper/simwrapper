@@ -137,6 +137,7 @@
     "vueperslides": "^2.15.2",
     "vuera": "^0.2.7",
     "vuex": "^3.1.3",
+    "xml-network-parser": "file:wasm/xml-network-parser/pkg",
     "yaml": "^1.7.2"
   },
   "devDependencies": {
