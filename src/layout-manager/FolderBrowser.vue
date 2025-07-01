@@ -605,14 +605,14 @@ export default defineComponent({
 @import '@/styles.scss';
 
 .folder-browser {
-  padding: 0 0.75rem;
+  padding: 0 0;
   background-image: var(--bgSplashPage);
 }
 
 .vessel {
-  margin: 0 0;
-  padding: 0rem 0rem 2rem 0rem;
-  max-width: $dashboardWidth + 3;
+  margin: 0 auto;
+  padding: 0rem 2rem 2rem 2rem;
+  max-width: 100rem;
 }
 
 h2 {
