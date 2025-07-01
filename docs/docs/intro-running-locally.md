@@ -16,6 +16,8 @@ This is the easiest solution for most situations. SimWrapper has been packaged a
 Use the [uv software manager](https://docs.astral.sh/uv/). uv is the modern replacement for all previous python software management tools like pip, poetry, virtualenv, etc. It eliminates the problems with virtual environments, messy multiple Python versions, etc. It is far, far faster and more error-proof than using pip or other methods!
 - Install uv first if you don't already have it:
   https://docs.astral.sh/uv/getting-started/installation
+- uv will use your local install of Python. If you don't have Python or have an old Python < 3.8, let uv install a recent python for you (no, this won't mess up any of your existing python installations!):
+  - `uv python install 3.11`
 - Go to the folder containing the data you want to explore, and run 
   - `uvx simwrapper run` 
 - There's no step 3! SimWrapper is now running at http://127.0.0.1:4999 or http://localhost:4999
