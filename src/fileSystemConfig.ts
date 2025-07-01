@@ -181,8 +181,8 @@ let fileSystems: FileSystemConfig[] = [
   {
     name: 'Localhost:8000',
     slug: 'local',
-    description: 'Files shared using "simwrapper serve"',
-    baseURL: 'http://localhost:8000',
+    description: 'Files shared using "simwrapper serve" on http://127.0.0.1:8000',
+    baseURL: 'http://127.0.0.1:8000',
     thumbnail: '/simwrapper/images/thumb-localfiles.jpg',
   },
   {
