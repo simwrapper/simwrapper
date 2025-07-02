@@ -7,6 +7,7 @@ import colormap from 'colormap'
 
 import globalStore from '@/store'
 import { MAPBOX_TOKEN, REACT_VIEW_HANDLES } from '@/Globals'
+import { NewRowCache } from './CsvGzipParser.worker'
 
 const material = {
   ambient: 0.64,
@@ -19,44 +20,44 @@ const material = {
 export default function Layer({
   viewId = 0,
   colorRamp = 'chlorophyll',
-  coverage = 0.65,
+  coverage = 1, // 0.65,
   dark = false,
-  data = { raw: new Float32Array(0), length: 0 },
+  data = null as null | NewRowCache, // { raw: new Float32Array(0), length: 0 },
   extrude = true,
-  highlights = [],
+  highlights = [] as number[][],
   mapIsIndependent = false,
   maxHeight = 200,
-  metric = 'Count',
-  radius = 100,
+  metric = 'SUM',
+  radius = 1000,
   selectedHexStats = { rows: 0, numHexagons: 0, selectedHexagonIds: [] },
   upperPercentile = 100,
   onClick = {} as any,
+  agg = 0,
 }) {
   // manage SimWrapper centralized viewState - for linked maps
   const [viewState, setViewState] = useState(globalStore.state.viewState)
 
-  // useMemo: row data only gets recalculated what data or highlights change
-  const rows = useMemo(() => {
-    let rows = [] as any
-    // is data filtered or not?
-    if (highlights.length) {
-      rows = highlights.map(row => row[1])
-    } else if (!data.length) {
-      rows = []
-    } else {
-      rows = {
-        length: data.length,
-        attributes: {
-          getPosition: { value: data.raw, size: 2 },
-        },
-      } as any
-    }
-    return rows
-  }, [data, highlights]) as any
-
   REACT_VIEW_HANDLES[viewId] = () => {
     setViewState(globalStore.state.viewState)
   }
+
+  // useMemo: row data only gets recalculated what data or highlights change
+  const rows = useMemo(() => {
+    let rows = [] as any
+    let weights = new Float32Array()
+    // is data filtered or not?
+    if (highlights.length) {
+      return highlights.map((h: any) => h[1])
+    } else if (!data || !data.length) {
+      return rows
+    } else {
+      weights = new Float32Array(data.length)
+      for (let i = 0; i < data.length; i++) {
+        weights[i] = data.column[i] == agg ? 1 : 0
+      }
+      return weights
+    }
+  }, [data, highlights, agg, radius]) as any
 
   function handleViewState(view: any) {
     if (!view.latitude) return
@@ -102,6 +103,18 @@ export default function Layer({
     onClick(target, event)
   }
 
+  const config = highlights.length
+    ? {
+        getPosition: (d: any) => d,
+        getColorWeight: 1.0,
+        getElevationWeight: 1.0,
+      }
+    : {
+        getPosition: (_: any, o: any) => data?.positions.slice(o.index * 2, o.index * 2 + 2),
+        getColorWeight: (d: any) => d,
+        getElevationWeight: (d: any) => d,
+      }
+
   const layers = [
     new ArcLayer({
       id: 'arc-layer',
@@ -116,28 +129,41 @@ export default function Layer({
       getTargetColor: dark ? [144, 96, 128] : [192, 192, 240],
     }),
 
-    new HexagonLayer({
-      id: 'hexlayer',
-      data: rows,
-      getPosition: highlights.length ? (d: any) => d : null,
-      colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
-      coverage,
-      autoHighlight: true,
-      elevationRange: [0, maxHeight],
-      elevationScale: data && data.length ? 50 : 0,
-      extruded: extrude,
-      selectedHexStats,
-      // hexagonAggregator: pointToHexbin,
-      pickable: true,
-      opacity: 0.7, // dark && highlights.length ? 0.6 : 0.8,
-      radius,
-      upperPercentile,
-      material,
-      transitions: {
-        elevationScale: { type: 'interpolation', duration: 1000 },
-        opacity: { type: 'interpolation', duration: 200 },
-      },
-    }),
+    new HexagonLayer(
+      Object.assign(config, {
+        id: 'hexlayer',
+        data: rows,
+        // getPosition: highlights.length
+        //   ? (d: any, _: any) => d
+        //   : (_: any, o: any) => data?.positions.slice(o.index * 2, o.index * 2 + 2),
+        // getColorWeight: (d: any, o: any) => d,
+        // getElevationWeight: (d: any, o: any) => d,
+        colorRange: dark ? colors.slice(1) : colors.reverse().slice(1),
+        colorAggregation: 'SUM',
+        coverage,
+        autoHighlight: true,
+        elevationRange: [0, maxHeight],
+        elevationScale: data && data.length ? 25 : 0,
+        extruded: extrude,
+        gpuAggregation: true,
+        selectedHexStats,
+        // hexagonAggregator: pointToHexbin,
+        pickable: true,
+        opacity: 0.75, // dark && highlights.length ? 0.6 : 0.8,
+        radius,
+        upperPercentile,
+        material,
+        positionFormat: 'XY',
+        updateTriggers: {
+          getElevationWeight: agg,
+          getColorWeight: agg,
+        },
+        transitions: {
+          elevationScale: { type: 'interpolation', duration: 1000 },
+          opacity: { type: 'interpolation', duration: 200 },
+        },
+      })
+    ),
   ]
 
   return (
